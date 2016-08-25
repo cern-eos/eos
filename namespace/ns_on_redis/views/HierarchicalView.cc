@@ -409,7 +409,7 @@ HierarchicalView::getContainer(const std::string& uri, bool follow,
 }
 
 //------------------------------------------------------------------------------
-// Create a container (directory)
+// Create container - method eventually consistent
 //------------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
 HierarchicalView::createContainer(const std::string& uri, bool createParents)
@@ -456,7 +456,10 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
     throw e;
   }
 
-  // Create the container with all missing parents if required
+  // Create the container with all missing parents if required. If a crash
+  // happens during the addContainer call and the updateContainerStore then
+  // we curate the list of subcontainers in the ContainerMD::findContainer
+  // method.
   for (size_t i = position; i < elements.size(); ++i) {
     std::shared_ptr<IContainerMD> newContainer{
       pContainerSvc->createContainer()};
@@ -471,7 +474,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
 }
 
 //------------------------------------------------------------------------------
-// Remove a container (directory)
+// Remove container
 //------------------------------------------------------------------------------
 void
 HierarchicalView::removeContainer(const std::string& uri, bool recursive)
@@ -488,8 +491,7 @@ HierarchicalView::removeContainer(const std::string& uri, bool recursive)
   std::vector<char*> elements;
   eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
   size_t position;
-  std::shared_ptr<IContainerMD> parent =
-    findLastContainer(elements, elements.size() - 1, position);
+  auto parent = findLastContainer(elements, elements.size() - 1, position);
 
   if ((position != (elements.size() - 1))) {
     MDException e(ENOENT);
@@ -498,8 +500,7 @@ HierarchicalView::removeContainer(const std::string& uri, bool recursive)
   }
 
   // Check if the container exist and remove it
-  std::shared_ptr<IContainerMD> cont{
-    parent->findContainer(elements[elements.size() - 1])};
+  auto cont = parent->findContainer(elements[elements.size() - 1]);
 
   if (!cont) {
     MDException e(ENOENT);
@@ -539,7 +540,7 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
     found = current->findContainer(elements[position]);
 
     if (!found) {
-      // check if link
+      // Check if link
       std::shared_ptr<IFileMD> flink = current->findFile(elements[position]);
 
       if (flink) {

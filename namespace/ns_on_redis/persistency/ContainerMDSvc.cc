@@ -150,8 +150,6 @@ ContainerMDSvc::updateStore(IContainerMD* obj)
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
     throw e;
   }
-
-  notifyListeners(obj, IContainerMDChangeListener::Updated);
 }
 
 //----------------------------------------------------------------------------
@@ -160,8 +158,7 @@ ContainerMDSvc::updateStore(IContainerMD* obj)
 void
 ContainerMDSvc::removeContainer(IContainerMD* obj)
 {
-  // Protection in case the container is not empty i.e check that it doesn't
-  // hold any files or subcontainers
+  // Protection in case the container is not empty
   if ((obj->getNumFiles() != 0) || (obj->getNumContainers() != 0)) {
     MDException e(EINVAL);
     e.getMessage() << "Failed to remove container #" << obj->getId()
@@ -173,8 +170,6 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
     std::string sid = stringify(obj->getId());
     redox::RedoxHash bucket_map(*pRedox, getBucketKey(obj->getId()));
     bucket_map.hdel(sid);
-    //redox::RedoxSet check_conts(*pRedox, constants::sSetCheckConts);
-    //check_conts.srem(sid);
   } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << obj->getId() << " not found. "
@@ -187,7 +182,6 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
     (void)pRedox->del(constants::sMapMetaInfoKey);
   }
 
-  notifyListeners(obj, IContainerMDChangeListener::Deleted);
   mContainerCache.remove(obj->getId());
 }
 

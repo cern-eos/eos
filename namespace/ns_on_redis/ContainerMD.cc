@@ -41,9 +41,10 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
     pFilesMap(*pRedox, pFilesKey), pDirsMap(*pRedox, pDirsKey),
     mDirsMap(), mFilesMap(), mErrors(), mMutex(), mAsyncCv(), mNumAsyncReq(0)
 {
+  // Notification callback used by Redox client
   mNotificationCb = [&](redox::Command<int>& c) {
-    // Use this callback for del, hdel and hset operations. The return value in
-    // all these cases should be 1 except for HDEL/DEL which can be 0.
+    // The return value in all these cases should be 1 except for HDEL/DEL
+    // when it can also be 0.
     bool failed = false;
     std::string cmd = c.cmd();
     std::string op = cmd.substr(0, cmd.find(' '));
@@ -70,6 +71,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
       mAsyncCv.notify_one();
     }
   };
+  // Wrapper callback accounts for the number of requests in-flight
   mWrapperCb = [&]() -> decltype(mNotificationCb) {
     ++mNumAsyncReq;
     return mNotificationCb;
@@ -91,15 +93,19 @@ ContainerMD::~ContainerMD()
 std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
-  IContainerMD::id_t id;
   auto iter = mDirsMap.find(name);
 
   if (iter == mDirsMap.end()) {
     return std::shared_ptr<IContainerMD>(nullptr);
   }
 
-  id = iter->second;
-  auto cont = pContSvc->getContainerMD(id);
+  std::shared_ptr<IContainerMD> cont(nullptr);
+
+  try {
+    cont = pContSvc->getContainerMD(iter->second);
+  } catch (MDException& ex) {
+    cont.reset();
+  }
 
   // Curate the list of subcontainers in case entry is not found
   if (cont == nullptr) {
@@ -128,19 +134,11 @@ ContainerMD::removeContainer(const std::string& name)
 
   // Do async call to KV backend
   try {
-    pDirsMap.hdel(name, mWrapperCb());
+    pDirsMap.hdel(name);
   } catch (std::runtime_error& redis_err) {
-    mNumAsyncReq--;
     MDException e(ENOENT);
     e.getMessage() << "Container " << name << " not found or KV-backend "
                    << "connection error";
-    throw e;
-  }
-
-  if (!waitAsyncReplies()) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container " << name << " error contacting KV-store in "
-                   << __FUNCTION__;
     throw e;
   }
 }
@@ -161,6 +159,7 @@ ContainerMD::addContainer(IContainerMD* container)
     throw e;
   }
 
+  // Add to new container to KV backend
   try {
     pDirsMap.hset(container->getName(), container->getId());
   } catch (std::runtime_error& redis_err) {
@@ -177,30 +176,29 @@ ContainerMD::addContainer(IContainerMD* container)
 std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
-  IFileMD::id_t id;
   auto iter = mFilesMap.find(name);
 
   if (iter == mFilesMap.end()) {
     return std::shared_ptr<IFileMD>(nullptr);
   }
 
-  id = iter->second;
+  std::shared_ptr<IFileMD> file(nullptr);
 
   try {
-    return pFileSvc->getFileMD(id);
+    file = pFileSvc->getFileMD(iter->second);
   } catch (MDException& e) {
-    // File does not exist so we remove it from the list of files in the
-    // current container
-    mFilesMap.erase(iter);
-
-    try {
-      pFilesMap.hdel(stringify(id));
-    } catch (std::runtime_error& redis_err) {
-      // nothing to do
-    }
-
-    return nullptr;
+    file.reset();
   }
+
+  // Curate the list of files in case file entry is not found
+  if (file == nullptr) {
+    mFilesMap.erase(iter);
+    pFilesMap.hdel(stringify(iter->second));
+    fprintf(stderr, "Container name=%s, cid=%lu, file name=%s, fid=%lu not "
+            "found\n", pName.c_str(), pId, name.c_str(), iter->second);
+  }
+
+  return file;
 }
 
 //------------------------------------------------------------------------------
