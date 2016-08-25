@@ -54,7 +54,6 @@ static const std::string ARCH_LOG = ".archive.log";
 int
 ProcCommand::Archive()
 {
-
   struct stat statinfo;
   std::ostringstream cmd_json;
   std::string option = (pOpaque->Get("mgm.archive.option") ?
@@ -73,8 +72,7 @@ ProcCommand::Archive()
       cmd_json << "{\"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
                << "\"opt\": " <<  "\"" << option << "\", "
                << "\"uid\": " << "\"" << pVid->uid << "\", "
-               << "\"gid\": " << "\"" << pVid->gid << "\", "
-               << "\"format\": " << "\"pretty\" "
+               << "\"gid\": " << "\"" << pVid->gid << "\" "
                << "}";
     }
   }
@@ -109,91 +107,16 @@ ProcCommand::Archive()
     if (spath[spath.length() - 1] != '/')
       spath += '/';
 
-    std::vector<ArchDirStatus> arch_dirs = ArchiveGetDirs(spath.c_str());
-    std::set<std::string> transfer_dirs;
-
     // First get the list of the ongoing transfers
     cmd_json << "{\"cmd\": \"transfers\", "
              << "\"opt\": \"all\", "
              << "\"uid\": \"" << pVid->uid << "\", "
-             << "\"gid\": \"" << pVid->gid << "\", "
-             << "\"format\": \"monitor\" "
+             << "\"gid\": \"" << pVid->gid << "\" "
              << "}";
-
-    retc = ArchiveExecuteCmd(cmd_json.str());
-
-    if (!retc)
-    {
-      // Parse response from the archiver regarding ongoing transfers
-      size_t pos;
-      std::istringstream iss(stdOut.c_str());
-      std::string entry, key, value;
-      stdOut = "";
-
-      while (std::getline(iss, entry, '|'))
-      {
-        pos = entry.find('=');
-
-        if (pos == std::string::npos)
-        {
-          stdErr = "error: archive response not in expected format";
-          retc = EINVAL;
-          break;
-        }
-
-        key = entry.substr(0, pos);
-        value = entry.substr(pos + 1);
-
-        if (key == "path")
-          transfer_dirs.insert(value);
-      }
-    }
-
-    // Create the table for displaying archive status informations
-    std::string sdate;
-    size_t max_path_len = 0;
-    ArchiveUpdateStatus(arch_dirs, transfer_dirs, max_path_len);
-    std::vector<size_t> col_size = {30, max_path_len + 5, 16};
-    std::ostringstream oss;
-    oss << '|' << std::setfill('-') << std::setw(col_size[0] + 1)
-        << '|' << std::setw(col_size[1] + 1)
-        << '|' << std::setw(col_size[2] + 1)
-        << '|' << std::setfill(' ');
-    std::string line = oss.str();
-    oss.str("");
-    oss.clear();
-
-    // Add tabel header
-    oss << line << std::endl
-        << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
-        << "Creation date"
-        << '|' << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
-        << "Path"
-        << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
-        << "Status"
-        << '|'
-        << std::endl << line << std::endl;
-
-    for (auto dir = arch_dirs.begin(); dir != arch_dirs.end(); ++dir)
-    {
-      sdate = asctime(localtime(&dir->ctime));
-      sdate.erase(sdate.find('\n'));
-      oss << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
-          << sdate
-          << '|' << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
-          << dir->path
-          << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
-          << dir->status
-          << '|'
-          << std::endl;
-    }
-
-    oss << line << std::endl;
-    stdOut = oss.str().c_str();
-    return SFS_OK;
   }
   else
   {
+    // Archive/backup transfer operation
     XrdOucString spath = pOpaque->Get("mgm.archive.path");
     const char* inpath = spath.c_str();
     NAMESPACEMAP;
@@ -286,7 +209,12 @@ ProcCommand::Archive()
         return SFS_OK;
       }
 
-      ArchiveCreate(spath.c_str(), surl, vect_files, fid);
+      if (MakeSubTreeImmutable(spath.c_str(), vect_files))
+      {
+        return retc;
+      }
+
+      ArchiveCreate(spath.c_str(), surl, fid);
       return SFS_OK;
     }
     else if ((mSubCmd == "put") ||
@@ -307,7 +235,7 @@ ProcCommand::Archive()
           arch_err += ARCH_PUT_ERR;
           arch_url += ARCH_PUT_ERR;
         }
-        else if (mSubCmd == "get") // get retry
+        else if (mSubCmd == "get")
         {
           arch_err += ARCH_GET_ERR;
           arch_url += ARCH_GET_ERR;
@@ -448,12 +376,245 @@ ProcCommand::Archive()
 
   // Send request to archiver process if no error occured
   if (!retc)
-    retc = ArchiveExecuteCmd(cmd_json.str());
+  {
+    // Do formatting if this is a listing command
+    if ((mSubCmd == "list") || (mSubCmd == "transfers"))
+    {
+      ArchiveFormatListing(cmd_json.str());
+    }
+    else {
+      retc = ArchiveExecuteCmd(cmd_json.str());
+    }
+  }
+
 
   eos_debug("retc=%i, stdOut=%s, stdErr=%s", retc, stdOut.c_str(), stdErr.c_str());
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Format listing output. Includes combining the information that we get
+// from the archiver daemon with the list of pending transfers at the MGM.
+//------------------------------------------------------------------------------
+void
+ProcCommand::ArchiveFormatListing(const std::string& cmd_json)
+{
+  // Parse response from the archiver regarding ongoing transfers
+  size_t pos;
+  size_t max_path_len = 64;
+  std::string entry, token, key, value;
+  std::map<std::string, std::string> map_info;
+  std::vector<ArchDirStatus> tx_dirs;
+  std::vector<ArchDirStatus> bkps;
+
+  // For "transfers" command now list of pending backups to avoid false reporting
+  if (mSubCmd == "transfers") {
+    bkps = gOFS->GetPendingBkps();
+  }
+
+  // Get list of ongoing transfers from the archiver daemon
+  if (ArchiveExecuteCmd(cmd_json)) {
+    return;
+  }
+
+  std::istringstream iss(stdOut.c_str());
+  stdOut = "";
+
+  while (std::getline(iss, entry, '\n'))
+  {
+    // Entry has the following format:
+    //date=%s,uuid=%s,path=%s,op=%s,status=%s
+    entry += ','; // for easier parsing
+
+    while ((pos = entry.find(',')) != std::string::npos)
+    {
+      token = entry.substr(0, pos);
+      entry = entry.substr(pos + 1);
+      pos = token.find('=');
+
+      if (pos == std::string::npos)
+      {
+        stdErr = "error: unexpected archive response format";
+        retc = EINVAL;
+        return;
+      }
+
+      key = token.substr(0, pos);
+      value = token.substr(pos + 1);
+      map_info[key] = value;
+    }
+
+    if (map_info.size() != 5)
+    {
+      stdErr = "error: incomplete archive response information";
+      retc = EINVAL;
+      return;
+    }
+
+    tx_dirs.emplace_back(map_info["date"], map_info["uuid"],
+                         map_info["path"], map_info["op"],
+                         map_info["status"]);
+
+    // Save max path lenght for formatting purposes
+    if (max_path_len < map_info["path"].length()) {
+      max_path_len = map_info["path"].length();
+    }
+
+    map_info.clear();
+  }
+
+  // For the list command print only information about the existing archived
+  // directories and their status
+  if (mSubCmd == "list")
+  {
+    // Create the table for displaying archive status informations
+    std::string spath = (pOpaque->Get("mgm.archive.path") ?
+                         pOpaque->Get("mgm.archive.path") : "/");
+    std::vector<ArchDirStatus> archive_dirs = ArchiveGetDirs(spath.c_str());
+    ArchiveUpdateStatus(archive_dirs, tx_dirs, max_path_len);
+    std::vector<size_t> col_size = {30, max_path_len + 5, 16};
+    std::ostringstream oss;
+    oss << '|' << std::setfill('-') << std::setw(col_size[0] + 1)
+        << '|' << std::setw(col_size[1] + 1)
+        << '|' << std::setw(col_size[2] + 1)
+        << '|' << std::setfill(' ');
+    std::string line = oss.str();
+    oss.str("");
+    oss.clear();
+
+    // Add table header
+    oss << line << std::endl
+        << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
+        << "Creation date"
+        << '|' << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
+        << "Path"
+        << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
+        << "Status"
+        << '|'
+        << std::endl << line << std::endl;
+
+    for (auto dir = archive_dirs.begin(); dir != archive_dirs.end(); ++dir)
+    {
+      oss << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
+          << dir->mTime
+          << '|' << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
+          << dir->mPath
+          << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
+          << dir->mStatus
+          << '|'
+          << std::endl << line << std::endl;
+    }
+
+    stdOut = oss.str().c_str();
+  }
+  else if (mSubCmd == "transfers")
+  {
+    // Remove those pending backup transfers that were submitted to the archive
+    // daemon in the meantime. We need this as getting the pending backups and
+    // the ongoing transfers from the archiver is not atomic.
+    bool skip;
+
+    for (auto pending = bkps.begin(); pending != bkps.end(); /*empty*/)
+    {
+      skip = false;
+
+      for (auto tx = tx_dirs.begin(); tx != tx_dirs.end(); ++tx)
+      {
+        if (tx->mPath == pending->mPath) {
+          bkps.erase(pending++);
+          skip = true;
+          break;
+        }
+      }
+
+      if (!skip) {
+        if (max_path_len < pending->mPath.length()) {
+          max_path_len = pending->mPath.length();
+        }
+
+        // Advance iterator
+        pending++;
+      }
+    }
+
+    // For "transfers" command print status of onging transfers based on the reply
+    // from the archive daemon
+    std::vector<size_t> col_size = {26, max_path_len + 7, 16, 24};
+    std::ostringstream oss;
+    oss << '|' << std::setfill('-') << std::setw(col_size[0] + 1)
+        << '|' << std::setw(col_size[1] + 1)
+        << '|' << std::setw(col_size[2] + 1)
+        << '|' << std::setw(col_size[3] + 1)
+        << '|' << std::setfill(' ');
+    std::string line = oss.str();
+    oss.str("");
+    oss.clear();
+
+    // Add table header
+    oss << line << std::endl
+        << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
+        << "Start time"
+        << '|' << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
+        << "Transfer info"
+        << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
+        << "Operation"
+        << '|' << std::setw(col_size[3]) << std::setiosflags(std::ios_base::left)
+        << "Status"
+        << '|'
+        << std::endl << line << std::endl;
+
+    for (auto dir = tx_dirs.begin(); dir != tx_dirs.end(); ++dir)
+    {
+      oss << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
+          << dir->mTime
+          << '|' << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
+          <<  ("Uuid: " + dir->mUuid)
+          << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
+          << dir->mOp
+          << '|' << std::setw(col_size[3]) << std::setiosflags(std::ios_base::left)
+          << dir->mStatus
+          << '|'
+          << std::endl
+          << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
+          << ' '
+          << '|' << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
+          << ("Path: " + dir->mPath)
+          << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
+          << ' '
+          << '|' << std::setw(col_size[3]) << std::setiosflags(std::ios_base::left)
+          << ' '
+          << '|'
+          << std::endl << line << std::endl;
+    }
+
+    // Append set of pending backup transfers at the MGM
+    for (auto it = bkps.begin(); it != bkps.end(); ++it)
+    {
+      oss << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
+          << it->mTime
+          << '|'  << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
+          << ("Uuid: " + it->mUuid)
+          << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
+          << it->mOp
+          << '|' << std::setw(col_size[3]) << std::setiosflags(std::ios_base::left)
+          << it->mStatus
+          << '|'
+          << std::endl
+          << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
+          << ' '
+          << '|' << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
+          << ("Path: " + it->mPath)
+          << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
+          << ' '
+          << '|' << std::setw(col_size[3]) << std::setiosflags(std::ios_base::left)
+          << ' '
+          << '|'
+          << std::endl << line << std::endl;
+    }
+
+    stdOut = oss.str().c_str();
+  }
+}
 
 //------------------------------------------------------------------------------
 // Get archive status for both already archived directories as well as for dirs
@@ -461,9 +622,11 @@ ProcCommand::Archive()
 //------------------------------------------------------------------------------
 void
 ProcCommand::ArchiveUpdateStatus(std::vector<ProcCommand::ArchDirStatus>& dirs,
-                                 const std::set<std::string>& tx_dirs,
-                                 size_t& max_len_path)
+                                 std::vector<ProcCommand::ArchDirStatus>& tx_dirs,
+                                 size_t& max_path_length)
 {
+  max_path_length = 0;
+  bool found = false;
   std::string path;
   std::vector<std::string> vect_files = {ARCH_INIT, ARCH_PUT_DONE, ARCH_PUT_ERR,
                                          ARCH_GET_DONE, ARCH_GET_ERR, ARCH_PURGE_ERR,
@@ -473,46 +636,58 @@ ProcCommand::ArchiveUpdateStatus(std::vector<ProcCommand::ArchDirStatus>& dirs,
 
   for (auto dir = dirs.begin(); dir != dirs.end(); ++dir)
   {
-    // Update the max path length
-    if (dir->path.length() > max_len_path)
-      max_len_path = dir->path.length();
+    if (max_path_length < dir->mPath.length()) {
+      max_path_length = dir->mPath.length();
+    }
 
-    if (tx_dirs.find(dir->path) != tx_dirs.end())
+    found = false;
+
+    for (auto it = tx_dirs.begin(); it != tx_dirs.end(); ++it)
     {
-      dir->status = "transferring";
+      if (dir->mPath == it->mPath)
+      {
+        found = true;
+        break;
+      }
+    }
+
+    if (found)
+    {
+      dir->mStatus = "transferring";
     }
     else
     {
+      XrdCl::URL url(dir->mPath);
+
       for (auto st_file = vect_files.begin(); st_file != vect_files.end(); ++st_file)
       {
-        path = dir->path + *st_file;
+        path = url.GetPath() + *st_file;
 
-        if (gOFS->_exists(path.c_str(), exists_flag, out_error) == SFS_OK &&
-            ((exists_flag & XrdSfsFileExistIsFile) == true ))
+        if ((gOFS->_exists(path.c_str(), exists_flag, out_error) == SFS_OK) &&
+            ((exists_flag & XrdSfsFileExistIsFile) == true))
         {
           if (*st_file == ARCH_INIT)
-            dir->status = "created";
+            dir->mStatus = "created";
           else if (*st_file == ARCH_PUT_DONE)
-            dir->status = "put done";
+            dir->mStatus = "put done";
           else if (*st_file == ARCH_PUT_ERR)
-            dir->status = "put failed";
+            dir->mStatus = "put failed";
           else if (*st_file == ARCH_GET_DONE)
-            dir->status = "get done";
+            dir->mStatus = "get done";
           else if (*st_file == ARCH_GET_ERR)
-            dir->status = "get failed";
+            dir->mStatus = "get failed";
           else if (*st_file == ARCH_PURGE_DONE)
-            dir->status = "purge done";
+            dir->mStatus = "purge done";
           else if (*st_file == ARCH_PURGE_ERR)
-            dir->status = "purge failed";
+            dir->mStatus = "purge failed";
           else if (*st_file == ARCH_DELETE_ERR)
-            dir->status = "delete failed";
+            dir->mStatus = "delete failed";
           break;
         }
       }
     }
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Get the list of files in proc/arhive whose name represents the fid of the
@@ -522,37 +697,32 @@ std::vector<ProcCommand::ArchDirStatus>
 ProcCommand::ArchiveGetDirs(const std::string& root) const
 {
   const char* dname;
-  struct stat buf;
   std::string full_path;
-  std::map<std::string, time_t> fids;
+  std::set<std::string> fids;
   eos::common::Mapping::VirtualIdentity_t root_ident;
   eos::common::Mapping::Root(root_ident);
-  XrdOucErrInfo out_error;
-  XrdMgmOfsDirectory proc_dir;
+  std::vector<ArchDirStatus> dirs;
+  XrdMgmOfsDirectory proc_dir = XrdMgmOfsDirectory();
   int retc = proc_dir._open(gOFS->MgmProcArchivePath.c_str(),
                             root_ident, static_cast<const char*>(0));
 
-  if (retc)
-    return std::vector<ArchDirStatus>();
+  if (retc) {
+    return dirs;
+  }
 
   while ((dname = proc_dir.nextEntry()))
   {
     if (dname[0] != '.')
     {
-      full_path = gOFS->MgmProcArchivePath.c_str();
-      full_path += '/';
-      full_path += dname;
-
-      if (gOFS->_stat(full_path.c_str(), &buf, out_error, root_ident) == SFS_OK)
-        fids[dname] = buf.st_ctime;
+      fids.insert(dname);
     }
   }
 
   proc_dir.close();
-  std::istringstream iss;
+  struct timespec mtime;
+  std::string sdate;
   std::shared_ptr<eos::IContainerMD> cmd;
   eos::IContainerMD::id_t id;
-  std::vector<ArchDirStatus> dirs;
 
   {
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
@@ -560,10 +730,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
     for (auto fid = fids.begin(); fid != fids.end(); ++fid)
     {
       // Convert string id to ContainerMD:id_t
-      iss.str("");
-      iss.clear();
-      iss.str(fid->first);
-      iss >> id;
+      id = std::stoll(*fid);
 
       try
       {
@@ -573,8 +740,10 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
         // If archive directory is in the currently searched subtree
         if (full_path.find(root) == 0)
         {
-          ArchDirStatus dstatus(fid->second, full_path, "unknown");
-          dirs.push_back(dstatus);
+          cmd->getMTime(mtime);
+          sdate = asctime(localtime(&mtime.tv_sec));
+          sdate.erase(sdate.find('\n')); // trim string
+          dirs.emplace_back(sdate, "N/A", full_path, "N/A", "unknown");
         }
       }
       catch (eos::MDException &e)
@@ -588,7 +757,6 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
 
   return dirs;
 }
-
 
 //------------------------------------------------------------------------------
 // Send command to archive daemon and collect the response
@@ -678,7 +846,6 @@ ProcCommand::ArchiveExecuteCmd(const::string& cmd)
   return retc;
 }
 
-
 //------------------------------------------------------------------------------
 // Check if the current user has the necessary permissions to do an archiving
 // operation
@@ -693,14 +860,17 @@ ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
   
   // ACL and permission check
   Acl acl(arch_dir.c_str(), *mError, *pVid, attrmap, true);
-
   eos_info("acl=%d a=%d egroup=%d mutable=%d", acl.HasAcl(), acl.CanArchive(),
              acl.HasEgroup(), acl.IsMutable());
-  
+
   if (pVid->uid)
-      is_allowed = acl.CanArchive();
+  {
+    is_allowed = acl.CanArchive();
+  }
   else
+  {
     is_allowed = true;
+  }
 
   return is_allowed;
 }
@@ -711,26 +881,21 @@ ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
 //------------------------------------------------------------------------------
 void
 ProcCommand::ArchiveCreate(const std::string& arch_dir,
-                           const std::string& dst_url,
-                           const std::vector<std::string>& vect_files,
-                           int fid)
+                           const std::string& dst_url, int fid)
 {
   int num_dirs = 0;
   int num_files = 0;
-
-  if (MakeSubTreeImmutable(arch_dir, vect_files))
-    return;
 
   // Create the output directory if necessary and open the temporary file in
   // which we construct the archive file
   std::ostringstream oss;
   oss << "/tmp/eos.mgm/archive." << XrdSysThread::ID();
   std::string arch_fn = oss.str();
-  std::ofstream arch_ofs(arch_fn.c_str());
+  std::fstream arch_ofs(arch_fn.c_str(), std::fstream::out);
 
   if (!arch_ofs.is_open())
   {
-    eos_err("failed to open local archive file:%s", arch_fn.c_str());
+    eos_err("failed to open local archive file=%s", arch_fn.c_str());
     stdErr = "failed to open archive file at MGM ";
     retc = EIO;
     return;
@@ -857,7 +1022,6 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Make EOS sub-tree immutable/mutable by adding/removing the sys.acl=z:i from
 // all of the directories in the subtree.
@@ -926,10 +1090,14 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
           acl_val.insert('i', pos_z + 2);
       }
       else
+      {
         acl_val += ",z:i";
+      }
     }
     else
+    {
       acl_val = "z:i";
+    }
 
     eos_debug("acl_key=%s, acl_val=%s", acl_key, acl_val.c_str());
 
@@ -945,7 +1113,6 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
 
   return retc;
 }
-
 
 //----------------------------------------------------------------------------
 // Make EOS sub-tree mutable by removing the sys.acl=z:i rule from all of the
@@ -1005,7 +1172,9 @@ ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 
       // Remove last comma
       if (new_acl.length())
+      {
         new_acl.erase(new_acl.length() - 1);
+      }
 
       acl_val = new_acl.c_str();
     }
@@ -1046,14 +1215,13 @@ ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
   return retc;
 }
 
-
 //------------------------------------------------------------------------------
 // Get fileinfo for all files/dirs in the subtree and add it to the archive
 //------------------------------------------------------------------------------
 int
 ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
-                               std::ofstream& arch_ofs,
-                               int& num, bool is_file)
+                               std::fstream& ofs, int& num, bool is_file,
+                               IFilter* filter)
 {
   num = 0;
   std::map<std::string, std::string> info_map;
@@ -1102,9 +1270,12 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
   info += arch_dir.c_str();
 
   if (is_file)
+  {
     info += "&mgm.option=fI";
-  else
+  }
+  else {
     info += "&mgm.option=dI";
+  }
 
   cmd_find->open("/proc/user", info.c_str(), *pVid, mError);
   int ret = cmd_find->close();
@@ -1147,7 +1318,6 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
     unseal_str = XrdOucString(line.c_str());
     line = XrdMqMessage::UnSeal(unseal_str);
-    num++;
     line_iss.clear();
     line_iss.str(line);
 
@@ -1226,42 +1396,61 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     rel_path = info_map["file"];
     rel_path.erase(0, arch_dir.length());
 
-    if (rel_path.empty())
+    if (rel_path.empty()) {
       rel_path = "./";
+    }
+
+    info_map["file"] = rel_path;
+    // TODO(esindril): The file path should be base64 encoded to avoid any surprises
 
     if (is_file)
     {
-      arch_ofs << "[\"f\", \"" << rel_path << "\", "
-               << "\"" << info_map["size"] << "\", "
-               << "\"" << info_map["mtime"] << "\", "
-               << "\"" << info_map["ctime"] << "\", "
-               << "\"" << info_map["uid"] << "\", "
-               << "\"" << info_map["gid"] << "\", "
-               << "\"" << info_map["mode"] << "\", "
-               << "\"" << info_map["xstype"] << "\", "
-               << "\"" << info_map["xs"] << "\"]"
-               << std::endl;
+      // Filter out file entries if necessary
+      if (filter && filter->FilterOutFile(info_map))
+      {
+        continue;
+      }
+
+      ofs << "[\"f\", \"" << info_map["file"] << "\", "
+          << "\"" << info_map["size"] << "\", "
+          << "\"" << info_map["mtime"] << "\", "
+          << "\"" << info_map["ctime"] << "\", "
+          << "\"" << info_map["uid"] << "\", "
+          << "\"" << info_map["gid"] << "\", "
+          << "\"" << info_map["mode"] << "\", "
+          << "\"" << info_map["xstype"] << "\", "
+          << "\"" << info_map["xs"] << "\"]"
+          << std::endl;
     }
     else
     {
-      arch_ofs << "[\"d\", \"" << rel_path << "\", "
-               << "\"" << info_map["uid"] << "\", "
-               << "\"" << info_map["gid"] << "\", "
-               << "\"" << info_map["mode"] << "\", "
-               << "{";
+      // Filter out directory entries if necessary
+      if (filter && filter->FilterOutDir(info_map["file"]))
+      {
+        continue;
+      }
+
+      ofs << "[\"d\", \"" << info_map["file"] << "\", "
+          << "\"" << info_map["uid"] << "\", "
+          << "\"" << info_map["gid"] << "\", "
+          << "\"" << info_map["mode"] << "\", "
+          << "{";
 
       for (auto it = attr_map.begin(); it != attr_map.end(); /*empty*/)
       {
-        arch_ofs << "\"" << it->first << "\": \"" << it->second << "\"";
+        ofs << "\"" << it->first << "\": \"" << it->second << "\"";
         ++it;
 
-        if (it != attr_map.end())
-          arch_ofs << ", ";
+        if (it != attr_map.end()) {
+          ofs << ", ";
+        }
       }
 
-      arch_ofs << "}]" << std::endl;
+      ofs << "}]" << std::endl;
       attr_map.clear();
     }
+
+    num++;
   }
 
   delete[] tmp_buff;

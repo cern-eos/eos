@@ -1641,6 +1641,18 @@ Master::Slave2Master()
   }
 
   UnBlockCompacting();
+
+  // Broadcast the new manager node variable
+  MasterLog(eos_info("msg=\"registering new manager to nodes\""));
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    std::map<std::string, FsNode*>::const_iterator it;
+    for (it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++)
+    {
+      FsView::gFsView.mNodeView[it->first]->SetConfigMember("manager", FsNode::gManagerId, true, it->first, true);
+    }
+  }
+
   // Re-start the recycler thread
   gOFS->Recycler.Start();
   eos_alert("msg=\"running as master-rw\"");

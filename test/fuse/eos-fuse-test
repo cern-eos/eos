@@ -444,6 +444,19 @@ runtest "### Mkdir     " unix 0 "" eos mkdir -p "/eos/$EOS_TEST_INSTANCE/fusetes
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/fusetest/workspace/"
 runtest "### Motd      " unix 0 "" eos motd 
 
+
+################################################################################################################
+# truncate
+################################################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="truncate"
+# --------------------------------------------------------------------------------------------------------------
+runtest "### Cp        " unix 0 "" shell "cp /etc/passwd /eos/$EOS_TEST_INSTANCE/fusetest/workspace/passwd"
+runtest "### Truncate  " unix 0 "" shell "/usr/bin/truncate -s 0 /eos/$EOS_TEST_INSTANCE/fusetest/workspace/passwd"
+runtest "### Stat      " unix 0 "" shell "stat /eos/$EOS_TEST_INSTANCE/fusetest/workspace/passwd | grep Size"
+runtest "### Stat      " unix 0 "" shell "stat /eos/$EOS_TEST_INSTANCE/fusetest/workspace/passwd | grep Size | awk '{print \$2}' | grep -w 0"
+runtest "### Rm        " unix 0 "" shell "rm -f /eos/$EOS_TEST_INSTANCE/fusetest/workspace/passwd"
+
 ################################################################################################################
 # untar
 ################################################################################################################

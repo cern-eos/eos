@@ -22,10 +22,6 @@
 # ************************************************************************
 
 install(DIRECTORY DESTINATION /var/eos)
-install( DIRECTORY DESTINATION /var/eos/wfe/ )
-install( DIRECTORY DESTINATION /var/eos/wfe/bash/ )
-install( DIRECTORY DESTINATION /var/eos/kinetic/ )
-
 install(DIRECTORY DESTINATION /var/log/eos)
 install(DIRECTORY DESTINATION /var/log/eos/fuse)
 install(DIRECTORY DESTINATION /var/www/eos/cgi-bin)
@@ -35,28 +31,35 @@ install(DIRECTORY DESTINATION /var/run/eosd)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials/store)
 install(DIRECTORY DESTINATION /usr/lib/tmpfiles.d/)
+install(DIRECTORY DESTINATION /var/eos/wfe/)
+install(DIRECTORY DESTINATION /var/eos/wfe/bash/)
+install(DIRECTORY DESTINATION /var/eos/kinetic/)
+install(SCRIPT chown.cmake)
 
-install(
-  FILES
+install(FILES
+  eos/wfe/bash/shell
+  DESTINATION ${CMAKE_INSTALL_LOCALSTATEDIR}/eos/wfe/bash/
+  PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE SETUID)
+
+install(FILES
+  eos/kinetic/kinetic-cluster-example.json
+  eos/kinetic/kinetic-location-example.json
+  eos/kinetic/kinetic-security-example.json
+  DESTINATION ${CMAKE_INSTALL_LOCALSTATEDIR}/eos/kinetic/
+  PERMISSIONS OWNER_READ OWNER_EXECUTE)
+
+install(FILES
   eos/html/error.html
   DESTINATION ${CMAKE_INSTALL_LOCALSTATEDIR}/eos/html/
   PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
+install(FILES
+  eos/test/fuse/untar/untar.tgz
+  eos/test/fuse/untar/xrootd.tgz
+  DESTINATION /var/eos/test/fuse/untar/
+  PERMISSIONS OWNER_READ GROUP_READ WORLD_READ)
 
-install ( FILES eos/wfe/bash/shell DESTINATION /${CMAKE_INSTALL_LOCALSTATEDIR}/eos/wfe/bash PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE SETUID )
-install ( SCRIPT chown.cmake)
-install ( FILES eos/kinetic/kinetic-cluster-example.json eos/kinetic/kinetic-location-example.json eos/kinetic/kinetic-security-example.json DESTINATION /${CMAKE_INSTALL_LOCALSTATEDIR}/eos/kinetic/ PERMISSIONS OWNER_READ OWNER_EXECUTE )
-
-install(
-  FILES
+install(FILES
   eosd.conf
   DESTINATION /usr/lib/tmpfiles.d/
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
-
-install(
-  CODE
-  "execute_process(
-     COMMAND chmod 0775 /var/run/eosd
-     COMMAND chmod 1777 /var/run/eosd/credentials
-     COMMAND chmod 1777 /var/run/eosd/credentials/store)")
-

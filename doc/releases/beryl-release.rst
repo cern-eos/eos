@@ -7,6 +7,47 @@
 Beryl Release Notes
 ===================
 
+``V0.3.196 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- NS: fix slave follower getQuotaNode exception preventing quota accounting on slave
+- FUSE: swap unlock and pool-fd push (which is protected by the same file abstraction rwmutex)
+
+
+New Feature
++++++++++++
+
+- MGM: add 'Treesize' to the output of 'file info'
+
+``V0.3.195 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix possible size inconsistency after utimes call storing size=0 in kernel cache 
+
+New Features
+++++++++++++
+
+- TEST: adding eos-fuse-test suite to eos-test RPM (use eos-fuse-test to display individual test categories)
+
+``V0.3.194 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix truncate bug putting a stall file size after truncate into the kernel cache
+
+New Features
+++++++++++++
+
+- TEST: add test for truncate bug to eos-fuse-test
+
 ``V0.3.193 Aquamarine``
 +++++++++++++++++++++++
 

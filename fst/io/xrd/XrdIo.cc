@@ -70,6 +70,7 @@ void AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
   {
     // Store the last URL we are connected after open
     mFileIO->mXrdFile->GetProperty("LastURL", mFileIO->mLastUrl);
+    mFileIO->mIsOpen = true;
   }
   mLayoutOpenHandler->HandleResponseWithHosts(status, 0, 0);
   delete this;
@@ -84,8 +85,7 @@ FileIo (path, "XrdIo"),
 mDoReadahead (false),
 mBlocksize (ReadaheadBlock::sDefaultBlocksize),
 mXrdFile (NULL),
-mMetaHandler (new AsyncMetaHandler ()),
-mIsOpen (false)
+mMetaHandler (new AsyncMetaHandler ())
 {
   // Set the TimeoutResolution to 1
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
@@ -121,6 +121,10 @@ mIsOpen (false)
 
 XrdIo::~XrdIo ()
 {
+  if(mIsOpen) {
+    fileClose();
+  }
+
   if (mDoReadahead)
   {
     while (!mQueueBlocks.empty())
@@ -1109,33 +1113,11 @@ XrdIo::Statfs( struct statfs* sfs)
     XrdOucEnv spaceEnv(response->ToString().c_str());
 
     unsigned long long free_bytes = 0;
-    unsigned long long used_bytes = 0;
     unsigned long long total_bytes = 0;
-    unsigned long long max_file = 0;
 
     if (spaceEnv.Get("oss.free"))
     {
       free_bytes = strtoull(spaceEnv.Get("oss.free"), 0, 10);
-    }
-    else
-    {
-      errno = EINVAL;
-      return errno;
-    }
-
-    if (spaceEnv.Get("oss.used"))
-    {
-      used_bytes = strtoull(spaceEnv.Get("oss.used"), 0, 10);
-    }
-    else
-    {
-      errno = EINVAL;
-      return errno;
-    }
-
-    if (spaceEnv.Get("oss.maxf"))
-    {
-      max_file = strtoull(spaceEnv.Get("oss.maxf"), 0, 10);
     }
     else
     {

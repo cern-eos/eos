@@ -2009,18 +2009,27 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     NoGo = 1;
   }
 
+  eos_info("starting archive submitter thread");
+
+  if (XrdSysThread::Run(&mSubmitterTid, XrdMgmOfs::StartArchiveSubmitter,
+                        static_cast<void*>(this), XRDSYSTHREAD_HOLD,
+                        "Archive/backup submitter thread"))
+  {
+    eos_crit("cannot start archive/backup submitter thread");
+    NoGo = 1;
+  }
 
   if (!MgmRedirector)
   {
     eos_info("starting fs listener thread");
-    if ((XrdSysThread::Run(&fsconfiglistener_tid,
-			   XrdMgmOfs::StartMgmFsConfigListener,
-			   static_cast<void*>(this), 0, "FsListener Thread")))
+
+    if (XrdSysThread::Run(&fsconfiglistener_tid,
+                          XrdMgmOfs::StartMgmFsConfigListener,
+                          static_cast<void *> (this), 0, "FsListener Thread"))
     {
       eos_crit("cannot start fs listener thread");
       NoGo = 1;
     }
-
   }
 
   gGeoTreeEngine.StartUpdater();

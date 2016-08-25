@@ -29,6 +29,11 @@ ProcCache gProcCache;
 extern "C" {
 #endif
 
+void proccache_SetProcPath (const char* procpath)
+{
+  gProcCache.SetProcPath(procpath);
+}
+
 int proccache_HasEntry (int pid)
 {
   return gProcCache.HasEntry(pid);

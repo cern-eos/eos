@@ -65,7 +65,8 @@ class Dispatcher(object):
                    self.config.PURGE_OP:  self.start_transfer,
                    self.config.BACKUP_OP: self.start_transfer,
                    self.config.TX_OP:     self.do_show_transfers,
-                   self.config.KILL_OP:   self.do_kill}
+                   self.config.KILL_OP:   self.do_kill,
+                   self.config.STATS:     self.get_stats}
         ctx = zmq.Context.instance()
         self.logger.info("Started dispatcher process ...")
         # Socket used for communication with EOS MGM
@@ -233,7 +234,8 @@ class Dispatcher(object):
         while len(self.procs) < self.config.MAX_TRANSFERS and self.pending:
             (__, pinfo) = self.pending.popitem() # take the oldest one
             # Don't pipe stdout and stderr as we log all the output
-            pinfo.proc = subprocess.Popen(['/usr/bin/eosarch_run.py', "{0}".format(pinfo.orig_req)],
+            pinfo.proc = subprocess.Popen(['/usr/bin/eosarch_run.py',
+                                           "{0}".format(pinfo.orig_req)],
                                           close_fds=True)
             pinfo.pid = pinfo.proc.pid
             self.procs[pinfo.uuid] = pinfo
@@ -244,7 +246,7 @@ class Dispatcher(object):
         Args:
             req_json (json): New transfer information which must include:
             {
-              cmd: get/put/delete/purge,
+              cmd: get/put/delete/purge/backup,
               src: full URL to archive file in EOS.
               opt: retry | ''
               uid: client uid
@@ -286,8 +288,7 @@ class Dispatcher(object):
               cmd:    transfers,
               opt:    all/get/put/purge/delete/uuid,
               uid:    uid,
-              gid:    gid,
-              format: monitor|pretty
+              gid:    gid
             }
 
         Returns:
@@ -309,30 +310,10 @@ class Dispatcher(object):
             proc_list.extend([elem for elem in self.pending.itervalues() if elem.op == ls_type])
 
         for proc in proc_list:
-            row_data.append((time.asctime(time.localtime(proc.timestamp)), proc.uuid,
-                             proc.root_dir, proc.op, proc.status))
-
-        # Prepare the table listing
-        if req_json['format'] == "monitor":
-            for elem in row_data:
-                kv_data = "path={0}".format(elem[2])
-                msg += ''.join([kv_data, '|'])
-        else:
-            header = ("Start date", "Id", "Path", "Type", "Status")
-            long_column = dict(zip((0, 1, 2, 3, 4), (len(str(x)) for x in header)))
-
-            for info in row_data:
-                long_column.update((i, max(long_column[i], len(str(elem))))
-                                   for i, elem in enumerate(info))
-
-            line = "".join(("|-", "-|-".join(long_column[i] * "-"
-                                             for i in xrange(5)), "-|"))
-            row_format = "".join(("| ", " | ".join("%%-%ss" % long_column[i]
-                                                   for i in xrange(0, 5)), " |"))
-
-            msg += "\n".join((line, row_format % header, line,
-                              "\n".join((row_format % elem) for elem in row_data),
-                              line))
+            line = ("date={0},uuid={1},path={2},op={3},status={4}".format(
+                    time.asctime(time.localtime(proc.timestamp)), proc.uuid,
+                    proc.orig_req['src'], proc.op, proc.status))
+            msg = '\n'.join([msg, line])
 
         return msg
 
@@ -378,6 +359,22 @@ class Dispatcher(object):
         self.logger.debug("Kill pid={0}, msg={0}".format(proc.pid, msg))
         return msg
 
+    def get_stats(self, req_json):
+        """ Get archive daemon stats info.
+
+        Args:
+            req_json (JSON command): Arguments for stats command include:
+            {
+              cmd: stats,
+              opt: \"\",
+              uid: uid,
+              gid: gid
+            }
+
+        Returns: string containing information about number of slots
+        """
+        return "OK max={0} running={1} pending={2}".format(
+            self.config.MAX_TRANSFERS, len(self.procs), len(self.pending))
 
 def main():
     """ Main function """
@@ -438,6 +435,6 @@ if __name__ == '__main__':
     try:
         main()
     except ValueError as __:
-        # This is to deal the exception thrown when trying to close the log
-        # file which is already deleted manualy by an exterior process
+        # This is to deal with exceptions thrown when trying to close the log
+        # file which is already deleted manually by an exterior process
         pass

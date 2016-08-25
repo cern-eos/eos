@@ -328,8 +328,6 @@ private:
   //! Disable assign operator
   //--------------------------------------------------------------------------
   FsIo& operator = (const FsIo&) = delete;
-
-
 };
 
 

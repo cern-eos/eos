@@ -48,26 +48,37 @@ class ThreadJob(threading.Thread):
 
     Attributes:
         status             (bool): Final status of the job
+        lst_jobs           (list): List of jobs to be executed
         proc (client.CopyProcess): Copy process which is being executed
+        retires             (int): Number of times this job was retried
     """
-    def __init__(self, cpy_proc):
+    def __init__(self, jobs, retry=0):
         """Constructor
 
         Args:
-            cpy_proc (client.CopyProcess): Copy process object
+            jobs (list): List of transfers to be executed
+            retry (int): Number of times this job was retried
         """
         threading.Thread.__init__(self)
-        self.status = None
-        self.proc = cpy_proc
+        self.retries = retry
         self.xrd_status = None
+        self.lst_jobs = list(jobs)
 
     def run(self):
         """ Run method
         """
-        self.xrd_status = self.proc.prepare()
+        self.retries += 1
+        proc = client.CopyProcess()
+
+        for job in self.lst_jobs:
+            # TODO: use the parallel mode starting with XRootD 4.1
+            proc.add_job(job[0].encode("utf-8"), job[1].encode("utf-8"),
+                         force=True, thirdparty=True)
+
+        self.xrd_status = proc.prepare()
 
         if self.xrd_status.ok:
-            self.xrd_status = self.proc.run()
+            self.xrd_status = proc.run()
 
 
 class ThreadStatus(threading.Thread):
@@ -172,7 +183,7 @@ class Transfer(object):
     Attributes:
         req_json (JSON): Command received from the EOS MGM. Needs to contains the
             following entries: cmd, src, opt, uid, gid
-        threads (list): List of threads doing parital transfers(CopyProcess jobs)
+        threads (list): List of threads doing partial transfers(CopyProcess jobs)
     """
     def __init__(self, req_json, config):
         self.config = config
@@ -565,7 +576,8 @@ class Transfer(object):
         # For inital PUT copy also the archive file to tape
         if self.init_put:
             __, dst = self.archive.get_endpoints(self.config.ARCH_INIT)
-            self.list_jobs.append((self.efile_full + "?eos.ruid=0&eos.rgid=0", dst))
+            self.list_jobs.append((self.efile_full + "?eos.ruid=0&eos.rgid=0" +
+                                   "&eos.app=archive", dst))
 
         # Copy files
         for fentry in self.archive.files():
@@ -590,7 +602,7 @@ class Transfer(object):
                                "&eos.mtime=", dfile['mtime'],
                                "&eos.bookingsize=", dfile['size'],
                                "&eos.targetsize=", dfile['size'],
-                               "&eos.ruid=0&eos.rgid=0"])
+                               "&eos.ruid=0&eos.rgid=0&eos.app=archive"])
 
                 # If checksum 0 don't enforce it
                 if dfile['xs'] != "0":
@@ -599,9 +611,9 @@ class Transfer(object):
                 # For backup we try to read as root from the source
                 if self.oper == self.config.BACKUP_OP:
                     if '?' in src:
-                        src = ''.join([src, "&eos.ruid=0&eos.rgid=0"])
+                        src = ''.join([src, "&eos.ruid=0&eos.rgid=0&eos.app=archive"])
                     else:
-                        src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
+                        src = ''.join([src, "?eos.ruid=0&eos.rgid=0&eos.app=archive"])
 
                     # If this is a version file we save it as a 2-replica layout
                     if is_version_file(fentry[1]):
@@ -618,7 +630,7 @@ class Transfer(object):
                             continue
             else:
                 # For PUT read the files from EOS as root
-                src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
+                src = ''.join([src, "?eos.ruid=0&eos.rgid=0&eos.app=archive"])
 
             self.logger.info("Copying from {0} to {1}".format(src, dst))
             self.list_jobs.append((src, dst))
@@ -655,49 +667,96 @@ class Transfer(object):
         # Wait until a thread from the pool gets freed if we reached the maximum
         # allowed number of running threads
         while len(self.threads) >= self.config.MAX_THREADS:
+            remove_indx, retry_threads = [], []
+
             for indx, thread in enumerate(self.threads):
                 thread.join(self.config.JOIN_TIMEOUT)
 
                 # If thread finished get the status and mark it for removal
                 if not thread.isAlive():
+                    # If failed then attempt a retry
+                    if (not thread.xrd_status.ok and
+                        thread.retries <= self.config.MAX_RETRIES):
+
+                        self.logger.log(logging.INFO,
+                                        ("Thread={0} failed, retries={1}").format
+                                        (thread.ident, thread.retries))
+                        rthread = ThreadJob(thread.lst_jobs, thread.retries)
+                        rthread.start()
+                        retry_threads.append(rthread)
+                        remove_indx.append(indx)
+                        self.logger.log(logging.INFO,("New thread={0} doing a retry").format
+                                        (rthread.ident))
+                        continue
+
                     status = status and thread.xrd_status.ok
                     log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
-                    self.logger.log(log_level,
-                                    ("Thread={0} status={1} msg={2}"
-                                     "").format(thread.ident, thread.xrd_status.ok,
-                                                thread.xrd_status.message.decode("utf-8")))
-                    del self.threads[indx]
+                    self.logger.log(log_level,("Thread={0} status={1} msg={2}").format
+                                    (thread.ident, thread.xrd_status.ok,
+                                     thread.xrd_status.message.decode("utf-8")))
+                    remove_indx.append(indx)
                     break
+
+            # Remove old/finished threads and add retry ones. For removal we
+            # need to start with big indexes first.
+            remove_indx.reverse()
+
+            for indx in remove_indx:
+                del self.threads[indx]
+
+            self.threads.extend(retry_threads)
+            del retry_threads[:]
+            del remove_indx[:]
 
         # If we still have jobs and previous archive jobs were successful or this
         # is a backup operartion (best-effort even if we have failed transfers)
         if (self.list_jobs and ((self.oper != self.config.BACKUP_OP and status) or
                                 (self.oper == self.config.BACKUP_OP))):
-            proc = client.CopyProcess()
-
-            for job in self.list_jobs:
-                # TODO: use the parallel mode starting with XRootD 4.1
-                proc.add_job(job[0].encode("utf-8"), job[1].encode("utf-8"),
-                             force=self.do_retry, thirdparty="only")
-
-            del self.list_jobs[:]
-            thread = ThreadJob(proc)
+            thread = ThreadJob(self.list_jobs)
             thread.start()
             self.threads.append(thread)
+            del self.list_jobs[:]
 
         # If a previous archive job failed or we need to wait for all jobs to
         # finish then join the threads and collect their status
         if (self.oper != self.config.BACKUP_OP and not status) or wait_all:
-            for thread in self.threads:
-                thread.join()
-                status = status and thread.xrd_status.ok
-                log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
-                self.logger.log(log_level,
-                                ("Thread={0} status={1} msg={2}"
-                                 "").format(thread.ident, thread.xrd_status.ok,
-                                            thread.xrd_status.message.decode("utf-8")))
+            remove_indx, retry_threads = [], []
 
-            del self.threads[:]
+            while self.threads:
+                for indx, thread in enumerate(self.threads):
+                    thread.join()
+
+                    # If failed then attempt a retry
+                    if (not thread.xrd_status.ok and
+                        thread.retries <= self.config.MAX_RETRIES):
+
+                        self.logger.log(logging.INFO, ("Thread={0} failed, retries={1}").format
+                                        (thread.ident, thread.retries))
+                        rthread = ThreadJob(thread.lst_jobs, thread.retries)
+                        rthread.start()
+                        retry_threads.append(rthread)
+                        remove_indx.append(indx)
+                        self.logger.log(logging.INFO,("New thread={0} doing a retry").format
+                                        (rthread.ident))
+                        continue
+
+                    status = status and thread.xrd_status.ok
+                    log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
+                    self.logger.log(log_level, ("Thread={0} status={1} msg={2}").format
+                                    (thread.ident, thread.xrd_status.ok,
+                                     thread.xrd_status.message.decode("utf-8")))
+                    remove_indx.append(indx)
+
+                # Remove old/finished threads and add retry ones. For removal we
+                # need to start with big indexes first.
+                remove_indx.reverse()
+
+                for indx in remove_indx:
+                    del self.threads[indx]
+
+                self.threads.extend(retry_threads)
+                del retry_threads[:]
+                del remove_indx[:]
 
         return status
 
@@ -774,9 +833,11 @@ class Transfer(object):
             # Send the utime async request to set the mtime
             mtime = dict_meta['mtime']
             mtime_sec, mtime_nsec = mtime.split('.', 1)
+            ctime = dict_meta['ctime']
+            ctime_sec, ctime_nsec = ctime.split('.', 1)
             arg = ''.join([url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=utimes",
-                           "&tv1_sec=0&tv1_nsec=0&tv2_sec=", mtime_sec,
-                           "&tv2_nsec=", mtime_nsec])
+                           "&tv1_sec=", ctime_sec, "&tv1_nsec=", ctime_nsec,
+                           "&tv2_sec=", mtime_sec, "&tv2_nsec=", mtime_nsec])
             xrd_st = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"),
                               callback=metahandler.register(oper, surl))
 
@@ -1015,10 +1076,6 @@ class Transfer(object):
         self.set_status("verifying")
         check_ok, lst_failed = self.archive.verify(True)
         self.backup_write_status(lst_failed, check_ok)
-
-        # Delete empty dirs if this was a backup with a time window
-        if self.archive.header['twindow_type'] and self.archive.header['twindow_val']:
-            self.archive.del_empty_dirs()
 
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))

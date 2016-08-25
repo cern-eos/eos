@@ -501,6 +501,17 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
      eos_static_debug("set attr ino=%lld atime=%ld atime.nsec=%ld mtime=%ld mtime.nsec=%ld",
 		      (long long) ino, (long) newattr.ATIMESPEC.tv_sec, (long) newattr.ATIMESPEC.tv_nsec, (long) newattr.MTIMESPEC.tv_sec, (long) newattr.MTIMESPEC.tv_nsec);
    }
+
+   // the stat above bypasses the local consistency cache
+   off_t csize = LayoutWrapper::CacheAuthSize(ino);
+   if (csize>0)
+     newattr.st_size = csize;
+
+   if (to_set & FUSE_SET_ATTR_SIZE)
+   {
+     newattr.st_size = attr->st_size;
+   }
+     
    if (!retc)
    {
      fuse_reply_attr (req, &newattr, me.config.attrcachetime);

@@ -606,7 +606,7 @@ ProcCommand::FileInfo (const char* path)
                   {
                     stdOut += "sticky to ";
                     int k;
-                    for( k=0; k<loc_vect.size() && selectedfs[k]!=loc_vect[i]; k++ );
+                    for(k=0; k<loc_vect.size() && selectedfs[k]!=loc_vect[i]; k++ );
                     stdOut += proxys[k].c_str();
                   }
                 }
@@ -837,14 +837,14 @@ ProcCommand::DirInfo (const char* path)
         dmd->getCTime(ctime);
 	dmd->getMTime(mtime);
 	dmd->getTMTime(tmtime);
-
-	fprintf(stderr,"%lli.%lli %lli.%lli %lli.%lli\n",
-                static_cast<long long int>(ctime.tv_sec),
-                static_cast<long long int>(ctime.tv_nsec),
-                static_cast<long long int>(mtime.tv_sec),
-                static_cast<long long int>(mtime.tv_nsec),
-                static_cast<long long int>(tmtime.tv_sec),
-                static_cast<long long int>(tmtime.tv_sec));
+	
+	//fprintf(stderr,"%lli.%lli %lli.%lli %lli.%lli\n",
+        //        static_cast<long long int>(ctime.tv_sec),
+        //        static_cast<long long int>(ctime.tv_nsec),
+        //        static_cast<long long int>(mtime.tv_sec),
+        //        static_cast<long long int>(mtime.tv_nsec),
+        //        static_cast<long long int>(tmtime.tv_sec),
+        //        static_cast<long long int>(tmtime.tv_sec));
 
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;
@@ -864,6 +864,9 @@ ProcCommand::DirInfo (const char* path)
           stdOut = "  Directory: '";
           stdOut += spath;
           stdOut += "'";
+	  stdOut += "  Treesize: ";
+	  stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) dmd->getTreeSize());
+	  stdOut += "\n";
           stdOut += "  Container: ";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)num_containers);
           stdOut += "  Files: ";
@@ -922,6 +925,9 @@ ProcCommand::DirInfo (const char* path)
           stdOut += "file=";
           stdOut += spath;
           stdOut += " ";
+	  stdOut += "treesize=";
+	  stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) dmd->getTreeSize());
+	  stdOut += " ";
           stdOut += "container=";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)num_containers);
           stdOut += " ";

@@ -196,7 +196,6 @@ Extended attributes of a file and it's parent container can be read with dynamic
 
 
 
-
 Here is an  example for a dynamic attribute:
 
 .. code-block:: bash
