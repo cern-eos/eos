@@ -173,7 +173,7 @@ echo -e '"""' >> eos.cfg
 ## Build the RPMs (with yum repo rpms)
 #mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
 # Build the RPMs (without yum repo rpms)
-mock --yum --init --uniqueext="eos_${BRANCH}" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
+mock --yum --init --uniqueext="eos_${BRANCH}" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}" --with=server
 
 # List of branches for CI YUM repo
 BRANCH_LIST=('aquamarine' 'citrine' 'emerald' 'danburite')
