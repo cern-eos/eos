@@ -432,7 +432,7 @@ int FsIo::attrList(std::vector<std::string>& list)
 
   char* pointer = NULL;
 #ifdef __APPLE__
-  auto size = llistxattr(mFilePath.c_str(), pointer, 0, 0);
+  auto size = listxattr(mFilePath.c_str(), pointer, 0, XATTR_NOFOLLOW);
 #else
   auto size = llistxattr(mFilePath.c_str(), pointer, 0);
 #endif
@@ -443,7 +443,8 @@ int FsIo::attrList(std::vector<std::string>& list)
 
   std::vector<char> buffer(size);
 #ifdef __APPLE__
-  size = llistxattr(mFilePath.c_str(), buffer.data(), buffer.size());
+  size = listxattr(mFilePath.c_str(), buffer.data(), buffer.size(),
+                   XATTR_NOFOLLOW);
 #else
   size = llistxattr(mFilePath.c_str(), buffer.data(), buffer.size());
 #endif
