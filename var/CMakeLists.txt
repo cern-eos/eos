@@ -30,27 +30,27 @@ install(DIRECTORY DESTINATION /var/share/eos)
 install(DIRECTORY DESTINATION /var/run/eosd)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials/store)
-install(DIRECTORY DESTINATION /usr/lib/tmpfiles.d/)
 install(DIRECTORY DESTINATION /var/eos/wfe/)
 install(DIRECTORY DESTINATION /var/eos/wfe/bash/)
 install(DIRECTORY DESTINATION /var/eos/kinetic/)
+install(DIRECTORY DESTINATION /usr/lib/tmpfiles.d/)
 install(SCRIPT chown.cmake)
 
 install(FILES
   eos/wfe/bash/shell
-  DESTINATION ${CMAKE_INSTALL_LOCALSTATEDIR}/eos/wfe/bash/
+  DESTINATION /var/eos/wfe/bash/
   PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE SETUID)
 
 install(FILES
   eos/kinetic/kinetic-cluster-example.json
   eos/kinetic/kinetic-location-example.json
   eos/kinetic/kinetic-security-example.json
-  DESTINATION ${CMAKE_INSTALL_LOCALSTATEDIR}/eos/kinetic/
+  DESTINATION /var/eos/kinetic/
   PERMISSIONS OWNER_READ OWNER_EXECUTE)
 
 install(FILES
   eos/html/error.html
-  DESTINATION ${CMAKE_INSTALL_LOCALSTATEDIR}/eos/html/
+  DESTINATION /var/eos/html/
   PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
 install(FILES
