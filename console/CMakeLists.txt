@@ -120,7 +120,7 @@ add_dependencies(eos EosFstIo)
 if(CLIENT)
   target_link_libraries(
     eos
-    EosFstIoa
+    EosFstIo
     eosCommon
     ${Z_LIBRARY}
     ${UUID_LIBRARIES}

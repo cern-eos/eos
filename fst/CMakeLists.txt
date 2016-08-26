@@ -165,10 +165,9 @@ set(
   # File IO interface
   #-----------------------------------------------------------------------------
   io/FileIo.hh
-  io/local/LocalIo.cc	         io/local/LocalIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
   ${KINETICIO_SRC}               ${KINETICIO_HDR}
-  ${DAVIX_SRC}		         ${DAVIX_HDR}
+  ${DAVIX_SRC}			 ${DAVIX_HDR}
   io/rados/RadosIo.cc            io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -216,8 +215,7 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY}
   ${JSONC_LIBRARIES}
   ${KINETICIO_LIBRARIES}
-  ${DAVIX_LIBRARIES}			
-  ${CMAKE_THREAD_LIBS_INIT}
+  ${DAVIX_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARIES})
 
@@ -267,7 +265,7 @@ else()
     ${OPENSSL_CRYPTO_LIBRARY_STATIC}
     ${JSONC_LIBRARIES}
     ${KINETICIO_LIBRARIES}
-    ${DAVIX_LIBRARIES}			
+    ${DAVIX_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT})
 
   set_target_properties(
@@ -301,7 +299,6 @@ target_compile_definitions(
 
 target_link_libraries(
   EosFstOss
-  EosFstIo
   eosCommon
   ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
@@ -317,8 +314,16 @@ set(
   Messaging.cc
   io/FileIoPlugin-Server.cc
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
+
+  #-----------------------------------------------------------------------------
+  # OFS layer implementation
+  #-----------------------------------------------------------------------------
   XrdFstOfs.cc                   XrdFstOfs.hh
   XrdFstOfsFile.cc               XrdFstOfsFile.hh
+
+  #-----------------------------------------------------------------------------
+  # Storage interface
+  #-----------------------------------------------------------------------------
   storage/Balancer.cc
   storage/Cleaner.cc             storage/Comunicator.cc
   storage/Drainer.cc             storage/ErrorReport.cc
@@ -327,30 +332,44 @@ set(
   storage/Report.cc              storage/Scrub.cc
   storage/Storage.cc             storage/Supervisor.cc
   storage/Trim.cc                storage/Verify.cc
+
+  #-----------------------------------------------------------------------------
+  # Transfer interface
+  #-----------------------------------------------------------------------------
   txqueue/TransferMultiplexer.cc
   txqueue/TransferJob.cc
   txqueue/TransferQueue.cc
+
+  #-----------------------------------------------------------------------------
+  # File metadata interface
+  #-----------------------------------------------------------------------------
+  txqueue
   Fmd.cc               Fmd.hh
   FmdHandler.cc        FmdHandler.hh
   FmdDbMap.cc          FmdDbMap.hh
   FmdClient.cc         FmdClient.hh
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS}
+
+  #-----------------------------------------------------------------------------
+  # HTTP interface
+  #-----------------------------------------------------------------------------
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
-  io/FileIoPlugin-Server.cc
+
+  #-----------------------------------------------------------------------------
+  # EosFstIo interface
+  #-----------------------------------------------------------------------------
   ${EOSFSTIO_SRCS_SERVER})
 
-add_library(XrdEosFst MODULE 
-            ${XRDEOSFST_SRCS})
+add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
 
 target_compile_definitions(
   XrdEosFst PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(
    XrdEosFst
-   EosFstIo
    eosCommon
    eosCommonServer
    EosFstIo-Static
@@ -416,7 +435,9 @@ add_executable(
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.cc)
+# TODO (esindril): Review if this is still used
 add_executable(FstLoad Load.cc tools/FstLoad.cc)
+
 target_link_libraries(
   FstLoad
   ${GLIBC_RT_LIBRARY}
@@ -435,7 +456,7 @@ target_link_libraries(
   EosFstIo-Static
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
-  ${KINETICIO_LIBRARIES} 
+  ${KINETICIO_LIBRARIES}
   ${DAVIX_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
