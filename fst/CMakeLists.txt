@@ -61,12 +61,15 @@ include_directories(
 #-------------------------------------------------------------------------------
 if(CPPUNIT_FOUND)
   add_subdirectory(tests)
-endif(CPPUNIT_FOUND)
+endif()
 
 #-------------------------------------------------------------------------------
-# Add xrdcl RAIN plugin library
+# Add XrdCl RAIN plugin library only if explicitly requested by using the
+# ENABLE_XRDCL_RAIN_PLUGIN flag.
 #-------------------------------------------------------------------------------
-add_subdirectory(xrdcl_plugins)
+if(ENABLE_XRDCL_RAIN_PLUGIN)
+  add_subdirectory(xrdcl_plugins)
+endif()
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files used in several targets and make them visible

@@ -27,7 +27,7 @@
 option(PACKAGEONLY "Build without dependencies" OFF)
 option(CLIENT "Build only client packages" OFF)
 option(ENABLE_REDOX "Enable Redox support" OFF)
-
+option(ENABLE_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 if (NOT PACKAGEONLY)
 
 if(NOT MacOSX)
