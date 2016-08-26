@@ -582,7 +582,7 @@ ProcCommand::FileInfo(const char* path)
                     stdOut += "     sticky to undefined";
                   } else {
                     stdOut += "sticky to ";
-                    int k;
+                    size_t k;
 
                     for (k = 0; k < loc_vect.size() && selectedfs[k] != loc_vect[i]; k++);
 

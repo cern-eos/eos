@@ -1091,10 +1091,6 @@ public:
 
   static XrdSysError* eDest; //< error routing object
 
-#ifdef HAVE_ZMQ
-  ZMQ* zMQ; //<  ZMQ processor
-#endif
-
   //----------------------------------------------------------------------------
   // Namespace specific variables
   //----------------------------------------------------------------------------
