@@ -336,11 +336,19 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
            (unsigned long long) blocksize);
   std::string sBlockSize = sblocksize;
   std::string sBlockCheckSum = Name.c_str();
+#ifdef __APPLE__
 
+  if (fsetxattr(ChecksumMapFd, "user.eos.blocksize", sBlockSize.c_str(),
+                sBlockSize.size(), 0, 0) ||
+      fsetxattr(ChecksumMapFd, "user.eos.blockchecksum", sBlockCheckSum.c_str(),
+                sBlockCheckSum.size(), 0, 0))
+#else
   if (fsetxattr(ChecksumMapFd, "user.eos.blocksize", sBlockSize.c_str(),
                 sBlockSize.size(), 0) ||
       fsetxattr(ChecksumMapFd, "user.eos.blockchecksum", sBlockCheckSum.c_str(),
-                sBlockCheckSum.size(), 0)) {
+                sBlockCheckSum.size(), 0))
+#endif
+  {
     // fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
     close(ChecksumMapFd);
     return false;
