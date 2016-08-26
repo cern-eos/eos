@@ -170,6 +170,7 @@ add_executable(testmgmview FsView.cc test/MgmViewTest.cc)
 
 add_executable(
   testschedulingtree
+  ../common/Logging.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)
@@ -196,16 +197,7 @@ target_link_libraries(
 
 target_link_libraries(
   testschedulingtree
-  eosCommon
-  eosCommonServer
-  ${Z_LIBRARY}
-  ${ZMQ_LIBRARIES}
-  ${UUID_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${GLIBC_DL_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(

@@ -103,6 +103,41 @@ ProcCommand::GeoSched ()
         retc = SFS_OK;
       }
     }
+    if(mSubCmd.beginswith("access"))
+    {
+      XrdOucString geotag = pOpaque->Get("mgm.geotag");
+      XrdOucString geotag_list = pOpaque->Get("mgm.geotaglist");
+      if(mSubCmd == "accesssetdirect")
+      {
+        gGeoTreeEngine.setAccessGeotagMapping(&stdOut, geotag.c_str(),geotag_list.c_str(),true);
+        retc = SFS_OK;
+      }
+      if(mSubCmd == "accesscleardirect")
+      {
+        gGeoTreeEngine.clearAccessGeotagMapping(&stdOut,geotag=="all"?"":geotag.c_str(),true);
+        retc = SFS_OK;
+      }
+      if(mSubCmd == "accessshowdirect")
+      {
+        gGeoTreeEngine.showAccessGeotagMapping(&stdOut);
+        retc = SFS_OK;
+      }
+      if(mSubCmd == "accesssetproxygroup")
+      {
+        gGeoTreeEngine.setAccessProxygroup(&stdOut,geotag.c_str(),geotag_list.c_str(),true);
+        retc = SFS_OK;
+      }
+      if(mSubCmd == "accessclearproxygroup")
+      {
+        gGeoTreeEngine.clearAccessProxygroup(&stdOut,geotag=="all"?"":geotag.c_str(),true);
+        retc = SFS_OK;
+      }
+      if(mSubCmd == "accessshowproxygroup")
+      {
+        gGeoTreeEngine.showAccessProxygroup(&stdOut);
+        retc = SFS_OK;
+      }
+    }
   }
   else
   {
