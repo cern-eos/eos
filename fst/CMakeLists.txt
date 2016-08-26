@@ -68,13 +68,12 @@ endif(CPPUNIT_FOUND)
 # at the global scope
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(FMDBASE_SRCS FMDBASE_HDRS PROTOFILES FmdBase.proto)
+set(FMDBASE_SRCS ${FMDBASE_SRCS} PARENT_SCOPE)
+set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
 set_source_files_properties(
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS}
-  PROPERTIES GENERATED 1)
-
-set(FMDBASE_SRCS ${FMDBASE_SRCS} PARENT_SCOPE)
-set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
+  PROPERTIES GENERATED TRUE)
 
 #-------------------------------------------------------------------------------
 # gf-complete static library
