@@ -43,9 +43,28 @@
 #include <sstream>
 #include <cstdio>
 #include <sys/stat.h>
+#include <algorithm>
+#include <vector>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
+
+class RedisConfigEngineChangeLog : public ConfigEngineChangeLog
+{
+
+public:
+  redox::RedoxHash changeLogHash;  
+
+  XrdOucString configChanges;
+
+  std::string changeLogHashKey = "EOSConfig:changeLogHash";
+ 
+  RedisConfigEngineChangeLog ();
+  virtual ~RedisConfigEngineChangeLog ();
+
+  bool AddEntry (const char* info);
+  bool Tail (unsigned int nlines, XrdOucString &tail);
+};
 
 
 class RedisConfigEngine : public IConfigEngine
@@ -62,6 +81,9 @@ class RedisConfigEngine : public IConfigEngine
   std::string conf_hash_key_prefix = "EOSConfig";
   std::string conf_backup_hash_key_prefix = "EOSConfig:backup";
   std::string conf_set_backup_key = "EOSConfig:backuplist";
+
+  //Changelog class
+  RedisConfigEngineChangeLog changeLog;
 
   // ---------------------------------------------------------------------------
   //   Filter a configuration
@@ -88,6 +110,18 @@ class RedisConfigEngine : public IConfigEngine
   // List all configurations
   // ---------------------------------------------------------------------------
   bool ListConfigs (XrdOucString &configlist, bool showbackups = false);
+
+  // ---------------------------------------------------------------------------
+  //! Get the changlog object
+  // ---------------------------------------------------------------------------
+  //
+  ConfigEngineChangeLog*  GetChangeLog () {return &changeLog;}
+
+  void  Diffs (XrdOucString &diffs)
+  {
+    diffs = changeLog.configChanges;
+  }
+
 
   //----------------------------------------------------------------------------
   // Redis conf specific functions

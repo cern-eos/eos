@@ -74,14 +74,15 @@ private:
   bool IsLevelDbFile (const char* file);
   bool IsDbMapFile (const char* file);
   bool LegacyFile2DbMapFile (const char* file);
+
+  eos::common::DbMap map;
+  std::string changelogfile;
+protected:
+  XrdSysMutex Mutex;
   bool ParseTextEntry (const char *entry,
                        std::string &key,
                        std::string &value,
                        std::string &comment);
-
-  XrdSysMutex Mutex;
-  eos::common::DbMap map;
-  std::string changelogfile;
 public:
   XrdOucString configChanges;
 
@@ -90,8 +91,8 @@ public:
 
   void Init (const char* changelogfile);
 
-  bool AddEntry (const char* info);
-  bool Tail (unsigned int nlines, XrdOucString &tail);
+  virtual bool AddEntry (const char* info);
+  virtual bool Tail (unsigned int nlines, XrdOucString &tail);
 };
 
 /*----------------------------------------------------------------------------*/
@@ -145,20 +146,12 @@ public:
   //! Get the changlog object
   // ---------------------------------------------------------------------------
  
-  ConfigEngineChangeLog*
-  GetChangeLog ()
-  {
-  return &changeLog;
-  }
- 
-  void
-  Diffs (XrdOucString &diffs)
-  {
-    diffs = changeLog.configChanges;
-    while (diffs.replace ("&", " "))
-    {
-    }
-  };
+  virtual ConfigEngineChangeLog*  GetChangeLog () = 0;
+  
+  // ---------------------------------------------------------------------------
+  //! Get the changlog object
+  // -
+  virtual void  Diffs (XrdOucString &diffs) = 0;
   
   // ---------------------------------------------------------------------------
   //! Set the autosave mode
@@ -261,132 +254,8 @@ public:
  // configuration queue (config/<instance>/mgm)
   bool configBroadcast;
 
- // Changelog class
-  ConfigEngineChangeLog changeLog;
-
-  // ---------------------------------------------------------------------------
-  //! Comparison function for sorted listing
-  // ---------------------------------------------------------------------------
-
-  static int
-  CompareCtime (const void* a, const void*b)
-  {
-
-    struct filestat
-    {
-      struct stat buf;
-      char filename[1024];
-    };
-    return ( (((struct filestat*) a)->buf.st_mtime) - ((struct filestat*) b)->buf.st_mtime);
-  }
-
-  // ---------------------------------------------------------------------------
-  //! Print the current configuration
-  // ---------------------------------------------------------------------------
-  bool SaveConfig (XrdOucEnv& env, XrdOucString &err);
-
-  
-  // ---------------------------------------------------------------------------
-  // Do an autosave
-  // ---------------------------------------------------------------------------
-  bool
-    AutoSave ();
-  // ---------------------------------------------------------------------------
-  // Set a configuration value
-  // ---------------------------------------------------------------------------
-  void
-    SetConfigValue (const char* prefix,
-                   const char* fsname,
-                   const char* def,
-                   bool tochangelog = true);
-  
-  // ---------------------------------------------------------------------------
-  // Delete a configuration value
-  // ---------------------------------------------------------------------------
-   void
-    DeleteConfigValue (const char* prefix,
- 		      const char* fsname,
-                      bool tochangelog = true);
-  
-};
-
-class ConfigEngineRedis : public ConfigEngine 
-{
-  public:
- 
-  ConfigEngineRedis (const char* configdir);
-
-  ~ConfigEngineRedis();
-
-  // ---------------------------------------------------------------------------
-  // Load a configuration
-  // ---------------------------------------------------------------------------
-  bool LoadConfig (XrdOucEnv& env, XrdOucString &err);
-
-  // ---------------------------------------------------------------------------
-  // Save a configuration
-  // ---------------------------------------------------------------------------
-  bool SaveConfig (XrdOucEnv& env, XrdOucString &err);
-
-  // ---------------------------------------------------------------------------
-  // List all configurations
-  // ---------------------------------------------------------------------------
-  bool ListConfigs (XrdOucString &configlist, bool showbackups = false);
-
-  // ---------------------------------------------------------------------------
-  // Dump a configuration
-  // ---------------------------------------------------------------------------
-  bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
-
-  //----------------------------------------------------------------------------
-  // Redis conf specific functions
-  //----------------------------------------------------------------------------
-
-  // ---------------------------------------------------------------------------
-  // Load a configuration to Redis
-  // ---------------------------------------------------------------------------
-  bool
-  LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err);
-  // ---------------------------------------------------------------------------
-  // Set a configuration from Refis
-  // ---------------------------------------------------------------------------
-  bool
-  SetConfigFromRedis (redox::RedoxHash &hash, XrdOucString &err);
-  // ---------------------------------------------------------------------------
-  // XrdOucHash callback function to set to an HashSet all the configuration value
-  // ---------------------------------------------------------------------------
-  static int
-  SetConfigToRedisHash  (const char* key, XrdOucString* def, void* Arg);
-
-  void
-  SetConfigDir (const char* configdir)
-  {
-    configDir = configdir;
-    currentConfigFile = "default";
-  }
-
-  bool
-    AutoSave ();
-
-  void DeleteConfigValue (const char* prefix,
-                      const char* fsname,
-                      bool noBroadcast = true);
-
-  void
-    SetConfigValue (const char* prefix,
-                   const char* fsname,
-                   const char* def,
-                   bool noBroadcast = true);
-
-  private:
-
-  redox::Redox client;
-=======
 private:
- 
   virtual void FilterConfig(PrintInfo &info,XrdOucString &out,const char * configName) = 0;
->>>>>>> MGM: Refector ConfigEngine after Elvin review, separated header files, new class names, made ConfigEngine abstract, removed Dynamic Cast:mgm/IConfigEngine.hh
-  
 };
 
 EOSMGMNAMESPACE_END

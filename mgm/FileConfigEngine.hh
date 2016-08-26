@@ -56,6 +56,9 @@ class FileConfigEngine : public IConfigEngine
   // ---------------------------------------------------------------------------
   void FilterConfig (PrintInfo &info, XrdOucString &out,const char * configName);
 
+  //Changelog class
+  ConfigEngineChangeLog changeLog;
+
   public:
   // ---------------------------------------------------------------------------
   // Constructor
@@ -80,6 +83,20 @@ class FileConfigEngine : public IConfigEngine
   // List all configurations
   // ---------------------------------------------------------------------------
   bool ListConfigs (XrdOucString &configlist, bool showbackups = false);
+
+  // ---------------------------------------------------------------------------
+  //! Get the changlog object
+  // ---------------------------------------------------------------------------
+  //
+  ConfigEngineChangeLog*  GetChangeLog () {return &changeLog;}
+
+  void  Diffs (XrdOucString &diffs)
+  {
+    diffs = changeLog.configChanges;
+    while (diffs.replace ("&", " "))
+    {
+    }
+  };
 
 
   void

@@ -27,6 +27,82 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+RedisConfigEngineChangeLog::RedisConfigEngineChangeLog (){}
+
+RedisConfigEngineChangeLog::~RedisConfigEngineChangeLog (){}
+
+bool RedisConfigEngineChangeLog::AddEntry (const char* info) {
+
+  Mutex.Lock();
+  std::string key, value, action;
+  if (!ParseTextEntry(info, key, value, action))
+  {
+    eos_warning("failed to parse new entry %s. this entry will be ignored.",
+                info);
+    Mutex.UnLock();
+    return false;
+  }
+  //add entry to the set
+  std::time_t now = std::time(nullptr);
+  std::stringstream ss;
+  ss << now;
+  std::string timestamp = ss.str();
+
+  XrdOucString changeLogValue;
+  changeLogValue += action.c_str();
+  if (key != "" ) {
+    changeLogValue += " ";
+    changeLogValue += key.c_str();
+    changeLogValue += " => ";
+    changeLogValue += value.c_str();
+  }
+  changeLogHash.hset(timestamp, changeLogValue.c_str());
+  Mutex.UnLock();
+
+  configChanges += info;
+  configChanges += "\n";
+
+  return true;
+
+}
+
+bool RedisConfigEngineChangeLog::Tail (unsigned int nlines, XrdOucString &tail) {
+
+  //get keys and sort
+  std::vector<std::string> changeLogKeys = changeLogHash.hkeys();
+  
+  if (changeLogKeys.size() > 0) {
+    //sorting
+    std::sort(changeLogKeys.begin(),changeLogKeys.end());
+
+    unsigned int lines =  std::min(nlines, (unsigned int) changeLogKeys.size());
+
+    for (std::vector<std::string>::iterator it = changeLogKeys.end()-lines ; it != changeLogKeys.end(); ++it){
+     	
+         //convert timestamp to readable string
+   	std::stringstream is(*it);
+        unsigned long epoch;
+        is >> epoch;
+	time_t t = epoch;
+        std::string time = std::ctime(&t);
+        XrdOucString stime = time.c_str();
+        stime.erase(stime.length() - 1);
+        tail += stime.c_str();
+        tail += ": ";
+        tail += changeLogHash.hget(*it).c_str();
+        tail += "\n";
+    }
+    
+  } else {
+    tail += "No lines to show";
+    return false;
+  }
+  
+
+  return true;
+
+}
+
 //------------------------------------------------------------------------------
 //                     *** RedisConfigEngine class ***
 //------------------------------------------------------------------------------
@@ -38,10 +114,12 @@ RedisConfigEngine::RedisConfigEngine (const char* configdir, const char* redisHo
 {
   SetConfigDir(configdir);
   currentConfigFile = "default";
-  autosave = false;
   redisHost = redisHost;
   redisPort = redisPort;
   client.connect(redisHost, redisPort);
+  changeLog.configChanges = "";
+  changeLog.changeLogHash = redox::RedoxHash(client,changeLog.changeLogHashKey);
+  autosave = false;
   configBroadcast = true;
 }
 
@@ -82,11 +160,19 @@ RedisConfigEngine::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 
   if (!PullFromRedis(rdx_hash, err))
 	     return false;
-  if (!ApplyConfig(err))
-     	return false;
+  if (!ApplyConfig(err))   {
+    cl += " with failure";
+    cl += " : ";
+    cl += err;
+    changeLog.AddEntry(cl.c_str());
+    return false;
+  }
   else {
-	currentConfigFile = name;
-	return true;
+    currentConfigFile = name;
+    cl += " successfully";
+    changeLog.AddEntry(cl.c_str());
+    changeLog.configChanges = "";
+    return true;
   }
   
   return false;
@@ -217,7 +303,13 @@ RedisConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
   //add the hash key to the set if it's not there
   if (!rdx_set.sismember(hash_key) )
     rdx_set.sadd(hash_key);
-	
+
+  cl += " successfully";
+  cl += " [";
+  cl += comment;
+  cl += " ]";
+  changeLog.AddEntry(cl.c_str());
+  changeLog.configChanges = "";
   currentConfigFile = name;
   return true;
 }
@@ -466,6 +558,10 @@ RedisConfigEngine::SetConfigValue (const char* prefix,
     }
   }
 
+  //in case is not coming from a broadcast we can add it to the changelog
+  if (noBroadcast)
+    changeLog.AddEntry(cl.c_str());
+
   //in case the change is not coming from a broacast we can can save it ( if autosave is enabled)
   if ( autosave && noBroadcast && currentConfigFile.length())
   {
@@ -506,7 +602,7 @@ RedisConfigEngine::DeleteConfigValue (const char* prefix,
   cl += prefix;
   cl += ":";
   cl += key;
-    configname = prefix;
+  configname = prefix;
   configname += ":";
   configname += key;
   }
@@ -531,8 +627,14 @@ RedisConfigEngine::DeleteConfigValue (const char* prefix,
     }
   }
 
+
   Mutex.Lock();
   configDefinitions.Del(configname.c_str());
+  
+  //in case is not coming from a broadcast we can add it to the changelog
+  if (noBroadcast)
+    changeLog.AddEntry(cl.c_str());
+  
   //in case the change is not coming from a broacast we can can save it ( if autosave is enabled)
 
   if (autosave && noBroadcast && currentConfigFile.length())
@@ -566,7 +668,7 @@ RedisConfigEngine::PushToRedis (XrdOucEnv &env, XrdOucString &err)
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
 
-  XrdOucString cl = "loaded config ";
+  XrdOucString cl = "push config ";
   cl += name;
   cl += " ";
   if (!name)
@@ -617,8 +719,10 @@ RedisConfigEngine::PushToRedis (XrdOucEnv &env, XrdOucString &err)
     else
     {
       cl += " successfully";
+      changeLog.AddEntry(cl.c_str());
       currentConfigFile = name;
-  
+      changeLog.configChanges = "";
+      
       std::string hash_key;
       hash_key += conf_hash_key_prefix.c_str();
       hash_key += ":";

@@ -190,39 +190,23 @@ ProcCommand::Config ()
 
  if (mSubCmd == "diff")
  { 
-   if (gOFS->MgmOfsConfigEngineType == "redis")
-   {
-     retc = EINVAL;
-     stdErr = "error: this command is available only with ConfigEngine type 'file'";
-   } 
-   else 
-   {
      eos_notice("config diff");
      gOFS->ConfEngine->Diffs(stdOut);
-   }
  }
 
  if (mSubCmd == "changelog")
  {
-   if (gOFS->MgmOfsConfigEngineType == "redis")
+   int nlines = 5;
+   char* val;
+   if ((val = pOpaque->Get("mgm.config.lines")))
    {
-     retc = EINVAL;
-     stdErr = "error: this command is available only with ConfigEngine type 'file'";
-   } 
-   else 
-   {
-     int nlines = 5;
-     char* val;
-     if ((val = pOpaque->Get("mgm.config.lines")))
-     {
-       nlines = atoi(val);
-       if (nlines < 1) nlines = 1;
-     }
-     gOFS->ConfEngine->GetChangeLog()->Tail(nlines, stdOut);
-     eos_notice("config changelog");
-  }
+     nlines = atoi(val);
+     if (nlines < 1) nlines = 1;
+   }
+   gOFS->ConfEngine->GetChangeLog()->Tail(nlines, stdOut);
+   eos_notice("config changelog");
  }
- return SFS_OK;
+return SFS_OK;
 }
 
 EOSMGMNAMESPACE_END
