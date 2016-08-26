@@ -106,15 +106,18 @@ set(
   ./layout/gf-complete/include/gf_w16.h)
 
 add_library(
-  gf-complete STATIC
+  gf-complete-static STATIC
   ${GFCOMPLETE_SRCS}
   ${GFCOMPLETE_HDRS})
 
 target_compile_definitions(
-  gf-complete
+  gf-complete-static
   PRIVATE -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-target_compile_options(gf-complete PUBLIC -fPIC)
+set_target_properties(
+  gf-complete-static
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
 # jerasure 2.0 static library
@@ -139,18 +142,20 @@ set(
   layout/jerasure/include/timing.h)
 
 add_library(
-  jerasure STATIC
+  jerasure-static STATIC
   ${JERASURE_SRCS}
   ${JERASURE_HDRS})
 
 target_compile_definitions(
-  jerasure
+  jerasure-static
   PRIVATE -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-target_compile_options(
-  jerasure PUBLIC -fPIC)
+set_target_properties(
+  jerasure-static
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
-target_link_libraries(jerasure gf-complete)
+target_link_libraries(jerasure-static gf-complete-static)
 
 #-------------------------------------------------------------------------------
 # EosFstIo library
@@ -201,7 +206,7 @@ add_library(
 target_link_libraries(
   EosFstIo
   eosCommon
-  jerasure
+  jerasure-static
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -218,6 +223,19 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARIES})
 
+set_target_properties(
+  EosFstIo
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  MACOSX_RPATH TRUE)
+
+install(
+  TARGETS EosFstIo
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
 #-------------------------------------------------------------------------------
 # eoscp executable
 #-------------------------------------------------------------------------------
@@ -228,22 +246,9 @@ set_target_properties(
   PROPERTIES
   COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
-if(MacOSX)
-  set_target_properties(
-    EosFstIo
-    PROPERTIES
-    VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR}
-    MACOSX_RPATH TRUE)
+target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
 
-  target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
-
-  install(
-    TARGETS EosFstIo
-    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-else()
+if(Linux)
   add_library(
     EosFstIo-Static STATIC
     ${EOSFSTIO_SRCS}
@@ -252,7 +257,7 @@ else()
   target_link_libraries(
     EosFstIo-Static
     eosCommon-Static
-    jerasure
+    jerasure-static
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${Z_LIBRARY_STATIC}
@@ -342,13 +347,10 @@ set(
   #-----------------------------------------------------------------------------
   # File metadata interface
   #-----------------------------------------------------------------------------
-  txqueue
   Fmd.cc               Fmd.hh
   FmdHandler.cc        FmdHandler.hh
   FmdDbMap.cc          FmdDbMap.hh
   FmdClient.cc         FmdClient.hh
-  ${FMDBASE_SRCS}
-  ${FMDBASE_HDRS}
 
   #-----------------------------------------------------------------------------
   # HTTP interface
@@ -360,7 +362,7 @@ set(
   #-----------------------------------------------------------------------------
   # EosFstIo interface
   #-----------------------------------------------------------------------------
-  ${EOSFSTIO_SRCS_SERVER})
+  io/local/LocalIo.cc  io/local/LocalIo.hh)
 
 add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
 
@@ -372,8 +374,8 @@ target_link_libraries(
    eosCommon
    eosCommonServer
    EosFstIo-Static
-   eosCapability-Static
    XrdMqClient-Static
+   eosCapability-Static
    ${Z_LIBRARY}
    ${UUID_LIBRARIES}
    ${ATTR_LIBRARIES}

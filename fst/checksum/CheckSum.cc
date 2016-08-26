@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/checksum/CheckSum.hh"
 #include "fst/checksum/Adler.hh"
 #include "fst/checksum/CRC32.hh"
@@ -32,26 +31,25 @@
 #include "common/Path.hh"
 #include "common/Logging.hh"
 #include "common/CloExec.hh"
-/*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysTimer.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <fcntl.h>
+
 #ifndef __APPLE__
 #include <xfs/xfs.h>
-#endif //__APPLE__
-/*----------------------------------------------------------------------------*/
-#include <XrdSys/XrdSysTimer.hh>
-#include <fst/io/FileIo.hh>
-#include <fst/io/FileIoPluginCommon.hh>
+#include <attr/xattr.h>
+#else
+#include <sys/xattr.h>
+#endif
 
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-// static variable + sig handler to deal with SIGBUS error
+// Static variable + sig handler to deal with SIGBUS error
 /*----------------------------------------------------------------------------*/
-
 static sigjmp_buf sj_env;
 
 /*----------------------------------------------------------------------------*/
@@ -338,18 +336,19 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
            (unsigned long long) blocksize);
   std::string sBlockSize = sblocksize;
   std::string sBlockCheckSum = Name.c_str();
-  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(mapfilepath));
 
-  if ((io->attrSet(std::string("user.eos.blocksize"), sBlockSize)) ||
-      (io->attrSet(std::string("user.eos.blockchecksum"), sBlockCheckSum))) {
-    //      fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
+  if (fsetxattr(ChecksumMapFd, "user.eos.blocksize", sBlockSize.c_str(),
+                sBlockSize.size(), 0) ||
+      fsetxattr(ChecksumMapFd, "user.eos.blockchecksum", sBlockCheckSum.c_str(),
+                sBlockCheckSum.size(), 0)) {
+    // fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
     close(ChecksumMapFd);
     return false;
   }
 
   ChecksumMapSize = ((maxfilesize / blocksize) + 1) * (GetCheckSumLen());
-  ChecksumMapOpenSize =
-    ChecksumMapSize; // we need this, in case we have to deallocate !
+  // Need this in case we have to deallocate!
+  ChecksumMapOpenSize = ChecksumMapSize;
 
   if (isRW) {
     int rc = 0;
