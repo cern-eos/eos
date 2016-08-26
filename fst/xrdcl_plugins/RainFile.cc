@@ -43,8 +43,8 @@ RainFile::RainFile():
 {
   eos_debug("calling constructor");
 }
-  
-  
+
+
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
@@ -52,79 +52,79 @@ RainFile::~RainFile()
 {
   eos_debug("calling destructor");
 
-  if (pFile) delete pFile;
-  if (pRainFile) delete pRainFile;    
+  if (pFile) {
+    delete pFile;
+  }
+
+  if (pRainFile) {
+    delete pRainFile;
+  }
 }
-  
+
 
 //------------------------------------------------------------------------------
 // Open
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Open( const std::string& url,
-                OpenFlags::Flags flags,
-                Access::Mode mode,
-                ResponseHandler* handler,
-                uint16_t timeout )
+RainFile::Open(const std::string& url,
+               OpenFlags::Flags flags,
+               Access::Mode mode,
+               ResponseHandler* handler,
+               uint16_t timeout)
 {
   eos_debug("url=%s", url.c_str());
   XRootDStatus st;
 
-  if (mIsOpen)
-  {
+  if (mIsOpen) {
     st = XRootDStatus(stError, errInvalidOp);
     return st;
   }
 
   // For reading try PIO mode
-  if ((flags & OpenFlags::Flags::Read) == OpenFlags::Flags::Read)
-  {
+  if ((flags & OpenFlags::Flags::Read) == OpenFlags::Flags::Read) {
     Buffer arg;
     Buffer* response = 0;
     std::string fpath = url;
     size_t spos = fpath.rfind("//");
 
-    if (spos != std::string::npos)
+    if (spos != std::string::npos) {
       fpath.erase(0, spos + 1);
-    
+    }
+
     std::string request = fpath;
     request += "?mgm.pcmd=open";
     arg.FromString(request);
-
     std::string endpoint = url;
     endpoint.erase(spos + 1);
     URL Url(endpoint);
     XrdCl::FileSystem fs(Url);
     st = fs.Query(QueryCode::OpaqueFile, arg, response);
 
-    if (st.IsOK())
-    {
+    if (st.IsOK()) {
       // Parse output
       XrdOucString tag;
       XrdOucString stripePath;
       std::vector<std::string> stripeUrls;
-
       XrdOucString origResponse = response->GetBuffer();
       XrdOucString stringOpaque = response->GetBuffer();
-
       // Add the eos.app=rainplugin tag to all future PIO open requests
       origResponse += "&eos.app=rainplugin";
 
       while (stringOpaque.replace("?", "&")) { }
+
       while (stringOpaque.replace("&&", "&")) { }
 
       XrdOucEnv* openOpaque = new XrdOucEnv(stringOpaque.c_str());
       char* opaqueInfo = (char*) strstr(origResponse.c_str(), "&mgm.logid");
 
-      if (opaqueInfo)
-      {
+      if (opaqueInfo) {
         opaqueInfo += 1;
         LayoutId::layoutid_t layout = openOpaque->GetInt("mgm.lid");
 
-        for (unsigned int i = 0; i <= eos::common::LayoutId::GetStripeNumber(layout); i++)
-        {
+        for (unsigned int i = 0; i <= eos::common::LayoutId::GetStripeNumber(layout);
+             i++) {
           tag = "pio.";
-          tag += static_cast<int> (i);
+          tag += static_cast<int>(i);
           stripePath = "root://";
           stripePath += openOpaque->Get(tag.c_str());
           stripePath += "/";
@@ -132,64 +132,51 @@ RainFile::Open( const std::string& url,
           stripeUrls.push_back(stripePath.c_str());
         }
 
-        if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP)
-        {
-          pRainFile = new RaidDpLayout(NULL, layout, NULL, NULL, LayoutId::kXrdCl);
-        }
-        else if ((LayoutId::GetLayoutType(layout) == LayoutId::kRaid6) ||
-                 (LayoutId::GetLayoutType(layout) == LayoutId::kArchive))
-        {
-          pRainFile = new ReedSLayout(NULL, layout, NULL, NULL, LayoutId::kXrdCl);
-        }
-        else
-        {
+        if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP) {
+          pRainFile = new RaidDpLayout(NULL, layout, NULL, NULL, "");
+        } else if ((LayoutId::GetLayoutType(layout) == LayoutId::kRaid6) ||
+                   (LayoutId::GetLayoutType(layout) == LayoutId::kArchive)) {
+          pRainFile = new ReedSLayout(NULL, layout, NULL, NULL, "");
+        } else {
           eos_warning("unsupported PIO layout");
           return XRootDStatus(stError, errNotSupported, 0, "unsupported PIO layout");
         }
 
-        if (pRainFile)
-        {
-          if (pRainFile->OpenPio(stripeUrls, SFS_O_RDONLY, mode, opaqueInfo))
-          {
+        if (pRainFile) {
+          if (pRainFile->OpenPio(stripeUrls, SFS_O_RDONLY, mode, opaqueInfo)) {
             eos_err("failed PIO open for path=%s", url.c_str());
             delete pRainFile;
             st = XRootDStatus(stError, errInvalidOp, 0, "failed PIO open");
           }
-        }
-        else
-        {
+        } else {
           eos_err("no RAIN file allocated");
           st = XRootDStatus(stError, errInternal, 0, "no RAIN file allocated");
         }
-      }
-      else
-      {
+      } else {
         eos_err("no opaque info");
         st = XRootDStatus(stError, errDataError, 0, "no opaque info");
       }
-    }
-    else
-    {
+    } else {
       eos_err("error while doing PIO read request");
       st = XRootDStatus(stError, errNotImplemented, 0, "error PIO read request");
     }
 
-    if (st.IsOK())
-    {
+    if (st.IsOK()) {
       mIsOpen = true;
       XRootDStatus* ret_st = new XRootDStatus(st);
       handler->HandleResponse(ret_st, 0);
     }
-  }
-  else
-  {
+  } else {
     // Normal XrdCl file access
     pFile = new XrdCl::File(false);
     st = pFile->Open(url, flags, mode, handler, timeout);
-    if (st.IsOK()) mIsOpen = true;
+
+    if (st.IsOK()) {
+      mIsOpen = true;
+    }
   }
 
-  return st;  
+  return st;
 }
 
 
@@ -197,39 +184,35 @@ RainFile::Open( const std::string& url,
 // Close
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Close( ResponseHandler* handler,
-                 uint16_t timeout )
+RainFile::Close(ResponseHandler* handler,
+                uint16_t timeout)
 {
   eos_debug("calling close");
   XRootDStatus st;
 
-  if (mIsOpen)
-  {
+  if (mIsOpen) {
     mIsOpen = false;
-    if (pFile)
+
+    if (pFile) {
       st = pFile->Close(handler, timeout);
-    else
-    {
+    } else {
       int retc = pRainFile->Close();
-      
-      if (retc)
+
+      if (retc) {
         st = XRootDStatus(stError, errUnknown);
-      else
-      {
+      } else {
         XRootDStatus* ret_st = new XRootDStatus(st);
-        handler->HandleResponse(ret_st, 0);      
+        handler->HandleResponse(ret_st, 0);
       }
     }
-  }
-  else
-  {
+  } else {
     // File already closed
     st = XRootDStatus(stError, errInvalidOp);
     XRootDStatus* ret_st = new XRootDStatus(st);
-    handler->HandleResponse(ret_st, 0);      
+    handler->HandleResponse(ret_st, 0);
   }
-  
-  return st;  
+
+  return st;
 }
 
 
@@ -237,50 +220,43 @@ RainFile::Close( ResponseHandler* handler,
 // Stat
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Stat( bool force,
-                ResponseHandler* handler,
-                uint16_t timeout )
+RainFile::Stat(bool force,
+               ResponseHandler* handler,
+               uint16_t timeout)
 {
   eos_debug("calling stat");
   XRootDStatus st;
 
-  if (pFile)
+  if (pFile) {
     st = pFile->Stat(force, handler, timeout);
-  else
-  {
+  } else {
     struct stat buf;
     int retc = pRainFile->Stat(&buf);
 
-    if (retc)
-    {
+    if (retc) {
       eos_err("RAIN stat failed retc=%i", retc);
       st = XRootDStatus(stError, errUnknown);
-    }
-    else
-    {
+    } else {
       StatInfo* sinfo = new StatInfo();
       std::ostringstream data;
-      data << buf.st_dev << " " << buf.st_size<< " "
+      data << buf.st_dev << " " << buf.st_size << " "
            << buf.st_mode << " " << buf.st_mtime;
 
-      if (!sinfo->ParseServerResponse(data.str().c_str()))
-      {
+      if (!sinfo->ParseServerResponse(data.str().c_str())) {
         eos_err("error parsing stat info");
         delete sinfo;
         st = XRootDStatus(stError, errDataError);
-      }
-      else
-      {
+      } else {
         eos_debug("stat parsing is ok:%i", st.IsOK());
         XRootDStatus* ret_st = new XRootDStatus(st);
         AnyObject* obj = new AnyObject();
         obj->Set(sinfo);
-        handler->HandleResponse(ret_st, obj);       
+        handler->HandleResponse(ret_st, obj);
       }
     }
   }
 
-  return st;  
+  return st;
 }
 
 
@@ -288,25 +264,23 @@ RainFile::Stat( bool force,
 // Read
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Read( uint64_t offset,
-                uint32_t size,
-                void* buffer,
-                ResponseHandler* handler,
-                uint16_t timeout )
+RainFile::Read(uint64_t offset,
+               uint32_t size,
+               void* buffer,
+               ResponseHandler* handler,
+               uint16_t timeout)
 {
   eos_debug("offset=%ju, size=%ju", offset, size);
   XRootDStatus st;
 
-  if (pFile)
+  if (pFile) {
     st = pFile->Read(offset, size, buffer, handler, timeout);
-  else
-  {
+  } else {
     int64_t retc = pRainFile->Read(offset, (char*)buffer, size);
 
-    if (retc == -1)
+    if (retc == -1) {
       st = XRootDStatus(stError, errUnknown);
-    else
-    {
+    } else {
       XRootDStatus* ret_st = new XRootDStatus(st);
       ChunkInfo* chunkInfo = new ChunkInfo(offset, retc, buffer);
       AnyObject* obj = new AnyObject();
@@ -323,19 +297,20 @@ RainFile::Read( uint64_t offset,
 // Write
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Write( uint64_t offset,
-                 uint32_t size,
-                 const void* buffer,
-                 ResponseHandler* handler,
-                 uint16_t timeout )
+RainFile::Write(uint64_t offset,
+                uint32_t size,
+                const void* buffer,
+                ResponseHandler* handler,
+                uint16_t timeout)
 {
   eos_debug("offset=%ju, size=%ju", offset, size);
   XRootDStatus st;
 
-  if (pFile)
+  if (pFile) {
     st = pFile->Write(offset, size, buffer, handler, timeout);
-  else
+  } else {
     st = XRootDStatus(stError, errNotImplemented, 0, "RAIN write not implemented");
+  }
 
   return st;
 }
@@ -345,22 +320,20 @@ RainFile::Write( uint64_t offset,
 // Sync
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Sync( ResponseHandler* handler,
-                uint16_t timeout )
+RainFile::Sync(ResponseHandler* handler,
+               uint16_t timeout)
 {
   eos_debug("callnig sync");
   XRootDStatus st;
 
-  if (pFile )
+  if (pFile) {
     st = pFile->Sync(handler, timeout);
-  else
-  {
+  } else {
     int retc = pRainFile->Sync();
 
-    if (retc)
+    if (retc) {
       st = XRootDStatus(stError, errUnknown);
-    else
-    {
+    } else {
       XRootDStatus* ret_st = new XRootDStatus(st);
       handler->HandleResponse(ret_st, 0);
     }
@@ -374,17 +347,19 @@ RainFile::Sync( ResponseHandler* handler,
 // Truncate
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Truncate( uint64_t size,
-                    ResponseHandler* handler,
-                    uint16_t timeout )
+RainFile::Truncate(uint64_t size,
+                   ResponseHandler* handler,
+                   uint16_t timeout)
 {
   eos_debug("offset=%ju", size);
   XRootDStatus st;
 
-  if (pFile)
+  if (pFile) {
     st = pFile->Truncate(size, handler, timeout);
-  else
-    st = XRootDStatus(stError, errNotImplemented, 0, "RAIN truncate not implemented");
+  } else {
+    st = XRootDStatus(stError, errNotImplemented, 0,
+                      "RAIN truncate not implemented");
+  }
 
   return st;
 }
@@ -394,27 +369,27 @@ RainFile::Truncate( uint64_t size,
 // VectorRead
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::VectorRead( const ChunkList& chunks,
-                      void* buffer,
-                      ResponseHandler* handler,
-                      uint16_t timeout )
+RainFile::VectorRead(const ChunkList& chunks,
+                     void* buffer,
+                     ResponseHandler* handler,
+                     uint16_t timeout)
 {
   eos_debug("calling vread");
   XRootDStatus st;
 
-  if (pFile)
+  if (pFile) {
     st = pFile->VectorRead(chunks, buffer, handler, timeout);
-  else
-  {
+  } else {
     // Compute total length of readv request
     uint32_t len = 0;
-    for (auto it = chunks.begin(); it != chunks.end(); ++it)
+
+    for (auto it = chunks.begin(); it != chunks.end(); ++it) {
       len += it->length;
+    }
 
     int64_t retc = pRainFile->ReadV(const_cast<ChunkList&>(chunks), len);
 
-    if (retc == (int64_t)len)
-    {
+    if (retc == (int64_t)len) {
       XRootDStatus* ret_st = new XRootDStatus(st);
       AnyObject* obj = new AnyObject();
       VectorReadInfo* vReadInfo = new VectorReadInfo();
@@ -423,9 +398,9 @@ RainFile::VectorRead( const ChunkList& chunks,
       vResp = chunks;
       obj->Set(vReadInfo);
       handler->HandleResponse(ret_st, obj);
-    }
-    else
+    } else {
       st = XRootDStatus(stError, errUnknown);
+    }
   }
 
   return st;
@@ -436,17 +411,16 @@ RainFile::VectorRead( const ChunkList& chunks,
 // Fcntl
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Fcntl( const Buffer& arg,
-                 ResponseHandler* handler,
-                 uint16_t timeout )
+RainFile::Fcntl(const Buffer& arg,
+                ResponseHandler* handler,
+                uint16_t timeout)
 {
   eos_debug("calling fcntl");
   XRootDStatus st;
 
-  if (pFile)
+  if (pFile) {
     st = pFile->Fcntl(arg, handler, timeout);
-  else
-  {
+  } else {
     st = XRootDStatus(stError, errNotImplemented, 0, "RAIN fcntl not implemented");
   }
 
@@ -458,16 +432,15 @@ RainFile::Fcntl( const Buffer& arg,
 // Visa
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Visa( ResponseHandler* handler,
-                uint16_t timeout )
+RainFile::Visa(ResponseHandler* handler,
+               uint16_t timeout)
 {
   eos_debug("calling visa");
   XRootDStatus st;
 
-  if (pFile)
+  if (pFile) {
     st = pFile->Visa(handler, timeout);
-  else
-  {
+  } else {
     st = XRootDStatus(stError, errNotImplemented, 0, "RAIN visa not implemented");
   }
 
@@ -489,15 +462,14 @@ RainFile::IsOpen() const
 // @see XrdCl::File::SetProperty
 //------------------------------------------------------------------------------
 bool
-RainFile::SetProperty( const std::string &name,
-                       const std::string &value )
+RainFile::SetProperty(const std::string& name,
+                      const std::string& value)
 {
   eos_debug("name=%s, value=%s", name.c_str(), value.c_str());
-  
-  if (pFile)
+
+  if (pFile) {
     return pFile->SetProperty(name, value);
-  else
-  {
+  } else {
     eos_err("op. not implemented for RAIN files");
     return false;
   }
@@ -508,15 +480,14 @@ RainFile::SetProperty( const std::string &name,
 // @see XrdCl::File::GetProperty
 //------------------------------------------------------------------------------
 bool
-RainFile::GetProperty( const std::string &name,
-                       std::string &value ) const
+RainFile::GetProperty(const std::string& name,
+                      std::string& value) const
 {
   eos_debug("name=%s", name.c_str());
 
-  if (pFile)
+  if (pFile) {
     return pFile->GetProperty(name, value);
-  else
-  {
+  } else {
     eos_err("op. not implemented for RAIN files");
     return false;
   }

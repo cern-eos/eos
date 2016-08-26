@@ -21,30 +21,27 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
-                    ${XROOTD_INCLUDE_DIR}
-                    ${XROOTD_PRIVATE_INCLUDE_DIR})
+add_library(
+  EosRainClient MODULE
+  RainPlugin.cc RainPlugin.hh
+  RainFile.cc   RainFile.hh)
 
-LINK_DIRECTORIES(${XROOTD_LIB_DIR})
+target_link_libraries(
+  EosRainClient
+  eosCommon
+  EosFstIo-Static
+  ${XROOTD_CL_LIBRARY})
 
-ADD_LIBRARY(EosRainClient MODULE
-	    RainPlugin.cc RainPlugin.hh
-            RainFile.cc   RainFile.hh)
+set_target_properties(
+  EosRainClient
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  MACOSX_RPATH TRUE)
 
-TARGET_LINK_LIBRARIES(EosRainClient
-                      eosCommon
-		      EosFstIo-Static
-	              XrdCl)
-
-IF(Linux)
-SET_TARGET_PROPERTIES(EosRainClient PROPERTIES
-                      VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-                      SOVERSION ${VERSION_MAJOR}
-                      CLEAN_DIRECT_OUTPUT 1)
-ENDIF(Linux)
-
-INSTALL(TARGETS EosRainClient
-        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        ARCHIVE DESTINATION ${LIB_INSTALL_DIR})
+install(
+  TARGETS EosRainClient
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
