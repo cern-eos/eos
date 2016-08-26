@@ -32,8 +32,11 @@
 #include "fst/io/AsyncMetaHandler.hh"
 /*----------------------------------------------------------------------------*/
 
+// Linux compat for Apple
 #ifdef __APPLE__
+#ifndef EREMOTEIO
 #define EREMOTEIO 121
+#endif
 #endif
 
 EOSFSTNAMESPACE_BEGIN

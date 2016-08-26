@@ -21,19 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/io/local/FsIo.hh"
-/*----------------------------------------------------------------------------*/
 #ifndef __APPLE__
-
 #include <xfs/xfs.h>
-
-#endif
-#undef __USE_FILE_OFFSET64
-
-#include <fts.h>
 #include <attr/xattr.h>
+#else
+#include <sys/xattr.h>
+#endif
+
+#undef __USE_FILE_OFFSET64
+#include <fts.h>
+
 
 /*----------------------------------------------------------------------------*/
 

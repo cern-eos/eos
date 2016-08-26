@@ -35,6 +35,13 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 
+// Linux compat for Apple
+#ifdef __APPLE__
+#ifndef EREMOTEIO
+#define EREMOTEIO 121
+#endif
+#endif
+
 EOSFSTNAMESPACE_BEGIN
 
 
@@ -1017,10 +1024,17 @@ XrdIo::Statfs(struct statfs* sfs)
       return errno;
     }
 
+#ifdef __APPLE__
+    sfs->f_iosize = 4096;
+    sfs->f_bsize = sfs->f_iosize;
+    sfs->f_blocks = (fsblkcnt_t)(total_bytes / sfs->f_iosize);
+    sfs->f_bavail = (fsblkcnt_t)(free_bytes / sfs->f_iosize);
+#else
     sfs->f_frsize = 4096;
     sfs->f_bsize = sfs->f_frsize;
     sfs->f_blocks = (fsblkcnt_t)(total_bytes / sfs->f_frsize);
     sfs->f_bavail = (fsblkcnt_t)(free_bytes / sfs->f_frsize);
+#endif
     sfs->f_bfree = sfs->f_bavail;
     sfs->f_files = 1000000;
     sfs->f_ffree = 1000000;
