@@ -25,7 +25,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #ifdef KINETICIO_FOUND
-#include <kio/KineticIoFactory.hh>
+#include "kio/KineticIoFactory.hh"
 #endif
 
 /*----------------------------------------------------------------------------*/
@@ -372,6 +372,8 @@ Storage::Communicator()
                 setenv("KINETIC_DRIVE_SECURITY", k_security.c_str(), 1);
                 setenv("KINETIC_CLUSTER_DEFINITION", k_cluster.c_str(), 1);
                 do_reload = true;
+                // Not used without kinetic support - avoid compile warning
+                (void) do_reload;
               }
             }
 

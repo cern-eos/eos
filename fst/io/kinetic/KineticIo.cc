@@ -1,5 +1,5 @@
 #include "KineticIo.hh"
-#include <kio/KineticIoFactory.hh>
+#include "kio/KineticIoFactory.hh"
 #include <system_error>
 
 EOSFSTNAMESPACE_BEGIN

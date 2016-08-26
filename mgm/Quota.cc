@@ -1316,7 +1316,9 @@ Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
     free_bytes_usr = free_bytes_grp = free_bytes_prj = 0;
     max_bytes_usr = max_bytes_grp = max_bytes_prj = 0;
     free_files_usr = free_files_grp = free_files_prj = 0;
+    (void) free_files_usr; // not used - avoid compile warning
     max_files_usr = max_files_grp = max_files_prj = 0;
+    (void) max_files_usr; // not used -avoid compile warning
     max_bytes_usr  = space->GetQuota(SpaceQuota::kUserBytesTarget, vid.uid);
     max_bytes_grp = space->GetQuota(SpaceQuota::kGroupBytesTarget, vid.gid);
     max_bytes_prj = space->GetQuota(SpaceQuota::kGroupBytesTarget,
