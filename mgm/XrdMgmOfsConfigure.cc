@@ -1872,6 +1872,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // to be sure not to miss any notification while everything is starting up
+  // we don't check if it succeeds because we might fail because we timeout
+  // if there is no FST sending update
   gGeoTreeEngine.forceRefresh();
   return NoGo;
 }

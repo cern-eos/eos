@@ -31,6 +31,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"
 #include "mgm/geotree/SchedulingSlowTree.hh"
+#include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -1024,7 +1025,7 @@ protected:
   std::list<SchedTME*> pPendingDeletionsFs;
   std::list<DataProxyTME*> pPendingDeletionsDp;
   /// indicate if the updater is paused
-  static XrdSysSemaphore gUpdaterPauseSem;
+  static sem_t gUpdaterPauseSem;
   static bool gUpdaterPaused;
   static bool gUpdaterStarted;
 //**********************************************************
@@ -1572,6 +1573,8 @@ public:
       it->reserve(100);
     // create the thread local key to handle allocation/destruction of thread local geobuffers
     pthread_key_create(&gPthreadKey, GeoTreeEngine::tlFree);
+    // initialize pauser semaphore
+    if(sem_init(&gUpdaterPauseSem, 0, 1)) { throw "sem_init() failed";}
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 #ifdef EOS_INSTRUMENTED_RWMUTEX
     eos::common::RWMutex::SetOrderCheckingGlobal(true);
@@ -1825,15 +1828,33 @@ public:
   //! Pause the updating of the GeoTreeEngine but keep accumulating
   //! modification notifications
   // ---------------------------------------------------------------------------
-  inline static void PauseUpdater()
-  { if(gUpdaterStarted && !gUpdaterPaused) { gUpdaterPauseSem.Wait(); gUpdaterPaused = true; }}
+  inline static bool PauseUpdater()
+  {
+    if(gUpdaterStarted && !gUpdaterPaused)
+    {
+      timespec ts;
+      eos::common::Timing::GetTimeSpec(ts,false);
+      ts.tv_sec += 2; // we wait for two seconds and then we fail. It avoids deadlocking when no update is received (No FST)
+      int rc = 0;
+      while ( (rc = sem_timedwait(&gUpdaterPauseSem,&ts)) && errno == EINTR)
+        continue;
+      if( rc == ETIMEDOUT ) return false;
+      if( rc ) throw "sem_timedwait() failed";
+      gUpdaterPaused = true;
+      return true;
+    }
+    return true; // already paused
+  }
 
   // ---------------------------------------------------------------------------
   //! Resume the updating of the GeoTreeEngine
   //! Process all the notifications accumulated since it was paused
   // ---------------------------------------------------------------------------
   inline static void ResumeUpdater()
-  { if(gUpdaterStarted && gUpdaterPaused) { gUpdaterPauseSem.Post(); gUpdaterPaused = false; }}
+  { if(gUpdaterStarted && gUpdaterPaused) {
+    if (sem_post(&gUpdaterPauseSem)) {throw "sem_post() failed";}
+    gUpdaterPaused = false; }
+  }
 
   // ---------------------------------------------------------------------------
   //! Helper class to use Pausing the updater

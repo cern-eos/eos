@@ -66,8 +66,10 @@ ProcCommand::GeoSched ()
     }
     if(mSubCmd == "updtpause")
     {
-      gGeoTreeEngine.PauseUpdater();
-      stdOut += "GeoTreeEngine has been paused\n";
+      if(gGeoTreeEngine.PauseUpdater())
+        stdOut += "GeoTreeEngine has been paused\n";
+      else
+        stdOut += "GeoTreeEngine could not be paused at the moment\n";
       retc = SFS_OK;
     }
     if(mSubCmd == "updtresume")

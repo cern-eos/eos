@@ -120,7 +120,7 @@ const map<string,int> GeoTreeEngine::gNotifKey2EnumGw =
 
 map<string,int> GeoTreeEngine::gNotificationsBufferFs;
 map<string,int> GeoTreeEngine::gNotificationsBufferDp;
-XrdSysSemaphore GeoTreeEngine::gUpdaterPauseSem;
+sem_t GeoTreeEngine::gUpdaterPauseSem;
 bool GeoTreeEngine::gUpdaterPaused = false;
 bool GeoTreeEngine::gUpdaterStarted = false;
 const unsigned char GeoTreeEngine::sntFilesystem=1,GeoTreeEngine::sntDataproxy=4;
@@ -1814,7 +1814,10 @@ void GeoTreeEngine::listenFsChange()
 
   do
   {
-    gUpdaterPauseSem.Wait();
+    while (sem_wait(&gUpdaterPauseSem))
+    { if (EINTR != errno)
+      { throw "sem_wait() failed";}
+    }
 
     gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait(1);
     //gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
@@ -1932,7 +1935,8 @@ void GeoTreeEngine::listenFsChange()
     XrdSysThread::SetCancelOff();
     size_t elapsedMs = (curtime.tv_sec-prevtime.tv_sec)*1000 +(curtime.tv_usec-prevtime.tv_usec)/1000;
     pFrameCount++;
-    gUpdaterPauseSem.Post();
+    if (sem_post(&gUpdaterPauseSem))
+    { throw "sem_post() failed";}
     if((int)elapsedMs<pTimeFrameDurationMs)
       XrdSysTimer::Wait(pTimeFrameDurationMs-(int)elapsedMs);
   }
