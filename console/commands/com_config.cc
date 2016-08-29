@@ -143,12 +143,39 @@ com_config (char* arg1)
 
   if (subcommand == "export")
   {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=export&mgm.config.file=";
+    XrdOucString in = "mgm.cmd=config&mgm.subcmd=export";
 
     if (!arg.length())
       goto com_config_usage;
 
-    in += arg;
+    bool hasfile = false;
+    bool match = false;
+    do
+    {
+      match = false;
+      if (arg == "-f")
+      {
+        in += "&mgm.config.force=1";
+        arg = subtokenizer.GetToken();
+        match = true;
+      }
+      if (!arg.beginswith("-"))
+      {
+        in += "&mgm.config.file=";
+        in += arg;
+        hasfile = true;
+        arg = subtokenizer.GetToken();
+        match = true;
+      }
+      if (!match)
+        arg = subtokenizer.GetToken();
+
+    }
+    while (arg.length() && match);
+
+    if (!match) goto com_config_usage;
+    if (!hasfile) goto com_config_usage;
+        
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
@@ -300,8 +327,9 @@ com_config_usage:
   fprintf(stdout, "                                                  reset all configuration to empty state\n");
   fprintf(stdout, "config autosave [on|off] :\n");
   fprintf(stdout, "                                                  without on/off just prints the state otherwise set's autosave to on or off\n");
-  fprintf(stdout, "config export :\n");
+  fprintf(stdout, "config export [-f] [<name>]:\n");
   fprintf(stdout, "                                                  export a configuration stored on file to Redis\n");
+  fprintf(stdout, "            -f : overwrite existing config name and create a timestamped backup\n");
 
   return (0);
 }

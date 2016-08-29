@@ -90,6 +90,8 @@ class RedisConfigEngine : public IConfigEngine
   // ---------------------------------------------------------------------------
   void FilterConfig (PrintInfo &info, XrdOucString &out,const char * configName);
 
+  void getTimeStamp(XrdOucString &out);
+
   public:
 
   RedisConfigEngine (const char* configdir, const char* redisHost, int redisPort);

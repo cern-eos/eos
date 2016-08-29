@@ -294,9 +294,9 @@ RedisConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
   Mutex.Lock();
   configDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
   Mutex.UnLock();
-  time_t now = time(0);
-  XrdOucString stime = ctime(&now);
-  stime.erase(stime.length() - 1);
+  //adding  timestamp
+  XrdOucString stime;
+  getTimeStamp(stime);
   rdx_hash.hset("timestamp", stime.c_str());
   //we store in redis the list of available EOSConfigs as Set
   redox::RedoxSet rdx_set(client, conf_set_key);
@@ -666,16 +666,19 @@ RedisConfigEngine::PushToRedis (XrdOucEnv &env, XrdOucString &err)
 {
   
   const char* name = env.Get("mgm.config.file");
-  eos_notice("loading name=%s ", name);
+  bool force = (bool)env.Get("mgm.config.force");
 
-  XrdOucString cl = "push config ";
-  cl += name;
-  cl += " ";
   if (!name)
   {
     err = "error: you have to specify a configuration file name";
     return false;
   }
+
+  eos_notice("loading name=%s ", name);
+
+  XrdOucString cl = "exported config ";
+  cl += name;
+  cl += " ";
 
   XrdOucString fullpath = configDir;
   fullpath += name;
@@ -718,11 +721,6 @@ RedisConfigEngine::PushToRedis (XrdOucEnv &env, XrdOucString &err)
     }
     else
     {
-      cl += " successfully";
-      changeLog.AddEntry(cl.c_str());
-      currentConfigFile = name;
-      changeLog.configChanges = "";
-      
       std::string hash_key;
       hash_key += conf_hash_key_prefix.c_str();
       hash_key += ":";
@@ -732,19 +730,51 @@ RedisConfigEngine::PushToRedis (XrdOucEnv &env, XrdOucString &err)
 
       redox::RedoxHash rdx_hash(client,hash_key);
       if (rdx_hash.hlen() > 0) {
-        std::vector<std::string> resp = rdx_hash.hkeys();
+         if (force) {
+           //create backup
+          char buff[20];
+          time_t now = time(NULL);
+          strftime(buff, 20, "%Y%m%d%H%M%S", localtime(&now));
+          std::string hash_key_backup;
+          hash_key_backup += conf_backup_hash_key_prefix.c_str();
+          hash_key_backup += ":";
+          hash_key_backup += name;
+          hash_key_backup += "-";
+          hash_key_backup += buff;
 
-        for (auto&& elem: resp)
-        	rdx_hash.hdel(elem);
+          eos_notice("HASH KEY NAME => %s",hash_key_backup.c_str());
+          //backup hash
+          redox::RedoxHash rdx_hash_backup(client,hash_key_backup);
+          std::vector<std::string> resp = rdx_hash.hkeys();
 
+          for (auto&& elem: resp){
+            rdx_hash_backup.hset(elem, rdx_hash.hget(elem));
+          }
+          //clear 
+          for (auto&& elem: resp) {
+            rdx_hash.hdel(elem);
+          }
+
+          //add hash to backup set
+          redox::RedoxSet rdx_set_backup(client, conf_set_backup_key);
+          //add the hash key to the set if it's not there
+          rdx_set_backup.sadd(hash_key_backup);
+
+        }
+        else {
+          errno = EEXIST;
+          err = "error: a configuration with name \"";
+          err += name;
+          err += "\" exists already on Redis!";
+          return false;
+       }
       }
       Mutex.Lock();
       configDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
       Mutex.UnLock();
       //adding key for timestamp
-      time_t now = time(0);
-      XrdOucString stime = ctime(&now);
-      stime.erase(stime.length() - 1);
+      XrdOucString stime;
+      getTimeStamp(stime);
       rdx_hash.hset("timestamp",stime.c_str());
 
       //we store in redis the list of available EOSConfigs as Set
@@ -754,10 +784,14 @@ RedisConfigEngine::PushToRedis (XrdOucEnv &env, XrdOucString &err)
       if (!rdx_set.sismember(hash_key) ) {
         rdx_set.sadd(hash_key);
       }
+      cl += " successfully";
+      changeLog.AddEntry(cl.c_str());
+      currentConfigFile = name;
+      changeLog.configChanges = "";
 
       return true;
-    }
    }
+  }
   else
   {
     err = "error: failed to open configuration file with name \"";
@@ -783,6 +817,14 @@ RedisConfigEngine::SetConfigToRedisHash  (const char* key, XrdOucString* def, vo
   redox::RedoxHash *hash = ((redox::RedoxHash*) Arg);
   hash->hset(key, std::string(def->c_str()));
   return 0;
+}
+
+void 
+RedisConfigEngine::getTimeStamp(XrdOucString &out)
+{
+  time_t now = time(0);
+  out = ctime(&now);
+  out.erase(out.length() - 1);
 }
 
 
