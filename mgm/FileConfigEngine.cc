@@ -110,7 +110,7 @@ ConfigEngineChangeLog::ParseTextEntry (const char *entry,
   }
   else if (action.size() >= 12)
   {
-    if (action.substr(0, 12).compare("saved config") == 0)
+    if (action.substr(0, 12).compare("saved config") == 0) 
     { // to take into account the missing space after config when writing the old configchangelog file format
       std::string k;
       if (action.size() > 12) k = action.substr(12); // if the space is missing e.g:configNAME, the name is put in this string and space is appended
@@ -120,6 +120,18 @@ ConfigEngineChangeLog::ParseTextEntry (const char *entry,
       key = k;
       getline(ss, value);
       action = action.substr(0, 12); // to take into account the missing space after config when writing the old configchangelog file format
+      if (key.empty() || value.empty()) return false; // error, should not happen
+    }
+    else if (action.substr(0,15).compare("exported config") == 0)
+    {
+      std::string k;
+      if (action.size() > 15) k = action.substr(15);
+      if (k.size()) k += " ";
+      ss >> key;
+      k += key;
+      key = k;
+      getline(ss, value);
+      action = action.substr(0, 15); 
       if (key.empty() || value.empty()) return false; // error, should not happen
     }
   }
