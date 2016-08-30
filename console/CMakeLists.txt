@@ -115,9 +115,8 @@ add_executable(eosdropboxd dropbox/eosdropboxd.cc)
 # Add dependency which guarantees that the protocol buffer files are generated
 # when we build the "eos" executable.
 #-------------------------------------------------------------------------------
-add_dependencies(eos EosFstIo)
-
 if(CLIENT)
+  add_dependencies(eos EosFstIo)
   target_link_libraries(
     eos
     EosFstIo
@@ -135,6 +134,7 @@ if(CLIENT)
     ${CMAKE_THREAD_LIBS_INIT}
     ${KINETICIO_LIBRARIES})
 else()
+  add_dependencies(eos EosFstIo-Static)
   target_link_libraries(
     eos
     EosFstIo-Static
