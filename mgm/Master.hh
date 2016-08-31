@@ -290,6 +290,7 @@ class Master : public eos::common::LogId
   unsigned long long fFileNamespaceInode; ///< inode number of the file namespace file
   unsigned long long fDirNamespaceInode; ///< inode number of the dir  namespace file
   bool fAutoRepair; ///< enable auto-repair to skip over broken records during compaction
+  bool fHasSystemd; ///< machine has systemd (as opposed to sysv init)
 
   //----------------------------------------------------------------------------
   // Lock class wrapper used by the namespace
