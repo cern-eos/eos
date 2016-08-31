@@ -247,7 +247,9 @@ install(
 #-------------------------------------------------------------------------------
 # eoscp executable
 #-------------------------------------------------------------------------------
-add_executable(eoscp txqueue/eoscp.cc)
+add_executable(eoscp 
+     txqueue/eoscp.cc
+     ${FMDBASE_HDRS} )
 
 set_target_properties(
   eoscp
