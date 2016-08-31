@@ -119,7 +119,6 @@ if(CLIENT)
   add_dependencies(eos EosFstIo)
   target_link_libraries(
     eos
-    EosFstIo-Static
     eosCommon
     ${Z_LIBRARY}
     ${UUID_LIBRARIES}
@@ -137,7 +136,6 @@ else()
   add_dependencies(eos EosFstIo-Static)
   target_link_libraries(
     eos
-    EosFstIo-Static
     eosCommon-Static
     XrdMqClient-Static
     ${Z_LIBRARY}
