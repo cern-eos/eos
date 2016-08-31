@@ -254,7 +254,7 @@ set_target_properties(
   PROPERTIES
   COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
-target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
+target_link_libraries(eoscp EosFstIo-Static ${XROOTD_CL_LIBRARY})
 
 if(Linux)
   add_library(
