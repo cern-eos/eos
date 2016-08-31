@@ -247,16 +247,18 @@ install(
 #-------------------------------------------------------------------------------
 # eoscp executable
 #-------------------------------------------------------------------------------
-add_executable(eoscp 
-     txqueue/eoscp.cc
-     ${FMDBASE_HDRS} )
+add_executable(eoscp txqueue/eoscp.cc)
 
 set_target_properties(
   eoscp
   PROPERTIES
   COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
+if( MacOSX )
+target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
+else( MacOSX )
 target_link_libraries(eoscp EosFstIo-Static ${XROOTD_CL_LIBRARY})
+endif ( MacOSX )
 
 if(Linux)
   add_library(
