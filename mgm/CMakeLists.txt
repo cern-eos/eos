@@ -32,7 +32,6 @@ include_directories(
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
-  ${REDOX_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/auth_plugin/)
 
 #-------------------------------------------------------------------------------
@@ -44,7 +43,6 @@ set(XRDEOSMGM_SRCS
   Access.cc
   IConfigEngine.cc
   FileConfigEngine.cc
-  RedisConfigEngine.cc
   GeoTreeEngine.cc
   Messaging.cc
   VstMessaging.cc
@@ -131,14 +129,36 @@ set(XRDEOSMGM_SRCS
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)  
 
-add_library(
-  XrdEosMgm  MODULE
-  ${XRDEOSMGM_SRCS})
+if (REDOX_FOUND)
+ add_definitions(-DUSE_REDOX)
 
-if (CPPUNIT_FOUND)
+ add_library(
+    XrdEosMgm  MODULE
+    ${XRDEOSMGM_SRCS}
+    RedisConfigEngine.cc)
+
+ target_include_directories(
+    XrdEosMgm PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${REDOX_INCLUDE_DIRS}>
+    $<INSTALL_INTERFACE:include>)
+
+else()
+    add_library(
+      XrdEosMgm  MODULE
+      ${XRDEOSMGM_SRCS})
+endif()
+
+if (CPPUNIT_FOUND AND REDOX_FOUND)
   add_library(
     XrdEosMgm-Static STATIC
-    ${XRDEOSMGM_SRCS})
+    ${XRDEOSMGM_SRCS}
+    RedisConfigEngine.cc)
+
+  add_dependencies(XrdEosMgm-Static EosAuthProto)
+  target_compile_definitions(
+     XrdEosMgm-Static PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+
 endif()
 
 
@@ -208,7 +228,6 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARIES})
 endif()
-
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part
 #-------------------------------------------------------------------------------
@@ -221,7 +240,7 @@ add_executable(
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)
 
-if (CPPUNIT_FOUND)
+if (CPPUNIT_FOUND AND REDOX_FOUND)
   add_executable(
     EosMgmConfigTest
     test/ConfigEngineTest.cc)
