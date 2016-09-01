@@ -1964,8 +1964,8 @@ public:
       int rc = 0;
       while ( (rc = sem_timedwait(&gUpdaterPauseSem,&ts)) && errno == EINTR)
         continue;
-      if( rc == ETIMEDOUT ) return false;
-      if( rc ) throw "sem_timedwait() failed";
+      if( rc && (errno == ETIMEDOUT) ) return false;
+      if( rc && errno ) throw "sem_timedwait() failed";
       gUpdaterPaused = true;
       return true;
     }
