@@ -79,7 +79,7 @@ GeoTreeEngine::sfgFileStickPxy = 1 << 20;
 set<string> GeoTreeEngine::gWatchedKeys;
 set<string> GeoTreeEngine::gWatchedKeysGw;
 
-const map<string,int> GeoTreeEngine::gNotifKey2Enum =
+const map<string,int> GeoTreeEngine::gNotifKey2EnumSched =
 {
   make_pair("id",sfgId),
   make_pair("host",sfgHost),
@@ -106,7 +106,7 @@ const map<string,int> GeoTreeEngine::gNotifKey2Enum =
   make_pair("proxygroup",sfgPxyGrp)
 };
 
-const map<string,int> GeoTreeEngine::gNotifKey2EnumGw =
+const map<string,int> GeoTreeEngine::gNotifKey2EnumProxy =
 {
   make_pair("stat.hostport",sfgHost),
   make_pair("stat.geotag",sfgGeotag),
@@ -119,7 +119,7 @@ const map<string,int> GeoTreeEngine::gNotifKey2EnumGw =
 };
 
 map<string,int> GeoTreeEngine::gNotificationsBufferFs;
-map<string,int> GeoTreeEngine::gNotificationsBufferDp;
+map<string,int> GeoTreeEngine::gNotificationsBufferProxy;
 sem_t GeoTreeEngine::gUpdaterPauseSem;
 bool GeoTreeEngine::gUpdaterPaused = false;
 bool GeoTreeEngine::gUpdaterStarted = false;
@@ -154,7 +154,7 @@ bool GeoTreeEngine::forceRefreshSched()
 
   // do the update
   pTreeMapMutex.UnLockWrite();
-  updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferDp);
+  updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferProxy);
   pAddRmFsMutex.UnLockWrite();
 
   return true;
@@ -313,7 +313,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
   {
     if(gWatchedKeys.empty())
     {
-      for(auto it = gNotifKey2Enum.begin(); it != gNotifKey2Enum.end(); it++ )
+      for(auto it = gNotifKey2EnumSched.begin(); it != gNotifKey2EnumSched.end(); it++ )
       {
         gWatchedKeys.insert(it->first);
       }
@@ -737,7 +737,7 @@ void GeoTreeEngine::printInfo(std::string &info,
     if(dispSnaps && (schedgroup.empty() || schedgroup=="*" || (schedgroup == it->first)) )
     {
         ostr << "### scheduling snapshot for proxy group "<< it->first <<" :" << std::endl;
-        it->second->foregroundFastStruct->gWAccessTree->recursiveDisplay(ostr,useColors)<<endl;
+        it->second->foregroundFastStruct->proxyAccessTree->recursiveDisplay(ostr,useColors)<<endl;
     }
     orderByGroupName[it->first] = ostr.str();
   }
@@ -1096,7 +1096,7 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fs
     // readlock the original fast structure
     pxyentry->doubleBufferMutex.LockRead();
     // copy the fasttree
-    if(pxyentry->foregroundFastStruct->gWAccessTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
+    if(pxyentry->foregroundFastStruct->proxyAccessTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
     {
       eos_crit("could not make a working copy of the fast tree for proxygroup %s",fsproxygroup->c_str());
       pxyentry->doubleBufferMutex.UnLockRead();
@@ -1887,16 +1887,16 @@ void GeoTreeEngine::listenFsChange()
           if(notifTypeIt->second & sntFilesystem)
           {
             if(gNotificationsBufferFs.count(queue))
-            (gNotificationsBufferFs)[queue] |= gNotifKey2Enum.at(key);
+            (gNotificationsBufferFs)[queue] |= gNotifKey2EnumSched.at(key);
             else
-            (gNotificationsBufferFs)[queue] = gNotifKey2Enum.at(key);
+            (gNotificationsBufferFs)[queue] = gNotifKey2EnumSched.at(key);
           }
           if(notifTypeIt->second & sntDataproxy)
           {
-            if(gNotificationsBufferDp.count(queue))
-            (gNotificationsBufferDp)[queue] |= gNotifKey2EnumGw.at(key);
+            if(gNotificationsBufferProxy.count(queue))
+            (gNotificationsBufferProxy)[queue] |= gNotifKey2EnumProxy.at(key);
             else
-            (gNotificationsBufferDp)[queue] = gNotifKey2EnumGw.at(key);
+            (gNotificationsBufferProxy)[queue] = gNotifKey2EnumProxy.at(key);
           }
         }
 
@@ -1927,10 +1927,10 @@ void GeoTreeEngine::listenFsChange()
       checkPendingDeletionsDp(); // do it before tree info to leave some time to the other threads
       {
 	eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
-	updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferDp);
+	updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferProxy);
       }
       gNotificationsBufferFs.clear();
-      gNotificationsBufferDp.clear();
+      gNotificationsBufferProxy.clear();
     }
     XrdSysThread::SetCancelOff();
     size_t elapsedMs = (curtime.tv_sec-prevtime.tv_sec)*1000 +(curtime.tv_usec-prevtime.tv_usec)/1000;
@@ -2321,7 +2321,7 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_
 #undef unsetOneStateVarStatusInAllFastTrees
 }
 
-bool GeoTreeEngine::updateTreeInfo(GwTMEBase* entry, eos::common::FileSystem::host_snapshot_t *hs, int keys, SchedTreeBase::tFastTreeIdx ftIdx , SlowTreeNode *stn)
+bool GeoTreeEngine::updateTreeInfo(ProxyTMEBase* entry, eos::common::FileSystem::host_snapshot_t *hs, int keys, SchedTreeBase::tFastTreeIdx ftIdx , SlowTreeNode *stn)
 {
   eos::common::RWMutexReadLock lock(configMutex); // we git a consistent set of configuration parameters per refresh of the state
   // nothing to update
@@ -2330,17 +2330,17 @@ bool GeoTreeEngine::updateTreeInfo(GwTMEBase* entry, eos::common::FileSystem::ho
 
 #define setOneStateVarInAllFastTrees(variable,value) \
                 { \
-        entry->backgroundFastStruct->gWAccessTree->pNodes[ftIdx].fsData.variable = value; \
+        entry->backgroundFastStruct->proxyAccessTree->pNodes[ftIdx].fsData.variable = value; \
                 }
 
 #define setOneStateVarStatusInAllFastTrees(flag) \
                 { \
-        entry->backgroundFastStruct->gWAccessTree->pNodes[ftIdx].fsData.mStatus |= flag; \
+        entry->backgroundFastStruct->proxyAccessTree->pNodes[ftIdx].fsData.mStatus |= flag; \
                 }
 
 #define unsetOneStateVarStatusInAllFastTrees(flag) \
                 { \
-        entry->backgroundFastStruct->gWAccessTree->pNodes[ftIdx].fsData.mStatus &= ~flag; \
+        entry->backgroundFastStruct->proxyAccessTree->pNodes[ftIdx].fsData.mStatus &= ~flag; \
                 }
 
   if(keys&sfgGeotag)
@@ -2947,17 +2947,17 @@ void GeoTreeEngine::updateAtomicPenalties()
             AtomicCAS( reinterpret_cast<uint32_t&>(pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass]) , uf.u);
             uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*updateSched);
             AtomicCAS( reinterpret_cast<uint32_t&>(pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]) , uf.u);
-            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPenaltySched.pGwScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*updateGw);
-            AtomicCAS( reinterpret_cast<uint32_t&>(pPenaltySched.pGwScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPenaltySched.pGwScorePenaltyF[netSpeedClass]) , uf.u);
+            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPenaltySched.pProxyScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*updateGw);
+            AtomicCAS( reinterpret_cast<uint32_t&>(pPenaltySched.pProxyScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPenaltySched.pProxyScorePenaltyF[netSpeedClass]) , uf.u);
             eos_debug("netSpeedClass %d : values after update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f gwScorePenalty=%f",
                 netSpeedClass, pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass],pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass],pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass],pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass],
-                pPenaltySched.pGwScorePenaltyF[netSpeedClass]);
+                pPenaltySched.pProxyScorePenaltyF[netSpeedClass]);
             // update the casted versions too
             AtomicCAS( pPenaltySched.pPlctUlScorePenalty[netSpeedClass], pPenaltySched.pPlctUlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]);
             AtomicCAS( pPenaltySched.pPlctDlScorePenalty[netSpeedClass], pPenaltySched.pPlctDlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass]);
             AtomicCAS( pPenaltySched.pAccessDlScorePenalty[netSpeedClass], pPenaltySched.pAccessDlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass]);
             AtomicCAS( pPenaltySched.pAccessUlScorePenalty[netSpeedClass], pPenaltySched.pAccessUlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass]);
-            AtomicCAS( pPenaltySched.pGwScorePenalty[netSpeedClass], pPenaltySched.pGwScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pGwScorePenaltyF[netSpeedClass]);
+            AtomicCAS( pPenaltySched.pProxyScorePenalty[netSpeedClass], pPenaltySched.pProxyScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pProxyScorePenaltyF[netSpeedClass]);
           }
         }
         else
@@ -3056,9 +3056,9 @@ bool GeoTreeEngine::setAccessUlScorePenalty(char value, int netSpeedClass, bool 
 {
    return setScorePenalty(pPenaltySched.pAccessUlScorePenaltyF,pPenaltySched.pAccessUlScorePenalty,value,netSpeedClass,setconfig?"accessulscorepenalty":"");
 }
-bool GeoTreeEngine::setGwScorePenalty(char value, int netSpeedClass, bool setconfig)
+bool GeoTreeEngine::setProxyScorePenalty(char value, int netSpeedClass, bool setconfig)
 {
-   return setScorePenalty(pPenaltySched.pGwScorePenaltyF,pPenaltySched.pGwScorePenalty,value,netSpeedClass,setconfig?"gwscorepenalty":"");
+   return setScorePenalty(pPenaltySched.pProxyScorePenaltyF,pPenaltySched.pProxyScorePenalty,value,netSpeedClass,setconfig?"gwscorepenalty":"");
 }
 
 bool GeoTreeEngine::setPlctDlScorePenalty(const char *value, bool setconfig)
@@ -3077,9 +3077,9 @@ bool GeoTreeEngine::setAccessUlScorePenalty(const char *value, bool setconfig)
 {
   return setScorePenalty(pPenaltySched.pAccessUlScorePenaltyF,pPenaltySched.pAccessUlScorePenalty,value,setconfig?"accessulscorepenalty":"");
 }
-bool GeoTreeEngine::setGwScorePenalty(const char *value, bool setconfig)
+bool GeoTreeEngine::setProxyScorePenalty(const char *value, bool setconfig)
 {
-  return setScorePenalty(pPenaltySched.pGwScorePenaltyF,pPenaltySched.pGwScorePenalty,value,setconfig?"gwscorepenalty":"");
+  return setScorePenalty(pPenaltySched.pProxyScorePenaltyF,pPenaltySched.pProxyScorePenalty,value,setconfig?"gwscorepenalty":"");
 }
 
 bool GeoTreeEngine::setFillRatioLimit(char value, bool setconfig)
@@ -3158,9 +3158,9 @@ bool GeoTreeEngine::setParameter( std::string param, const std::string &value,in
   else if(param == "gwscorepenalty")
   {
     if(iparamidx>-2)
-      ok = gGeoTreeEngine.setGwScorePenalty((char)ival,iparamidx,setconfig);
+      ok = gGeoTreeEngine.setProxyScorePenalty((char)ival,iparamidx,setconfig);
     else
-      readParamVFromString(pPenaltySched.pGwScorePenalty,value);
+      readParamVFromString(pPenaltySched.pProxyScorePenalty,value);
   }
   else if(param == "skipsaturatedblcplct")
   {
@@ -3291,7 +3291,7 @@ bool GeoTreeEngine::applyBranchDisablings(const SchedTME& entry)
   return true;
 }
 
-bool GeoTreeEngine::applyBranchDisablings(const GwTMEBase& entry)
+bool GeoTreeEngine::applyBranchDisablings(const ProxyTMEBase& entry)
 {
   // don't use the branch disablings for Gateway and DataProxy
   return true;
@@ -3556,7 +3556,7 @@ bool GeoTreeEngine::insertHostIntoPxyGr(FsNode *host , const std::string &proxyg
   {
     if(gWatchedKeysGw.empty())
     {
-      for(auto it = gNotifKey2EnumGw.begin(); it != gNotifKey2EnumGw.end(); it++ )
+      for(auto it = gNotifKey2EnumProxy.begin(); it != gNotifKey2EnumProxy.end(); it++ )
       {
         gWatchedKeysGw.insert(it->first);
       }
@@ -3704,7 +3704,7 @@ bool GeoTreeEngine::removeHostFromPxyGr(FsNode *host , const std::string &proxyg
 
   // ==== discard updates about this fs
   // ==== clean the notifications buffer
-  gNotificationsBufferDp.erase(queue);
+  gNotificationsBufferProxy.erase(queue);
   // ==== clean the thread-local notification queue
   if(rmHost)
   {

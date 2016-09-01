@@ -651,7 +651,7 @@ bool SlowTree::buildFastStrcturesSched(
 bool SlowTree::buildFastStrcturesAccess(
     FastGatewayAccessTree *fgat, Host2TreeIdxMap *host2idx, FastTreeInfo *fastinfo, GeoTag2NodeIdxMap *geo2node) const
 {
-  if(!buildFastStrcturesGW(fgat,host2idx,fastinfo,geo2node))
+  if(!buildFastStructuresGW(fgat,host2idx,fastinfo,geo2node))
     return false;
   for(size_t i=0; i<fgat->pNodeCount; i++)
   {
@@ -661,7 +661,7 @@ bool SlowTree::buildFastStrcturesAccess(
   return true;
 }
 
-bool SlowTree::buildFastStrcturesGW(
+bool SlowTree::buildFastStructuresGW(
     FastGatewayAccessTree *fgat, Host2TreeIdxMap *host2idx, FastTreeInfo *fastinfo, GeoTag2NodeIdxMap *geo2node) const
 {
 

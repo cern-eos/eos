@@ -44,15 +44,150 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+
+
 /*----------------------------------------------------------------------------*/
 /**
  * @file GeoTreeEngine.hh
  * 
- * @brief Class responsible to handle GeoTree Operations
+ * @brief Class responsible to handle %GeoTree Operations
  * (file placement for new replica, source finding for balancing and draining)
- * 
- * The Messaging class continuously keeps the tree info in this class up-to-date.
- * 
+ *
+ * # Overview
+ *
+ * The GeoTreeEngine is the EOS software component in charge of doing the file scheduling
+ * operations for file/replica access and placement based on the so called GeoTrees.
+ * For an overview of the configuration of the geoscheduling please read doc/configuration/geoscheduling.rst
+ * For an overview of the configuration of the proxy/proxygroup please read doc/configuration/proxys.rst
+ * They are certainly good preliminary readings to this cover document.
+ *
+ * ## Geotags and GeoTrees
+ *
+ * Geotags are strings of the form <TAG1>::<TAG2>::...::<TAGN> where <..> are alphanumerical strings.
+ * A collection of geotags can easily be represented in a tree structure where the first tokens are closer
+ * to the root of the tree and where the last tokens are farther from the root.
+ * Such trees are implemented into two types of structure.
+ * - Trees (also refered as SlowTree s) : they are common trees with nodes pointing to each other.
+ * They are flexible and allow adding, removing, moving subtrees easily but they are slow to browse because
+ * of their inefficient memory layout.
+ * - Snapshots (also refered as FastTree s) : they are fast structures designed for optimal memory access.
+ * They are much faster that SlowTrees (10X) but their shape and structure is fixed at creation time.
+ * They come along with auxiliary structures to speed up various lookup types (they are grouped using GeoTreeEngine::FastStructSched).
+ * The snapshots host the state of the FileSystem s and use them to carry out scheduling operations efficiently.
+ *
+ * ## General architecture and sub-components
+ * The GeoTreeEngine hosts several subcomponents in charge of several sub-tasks in the global scheduling operations.
+ *
+ * ### File scheduling
+ * The file scheduling is the step where is decided on which FileSystem the file/replicas are placed/accessed.
+ * To do so, each FsGroup is mapped to two GeoTreeEngine::FastStructSched structures hosting the SlowTree and the FastTree structures (plus the auxiliary structures).
+ * For each FsGroup, there is a foreground GeoTreeEngine::FastStructSched used by current scheduling operations and a background one allowing the updater to
+ * run without interering with the scheduling operations.
+ * The GeoTreeEngine::FastStructSched structures is associated to one SlowTree and features multiple FastTree structures. There is one FastTree structure per type of operation.
+ * A type of operation is the combination of a GeoTreeEngine::SchedType and of 'access' or 'placement'.
+ * Note that only the FastTree structures are used by the thread performing the scheduling operations.
+ * Note also that those threads create there own working copies and work on them. It avoids any exclusive lock to be needed.
+ * File scheduling uses the penalty subsystem and the updater to keep its structures up-to-date.
+ *
+ * ### Proxy scheduling
+ * The proxy scheduling is the step where is decided which FsNode will be used to proxy the reading of the data from the file system
+ * or to go through the firewall. This step is optional and is performed only when necessary.
+ * Its architecture is derived straight from the architecture of File scheduling.
+ * There are a few differences though. Trees are populated with FsNode s rather than FileSystem s.
+ * Each proxygroup is mapped to two GeotreeEngine::FastStructProxy (foreground and background).
+ * There are no type of operation. Hence there is only one FastTree per GeotreeEngine::FastStructProxy.
+ * Proxy scheduling does not use the penalty subsystem but it does use the updater to keep its structures up-to-date.
+ *
+ * ### Firewall entrypoint scheduling
+ * The Firewall entrypoint scheduling is a specific type of proxyscheduling. It has a preliminary step that regular proxy scheduling does not have.
+ * This step uses GeoTreeEngine::AccessStruct structure GeoTreeEngine::pAccessGeotagMapping to check whether going through a firewall entrypoint is required.
+ * It then uses GeoTreeEngine::AccessStruct structure GeoTreeEngine::pAccessProxygroup to check which proxygroup should be use to select such a firewall entrypoint.
+ * Then the Proxy scheduling machinery is used.
+ * Note that GeoTreeEngine::AccessStruct does not have this foreground/background split as the changes are rare and the thread carrying out scheduling operations
+ * access those structure in RO. Hence, there are mutexes in those structures. These structures are not updated by the updater because they are just a mapping information without any state to be updated.
+ *
+ * ### Trees/Snapshots updater
+ * The updater is run as a background thread.
+ * This component listens to relevant changes from the XrdMqSharedObjectChangeNotifier.
+ * It stores the notifications in the maps GeoTreeEngine#gNotificationsBufferProxy and GeoTreeEngine#gNotificationsBufferFs.
+ * Every GeoTreeEngine#pTimeFrameDurationMs, the changes are commited to the background tree structures in the following way.
+ * - if a change is about a fs/node that was present before the last refresh, the change is committed to the right fast structures
+ * - if a change is about a fs/node that has been added since the last refresh, it is commited to the SlowTree.
+ *
+ * If any change was made to the SlowTree (add/remove fs/proxy, geotag change), GeoTreeEngine::FastStructSched/GeotreeEngine::FastStructProxy are then regenerated fom the SlowTree.
+ * Once the whole refresh is done pointers to foreground and background structures are swapped.
+ *
+ *
+ * ### Penalty subsystem
+ * The penalty subsystem was introduced to fight a potentially harmful corner-case. Bursts of access/placement requests.
+ * Without such a mecanism, the GeoTreeEngine would not update its view until the next refresh of the trees and that could lead to heavily saturating some FileSystem/FsNode.
+ * If a burst was issued by one client, for many files/replicas on a few FileSystem s, the GeoTreeEngine would consider the state of those FileSystem s at the last refresh.
+ * It would then schedule all these accesses to the closest FileSystem to the client without refreshing its view of their state.
+ * Then, it would not schedule the next access to another FileSystem to distribute the burden.
+ *
+ * The penalty subsystem GeoTreeEngine::PenaltySubSys avoids such a behavior by amending the state of the filesystems in the foreground GeoTreeEngine::FastStructSched.
+ * Penalties are atomic quantities that are substracted from the download/upload score of the fiesystems/proxy.
+ * To get an understanding of this subsystem, several parts are worth considering:
+ * - Latency Estimation: Latency estimation is crucial in such a subsystem. The latency is the average time between a change in the state of a remote FileSystem/FsNode and the time, it is actually reflected in the scheduling system.
+ * To keep the view of the system in sync, this time should match the lifetime that penalties should have so that by the time the GeoTreeEngine sees the effect of a scheduling decision on the remote state, the penalty is removed.
+ * The GeoTreeEngine::LatencySubSys is in charge of the estimation of the latency.
+ * - Penalty Estimation: GeoTreeEngine::PenaltySubSys is in charge of estimating penalties. GeoTreeEngine#pPenaltyUpdateRate is an important parameter that tells how reactive is the estimation.
+ * Value 0 means that the estimated values remain stuck at the initial value. It's the way to not using penalty estimation. Value 1 means that a completely new value is calculated only from the last time window.
+ * - Atomic Amending: This is the crucial part where atomic penalties are substratced to reflect the additional burden that scheduling decision just being taken puts on a FileSystem.
+ * This is carried ou in \ref GeoTreeEngine::FastStructSched::applyUlScorePenalty
+ * and GeoTreeEngine::FastStructSched::applyDlScorePenalty.
+ * Please note that it is done without using any mutex just by using atomic substractions.
+ * It was done to leave all the scheduling threads free of interactions/contentions between each other.
+ * This is done to the expense of possibly losing a few updates when the background and foreground are swapped (this should not lead to any segv though).
+ * This not a big issue because the penalty subsystem is not meant to be extremely precise. Only the order of magnitude matters.
+ *
+ * Note that the penalty subsystem is used only for file scheduling as hard drives don't like many concurrent accesses.
+ * It is not used for proxy scheduling, as the limiting ressource there is network.
+ *
+ * # Integration
+ * The GeoTreeEngine is strongly bound to several other components in EOS, mainly to keep its internal state consistent and updated.
+ *
+ * ## Fs/Hosts Listenning
+ * The heartbeat now has a timestamp that allows estimation of the latency.
+ * A new class XrdMqSharedObjectChangeNotifier now dispatches shared object change notifications to threads that subcribed. The updater thread is subscribed for only the updates it needs to receveive.
+ * The function GeoTreeEngine::listenFsChange() processes the notifications for the updater.
+ *
+ * ## Consistency with the FsView
+ * Adding and removing FileSystem s and FsGroup s to/from the GeoTreeEngine is hooked in Adding/Removing FileSystem s from the FsView.
+ * It then enforces a strict consitency between the FsGroup s and FileSystem s as viewed and by the FsView and as viewed by the GeoTreeEngine.
+ *
+ * ## Consistency with the Proxygroups definition
+ * "Proxygroups" (the set of proxygroups a node belongs to) are defined as being config attributes of the Nodes. The view of the GeoTreeEngine over proxys is kept up-to-date by the XrdMgmOfs::FsConfigListener() function
+ * that calls GeoTreeEngine::matchHostPxyGr everytime that a proxygroups value change is notified.
+ * Note that "proxygroup" (the one proxygroup in charge of proxying io to a given FileSystem) is defined as a FileSystem config attribute and is as such tracked by the updater.
+ *
+ * ## Configuration
+ * All the configuration of the GeoTreeEngine is stored via the ConfigEngine in the config files /var/eos/config/...
+ * The configuration settings of the GeoTreeEngine are stored in the ConfigEngine only when they differ from the default values.
+ * No state information is kept there.
+ * The structure of the Scheduling trees are not stored neither. Structures are reconstructed at boot time as things get added to the FsView and as FileSystem/Node config changes are intercepted.
+ * The geotag mapping for direct access and the entrypoint proxygroups are part of the configuration.
+ *
+ * ## Boot sequence
+ * The GeoTreeEngine is created in the beginning of the configure stage if the XrdMgmOfs plugin.
+ * At the end of the configure stage, a GeoTreeEngine::forceRefresh() is issued as some changes in the config entries of Nodes might have been missed before the notification listener is properly started.
+ * This is especially true when using proxygroups.
+ *
+ * # Locking Scheme
+ * The locking schema is not very straightforward. It has been designed to minimize locking contention for the threads serving the clients by issuing the scheduling operations.
+ *
+ * # Memory Management
+ * Low level FastTree structures and their auxiliary structures are designed to use as few dynamic allocation as possible.
+ * In upper layers inside the GeoTreeEngine, a more common use of dynamic objects is done.
+ *
+ * ## Thread-local buffers
+ * Threads serving clients have a thread-local buffer GeoTreeEngine#tlGeoBuffer to store their working copies of FastTree s.
+ * This is a rather large buffer and it's allocated only once when it's first used for each thread. It's freed when the thread is destroyed.
+ *
+ * # Configuration parameters
+ * The GeoTreeEngine can be configured in many ways. As explained earlier, the configuration of the GeoTreeEngine is saved by the ConfigEngine.
+ * \link GeoTreeEngine::configMutex Those data members \endlink  are the configuration parameters and govern how the GeoTreeEngine behaves.
+ *
  */
 
 /*----------------------------------------------------------------------------*/
@@ -277,6 +412,7 @@ class GeoTreeEngine : public eos::common::LogId
     }
 
     inline void applyDlScorePenalty(SchedTreeBase::tFastTreeIdx idx, const char &penalty, bool background)
+    /**< Apply download score penalty */
     {
       AtomicSub(placementTree->pNodes[idx].fsData.dlScore,penalty);
       AtomicSub(drnPlacementTree->pNodes[idx].fsData.dlScore,penalty);
@@ -292,6 +428,7 @@ class GeoTreeEngine : public eos::common::LogId
     }
 
     inline void applyUlScorePenalty(SchedTreeBase::tFastTreeIdx idx, const char &penalty, bool background)
+    /**< Apply upload score penalty */
     {
       AtomicSub(placementTree->pNodes[idx].fsData.ulScore,penalty);
       AtomicSub(drnPlacementTree->pNodes[idx].fsData.ulScore,penalty);
@@ -363,18 +500,18 @@ class GeoTreeEngine : public eos::common::LogId
    *
    */
   /*----------------------------------------------------------------------------*/
-  struct FastStructGW
+  struct FastStructProxy
   {
-    FastGatewayAccessTree* gWAccessTree;
+    FastGatewayAccessTree* proxyAccessTree;
     SchedTreeBase::FastTreeInfo* treeInfo;
     Host2TreeIdxMap* host2TreeIdx;
     GeoTag2NodeIdxMap* tag2NodeIdx;
     tPenaltiesVec *penalties;
 
-    FastStructGW()
+    FastStructProxy()
     {
-      gWAccessTree = new FastGatewayAccessTree;
-      gWAccessTree->selfAllocate(FastGatewayAccessTree::sGetMaxNodeCount());
+      proxyAccessTree = new FastGatewayAccessTree;
+      proxyAccessTree->selfAllocate(FastGatewayAccessTree::sGetMaxNodeCount());
 
       treeInfo = new SchedTreeBase::FastTreeInfo;
       penalties = new tPenaltiesVec;
@@ -383,27 +520,27 @@ class GeoTreeEngine : public eos::common::LogId
       host2TreeIdx = new Host2TreeIdxMap;
       host2TreeIdx->selfAllocate(FastGatewayAccessTree::sGetMaxNodeCount());
 
-      gWAccessTree->pFs2Idx = host2TreeIdx;
+      proxyAccessTree->pFs2Idx = host2TreeIdx;
 
-      gWAccessTree->pTreeInfo
+      proxyAccessTree->pTreeInfo
       = treeInfo;
 
       tag2NodeIdx = new GeoTag2NodeIdxMap;
       tag2NodeIdx->selfAllocate(FastGatewayAccessTree::sGetMaxNodeCount());
     }
 
-    ~FastStructGW()
+    ~FastStructProxy()
     {
-      if(gWAccessTree) delete gWAccessTree;
+      if(proxyAccessTree) delete proxyAccessTree;
       if(treeInfo) delete treeInfo;
       if(penalties) delete penalties;
       if(tag2NodeIdx) delete tag2NodeIdx;
     }
 
-    bool DeepCopyTo (FastStructGW *target) const
+    bool DeepCopyTo (FastStructProxy *target) const
     {
       if(
-          gWAccessTree->copyToFastTree(target->gWAccessTree)
+          proxyAccessTree->copyToFastTree(target->proxyAccessTree)
       )
       {
         return false;
@@ -421,9 +558,9 @@ class GeoTreeEngine : public eos::common::LogId
                     target->penalties->begin());
 
       // update the information in the FastTrees to point to the copy
-      target->gWAccessTree->pFs2Idx
+      target->proxyAccessTree->pFs2Idx
       = NULL;
-      target->gWAccessTree->pTreeInfo
+      target->proxyAccessTree->pTreeInfo
       = target->treeInfo;
 
       return true;
@@ -431,12 +568,12 @@ class GeoTreeEngine : public eos::common::LogId
 
     void UpdateTrees()
     {
-      gWAccessTree->updateTree();
+      proxyAccessTree->updateTree();
     }
 
     void WriteSlowState( SlowTreeNode::TreeNodeStateFloat &slowState, SchedTreeBase::tFastTreeIdx idx) const
     {
-      FastPlacementTree::FsData &fastState = gWAccessTree->pNodes[idx].fsData;
+      FastPlacementTree::FsData &fastState = proxyAccessTree->pNodes[idx].fsData;
       slowState.dlScore = float(fastState.dlScore)/255;
       slowState.ulScore = float(fastState.ulScore)/255;
       slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
@@ -446,7 +583,7 @@ class GeoTreeEngine : public eos::common::LogId
 
     inline void applyDlScorePenalty(SchedTreeBase::tFastTreeIdx idx, const char &penalty, bool background)
     {
-      AtomicSub(gWAccessTree->pNodes[idx].fsData.dlScore,penalty);
+      AtomicSub(proxyAccessTree->pNodes[idx].fsData.dlScore,penalty);
       if(!background)
       {
         AtomicAdd((*penalties)[idx].dlScorePenalty,penalty);
@@ -455,7 +592,7 @@ class GeoTreeEngine : public eos::common::LogId
 
     inline void applyUlScorePenalty(SchedTreeBase::tFastTreeIdx idx, const char &penalty, bool background)
     {
-      AtomicSub(gWAccessTree->pNodes[idx].fsData.ulScore,penalty);
+      AtomicSub(proxyAccessTree->pNodes[idx].fsData.ulScore,penalty);
       if(!background)
       {
         AtomicAdd((*penalties)[idx].ulScorePenalty,penalty);
@@ -464,20 +601,20 @@ class GeoTreeEngine : public eos::common::LogId
 
     inline bool isUlScorePos ( SchedTreeBase::tFastTreeIdx idx)
     {
-      return gWAccessTree->pNodes[idx].fsData.ulScore>0;
+      return proxyAccessTree->pNodes[idx].fsData.ulScore>0;
     }
 
     inline bool isDlScorePos ( SchedTreeBase::tFastTreeIdx idx)
     {
-      return gWAccessTree->pNodes[idx].fsData.dlScore>0;
+      return proxyAccessTree->pNodes[idx].fsData.dlScore>0;
     }
 
     inline SchedTreeBase::FastTreeInfo* getTreeInfo() { return treeInfo; }
 
     inline bool buildFastStructures(SlowTree *slowTree)
     {
-      return slowTree->buildFastStrcturesGW(
-                gWAccessTree,host2TreeIdx,
+      return slowTree->buildFastStructuresGW(
+                proxyAccessTree,host2TreeIdx,
                 treeInfo , tag2NodeIdx
             );
     }
@@ -492,7 +629,7 @@ class GeoTreeEngine : public eos::common::LogId
         const char &fillRatioCompTol,
         const char &saturationThres)
     {
-      gWAccessTree->setSaturationThreshold(saturationThres);
+      proxyAccessTree->setSaturationThreshold(saturationThres);
     }
 
   };
@@ -634,14 +771,14 @@ class GeoTreeEngine : public eos::common::LogId
    *
    */
   /*----------------------------------------------------------------------------*/
-  struct GwTMEBase : public TreeMapEntry<FastStructGW>
+  struct ProxyTMEBase : public TreeMapEntry<FastStructProxy>
   {
     FsGroup *group;
 
     std::map<std::string,SlowTreeNode*> host2SlowTreeNode;
 
-    GwTMEBase( const std::string &groupName) :
-      TreeMapEntry<FastStructGW>(groupName),
+    ProxyTMEBase( const std::string &groupName) :
+      TreeMapEntry<FastStructProxy>(groupName),
       group(NULL)
       {}
 
@@ -655,7 +792,7 @@ class GeoTreeEngine : public eos::common::LogId
           // this node was added in the SlowTree, the fast structures doesn't include it yet
           continue;
         }
-        FastPlacementTree::FsData &fastState = backgroundFastStruct->gWAccessTree->pNodes[*idx].fsData;
+        FastPlacementTree::FsData &fastState = backgroundFastStruct->proxyAccessTree->pNodes[*idx].fsData;
         SlowTreeNode::TreeNodeStateFloat &slowState = it->second->pNodeState;
         slowState.dlScore = fastState.dlScore;
         slowState.ulScore = fastState.ulScore;
@@ -671,26 +808,13 @@ class GeoTreeEngine : public eos::common::LogId
   /*----------------------------------------------------------------------------*/
   /**
    * @brief this structure holds all the structures needed by the GeoTreeEngine
-   *        to manage a scheduling of XRootd gateways
-   *
-   */
-  /*----------------------------------------------------------------------------*/
-  struct GatewayTME : public GwTMEBase
-  {
-    GatewayTME( const std::string &groupName) : GwTMEBase( groupName)
-    {}
-  };
-
-  /*----------------------------------------------------------------------------*/
-  /**
-   * @brief this structure holds all the structures needed by the GeoTreeEngine
    *        to manage a scheduling of Data proxy
    *
    */
   /*----------------------------------------------------------------------------*/
-  struct DataProxyTME : public GwTMEBase
+  struct DataProxyTME : public ProxyTMEBase
   {
-    DataProxyTME( const std::string &groupName) : GwTMEBase( groupName)
+    DataProxyTME( const std::string &groupName) : ProxyTMEBase( groupName)
     {}
   };
 
@@ -748,7 +872,7 @@ class GeoTreeEngine : public eos::common::LogId
     return true;
   }
 
-  bool updateFastStructures( GwTMEBase *entry )
+  bool updateFastStructures( ProxyTMEBase *entry )
   {
     // if nothing is modified here move to the next group
     if(!(entry->slowTreeModified || entry->fastStructModified))
@@ -766,7 +890,7 @@ class GeoTreeEngine : public eos::common::LogId
       if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
         stringstream ss;
-        ss << (*entry->backgroundFastStruct->gWAccessTree);
+        ss << (*entry->backgroundFastStruct->proxyAccessTree);
         eos_debug("fast structures updated successfully from slowtree : new FASTtree is \n %s",ss.str().c_str());
         ss.str()="";
         ss << (*entry->slowTree);
@@ -781,7 +905,7 @@ class GeoTreeEngine : public eos::common::LogId
       if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
         stringstream ss;
-        ss << (*entry->backgroundFastStruct->gWAccessTree);
+        ss << (*entry->backgroundFastStruct->proxyAccessTree);
         eos_debug("fast structures updated successfully from fastree : new FASTtree is \n %s",ss.str().c_str());
       }
     }
@@ -845,10 +969,10 @@ protected:
   static set<std::string> gWatchedKeysGw;
 
   //! this map allow to convert a notification key to an enum for efficient processing
-  static const std::map<string,int> gNotifKey2Enum;
+  static const std::map<string,int> gNotifKey2EnumSched;
 
   //! this map allow to convert a notification key to an enum for efficient processing
-  static const std::map<string,int> gNotifKey2EnumGw;
+  static const std::map<string,int> gNotifKey2EnumProxy;
 
   //! this is the list of the watched queues to be notified about
   std::set<std::string> pWatchedQueues;
@@ -859,6 +983,7 @@ protected:
   //--------------------------------------------------------------------------------------------------------
   // Configuration
   //--------------------------------------------------------------------------------------------------------
+  //! [Configuration]
   /// this mutex protects all the configuration settings
   eos::common::RWMutex configMutex;// protects all the following settings
 
@@ -873,7 +998,7 @@ protected:
   /// this set the speed on how fast the penalties are allowed to
   /// change as they are estimated
   /// 0 means no self-estimate 1 mean gets a completely new value every time
-  float pPenaltyUpdateRate;
+  float pPenaltyUpdateRate; /**< Penalty update rate */
 
   /// the following settings control the SchedulingFastTrees
   /// it has an impact on how the priority of branches in the trees
@@ -891,13 +1016,14 @@ protected:
   /// the following settings control the frequency and the latency of the background updating process
   int
   /// this is the minimum duration of a time frame
-  pTimeFrameDurationMs,
+  pTimeFrameDurationMs, /**< time between two refresh of the trees */
   /// this is how older than a refresh a penalty must be do be dropped
   pPublishToPenaltyDelayMs;
 
   /// the following settings control the Disabled branches in the trees
   // group -> (optype -> geotag)
   std::map<std::string, std::map<std::string,std::set<std::string> > > pDisabledBranches;
+  //! [Configuration]
 
   //--------------------------------------------------------------------------------------------------------
   //--------------------------------------------------------------------------------------------------------
@@ -948,11 +1074,11 @@ protected:
     bool showMapping (XrdOucString *output);
 
   };
-  // => access geotag mappings management / operations
-  //    they are used to check if going through a firewall entrypoint is required
+  /// => access geotag mappings management / operations
+  ///    they are used to check if going through a firewall entrypoint is required
   AccessStruct pAccessGeotagMapping;
-  // => access proxygroups management / operations
-  //    they are used to know which proxygroup to use when firewall entrypoint is required
+  /// => access proxygroups management / operations
+  ///    they are used to know which proxygroup to use when firewall entrypoint is required
   AccessStruct pAccessProxygroup;
 
   //
@@ -980,20 +1106,20 @@ protected:
     /// the following vectors map an netzorkSpeedClass to a penalty
     std::vector<float> pPlctDlScorePenaltyF,pPlctUlScorePenaltyF;
     std::vector<float> pAccessDlScorePenaltyF,pAccessUlScorePenaltyF;
-    std::vector<float> pGwScorePenaltyF;
+    std::vector<float> pProxyScorePenaltyF;
     // casted version to avoid conversion on every plct / access operation
     std::vector<char> pPlctDlScorePenalty,pPlctUlScorePenalty;
     std::vector<char> pAccessDlScorePenalty,pAccessUlScorePenalty;
-    std::vector<char> pGwScorePenalty;
+    std::vector<char> pProxyScorePenalty;
     // Constructor
     PenaltySubSys(const size_t &circSize) :
       pCircFrCnt2FsPenalties(circSize),
       pCircFrCnt2HostPenalties(circSize),
         pMaxNetSpeedClass(0),
         pPlctDlScorePenaltyF(8,10),pPlctUlScorePenaltyF(8,10),     // 8 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
-        pAccessDlScorePenaltyF(8,10),pAccessUlScorePenaltyF(8,10),pGwScorePenaltyF(8,10) ,
+        pAccessDlScorePenaltyF(8,10),pAccessUlScorePenaltyF(8,10),pProxyScorePenaltyF(8,10) ,
         pPlctDlScorePenalty(8,10),pPlctUlScorePenalty(8,10),     // 8 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
-        pAccessDlScorePenalty(8,10),pAccessUlScorePenalty(8,10),pGwScorePenalty(8,10) {};
+        pAccessDlScorePenalty(8,10),pAccessUlScorePenalty(8,10),pProxyScorePenalty(8,10) {};
   };
   PenaltySubSys pPenaltySched;
   //
@@ -1016,8 +1142,8 @@ protected:
   /// thread ID of the dumper thread
   pthread_t pUpdaterTid;
   /// maps a notification subject to changes that happened in the current time frame
-  static std::map<std::string,int> gNotificationsBufferFs;
-  static std::map<std::string,int> gNotificationsBufferDp;
+  static std::map<std::string,int> gNotificationsBufferFs;    /**< Shared object change notification for filesystems */
+  static std::map<std::string,int> gNotificationsBufferProxy; /**< Shared object change notification for proxy nodes */
   static const unsigned char sntFilesystem,sntGateway,sntDataproxy;
   static std::map<std::string,unsigned char> gQueue2NotifType;
   /// deletions to be carried out ASAP
@@ -1095,9 +1221,9 @@ protected:
     ft->applyDlScorePenalty(idx,penalty,background);
   }
 
-  inline void applyDlScorePenalty(GwTMEBase *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
+  inline void applyDlScorePenalty(ProxyTMEBase *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
   {
-    FastStructGW *ft = background?entry->backgroundFastStruct:entry->foregroundFastStruct;
+    FastStructProxy *ft = background?entry->backgroundFastStruct:entry->foregroundFastStruct;
     ft->applyDlScorePenalty(idx,penalty,background);
   }
 
@@ -1107,9 +1233,9 @@ protected:
     ft->applyUlScorePenalty(idx,penalty,background);
   }
 
-  inline void applyUlScorePenalty(GwTMEBase *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
+  inline void applyUlScorePenalty(ProxyTMEBase *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
   {
-    FastStructGW *ft = background?entry->backgroundFastStruct:entry->foregroundFastStruct;
+    FastStructProxy *ft = background?entry->backgroundFastStruct:entry->foregroundFastStruct;
     ft->applyUlScorePenalty(idx,penalty,background);
   }
 
@@ -1151,7 +1277,7 @@ protected:
 //    }
   }
 
-  inline void recallScorePenalty(GwTMEBase *entry, const SchedTreeBase::tFastTreeIdx &idx)
+  inline void recallScorePenalty(ProxyTMEBase *entry, const SchedTreeBase::tFastTreeIdx &idx)
   {
     auto host = (*entry->backgroundFastStruct->treeInfo)[idx].host;
     tLatencyStats &lstat = pLatencySched.pHost2LatencyStats[host];
@@ -1160,12 +1286,12 @@ protected:
         (lstat.lastupdate!=0) && (pLatencySched.pCircFrCnt2Timestamp[circIdx] > lstat.lastupdate - pPublishToPenaltyDelayMs);
         circIdx=((pCircSize+circIdx-1)%pCircSize) )
     {
-      if(entry->foregroundFastStruct->gWAccessTree->pNodes[idx].fsData.dlScore>0)
+      if(entry->foregroundFastStruct->proxyAccessTree->pNodes[idx].fsData.dlScore>0)
       applyDlScorePenalty(entry,idx,
                           pPenaltySched.pCircFrCnt2HostPenalties[circIdx][host].dlScorePenalty,
                           true
                           );
-      if(entry->foregroundFastStruct->gWAccessTree->pNodes[idx].fsData.ulScore>0)
+      if(entry->foregroundFastStruct->proxyAccessTree->pNodes[idx].fsData.ulScore>0)
       applyUlScorePenalty(entry,idx,
                           pPenaltySched.pCircFrCnt2HostPenalties[circIdx][host].ulScorePenalty,
                           true
@@ -1407,7 +1533,7 @@ protected:
   }
 
   bool updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
-  bool updateTreeInfo(GwTMEBase* entry, eos::common::FileSystem::host_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
+  bool updateTreeInfo(ProxyTMEBase* entry, eos::common::FileSystem::host_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
   bool updateTreeInfo(const map<string,int> &updatesFs, const map<string,int> &updatesDp);
   //bool updateTreeInfoFs(const map<string,int> &updatesFs);
 
@@ -1518,7 +1644,7 @@ protected:
                  tProxySchedType proxyschedtype=regular);
   bool markPendingBranchDisablings(const std::string &group, const std::string&optype, const std::string&geotag);
   bool applyBranchDisablings(const SchedTME& entry);
-  bool applyBranchDisablings(const GwTMEBase& entry);
+  bool applyBranchDisablings(const ProxyTMEBase& entry);
   bool setSkipSaturatedPlct(bool value, bool setconfig=false);
   bool setSkipSaturatedAccess(bool value, bool setconfig=false);
   bool setSkipSaturatedDrnAccess(bool value, bool setconfig=false);
@@ -1533,12 +1659,12 @@ protected:
   bool setPlctUlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
   bool setAccessDlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
   bool setAccessUlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
-  bool setGwScorePenalty(char value, int netSpeedClass, bool setconfig=false);  
+  bool setProxyScorePenalty(char value, int netSpeedClass, bool setconfig=false);
   bool setPlctDlScorePenalty(const char *value, bool setconfig=false);
   bool setPlctUlScorePenalty(const char *value, bool setconfig=false);
   bool setAccessDlScorePenalty(const char *value, bool setconfig=false);
   bool setAccessUlScorePenalty(const char *value, bool setconfig=false);
-  bool setGwScorePenalty(const char *value, bool setconfig=false);
+  bool setProxyScorePenalty(const char *value, bool setconfig=false);
   bool setFillRatioLimit(char value, bool setconfig=false);
   bool setFillRatioCompTol(char value, bool setconfig=false);
   bool setSaturationThres(char value, bool setconfig=false);

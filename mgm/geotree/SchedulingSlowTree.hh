@@ -192,7 +192,7 @@ public:
       FastDrainingPlacementTree *fdpt, FastDrainingAccessTree *fdat,
       FastTreeInfo *fastinfo, Fs2TreeIdxMap *fs2idx, GeoTag2NodeIdxMap *geo2node) const;
 
-  bool buildFastStrcturesGW(
+  bool buildFastStructuresGW(
       FastGatewayAccessTree *fgat, Host2TreeIdxMap *host2idx, FastTreeInfo *fastinfo, GeoTag2NodeIdxMap *geo2node) const;
 
   bool buildFastStrcturesAccess(

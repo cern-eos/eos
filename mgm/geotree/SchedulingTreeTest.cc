@@ -421,7 +421,7 @@ int main2()
   ftmap.selfAllocate(255);
   GeoTag2NodeIdxMap geomap;
   geomap.selfAllocate(255);
-  st.buildFastStrcturesGW(&ft, &ftmap, &fti, &geomap);
+  st.buildFastStructuresGW(&ft, &ftmap, &fti, &geomap);
   std::cout << " SlowTree is " << endl << st << endl;
   ft.checkConsistency(0);
   std::cout << " FastTree is " << endl << ft << endl;
