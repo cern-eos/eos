@@ -790,27 +790,19 @@ XrdMgmOfsFile::open (const char *inpath,
 
   if (isRW)
   {
-    if (isRewrite &&
-        (
-        (eos::common::LayoutId::GetLayoutType(fmdlid) ==
-        eos::common::LayoutId::kRaidDP) ||
-
-        (eos::common::LayoutId::GetLayoutType(fmdlid) ==
-        eos::common::LayoutId::kArchive) ||
-
-        (eos::common::LayoutId::GetLayoutType(fmdlid) ==
-        eos::common::LayoutId::kRaid6)
-        )
-        &&
-        (vid.uid > 3)
-        )
+    // Allow updates of 0-size RAIN files so that we are able to write from the
+    // FUSE mount with lazy-open mode enabled.
+    if (isRewrite && (vid.uid > 3) && (fmd->getSize() != 0) &&
+        ((eos::common::LayoutId::GetLayoutType(fmdlid) ==
+          eos::common::LayoutId::kRaidDP) ||
+         (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+          eos::common::LayoutId::kArchive) ||
+         (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+          eos::common::LayoutId::kRaid6)))
     {
+      // Unpriviledged users are not allowed to open RAIN files for update
       gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
-      // -----------------------------------------------------------------------
-      // unpriviledged users are not allowed to open RAIN files for update
-      // -----------------------------------------------------------------------
-      return Emsg(epname, error, EPERM,
-                  "update RAIN layout file - "
+      return Emsg(epname, error, EPERM, "update RAIN layout file - "
                   "you have to be a priviledged user for updates");
     }
 
