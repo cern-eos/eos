@@ -148,6 +148,7 @@ The full list of static template arguments is given here:
    <eos::wfe::rgroupname>      group name invoking the workflow
    <eos::wfe::path>            full absolute file path which has triggered the workflow
    <eos::wfe::base64:path>     base64 encoded full absolute file path which has triggered the workflow
+   <eos::wfe::turl>            XRootD transfer URL providing access by file id e.g. root://myeos.cern.ch//mydir/myfile?eos.lfn=fxid:00001aaa
    <eos::wfe::host>            client host name triggering the workflow
    <eos::wfe::sec.app>         client application triggering the workflow (this is defined externally via the CGI ``?eos.app=myapp``)
    <eos::wfe::sec.name>        client security credential name triggering the workflow
