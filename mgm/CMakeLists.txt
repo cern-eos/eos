@@ -130,7 +130,7 @@ set(XRDEOSMGM_SRCS
   geotree/SchedulingTreeCommon.cc)  
 
 if (REDOX_FOUND)
- add_definitions(-DUSE_REDOX)
+ add_definitions(-DUSEREDOX)
 
  add_library(
     XrdEosMgm  MODULE
