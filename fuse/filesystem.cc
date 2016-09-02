@@ -84,13 +84,13 @@ filesystem::filesystem ()
  XFC = 0;
 }
 
-filesystem::~filesystem () 
-{ 
+filesystem::~filesystem ()
+{
   FuseCacheEntry* dir = 0;
 
   std::map<unsigned long long, FuseCacheEntry*>::iterator iter;
   iter = inode2cache.begin ();
-  
+
   while ( (iter != inode2cache.end ()) )
   {
     dir = (FuseCacheEntry*) iter->second;
@@ -467,7 +467,7 @@ filesystem::redirect_p2i (unsigned long long inode, unsigned long long new_inode
    {
      path2inode.erase (path);
      path2inode[path] = new_inode;
-   } 
+   }
    // since inodes are cache dupstream we leave for the rare case of a restore a blind entry
    //   inode2path.erase (inode);
    inode2path[new_inode] = path;
@@ -717,7 +717,7 @@ filesystem::dir_cache_sync (unsigned long long inode,
        std::set<unsigned long long> lset = iter->second->GetEntryInodes();
        for (auto it = lset.begin(); it!=lset.end(); ++it)
        {
-	 inode2parent.erase(*it);
+         inode2parent.erase(*it);
        }
        inode2cache.erase (iter++);
        delete dir;
@@ -741,8 +741,8 @@ int
 filesystem::dir_cache_get_entry (fuse_req_t req,
                                  unsigned long long inode,
                                  unsigned long long entry_inode,
-                                 const char* efullpath, 
-				 struct stat* overwrite_stat)
+                                 const char* efullpath,
+                                 struct stat* overwrite_stat)
 {
  int retc = 0;
  eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
@@ -758,9 +758,9 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
        // we eventually need to overwrite the cached information
        if (overwrite_stat)
        {
-	 e.attr.MTIMESPEC = overwrite_stat->MTIMESPEC;
-	 e.attr.st_mtime = overwrite_stat->MTIMESPEC.tv_sec;
-	 e.attr.st_size = overwrite_stat->st_size;
+         e.attr.MTIMESPEC = overwrite_stat->MTIMESPEC;
+         e.attr.st_mtime = overwrite_stat->MTIMESPEC.tv_sec;
+         e.attr.st_size = overwrite_stat->st_size;
        }
        store_p2i (entry_inode, efullpath);
        fuse_reply_entry (req, &e);
@@ -796,7 +796,7 @@ filesystem::dir_cache_add_entry (unsigned long long inode,
 
 bool
 filesystem::dir_cache_update_entry( unsigned long long entry_inode,
-				    struct stat* buf)
+                                    struct stat* buf)
 {
  eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
  FuseCacheEntry* dir = 0;
@@ -875,29 +875,29 @@ filesystem::force_rwopen (
           return 0;
         }
 
-	if (fabst->GetRawFileRO())
-	{
-	  fabst->DecNumRefRO ();
-	  return 0;
-	}
+        if (fabst->GetRawFileRO())
+        {
+          fabst->DecNumRefRO ();
+          return 0;
+        }
 
-	if (!fabst->GetRawFileRW())
-	{
-	  return 0;
-	}
+        if (!fabst->GetRawFileRW())
+        {
+          return 0;
+        }
 
         if(fabst->GetRawFileRW()->MakeOpen())
         {
           fabst->DecNumRefRW ();
           errno = EIO;
-	  eos_static_info("makeopen returned -1");
+          eos_static_info("makeopen returned -1");
           return -1; // return -1 if failure
-        } 
-	else
-	{
-	  eos_static_info("forced read-open");
-	  fabst->DecNumRefRW ();
-	}
+        }
+        else
+        {
+          eos_static_info("forced read-open");
+          fabst->DecNumRefRW ();
+        }
         return *fdit; // return the fd if succeed (>0)
       }
     }
@@ -916,7 +916,7 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
                          uid_t uid, gid_t gid, pid_t pid,
                          bool isROfd,
                          const char* path,
-			 bool mknod)
+                         bool mknod)
 {
  eos_static_debug ("file raw ptr=%p, inode=%lu, uid=%lu",
                    raw_file, inode, (unsigned long) uid);
@@ -947,7 +947,9 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
        {
          fd2count[*fdit] += isROfd ? -1 : 1;
          isROfd ? iter_file->second->IncNumOpenRO () : iter_file->second->IncNumOpenRW ();
-         eos_static_debug ("existing fdesc exisiting fabst : fabst=%p  path=%s  isRO=%d  =>  fdesc=%d", fabst.get(), path, (int) isROfd, (int) *fdit);
+         eos_static_debug("existing fdesc exisiting fabst: fabst=%p path=%s "
+                          "isRO=%d  =>  fdesc=%d", fabst.get(), path,
+                          (int)isROfd, (int) *fdit);
          return *fdit;
        }
      }
@@ -960,49 +962,60 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
 
  if (fd > 0)
  {
-   if (iter_fd != inodexrdlogin2fds.end ())
+   if (iter_fd != inodexrdlogin2fds.end ()) {
      fabst = fd2fabst[ *iter_fd->second.begin () ];
+   }
 
    if (!fabst.get())
    {
      fabst = std::make_shared<FileAbstraction> (path);
-     eos_static_debug ("new fdesc new fabst : fbast=%p  path=%s  isRO=%d  =>  fdesc=%d", fabst.get(), path, (int) isROfd, (int) fd);
+     eos_static_debug ("new fdesc new fabst: fbast=%p path=%s isRO=%d => "
+                       "fdesc=%d", fabst.get(), path, (int)isROfd, (int)fd);
    }
    else
    {
-     eos_static_debug ("new fdesc existing fabst : fbast=%p  path=%s  isRO=%d  =>  fdesc=%d", fabst.get(), path, (int) isROfd, (int) fd);
+     eos_static_debug ("new fdesc existing fabst: fbast=%p path=%s isRO=%d "
+                       " =>  fdesc=%d", fabst.get(), path, (int)isROfd, (int)fd);
    }
 
-   if (isROfd)
+   if (isROfd) {
      fabst->SetRawFileRO (raw_file); // sets numopenRO to 1
+   }
    else
    {
      fabst->SetRawFileRW (raw_file); // sets numopenRW to 1
+
      if (mknod)
      {
        // dec ref count, because they won't be a close referring to an mknod call
        fabst->DecNumOpenRW();
        fabst->DecNumRefRW();
      }
+
      fabst->SetFd (fd);
    }
 
    fabst->GrabMaxWriteOffset ();
    fabst->GrabUtimes ();
-
    fd2fabst[fd] = fabst;
    fd2count[fd] = isROfd ? -1 : 1;
-   if (mknod)
-     fd2count[fd] = 0; 
+
+   if (mknod) {
+     fd2count[fd] = 0;
+   }
 
    inodexrdlogin2fds[sstr.str ()].insert (fd);
-   eos_static_debug ("inserting fd : fabst=%p  key=%s  =>  fdesc=%d file-size=%llu", fabst.get(), sstr.str ().c_str (), (int) fd, fabst->GetMaxWriteOffset());
+   eos_static_debug ("inserting fd: fabst=%p key=%s => fdesc=%d file-size=%llu",
+                     fabst.get(), sstr.str ().c_str (), (int)fd,
+                     fabst->GetMaxWriteOffset());
  }
  else
  {
    eos_static_err ("error while getting file descriptor");
-   if (raw_file)
+
+   if (raw_file) {
      delete raw_file;
+   }
  }
 
  return fd;
@@ -1083,7 +1096,7 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
              break;
            }
          }
-       }      
+       }
        if (iter1->second.empty ()) inodexrdlogin2fds.erase (iter1);
 
        // Return fd to the pool
@@ -1211,8 +1224,8 @@ filesystem::rmxattr (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- 
- XrdOucString xa=xattr_name; 
+
+ XrdOucString xa=xattr_name;
 
  request = safePath(path);
  request += "?";
@@ -1382,7 +1395,7 @@ filesystem::getxattr (const char* path,
 
  COMMONTIMING ("START", &getxattrtiming);
 
- XrdOucString xa = xattr_name; 
+ XrdOucString xa = xattr_name;
 
  std::string request;
  XrdCl::Buffer arg;
@@ -1537,27 +1550,27 @@ filesystem::listxattr (const char* path,
      size_t attr_size=0;
      for (unsigned int i = 0; i < (*size); i++, ptr++)
      {
-       if (*ptr == '&') 
+       if (*ptr == '&')
        {
          *ptr = '\0';
-	 eptr = ptr;
-	 std::string xkey;
+         eptr = ptr;
+         std::string xkey;
 
-	 xkey.assign(sptr, eptr-sptr);
+         xkey.assign(sptr, eptr-sptr);
 
-	 XrdOucString sxkey=xkey.c_str();
+         XrdOucString sxkey=xkey.c_str();
 
-	 if (!show_eos_attributes &&
-	     ( sxkey.beginswith("user.admin.")  ||
-	       sxkey.beginswith("user.eos.") ) )
-	 {
-	   sptr = eptr+1;
-	   continue;
-	 }
+         if (!show_eos_attributes &&
+             ( sxkey.beginswith("user.admin.")  ||
+               sxkey.beginswith("user.eos.") ) )
+         {
+           sptr = eptr+1;
+           continue;
+         }
 
-	 attr_size += xkey.length()+1;
-	 xattrkeys.push_back (xkey);
-	 sptr = eptr+1;
+         attr_size += xkey.length()+1;
+         xattrkeys.push_back (xkey);
+         sptr = eptr+1;
        }
      }
 
@@ -1602,8 +1615,8 @@ filesystem::stat (const char* path,
                   uid_t uid,
                   gid_t gid,
                   pid_t pid,
-                  unsigned long inode, 
-		  bool onlysizemtime)
+                  unsigned long inode,
+                  bool onlysizemtime)
 {
  eos_static_info ("path=%s, uid=%i, gid=%i inode=%lu",
                   path, (int) uid, (int) gid, inode);
@@ -1703,11 +1716,11 @@ filesystem::stat (const char* path,
        }
        else
        {
-	 if (file->CanCache()) 
-	 {
-	   // we can use the cache value here
-	   file_size = cache_size;
-	 }
+         if (file->CanCache())
+         {
+           // we can use the cache value here
+           file_size = cache_size;
+         }
        }
      }
      else
@@ -2185,9 +2198,9 @@ filesystem::utimes (const char* path,
 }
 
 
-//----------------------------------------------------------------------------                                                                                                                
-//!                                                                                                                                                                                           
-//----------------------------------------------------------------------------                                                                                                                
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
 
 int
 filesystem::symlink (const char* path,
@@ -2261,9 +2274,9 @@ filesystem::symlink (const char* path,
  return errno;
 }
 
-//----------------------------------------------------------------------------                                                                                                                
-//!                                                                                                                                                                                           
-//----------------------------------------------------------------------------                                                                                                                
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
 
 int
 filesystem::readlink (const char* path,
@@ -2689,13 +2702,13 @@ filesystem::inodirlist (unsigned long long dirinode,
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_uid, statptr2 - statptr);
 
-	 if (S_ISREG (buf.st_mode) && fuse_exec)
-	   buf.st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
-	 
-	 buf.st_mode &= (~S_ISVTX); // clear the vxt bit
-	 buf.st_mode &= (~S_ISUID); // clear suid
-	 buf.st_mode &= (~S_ISGID); // clear sgid
-	 buf.st_mode |= mode_overlay;
+         if (S_ISREG (buf.st_mode) && fuse_exec)
+           buf.st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
+
+         buf.st_mode &= (~S_ISVTX); // clear the vxt bit
+         buf.st_mode &= (~S_ISUID); // clear suid
+         buf.st_mode &= (~S_ISGID); // clear sgid
+         buf.st_mode |= mode_overlay;
        }
        else
          buf.st_ino = 0;
@@ -2707,20 +2720,20 @@ filesystem::inodirlist (unsigned long long dirinode,
       }
       else
       {
-	bool show_entry = true;
+        bool show_entry = true;
         if ( hide_special_files &&
              ( whitespacedirpath.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
-	       whitespacedirpath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
-	       whitespacedirpath.beginswith(EOS_COMMON_PATH_BACKUP_FILE_PREFIX) ) )
-	{
-	  show_entry = false;
-	}
-        
-	if (show_entry)
-	{
-	  store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
-	  dir2inodelist[dirinode].push_back (inode);
-	}
+               whitespacedirpath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
+               whitespacedirpath.beginswith(EOS_COMMON_PATH_BACKUP_FILE_PREFIX) ) )
+        {
+          show_entry = false;
+        }
+
+        if (show_entry)
+        {
+          store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
+          dir2inodelist[dirinode].push_back (inode);
+        }
       }
    }
    if (parseerror)
@@ -2818,7 +2831,7 @@ filesystem::readdir (const char* path_dir, size_t *size,
      dirs[i].d_name[len] = '\0';
      i++;
    }
-   
+
    delete response;
    return dirs;
  }
@@ -3100,8 +3113,8 @@ filesystem::open (const char* path,
                   uid_t uid,
                   gid_t gid,
                   pid_t pid,
-                  unsigned long* return_inode, 
-		  bool mknod)
+                  unsigned long* return_inode,
+                  bool mknod)
 {
  eos_static_info ("path=%s flags=%08x mode=%d uid=%u pid=%u", path, oflags, mode, uid, pid);
  XrdOucString spath = user_url (uid, gid, pid).c_str ();
@@ -3165,7 +3178,8 @@ filesystem::open (const char* path,
      spath += "mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
      if(encode_pathname) spath += "&eos.encodepath=1";
 
-     LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
+     LayoutWrapper* file = new LayoutWrapper
+         (new eos::fst::PlainLayout(NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
 
      XrdOucString open_path = get_url_nocgi (spath.c_str ());
      XrdOucString open_cgi = get_cgi (spath.c_str ());
@@ -3196,12 +3210,17 @@ filesystem::open (const char* path,
      if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) spath += '&';
      spath += "mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
      if(encode_pathname) spath += "&eos.encodepath=1";
-     LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
+     LayoutWrapper* file = new LayoutWrapper
+         (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
      XrdOucString open_path = get_url_nocgi (spath.c_str ());
      XrdOucString open_cgi = get_cgi (spath.c_str ());
 
-     if (stat (open_path.c_str (), &buf, uid, gid, pid, 0)) exists = false;
-     retc = file->Open (open_path.c_str (), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, true);
+     if (stat (open_path.c_str (), &buf, uid, gid, pid, 0)) {
+       exists = false;
+     }
+
+     retc = file->Open (open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),
+                        (exists ? &buf : NULL), true);
 
      if (retc)
      {
@@ -3225,7 +3244,8 @@ filesystem::open (const char* path,
      if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) spath += '&';
      spath += "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
      if(encode_pathname) spath += "&eos.encodepath=1";
-     LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
+     LayoutWrapper* file = new LayoutWrapper
+         (new eos::fst::PlainLayout(NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
 
      XrdOucString open_path = get_url_nocgi (spath.c_str ());
      XrdOucString open_cgi = get_cgi (spath.c_str ());
@@ -3257,7 +3277,9 @@ filesystem::open (const char* path,
    std::string file_path = path;
    size_t spos = file_path.rfind ("//");
 
-   if (spos != std::string::npos) file_path.erase (0, spos + 1);
+   if (spos != std::string::npos) {
+     file_path.erase (0, spos + 1);
+   }
 
    std::string request = safePath(file_path.c_str());
    request += "?eos.app=fuse&mgm.pcmd=open";
@@ -3265,7 +3287,11 @@ filesystem::open (const char* path,
    arg.FromString (request);
 
    std::string surl = user_url (uid, gid, pid);
-   if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) surl += '?';
+
+   if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+     surl += '?';
+   }
+
    surl += strongauth_cgi (pid);
    XrdCl::URL Url (surl);
    XrdCl::FileSystem fs (Url);
@@ -3288,12 +3314,10 @@ filesystem::open (const char* path,
      origResponse += "&eos.app=fuse";
 
      while (stringOpaque.replace ("?", "&"))
-     {
-     }
+     {}
 
      while (stringOpaque.replace ("&&", "&"))
-     {
-     }
+     {}
 
      std::unique_ptr<XrdOucEnv> openOpaque (new XrdOucEnv (stringOpaque.c_str ()));
      char* opaqueInfo = (char*) strstr (origResponse.c_str (), "&mgm.logid");
@@ -3318,11 +3342,13 @@ filesystem::open (const char* path,
 
        if (LayoutId::GetLayoutType (layout) == LayoutId::kRaidDP)
        {
-         file = new eos::fst::RaidDpLayout (NULL, layout, NULL, NULL, eos::common::LayoutId::kXrdCl);
+         file = new eos::fst::RaidDpLayout
+             (NULL, layout, NULL, NULL, eos::common::LayoutId::kXrdCl);
        }
-       else if ((LayoutId::GetLayoutType (layout) == LayoutId::kRaid6) || (LayoutId::GetLayoutType (layout) == LayoutId::kArchive))
+       else if ((LayoutId::GetLayoutType (layout) == LayoutId::kRaid6) ||
+                (LayoutId::GetLayoutType (layout) == LayoutId::kArchive))
        {
-         file = new eos::fst::ReedSLayout (NULL, layout, NULL, NULL, eos::common::LayoutId::kXrdCl);
+         file = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL, eos::common::LayoutId::kXrdCl);
        }
        else
        {
@@ -3333,10 +3359,11 @@ filesystem::open (const char* path,
        if (file)
        {
          retc = file->OpenPio (stripeUrls, flags_sfs, mode, opaqueInfo);
+
          if (retc)
          {
            eos_static_err ("failed open for pio red, path=%s", spath.c_str ());
-	   delete response;
+           delete response;
            delete file;
            return error_retc_map (errno);
          }
@@ -3348,35 +3375,43 @@ filesystem::open (const char* path,
              XrdOucEnv RedEnv = file->GetLastUrl ().c_str ();
              const char* sino = RedEnv.Get ("mgm.id");
 
-             if (sino)
+             if (sino) {
                *return_inode = eos::common::FileId::Hex2Fid (sino) << 28;
-             else
+             }
+             else {
                *return_inode = 0;
+             }
 
              eos_static_debug ("path=%s created inode=%lu", path, (unsigned long) *return_inode);
            }
 
            retc = add_fd2file (new LayoutWrapper (file), *return_inode, uid, gid, pid, isRO);
-	   delete response;
+           delete response;
            return retc;
          }
        }
      }
-     else
+     else {
        eos_static_debug ("opaque info not what we expected");
+     }
    }
-   else
-     eos_static_err ("failed get request for pio read. query was   %s  ,  response was   %s    and   error was    %s",
-                     arg.ToString ().c_str (), response ? response->ToString ().c_str () : "no-response", status.ToStr ().c_str ());
+   else {
+     eos_static_err ("failed get request for pio read query was %s,response "
+                     "was %s and error was %s", arg.ToString ().c_str (),
+                     (response ? response->ToString ().c_str () : "no-response"),
+                     status.ToStr ().c_str ());
+   }
    delete response;
  }
 
  eos_static_debug ("the spath is:%s", spath.c_str ());
-
  LayoutWrapper* file = new LayoutWrapper(
      new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
  XrdOucString open_cgi = "eos.app=fuse";
- if(encode_pathname) open_cgi += "&eos.encodepath=1";
+
+ if(encode_pathname) {
+   open_cgi += "&eos.encodepath=1";
+ }
 
  if (oflags & (O_RDWR | O_WRONLY))
  {
@@ -3401,7 +3436,8 @@ filesystem::open (const char* path,
 
  // check if the file already exists in case this is a write
  if (stat (path, &buf, uid, gid, pid, 0)) exists = false;
- eos_static_debug ("open_path=%s, open_cgi=%s, exists=%d, flags_sfs=%d", spath.c_str (), open_cgi.c_str (), (int) exists, (int) flags_sfs);
+ eos_static_debug ("open_path=%s, open_cgi=%s, exists=%d, flags_sfs=%d",
+                   spath.c_str(), open_cgi.c_str(), (int)exists, (int)flags_sfs);
  retc = 1;
  // upgrade the WRONLY open to RW
  if (flags_sfs & SFS_O_WRONLY)
@@ -3415,21 +3451,26 @@ filesystem::open (const char* path,
  // figure out if this file can be repaired inline
  if (exists)
  {
-   if ( ((uint64_t) buf.st_size > getMaxInlineRepairSize() ) )
+   if (((uint64_t) buf.st_size > getMaxInlineRepairSize()))
    {
-     eos_static_notice("disabled inline repair path=%s file-size=%llu repair-limit=%llu", spath.c_str(), buf.st_size, getMaxInlineRepairSize());
+     eos_static_notice("disabled inline repair path=%s file-size=%llu "
+                       "repair-limit=%llu", spath.c_str(), buf.st_size,
+                       getMaxInlineRepairSize());
      do_inline_repair = false;
    }
  }
 
   if (isRO && force_rwopen (*return_inode, uid, gid, pid) < 0)
   {
-    eos_static_err("forcing rw open failed for inode %lu path %s", (unsigned long )*return_inode, path);
+    eos_static_err("forcing rw open failed for inode %lu path %s",
+                   (unsigned long )*return_inode, path);
     delete file;
     return error_retc_map (errno);
   }
- retc = file->Open (spath.c_str (), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, !lazy_open, creator_cap_lifetime, do_inline_repair);
 
+ retc = file->Open(spath.c_str (), flags_sfs, mode, open_cgi.c_str (),
+                   (exists ? &buf : NULL), !lazy_open, creator_cap_lifetime,
+                   do_inline_repair);
  if (retc)
  {
    eos_static_err ("open failed for %s : error code is %d.", spath.c_str (), (int) errno);
@@ -3468,26 +3509,26 @@ filesystem::open (const char* path,
 
          {
            eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
-	   if (inode2path.count(old_ino))
-	   {
-	     std::string ipath = inode2path[old_ino];
-	     if (path2inode.count(ipath))
-	     {
-	       if (path2inode[ipath] != new_ino)
-	       {
-		 path2inode[ipath] = new_ino;
-		 inode2path[new_ino] = ipath;
-		 eos_static_info ("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
-	       }
-	     }
-	   }
+           if (inode2path.count(old_ino))
+           {
+             std::string ipath = inode2path[old_ino];
+             if (path2inode.count(ipath))
+             {
+               if (path2inode[ipath] != new_ino)
+               {
+                 path2inode[ipath] = new_ino;
+                 inode2path[new_ino] = ipath;
+                 eos_static_info ("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+               }
+             }
+           }
          }
        }
        else
        {
          eos_static_crit ("new inode is null: cannot move old inode to new inode!");
          errno = EBADR;
-	 delete file;
+         delete file;
          return errno;
        }
      }
@@ -3520,59 +3561,59 @@ filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst, unsigned l
   {
     struct timespec ut[2];
     const char* path = 0;
-    
+
     if ((path = fabst->GetUtimes (ut)))
     {
       const char* nowpath=0;
       std::string npath;
       {
-	// a file might have been renamed in the meanwhile
-	lock_r_p2i();
-	nowpath = this->path((unsigned long long)inode);
-	unlock_r_p2i();
-	if (nowpath)
-	{
-	  // get it prefixed again
-	  getPath(npath, mPrefix, nowpath);
-	  nowpath = npath.c_str();
-	}
-	else
-	{
-	  nowpath = path;
-	}
+        // a file might have been renamed in the meanwhile
+        lock_r_p2i();
+        nowpath = this->path((unsigned long long)inode);
+        unlock_r_p2i();
+        if (nowpath)
+        {
+          // get it prefixed again
+          getPath(npath, mPrefix, nowpath);
+          nowpath = npath.c_str();
+        }
+        else
+        {
+          nowpath = path;
+        }
       }
       if (strcmp(path,nowpath))
       {
-	eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
-	path = nowpath;
+        eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
+        path = nowpath;
       }
       eos_static_debug ("CLOSEDEBUG closing file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
       // run the utimes command now after the close
       if (this->utimes (path, ut, uid, gid, pid))
       {
-	// a file might have been renamed in the meanwhile
-	lock_r_p2i();
-	nowpath = this->path((unsigned long long)inode);
-	unlock_r_p2i();
-	if (nowpath) 
-	{
-	  // get it prefixed again
-	  getPath(npath, mPrefix, nowpath);
-	  nowpath = npath.c_str();
-	}
-	else
-	{
-	  nowpath = path;
-	}
-	if (strcmp(nowpath, path))
-	{
-	  eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
-	  path = nowpath;
-	  if (this->utimes (path, ut, uid, gid, pid))
-	  {
-	    eos_static_err("file utime setting failed permanently for %s", path);
-	  }
-	}
+        // a file might have been renamed in the meanwhile
+        lock_r_p2i();
+        nowpath = this->path((unsigned long long)inode);
+        unlock_r_p2i();
+        if (nowpath)
+        {
+          // get it prefixed again
+          getPath(npath, mPrefix, nowpath);
+          nowpath = npath.c_str();
+        }
+        else
+        {
+          nowpath = path;
+        }
+        if (strcmp(nowpath, path))
+        {
+          eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
+          path = nowpath;
+          if (this->utimes (path, ut, uid, gid, pid))
+          {
+            eos_static_err("file utime setting failed permanently for %s", path);
+          }
+        }
       }
     }
     else
@@ -3595,13 +3636,13 @@ filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst, unsigned l
       unlock_r_p2i();
       if (nowpath)
       {
-	// get it prefixed again
-	getPath(npath, mPrefix, nowpath);
-	nowpath = npath.c_str();
+        // get it prefixed again
+        getPath(npath, mPrefix, nowpath);
+        nowpath = npath.c_str();
       }
       else
       {
-	nowpath = path;
+        nowpath = path;
       }
     }
     if (strcmp(path,nowpath))
@@ -3609,7 +3650,7 @@ filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst, unsigned l
       eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
       path = nowpath;
     }
-    
+
     if (ut[0].tv_sec || ut[1].tv_sec)
     {
       // this still allows to jump in for a rename, but we neglect this possiblity for now
@@ -3617,29 +3658,29 @@ filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst, unsigned l
       // run the utimes command now after the close
       if (this->utimes (path, ut, uid, gid, pid))
       {
-	// a file might have been renamed in the meanwhile
-	lock_r_p2i();
-	nowpath = this->path((unsigned long long)inode);
-	unlock_r_p2i();
-	if (nowpath)
-	{
-	  // get it prefixed again
-	  getPath(npath, mPrefix, nowpath);
-	  nowpath = npath.c_str();
-	}
-	else
-	{
-	  nowpath = path;
-	}
-	if (strcmp(nowpath, path))
-	{
-	  eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
-	  path = nowpath;
-	  if (this->utimes (path, ut, uid, gid, pid))
-	  {
-	    eos_static_err("file utime setting failed permanently for %s", path);
-	  }
-	}
+        // a file might have been renamed in the meanwhile
+        lock_r_p2i();
+        nowpath = this->path((unsigned long long)inode);
+        unlock_r_p2i();
+        if (nowpath)
+        {
+          // get it prefixed again
+          getPath(npath, mPrefix, nowpath);
+          nowpath = npath.c_str();
+        }
+        else
+        {
+          nowpath = path;
+        }
+        if (strcmp(nowpath, path))
+        {
+          eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
+          path = nowpath;
+          if (this->utimes (path, ut, uid, gid, pid))
+          {
+            eos_static_err("file utime setting failed permanently for %s", path);
+          }
+        }
       }
     }
   }
@@ -3744,7 +3785,7 @@ filesystem::flush (int fd, uid_t uid, gid_t gid, pid_t pid)
  if (XFC && fuse_cache_write)
  {
    off_t cache_size = fabst->GetMaxWriteOffset ();
-   
+
    fabst->mMutexRW.WriteLock ();
    // if we wrote more than the in-memory cache-size we wait for the writes in flush and evt. report an error
    XFC->ForceAllWrites (fabst.get(), (cache_size > file_write_back_cache_size)?true:false);
@@ -4035,7 +4076,7 @@ filesystem::pwrite (int fildes,
    if (ret == -1)
      errno = EIO;
  }
- 
+
  // update modification time
  struct timespec ts[2];
  eos::common::Timing::GetTimeSpec (ts[1], true);
@@ -4114,8 +4155,8 @@ int
 filesystem::unlink (const char* path,
                     uid_t uid,
                     gid_t gid,
-                    pid_t pid, 
-		    unsigned long inode)
+                    pid_t pid,
+                    unsigned long inode)
 {
  eos::common::Timing xpu ("unlink");
  COMMONTIMING ("start", &xpu);
@@ -4553,7 +4594,7 @@ bool filesystem::get_features(const std::string &url, std::map<std::string,std::
   bool infeatures = false;
   ss.str(response->GetBuffer(0));
   do
-  { 
+  {
     line.clear();
     std::getline(ss,line);
     if(line.empty())
@@ -4630,7 +4671,7 @@ filesystem::check_mgm (std::map<std::string,std::string> *features)
 
  if(features)
    get_features(address,features);
- // make sure the host has not '/' in the end and no prefix anymore 
+ // make sure the host has not '/' in the end and no prefix anymore
  gMgmHost = address.c_str ();
  gMgmHost.replace ("root://", "");
  int pos;
@@ -4809,7 +4850,7 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    lazy_open_rw = false;
    lazy_open_disabled = true;
  }
- 
+
  if ((getenv ("EOS_FUSE_DEBUG")) && (fusedebug != "0"))
  {
    eos::common::Logging::SetLogPriority (LOG_DEBUG);

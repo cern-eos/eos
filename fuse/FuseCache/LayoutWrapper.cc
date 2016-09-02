@@ -27,6 +27,8 @@
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "fst/layout/PlainLayout.hh"
+#include "fst/layout/RaidDpLayout.hh"
+#include "fst/layout/ReedSLayout.hh"
 
 XrdSysMutex LayoutWrapper::gCacheAuthorityMutex;
 std::map<unsigned long long, LayoutWrapper::CacheEntry>
@@ -92,6 +94,13 @@ LayoutWrapper::LayoutWrapper(eos::fst::Layout* file) :
   mSize = 0;
   mInlineRepair = false;
   mRestore = false;
+
+  // For RAIN files opened in PIO mode the open has already been done
+  if (dynamic_cast<eos::fst::RaidDpLayout*>(file) ||
+      dynamic_cast<eos::fst::ReedSLayout*>(file)) {
+    mOpen = true;
+    mPath = file->GetLocalReplicaPath();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -113,7 +122,7 @@ LayoutWrapper::~LayoutWrapper()
 int LayoutWrapper::MakeOpen()
 {
   XrdSysMutexHelper mLock(mMakeOpenMutex);
-  eos_static_debug("makeopening file %s", mPath.c_str());
+  eos_static_debug("[%s] file path=\"%s\"", mPath.c_str());
 
   if (mClose)
   {
@@ -137,11 +146,14 @@ int LayoutWrapper::MakeOpen()
         return 0;
       }
     }
-    else
+    else {
+      eos_static_err("file path is empty");
       return -1;
+    }
   }
-  else
+  else {
     eos_static_debug("already opened");
+  }
 
   return 0;
 }
@@ -540,11 +552,10 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   mMode = mode;
   mOpaque = opaque;
 
-  if (buf)
+  if (buf) {
     Utimes(buf);
-
-  if (buf)
     mSize = buf->st_size;
+  }
 
   if (!doOpen)
   {
