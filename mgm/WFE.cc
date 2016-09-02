@@ -1070,6 +1070,23 @@ WFE::Job::DoIt()
               }
             }
 
+	    std::string turl="root://";
+	    turl += gOFS->MgmOfsAlias.c_str();
+	    turl += "/";
+	    turl += fullpath.c_str();
+	    turl += "?eos.lfn=fxid:";
+	    turl += hexfid.c_str();
+	    
+            while (execargs.replace("<eos::wfe::turl>",
+                                    turl.c_str())) {
+              int cnt = 0;
+              cnt++;
+	      
+              if (cnt > 16) {
+                break;
+              }
+            }
+
             unbase64 = cfmd->getName().c_str();
             eos::common::SymKey::Base64(unbase64, base64);
 
@@ -1354,9 +1371,10 @@ WFE::Job::DoIt()
               XrdOucString outerr;
               char buff[65536];
               int end;
-
+	      memset (buff, 0, sizeof(buff));
               while ((end = ::read(cmd.errfd, buff, sizeof(buff))) > 0) {
                 outerr += buff;
+		memset (buff, 0, sizeof(buff));
               }
 
               eos_static_info("shell-cmd-stderr=%s", outerr.c_str());
@@ -1387,6 +1405,12 @@ WFE::Job::DoIt()
                   } else {
                     value.assign(outerr.c_str(), xend + 1, string::npos);
                   }
+
+		  // remove a possible line feed from the value
+		  while (value.length() && (value[value.length()-1] == '\n')) 
+		  {
+		    value.erase(value.length()-1);
+		  }
 
                   eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
 
