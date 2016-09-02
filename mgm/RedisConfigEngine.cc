@@ -425,6 +425,8 @@ RedisConfigEngine::FilterConfig (PrintInfo &pinfo, XrdOucString &out,const char 
     redox::RedoxHash rdx_hash(client, hash_key);
 
     std::vector<std::string> resp = rdx_hash.hkeys();
+    std::sort(resp.begin(),resp.end());
+
     for (auto&& key: resp)
     {
       std::string _value = rdx_hash.hget(key);
