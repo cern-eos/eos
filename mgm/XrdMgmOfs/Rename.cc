@@ -71,17 +71,18 @@ XrdMgmOfs::rename (const char *old_name,
   errno = 0;
 
   XrdOucString source, destination;
-  XrdOucString oldn, newn;
   XrdOucEnv renameo_Env(infoO);
   XrdOucEnv renamen_Env(infoN);
+  XrdOucString oldn = old_name;
+  XrdOucString newn = new_name;
 
-  oldn = old_name;
-  newn = new_name;
-
-  if(!renameo_Env.Get("eos.encodepath"))
+  if(!renameo_Env.Get("eos.encodepath")) {
     oldn.replace("#space#"," ");
-  if(!renamen_Env.Get("eos.encodepath"))
+  }
+
+  if(!renamen_Env.Get("eos.encodepath")) {
     newn.replace("#space#"," ");
+  }
 
   if ((oldn.find(EOS_COMMON_PATH_VERSION_PREFIX) != STR_NPOS) ||
       (newn.find(EOS_COMMON_PATH_VERSION_PREFIX) != STR_NPOS))
@@ -90,24 +91,27 @@ XrdMgmOfs::rename (const char *old_name,
     return Emsg(epname, error, EINVAL, "rename version files - use 'file versions' !");
   }
 
+  const char* inpath = 0;
+  const char* ininfo = 0;
+
   {
-    const char* inpath = oldn.c_str();
-    const char* ininfo = infoO;
+    inpath = oldn.c_str();
+    ininfo = infoO;
     AUTHORIZE(client, &renameo_Env, AOP_Delete, "rename", inpath, error);
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     oldn = path;
-    if (info) info = 0;
+    info = 0;
   }
 
   {
-    const char* inpath = newn.c_str();
-    const char* ininfo = infoN;
+    inpath = newn.c_str();
+    ininfo = infoN;
     AUTHORIZE(client, &renamen_Env, AOP_Update, "rename", inpath, error);
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     newn = path;
-    if (info) info = 0;
+    info = 0;
   }
 
   BOUNCE_NOT_ALLOWED;
@@ -148,31 +152,29 @@ XrdMgmOfs::rename (const char *old_name,
   errno = 0;
 
   XrdOucString source, destination;
-  XrdOucString oldn, newn;
   XrdOucEnv renameo_Env(infoO);
   XrdOucEnv renamen_Env(infoN);
-
-
-  oldn = old_name;
-  newn = new_name;
+  XrdOucString oldn = old_name;
+  XrdOucString newn = new_name;
+  const char* inpath = 0;
+  const char* ininfo = 0;
 
   {
-    const char* inpath = old_name;
-    const char* ininfo = infoO;
+    inpath = old_name;
+    ininfo = infoO;
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     oldn = path;
-    if (info)info = 0;
+    info = 0;
   }
 
   {
-    const char* inpath = new_name;
-    const char* ininfo = infoN;
+    inpath = new_name;
+    ininfo = infoN;
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     newn = path;
-
-    if (info)info = 0;
+    info = 0;
   }
 
   BOUNCE_NOT_ALLOWED;

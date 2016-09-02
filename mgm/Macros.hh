@@ -245,22 +245,33 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //! Require System Auth (SSS or localhost) Macro
 // -----------------------------------------------------------------------------
 #define REQUIRE_SSS_OR_LOCAL_AUTH					\
-  if ( (vid.prot!="sss") && ((vid.host != "localhost") && (vid.host != "localhost.localdomain")) ){ \
-    eos_err("system access restricted - not authorized identity used");	\
-    return Emsg(epname, error, EACCES,"give access - system access restricted - not authorized identity used"); \
+  if ((vid.prot!="sss") &&                                              \
+      ((vid.host != "localhost") &&                                     \
+       (vid.host != "localhost.localdomain")) ){                        \
+    eos_err("system access restricted - unauthorized identity used");	\
+    return Emsg(epname, error, EACCES,"give access - system access "    \
+                "restricted - unauthorized identity used");             \
   }
 
 // -----------------------------------------------------------------------------
-//! Bounce not-allowed-users Macro
+//! Bounce not-allowed-users Macro - for root, bin, daemon, admin we allow
+//! localhost connects or sss authentication always
 // -----------------------------------------------------------------------------
-#define BOUNCE_NOT_ALLOWED						\
-  /* for root, bin, daemon, admin we allow localhost connects or sss authentication always */ \
-  if ( ((vid.uid>3) || ( (vid.prot!="sss") && (vid.host != "localhost") && (vid.host != "localhost.localdomain"))) && (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() || Access::gAllowedHosts.size() )) { \
-    if ( (!Access::gAllowedGroups.count(vid.gid)) &&			\
-	 (!Access::gAllowedUsers.count(vid.uid)) &&			\
-	 (!Access::gAllowedHosts.count(vid.host)) ) {			\
-      eos_err("user access restricted - not authorized identity used"); \
-      return Emsg(epname, error, EACCES,"give access - user access restricted - not authorized identity used"); \
+#define BOUNCE_NOT_ALLOWED                                              \
+  if (((vid.uid > 3) ||                                                 \
+       ((vid.prot != "sss") && (vid.host != "localhost") &&             \
+        (vid.host != "localhost.localdomain"))) &&                      \
+      (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() || \
+       Access::gAllowedHosts.size())) {                                 \
+    if ((!Access::gAllowedGroups.count(vid.gid)) &&			\
+        (!Access::gAllowedUsers.count(vid.uid)) &&			\
+        (!Access::gAllowedHosts.count(vid.host))) {			\
+      eos_err("user access restricted - unauthorized identity vid.uid=" \
+              "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for " \
+              "path=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),        \
+              (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath);  \
+      return Emsg(epname, error, EACCES,"give access - user access "    \
+                  "restricted - unauthorized identity used");         \
     }									\
   }
 
@@ -268,13 +279,19 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //! Bounce not-allowed-users in proc request Macro
 // -----------------------------------------------------------------------------
 #define PROC_BOUNCE_NOT_ALLOWED						\
-  if ((vid.uid>3) &&(Access::gAllowedUsers.size() || Access::gAllowedGroups.size() || Access::gAllowedHosts.size() )) { \
+  if ((vid.uid > 3) &&                                                  \
+      (Access::gAllowedUsers.size() ||                                  \
+       Access::gAllowedGroups.size() ||                                 \
+       Access::gAllowedHosts.size())) {                                 \
     if ( (!Access::gAllowedGroups.count(vid.gid)) &&			\
 	 (!Access::gAllowedUsers.count(vid.uid)) &&			\
-	 (!Access::gAllowedHosts.count(vid.host)) ) {			\
-      eos_err("user access restricted - not authorized identity used"); \
+	 (!Access::gAllowedHosts.count(vid.host))) {			\
+      eos_err("user access restricted - unauthorized identity vid.uid=" \
+              "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for " \
+              "path=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),        \
+              (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath);  \
       retc = EACCES;							\
-      stdErr += "error: user access restricted - not authorized identity used";	\
+      stdErr += "error: user access restricted - unauthorized identity used"; \
       return SFS_OK;							\
     }									\
   }

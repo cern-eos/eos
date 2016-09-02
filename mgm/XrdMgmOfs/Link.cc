@@ -69,36 +69,39 @@ XrdMgmOfs::symlink (const char *source_name,
   errno = 0;
 
   XrdOucString source, destination;
-  XrdOucString sourcen, targetn;
   XrdOucEnv symlinko_Env(infoO);
   XrdOucEnv symlinkn_Env(infoN);
+  XrdOucString sourcen = source_name;
+  XrdOucString targetn = target_name;
 
-  sourcen = source_name;
-  targetn = target_name;
-
-  if(!symlinko_Env.Get("eos.encodepath"))
+  if(!symlinko_Env.Get("eos.encodepath")) {
     sourcen.replace("#space#"," ");
-  if(!symlinkn_Env.Get("eos.encodepath"))
+  }
+
+  if(!symlinkn_Env.Get("eos.encodepath")) {
     targetn.replace("#space#"," ");
+  }
+
+  const char* inpath = 0;
+  const char* ininfo = 0;
 
   {
-    const char* inpath = sourcen.c_str();
-    const char* ininfo = infoO;
+    inpath = sourcen.c_str();
+    ininfo = infoO;
     AUTHORIZE(client, &symlinko_Env, AOP_Create, "link", inpath, error);
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     sourcen = path;
-    if (info)info = 0;
+    info = 0;
   }
 
   {
-    const char* inpath = targetn.c_str();
-    const char* ininfo = infoN;
+    inpath = targetn.c_str();
+    ininfo = infoN;
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     targetn = path;
-
-    if (info)info = 0;
+    info = 0;
   }
 
   BOUNCE_NOT_ALLOWED;
@@ -139,21 +142,20 @@ XrdMgmOfs::symlink (const char *source_name,
   eos_info("source=%s target=%s", source_name, target_name);
 
   XrdOucString source, destination;
-  XrdOucString sourcen, targetn;
   XrdOucEnv symlinko_Env(infoO);
   XrdOucEnv symlinkn_Env(infoN);
-
-
-  sourcen = source_name;
-  targetn = target_name;
+  XrdOucString sourcen = source_name;
+  XrdOucString targetn = target_name;
+  const char* inpath = 0;
+  const char* ininfo = 0;
 
   {
-    const char* inpath = source_name;
-    const char* ininfo = infoO;
+    inpath = source_name;
+    ininfo = infoO;
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     sourcen = path;
-    if (info)info = 0;
+    info = 0;
   }
 
   BOUNCE_NOT_ALLOWED;
