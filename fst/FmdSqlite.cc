@@ -1721,17 +1721,18 @@ again:
   arg.FromString(fmdquery.c_str());
   status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
-  if (status.IsOK())
+  if (status.IsOK() && response->GetBuffer())
   {
     rc = 0;
-    eos_static_debug("got replica file meta data from mgm %s for fid=%08llx",
+    eos_static_debug("got response for file meta data from mgm %s for fid=%08llx",
                      manager, fid);
   }
   else
   {
     eos_static_err("msg=\"query error\" status=%d code=%d", status.status, status.code);
-    if ((status.code >= 100) &&
-        (status.code <= 300))
+    if ( ((status.code >= 100) &&
+	  (status.code <= 300)) ||
+	 (status.IsOK() && (!response->GetBuffer())) )
     {
       XrdSysTimer sleeper;
       sleeper.Snooze(1);
