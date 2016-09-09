@@ -82,7 +82,7 @@
  * The file scheduling is the step where is decided on which FileSystem the file/replicas are placed/accessed.
  * To do so, each FsGroup is mapped to two GeoTreeEngine::FastStructSched structures hosting the SlowTree and the FastTree structures (plus the auxiliary structures).
  * For each FsGroup, there is a foreground GeoTreeEngine::FastStructSched used by current scheduling operations and a background one allowing the updater to
- * run without interering with the scheduling operations.
+ * run without interering with the scheduling operations (GeoTreeEngine#pGroup2SchedTME).
  * The GeoTreeEngine::FastStructSched structures is associated to one SlowTree and features multiple FastTree structures. There is one FastTree structure per type of operation.
  * A type of operation is the combination of a GeoTreeEngine::SchedType and of 'access' or 'placement'.
  * Note that only the FastTree structures are used by the thread performing the scheduling operations.
@@ -94,23 +94,25 @@
  * or to go through the firewall. This step is optional and is performed only when necessary.
  * Its architecture is derived straight from the architecture of File scheduling.
  * There are a few differences though. Trees are populated with FsNode s rather than FileSystem s.
- * Each proxygroup is mapped to two GeotreeEngine::FastStructProxy (foreground and background).
+ * Each proxygroup is mapped (GeoTreeEngine#pGroup2ProxyTME) to two GeotreeEngine::FastStructProxy (foreground and background).
  * There are no type of operation. Hence there is only one FastTree per GeotreeEngine::FastStructProxy.
  * Proxy scheduling does not use the penalty subsystem but it does use the updater to keep its structures up-to-date.
  *
  * ### Firewall entrypoint scheduling
  * The Firewall entrypoint scheduling is a specific type of proxyscheduling. It has a preliminary step that regular proxy scheduling does not have.
  * This step uses GeoTreeEngine::AccessStruct structure GeoTreeEngine::pAccessGeotagMapping to check whether going through a firewall entrypoint is required.
+ * It is basically a GeoTree that stores on each node the list of GeoTag it is allowed to access directly.
  * It then uses GeoTreeEngine::AccessStruct structure GeoTreeEngine::pAccessProxygroup to check which proxygroup should be use to select such a firewall entrypoint.
  * Then the Proxy scheduling machinery is used.
+ * This one is basically a GeoTree that stores on each node the name of the proxygroup to use to find a firewall entrypoint.
  * Note that GeoTreeEngine::AccessStruct does not have this foreground/background split as the changes are rare and the thread carrying out scheduling operations
  * access those structure in RO. Hence, there are mutexes in those structures. These structures are not updated by the updater because they are just a mapping information without any state to be updated.
  *
  * ### Trees/Snapshots updater
  * The updater is run as a background thread.
- * This component listens to relevant changes from the XrdMqSharedObjectChangeNotifier.
+ * This component listens to relevant changes from the XrdMqSharedObjectChangeNotifier (GeoTreeEngine::listenFsChange).
  * It stores the notifications in the maps GeoTreeEngine#gNotificationsBufferProxy and GeoTreeEngine#gNotificationsBufferFs.
- * Every GeoTreeEngine#pTimeFrameDurationMs, the changes are commited to the background tree structures in the following way.
+ * Every GeoTreeEngine#pTimeFrameDurationMs, the changes are commited to the background tree structures (GeoTreeEngine::updateTreeInfo) in the following way.
  * - if a change is about a fs/node that was present before the last refresh, the change is committed to the right fast structures
  * - if a change is about a fs/node that has been added since the last refresh, it is commited to the SlowTree.
  *
@@ -128,24 +130,37 @@
  * The penalty subsystem GeoTreeEngine::PenaltySubSys avoids such a behavior by amending the state of the filesystems in the foreground GeoTreeEngine::FastStructSched.
  * Penalties are atomic quantities that are substracted from the download/upload score of the fiesystems/proxy.
  * To get an understanding of this subsystem, several parts are worth considering:
- * - Latency Estimation: Latency estimation is crucial in such a subsystem. The latency is the average time between a change in the state of a remote FileSystem/FsNode and the time, it is actually reflected in the scheduling system.
+ * - Latency Estimation (in GeoTreeEngine::updateTreeInfo): Latency estimation is crucial in such a subsystem. The latency is the average time between a change in the state of a remote FileSystem/FsNode and the time, it is actually reflected in the scheduling system.
  * To keep the view of the system in sync, this time should match the lifetime that penalties should have so that by the time the GeoTreeEngine sees the effect of a scheduling decision on the remote state, the penalty is removed.
  * The GeoTreeEngine::LatencySubSys is in charge of the estimation of the latency.
- * - Penalty Estimation: GeoTreeEngine::PenaltySubSys is in charge of estimating penalties. GeoTreeEngine#pPenaltyUpdateRate is an important parameter that tells how reactive is the estimation.
+ * - Penalty Estimation (in GeoTreeEngine::updateTreeInfo): GeoTreeEngine::PenaltySubSys is in charge of estimating penalties. GeoTreeEngine#pPenaltyUpdateRate is an important parameter that tells how reactive is the estimation.
  * Value 0 means that the estimated values remain stuck at the initial value. It's the way to not using penalty estimation. Value 1 means that a completely new value is calculated only from the last time window.
  * - Atomic Amending: This is the crucial part where atomic penalties are substratced to reflect the additional burden that scheduling decision just being taken puts on a FileSystem.
  * This is carried ou in \ref GeoTreeEngine::FastStructSched::applyUlScorePenalty
  * and GeoTreeEngine::FastStructSched::applyDlScorePenalty.
  * Please note that it is done without using any mutex just by using atomic substractions.
- * It was done to leave all the scheduling threads free of interactions/contentions between each other.
- * This is done to the expense of possibly losing a few updates when the background and foreground are swapped (this should not lead to any segv though).
- * This not a big issue because the penalty subsystem is not meant to be extremely precise. Only the order of magnitude matters.
+ * It was designed like this to leave all the scheduling threads free of interactions/contentions between each other.
+ * It is made so to the expense of possibly losing a few updates when the background and foreground are swapped (this should not lead to any segv though).
+ * This is not a big issue because the penalty subsystem is not meant to be extremely precise. Only the order of magnitude matters.
  *
  * Note that the penalty subsystem is used only for file scheduling as hard drives don't like many concurrent accesses.
  * It is not used for proxy scheduling, as the limiting ressource there is network.
  *
+ * ## Outline of a scheduling operation
+ * The scheduling operations are carried out by the threads serving the clients. We give here a schematic overview of bith placement and access operations
+ * Note that the new scheduling system does NOT place replicas accross groups. An FsGroup is considered as scheduling unit on its own.
+ *
+ * ### %Access
+ * The main function is GeoTreeEngine::accessHeadReplicaMultipleGroup.
+ * It is called like that and its complex mainly because it has to be able to deal with data placement accross several FsGroup.
+ *
+ *
+ *
+ * ### Placement
+ *
  * # Integration
  * The GeoTreeEngine is strongly bound to several other components in EOS, mainly to keep its internal state consistent and updated.
+ * Intrgration with the other components of EOS is made through the use of the \link GeoTreeEngine::GeoTreeEngine public member functions \endlink.
  *
  * ## Fs/Hosts Listenning
  * The heartbeat now has a timestamp that allows estimation of the latency.
@@ -1673,6 +1688,7 @@ protected:
   bool accessReqFwEP(const std::string &targetGeotag, const std::string &accesserGeotag) const ;
   std::string accessGetProxygroup(const std::string &geotag) const ;
 public:
+  //! [public member functions]
   GeoTreeEngine () :
   pSkipSaturatedPlct(false),pSkipSaturatedAccess(true),
   pSkipSaturatedDrnAccess(true),pSkipSaturatedBlcAccess(true),
@@ -2242,6 +2258,7 @@ public:
     }
     return pAccessProxygroup.showMapping(output);
   }
+  //! [public member functions]
 
 };
 
