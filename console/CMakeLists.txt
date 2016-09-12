@@ -115,7 +115,7 @@ add_executable(
 #-------------------------------------------------------------------------------
 if(CLIENT)
   target_link_libraries(
-    eos
+    eos PUBLIC
     eosCommon
     ${Z_LIBRARY}
     ${UUID_LIBRARIES}
@@ -131,7 +131,7 @@ if(CLIENT)
     ${KINETICIO_LIBRARIES})
 else()
   target_link_libraries(
-    eos
+    eos PUBLIC
     eosCommon-Static
     XrdMqClient-Static
     ${Z_LIBRARY}
@@ -151,7 +151,7 @@ add_executable(eosdropboxd dropbox/eosdropboxd.cc)
 
 if(Linux)
   target_link_libraries(
-    eosdropboxd
+    eosdropboxd PRIVATE
     eosCommon-Static
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
@@ -159,7 +159,7 @@ if(Linux)
     ${CMAKE_THREAD_LIBS_INIT})
 else()
     target_link_libraries(
-    eosdropboxd
+    eosdropboxd PRIVATE
     eosCommon
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}

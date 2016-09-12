@@ -40,7 +40,7 @@ add_library(
   ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.cc)
 
 target_link_libraries(
-  EosNsInMemoryTests
+  EosNsInMemoryTests PUBLIC
   ${Z_LIBRARY}
   ${CPPUNIT_LIBRARIES}
   EosNsInMemory-Static)
@@ -49,12 +49,10 @@ set_target_properties(
   EosNsInMemoryTests
   PROPERTIES
   VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES ""
-  POSITION_INDEPENDENT_CODE True)
+  SOVERSION ${VERSION_MAJOR})
 
 #-------------------------------------------------------------------------------
 # ns-benchmark executables
 #-------------------------------------------------------------------------------
 add_executable(ns-benchmark NSBenchmark.cc)
-target_link_libraries(ns-benchmark EosNsInMemory-Static)
+target_link_libraries(ns-benchmark PRIVATE EosNsInMemory-Static)

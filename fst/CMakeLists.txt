@@ -163,7 +163,7 @@ set_target_properties(
   PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-target_link_libraries(jerasure-static gf-complete-static)
+target_link_libraries(jerasure-static PRIVATE gf-complete-static)
 
 #-------------------------------------------------------------------------------
 # EosFstIo library
@@ -212,7 +212,7 @@ add_library(
   io/FileIoPlugin.hh  io/FileIoPlugin.cc)
 
 target_link_libraries(
-  EosFstIo
+  EosFstIo PUBLIC
   eosCommon
   jerasure-static
   ${Z_LIBRARY}
@@ -254,7 +254,7 @@ if(Linux)
     io/FileIoPlugin.hh  io/FileIoPlugin.cc)
 
   target_link_libraries(
-    EosFstIo-Static
+    EosFstIo-Static PUBLIC
     eosCommon-Static
     jerasure-static
     ${UUID_LIBRARIES}
@@ -286,9 +286,9 @@ set_target_properties(
   COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
 if(Linux)
-  target_link_libraries(eoscp EosFstIo-Static ${XROOTD_CL_LIBRARY})
+  target_link_libraries(eoscp PRIVATE EosFstIo-Static ${XROOTD_CL_LIBRARY})
 else()
-  target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
+  target_link_libraries(eoscp PRIVATE EosFstIo ${XROOTD_CL_LIBRARY})
 endif()
 
 install(
@@ -314,7 +314,7 @@ target_compile_definitions(
   EosFstOss PUBLIC -DHAVE_ATOMICS=1)
 
 target_link_libraries(
-  EosFstOss
+  EosFstOss PRIVATE
   eosCommon
   ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
@@ -382,7 +382,7 @@ target_compile_definitions(
   XrdEosFst PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(
-   XrdEosFst
+   XrdEosFst PRIVATE
    eosCommon
    eosCommonServer
    EosFstIo-Static
@@ -452,18 +452,29 @@ add_executable(eos-ioping tools/IoPing.cc)
 add_executable(FstLoad Load.cc tools/FstLoad.cc)
 
 target_link_libraries(
-  FstLoad
+  FstLoad PRIVATE
   ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(eos-check-blockxs  EosFstIo-Static eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries(eos-compute-blockxs  EosFstIo-Static eosCommon  ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries(eos-adler32  EosFstIo-Static eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries(
+  eos-check-blockxs PRIVATE
+  EosFstIo-Static
+  ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(
-  eos-scan-fs
+  eos-compute-blockxs PRIVATE
+  EosFstIo-Static
+  ${CMAKE_THREAD_LIBS_INIT})
+
+target_link_libraries(
+  eos-adler32 PRIVATE
+  EosFstIo-Static
+  ${CMAKE_THREAD_LIBS_INIT} )
+
+target_link_libraries(
+  eos-scan-fs PRIVATE
   eosCommon
   eosCommonServer
   EosFstIo-Static
@@ -474,7 +485,7 @@ target_link_libraries(
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(eos-ioping ${GLIBC_M_LIBRARY})
+target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
 
 install(
   PROGRAMS

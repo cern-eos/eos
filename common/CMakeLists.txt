@@ -86,7 +86,6 @@ set_target_properties(
   PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
-  POSITION_INDEPENDENT_CODE TRUE
   MACOSX_RPATH TRUE)
 
 if(Linux)
@@ -151,7 +150,6 @@ if(Linux)
     PROPERTIES
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
-    POSITION_INDEPENDENT_CODE TRUE
     MACOSX_RPATH TRUE)
 
   target_compile_definitions(
@@ -242,7 +240,7 @@ add_library(
   plugin_manager/DynamicLibrary.cc  plugin_manager/DynamicLibrary.hh)
 
 target_link_libraries(
-  EosPluginManager PRIVATE
+  EosPluginManager PUBLIC
   ${XROOTD_UTILS_LIBRARY})
 
 set_target_properties(
@@ -250,7 +248,6 @@ set_target_properties(
   PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
-  POSITION_INDEPENDENT_CODE TRUE
   MACOSX_RPATH TRUE)
 
 install(

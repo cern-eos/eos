@@ -53,7 +53,7 @@ set(
 add_library(XrdMqClient SHARED ${XRDMQCLIENT_SRCS})
 
 target_link_libraries(
-  XrdMqClient
+  XrdMqClient PUBLIC
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${XROOTD_CL_LIBRARY}
@@ -68,9 +68,6 @@ set_target_properties(
   PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES ""
-  POSITION_INDEPENDENT_CODE TRUE
   MACOSX_RPATH TRUE)
 
 if(Linux)
@@ -90,7 +87,7 @@ set(
 add_library(XrdMqOfs MODULE ${XRDMQOFS_SRCS})
 
 target_link_libraries(
-  XrdMqOfs
+  XrdMqOfs PRIVATE
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${XROOTD_CL_LIBRARY}
@@ -122,16 +119,18 @@ set(
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(xrdmqclienttest   ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqdumper       ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqfeeder       ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqinjection    ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqclientmaster ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqclientworker ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqcryptotest   ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqsharedobjectclient          ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqsharedobjectqueueclient     ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqsharedobjectbroadcastclient ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqclienttest PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqdumper PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqfeeder PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqinjection PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqclientmaster PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqclientworker PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqcryptotest PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqsharedobjectclient PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqsharedobjectqueueclient PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(
+  xrdmqsharedobjectbroadcastclient
+  PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 
 install(
   TARGETS XrdMqClient XrdMqOfs xrdmqdumper

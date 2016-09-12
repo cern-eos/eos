@@ -99,7 +99,7 @@ add_library(
   ${PROTO_SRCS} ${PROTO_HDRS})
 
 target_link_libraries(
-   EosAuthProto
+   EosAuthProto PUBLIC
    eosCommon
    ${PROTOBUF_LIBRARIES})
 
@@ -113,7 +113,7 @@ add_library(
   EosAuthOfsDirectory.cc EosAuthOfsDirectory.hh)
 
 target_link_libraries(
-  EosAuthOfs
+  EosAuthOfs PRIVATE
   eosCommon
   EosAuthProto
   ${ZMQ_LIBRARIES}
@@ -124,9 +124,7 @@ set_target_properties(
   EosAuthProto
   PROPERTIES
   VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "")
+  SOVERSION ${VERSION_MAJOR})
 
 install(
   TARGETS EosAuthOfs EosAuthProto

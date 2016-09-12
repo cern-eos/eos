@@ -38,7 +38,7 @@ set_target_properties(
   COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
 target_link_libraries(
-  FuseCache
+  FuseCache PUBLIC
   eosCommon
   EosFstIo
   ${XROOTD_CL_LIBRARY}
@@ -50,8 +50,7 @@ if (Linux)
     FuseCache
     PROPERTIES
     VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR}
-    INTERFACE_LINK_LIBRARIES "")
+    SOVERSION ${VERSION_MAJOR})
 
   add_library(
     FuseCache-Static STATIC
@@ -61,7 +60,7 @@ if (Linux)
     LayoutWrapper.cc LayoutWrapper.hh)
 
   target_link_libraries(
-    FuseCache-Static
+    FuseCache-Static PRIVATE
     EosFstIo-Static
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}

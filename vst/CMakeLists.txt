@@ -39,7 +39,7 @@ add_library(
   XrdVstOfsDirectory.cc)
 
 target_link_libraries(
-  XrdEosVst
+  XrdEosVst PRIVATE
   eosCommon
   eosCommonServer
   XrdMqClient-Static
@@ -58,8 +58,7 @@ set_target_properties(
   XrdEosVst
   PROPERTIES
   VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES "")
+  SOVERSION ${VERSION_MAJOR})
 
 install(
   TARGETS XrdEosVst
