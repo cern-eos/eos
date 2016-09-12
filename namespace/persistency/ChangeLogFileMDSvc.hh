@@ -93,6 +93,14 @@ namespace eos
         throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Resize file service
+      //------------------------------------------------------------------------
+      virtual void resize()
+      {
+	pIdMap.resize(0);
+      }
+
+      //------------------------------------------------------------------------
       //! Finalize the file service
       //------------------------------------------------------------------------
       virtual void finalize() throw( MDException );
@@ -280,6 +288,15 @@ namespace eos
       uint64_t getResSize() const
       {
         return pResSize;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get first free file id
+      //------------------------------------------------------------------------
+
+      FileMD::id_t getFirstFreeId() const 
+      {
+	return pFirstFreeId;
       }
 
     private:

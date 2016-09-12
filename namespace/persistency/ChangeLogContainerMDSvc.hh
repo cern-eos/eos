@@ -93,6 +93,14 @@ namespace eos
         throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Resize file service
+      //------------------------------------------------------------------------
+      virtual void resize()
+      {
+        pIdMap.resize(0);
+      }
+
+      //------------------------------------------------------------------------
       //! Finalize the container service
       //------------------------------------------------------------------------
       virtual void finalize() throw( MDException );
@@ -288,6 +296,14 @@ namespace eos
       void setContainerAccounting ( IFileMDChangeListener* containerAccounting ) 
       {
 	pContainerAccounting = containerAccounting;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get first free file id
+      //------------------------------------------------------------------------
+      ContainerMD::id_t getFirstFreeId() const
+      {
+        return pFirstFreeId;
       }
 	
     private:

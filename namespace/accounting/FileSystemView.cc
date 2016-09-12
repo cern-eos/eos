@@ -241,4 +241,19 @@ namespace eos
     pUnlinkedFiles.clear();
     pNoReplicas.clear();
   }
+
+  //----------------------------------------------------------------------------
+  // Shrink
+  //----------------------------------------------------------------------------
+  void FileSystemView::shrink()
+  {
+    for (size_t i=0; i< pFiles.size(); ++i)
+    {
+      pFiles[i].resize(0);
+    }
+    for (size_t i=0; i<pUnlinkedFiles.size(); ++i)
+    {
+      pUnlinkedFiles[i].resize(0);
+    }
+  }
 }
