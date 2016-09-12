@@ -158,8 +158,8 @@ HttpServer::Handler (void *cls,
     mhdResponse = MHD_create_response_from_callback(response->mResponseLength,
                                                     4 * 1024 * 1024, /* 4M page size */
                                                     &HttpServer::FileReaderCallback,
-                                                    (void*) protocolHandler,
-                                                    &HttpServer::FileCloseCallback);
+                                                    (void*) protocolHandler,0);
+
   }
   else
   {
@@ -331,29 +331,6 @@ HttpServer::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
-void
-HttpServer::FileCloseCallback (void *cls)
-{
-  // callback function to close the file object
-  eos::common::ProtocolHandler *handler = static_cast<eos::common::ProtocolHandler*> (cls);
-  eos::fst::HttpHandler *httpHandle = dynamic_cast<eos::fst::HttpHandler*> (handler);
-
-  eos_static_debug("handle=%llu file=%llu", httpHandle, httpHandle ? httpHandle->mFile : 0);
-  if (httpHandle && httpHandle->mFile)
-  {
-    if (httpHandle->mUploadLeftSize == 0) {
-      httpHandle->mCloseCode = httpHandle->mFile->close();
-    }
-  }
-  if (httpHandle)
-  {
-    // clean-up the handle
-    delete httpHandle;
-  }
-  return;
-}
-
 void
 HttpServer::CompleteHandler (void                              *cls,
                              struct MHD_Connection             *connection,
@@ -374,22 +351,40 @@ HttpServer::CompleteHandler (void                              *cls,
 
   eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ", scode.c_str());
 
-  if ( (toe != MHD_REQUEST_TERMINATED_COMPLETED_OK) && (con_cls && (*con_cls))) {
-    eos_static_info("msg=\"http connection disconnect\" action=\"Cleanup\" ");
-    eos::common::ProtocolHandler *handler = static_cast<eos::common::ProtocolHandler*> (*con_cls);
-    eos::fst::HttpHandler *httpHandle = dynamic_cast<eos::fst::HttpHandler*> (handler);
-    if (httpHandle && httpHandle->mFile) {
-      eos_static_err("msg=\"clean-up interrupted PUT/GET request\" path=\"%s\"", httpHandle->mFile->GetPath().c_str());
-      
-      // we have to disable delete-on-close for chunked uploads since files are stateful
-      if (httpHandle->mFile->IsChunkedUpload())
-	httpHandle->mFile->close();
 
+  eos::fst::HttpHandler * httpHandle = 0;
+
+  if ( (con_cls && (*con_cls)) )
+  {
+    eos::common::ProtocolHandler *handler = static_cast<eos::common::ProtocolHandler*> (*con_cls);
+    httpHandle = dynamic_cast<eos::fst::HttpHandler*> (handler);
+  }
+
+  if (httpHandle)
+  {
+    // deal with delete-on-close logic
+    if ( (toe != MHD_REQUEST_TERMINATED_COMPLETED_OK) ) 
+    {
+      eos_static_info("msg=\"http connection disconnect\" action=\"Cleanup\" ");
+
+      if (httpHandle && httpHandle->mFile) 
+      {
+ 	eos_static_err("msg=\"clean-up interrupted PUT/GET request\" path=\"%s\"", httpHandle->mFile->GetPath().c_str());
+	
+	// we have to disable delete-on-close for chunked uploads since files are stateful
+	if (httpHandle->mFile->IsChunkedUpload())
+	  httpHandle->mFile->close();
+      }
+    }
+
+    // clean-up file objects
+    if (httpHandle->mFile)
+    {
       delete (httpHandle->mFile);
       httpHandle->mFile = 0;
-      delete httpHandle;
-      *con_cls = 0;
     }
+    delete httpHandle;
+    *con_cls = 0;
   }
 }
 

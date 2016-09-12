@@ -96,14 +96,6 @@ public:
   static ssize_t
   FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max);
 
-  /**
-   * File Close Callback function
-   *
-   * @param cls XrdOfsFile* object
-   */
-  static void
-  FileCloseCallback (void *cls);
-
 #endif
 };
 
