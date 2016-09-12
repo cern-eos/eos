@@ -109,14 +109,11 @@ add_executable(
   commands/com_whoami.cc
   commands/com_who.cc)
 
-add_executable(eosdropboxd dropbox/eosdropboxd.cc)
-
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated
 # when we build the "eos" executable.
 #-------------------------------------------------------------------------------
 if(CLIENT)
-  add_dependencies(eos EosFstIo)
   target_link_libraries(
     eos
     eosCommon
@@ -133,7 +130,6 @@ if(CLIENT)
     ${CMAKE_THREAD_LIBS_INIT}
     ${KINETICIO_LIBRARIES})
 else()
-  add_dependencies(eos EosFstIo-Static)
   target_link_libraries(
     eos
     eosCommon-Static
@@ -151,18 +147,20 @@ else()
     ${KINETICIO_LIBRARIES})
 endif()
 
-if (MacOSX)
+add_executable(eosdropboxd dropbox/eosdropboxd.cc)
+
+if(Linux)
   target_link_libraries(
     eosdropboxd
-    eosCommon
+    eosCommon-Static
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${XROOTD_POSIX_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 else()
-  target_link_libraries(
+    target_link_libraries(
     eosdropboxd
-    eosCommon-Static
+    eosCommon
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${XROOTD_POSIX_LIBRARY}

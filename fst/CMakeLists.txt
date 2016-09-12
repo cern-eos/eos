@@ -232,8 +232,7 @@ target_link_libraries(
   ${PROTOBUF_LIBRARIES})
 
 set_target_properties(
-  EosFstIo
-  PROPERTIES
+  EosFstIo PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
@@ -244,22 +243,10 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
+
 #-------------------------------------------------------------------------------
-# eoscp executable
+# EosFstIo-Static library
 #-------------------------------------------------------------------------------
-add_executable(eoscp txqueue/eoscp.cc)
-
-set_target_properties(
-  eoscp
-  PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
-
-if( MacOSX )
-target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
-else( MacOSX )
-target_link_libraries(eoscp EosFstIo-Static ${XROOTD_CL_LIBRARY})
-endif ( MacOSX )
-
 if(Linux)
   add_library(
     EosFstIo-Static STATIC
@@ -285,10 +272,23 @@ if(Linux)
     ${CMAKE_THREAD_LIBS_INIT})
 
   set_target_properties(
-    EosFstIo-Static
-    PROPERTIES
+    EosFstIo-Static PROPERTIES
     COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
-  target_link_libraries(eoscp EosFstIo-Static)
+endif()
+
+#-------------------------------------------------------------------------------
+# eoscp executable
+#-------------------------------------------------------------------------------
+add_executable(eoscp txqueue/eoscp.cc)
+
+set_target_properties(
+  eoscp PROPERTIES
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
+
+if(Linux)
+  target_link_libraries(eoscp EosFstIo-Static ${XROOTD_CL_LIBRARY})
+else()
+  target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
 endif()
 
 install(

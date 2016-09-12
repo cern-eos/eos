@@ -46,7 +46,6 @@ set_source_files_properties(
 set(
   EOSCOMMON_SRCS
   Fmd.cc
-  Logging.cc
   Mapping.cc
   Statfs.cc
   SymKeys.cc
@@ -59,6 +58,18 @@ set(
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 
+target_link_libraries(
+  eosCommon PUBLIC
+  XrdMqClient
+  ${Z_LIBRARY}
+  ${UUID_LIBRARIES}
+  ${ATTR_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${CURL_LIBRARIES}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY})
+
 # !!!!!
 # TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
 # use std::atomic and the <atomic> header.
@@ -70,32 +81,30 @@ target_compile_definitions(
 target_include_directories(
   eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
 
-if(MacOSX)
-  target_link_libraries(
-    eosCommon
-    XrdMqClient
-    ${Z_LIBRARY}
-    ${UUID_LIBRARIES}
-    ${ATTR_LIBRARIES}
-    ${NCURSES_LIBRARY}
-    ${CURL_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${OPENSSL_CRYPTO_LIBRARY})
-else()
-  target_link_libraries(
-    eosCommon
-    XrdMqClient
-    ${Z_LIBRARY}
-    ${UUID_LIBRARIES}
-    ${ATTR_LIBRARIES}
-    ${NCURSES_LIBRARY}
-    ${CURL_LIBRARIES}
-    ${GLIBC_RT_LIBRARY}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${OPENSSL_CRYPTO_LIBRARY})
+set_target_properties(
+  eosCommon
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  POSITION_INDEPENDENT_CODE TRUE
+  MACOSX_RPATH TRUE)
 
+if(Linux)
+  target_link_libraries(
+    eosCommon PUBLIC
+    ${GLIBC_RT_LIBRARY})
+endif()
+
+install(
+  TARGETS eosCommon
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+#-------------------------------------------------------------------------------
+# eosCommonServer and eosCommon-Static libraries
+#-------------------------------------------------------------------------------
+if(Linux)
   add_library(
     eosCommonServer SHARED
     ShellExecutor.cc
@@ -119,7 +128,7 @@ else()
    eosCommonServer PUBLIC ${LEVELDB_INCLUDE_DIRS})
 
   target_link_libraries(
-    eosCommonServer
+    eosCommonServer PUBLIC
     XrdMqClient
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
@@ -134,17 +143,20 @@ else()
     ${OPENSSL_CRYPTO_LIBRARY})
 
   if(MICROHTTPD_FOUND)
-    target_link_libraries(eosCommonServer ${MICROHTTPD_LIBRARIES})
+    target_link_libraries(eosCommonServer PUBLIC ${MICROHTTPD_LIBRARIES})
   endif()
 
   set_target_properties(
     eosCommonServer
     PROPERTIES
-    INTERFACE_LINK_LIBRARIES "${OPENSSL_CRYPTO_LIBRARY}"
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
-    CLEAN_DIRECT_OUTPUT 1
-    COMPILE_FLAGS -DSQLITE_NO_SYNC=1)
+    POSITION_INDEPENDENT_CODE TRUE
+    MACOSX_RPATH TRUE)
+
+  target_compile_definitions(
+    eosCommonServer
+    PUBLIC -DSQLITE_NO_SYNC=1)
 
   install(
     TARGETS eosCommonServer
@@ -172,7 +184,7 @@ else()
     PUBLIC -fPIC)
 
   target_link_libraries(
-    eosCommon-Static
+    eosCommon-Static PRIVATE
     XrdMqClient-Static
     ${Z_LIBRARY}
     ${UUID_LIBRARIES}
@@ -184,20 +196,6 @@ else()
     ${OPENSSL_CRYPTO_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 endif()
-
-set_target_properties(
-  eosCommon
-  PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  CLEAN_DIRECT_OUTPUT 1
-  MACOSX_RPATH TRUE)
-
-install(
-  TARGETS eosCommon
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 #-------------------------------------------------------------------------------
 # Create helper executables
@@ -212,10 +210,19 @@ if (Linux)
     ${DBMAPTEST_SRCS}
     ${DBMAPTEST_HDRS})
 
-  target_link_libraries(dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT})
-  target_link_libraries(mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT})
   target_link_libraries(
-    dbmaptestfunc
+    dbmaptestburn PRIVATE
+    eosCommon
+    eosCommonServer
+    ${CMAKE_THREAD_LIBS_INIT})
+
+  target_link_libraries(
+    mutextest PRIVATE
+    eosCommon
+    ${CMAKE_THREAD_LIBS_INIT})
+
+  target_link_libraries(
+    dbmaptestfunc PRIVATE
     eosCommonServer
     eosCommon
     ${PROTOBUF_LIBRARIES}
@@ -235,7 +242,7 @@ add_library(
   plugin_manager/DynamicLibrary.cc  plugin_manager/DynamicLibrary.hh)
 
 target_link_libraries(
-  EosPluginManager
+  EosPluginManager PRIVATE
   ${XROOTD_UTILS_LIBRARY})
 
 set_target_properties(
@@ -243,8 +250,7 @@ set_target_properties(
   PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES ""
+  POSITION_INDEPENDENT_CODE TRUE
   MACOSX_RPATH TRUE)
 
 install(

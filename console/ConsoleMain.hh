@@ -21,11 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef __EOS_CONSOLE_MAIN_HH__
+#define __EOS_CONSOLE_MAIN_HH__
+
 /*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
 #include "common/Fmd.hh"
 #include "common/Logging.hh"
-//#include "common/FileSystem.hh"
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "mq/XrdMqSharedObject.hh"
@@ -70,7 +72,7 @@
 #include <math.h>
 /*----------------------------------------------------------------------------*/
 
-extern const char* abspath (const char* in);
+extern const char* abspath(const char* in);
 
 extern XrdOucString pwd;
 extern XrdOucString rstdout;
@@ -81,7 +83,7 @@ extern XrdOucString serveruri;
 extern XrdOucString global_comment;
 extern XrdOucString pwdfile;
 
-extern void exit_handler (int a);
+extern void exit_handler(int a);
 
 extern int global_retc;
 extern bool global_highlighting;
@@ -95,33 +97,36 @@ extern bool runpipe;
 extern bool ispipe;
 extern bool json;
 
-extern XrdOucEnv* client_user_command (XrdOucString &in);
-extern XrdOucEnv* client_admin_command (XrdOucString &in);
-extern int output_result (XrdOucEnv* result, bool highlighting = true);
-extern void command_result_stdout_to_vector (std::vector<std::string> &string_vector);
+extern XrdOucEnv* client_user_command(XrdOucString& in);
+extern XrdOucEnv* client_admin_command(XrdOucString& in);
+extern int output_result(XrdOucEnv* result, bool highlighting = true);
+extern void command_result_stdout_to_vector(std::vector<std::string>&
+    string_vector);
 extern XrdOucEnv* CommandEnv;
 
 /* A structure which contains information on the commands this program
    can understand. */
 
 typedef int
-CFunction (char *);
+CFunction(char*);
 
 typedef struct {
-  char *name; /* User printable name of the function. */
+  char* name; /* User printable name of the function. */
   CFunction* func;
   ; /* Function to call to do the job. */
-  char *doc; /* Documentation for this function.  */
+  char* doc; /* Documentation for this function.  */
 } COMMAND;
 
 /* Help filter function */
-extern int wants_help (const char* arg1);
+extern int wants_help(const char* arg1);
 
 extern COMMAND commands[];
 
 extern int done;
 
-XrdOucString cleanPath(const std::string &pathToHandle);
+XrdOucString cleanPath(const std::string& pathToHandle);
 
-void addHelpOptionRecursively(ConsoleCliCommand *command);
-bool checkHelpAndErrors(ConsoleCliCommand *command);
+void addHelpOptionRecursively(ConsoleCliCommand* command);
+bool checkHelpAndErrors(ConsoleCliCommand* command);
+
+#endif

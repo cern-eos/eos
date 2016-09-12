@@ -26,8 +26,7 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS}
-  )
+  ${SPARSEHASH_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # Add CppUnit tests if possible
@@ -53,9 +52,6 @@ set(
 
 add_library(XrdMqClient SHARED ${XRDMQCLIENT_SRCS})
 
-target_compile_definitions(
-  XrdMqClient PUBLIC -DHAVE_ATOMICS=1)
-
 target_link_libraries(
   XrdMqClient
   ${UUID_LIBRARIES}
@@ -63,6 +59,24 @@ target_link_libraries(
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
+
+target_compile_definitions(
+  XrdMqClient PUBLIC -DHAVE_ATOMICS=1)
+
+set_target_properties(
+  XrdMqClient
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES ""
+  POSITION_INDEPENDENT_CODE TRUE
+  MACOSX_RPATH TRUE)
+
+if(Linux)
+  add_library(XrdMqClient-Static STATIC ${XRDMQCLIENT_SRCS})
+  target_compile_options(XrdMqClient-Static PRIVATE -fPIC)
+endif()
 
 #-------------------------------------------------------------------------------
 # XrdMqOfs library
@@ -82,25 +96,6 @@ target_link_libraries(
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
-
-set_target_properties(
-  XrdMqClient
-  PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES ""
-  MACOSX_RPATH TRUE)
-
-if(Linux)
-  add_library(XrdMqClient-Static STATIC ${XRDMQCLIENT_SRCS})
-  add_library(XrdMqOfs-Static STATIC ${XRDMQOFS_SRCS})
-
-  set_target_properties(
-    XrdMqClient-Static
-    XrdMqOfs-Static
-    PROPERTIES COMPILE_FLAGS -fPIC)
-endif()
 
 #-------------------------------------------------------------------------------
 # Other executables

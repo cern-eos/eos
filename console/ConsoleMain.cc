@@ -24,7 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "ConsoleMain.hh"
 #include "ConsolePipe.hh"
-#include "../License"
+#include "License"
 
 #include "common/Path.hh"
 #include "common/IoPipe.hh"
