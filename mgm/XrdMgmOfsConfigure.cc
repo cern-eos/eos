@@ -1699,8 +1699,9 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     try
     {
       eosmd = gOFS->eosView->getContainer(MgmProcConversionPath.c_str());
-      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
       eosmd->setCUid(2); // conversion directory is owned by daemon
+      eosmd->setCGid(2);
       gOFS->eosView->updateContainerStore(eosmd);
     }
     catch (eos::MDException &e)
@@ -1713,14 +1714,16 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       try
       {
         eosmd = gOFS->eosView->createContainer(MgmProcConversionPath.c_str(), true);
-        // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        eosmd->setCUid(2); // conversion directory is owned by daemon
+        eosmd->setCGid(2);
         gOFS->eosView->updateContainerStore(eosmd);
       }
       catch (eos::MDException &e)
       {
-        Eroute.Emsg("Config", "cannot set the /eos/../proc/conversion directory mode to inital mode");
-        eos_crit("cannot set the /eos/../proc/conversion directory mode to 700");
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/conversion directory"
+                    " mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/conversion directory mode to 780");
         return 1;
       }
     }
@@ -1729,8 +1732,9 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     try
     {
       eosmd = gOFS->eosView->getContainer(MgmProcArchivePath.c_str());
-      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
       eosmd->setCUid(2); // archive directory is owned by daemon
+      eosmd->setCGid(2);
       gOFS->eosView->updateContainerStore(eosmd);
     }
     catch (eos::MDException &e)
@@ -1743,14 +1747,16 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       try
       {
         eosmd = gOFS->eosView->createContainer(MgmProcArchivePath.c_str(), true);
-        // Set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        eosmd->setCUid(2); // archive directory is owned by daemon
+        eosmd->setCGid(2);
         gOFS->eosView->updateContainerStore(eosmd);
       }
       catch (eos::MDException &e)
       {
-        Eroute.Emsg("Config", "cannot set the /eos/../proc/archive directory mode to inital mode");
-        eos_crit("cannot set the /eos/../proc/archive directory mode to 700");
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/archive directory "
+                    "mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/archive directory mode to 770");
         return 1;
       }
     }
@@ -1764,12 +1770,18 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   XrdMqSharedHash* hash = 0;
 
-  // - we disable a lot of features if we are only a redirector
+  // Disable some features if we are only a redirector
   if (!MgmRedirector)
   {
     // create the specific listener class
-    MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(), MgmDefaultReceiverQueue.c_str(), true, true, &ObjectManager);
-    if (!MgmOfsMessaging->StartListenerThread()) NoGo = 1;
+    MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),
+                                    MgmDefaultReceiverQueue.c_str(), true,
+                                    true, &ObjectManager);
+
+    if (!MgmOfsMessaging->StartListenerThread()) {
+      NoGo = 1;
+    }
+
     MgmOfsMessaging->SetLogId("MgmOfsMessaging");
 
     if ((!MgmOfsMessaging) || (MgmOfsMessaging->IsZombie()))
@@ -1779,10 +1791,16 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
 
     if (MgmOfsVstBrokerUrl.length() &&
-        (!getenv("EOS_VST_BROKER_DISABLE") || (strcmp(getenv("EOS_VST_BROKER_DISABLE"), "1"))))
+        (!getenv("EOS_VST_BROKER_DISABLE") ||
+         (strcmp(getenv("EOS_VST_BROKER_DISABLE"), "1"))))
     {
-      MgmOfsVstMessaging = new VstMessaging(MgmOfsVstBrokerUrl.c_str(), "/eos/*/vst", true, true, 0);
-      if (!MgmOfsVstMessaging->StartListenerThread()) NoGo = 1;
+      MgmOfsVstMessaging = new VstMessaging(MgmOfsVstBrokerUrl.c_str(),
+                                            "/eos/*/vst", true, true, 0);
+
+      if (!MgmOfsVstMessaging->StartListenerThread()) {
+        NoGo = 1;
+      }
+
       MgmOfsMessaging->SetLogId("MgmOfsVstMessaging");
 
       if ((!MgmOfsVstMessaging) || (MgmOfsVstMessaging->IsZombie()))
