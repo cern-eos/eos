@@ -2861,7 +2861,7 @@ XrdFstOfsFile::DoTpcTransfer()
   int64_t rbytes = 0;
   int64_t wbytes = 0;
   off_t offset = 0;
-  auto_ptr < std::vector<char> > buffer(
+  std::unique_ptr< std::vector<char> > buffer(
     new std::vector<char>(ReadaheadBlock::sDefaultBlocksize));
   eos_info("msg=\"tpc pull\" ");
 
