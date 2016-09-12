@@ -122,15 +122,9 @@ public:
   //! @param timeout timeout value
   //!
   //! @return number of bytes read of -1 if error
-  //!
   //----------------------------------------------------------------------------
   virtual int64_t fileReadV(XrdCl::ChunkList& chunkList,
-                            uint16_t timeout = 0)
-  {
-    errno = EOPNOTSUPP;
-    return -1;
-  }
-
+                            uint16_t timeout = 0) = 0;
 
   //------------------------------------------------------------------------------
   //! Vector read - async
@@ -139,15 +133,9 @@ public:
   //! @param timeout timeout value
   //!
   //! @return 0(SFS_OK) if request successfully sent, otherwise -1(SFS_ERROR)
-  //!
   //------------------------------------------------------------------------------
   virtual int64_t fileReadVAsync(XrdCl::ChunkList& chunkList,
-                                 uint16_t timeout = 0)
-  {
-    errno = EOPNOTSUPP;
-    return -1;
-  }
-
+                                 uint16_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Write to file - sync
@@ -448,4 +436,3 @@ protected:
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_FILEIO_HH__
-

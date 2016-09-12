@@ -25,10 +25,7 @@
 #ifndef __EOSFST_FSFILEIO__HH__
 #define __EOSFST_FSFILEIO__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
@@ -40,14 +37,15 @@ public:
   //--------------------------------------------------------------------------
   //! Constructor
   //!
-  //!
+  //! @param path file path
   //--------------------------------------------------------------------------
   FsIo(std::string path);
 
   //--------------------------------------------------------------------------
   //! Constructor
   //!
-  //!
+  //! @param path file path
+  //! @param iotype type of underlying file
   //--------------------------------------------------------------------------
   FsIo(std::string path, std::string iotype);
 
@@ -113,6 +111,36 @@ public:
                                 XrdSfsXferSize length,
                                 bool readahead = false,
                                 uint16_t timeout = 0);
+
+  //----------------------------------------------------------------------------
+  //! Vector read - sync
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return number of bytes read of -1 if error
+  //----------------------------------------------------------------------------
+  virtual int64_t fileReadV(XrdCl::ChunkList& chunkList,
+                            uint16_t timeout = 0)
+  {
+    errno = EOPNOTSUPP;
+    return -1;
+  }
+
+  //------------------------------------------------------------------------------
+  //! Vector read - async
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return 0(SFS_OK) if request successfully sent, otherwise -1(SFS_ERROR)
+  //------------------------------------------------------------------------------
+  virtual int64_t fileReadVAsync(XrdCl::ChunkList& chunkList,
+                                 uint16_t timeout = 0)
+  {
+    errno = EOPNOTSUPP;
+    return -1;
+  }
 
   //--------------------------------------------------------------------------
   //! Write to file - async
@@ -339,5 +367,3 @@ private:
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_FSFILEIO_HH__
-
-

@@ -217,6 +217,28 @@ public:
                     XrdSfsXferSize length,
                     uint16_t timeout = 0);
 
+  //----------------------------------------------------------------------------
+  //! Vector read - sync
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return number of bytes read of -1 if error
+  //----------------------------------------------------------------------------
+  virtual int64_t fileReadV(XrdCl::ChunkList& chunkList,
+                            uint16_t timeout = 0);
+
+  //------------------------------------------------------------------------------
+  //! Vector read - async
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return 0(SFS_OK) if request successfully sent, otherwise -1(SFS_ERROR)
+  //------------------------------------------------------------------------------
+  virtual int64_t fileReadVAsync(XrdCl::ChunkList& chunkList,
+                                 uint16_t timeout = 0);
+
   //--------------------------------------------------------------------------
   //! Read from file - async
   //!
@@ -546,4 +568,3 @@ private:
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_XRDFILEIO_HH__
-

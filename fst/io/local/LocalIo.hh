@@ -92,8 +92,7 @@ public:
   //! @return number of bytes read of -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t ReadV(XrdCl::ChunkList& chunkList,
-                        uint16_t timeout = 0);
+  virtual int64_t fileReadV(XrdCl::ChunkList& chunkList, uint16_t timeout = 0);
 
 
   //------------------------------------------------------------------------------
@@ -106,8 +105,8 @@ public:
   //!         ReadV sync method
   //!
   //------------------------------------------------------------------------------
-  virtual int64_t ReadVAsync(XrdCl::ChunkList& chunkList,
-                             uint16_t timeout = 0);
+  virtual int64_t fileReadVAsync(XrdCl::ChunkList& chunkList,
+                                 uint16_t timeout = 0);
 
 
   //----------------------------------------------------------------------------
@@ -217,9 +216,7 @@ public:
   //--------------------------------------------------------------------------
   int fileStat(struct stat* buf, uint16_t timeout = 0);
 
-
 private:
-
   XrdFstOfsFile* mLogicalFile; ///< handler to logical file
   const XrdSecEntity* mSecEntity; ///< security entity
 
@@ -228,7 +225,6 @@ private:
   //----------------------------------------------------------------------------
   LocalIo(const LocalIo&) = delete;
 
-
   //----------------------------------------------------------------------------
   //! Disable assign operator
   //----------------------------------------------------------------------------
@@ -236,7 +232,4 @@ private:
 };
 
 EOSFSTNAMESPACE_END
-
 #endif  // __EOSFST_LOCALFILEIO_HH__
-
-
