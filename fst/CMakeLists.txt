@@ -182,7 +182,6 @@ set(
   ${DAVIX_SRC}			 ${DAVIX_HDR}
   io/rados/RadosIo.cc            io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
-  io/HeaderCRC.cc                io/HeaderCRC.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
   io/VectChunkHandler.cc         io/VectChunkHandler.hh
@@ -201,6 +200,7 @@ set(
   layout/LayoutPlugin.cc             layout/LayoutPlugin.hh
   layout/Layout.cc                   layout/Layout.hh
   layout/PlainLayout.cc              layout/PlainLayout.hh
+  layout/HeaderCRC.cc                layout/HeaderCRC.hh
   layout/ReplicaParLayout.cc         layout/ReplicaParLayout.hh
   layout/RaidMetaLayout.cc           layout/RaidMetaLayout.hh
   layout/RaidDpLayout.cc             layout/RaidDpLayout.hh

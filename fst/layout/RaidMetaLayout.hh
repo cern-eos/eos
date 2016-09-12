@@ -31,7 +31,7 @@
 #include <list>
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
-#include "fst/io/HeaderCRC.hh"
+#include "fst/layout/HeaderCRC.hh"
 #include "fst/XrdFstOfsFile.hh"
 /*----------------------------------------------------------------------------*/
 

@@ -49,7 +49,7 @@ public:
   //! @sizeBlock the size of the stripe block
   //!
   //----------------------------------------------------------------------------
-  HeaderCRC (int sizeHeader, int sizeBlock);
+  HeaderCRC(int sizeHeader, int sizeBlock);
 
 
   //----------------------------------------------------------------------------
@@ -60,25 +60,25 @@ public:
   //! @sizeBlock the size of the stripe block
   //!
   //----------------------------------------------------------------------------
-  HeaderCRC (int sizeHeader, long long int numBlocks, int sizeBlock);
+  HeaderCRC(int sizeHeader, long long int numBlocks, int sizeBlock);
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~HeaderCRC ();
+  ~HeaderCRC();
 
 
   //----------------------------------------------------------------------------
   //! Write header to file
   //!
   //! @param pFile file to which to header will be written
-  //! @param timeout timeout value 
+  //! @param timeout timeout value
   //!
   //! @return status of the operation
   //!
   //----------------------------------------------------------------------------
-  bool WriteToFile (FileIo*& pFile, uint16_t timeout);
+  bool WriteToFile(FileIo*& pFile, uint16_t timeout);
 
 
   //----------------------------------------------------------------------------
@@ -90,14 +90,14 @@ public:
   //! @return status of the operation
   //!
   //----------------------------------------------------------------------------
-  bool ReadFromFile (FileIo*& pFile, uint16_t timeout);
+  bool ReadFromFile(FileIo*& pFile, uint16_t timeout);
 
 
   //----------------------------------------------------------------------------
   //! Get tag of the header
   //----------------------------------------------------------------------------
   const char*
-  GetTag () const
+  GetTag() const
   {
     return mTag;
   }
@@ -107,7 +107,7 @@ public:
   //! Get size of header
   //----------------------------------------------------------------------------
   inline int
-  GetSize () const
+  GetSize() const
   {
     return mSizeHeader;
   }
@@ -117,7 +117,7 @@ public:
   //! Get block size the file contains
   //----------------------------------------------------------------------------
   inline size_t
-  GetSizeBlock () const
+  GetSizeBlock() const
   {
     return mSizeBlock;
   }
@@ -127,7 +127,7 @@ public:
   //! Get size of last block in file
   //----------------------------------------------------------------------------
   inline size_t
-  GetSizeLastBlock () const
+  GetSizeLastBlock() const
   {
     return mSizeLastBlock;
   }
@@ -137,7 +137,7 @@ public:
   //! Get number of blocks in file
   //----------------------------------------------------------------------------
   inline long int
-  GetNoBlocks () const
+  GetNoBlocks() const
   {
     return mNumBlocks;
   }
@@ -147,7 +147,7 @@ public:
   //! Get id of the stripe the header belongs to
   //----------------------------------------------------------------------------
   inline unsigned int
-  GetIdStripe () const
+  GetIdStripe() const
   {
     return mIdStripe;
   }
@@ -157,7 +157,7 @@ public:
   //! Set number of blocks in the file
   //----------------------------------------------------------------------------
   void
-  SetNoBlocks (long long int numBlocks)
+  SetNoBlocks(long long int numBlocks)
   {
     mNumBlocks = numBlocks;
   }
@@ -167,7 +167,7 @@ public:
   //! Set size of last block in the file
   //----------------------------------------------------------------------------
   void
-  SetSizeLastBlock (size_t sizeLastBlock)
+  SetSizeLastBlock(size_t sizeLastBlock)
   {
     mSizeLastBlock = sizeLastBlock;
   }
@@ -176,7 +176,7 @@ public:
   //! Set id of the stripe the header belongs to
   //----------------------------------------------------------------------------
   void
-  SetIdStripe (unsigned int stripe)
+  SetIdStripe(unsigned int stripe)
   {
     mIdStripe = stripe;
   }
@@ -186,7 +186,7 @@ public:
   //! Test if header is valid
   //----------------------------------------------------------------------------
   inline const bool
-  IsValid () const
+  IsValid() const
   {
     return mValid;
   }
@@ -196,7 +196,7 @@ public:
   //! Set the header state (valid/corrupted)
   //----------------------------------------------------------------------------
   void
-  SetState (bool state)
+  SetState(bool state)
   {
     mValid = state;
   }
@@ -206,12 +206,11 @@ public:
   //! Get size of the file based on the info in the header
   //----------------------------------------------------------------------------
   off_t
-  GetSizeFile () const
+  GetSizeFile() const
   {
-    if (mNumBlocks)
-    {
-      return static_cast<off_t> ((mNumBlocks - 1) * mSizeBlock +
-                                 mSizeLastBlock);
+    if (mNumBlocks) {
+      return static_cast<off_t>((mNumBlocks - 1) * mSizeBlock +
+                                mSizeLastBlock);
     }
 
     return 0;
@@ -224,7 +223,7 @@ private:
   long long int mNumBlocks; ///< total number of blocks
   unsigned int mIdStripe; ///< index of the stripe the header belongs to
   size_t mSizeLastBlock; ///< size of the last block of data
-  size_t mSizeBlock; ///< size of a block of data 
+  size_t mSizeBlock; ///< size of a block of data
   int mSizeHeader; ///< size of the header
   static char msTagName[]; ///< default tag name
 };
