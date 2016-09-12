@@ -75,6 +75,7 @@ XrdMgmOfs::InitializeFileView ()
     Initialized = kBooting;
     InitializationTime = time(0);
     RemoveStallRuleAfterBoot = false;
+    BootFileId = 0;
   }
   time_t tstart = time(0);
   std::string oldstallrule = "";
@@ -112,6 +113,8 @@ XrdMgmOfs::InitializeFileView ()
       time_t t3 = time(0);
       eos_notice("eos file view initialize2: %d seconds", t2-t1);
       eos_notice("eos file view initialize3: %d seconds", t3-t2);
+
+      BootFileId = gOFS->eosFileService->getFirstFreeId();
 
       if (MgmMaster.IsMaster())
       {

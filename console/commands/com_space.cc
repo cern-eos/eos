@@ -120,7 +120,11 @@ com_space (char* arg1)
 	(option != "mapping") &&
 	(option != "drain") &&
 	(option != "scheduledrain") && 
-	(option != "schedulebalance") ) 
+	(option != "schedulebalance") &&
+	(option != "ns") &&
+	(option != "nsfilesystemview") &&
+	(option != "nsfilemap") &&
+	(option != "nsdirectorymap"))
       printusage = true;
     
     in += "&mgm.space=";
@@ -330,7 +334,7 @@ com_space_usage:
   fprintf(stdout, "                                                                       => <groupsize>=0 means, that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n");
   fprintf(stdout, "                                                                       => <groupmod> defines the maximun number of filesystems per node\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "       space reset <space-name>  [--egroup|mapping|drain|scheduledrain|schedulebalance] \n");
+  fprintf(stdout, "       space reset <space-name>  [--egroup|mapping|drain|scheduledrain|schedulebalance|ns|nsfilesystemview|nsfilemap|nsdirectorymap] \n");
   fprintf(stdout, "                                                                     : reset a space e.g. recompute the drain state machine\n");
   fprintf(stdout, "       space status <space-name> [-m]                                : print's all defined variables for space\n");
   fprintf(stdout, "       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !) \n");

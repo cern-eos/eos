@@ -177,6 +177,37 @@ ProcCommand::Space ()
       stdOut += "\ninfo: clear cached EGroup information ...";
     }
 
+    if ((option == "nsfilesystemview")) 
+    {
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      gOFS->eosFsView->shrink();
+      stdOut += "\ninfo: resized namespace filesystem view ...";
+    }
+
+    if ((option == "nsfilemap")) 
+    {
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      gOFS->eosFileService->resize();
+      stdOut += "\ninfo: resized namespace file map ...";
+    }
+
+    if ((option == "nsdirectorymap")) 
+    {
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      gOFS->eosDirectoryService->resize();
+      stdOut += "\ninfo: resized namespace directory map ...";
+    }
+
+    if ((option == "ns")) 
+    {
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      gOFS->eosFsView->shrink();
+      gOFS->eosFileService->resize();
+      gOFS->eosDirectoryService->resize();
+      stdOut += "\ninfo: resized all namespace map ...";
+    }
+
+   
     if ((!option.length()) || (option == "mapping")) 
     {
       eos::common::Mapping::Reset();

@@ -2087,10 +2087,11 @@ Master::BootNamespace ()
       }
       gOFS->eosFileService->getChangeLog()->clearWarningMessages();
       gOFS->eosDirectoryService->getChangeLog()->clearWarningMessages();
+      gOFS->BootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
     }
 
     MasterLog(eos_notice("eos directory view configure stopped after %d seconds", (tstop - tstart)));
-
+    
 
   }
   catch (eos::MDException &e)

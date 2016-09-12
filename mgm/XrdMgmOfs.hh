@@ -990,6 +990,8 @@ public:
   bool Shutdown; //< true if the shutdown function was called => avoid to join some threads
   bool RemoveStallRuleAfterBoot; //< indicates that after a boot there shouldn't be a stall rule for all alias '*'
   static const char* gNameSpaceState[]; //< const strings to print the namespace boot state as in eNamespace
+  eos::common::FileId::fileid_t BootFileId; //< next free file id after namespace boot
+  eos::common::FileId::fileid_t BootContainerId; //< next free container id after namespace boot
 
   //----------------------------------------------------------------------------
   // State variables

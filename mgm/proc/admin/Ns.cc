@@ -164,6 +164,9 @@ ProcCommand::Ns ()
    eos_info("ns stat");
    unsigned long long f = (unsigned long long) gOFS->eosFileService->getNumFiles();
    unsigned long long d = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
+   eos::common::FileId::fileid_t fid_now=gOFS->eosFileService->getFirstFreeId();
+   eos::common::FileId::fileid_t cid_now=gOFS->eosDirectoryService->getFirstFreeId();
+
    char files[1024];
    sprintf(files, "%llu", f);
    char dirs[1024];
@@ -189,6 +192,13 @@ ProcCommand::Ns ()
      eos::common::StringConversion::GetReadableSizeString(cldratio, (unsigned long long) d ? (1.0 * statd.st_size) / d : 0, "B");
    }
 
+   // current namespace ids
+   XrdOucString currentfidstring;
+   XrdOucString currentcidstring;
+
+   eos::common::StringConversion::GetReadableSizeString(currentfidstring, (unsigned long long)fid_now, "");
+   eos::common::StringConversion::GetReadableSizeString(currentcidstring, (unsigned long long)cid_now, "");
+
    // statistic for the memory usage
    eos::common::LinuxMemConsumption::linux_mem_t mem;
 
@@ -206,7 +216,7 @@ ProcCommand::Ns ()
 
    XrdOucString bootstring;
    time_t boottime;
-
+   
    {
      XrdSysMutexHelper lock(gOFS->InitializationMutex);
      bootstring = gOFS->gNameSpaceState[gOFS->Initialized];
@@ -223,11 +233,6 @@ ProcCommand::Ns ()
 
    double avg = 0;
    double sigma = 0;
-
-   // TODO: Lukasz has removed this from the class 
-   //      if (!gOFS->MgmMaster.IsMaster()) {
-   //gOFS->eosFileService->getLatency(avg, sigma);
-   //      }
 
    if (!monitoring)
    {
@@ -278,6 +283,20 @@ ProcCommand::Ns ()
      stdOut += cldratio;
      stdOut += "\n";
      stdOut += "# ------------------------------------------------------------------------------------\n";
+     stdOut += "ALL      files created since boot         ";
+     stdOut += (int)(fid_now - gOFS->BootFileId);
+     stdOut += "\n";
+     stdOut += "ALL      container created since boot     ";
+     stdOut += (int)(cid_now - gOFS->BootContainerId);
+     stdOut += "\n";
+     stdOut += "# ------------------------------------------------------------------------------------\n";
+     stdOut += "ALL      current file id                  ";
+     stdOut += currentfidstring;
+     stdOut += "\n";
+     stdOut += "ALL      current container id             ";
+     stdOut += currentcidstring;
+     stdOut += "\n";
+     stdOut += "# ------------------------------------------------------------------------------------\n";
      stdOut += "ALL      memory virtual                   ";
      stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) mem.vmsize, "B");
      stdOut += "\n";
@@ -316,6 +335,15 @@ ProcCommand::Ns ()
      stdOut += "uid=all gid=all ns.total.directories=";
      stdOut += dirs;
      stdOut += "\n";
+     stdOut += "uid=all gid=all ns.current.fid=";
+     stdOut += currentfidstring;
+     stdOut += " ns.current.cid=";
+     stdOut += currentcidstring;
+     stdOut += " ns.generated.fid=";
+     stdOut += (int)(fid_now - gOFS->BootFileId);
+     stdOut += " ns.generated.cid=";
+     stdOut += (int)(cid_now - gOFS->BootContainerId);
+     stdOut += "\n";
      stdOut += "uid=all gid=all ns.total.files.changelog.size=";
      stdOut += eos::common::StringConversion::GetSizeString(clfsize, (unsigned long long) statf.st_size);
      stdOut += "\n";
@@ -338,6 +366,7 @@ ProcCommand::Ns ()
      stdOut += (int) boottime;
      stdOut += "\n";
      stdOut += "uid=all gid=all ns.latency.avg=";
+
      char savg[1024];
      snprintf(savg, sizeof (savg) - 1, "%.02f", avg);
      stdOut += savg;
