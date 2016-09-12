@@ -1185,7 +1185,10 @@ namespace eos
     //--------------------------------------------------------------------------
     IdMap::const_iterator it;
     for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
-      data->records.push_back( ::RecordData( it->second.logOffset, it->first ) );
+    {
+      if (it->second.logOffset)
+	data->records.push_back( ::RecordData( it->second.logOffset, it->first ) );
+    }
     return data;
   }
 

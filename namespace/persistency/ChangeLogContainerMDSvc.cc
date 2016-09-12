@@ -923,7 +923,10 @@ namespace eos
     //--------------------------------------------------------------------------
     IdMap::const_iterator it;
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it)
-      data->records.push_back(::ContainerRecordData(it->second.logOffset, it->first));
+    {
+      if (it->second.logOffset) // slaves have a non-persisted '/' record at offset 0
+	data->records.push_back(::ContainerRecordData(it->second.logOffset, it->first));
+    }
     return data;
   }
 

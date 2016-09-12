@@ -453,7 +453,7 @@ namespace eos
     if( *magic != RECORD_MAGIC )
     {
       MDException ex( EFAULT );
-      ex.getMessage() << "Read: Record's magic number is wrong.";
+      ex.getMessage() << "Read: Record's magic number is wrong at offset: " << offset;
       throw ex;
     }
 
