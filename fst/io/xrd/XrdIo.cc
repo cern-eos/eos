@@ -310,9 +310,7 @@ XrdIo::fileOpenAsync(void* io_handler,
 // Read from file - sync
 //------------------------------------------------------------------------------
 int64_t
-XrdIo::fileRead(XrdSfsFileOffset offset,
-                char* buffer,
-                XrdSfsXferSize length,
+XrdIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
                 uint16_t timeout)
 {
   eos_debug("offset=%llu length=%llu", static_cast<uint64_t>(offset),
@@ -339,15 +337,12 @@ XrdIo::fileRead(XrdSfsFileOffset offset,
   return bytes_read;
 }
 
-
 //------------------------------------------------------------------------------
 // Write to file - sync
 //------------------------------------------------------------------------------
 int64_t
-XrdIo::fileWrite(XrdSfsFileOffset offset,
-                 const char* buffer,
-                 XrdSfsXferSize length,
-                 uint16_t timeout)
+XrdIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
+                 XrdSfsXferSize length, uint16_t timeout)
 {
   eos_debug("offset=%llu length=%llu", static_cast<uint64_t>(offset),
             static_cast<uint64_t>(length));
@@ -376,11 +371,8 @@ XrdIo::fileWrite(XrdSfsFileOffset offset,
 // Read from file - async
 //------------------------------------------------------------------------------
 int64_t
-XrdIo::fileReadAsync(XrdSfsFileOffset offset,
-                     char* buffer,
-                     XrdSfsXferSize length,
-                     bool readahead,
-                     uint16_t timeout)
+XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
+                     XrdSfsXferSize length, bool readahead, uint16_t timeout)
 {
   eos_debug("offset=%llu length=%llu",
             static_cast<uint64_t>(offset),
@@ -667,10 +659,8 @@ XrdIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
 // Write to file - async
 //------------------------------------------------------------------------------
 int64_t
-XrdIo::fileWriteAsync(XrdSfsFileOffset offset,
-                      const char* buffer,
-                      XrdSfsXferSize length,
-                      uint16_t timeout)
+XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
+                      XrdSfsXferSize length, uint16_t timeout)
 {
   eos_debug("offset=%llu length=%i", static_cast<uint64_t>(offset), length);
 
@@ -818,9 +808,7 @@ XrdIo::fileClose(uint16_t timeout)
   mIsOpen = false;
 
   if (mDoReadahead) {
-    //..........................................................................
     // Wait for any requests on the fly and then close
-    //..........................................................................
     while (!mMapBlocks.empty()) {
       SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
 
@@ -858,7 +846,6 @@ XrdIo::fileClose(uint16_t timeout)
 
   return SFS_OK;
 }
-
 
 //------------------------------------------------------------------------------
 // Remove file
@@ -924,7 +911,6 @@ XrdIo::fileExists()
 //------------------------------------------------------------------------------
 // Delete file by path
 //------------------------------------------------------------------------------
-
 int
 XrdIo::fileDelete(const char* url)
 {
@@ -948,11 +934,9 @@ XrdIo::fileDelete(const char* url)
   return true;
 }
 
-
 //------------------------------------------------------------------------------
 // Prefetch block using the readahead mechanism
 //------------------------------------------------------------------------------
-
 bool
 XrdIo::PrefetchBlock(int64_t offset, bool isWrite, uint16_t timeout)
 {
@@ -971,10 +955,7 @@ XrdIo::PrefetchBlock(int64_t offset, bool isWrite, uint16_t timeout)
   }
 
   block->handler->Update(offset, mBlocksize, isWrite);
-  status = mXrdFile->Read(offset,
-                          mBlocksize,
-                          block->buffer,
-                          block->handler,
+  status = mXrdFile->Read(offset, mBlocksize, block->buffer, block->handler,
                           timeout);
 
   if (!status.IsOK()) {
@@ -990,22 +971,18 @@ XrdIo::PrefetchBlock(int64_t offset, bool isWrite, uint16_t timeout)
   return done;
 }
 
-
 //------------------------------------------------------------------------------
 // Get pointer to async meta handler object
 //------------------------------------------------------------------------------
-
 void*
 XrdIo::fileGetAsyncHandler()
 {
   return static_cast<void*>(mMetaHandler);
 }
 
-
 //------------------------------------------------------------------------------
 // Run a space query command as statfs
 //------------------------------------------------------------------------------
-
 int
 XrdIo::Statfs(struct statfs* sfs)
 {
@@ -1014,11 +991,8 @@ XrdIo::Statfs(struct statfs* sfs)
   XrdCl::Buffer* response = 0;
   XrdCl::Buffer arg(xUrl.GetPath().size());
   arg.FromString(xUrl.GetPath());
-  XrdCl::XRootDStatus status = fs.Query(
-                                 XrdCl::QueryCode::Space,
-                                 arg,
-                                 response,
-                                 (uint16_t) 15);
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::Space, arg,
+                                        response, (uint16_t) 15);
   errno = 0;
 
   if (!status.IsOK()) {
@@ -1031,7 +1005,8 @@ XrdIo::Statfs(struct statfs* sfs)
   }
 
   if (response) {
-    //  oss.cgroup=default&oss.space=469799256416256&oss.free=468894771826688&oss.maxf=68719476736&oss.used=904484589568&oss.quota=469799256416256
+    // oss.cgroup=default&oss.space=469799256416256&oss.free=468894771826688&
+    // oss.maxf=68719476736&oss.used=904484589568&oss.quota=469799256416256
     XrdOucEnv spaceEnv(response->ToString().c_str());
     unsigned long long free_bytes = 0;
     unsigned long long total_bytes = 0;
@@ -1073,11 +1048,12 @@ XrdIo::Statfs(struct statfs* sfs)
 }
 
 //------------------------------------------------------------------------------
-// Attribute Interface
+//                      **** Attribute Interface ****
 //------------------------------------------------------------------------------
 
-
-
+//------------------------------------------------------------------------------
+// Set attr
+//------------------------------------------------------------------------------
 int
 XrdIo::attrSet(const char* name, const char* value, size_t len)
 {
@@ -1140,21 +1116,18 @@ XrdIo::attrSet(const char* name, const char* value, size_t len)
   return SFS_ERROR;
 }
 
-// ------------------------------------------------------------------------
-//! Set a string attribute (name has to start with 'user.' !!!)
-// ------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Set a string attribute (name has to start with 'user.' !!!)
+//------------------------------------------------------------------------------
 int
 XrdIo::attrSet(string name, std::string value)
 {
   return attrSet(name.c_str(), value.c_str(), value.length());
 }
 
-
-// ------------------------------------------------------------------------
-//! Get a binary attribute by name (name has to start with 'user.' !!!)
-// ------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Get a binary attribute by name (name has to start with 'user.' !!!)
+//------------------------------------------------------------------------------
 int
 XrdIo::attrGet(const char* name, char* value, size_t& size)
 {
@@ -1198,10 +1171,9 @@ XrdIo::attrGet(const char* name, char* value, size_t& size)
   return SFS_ERROR;
 }
 
-// ------------------------------------------------------------------------
-//! Get a string attribute by name (name has to start with 'user.' !!!)
-// ------------------------------------------------------------------------
-
+///------------------------------------------------------------------------------
+// Get a string attribute by name (name has to start with 'user.' !!!)
+//------------------------------------------------------------------------------
 int
 XrdIo::attrGet(string name, std::string& value)
 {
@@ -1229,9 +1201,9 @@ XrdIo::attrGet(string name, std::string& value)
   return SFS_ERROR;
 }
 
-// ------------------------------------------------------------------------
-//! Delete a binary attribute by name
-// ------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Delete a binary attribute by name
+//------------------------------------------------------------------------------
 int
 XrdIo::attrDelete(const char* name)
 {
@@ -1239,9 +1211,9 @@ XrdIo::attrDelete(const char* name)
   return attrSet(name, "#__DELETE_ATTR_#");
 }
 
-// ------------------------------------------------------------------------
-//! List all attributes for the associated path
-// ------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// List all attributes for the associated path
+//------------------------------------------------------------------------------
 int
 XrdIo::attrList(std::vector<std::string>& list)
 {
@@ -1277,16 +1249,13 @@ XrdIo::attrList(std::vector<std::string>& list)
   return -1;
 }
 
-
-
 //--------------------------------------------------------------------------
-//! traversing filesystem/storage routines
+//          **** Traversing filesystem/storage routines ****
 //--------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------
-//! Open a curser to traverse a storage system
+// Open a curser to traverse a storage system
 //--------------------------------------------------------------------------
-
 FileIo::FtsHandle*
 XrdIo::ftsOpen()
 {
@@ -1295,10 +1264,7 @@ XrdIo::ftsOpen()
   std::vector<std::string> files;
   std::vector<std::string> directories;
   XrdCl::XRootDStatus status =
-    XrdIo::GetDirList(&fs,
-                      url,
-                      &files,
-                      &directories);
+    XrdIo::GetDirList(&fs, url, &files, &directories);
 
   if (!status.IsOK()) {
     eos_err("error=listing remote XrdClFile - %s", status.ToString().c_str());
@@ -1318,7 +1284,7 @@ XrdIo::ftsOpen()
   for (auto it = files.begin(); it != files.end(); ++it) {
     XrdOucString fname = it->c_str();
 
-    // skip attribute files
+    // Skip attribute files
     if (fname.beginswith(".") && fname.endswith(".xattr")) {
       continue;
     }
@@ -1335,10 +1301,9 @@ XrdIo::ftsOpen()
   return (FileIo::FtsHandle*)(handle);
 }
 
-//--------------------------------------------------------------------------
-//! Return the next path related to a traversal cursor obtained with ftsOpen
-//--------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Return the next path related to a traversal cursor obtained with ftsOpen
+//------------------------------------------------------------------------------
 std::string
 XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
 {
@@ -1365,10 +1330,7 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
                dit->c_str());
       XrdCl::URL url(*dit);
       XrdCl::FileSystem fs(url);
-      status = XrdIo::GetDirList(&fs,
-                                 url,
-                                 &files,
-                                 &directories);
+      status = XrdIo::GetDirList(&fs, url, &files, &directories);
 
       if (!status.IsOK()) {
         eos_err("error=listing remote XrdClFile - %s", status.ToString().c_str());
@@ -1409,10 +1371,9 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
   return "";
 }
 
-//--------------------------------------------------------------------------
-//! Close a traversal cursor
-//--------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Close a traversal cursor
+//------------------------------------------------------------------------------
 int
 XrdIo::ftsClose(FileIo::FtsHandle* fts_handle)
 {
@@ -1424,10 +1385,9 @@ XrdIo::ftsClose(FileIo::FtsHandle* fts_handle)
   return 0;
 }
 
-//--------------------------------------------------------------------------
-//! Download a remote file into a string object
-//--------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Download a remote file into a string object
+//------------------------------------------------------------------------------
 int
 XrdIo::Download(std::string url, std::string& download)
 {
@@ -1465,10 +1425,9 @@ XrdIo::Download(std::string url, std::string& download)
   return -1;
 }
 
-//--------------------------------------------------------------------------
-//! Upload a string object into a remote file
-//--------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Upload a string object into a remote file
+//------------------------------------------------------------------------------
 int
 XrdIo::Upload(std::string url, std::string& upload)
 {
@@ -1478,8 +1437,7 @@ XrdIo::Upload(std::string url, std::string& upload)
   int rc = 0;
 
   if (!io.fileOpen(SFS_O_WRONLY | SFS_O_CREAT, S_IRWXU | S_IRGRP | SFS_O_MKPTH,
-                   opaque,
-                   10)) {
+                   opaque, 10)) {
     eos_static_info("opened %s", url.c_str());
 
     if ((io.fileWrite(0, upload.c_str(), upload.length(),
@@ -1499,14 +1457,11 @@ XrdIo::Upload(std::string url, std::string& upload)
   return rc;
 }
 
-
 //------------------------------------------------------------------------------
 // Get a list of files and a list of directories inside a remote directory
 //------------------------------------------------------------------------------
-
 XrdCl::XRootDStatus
-XrdIo::GetDirList(XrdCl::FileSystem* fs,
-                  const XrdCl::URL& url,
+XrdIo::GetDirList(XrdCl::FileSystem* fs, const XrdCl::URL& url,
                   std::vector<std::string>* files,
                   std::vector<std::string>* directories)
 {

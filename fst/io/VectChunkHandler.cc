@@ -21,77 +21,70 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/VectChunkHandler.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-VectChunkHandler::VectChunkHandler (AsyncMetaHandler* metaHandler,
-                                    XrdCl::ChunkList& chunkList,
-                                    const char* wrBuf,
-                                    bool isWrite) :
-XrdCl::ResponseHandler(),
-mBuffer(0),
-mMetaHandler(metaHandler),
-mCapacity(0),
-mLength(0),
-mRespLength(0),
-mIsWrite(isWrite)
+VectChunkHandler::VectChunkHandler(AsyncMetaHandler* metaHandler,
+                                   XrdCl::ChunkList& chunkList,
+                                   const char* wrBuf,
+                                   bool isWrite) :
+  XrdCl::ResponseHandler(),
+  mBuffer(0),
+  mMetaHandler(metaHandler),
+  mCapacity(0),
+  mLength(0),
+  mRespLength(0),
+  mIsWrite(isWrite)
 {
   // Copy the list of chunks and compute buffer size
-  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk)
-  {
+  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk) {
     mLength += chunk->length;
     mChunkList.push_back(*chunk);
   }
 
   mCapacity = mLength;
-
   /*
   NOTE: Vector writes are not supported yet
   if (mIsWrite)
   {
     // Copy the write buffer to the local one
     mBuffer = static_cast<char*>(calloc(mCapacity, sizeof(char)));
-    
+
     if (mBuffer)
       mBuffer = static_cast<char*>(memcpy(mBuffer, wrBuf, mLength));
   }
   */
 }
 
-
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-VectChunkHandler::~VectChunkHandler ()
+VectChunkHandler::~VectChunkHandler()
 {
-  if (mBuffer)
+  if (mBuffer) {
     free(mBuffer);
+  }
 }
-
 
 //------------------------------------------------------------------------------
 // Update function
 //------------------------------------------------------------------------------
 void
-VectChunkHandler::Update (AsyncMetaHandler* metaHandler,
-                          XrdCl::ChunkList& chunkList,
-                          const char* wrBuf,
-                          bool isWrite)
+VectChunkHandler::Update(AsyncMetaHandler* metaHandler,
+                         XrdCl::ChunkList& chunkList,
+                         const char* wrBuf, bool isWrite)
 {
   mMetaHandler = metaHandler;
   mRespLength = 0;
   mLength = 0;
   mIsWrite = isWrite;
-  
+
   // Copy the list of chunks and compute buffer size
-  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk)
-  {
+  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk) {
     mLength += chunk->length;
     mChunkList.push_back(*chunk);
   }
@@ -111,36 +104,33 @@ VectChunkHandler::Update (AsyncMetaHandler* metaHandler,
   */
 }
 
-
 //------------------------------------------------------------------------------
 // Handle response
 //------------------------------------------------------------------------------
 void
-VectChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
-                                  XrdCl::AnyObject* pResponse)
+VectChunkHandler::HandleResponse(XrdCl::XRootDStatus* pStatus,
+                                 XrdCl::AnyObject* pResponse)
 {
   // Do some extra check for the read case
-  if ((mIsWrite == false) && (pResponse))
-  {
+  if ((mIsWrite == false) && (pResponse)) {
     XrdCl::VectorReadInfo* vrd_info = 0;
     pResponse->Get(vrd_info);
     mRespLength = vrd_info->GetSize();
 
     // Notice if we receive less then we initially requested - for readv it
     // means there was an error
-    if (mLength != mRespLength)
-    {
+    if (mLength != mRespLength) {
       pStatus->status = XrdCl::stError;
       pStatus->code = XrdCl::errErrorResponse;
     }
   }
 
-  if (pResponse)
+  if (pResponse) {
     delete pResponse;
-   
+  }
+
   mMetaHandler->HandleResponse(pStatus, this);
   delete pStatus;
 }
 
 EOSFSTNAMESPACE_END
-

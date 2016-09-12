@@ -21,17 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/ChunkHandler.hh"
 #include "fst/io/VectChunkHandler.hh"
 #include "fst/io/AsyncMetaHandler.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 ///! maximum number of obj in cache used for recycling
 const unsigned int AsyncMetaHandler::msMaxNumAsyncObj = 20;
-
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -46,7 +43,6 @@ AsyncMetaHandler::AsyncMetaHandler() :
 {
   mCond = XrdSysCondVar(0);
 }
-
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -86,14 +82,11 @@ AsyncMetaHandler::~AsyncMetaHandler()
   mErrors.clear();
 }
 
-
 //------------------------------------------------------------------------------
 // Register a new handler for the current file
 //------------------------------------------------------------------------------
 ChunkHandler*
-AsyncMetaHandler::Register(uint64_t offset,
-                           uint32_t length,
-                           char* buffer,
+AsyncMetaHandler::Register(uint64_t offset, uint32_t length, char* buffer,
                            bool isWrite)
 {
   ChunkHandler* ptr_chunk = NULL;
@@ -121,13 +114,11 @@ AsyncMetaHandler::Register(uint64_t offset,
   return ptr_chunk;
 }
 
-
 //------------------------------------------------------------------------------
-//! Register a new vector request for the current file
+// Register a new vector request for the current file
 //------------------------------------------------------------------------------
 VectChunkHandler*
-AsyncMetaHandler::Register(XrdCl::ChunkList& chunkList,
-                           const char* wrBuf,
+AsyncMetaHandler::Register(XrdCl::ChunkList& chunkList, const char* wrBuf,
                            bool isWrite)
 {
   VectChunkHandler* ptr_vchunk = NULL;
@@ -154,7 +145,6 @@ AsyncMetaHandler::Register(XrdCl::ChunkList& chunkList,
 
   return ptr_vchunk;
 }
-
 
 //------------------------------------------------------------------------------
 // Handle response
@@ -203,7 +193,6 @@ AsyncMetaHandler::HandleResponse(XrdCl::XRootDStatus* pStatus,
   mCond.UnLock();  // <--
 }
 
-
 //------------------------------------------------------------------------------
 //! Handle response vector response
 //------------------------------------------------------------------------------
@@ -251,7 +240,6 @@ AsyncMetaHandler::HandleResponse(XrdCl::XRootDStatus* pStatus,
   mCond.UnLock();  // <--
 }
 
-
 //------------------------------------------------------------------------------
 // Get map of errors
 //------------------------------------------------------------------------------
@@ -260,7 +248,6 @@ AsyncMetaHandler::GetErrors()
 {
   return mErrors;
 }
-
 
 //------------------------------------------------------------------------------
 // Wait for responses
@@ -284,7 +271,6 @@ AsyncMetaHandler::WaitOK()
   return ret;
 }
 
-
 //------------------------------------------------------------------------------
 // Reset
 //------------------------------------------------------------------------------
@@ -298,6 +284,5 @@ AsyncMetaHandler::Reset()
   mErrors.clear();
   mCond.UnLock();
 }
-
 
 EOSFSTNAMESPACE_END

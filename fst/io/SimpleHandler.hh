@@ -22,16 +22,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOS_SIMPLEHANDLER_HH__
-#define __EOS_SIMPLEHANDLER_HH__
+#ifndef __EOS_FST_SIMPLEHANDLER_HH__
+#define __EOS_FST_SIMPLEHANDLER_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -41,7 +38,6 @@ EOSFSTNAMESPACE_BEGIN
 class SimpleHandler : public eos::common::LogId, public XrdCl::ResponseHandler
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -50,16 +46,12 @@ public:
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
-  SimpleHandler (uint64_t offset = 0,
-                 uint32_t length = 0,
-                 bool isWrite = false);
-
+  SimpleHandler(uint64_t offset = 0, uint32_t length = 0, bool isWrite = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~SimpleHandler ();
-
+  virtual ~SimpleHandler();
 
   //----------------------------------------------------------------------------
   //! Update function
@@ -67,94 +59,78 @@ public:
   //! @param offset request offset
   //! @param length request length
   //! @param isWrite chunk belongs to a write request
-  //!
   //----------------------------------------------------------------------------
-  void Update (uint64_t offset,
-               uint32_t length,
-               bool isWrite);
-
+  void Update(uint64_t offset, uint32_t length, bool isWrite);
 
   //----------------------------------------------------------------------------
-  //! Wait for request to be done 
+  //! Wait for request to be done
   //!
   //! @return status of the request
-  //!
   //----------------------------------------------------------------------------
-  bool WaitOK ();
-
+  bool WaitOK();
 
   //----------------------------------------------------------------------------
   //! Get if there is any request to process
   //!
   //! @return true if there is a request, false otherwise
-  //!
   //----------------------------------------------------------------------------
-  bool HasRequest ();
-
+  bool HasRequest();
 
   //----------------------------------------------------------------------------
   //! Get request chunk offset
   //----------------------------------------------------------------------------
   inline uint64_t
-  GetOffset () const
+  GetOffset() const
   {
     return mOffset;
   };
-
 
   //----------------------------------------------------------------------------
   //! Get request chunk length
   //----------------------------------------------------------------------------
   inline uint32_t
-  GetLength () const
+  GetLength() const
   {
     return mLength;
   };
-
 
   //----------------------------------------------------------------------------
   //! Get response chunk length
   //----------------------------------------------------------------------------
   inline uint32_t
-  GetRespLength () const
+  GetRespLength() const
   {
     return mRespLength;
   };
-
 
   //----------------------------------------------------------------------------
   //! Get response chunk status
   //----------------------------------------------------------------------------
   inline bool
-  GetRespStatus () const
+  GetRespStatus() const
   {
     return mRespOK;
   };
 
-
   //----------------------------------------------------------------------------
-  //! Test if chunk is from a write operation 
+  //! Test if chunk is from a write operation
   //----------------------------------------------------------------------------
   inline bool
-  IsWrite () const
+  IsWrite() const
   {
     return mIsWrite;
   };
-
 
   //----------------------------------------------------------------------------
   //! Handle response
   //!
   //! @param pStatus status of the response
   //! @param pResponse object containing extra info about the response
-  //! 
   //----------------------------------------------------------------------------
-  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
-                               XrdCl::AnyObject* pResponse);
-
+  virtual void HandleResponse(XrdCl::XRootDStatus* pStatus,
+                              XrdCl::AnyObject* pResponse);
 
 private:
-
   uint64_t mOffset; ///< offset of the request
   uint32_t mLength; ///< length of the request
   uint32_t mRespLength; ///< length of response received, only for reads
@@ -167,4 +143,4 @@ private:
 
 EOSFSTNAMESPACE_END
 
-#endif   // __EOS_SIMPLEHANDLER_HH__
+#endif   // __EOS_FST_SIMPLEHANDLER_HH__

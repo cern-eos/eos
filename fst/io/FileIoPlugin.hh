@@ -22,16 +22,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FILEIOPLUGIN_HH__
-#define __EOSFST_FILEIOPLUGIN_HH__
+#ifndef __EOS_FST_FILEIOPLUGIN_HH__
+#define __EOS_FST_FILEIOPLUGIN_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
 #include "fst/io/local/LocalIo.hh"
 #include "fst/io/xrd/XrdIo.hh"
 #include "fst/io/rados/RadosIo.hh"
 #include "common/LayoutId.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -46,25 +44,17 @@ class XrdFstOfsFile;
 class FileIoPlugin
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
-  //--------------------------------------------------------------------------
-  FileIoPlugin()
-  {
-    //empty
-  }
-
+  //----------------------------------------------------------------------------
+  FileIoPlugin() {}
 
   //----------------------------------------------------------------------------
   //! Destructor
-  //--------------------------------------------------------------------------
-  ~FileIoPlugin()
-  {
-    //empty
-  }
+  //----------------------------------------------------------------------------
+  ~FileIoPlugin() {}
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get IO object
   //!
   //! @param file file handler
@@ -72,7 +62,6 @@ public:
   //! @param error error information
   //!
   //! @return requested layout type object
-  //!
   //----------------------------------------------------------------------------
   static FileIo*
   GetIoObject(std::string path,
@@ -82,5 +71,4 @@ public:
 
 EOSFSTNAMESPACE_END
 
-#endif // __ EOSFST_FILEIOPLUGIN_HH__
-
+#endif // __EOS_FST_FILEIOPLUGIN_HH__

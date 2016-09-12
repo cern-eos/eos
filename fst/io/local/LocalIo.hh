@@ -25,11 +25,8 @@
 #ifndef __EOSFST_LOCALFILEIO__HH__
 #define __EOSFST_LOCALFILEIO__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
 #include "FsIo.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -39,13 +36,11 @@ EOSFSTNAMESPACE_BEGIN
 class LocalIo : public FsIo
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param handle to logical file
   //! @param client security entity
-  //!
   //----------------------------------------------------------------------------
   LocalIo(std::string path, XrdFstOfsFile* file = 0,
           const XrdSecEntity* client = 0);
@@ -62,6 +57,7 @@ public:
   //! @param mode open mode
   //! @param opaque opaque information
   //! @param timeout timeout value
+  //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
   int fileOpen(XrdSfsFileOpenMode flags,
@@ -76,6 +72,7 @@ public:
   //! @param buffer where the data is read
   //! @param length read length
   //! @param timeout timeout value
+  //!
   //! @return number of bytes read or -1 if error
   //--------------------------------------------------------------------------
   int64_t fileRead(XrdSfsFileOffset offset,
@@ -90,7 +87,6 @@ public:
   //! @param timeout timeout value
   //!
   //! @return number of bytes read of -1 if error
-  //!
   //----------------------------------------------------------------------------
   virtual int64_t fileReadV(XrdCl::ChunkList& chunkList, uint16_t timeout = 0);
 
@@ -103,7 +99,6 @@ public:
   //!
   //! @return number of bytes read of -1 if error; this actually calls the
   //!         ReadV sync method
-  //!
   //------------------------------------------------------------------------------
   virtual int64_t fileReadVAsync(XrdCl::ChunkList& chunkList,
                                  uint16_t timeout = 0);
@@ -116,34 +111,32 @@ public:
   //! @param buffer data to be written
   //! @param length length
   //! @param timeout timeout value
+  //!
   //! @return number of bytes written or -1 if error
   //----------------------------------------------------------------------------
-  int64_t fileWrite(XrdSfsFileOffset offset,
-                    const char* buffer,
-                    XrdSfsXferSize length,
-                    uint16_t timeout = 0);
+  int64_t fileWrite(XrdSfsFileOffset offset, const char* buffer,
+                    XrdSfsXferSize length, uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Read from file - async
+  //!
   //! @return number of bytes read or -1 if error
   //--------------------------------------------------------------------------
-  int64_t fileReadAsync(XrdSfsFileOffset offset,
-                        char* buffer,
-                        XrdSfsXferSize length,
-                        bool readahead = false,
+  int64_t fileReadAsync(XrdSfsFileOffset offset, char* buffer,
+                        XrdSfsXferSize length, bool readahead = false,
                         uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Write to file - async
+  //!
   //! @return number of bytes written or -1 if error
   //--------------------------------------------------------------------------
-  int64_t fileWriteAsync(XrdSfsFileOffset offset,
-                         const char* buffer,
-                         XrdSfsXferSize length,
-                         uint16_t timeout = 0);
+  int64_t fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
+                         XrdSfsXferSize length, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Truncate
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
   int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0);
@@ -152,8 +145,9 @@ public:
   //! Allocate file space
   //!
   //! @param length space to be allocated
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileFallocate(XrdSfsFileOffset length);
 
   //----------------------------------------------------------------------------
@@ -161,50 +155,55 @@ public:
   //!
   //! @param fromOffset offset start
   //! @param toOffset offset end
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset);
 
   //----------------------------------------------------------------------------
   //! Remove file
   //!
   //! @param timeout timeout value
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileRemove(uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @param timeout timeout value
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileSync(uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get pointer to async meta handler object
   //!
   //! @return pointer to async handler, NULL otherwise
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void* fileGetAsyncHandler()
   {
     return 0;
   }
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Check for the existence of a file
   //!
   //! @param path to the file
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileExists();
 
   //----------------------------------------------------------------------------
   //! Close file
   //!
   //! @param timeout timeout value
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileClose(uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
@@ -212,8 +211,9 @@ public:
   //!
   //! @param buf stat buffer
   //! @param timeout timeout value
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileStat(struct stat* buf, uint16_t timeout = 0);
 
 private:
@@ -232,4 +232,5 @@ private:
 };
 
 EOSFSTNAMESPACE_END
+
 #endif  // __EOSFST_LOCALFILEIO_HH__

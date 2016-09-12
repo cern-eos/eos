@@ -25,12 +25,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOS_CHUNKHANDLER_HH__
-#define __EOS_CHUNKHANDLER_HH__
+#ifndef __EOS_FST_CHUNKHANDLER_HH__
+#define __EOS_FST_CHUNKHANDLER_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/AsyncMetaHandler.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -40,7 +38,6 @@ EOSFSTNAMESPACE_BEGIN
 class ChunkHandler : public XrdCl::ResponseHandler
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -49,20 +46,14 @@ public:
   //! @param length request length
   //! @param buff pointer to the read or write buffer
   //! @param isWrite chunk belongs to a write request
-  //!
   //----------------------------------------------------------------------------
-  ChunkHandler (AsyncMetaHandler* reqHandler,
-                uint64_t offset,
-                uint32_t length,
-                char* buff,
-                bool isWrite);
-
+  ChunkHandler(AsyncMetaHandler* reqHandler, uint64_t offset, uint32_t length,
+               char* buff, bool isWrite);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ChunkHandler ();
-
+  virtual ~ChunkHandler();
 
   //----------------------------------------------------------------------------
   //! Update function
@@ -72,26 +63,18 @@ public:
   //! @param length request length
   //! @param buffer pointer to the read or write buffer
   //! @param isWrite chunk belongs to a write request
-  //!
   //----------------------------------------------------------------------------
-  void Update (AsyncMetaHandler* reqHandler,
-               uint64_t offset,
-               uint32_t length,
-               char* buff,
-               bool isWrite);
-
+  void Update(AsyncMetaHandler* reqHandler, uint64_t offset, uint32_t length,
+              char* buff, bool isWrite);
 
   //----------------------------------------------------------------------------
   //! Handle response
   //!
   //! @param pStatus status of the response
   //! @param pResponse object containing extra info about the response
-  //! 
   //----------------------------------------------------------------------------
-  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
-                               XrdCl::AnyObject* pResponse);
-
-
+  virtual void HandleResponse(XrdCl::XRootDStatus* pStatus,
+                              XrdCl::AnyObject* pResponse);
 
   //----------------------------------------------------------------------------
   //! Get buffer pointer
@@ -101,49 +84,44 @@ public:
   {
     return mBuffer;
   };
-  
 
   //----------------------------------------------------------------------------
   //! Get request chunk offset
   //----------------------------------------------------------------------------
   inline uint64_t
-  GetOffset () const
+  GetOffset() const
   {
     return mOffset;
   };
-
 
   //----------------------------------------------------------------------------
   //! Get request chunk length
   //----------------------------------------------------------------------------
   inline uint32_t
-  GetLength () const
+  GetLength() const
   {
     return mLength;
   };
-
 
   //----------------------------------------------------------------------------
   //! Get response chunk length
   //----------------------------------------------------------------------------
   inline uint32_t
-  GetRespLength () const
+  GetRespLength() const
   {
     return mRespLength;
   };
 
-  
   //----------------------------------------------------------------------------
-  //! Test if chunk is from a write operation 
+  //! Test if chunk is from a write operation
   //----------------------------------------------------------------------------
   inline bool
-  IsWrite () const
+  IsWrite() const
   {
     return mIsWrite;
   };
 
 private:
-
   char* mBuffer;  ///< holder for data for write requests
   AsyncMetaHandler* mMetaHandler; ///< handler to the whole file meta handler
   uint64_t mOffset; ///< offset of the request
@@ -155,4 +133,4 @@ private:
 
 EOSFSTNAMESPACE_END
 
-#endif   // __EOS_CHUNKHANDLER_HH__
+#endif   //  __EOS_FST_CHUNKHANDLER_HH__

@@ -22,7 +22,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #ifdef KINETICIO_FOUND
@@ -31,12 +30,14 @@
 #ifdef DAVIX_FOUND
 #include "fst/io/davix/DavixIo.hh"
 #endif
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 using eos::common::LayoutId;
 
+//------------------------------------------------------------------------------
+// Get IO object
+//------------------------------------------------------------------------------
 FileIo*
 FileIoPlugin::GetIoObject(std::string path,
                           XrdFstOfsFile* file,
@@ -76,4 +77,3 @@ FileIoPlugin::GetIoObject(std::string path,
 }
 
 EOSFSTNAMESPACE_END
-

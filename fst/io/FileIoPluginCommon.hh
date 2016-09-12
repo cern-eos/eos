@@ -22,10 +22,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FILEIOPLUGINHELPER_HH__
-#define __EOSFST_FILEIOPLUGINHELPER_HH__
+#ifndef __EOS_FST_FILEIOPLUGINHELPER_HH__
+#define __EOS_FST_FILEIOPLUGINHELPER_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
 #include "fst/io/local/FsIo.hh"
 #include "fst/io/xrd/XrdIo.hh"
@@ -40,7 +39,6 @@
 #endif
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -52,31 +50,18 @@ class XrdFstOfsFile;
 //------------------------------------------------------------------------------
 //! Class used to obtain a IO plugin object
 //------------------------------------------------------------------------------
-
 class FileIoPluginHelper
 {
 public:
-
   //--------------------------------------------------------------------------
   //! Constructor
   //--------------------------------------------------------------------------
-
-  FileIoPluginHelper()
-  {
-    //empty
-  }
-
+  FileIoPluginHelper() {}
 
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
-
-  ~FileIoPluginHelper()
-  {
-    //empty
-  }
-
-
+  ~FileIoPluginHelper() {}
 
   //--------------------------------------------------------------------------
   //! Get IO object
@@ -86,12 +71,9 @@ public:
   //! @param error error information
   //!
   //! @return requested layout type object
-  //!
   //--------------------------------------------------------------------------
-
   static FileIo*
-  GetIoObject(std::string path,
-              XrdFstOfsFile* file = 0,
+  GetIoObject(std::string path, XrdFstOfsFile* file = 0,
               const XrdSecEntity* client = 0)
   {
     auto ioType = eos::common::LayoutId::GetIoType(path.c_str());
@@ -138,5 +120,4 @@ public:
 
 EOSFSTNAMESPACE_END
 
-#endif // __ EOSFST_FILEIOPLUGINHELPER_HH__
-
+#endif // __ EOS_FST_FILEIOPLUGINHELPER_HH__

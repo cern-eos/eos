@@ -33,9 +33,6 @@
 #undef __USE_FILE_OFFSET64
 #include <fts.h>
 
-
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -46,30 +43,24 @@ FsIo::FsIo(std::string path) :
 {
 }
 
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 FsIo::FsIo(std::string path, std::string iotype) :
   FileIo(path, iotype), mFd(-1)
 {
 }
 
-
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
-FsIo::~FsIo()
-{
-  //empty
-}
-
+FsIo::~FsIo() {}
 
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
-
 int
-FsIo::fileOpen(XrdSfsFileOpenMode flags,
-               mode_t mode,
-               const std::string& opaque,
+FsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque,
                uint16_t timeout)
 {
   mFd = ::open(mFilePath.c_str(), flags, mode);
@@ -81,79 +72,58 @@ FsIo::fileOpen(XrdSfsFileOpenMode flags,
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
-
 int64_t
-FsIo::fileRead(XrdSfsFileOffset offset,
-               char* buffer,
-               XrdSfsXferSize length,
+FsIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
                uint16_t timeout)
 {
   return ::pread(mFd, buffer, length, offset);
 }
 
-
 //------------------------------------------------------------------------------
 // Write to file - sync
 //------------------------------------------------------------------------------
-
 int64_t
-FsIo::fileWrite(XrdSfsFileOffset offset,
-                const char* buffer,
-                XrdSfsXferSize length,
-                uint16_t timeout)
+FsIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
+                XrdSfsXferSize length, uint16_t timeout)
 {
   return ::pwrite(mFd, buffer, length, offset);
 }
 
-
 //------------------------------------------------------------------------------
 // Read from file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
-
 int64_t
-FsIo::fileReadAsync(XrdSfsFileOffset offset,
-                    char* buffer,
-                    XrdSfsXferSize length,
-                    bool readahead,
-                    uint16_t timeout)
+FsIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
+                    XrdSfsXferSize length, bool readahead, uint16_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
 }
 
-
 //------------------------------------------------------------------------------
 // Write to file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
-
 int64_t
-FsIo::fileWriteAsync(XrdSfsFileOffset offset,
-                     const char* buffer,
-                     XrdSfsXferSize length,
-                     uint16_t timeout)
+FsIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
+                     XrdSfsXferSize length, uint16_t timeout)
 {
   return fileWrite(offset, buffer, length, timeout);
 }
 
-
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
 FsIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 {
   return ::ftruncate(mFd, offset);
 }
 
-
 //------------------------------------------------------------------------------
 // Allocate space for file
 //------------------------------------------------------------------------------
-
 int
 FsIo::fileFallocate(XrdSfsFileOffset length)
 {
@@ -164,9 +134,7 @@ FsIo::fileFallocate(XrdSfsFileOffset length)
 #else
 
   if (platform_test_xfs_fd(mFd)) {
-    //..........................................................................
     // Select the fast XFS allocation function if available
-    //..........................................................................
     xfs_flock64_t fl;
     fl.l_whence = 0;
     fl.l_start = 0;
@@ -180,11 +148,9 @@ FsIo::fileFallocate(XrdSfsFileOffset length)
   return SFS_ERROR;
 }
 
-
 //------------------------------------------------------------------------------
 // Deallocate space reserved for file
 //------------------------------------------------------------------------------
-
 int
 FsIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
                       XrdSfsFileOffset toOffset)
@@ -197,9 +163,7 @@ FsIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
 
   if (mFd > 0) {
     if (platform_test_xfs_fd(mFd)) {
-      //........................................................................
       // Select the fast XFS deallocation function if available
-      //........................................................................
       xfs_flock64_t fl;
       fl.l_whence = 0;
       fl.l_start = fromOffset;
@@ -214,22 +178,18 @@ FsIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
 #endif
 }
 
-
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
-
 int
 FsIo::fileSync(uint16_t timeout)
 {
   return ::fsync(mFd);
 }
 
-
 //------------------------------------------------------------------------------
 // Get stats about the file
 //------------------------------------------------------------------------------
-
 int
 FsIo::fileStat(struct stat* buf, uint16_t timeout)
 {
@@ -243,18 +203,15 @@ FsIo::fileStat(struct stat* buf, uint16_t timeout)
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
-
 int
 FsIo::fileClose(uint16_t timeout)
 {
   return ::close(mFd);
 }
 
-
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
-
 int
 FsIo::fileRemove(uint16_t timeout)
 {
@@ -270,7 +227,6 @@ FsIo::fileRemove(uint16_t timeout)
 //------------------------------------------------------------------------------
 // Check for existence by path
 //------------------------------------------------------------------------------
-
 int
 FsIo::fileExists()
 {
@@ -278,21 +234,18 @@ FsIo::fileExists()
   return ::stat(mFilePath.c_str(), &buf);
 }
 
-
 //------------------------------------------------------------------------------
 // Get pointer to async meta handler object
 //------------------------------------------------------------------------------
-
 void*
 FsIo::fileGetAsyncHandler()
 {
   return NULL;
 }
 
-//--------------------------------------------------------------------------
-//! Open a cursor to traverse a storage system to find files
-//--------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Open a cursor to traverse a storage system to find files
+//------------------------------------------------------------------------------
 FileIo::FtsHandle*
 FsIo::ftsOpen()
 {
@@ -309,10 +262,9 @@ FsIo::ftsOpen()
   return dynamic_cast<FileIo::FtsHandle*>(handle);
 }
 
-//--------------------------------------------------------------------------
-//! Return the next path related to a traversal cursor obtained with ftsOpen
-//--------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Return the next path related to a traversal cursor obtained with ftsOpen
+//------------------------------------------------------------------------------
 std::string
 FsIo::ftsRead(FileIo::FtsHandle* fts_handle)
 {
@@ -337,10 +289,9 @@ FsIo::ftsRead(FileIo::FtsHandle* fts_handle)
   return "";
 }
 
-//--------------------------------------------------------------------------
-//! Close a traversal cursor
-//--------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Close a traversal cursor
+//------------------------------------------------------------------------------
 int
 FsIo::ftsClose(FileIo::FtsHandle* fts_handle)
 {
@@ -349,13 +300,18 @@ FsIo::ftsClose(FileIo::FtsHandle* fts_handle)
   return rc;
 }
 
+//------------------------------------------------------------------------------
+// Get statfs information
+//------------------------------------------------------------------------------
 int
 FsIo::Statfs(struct statfs* statFs)
 {
   return ::statfs(mFilePath.c_str(), statFs);
 }
 
-
+//------------------------------------------------------------------------------
+// Set attr
+//------------------------------------------------------------------------------
 int FsIo::attrSet(const char* name, const char* value, size_t len)
 {
   if ((!name) || (!value) || mFilePath.empty()) {
@@ -370,11 +326,17 @@ int FsIo::attrSet(const char* name, const char* value, size_t len)
 #endif
 }
 
+//------------------------------------------------------------------------------
+// Set attr
+//------------------------------------------------------------------------------
 int FsIo::attrSet(string name, std::string value)
 {
   return attrSet(name.c_str(), value.c_str(), value.length());
 }
 
+//------------------------------------------------------------------------------
+// Get attr
+//------------------------------------------------------------------------------
 int FsIo::attrGet(const char* name, char* value, size_t& size)
 {
   if ((!name) || (!value) || mFilePath.empty()) {
@@ -396,6 +358,9 @@ int FsIo::attrGet(const char* name, char* value, size_t& size)
   return SFS_ERROR;
 }
 
+//------------------------------------------------------------------------------
+// Get attr
+//------------------------------------------------------------------------------
 int FsIo::attrGet(string name, std::string& value)
 {
   char buffer[1024];
@@ -409,6 +374,9 @@ int FsIo::attrGet(string name, std::string& value)
   return SFS_ERROR;
 }
 
+//------------------------------------------------------------------------------
+// Delete attr
+//------------------------------------------------------------------------------
 int FsIo::attrDelete(const char* name)
 {
   if ((!name) || mFilePath.empty()) {
@@ -423,6 +391,9 @@ int FsIo::attrDelete(const char* name)
 #endif
 }
 
+//------------------------------------------------------------------------------
+// List attr
+//------------------------------------------------------------------------------
 int FsIo::attrList(std::vector<std::string>& list)
 {
   if (mFilePath.empty()) {
@@ -464,5 +435,3 @@ int FsIo::attrList(std::vector<std::string>& list)
 }
 
 EOSFSTNAMESPACE_END
-
-
