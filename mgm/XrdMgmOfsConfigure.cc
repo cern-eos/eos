@@ -1726,7 +1726,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/conversion directory"
                     " mode to inital mode");
-        eos_crit("cannot set the /eos/../proc/conversion directory mode to 780");
+        eos_crit("cannot set the /eos/../proc/conversion directory mode to 770");
         return 1;
       }
     }
