@@ -3,22 +3,19 @@
 //! @author Paul Hermann Lensing
 //! @brief Intermediate class used to forward Kinetic IO operations
 //------------------------------------------------------------------------------
-#ifndef __EOSFST_KINETICFILEIO__HH__
-#define __EOSFST_KINETICFILEIO__HH__
+#ifndef __EOS_FST_KINETICFILEIO__HH__
+#define __EOS_FST_KINETICFILEIO__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
 #include <kio/FileIoInterface.hh>
 #include <memory>
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 class KineticIo : public FileIo
 {
 public:
-
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Open file
   //!
   //! @param flags open flags
@@ -26,13 +23,13 @@ public:
   //! @param opaque opaque information
   //! @param timeout timeout value
   //! @return 0 if successful, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileOpen(XrdSfsFileOpenMode flags,
                mode_t mode = 0,
                const std::string& opaque = "",
                uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Read from file - sync
   //!
   //! @param offset offset in file
@@ -40,13 +37,43 @@ public:
   //! @param length read length
   //! @param timeout timeout value
   //! @return number of bytes read or -1 if error
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int64_t fileRead(XrdSfsFileOffset offset,
                    char* buffer,
                    XrdSfsXferSize length,
                    uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Vector read - sync
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return number of bytes read of -1 if error
+  //----------------------------------------------------------------------------
+  virtual int64_t fileReadV(XrdCl::ChunkList& chunkList,
+                            uint16_t timeout = 0)
+  {
+    errno = EOPNOTSUPP;
+    return -1;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Vector read - async
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return 0(SFS_OK) if request successfully sent, otherwise -1(SFS_ERROR)
+  //----------------------------------------------------------------------------
+  virtual int64_t fileReadVAsync(XrdCl::ChunkList& chunkList,
+                                 uint16_t timeout = 0)
+  {
+    errno = EOPNOTSUPP;
+    return -1;
+  }
+
+  //----------------------------------------------------------------------------
   //! Write to file - sync
   //!
   //! @param offset offset
@@ -54,13 +81,13 @@ public:
   //! @param length length
   //! @param timeout timeout value
   //! @return number of bytes written or -1 if error
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int64_t fileWrite(XrdSfsFileOffset offset,
                     const char* buffer,
                     XrdSfsXferSize length,
                     uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Read from file - async
   //!
   //! @param offset offset in file
@@ -69,14 +96,14 @@ public:
   //! @param readahead set if readahead is to be used
   //! @param timeout timeout value
   //! @return number of bytes read or -1 if error
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int64_t fileReadAsync(XrdSfsFileOffset offset,
                         char* buffer,
                         XrdSfsXferSize length,
                         bool readahead = false,
                         uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Write to file - async
   //!
   //! @param offset offset
@@ -84,84 +111,84 @@ public:
   //! @param length length
   //! @param timeout timeout value
   //! @return number of bytes written or -1 if error
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int64_t fileWriteAsync(XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length,
                          uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value
   //! @param timeout timeout value
   //! @return 0 if successful, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileFallocate(XrdSfsFileOffset length);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Deallocate file space
   //!
   //! @param fromOffset offset start
   //! @param toOffset offset end
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Remove file
   //!
   //! @param timeout timeout value
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileRemove(uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @param timeout timeout value
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileSync(uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get pointer to async meta handler object
   //!
   //! @return pointer to async handler, NULL otherwise
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void* fileGetAsyncHandler();
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Check for the existence of a file
   //!
   //! @param path to the file
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileExists();
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Close file
   //!
   //! @param timeout timeout value
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileClose(uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get stats about the file
   //!
   //! @param buf stat buffer
   //! @param timeout timeout value
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int fileStat(struct stat* buf, uint16_t timeout = 0);
 
   // ------------------------------------------------------------------------
@@ -234,61 +261,59 @@ public:
     { }
   };
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Open a cursor to traverse a storage system
   //!
   //! @return returns implementation dependent handle or 0 in case of error
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   FileIo::FtsHandle* ftsOpen();
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Return the next path related to a traversal cursor obtained with ftsOpen
   //!
   //! @param fts_handle cursor obtained by ftsOpen
   //! @return returns implementation dependent handle or 0 in case of error
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   std::string ftsRead(FileIo::FtsHandle* handle);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Close a traversal cursor
   //!
   //! @param fts_handle cursor to close
   //! @return 0 if fts_handle was an open cursor, otherwise -1
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int ftsClose(FileIo::FtsHandle* handle);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param path the path associated with this plugin instance
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   KineticIo(std::string path);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Destructor
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   ~KineticIo();
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Plug-in function to fill a statfs structure about the storage filling
   //! state
   //! @param path to statfs
   //! @param statfs return struct
   //! @return 0 if successful otherwise errno
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int Statfs(struct statfs* statFs);
 
 private:
   //! the actual implementation class
   std::unique_ptr<kio::FileIoInterface> kio;
-
   //! No copy constructor
   KineticIo(const KineticIo&) = delete;
-
   // No copy assignment operator.
   KineticIo& operator=(const KineticIo&) = delete;
 };
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_KINETICFILEIO__HH__
+#endif  // __EOS_FST_KINETICFILEIO__HH__
