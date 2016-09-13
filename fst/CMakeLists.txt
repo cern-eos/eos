@@ -271,9 +271,13 @@ if(Linux)
     ${DAVIX_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT})
 
+  target_compile_definitions(
+    EosFstIo-Static PRIVATE
+    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+
   set_target_properties(
     EosFstIo-Static PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+    POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
 #-------------------------------------------------------------------------------
@@ -281,9 +285,9 @@ endif()
 #-------------------------------------------------------------------------------
 add_executable(eoscp txqueue/eoscp.cc)
 
-set_target_properties(
-  eoscp PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
+target_compile_definitions(
+  eoscp PRIVATE
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 if(Linux)
   target_link_libraries(eoscp PRIVATE EosFstIo-Static ${XROOTD_CL_LIBRARY})

@@ -51,9 +51,8 @@ add_executable(
 
 if(MacOSX)
   target_link_libraries(
-    eosd
+    eosd PRIVATE
     FuseCache
-    EosFstIo
     ${UUID_LIBRARIES}
     ${FUSE_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
@@ -62,16 +61,13 @@ if(MacOSX)
     ${KRB5_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY} )
 
-  set_target_properties(
-    eosd
-    PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"" )
+  target_compile_definitions(
+    eosd PRIVATE
+    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\")
 else()
-
   target_link_libraries(
-    eosd
+    eosd PRIVATE
     FuseCache-Static
-    EosFstIo-Static
     ${FUSE_LIBRARY}
     ${UUID_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
@@ -80,16 +76,14 @@ else()
     ${KRB5_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY})
 
-  set_target_properties(
-    eosd 
-    PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"")
+  target_compile_definitions(
+    eosd PRIVATE
+    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\")
 endif()
 
 install(
   TARGETS eosd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
-
 
 install(
   FILES eosfusebind
@@ -97,8 +91,10 @@ install(
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
 	      GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ )
 
-
-if (FUSE3_FOUND)
+#-------------------------------------------------------------------------------
+# eosd3 if fuse3 is available
+#-------------------------------------------------------------------------------
+if(FUSE3_FOUND)
 add_executable(
   eosd3
   ProcCache.cc ProcCache.hh
@@ -109,9 +105,8 @@ add_executable(
   AuthIdManager.cc)
 
   target_link_libraries(
-    eosd3
+    eosd3 PRIVATE
     FuseCache-Static
-    EosFstIo-Static
     ${FUSE3_LIBRARY}
     ${UUID_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
@@ -120,13 +115,11 @@ add_executable(
     ${KRB5_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY})
 
-  set_target_properties(
-    eosd3 
-    PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FUSE3 -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"")
+  target_compile_definitions(
+    eosd3 PRIVATE
+    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FUSE3 -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\")
 
 install(
   TARGETS eosd3
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
-
 endif()

@@ -338,36 +338,6 @@ XrdIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
 }
 
 //------------------------------------------------------------------------------
-// Write to file - sync
-//------------------------------------------------------------------------------
-int64_t
-XrdIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
-                 XrdSfsXferSize length, uint16_t timeout)
-{
-  eos_debug("offset=%llu length=%llu", static_cast<uint64_t>(offset),
-            static_cast<uint64_t>(length));
-
-  if (!mXrdFile) {
-    errno = EIO;
-    return SFS_ERROR;
-  }
-
-  XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t>(offset),
-                               static_cast<uint32_t>(length),
-                               buffer, timeout);
-
-  if (!status.IsOK()) {
-    errno = status.errNo;
-    mLastErrMsg = status.ToString().c_str();
-    mLastErrCode  = status.code;
-    mLastErrNo  = status.errNo;
-    return SFS_ERROR;
-  }
-
-  return length;
-}
-
-//------------------------------------------------------------------------------
 // Read from file - async
 //------------------------------------------------------------------------------
 int64_t
@@ -656,6 +626,36 @@ XrdIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
 }
 
 //------------------------------------------------------------------------------
+// Write to file - sync
+//------------------------------------------------------------------------------
+int64_t
+XrdIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
+                 XrdSfsXferSize length, uint16_t timeout)
+{
+  eos_debug("offset=%llu length=%llu", static_cast<uint64_t>(offset),
+            static_cast<uint64_t>(length));
+
+  if (!mXrdFile) {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
+  XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t>(offset),
+                               static_cast<uint32_t>(length),
+                               buffer, timeout);
+
+  if (!status.IsOK()) {
+    errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
+    return SFS_ERROR;
+  }
+
+  return length;
+}
+
+//------------------------------------------------------------------------------
 // Write to file - async
 //------------------------------------------------------------------------------
 int64_t
@@ -669,9 +669,8 @@ XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
     return SFS_ERROR;
   }
 
-  ChunkHandler* handler;
-  XrdCl::XRootDStatus status;
-  handler = mMetaHandler->Register(offset, length, (char*) buffer, true);
+  ChunkHandler* handler = mMetaHandler->Register(offset, length, (char*)buffer,
+                          true);
 
   // If previous write requests failed then we won't get a new handler
   // and we return directly an error
@@ -680,11 +679,10 @@ XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
   }
 
   // Obs: Use the handler buffer for write requests
-  status = mXrdFile->Write(static_cast<uint64_t>(offset),
-                           static_cast<uint32_t>(length),
-                           handler->GetBuffer(),
-                           handler,
-                           timeout);
+  XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t>(offset),
+                               static_cast<uint32_t>(length),
+                               handler->GetBuffer(),
+                               handler, timeout);
 
   if (!status.IsOK()) {
     mMetaHandler->HandleResponse(&status, handler);

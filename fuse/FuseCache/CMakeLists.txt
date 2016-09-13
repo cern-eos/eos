@@ -22,6 +22,7 @@
 # ************************************************************************
 
 include_directories(${XROOTD_INCLUDE_DIRS})
+
 #-------------------------------------------------------------------------------
 # FuseCache library
 #-------------------------------------------------------------------------------
@@ -32,11 +33,6 @@ add_library(
   FileAbstraction.cc FileAbstraction.hh
   LayoutWrapper.cc LayoutWrapper.hh)
 
-set_target_properties(
-  FuseCache
-  PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
-
 target_link_libraries(
   FuseCache PUBLIC
   eosCommon
@@ -45,13 +41,18 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-if (Linux)
-  set_target_properties(
-    FuseCache
-    PROPERTIES
-    VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR})
+target_compile_definitions(
+  FuseCache PUBLIC
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
+set_target_properties(
+  FuseCache
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  MACOSX_RPATH TRUE)
+
+if (Linux)
   add_library(
     FuseCache-Static STATIC
     FuseWriteCache.cc  FuseWriteCache.hh
@@ -60,23 +61,20 @@ if (Linux)
     LayoutWrapper.cc LayoutWrapper.hh)
 
   target_link_libraries(
-    FuseCache-Static PRIVATE
+    FuseCache-Static PUBLIC
     EosFstIo-Static
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 
-  set_target_properties(
-  FuseCache-Static
-  PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+  target_compile_definitions(
+    FuseCache-Static PUBLIC
+    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
+  set_target_properties(
+    FuseCache-Static PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
 else()
-  set_target_properties(
-    FuseCache
-    PROPERTIES
-    MACOSX_RPATH TRUE)
-
 install(
   TARGETS FuseCache
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
