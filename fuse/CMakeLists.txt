@@ -63,7 +63,7 @@ if(MacOSX)
 
   target_compile_definitions(
     eosd PRIVATE
-    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\")
+    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\"${VERSION}\")
 else()
   target_link_libraries(
     eosd PRIVATE
@@ -78,7 +78,7 @@ else()
 
   target_compile_definitions(
     eosd PRIVATE
-    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\")
+    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\"${VERSION}\")
 endif()
 
 install(
