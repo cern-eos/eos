@@ -122,7 +122,7 @@ LayoutWrapper::~LayoutWrapper()
 int LayoutWrapper::MakeOpen()
 {
   XrdSysMutexHelper mLock(mMakeOpenMutex);
-  eos_static_debug("[%s] file path=\"%s\"", mPath.c_str());
+  eos_static_debug("file path=\"%s\"", mPath.c_str());
 
   if (mClose)
   {
