@@ -2807,9 +2807,7 @@ filesystem::mkdir(const char* path,
     unsigned long long sval[10];
     unsigned long long ival[6];
     char tag[1024];
-    //..........................................................................
     // Parse output
-    //..........................................................................
     int items = sscanf(response->GetBuffer(),
                        "%s %llu %llu %llu %llu %llu %llu %llu %llu "
                        "%llu %llu %llu %llu %llu %llu %llu %llu",
@@ -2872,7 +2870,7 @@ filesystem::mkdir(const char* path,
       buf->st_mode &= (~S_ISVTX); // clear the vxt bit
       buf->st_mode &= (~S_ISUID); // clear suid
       buf->st_mode &= (~S_ISGID); // clear sgid
-      buf->st_mode &= mode_overlay;
+      buf->st_mode |= mode_overlay;
       errno = 0;
     }
   } else {
