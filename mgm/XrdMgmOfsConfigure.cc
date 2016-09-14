@@ -1522,7 +1522,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       eosmd->setCGid(2);
       gOFS->eosView->updateContainerStore(eosmd.get());
     } catch (eos::MDException& e) {
-      eosmd = 0;
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
     if (!eosmd) {
@@ -1548,7 +1548,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       eosmd->setCGid(2);
       gOFS->eosView->updateContainerStore(eosmd.get());
     } catch (eos::MDException& e) {
-      eosmd = 0;
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
     if (!eosmd) {
