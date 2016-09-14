@@ -41,9 +41,8 @@ class IQuotaStats;
 //----------------------------------------------------------------------------
 class IContainerMDChangeListener
 {
- public:
-  enum Action
-  {
+public:
+  enum Action {
     Updated = 0,
     Deleted,
     Created,
@@ -63,7 +62,7 @@ class IContainerMDChangeListener
 //----------------------------------------------------------------------------
 class IContainerMDSvc
 {
- public:
+public:
   virtual ~IContainerMDSvc() {}
 
   //------------------------------------------------------------------------
@@ -125,14 +124,14 @@ class IContainerMDSvc
   //----------------------------------------------------------------------------
   //! Notify all subscribed listener
   //----------------------------------------------------------------------------
-  virtual void notifyListeners( IContainerMD *obj,
-				IContainerMDChangeListener::Action a  ) = 0;
+  virtual void notifyListeners(IContainerMD* obj,
+                               IContainerMDChangeListener::Action a) = 0;
 
   //----------------------------------------------------------------------------
   //! Get the orphans container
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IContainerMD>
-  getLostFoundContainer(const std::string &name) = 0;
+  getLostFoundContainer(const std::string& name) = 0;
 
   //------------------------------------------------------------------------
   // Create container in parent
@@ -149,7 +148,12 @@ class IContainerMDSvc
   //! Set container accounting
   //---------------------------------------------------------------------------
   virtual void
-  setContainerAccounting (IFileMDChangeListener* containerAccounting) = 0;
+  setContainerAccounting(IFileMDChangeListener* containerAccounting) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get first free container id
+  //----------------------------------------------------------------------------
+  virtual IContainerMD::id_t getFirstFreeId() const = 0;
 };
 
 EOSNSNAMESPACE_END

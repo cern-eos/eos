@@ -49,7 +49,7 @@ class LockHandler;
 //! ChangeLog based container metadata service
 //------------------------------------------------------------------------------
 class ChangeLogContainerMDSvc:
-    public IContainerMDSvc, public IChLogContainerMDSvc
+  public IContainerMDSvc, public IChLogContainerMDSvc
 {
   friend class ContainerMDFollower;
   friend class FileMDFollower;
@@ -61,12 +61,12 @@ public:
   //! Constructor
   //--------------------------------------------------------------------------
   ChangeLogContainerMDSvc(): pFirstFreeId(0), pSlaveLock(0),
-			     pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
-			     pFollowStart( 0 ), pQuotaStats( 0 ), pFileSvc(NULL),
-			     pAutoRepair( 0 ), pResSize( 1000000 ), pContainerAccounting(0)
+    pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
+    pFollowStart(0), pQuotaStats(0), pFileSvc(NULL),
+    pAutoRepair(0), pResSize(1000000), pContainerAccounting(0)
   {
     pIdMap.set_deleted_key(0);
-    pIdMap.set_empty_key( std::numeric_limits<IContainerMD::id_t>::max() );
+    pIdMap.set_empty_key(std::numeric_limits<IContainerMD::id_t>::max());
     pChangeLog = new ChangeLogFile();
   }
 
@@ -226,7 +226,7 @@ public:
   //! Create container in parent
   //--------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> createInParent(const std::string& name,
-					       IContainerMD* parent);
+      IContainerMD* parent);
 
   //--------------------------------------------------------------------------
   //! Get the lost+found container, create if necessary
@@ -301,19 +301,34 @@ public:
   //------------------------------------------------------------------------
   //! Set container accounting
   //------------------------------------------------------------------------
-  void setContainerAccounting ( IFileMDChangeListener* containerAccounting )
+  void setContainerAccounting(IFileMDChangeListener* containerAccounting)
   {
     pContainerAccounting = containerAccounting;
   }
 
- private:
+  //------------------------------------------------------------------------
+  //! Get first free container id
+  //------------------------------------------------------------------------
+  IContainerMD::id_t getFirstFreeId() const
+  {
+    return pFirstFreeId;
+  }
+
+  //------------------------------------------------------------------------
+  //! Resize container service map
+  //------------------------------------------------------------------------
+  void resize()
+  {
+    pIdMap.resize(0);
+  }
+
+private:
   //--------------------------------------------------------------------------
   // Placeholder for the record info
   //--------------------------------------------------------------------------
-  struct DataInfo
-  {
+  struct DataInfo {
     DataInfo(): logOffset(0),
-		ptr((IContainerMD*)0) {}
+      ptr((IContainerMD*)0) {}
     DataInfo(uint64_t logOffset, std::shared_ptr<IContainerMD> ptr)
     {
       this->logOffset = logOffset;
@@ -332,17 +347,17 @@ public:
   //--------------------------------------------------------------------------
   class ContainerMDScanner: public ILogRecordScanner
   {
-   public:
+  public:
     ContainerMDScanner(IdMap& idMap, bool slaveMode):
-	pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
+      pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
     {}
     virtual bool processRecord(uint64_t offset, char type,
-			       const Buffer& buffer);
+                               const Buffer& buffer);
     IContainerMD::id_t getLargestId() const
     {
       return pLargestId;
     }
-   private:
+  private:
     IdMap& pIdMap;
     IContainerMD::id_t pLargestId;
     bool pSlaveMode;
@@ -358,8 +373,8 @@ public:
   // of orphans and name conflicts
   //--------------------------------------------------------------------------
   virtual void recreateContainer(IdMap::iterator& it,
-				 ContainerList&   orphans,
-				 ContainerList&   nameConflicts);
+                                 ContainerList&   orphans,
+                                 ContainerList&   nameConflicts);
 
   //--------------------------------------------------------------------------
   // Attach broken containers to lost+found

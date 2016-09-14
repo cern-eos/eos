@@ -38,7 +38,7 @@ class IChLogContainerMDSvc;
 
 class IChLogFileMDSvc
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -129,6 +129,11 @@ class IChLogFileMDSvc
   //! @return offset value
   //----------------------------------------------------------------------------
   virtual uint64_t getFollowOffset() = 0;
+
+  //------------------------------------------------------------------------
+  //! Resize container service map
+  //------------------------------------------------------------------------
+  virtual void resize() = 0;
 };
 
 EOSNSNAMESPACE_END

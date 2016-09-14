@@ -50,10 +50,17 @@ public:
     pQuotaStats = pFileSvc->pQuotaStats;
   }
 
+  virtual void publishOffset(uint64_t offset)
+  {
+    pFileSvc->setFollowOffset(offset);
+  }
+
   // Unpack new data and put it in the queue
   virtual bool processRecord(uint64_t offset, char type,
                              const eos::Buffer& buffer)
   {
+    publishOffset(offset);
+
     // Update
     if (type == UPDATE_RECORD_MAGIC) {
       std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, pFileSvc);
@@ -351,25 +358,34 @@ private:
     }
 
     // Search for the node
-    while (container->getId() != 1 &&
-           (container->getFlags() & QUOTA_NODE_FLAG) == 0) {
-      container = pContSvc->getContainerMD(container->getParentId()).get();
+    const IContainerMD* current = container;
+
+    try {
+      while (current->getId() != 1 &&
+             (current->getFlags() & QUOTA_NODE_FLAG) == 0) {
+        current = pContSvc->getContainerMD(current->getParentId()).get();
+      }
+    } catch (MDException& e) {
+      // The corresponding container is not there (yet).
+      // We catch this exception and accept this extremely rare condition and resulting miscounting
+      // since the logic to wait for the container to arrive is difficult to implement at this stage.
+      return 0;
     }
 
     // We have either found a quota node or reached root without finding one
     // so we need to double check whether the current container has an
     // associated quota node
-    if ((container->getFlags() & QUOTA_NODE_FLAG) == 0) {
+    if ((current->getFlags() & QUOTA_NODE_FLAG) == 0) {
       return 0;
     }
 
-    IQuotaNode* node = pQuotaStats->getQuotaNode(container->getId());
+    IQuotaNode* node = pQuotaStats->getQuotaNode(current->getId());
 
     if (node) {
       return node;
     }
 
-    return pQuotaStats->registerNewNode(container->getId());
+    return pQuotaStats->registerNewNode(current->getId());
   }
 
   //------------------------------------------------------------------------
@@ -1065,7 +1081,9 @@ const
   IdMap::const_iterator it;
 
   for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
-    data->records.push_back(::RecordData(it->second.logOffset, it->first));
+    if (it->second.logOffset) {
+      data->records.push_back(::RecordData(it->second.logOffset, it->first));
+    }
   }
 
   return data;

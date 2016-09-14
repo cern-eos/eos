@@ -49,12 +49,12 @@ public:
   /**
    * Constructor
    */
-  HttpServer (int port = 8001) : eos::common::HttpServer::HttpServer (port) {};
+  HttpServer(int port = 8001) : eos::common::HttpServer::HttpServer(port) {};
 
   /**
    * Destructor
    */
-  virtual ~HttpServer () {};
+  virtual ~HttpServer() {};
 
 #ifdef EOS_MICRO_HTTPD
   /**
@@ -63,14 +63,14 @@ public:
    * @return see implementation
    */
   virtual int
-  Handler (void                  *cls,
-           struct MHD_Connection *connection,
-           const char            *url,
-           const char            *method,
-           const char            *version,
-           const char            *upload_data,
-           size_t                *upload_data_size,
-           void                 **ptr);
+  Handler(void*                  cls,
+          struct MHD_Connection* connection,
+          const char*            url,
+          const char*            method,
+          const char*            version,
+          const char*            upload_data,
+          size_t*                upload_data_size,
+          void**                 ptr);
 
   /**
    * HTTP complete handler function
@@ -78,10 +78,10 @@ public:
    * @return nothing
    */
   virtual void
-  CompleteHandler (void                  *cls,
-                   struct MHD_Connection *connection,
-                   void                 **con_cls,
-                   enum MHD_RequestTerminationCode toe);
+  CompleteHandler(void*                  cls,
+                  struct MHD_Connection* connection,
+                  void**                 con_cls,
+                  enum MHD_RequestTerminationCode toe);
 
   /**
    * File Read Callback function
@@ -94,15 +94,7 @@ public:
    * @return number of bytes read
    */
   static ssize_t
-  FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max);
-
-  /**
-   * File Close Callback function
-   *
-   * @param cls XrdOfsFile* object
-   */
-  static void
-  FileCloseCallback (void *cls);
+  FileReaderCallback(void* cls, uint64_t pos, char* buf, size_t max);
 
 #endif
 };

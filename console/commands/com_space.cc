@@ -143,7 +143,11 @@ com_space(char* arg1)
         (option != "mapping") &&
         (option != "drain") &&
         (option != "scheduledrain") &&
-        (option != "schedulebalance")) {
+        (option != "schedulebalance") &&
+        (option != "ns") &&
+        (option != "nsfilesystemview") &&
+        (option != "nsfilemap") &&
+        (option != "nsdirectorymap")) {
       printusage = true;
     }
 
@@ -549,7 +553,7 @@ com_space_usage:
   fprintf(stdout,
           "                                                                     : store a modified json file on the MGM (without publishing)\n");
   fprintf(stdout,
-          "       space reset <space-name>  [--egroup|drain|scheduledrain|schedulebalance] \n");
+          "       space reset <space-name>  [--egroup|mapping|drain|scheduledrain|schedulebalance|ns|nsfilesystemview|nsfilemap|nsdirectorymap] \n");
   fprintf(stdout,
           "                                                                     : reset a space e.g. recompute the drain state machine\n");
   fprintf(stdout,

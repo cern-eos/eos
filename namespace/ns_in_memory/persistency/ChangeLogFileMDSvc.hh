@@ -48,17 +48,17 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
 {
   friend class FileMDFollower;
   friend class ConvertFileMDSvc;
- public:
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   ChangeLogFileMDSvc():
-      pFirstFreeId(1), pChangeLog(0), pSlaveLock(0),
-      pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
-      pFollowStart( 0 ), pContSvc( 0 ), pQuotaStats(0), pAutoRepair(0), pResSize(1000000)
+    pFirstFreeId(1), pChangeLog(0), pSlaveLock(0),
+    pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
+    pFollowStart(0), pContSvc(0), pQuotaStats(0), pAutoRepair(0), pResSize(1000000)
   {
     pIdMap.set_deleted_key(0);
-    pIdMap.set_empty_key( std::numeric_limits<IFileMD::id_t>::max() );
+    pIdMap.set_empty_key(std::numeric_limits<IFileMD::id_t>::max());
     pChangeLog = new ChangeLogFile;
     pthread_mutex_init(&pFollowStartMutex, 0);
   }
@@ -148,8 +148,9 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   {
     ListenerList::iterator it;
 
-    for (it = pListeners.begin(); it != pListeners.end(); ++it)
+    for (it = pListeners.begin(); it != pListeners.end(); ++it) {
       (*it)->fileMDChanged(event);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -286,19 +287,34 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   void clearWarningMessages();
 
- private:
+  //------------------------------------------------------------------------
+  //! Get first free file id
+  //------------------------------------------------------------------------
+  IFileMD::id_t getFirstFreeId() const
+  {
+    return pFirstFreeId;
+  }
+
+  //------------------------------------------------------------------------
+  //! Resize container service map
+  //------------------------------------------------------------------------
+  void resize()
+  {
+    pIdMap.resize(0);
+  }
+
+private:
   //----------------------------------------------------------------------------
   // Placeholder for the record info
   //----------------------------------------------------------------------------
-  struct DataInfo
-  {
+  struct DataInfo {
     DataInfo(): logOffset(0), ptr((IFileMD*)0),
-		buffer(0) {} // for some reason needed by sparse_hash_map::erase
+      buffer(0) {} // for some reason needed by sparse_hash_map::erase
     DataInfo(uint64_t logOffset, std::shared_ptr<IFileMD> ptr)
     {
       this->logOffset = logOffset;
       this->ptr = ptr;
-      this->buffer= 0;
+      this->buffer = 0;
     }
     uint64_t logOffset;
     std::shared_ptr<IFileMD> ptr;
@@ -313,17 +329,17 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   class FileMDScanner: public ILogRecordScanner
   {
-   public:
+  public:
     FileMDScanner(IdMap& idMap, bool slaveMode):
-	pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
+      pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
     {}
     virtual bool processRecord(uint64_t offset, char type,
-			       const Buffer& buffer);
+                               const Buffer& buffer);
     uint64_t getLargestId() const
     {
       return pLargestId;
     }
-   private:
+  private:
     IdMap&    pIdMap;
     uint64_t  pLargestId;
     bool      pSlaveMode;

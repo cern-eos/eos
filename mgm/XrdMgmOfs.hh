@@ -1103,13 +1103,16 @@ public:
   XrdSysMutex InitializationMutex; //< mutex protecting above variables
   bool Shutdown; //< true if the shutdown function was called => avoid to join some threads
   bool RemoveStallRuleAfterBoot; //< indicates that after a boot there shouldn't be a stall rule for all alias '*'
-  static const char*
-  gNameSpaceState[]; //< const strings to print the namespace boot state as in eNamespace
+  //! const strings to print the namespace boot state as in eNamespace
+  static const char* gNameSpaceState[];
 
-  // ---------------------------------------------------------------------------
-  // state variables
-  // ---------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
+  // State variables
+  //----------------------------------------------------------------------------
+  eos::common::FileId::fileid_t
+  BootFileId; //< next free file id after namespace boot
+  eos::common::FileId::fileid_t
+  BootContainerId; //< next free container id after namespace boot
   bool IsReadOnly; //< true if this is a read-only redirector
   bool IsRedirect; //< true if the Redirect function should be called to redirect
   bool IsStall; //< true if the Stall function should be called to send a wait

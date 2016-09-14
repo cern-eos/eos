@@ -29,12 +29,12 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::symlink (const char *source_name,
-		    const char *target_name,
-		    XrdOucErrInfo &error,
-		    const XrdSecEntity *client,
-		    const char *infoO,
-		    const char *infoN)
+XrdMgmOfs::symlink(const char* source_name,
+                   const char* target_name,
+                   XrdOucErrInfo& error,
+                   const XrdSecEntity* client,
+                   const char* infoO,
+                   const char* infoN)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief symlink a file or directory
@@ -50,74 +50,67 @@ XrdMgmOfs::symlink (const char *source_name,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "symlink";
-  const char *tident = error.getErrUser();
-
+  static const char* epname = "symlink";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
   XrdSecEntity mappedclient;
-
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, infoO, tident, vid);
   EXEC_TIMING_END("IdMap");
-
   eos_info("old-name=%s new-name=%s", source_name, target_name);
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   errno = 0;
-
   XrdOucString source, destination;
-  XrdOucString sourcen, targetn;
   XrdOucEnv symlinko_Env(infoO);
   XrdOucEnv symlinkn_Env(infoN);
+  XrdOucString sourcen = source_name;
+  XrdOucString targetn = target_name;
 
-  sourcen = source_name;
-  targetn = target_name;
+  if (!symlinko_Env.Get("eos.encodepath")) {
+    sourcen.replace("#space#", " ");
+  }
 
-  if(!symlinko_Env.Get("eos.encodepath"))
-    sourcen.replace("#space#"," ");
-  if(!symlinkn_Env.Get("eos.encodepath"))
-    targetn.replace("#space#"," ");
+  if (!symlinkn_Env.Get("eos.encodepath")) {
+    targetn.replace("#space#", " ");
+  }
 
+  const char* inpath = 0;
+  const char* ininfo = 0;
   {
-    const char* inpath = sourcen.c_str();
-    const char* ininfo = infoO;
+    inpath = sourcen.c_str();
+    ininfo = infoO;
     AUTHORIZE(client, &symlinko_Env, AOP_Create, "link", inpath, error);
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     sourcen = path;
-    if (info)info = 0;
+    info = 0;
   }
-
   {
-    const char* inpath = targetn.c_str();
-    const char* ininfo = infoN;
+    inpath = targetn.c_str();
+    ininfo = infoN;
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     targetn = path;
-
-    if (info)info = 0;
+    info = 0;
   }
-
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
-  return symlink(sourcen.c_str(), targetn.c_str(), error, vid, infoO, infoN, true);
+  return symlink(sourcen.c_str(), targetn.c_str(), error, vid, infoO, infoN,
+                 true);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::symlink (const char *source_name,
-		    const char *target_name,
-		    XrdOucErrInfo &error,
-		    eos::common::Mapping::VirtualIdentity& vid,
-		    const char *infoO,
-		    const char *infoN,
-		    bool overwrite)
+XrdMgmOfs::symlink(const char* source_name,
+                   const char* target_name,
+                   XrdOucErrInfo& error,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const char* infoO,
+                   const char* infoN,
+                   bool overwrite)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief symlink a file or directory
@@ -133,37 +126,31 @@ XrdMgmOfs::symlink (const char *source_name,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "symlink";
+  static const char* epname = "symlink";
   errno = 0;
-
   eos_info("source=%s target=%s", source_name, target_name);
-
   XrdOucString source, destination;
-  XrdOucString sourcen, targetn;
   XrdOucEnv symlinko_Env(infoO);
   XrdOucEnv symlinkn_Env(infoN);
-
-
-  sourcen = source_name;
-  targetn = target_name;
-
+  XrdOucString sourcen = source_name;
+  XrdOucString targetn = target_name;
+  const char* inpath = 0;
+  const char* ininfo = 0;
   {
-    const char* inpath = source_name;
-    const char* ininfo = infoO;
+    inpath = source_name;
+    ininfo = infoO;
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     sourcen = path;
-    if (info)info = 0;
+    info = 0;
   }
-
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
   // check access permissions on source
-  if ((_access(sourcen.c_str(), W_OK, error, vid, infoO) != SFS_OK))
-  {
+  if ((_access(sourcen.c_str(), W_OK, error, vid, infoO) != SFS_OK)) {
     return SFS_ERROR;
   }
 
@@ -172,13 +159,13 @@ XrdMgmOfs::symlink (const char *source_name,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_symlink (const char *source_name,
-		     const char *target_name,
-		     XrdOucErrInfo &error,
-		     eos::common::Mapping::VirtualIdentity& vid,
-		     const char *infoO,
-		     const char *infoN
-                    )
+XrdMgmOfs::_symlink(const char* source_name,
+                    const char* target_name,
+                    XrdOucErrInfo& error,
+                    eos::common::Mapping::VirtualIdentity& vid,
+                    const char* infoO,
+                    const char* infoN
+                   )
 /*----------------------------------------------------------------------------*/
 /*
  * @brief symlink a file or directory
@@ -195,81 +182,71 @@ XrdMgmOfs::_symlink (const char *source_name,
 /*----------------------------------------------------------------------------*/
 
 {
-  static const char *epname = "_symlink";
+  static const char* epname = "_symlink";
   errno = 0;
-
   eos_info("source=%s target=%s", source_name, target_name);
-
   EXEC_TIMING_BEGIN("SymLink");
-
   eos::common::Path oPath(source_name);
   std::string oP = oPath.GetParentPath();
 
-  if ((!source_name) || (!target_name))
-  {
+  if ((!source_name) || (!target_name)) {
     errno = EINVAL;
     return Emsg(epname, error, EINVAL, "symlink - 0 source or target name");
   }
 
-  if (!strcmp(source_name, target_name))
-  {
+  if (!strcmp(source_name, target_name)) {
     errno = EINVAL;
     return Emsg(epname, error, EINVAL, "symlink - source and target are identical");
   }
 
   gOFS->MgmStats.Add("Symlink", vid.uid, vid.gid, 1);
   XrdSfsFileExistence file_exists = XrdSfsFileExistNo;
-
   _exists(oP.c_str(), file_exists, error, vid, infoN);
-  
-  if (file_exists != XrdSfsFileExistIsDirectory)
-  {
+
+  if (file_exists != XrdSfsFileExistIsDirectory) {
     errno = ENOENT;
-    return Emsg(epname, error, ENOENT, "symlink - parent source dir does not exist");
+    return Emsg(epname, error, ENOENT,
+                "symlink - parent source dir does not exist");
   }
 
   file_exists = XrdSfsFileExistNo;
-
   _exists(source_name, file_exists, error, vid, infoN);
-  
-  if (file_exists != XrdSfsFileExistNo)
-  {
+
+  if (file_exists != XrdSfsFileExistNo) {
     errno = EEXIST;
     return Emsg(epname, error, ENOENT, "symlink - source exists");
   }
 
   {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-    try
-    {
-      std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(oPath.GetParentPath());
+
+    try {
+      std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(
+            oPath.GetParentPath());
       eosView->createLink(oPath.GetPath(), target_name,
-			  vid.uid, vid.gid);
+                          vid.uid, vid.gid);
       dir->setMTimeNow();
-      dir->notifyMTimeChange( gOFS->eosDirectoryService );
+      dir->notifyMTimeChange(gOFS->eosDirectoryService);
       eosView->updateContainerStore(dir.get());
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		e.getErrno(), e.getMessage().str().c_str());
+                e.getErrno(), e.getMessage().str().c_str());
       errno = e.getErrno();
       return Emsg(epname, error, errno, e.getMessage().str().c_str());
     }
   }
 
   EXEC_TIMING_END("SymLink");
-
   return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::readlink (const char *inpath,
-		     XrdOucErrInfo &error,
-		     XrdOucString &link,
-		     const XrdSecEntity *client,
-		     const char *ininfo)
+XrdMgmOfs::readlink(const char* inpath,
+                    XrdOucErrInfo& error,
+                    XrdOucString& link,
+                    const XrdSecEntity* client,
+                    const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief read symbolic link target
@@ -283,26 +260,18 @@ XrdMgmOfs::readlink (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "readlink";
-  const char *tident = error.getErrUser();
-
+  static const char* epname = "readlink";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
   XrdSecEntity mappedclient;
-
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
-
-  eos_info("path=%s",inpath);
-
+  eos_info("path=%s", inpath);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   errno = 0;
-
   XrdOucEnv readlink_Env(ininfo);
-
   AUTHORIZE(client, &readlink_Env, AOP_Read, "link", inpath, error);
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -310,51 +279,44 @@ XrdMgmOfs::readlink (const char *inpath,
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-  
-  if (info) 
+
+  if (info) {
     info = 0;
+  }
+
   return _readlink(path, error, vid, link);
 }
 
-// ---------------------------------------------------------------------------                                                                                                                
-// read symbolic link                                                                                                                                                                         
-// ---------------------------------------------------------------------------                                                                                                                
+// ---------------------------------------------------------------------------
+// read symbolic link
+// ---------------------------------------------------------------------------
 int
-XrdMgmOfs::_readlink (const char *name,
-		      XrdOucErrInfo &error,
-		      eos::common::Mapping::VirtualIdentity &vid,
-		      XrdOucString &link)
+XrdMgmOfs::_readlink(const char* name,
+                     XrdOucErrInfo& error,
+                     eos::common::Mapping::VirtualIdentity& vid,
+                     XrdOucString& link)
 {
-  static const char *epname = "_readlink";
+  static const char* epname = "_readlink";
   errno = 0;
-
   eos_info("name=%s", name);
   std::string linktarget;
-
   gOFS->MgmStats.Add("Symlink", vid.uid, vid.gid, 1);
-
   EXEC_TIMING_BEGIN("ReadLink");
-
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-    try
-    {
-      std::shared_ptr<eos::IFileMD> file = eosView->getFile(name,false);
+    try {
+      std::shared_ptr<eos::IFileMD> file = eosView->getFile(name, false);
       std::string slink = file->getLink();
       link = slink.c_str();
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		e.getErrno(), e.getMessage().str().c_str());
+                e.getErrno(), e.getMessage().str().c_str());
       errno = e.getErrno();
       return Emsg(epname, error, errno, e.getMessage().str().c_str());
     }
   }
-
   EXEC_TIMING_END("ReadLink");
-
   return SFS_OK;
 }
-  
+

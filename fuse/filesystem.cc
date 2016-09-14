@@ -38,21 +38,16 @@
 #include <pthread.h>
 #include <algorithm>
 #include <limits>
-
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
-/*----------------------------------------------------------------------------*/
-
 #include "MacOSXHelper.hh"
 #include "FuseCache/CacheEntry.hh"
 #include "common/XrdErrorMap.hh"
@@ -220,18 +215,15 @@ myrealpath(const char* __restrict path, char* __restrict resolved, pid_t pid);
 //------------------------------------------------------------------------------
 // Lock read
 //------------------------------------------------------------------------------
-
 void
 filesystem::lock_r_p2i()
 {
   mutex_inode_path.LockRead();
 }
 
-
 //------------------------------------------------------------------------------
 // Unlock read
 //------------------------------------------------------------------------------
-
 void
 filesystem::unlock_r_p2i()
 {
@@ -273,9 +265,8 @@ filesystem::base_name(unsigned long long inode)
 }
 
 //----------------------------------------------------------------------------
-//! Return the CGI of an URL
+// Return the CGI of an URL
 //----------------------------------------------------------------------------
-
 const char*
 filesystem::get_cgi(const char* url)
 {
@@ -283,9 +274,8 @@ filesystem::get_cgi(const char* url)
 }
 
 //----------------------------------------------------------------------------
-//! Return the CGI of an URL
+// Return the CGI of an URL
 //----------------------------------------------------------------------------
-
 XrdOucString
 filesystem::get_url_nocgi(const char* url)
 {
@@ -297,7 +287,6 @@ filesystem::get_url_nocgi(const char* url)
 //------------------------------------------------------------------------------
 // Translate from inode to path
 //------------------------------------------------------------------------------
-
 const char*
 filesystem::path(unsigned long long inode)
 {
@@ -313,7 +302,6 @@ filesystem::path(unsigned long long inode)
 //------------------------------------------------------------------------------
 // Translate from path to inode
 //------------------------------------------------------------------------------
-
 unsigned long long
 filesystem::inode(const char* path)
 {
@@ -330,7 +318,6 @@ filesystem::inode(const char* path)
 //------------------------------------------------------------------------------
 // Store an inode <-> path mapping
 //------------------------------------------------------------------------------
-
 void
 filesystem::store_p2i(unsigned long long inode, const char* path)
 {
@@ -342,7 +329,6 @@ filesystem::store_p2i(unsigned long long inode, const char* path)
 //------------------------------------------------------------------------------
 // Replace a prefix when directories are renamed
 //------------------------------------------------------------------------------
-
 void
 filesystem::replace_prefix(const char* oldprefix, const char* newprefix)
 {
@@ -377,11 +363,9 @@ filesystem::replace_prefix(const char* oldprefix, const char* newprefix)
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Store an inode <-> path mapping given the parent inode
 //------------------------------------------------------------------------------
-
 void
 filesystem::store_child_p2i(unsigned long long inode,
                             unsigned long long childinode,
@@ -421,11 +405,9 @@ filesystem::store_child_p2i(unsigned long long inode,
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Delete an inode <-> path mapping given the inode
 //------------------------------------------------------------------------------
-
 void
 filesystem::forget_p2i(unsigned long long inode)
 {
@@ -443,11 +425,9 @@ filesystem::forget_p2i(unsigned long long inode)
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Redirect an inode to a new inode - repair actions change inodes, so we have two ino1,ino2=>path1 mappings
 //------------------------------------------------------------------------------
-
 void
 filesystem::redirect_p2i(unsigned long long inode, unsigned long long new_inode)
 {
@@ -471,7 +451,6 @@ filesystem::redirect_p2i(unsigned long long inode, unsigned long long new_inode)
 //------------------------------------------------------------------------------
 // Redirect an inode to the latest valid inode version - due to repair actions
 //------------------------------------------------------------------------------
-
 unsigned long long
 filesystem::redirect_i2i(unsigned long long inode)
 {
@@ -492,7 +471,6 @@ filesystem::redirect_i2i(unsigned long long inode)
 //------------------------------------------------------------------------------
 // Lock read
 //------------------------------------------------------------------------------
-
 void
 filesystem::lock_r_dirview()
 {
@@ -502,40 +480,33 @@ filesystem::lock_r_dirview()
 //------------------------------------------------------------------------------
 // Unlock read
 //------------------------------------------------------------------------------
-
 void
 filesystem::unlock_r_dirview()
 {
   mutex_dir2inodelist.UnLockRead();
 }
 
-
 //------------------------------------------------------------------------------
 // Lock write
 //------------------------------------------------------------------------------
-
 void
 filesystem::lock_w_dirview()
 {
   mutex_dir2inodelist.LockWrite();
 }
 
-
 //------------------------------------------------------------------------------
 // Unlock write
 //------------------------------------------------------------------------------
-
 void
 filesystem::unlock_w_dirview()
 {
   mutex_dir2inodelist.UnLockWrite();
 }
 
-
 //------------------------------------------------------------------------------
 // Create a new entry in the maps for the current inode (directory)
 //------------------------------------------------------------------------------
-
 void
 filesystem::dirview_create(unsigned long long inode)
 {
@@ -547,11 +518,9 @@ filesystem::dirview_create(unsigned long long inode)
   dir2dirbuf[inode].size = 0;
 }
 
-
 //------------------------------------------------------------------------------
 // Delete entry from maps for current inode (directory)
 //------------------------------------------------------------------------------
-
 void
 filesystem::dirview_delete(unsigned long long inode)
 {
@@ -569,11 +538,9 @@ filesystem::dirview_delete(unsigned long long inode)
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Get entry's inode with index 'index' from directory
 //------------------------------------------------------------------------------
-
 unsigned long long
 filesystem::dirview_entry(unsigned long long dirinode,
                           size_t index,
@@ -593,11 +560,9 @@ filesystem::dirview_entry(unsigned long long dirinode,
   return 0;
 }
 
-
 //------------------------------------------------------------------------------
 // Get dirbuf corresponding to inode
 //------------------------------------------------------------------------------
-
 struct dirbuf*
 filesystem::dirview_getbuffer(unsigned long long inode, int get_lock)
 {
@@ -624,7 +589,6 @@ filesystem::dirview_getbuffer(unsigned long long inode, int get_lock)
 //------------------------------------------------------------------------------
 // Get a cached directory
 //------------------------------------------------------------------------------
-
 int
 filesystem::dir_cache_get(unsigned long long inode,
                           struct timespec mtime,
@@ -656,11 +620,9 @@ filesystem::dir_cache_get(unsigned long long inode,
   return retc;
 }
 
-
 //------------------------------------------------------------------------------
 // Forget a cached directory
 //------------------------------------------------------------------------------
-
 int
 filesystem::dir_cache_forget(unsigned long long inode)
 {
@@ -727,15 +689,11 @@ filesystem::dir_cache_sync(unsigned long long inode,
     dir = new FuseCacheEntry(nentries, modtime, b);
     inode2cache[inode] = dir;
   }
-
-  return;
 }
-
 
 //------------------------------------------------------------------------------
 // Get a subentry from a cached directory
 //------------------------------------------------------------------------------
-
 int
 filesystem::dir_cache_get_entry(fuse_req_t req,
                                 unsigned long long inode,
@@ -761,6 +719,7 @@ filesystem::dir_cache_get_entry(fuse_req_t req,
 
         store_p2i(entry_inode, efullpath);
         fuse_reply_entry(req, &e);
+        eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
         retc = 1; // found
       }
     }
@@ -769,11 +728,9 @@ filesystem::dir_cache_get_entry(fuse_req_t req,
   return retc;
 }
 
-
 //------------------------------------------------------------------------------
 // Add new subentry to a cached directory
 //------------------------------------------------------------------------------
-
 void
 filesystem::dir_cache_add_entry(unsigned long long inode,
                                 unsigned long long entry_inode,
@@ -809,11 +766,9 @@ filesystem::dir_cache_update_entry(unsigned long long entry_inode,
   return false;
 }
 
-
 //------------------------------------------------------------------------------
 // Create artificial file descriptor
 //------------------------------------------------------------------------------
-
 int
 filesystem::generate_fd()
 {
@@ -837,7 +792,6 @@ filesystem::generate_fd()
 //------------------------------------------------------------------------------
 // Add new mapping between fd and raw file object
 //------------------------------------------------------------------------------
-
 int
 filesystem::force_rwopen(
   unsigned long inode,
@@ -891,7 +845,6 @@ filesystem::force_rwopen(
 //------------------------------------------------------------------------------
 // Add new mapping between fd and raw file object
 //------------------------------------------------------------------------------
-
 int
 filesystem::add_fd2file(LayoutWrapper* raw_file,
                         unsigned long inode,
@@ -989,11 +942,9 @@ filesystem::add_fd2file(LayoutWrapper* raw_file,
   return fd;
 }
 
-
 //------------------------------------------------------------------------------
 // Get the file abstraction object corresponding to the fd
 //------------------------------------------------------------------------------
-
 std::shared_ptr<FileAbstraction>
 filesystem::get_file(int fd, bool* isRW, bool forceRWtoo)
 {
@@ -1025,7 +976,6 @@ filesystem::get_file(int fd, bool* isRW, bool forceRWtoo)
 //------------------------------------------------------------------------------
 // Remove entry from mapping
 //------------------------------------------------------------------------------
-
 int
 filesystem::remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
                            pid_t pid)
@@ -1110,13 +1060,9 @@ filesystem::remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
   return retc;
 }
 
-
-
-
 //------------------------------------------------------------------------------
 // Guarantee a buffer for reading of at least 'size' for the specified thread
 //------------------------------------------------------------------------------
-
 char*
 filesystem::attach_rd_buff(pthread_t tid, size_t size)
 {
@@ -1125,11 +1071,9 @@ filesystem::attach_rd_buff(pthread_t tid, size_t size)
   return (char*) IoBufferMap[tid].GetBuffer();
 }
 
-
 //------------------------------------------------------------------------------
 // Release read buffer corresponding to the thread
 //------------------------------------------------------------------------------
-
 void
 filesystem::release_rd_buff(pthread_t tid)
 {
@@ -1138,7 +1082,6 @@ filesystem::release_rd_buff(pthread_t tid)
   return;
 }
 
-
 //------------------------------------------------------------------------------
 //             ******* XROOTD connection/authentication functions *******
 //------------------------------------------------------------------------------
@@ -1146,7 +1089,6 @@ filesystem::release_rd_buff(pthread_t tid)
 //------------------------------------------------------------------------------
 // Get user name from the uid and change the effective user ID of the thread
 //------------------------------------------------------------------------------
-
 int
 filesystem::update_proc_cache(uid_t uid, gid_t gid, pid_t pid)
 {
@@ -1166,7 +1108,6 @@ filesystem::get_login(uid_t uid, gid_t gid, pid_t pid)
 //------------------------------------------------------------------------------
 // Remove extended attribute
 //------------------------------------------------------------------------------
-
 int
 filesystem::rmxattr(const char* path,
                     const char* xattr_name,
@@ -1235,11 +1176,9 @@ filesystem::rmxattr(const char* path,
   return errno;
 }
 
-
 //------------------------------------------------------------------------------
 // Set extended attribute
 //------------------------------------------------------------------------------
-
 int
 filesystem::setxattr(const char* path,
                      const char* xattr_name,
@@ -1328,11 +1267,9 @@ filesystem::setxattr(const char* path,
   return errno;
 }
 
-
 //------------------------------------------------------------------------------
 // Read an extended attribute
 //------------------------------------------------------------------------------
-
 int
 filesystem::getxattr(const char* path,
                      const char* xattr_name,
@@ -1437,11 +1374,9 @@ filesystem::getxattr(const char* path,
   return errno;
 }
 
-
 //------------------------------------------------------------------------------
 // List extended attributes
 //------------------------------------------------------------------------------
-
 int
 filesystem::listxattr(const char* path,
                       char** xattr_list,
@@ -1548,12 +1483,10 @@ filesystem::listxattr(const char* path,
   return errno;
 }
 
-
 //------------------------------------------------------------------------------
 // Return file attributes. If a field is meaningless or semi-meaningless
 // (e.g., st_ino) then it should be set to 0 or given a "reasonable" value.
 //------------------------------------------------------------------------------
-
 int
 filesystem::stat(const char* path,
                  struct stat* buf,
@@ -1821,11 +1754,9 @@ filesystem::stat(const char* path,
   return errno;
 }
 
-
 //------------------------------------------------------------------------------
 // Return statistics about the filesystem
 //------------------------------------------------------------------------------
-
 int
 filesystem::statfs(const char* path, struct statvfs* stbuf,
                    uid_t uid,
@@ -1939,7 +1870,6 @@ filesystem::statfs(const char* path, struct statvfs* stbuf,
 //------------------------------------------------------------------------------
 // Change permissions for the file
 //------------------------------------------------------------------------------
-
 int
 filesystem::chmod(const char* path,
                   mode_t mode,
@@ -2010,11 +1940,9 @@ filesystem::chmod(const char* path,
   return errno;
 }
 
-
 //------------------------------------------------------------------------------
 // Postpone utimes to a file close if still open
 //------------------------------------------------------------------------------
-
 int
 filesystem::utimes_if_open(unsigned long long inode,
                            struct timespec* utimes,
@@ -2047,7 +1975,6 @@ filesystem::utimes_if_open(unsigned long long inode,
 //------------------------------------------------------------------------------
 // Update the last access time and last modification time
 //------------------------------------------------------------------------------
-
 int
 filesystem::utimes(const char* path,
                    struct timespec* tvp,
@@ -2121,11 +2048,9 @@ filesystem::utimes(const char* path,
   return errno;
 }
 
-
 //----------------------------------------------------------------------------
-//!
+// Symlink
 //----------------------------------------------------------------------------
-
 int
 filesystem::symlink(const char* path,
                     const char* link,
@@ -2836,11 +2761,9 @@ filesystem::readdir(const char* path_dir, size_t* size,
   return NULL;
 }
 
-
 //------------------------------------------------------------------------------
 // Create a directory with the given name
 //------------------------------------------------------------------------------
-
 int
 filesystem::mkdir(const char* path,
                   mode_t mode,
@@ -2949,6 +2872,7 @@ filesystem::mkdir(const char* path,
       buf->st_mode &= (~S_ISVTX); // clear the vxt bit
       buf->st_mode &= (~S_ISUID); // clear suid
       buf->st_mode &= (~S_ISGID); // clear sgid
+      buf->st_mode &= mode_overlay;
       errno = 0;
     }
   } else {
@@ -2967,11 +2891,9 @@ filesystem::mkdir(const char* path,
   return errno;
 }
 
-
 //------------------------------------------------------------------------------
 // Remove the given directory
 //------------------------------------------------------------------------------
-
 int
 filesystem::rmdir(const char* path, uid_t uid, gid_t gid, pid_t pid)
 {
@@ -3015,7 +2937,6 @@ filesystem::rmdir(const char* path, uid_t uid, gid_t gid, pid_t pid)
 //------------------------------------------------------------------------------
 // Open a file
 //------------------------------------------------------------------------------
-
 int
 filesystem::get_open_idx(const unsigned long long& inode)
 {
@@ -3033,7 +2954,6 @@ filesystem::get_open_idx(const unsigned long long& inode)
 //------------------------------------------------------------------------------
 // Open a file
 //------------------------------------------------------------------------------
-
 int
 filesystem::open(const char* path,
                  int oflags,
@@ -3642,11 +3562,9 @@ filesystem::close(int fildes, unsigned long inode, uid_t uid, gid_t gid,
   return ret;
 }
 
-
 //------------------------------------------------------------------------------
 // Flush file data to disk
 //------------------------------------------------------------------------------
-
 int
 filesystem::flush(int fd, uid_t uid, gid_t gid, pid_t pid)
 {
@@ -3699,11 +3617,9 @@ filesystem::flush(int fd, uid_t uid, gid_t gid, pid_t pid)
   return retc;
 }
 
-
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
 filesystem::truncate(int fildes, off_t offset)
 {
@@ -3733,7 +3649,7 @@ filesystem::truncate(int fildes, off_t offset)
     return ret;
   }
 
-// update modification time
+  // update modification time
   struct timespec ts[2];
   eos::common::Timing::GetTimeSpec(ts[1], true);
   ts[0] = ts[1];
@@ -3767,7 +3683,6 @@ filesystem::truncate(int fildes, off_t offset)
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
 filesystem::truncate2(const char* fullpath, unsigned long inode,
                       unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid)
@@ -3814,7 +3729,6 @@ filesystem::truncate2(const char* fullpath, unsigned long inode,
 // Read from file. Returns the number of bytes transferred, or 0 if offset
 // was at or beyond the end of the file
 //------------------------------------------------------------------------------
-
 ssize_t
 filesystem::pread(int fildes,
                   void* buf,
@@ -3874,7 +3788,7 @@ filesystem::pread(int fildes,
                      isRW ? false : do_rdahead);
   }
 
-// Release file reference
+  // Release file reference
   isRW ? fabst->DecNumRefRW() : fabst->DecNumRefRO();
   COMMONTIMING("END", &xpr);
 
@@ -3896,11 +3810,9 @@ filesystem::pread(int fildes,
   return ret;
 }
 
-
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
-
 ssize_t
 filesystem::pwrite(int fildes,
                    const void* buf,
@@ -3971,11 +3883,9 @@ filesystem::pwrite(int fildes,
   return ret;
 }
 
-
 //------------------------------------------------------------------------------
 // Flush any dirty information about the file to disk
 //------------------------------------------------------------------------------
-
 int
 filesystem::fsync(int fildes)
 {
@@ -4023,11 +3933,9 @@ filesystem::fsync(int fildes)
   return ret;
 }
 
-
 //------------------------------------------------------------------------------
 // Remove (delete) the given file, symbolic link, hard link, or special node
 //------------------------------------------------------------------------------
-
 int
 filesystem::unlink(const char* path,
                    uid_t uid,
@@ -4444,7 +4352,6 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
 //
 // @return true if feature listing is available and the map is updated
 //------------------------------------------------------------------------------
-
 bool filesystem::get_features(const std::string& url,
                               std::map<std::string, std::string>* features)
 {
@@ -4516,7 +4423,6 @@ bool filesystem::get_features(const std::string& url,
 //
 // @return 1 if MGM avilable, otherwise 0
 //------------------------------------------------------------------------------
-
 int
 filesystem::check_mgm(std::map<std::string, std::string>* features)
 {
@@ -4569,7 +4475,6 @@ filesystem::check_mgm(std::map<std::string, std::string>* features)
 //------------------------------------------------------------------------------
 // Init function
 //------------------------------------------------------------------------------
-
 void
 filesystem::init(int argc, char* argv[], void* userdata,
                  std::map<std::string, std::string>* features)
@@ -4953,7 +4858,6 @@ filesystem::init(int argc, char* argv[], void* userdata,
 //------------------------------------------------------------------------------
 // this function is just to make it possible to use BSD realpath implementation
 //------------------------------------------------------------------------------
-
 size_t
 strlcat(char* dst, const char* src, size_t siz)
 {
@@ -4994,7 +4898,6 @@ strlcat(char* dst, const char* src, size_t siz)
 // to fuse. That would involve keeping track of fuse self call to stat
 // especially in is_toplevel_rm
 //------------------------------------------------------------------------------
-
 int
 filesystem::mylstat(const char* __restrict name, struct stat* __restrict __buf,
                     pid_t pid)

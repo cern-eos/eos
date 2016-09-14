@@ -76,6 +76,7 @@ XrdMgmOfs::InitializeFileView()
     Initialized = kBooting;
     InitializationTime = time(0);
     RemoveStallRuleAfterBoot = false;
+    BootFileId = 0;
   }
   time_t tstart = time(0);
   std::string oldstallrule = "";
@@ -99,17 +100,21 @@ XrdMgmOfs::InitializeFileView()
     Access::gStallGlobal = true;
     Access::gStallComment[std::string("*")] = "namespace is booting";
   }
+  eos_notice("starting eos file view initialize2");
 
   try {
     time_t t1 = time(0);
     eosView->initialize2();
     time_t t2 = time(0);
     {
+      eos_notice("eos file view after initialize2");
       eos::common::RWMutexWriteLock view_lock(eosViewRWMutex);
+      eos_notice("starting eos file view initialize3");
       eosView->initialize3();
       time_t t3 = time(0);
       eos_notice("eos file view initialize2: %d seconds", t2 - t1);
       eos_notice("eos file view initialize3: %d seconds", t3 - t2);
+      BootFileId = gOFS->eosFileService->getFirstFreeId();
 
       if (MgmMaster.IsMaster()) {
         // create ../proc/<x> files
@@ -1511,48 +1516,52 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
     // Create output directory layout conversions
     try {
-      eosmd = eosView->getContainer(MgmProcConversionPath.c_str());
-      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd = gOFS->eosView->getContainer(MgmProcConversionPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
       eosmd->setCUid(2); // conversion directory is owned by daemon
-      eosView->updateContainerStore(eosmd.get());
+      eosmd->setCGid(2);
+      gOFS->eosView->updateContainerStore(eosmd.get());
     } catch (eos::MDException& e) {
-      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+      eosmd = 0;
     }
 
     if (!eosmd) {
       try {
-        eosmd = eosView->createContainer(MgmProcConversionPath.c_str(), true);
-        // set attribute inheritance
+        eosmd = gOFS->eosView->createContainer(MgmProcConversionPath.c_str(), true);
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-        eosView->updateContainerStore(eosmd.get());
+        eosmd->setCUid(2); // conversion directory is owned by daemon
+        eosmd->setCGid(2);
+        gOFS->eosView->updateContainerStore(eosmd.get());
       } catch (eos::MDException& e) {
-        Eroute.Emsg("Config",
-                    "cannot set the /eos/../proc/conversion directory mode to inital mode");
-        eos_crit("cannot set the /eos/../proc/conversion directory mode to 700");
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/conversion directory"
+                    " mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/conversion directory mode to 770");
         return 1;
       }
     }
 
     // Create directory for fast find functionality of archived dirs
     try {
-      eosmd = eosView->getContainer(MgmProcArchivePath.c_str());
-      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd = gOFS->eosView->getContainer(MgmProcArchivePath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
       eosmd->setCUid(2); // archive directory is owned by daemon
-      eosView->updateContainerStore(eosmd.get());
+      eosmd->setCGid(2);
+      gOFS->eosView->updateContainerStore(eosmd.get());
     } catch (eos::MDException& e) {
-      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+      eosmd = 0;
     }
 
     if (!eosmd) {
       try {
-        eosmd = eosView->createContainer(MgmProcArchivePath.c_str(), true);
-        // Set attribute inheritance
+        eosmd = gOFS->eosView->createContainer(MgmProcArchivePath.c_str(), true);
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-        eosView->updateContainerStore(eosmd.get());
+        eosmd->setCUid(2); // archive directory is owned by daemon
+        eosmd->setCGid(2);
+        gOFS->eosView->updateContainerStore(eosmd.get());
       } catch (eos::MDException& e) {
-        Eroute.Emsg("Config",
-                    "cannot set the /eos/../proc/archive directory mode to inital mode");
-        eos_crit("cannot set the /eos/../proc/archive directory mode to 700");
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/archive directory "
+                    "mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/archive directory mode to 770");
         return 1;
       }
     }
@@ -1638,7 +1647,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   //-------------------------------------------
   XrdMqSharedHash* hash = 0;
 
-  // - we disable a lot of features if we are only a redirector
+  // Disable some features if we are only a redirector
   if (!MgmRedirector) {
     // create the specific listener class
     MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),
@@ -1659,8 +1668,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     if (MgmOfsVstBrokerUrl.length() &&
         (!getenv("EOS_VST_BROKER_DISABLE") ||
          (strcmp(getenv("EOS_VST_BROKER_DISABLE"), "1")))) {
-      MgmOfsVstMessaging = new VstMessaging(MgmOfsVstBrokerUrl.c_str(), "/eos/*/vst",
-                                            true, true, 0);
+      MgmOfsVstMessaging = new VstMessaging(MgmOfsVstBrokerUrl.c_str(),
+                                            "/eos/*/vst", true, true, 0);
 
       if (!MgmOfsVstMessaging->StartListenerThread()) {
         NoGo = 1;

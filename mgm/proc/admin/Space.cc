@@ -21,11 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-
-/*----------------------------------------------------------------------------*/
+#include "namespace/interface/IChLogFileMDSvc.hh"
+#include "namespace/interface/IChLogContainerMDSvc.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -348,6 +347,55 @@ ProcCommand::Space()
     if ((!option.length()) || (option == "egroup")) {
       Egroup::Reset();
       stdOut += "\ninfo: clear cached EGroup information ...";
+    }
+
+    if ((option == "nsfilesystemview")) {
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      gOFS->eosFsView->shrink();
+      stdOut += "\ninfo: resized namespace filesystem view ...";
+    }
+
+    if ((option == "nsfilemap")) {
+      eos::IChLogFileMDSvc* eos_chlog_filesvc =
+        dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
+
+      if (eos_chlog_filesvc) {
+        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+        eos_chlog_filesvc->resize();
+        stdOut += "\ninfo: resized namespace file map ...";
+      } else {
+        stdOut += "\n info: ns does not support file map resizing";
+      }
+    }
+
+    if ((option == "nsdirectorymap")) {
+      eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+        dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+      if (eos_chlog_dirsvc) {
+        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+        eos_chlog_dirsvc->resize();
+        stdOut += "\ninfo: resized namespace directory map ...";
+      } else {
+        stdOut += "\ninfo: ns does not support directory map resizing";
+      }
+    }
+
+    if ((option == "ns")) {
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      gOFS->eosFsView->shrink();
+      eos::IChLogFileMDSvc* eos_chlog_filesvc =
+        dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
+      eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+        dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+      if (eos_chlog_filesvc && eos_chlog_dirsvc) {
+        eos_chlog_filesvc->resize();
+        eos_chlog_dirsvc->resize();
+        stdOut += "\ninfo: resized all namespace map ...";
+      } else {
+        stdOut += "\ninfo: ns does not support map resizing";
+      }
     }
 
     if ((!option.length()) || (option == "mapping")) {
