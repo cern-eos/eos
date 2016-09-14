@@ -2523,9 +2523,6 @@ XrdFstOfsFile::readofs (XrdSfsFileOffset fileOffset,
                         char* buffer,
                         XrdSfsXferSize buffer_size)
 {
-  gettimeofday(&cTime, &tz);
-  rCalls++;
-
   int rc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
   eos_debug("read %llu %llu %i rc=%d", this, fileOffset, buffer_size, rc);
 
@@ -2536,41 +2533,6 @@ XrdFstOfsFile::readofs (XrdSfsFileOffset fileOffset,
                      capOpaque->Get("mgm.path") : FName()) : FName());
   }
 
-  // Account seeks for monitoring
-  if (rOffset != static_cast<unsigned long long> (fileOffset))
-  {
-    if (rOffset < static_cast<unsigned long long> (fileOffset))
-    {
-      nFwdSeeks++;
-      sFwdBytes += (fileOffset - rOffset);
-    }
-    else
-    {
-      nBwdSeeks++;
-      sBwdBytes += (rOffset - fileOffset);
-    }
-    if ((rOffset + (EOS_FSTOFS_LARGE_SEEKS)) < (static_cast<unsigned long long> (fileOffset)))
-    {
-      sXlFwdBytes += (fileOffset - rOffset);
-      nXlFwdSeeks++;
-    }
-    if ((static_cast<unsigned long long> (rOffset) > (EOS_FSTOFS_LARGE_SEEKS)) &&
-        (rOffset - (EOS_FSTOFS_LARGE_SEEKS)) > (static_cast<unsigned long long> (fileOffset)))
-    {
-      sXlBwdBytes += (rOffset - fileOffset);
-      nXlBwdSeeks++;
-    }
-  }
-
-  if (rc > 0)
-  {
-    XrdSysMutexHelper vecLock(vecMutex);
-    rvec.push_back(rc);
-    rOffset = fileOffset + rc;
-  }
-
-  gettimeofday(&lrTime, &tz);
-  AddReadTime();
   return rc;
 }
 
@@ -2616,15 +2578,44 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
       }
     }
   }
-  
-  int rc = layOut->Read(fileOffset, buffer, buffer_size);
-  eos_debug("layout read %d checkSum %d", rc, checkSum);
 
-  if ((rc > 0) && (checkSum))
+  gettimeofday(&cTime, &tz);
+  rCalls++;
+
+  int rc = layOut->Read(fileOffset, buffer, buffer_size);
+  eos_debug("read %llu %llu %i rc=%d", this, fileOffset, buffer_size, rc);
+
+  if (gOFS.Simulate_IO_read_error)
   {
-    XrdSysMutexHelper cLock(ChecksumMutex);
-    checkSum->Add(buffer, static_cast<size_t> (rc),
-                  static_cast<off_t> (fileOffset));
+    return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=",
+                     capOpaque ? (capOpaque->Get("mgm.path") ?
+                     capOpaque->Get("mgm.path") : FName()) : FName());
+  }
+
+  // Account seeks for monitoring
+  if (rOffset != static_cast<unsigned long long> (fileOffset))
+  {
+    if (rOffset < static_cast<unsigned long long> (fileOffset))
+    {
+      nFwdSeeks++;
+      sFwdBytes += (fileOffset - rOffset);
+    }
+    else
+    {
+      nBwdSeeks++;
+      sBwdBytes += (rOffset - fileOffset);
+    }
+    if ((rOffset + (EOS_FSTOFS_LARGE_SEEKS)) < (static_cast<unsigned long long> (fileOffset)))
+    {
+      sXlFwdBytes += (fileOffset - rOffset);
+      nXlFwdSeeks++;
+    }
+    if ((static_cast<unsigned long long> (rOffset) > (EOS_FSTOFS_LARGE_SEEKS)) &&
+        (rOffset - (EOS_FSTOFS_LARGE_SEEKS)) > (static_cast<unsigned long long> (fileOffset)))
+    {
+      sXlBwdBytes += (rOffset - fileOffset);
+      nXlBwdSeeks++;
+    }
   }
 
   if (rc > 0)
@@ -2636,6 +2627,16 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
 
   gettimeofday(&lrTime, &tz);
   AddReadTime();
+
+  
+  eos_debug("layout read %d checkSum %d", rc, checkSum);
+
+  if ((rc > 0) && (checkSum))
+  {
+    XrdSysMutexHelper cLock(ChecksumMutex);
+    checkSum->Add(buffer, static_cast<size_t> (rc),
+                  static_cast<off_t> (fileOffset));
+  }
 
   if (rc < 0)
   {
@@ -2678,22 +2679,8 @@ XrdFstOfsFile::readvofs(XrdOucIOVec* readV,
                         uint32_t readCount)
 {
   eos_debug("read count=%i", readCount);
-  gettimeofday(&cTime, &tz);
+
   XrdSfsXferSize sz = XrdOfsFile::readv(readV, readCount);
-  gettimeofday(&lrvTime, &tz);
-  AddReadVTime();
-
-  // Collect monitoring info
-  {
-    XrdSysMutexHelper scope_lock(vecMutex);
-
-    for (uint32_t i = 0; i < readCount; ++i)
-      monReadSingleBytes.push_back(readV[i].size);
-   
-    monReadvBytes.push_back(sz);
-    monReadvCount.push_back(readCount);
-  }
-
   return sz;
 }
 
@@ -2719,8 +2706,25 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV,
                                          (uint32_t)readV[i].size,
                                          (void*)readV[i].data));
   }
+
+  gettimeofday(&cTime, &tz);
+  XrdSfsXferSize sz = layOut->ReadV(chunkList, total_read);
+  gettimeofday(&lrvTime, &tz);
+  AddReadVTime();
+
+  // Collect monitoring info
+  {
+    XrdSysMutexHelper scope_lock(vecMutex);
+
+    for (int i = 0; i < readCount; ++i)
+      monReadSingleBytes.push_back(readV[i].size);
+   
+    monReadvBytes.push_back(sz);
+    monReadvCount.push_back(readCount);
+  }
+
   
-  return layOut->ReadV(chunkList, total_read);
+  return sz;
 }
 
 
@@ -2791,9 +2795,6 @@ XrdFstOfsFile::writeofs (XrdSfsFileOffset fileOffset,
     }
   }
 
-  gettimeofday(&cTime, &tz);
-  wCalls++;
-  
   int rc = XrdOfsFile::write(fileOffset, buffer, buffer_size);
 
   if (rc != buffer_size)
@@ -2801,6 +2802,34 @@ XrdFstOfsFile::writeofs (XrdSfsFileOffset fileOffset,
     // Tag an io error
     writeErrorFlag = kOfsIoError;
   };
+
+  return rc;
+}
+
+
+//------------------------------------------------------------------------------
+// OFS layer write entry point
+//------------------------------------------------------------------------------
+
+XrdSfsXferSize
+XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
+                      const char* buffer,
+                      XrdSfsXferSize buffer_size)
+{
+
+  gettimeofday(&cTime, &tz);
+  wCalls++;
+
+  int rc = layOut->Write(fileOffset, const_cast<char*> (buffer), buffer_size);
+
+  if (rc != buffer_size)
+  {
+    if (!writeErrorFlag)
+    {
+      // Tag an io error
+      writeErrorFlag = kOfsIoError;
+    }
+  }
 
   // Account seeks for monitoring
   if (wOffset != static_cast<unsigned long long> (fileOffset))
@@ -2837,20 +2866,6 @@ XrdFstOfsFile::writeofs (XrdSfsFileOffset fileOffset,
 
   gettimeofday(&lwTime, &tz);
   AddWriteTime();
-  return rc;
-}
-
-
-//------------------------------------------------------------------------------
-// OFS layer write entry point
-//------------------------------------------------------------------------------
-
-XrdSfsXferSize
-XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
-                      const char* buffer,
-                      XrdSfsXferSize buffer_size)
-{
-  int rc = layOut->Write(fileOffset, const_cast<char*> (buffer), buffer_size);
 
   if ((rc < 0) && isCreation && (error.getErrInfo() == EREMOTEIO))
   {
