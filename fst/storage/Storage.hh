@@ -56,7 +56,6 @@ class Storage : public eos::common::LogId
 
 private:
   bool zombie;
-
   XrdOucString metaDirectory;
 
   unsigned long long* scrubPattern[2];
@@ -74,6 +73,8 @@ protected:
 public:
   TransferMultiplexer mGwMultiplexer; // the multiplexer for gw transfers
 
+  // Var partition monitor thread
+  static void* StartVarPartitionMonitor(void* pp);
   // fsstat & quota thread
   static void* StartDaemonSupervisor (void *pp);
   static void* StartFsCommunicator (void *pp);
@@ -87,8 +88,7 @@ public:
   static void* StartFsBalancer (void* pp);
   static void* StartFsDrainer (void* pp);
   static void* StartFsCleaner (void* pp);
-  static void*
-  StartMgmSyncer (void* pp);
+  static void* StartMgmSyncer (void* pp);
 
   struct BootThreadInfo
   {
@@ -168,6 +168,7 @@ public:
   bool GetDrainJob (unsigned int index);
 
   // ---------------------------------------------------------------------------
+
   void Cleaner ();
   void MgmSyncer ();
 
@@ -235,3 +236,4 @@ public:
 EOSFSTNAMESPACE_END
 
 #endif
+
