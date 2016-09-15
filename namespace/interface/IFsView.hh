@@ -37,7 +37,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class IFsView: public IFileMDChangeListener
 {
- public:
+public:
 
   //------------------------------------------------------------------------
   // Google sparse table is used for much lower memory overhead per item
@@ -47,8 +47,9 @@ class IFsView: public IFileMDChangeListener
   // memory consuming. We changed to dense hash set since it is much faster
   // and the memory overhead is not visible in a million file namespace.
   //------------------------------------------------------------------------
-  typedef std::set<IFileMD::id_t> FileList;
-  typedef FileList::iterator      FileIterator;
+  // typedef std::set<IFileMD::id_t> FileList;
+  typedef google::dense_hash_set<IFileMD::id_t> FileList;
+  typedef FileList::iterator FileIterator;
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -108,6 +109,11 @@ class IFsView: public IFileMDChangeListener
   //! Finalize
   //----------------------------------------------------------------------------
   virtual void finalize() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Shrink maps
+  //----------------------------------------------------------------------------
+  virtual void shrink() = 0;
 };
 
 EOSNSNAMESPACE_END

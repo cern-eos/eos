@@ -36,7 +36,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class FileSystemView: public IFsView
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -67,7 +67,10 @@ class FileSystemView: public IFsView
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool fileMDCheck(IFileMD* obj) { return true; }
+  virtual bool fileMDCheck(IFileMD* obj)
+  {
+    return true;
+  }
 
   //----------------------------------------------------------------------------
   //! Return reference to a list of files
@@ -127,6 +130,11 @@ class FileSystemView: public IFsView
   void finalize();
 
   //----------------------------------------------------------------------------
+  //! Shrink maps
+  //----------------------------------------------------------------------------
+  void shrink();
+
+  //----------------------------------------------------------------------------
   //! Add tree
   //----------------------------------------------------------------------------
   void AddTree(IContainerMD* obj, int64_t dsize) {};
@@ -136,7 +144,7 @@ class FileSystemView: public IFsView
   //----------------------------------------------------------------------------
   void RemoveTree(IContainerMD* obj, int64_t dsize) {};
 
- private:
+private:
   std::vector<FileList> pFiles;
   std::vector<FileList> pUnlinkedFiles;
   FileList              pNoReplicas;

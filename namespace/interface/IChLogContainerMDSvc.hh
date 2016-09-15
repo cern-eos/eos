@@ -39,7 +39,7 @@ class LockHandler;
 //------------------------------------------------------------------------------
 class IChLogContainerMDSvc
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -65,7 +65,7 @@ class IChLogContainerMDSvc
   //!
   //! @param  compactingData state information returned by compactPrepare
   //----------------------------------------------------------------------------
-  virtual void compact (void *&compactingData) = 0;
+  virtual void compact(void*& compactingData) = 0;
 
   //----------------------------------------------------------------------------
   //! Prepare for online compacting.
@@ -90,14 +90,15 @@ class IChLogContainerMDSvc
   //!                       and modified by Compact
   //! @param autorepair     indicates to skip broken records
   //----------------------------------------------------------------------------
-  virtual void compactCommit(void* comp_data, bool autorepair=false) = 0;
+  virtual void compactCommit(void* comp_data, bool autorepair = false) = 0;
 
   //----------------------------------------------------------------------------
   //! Make transition from slave to master
   //!
   //! @param conf_settings map of configuration settings
   //----------------------------------------------------------------------------
-  virtual void slave2Master(std::map<std::string, std::string>& conf_settings) = 0;
+  virtual void slave2Master(std::map<std::string, std::string>& conf_settings) =
+    0;
 
   //----------------------------------------------------------------------------
   //! Switch the namespace to read-only mode
@@ -122,6 +123,11 @@ class IChLogContainerMDSvc
   //! Clear changelog warning messages
   //----------------------------------------------------------------------------
   virtual void clearWarningMessages() = 0;
+
+  //------------------------------------------------------------------------
+  //! Resize container service map
+  //------------------------------------------------------------------------
+  virtual void resize() = 0;
 };
 
 EOSNSNAMESPACE_END

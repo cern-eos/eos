@@ -805,30 +805,37 @@ public:
 //----------------------------------------------------------------------------
   std::string user_url(uid_t uid, gid_t gid, pid_t pid);
 
-//----------------------------------------------------------------------------
-//! Return the CGI of an URL
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Return the CGI of an URL
+  //----------------------------------------------------------------------------
   const char* get_cgi(const char* url);
 
-//----------------------------------------------------------------------------
-//! Check if rm command was issued on one of the top level directories
-//!
-//! @param pid process id
-//! @param local_dir local mount point directory
-//!
-//! @return 0 if false, otherwise 1
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Check if rm command was issued on one of the top level directories
+  //!
+  //! @param pid process id
+  //! @param local_dir local mount point directory
+  //!
+  //! @return 0 if false, otherwise 1
+  //----------------------------------------------------------------------------
   int is_toplevel_rm(pid_t pid, const char* local_dir);
 
-//----------------------------------------------------------------------------
-//! Initialisation function
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Get the configured overlay mode
+  //----------------------------------------------------------------------------
+  mode_t get_mode_overlay()
+  {
+    return mode_overlay;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Initialisation function
+  //----------------------------------------------------------------------------
   void init(int argc, char* argv[], void* userdata,
             std::map<std::string, std::string>* features);
 
   void log(const char* level, const char* msg);
-  void
-  log_settings();
+  void log_settings();
 
   typedef struct _meta {
 

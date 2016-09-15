@@ -24,8 +24,8 @@
 #include "namespace/ns_in_memory/accounting/FileSystemView.hh"
 #include <iostream>
 
-namespace eos
-{
+EOSNSNAMESPACE_BEGIN
+
 //----------------------------------------------------------------------------
 // Resize
 //----------------------------------------------------------------------------
@@ -39,13 +39,11 @@ static void resize(Cont& d, size_t size)
   }
 
   d.resize(size);
-  /*
-  for( size_t i = oldSize; i < size; ++i )
-  {
-    d[i].set_deleted_key( 0 );
+
+  for (size_t i = oldSize; i < size; ++i) {
+    d[i].set_deleted_key(0);
     d[i].set_empty_key(0xffffffffffffffffll);
   }
-  */
 }
 
 //----------------------------------------------------------------------------
@@ -53,8 +51,8 @@ static void resize(Cont& d, size_t size)
 //----------------------------------------------------------------------------
 FileSystemView::FileSystemView()
 {
-  // pNoReplicas.set_empty_key(0xffffffffffffffffll);
-  // pNoReplicas.set_deleted_key( 0 );
+  pNoReplicas.set_empty_key(0xffffffffffffffffll);
+  pNoReplicas.set_deleted_key(0);
 }
 
 //----------------------------------------------------------------------------
@@ -220,4 +218,19 @@ void FileSystemView::finalize()
   pUnlinkedFiles.clear();
   pNoReplicas.clear();
 }
+
+//----------------------------------------------------------------------------
+// Shrink
+//----------------------------------------------------------------------------
+void FileSystemView::shrink()
+{
+  for (size_t i = 0; i < pFiles.size(); ++i) {
+    pFiles[i].resize(0);
+  }
+
+  for (size_t i = 0; i < pUnlinkedFiles.size(); ++i) {
+    pUnlinkedFiles[i].resize(0);
+  }
 }
+
+EOSNSNAMESPACE_END

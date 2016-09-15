@@ -177,6 +177,14 @@ ProcCommand::Archive()
         return SFS_OK;
       }
 
+      if (!gOFS->MgmOfsAlias.length() || (gOFS->MgmOfsAlias == "localhost")) {
+        eos_err("EOS_MGM_ALIAS is empty or points to localhost");
+        stdErr = ("error: EOS_MGM_ALIAS needs to be set to a FQDN for the "
+                  "archive command to work");
+        retc = EINVAL;
+        return SFS_OK;
+      }
+
       // Build the destination dir by using the uid/gid of the user triggering
       // the archive operation e.g root:// ... //some/dir/gid1/uid1/
       std::string dir_sha256 = eos::common::SymKey::Sha256(spath.c_str());
@@ -837,7 +845,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   num_dirs--; // don't count current dir
   arch_ofs.seekp(0);
   arch_ofs << "{"
-           << "\"src\": \"" << "root://" << gOFS->ManagerId << "/" << arch_dir << "\", "
+           << "\"src\": \"" << "root://" << gOFS->MgmOfsAlias << "/" << arch_dir << "\", "
            << "\"dst\": \"" << dst_url << "\", "
            << "\"svc_class\": \"" << gOFS->MgmArchiveSvcClass << "\", "
            << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "

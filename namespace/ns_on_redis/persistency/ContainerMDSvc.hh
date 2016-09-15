@@ -169,7 +169,6 @@ private:
   std::string getBucketKey(IContainerMD::id_t id) const;
 
   static std::uint64_t sNumContBuckets; ///< Number of buckets power of 2
-
   ListenerList pListeners;  ///< List of listeners to be notified
   IQuotaStats* pQuotaStats; ///< Quota view
   IFileMDSvc* pFileSvc;     ///< File metadata service

@@ -87,11 +87,10 @@ Master::Init()
 {
   // Check if we have systemd
   eos::common::ShellCmd
-  scmd0("pidof systemd >/dev/nul");
+  scmd0("/usr/sbin/pidof systemd >& /dev/null");
   eos::common::cmd_status rc = scmd0.wait(30);
-  fHasSystemd = (rc.exited && rc.exit_code==0);
-  eos_info("systemd found on the machine = %d",(int)fHasSystemd);
-
+  fHasSystemd = (rc.exited && rc.exit_code == 0);
+  eos_info("systemd found on the machine = %d", (int)fHasSystemd);
   // Define our role master/slave
   struct stat buf;
   fThisHost = gOFS->HostName;
@@ -178,8 +177,10 @@ Master::Init()
                     XRDSYSTHREAD_HOLD, "Master Supervisor Thread");
   // get sync up if it is not up
   eos::common::ShellCmd
-  scmd1(fHasSystemd?"service --skip-redirect eos status sync || service --skip-redirect eos start sync":
-      "service eos status sync || service eos start sync");
+  scmd1(fHasSystemd ?
+        "service --skip-redirect eos status sync || service --skip-redirect eos start sync"
+        :
+        "service eos status sync || service eos start sync");
   rc = scmd1.wait(30);
 
   if (rc.exit_code) {
@@ -189,8 +190,9 @@ Master::Init()
 
   // get eossync up if it is not up
   eos::common::ShellCmd
-  scmd2(fHasSystemd?"service --skip-redirect eossync status || service --skip-redirect eossync start "
-      :"service eossync status || service eossync start ");
+  scmd2(fHasSystemd ?
+        "service --skip-redirect eossync status || service --skip-redirect eossync start "
+        : "service eossync status || service eossync start ");
   rc = scmd2.wait(30);
 
   if (rc.exit_code) {
@@ -1272,8 +1274,10 @@ Master::Slave2Master()
   // take the sync service down
   // -----------------------------------------------------------
   eos::common::ShellCmd
-  scmd1(fHasSystemd?"service --skip-redirect eos status sync && service --skip-redirect eos stop sync":
-      "service eos status sync && service eos stop sync");
+  scmd1(fHasSystemd ?
+        "service --skip-redirect eos status sync && service --skip-redirect eos stop sync"
+        :
+        "service eos status sync && service eos stop sync");
   eos::common::cmd_status rc = scmd1.wait(30);
 
   if (rc.exit_code) {
@@ -1293,8 +1297,8 @@ Master::Slave2Master()
     MasterLog(eos_crit("slave=>master transition aborted since sync was down"));
     fRunningState = Run::State::kIsNothing;
     eos::common::ShellCmd
-    scmd2(fHasSystemd?"service --skip-redirect eos start sync":
-        "service eos start sync");
+    scmd2(fHasSystemd ? "service --skip-redirect eos start sync" :
+          "service eos start sync");
     rc = scmd2.wait(30);
 
     if (rc.exit_code) {
@@ -1453,8 +1457,8 @@ Master::Slave2Master()
                        e.getErrno(), e.getMessage().str().c_str()));
     fRunningState = Run::State::kIsNothing;
     eos::common::ShellCmd
-    scmd3(fHasSystemd?"service --skip-redirect eos start sync":
-        "service eos start sync");
+    scmd3(fHasSystemd ? "service --skip-redirect eos start sync" :
+          "service eos start sync");
     rc = scmd3.wait(30);
 
     if (rc.exit_code) {
@@ -1466,8 +1470,8 @@ Master::Slave2Master()
 
   fRunningState = Run::State::kIsRunningMaster;
   eos::common::ShellCmd
-  scmd3(fHasSystemd?"service --skip-redirect eos start sync":
-      "service eos start sync");
+  scmd3(fHasSystemd ? "service --skip-redirect eos start sync" :
+        "service eos start sync");
   rc = scmd3.wait(30);
 
   if (rc.exit_code) {
@@ -1912,6 +1916,7 @@ Master::BootNamespace()
       eos_chlog_dirsvc->clearWarningMessages();
     }
 
+    gOFS->BootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
     MasterLog(eos_notice("eos directory view configure stopped after %d seconds",
                          (tstop - tstart)));
   } catch (eos::MDException& e) {

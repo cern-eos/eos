@@ -7,6 +7,40 @@
 Beryl Release Notes
 ===================
 
+``V0.3.199 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- FUSE: fix wrong lock scope when readdir buffers are retrieved
+
+``V0.3.198 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- HTTP: drop FileClose handler to avoid SEGVs due to inteference between FileClose and Complete handler
+- NS: avoid failing compaction when a slave was promoted to be master due to virtual root entry with 0 offset in changelog file
+- ARCHIVE: use MGM alias to reference instances in archives
+- FST: protect against 0-size buffer response bug in XRootD 3.3.6
+
+New Feature
++++++++++++
+
+- MGM: add some more information about the currently in-use file/container-id and the id's created since last boot
+- MGM: allow update of 0-size RAIN files to allow lazy-open with RAIN layouts
+
+
+``V0.3.197 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- FUSE: return correct (also overlayed) mode bits after file creation
+
 ``V0.3.196 Aquamarine``
 +++++++++++++++++++++++
 
