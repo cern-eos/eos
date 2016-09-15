@@ -29,3 +29,14 @@ else()
 
   mark_as_advanced(REDOX_INCLUDE_DIR REDOX_LIBRARY)
 endif()
+
+# If Redox found set compilation definition, otherwise set the variables to
+# strings so that they can be used in CMakeLists.txt without additional checks.
+if(REDOX_FOUND)
+  add_definitions(-DREDOX_FOUND)
+else()
+  set(REDOX_INCLUDE_DIR  "")
+  set(REDOX_INCLUDE_DIRS "")
+  set(REDOX_LIBRARY      "")
+  set(REDOX_LIBRARIES    "")
+endif()

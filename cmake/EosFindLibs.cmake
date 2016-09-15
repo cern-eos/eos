@@ -26,7 +26,6 @@
 #-------------------------------------------------------------------------------
 option(PACKAGEONLY "Build without dependencies" OFF)
 option(CLIENT "Build only client packages" OFF)
-option(ENABLE_REDOX "Enable Redox support" OFF)
 option(ENABLE_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 
 set(KINETICIO_URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz")
@@ -86,12 +85,8 @@ if (NOT PACKAGEONLY)
     find_package(CPPUnit)
     find_package(microhttpd)
     find_package(httpd)
-
-    if (ENABLE_REDOX)
-      find_package(libev REQUIRED)
-      find_package(redox REQUIRED)
-    endif()
-
+    find_package(libev)
+    find_package(redox)
   endif()
 else()
   message(STATUS "Runing CMake in package only mode.")
