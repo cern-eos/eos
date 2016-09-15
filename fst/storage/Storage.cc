@@ -33,6 +33,7 @@
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
 #include "mq/XrdMqMessaging.hh"
+#include "MonitorVarPartition.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/dense_hash_map>
 #include <math.h>
@@ -227,13 +228,24 @@ Storage::Storage (const char* metadirectory)
   ThreadSet.insert(tid);
 
 
-
   eos_info("starting mgm synchronization thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
                               static_cast<void *> (this),
                               0, "MgmSyncer Thread")))
   {
     eos_crit("cannot start mgm syncer thread");
+    zombie = true;
+  }
+
+  ThreadSet.insert(tid);
+
+
+  // Starting FstPartitionMonitor
+  eos_info("Starting fst /var partition monitor thread");
+  if((rc = XrdSysThread::Run(&tid, Storage::StartVarPartitionMonitor,
+                              static_cast<void*>(this),
+                              0, "FST Partition Monitor"))){
+    eos_crit("Cannot start FST Partition Monitor thread");
     zombie = true;
   }
 
@@ -749,6 +761,16 @@ Storage::GetFsidFromPath (std::string path, eos::common::FileSystem::fsid_t &fsi
 }
 
 /*----------------------------------------------------------------------------*/
+
+void* Storage::StartVarPartitionMonitor(void* pp){
+  Storage* storage = (Storage*) pp;
+  MonitorVarPartition<std::vector<FileSystem*>> mon(10., 30, "/var/");
+  mon.Monitor(storage->fileSystemsVector, storage->fsMutex);
+  return 0;
+}
+
+
+/*----------------------------------------------------------------------------*/
 void*
 Storage::StartFsScrub (void * pp)
 {
@@ -953,3 +975,4 @@ Storage::CloseTransaction (unsigned int fsid, unsigned long long fid)
 }
 
 EOSFSTNAMESPACE_END
+
