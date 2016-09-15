@@ -550,11 +550,16 @@ filesystem::dirview_entry(unsigned long long dirinode,
 
   if (get_lock) {
     eos::common::RWMutexReadLock rd_lock(mutex_dir2inodelist);
-  }
 
-  if ((dir2inodelist.count(dirinode)) &&
-      (dir2inodelist[dirinode].size() > index)) {
-    return dir2inodelist[dirinode][index];
+    if ((dir2inodelist.count(dirinode)) &&
+        (dir2inodelist[dirinode].size() > index)) {
+      return dir2inodelist[dirinode][index];
+    }
+  } else {
+    if ((dir2inodelist.count(dirinode)) &&
+        (dir2inodelist[dirinode].size() > index)) {
+      return dir2inodelist[dirinode][index];
+    }
   }
 
   return 0;
@@ -568,13 +573,17 @@ filesystem::dirview_getbuffer(unsigned long long inode, int get_lock)
 {
   if (get_lock) {
     eos::common::RWMutexReadLock rd_lock(mutex_dir2inodelist);
+
+    if (dir2dirbuf.count(inode)) {
+      return &dir2dirbuf[inode];
+    }
+  } else {
+    if (dir2dirbuf.count(inode)) {
+      return &dir2dirbuf[inode];
+    }
   }
 
-  if (dir2dirbuf.count(inode)) {
-    return &dir2dirbuf[inode];
-  } else {
-    return 0;
-  }
+  return 0;
 }
 
 
