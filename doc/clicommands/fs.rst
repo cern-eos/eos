@@ -6,9 +6,10 @@ fs
   '[eos] fs ..' provides the filesystem interface of EOS.
   fs add|boot|config|dropdeletion|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]
   Options:
-  fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [ [matchlist] ] :
+  fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [--brief|-b] [ [matchlist] ] :
     list all filesystems in default output format. <space> is an optional substring match for the space name and can be a comma separated list
     -m                                  : list all filesystem parameters in monitoring format
+    --b,--brief                         : display host names without domain names
     -l                                  : display all filesystem parameters in long format
     -e                                  : display all filesystems in error state
     --io                                : display all filesystems in IO output format
@@ -60,7 +61,7 @@ fs
   fs boot  <fs-id>|<node-queue>|* [--syncmgm]:
     boot filesystem with ID <fs-id> or name <node-queue> or all (*)
     --syncmgm : force an MGM resynchronization during the boot
-  fs dropfdeletion <fs-id> :
+  fs dropdeletion <fs-id> :
     allows to drop all pending deletions on <fs-id>
   fs dropfiles <fs-id> [-f] :
     allows to drop all files on <fs-id> - force
@@ -71,13 +72,14 @@ fs
     -m    : print the full meta data record in env format
     -fid  : dump only a list of file id's stored on this filesystem
     -path : dump only a list of file names stored on this filesystem
-  fs status [-l] <fs-id> :
+  fs status [-r] [-l] <fs-id> :
     returns all status variables of a filesystem and calculates the risk of data loss if this filesystem get's removed
-  fs status [-l] mount-point> :
+  fs status [-r] [-l] mount-point> :
     as before but accepts the mount point as input parameters and set's host=<this host>
-  fs status [-l] <host> <mount-point> :
+  fs status [-r] [-l] <host> <mount-point> :
     as before but accepts the mount point and hostname as input parameters
     -l    : list all files at risk and files which are offline
+    -r    : show a risk analysis for this filesystem
   Examples:
     fs ls --io             List all filesystems with IO statistics
     fs boot *              Send boot request to all filesystems

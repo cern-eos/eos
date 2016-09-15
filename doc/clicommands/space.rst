@@ -33,9 +33,18 @@ space
     space define <space-name> [<groupsize> [<groupmod>]]          : define how many filesystems can end up in one scheduling group <groupsize> [default=0]
     => <groupsize>=0 means, that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group
     => <groupmod> defines the maximun number of filesystems per node
-    space reset <space-name>  [--egroup|drain|scheduledrain|schedulebalance]
+    space reset <space-name>  [--egroup|mapping|drain|scheduledrain|schedulebalance]
+    space node-set <space-name> <node.key> <file-name>            : store the contents of <file-name> into the node configuration variable <node.key> visibile to all FSTs
+    => if <file-name> matches file:<path> the file is loaded from the MGM and not from the client
+    => local files cannot exceed 512 bytes - MGM files can be arbitrary length
+    => the contents gets base64 encoded by default
+    space node-get <space-name> <node.key>                        : get the value of <node.key> and base64 decode before output
+    : if the value for <node.key> is identical for all nodes in the referenced space, it is dumped only once, otherwise the value is dumped for each node separately
+    space kinetic-json-store cluster|security|location <local-file>
+    : store a modified json file on the MGM (without publishing)
+    space reset <space-name>  [--egroup|mapping|drain|scheduledrain|schedulebalance|ns|nsfilesystemview|nsfilemap|nsdirectorymap]
     : reset a space e.g. recompute the drain state machine
-    space status <space-name>                                     : print's all defined variables for space
+    space status <space-name> [-m]                                : print's all defined variables for space
     space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !)
     space rm <space-name>                                         : remove space
     space quota <space-name> on|off                               : enable/disable quota

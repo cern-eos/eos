@@ -13,6 +13,7 @@ fileinfo
     --size  :  selects to add the size information to the output
     --checksum :  selects to add the checksum information to the output
     --fullpath :  selects to add the full path information to each replica
+    --proxy    :  selects to add the proxy information if any
     -m     :  print single line in monitoring format
     --env  :  print in OucEnv format
     -s     :  silent - used to run as internal command

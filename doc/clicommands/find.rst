@@ -3,8 +3,9 @@ find
 
 .. code-block:: text
 
-  usage: find [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %tags] [-layoutstripes <n>] <path>
+  usage: find [-name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %tags] [-layoutstripes <n>] <path>
     -f -d :  find files(-f) or directories (-d) in <path>
+    -name <pattern> :  find by name or wildcard match
     -x <key>=<val> :  find entries with <key>=<val>
     -0 :  find 0-size files
     -g :  find files with mixed scheduling groups
@@ -20,11 +21,15 @@ find
     --stripediff :  find files which have not the nominal number of stripes(replicas)
     --faultyacl :  find directories with illegal ACLs
     --count :  just print global counters for files/dirs found
+    --xurl :  print the XRootD URL instead of the path name
     --childcount :  print the number of children in each directory
     --purge <n> | atomic
-    :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0 ! To apply the settings of the extended attribute definition use <n>=-1! To remove all atomic upload left-overs older than a day user --purge atomic
+    :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0 ! To
+    apply the settings of the extended attribute definition use <n>=-1! To remove all atomic upload
+    left-overs older than a day user --purge atomic
     default :  find files and directories
-    find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>   :  find files and print out the requested meta data as key value pairs
+    find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>
+    :  find files and print out the requested meta data as key value pairs
     path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory
     path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters
     path=as3:...   :  do a find on an S3 bucket

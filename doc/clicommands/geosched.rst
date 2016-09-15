@@ -4,7 +4,7 @@ geosched
 .. code-block:: text
 
   '[eos] geosched ..' Interact with the file geoscheduling engine in EOS.
-  geosched show|set|updater|forcerefresh|disabled ...
+  geosched show|set|updater|forcerefresh|disabled|access ...
   Options:
     geosched show [-c] tree [<scheduling subgroup>]                    :  show scheduling trees
     :  if <scheduling group> is specified only the tree for this group is shown. If it's not all, the trees are shown.
@@ -24,3 +24,13 @@ geosched
     geosched disabled rm {<geotag>,*} {<optype>,*} {<scheduling subgroup>,*}   :  re-enable a disabled branch for the specified group and operation
     :  when called with <geotag> *, the whole tree(s) are re-enabled, canceling all previous disabling
     geosched disabled show {<geotag>,*} {<optype>,*} {<scheduling subgroup>,*} :  show list of disabled branches for for the specified groups and operation
+    geosched access setdirect <geotag> <geotag_list>                   :  set a mapping between an accesser geotag and a set of target geotags
+    :  these mappings specify which geotag can be accessed from which geotag without going through a firewall entrypoint
+    :  geotag_list is of the form token1::token2,token3::token4::token5,...
+    geosched access showdirect                                         :  show mappings between accesser geotags and target geotags
+    geosched access cleardirect {<geotag>|all}                         :  clear a mapping between an accesser geotag and a set of target geotags
+    geosched access setproxygroup <geotag> <proxygroup>               :  set the proxygroup acting as a firewall entrypoint for the given subtree
+    :  if a client accesses a file from a geotag which does not have direct access to the subtree the replica is,
+    :  it will be scheduled to access through a node from the given proxygroup
+    geosched access showproxygroup                                     :  show mappings between accesser geotags and target geotags
+    geosched access clearproxygroup {<geotag>|all}                     :  clear a mapping between an accesser geotag and a set of target geotags

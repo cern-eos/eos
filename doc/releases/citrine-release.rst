@@ -17,29 +17,30 @@ This is the first release targeted for clients to use EOS with XRootD >= 4.2.X.
 It is merged from the Aquamarine Version 0.3.130. Main difference to Aquamarine
 is the use of XRootD 4 and the new tree-based scheduling algorithm.
 
-Bug Fixes
----------
+``v4.1.3 Citrine``
+++++++++++
 
-Consolidation
--------------
+Bugfix
++++++++
 
-New Features
-------------
+* [EOS-1606] - Reading root files error when using eos 4.1.1
+* [EOS-1609] - eos -b problem : *** Error in `/usr/bin/eos': free():
 
-``V0.4.30 Citrine``
+
+``v0.4.30 Citrine``
 +++++++++++++++++++++++
 
-Bug Fix
+Bugfix
 +++++++
 
 - FUSE: when using krb5 or x509, allow both krb5/x509 and unix so that authentication
         does not fail on the fst (using only unix) when using XRootD >= 4.4
 
 
-``V0.4.30 Citrine``
+``v0.4.30 Citrine``
 +++++++++++++++++++++++
 
-Bug Fix
+Bugfix
 +++++++
 
 - SPEC: Add workaround in the %posttrans section of the eos-fuse-core package
@@ -47,10 +48,10 @@ Bug Fix
 - CMAKE: Remove the /var/eos directory from the eos-fuse-core package and fix
         type in directory name.
 
-``V0.4.29 Citrine``
+``v0.4.29 Citrine``
 +++++++++++++++++++++++
 
-Bug Fix
+Bugfix
 +++++++
 
 - MGM: add monitoring switch to space,group status function

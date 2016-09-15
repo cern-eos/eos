@@ -12,9 +12,10 @@ recycle
     list files in the recycle bin
   recycle purge :
     purge files in the recycle bin
-  recycle restore [--force-original-name|-f] <recycle-key> :
+  recycle restore [--force-original-name|-f] [--restore-versions|-r] <recycle-key> :
     undo the deletion identified by <recycle-key>
     --force-original-name : move's deleted files/dirs back to the original location (otherwise the key entry will have a <.inode> suffix
+    --restore-versions    : restore all previous versions of a file
   recycle config --add-bin <sub-tree>:
     configures to use the recycle bin for deletions in <sub-tree>
   recycle config --remove-bin <sub-tree> :

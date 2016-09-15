@@ -37,6 +37,8 @@ ln
     convenience function aliasing to 'fileinfo' command
   file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -stripes <n> :
     change the number of stripes of a file with replica layout to <n>
+  file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -checksum <checksum-type> :
+    change the checksum-type of a file to <checksum-type>
   file move <path> <fsid1> <fsid2> :
     move the file <path> from  <fsid1> to <fsid2>
   file purge <path> [purge-version] :
@@ -65,9 +67,11 @@ ln
     list versions of a file
     grab a version of a file
     <purge-version>: defines the max. number of versions to keep
+.. code-block:: text
+
     if not specified it will add a new version without purging any previous version
   file share <path> [lifetime] :
     <path>          : path to create a share link
     <lifetime>      : validity time of the share link like 1, 1s, 1d, 1w, 1mo, 1y, ... default is 28d
-.. code-block:: text
-
+   file workflow <path>|fid:<fid-dec>|fxid:<fid-hex> <workflow> <event> :
+    trigger workflow <workflow> with event <event> on <path>

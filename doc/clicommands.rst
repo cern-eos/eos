@@ -18,6 +18,7 @@ Client Commands
   clicommands/cp
   clicommands/find
   clicommands/quit
+  clicommands/kinetic
   clicommands/console
   clicommands/silent
   clicommands/space

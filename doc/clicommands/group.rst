@@ -4,7 +4,7 @@ group
 .. code-block:: text
 
   usage: group ls                                                      : list groups
-  usage: group ls [-s|-g <depth>] [-m|-l|--io] [<group>]                          : list groups or only <group>. <group> is a substring match and can be a comma seperated list
+  usage: group ls [-s] [-g] [-b|--brief] [-m|-l|--io] [<group>]                          : list groups or only <group>. <group> is a substring match and can be a comma seperated list
     -s : silent mode
     -m : monitoring key=value output format
     -l : long output - list also file systems after each group
