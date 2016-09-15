@@ -150,6 +150,16 @@ public:
     // TODO(esindril): add implementation
   }
 
+  //----------------------------------------------------------------------------
+  //! Get first free container id
+  //----------------------------------------------------------------------------
+  IContainerMD::id_t getFirstFreeId() const
+  {
+    // TODO(esindril): add implemention
+    return 0;
+  }
+
+
 private:
   typedef std::list<IContainerMDChangeListener*> ListenerList;
 

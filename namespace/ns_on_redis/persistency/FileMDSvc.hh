@@ -140,6 +140,15 @@ public:
   //----------------------------------------------------------------------------
   bool checkFiles();
 
+  //----------------------------------------------------------------------------
+  //! Get first free file id
+  //----------------------------------------------------------------------------
+  IFileMD::id_t getFirstFreeId() const
+  {
+    // TODO(esindril): add implementation
+    return 0;
+  }
+
 private:
   typedef std::list<IFileMDChangeListener*> ListenerList;
 
