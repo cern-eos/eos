@@ -34,6 +34,14 @@ link_directories(
   ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
   ${XROOTD_LIB_DIR})
 
+#-------------------------------------------------------------------------------
+# Add CppUnit tests if possible
+#-------------------------------------------------------------------------------
+if(CPPUNIT_FOUND)
+  add_subdirectory(tests)
+endif()
+
+
 add_library( EosFstOss MODULE
              XrdFstOss.cc           XrdFstOss.hh
              XrdFstOssFile.cc       XrdFstOssFile.hh

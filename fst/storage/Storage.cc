@@ -33,6 +33,7 @@
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
 #include "mq/XrdMqMessaging.hh"
+#include "MonitorVarPartition.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/dense_hash_map>
 #include <math.h>
@@ -92,7 +93,7 @@ Storage::Storage (const char* metadirectory)
     exit(-1);
   }
 
-  eos_info("starting scrubbing thread");
+  eos_info("Starting scrubbing thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsScrub,
                               static_cast<void *> (this),
                               0, "Scrubber")))
@@ -104,7 +105,7 @@ Storage::Storage (const char* metadirectory)
   XrdSysMutexHelper tsLock(ThreadSetMutex);
   ThreadSet.insert(tid);
 
-  eos_info("starting trim thread");
+  eos_info("Starting trim thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsTrim,
                               static_cast<void *> (this),
                               0, "Meta Store Trim")))
@@ -115,7 +116,7 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-  eos_info("starting deletion thread");
+  eos_info("Starting deletion thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsRemover,
                               static_cast<void *> (this),
                               0, "Data Store Remover")))
@@ -126,7 +127,7 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-  eos_info("starting report thread");
+  eos_info("Starting report thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsReport,
                               static_cast<void *> (this),
                               0, "Report Thread")))
@@ -137,7 +138,7 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-  eos_info("starting error report thread");
+  eos_info("Starting error report thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsErrorReport,
                               static_cast<void *> (this),
                               0, "Error Report Thread")))
@@ -148,7 +149,7 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-  eos_info("starting verification thread");
+  eos_info("Starting verification thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsVerify,
                               static_cast<void *> (this),
                               0, "Verify Thread")))
@@ -159,7 +160,7 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-  eos_info("starting filesystem communication thread");
+  eos_info("Starting filesystem communication thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsCommunicator,
                               static_cast<void *> (this),
                               0, "Communicator Thread")))
@@ -170,7 +171,7 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-  eos_info("starting daemon supervisor thread");
+  eos_info("Starting daemon supervisor thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartDaemonSupervisor,
                               static_cast<void *> (this),
                               0, "Supervisor Thread")))
@@ -181,7 +182,7 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-  eos_info("starting filesystem publishing thread");
+  eos_info("Starting filesystem publishing thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsPublisher,
                               static_cast<void *> (this),
                               0, "Publisher Thread")))
@@ -192,7 +193,7 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-  eos_info("starting filesystem balancer thread");
+  eos_info("Starting filesystem balancer thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsBalancer,
                               static_cast<void *> (this),
                               0, "Balancer Thread")))
@@ -203,7 +204,7 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-  eos_info("starting filesystem drainer thread");
+  eos_info("Starting filesystem drainer thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsDrainer,
                               static_cast<void *> (this),
                               0, "Drainer Thread")))
@@ -214,8 +215,7 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-
-  eos_info("starting filesystem transaction cleaner thread");
+  eos_info("Starting filesystem transaction cleaner thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsCleaner,
                               static_cast<void *> (this),
                               0, "Cleaner Thread")))
@@ -226,14 +226,23 @@ Storage::Storage (const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-
-
-  eos_info("starting mgm synchronization thread");
+  eos_info("Starting mgm synchronization thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
                               static_cast<void *> (this),
                               0, "MgmSyncer Thread")))
   {
     eos_crit("cannot start mgm syncer thread");
+    zombie = true;
+  }
+
+  ThreadSet.insert(tid);
+
+  // Starting FstPartitionMonitor
+  eos_info("Starting fst /var partition monitor thread");
+  if((rc = XrdSysThread::Run(&tid, Storage::StartVarPartitionMonitor,
+                              static_cast<void*>(this),
+                              0, "FST Partition Monitor"))){
+    eos_crit("Cannot start FST Partition Monitor thread");
     zombie = true;
   }
 
@@ -749,6 +758,16 @@ Storage::GetFsidFromPath (std::string path, eos::common::FileSystem::fsid_t &fsi
 }
 
 /*----------------------------------------------------------------------------*/
+
+void* Storage::StartVarPartitionMonitor(void* pp){
+  Storage* storage = (Storage*) pp;
+  MonitorVarPartition<std::vector<FileSystem*>> mon(10., 30, "/var/");
+  mon.Monitor(storage->fileSystemsVector, storage->fsMutex);
+  return 0;
+}
+
+
+/*----------------------------------------------------------------------------*/
 void*
 Storage::StartFsScrub (void * pp)
 {
@@ -953,3 +972,4 @@ Storage::CloseTransaction (unsigned int fsid, unsigned long long fid)
 }
 
 EOSFSTNAMESPACE_END
+

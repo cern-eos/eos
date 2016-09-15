@@ -482,7 +482,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
 
   // setup the circular in-memory log buffer
   eos::common::Logging::Init();
-  eos::common::Logging::SetLogPriority(LOG_NOTICE);
+  eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
 
 
