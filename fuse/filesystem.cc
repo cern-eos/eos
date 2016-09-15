@@ -586,15 +586,23 @@ filesystem::dirview_entry (unsigned long long dirinode,
                            size_t index,
                            int get_lock)
 {
- eos_static_debug ("dirinode=%llu, index=%zu", dirinode, index);
+  eos_static_debug ("dirinode=%llu, index=%zu", dirinode, index);
 
- if (get_lock) eos::common::RWMutexReadLock rd_lock (mutex_dir2inodelist);
-
- if ((dir2inodelist.count (dirinode)) &&
-     (dir2inodelist[dirinode].size () > index))
-   return dir2inodelist[dirinode][index];
-
- return 0;
+  if (get_lock) 
+  {
+    eos::common::RWMutexReadLock rd_lock (mutex_dir2inodelist);
+    
+    if ((dir2inodelist.count (dirinode)) &&
+	(dir2inodelist[dirinode].size () > index))
+      return dir2inodelist[dirinode][index];
+  }
+  else
+  {
+    if ((dir2inodelist.count (dirinode)) &&
+	(dir2inodelist[dirinode].size () > index))
+      return dir2inodelist[dirinode][index];
+  }
+  return 0;
 }
 
 
@@ -605,12 +613,19 @@ filesystem::dirview_entry (unsigned long long dirinode,
 struct dirbuf*
 filesystem::dirview_getbuffer (unsigned long long inode, int get_lock)
 {
- if (get_lock) eos::common::RWMutexReadLock rd_lock (mutex_dir2inodelist);
-
- if (dir2dirbuf.count (inode))
-   return &dir2dirbuf[inode];
- else
-   return 0;
+  if (get_lock) 
+  {  
+    eos::common::RWMutexReadLock rd_lock (mutex_dir2inodelist);
+    
+    if (dir2dirbuf.count (inode))
+      return &dir2dirbuf[inode];
+  }
+  else
+  {
+    if (dir2dirbuf.count (inode))
+      return &dir2dirbuf[inode];
+  }
+  return 0;
 }
 
 
