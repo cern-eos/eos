@@ -262,6 +262,8 @@ public:
 
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, bool> > WNoDeleteOnCloseFid; // map to forbid deleteOnClose for creates if then 1+X open had a successfull close
+
 
   XrdSysMutex XSLockFidMutex;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > XSLockFid;

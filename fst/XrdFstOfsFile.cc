@@ -2194,15 +2194,24 @@ XrdFstOfsFile::close ()
     gOFS.OpenFidMutex.Lock();
 
     if (isRW)
+    {
+      if ( (isInjection || isCreation || IsChunkedUpload() ) && (!rc) && (gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid] > 1 ))
+      {
+	// indicate that this file was closed properly and disable further delete on close
+	gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid][fMd->fMd.fid]=true;
+      }
       gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid]--;
+    }
     else
       gOFS.ROpenFid[fMd->fMd.fsid][fMd->fMd.fid]--;
 
     if (gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid] <= 0)
     {
-      // If this was a write of the last writer we had the lock and we release it
       gOFS.WOpenFid[fMd->fMd.fsid].erase(fMd->fMd.fid);
       gOFS.WOpenFid[fMd->fMd.fsid].resize(0);
+      // when the last writer is gone we can remove the prohibiting entry
+      gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid].erase(fMd->fMd.fid);
+      gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid].resize(0);
     }
 
     if (gOFS.ROpenFid[fMd->fMd.fsid][fMd->fMd.fid] <= 0)
@@ -2245,6 +2254,17 @@ XrdFstOfsFile::close ()
 
         eos_notice("msg=\"failing transfer because filesystem has non-operational state\" path=%s state=%s", Path.c_str(), eos::common::FileSystem::GetConfigStatusAsString(gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus()));
         deleteOnClose = true;
+      }
+    }
+
+    {
+      // check if the delete on close has been prohibited for this file id
+      XrdSysMutexHelper aLock(gOFS.OpenFidMutex);
+
+      if (gOFS.WNoDeleteOnCloseFid[fsid].count(fileid))
+      {
+	eos_notice("msg=\"prohibiting delete on close since we had a sussessfull put but still an unacknowledged open\" path=%s", Path.c_str());
+	deleteOnClose = false;
       }
     }
 
