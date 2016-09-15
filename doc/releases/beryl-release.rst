@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.199 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- FUSE: fix wrong lock scope when readdir buffers are retrieved
+
 ``V0.3.198 Aquamarine``
 +++++++++++++++++++++++
 
