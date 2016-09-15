@@ -37,12 +37,11 @@ include_directories(
 #-------------------------------------------------------------------------------
 # XrdEosMgm library
 #-------------------------------------------------------------------------------
-
-#-----------------------------------------------------------------------------
 set(XRDEOSMGM_SRCS
   Access.cc
   IConfigEngine.cc
   FileConfigEngine.cc
+  RedisConfigEngine.cc
   GeoTreeEngine.cc
   Messaging.cc
   VstMessaging.cc
@@ -127,40 +126,9 @@ set(XRDEOSMGM_SRCS
   Features.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
-  geotree/SchedulingTreeCommon.cc)  
+  geotree/SchedulingTreeCommon.cc)
 
-if (REDOX_FOUND)
- add_definitions(-DUSEREDOX)
-
- add_library(
-    XrdEosMgm  MODULE
-    ${XRDEOSMGM_SRCS}
-    RedisConfigEngine.cc)
-
- target_include_directories(
-    XrdEosMgm PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
-    $<BUILD_INTERFACE:${REDOX_INCLUDE_DIRS}>
-    $<INSTALL_INTERFACE:include>)
-
-else()
-    add_library(
-      XrdEosMgm  MODULE
-      ${XRDEOSMGM_SRCS})
-endif()
-
-if (CPPUNIT_FOUND AND REDOX_FOUND)
-  add_library(
-    XrdEosMgm-Static STATIC
-    ${XRDEOSMGM_SRCS}
-    RedisConfigEngine.cc)
-
-  add_dependencies(XrdEosMgm-Static EosAuthProto)
-  target_compile_definitions(
-     XrdEosMgm-Static PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
-
-endif()
-
+add_library(XrdEosMgm MODULE ${XRDEOSMGM_SRCS})
 
 #-------------------------------------------------------------------------------
 # Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
@@ -177,7 +145,7 @@ if (MICROHTTPD_FOUND)
 endif()
 
 target_link_libraries(
-  XrdEosMgm
+  XrdEosMgm PUBLIC
   eosCommon
   eosCommonServer
   EosNsCommon
@@ -201,68 +169,16 @@ target_link_libraries(
   ${JSONCPP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
-if (CPPUNIT_FOUND)
-target_link_libraries(
-  XrdEosMgm-Static
-  EosNsCommon-Static
-  eosCommon-Static
-  eosCommonServer
-  EosPluginManager
-  eosCapability-Static
-  XrdMqClient-Static
-  EosAuthProto
-  ${Z_LIBRARY}
-  ${ZMQ_LIBRARIES}
-  ${LDAP_LIBRARIES}
-  ${UUID_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${GLIBC_DL_LIBRARY}
-  ${LIBEV_LIBRARIES}
-  ${REDOX_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_POSIX_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${JSONCPP_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${PROTOBUF_LIBRARIES})
-endif()
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part
 #-------------------------------------------------------------------------------
-add_executable(testmgmview FsView.cc test/MgmViewTest.cc)
-
+add_executable(testmgmview FsView.cc tests/MgmViewTest.cc)
 
 add_executable(
   testschedulingtree
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)
-
-if (CPPUNIT_FOUND AND REDOX_FOUND)
-  add_executable(
-    EosMgmConfigTest
-    test/ConfigEngineTest.cc)
-
-  target_include_directories(
-    EosMgmConfigTest PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
-    $<BUILD_INTERFACE:${CPPUNIT_INCLUDE_DIRS}>
-    $<INSTALL_INTERFACE:include>)
-
-  target_link_libraries(
-    EosMgmConfigTest
-    XrdEosMgm-Static
-    ${CPPUNIT_LIBRARY})
-
-  set_target_properties(
-    XrdEosMgm-Static
-    PROPERTIES
-    POSITION_INDEPENDENT_CODE True)
-endif()
-
-
 
 target_compile_definitions(
   testmgmview PUBLIC -DEOSMGMFSVIEWTEST)
@@ -290,6 +206,58 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
+#-------------------------------------------------------------------------------
+# Create executables for testing the MGM configuration
+#-------------------------------------------------------------------------------
+if(CPPUNIT_FOUND AND REDOX_FOUND AND Linux)
+  add_library(XrdEosMgm-Static STATIC ${XRDEOSMGM_SRCS})
+
+  target_compile_definitions(
+    XrdEosMgm-Static PUBLIC
+    -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+
+  target_link_libraries(
+    XrdEosMgm-Static PUBLIC
+    EosNsCommon-Static
+    eosCommon-Static
+    eosCommonServer
+    EosPluginManager
+    eosCapability-Static
+    XrdMqClient-Static
+    EosAuthProto
+    ${Z_LIBRARY}
+    ${ZMQ_LIBRARIES}
+    ${LDAP_LIBRARIES}
+    ${UUID_LIBRARIES}
+    ${NCURSES_LIBRARY}
+    ${GLIBC_DL_LIBRARY}
+    ${LIBEV_LIBRARIES}
+    ${REDOX_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_POSIX_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${JSONCPP_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${PROTOBUF_LIBRARIES})
+
+  set_target_properties(
+    XrdEosMgm-Static
+    PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
+
+  add_executable(
+    EosMgmConfigTest
+    tests/ConfigEngineTest.cc)
+
+  target_link_libraries(
+    EosMgmConfigTest
+    XrdEosMgm-Static
+    ${CPPUNIT_LIBRARY})
+
+endif()
+
 install(
   TARGETS XrdEosMgm
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -302,6 +270,3 @@ install(
   PERMISSIONS OWNER_READ OWNER_EXECUTE
 	      GROUP_READ GROUP_EXECUTE
 	      WORLD_READ WORLD_EXECUTE)
-
-
-

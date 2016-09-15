@@ -110,7 +110,7 @@
 #include "mq/XrdMqSharedObject.hh"
 #include "mgm/IConfigEngine.hh"
 #include "mgm/FileConfigEngine.hh"
-#ifdef USEREDOX
+#ifdef REDOX_FOUND
 #include "mgm/RedisConfigEngine.hh"
 #endif
 #include "mgm/GeoTreeEngine.hh"

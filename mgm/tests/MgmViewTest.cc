@@ -37,7 +37,7 @@ int main() {
   Logging::SetLogPriority(LOG_DEBUG);
 
   XrdMqMessage::Configure("");
-  
+
   XrdMqSharedObjectManager ObjectManager;
 
   ObjectManager.SetDebug(true);
@@ -58,7 +58,7 @@ int main() {
     sprintf(n,"%03d",i);
     std::string queue="/eos/test"; queue += n;
     queue += "/fst";
-    
+
     for (int j=0; j< jloop; j++) {
       schedgroup = "default.";
       char m[1024];
@@ -151,7 +151,7 @@ int main() {
     sprintf(n,"%02d",i);
     std::string queue="/eos/test"; queue += n;
     queue += "/fst";
-    
+
     for (int j=0; j< jloop; j++) {
       schedgroup = "default.";
       char m[1024];
@@ -165,7 +165,7 @@ int main() {
       eos::mgm::FileSystem* fs = FsView::gFsView.mIdView[fsid];
       FsView::gFsView.ViewMutex.UnLockRead();
       if (fs) {
-        FsView::gFsView.UnRegister(fs);
+	FsView::gFsView.UnRegister(fs);
       }
     }
   }
