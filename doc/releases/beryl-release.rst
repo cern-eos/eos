@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.299 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- FUSE: fix out of lock scope iterator used in error message
+- FST: prevent deleteOnClose when clients retried an open e.g. open | open | write| close (the XRootD client might replay an open with a new connection and this can lead to file loss)
+
 ``V0.3.199 Aquamarine``
 +++++++++++++++++++++++
 
