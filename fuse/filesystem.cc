@@ -1668,6 +1668,8 @@ filesystem::stat (const char* path,
      google::dense_hash_map<int, std::shared_ptr<FileAbstraction> >::iterator
      iter_file = fd2fabst.find (*iter_fd->second.begin ());
 
+     int fd = *iter_fd->second.begin();
+
      if (iter_file != fd2fabst.end ())
      {
        std::shared_ptr<FileAbstraction> fabst = iter_file->second;
@@ -1716,11 +1718,11 @@ filesystem::stat (const char* path,
                file_size = cache_size;
              }
              fabst->GetUtimes (&mtim);
-             eos_static_debug ("fd=%i, size-fd=%lld, mtim=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.MTIMESPEC.tv_sec, tmp.ATIMESPEC.tv_sec, file);
+             eos_static_debug ("fd=%i, size-fd=%lld, mtim=%llu/%llu raw_file=%p", fd, file_size, tmp.MTIMESPEC.tv_sec, tmp.ATIMESPEC.tv_sec, file);
            }
            else
            {
-             eos_static_err ("fd=%i stat failed on open file", *iter_fd->second.begin ());
+             eos_static_err ("fd=%i stat failed on open file", fd);
            }
          }
          else
