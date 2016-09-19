@@ -218,6 +218,17 @@ class XrdMqMessage
   static bool Base64Decode(char* encoded_bytes, char*& decoded_bytes,
                            ssize_t& decoded_length);
 
+
+  //----------------------------------------------------------------------------
+  //! Base64 decode (broken version from old release for compatibility)
+  //!
+  //! @param encoded bytes string
+  //! @param decoded bytes output string
+  //! @param decoded bytes length
+  //!
+  //! @return true if decoding successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool Base64DecodeBroken(XrdOucString &in, char* &out, ssize_t &outlen);
   //----------------------------------------------------------------------------
   //! Cipher encrypt using provided key
   //!
@@ -242,11 +253,12 @@ class XrdMqMessage
   //! @param data decrypted data pointer for which the caller takes ownership
   //! @param data_length length of the decrypted data
   //! @param key cipher key whose length must be SHA_DIGEST_LENGTH (20)
+  //! @param noerror flag - if true disable error printing in the function
   //!
   //! @return true if decryption successful, otherwise false
   //----------------------------------------------------------------------------
   static bool CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
-                            char*& data, ssize_t& data_length, char* key);
+                            char*& data, ssize_t& data_length, char* key, bool noerror=false);
 
   //----------------------------------------------------------------------------
   //! RSA encrypt using private key

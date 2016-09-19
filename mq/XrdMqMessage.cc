@@ -643,6 +643,31 @@ XrdMqMessage::Base64Decode(char* encoded_bytes, char*& decoded_bytes,
   return true;
 }
 
+bool
+XrdMqMessage::Base64DecodeBroken(XrdOucString &in, char* &out, ssize_t &outlen) {
+  BIO *b64, *bmem;
+  b64 = BIO_new(BIO_f_base64());
+  if (!b64) {
+    Eroute.Emsg("Verify", ENOMEM, "get new BIO");
+    return false;
+  }
+
+  unsigned int body64len = in.length();
+  bmem = BIO_new_mem_buf((void*)in.c_str(), body64len);
+  if (!bmem) {
+    Eroute.Emsg("Verify", ENOMEM, "get new mem BIO");
+    return false;
+  }
+
+  char* encryptionbuffer = (char*) malloc(body64len);
+
+  bmem                = BIO_push(b64  , bmem);
+  outlen = BIO_read(bmem , encryptionbuffer, body64len);
+  BIO_free_all(b64);
+  out = encryptionbuffer;
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Cipher encrypt
 //------------------------------------------------------------------------------
@@ -728,7 +753,7 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
-                            char*& data, ssize_t& data_length, char* key)
+                            char*& data, ssize_t& data_length, char* key, bool noerror)
 {
   // Set the initialization vector
   uint_fast8_t iv[EVP_MAX_IV_LENGTH];
@@ -783,7 +808,10 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
 
   if (!EVP_DecryptFinal(&ctx, fast_ptr, &tmplen))
   {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "finalize cipher block");
+    if (!noerror) 
+    {
+      Eroute.Emsg(__FUNCTION__, EINVAL, "finalize cipher block");
+    }
     EVP_CIPHER_CTX_cleanup(&ctx);
     free(data);
     return false;
@@ -1197,17 +1225,37 @@ XrdMqMessage::SymmetricStringDecrypt(XrdOucString& in, XrdOucString& out,
 
   if (!Base64Decode((char*)in.c_str(), tmpbuf, tmpbuflen))
   {
-    free(tmpbuf);
-    return false;
+    if (Base64DecodeBroken(in, tmpbuf, tmpbuflen))
+    {
+      // might be an old encoder
+    }
+    else
+    {
+      free(tmpbuf);
+      return false;
+    }
   }
 
   char* data;
   ssize_t data_len;
 
-  if (!CipherDecrypt(tmpbuf, tmpbuflen, data, data_len, key))
+  if (!CipherDecrypt(tmpbuf, tmpbuflen, data, data_len, key, true))
   {
-    free(tmpbuf);
-    return false;
+    // test with an older decoding version
+    if (Base64DecodeBroken(in, tmpbuf, tmpbuflen))
+    {
+      // might be an old encoder
+    }
+    else
+    {
+      free(tmpbuf);
+      return false;
+    }
+    if (!CipherDecrypt(tmpbuf, tmpbuflen, data, data_len, key))
+    {
+      free(tmpbuf);
+      return false;
+    }
   }
 
   out = data;
