@@ -2408,7 +2408,7 @@ XrdFstOfsFile::close ()
 		      // Client has disconnected and file is cleaned-up
 		      gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
 				"cleaned because of a client disconnect", Path.c_str());
-		      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s "
+		      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s "
 			       "reason=\"client disconnect\"", capOpaque->Get("mgm.path"),
 			       fstPath.c_str());
 		    }
