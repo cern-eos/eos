@@ -83,6 +83,7 @@ const map<string,int> GeoTreeEngine::gNotifKey2EnumSched =
 {
   make_pair("id",sfgId),
   make_pair("host",sfgHost),
+  make_pair("forcegeotag",sfgGeotag),
   make_pair("stat.geotag",sfgGeotag),
   make_pair("stat.boot",sfgBoot),
   make_pair("stat.active",sfgActive),

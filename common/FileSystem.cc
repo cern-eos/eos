@@ -606,7 +606,13 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 
     fs.mPath = mPath;
     fs.mErrMsg = mHash->Get("stat.errmsg");
-    fs.mGeoTag = mHash->Get("stat.geotag");
+    fs.mGeoTag.clear();
+    if (mHash->Get("forcegeotag").size())
+      fs.mGeoTag = mHash->Get("forcegeotag");
+    if(fs.mGeoTag=="<none>")
+      fs.mGeoTag.clear();
+    if(fs.mGeoTag.empty())
+      fs.mGeoTag = mHash->Get("stat.geotag");
     fs.mPublishTimestamp = (size_t)mHash->GetLongLong("stat.publishtimestamp");
     fs.mStatus = GetStatusFromString(mHash->Get("stat.boot").c_str());
     fs.mConfigStatus = GetConfigStatusFromString(

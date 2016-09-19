@@ -930,6 +930,15 @@ com_fs_usage:
   fprintf(stdout, "                                                  grace period before a filesystem with an operation error get's automatically drained\n");
   fprintf(stdout, "fs config <fsid> drainperiod=<seconds> : \n");
   fprintf(stdout, "                                                  drain period a drain job is waiting to finish the drain procedure\n");
+  fprintf(stdout, "fs config <fsid> proxygroup=<seconds> : \n");
+  fprintf(stdout, "                                                  schedule a proxy for this fs by taking it from the given proxygroup\n");
+  fprintf(stdout, "                                                  the special value \"<none>\" is the same as no value and means no proxy scheduling\n");
+  fprintf(stdout, "fs config <fsid> filestickyproxydepth=<seconds> : \n");
+  fprintf(stdout, "                                                  depth of the subtree to be considered for file-stickyness\n");
+  fprintf(stdout, "                                                  a negative value means no file-stickiness\n");
+  fprintf(stdout, "fs config <fsid> forcegeotag=<seconds> : \n");
+  fprintf(stdout, "                                                  set the filsystem's geotag, overriding the host geotag value\n");
+  fprintf(stdout, "                                                  the special value \"<none>\" is the same as no value and means no override\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "fs rm    <fs-id>|<node-queue>|<mount-point>|<hostname> <mountpoint> :\n");
   fprintf(stdout, "                                                  remove filesystem configuration by various identifiers\n");

@@ -246,7 +246,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             eos::common::FileSystem::kUnknown)) ||
           (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") ||
             (key == "drainperiod") || (key == "proxygroup") ||
-            (key == "filestickyproxydepth")))) {
+            (key == "filestickyproxydepth") || (key == "forcegeotag") ))) {
         std::string nodename = fs->GetString("host");
         size_t dpos = 0;
 
