@@ -229,6 +229,11 @@ IConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
     return 0;
   }
 
+  if (skey.beginswith("comment")) {
+    //ignore
+    return 0;
+  }
+
   *err += "error: don't know what to do with this configuration line: ";
   *err += sdef.c_str();
   *err += "\n";
