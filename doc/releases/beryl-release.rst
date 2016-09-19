@@ -7,14 +7,17 @@
 Beryl Release Notes
 ===================
 
-``V0.3.299 Aquamarine``
+``V0.3.200 Aquamarine``
 +++++++++++++++++++++++
 
 Bug Fix
 =======
 
 - FUSE: fix out of lock scope iterator used in error message
+- FUSE: give no validity to attributes coming as fuse-replies to a create call (since uid/gid can be different on MGM side from uid/gid of the caller)
 - FST: prevent deleteOnClose when clients retried an open e.g. open | open | write| close (the XRootD client might replay an open with a new connection and this can lead to file loss)
+- FST: switch filesystems to RO when /var parition is 90% full
+- FST: make deleteOnClose a warning on client disconnect
 
 ``V0.3.199 Aquamarine``
 +++++++++++++++++++++++
