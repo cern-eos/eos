@@ -385,6 +385,7 @@ EosFuse::getattr (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 
  if (!retc)
  {
+   eos_static_notice("attr-reply %lld %u %u %ld.%ld %ld.%ld",  (long long) stbuf.st_ino, stbuf.st_uid, stbuf.st_gid, (long) stbuf.ATIMESPEC.tv_sec, (long) stbuf.ATIMESPEC.tv_nsec, (long) stbuf.MTIMESPEC.tv_sec, (long) stbuf.MTIMESPEC.tv_nsec);
    fuse_reply_attr (req, &stbuf, me.config.attrcachetime);
    eos_static_debug("mode=%x timeout=%.02f\n", stbuf.st_mode, me.config.attrcachetime);
  }
@@ -504,6 +505,7 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
      
    if (!retc)
    {
+     eos_static_notice("attr-reply %lld %u %u %ld.%ld %ld.%ld",  (long long) newattr.st_ino, newattr.st_uid, newattr.st_gid, (long) newattr.ATIMESPEC.tv_sec, (long) newattr.ATIMESPEC.tv_nsec, (long) newattr.MTIMESPEC.tv_sec, (long) newattr.MTIMESPEC.tv_nsec);
      fuse_reply_attr (req, &newattr, me.config.attrcachetime);
      eos_static_debug("mode=%x timeout=%.02f\n", newattr.st_mode, me.config.attrcachetime);
    }
@@ -602,6 +604,7 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
      e.ino = e.attr.st_ino;
      me.fs ().store_p2i (e.attr.st_ino, ifullpath);
 
+     eos_static_notice("attr-reply %lld %u %u %ld.%ld %ld.%ld",  (long long) e.attr.st_ino, e.attr.st_uid, e.attr.st_gid, (long) e.attr.ATIMESPEC.tv_sec, (long) e.attr.ATIMESPEC.tv_nsec, (long) e.attr.MTIMESPEC.tv_sec, (long) e.attr.MTIMESPEC.tv_nsec);
      fuse_reply_entry (req, &e);
      eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
 
@@ -1526,7 +1529,8 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
    // Update the entry parameters
    struct fuse_entry_param e;
    memset (&e, 0, sizeof ( e));
-   e.attr_timeout = me.config.attrcachetime;
+   //   e.attr_timeout = me.config.attrcachetime;
+   e.attr_timeout = 0 ;
    e.entry_timeout = me.config.entrycachetime;
    e.ino = rinode;
    e.attr.st_mode = S_IFREG | mode | me.fs().get_mode_overlay();
