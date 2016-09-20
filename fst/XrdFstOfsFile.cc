@@ -1470,12 +1470,13 @@ XrdFstOfsFile::verifychecksum()
 
         if (checkSum->ScanFile(cb, scansize, scantime)) {
           XrdOucString sizestring;
-          eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x",
+          eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %s",
                    eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"),
                    scantime,
                    1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
-                   checkSum->GetHexChecksum());
-        } else {
+                   checkSum->GetHexChecksum()
+		   );
+	} else {
           eos_err("Rescanning of checksum failed");
         }
       } else {
