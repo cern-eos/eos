@@ -24,22 +24,29 @@
 #ifdef REDOX_FOUND
 
 #include "mgm/RedisConfigEngine.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mq/XrdMqSharedObject.hh"
+#include "common/GlobalConfig.hh"
+#include "redox/redoxSet.hpp"
 
 EOSMGMNAMESPACE_BEGIN
 
-RedisConfigEngineChangeLog::RedisConfigEngineChangeLog() {}
+//------------------------------------------------------------------------------
+//                   **** RedisCfgEngineChangelog class ****
+//------------------------------------------------------------------------------
 
-RedisConfigEngineChangeLog::~RedisConfigEngineChangeLog() {}
-
-bool RedisConfigEngineChangeLog::AddEntry(const char* info)
+//------------------------------------------------------------------------------
+// Add entry to the changelog
+//------------------------------------------------------------------------------
+bool RedisCfgEngineChangelog::AddEntry(const char* info)
 {
-  Mutex.Lock();
+  mMutex.Lock();
   std::string key, value, action;
 
   if (!ParseTextEntry(info, key, value, action)) {
     eos_warning("failed to parse new entry %s. this entry will be ignored.",
                 info);
-    Mutex.UnLock();
+    mMutex.UnLock();
     return false;
   }
 
@@ -58,17 +65,20 @@ bool RedisConfigEngineChangeLog::AddEntry(const char* info)
     changeLogValue += value.c_str();
   }
 
-  changeLogHash.hset(timestamp, changeLogValue.c_str());
-  Mutex.UnLock();
-  configChanges += info;
-  configChanges += "\n";
+  mChLogHash.hset(timestamp, changeLogValue.c_str());
+  mMutex.UnLock();
+  mConfigChanges += info;
+  mConfigChanges += "\n";
   return true;
 }
 
-bool RedisConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString& tail)
+//------------------------------------------------------------------------------
+// Get tail of the changelog
+//------------------------------------------------------------------------------
+bool RedisCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 {
   //get keys and sort
-  std::vector<std::string> changeLogKeys = changeLogHash.hkeys();
+  std::vector<std::string> changeLogKeys = mChLogHash.hkeys();
 
   if (changeLogKeys.size() > 0) {
     //sorting
@@ -87,7 +97,7 @@ bool RedisConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString& tail)
       stime.erase(stime.length() - 1);
       tail += stime.c_str();
       tail += ": ";
-      tail += changeLogHash.hget(*it).c_str();
+      tail += mChLogHash.hget(*it).c_str();
       tail += "\n";
     }
   } else {
@@ -113,8 +123,7 @@ RedisConfigEngine::RedisConfigEngine(const char* configdir,
   redisHost = redisHost;
   redisPort = redisPort;
   client.connect(redisHost, redisPort);
-  changeLog.configChanges = "";
-  changeLog.changeLogHash = redox::RedoxHash(client, changeLog.changeLogHashKey);
+  changeLog.mChLogHash = redox::RedoxHash(client, changeLog.mChLogHashKey);
   autosave = false;
   configBroadcast = true;
 }
@@ -166,7 +175,7 @@ RedisConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     currentConfigFile = name;
     cl += " successfully";
     changeLog.AddEntry(cl.c_str());
-    changeLog.configChanges = "";
+    changeLog.ClearChanges();
     return true;
   }
 
@@ -305,7 +314,7 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   cl += comment;
   cl += " ]";
   changeLog.AddEntry(cl.c_str());
-  changeLog.configChanges = "";
+  changeLog.ClearChanges();
   currentConfigFile = name;
   return true;
 }
@@ -787,7 +796,7 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
       cl += " successfully";
       changeLog.AddEntry(cl.c_str());
       currentConfigFile = name;
-      changeLog.configChanges = "";
+      changeLog.ClearChanges();
       return true;
     }
   } else {

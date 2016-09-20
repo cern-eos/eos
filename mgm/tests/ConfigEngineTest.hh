@@ -33,17 +33,18 @@
 #include "mgm/FileConfigEngine.hh"
 #include "mgm/RedisConfigEngine.hh"
 
-class ConfigEngineTest: public CppUnit::TestCase {
+class ConfigEngineTest: public CppUnit::TestCase
+{
 
 private:
-  IConfigEngine * engine;
+  eos::mgm::IConfigEngine* engine;
 
 public:
   void setUp();
   void tearDown();
 
   CPPUNIT_TEST_SUITE(ConfigEngineTest);
-  CPPUNIT_TEST( ListConfigsTest );
+  CPPUNIT_TEST(ListConfigsTest);
   //CPPUNIT_TEST( LoadConfigTest );
   //CPPUNIT_TEST( SaveConfigsTest );
   //CPPUNIT_TEST( DumpConfigsTest );

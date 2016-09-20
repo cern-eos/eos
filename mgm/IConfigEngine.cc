@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: IConfigEngine.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,70 +21,176 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
+#include "mgm/IConfigEngine.hh"
 #include "common/Mapping.hh"
 #include "mgm/Access.hh"
-#include "mgm/IConfigEngine.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Vid.hh"
 #include "mgm/txengine/TransferEngine.hh"
-#include "mq/XrdMqMessage.hh"
-/*----------------------------------------------------------------------------*/
-#include <iostream>
-#include <fstream>
 #include <sstream>
-#include <cstdio>
-#include <sys/stat.h>
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 XrdOucHash<XrdOucString> IConfigEngine::configDefinitions;
 
-/*----------------------------------------------------------------------------*/
-int
-IConfigEngine::DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Delete configuration keys by match
- */
-/*----------------------------------------------------------------------------*/
-{
-  XrdOucString* matchstring = (XrdOucString*) Arg;
-  XrdOucString skey = key;
+//------------------------------------------------------------------------------
+//                       **** ICfgEngineChangelog ****
+//------------------------------------------------------------------------------
 
-  if (skey.beginswith(matchstring->c_str())) {
-    return -1;
+//------------------------------------------------------------------------------
+// Parse a text line into key value pairs
+//------------------------------------------------------------------------------
+bool
+ICfgEngineChangelog::ParseTextEntry(const char* entry, std::string& key,
+                                    std::string& value, std::string& action)
+
+{
+  std::stringstream ss(entry);
+  std::string tmp;
+  ss >> action;
+  ss >> tmp;
+  (action += " ") += tmp; // the action is put inside the comment
+  key = value = "";
+
+  if (action.compare("reset config") == 0) {
+    // nothing specific
+  } else if (action.compare("del config") == 0) {
+    ss >> key;
+
+    if (key.empty()) {
+      return false;
+    }
+  } else if (action.compare("set config") == 0) {
+    ss >> key;
+    ss >> tmp; // should be "=>"
+    getline(ss, value);
+
+    if (key.empty() || value.empty()) {
+      return false;
+    }
+  } else if (action.compare("loaded config") == 0) {
+    ss >> key;
+    getline(ss, value);
+
+    if (key.empty() || value.empty()) {
+      return false;
+    }
+  } else if (action.size() >= 12) {
+    if (action.substr(0, 12).compare("saved config") == 0) {
+      // Take into account the missing space after config when writing the old
+      // configchangelog file format.
+      std::string k;
+
+      if (action.size() > 12) {
+        // If the space is missing e.g:configNAME, the name is put in this
+        // string and space is appended.
+        k = action.substr(12);
+      }
+
+      if (k.size()) {
+        k += " ";
+      }
+
+      ss >> key;
+      k += key;
+      key = k;
+      getline(ss, value);
+      // Take into account the missing space after config when writing the old
+      // configchangelog file format
+      action = action.substr(0, 12);
+
+      if (key.empty() || value.empty()) {
+        return false;
+      }
+    } else if (action.substr(0, 15).compare("exported config") == 0) {
+      std::string k;
+
+      if (action.size() > 15) {
+        k = action.substr(15);
+      }
+
+      if (k.size()) {
+        k += " ";
+      }
+
+      ss >> key;
+      k += key;
+      key = k;
+      getline(ss, value);
+      action = action.substr(0, 15);
+
+      if (key.empty() || value.empty()) {
+        return false;  // error, should not happen
+      }
+    }
+  } else if (action.compare("autosaved  config") == 0 ||
+             action.compare("autosaved config") == 0) {
+    // Notice the double space coming from the writing procedure
+    ss >> key;
+    getline(ss, value);
+
+    if (key.empty() || value.empty()) {
+      return false;  // error, should not happen
+    }
+  } else {
+    return false;
   }
 
-  return 0;
+  return true;
 }
 
-/*----------------------------------------------------------------------------*/
-int
-IConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Callback function of XrdOucHash to apply a key to the corresponding
- * @brief configuration object
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get latest changes
+//------------------------------------------------------------------------------
+XrdOucString
+ICfgEngineChangelog::GetChanges() const
 {
-  XrdOucString* err = (XrdOucString*) Arg;
+  return mConfigChanges;
+}
 
-  if (!key || !def) {
+//------------------------------------------------------------------------------
+// Empty changelog
+//------------------------------------------------------------------------------
+bool
+ICfgEngineChangelog::HasChanges() const
+{
+  return (mConfigChanges.length() != 0);
+}
+
+//------------------------------------------------------------------------------
+// Clean configuration changes
+//------------------------------------------------------------------------------
+void
+ICfgEngineChangelog::ClearChanges()
+{
+  mConfigChanges = "";
+}
+
+
+//------------------------------------------------------------------------------
+//                          **** IConfigEngine ****
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// XrdOucHash callback function to apply a configuration value
+//------------------------------------------------------------------------------
+int
+IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
+{
+  XrdOucString* err = (XrdOucString*) arg;
+
+  if (!key || !val) {
     return 0;
   }
 
-  XrdOucString toenv = def->c_str();
+  XrdOucString toenv = val->c_str();
 
-  while (toenv.replace(" ", "&")) {
-  }
+  while (toenv.replace(" ", "&")) {}
 
   XrdOucEnv envdev(toenv.c_str());
-  std::string sdef = def->c_str();
-  eos_static_debug("key=%s def=%s", key, def->c_str());
+  std::string sdef = val->c_str();
+  eos_static_debug("key=%s val=%s", key, val->c_str());
   XrdOucString skey = key;
 
   if (skey.beginswith("fs:")) {
@@ -95,7 +201,7 @@ IConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
       *err += "error: unable to apply config ";
       *err += key;
       *err += " => ";
-      *err += def->c_str();
+      *err += val->c_str();
       *err += "\n";
     }
 
@@ -109,7 +215,7 @@ IConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
       *err += "error: unable to apply config ";
       *err += key;
       *err += " => ";
-      *err += def->c_str();
+      *err += val->c_str();
       *err += "\n";
     }
 
@@ -125,7 +231,7 @@ IConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
       *err += "error: unable to apply config ";
       *err += key;
       *err += " => ";
-      *err += def->c_str();
+      *err += val->c_str();
       *err += "\n";
     }
 
@@ -167,7 +273,7 @@ IConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
     ug.assign(skey, ugoffset + 1, ugequaloffset - 1);
     ugid.assign(skey, ugequaloffset + 1, tagoffset - 1);
     tag.assign(skey, tagoffset + 1);
-    unsigned long long value = strtoll(def->c_str(), 0, 10);
+    unsigned long long value = strtoll(val->c_str(), 0, 10);
     long id = strtol(ugid.c_str(), 0, 10);
 
     if (id > 0 || (ugid == "0")) {
@@ -205,7 +311,7 @@ IConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
     // set a virutal Identity
     if (!Vid::Set(envdev.Env(envlen), false)) {
       eos_static_err("cannot apply config line key: |%s| => |%s|", skey.c_str(),
-                     def->c_str());
+                     val->c_str());
       *err += "error: cannot apply config line key: ";
       *err += skey.c_str();
       *err += "\n";
@@ -219,7 +325,7 @@ IConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
 
     if (!gGeoTreeEngine.setParameter(skey.c_str(), sdef.c_str(), -2)) {
       eos_static_err("cannot apply config line key: |geosched:%s| => |%s|",
-                     skey.c_str(), def->c_str());
+                     skey.c_str(), val->c_str());
       *err += "error: cannot apply config line key: ";
       *err += "geosched:";
       *err += skey.c_str();
@@ -240,21 +346,18 @@ IConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// XrdOucHash callback function to print a configuration value
+//------------------------------------------------------------------------------
 int
-IConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Callback function of XrdOucHash to print individual configuration keys
- */
-/*----------------------------------------------------------------------------*/
+IConfigEngine::PrintEachConfig(const char* key, XrdOucString* val, void* arg)
 {
-  if (Arg == NULL) {
-    eos_static_info("%s => %s", key, def->c_str());
+  if (arg == NULL) {
+    eos_static_info("%s => %s", key, val->c_str());
   } else {
-    eos_static_debug("%s => %s", key, def->c_str());
-    XrdOucString* outstring = ((struct PrintInfo*) Arg)->out;
-    XrdOucString option = ((struct PrintInfo*) Arg)->option;
+    eos_static_debug("%s => %s", key, val->c_str());
+    XrdOucString* outstring = ((struct PrintInfo*) arg)->out;
+    XrdOucString option = ((struct PrintInfo*) arg)->option;
     XrdOucString skey = key;
     bool filter = false;
 
@@ -310,7 +413,7 @@ IConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
       (
         *outstring) += key;
       (*outstring) += " => ";
-      (*outstring) += def->c_str();
+      (*outstring) += val->c_str();
       (*outstring) += "\n";
     }
   }
@@ -318,23 +421,33 @@ IConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// XrddOucHash callback function to delete a configuration value by match
+//------------------------------------------------------------------------------
+int
+IConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* val,
+                                   void* Arg)
+
+{
+  XrdOucString* matchstring = (XrdOucString*) Arg;
+  XrdOucString skey = key;
+
+  if (skey.beginswith(matchstring->c_str())) {
+    return -1;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Apply a given configuration defition
+//------------------------------------------------------------------------------
 bool
-IConfigEngine::ApplyConfig (XrdOucString &err)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Apply a given configuration defition
- *
- * Apply means the configuration engine informs the corresponding objects
- * about the new values.
- */
-/*----------------------------------------------------------------------------*/
+IConfigEngine::ApplyConfig(XrdOucString& err)
 {
   err = "";
-
   // Cleanup quota map
   (void) Quota::CleanUp();
-
   eos::common::Mapping::gMapMutex.LockWrite();
   eos::common::Mapping::gUserRoleVector.clear();
   eos::common::Mapping::gGroupRoleVector.clear();
@@ -342,38 +455,31 @@ IConfigEngine::ApplyConfig (XrdOucString &err)
   eos::common::Mapping::gVirtualGidMap.clear();
   eos::common::Mapping::gMapMutex.UnLockWrite();
   eos::common::Mapping::gAllowedTidentMatches.clear();
-
   Access::Reset();
-
   Mutex.Lock();
   XrdOucHash<XrdOucString> configDefinitionsCopy;
-
   // disable the defaults in FsSpace
   FsSpace::gDisableDefaults = true;
-
   configDefinitions.Apply(ApplyEachConfig, &err);
-
   // enable the defaults in FsSpace
   FsSpace::gDisableDefaults = false;
   Mutex.UnLock();
   Access::ApplyAccessConfig();
-
   gOFS->FsCheck.ApplyFsckConfig();
   gOFS->IoStats.ApplyIostatConfig();
-
   gTransferEngine.ApplyTransferEngineConfig();
 
-  if (err.length())
-  {
+  if (err.length()) {
     errno = EINVAL;
     return false;
   }
+
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-IConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
+IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
 /*----------------------------------------------------------------------------*/
 /**
  *  * @brief Parse a given configuration
@@ -383,24 +489,20 @@ IConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
   err = "";
   Mutex.Lock();
   configDefinitions.Purge();
-
   std::istringstream streamconfig(inconfig.c_str());
-
   int linenumber = 0;
   std::string s;
 
-  while ((getline(streamconfig, s, '\n')))
-  {
+  while ((getline(streamconfig, s, '\n'))) {
     linenumber++;
 
-    if (s.length())
-    {
+    if (s.length()) {
       XrdOucString key = s.c_str();
       XrdOucString value;
       int seppos;
       seppos = key.find(" => ");
-      if (seppos == STR_NPOS)
-      {
+
+      if (seppos == STR_NPOS) {
         Mutex.UnLock();
         err = "parsing error in configuration file line ";
         err += (int) linenumber;
@@ -409,9 +511,9 @@ IConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
         errno = EINVAL;
         return false;
       }
+
       value.assign(key, seppos + 4);
       key.erase(seppos);
-
       eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
       configDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
     }
@@ -433,10 +535,8 @@ IConfigEngine::ResetConfig()
 {
   XrdOucString cl = "reset  config ";
   currentConfigFile = "";
-
   // Cleanup the quota map
   (void) Quota::CleanUp();
-
   eos::common::Mapping::gMapMutex.LockWrite();
   eos::common::Mapping::gUserRoleVector.clear();
   eos::common::Mapping::gGroupRoleVector.clear();
@@ -444,24 +544,20 @@ IConfigEngine::ResetConfig()
   eos::common::Mapping::gVirtualGidMap.clear();
   eos::common::Mapping::gMapMutex.UnLockWrite();
   eos::common::Mapping::gAllowedTidentMatches.clear();
-
   Access::Reset();
-
   gOFS->ResetPathMap();
-
   FsView::gFsView.Reset();
   eos::common::GlobalConfig::gConfig.Reset();
   Mutex.Lock();
   configDefinitions.Purge();
   Mutex.UnLock();
-
   // load all the quota nodes from the namespace
   Quota::LoadNodes();
 }
 
 /*----------------------------------------------------------------------------*/
 void
-IConfigEngine::DeleteConfigValueByMatch (const char* prefix,
+IConfigEngine::DeleteConfigValueByMatch(const char* prefix,
                                         const char* match)
 /*----------------------------------------------------------------------------*/
 /**
@@ -481,7 +577,7 @@ IConfigEngine::DeleteConfigValueByMatch (const char* prefix,
 
 /*----------------------------------------------------------------------------*/
 int
-IConfigEngine::ApplyKeyDeletion (const char* key)
+IConfigEngine::ApplyKeyDeletion(const char* key)
 /*----------------------------------------------------------------------------*/
 /**
  *  @brief Deletion of a configuration key to the responsible object
@@ -489,28 +585,23 @@ IConfigEngine::ApplyKeyDeletion (const char* key)
 /*----------------------------------------------------------------------------*/
 {
   XrdOucString skey = key;
-
   eos_static_info("key=%s ", skey.c_str());
 
-  if (skey.beginswith("global:"))
-  {
+  if (skey.beginswith("global:")) {
     //
     return 0;
   }
 
-  if (skey.beginswith("map:"))
-  {
+  if (skey.beginswith("map:")) {
     skey.erase(0, 4);
     eos::common::RWMutexWriteLock lock(gOFS->PathMapMutex);
 
-    if (gOFS->PathMap.count(skey.c_str()))
-    {
+    if (gOFS->PathMap.count(skey.c_str())) {
       gOFS->PathMap.erase(skey.c_str());
     }
   }
 
-  if (skey.beginswith("quota:"))
-  {
+  if (skey.beginswith("quota:")) {
     // set a quota definition
     skey.erase(0, 6);
     int spaceoffset = 0;
@@ -523,8 +614,7 @@ IConfigEngine::ApplyKeyDeletion (const char* key)
 
     if ((ugoffset == STR_NPOS) ||
         (ugequaloffset == STR_NPOS) ||
-        (tagoffset == STR_NPOS))
-    {
+        (tagoffset == STR_NPOS)) {
       return 0;
     }
 
@@ -538,24 +628,22 @@ IConfigEngine::ApplyKeyDeletion (const char* key)
     tag.assign(skey, tagoffset + 1);
     long id = strtol(ugid.c_str(), 0, 10);
 
-    if (id > 0 || (ugid == "0"))
-    {
-      if (!Quota::RmQuotaForTag(space.c_str(), tag.c_str(), id))
+    if (id > 0 || (ugid == "0")) {
+      if (!Quota::RmQuotaForTag(space.c_str(), tag.c_str(), id)) {
         eos_static_err("failed to remove quota %s for id=%ll", tag.c_str(), id);
+      }
     }
 
     return 0;
   }
 
-  if (skey.beginswith("policy:"))
-  {
+  if (skey.beginswith("policy:")) {
     // set a policy
     skey.erase(0, 7);
     return 0;
   }
 
-  if (skey.beginswith("vid:"))
-  {
+  if (skey.beginswith("vid:")) {
     XrdOucString vidstr = "mgm.vid.key=";
     XrdOucString stdOut;
     XrdOucString stdErr;
@@ -567,26 +655,23 @@ IConfigEngine::ApplyKeyDeletion (const char* key)
     return 0;
   }
 
-  if (skey.beginswith("fs:"))
-  {
+  if (skey.beginswith("fs:")) {
     XrdOucString stdOut;
     XrdOucString stdErr;
     std::string tident;
     std::string id;
     eos::common::Mapping::VirtualIdentity rootvid;
     eos::common::Mapping::Root(rootvid);
-
-    skey.erase(0,3);
-    int spos1 = skey.find("/",1);
-    int spos2 = skey.find("/",spos1+1);
-    int spos3 = skey.find("/",spos2+1);
+    skey.erase(0, 3);
+    int spos1 = skey.find("/", 1);
+    int spos2 = skey.find("/", spos1 + 1);
+    int spos3 = skey.find("/", spos2 + 1);
     std::string nodename = skey.c_str();
     std::string mountpoint = skey.c_str();
     nodename.erase(spos3);
-    mountpoint.erase(0,spos3);
-
+    mountpoint.erase(0, spos3);
     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-    proc_fs_rm (nodename, mountpoint, id, stdOut, stdErr, tident, rootvid);
+    proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, rootvid);
   }
 
   return 0;
@@ -594,7 +679,7 @@ IConfigEngine::ApplyKeyDeletion (const char* key)
 
 /*----------------------------------------------------------------------------*/
 bool
-IConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
+IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
 /*----------------------------------------------------------------------------*/
 /**
  *  * @brief Dump function for selective configuration printing
@@ -602,70 +687,64 @@ IConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
 /*----------------------------------------------------------------------------*/
 {
   struct PrintInfo pinfo;
-
   const char* name = filter.Get("mgm.config.file");
-
   pinfo.out = &out;
   pinfo.option = "vfqcgms";
 
   if (
-      filter.Get("mgm.config.vid") ||
-      filter.Get("mgm.config.fs") ||
-      filter.Get("mgm.config.quota") ||
-      filter.Get("mgm.config.comment") ||
-      filter.Get("mgm.config.policy") ||
-      filter.Get("mgm.config.global") ||
-      filter.Get("mgm.config.map") ||
-      filter.Get("mgm.config.geosched")
-  )
-  {
+    filter.Get("mgm.config.vid") ||
+    filter.Get("mgm.config.fs") ||
+    filter.Get("mgm.config.quota") ||
+    filter.Get("mgm.config.comment") ||
+    filter.Get("mgm.config.policy") ||
+    filter.Get("mgm.config.global") ||
+    filter.Get("mgm.config.map") ||
+    filter.Get("mgm.config.geosched")
+  ) {
     pinfo.option = "";
   }
 
-  if (filter.Get("mgm.config.vid"))
-  {
+  if (filter.Get("mgm.config.vid")) {
     pinfo.option += "v";
   }
-  if (filter.Get("mgm.config.fs"))
-  {
+
+  if (filter.Get("mgm.config.fs")) {
     pinfo.option += "f";
   }
-  if (filter.Get("mgm.config.policy"))
-  {
+
+  if (filter.Get("mgm.config.policy")) {
     pinfo.option += "p";
   }
-  if (filter.Get("mgm.config.quota"))
-  {
+
+  if (filter.Get("mgm.config.quota")) {
     pinfo.option += "q";
   }
-  if (filter.Get("mgm.config.comment"))
-  {
+
+  if (filter.Get("mgm.config.comment")) {
     pinfo.option += "c";
   }
-  if (filter.Get("mgm.config.global"))
-  {
+
+  if (filter.Get("mgm.config.global")) {
     pinfo.option += "g";
   }
-  if (filter.Get("mgm.config.map"))
-  {
+
+  if (filter.Get("mgm.config.map")) {
     pinfo.option += "m";
   }
-  if (filter.Get("mgm.config.geosched"))
-  {
+
+  if (filter.Get("mgm.config.geosched")) {
     pinfo.option += "s";
   }
 
-  if (name == 0)
-  {
+  if (name == 0) {
     configDefinitions.Apply(PrintEachConfig, &pinfo);
-    while (out.replace("&", " "))
-    {
+
+    while (out.replace("&", " ")) {
     }
+  } else {
+    FilterConfig(pinfo, out, name);
   }
-  else 
-  {	
-    FilterConfig(pinfo,out,name);
-  }
+
   return true;
 }
 

@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: FileConfigEngine.hh
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -25,148 +25,169 @@
 #define __EOSMGM_FILECONFIGENGINE__HH__
 
 #include "mgm/IConfigEngine.hh"
-/*----------------------------------------------------------------------------*/
-#include "common/Mapping.hh"
-#include "mgm/Access.hh"
-#include "mgm/FsView.hh"
-#include "mgm/Quota.hh"
-#include "mgm/Vid.hh"
-#include "mgm/txengine/TransferEngine.hh"
-#include "mq/XrdMqMessage.hh"
-/*----------------------------------------------------------------------------*/
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <cstdio>
+#include "common/DbMap.hh"
+#include <sys/types.h>
 #include <sys/stat.h>
-/*----------------------------------------------------------------------------*/
+#include <unistd.h>
 
 EOSMGMNAMESPACE_BEGIN
 
-#define EOSMGMCONFIGENGINE_EOS_SUFFIX ".eoscf"
+//------------------------------------------------------------------------------
+//! Class FileCfgEngineChangeLog
+//------------------------------------------------------------------------------
+class FileCfgEngineChangelog : public ICfgEngineChangelog
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FileCfgEngineChangelog() {};
 
-//-------------------------------------------------------------------------------
-// FileConfigEngine class
-//-------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~FileCfgEngineChangelog() {};
+
+  //----------------------------------------------------------------------------
+  //! Initialization
+  //!
+  //! @param chlog_file path to changelog file
+  //----------------------------------------------------------------------------
+  void Init(const char* chlog_file);
+
+  //----------------------------------------------------------------------------
+  //! Add entry to the changelog
+  //!
+  //! @param info entry info
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool AddEntry(const char* info);
+
+  //----------------------------------------------------------------------------
+  //! Get tail of the changelog
+  //!
+  //! @param nlines number of lines to return
+  //! @param tail string to hold the response
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool Tail(unsigned int nlines, XrdOucString& tail);
+
+private:
+  XrdSysMutex mMutex; ///< Mutex protecting the acces to the map
+  eos::common::DbMap mMap; ///< Map
+  std::string mChLogFile; ///< Path to changelog file
+};
+
+
+//------------------------------------------------------------------------------
+//! Class FileConfigEngine
+//------------------------------------------------------------------------------
 class FileConfigEngine : public IConfigEngine
 {
-  private:
-  // ---------------------------------------------------------------------------
-  // Filter a configuration
-  // ---------------------------------------------------------------------------
-  void FilterConfig (PrintInfo &info, XrdOucString &out,const char * configName);
-
-  //Changelog class
-  ConfigEngineChangeLog changeLog;
-
-  public:
-  // ---------------------------------------------------------------------------
-  // Constructor
-  // ---------------------------------------------------------------------------
-  FileConfigEngine (const char* configdir);
-
-  ~FileConfigEngine();
-
-  static XrdOucHash<XrdOucString> configDefinitionsFile; ///< config definitions of the last loaded file
-
-  // ---------------------------------------------------------------------------
-  // Load a configuration
-  // ---------------------------------------------------------------------------
-  bool LoadConfig (XrdOucEnv& env, XrdOucString &err);
-
-  // ---------------------------------------------------------------------------
-  // Save a configuration
-  // ---------------------------------------------------------------------------
-  bool SaveConfig (XrdOucEnv& env, XrdOucString &err);
-
-  // ---------------------------------------------------------------------------
-  // List all configurations
-  // ---------------------------------------------------------------------------
-  bool ListConfigs (XrdOucString &configlist, bool showbackups = false);
-
-  // ---------------------------------------------------------------------------
-  //! Get the changlog object
-  // ---------------------------------------------------------------------------
-  //
-  ConfigEngineChangeLog*  GetChangeLog () {return &changeLog;}
-
-  void  Diffs (XrdOucString &diffs)
-  {
-    diffs = changeLog.configChanges;
-    while (diffs.replace ("&", " "))
-    {
-    }
-  };
-
-
-  void
-  SetConfigDir (const char* configdir)
-  {
-    configDir = configdir;
-    changeLog.configChanges = "";
-    currentConfigFile = "default";
-  }
-
-  // ---------------------------------------------------------------------------
+public:
+  //----------------------------------------------------------------------------
   //! Comparison function for sorted listing
-  // ---------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   static int
-  CompareCtime (const void* a, const void*b)
+  CompareCtime(const void* a, const void* b)
   {
-
-    struct filestat
-    {
+    struct filestat {
       struct stat buf;
       char filename[1024];
     };
-    return ( (((struct filestat*) a)->buf.st_mtime) - ((struct filestat*) b)->buf.st_mtime);
+    return ((((struct filestat*) a)->buf.st_mtime) - ((struct filestat*)
+            b)->buf.st_mtime);
   }
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FileConfigEngine(const char* configdir);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~FileConfigEngine();
+
+  //----------------------------------------------------------------------------
+  //! Load a configuration
+  //----------------------------------------------------------------------------
+  bool LoadConfig(XrdOucEnv& env, XrdOucString& err);
+
+  //----------------------------------------------------------------------------
+  //! Save a configuration
+  //----------------------------------------------------------------------------
+  bool SaveConfig(XrdOucEnv& env, XrdOucString& err);
+
+  //----------------------------------------------------------------------------
+  //! List all configurations
+  //----------------------------------------------------------------------------
+  bool ListConfigs(XrdOucString& configlist, bool showbackups = false);
+
+  //----------------------------------------------------------------------------
+  //! Get the changlog object
+  //----------------------------------------------------------------------------
+  ICfgEngineChangelog* GetChangeLog();
+
+  //---------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  void  Diffs(XrdOucString& diffs);
+
+  //----------------------------------------------------------------------------
+  //! Set configuration directory
+  //!
+  //! @param configdir configuration directory
+  //----------------------------------------------------------------------------
+  void SetConfigDir(const char* configdir);
+
+  //----------------------------------------------------------------------------
   //! Print the current configuration
-  // ---------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   void
-  PrintConfig ()
+  PrintConfig()
   {
-    Mutex.Lock ();
-    configDefinitions.Apply (PrintEachConfig, NULL);
-    Mutex.UnLock ();
+    Mutex.Lock();
+    configDefinitions.Apply(PrintEachConfig, NULL);
+    Mutex.UnLock();
   }
 
+  //----------------------------------------------------------------------------
+  //! Do an autosave
+  //----------------------------------------------------------------------------
+  bool AutoSave();
 
-  // ---------------------------------------------------------------------------
-  // Do an autosave
-  // ---------------------------------------------------------------------------
-  bool
-    AutoSave ();
-  // ---------------------------------------------------------------------------
-  // Set a configuration value
-  // ---------------------------------------------------------------------------
-  void
-    SetConfigValue (const char* prefix,
-                   const char* fsname,
-                   const char* def,
-                   bool tochangelog = true);
-
-  // ---------------------------------------------------------------------------
-  // Delete a configuration value
-  // ---------------------------------------------------------------------------
-   void
-    DeleteConfigValue (const char* prefix,
-                      const char* fsname,
+  //----------------------------------------------------------------------------
+  //! Set a configuration value
+  //----------------------------------------------------------------------------
+  void SetConfigValue(const char* prefix, const char* fsname,  const char* def,
                       bool tochangelog = true);
 
-  // ---------------------------------------------------------------------------
-  // Push a configuration to Redis ( not invoked in case of FileConfig)
-  // ---------------------------------------------------------------------------
-  bool PushToRedis (XrdOucEnv &env, XrdOucString &err) { return true;}
+  //----------------------------------------------------------------------------
+  //! Delete a configuration value
+  //----------------------------------------------------------------------------
+  void DeleteConfigValue(const char* prefix,  const char* fsname,
+                         bool tochangelog = true);
 
+  //----------------------------------------------------------------------------
+  //! Push a configuration to Redis ( not invoked in case of FileConfig)
+  //----------------------------------------------------------------------------
+  bool PushToRedis(XrdOucEnv& env, XrdOucString& err)
+  {
+    return true;
+  }
+
+private:
+  //----------------------------------------------------------------------------
+  //! Filter a configuration
+  //----------------------------------------------------------------------------
+  void FilterConfig(PrintInfo& info, XrdOucString& out, const char* configName);
+
+  FileCfgEngineChangelog changeLog; ///< Configuration changelog object
 };
 
 EOSMGMNAMESPACE_END
 
 #endif
-
-
