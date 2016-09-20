@@ -172,6 +172,7 @@ CheckSum::ScanFile(ReadCallBack rcb, unsigned long long& scansize,
   scansize = 0;
   scantime = 0;
   gettimeofday(&opentime, &tz);
+  Reset();
   //move at the right location in the  file
   int nread = 0;
   off_t offset = 0;
@@ -193,8 +194,11 @@ CheckSum::ScanFile(ReadCallBack rcb, unsigned long long& scansize,
       return false;
     }
 
-    Add(buffer, nread, offset);
-    offset += nread;
+    if (nread>0)
+    {
+      Add(buffer, nread, offset);
+      offset += nread;
+    }
 
     if (rate) {
       // regulate the verification rate
