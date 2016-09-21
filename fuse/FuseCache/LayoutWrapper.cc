@@ -584,14 +584,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
     bool retry = true;
     XrdOucString sopaque(opaque);
-#ifdef STOPONREDIRECT
-
-    if (sopaque.length()) {
-      sopaque += '&';
-    }
-
-    sopaque += "tried=";
-#endif
 
     if (mDoneAsyncOpen) {
       // Wait for the async open response
@@ -609,13 +601,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
           return -1;
         }
 
-#ifdef STOPONREDIRECT
-        eos_static_notice("async open failed for path=%s, trying to fix it with other replicas",
-                          path.c_str());
-        XrdCl::URL url(mFile->GetLastUrl());
-        sopaque += url.GetHostName().c_str();
-        sopaque.append(',');
-#endif
       } else {
         // Async open ok, don't need a sync open
         retry = false;
@@ -638,30 +623,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         eos_static_debug("Sync-open got errNo=%d errCode=%d",
                          static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
                          static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrCode());
-#ifdef STOPONREDIRECT
-
-        /*
-        =======================================================================================
-        This is an alternative way to deal with the loss of credentials when getting redirected
-        There we assume that we hit first the mgm, then an fst then a mgm, then a fst .....
-        So we stopevery two redirects to reissue the open and get the credentials back
-        This works because every time a channel has to be opened, it is opened with the krb5
-        cgis by an explicit user (not the redirect open which is slightly different)
-        =======================================================================================
-        */
-        if (static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrCode() ==
-            XrdCl::errRedirectLimit) {
-          // if we fail because of too many redirects, try again
-          // appending the last visited fst to the list of the tried
-          retry = true;
-          _lasturl = mFile->GetLastUrl();
-          XrdCl::URL url(mFile->GetLastUrl());
-          eos_static_debug("Last URL = %s", mFile->GetLastUrl().c_str());
-          sopaque += url.GetHostName().c_str();
-          sopaque += ',';
-        }
-
-#else
         XrdCl::URL url(mFile->GetLastTriedUrl());
         const std::string& username = url.GetUserName();
 
@@ -721,7 +682,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
                            mFile->GetLastTriedUrl().c_str());
         }
 
-#endif
         else {
           eos_static_err("error while openning");
           return -1;
