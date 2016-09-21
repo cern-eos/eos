@@ -212,6 +212,7 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
   XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl, mode_xrdcl,
                                timeout);
+  mXrdFile->GetProperty("LastURL", mLastTriedUrl);
 
   if (!status.IsOK()) {
     eos_err("error=opening remote XrdClFile");
@@ -219,6 +220,7 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
     mLastErrMsg = status.ToString().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
+    errno = status.errNo;
     return SFS_ERROR;
   } else {
     errno = 0;

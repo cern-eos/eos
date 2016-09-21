@@ -206,12 +206,13 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
       }
 
       if (file->fileOpen(flags, mode, opaque, mTimeout)) {
+        mLastTriedUrl = file->GetLastTriedUrl();
         eos_err("Failed to open replica - local open failed on path=%s errno=%d",
                 mLocalPath.c_str(), errno);
         return gOFS.Emsg("ReplicaOpen", *mError, errno,
                          "open replica - local open failed ", mLocalPath.c_str());
       }
-
+      mLastTriedUrl = file->GetLastTriedUrl();
       mLastUrl = file->GetLastUrl();
       //........................................................................
       // Local replica is always on the first position in the vector
@@ -236,13 +237,14 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
           // Write case
           //....................................................................
           if (file->fileOpen(flags, mode, opaque, mTimeout)) {
+            mLastTriedUrl = file->GetLastTriedUrl();
             eos_err("Failed to open stripes - remote open failed on %s",
                     maskUrl.c_str());
             return gOFS.Emsg("ReplicaParOpen", *mError, EREMOTEIO,
                              "open stripes - remote open failed ",
                              maskUrl.c_str());
           }
-
+          mLastTriedUrl = file->GetLastTriedUrl();
           mLastUrl = file->GetLastUrl();
           mReplicaFile.push_back(file);
           eos_debug("Opened remote file for IO: %s.", maskUrl.c_str());

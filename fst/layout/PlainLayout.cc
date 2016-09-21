@@ -119,6 +119,7 @@ PlainLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 {
   int retc = mFileIO->fileOpen(flags, mode, opaque, mTimeout);
   mLastUrl = mFileIO->GetLastUrl();
+  mLastTriedUrl = mFileIO->GetLastTriedUrl();
   mFlags = flags;
   mLastErrCode = mFileIO->GetLastErrCode();
   mLastErrNo = mFileIO->GetLastErrNo();

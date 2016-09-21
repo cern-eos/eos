@@ -301,6 +301,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
         // Doing the actual open
         ret = file->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout);
 
+        mLastTriedUrl = file->GetLastTriedUrl();
         if (ret == SFS_ERROR) {
           eos_warning("warning=failed to open remote stripes", stripe_urls[i].c_str());
           delete file;
@@ -415,7 +416,7 @@ RaidMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
     openOpaque += "&fst.blocksize=";
     openOpaque += static_cast<int>(mStripeWidth);
     ret = file->fileOpen(flags, mode, openOpaque.c_str());
-
+    mLastTriedUrl = file->GetLastTriedUrl();
     if (ret == SFS_ERROR) {
       eos_err("failed to open remote stripes", stripe_urls[i].c_str());
 

@@ -195,6 +195,19 @@ LayoutWrapper::GetLastUrl()
 //------------------------------------------------------------------------------
 // overloading member functions of FileLayout class
 //------------------------------------------------------------------------------
+const std::string&
+LayoutWrapper::GetLastTriedUrl()
+{
+  if (!mOpen) {
+    return mLazyUrl;
+  }
+
+  return mFile->GetLastTriedUrl();
+}
+
+//------------------------------------------------------------------------------
+// overloading member functions of FileLayout class
+//------------------------------------------------------------------------------
 bool LayoutWrapper::IsEntryServer()
 {
   MakeOpen();
@@ -471,7 +484,7 @@ LayoutWrapper::Restore()
       }
 
       // retrieve the new inode
-      std::string lasturl = file->GetLastUrl();
+      std::string lasturl = file->GetLastTriedUrl();
       auto qmidx = lasturl.find("?");
       lasturl.erase(0, qmidx);
       std::map<std::string, std::string> m;
@@ -583,7 +596,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
     if (mDoneAsyncOpen) {
       // Wait for the async open response
       if (!static_cast<eos::fst::PlainLayout*>(mFile)->WaitOpenAsync()) {
-        XrdCl::URL url(mFile->GetLastUrl());
+        XrdCl::URL url(mFile->GetLastTriedUrl());
         const std::string& username = url.GetUserName();
 
         if (!username.empty() && username[0] != '*'
@@ -649,7 +662,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         }
 
 #else
-        XrdCl::URL url(mFile->GetLastUrl());
+        XrdCl::URL url(mFile->GetLastTriedUrl());
         const std::string& username = url.GetUserName();
 
         /*
@@ -670,21 +683,25 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         connection. This is implemented on server side starting from eos-citrine 4.0.20.
         =======================================================================================
         */
+        eos_static_debug("LastErrNo=%d  _lasturl=%s  LastUrl=%s  _path=%s",
+                  static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
+                  _lasturl.c_str(),mFile->GetLastTriedUrl().c_str(),_path.c_str());
+
         if (!username.empty() && username[0] != '*'
             && static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() ==
             kXR_NotAuthorized
             && (_lasturl.empty() || (_pos = _lasturl.find('@')) != std::string::npos)
-            && (pos = mFile->GetLastUrl().find('@')) != std::string::npos) {
+            && (pos = mFile->GetLastTriedUrl().find('@')) != std::string::npos) {
           // if it's the same url regardless of the username, we fail
-          if (!strcmp(_lasturl.c_str() + _pos, mFile->GetLastUrl().c_str() + pos)) {
+          if (!strcmp(_lasturl.c_str() + _pos, mFile->GetLastTriedUrl().c_str() + pos)) {
             eos_static_err("using a new connection did not fix at %s",
-                           mFile->GetLastUrl().c_str());
+                           mFile->GetLastTriedUrl().c_str());
             errno = EPERM;
             return -1;
           }
 
-          _lasturl = mFile->GetLastUrl();
-          _path = mFile->GetLastUrl();
+          _lasturl = mFile->GetLastTriedUrl();
+          _path = mFile->GetLastTriedUrl();
           size_t p;
 
           // increment the first character of the login until we reach Z
@@ -701,7 +718,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
           sopaque = "";
           eos_static_debug("authentication error at %s, try with a new connection to overcome strong credentials loss in redirects",
-                           mFile->GetLastUrl().c_str());
+                           mFile->GetLastTriedUrl().c_str());
         }
 
 #endif
@@ -717,7 +734,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
     // We don't want to truncate the file in case we reopen it
     mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT);
     mOpen = true;
-    std::string lasturl = mFile->GetLastUrl();
+    std::string lasturl = mFile->GetLastTriedUrl();
     auto qmidx = lasturl.find("?");
     lasturl.erase(0, qmidx);
     std::map<std::string, std::string> m;

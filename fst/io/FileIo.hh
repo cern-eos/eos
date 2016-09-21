@@ -414,6 +414,14 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get last URL
+  //----------------------------------------------------------------------------
+  std::string GetLastTriedUrl()
+  {
+    return mLastTriedUrl;
+  }
+
+  //----------------------------------------------------------------------------
   //! Get path
   //----------------------------------------------------------------------------
   std::string GetPath()
@@ -451,6 +459,7 @@ protected:
   const std::string mFilePath; ///< path to current physical file
   const std::string mType; ///< type
   std::string mLastUrl; ///< last used url if remote file
+  std::string mLastTriedUrl; ///< last tried url if remote file
   std::string mLastErrMsg; ///< last error message seen
   int mLastErrCode; ///< last error code
   int mLastErrNo; ///< last error no

@@ -129,6 +129,16 @@ public:
   }
 
   //--------------------------------------------------------------------------
+  //! Get last remote URL (if available)
+  //--------------------------------------------------------------------------
+
+  const std::string&
+  GetLastTriedUrl()
+  {
+    return mLastTriedUrl;
+  }
+
+  //--------------------------------------------------------------------------
   //! Get last errCode
   //--------------------------------------------------------------------------
   const int&
@@ -332,6 +342,7 @@ protected:
   unsigned long mLayoutId; ///< layout id
   XrdOucString mName; ///< layout name
   std::string mLastUrl; ///< last URL for remote files
+  std::string mLastTriedUrl; ///< last tried URL for remote files
   int mLastErrCode; ///< last errCode
   int mLastErrNo; ///< last errno
   XrdFstOfsFile* mOfsFile; ///< handler to logical file
