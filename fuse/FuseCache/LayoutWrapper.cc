@@ -643,6 +643,9 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         fail recovery procedure on open which goes back to the mgm using the previous
         connection. This is implemented on server side starting from eos-citrine 4.0.20.
         =======================================================================================
+        This is useful only  when the server runs eos 0.3 as there, when a recoverable error happens
+        on an fst open, the client gets redirected to the mgm instead of falling back to it as the last redirector.
+        Then, it does not reuse the channel which is already open as for a fall-back.
         */
         eos_static_debug("LastErrNo=%d  _lasturl=%s  LastUrl=%s  _path=%s",
                   static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
