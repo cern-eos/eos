@@ -63,13 +63,18 @@ std::string getAttrUrl(std::string path)
 //------------------------------------------------------------------------------
 // Handle asynchronous open responses
 //------------------------------------------------------------------------------
-void AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
+void
+AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
     XrdCl::AnyObject* response,
     XrdCl::HostList* hostList)
 {
   eos_info("handling response in AsyncIoOpenHandler");
-  // response is nullptr
   delete hostList;
+
+  // Response shoud be nullptr in general
+  if (response) {
+    delete response;
+  }
 
   if (status->IsOK()) {
     // Store the last URL we are connected after open
@@ -296,7 +301,6 @@ XrdIo::fileOpenAsync(void* io_handler,
                                (XrdCl::ResponseHandler*)(io_handler), timeout);
 
   if (!status.IsOK()) {
-    delete(XrdCl::ResponseHandler*)io_handler;
     eos_err("error=opening remote XrdClFile");
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
@@ -765,6 +769,7 @@ int
 XrdIo::fileStat(struct stat* buf, uint16_t timeout)
 {
   if (!mXrdFile) {
+    eos_info("underlying XrdClFile object doesn't exist");
     errno = EIO;
     return SFS_ERROR;
   }
@@ -778,6 +783,8 @@ XrdIo::fileStat(struct stat* buf, uint16_t timeout)
     mLastErrMsg = status.ToString().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
+    eos_info("errcode=%i, errno=%i, errmsg=%s", mLastErrCode, mLastErrNo,
+             mLastErrMsg.c_str());
   } else {
     buf->st_dev = static_cast<dev_t>(atoi(stat->GetId().c_str()));
     buf->st_mode = static_cast<mode_t>(stat->GetFlags());

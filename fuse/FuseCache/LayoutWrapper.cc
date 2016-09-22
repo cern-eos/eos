@@ -112,10 +112,6 @@ LayoutWrapper::~LayoutWrapper()
     (*mCache).resize(mMaxOffset);
   }
 
-  if (mOpenHandler) {
-    delete mOpenHandler;
-  }
-
   delete mFile;
 }
 
@@ -561,13 +557,14 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
     if (getenv("EOS_FUSE_ASYNC_OPEN")) {
       // Do the async open on the FST and return
-      eos::fst::PlainLayout* plain_layout = static_cast<eos::fst::PlainLayout*>
-                                            (mFile);
+      eos::fst::PlainLayout* plain_layout =
+        dynamic_cast<eos::fst::PlainLayout*>(mFile);
       mOpenHandler = new eos::fst::AsyncLayoutOpenHandler(plain_layout);
       mFile->Redirect(path.c_str());
 
       if (plain_layout->OpenAsync(flags, mode, mOpenHandler, opaque)) {
         delete mOpenHandler;
+        mOpenHandler = nullptr;
         eos_static_err("error while async opening path=%s - fall back top sync open",
                        path.c_str());
         mDoneAsyncOpen = false;
@@ -576,8 +573,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       }
     }
   } else {
-    mFile->Redirect(path.c_str());
-
     // for latency simulation purposes
     if (getenv("EOS_FUSE_LAZY_LAG_OPEN") && mFlags) {
       eos_static_warning("lazy-lag configured - delay by %s ms",

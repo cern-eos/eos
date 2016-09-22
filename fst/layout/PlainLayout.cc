@@ -34,8 +34,8 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Handle asynchronous open responses
 //------------------------------------------------------------------------------
-void AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus*
-    status,
+void
+AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
     XrdCl::AnyObject* response,
     XrdCl::HostList* hostList)
 {
@@ -54,9 +54,18 @@ void AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus*
   mPlainLayout->mAsyncResponse = is_ok;
   mPlainLayout->mHasAsyncResponse = true;
   pthread_cond_signal(&mPlainLayout->mCondVar);
+  mPlainLayout->mIoOpenHandler = nullptr;
   pthread_mutex_unlock(&mPlainLayout->mMutex);
   delete status;
-  mPlainLayout->mIoOpenHandler = NULL;
+
+  if (response) {
+    delete response;
+  }
+
+  if (hostList) {
+    delete hostList;
+  }
+
   delete this;
 }
 
@@ -149,10 +158,17 @@ PlainLayout::OpenAsync(XrdSfsFileOpenMode flags,
                        const char* opaque)
 {
   mFlags = flags;
-  mIoOpenHandler = new eos::fst::AsyncIoOpenHandler
-  (static_cast<eos::fst::XrdIo*>(mFileIO), layout_handler);
-  return static_cast<eos::fst::XrdIo*>(mFileIO)->fileOpenAsync
-         (mIoOpenHandler, flags, mode, opaque, mTimeout);
+  eos::fst::XrdIo* io_file = dynamic_cast<eos::fst::XrdIo*>(mFileIO);
+  mIoOpenHandler = new eos::fst::AsyncIoOpenHandler(io_file, layout_handler);
+
+  if (io_file->fileOpenAsync(mIoOpenHandler, flags, mode, opaque, mTimeout)) {
+    // Error
+    delete mIoOpenHandler;
+    mIoOpenHandler = nullptr;
+    return SFS_ERROR;
+  }
+
+  return SFS_OK;
 }
 
 //------------------------------------------------------------------------------
