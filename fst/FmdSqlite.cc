@@ -490,16 +490,16 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 	      return 0;
 	    }
 
-	    // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
-	    // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
-	    if ((!isRW) && fmd->fMd.mgmsize &&
-		((fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
-		 (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum))))
+	    // don't return a record, if there is a checksum error flagged
+
+	    if ( (fmd->fMd.filecxerror || fmd->fMd.blockcxerror) ||
+	      	 (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum)) )
 	    {
-	      eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx "
-		       "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
+	      eos_crit("msg=\"checksum error flagged/detected fid=%08llx "
+		       "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s filecxerror=%d blockcxerror=%d",
 		       fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(),
-		       fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
+		       fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str(),
+		       fmd->fMd.filecxerror, fmd->fMd.blockcxerror);
 	      
 	      delete fmd;
 	      FmdSqliteMutexMap[fsid].UnLockRead();
@@ -1033,7 +1033,7 @@ FmdSqliteHandler::ResyncDisk (const char* path,
           }
         }
 
-        // now updaAte the SQLITE DB
+        // now update the SQLITE DB
         if (!UpdateFromDisk(fsid, fid, disksize, diskchecksum, checktime, (filecxError == "1") ? 1 : 0, (blockcxError == "1") ? 1 : 0, flaglayouterror))
         {
           eos_err("failed to update SQLITE DB for fsid=%lu fid=%08llx", (unsigned long) fsid, fid);

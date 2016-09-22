@@ -1963,6 +1963,7 @@ XrdFstOfsFile::close ()
             fMd->fMd.disksize = statinfo.st_size;
             fMd->fMd.mgmsize = 0xfffffffffff1ULL; // now again undefined
             fMd->fMd.mgmchecksum = ""; // now again empty
+            fMd->fMd.diskchecksum = ""; // now again empty
             fMd->fMd.layouterror = 0; // reset layout errors
             fMd->fMd.locations = ""; // reset locations
             fMd->fMd.filecxerror = 0;
