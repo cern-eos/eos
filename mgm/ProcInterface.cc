@@ -876,7 +876,8 @@ ProcCommand::MakeResult ()
         else
         {
           // JSON
-          mResultStream = r.str().c_str();
+	  mResultStream = "mgm.proc.json=";
+          mResultStream += r.str().c_str();
         }
       }
       else
