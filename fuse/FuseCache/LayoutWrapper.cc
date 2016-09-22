@@ -112,6 +112,10 @@ LayoutWrapper::~LayoutWrapper()
     (*mCache).resize(mMaxOffset);
   }
 
+  if (mOpenHandler) {
+    delete mOpenHandler;
+  }
+
   delete mFile;
 }
 
@@ -600,7 +604,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
           eos_static_err("async open failed for path=%s", path.c_str());
           return -1;
         }
-
       } else {
         // Async open ok, don't need a sync open
         retry = false;
@@ -625,7 +628,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
                          static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrCode());
         XrdCl::URL url(mFile->GetLastTriedUrl());
         const std::string& username = url.GetUserName();
-
         /*
         =======================================================================================
         This is a hackish fix to the loss of strong credentials while being redirected
@@ -648,8 +650,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         Then, it does not reuse the channel which is already open as for a fall-back.
         */
         eos_static_debug("LastErrNo=%d  _lasturl=%s  LastUrl=%s  _path=%s",
-                  static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
-                  _lasturl.c_str(),mFile->GetLastTriedUrl().c_str(),_path.c_str());
+                         static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
+                         _lasturl.c_str(), mFile->GetLastTriedUrl().c_str(), _path.c_str());
 
         if (!username.empty() && username[0] != '*'
             && static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() ==
@@ -683,9 +685,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
           sopaque = "";
           eos_static_debug("authentication error at %s, try with a new connection to overcome strong credentials loss in redirects",
                            mFile->GetLastTriedUrl().c_str());
-        }
-
-        else {
+        } else {
           eos_static_err("error while openning");
           return -1;
         }
