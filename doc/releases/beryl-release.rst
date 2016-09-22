@@ -7,6 +7,16 @@
 Beryl Release Notes
 ===================
 
+``V0.3.201 Aquamarine``
++++++++++++++++++++++++
+
+
+Bug Fix
+=======
+
+- FST: always reset the disk checksum in the meta data db when a file has been modified
+- FST: consider only flagged file/blockchecksum errors to prevent to return meta data objects
+
 ``V0.3.200 Aquamarine``
 +++++++++++++++++++++++
 
