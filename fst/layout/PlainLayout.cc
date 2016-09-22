@@ -54,7 +54,7 @@ AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
   mPlainLayout->mAsyncResponse = is_ok;
   mPlainLayout->mHasAsyncResponse = true;
   pthread_cond_signal(&mPlainLayout->mCondVar);
-  mPlainLayout->mIoOpenHandler = nullptr;
+  mPlainLayout->mIoOpenHandler = NULL;
   pthread_mutex_unlock(&mPlainLayout->mMutex);
   delete status;
 
@@ -164,7 +164,7 @@ PlainLayout::OpenAsync(XrdSfsFileOpenMode flags,
   if (io_file->fileOpenAsync(mIoOpenHandler, flags, mode, opaque, mTimeout)) {
     // Error
     delete mIoOpenHandler;
-    mIoOpenHandler = nullptr;
+    mIoOpenHandler = NULL;
     return SFS_ERROR;
   }
 
