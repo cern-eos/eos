@@ -564,7 +564,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
       if (plain_layout->OpenAsync(flags, mode, mOpenHandler, opaque)) {
         delete mOpenHandler;
-        mOpenHandler = nullptr;
+        mOpenHandler = NULL;
         eos_static_err("error while async opening path=%s - fall back top sync open",
                        path.c_str());
         mDoneAsyncOpen = false;
