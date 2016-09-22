@@ -36,17 +36,21 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+RedisCfgEngineChangelog::RedisCfgEngineChangelog(redox::Redox& client)
+  : mChLogHash(client, mChLogHashKey) {}
+
+//------------------------------------------------------------------------------
 // Add entry to the changelog
 //------------------------------------------------------------------------------
 bool RedisCfgEngineChangelog::AddEntry(const char* info)
 {
-  mMutex.Lock();
   std::string key, value, action;
 
   if (!ParseTextEntry(info, key, value, action)) {
     eos_warning("failed to parse new entry %s. this entry will be ignored.",
                 info);
-    mMutex.UnLock();
     return false;
   }
 
@@ -66,7 +70,6 @@ bool RedisCfgEngineChangelog::AddEntry(const char* info)
   }
 
   mChLogHash.hset(timestamp, changeLogValue.c_str());
-  mMutex.UnLock();
   mConfigChanges += info;
   mConfigChanges += "\n";
   return true;
@@ -119,13 +122,10 @@ RedisConfigEngine::RedisConfigEngine(const char* configdir,
                                      const char* redisHost, int redisPort)
 {
   SetConfigDir(configdir);
-  currentConfigFile = "default";
   redisHost = redisHost;
   redisPort = redisPort;
   client.connect(redisHost, redisPort);
-  changeLog.mChLogHash = redox::RedoxHash(client, changeLog.mChLogHashKey);
-  autosave = false;
-  configBroadcast = true;
+  mChangelog.reset(new RedisCfgEngineChangelog(client));
 }
 
 //------------------------------------------------------------------------------
@@ -169,27 +169,24 @@ RedisConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     cl += " with failure";
     cl += " : ";
     cl += err;
-    changeLog.AddEntry(cl.c_str());
+    mChangelog->AddEntry(cl.c_str());
     return false;
   } else {
-    currentConfigFile = name;
+    mConfigFile = name;
     cl += " successfully";
-    changeLog.AddEntry(cl.c_str());
-    changeLog.ClearChanges();
+    mChangelog->AddEntry(cl.c_str());
+    mChangelog->ClearChanges();
     return true;
   }
 
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Store the current configuration to a given file or Redis
+//------------------------------------------------------------------------------
 bool
 RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Store the current configuration to a given file or Redis
- */
-/*----------------------------------------------------------------------------*/
 {
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
@@ -213,8 +210,8 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
 
   if (!name) {
-    if (currentConfigFile.length()) {
-      name = currentConfigFile.c_str();
+    if (mConfigFile.length()) {
+      name = mConfigFile.c_str();
       force = true;
     } else {
       err = "error: you have to specify a configuration  name";
@@ -244,7 +241,7 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     configkey += "comment-";
     configkey += dtime;
     configkey += ":";
-    configDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
+    sConfigDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
   }
 
   //store a new hash
@@ -294,9 +291,9 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     }
   }
 
-  Mutex.Lock();
-  configDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
-  Mutex.UnLock();
+  mMutex.Lock();
+  sConfigDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
+  mMutex.UnLock();
   //adding  timestamp
   XrdOucString stime;
   getTimeStamp(stime);
@@ -313,20 +310,18 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   cl += " [";
   cl += comment;
   cl += " ]";
-  changeLog.AddEntry(cl.c_str());
-  changeLog.ClearChanges();
-  currentConfigFile = name;
+  mChangelog->AddEntry(cl.c_str());
+  mChangelog->ClearChanges();
+  mConfigFile = name;
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// List the existing configurations
+//------------------------------------------------------------------------------
 bool
 RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief List the existing configurations
- */
-/*----------------------------------------------------------------------------*/
+
 {
   configlist = "Existing Configurations on Redis\n";
   configlist += "================================\n";
@@ -354,7 +349,7 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
       configlist += key.c_str();
     }
 
-    if (key == currentConfigFile) {
+    if (key == mConfigFile) {
       configlist += " *";
     }
 
@@ -393,20 +388,15 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   return true;
 }
 
-
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Pull the configuration from Redis
+//------------------------------------------------------------------------------
 bool
 RedisConfigEngine::PullFromRedis(redox::RedoxHash& hash, XrdOucString& err)
-/*----------------------------------------------------------------------------*/
-/**
- *  * @brief Pull the configuration from Redis Hash
- *   */
-/*----------------------------------------------------------------------------*/
 {
   err = "";
-  Mutex.Lock();
-  configDefinitions.Purge();
+  mMutex.Lock();
+  sConfigDefinitions.Purge();
 
   for (auto && elem : hash.hkeys()) {
     XrdOucString key = elem.c_str();
@@ -417,22 +407,20 @@ RedisConfigEngine::PullFromRedis(redox::RedoxHash& hash, XrdOucString& err)
 
     XrdOucString value = hash.hget(elem).c_str();
     eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
-    configDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
+    sConfigDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
   }
 
-  Mutex.UnLock();
+  mMutex.UnLock();
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Filter the configuration and store in output string
+//------------------------------------------------------------------------------
 void
 RedisConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
                                 const char* configName)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Filter the configuration and create the output
- */
-/*----------------------------------------------------------------------------*/
+
 {
   std::string hash_key;
   hash_key += conf_hash_key_prefix.c_str();
@@ -442,42 +430,22 @@ RedisConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
   redox::RedoxHash rdx_hash(client, hash_key);
   std::vector<std::string> resp = rdx_hash.hkeys();
   std::sort(resp.begin(), resp.end());
+  bool filtered;
 
   for (auto && key : resp) {
     std::string _value = rdx_hash.hget(key);
     XrdOucString _key = key.c_str();
-    // filter according to user specification
-    bool filtered = false;
+    filtered = false;
 
-    if ((pinfo.option.find("v") != STR_NPOS) && (_key.beginswith("vid:"))) {
-      filtered = true;
-    }
-
-    if ((pinfo.option.find("f") != STR_NPOS) && (_key.beginswith("fs:"))) {
-      filtered = true;
-    }
-
-    if ((pinfo.option.find("q") != STR_NPOS) && (_key.beginswith("quota:"))) {
-      filtered = true;
-    }
-
-    if ((pinfo.option.find("c") != STR_NPOS) && (_key.beginswith("comment-"))) {
-      filtered = true;
-    }
-
-    if ((pinfo.option.find("p") != STR_NPOS) && (_key.beginswith("policy:"))) {
-      filtered = true;
-    }
-
-    if ((pinfo.option.find("g") != STR_NPOS) && (_key.beginswith("global:"))) {
-      filtered = true;
-    }
-
-    if ((pinfo.option.find("m") != STR_NPOS) && (_key.beginswith("map:"))) {
-      filtered = true;
-    }
-
-    if ((pinfo.option.find("s") != STR_NPOS) && (_key.beginswith("geosched:"))) {
+    // Filter according to user specification
+    if (((pinfo.option.find("v") != STR_NPOS) && (_key.beginswith("vid:"))) ||
+        ((pinfo.option.find("f") != STR_NPOS) && (_key.beginswith("fs:"))) ||
+        ((pinfo.option.find("q") != STR_NPOS) && (_key.beginswith("quota:"))) ||
+        ((pinfo.option.find("c") != STR_NPOS) && (_key.beginswith("comment-"))) ||
+        ((pinfo.option.find("p") != STR_NPOS) && (_key.beginswith("policy:"))) ||
+        ((pinfo.option.find("g") != STR_NPOS) && (_key.beginswith("global:"))) ||
+        ((pinfo.option.find("m") != STR_NPOS) && (_key.beginswith("map:"))) ||
+        ((pinfo.option.find("s") != STR_NPOS) && (_key.beginswith("geosched:")))) {
       filtered = true;
     }
 
@@ -490,18 +458,15 @@ RedisConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Do an autosave
+//------------------------------------------------------------------------------
 bool
 RedisConfigEngine::AutoSave()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Do an autosave
- */
-/*----------------------------------------------------------------------------*/
 {
-  if (autosave && currentConfigFile.length()) {
+  if (mAutosave && mConfigFile.length()) {
     XrdOucString envstring = "mgm.config.file=";
-    envstring += currentConfigFile;
+    envstring += mConfigFile;
     envstring += "&mgm.config.force=1";
     envstring += "&mgm.config.autosave=1";
     XrdOucEnv env(envstring.c_str());
@@ -518,21 +483,12 @@ RedisConfigEngine::AutoSave()
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Set a configuration value
+//------------------------------------------------------------------------------
 void
-RedisConfigEngine::SetConfigValue(const char* prefix,
-                                  const char* key,
-                                  const char* val,
-                                  bool noBroadcast)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Set a configuration value
- * @prefix identifies the type of configuration parameter (module)
- * @key key of the configuration value
- * @val definition=value of the configuration
- * @noBroadcast if this change is coming from a broacast or not
- */
-/*----------------------------------------------------------------------------*/
+RedisConfigEngine::SetConfigValue(const char* prefix, const char* key,
+                                  const char* val, bool not_bcast)
 {
   XrdOucString cl = "set config ";
 
@@ -559,11 +515,11 @@ RedisConfigEngine::SetConfigValue(const char* prefix,
   }
 
   XrdOucString* sdef = new XrdOucString(val);
-  configDefinitions.Rep(configname.c_str(), sdef);
+  sConfigDefinitions.Rep(configname.c_str(), sdef);
   eos_static_debug("%s => %s", key, val);
 
   //in case the change is not coming from a broacast we can can broadcast it
-  if (configBroadcast && noBroadcast) {
+  if (mBroadcast && not_bcast) {
     // make this value visible between MGM's
     eos_notice("Setting %s", configname.c_str());
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
@@ -581,14 +537,15 @@ RedisConfigEngine::SetConfigValue(const char* prefix,
   }
 
   //in case is not coming from a broadcast we can add it to the changelog
-  if (noBroadcast) {
-    changeLog.AddEntry(cl.c_str());
+  if (not_bcast) {
+    mChangelog->AddEntry(cl.c_str());
   }
 
-  //in case the change is not coming from a broacast we can can save it ( if autosave is enabled)
-  if (autosave && noBroadcast && currentConfigFile.length()) {
+  // If the change is not coming from a broacast we can can save it
+  // (if autosave is enabled)
+  if (mAutosave && not_bcast && mConfigFile.length()) {
     XrdOucString envstring = "mgm.config.file=";
-    envstring += currentConfigFile;
+    envstring += mConfigFile;
     envstring += "&mgm.config.force=1";
     envstring += "&mgm.config.autosave=1";
     XrdOucEnv env(envstring.c_str());
@@ -600,19 +557,12 @@ RedisConfigEngine::SetConfigValue(const char* prefix,
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Delete a configuration value
+//------------------------------------------------------------------------------
 void
-RedisConfigEngine::DeleteConfigValue(const char* prefix,
-                                     const char* key,
-                                     bool noBroadcast)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Delete configuration key
- * @prefix identifies the type of configuration parameter (module)
- * key of the configuration value to delete
- * nobroadcast if this change is coming from a broacast or not
- */
-/*----------------------------------------------------------------------------*/
+RedisConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
+                                     bool not_bcast)
 {
   XrdOucString cl = "del config ";
   XrdOucString configname;
@@ -629,8 +579,8 @@ RedisConfigEngine::DeleteConfigValue(const char* prefix,
     configname = key;
   }
 
-  //in case the change is not coming from a broacast we can can broadcast it
-  if (configBroadcast && noBroadcast) {
+  // In case the change is not coming from a broacast we can can broadcast it
+  if (mBroadcast && not_bcast) {
     eos_static_info("Deleting %s", configname.c_str());
     // make this value visible between MGM's
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
@@ -643,19 +593,19 @@ RedisConfigEngine::DeleteConfigValue(const char* prefix,
     }
   }
 
-  Mutex.Lock();
-  configDefinitions.Del(configname.c_str());
+  mMutex.Lock();
+  sConfigDefinitions.Del(configname.c_str());
 
   //in case is not coming from a broadcast we can add it to the changelog
-  if (noBroadcast) {
-    changeLog.AddEntry(cl.c_str());
+  if (not_bcast) {
+    mChangelog->AddEntry(cl.c_str());
   }
 
-  //in case the change is not coming from a broacast we can can save it ( if autosave is enabled)
-
-  if (autosave && noBroadcast && currentConfigFile.length()) {
+  // If the change is not coming from a broacast we can can save it
+  // (if autosave is enabled)
+  if (mAutosave && not_bcast && mConfigFile.length()) {
     XrdOucString envstring = "mgm.config.file=";
-    envstring += currentConfigFile;
+    envstring += mConfigFile;
     envstring += "&mgm.config.force=1";
     envstring += "&mgm.config.autosave=1";
     XrdOucEnv env(envstring.c_str());
@@ -666,18 +616,16 @@ RedisConfigEngine::DeleteConfigValue(const char* prefix,
     }
   }
 
-  Mutex.UnLock();
+  mMutex.UnLock();
   eos_static_debug("%s", key);
 }
 
-/* ---------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Dump a configuration to Redis from the current loaded config
+//------------------------------------------------------------------------------
 bool
 RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
-/**
- * Dump a configuration to Redis from the current loaded config
- *
- */
-/*----------------------------------------------------------------------------*/
+
 {
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
@@ -691,7 +639,9 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
   XrdOucString cl = "exported config ";
   cl += name;
   cl += " ";
-  XrdOucString fullpath = configDir;
+  // TODO (esindril): Maybe remove mConfigDir from this class alltogether
+  // and pass the full info via the env variable
+  XrdOucString fullpath = mConfigDir;
   fullpath += name;
   fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
 
@@ -778,9 +728,9 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
         }
       }
 
-      Mutex.Lock();
-      configDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
-      Mutex.UnLock();
+      mMutex.Lock();
+      sConfigDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
+      mMutex.UnLock();
       //adding key for timestamp
       XrdOucString stime;
       getTimeStamp(stime);
@@ -794,9 +744,9 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
       }
 
       cl += " successfully";
-      changeLog.AddEntry(cl.c_str());
-      currentConfigFile = name;
-      changeLog.ClearChanges();
+      mChangelog->AddEntry(cl.c_str());
+      mConfigFile = name;
+      mChangelog->ClearChanges();
       return true;
     }
   } else {
@@ -809,23 +759,24 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
   return false;
 }
 
-/* ---------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// XrdOucHash callback function to add to the Redox hash all the
+// configuration values.
+//------------------------------------------------------------------------------
 int
 RedisConfigEngine::SetConfigToRedisHash(const char* key, XrdOucString* def,
-                                        void* Arg)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Callback function of XrdOucHash to set to Redox Hash each key
- * @brief configuration object
- *
- */
+                                        void* arg)
+
 {
   eos_static_debug("%s => %s", key, def->c_str());
-  redox::RedoxHash* hash = ((redox::RedoxHash*) Arg);
+  redox::RedoxHash* hash = reinterpret_cast<redox::RedoxHash*>(arg);
   hash->hset(key, std::string(def->c_str()));
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Get current timestamp
+//------------------------------------------------------------------------------
 void
 RedisConfigEngine::getTimeStamp(XrdOucString& out)
 {

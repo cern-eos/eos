@@ -30,183 +30,145 @@
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Config ()
+ProcCommand::Config()
 {
- if (mSubCmd == "ls")
- {
-   eos_notice("config ls");
-   XrdOucString listing = "";
-   bool showbackup = (bool)pOpaque->Get("mgm.config.showbackup");
+  if (mSubCmd == "ls") {
+    eos_notice("config ls");
+    XrdOucString listing = "";
+    bool showbackup = (bool)pOpaque->Get("mgm.config.showbackup");
 
-   if (!(gOFS->ConfEngine->ListConfigs(listing, showbackup)))
-   {
-     stdErr += "error: listing of existing configs failed!";
-     retc = errno;
-   }
-   else
-   {
-     stdOut += listing;
-   }
- }
+    if (!(gOFS->ConfEngine->ListConfigs(listing, showbackup))) {
+      stdErr += "error: listing of existing configs failed!";
+      retc = errno;
+    } else {
+      stdOut += listing;
+    }
+  }
 
- if (mSubCmd == "autosave")
- {
-   eos_notice("config autosave");
-   XrdOucString onoff = pOpaque->Get("mgm.config.state") ? pOpaque->Get("mgm.config.state") : "";
-   if (!onoff.length())
-   {
-     if (gOFS->ConfEngine->GetAutoSave())
-     {
-       stdOut += "<autosave> is enabled\n";
-       retc = 0;
-     }
-     else
-     {
-       stdOut += "<autosave> is disabled\n";
-       retc = 0;
-     }
-   }
-   else
-   {
-     if ((onoff != "on") && (onoff != "off"))
-     {
-       stdErr += "error: state must be either 'on' or 'off' or empty to read the current setting!\n";
-       retc = EINVAL;
-     }
-     else
-     {
-       if (onoff == "on")
-       {
-         gOFS->ConfEngine->SetAutoSave(true);
-       }
-       else
-       {
-         gOFS->ConfEngine->SetAutoSave(false);
-       }
-     }
-   }
- }
+  if (mSubCmd == "autosave") {
+    eos_notice("config autosave");
+    XrdOucString onoff = pOpaque->Get("mgm.config.state") ?
+                         pOpaque->Get("mgm.config.state") : "";
 
- int envlen;
- if (mSubCmd == "load")
- {
-   if (pVid->uid == 0)
-   {
-     eos_notice("config load: %s", pOpaque->Env(envlen));
-     if (!gOFS->ConfEngine->LoadConfig(*pOpaque, stdErr))
-     {
-       retc = errno;
-     }
-     else
-     {
-       stdOut = "success: configuration successfully loaded!";
-     }
-   }
-   else
-   {
-     retc = EPERM;
-     stdErr = "error: you have to take role 'root' to execute this command";
-   }
- }
-
- if (mSubCmd == "export")
- {
-   if (gOFS->MgmOfsConfigEngineType == "file")
-   {
+    if (!onoff.length()) {
+      if (gOFS->ConfEngine->GetAutoSave()) {
+        stdOut += "<autosave> is enabled\n";
+        retc = 0;
+      } else {
+        stdOut += "<autosave> is disabled\n";
+        retc = 0;
+      }
+    } else {
+      if ((onoff != "on") && (onoff != "off")) {
+        stdErr += "error: state must be either 'on' or 'off' or empty to read the current setting!\n";
         retc = EINVAL;
-        stdErr = "error: this command is available only with ConfigEngine type 'redis'";
-   }
-   else if (pVid->uid == 0)
-   {
-     eos_notice("config export: %s", pOpaque->Env(envlen));
-     if (!gOFS->ConfEngine->PushToRedis(*pOpaque, stdErr))
-     {
-       retc = errno;
-     }
-     else
-     {
-       stdOut = "success: configuration successfully loaded!";
-     }
-   }
-   else
-   {
-     retc = EPERM;
-     stdErr = "error: you have to take role 'root' to execute this command";
-   }
- }
+      } else {
+        if (onoff == "on") {
+          gOFS->ConfEngine->SetAutoSave(true);
+        } else {
+          gOFS->ConfEngine->SetAutoSave(false);
+        }
+      }
+    }
+  }
 
+  int envlen;
 
- if (mSubCmd == "save")
- {
-   eos_notice("config save: %s", pOpaque->Env(envlen));
-   if (pVid->uid == 0)
-   {
-     if (!gOFS->ConfEngine->SaveConfig(*pOpaque, stdErr))
-     {
-       retc = errno;
-     }
-     else
-     {
-       stdOut = "success: configuration successfully saved!";
-     }
-   }
-   else
-   {
-     retc = EPERM;
-     stdErr = "error: you have to take role 'root' to execute this command";
-   }
- }
+  if (mSubCmd == "load") {
+    if (pVid->uid == 0) {
+      eos_notice("config load: %s", pOpaque->Env(envlen));
 
- if (mSubCmd == "reset")
- {
-   eos_notice("config reset");
-   if (pVid->uid == 0)
-   {
-     gOFS->ConfEngine->ResetConfig();
-     stdOut = "success: configuration has been reset(cleaned)!";
-   }
-   else
-   {
-     retc = EPERM;
-     stdErr = "error: you have to take role 'root' to execute this command";
-   }
- }
+      if (!gOFS->ConfEngine->LoadConfig(*pOpaque, stdErr)) {
+        retc = errno;
+      } else {
+        stdOut = "success: configuration successfully loaded!";
+      }
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
 
- if (mSubCmd == "dump")
- {
-   eos_notice("config dump");
-   XrdOucString dump = "";
-   if (!gOFS->ConfEngine->DumpConfig(dump, *pOpaque))
-   {
-     stdErr += "error: listing of existing configs failed!";
-     retc = errno;
-   }
-   else
-   {
-     stdOut += dump;
-     mDoSort = true;
-   }
- }
+  if (mSubCmd == "export") {
+    if (gOFS->MgmOfsConfigEngineType == "file") {
+      retc = EINVAL;
+      stdErr = "error: this command is available only with ConfigEngine type 'redis'";
+    } else if (pVid->uid == 0) {
+      eos_notice("config export: %s", pOpaque->Env(envlen));
 
- if (mSubCmd == "diff")
- { 
-     eos_notice("config diff");
-     gOFS->ConfEngine->Diffs(stdOut);
- }
+      if (!gOFS->ConfEngine->PushToRedis(*pOpaque, stdErr)) {
+        retc = errno;
+      } else {
+        stdOut = "success: configuration successfully loaded!";
+      }
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
 
- if (mSubCmd == "changelog")
- {
-   int nlines = 5;
-   char* val;
-   if ((val = pOpaque->Get("mgm.config.lines")))
-   {
-     nlines = atoi(val);
-     if (nlines < 1) nlines = 1;
-   }
-   gOFS->ConfEngine->GetChangeLog()->Tail(nlines, stdOut);
-   eos_notice("config changelog");
- }
-return SFS_OK;
+  if (mSubCmd == "save") {
+    eos_notice("config save: %s", pOpaque->Env(envlen));
+
+    if (pVid->uid == 0) {
+      if (!gOFS->ConfEngine->SaveConfig(*pOpaque, stdErr)) {
+        retc = errno;
+      } else {
+        stdOut = "success: configuration successfully saved!";
+      }
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
+
+  if (mSubCmd == "reset") {
+    eos_notice("config reset");
+
+    if (pVid->uid == 0) {
+      gOFS->ConfEngine->ResetConfig();
+      stdOut = "success: configuration has been reset(cleaned)!";
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
+
+  if (mSubCmd == "dump") {
+    eos_notice("config dump");
+    XrdOucString dump = "";
+
+    if (!gOFS->ConfEngine->DumpConfig(dump, *pOpaque)) {
+      stdErr += "error: listing of existing configs failed!";
+      retc = errno;
+    } else {
+      stdOut += dump;
+      mDoSort = true;
+    }
+  }
+
+  if (mSubCmd == "diff") {
+    eos_notice("config diff");
+    gOFS->ConfEngine->Diffs(stdOut);
+  }
+
+  if (mSubCmd == "changelog") {
+    int nlines = 5;
+    char* val;
+
+    if ((val = pOpaque->Get("mgm.config.lines"))) {
+      nlines = atoi(val);
+
+      if (nlines < 1) {
+        nlines = 1;
+      }
+    }
+
+    gOFS->ConfEngine->GetChangelog()->Tail(nlines, stdOut);
+    eos_notice("config changelog");
+  }
+
+  return SFS_OK;
 }
 
 EOSMGMNAMESPACE_END

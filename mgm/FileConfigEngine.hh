@@ -75,8 +75,8 @@ public:
   bool Tail(unsigned int nlines, XrdOucString& tail);
 
 private:
-  XrdSysMutex mMutex; ///< Mutex protecting the acces to the map
-  eos::common::DbMap mMap; ///< Map
+  XrdSysMutex mDbMapMutex; ///< Mutex protecting the acces to the map
+  eos::common::DbMap mMap; ///< Map saving recent changes
   std::string mChLogFile; ///< Path to changelog file
 };
 
@@ -103,38 +103,79 @@ public:
 
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param config_dir Directory holding the configuration files
   //----------------------------------------------------------------------------
-  FileConfigEngine(const char* configdir);
+  FileConfigEngine(const char* config_dir);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~FileConfigEngine();
+  virtual ~FileConfigEngine();
 
   //----------------------------------------------------------------------------
-  //! Load a configuration
+  //! Load a given configuratino file
+  //!
+  //! @param env environment holding info about the configuration to be loaded
+  //! @param err string holding any errors
+  //!
+  //! @return true if loaded successfully, otherwise false
   //----------------------------------------------------------------------------
   bool LoadConfig(XrdOucEnv& env, XrdOucString& err);
 
   //----------------------------------------------------------------------------
-  //! Save a configuration
+  //! Save configuration to specified destination
+  //!
+  //! @param env environment holding info about the destination where the
+  //!        current configuration will be saved
+  //! @param err string holding any errors
+  //!
+  //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
   bool SaveConfig(XrdOucEnv& env, XrdOucString& err);
 
   //----------------------------------------------------------------------------
   //! List all configurations
+  //!
+  //! @param configlist string holding the list of all configurations
+  //! @param showbackup if true then show also the backups
+  //!
+  //! @return true if listing successfull, otherwise false
   //----------------------------------------------------------------------------
   bool ListConfigs(XrdOucString& configlist, bool showbackups = false);
 
   //----------------------------------------------------------------------------
-  //! Get the changlog object
-  //----------------------------------------------------------------------------
-  ICfgEngineChangelog* GetChangeLog();
-
-  //---------------------------------------------------------------------------
+  //! Get configuration changes
   //!
+  //! @param diffs string holding the configuration changes
   //----------------------------------------------------------------------------
-  void  Diffs(XrdOucString& diffs);
+  void Diffs(XrdOucString& diffs);
+
+  //----------------------------------------------------------------------------
+  //! Do an autosave
+  //----------------------------------------------------------------------------
+  bool AutoSave();
+
+  //----------------------------------------------------------------------------
+  //! Set a configuration value
+  //!
+  //! @param prefix identifies the type of configuration parameter
+  //! @param key key of the configuration to set
+  //! @param val value of the configuration
+  //! @param tochangelog if true add entry also to the changelog
+  //----------------------------------------------------------------------------
+  void SetConfigValue(const char* prefix, const char* key,
+                      const char* val, bool tochangelog = true);
+
+  //----------------------------------------------------------------------------
+  //! Delete a configuration value
+  //!
+  //! @param prefix identifies the type of configuration parameter
+  //! @param key key of the configuration to delete
+  //! @param tochangelog if true add entry also to the changelog
+  //----------------------------------------------------------------------------
+  void DeleteConfigValue(const char* prefix, const char* key,
+                         bool tochangelog = true);
 
   //----------------------------------------------------------------------------
   //! Set configuration directory
@@ -144,35 +185,7 @@ public:
   void SetConfigDir(const char* configdir);
 
   //----------------------------------------------------------------------------
-  //! Print the current configuration
-  //----------------------------------------------------------------------------
-  void
-  PrintConfig()
-  {
-    Mutex.Lock();
-    configDefinitions.Apply(PrintEachConfig, NULL);
-    Mutex.UnLock();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Do an autosave
-  //----------------------------------------------------------------------------
-  bool AutoSave();
-
-  //----------------------------------------------------------------------------
-  //! Set a configuration value
-  //----------------------------------------------------------------------------
-  void SetConfigValue(const char* prefix, const char* fsname,  const char* def,
-                      bool tochangelog = true);
-
-  //----------------------------------------------------------------------------
-  //! Delete a configuration value
-  //----------------------------------------------------------------------------
-  void DeleteConfigValue(const char* prefix,  const char* fsname,
-                         bool tochangelog = true);
-
-  //----------------------------------------------------------------------------
-  //! Push a configuration to Redis ( not invoked in case of FileConfig)
+  //! Push a configuration to Redis (not invoked in case of FileConfig)
   //----------------------------------------------------------------------------
   bool PushToRedis(XrdOucEnv& env, XrdOucString& err)
   {
@@ -181,11 +194,13 @@ public:
 
 private:
   //----------------------------------------------------------------------------
-  //! Filter a configuration
+  //! Filter configuration and store in output string
+  //!
+  //! @param info
+  //! @param out output string
+  //! @param cfg_fn configuration file to be loaded
   //----------------------------------------------------------------------------
-  void FilterConfig(PrintInfo& info, XrdOucString& out, const char* configName);
-
-  FileCfgEngineChangelog changeLog; ///< Configuration changelog object
+  void FilterConfig(PrintInfo& info, XrdOucString& out, const char* cfg_fn);
 };
 
 EOSMGMNAMESPACE_END

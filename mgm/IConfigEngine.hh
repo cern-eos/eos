@@ -24,8 +24,6 @@
 #ifndef __EOSMGM_ICONFIGENGINE__HH__
 #define __EOSMGM_ICONFIGENGINE__HH__
 
-// this is needed because of some openssl definition conflict!
-#undef des_set_key
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -124,14 +122,13 @@ protected:
 
 
 //------------------------------------------------------------------------------
-//! @brief Abstract class for the ConfigEngine providing reset/load/store
-//! functionality.
+//! @brief Abstract class providing reset/load/store functionality
 //------------------------------------------------------------------------------
 class IConfigEngine : public eos::common::LogId
 {
 public:
   //! Configuration definitions currently in memory
-  static XrdOucHash<XrdOucString> configDefinitions;
+  static XrdOucHash<XrdOucString> sConfigDefinitions;
 
   //----------------------------------------------------------------------------
   //! XrdOucHash callback function to apply a configuration value
@@ -175,12 +172,22 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IConfigEngine() {};
+  IConfigEngine();
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~IConfigEngine() {};
+
+  //----------------------------------------------------------------------------
+  //! Get the changlog object
+  //!
+  //! @return changelog object
+  //----------------------------------------------------------------------------
+  virtual ICfgEngineChangelog* GetChangelog()
+  {
+    return mChangelog.get();
+  }
 
   //----------------------------------------------------------------------------
   //! Load a given configuratino file
@@ -213,13 +220,6 @@ public:
   //----------------------------------------------------------------------------
   virtual bool ListConfigs(XrdOucString& configlist,
                            bool showbackups = false) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get the changlog object
-  //!
-  //! @return changelog object
-  //----------------------------------------------------------------------------
-  virtual ICfgEngineChangelog*  GetChangeLog() = 0;
 
   //----------------------------------------------------------------------------
   //! Get configuration changes
@@ -262,6 +262,16 @@ public:
   virtual void SetConfigDir(const char* configdir) = 0;
 
   //----------------------------------------------------------------------------
+  //! Push a configuration to Redis
+  //!
+  //! @param env environment holding information about the configuration
+  //! @param err object collecting any possible errors
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool PushToRedis(XrdOucEnv& env, XrdOucString& err) = 0;
+
+  //----------------------------------------------------------------------------
   //! Delete a configuration key from the responsible object
   //!
   //! @param key configuration key to be deleted
@@ -289,17 +299,14 @@ public:
   bool ApplyConfig(XrdOucString& err);
 
   //----------------------------------------------------------------------------
-  //! Push a configuration to Redis
+  //! Parse configuration from the input given as a string
   //!
-  //! @param env environment holding information about the configuration
-  //! @param err object collecting any possible errors
+  //! @param config string holding the configuration
+  //! @param err object holding any possible errors
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool PushToRedis(XrdOucEnv& env, XrdOucString& err)
-  {
-    return true;
-  }
+  bool ParseConfig(XrdOucString& config, XrdOucString& err);
 
   //----------------------------------------------------------------------------
   //! Dump method for selective configuration printing
@@ -317,21 +324,11 @@ public:
   void ResetConfig();
 
   //----------------------------------------------------------------------------
-  //! Parse a configuration
-  //!
-  //! @param config string holding the configuration
-  //! @param err object holding any possible errors
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool ParseConfig(XrdOucString& config, XrdOucString& err);
-
-  //----------------------------------------------------------------------------
   //! Set the autosave mode
   //----------------------------------------------------------------------------
   void SetAutoSave(bool val)
   {
-    autosave = val;
+    mAutosave = val;
   }
 
   //----------------------------------------------------------------------------
@@ -339,34 +336,34 @@ public:
   //----------------------------------------------------------------------------
   bool GetAutoSave()
   {
-    return autosave;
+    return mAutosave;
   }
 
-  /// mutex protecting the configuration engine
-  XrdSysMutex Mutex;
-
-  // name of the configuration currently loaded
-  XrdOucString currentConfigFile;
-
-  /// autosave flag - if enabled all changes trigger to store an autosave file
-  bool autosave;
-
+protected:
+  //! Helper struct for passing information in/out of XrdOucHash callbacks
   struct PrintInfo {
-    XrdOucString* out; ///< output string
-    XrdOucString option; ///< option for printing
+    XrdOucString* out; ///< Output string
+    XrdOucString option; ///< Option for printing
   };
 
-  // directory where configuration files are stored
-  XrdOucString configDir;
-
-//
-// broadcasting flag - if enabled all changes are broadcasted into the MGM
-// configuration queue (config/<instance>/mgm)
-  bool configBroadcast;
+  std::unique_ptr<ICfgEngineChangelog> mChangelog; ///< Changelog object
+  XrdSysMutex mMutex; ///< Protect the configuration definitions hash
+  bool mAutosave; ///< Create autosave file for each change
+  //! Broadcast changes into the MGM configuration queue (config/<inst>/mgm)
+  bool mBroadcast;
+  XrdOucString mConfigFile; ///< Currently loaded configuration
+  XrdOucString mConfigDir; ///< Path where configuration files are stored
 
 private:
+  //----------------------------------------------------------------------------
+  //! Filter configuration
+  //!
+  //! @param info
+  //! @param out
+  //! @param cfg_name
+  //----------------------------------------------------------------------------
   virtual void FilterConfig(PrintInfo& info, XrdOucString& out,
-                            const char* configName) = 0;
+                            const char* cfg_name) = 0;
 };
 
 EOSMGMNAMESPACE_END
