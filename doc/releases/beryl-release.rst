@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.202 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- FST: fix return code handling of xfs pre-allocation in CheckSum.cc
+
+
 ``V0.3.201 Aquamarine``
 +++++++++++++++++++++++
 
