@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 #include <signal.h>
+#define __PROCCACHE__NOGPROCCACHE__
 #include "ProcCache.hh"
 #include "common/Logging.hh"
 #include <openssl/x509v3.h>
@@ -35,6 +36,8 @@
 #include <unistd.h>
 #include <ctime>
 #include <XrdSys/XrdSysAtomics.hh>
+
+ProcCache gProcCache;
 
 int ProcReaderCmdLine::ReadContent (std::vector<std::string> &cmdLine)
 {

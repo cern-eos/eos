@@ -4045,10 +4045,9 @@ filesystem::strongauth_cgi(pid_t pid)
   XrdOucString str = "";
 
   if (fuse_shared && (use_user_krb5cc || use_user_gsiproxy)) {
-    char buffer[256];
-    buffer[0] = (char) 0;
-    proccache_GetAuthMethod(pid, buffer, 256);
-    std::string authmet(buffer);
+    std::string authmet;
+    if(gProcCache.HasEntry(pid))
+      gProcCache.GetEntry(pid)->GetAuthMethod(authmet);
 
     if (authmet.compare(0, 5, "krb5:") == 0) {
       str += "xrd.k5ccname=";
@@ -4118,7 +4117,10 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
 
   time_t psstime;
 
-  if (proccache_GetPsStartTime(pid, &psstime)) {
+  if (
+      !gProcCache.HasEntry(pid) ||
+      !gProcCache.GetEntry(pid)->GetStartupTime(psstime)
+      ) {
     eos_static_err("could not get process start time");
   }
 
@@ -4674,7 +4676,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
       pp.append("/");
     }
 
-    proccache_SetProcPath(pp.c_str());
+    gProcCache.SetProcPath(pp.c_str());
   }
 
 // Get the number of levels in the top hierarchy protected agains deletions
@@ -4917,7 +4919,10 @@ filesystem::mylstat(const char* __restrict name, struct stat* __restrict __buf,
     uid_t uid;
     gid_t gid;
 
-    if (proccache_GetFsUidGid(pid, &uid, &gid)) {
+    if (
+        !gProcCache.HasEntry(pid) ||
+        !gProcCache.GetEntry(pid)->GetFsUidGid(uid,gid)
+        ) {
       return ESRCH;
     }
 

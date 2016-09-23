@@ -36,6 +36,7 @@
 #include <krb5.h>
 #include "common/Logging.hh"
 
+
 /*----------------------------------------------------------------------------*/
 class ProcCache;
 
@@ -370,5 +371,9 @@ public:
       return entry->second;
   }
 };
+
+#ifndef __PROCCACHE__NOGPROCCACHE__
+extern ProcCache gProcCache;
+#endif
 
 #endif

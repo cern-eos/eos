@@ -29,7 +29,7 @@
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
-#include "ProcCacheC.h"
+#include "ProcCache.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -311,10 +311,9 @@ protected:
   {
     // when entering this function proccachemutexes[pid] must be write locked
     int errCode;
-    char buffer[1024];
 
     // this is useful even in gateway mode because of the recursive deletion protection
-    if ((errCode = proccache_InsertEntry (pid)))
+    if ((errCode = gProcCache.InsertEntry(pid)))
     {
       eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid, errCode);
       return errCode;
@@ -326,16 +325,19 @@ protected:
 
     // get the startuptime of the process
     time_t processSut;
-    proccache_GetStartupTime(pid,&processSut);
+    if(gProcCache.HasEntry(pid))
+      gProcCache.GetEntry(pid)->GetStartupTime(processSut);
+
     // get the session id
     pid_t sid;
-    proccache_GetSid(pid,&sid);
+    if(gProcCache.HasEntry(pid))
+      gProcCache.GetEntry(pid)->GetSid(sid);
     bool isSessionLeader = (sid==pid);
     // update the proccache of the session leader
     if (!isSessionLeader)
     {
       lock_w_pcache (sid);
-      if ((errCode = proccache_InsertEntry (sid)))
+      if ((errCode = gProcCache.InsertEntry(sid)))
       {
         eos_static_err("updating proc cache information for session leader process %d. Error code is %d", (int )pid, errCode);
         unlock_w_pcache (sid);
@@ -346,7 +348,8 @@ protected:
 
     // get the startuptime of the leader of the session
     time_t sessionSut;
-    proccache_GetStartupTime(sid,&sessionSut);
+    if(gProcCache.HasEntry(sid))
+      gProcCache.GetEntry(sid)->GetStartupTime(sessionSut);
 
     // find the credentials
     CredInfo credinfo;
@@ -395,8 +398,13 @@ protected:
       // no lock needed as only one thread per process can access this (lock is supposed to be already taken -> beginning of the function)
       eos_static_debug("uid=%d  sid=%d  pid=%d  found stronglogin in cache %s",(int)uid,(int)sid,(int)pid,cacheEntry->second.cachedStrongLogin.c_str());
       pid2StrongLogin[pid] = cacheEntry->second.cachedStrongLogin;
-      proccache_GetAuthMethod(sid,buffer,1024);
-      proccache_SetAuthMethod(pid,buffer);
+      if(gProcCache.HasEntry(sid))
+      {
+        std::string authmeth;
+        gProcCache.GetEntry(sid)->GetAuthMethod(authmeth);
+        if(gProcCache.HasEntry(pid))
+          gProcCache.GetEntry(pid)->SetAuthMethod(authmeth);
+      }
       return 0;
     }
 
@@ -406,8 +414,8 @@ protected:
     {
       sId = "unix:nobody";
       /*** using unix authentication and user nobody ***/
-      proccache_SetAuthMethod (pid, sId.c_str() );
-      proccache_SetAuthMethod (sid, sId.c_str() );
+      if(gProcCache.HasEntry(pid)) gProcCache.GetEntry(pid)->SetAuthMethod(sId);
+      if(gProcCache.HasEntry(sid)) gProcCache.GetEntry(sid)->SetAuthMethod(sId);
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       pid2StrongLogin[pid] = "nobody";
     }
@@ -446,8 +454,9 @@ protected:
         eos_static_err("error symlinking credential file ");
         return EACCES;
       }
-      proccache_SetAuthMethod (pid, newauthmeth.c_str ());
-      proccache_SetAuthMethod (sid, newauthmeth.c_str ());
+      if(gProcCache.HasEntry(pid)) gProcCache.GetEntry(pid)->SetAuthMethod(newauthmeth);
+      if(gProcCache.HasEntry(sid)) gProcCache.GetEntry(sid)->SetAuthMethod(newauthmeth);
+
 
       authid = getNewConId (uid, gid, pid);
       if (!authid)

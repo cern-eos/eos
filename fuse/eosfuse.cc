@@ -1153,7 +1153,8 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
 // this is useful only if krb5 is not enabled
   uid_t fsuid = fuse_req_ctx(req)->uid;
   gid_t fsgid = fuse_req_ctx(req)->gid;
-  proccache_GetFsUidGid(fuse_req_ctx(req)->pid, &fsuid, &fsgid);
+  if(gProcCache.HasEntry(fuse_req_ctx(req)->pid))
+    gProcCache.GetEntry(fuse_req_ctx(req)->pid)->GetFsUidGid(fsuid, fsgid);
   int retc = me.fs().access(fullpath.c_str(), mask, fsuid,
                             fsgid, fuse_req_ctx(req)->pid);
 
