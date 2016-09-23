@@ -19,7 +19,7 @@ Bug Fix
 - FST: set /var partition RO threshold to 95% full
 - FUSE: swap lines to avoid valgrind warning about use after erase 
 - MGM: return json responses with json response tag
-
+- DOC: fix commit message for release number
 
 
 ``V0.3.200 Aquamarine``
