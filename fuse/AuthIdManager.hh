@@ -153,11 +153,11 @@ public:
   }
 
 protected:
-
+  // mutex protecting the maps
+  // maps (userid,sessionid) -> ( credinfo )
   // several threads (each from different process) might concurrently access this
   // maps procid -> xrootd_login
   // only one thread per process will access this (protected by one mutex per process)
-  // we have a pool of shared maps
   // it is protected by proccachemutexes
   std::vector<std::map<pid_t,std::string> > pid2StrongLogin;
   // maps (sessionid,userid) -> ( credinfo )
@@ -207,46 +207,46 @@ protected:
         } else {
           snprintf(buffer, 1024, formats[f], (int) uid, suffixes[i]);
         }
-
+            //eos_static_debug("trying to stat %s", buffer);
         size_t bsize = 0;
         //eos_static_debug("trying to stat %s", buffer);
         if (!::lstat(buffer, &linkstat) && (bsize = readlink(buffer, buffer2, 1023))>=0 ) {
-          ret = true;
-          credinfo.lname = buffer;
-          credinfo.lmtime = linkstat.MTIMESPEC.tv_sec;
-          credinfo.lctime = linkstat.CTIMESPEC.tv_sec;
-          credinfo.type = credtypes[i];
-          buffer2[bsize] = 0;
+                ret = true;
+                credinfo.lname = buffer;
+                credinfo.lmtime = linkstat.MTIMESPEC.tv_sec;
+                credinfo.lctime = linkstat.CTIMESPEC.tv_sec;
+                credinfo.type = credtypes[i];
+                buffer2[bsize] = 0;
           eos_static_debug("found credential link %s for uid %d and sid %d",
                            credinfo.lname.c_str(), (int) uid, (int) sid);
 
           if (credinfo.type == krk5) {
-            credinfo.fname = buffer2;
-            break; // there is no file to stat in that case
-          }
+                    credinfo.fname = buffer2;
+                    break; // there is no file to stat in that case
+                  }
 
           if (!stat(buffer2, &filestat)) {
             if (bsize > 0) {
-              buffer2[bsize] = 0;
-              credinfo.fname = buffer2;
+                        buffer2[bsize] = 0;
+                        credinfo.fname = buffer2;
               eos_static_debug("found credential file %s for uid %d and sid %d",
                                credinfo.fname.c_str(), (int) uid, (int) sid);
-            }
+                      }
           } else {
             eos_static_debug("could not stat file %s for uid %d and sid %d",
                              credinfo.fname.c_str(), (int) uid, (int) sid);
-          }
+                  }
 
-          // we found some credential, we stop searching here
-          brk = true;
-          break;
-        }
-      }
+                // we found some credential, we stop searching here
+                brk = true;
+                break;
+              }
+          }
 
       if (brk) {
         break;
       }
-    }
+      }
 
     if (!ret) {
       eos_static_debug("could not find any credential for uid %d and sid %d",
@@ -265,11 +265,11 @@ protected:
                      credinfo.fname.c_str());
 
     if (credinfo.type == krk5) {
-      // fileless authentication cannot rely on symlinks to be able to change the cache credential file
-      // instead of the identity, we use the keyring information and each has a different xrd login
-      credinfo.identity = credinfo.fname;
-      ret = true;
-    }
+        // fileless authentication cannot rely on symlinks to be able to change the cache credential file
+        // instead of the identity, we use the keyring information and each has a different xrd login
+        credinfo.identity = credinfo.fname;
+        ret = true;
+      }
 
     if (credinfo.type == krb5) {
       ProcReaderKrb5UserName reader(credinfo.fname);
@@ -278,7 +278,7 @@ protected:
         eos_static_debug("could not read principal in krb5 cc file %s",
                          credinfo.fname.c_str());
       } else {
-        ret = true;
+          ret = true;
       }
     }
 
@@ -289,7 +289,7 @@ protected:
         eos_static_debug("could not read identity in x509 proxy file %s",
                          credinfo.fname.c_str());
       } else {
-        ret = true;
+          ret = true;
       }
     }
 
@@ -302,17 +302,17 @@ protected:
   {
     //eos_static_debug("linkstat.st_uid=%d  filestat.st_uid=%d  filestat.st_mode=%o  requiredmode=%o",(int)linkstat.st_uid,(int)filestat.st_uid,filestat.st_mode & 0777,reqMode);
     if (
-      // check owner ship
+        // check owner ship
       linkstat.st_uid == uid) {
       if (credtype == krk5) {
-        return true;
+          return true;
       } else if (filestat.st_uid == uid &&
                  (filestat.st_mode & 0077) == 0 // no access to other users/groups
                  && (filestat.st_mode & 0400) != 0 // read allowed for the user
                 ) {
         return true;
       }
-    }
+      }
 
     return false;
   }
@@ -344,8 +344,8 @@ protected:
   bool populatePids ()
   {
     runningPids.clear ();
+    // when entering this function proccachemutexes[pid] must be write locked
 
-    //len = strlen(name);
     errno = 0;
     auto dirp = opendir (gProcCache.GetProcPath().c_str());
     if(dirp==NULL)
@@ -353,7 +353,7 @@ protected:
       eos_static_err("error openning %s to get running pids. errno=%d",gProcCache.GetProcPath().c_str(),errno);
       return false;
     }
-
+    // this is useful even in gateway mode because of the recursive deletion protection
     struct dirent *dp = NULL;
     long long int i = 0;
     while ((dp = readdir (dirp)) != NULL)
@@ -365,7 +365,7 @@ protected:
 
     return true;
   }
-
+    // check if we are using strong authentication
   bool cleanProcCachePid (pid_t pid)
   {
     bool result = false;
@@ -423,7 +423,7 @@ protected:
     eos_static_info("ProcCache cleaning removed %d entries in gProcCache",cleancountProcCache);
     eos_static_debug("ProcCache cleaning removed %d entries in pid2StrongLogin",cleancountStrongLogin);
     eos_static_debug("ProcCache cleaning removed %d entries in siduid2CredInfo",cleancountCredInfo);
-    return 0;
+      return 0;
   }
 
   static void*
@@ -442,7 +442,7 @@ protected:
 
   int
   updateProcCache(uid_t uid, gid_t gid, pid_t pid, bool reconnect)
-  {
+    {
     // when entering this function proccachemutexes[pid] must be write locked
     int errCode;
 
@@ -519,23 +519,23 @@ protected:
     std::map<uid_t, CredInfo>::iterator cacheEntry;
     if (cacheEntryFound)
     {
-
+    // skip the cache if reconnecting
       cacheEntry = siduid2credinfo[sid%proccachenbins][sid].find(uid);
       // skip the cache if reconnecting
       sessionInCache = !reconnect;
 
       if (sessionInCache)
-      {
-        sessionInCache = false;
+    {
+      sessionInCache = false;
         const CredInfo& ci = cacheEntry->second;
-
+      // we also check ctime to be sure that permission/ownership has not changed
         // we also check ctime to be sure that permission/ownership has not changed
         if (ci.type == credinfo.type && ci.lmtime == credinfo.lmtime && ci.lctime == credinfo.lctime)
-        {
-          sessionInCache = true;
-          // we don't check the credentials file for modification because it might be modified during authentication
-        }
+      {
+        sessionInCache = true;
+        // we don't check the credentials file for modification because it might be modified during authentication
       }
+    }
     }
     if(sid!=pid) unlock_r_pcache(sid);
 
@@ -564,16 +564,16 @@ protected:
 
     if (credinfo.type == nobody) {
       sId = "unix:nobody";
-
       /*** using unix authentication and user nobody ***/
+      // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       if (gProcCache.HasEntry(pid)) {
         gProcCache.GetEntry(pid)->SetAuthMethod(sId);
-      }
-
+    }
+      // refresh the credentials in the cache
       if (gProcCache.HasEntry(sid)) {
         gProcCache.GetEntry(sid)->SetAuthMethod(sId);
       }
-
+      // check the credential security
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       pid2StrongLogin[pid%proccachenbins][pid] = "nobody";
     } else {
@@ -583,12 +583,12 @@ protected:
         eos_static_alert("credentials are not safe");
         return EACCES;
       }
-
       // check the credential security
+
       if (!readCred(credinfo)) {
         return EACCES;
       }
-
+      // update authmethods for session leader and current pid
       // update authmethods for session leader and current pid
       if (credinfo.type == krb5) {
         sId = "krb5:";
@@ -605,7 +605,7 @@ protected:
                        (int)uid, credinfo.fname.c_str());
         return EPERM;
       }
-
+      // using directly the value of the pointed file (which is the text in the case ofin memory credentials)
       // using directly the value of the pointed file (which is the text in the case ofin memory credentials)
       sId.append(credinfo.fname);
       newauthmeth = sId;
@@ -630,14 +630,14 @@ protected:
         errCode = EBUSY;
         return errCode;
       }
-
+      // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       map_user xrdlogin(uid, gid, authid);
       std::string mapped = mapUser(uid, gid, 0, authid);
       pid2StrongLogin[pid%proccachenbins][pid] = std::string(xrdlogin.base64(mapped));
     }
 
-    // update siduid2credinfo
+    // update uidsid2credinfo
     credinfo.cachedStrongLogin = pid2StrongLogin[pid%proccachenbins][pid];
     eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",
                      (int)uid, (int)sid, (int)pid, credinfo.cachedStrongLogin.c_str());
@@ -665,20 +665,20 @@ protected:
     base64(std::string& mapped)
     {
       if (!base64computed) {
-        // pid is actually meaningless
+          // pid is actually meaningless
         strncpy(base64buf, mapped.c_str(), 8);
-        base64buf[8] = 0;
-        base64computed = true;
-      }
+          base64buf[8] = 0;
+          base64computed = true;
+        }
 
       return base64buf;
     }
   };
 
-
   //------------------------------------------------------------------------------
   // Get user name from the uid and change the effective user ID of the thread
   //------------------------------------------------------------------------------
+
 
   std::string
   mapUser(uid_t uid, gid_t gid, pid_t pid, uint64_t conid);

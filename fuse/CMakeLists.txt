@@ -42,7 +42,6 @@ add_subdirectory(FuseCache)
 add_executable(
   eosd
   ProcCache.cc ProcCache.hh
-  ProcCacheC.cc ProcCacheC.h
   main.cc eosfuse.cc eosfuse.hh
   filesystem.cc      filesystem.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh
@@ -101,7 +100,6 @@ if (FUSE3_FOUND)
 add_executable(
   eosd3
   ProcCache.cc ProcCache.hh
-  ProcCacheC.cc ProcCacheC.h
   main.cc eosfuse.cc eosfuse.hh
   filesystem.cc      filesystem.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh
