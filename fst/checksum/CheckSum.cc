@@ -319,11 +319,11 @@ CheckSum::OpenMap (const char* mapfilepath, size_t maxfilesize, size_t blocksize
       fl.l_whence = 0;
       fl.l_start = 0;
       fl.l_len = (off64_t) ChecksumMapSize;
-      return xfsctl(NULL, ChecksumMapFd, XFS_IOC_RESVSP64, &fl);
+      rc = xfsctl(NULL, ChecksumMapFd, XFS_IOC_RESVSP64, &fl);
     }
     else
     {
-      return posix_fallocate(ChecksumMapFd, 0, ChecksumMapSize);
+      rc = posix_fallocate(ChecksumMapFd, 0, ChecksumMapSize);
     }
 #endif
     if (rc)
