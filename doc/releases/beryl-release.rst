@@ -16,6 +16,11 @@ Bug Fix
 
 - FST: always reset the disk checksum in the meta data db when a file has been modified
 - FST: consider only flagged file/blockchecksum errors to prevent to return meta data objects
+- FST: set /var partition RO threshold to 95% full
+- FUSE: swap lines to avoid valgrind warning about use after erase 
+- MGM: return json responses with json response tag
+
+
 
 ``V0.3.200 Aquamarine``
 +++++++++++++++++++++++
