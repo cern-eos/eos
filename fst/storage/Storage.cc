@@ -761,7 +761,7 @@ Storage::GetFsidFromPath (std::string path, eos::common::FileSystem::fsid_t &fsi
 
 void* Storage::StartVarPartitionMonitor(void* pp){
   Storage* storage = (Storage*) pp;
-  MonitorVarPartition<std::vector<FileSystem*>> mon(10., 30, "/var/");
+  MonitorVarPartition<std::vector<FileSystem*>> mon(5., 30, "/var/");
   mon.Monitor(storage->fileSystemsVector, storage->fsMutex);
   return 0;
 }
