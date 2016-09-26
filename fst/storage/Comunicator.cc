@@ -24,9 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-#ifdef KINETICIO_FOUND
-#include "kio/KineticIoFactory.hh"
-#endif
+#include "fst/io/kinetic/KineticIo.hh"
 
 /*----------------------------------------------------------------------------*/
 
@@ -378,18 +376,15 @@ Storage::Communicator()
             }
 
             gOFS.ObjectManager.HashMutex.UnLockRead();
-#ifdef KINETICIO_FOUND
 
             if (do_reload) {
               try {
-                kio::KineticIoFactory::reloadConfiguration();
+                KineticLib::access()->reloadConfiguration();
               } catch (const std::exception& e) {
                 eos_static_crit("msg=\"reload of kinetic configuration failed\" exception=\"%s\"",
                                 e.what());
               }
             }
-
-#endif
           }
         } else {
           fsMutex.LockRead();

@@ -24,9 +24,7 @@
 
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-#ifdef KINETICIO_FOUND
 #include "fst/io/kinetic/KineticIo.hh"
-#endif
 #ifdef DAVIX_FOUND
 #include "fst/io/davix/DavixIo.hh"
 #endif
@@ -50,19 +48,13 @@ FileIoPlugin::GetIoObject(std::string path,
   } else if (ioType == LayoutId::kXrdCl) {
     return static_cast<FileIo*>(new XrdIo(path));
   } else if (ioType == LayoutId::kKinetic) {
-#ifdef KINETICIO_FOUND
     FileIo* kio = NULL;
-
     try {
       kio = static_cast<FileIo*>((FileIo*)new KineticIo(path));
     } catch (const std::exception& e) {
       eos_static_err("Failed constructing kinetic io object: %s", e.what());
     }
-
     return kio;
-#endif
-    eos_static_warning("EOS has been compiled without Kinetic support.");
-    return NULL;
   } else if (ioType == LayoutId::kRados) {
     return static_cast<FileIo*>(new RadosIo(path));
   } else if (ioType == LayoutId::kDavix) {

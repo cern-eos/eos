@@ -21,14 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-if(KINETICIO_FOUND)
-    set(KINETICIO_SRC "io/kinetic/KineticIo.cc")
-    set(KINETICIO_HDR "io/kinetic/KineticIo.hh")
-else()
-    set(KINETICIO_SRC "")
-    set(KINETICIO_HDR "")
-endif()
-
 if(DAVIX_FOUND)
     add_definitions(-DDAVIX_FOUND)
     set(DAVIX_SRC "io/davix/DavixIo.cc")
@@ -178,7 +170,8 @@ set(
   #-----------------------------------------------------------------------------
   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
-  ${KINETICIO_SRC}               ${KINETICIO_HDR}
+  io/kinetic/KineticIo.cc        io/kinetic/KineticIo.hh
+  ../common/plugin_manager/DynamicLibrary.cc
   ${DAVIX_SRC}			 ${DAVIX_HDR}
   io/rados/RadosIo.cc            io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
@@ -226,7 +219,6 @@ target_link_libraries(
   ${XROOTD_SERVER_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${JSONC_LIBRARIES}
-  ${KINETICIO_LIBRARIES}
   ${DAVIX_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARIES})
@@ -267,7 +259,6 @@ if(Linux)
     ${NCURSES_LIBRARY_STATIC}
     ${OPENSSL_CRYPTO_LIBRARY_STATIC}
     ${JSONC_LIBRARIES}
-    ${KINETICIO_LIBRARIES}
     ${DAVIX_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT})
 
@@ -485,7 +476,6 @@ target_link_libraries(
   EosFstIo-Static
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
-  ${KINETICIO_LIBRARIES}
   ${DAVIX_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

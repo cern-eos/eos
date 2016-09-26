@@ -7,10 +7,27 @@
 #define __EOS_FST_KINETICFILEIO__HH__
 
 #include "fst/io/FileIo.hh"
-#include <kio/FileIoInterface.hh>
+#include <kio/KineticIoFactory.hh>
 #include <memory>
+#include <common/plugin_manager/DynamicLibrary.hh>
 
 EOSFSTNAMESPACE_BEGIN
+
+class KineticLib
+{
+public:
+  //! Acess a factory object. Function throws if if kineticio library has not been
+  //! loaded correctly.
+  static kio::LoadableKineticIoFactoryInterface* access();
+
+private:
+  //! pointer to factory object, set in constructor
+  kio::LoadableKineticIoFactoryInterface* factory;
+  //! keeping the library object around so it will be unloaded correctly
+  std::unique_ptr<eos::common::DynamicLibrary> library;
+  //! Constructor
+  KineticLib();
+};
 
 class KineticIo : public FileIo
 {
@@ -285,7 +302,8 @@ public:
   int ftsClose(FileIo::FtsHandle* handle);
 
   //----------------------------------------------------------------------------
-  //! Constructor
+  //! Constructor. May throw if the underlying kinetic io library object
+  //! can not be constructed.
   //!
   //! @param path the path associated with this plugin instance
   //----------------------------------------------------------------------------

@@ -27,16 +27,8 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIR}
-  ${OPENSSL_INCLUDE_DIRS})
-
-#-------------------------------------------------------------------------------
-# These files are generated in the ../fst/ directory
-#-------------------------------------------------------------------------------
-set_source_files_properties(
-  ${FMDBASE_SRCS}
-  ${FMDBASE_HDRS}
-  PROPERTIES GENERATED TRUE)
-
+  ${OPENSSL_INCLUDE_DIRS}
+)
 #-------------------------------------------------------------------------------
 # eos executable
 #-------------------------------------------------------------------------------
@@ -46,12 +38,6 @@ add_executable(
   ConsolePipe.cc  ConsolePipe.hh
   ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/Adler.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/crc32c.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/crc32ctables.cc
-  ${FMDBASE_SRCS}
-  ${FMDBASE_HDRS}
   commands/com_access.cc
   commands/com_archive.cc
   commands/com_attr.cc
@@ -121,6 +107,7 @@ if(CLIENT)
   target_link_libraries(
     eos PUBLIC
     eosCommon
+    EosFstIo
     ${Z_LIBRARY}
     ${UUID_LIBRARIES}
     ${READLINE_LIBRARY}
@@ -131,12 +118,12 @@ if(CLIENT)
     ${XROOTD_POSIX_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KINETICIO_LIBRARIES})
+    ${CMAKE_THREAD_LIBS_INIT})
 else()
   target_link_libraries(
     eos PUBLIC
     eosCommon-Static
+    EosFstIo-Static
     XrdMqClient-Static
     ${Z_LIBRARY}
     ${UUID_LIBRARIES}
@@ -148,7 +135,7 @@ else()
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
-    ${KINETICIO_LIBRARIES})
+)
 endif()
 
 add_executable(eosdropboxd dropbox/eosdropboxd.cc)

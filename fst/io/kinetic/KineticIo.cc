@@ -1,5 +1,4 @@
 #include "KineticIo.hh"
-#include "kio/KineticIoFactory.hh"
 #include <system_error>
 
 EOSFSTNAMESPACE_BEGIN
@@ -14,24 +13,49 @@ logmsg(const char* func, const char* file, int line, int priority,
   );
 }
 
-class LogFunctionInitializer
+KineticLib::KineticLib()
 {
-public:
+  factory = NULL;
 
-  LogFunctionInitializer()
-  {
-    kio::KineticIoFactory::registerLogFunction(logmsg,
-        eos::common::Logging::shouldlog);
+  std::string error;
+  library.reset(
+      eos::common::DynamicLibrary::Load("libkineticio.so", error)
+  );
+
+  if(!library){
+    eos_static_notice("Failed loading libkineticio: %s", error.c_str());
+    return;
   }
-};
 
-static LogFunctionInitializer kio_loginit;
+  void* symbol = library->GetSymbol("getKineticIoFactory");
+  if(!symbol){
+    eos_static_notice("Failed loading getKineticIoFactory from libkineticio");
+    return;
+  }
+
+  typedef kio::LoadableKineticIoFactoryInterface* (* function_t)();
+  factory = reinterpret_cast<function_t>(symbol)();
+
+  factory->registerLogFunction(logmsg, eos::common::Logging::shouldlog);
+}
+
+kio::LoadableKineticIoFactoryInterface* KineticLib::access()
+{
+  static KineticLib k;
+  if(!k.factory) {
+    throw std::runtime_error("Kineticio library cannot be accessed.");
+  }
+  return k.factory;
+}
+
 
 KineticIo::KineticIo(std::string path) :
-  FileIo(path, "kinetic"),
-  kio(kio::KineticIoFactory::makeFileIo(path))
+  FileIo(path, "kinetic")
 {
   eos_debug("path: %s", mFilePath.c_str());
+  kio = std::move(
+      KineticLib::access()->makeFileIo(path)
+  );
 }
 
 KineticIo::~KineticIo()

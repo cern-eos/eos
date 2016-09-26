@@ -57,7 +57,7 @@ BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: redhat-rpm-config
 BuildRequires: protobuf, protobuf-devel, protobuf-compiler
-#BuildRequires: kineticio >= 1.1.0
+BuildRequires: kineticio-devel >= 1.2
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 
@@ -135,7 +135,6 @@ Requires: acl
 Requires: gdb
 Requires: protobuf
 Requires: jemalloc
-#Requires: kineticio >= 1.1.0
 Requires: jsoncpp
 
 %if 0%{distribution} == 5
