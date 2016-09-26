@@ -82,6 +82,7 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
   }
 
   eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexWriteLock vlock(FmdSqliteMutexMap[fsid]);
 
   if (!isattached) {
     dbmap[fsid] = new eos::common::DbMap();
