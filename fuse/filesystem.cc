@@ -495,141 +495,6 @@ filesystem::redirect_i2i (unsigned long long inode)
 
 
 //------------------------------------------------------------------------------
-// Lock read
-//------------------------------------------------------------------------------
-
-void
-filesystem::lock_r_dirview ()
-{
- mutex_dir2inodelist.LockRead ();
-}
-
-//------------------------------------------------------------------------------
-// Unlock read
-//------------------------------------------------------------------------------
-
-void
-filesystem::unlock_r_dirview ()
-{
- mutex_dir2inodelist.UnLockRead ();
-}
-
-
-//------------------------------------------------------------------------------
-// Lock write
-//------------------------------------------------------------------------------
-
-void
-filesystem::lock_w_dirview ()
-{
- mutex_dir2inodelist.LockWrite ();
-}
-
-
-//------------------------------------------------------------------------------
-// Unlock write
-//------------------------------------------------------------------------------
-
-void
-filesystem::unlock_w_dirview ()
-{
- mutex_dir2inodelist.UnLockWrite ();
-}
-
-
-//------------------------------------------------------------------------------
-// Create a new entry in the maps for the current inode (directory)
-//------------------------------------------------------------------------------
-
-void
-filesystem::dirview_create (unsigned long long inode)
-{
- eos_static_debug ("inode=%llu", inode);
- //Obs: path should be attached beforehand into path translation
- eos::common::RWMutexWriteLock vLock (mutex_dir2inodelist);
- dir2inodelist[inode].clear ();
- dir2dirbuf[inode].p = 0;
- dir2dirbuf[inode].size = 0;
-}
-
-
-//------------------------------------------------------------------------------
-// Delete entry from maps for current inode (directory)
-//------------------------------------------------------------------------------
-
-void
-filesystem::dirview_delete (unsigned long long inode)
-{
- eos_static_debug ("inode=%llu", inode);
- eos::common::RWMutexWriteLock wr_lock (mutex_dir2inodelist);
-
- if (dir2inodelist.count (inode))
- {
-   if (dir2dirbuf[inode].p)
-   {
-     free (dir2dirbuf[inode].p);
-   }
-
-   dir2dirbuf.erase (inode);
-   dir2inodelist[inode].clear ();
-   dir2inodelist.erase (inode);
- }
-}
-
-
-//------------------------------------------------------------------------------
-// Get entry's inode with index 'index' from directory
-//------------------------------------------------------------------------------
-
-unsigned long long
-filesystem::dirview_entry (unsigned long long dirinode,
-                           size_t index,
-                           int get_lock)
-{
-  eos_static_debug ("dirinode=%llu, index=%zu", dirinode, index);
-
-  if (get_lock) 
-  {
-    eos::common::RWMutexReadLock rd_lock (mutex_dir2inodelist);
-    
-    if ((dir2inodelist.count (dirinode)) &&
-	(dir2inodelist[dirinode].size () > index))
-      return dir2inodelist[dirinode][index];
-  }
-  else
-  {
-    if ((dir2inodelist.count (dirinode)) &&
-	(dir2inodelist[dirinode].size () > index))
-      return dir2inodelist[dirinode][index];
-  }
-  return 0;
-}
-
-
-//------------------------------------------------------------------------------
-// Get dirbuf corresponding to inode
-//------------------------------------------------------------------------------
-
-struct dirbuf*
-filesystem::dirview_getbuffer (unsigned long long inode, int get_lock)
-{
-  if (get_lock) 
-  {  
-    eos::common::RWMutexReadLock rd_lock (mutex_dir2inodelist);
-    
-    if (dir2dirbuf.count (inode))
-      return &dir2dirbuf[inode];
-  }
-  else
-  {
-    if (dir2dirbuf.count (inode))
-      return &dir2dirbuf[inode];
-  }
-  return 0;
-}
-
-
-//------------------------------------------------------------------------------
 //      ******* Implementation of the FUSE directory cache *******
 //------------------------------------------------------------------------------
 
@@ -2471,6 +2336,7 @@ filesystem::inodirlist (unsigned long long dirinode,
                         uid_t uid,
                         gid_t gid,
                         pid_t pid,
+			dirlist &dlist,
                         struct fuse_entry_param **stats)
 {
  eos_static_info ("inode=%llu path=%s", dirinode, path);
@@ -2554,9 +2420,8 @@ filesystem::inodirlist (unsigned long long dirinode,
  value[offset] = 0;
  //eos_static_info("request reply is %s",value);
  delete file;
- dirview_create ((unsigned long long) dirinode);
+
  COMMONTIMING ("PARSESTSTREAM", &inodirtiming);
- lock_w_dirview (); // =>
 
  std::vector<struct stat> statvec;
  if (status.IsOK ())
@@ -2569,8 +2434,6 @@ filesystem::inodirlist (unsigned long long dirinode,
    if (retc)
    {
      free (value);
-     unlock_w_dirview (); // <=
-     dirview_delete ((unsigned long long) dirinode);
      errno = EFAULT;
      return errno;
    }
@@ -2579,8 +2442,6 @@ filesystem::inodirlist (unsigned long long dirinode,
    {
      eos_static_err ("got an error(1).");
      free (value);
-     unlock_w_dirview (); // <=
-     dirview_delete ((unsigned long long) dirinode);
      errno = EFAULT;
      return errno;
    }
@@ -2749,7 +2610,7 @@ filesystem::inodirlist (unsigned long long dirinode,
         if (show_entry)
         {
           store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
-          dir2inodelist[dirinode].push_back (inode);
+          dlist.push_back (inode);
         }
       }
    }
@@ -2757,8 +2618,6 @@ filesystem::inodirlist (unsigned long long dirinode,
    {
      eos_static_err ("got an error(2).");
      free (value);
-     unlock_w_dirview (); // <=
-     dirview_delete ((unsigned long long) dirinode);
      errno = EFAULT;
      return errno;
    }
@@ -2766,7 +2625,6 @@ filesystem::inodirlist (unsigned long long dirinode,
 
    doinodirlist = 0;
  }
- unlock_w_dirview (); // <=
  COMMONTIMING ("PARSESTSTREAM2", &inodirtiming);
 
  if (stats)

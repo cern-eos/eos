@@ -82,6 +82,8 @@ public:
  virtual
  ~filesystem ();
 
+ typedef std::vector<unsigned long long> dirlist;
+  
  void
  setMountPoint (const std::string& md)
  {
@@ -308,72 +310,6 @@ unsigned long long redirect_i2i (unsigned long long inode);
  //!
  //----------------------------------------------------------------------------
  void release_rd_buff (pthread_t tid);
-
-
-
- //----------------------------------------------------------------------------
- //                ******* DIR Listrings *******
- //----------------------------------------------------------------------------
-
- //----------------------------------------------------------------------------
- //! Lock dirview (read)
- //----------------------------------------------------------------------------
- void lock_r_dirview ();
-
-
- //----------------------------------------------------------------------------
- //! Unlock dirview (read)
- //----------------------------------------------------------------------------
- void unlock_r_dirview ();
-
-
- //----------------------------------------------------------------------------
- //! Lock dirview (write)
- //----------------------------------------------------------------------------
- void lock_w_dirview ();
-
-
- //----------------------------------------------------------------------------
- //! Unlock dirview (write)
- //----------------------------------------------------------------------------
- void unlock_w_dirview ();
-
-
- //----------------------------------------------------------------------------
- //! Create a new directory listing. Path should be attached beforehand into
- //! path translation.
- //----------------------------------------------------------------------------
- void dirview_create (unsigned long long inode);
-
-
- //----------------------------------------------------------------------------
- //! Delete a directory listing. Path should be attached beforehand into
- //! path translation.
- //----------------------------------------------------------------------------
- void dirview_delete (unsigned long long inode);
-
-
- //----------------------------------------------------------------------------
- //! Returns subentry with index 'index' from the directory
- //!
- //! @param dirinode directory inode
- //! @param index index of entry
- //! @param get_lock if true, user does not take care of locking
- //!
- //! @return inode of the subentry
- //!
- //----------------------------------------------------------------------------
- unsigned long long dirview_entry (unsigned long long dirinode,
-                                   size_t index,
-                                   int get_lock);
-
-
- //----------------------------------------------------------------------------
- //! Get dirbuf structure for a directory inode
- //----------------------------------------------------------------------------
- struct dirbuf*
- dirview_getbuffer (unsigned long long dirinode,
-                    int get_lock);
 
 
 
@@ -778,6 +714,7 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
                  uid_t uid,
                  gid_t gid,
                  pid_t pid,
+		 dirlist &dlist,
                  struct fuse_entry_param **stats);
 
  //----------------------------------------------------------------------------

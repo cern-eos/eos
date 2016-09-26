@@ -628,186 +628,199 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
  eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
 }
 
+
+void 
+EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
+{ 
+  eos::common::Timing timing (__func__);
+  COMMONTIMING ("_start_", &timing);
+  eos_static_debug ("");
+  EosFuse& me = instance ();
+  
+  // concurrency monitor
+  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
+  
+  std::string dirfullpath;
+  char fullpath[16384];
+  char* name = 0;
+  int retc = 0;
+  int dir_status = 0;
+  size_t cnt = 0;
+  struct dirbuf b;
+  struct dirbuf* tmp_buf;
+  struct dirbuf* fh_buf;
+  struct stat attr;
+  
+  b.size=0;
+  b.alloc_size=0;
+  b.p=0;
+
+  UPDATEPROCCACHE;
+  
+  me.fs ().lock_r_p2i (); // =>
+  const char* tmpname = me.fs ().path ((unsigned long long) ino);
+  
+  if (tmpname)
+    name = strdup (tmpname);
+  
+  me.fs ().unlock_r_p2i (); // <=
+  
+  if (!name || !checkpathname(name) )
+  {
+    fuse_reply_err (req, ENOENT);
+    return;
+  }
+  
+  me.fs ().getPath (dirfullpath, me.config.mountprefix, name);
+  if(me.config.encode_pathname)
+  {
+    sprintf (fullpath, "/proc/user/?mgm.cmd=fuse&"
+	     "mgm.subcmd=inodirlist&eos.encodepath=1&mgm.statentries=1&mgm.path=%s"
+	     , me.fs().safePath((("/"+me.config.mountprefix)+name).c_str()).c_str());
+  }
+  else
+  {
+    sprintf (fullpath, "/proc/user/?mgm.cmd=fuse&"
+	     "mgm.subcmd=inodirlist&mgm.statentries=1&mgm.path=/%s%s", me.config.mountprefix.c_str (), name);
+  }
+  
+  eos_static_debug ("inode=%lld path=%s",
+		    (long long) ino, dirfullpath.c_str ());
+  
+
+  if (me.config.no_access)
+  {
+    // if ACCESS is disabled we have to make sure that we can actually read this directory if we are not 'root'
+    if (me.fs ().access (dirfullpath.c_str (),
+			 R_OK | X_OK,
+			 fuse_req_ctx (req)->uid,
+			 fuse_req_ctx (req)->gid,
+			 fuse_req_ctx (req)->pid))
+    {
+      eos_static_err ("no access to %s", dirfullpath.c_str ());
+      fuse_reply_err (req, errno);
+      free (name);
+      return;
+   }
+  }
+
+  // No dirview entry, try to use the directory cache
+  if ((retc = me.fs ().stat (dirfullpath.c_str (), &attr, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, ino)))
+  {
+    eos_static_err ("could not stat %s", dirfullpath.c_str ());
+    fuse_reply_err (req, errno);
+    free (name);
+    return;
+  }
+  
+  dir_status = me.fs ().dir_cache_get (ino, attr.MTIMESPEC, attr.CTIMESPEC, &tmp_buf);
+  
+  if (!dir_status)
+  {
+    // Dir not in cache or invalid, fall-back to normal reading
+    struct fuse_entry_param *entriesstats = NULL;
+    filesystem::dirlist dlist;
+
+    me.fs ().inodirlist ((unsigned long long) ino, fullpath,
+			 fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, dlist, &entriesstats);
+    
+    unsigned long long in;
+    
+    for (cnt = 0; cnt < dlist.size(); cnt++)
+    {
+      in = dlist[cnt];
+      std::string bname = me.fs ().base_name (in);
+      if (cnt == 0)
+      {
+	// this is the '.' directory
+	bname = ".";
+      }
+      else if (cnt == 1)
+      {
+	// this is the '..' directory
+	bname = "..";
+      }
+      if (bname.length ())
+      {
+	struct stat *buf = NULL;
+	if (entriesstats && entriesstats[cnt].attr.st_ino > 0) buf = &entriesstats[cnt].attr;
+	dirbuf_add (req, &b, bname.c_str (), (fuse_ino_t) in, buf);
+      }
+      else
+	eos_static_err("failed for inode=%llu", in);
+    }
+    
+    //........................................................................
+    // Add directory to cache or update it
+    //........................................................................
+    me.fs ().dir_cache_sync (ino, cnt, attr.MTIMESPEC, attr.CTIMESPEC, &b);
+
+    // duplicate the dirbuf response and store in the file handle
+    fh_buf = (struct dirbuf*) malloc(sizeof(dirbuf));
+    fh_buf->p = (char*) calloc( b.size, sizeof ( char));
+    fh_buf->p = (char*) memcpy (fh_buf->p, b.p, b.size);
+    fh_buf->size = b.size;
+    fh_buf->alloc_size = b.size;
+    
+    fi->fh = (uint64_t) fh_buf;
+    
+    //........................................................................
+    // Add the stat to the cache
+    //........................................................................
+    for (size_t i = 2; i < cnt; i++) // the two first ones are . and ..
+    {
+      entriesstats[i].attr_timeout = me.config.attrcachetime;
+      entriesstats[i].entry_timeout = me.config.entrycachetime;
+      
+      me.fs ().dir_cache_add_entry (ino, entriesstats[i].attr.st_ino, entriesstats + i);
+      eos_static_debug ("add_entry  %lu  %lu", entriesstats[i].ino, entriesstats[i].attr.st_ino);
+    }
+
+    free (entriesstats);
+  }
+  else
+  {
+    // duplicate the dirbuf from cache and store in the file handle
+    fh_buf = (struct dirbuf*) malloc(sizeof(dirbuf));
+    fh_buf->p = (char*) calloc( tmp_buf->size, sizeof ( char));
+    fh_buf->p = (char*) memcpy (fh_buf->p, tmp_buf->p, tmp_buf->size);
+    fh_buf->size = tmp_buf->size;
+    fh_buf->alloc_size = tmp_buf->size;
+    fi->fh = (uint64_t) fh_buf;
+  }
+  
+  eos_static_debug ("return size=%lld ptr=%lld",
+		    (long long) b.size, (long long) b.p);
+  
+  free (name);
+
+  fuse_reply_open (req, fi);
+
+  COMMONTIMING ("_stop_", &timing);
+  eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
+}
+
 void
 EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fuse_file_info *fi)
 {
  eos::common::Timing timing (__func__);
  COMMONTIMING ("_start_", &timing);
  eos_static_debug ("");
- EosFuse& me = instance ();
 
- // concurrency monitor
- filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
-
- std::string dirfullpath;
- char fullpath[16384];
- char* name = 0;
- int retc = 0;
- int dir_status = 0;
- size_t cnt = 0;
- struct dirbuf* b;
- struct dirbuf* tmp_buf;
- struct stat attr;
-
- UPDATEPROCCACHE;
-
- me.fs ().lock_r_p2i (); // =>
- const char* tmpname = me.fs ().path ((unsigned long long) ino);
-
- if (tmpname)
-   name = strdup (tmpname);
-
- me.fs ().unlock_r_p2i (); // <=
-
- if (!name || !checkpathname(name) )
+ if (!fi->fh)
  {
-   fuse_reply_err (req, ENOENT);
+   fuse_reply_err (req, ENXIO);
    return;
  }
 
- me.fs ().getPath (dirfullpath, me.config.mountprefix, name);
- if(me.config.encode_pathname)
- {
- sprintf (fullpath, "/proc/user/?mgm.cmd=fuse&"
-          "mgm.subcmd=inodirlist&eos.encodepath=1&mgm.statentries=1&mgm.path=%s"
-          , me.fs().safePath((("/"+me.config.mountprefix)+name).c_str()).c_str());
- }
- else
- {
-   sprintf (fullpath, "/proc/user/?mgm.cmd=fuse&"
-            "mgm.subcmd=inodirlist&mgm.statentries=1&mgm.path=/%s%s", me.config.mountprefix.c_str (), name);
- }
-
- eos_static_debug ("inode=%lld path=%s size=%lld off=%lld",
-                   (long long) ino, dirfullpath.c_str (), (long long) size, (long long) off);
-
-
- if (me.config.no_access && !off)
- {
-   // if ACCESS is disabled we have to make sure that we can actually read this directory if we are not 'root'
-   if (me.fs ().access (dirfullpath.c_str (),
-                        R_OK | X_OK,
-                        fuse_req_ctx (req)->uid,
-                        fuse_req_ctx (req)->gid,
-                        fuse_req_ctx (req)->pid))
-   {
-     eos_static_err ("no access to %s", dirfullpath.c_str ());
-     fuse_reply_err (req, errno);
-     free (name);
-     return;
-   }
- }
-
-
- if (!(b = me.fs ().dirview_getbuffer (ino, 1)))
- {
-   // No dirview entry, try to use the directory cache
-   if ((retc = me.fs ().stat (dirfullpath.c_str (), &attr, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, ino)))
-   {
-     eos_static_err ("could not stat %s", dirfullpath.c_str ());
-     fuse_reply_err (req, errno);
-     free (name);
-     return;
-   }
-
-   dir_status = me.fs ().dir_cache_get (ino, attr.MTIMESPEC, attr.CTIMESPEC, &tmp_buf);
-
-   if (!dir_status)
-   {
-     // Dir not in cache or invalid, fall-back to normal reading
-     struct fuse_entry_param *entriesstats = NULL;
-     me.fs ().inodirlist ((unsigned long long) ino, fullpath,
-                          fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, &entriesstats);
-
-     me.fs ().lock_r_dirview (); // =>
-     b = me.fs ().dirview_getbuffer ((unsigned long long) ino, 0);
-
-     if (!b)
-     {
-       me.fs ().unlock_r_dirview (); // <=
-       fuse_reply_err (req, EPERM);
-       free (name);
-       return;
-     }
-
-     b->p = NULL;
-     b->size = 0;
-
-     unsigned long long in;
-
-     while ((in = me.fs ().dirview_entry (ino, cnt, 0)))
-     {
-       std::string bname = me.fs ().base_name (in);
-       if (cnt == 0)
-       {
-	 // this is the '.' directory
-	 bname = ".";
-       }
-       else if (cnt == 1)
-       {
-	 // this is the '..' directory
-	 bname = "..";
-       }
-       if (bname.length ())
-       {
-	 struct stat *buf = NULL;
-	 if (entriesstats && entriesstats[cnt].attr.st_ino > 0) buf = &entriesstats[cnt].attr;
-	 dirbuf_add (req, b, bname.c_str (), (fuse_ino_t) in, buf);
-       }
-       else
-          eos_static_err("failed for inode=%llu", in);
-       cnt++;
-     }
-
-     //........................................................................
-     // Add directory to cache or update it
-     //........................................................................
-     me.fs ().dir_cache_sync (ino, cnt, attr.MTIMESPEC, attr.CTIMESPEC, b);
-     me.fs ().unlock_r_dirview (); // <=
-
-     //........................................................................
-     // Add the stat to the cache
-     //........................................................................
-     for (size_t i = 2; i < cnt; i++) // the two first ones are . and ..
-     {
-       entriesstats[i].attr_timeout = me.config.attrcachetime;
-       entriesstats[i].entry_timeout = me.config.entrycachetime;
-
-       me.fs ().dir_cache_add_entry (ino, entriesstats[i].attr.st_ino, entriesstats + i);
-       eos_static_debug ("add_entry  %lu  %lu", entriesstats[i].ino, entriesstats[i].attr.st_ino);
-     }
-
-     free (entriesstats);
-   }
-   else
-   {
-     //........................................................................
-     //Get info from cache
-     //........................................................................
-     eos_static_debug ("getting buffer from cache and tmp_buf->size=%zu",
-                       tmp_buf->size);
-
-     me.fs ().dirview_create ((unsigned long long) ino);
-     me.fs ().lock_r_dirview (); // =>
-     b = me.fs ().dirview_getbuffer ((unsigned long long) ino, 0);
-     b->size = tmp_buf->size;
-     b->p = (char*) calloc (b->size, sizeof ( char));
-     b->p = (char*) memcpy (b->p, tmp_buf->p, b->size);
-     me.fs ().unlock_r_dirview (); // <=
-     free(tmp_buf->p);
-     free (tmp_buf);
-   }
- }
+ struct dirbuf* b = (struct dirbuf*) (fi->fh);
+ 
 
  eos_static_debug ("return size=%lld ptr=%lld",
                    (long long) b->size, (long long) b->p);
 
- free (name);
  reply_buf_limited (req, b->p, b->size, off, size);
-
-
  COMMONTIMING ("_stop_", &timing);
-
 
  eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
 }
@@ -815,21 +828,32 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
 void
 EosFuse::releasedir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 {
- eos::common::Timing timing (__func__);
- COMMONTIMING ("_start_", &timing);
- eos_static_debug ("");
- EosFuse& me = instance ();
+  eos::common::Timing timing (__func__);
+  COMMONTIMING ("_start_", &timing);
+  eos_static_debug ("");
+  
+  if (!fi->fh)
+  {
+    fuse_reply_err (req, ENXIO);
+    return;
+  }
 
- // concurrency monitor
- filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
+  struct dirbuf* b = (struct dirbuf*) (fi->fh);
+ 
+  if (b->p)
+  {
+    free (b->p);
+  }
 
- me.fs ().dirview_delete (ino);
- fuse_reply_err (req, 0);
-
- COMMONTIMING ("_stop_", &timing);
-
-
- eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
+  if (fi->fh)
+  {
+    free ( b );
+  }
+  fuse_reply_err (req, 0);
+  
+  COMMONTIMING ("_stop_", &timing);
+  
+  eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
 }
 
 void
