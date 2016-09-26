@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.203 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: refactor opendir/readdir/closedir consistency and directory caching
+
+Bug Fix
+=======
+
 ``V0.3.202 Aquamarine``
 +++++++++++++++++++++++
 
