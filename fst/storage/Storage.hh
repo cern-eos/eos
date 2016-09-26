@@ -35,6 +35,7 @@
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/Load.hh"
+#include "fst/Health.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
@@ -43,7 +44,6 @@
 #include <list>
 #include <queue>
 #include <map>
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -211,6 +211,7 @@ public:
   ~Storage () { };
 
   Load fstLoad;
+  Health fstHealth;
 
   static Storage* Create (const char* metadirectory);
 

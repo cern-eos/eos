@@ -256,62 +256,43 @@ Storage::Publish()
                      fstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
           success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib",
                      fstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
-          //          eos_static_debug("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
-          std::map<std::string, std::string> iostats;
 
-          if (fileSystemsVector[i]->getFileIOStats(iostats)) {
-            double readratemb  = strtod(iostats["read-mb-second"].c_str(), 0);
-            double writeratemb = strtod(iostats["write-mb-second"].c_str(), 0);
-            double diskload    = strtod(iostats["load"].c_str(), 0);
+          // set current load stats, io-target specific implementation may override fst load implementation
+          {
+            double readratemb;
+            double writeratemb;
+            double diskload;
+            std::map<std::string, std::string> iostats;
+            if (fileSystemsVector[i]->getFileIOStats(iostats))
+            {
+              readratemb = strtod(iostats["read-mb-second"].c_str(), 0);
+              writeratemb = strtod(iostats["write-mb-second"].c_str(), 0);
+              diskload = strtod(iostats["load"].c_str(), 0);
+            }
+            else
+            {
+              readratemb = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "readSectors") * 512.0 / 1000000.0;
+              writeratemb = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "writeSectors") * 512.0 / 1000000.0;
+              diskload = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "millisIO") / 1000.0;
+            }
             success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", readratemb);
-            success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb",
-                       writeratemb);
+            success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", writeratemb);
             success &= fileSystemsVector[i]->SetDouble("stat.disk.load", diskload);
-          } else {
-            success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb",
-                       fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
-                                           "readSectors") * 512.0 / 1000000.0);
-            success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb",
-                       fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
-                                           "writeSectors") * 512.0 / 1000000.0);
-            success &= fileSystemsVector[i]->SetDouble("stat.disk.load",
-                       fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
-                                           "millisIO") / 1000.0);
           }
 
-          std::map<std::string, std::string> health;
+          // set current health stats
+          {
+            std::map<std::string, std::string> health;
 
-          if (fileSystemsVector[i]->getHealth(health)) {
-            if (health.count("summary")) {
-              success &= fileSystemsVector[i]->SetString("stat.health",
-                         health["summary"].c_str());
-            } else {
-              success &= fileSystemsVector[i]->SetString("stat.health", "unknown");
+            // file system implementation may override standard implementation.
+            if (!fileSystemsVector[i]->getHealth(health)) {
+              health = fstHealth.getDiskHealth(fileSystemsVector[i]->GetPath().c_str());
             }
-
-            if (health.count("indicator"))  {
-              auto indicator = strtoll(health["indicator"].c_str(), 0, 10);
-              success &= fileSystemsVector[i]->SetLongLong("stat.health.indicator",
-                         indicator);
-            }
-
-            if (health.count("drives_total")) {
-              auto drives_total = strtoll(health["drives_total"].c_str(), 0, 10);
-              success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_total",
-                         drives_total);
-            }
-
-            if (health.count("drives_failed")) {
-              auto drives_failed = strtoll(health["drives_failed"].c_str(), 0, 10);
-              success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_failed",
-                         drives_failed);
-            }
-
-            if (health.count("redundancy_factor")) {
-              auto redundancy_factor = strtoll(health["redundancy_factor"].c_str(), 0, 10);
-              success &= fileSystemsVector[i]->SetLongLong("stat.health.redundancy_factor",
-                         redundancy_factor);
-            }
+            success &= fileSystemsVector[i]->SetString("stat.health", health["summary"].c_str());
+            success &= fileSystemsVector[i]->SetLongLong("stat.health.indicator", strtoll(health["indicator"].c_str(), 0, 10));
+            success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_total", strtoll(health["drives_total"].c_str(), 0, 10));
+            success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_failed", strtoll(health["drives_failed"].c_str(), 0, 10));
+            success &= fileSystemsVector[i]->SetLongLong("stat.health.redundancy_factor",  strtoll(health["redundancy_factor"].c_str(), 0, 10));
           }
 
           long long r_open = 0;

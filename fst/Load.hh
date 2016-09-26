@@ -248,7 +248,7 @@ public:
     }
   }
 
-  const char*
+  static const char*
   DevMap (const char* devpath)
   {
     static time_t loadtime = 0;

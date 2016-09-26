@@ -50,7 +50,7 @@ EOSFSTNAMESPACE_BEGIN
 Storage::Storage(const char* metadirectory)
 {
   SetLogId("FstOfsStorage");
-
+  // make metadir
   XrdOucString mkmetalogdir = "mkdir -p ";
   mkmetalogdir += metadirectory;
   mkmetalogdir += " >& /dev/null";
@@ -81,9 +81,9 @@ Storage::Storage(const char* metadirectory)
   zombie = false;
   // start threads
   pthread_t tid;
-
-  long pageval = sysconf(_SC_PAGESIZE);
   // we need page aligned addresses for direct IO
+  long pageval = sysconf(_SC_PAGESIZE);
+
   if (pageval < 0) {
     eos_crit("cannot get page size");
     exit(-1);
@@ -228,28 +228,21 @@ Storage::Storage(const char* metadirectory)
 
   ThreadSet.insert(tid);
 
-  // Starting FstPartitionMonitor
-  eos_info("Starting fst /var partition monitor thread");
-  if((rc = XrdSysThread::Run(&tid, Storage::StartVarPartitionMonitor,
-                              static_cast<void*>(this),
-                              0, "FST Partition Monitor"))){
-    eos_crit("Cannot start FST Partition Monitor thread");
-    zombie = true;
-  }
-
-  ThreadSet.insert(tid);
-
   eos_info("enabling net/io load monitor");
   fstLoad.Monitor();
 
+  eos_info("enabling local disk S.M.A.R.T attribute monitor");
+  fstHealth.Monitor();
+
+  // create gw queue
   XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
   std::string n = eos::fst::Config::gConfig.FstQueue.c_str();
   n += "/gw";
   mGwQueue = new eos::common::TransferQueue(
     eos::fst::Config::gConfig.FstQueue.c_str(),
-                                            n.c_str(), "txq",
-                                            (eos::common::FileSystem*)0,
-                                            &gOFS.ObjectManager, true);
+    n.c_str(), "txq",
+    (eos::common::FileSystem*)0,
+    &gOFS.ObjectManager, true);
   n += "/txqueue";
   mTxGwQueue = new TransferQueue(&mGwQueue, n.c_str());
 
@@ -335,42 +328,42 @@ Storage::Boot(FileSystem* fs)
   // --------------------
   if (fs->GetPath()[0] == '/') {
     // test if we have rw access
-  struct stat buf;
-  
-  if (::stat(fs->GetPath().c_str(), &buf) ||
-      (buf.st_uid != DAEMONUID) ||
+    struct stat buf;
+
+    if (::stat(fs->GetPath().c_str(), &buf) ||
+        (buf.st_uid != DAEMONUID) ||
         ((buf.st_mode & S_IRWXU) != S_IRWXU)) {
       if (buf.st_uid != DAEMONUID) {
         errno = ENOTCONN;
       }
 
       if ((buf.st_mode & S_IRWXU) != S_IRWXU) {
-      errno = EPERM;
-    }
+        errno = EPERM;
+      }
 
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(errno ? errno : EIO, "cannot have <rw> access");
-    return;
-  }
-
-  // test if we are on the root partition
-  struct stat root_buf;
-
-    if (::stat("/", &root_buf)) {
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(errno ? errno : EIO, "cannot stat root / filesystems");
-    return;
-  }
-
-    if (root_buf.st_dev == buf.st_dev) {
-    // this filesystem is on the ROOT partition
-      if (!CheckLabel(fs->GetPath(), fsid, uuid, false, true)) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
-        fs->SetError(EIO,
-                     "filesystem is on the root partition without or wrong <uuid> label file .eosfsuuid");
+      fs->SetError(errno ? errno : EIO, "cannot have <rw> access");
       return;
     }
-  }
+
+    // test if we are on the root partition
+    struct stat root_buf;
+
+    if (::stat("/", &root_buf)) {
+      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetError(errno ? errno : EIO, "cannot stat root / filesystems");
+      return;
+    }
+
+    if (root_buf.st_dev == buf.st_dev) {
+      // this filesystem is on the ROOT partition
+      if (!CheckLabel(fs->GetPath(), fsid, uuid, false, true)) {
+        fs->SetStatus(eos::common::FileSystem::kBootFailure);
+        fs->SetError(EIO,
+                     "filesystem is on the root partition without or wrong <uuid> label file .eosfsuuid");
+        return;
+      }
+    }
   }
 
   gOFS.OpenFidMutex.Lock();
@@ -396,15 +389,15 @@ Storage::Boot(FileSystem* fs)
   bool fast_boot = (!getenv("EOS_FST_NO_FAST_BOOT")) ||
                    (strcmp(getenv("EOS_FST_NO_FAST_BOOT"), "1"));
   bool resyncmgm = ((is_dirty) ||
-		      (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
+                    (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
   bool resyncdisk = ((is_dirty) ||
                      (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
   eos_info("msg=\"start disk synchronisation\"");
-  // resync the SQLITE DB 
+  // resync the DB
   gFmdDbMapHandler.StayDirty(fsid,
                              true); // indicate the flag to keep the DP dirty
 
-      // clean-up the DB
+  // sync only local disks
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
     if (resyncmgm) {
       // clean-up the DB
@@ -427,15 +420,15 @@ Storage::Boot(FileSystem* fs)
     eos_info("msg=\"skipped disk synchronisization\" fsid=%lu",
              (unsigned long) fsid);
   }
+
   // if we detect an unclean shutdown, we resync with the MGM
   // if we see the stat.bootcheck resyncflag for the filesystem, we also resync
-
   // remove the bootcheck flag
   fs->SetLongLong("bootcheck", 0);
 
   if (resyncmgm) {
     eos_info("msg=\"start mgm synchronisation\" fsid=%lu", (unsigned long) fsid);
-    // resync the MGM meta data
+
     // resync the MGM meta data
     if (!gFmdDbMapHandler.ResyncAllMgm(fsid, manager.c_str())) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -451,12 +444,12 @@ Storage::Boot(FileSystem* fs)
 
   gFmdDbMapHandler.StayDirty(fsid,
                              false); // indicate the flag to unset the DB dirty flag at shutdown
-  // allows fast boot the next time
 
+  // allows fast boot the next time
   if (fast_boot) {
     gFmdDbMapHandler.MarkCleanDB(fsid);
   }
-  
+
   // check if there is a lable on the disk and if the configuration shows the same fsid + uuid
   if (!CheckLabel(fs->GetPath(), fsid, uuid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -477,7 +470,7 @@ Storage::Boot(FileSystem* fs)
 
   if (fs->GetPath()[0] != '/') {
     transactionDirectory = metaDirectory.c_str();
-  transactionDirectory += "/.eostransaction";
+    transactionDirectory += "/.eostransaction";
     transactionDirectory += "-";
     transactionDirectory += (int) fs->GetId();
   } else {
@@ -516,7 +509,7 @@ Storage::Boot(FileSystem* fs)
 
 bool
 Storage::FsLabel(std::string path,
-                  eos::common::FileSystem::fsid_t fsid, std::string uuid)
+                 eos::common::FileSystem::fsid_t fsid, std::string uuid)
 {
   //----------------------------------------------------------------
   //! writes file system label files .eosfsid .eosuuid according to config (if they didn't exist!)
@@ -578,12 +571,12 @@ Storage::FsLabel(std::string path,
 /*----------------------------------------------------------------------------*/
 bool
 Storage::CheckLabel(std::string path,
-                     eos::common::FileSystem::fsid_t fsid,
-                     std::string uuid, bool failenoid, bool failenouuid)
+                    eos::common::FileSystem::fsid_t fsid,
+                    std::string uuid, bool failenoid, bool failenouuid)
 {
-  //----------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! checks that the label on the filesystem is the same as the configuration
-  //----------------------------------------------------------------
+  //----------------------------------------------------------------------------
 
   // --------------------
   // exclude remote disks
@@ -614,7 +607,7 @@ Storage::CheckLabel(std::string path,
       }
 
       close(fd);
-      // for safety
+
       // for safety
       if (nread < (int)(sizeof(ssfid) - 1)) {
         ssfid[nread] = 0;
@@ -631,7 +624,7 @@ Storage::CheckLabel(std::string path,
   } else {
     if (failenoid) {
       return false;
-  }
+    }
   }
 
   // read FS uuid file
@@ -656,7 +649,7 @@ Storage::CheckLabel(std::string path,
       close(fd);
       // for protection
       suuid[4095] = 0;
-      // remove \n 
+
       // remove \n
       if (suuid[strnlen(suuid, sizeof(suuid)) - 1] == '\n') {
         suuid[strnlen(suuid, sizeof(suuid)) - 1] = 0;
@@ -667,7 +660,7 @@ Storage::CheckLabel(std::string path,
   } else {
     if (failenouuid) {
       return false;
-  }
+    }
   }
 
   //  fprintf(stderr,"%d <=> %d %s <=> %s\n", fsid, ckfsid, ckuuid.c_str(), uuid.c_str());
@@ -707,7 +700,7 @@ Storage::GetFsidFromLabel(std::string path,
       }
 
       close(fd);
-      // for safety
+
       // for safety
       if (nread < (int)(sizeof(ssfid) - 1)) {
         ssfid[nread] = 0;
@@ -727,7 +720,7 @@ Storage::GetFsidFromLabel(std::string path,
     return true;
   } else {
     return false;
-}
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -752,16 +745,7 @@ Storage::GetFsidFromPath(std::string path,
     return true;
   } else {
     return false;
-}
-}
-
-/*----------------------------------------------------------------------------*/
-
-void* Storage::StartVarPartitionMonitor(void* pp){
-  Storage* storage = (Storage*) pp;
-  MonitorVarPartition<std::vector<FileSystem*>> mon(5., 30, "/var/");
-  mon.Monitor(storage->fileSystemsVector, storage->fsMutex);
-  return 0;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -907,7 +891,7 @@ Storage::RunBootThread(FileSystem* fs)
 
   if (fs) {
     XrdSysMutexHelper bootLock(BootSetMutex);
-    // check if this filesystem is currently already booting
+
     // check if this filesystem is currently already booting
     if (BootSet.count(fs->GetId())) {
       eos_warning("discard boot request: filesytem fsid=%lu is currently booting",
