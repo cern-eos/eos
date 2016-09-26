@@ -789,9 +789,6 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     fi->fh = (uint64_t) fh_buf;
   }
   
-  eos_static_debug ("return size=%lld ptr=%lld",
-		    (long long) b.size, (long long) b.p);
-  
   free (name);
 
   fuse_reply_open (req, fi);
