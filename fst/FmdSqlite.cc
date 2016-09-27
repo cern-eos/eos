@@ -1186,7 +1186,6 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
         else
         {
           // we proceed
-          delete fmd;
         }
       }
     }
