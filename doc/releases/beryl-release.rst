@@ -7,6 +7,12 @@
 Beryl Release Notes
 ===================
 
+``V0.3.204 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: protect accessing a 0 pointer in opendir
+- FUSE: store all invisble items in the FUSE stat cache although they are not visible in the listing
+
 ``V0.3.203 Aquamarine``
 +++++++++++++++++++++++
 
