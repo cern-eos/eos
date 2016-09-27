@@ -227,13 +227,21 @@ Storage::Storage(const char* metadirectory)
   }
 
   ThreadSet.insert(tid);
+  // Starting FstPartitionMonitor
+  eos_info("Starting /var partition monitor thread ...");
 
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartVarPartitionMonitor,
+                              static_cast<void*>(this),
+                              0, "Var Partition Monitor"))) {
+    eos_crit("Cannot start Var Partition Monitor thread");
+    zombie = true;
+  }
+
+  ThreadSet.insert(tid);
   eos_info("enabling net/io load monitor");
   fstLoad.Monitor();
-
   eos_info("enabling local disk S.M.A.R.T attribute monitor");
   fstHealth.Monitor();
-
   // create gw queue
   XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
   std::string n = eos::fst::Config::gConfig.FstQueue.c_str();
@@ -862,6 +870,15 @@ Storage::StartMgmSyncer(void* pp)
 {
   Storage* storage = (Storage*) pp;
   storage->MgmSyncer();
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+void* Storage::StartVarPartitionMonitor(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  MonitorVarPartition<std::vector<FileSystem*>> mon(5., 30, "/var/");
+  mon.Monitor(storage->fileSystemsVector, storage->fsMutex);
   return 0;
 }
 
