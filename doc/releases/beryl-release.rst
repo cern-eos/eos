@@ -7,6 +7,56 @@
 Beryl Release Notes
 ===================
 
+``V0.3.204 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: protect accessing a 0 pointer in opendir
+- FUSE: store all invisble items in the FUSE stat cache although they are not visible in the listing
+
+``V0.3.203 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: refactor opendir/readdir/closedir consistency and directory caching
+
+Bug Fix
+=======
+
+``V0.3.202 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- FST: fix return code handling of xfs pre-allocation in CheckSum.cc
+
+
+``V0.3.201 Aquamarine``
++++++++++++++++++++++++
+
+
+Bug Fix
+=======
+
+- FST: always reset the disk checksum in the meta data db when a file has been modified
+- FST: consider only flagged file/blockchecksum errors to prevent to return meta data objects
+- FST: set /var partition RO threshold to 95% full
+- FUSE: swap lines to avoid valgrind warning about use after erase 
+- MGM: return json responses with json response tag
+- DOC: fix commit message for release number
+
+
+``V0.3.200 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- FUSE: fix out of lock scope iterator used in error message
+- FUSE: give no validity to attributes coming as fuse-replies to a create call (since uid/gid can be different on MGM side from uid/gid of the caller)
+- FST: prevent deleteOnClose when clients retried an open e.g. open | open | write| close (the XRootD client might replay an open with a new connection and this can lead to file loss)
+- FST: switch filesystems to RO when /var parition is 90% full
+- FST: make deleteOnClose a warning on client disconnect
+
 ``V0.3.199 Aquamarine``
 +++++++++++++++++++++++
 

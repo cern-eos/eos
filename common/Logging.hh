@@ -138,6 +138,27 @@ EOSCOMMONNAMESPACE_BEGIN
 class LogId
 {
 public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  LogId ()
+  {
+    uuid_t uuid;
+    uuid_generate_time(uuid);
+    uuid_unparse(uuid, logId);
+    sprintf(cident, "<service>");
+    vid.uid = getuid();
+    vid.gid = getgid();
+    vid.name = "";
+    vid.tident = "";
+    vid.prot = "";
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~LogId () {}
+
   // ---------------------------------------------------------------------------
   //! For calls which are not client initiated this function set's a unique dummy log id
   // ---------------------------------------------------------------------------
@@ -198,29 +219,6 @@ public:
   char logId[40]; //< the log Id for message printout
   char cident[256]; //< the client identifier
   Mapping::VirtualIdentity vid; //< the client identity
-
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-
-  LogId ()
-  {
-    uuid_t uuid;
-    uuid_generate_time(uuid);
-    uuid_unparse(uuid, logId);
-    sprintf(cident, "<service>");
-    vid.uid = getuid();
-    vid.gid = getgid();
-    vid.name = "";
-    vid.tident = "";
-    vid.prot = "";
-  }
-
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-
-  ~LogId () { }
 };
 
 // ---------------------------------------------------------------------------

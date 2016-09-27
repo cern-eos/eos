@@ -176,23 +176,23 @@ set(
   #-----------------------------------------------------------------------------
   # File IO interface
   #-----------------------------------------------------------------------------
-  io/FileIo.hh
+	     io/FileIo.hh 
   io/local/FsIo.cc               io/local/FsIo.hh
   ${KINETICIO_SRC}               ${KINETICIO_HDR}
   ${DAVIX_SRC}			 ${DAVIX_HDR}
   io/rados/RadosIo.cc            io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
-  io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
-  io/ChunkHandler.cc             io/ChunkHandler.hh
+	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
+	     io/ChunkHandler.cc             io/ChunkHandler.hh
   io/VectChunkHandler.cc         io/VectChunkHandler.hh
-  io/SimpleHandler.cc            io/SimpleHandler.hh
+	     io/SimpleHandler.cc            io/SimpleHandler.hh
 
   #-----------------------------------------------------------------------------
   # Checksum interface
   #-----------------------------------------------------------------------------
-  checksum/CheckSum.cc           checksum/CheckSum.hh
+	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
   checksum/Adler.cc              checksum/Adler.hh
-  checksum/crc32c.cc             checksum/crc32ctables.cc
+	     checksum/crc32c.cc             checksum/crc32ctables.cc
 
   #-----------------------------------------------------------------------------
   # File layout interface
@@ -255,7 +255,7 @@ if(Linux)
 
   target_link_libraries(
     EosFstIo-Static PUBLIC
-    eosCommon-Static
+		       eosCommon-Static
     jerasure-static
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
@@ -319,7 +319,7 @@ target_compile_definitions(
 
 target_link_libraries(
   EosFstOss PRIVATE
-  eosCommon
+		       eosCommon
   ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
 
@@ -328,37 +328,37 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 set(
   XRDEOSFST_SRCS
-  Config.cc
-  Load.cc
-  ScanDir.cc
-  Messaging.cc
+	     Config.cc
+	     Load.cc
+	     ScanDir.cc
+	     Messaging.cc
   io/FileIoPlugin-Server.cc
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
 
   #-----------------------------------------------------------------------------
   # OFS layer implementation
   #-----------------------------------------------------------------------------
-  XrdFstOfs.cc                   XrdFstOfs.hh
-  XrdFstOfsFile.cc               XrdFstOfsFile.hh
+	     XrdFstOfs.cc                   XrdFstOfs.hh
+	     XrdFstOfsFile.cc               XrdFstOfsFile.hh
 
   #-----------------------------------------------------------------------------
   # Storage interface
   #-----------------------------------------------------------------------------
-  storage/Balancer.cc
-  storage/Cleaner.cc             storage/Comunicator.cc
-  storage/Drainer.cc             storage/ErrorReport.cc
+	     storage/Balancer.cc
+	     storage/Cleaner.cc             storage/Comunicator.cc
+	     storage/Drainer.cc             storage/ErrorReport.cc
   storage/FileSystem.cc          storage/MgmSyncer.cc
-  storage/Publish.cc             storage/Remover.cc
-  storage/Report.cc              storage/Scrub.cc
-  storage/Storage.cc             storage/Supervisor.cc
-  storage/Trim.cc                storage/Verify.cc
+	     storage/Publish.cc             storage/Remover.cc
+	     storage/Report.cc              storage/Scrub.cc
+	     storage/Storage.cc             storage/Supervisor.cc
+	     storage/Trim.cc                storage/Verify.cc
 
   #-----------------------------------------------------------------------------
   # Transfer interface
   #-----------------------------------------------------------------------------
-  txqueue/TransferMultiplexer.cc
-  txqueue/TransferJob.cc
-  txqueue/TransferQueue.cc
+	     txqueue/TransferMultiplexer.cc
+	     txqueue/TransferJob.cc
+	     txqueue/TransferQueue.cc
 
   #-----------------------------------------------------------------------------
   # File metadata interface
@@ -387,7 +387,7 @@ target_compile_definitions(
 
 target_link_libraries(
    XrdEosFst PRIVATE
-   eosCommon
+		       eosCommon
    eosCommonServer
    EosFstIo-Static
    XrdMqClient-Static
@@ -416,18 +416,18 @@ install(
 #-------------------------------------------------------------------------------
 add_executable(
   eos-check-blockxs
-  tools/CheckBlockXS.cc
-  checksum/Adler.cc
-  checksum/CheckSum.cc
-  checksum/crc32c.cc
+                tools/CheckBlockXS.cc
+		checksum/Adler.cc
+                checksum/CheckSum.cc
+                checksum/crc32c.cc
   checksum/crc32ctables.cc)
 
 add_executable(
   eos-compute-blockxs
-  tools/ComputeBlockXS.cc
-  checksum/Adler.cc
-  checksum/CheckSum.cc
-  checksum/crc32c.cc
+                tools/ComputeBlockXS.cc
+		checksum/Adler.cc
+                checksum/CheckSum.cc
+                checksum/crc32c.cc
   checksum/crc32ctables.cc)
 
 add_executable(
@@ -443,10 +443,10 @@ add_executable(
 
 add_executable(
   eos-adler32
-  tools/Adler32.cc
-  checksum/Adler.cc
-  checksum/CheckSum.cc
-  checksum/crc32c.cc
+		tools/Adler32.cc
+        	checksum/Adler.cc
+                checksum/CheckSum.cc
+                checksum/crc32c.cc
   checksum/crc32ctables.cc)
 
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
@@ -474,7 +474,7 @@ target_link_libraries(
 
 target_link_libraries(
   eos-adler32 PRIVATE
-  EosFstIo-Static
+   EosFstIo-Static
   ${CMAKE_THREAD_LIBS_INIT} )
 
 target_link_libraries(
@@ -493,10 +493,10 @@ target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
 
 install(
   PROGRAMS
-  tools/eosfstregister
-  tools/eosfstinfo
-  tools/eos-iobw
-  tools/eos-iops
+                  tools/eosfstregister 
+                  tools/eosfstinfo 
+		  tools/eos-iobw
+		  tools/eos-iops
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(

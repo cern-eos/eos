@@ -853,7 +853,8 @@ ProcCommand::MakeResult()
           mResultStream += "\n]);";
         } else {
           // JSON
-          mResultStream = r.str().c_str();
+	  mResultStream = "mgm.proc.json=";
+          mResultStream += r.str().c_str();
         }
       } else {
         mResultStream = "mgm.proc.json=";

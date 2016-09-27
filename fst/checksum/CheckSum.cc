@@ -370,7 +370,20 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 #ifdef __APPLE__
     rc = ftruncate(ChecksumMapFd, ChecksumMapSize);
 #else
-    rc = posix_fallocate(ChecksumMapFd, 0, ChecksumMapSize);
+
+    if (platform_test_xfs_fd(ChecksumMapFd))
+    {
+      // Select the fast XFS allocation function if available                                                                                                                                                                                                                                   
+      xfs_flock64_t fl;
+      fl.l_whence = 0;
+      fl.l_start = 0;
+      fl.l_len = (off64_t) ChecksumMapSize;
+      rc = xfsctl(NULL, ChecksumMapFd, XFS_IOC_RESVSP64, &fl);
+    }
+    else
+    {
+      rc = posix_fallocate(ChecksumMapFd, 0, ChecksumMapSize);
+    }
 #endif
 
     if (rc) {

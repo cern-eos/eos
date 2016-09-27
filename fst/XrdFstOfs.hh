@@ -51,9 +51,9 @@
 #include <queue>
 /*----------------------------------------------------------------------------*/
 
-//------------------------------------------------------------------------------
-// Apple does not know these errno's
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------                                                                                                                        
+// Apple does not know this errno's                                                                                                                                                                     
+//------------------------------------------------------------------------------                                                                                                                          
 #ifdef __APPLE__
 #define EBADE 52
 #define EBADR 53
@@ -64,7 +64,7 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-//! Forward declarations
+// Forward declarations
 class ReplicaParLayout;
 class RaidMetaLayout;
 
@@ -79,26 +79,26 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
 
 public:
 
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
+
+
+
   XrdFstOfs ();
 
 
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
+
+
+//------------------------------------------------------------------------------
   virtual ~XrdFstOfs ();
+//! Class XrdFstOfs
+//------------------------------------------------------------------------------
 
 
-  //----------------------------------------------------------------------------
-  //! Get new OFS directory object
-  //!
+
   //! @param user User information
   //! @param MonID Monitoring ID
   //!
   //! @return OFS directory object (NULL)
-  //----------------------------------------------------------------------------
+
   XrdSfsDirectory* newDir (char* user = 0, int MonID = 0);
 
 
@@ -113,17 +113,17 @@ public:
   XrdSfsFile* newFile (char* user = 0, int MonID = 0);
 
 
+
   //----------------------------------------------------------------------------
-  //! Configure OFS layer by parsing the info in the configuration file
-  //!
-  //! @param error Error object
-  //! @param envP environment containing implementation specific information
+  //! Constructor
   //----------------------------------------------------------------------------
+
+
   int Configure (XrdSysError& error, XrdOucEnv* envP);
-
-
   //----------------------------------------------------------------------------
-  //! Query file system info
+  //! Destructor
+  //----------------------------------------------------------------------------
+
   //----------------------------------------------------------------------------
   int fsctl (const int cmd,
              const char* args,
@@ -139,15 +139,15 @@ public:
   //!
   //! @param Addr Address of memory location
   //! @param Size Size of the file or zero if not memory mapped.
-  //!
-  //! @return  Returns SFS_OK upon success and SFS_ERROR upon failure
-  //----------------------------------------------------------------------------
+
+  // here we mask all illegal operations
+
   int
   getMap(void **Addr, off_t &Size)
   {
     return SFS_OK;
   }
-
+  
 
   //----------------------------------------------------------------------------
   //! Chmod
@@ -179,14 +179,14 @@ public:
   }
 
 
-  //----------------------------------------------------------------------------
+
   //! Mkdir
   //----------------------------------------------------------------------------
   int mkdir (const char* path,
-             XrdSfsMode Mode,
-             XrdOucErrInfo& out_error,
-             const XrdSecEntity* client,
-             const char* opaque = 0)
+         XrdSfsMode Mode,
+         XrdOucErrInfo& out_error,
+         const XrdSecEntity* client,
+         const char* opaque = 0)
   {
     EPNAME("mkdir");
     return Emsg(epname, out_error, ENOSYS, epname, path);
@@ -206,13 +206,13 @@ public:
   }
 
 
-  //----------------------------------------------------------------------------
-  //! Remove directory
+
+
   //----------------------------------------------------------------------------
   int remdir (const char* path,
-              XrdOucErrInfo& out_error,
-              const XrdSecEntity* client,
-              const char* info = 0)
+          XrdOucErrInfo& out_error,
+          const XrdSecEntity* client,
+          const char* info = 0)
   {
     EPNAME("remdir");
     return Emsg(epname, out_error, ENOSYS, epname, path);
@@ -274,7 +274,7 @@ public:
               XrdOucErrInfo &out_error,
               const XrdSecEntity *client = 0,
               const char *opaque = 0);
-
+  
 
   //----------------------------------------------------------------------------
   //! Stat path
@@ -293,11 +293,11 @@ public:
                    const char* path,
                    const char* manager,
                    XrdOucString& capOpaqueFile,
-                   XrdOucString* return_result = 0,
-                   unsigned short timeout=0);
+                   XrdOucString* return_result = 0, 
+		   unsigned short timeout=0);
 
 
-  //----------------------------------------------------------------------------
+  // this function deals with plugin calls
   //! Function dealing with plugin calls
   //----------------------------------------------------------------------------
   int FSctl (int, XrdSfsFSctl&, XrdOucErrInfo&, const XrdSecEntity*);
@@ -327,8 +327,8 @@ public:
   static void xrdfstofs_stacktrace (int sig);
 
   XrdSysError* Eroute;
-  eos::fst::Messaging* Messaging; ///< messaging interface class
-  eos::fst::Storage* Storage; ///< Meta data & filesytem store object
+  eos::fst::Messaging* Messaging; //! messaging interface class
+  eos::fst::Storage* Storage; //! Meta data & filesytem store object
 
   XrdSysMutex OpenFidMutex;
 
@@ -336,6 +336,8 @@ public:
                           google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t,
                           google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, 
+                          google::sparse_hash_map<unsigned long long, bool> > WNoDeleteOnCloseFid; // map to forbid deleteOnClose for creates if then 1+X open had a successfull close
 
   XrdSysMutex XSLockFidMutex;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t,
@@ -343,7 +345,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! Information saved for TPC transfers
-  //----------------------------------------------------------------------------
+
   struct TpcInfo
   {
     std::string path;
@@ -357,44 +359,44 @@ public:
     time_t expires;
   };
 
-  XrdSysMutex TpcMapMutex; ///< mutex protecting a Tpc Map
+  XrdSysMutex TpcMapMutex; //< a mutex protecting a Tpc Map
 
   //! A vector map pointing from tpc key => tpc information for reads, [0]
   //! are readers [1] are writers
-  std::vector<google::sparse_hash_map<std::string, struct TpcInfo >> TpcMap;
+  std::vector<google::sparse_hash_map<std::string, struct TpcInfo >> TpcMap; //< a vector map pointing from tpc key => tpc information for reads, [0] are readers [1] are writers
 
   XrdSysMutex ReportQueueMutex;
 
-  //! Queue where file transaction reports get stored and picked up by a thread
+
   //!running in Storage
-  std::queue <XrdOucString> ReportQueue;
+  std::queue <XrdOucString> ReportQueue; //! queue where file transaction reports get stored and picked up by a thread running in Storage
 
   XrdSysMutex ErrorReportQueueMutex;
   //! Queue where log error are stored and picked up by a thread running in Storage
-  std::queue <XrdOucString> ErrorReportQueue;
+  std::queue <XrdOucString> ErrorReportQueue; //! queue where log error are stored and picked up by a thread running in Storage
 
   XrdSysMutex WrittenFilesQueueMutex;
 
-  //! Queue where modified/written files get stored and picked up by a thread
-  //! running in Storage
+
+
   std::queue<struct Fmd> WrittenFilesQueue;
 
   XrdMqSharedObjectManager ObjectManager; ///< managing shared objects
   XrdMqSharedObjectChangeNotifier ObjectNotifier; ///< notifying any shared object changes;
-  XrdScheduler* TransferScheduler; ///< TransferScheduler
-  XrdSysMutex TransferSchedulerMutex; ///< protecting the TransferScheduler
+  XrdScheduler* TransferScheduler; //! TransferScheduler
+  XrdSysMutex TransferSchedulerMutex; //! protecting the TransferScheduler
   XrdOucString eoscpTransferLog; //! eoscp.log full path
 
-  bool Simulate_IO_read_error; ///< simulate an IO error on read
-  bool Simulate_IO_write_error; ///< simulate an IO error on write
-  bool Simulate_XS_read_error; ///< simulate a checksum error on read
-  bool Simulate_XS_write_error; ///< simulate a checksum error on write
+  bool Simulate_IO_read_error; //! simulate an IO error on read
+  bool Simulate_IO_write_error; //! simulate an IO error on write
+  bool Simulate_XS_read_error; //! simulate a checksum error on read
+  bool Simulate_XS_write_error; //! simulate a checksum error on write
   bool Simulate_FMD_open_error; //! simulate a fmd mismatch error on open
 
-  static XrdSysMutex ShutdownMutex; ///< protecting Shutdown variable
-  static bool Shutdown; ///< indicating if a shutdown procedure is running
+  static XrdSysMutex ShutdownMutex; //! protecting Shutdown variable
+  static bool Shutdown; //! indicating if a shutdown procedure is running
 
-  HttpServer* httpd; ///< embedded http server
+  HttpServer* httpd; //! embedded http server
   const char* mHostName; ///< FST hostname
 
  private:
@@ -402,7 +404,7 @@ public:
 };
 
 //------------------------------------------------------------------------------
-//! Global FST OFS handle
+//!
 //------------------------------------------------------------------------------
 extern XrdFstOfs gOFS;
 

@@ -1107,8 +1107,8 @@ void LayoutWrapper::CacheRemove(unsigned long long inode)
   {
     if (gCacheAuthority.count(inode)) {
       auto d = gCacheAuthority.find(inode);
-      gCacheAuthority.erase(d);
       eos_static_notice("removed cap owner-authority for file inode=%lu", d->first);
+      gCacheAuthority.erase(d);
     }
   }
 }

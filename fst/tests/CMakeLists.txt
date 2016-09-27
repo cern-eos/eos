@@ -33,6 +33,7 @@ add_library(
   EosFstTests MODULE
   FileTest.cc  FileTest.hh
   TestEnv.cc   TestEnv.hh
+  VarPartitionMonitorTest.cc VarPartitionMonitorTest.hh
   ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc
   ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/CRC32C.hh
