@@ -163,9 +163,9 @@ public:
     fmd.atime = 0;
     fmd.atime_ns = 0;
     fmd.checktime = 0;
-    fmd.size = 0xfffffff1ULL;
-    fmd.disksize = 0xfffffff1ULL;
-    fmd.mgmsize = 0xfffffff1ULL;
+    fmd.size = 0xfffffffffff1ULL;
+    fmd.disksize = 0xfffffffffff1ULL;
+    fmd.mgmsize = 0xfffffffffff1ULL;
     fmd.checksum = "";
     fmd.diskchecksum = "";
     fmd.mgmchecksum = "";
