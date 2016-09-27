@@ -481,7 +481,7 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 	      strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "archive"))
 	  {
 	    // if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the Fmd record
-	    if ((!isRW) && ((fmd->fMd.disksize && (fmd->fMd.disksize != fmd->fMd.size)) ||
+	    if ((!isRW) && ((fmd->fMd.disksize && (fmd->fMd.disksize != 0xfffffffffff1ULL) && (fmd->fMd.disksize != fmd->fMd.size)) ||
 			    (fmd->fMd.mgmsize && (fmd->fMd.mgmsize != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize != fmd->fMd.size))))
 	    {
 	      eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, (unsigned long) fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
