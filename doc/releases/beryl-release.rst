@@ -7,6 +7,11 @@
 Beryl Release Notes
 ===================
 
+``V0.3.206 Aquamarine``
++++++++++++++++++++++++
+
+- FST: avoid bogus mgm/disk size errors due to still uninitialized disk size values
+
 ``V0.3.205 Aquamarine``
 +++++++++++++++++++++++
 
