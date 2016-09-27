@@ -7,6 +7,11 @@
 Beryl Release Notes
 ===================
 
+``V0.3.205 Aquamarine``
++++++++++++++++++++++++
+
+- FST: avoid double deletion in Fmd code
+
 ``V0.3.204 Aquamarine``
 +++++++++++++++++++++++
 
