@@ -720,9 +720,10 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     // Dir not in cache or invalid, fall-back to normal reading
     struct fuse_entry_param *entriesstats = NULL;
     filesystem::dirlist dlist;
+    size_t nstats=0;
 
     me.fs ().inodirlist ((unsigned long long) ino, fullpath,
-			 fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, dlist, &entriesstats);
+			 fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, dlist, &entriesstats, &nstats);
     
     unsigned long long in;
     
@@ -767,7 +768,7 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     //........................................................................
     // Add the stat to the cache
     //........................................................................
-    for (size_t i = 2; i < cnt; i++) // the two first ones are . and ..
+    for (size_t i = 2; i < nstats; i++) // the two first ones are . and ..
     {
       entriesstats[i].attr_timeout = me.config.attrcachetime;
       entriesstats[i].entry_timeout = me.config.entrycachetime;

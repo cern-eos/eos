@@ -2337,318 +2337,315 @@ filesystem::inodirlist (unsigned long long dirinode,
                         gid_t gid,
                         pid_t pid,
 			dirlist &dlist,
-                        struct fuse_entry_param **stats)
+                        struct fuse_entry_param **stats,
+			size_t* nstats)
 {
- eos_static_info ("inode=%llu path=%s", dirinode, path);
- eos::common::Timing inodirtiming ("inodirlist");
- COMMONTIMING ("START", &inodirtiming);
-
- int retc = 0;
- char* ptr = 0;
- char* value = 0;
- int doinodirlist = -1;
- std::string request = path;
-
- // we have to replace '&' in path names with '#AND#'
-
- size_t a_pos = request.find ("mgm.path=/");
-
- while ((a_pos = request.find ("&", a_pos + 1)) != std::string::npos)
- {
-   request.erase (a_pos, 1);
-   request.insert (a_pos, "#AND#");
-   a_pos += 4;
- }
-
- // add the kerberos token
- if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) request += '&';
- request += strongauth_cgi (pid);
-
- COMMONTIMING ("GETSTSTREAM", &inodirtiming);
- request.insert (0, user_url (uid, gid, pid));
- XrdCl::File* file = new XrdCl::File ();
- XrdCl::XRootDStatus status = file->Open (request.c_str (),
-                                          XrdCl::OpenFlags::Flags::Read);
- errno = 0;
-
- if (!status.IsOK ())
- {
-   eos_static_err ("got an error to request.");
-   delete file;
-   eos_static_err ("error=status is NOT ok : %s", status.ToString ().c_str ());
-   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  eos_static_info ("inode=%llu path=%s", dirinode, path);
+  eos::common::Timing inodirtiming ("inodirlist");
+  COMMONTIMING ("START", &inodirtiming);
+  
+  int retc = 0;
+  char* ptr = 0;
+  char* value = 0;
+  int doinodirlist = -1;
+  std::string request = path;
+  
+  // we have to replace '&' in path names with '#AND#'
+  
+  size_t a_pos = request.find ("mgm.path=/");
+  
+  while ((a_pos = request.find ("&", a_pos + 1)) != std::string::npos)
+  {
+    request.erase (a_pos, 1);
+    request.insert (a_pos, "#AND#");
+    a_pos += 4;
+  }
+  
+  // add the kerberos token
+  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) request += '&';
+  request += strongauth_cgi (pid);
+  
+  COMMONTIMING ("GETSTSTREAM", &inodirtiming);
+  request.insert (0, user_url (uid, gid, pid));
+  XrdCl::File* file = new XrdCl::File ();
+  XrdCl::XRootDStatus status = file->Open (request.c_str (),
+					   XrdCl::OpenFlags::Flags::Read);
+  errno = 0;
+  
+  if (!status.IsOK ())
+  {
+    eos_static_err ("got an error to request.");
+    delete file;
+    eos_static_err ("error=status is NOT ok : %s", status.ToString ().c_str ());
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
    return errno;
- }
-
- // Start to read
- int npages = 1;
- off_t offset = 0;
- unsigned int nbytes = 0;
- value = (char*) malloc (PAGESIZE + 1);
- COMMONTIMING ("READSTSTREAM", &inodirtiming);
-
- {
-   SyncResponseHandler handler;
-   XrdCl::ChunkInfo *chunkInfo = 0;
-   file->Read (offset, PAGESIZE, value + offset, &handler);
-   status = handler.Sync(chunkInfo);
-   if (chunkInfo)
-   {
-     nbytes = chunkInfo->length;
-     delete chunkInfo;
-   }
- }
-
- while ((status.IsOK ()) && (nbytes == PAGESIZE))
- {
-   SyncResponseHandler handler;
-   XrdCl::ChunkInfo *chunkInfo = 0;
-   npages++;
-   value = (char*) realloc (value, npages * PAGESIZE + 1);
-   offset += PAGESIZE;
-   file->Read (offset, PAGESIZE, value + offset, &handler);
-   status = handler.Sync(chunkInfo);
-   if (chunkInfo)
-   {
-     nbytes = chunkInfo->length;
-     delete chunkInfo;
-   }
- }
-
- if (status.IsOK ()) offset += nbytes;
-
- value[offset] = 0;
- //eos_static_info("request reply is %s",value);
- delete file;
-
- COMMONTIMING ("PARSESTSTREAM", &inodirtiming);
-
- std::vector<struct stat> statvec;
- if (status.IsOK ())
- {
-   char tag[128];
-   // Parse output
-   int items = sscanf (value, "%s retc=%d", tag, &retc);
-   bool encodepath = false;
-
-   if (retc)
-   {
-     free (value);
-     errno = EFAULT;
-     return errno;
-   }
-
-   if ((items != 2) || ( (strcmp (tag, "inodirlist:")) && (strcmp (tag, "inodirlist_pathencode:")) ))
-   {
-     eos_static_err ("got an error(1).");
-     free (value);
-     errno = EFAULT;
-     return errno;
-   }
-
-   if(!strcmp (tag, "inodirlist_pathencode:"))
-     encodepath = true;
-
-   ptr = strchr (value, ' ');
-   if (ptr) ptr = strchr (ptr + 1, ' ');
-   char* endptr = value + strlen (value) - 1;
-
-   COMMONTIMING ("PARSESTSTREAM1", &inodirtiming);
-
-
-   bool parseerror = true;
-   while ((ptr) && (ptr < endptr))
-   {
-     parseerror = true;
-     bool hasstat = false;
-     // parse the entry name
-     char* dirpathptr = ptr;
-     while (dirpathptr < endptr && *dirpathptr == ' ') dirpathptr++;
-     ptr = dirpathptr;
-     if (ptr >= endptr) break;
-
-     // go next field and set null character
-     ptr = strchr (ptr + 1, ' ');
-     if (ptr == 0 || ptr >= endptr) break;
-     *ptr = 0;
-
-     // parse the inode
-     char* inodeptr = ptr + 1;
-     while (inodeptr < endptr && *inodeptr == ' ') inodeptr++;
-     ptr = inodeptr;
-     if (ptr >= endptr) break;
-
-     // go next field and set null character
-     ptr = strchr (ptr + 1, ' ');
-     if (!(ptr == 0 || ptr >= endptr))
-     {
-       hasstat = true;
-       *ptr = 0;
-     }
-     parseerror = false;
-
-     char* statptr = NULL;
-     if (hasstat)
-     {
-       // parse the stat
-       statptr = ptr + 1;
-       while (statptr < endptr && *statptr == ' ')
-         statptr++;
-       ptr = statptr;
-       hasstat = (ptr < endptr); // we have a third token
-
-       // check if there is actually a stat
-       if (hasstat)
-       {
-         hasstat = (*statptr == '{'); // check if then token is a stat information
-         if (!hasstat)
-           ptr = statptr;
-         else
-         {
-           ptr = strchr (ptr + 1, ' ');
-           if (ptr < endptr) *ptr = 0;
-         }
-       }
-       if (hasstat) ptr++;
-     }
-
-     // process the entry
-     XrdOucString whitespacedirpath = dirpathptr;
+  }
+  
+  // Start to read
+  int npages = 1;
+  off_t offset = 0;
+  unsigned int nbytes = 0;
+  value = (char*) malloc (PAGESIZE + 1);
+  COMMONTIMING ("READSTSTREAM", &inodirtiming);
+  
+  {
+    SyncResponseHandler handler;
+    XrdCl::ChunkInfo *chunkInfo = 0;
+    file->Read (offset, PAGESIZE, value + offset, &handler);
+    status = handler.Sync(chunkInfo);
+    if (chunkInfo)
+    {
+      nbytes = chunkInfo->length;
+      delete chunkInfo;
+    }
+  }
+  
+  while ((status.IsOK ()) && (nbytes == PAGESIZE))
+  {
+    SyncResponseHandler handler;
+    XrdCl::ChunkInfo *chunkInfo = 0;
+    npages++;
+    value = (char*) realloc (value, npages * PAGESIZE + 1);
+    offset += PAGESIZE;
+    file->Read (offset, PAGESIZE, value + offset, &handler);
+    status = handler.Sync(chunkInfo);
+    if (chunkInfo)
+    {
+      nbytes = chunkInfo->length;
+      delete chunkInfo;
+    }
+  }
+  
+  if (status.IsOK ()) offset += nbytes;
+  
+  value[offset] = 0;
+  //eos_static_info("request reply is %s",value);
+  delete file;
+  
+  COMMONTIMING ("PARSESTSTREAM", &inodirtiming);
+  
+  std::vector<struct stat> statvec;
+  if (status.IsOK ())
+  {
+    char tag[128];
+    // Parse output
+    int items = sscanf (value, "%s retc=%d", tag, &retc);
+    bool encodepath = false;
+    
+    if (retc)
+    {
+      free (value);
+      errno = EFAULT;
+      return errno;
+    }
+    
+    if ((items != 2) || ( (strcmp (tag, "inodirlist:")) && (strcmp (tag, "inodirlist_pathencode:")) ))
+    {
+      eos_static_err ("got an error(1).");
+      free (value);
+      errno = EFAULT;
+      return errno;
+    }
+    
+    if(!strcmp (tag, "inodirlist_pathencode:"))
+      encodepath = true;
+    
+    ptr = strchr (value, ' ');
+    if (ptr) ptr = strchr (ptr + 1, ' ');
+    char* endptr = value + strlen (value) - 1;
+    
+    COMMONTIMING ("PARSESTSTREAM1", &inodirtiming);
+    
+    
+    bool parseerror = true;
+    while ((ptr) && (ptr < endptr))
+    {
+      parseerror = true;
+      bool hasstat = false;
+      // parse the entry name
+      char* dirpathptr = ptr;
+      while (dirpathptr < endptr && *dirpathptr == ' ') dirpathptr++;
+      ptr = dirpathptr;
+      if (ptr >= endptr) break;
+      
+      // go next field and set null character
+      ptr = strchr (ptr + 1, ' ');
+      if (ptr == 0 || ptr >= endptr) break;
+      *ptr = 0;
+      
+      // parse the inode
+      char* inodeptr = ptr + 1;
+      while (inodeptr < endptr && *inodeptr == ' ') inodeptr++;
+      ptr = inodeptr;
+      if (ptr >= endptr) break;
+      
+      // go next field and set null character
+      ptr = strchr (ptr + 1, ' ');
+      if (!(ptr == 0 || ptr >= endptr))
+	{
+	  hasstat = true;
+	  *ptr = 0;
+	}
+      parseerror = false;
+      
+      char* statptr = NULL;
+      if (hasstat)
+      {
+	// parse the stat
+	statptr = ptr + 1;
+	while (statptr < endptr && *statptr == ' ')
+	  statptr++;
+	ptr = statptr;
+	hasstat = (ptr < endptr); // we have a third token
+	
+	// check if there is actually a stat
+	if (hasstat)
+	{
+	  hasstat = (*statptr == '{'); // check if then token is a stat information
+	  if (!hasstat)
+	    ptr = statptr;
+	  else
+	  {
+	    ptr = strchr (ptr + 1, ' ');
+	    if (ptr < endptr) *ptr = 0;
+	  }
+	}
+	if (hasstat) ptr++;
+      }
+      
+      // process the entry
+      XrdOucString whitespacedirpath = dirpathptr;
       if (encode_pathname && encodepath)
       {
-        whitespacedirpath = eos::common::StringConversion::curl_unescaped(whitespacedirpath.c_str()).c_str();
+	whitespacedirpath = eos::common::StringConversion::curl_unescaped(whitespacedirpath.c_str()).c_str();
       }
       else
       {
         whitespacedirpath.replace ("%20", " ");
         whitespacedirpath.replace ("%0A", "\n");
       }
-     ino_t inode = strtouq (inodeptr, 0, 10);
-     struct stat buf;
-     if (stats)
-     {
+      ino_t inode = strtouq (inodeptr, 0, 10);
+      struct stat buf;
+      if (stats)
+      {
+	if (hasstat)
+	{
+	  char *statptr2;
+	  statptr++; // skip '{'
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.ATIMESPEC.tv_nsec, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.ATIMESPEC.tv_sec, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_blksize, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_blocks, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.CTIMESPEC.tv_nsec, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.CTIMESPEC.tv_sec, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_dev, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_gid, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_ino, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_mode, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.MTIMESPEC.tv_nsec, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.MTIMESPEC.tv_sec, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_nlink, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_rdev, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_size, statptr2 - statptr);
+	  statptr = statptr2 + 1; // skip ','
+	  for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
+	  eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_uid, statptr2 - statptr);
+	  
+	  if (S_ISREG (buf.st_mode) && fuse_exec)
+	    buf.st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
+	  
+	  buf.st_mode &= (~S_ISVTX); // clear the vxt bit
+	  buf.st_mode &= (~S_ISUID); // clear suid
+	  buf.st_mode &= (~S_ISGID); // clear sgid
+	  buf.st_mode |= mode_overlay;
+	}
+	else
+	  buf.st_ino = 0;
+	statvec.push_back (buf);
+      }
 
-       if (hasstat)
-       {
-         char *statptr2;
-         statptr++; // skip '{'
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.ATIMESPEC.tv_nsec, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.ATIMESPEC.tv_sec, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_blksize, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_blocks, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.CTIMESPEC.tv_nsec, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.CTIMESPEC.tv_sec, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_dev, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_gid, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_ino, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_mode, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.MTIMESPEC.tv_nsec, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.MTIMESPEC.tv_sec, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_nlink, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_rdev, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_size, statptr2 - statptr);
-         statptr = statptr2 + 1; // skip ','
-         for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_uid, statptr2 - statptr);
-
-         if (S_ISREG (buf.st_mode) && fuse_exec)
-           buf.st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
-
-         buf.st_mode &= (~S_ISVTX); // clear the vxt bit
-         buf.st_mode &= (~S_ISUID); // clear suid
-         buf.st_mode &= (~S_ISGID); // clear sgid
-         buf.st_mode |= mode_overlay;
-       }
-       else
-         buf.st_ino = 0;
-       statvec.push_back (buf);
-     }
       if (!encode_pathname && !checkpathname (whitespacedirpath.c_str ()))
       {
-        eos_static_err("unsupported name %s : not stored in the FsCache", whitespacedirpath.c_str ());
+	eos_static_err("unsupported name %s : not stored in the FsCache", whitespacedirpath.c_str ());
       }
       else
       {
-        bool show_entry = true;
-        if ( hide_special_files &&
-             ( whitespacedirpath.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
-               whitespacedirpath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
-               whitespacedirpath.beginswith(EOS_COMMON_PATH_BACKUP_FILE_PREFIX) ) )
-        {
-          show_entry = false;
-        }
-
-        if (show_entry)
-        {
-          store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
-          dlist.push_back (inode);
-        }
+	bool show_entry = true;
+	if ( hide_special_files &&
+	     ( whitespacedirpath.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
+	       whitespacedirpath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
+	       whitespacedirpath.beginswith(EOS_COMMON_PATH_BACKUP_FILE_PREFIX) ) )
+	{
+	  show_entry = false;
+	}
+	
+	if (show_entry)
+	{
+	  store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
+	  dlist.push_back (inode);
+	}
       }
-   }
-   if (parseerror)
-   {
-     eos_static_err ("got an error(2).");
-     free (value);
-     errno = EFAULT;
-     return errno;
-   }
+    }
+    if (parseerror)
+    {
+      eos_static_err ("got an error(2).");
+      free (value);
+      errno = EFAULT;
+      return errno;
+    }
+    doinodirlist = 0;
+  }
+  COMMONTIMING ("PARSESTSTREAM2", &inodirtiming);
+  
+  if (stats)
+  {
+    *stats = (struct fuse_entry_param*) malloc (sizeof (struct fuse_entry_param) * statvec.size ());
+    *nstats = statvec.size();
 
-
-   doinodirlist = 0;
- }
- COMMONTIMING ("PARSESTSTREAM2", &inodirtiming);
-
- if (stats)
- {
-   *stats = (struct fuse_entry_param*) malloc (sizeof (struct fuse_entry_param) * statvec.size ());
-
-   for (auto i = 0; i < (int) statvec.size (); i++)
-   {
-     struct fuse_entry_param &e = (*stats)[i];
-     memset(&e, 0, sizeof(struct fuse_entry_param));
-     e.attr = statvec[i];
-     e.attr_timeout = 0;
-     e.entry_timeout = 0;
-     e.ino = e.attr.st_ino;
-   }
- }
-
- COMMONTIMING ("END", &inodirtiming);
-
- //if (EOS_LOGS_DEBUG)
- //inodirtiming.Print();
-
- free (value);
- return doinodirlist;
+    for (auto i = 0; i < (int) statvec.size (); i++)
+    {
+      struct fuse_entry_param &e = (*stats)[i];
+      memset(&e, 0, sizeof(struct fuse_entry_param));
+      e.attr = statvec[i];
+      e.attr_timeout = 0;
+      e.entry_timeout = 0;
+      e.ino = e.attr.st_ino;
+    }
+  }
+  
+  COMMONTIMING ("END", &inodirtiming);
+  
+  free (value);
+  return doinodirlist;
 }
 
 

@@ -715,7 +715,8 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
                  gid_t gid,
                  pid_t pid,
 		 dirlist &dlist,
-                 struct fuse_entry_param **stats);
+                 struct fuse_entry_param **stats, 
+		 size_t* nstats);
 
  //----------------------------------------------------------------------------
  //! Do user mapping
