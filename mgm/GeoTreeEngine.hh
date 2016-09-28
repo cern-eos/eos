@@ -44,8 +44,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-
-
 /*----------------------------------------------------------------------------*/
 /**
  * @file GeoTreeEngine.hh
@@ -567,6 +565,11 @@ class GeoTreeEngine : public eos::common::LogId
       {
         return false;
       }
+      if(
+          host2TreeIdx->copyToFsId2NodeIdxMap(target->host2TreeIdx) )
+      {
+        return false;
+      }
 
       // copy the penalties
       std::copy(penalties->begin(), penalties->end(),
@@ -911,7 +914,6 @@ class GeoTreeEngine : public eos::common::LogId
         ss << (*entry->slowTree);
         eos_debug("fast structures updated successfully from slowtree : old SLOW tree was \n %s",ss.str().c_str());
       }
-
     }
     else
     {
