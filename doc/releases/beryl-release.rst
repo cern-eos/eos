@@ -10,6 +10,12 @@ Beryl Release Notes
 ``V0.3.206 Aquamarine``
 +++++++++++++++++++++++
 
+- FST: put back the posix_fallocate call since xfs pre-allocation slows down when a truncate is called and produces contention in the Oss::Close handle where xrootd uses a global lock
+- COMMON: disable block checksums for plain and replica layouts by force
+
+``V0.3.206 Aquamarine``
++++++++++++++++++++++++
+
 - FST: avoid bogus mgm/disk size errors due to still uninitialized disk size values
 
 ``V0.3.205 Aquamarine``
