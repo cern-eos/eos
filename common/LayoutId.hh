@@ -320,6 +320,9 @@ public:
   static unsigned long
   GetBlockChecksum (unsigned long layout)
   {
+    // disable block checksum in plain and replica layouts
+    if (GetLayoutType(layout) == kPlain) return kNone;
+    if (GetLayoutType(layout) == kReplica) return kNone;
     return ( (layout >> 20) & 0xf);
   }
 
@@ -477,7 +480,6 @@ public:
   static const char*
   GetBlockChecksumString (unsigned long layout)
   {
-
     if (GetBlockChecksum(layout) == kNone) return "none";
     if (GetBlockChecksum(layout) == kAdler) return "adler";
     if (GetBlockChecksum(layout) == kCRC32) return "crc32";
