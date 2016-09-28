@@ -35,9 +35,6 @@ if(NOT MacOSX)
   find_package(attr REQUIRED)
   find_package(xfs REQUIRED)
   find_package(rt REQUIRED)
-  find_package(xfs REQUIRED)
-  find_package(rt REQUIRED)
-  find_package(kineticio)
 endif()
 
   find_package(PythonSitePkg REQUIRED)
@@ -56,6 +53,7 @@ endif()
   find_package(ZMQ REQUIRED)
   find_package(krb5 REQUIRED)
   find_package(Sphinx)
+  find_package(kineticio REQUIRED headers)
 
   # The server build also requires
   if (NOT CLIENT)
