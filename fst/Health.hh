@@ -1,10 +1,11 @@
-// ----------------------------------------------------------------------
-// File: Health.hh
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file Health.hh
+//! @author Paul Hermann Lensing <paul.lensing@cern.ch>
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -23,118 +24,113 @@
 #ifndef __EOSFST_HEALTH_HH__
 #define __EOSFST_HEALTH_HH__
 
-#include <fst/Namespace.hh>
-#include <fst/storage/FileSystem.hh>
+#include "fst/Namespace.hh"
+#include "fst/storage/FileSystem.hh"
 #include <mutex>
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Class retrieving disk health information
+//------------------------------------------------------------------------------
 class DiskHealth
 {
 public:
+  //----------------------------------------------------------------------------
+  //! Get health information about a certain device
+  //!
+  //! @param devpath path of the targeted device
+  //!
+  //! @return map of health parameters and values
+  //----------------------------------------------------------------------------
   std::map<std::string, std::string> getHealth(const char* devpath);
 
-  bool Measure();
+  //----------------------------------------------------------------------------
+  //! Update health information for all the registered devices
+  //----------------------------------------------------------------------------
+  void Measure();
 
 private:
-  std::map<std::string, std::map<std::string, std::string>> smartctl_results;
-  std::mutex mutex;
-
-  /* Parse /proc/mdstat to obtain raid health. Existing indicator shows rebuild in progress. */
+  //----------------------------------------------------------------------------
+  //! Parse /proc/mdstat to obtain raid health. Existing indicator shows
+  //! rebuild in progress.
+  //!
+  //! @param device targeted device
+  //!
+  //! @return map of health parameters and values
+  //----------------------------------------------------------------------------
   std::map<std::string, std::string> parse_mdstat(const char* device);
 
-  /* Obtain health of a single locally attached storage device by evaluating S.M.A.R.T values */
+  //----------------------------------------------------------------------------
+  //! Obtain health of a single locally attached storage device by evaluating
+  //! S.M.A.R.T values.
+  //!
+  //! @param device targeted device
+  //!
+  //! @return string representin the result of smartctl run on the targeted
+  //!         device. Can be one of the following: OK, no smartclt, N/A, Check,
+  //!         invalid, FAILING.
+  //----------------------------------------------------------------------------
   std::string smartctl(const char* device);
+
+  //! Map holding the smartclt results
+  std::map<std::string, std::map<std::string, std::string>> smartctl_results;
+  std::mutex mMutex; ///< Protect acces to the smartctl_results map
 };
 
-
+//------------------------------------------------------------------------------
+//! Class Health
+//------------------------------------------------------------------------------
 class Health
 {
-private:
-  bool skip;
-  pthread_t tid;
-  std::mutex Mutex;
-  DiskHealth fDiskHealth;
-  unsigned int interval;
-
 public:
+  //----------------------------------------------------------------------------
+  //! Static helper function for starting the health monitoring thread
+  //!
+  //! @param pp pointer to a Health object
+  //----------------------------------------------------------------------------
+  static void* StartHealthThread(void* pp);
 
-  Health(unsigned int ival_minutes = 15)
-  {
-    tid = 0;
-    interval = ival_minutes;
-    if (interval == 0) {
-      interval = 1;
-    }
-    skip = false;
-  }
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  Health(unsigned int ival_minutes = 15);
 
-  bool
-  Monitor()
-  {
-    int rc = 0;
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~Health();
 
-    if ((rc = XrdSysThread::Run(&tid, Health::StartHealthThread, static_cast<void*> (this),
-                                XRDSYSTHREAD_HOLD, "Health-Monitor"))) {
-      return false;
-    } else {
-      return true;
-    }
-  }
+  //----------------------------------------------------------------------------
+  //! Method starting the health monitoring thread
+  //!
+  //! @return true if thread started succesfully, otherwise false
+  //----------------------------------------------------------------------------
+  bool Monitor();
 
-  virtual
-  ~Health()
-  {
-    if (tid) {
-      XrdSysThread::Cancel(tid);
-      XrdSysThread::Join(tid, 0);
-      tid = 0;
-    }
-  };
+  //----------------------------------------------------------------------------
+  //! Loop run by the monitoring thread to keep updated the disk health info.
+  //----------------------------------------------------------------------------
+  void Measure();
 
-  void
-  Measure()
-  {
-    while (1) {
-      XrdSysThread::SetCancelOff();
-      if (!fDiskHealth.Measure()) {
-        fprintf(stderr, "error: cannot get disk health statistic\n");
-      }
-      XrdSysThread::SetCancelOn();
-      for (unsigned int i = 0; i < interval; i++) {
-        sleep(60);
-        std::lock_guard<std::mutex> lock(Mutex);
-        if (skip) {
-          skip = false;
-          break;
-        }
-      }
-    }
-  }
+  //----------------------------------------------------------------------------
+  //! Get disk health information for a specific device. If no measurements
+  //! are available then trigger the monitoring thread to do an update.
+  //!
+  //! @param devpath targeted device
+  //!
+  //! @return map of health parameters and values
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::string> getDiskHealth(const char* devpath);
 
-  std::map<std::string, std::string> getDiskHealth(const char* devpath)
-  {
-    auto result = fDiskHealth.getHealth(devpath);
-
-    /* If we don't have any result, don't wait for interval timeout to measure. */
-    if (result.empty()) {
-      std::lock_guard<std::mutex> lock(Mutex);
-      skip = true;
-    }
-    return result;
-  };
-
-  static void*
-  StartHealthThread(void* pp)
-  {
-    Health* health = (Health*) pp;
-    health->Measure();
-    return 0;
-  }
+private:
+  ///< Trigger update thread without waiting for the whole interval to elapse
+  bool mSkip;
+  pthread_t mTid; ///< Monitoring thread id
+  unsigned int mIntervalMin; ///< Minutes interval when monitoring thread runs
+  DiskHealth mDiskHealth; ///< Objecting collecting disk health information
 };
 
 EOSFSTNAMESPACE_END
-
 
 #endif
