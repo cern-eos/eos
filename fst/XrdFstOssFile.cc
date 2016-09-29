@@ -336,6 +336,7 @@ int
 XrdFstOssFile::Close (long long* retsz)
 {
   bool delete_mapping = false;
+  bool unlinked = false;
 
   if (fd < 0) return -EBADF;
 
@@ -349,12 +350,7 @@ XrdFstOssFile::Close (long long* retsz)
     if ((XrdFstSS->Stat(mPath.c_str(), &statinfo)))
     {
       eos_err("error=close - cannot stat unlinked file: %s", mPath.c_str());
-      //........................................................................
-      // Take care not to leak file descriptors
-      //........................................................................
-      if (fd >= 0) close(fd);
-      fd = -1;
-      return -EIO;
+      unlinked = true;
     }
 
     XrdSysRWLockHelper wr_lock(mRWLockXs, 0); // ---> wrlock xs obj
@@ -370,19 +366,22 @@ XrdFstOssFile::Close (long long* retsz)
         //......................................................................
         // If one last writer and this is the current one
         //......................................................................
-        if (!mBlockXs->ChangeMap(statinfo.st_size, true))
-        {
-          eos_err("error=unable to change block checksum map");
-        }
-        else
-        {
-          eos_info("info=\"adjusting block XS map\"");
-        }
-
-        if (!mBlockXs->AddBlockSumHoles(getFD()))
-        {
-          eos_warning("warning=unable to fill holes of block checksum map");
-        }
+	if (! unlinked)
+	{
+	  if (!mBlockXs->ChangeMap(statinfo.st_size, true))
+	  {
+	    eos_err("error=unable to change block checksum map");
+	  }
+	  else
+	  {
+	    eos_info("info=\"adjusting block XS map\"");
+	  }
+	  
+	  if (!mBlockXs->AddBlockSumHoles(getFD()))
+	  {
+	    eos_warning("warning=unable to fill holes of block checksum map");
+	  }
+	}
       }
     }
     else
@@ -390,7 +389,7 @@ XrdFstOssFile::Close (long long* retsz)
       //........................................................................
       // Just one reference left (the current one)
       //........................................................................
-      if (mIsRW)
+      if (mIsRW && !unlinked)
       {
         if (!mBlockXs->ChangeMap(statinfo.st_size, true))
         {
@@ -427,6 +426,13 @@ XrdFstOssFile::Close (long long* retsz)
   else
   {
     eos_debug("No delete from oss map");
+  }
+
+  if (unlinked)
+  {
+    close(fd);
+    fd = -1;
+    return -EIO;
   }
 
   //............................................................................
