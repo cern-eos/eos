@@ -6,18 +6,19 @@
 # KINETICIO_LIBRARIES    - kinetic io libraries
 
 if (KINETICIO_INCLUDE_DIRS AND KINETICIO_LIBRARIES)
-    set(KINETICIO_FIND_QUIETLY TRUE)
+  set(KINETICIO_FIND_QUIETLY TRUE)
 endif (KINETICIO_INCLUDE_DIRS AND KINETICIO_LIBRARIES)
 
-find_path(KINETICIO_INCLUDE_DIR KineticIoFactory.hh
-        HINTS
-        /usr/include/kio/
-        /usr/local/include/kio/)
+find_path(
+  KINETICIO_INCLUDE_DIR KineticIoFactory.hh
+  HINTS
+  /usr/include/kio/
+  /usr/local/include/kio/)
 
-find_library(KINETICIO_LIBRARY kineticio
-        PATHS /usr/ /usr/local/
-        PATH_SUFFIXES lib lib64
-        )
+find_library(
+  KINETICIO_LIBRARY kineticio
+  PATHS /usr/ /usr/local/
+  PATH_SUFFIXES lib lib64)
 
 set(KINETICIO_INCLUDE_DIRS ${KINETICIO_INCLUDE_DIR})
 set(KINETICIO_LIBRARIES ${KINETICIO_LIBRARY})
@@ -26,8 +27,9 @@ set(KINETICIO_LIBRARIES ${KINETICIO_LIBRARY})
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 if(kineticio_FIND_REQUIRED_headers)
-    find_package_handle_standard_args(kineticio DEFAULT_MSG KINETICIO_INCLUDE_DIRS)
+  find_package_handle_standard_args(kineticio DEFAULT_MSG KINETICIO_INCLUDE_DIRS)
 else()
-    find_package_handle_standard_args(kineticio DEFAULT_MSG KINETICIO_INCLUDE_DIRS KINETICIO_LIBRARIES)
+  find_package_handle_standard_args(kineticio DEFAULT_MSG KINETICIO_INCLUDE_DIRS KINETICIO_LIBRARIES)
 endif()
+
 mark_as_advanced(KINETICIO_INCLUDE_DIRS KINETICIO_LIBRARIES)

@@ -1,34 +1,69 @@
 //------------------------------------------------------------------------------
 //! @file KineticIO.hh
-//! @author Paul Hermann Lensing
+//! @author Paul Hermann Lensing <paul.lensing@cern.ch>
 //! @brief Intermediate class used to forward Kinetic IO operations
 //------------------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
 #ifndef __EOS_FST_KINETICFILEIO__HH__
 #define __EOS_FST_KINETICFILEIO__HH__
 
 #include "fst/io/FileIo.hh"
-#include <kio/KineticIoFactory.hh>
+#include "common/plugin_manager/DynamicLibrary.hh"
+#include "kio/KineticIoFactory.hh"
 #include <memory>
-#include <common/plugin_manager/DynamicLibrary.hh>
 
 EOSFSTNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Class KineticLib use to load dynamically the Kinetic library
+//------------------------------------------------------------------------------
 class KineticLib
 {
 public:
-  //! Acess a factory object. Function throws if if kineticio library has not been
-  //! loaded correctly.
+  //----------------------------------------------------------------------------
+  //! Acess a factory object. Function throws if if kineticio library has not
+  //! been loaded correctly.
+  //----------------------------------------------------------------------------
   static kio::LoadableKineticIoFactoryInterface* access();
 
 private:
-  //! pointer to factory object, set in constructor
-  kio::LoadableKineticIoFactoryInterface* factory;
-  //! keeping the library object around so it will be unloaded correctly
-  std::unique_ptr<eos::common::DynamicLibrary> library;
+  //----------------------------------------------------------------------------
   //! Constructor
+  //----------------------------------------------------------------------------
   KineticLib();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~KineticLib();
+
+  //! Pointer to factory object, set in constructor
+  kio::LoadableKineticIoFactoryInterface* mFactory;
+  //! Keep the library object around so it will be unloaded correctly
+  std::unique_ptr<eos::common::DynamicLibrary> mLibrary;
 };
 
+//------------------------------------------------------------------------------
+//! Class KineticIo
+//------------------------------------------------------------------------------
 class KineticIo : public FileIo
 {
 public:
@@ -204,62 +239,69 @@ public:
   //!
   //! @param buf stat buffer
   //! @param timeout timeout value
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
   int fileStat(struct stat* buf, uint16_t timeout = 0);
 
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)
   //!
   //! @param name attribute name
   //! @param value attribute value
   //! @param len value length
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int attrSet(const char* name, const char* value, size_t len);
 
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)
   //!
   //! @param name attribute name
   //! @param value attribute value
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int attrSet(string name, std::string value);
 
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get a binary attribute by name
   //!
   //! @param name attribute name
   //! @param value contains attribute value upon success
   //! @param size the buffer size, after success the value size
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int attrGet(const char* name, char* value, size_t& size);
 
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get a binary attribute by name
   //!
   //! @param name attribute name
   //! @param value contains attribute value upon success
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int attrGet(string name, std::string& value);
 
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Delete a binary attribute by name
   //!
   //! @param name attribute name
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int attrDelete(const char* name);
 
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! List all attributes for the associated path
   //!
   //! @param list contains all attribute names for the set path upon success
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int attrList(std::vector<std::string>& list);
 
   class FtsHandle : public FileIo::FtsHandle
@@ -316,15 +358,17 @@ public:
 
   //----------------------------------------------------------------------------
   //! Plug-in function to fill a statfs structure about the storage filling
-  //! state
+  //! state.
+  //!
   //! @param path to statfs
   //! @param statfs return struct
+  //!
   //! @return 0 if successful otherwise errno
   //----------------------------------------------------------------------------
   int Statfs(struct statfs* statFs);
 
 private:
-  //! the actual implementation class
+  //! Actual implementation class
   std::unique_ptr<kio::FileIoInterface> kio;
   //! No copy constructor
   KineticIo(const KineticIo&) = delete;

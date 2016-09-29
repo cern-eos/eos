@@ -1,68 +1,120 @@
+//------------------------------------------------------------------------------
+// File: KineticIO.cc
+// Author: Paul Hermann Lensing <paul.lensing@cern.ch>
+//------------------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
 #include "KineticIo.hh"
 #include <system_error>
 
 EOSFSTNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+// Forward logging function to the Kinetic library
+//------------------------------------------------------------------------------
 static void
 logmsg(const char* func, const char* file, int line, int priority,
        const char* msg)
 {
-  eos::common::Logging::log(
-    func, file, line, "LIBKINETICIO", eos::common::Logging::gZeroVid, "", priority,
-    msg
-  );
+  eos::common::Logging::log(func, file, line, "LIBKINETICIO",
+                            eos::common::Logging::gZeroVid, "", priority, msg);
 }
 
-KineticLib::KineticLib()
+//------------------------------------------------------------------------------
+//                         **** KineticLib ****
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+KineticLib::KineticLib():
+  mFactory(NULL)
 {
-  factory = NULL;
-
   std::string error;
-  library.reset(
-      eos::common::DynamicLibrary::Load("libkineticio.so", error)
-  );
+  mLibrary.reset(eos::common::DynamicLibrary::Load("libkineticio.so", error));
 
-  if(!library){
+  if (!mLibrary) {
     eos_static_notice("Failed loading libkineticio: %s", error.c_str());
     return;
   }
 
-  void* symbol = library->GetSymbol("getKineticIoFactory");
-  if(!symbol){
+  void* symbol = mLibrary->GetSymbol("getKineticIoFactory");
+
+  if (!symbol) {
     eos_static_notice("Failed loading getKineticIoFactory from libkineticio");
     return;
   }
 
-  typedef kio::LoadableKineticIoFactoryInterface* (* function_t)();
-  factory = reinterpret_cast<function_t>(symbol)();
-
-  factory->registerLogFunction(logmsg, eos::common::Logging::shouldlog);
+  typedef kio::LoadableKineticIoFactoryInterface* (*function_t)();
+  mFactory = reinterpret_cast<function_t>(symbol)();
+  mFactory->registerLogFunction(logmsg, eos::common::Logging::shouldlog);
 }
 
+//----------------------------------------------------------------------------
+//! Destructor
+//----------------------------------------------------------------------------
+KineticLib::~KineticLib()
+{
+  delete mFactory;
+}
+
+//----------------------------------------------------------------------------
+// Acess a factory object. Function throws if if kineticio library has not
+// been loaded correctly.
+//----------------------------------------------------------------------------
 kio::LoadableKineticIoFactoryInterface* KineticLib::access()
 {
   static KineticLib k;
-  if(!k.factory) {
+
+  if (!k.mFactory) {
     throw std::runtime_error("Kineticio library cannot be accessed.");
   }
-  return k.factory;
+
+  return k.mFactory;
 }
 
+//----------------------------------------------------------------------------
+//                        **** KineticIo ****
+//----------------------------------------------------------------------------
 
+//----------------------------------------------------------------------------
+// Constructor
+//----------------------------------------------------------------------------
 KineticIo::KineticIo(std::string path) :
   FileIo(path, "kinetic")
 {
   eos_debug("path: %s", mFilePath.c_str());
-  kio = std::move(
-      KineticLib::access()->makeFileIo(path)
-  );
+  kio = std::move(KineticLib::access()->makeFileIo(path));
 }
 
+//----------------------------------------------------------------------------
+// Destructor
+//----------------------------------------------------------------------------
 KineticIo::~KineticIo()
 {
   eos_debug("path: %s", mFilePath.c_str());
 }
 
+//----------------------------------------------------------------------------
+// Open file
+//----------------------------------------------------------------------------
 int KineticIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
                         const std::string& opaque, uint16_t timeout)
 {
@@ -79,6 +131,9 @@ int KineticIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Read from file - sync
+//----------------------------------------------------------------------------
 int64_t
 KineticIo::fileRead(XrdSfsFileOffset offset, char* buffer,
                     XrdSfsXferSize length,
@@ -98,6 +153,9 @@ KineticIo::fileRead(XrdSfsFileOffset offset, char* buffer,
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Write to file - sync
+//----------------------------------------------------------------------------
 int64_t
 KineticIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
                      XrdSfsXferSize length, uint16_t timeout)
@@ -116,6 +174,9 @@ KineticIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Read from file - async
+//----------------------------------------------------------------------------
 int64_t
 KineticIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
                          XrdSfsXferSize length, bool readahead, uint16_t timeout)
@@ -124,6 +185,9 @@ KineticIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
   return fileRead(offset, buffer, length, timeout);
 }
 
+//----------------------------------------------------------------------------
+// Write to file - async
+//----------------------------------------------------------------------------
 int64_t
 KineticIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
                           XrdSfsXferSize length, uint16_t timeout)
@@ -132,6 +196,9 @@ KineticIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
   return fileWrite(offset, buffer, length, timeout);
 }
 
+//----------------------------------------------------------------------------
+// Truncate file
+//----------------------------------------------------------------------------
 int
 KineticIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 {
@@ -148,6 +215,9 @@ KineticIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Allocate file space
+//----------------------------------------------------------------------------
 int
 KineticIo::fileFallocate(XrdSfsFileOffset length)
 {
@@ -155,6 +225,9 @@ KineticIo::fileFallocate(XrdSfsFileOffset length)
   return 0;
 }
 
+//----------------------------------------------------------------------------
+// Deallocate file space
+//----------------------------------------------------------------------------
 int
 KineticIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
                            XrdSfsFileOffset toOffset)
@@ -164,6 +237,9 @@ KineticIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
   return 0;
 }
 
+//----------------------------------------------------------------------------
+// Remove file
+//----------------------------------------------------------------------------
 int
 KineticIo::fileRemove(uint16_t timeout)
 {
@@ -179,6 +255,9 @@ KineticIo::fileRemove(uint16_t timeout)
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Sync file
+//----------------------------------------------------------------------------
 int
 KineticIo::fileSync(uint16_t timeout)
 {
@@ -194,6 +273,9 @@ KineticIo::fileSync(uint16_t timeout)
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Close file
+//----------------------------------------------------------------------------
 int
 KineticIo::fileClose(uint16_t timeout)
 {
@@ -209,6 +291,9 @@ KineticIo::fileClose(uint16_t timeout)
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Get stats about the file
+//----------------------------------------------------------------------------
 int
 KineticIo::fileStat(struct stat* buf, uint16_t timeout)
 {
@@ -224,6 +309,9 @@ KineticIo::fileStat(struct stat* buf, uint16_t timeout)
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Get pointer to async meta handler object - not applicable in this case
+//----------------------------------------------------------------------------
 void*
 KineticIo::fileGetAsyncHandler()
 {
@@ -231,6 +319,10 @@ KineticIo::fileGetAsyncHandler()
   return NULL;
 }
 
+//----------------------------------------------------------------------------
+// Plug-in function to fill a statfs structure about the storage filling
+// state.
+//----------------------------------------------------------------------------
 int
 KineticIo::Statfs(struct statfs* statFs)
 {
@@ -246,6 +338,9 @@ KineticIo::Statfs(struct statfs* statFs)
   return errno;
 }
 
+//----------------------------------------------------------------------------
+// Check for the existence of a file
+//----------------------------------------------------------------------------
 int
 KineticIo::fileExists()
 {
@@ -261,6 +356,9 @@ KineticIo::fileExists()
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Open a cursor to traverse a storage system
+//----------------------------------------------------------------------------
 FileIo::FtsHandle*
 KineticIo::ftsOpen()
 {
@@ -268,6 +366,9 @@ KineticIo::ftsOpen()
   return new KineticIo::FtsHandle(mFilePath.c_str());
 }
 
+//----------------------------------------------------------------------------
+// Return the next path related to a traversal cursor obtained with ftsOpen
+//----------------------------------------------------------------------------
 std::string
 KineticIo::ftsRead(FileIo::FtsHandle* fts_handle)
 {
@@ -300,6 +401,9 @@ KineticIo::ftsRead(FileIo::FtsHandle* fts_handle)
   return "";
 }
 
+//----------------------------------------------------------------------------
+// Close a traversal cursor
+//----------------------------------------------------------------------------
 int
 KineticIo::ftsClose(FileIo::FtsHandle* fts_handle)
 {
@@ -308,6 +412,9 @@ KineticIo::ftsClose(FileIo::FtsHandle* fts_handle)
   return 0;
 }
 
+//----------------------------------------------------------------------------
+//
+//----------------------------------------------------------------------------
 int
 KineticIo::attrGet(const char* name, char* value, size_t& size)
 {
@@ -326,6 +433,9 @@ KineticIo::attrGet(const char* name, char* value, size_t& size)
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Get a binary attribute by name
+//----------------------------------------------------------------------------
 int
 KineticIo::attrGet(string name, std::string& value)
 {
@@ -342,6 +452,9 @@ KineticIo::attrGet(string name, std::string& value)
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Set a binary attribute (name has to start with 'user.' !!!)
+//----------------------------------------------------------------------------
 int
 KineticIo::attrSet(const char* name, const char* value, size_t len)
 {
@@ -358,6 +471,9 @@ KineticIo::attrSet(const char* name, const char* value, size_t len)
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Set a binary attribute (name has to start with 'user.' !!!)
+//----------------------------------------------------------------------------
 int
 KineticIo::attrSet(string name, std::string value)
 {
@@ -374,6 +490,9 @@ KineticIo::attrSet(string name, std::string value)
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// Delete a binary attribute by name
+//----------------------------------------------------------------------------
 int
 KineticIo::attrDelete(const char* name)
 {
@@ -389,6 +508,9 @@ KineticIo::attrDelete(const char* name)
   return SFS_ERROR;
 }
 
+//----------------------------------------------------------------------------
+// List all attributes for the associated path
+//----------------------------------------------------------------------------
 int
 KineticIo::attrList(std::vector<std::string>& list)
 {
