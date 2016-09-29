@@ -7,7 +7,13 @@
 Beryl Release Notes
 ===================
 
-``V0.3.206 Aquamarine``
+``V0.3.208 Aquamarine``
++++++++++++++++++++++++
+
+- FST: enable blockchecksums againf for plain layouts if there is an .xsmap file - this avoids bogus errors and still checks the blockchecksum files if they are available
+- CONSOLE: adjust the console command to not add block checksum for "attr set default=replica"
+
+``V0.3.207 Aquamarine``
 +++++++++++++++++++++++
 
 - FST: put back the posix_fallocate call since xfs pre-allocation slows down when a truncate is called and produces contention in the Oss::Close handle where xrootd uses a global lock
