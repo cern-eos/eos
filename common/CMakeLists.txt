@@ -82,8 +82,7 @@ target_include_directories(
   eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
 
 set_target_properties(
-  eosCommon
-  PROPERTIES
+  eosCommon PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
@@ -146,8 +145,7 @@ if(Linux)
   endif()
 
   set_target_properties(
-    eosCommonServer
-    PROPERTIES
+    eosCommonServer PROPERTIES
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
     MACOSX_RPATH TRUE)
@@ -177,9 +175,9 @@ if(Linux)
     eosCommon-Static
     PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
 
-  target_compile_options(
-    eosCommon-Static
-    PUBLIC -fPIC)
+  set_target_properties(
+    eosCommon-Static PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
 
   target_link_libraries(
     eosCommon-Static PRIVATE
@@ -231,13 +229,14 @@ endif()
 #-------------------------------------------------------------------------------
 # Plugin Manager library
 #-------------------------------------------------------------------------------
-add_library(
-  EosPluginManager SHARED
+set(EOS_PLUGIN_MANAGER_SRCS
   plugin_manager/Plugin.hh
   Namespace.hh
   Logging.cc                        Logging.hh
   plugin_manager/PluginManager.cc   plugin_manager/PluginManager.hh
   plugin_manager/DynamicLibrary.cc  plugin_manager/DynamicLibrary.hh)
+
+add_library(EosPluginManager SHARED ${EOS_PLUGIN_MANAGER_SRCS})
 
 target_link_libraries(
   EosPluginManager PUBLIC
@@ -249,6 +248,13 @@ set_target_properties(
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
+
+if (Linux)
+  add_library(EosPluginManager-Static STATIC ${EOS_PLUGIN_MANAGER_SRCS})
+  target_link_libraries(EosPluginManager-Static PUBLIC ${XROOTD_UTILS_LIBRARY})
+  set_target_properties(EosPluginManager-Static PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
+endif()
 
 install(
   TARGETS EosPluginManager

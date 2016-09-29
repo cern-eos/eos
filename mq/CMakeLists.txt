@@ -64,15 +64,25 @@ target_compile_definitions(
   XrdMqClient PUBLIC -DHAVE_ATOMICS=1)
 
 set_target_properties(
-  XrdMqClient
-  PROPERTIES
+  XrdMqClient PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
 if(Linux)
   add_library(XrdMqClient-Static STATIC ${XRDMQCLIENT_SRCS})
-  target_compile_options(XrdMqClient-Static PRIVATE -fPIC)
+
+  target_link_libraries(
+    XrdMqClient-Static PRIVATE
+    ${UUID_LIBRARIES}
+    ${NCURSES_LIBRARY}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${OPENSSL_CRYPTO_LIBRARY})
+
+  set_target_properties(
+    XrdMqClient-Static PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
 #-------------------------------------------------------------------------------

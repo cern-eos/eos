@@ -171,7 +171,6 @@ set(
   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
   io/kinetic/KineticIo.cc        io/kinetic/KineticIo.hh
-  ../common/plugin_manager/DynamicLibrary.cc
   ${DAVIX_SRC}			 ${DAVIX_HDR}
   io/rados/RadosIo.cc            io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
@@ -207,6 +206,7 @@ add_library(
 target_link_libraries(
   EosFstIo PUBLIC
   eosCommon
+  EosPluginManager
   jerasure-static
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
@@ -248,6 +248,7 @@ if(Linux)
   target_link_libraries(
     EosFstIo-Static PUBLIC
     eosCommon-Static
+    EosPluginManager-Static
     jerasure-static
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
@@ -379,10 +380,8 @@ target_compile_definitions(
 
 target_link_libraries(
    XrdEosFst PRIVATE
-   eosCommon
    eosCommonServer
    EosFstIo-Static
-   XrdMqClient-Static
    eosCapability-Static
    ${Z_LIBRARY}
    ${UUID_LIBRARIES}
@@ -471,7 +470,6 @@ target_link_libraries(
 
 target_link_libraries(
   eos-scan-fs PRIVATE
-  eosCommon
   eosCommonServer
   EosFstIo-Static
   ${GLIBC_RT_LIBRARY}
