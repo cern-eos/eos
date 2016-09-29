@@ -826,18 +826,6 @@ public:
       SetConfigMember("txgw", "off", true, mName.c_str(), true);
     }
 
-    // set by default as no dataproxy
-    if ((GetConfigMember("dataproxy") != "on") &&
-        (GetConfigMember("dataproxy") != "off")) {
-      SetConfigMember("dataproxy", "on", true, mName.c_str(), true);
-    }
-
-    // set by default as no data entry point
-    if ((GetConfigMember("dataep") != "on") &&
-        (GetConfigMember("dataep") != "off")) {
-      SetConfigMember("dataep", "on", true, mName.c_str(), true);
-    }
-
     // set by default 10 transfers per gateway node
     if ((strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == 0) ||
         (strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == LONG_MAX)) {
