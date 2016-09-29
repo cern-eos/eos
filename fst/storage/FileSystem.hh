@@ -202,6 +202,18 @@ public:
     return IOPS;
   }
 
+  bool condReloadFileIo(std::string iotype)
+  {
+    if (!mFileIO || mFileIO->GetIoType() != iotype) {
+      return false;
+    }
+
+    delete mFileIO;
+    mFileIO = NULL;
+    mFileIO = FileIoPlugin::GetIoObject(GetPath().c_str());
+    return true;
+  }
+
   bool getFileIOStats(std::map<std::string, std::string>& map)
   {
     if (!mFileIO) {

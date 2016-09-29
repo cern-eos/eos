@@ -380,6 +380,9 @@ Storage::Communicator()
             if (do_reload) {
               try {
                 KineticLib::access()->reloadConfiguration();
+                for (auto fs_it = fileSystemsVector.cbegin(); fs_it != fileSystemsVector.cend(); fs_it++) {
+                  (*fs_it)->condReloadFileIo("kinetic");
+                }
               } catch (const std::exception& e) {
                 eos_static_crit("msg=\"reload of kinetic configuration failed\" exception=\"%s\"",
                                 e.what());
