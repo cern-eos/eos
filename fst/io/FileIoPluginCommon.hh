@@ -31,7 +31,9 @@
 #ifdef RADOS_FOUND
 #include "fst/io/rados/RadosIo.hh"
 #endif
+#ifdef KINETICIO_FOUND
 #include "fst/io/kinetic/KineticIo.hh"
+#endif
 #ifdef DAVIX_FOUND
 #include "fst/io/davix/DavixIo.hh"
 #endif
@@ -81,6 +83,7 @@ public:
     } else if (ioType == LayoutId::kXrdCl) {
       return static_cast<FileIo*>(new XrdIo(path));
     } else if (ioType == LayoutId::kKinetic) {
+#ifdef KINETICIO_FOUND
       FileIo* kio = NULL;
       try {
         kio = static_cast<FileIo*>((FileIo*)new KineticIo(path));
@@ -88,16 +91,19 @@ public:
         eos_static_err("Failed constructing kinetic io object: %s", e.what());
       }
       return kio;
+#endif // KINETICIO_FOUND
+      eos_static_warning("EOS has been compiled without Kinetic support.");
+      return NULL;
     } else if (ioType == LayoutId::kRados) {
 #ifdef RADOS_FOUND
       return static_cast<FileIo*>(new RadosIo(path));
-#endif
+#endif // RADOS_FOUND
       eos_static_warning("EOS has been compiled without RADOS support.");
       return NULL;
     } else if (ioType == LayoutId::kDavix) {
 #ifdef DAVIX_FOUND
       return static_cast<FileIo*>(new DavixIo(path));
-#endif
+#endif // DAVIX_FOUND
       eos_static_warning("EOS has been compiled without DAVIX support.");
       return NULL;
     }

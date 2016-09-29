@@ -30,11 +30,16 @@ option(ENABLE_REDOX "Enable Redox support" OFF)
 option(ENABLE_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 if (NOT PACKAGEONLY)
 
-if(NOT MacOSX)
+if(Linux)
   find_package(glibc REQUIRED)
   find_package(attr REQUIRED)
   find_package(xfs REQUIRED)
   find_package(rt REQUIRED)
+  find_package(kineticio REQUIRED headers)
+endif()
+
+if(MacOSX)
+  find_package(kineticio COMPONENTS headers)
 endif()
 
   find_package(PythonSitePkg REQUIRED)
@@ -53,7 +58,6 @@ endif()
   find_package(ZMQ REQUIRED)
   find_package(krb5 REQUIRED)
   find_package(Sphinx)
-  find_package(kineticio REQUIRED headers)
 
   # The server build also requires
   if (NOT CLIENT)

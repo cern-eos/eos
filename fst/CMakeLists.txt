@@ -32,6 +32,14 @@ else()
     set(DAVIX_HDR "")
 endif()
 
+if(KINETICIO_FOUND)
+  set(KINETIC_SRCS "io/kinetic/KineticIo.cc")
+  set(KINETIC_HDRS "io/kinetic/KineticIo.hh")
+else()
+  set(KINETIC_SRCS "")
+  set(KINETIC_HDRS "")
+endif()
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -170,7 +178,7 @@ set(
   #-----------------------------------------------------------------------------
   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
-  io/kinetic/KineticIo.cc        io/kinetic/KineticIo.hh
+  ${KINETIC_SRCS}                ${KINETIC_HDRS}
   ${DAVIX_SRC}			 ${DAVIX_HDR}
   io/rados/RadosIo.cc            io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
@@ -178,6 +186,7 @@ set(
   io/ChunkHandler.cc             io/ChunkHandler.hh
   io/VectChunkHandler.cc         io/VectChunkHandler.hh
   io/SimpleHandler.cc            io/SimpleHandler.hh
+  io/FileIoPlugin.cc             io/FileIoPlugin.hh
 
   #-----------------------------------------------------------------------------
   # Checksum interface
@@ -198,10 +207,7 @@ set(
   layout/RaidDpLayout.cc             layout/RaidDpLayout.hh
   layout/ReedSLayout.cc              layout/ReedSLayout.hh)
 
-add_library(
-  EosFstIo SHARED
-  ${EOSFSTIO_SRCS}
-  io/FileIoPlugin.hh  io/FileIoPlugin.cc)
+add_library(EosFstIo SHARED ${EOSFSTIO_SRCS})
 
 target_link_libraries(
   EosFstIo PUBLIC
@@ -222,6 +228,10 @@ target_link_libraries(
   ${DAVIX_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARIES})
+
+if(KINETICIO_FOUND)
+  target_compile_definitions(EosFstIo PUBLIC -DKINETIC_FOUND)
+endif()
 
 set_target_properties(
   EosFstIo PROPERTIES

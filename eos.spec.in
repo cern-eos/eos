@@ -260,6 +260,9 @@ The EOS shell client.
 %{_libdir}/libeosCommon.so.%{version}
 %{_libdir}/libeosCommon.so.%{major_version}
 %{_libdir}/libeosCommon.so
+%{_libdir}/libEosFstIo.so.%{version}
+%{_libdir}/libEosFstIo.so.%{major_version}
+%{_libdir}/libEosFstIo.so
 
 # Documentation
 %doc %{_mandir}/man1/

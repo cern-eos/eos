@@ -1,8 +1,15 @@
-/*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-#include "fst/io/kinetic/KineticIo.hh"
-/*----------------------------------------------------------------------------*/
 
+// Not implemented if Kinetic headers are not available
+#ifndef KINETICIO_FOUND
+int
+com_kinetic(char* arg)
+{
+  fprintf(stdout, "Not implemented - missing Kinetic support!\n");
+  return EXIT_FAILURE;
+}
+#else // KINETICIO_FOUND
+#include "fst/io/kinetic/KineticIo.hh"
 #define EOS
 extern int com_space(char*);
 
@@ -666,4 +673,5 @@ int main(int argc, char** argv)
   return EXIT_SUCCESS;
 }
 
-#endif
+#endif // EOS
+#endif // KINETICIO_FOUND

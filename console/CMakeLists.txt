@@ -101,7 +101,7 @@ add_executable(
 #-------------------------------------------------------------------------------
 target_link_libraries(
   eos PUBLIC
-  EosFstIo-Static
+  EosFstIo
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
@@ -112,6 +112,10 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
+
+if (KINETICIO_FOUND)
+   target_compile_definitions(eos PUBLIC -DKINETIC_FOUND)
+endif()
 
 add_executable(eosdropboxd dropbox/eosdropboxd.cc)
 
