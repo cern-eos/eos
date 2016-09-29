@@ -320,8 +320,7 @@ public:
   static unsigned long
   GetBlockChecksum (unsigned long layout)
   {
-    // disable block checksum in plain and replica layouts
-    if (GetLayoutType(layout) == kPlain) return kNone;
+    // disable block checksum in replica layouts
     if (GetLayoutType(layout) == kReplica) return kNone;
     return ( (layout >> 20) & 0xf);
   }

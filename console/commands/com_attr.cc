@@ -160,11 +160,7 @@ com_attr (char* arg1)
         d5 += "set ";
         d5 += "sys.forced.space=default ";
         d5 += path;
-        XrdOucString d6 = optionstring;
-        d6 += "set ";
-        d6 += "sys.forced.blockchecksum=crc32c ";
-        d6 += path;
-        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) || com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) || com_attr((char*) d5.c_str()) || com_attr((char*) d6.c_str());
+        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) || com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) || com_attr((char*) d5.c_str());
         return (0);
       }
       if (value == "raiddp")
