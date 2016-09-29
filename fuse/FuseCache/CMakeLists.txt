@@ -35,7 +35,6 @@ add_library(
 
 target_link_libraries(
   FuseCache PUBLIC
-  eosCommon
   EosFstIo
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
