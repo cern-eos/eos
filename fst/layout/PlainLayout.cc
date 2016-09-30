@@ -43,6 +43,7 @@ AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
   // response and hostList are nullptr
   bool is_ok = false;
 
+  mPlainLayout->mLastTriedUrl = mPlainLayout->mFileIO->GetLastTriedUrl();
   if (status->IsOK()) {
     // Store the last URL we are connected after open
     mPlainLayout->mLastUrl = mPlainLayout->mFileIO->GetLastUrl();

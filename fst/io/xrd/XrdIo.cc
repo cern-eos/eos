@@ -76,6 +76,7 @@ AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
     delete response;
   }
 
+  mFileIO->mXrdFile->GetProperty("LastURL", mFileIO->mLastTriedUrl);
   if (status->IsOK()) {
     // Store the last URL we are connected after open
     mFileIO->mXrdFile->GetProperty("LastURL", mFileIO->mLastUrl);

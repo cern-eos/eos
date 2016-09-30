@@ -527,8 +527,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
     mInlineRepair = inlineRepair;
   }
 
-  eos_static_debug("opening file %s, lazy open is %d flags=%x inline-repair=%s",
-                   path.c_str(), (int)!doOpen, flags, mInlineRepair ? "true" : "false");
+  eos_static_debug("opening file %s, lazy open is %d flags=%x inline-repair=%s async-open=%d",
+                   path.c_str(), (int)!doOpen, flags, mInlineRepair ? "true" : "false",getenv("EOS_FUSE_ASYNC_OPEN")?1:0);
 
   if (mOpen) {
     eos_static_debug("already open");
