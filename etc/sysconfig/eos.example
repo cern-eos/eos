@@ -273,6 +273,11 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    on the FSTs is completely hidden. By default this option is enabled
 # export EOS_FUSE_LAZYOPENRW=1
 
+# Enable asynchronous open of files 
+#    it is an optimization over the lazy_open hiding even more latency
+#    it is used only if lazy-open is activated
+# export EOS_FUSE_ASYNC_OPEN=1
+
 # Show hidden files from atomic/versioning and backup entries
 #    By default this option is disabled
 # export EOS_FUSE_SHOW_SPECIAL_FILES=0

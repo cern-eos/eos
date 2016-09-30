@@ -518,7 +518,7 @@ LayoutWrapper::Restore()
 //------------------------------------------------------------------------------
 int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
                         mode_t mode, const char* opaque, const struct stat* buf,
-                        bool doOpen, size_t owner_lifetime, bool inlineRepair)
+                        bool asyncOpen, bool doOpen, size_t owner_lifetime, bool inlineRepair)
 {
   int retc = 0;
   static int sCleanupTime = 0;
@@ -528,7 +528,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   }
 
   eos_static_debug("opening file %s, lazy open is %d flags=%x inline-repair=%s async-open=%d",
-                   path.c_str(), (int)!doOpen, flags, mInlineRepair ? "true" : "false",getenv("EOS_FUSE_ASYNC_OPEN")?1:0);
+                   path.c_str(), (int)!doOpen, flags, mInlineRepair ? "true" : "false",asyncOpen?1:0);
 
   if (mOpen) {
     eos_static_debug("already open");
@@ -555,7 +555,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       return retc;
     }
 
-    if (getenv("EOS_FUSE_ASYNC_OPEN")) {
+    if (asyncOpen) {
       // Do the async open on the FST and return
       eos::fst::PlainLayout* plain_layout =
         dynamic_cast<eos::fst::PlainLayout*>(mFile);

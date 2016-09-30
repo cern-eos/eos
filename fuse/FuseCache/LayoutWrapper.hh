@@ -155,7 +155,7 @@ public:
   //! Overloading member functions of FileLayout class
   //----------------------------------------------------------------------------
   int Open(const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
-           const char* opaque, const struct stat* buf, bool doOpen = true,
+           const char* opaque, const struct stat* buf, bool async=false, bool doOpen = true,
            size_t creator_lifetime = 30, bool inlineRepair = false);
 
   //----------------------------------------------------------------------------

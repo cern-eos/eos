@@ -63,6 +63,7 @@ filesystem::filesystem()
 {
   lazy_open_ro = false;
   lazy_open_rw = false;
+  async_open = false;
   lazy_open_disabled = false;
   hide_special_files = true;
   show_eos_attributes = false;
@@ -131,6 +132,15 @@ filesystem::log_settings()
     s += "disabled";
   } else {
     s += lazy_open_rw ? "true" : "false";
+  }
+
+  log("WARNING", s.c_str());
+  s = "async-open             := ";
+
+  if (lazy_open_disabled) {
+    s += "disabled";
+  } else {
+    s += async_open ? "true" : "false";
   }
 
   log("WARNING", s.c_str());
@@ -2917,7 +2927,7 @@ filesystem::open(const char* path,
       }
 
       retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),
-                        exists ? &buf : NULL, true);
+                        exists ? &buf : NULL, false, true);
 
       if (retc) {
         eos_static_err("open failed for %s : error code is %d", spath.c_str(),
@@ -2956,7 +2966,7 @@ filesystem::open(const char* path,
       }
 
       retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),
-                        exists ? &buf : NULL, true);
+                        exists ? &buf : NULL, false,  true);
 
       if (retc) {
         eos_static_err("open failed for %s", spath.c_str());
@@ -2994,7 +3004,7 @@ filesystem::open(const char* path,
       }
 
       retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),
-                        exists ? &buf : NULL, true);
+                        exists ? &buf : NULL, false, true);
 
       if (retc) {
         eos_static_err("open failed for %s", spath.c_str());
@@ -3185,7 +3195,7 @@ filesystem::open(const char* path,
   LayoutWrapper* file = new LayoutWrapper(
     new eos::fst::PlainLayout(NULL, 0, NULL, NULL, spath.c_str()));
   retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str(),
-                    exists ? &buf : NULL, !lazy_open, creator_cap_lifetime, do_inline_repair);
+                    exists ? &buf : NULL, async_open, !lazy_open, creator_cap_lifetime, do_inline_repair);
 
   if (retc) {
     eos_static_err("open failed for %s : error code is %d.", spath.c_str(),
@@ -4477,6 +4487,11 @@ filesystem::init(int argc, char* argv[], void* userdata,
   if (getenv("EOS_FUSE_LAZYOPENRW") &&
       (!strcmp(getenv("EOS_FUSE_LAZYOPENRW"), "1"))) {
     lazy_open_rw = true;
+  }
+
+  if (getenv("EOS_FUSE_ASYNC_OPEN") &&
+      (!strcmp(getenv("EOS_FUSE_ASYNC_OPEN"), "1"))) {
+    async_open = true;
   }
 
   if (getenv("EOS_FUSE_SHOW_SPECIAL_FILES") &&

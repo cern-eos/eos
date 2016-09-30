@@ -912,6 +912,7 @@ private:
  bool fallback2nobody; ///< indicated if unix authentication (as nobody) should be used as a fallback if strong authentication is configured and none is found
  bool lazy_open_ro; ///< indicated if lazy openning of the file should be used for files open in RO
  bool lazy_open_rw; ///< indicated if lazy openning of the file should be used for files open in RW
+ bool async_open; ///< indicated if async open should be used (this used only in coordination with lazy_open)
  bool lazy_open_disabled; ///< indicated if lazy openning is disabled because the server does not support it
  bool inline_repair; ///< indicate if we should try to repair broken files for wrinting inlined in the open
  off_t max_inline_repair_size; ///< define maximum inline repair size

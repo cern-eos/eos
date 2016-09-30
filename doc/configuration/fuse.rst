@@ -22,7 +22,7 @@ There a two FUSE client modes available:
 
 
 **eosd** End-User mount
--------------------------
+-----------------------
 The end user mount supports the strong authentication methods in EOS:
 
 * **KRB5**
@@ -191,7 +191,12 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
    # Enable lazy open on read-write files (default on
    #    this option hides a lot of latency and is recommend to be used
    #    it requires how-ever that it is supported by EOS MGM version
-   # export EOS_FUSE_LAZYOPENRW=1   
+   # export EOS_FUSE_LAZYOPENRW=1
+   
+   # Enable asynchronous open of files 
+   #    it is an optimization over the lazy_open hiding even more latency
+   #    it is used only if lazy-open is activated
+   # export EOS_FUSE_ASYNC_OPEN=1
 
    # Set the kernel attribute cache time - this is the timewindow before you can see changes done on other clients
    # export EOS_FUSE_ATTR_CACHE_TIME=10
