@@ -82,8 +82,8 @@ bool LayoutWrapper::ToCGI(const std::map<std::string, std::string>& m ,
 // Constructor
 //------------------------------------------------------------------------------
 LayoutWrapper::LayoutWrapper(eos::fst::Layout* file) :
-  mFile(file), mOpen(false), mClose(false), mFabs(NULL), mDoneAsyncOpen(false),
-  mOpenHandler(NULL)
+    mFile(file), mOpen(false), mClose(false), mFabs(NULL), mDoneAsyncOpen(false),
+    mOpenHandler(NULL)
 {
   mLocalUtime[0].tv_sec = mLocalUtime[1].tv_sec = 0;
   mLocalUtime[0].tv_nsec = mLocalUtime[1].tv_nsec = 0;
@@ -248,7 +248,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
 
     if (flags & SFS_O_TRUNC) {
       openflags += "tr";
-    }
+  }
   } else {
     openflags += "ro";
   }
@@ -521,7 +521,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
                         bool asyncOpen, bool doOpen, size_t owner_lifetime, bool inlineRepair)
 {
   int retc = 0;
-  static int sCleanupTime = 0;
 
   if (inlineRepair) {
     mInlineRepair = inlineRepair;
@@ -583,7 +582,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
     bool retry = true;
     XrdOucString sopaque(opaque);
-
+      // Wait for the async open response
     if (mDoneAsyncOpen) {
       // Wait for the async open response
       if (!static_cast<eos::fst::PlainLayout*>(mFile)->WaitOpenAsync()) {
@@ -615,7 +614,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
                        _path.c_str(),
                        sopaque.c_str());
       mFile->Redirect(_path.c_str());
-
+      // Do synchronous open
       // Do synchronous open
       if ((retc = mFile->Open(flags, mode, sopaque.c_str()))) {
         eos_static_debug("Sync-open got errNo=%d errCode=%d",
@@ -647,7 +646,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         eos_static_debug("LastErrNo=%d  _lasturl=%s  LastUrl=%s  _path=%s",
                          static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
                          _lasturl.c_str(), mFile->GetLastTriedUrl().c_str(), _path.c_str());
-
+          // if it's the same url regardless of the username, we fail
         if (!username.empty() && username[0] != '*'
             && static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() ==
             kXR_NotAuthorized
@@ -664,8 +663,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
           _lasturl = mFile->GetLastTriedUrl();
           _path = mFile->GetLastTriedUrl();
           size_t p;
-
           // increment the first character of the login until we reach Z
+          // it forces a new connection to be used , as the previous is most likely used by unix
           // it forces a new connection to be used , as the previous is most likely used by unix
           if ((p = _path.find('@')) != std::string::npos) {
             if (_path[p - 8] != 'Z') {
@@ -686,7 +685,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         }
       } else {
         retry = false;
-      }
+    }
     }
 
     // We don't want to truncate the file in case we reopen it
@@ -748,21 +747,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
     eos_static_info("####### %s cache=%d flags=%x\n", path.c_str(), mCanCache,
                     flags);
-  }
-
-  if (now > sCleanupTime) {
-    for (auto it = gCacheAuthority.begin(); it != gCacheAuthority.end();) {
-      if ((it->second.mLifeTime) && (it->second.mLifeTime < now)) {
-        auto d = it;
-        it++;
-        eos_static_notice("released cap owner-authority for file inode=%lu", d->first);
-        gCacheAuthority.erase(d);
-      } else {
-        it++;
-      }
-    }
-
-    sCleanupTime = time(0) + 5;
   }
 
   return retc;
@@ -831,7 +815,7 @@ int64_t LayoutWrapper::WriteCache(XrdSfsFileOffset offset, const char* buffer,
     if (gCacheAuthority.count(mInode))
       if ((offset + length) >  gCacheAuthority[mInode].mSize) {
         gCacheAuthority[mInode].mSize = (offset + length);
-      }
+  }
   }
 
   if ((*mCache).capacity() < (4 * 1024)) {
@@ -982,7 +966,7 @@ int LayoutWrapper::Close()
   if (((mFlags & O_RDWR) || (mFlags & O_WRONLY)) && (retc || mRestore)) {
     if (Restore()) {
       retc = 0;
-    }
+  }
   }
 
   return retc;
@@ -1002,7 +986,7 @@ int LayoutWrapper::Stat(struct stat* buf)
     return -1;
   } else {
     return 0;
-  }
+}
 }
 
 

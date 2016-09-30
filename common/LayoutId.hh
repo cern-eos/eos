@@ -35,8 +35,8 @@
 #include "StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include <fcntl.h>
-
 /*----------------------------------------------------------------------------*/
+
 
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -114,15 +114,15 @@ public:
     if (spath.beginswith("root:")) {
       return kXrdCl;
     }
-
+  //--------------------------------------------------------------------------
     if (spath.beginswith("kinetic:")) {
       return kKinetic;
     }
-
+  //! Definition of predefined block sizes
     if (spath.beginswith("rados:")) {
       return kRados;
     }
-
+  //--------------------------------------------------------------------------
     if (spath.beginswith("http:")) {
       return kDavix;
     }
@@ -187,12 +187,12 @@ public:
 
   static unsigned long
   GetId(int layout,
-        int checksum = 1,
-        int stripesize = 1,
-        int stripewidth = 0,
-        int blockchecksum = 1,
-        int excessreplicas = 0,
-        int redundancystripes = 0)
+         int checksum = 1,
+         int stripesize = 1,
+         int stripewidth = 0,
+         int blockchecksum = 1,
+         int excessreplicas = 0,
+         int redundancystripes = 0)
   {
     unsigned long id = (checksum |
                         ((layout & 0xf) << 4) |
@@ -200,7 +200,7 @@ public:
                         ((stripewidth & 0xf) << 16) |
                         ((blockchecksum & 0xf) << 20) |
                         ((excessreplicas & 0xf) << 24));
-
+  
     // Set the number of parity stripes depending on the layout type if not
     // already set explicitly
     if (redundancystripes == 0) {
@@ -210,10 +210,10 @@ public:
         redundancystripes = 2;
       } else if (layout == kArchive) {
         redundancystripes = 3;
-      }
     }
-
-    id |= ((redundancystripes & 0x7) << 28);
+    }
+        
+    id |= ((redundancystripes & 0x7) << 28);    
     return id;
   }
 
@@ -411,7 +411,9 @@ public:
   static unsigned long
   GetBlockChecksum(unsigned long layout)
   {
-    return ((layout >> 20) & 0xf);
+    // disable block checksum in replica layouts
+    if (GetLayoutType(layout) == kReplica) return kNone;
+    return ( (layout >> 20) & 0xf);
   }
 
 
@@ -976,7 +978,7 @@ public:
 
   static const char*
   GetEnvFromConversionIdString(XrdOucString& out,
-                               const char* conversionlayoutidstring)
+                                const char* conversionlayoutidstring)
   {
     if (!conversionlayoutidstring) {
       return NULL;
@@ -984,13 +986,13 @@ public:
 
     std::string keyval = conversionlayoutidstring;
     std::string plctplcy;
-
+    
     // check if this is already a complete env representation
     if ((keyval.find("eos.layout.type") != std::string::npos) &&
-        (keyval.find("eos.layout.nstripes") != std::string::npos) &&
-        (keyval.find("eos.layout.blockchecksum") != std::string::npos) &&
-        (keyval.find("eos.layout.checksum") != std::string::npos) &&
-        (keyval.find("eos.layout.blocksize") != std::string::npos) &&
+	 (keyval.find("eos.layout.nstripes") != std::string::npos) &&
+	 (keyval.find("eos.layout.blockchecksum") != std::string::npos) &&
+	 (keyval.find("eos.layout.checksum") != std::string::npos) &&
+	 (keyval.find("eos.layout.blocksize") != std::string::npos) &&
         (keyval.find("eos.space") != std::string::npos)) {
       out = conversionlayoutidstring;
       return out.c_str();
@@ -998,7 +1000,7 @@ public:
 
     std::string space;
     std::string layout;
-
+    
     if (!eos::common::StringConversion::SplitKeyValue(keyval, space, layout, "#")) {
       return NULL;
     }
@@ -1090,7 +1092,7 @@ public:
     return sfs_flags;
   }
 
-
+  
   //----------------------------------------------------------------------------
   //! Map SFS-like open flags to XrdCl open flags
   //!
@@ -1137,7 +1139,7 @@ public:
     }
 
     if (flags_sfs & SFS_O_RAWIO) {
-      // no idea what to do
+      // no idea what to do 
     }
 
     if (flags_sfs & SFS_O_RESET) {

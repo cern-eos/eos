@@ -300,7 +300,7 @@ XrdFstOss::Unlink (const char* path, int opts, XrdOucEnv* ep)
 
   if ((Stat(xs_path, &statinfo)))
   {
-    eos_err("error=cannot stat closed file - probably already unlinked: %s",
+    eos_debug("error=cannot stat closed file - probably already unlinked: %s",
             xs_path);
   }
   else

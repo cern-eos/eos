@@ -33,8 +33,8 @@ namespace eos
 {
 namespace fst
 {
-class AsyncLayoutOpenHandler;
-}
+    class AsyncLayoutOpenHandler;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -72,9 +72,6 @@ class LayoutWrapper
     int64_t mRestoreInode;
   };
 
-  static XrdSysMutex gCacheAuthorityMutex;
-  static std::map<unsigned long long, LayoutWrapper::CacheEntry> gCacheAuthority;
-
   bool mCanCache;
   bool mCacheCreator;
   off_t mMaxOffset;
@@ -88,7 +85,11 @@ class LayoutWrapper
                const char* opaque, const struct stat* buf);
 
 
-public:
+ public:
+  //----------------------------------------------------------------------------
+  static XrdSysMutex gCacheAuthorityMutex;
+  static std::map<unsigned long long, LayoutWrapper::CacheEntry> gCacheAuthority;
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -244,7 +245,7 @@ public:
   //! Restore a file from the cache into EOS
   //----------------------------------------------------------------------------
   bool Restore();
-
+  
   //----------------------------------------------------------------------------
   //! Enable the restore flag when closing the file
   //----------------------------------------------------------------------------
@@ -303,7 +304,7 @@ public:
   {
     return mCanCache;
   }
-
+  
   //----------------------------------------------------------------------------
   //! Return FUSE inode
   //----------------------------------------------------------------------------
@@ -312,7 +313,7 @@ public:
     return eos::common::FileId::FidToInode(mInode);
   }
 
-private:
+ private:
   bool mDoneAsyncOpen; ///< Mark if async open was issued
   eos::fst::AsyncLayoutOpenHandler* mOpenHandler; ///< Asynchronous open handler
 };

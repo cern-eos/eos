@@ -319,6 +319,9 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    via a mount option. The default is 64 MB.
 # export EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
 
+# Set the FUSE maximum in-memory size for all write-back cache entries - default 512M - clean-interval is fixed at 10 seconds
+# export EOS_FUSE_MAX_WB_INMEMORY_SIZE=536870912
+
 # ---------------------------------------------------------------------------------
 # this options are not available since AQUAMARINE is compiled with XROOTD3 
 # --------------------------------------------------------------------------------- 

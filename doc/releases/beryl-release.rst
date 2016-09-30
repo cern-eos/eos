@@ -7,6 +7,36 @@
 Beryl Release Notes
 ===================
 
+``V0.3.209 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: move from passive cache expiration to active write-back cache cleaen-up (by thread) - the maximum allowed default size of wb-file caches is 512 MB
+- MGM: fix acl check if client sends base64 encoded acl values (as EOS 4.X does)
+- FST: fix memory and fd leak triggered by deleteOnClose on files with block checksums
+- FST: silence "probably already unlinked" message in XrdFstOss::Unlink
+
+``V0.3.208 Aquamarine``
++++++++++++++++++++++++
+
+- FST: enable blockchecksums againf for plain layouts if there is an .xsmap file - this avoids bogus errors and still checks the blockchecksum files if they are available
+- CONSOLE: adjust the console command to not add block checksum for "attr set default=replica"
+
+``V0.3.207 Aquamarine``
++++++++++++++++++++++++
+
+- FST: put back the posix_fallocate call since xfs pre-allocation slows down when a truncate is called and produces contention in the Oss::Close handle where xrootd uses a global lock
+- COMMON: disable block checksums for plain and replica layouts by force
+
+``V0.3.206 Aquamarine``
++++++++++++++++++++++++
+
+- FST: avoid bogus mgm/disk size errors due to still uninitialized disk size values
+
+``V0.3.205 Aquamarine``
++++++++++++++++++++++++
+
+- FST: avoid double deletion in Fmd code
+
 ``V0.3.204 Aquamarine``
 +++++++++++++++++++++++
 

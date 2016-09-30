@@ -83,7 +83,7 @@ public:
   ~filesystem();
 
  typedef std::vector<unsigned long long> dirlist;
-
+  
  void
   setMountPoint(const std::string& md)
  {
@@ -103,6 +103,10 @@ public:
   gid_t pid;
   long long ino;
  } fd_user_info;
+
+ void setMaxWbInMemorySize(uint64_t size) { max_wb_in_memory_size = size;}
+ uint64_t getMaxWbInMemorySize() const { return max_wb_in_memory_size;}
+ 
 
  //------------------------------------------------------------------------------
  // Lock
@@ -313,14 +317,15 @@ public:
   void release_rd_buff(pthread_t tid);
 
 
+
  //----------------------------------------------------------------------------
  //              ******* POSIX opened file descriptors *******
  //----------------------------------------------------------------------------
 
  //----------------------------------------------------------------------------
  //! Create an artificial file descriptor
- //----------------------------------------------------------------------------
   int generate_fd();
+ //----------------------------------------------------------------------------
 
 
  //----------------------------------------------------------------------------
@@ -330,7 +335,6 @@ public:
  //! @param uid user uid
  //! @param fd file descriptor
  //!
- //----------------------------------------------------------------------------
   void add_inodeuser_fd(unsigned long inode, uid_t uid, gid_t gid, pid_t pid,
                         int fd);
 
@@ -933,7 +937,7 @@ private:
  bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
  bool show_eos_attributes; ///< show all sys.* and emulated user.eos attributes when listing xattributes
  mode_t mode_overlay; ///< mask which is or'ed into the retrieved mode
-
+ uint64_t max_wb_in_memory_size; ///< maximum size of in-memory wb cache structures
  XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
  //----------------------------------------------------------------------------
@@ -1015,6 +1019,9 @@ private:
  // Pool of available file descriptors
  int base_fd;
  std::queue<int> pool_fd;
+
+ // WB Cache Cleanup Thread
+ static void* CacheCleanup (void* pp);
 
  //------------------------------------------------------------------------------
  //        ******* Implementation IO Buffer Management *******

@@ -91,7 +91,7 @@ com_attr(char* arg1)
       if (key != "default") {
         eos::common::SymKey::Base64(value, value64);
         value = value64;
-      }
+    }
     } else {
       value = "";
     }
@@ -162,13 +162,7 @@ com_attr(char* arg1)
         d5 += "set ";
         d5 += "sys.forced.space=default ";
         d5 += path;
-        XrdOucString d6 = optionstring;
-        d6 += "set ";
-        d6 += "sys.forced.blockchecksum=crc32c ";
-        d6 += path;
-        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) ||
-                      com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) ||
-                      com_attr((char*) d5.c_str()) || com_attr((char*) d6.c_str());
+        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) || com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) || com_attr((char*) d5.c_str());
         return (0);
       }
 
@@ -335,10 +329,10 @@ com_attr_usage:
           "attr [-r] set default=replica|raiddp|raid6|archive <path> :\n");
   fprintf(stdout,
           "                                                : set attributes of path (-r recursive) to the EOS defaults for replicas,dual-parity-raid (4+2), raid-6 (4+2) or archive layouts (5+3).\n");
-  //  fprintf(stdout,"attr [-r] set default=raiddp <path> :\n");
-  //  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for dual parity raid (4+2).\n");
+
   //  fprintf(stdout,"attr [-r] set default=reeds <path> :\n");
   //  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for reed solomon (4+2).\n");
+
   fprintf(stdout, " -r : set recursive on all directory children\n");
   fprintf(stdout, "attr [-r] get <key> <path> :\n");
   fprintf(stdout,
@@ -452,7 +446,7 @@ com_attr_usage:
           "         sys.recycle.keepratio=< 0 .. 1.0 >    : ratio of used/max quota for space and inodes in the recycle bin under which files are still kept in the recycle bin even if their lifetime has exceeded. If not defined pure lifetime policy will be applied \n\n");
   fprintf(stdout,
           "         sys.versioning=<n>                    : keep <n> versions of a file e.g. if you upload a file <n+10> times it will keep the last <n+1> versions\n");
-// ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   fprintf(stdout,
           "         sys.acl=<acllist>                     : set's an ACL which is honored for open,rm & rmdir operations\n");
   fprintf(stdout,
