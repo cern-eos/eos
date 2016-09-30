@@ -71,9 +71,6 @@ class LayoutWrapper
     int64_t mRestoreInode;
   };
 
-  static XrdSysMutex gCacheAuthorityMutex;
-  static std::map<unsigned long long, LayoutWrapper::CacheEntry> gCacheAuthority;
-
   bool mCanCache;
   bool mCacheCreator;
   off_t mMaxOffset;
@@ -88,6 +85,10 @@ class LayoutWrapper
 
 
  public:
+
+  static XrdSysMutex gCacheAuthorityMutex;
+  static std::map<unsigned long long, LayoutWrapper::CacheEntry> gCacheAuthority;
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!

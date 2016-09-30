@@ -45,6 +45,7 @@
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -79,7 +80,7 @@ filesystem::filesystem ()
  fuse_shared = false;
  creator_cap_lifetime = 30;
  file_write_back_cache_size = 64 * 1024 * 1024;
-
+ max_wb_in_memory_size=512*1024*1024;
  base_fd = 1;
  XFC = 0;
 }
@@ -103,6 +104,60 @@ filesystem::~filesystem ()
     delete dir;
   }
 }
+
+void*
+filesystem::CacheCleanup(void *p)
+{
+  filesystem* me = (filesystem*)p;
+
+  XrdSysTimer sleeper;
+  while (1)
+  {
+    sleeper.Snooze(10);
+    time_t now = time(NULL);
+    XrdSysMutexHelper cLock(LayoutWrapper::gCacheAuthorityMutex);
+
+    uint64_t totalsize_before=0;
+    uint64_t totalsize_after=0;
+    uint64_t totalsize_clean=0;
+    // release according to owner authority time
+    for (auto it = LayoutWrapper::gCacheAuthority.begin(); it != LayoutWrapper::gCacheAuthority.end();)
+    {
+      totalsize_before += it->second.mSize;
+      if ((it->second.mLifeTime) && (it->second.mLifeTime < now))
+      {
+	auto d = it;
+	it++;
+	eos_static_notice("released cap owner-authority for file inode=%lu expire-by-time", d->first);
+	LayoutWrapper::gCacheAuthority.erase(d);
+      }
+      else
+      {
+	it++;
+	totalsize_after += it->second.mSize;
+      }
+    }
+
+    // clean according to memory pressure and cache setting
+    totalsize_clean=totalsize_after;
+    if (totalsize_after > me->max_wb_in_memory_size)
+    {
+      for (auto it = LayoutWrapper::gCacheAuthority.begin(); it != LayoutWrapper::gCacheAuthority.end();)
+      {
+	totalsize_clean -= it->second.mSize;
+	auto d = it;
+	it++;
+	eos_static_notice("released cap owner-authority for file inode=%lu expire-by-memory-pressure", d->first);
+	LayoutWrapper::gCacheAuthority.erase(d);
+	if (totalsize_clean < me->max_wb_in_memory_size)
+	  break;
+      }
+    }
+    eos_static_notice("in-memory wb cache in-size=%.02f MB out-time-size=%.02f MB out-max-size=%.02f MB nominal-max-size=%.02f MB", totalsize_before/1000000., totalsize_after/1000000.0, totalsize_clean/1000000.0, me->max_wb_in_memory_size/1000000.0);
+  }
+  return 0;
+}
+
 
 void
 filesystem::log (const char* _level, const char *msg)
@@ -201,6 +256,14 @@ filesystem::log_settings ()
  XrdOucString fbcs;
  fbcs += (int) (file_write_back_cache_size / 1024 * 1024);
  s += fbcs.c_str ();
+ s += " MB";
+ log ("WARNING", s.c_str ());
+
+ s = "file-wb-cache-max-size := ";
+ XrdOucString mcs;
+ mcs += (int) (max_wb_in_memory_size / 1024 * 1024);
+ s += mcs.c_str ();
+ s += " MB";
  log ("WARNING", s.c_str ());
 
  eos_static_warning ("proc filesystem path   := %s", getenv ("EOS_FUSE_PROCPATH")?getenv ("EOS_FUSE_PROCPATH"):"/proc/");
@@ -4931,6 +4994,17 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
 
 
  eos_static_notice ("krb5=%d", use_user_krb5cc ? 1 : 0);
+
+ // start a thread doing the in-memory write-back cache cleanup
+
+ pthread_t tid;
+ eos_static_notice("starting filesystem");
+ if ((XrdSysThread::Run(&tid, filesystem::CacheCleanup, static_cast<void *> (this), 0, "Cache Cleanup Thread")))
+ {
+   eos_static_crit("failed to start cache clean-up thread");
+   abort();
+ }
+
 }
 
 //------------------------------------------------------------------------------

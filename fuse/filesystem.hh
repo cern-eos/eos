@@ -105,6 +105,10 @@ public:
   long long ino;
  } fd_user_info;
 
+ void setMaxWbInMemorySize(uint64_t size) { max_wb_in_memory_size = size;}
+ uint64_t getMaxWbInMemorySize() const { return max_wb_in_memory_size;}
+ 
+
  //------------------------------------------------------------------------------
  // Lock
  //------------------------------------------------------------------------------
@@ -888,8 +892,7 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
  void setPrefix(std::string &prefix) { mPrefix = prefix; }
 
  bool getInlineRepair () const { return inline_repair;}
-uint64_t getMaxInlineRepairSize() const { return max_inline_repair_size; }
-  
+ uint64_t getMaxInlineRepairSize() const { return max_inline_repair_size; }
   
 protected:
 private:
@@ -923,6 +926,7 @@ private:
  bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
  bool show_eos_attributes; ///< show all sys.* and emulated user.eos attributes when listing xattributes
  mode_t mode_overlay; ///< mask which is or'ed into the retrieved mode
+ uint64_t max_wb_in_memory_size; ///< maximum size of in-memory wb cache structures
  XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
  //----------------------------------------------------------------------------
@@ -1005,6 +1009,9 @@ private:
  // Pool of available file descriptors
  int base_fd;
  std::queue<int> pool_fd;
+
+ // WB Cache Cleanup Thread
+ static void* CacheCleanup (void* pp);
 
  //------------------------------------------------------------------------------
  //        ******* Implementation IO Buffer Management *******

@@ -532,7 +532,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
                         bool doOpen, size_t owner_lifetime, bool inlineRepair)
 {
   int retc = 0;
-  static int sCleanupTime = 0;
 
   if (inlineRepair) {
     mInlineRepair = inlineRepair;
@@ -786,24 +785,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
     eos_static_info("####### %s cache=%d flags=%x\n", path.c_str(), mCanCache,
                     flags);
-  }
-
-  if (now > sCleanupTime)
-  {
-    for (auto it = gCacheAuthority.begin(); it != gCacheAuthority.end();)
-    {
-      if ((it->second.mLifeTime) && (it->second.mLifeTime < now))
-      {
-        auto d = it;
-        it++;
-        eos_static_notice("released cap owner-authority for file inode=%lu", d->first);
-        gCacheAuthority.erase(d);
-      }
-      else
-        it++;
-    }
-
-    sCleanupTime = time(0) + 5;
   }
 
   return retc;
