@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.209 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: move from passive cache expiration to active write-back cache cleaen-up (by thread) - the maximum allowed default size of wb-file caches is 512 MB
+- MGM: fix acl check if client sends base64 encoded acl values (as EOS 4.X does)
+- FST: fix memory and fd leak triggered by deleteOnClose on files with block checksums
+- FST: silence "probably already unlinked" message in XrdFstOss::Unlink
+
 ``V0.3.208 Aquamarine``
 +++++++++++++++++++++++
 

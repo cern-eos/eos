@@ -183,6 +183,9 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
    # Set the individual max. cache size per write-opened file where we have a creator capability
    # export EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
 
+   # Set the globa maximum in-memory size for writeback files
+   # export EOS_FUSE_MAX_WB_INMEMORY_SIZE=536870912
+
    # Configure a log-file prefix - useful for several FUSE instances
    # export EOS_FUSE_LOG_PREFIX=dev
    # => will create /var/log/eos/fuse.dev.log
