@@ -289,6 +289,7 @@ ScanDir::CheckFile (const char* filepath)
       {
         bool blockcxerror = false;
         bool filecxerror = false;
+	bool skiptosettime = false;
 
         XrdOucString envstring = "eos.layout.checksum=";
         envstring += checksumType.c_str();
@@ -297,7 +298,24 @@ ScanDir::CheckFile (const char* filepath)
         layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);
         if (!ScanFileLoadAware(filePath.c_str(), scansize, scantime, checksumVal, layoutid, logicalFileName.c_str(), filecxerror, blockcxerror))
         {
-          if ((!stat(filePath.c_str(), &buf2)) && (buf1.st_mtime == buf2.st_mtime))
+	  bool reopened=false;
+
+#ifndef _NOOFS
+	  if (bgThread) {
+	    eos::common::Path cPath(filePath.c_str());
+	    eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
+	    
+	    // check if somebody is again writing on that file and skip in that case
+	    XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+	    if (gOFS.WOpenFid[fsId].count(fid)) 
+	    {
+	      eos_err("file %s has been reopened for update during the scan ... ignoring checksum error", filePath.c_str());
+	      reopened = true;
+	    }
+	  }
+#endif
+
+          if ((!stat(filePath.c_str(), &buf2)) && (buf1.st_mtime == buf2.st_mtime) && (!reopened))
           {
             if (filecxerror)
             {
@@ -307,11 +325,15 @@ ScanDir::CheckFile (const char* filepath)
                 eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(), logicalFileName.c_str());
               }
               else
-                fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
+                fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%s lfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
             }
           }
           else
           {
+	    // if the file was changed in the meanwhile or is reopened for update, the checksum might have changed in the meanwhile, we cannot know now and leave it up to a later moment
+	    blockcxerror = false;
+	    filecxerror = false;
+	    skiptosettime = true;
             if (bgThread)
             {
               eos_err("file %s has been modified during the scan ... ignoring checksum error", filePath.c_str());
@@ -326,10 +348,19 @@ ScanDir::CheckFile (const char* filepath)
         durationScan += scantime;
         totalScanSize += scansize;
 
+	bool failedtoset=false;
 
-        if ((!attr->Set("user.eos.timestamp", GetTimestampSmeared())) ||
-            (!attr->Set("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
-            (!attr->Set("user.eos.blockcxerror", blockcxerror ? "1" : "0")))
+	if (!skiptosettime) 
+	{
+	  if (!attr->Set("user.eos.timestamp", GetTimestampSmeared()))
+	    failedtoset |= true;
+	}
+	if (!attr->Set("user.eos.filecxerror", filecxerror ? "1" : "0"))
+	  failedtoset |= true;
+	if(!attr->Set("user.eos.blockcxerror", blockcxerror ? "1" : "0"))
+	  failedtoset |= true;
+
+	if (failedtoset)
         {
           if (bgThread)
           {
@@ -340,6 +371,7 @@ ScanDir::CheckFile (const char* filepath)
             fprintf(stderr, "error: [CheckFile] Can not set extended attributes to file. \n");
           }
         }
+
         if (bgThread)
         {
           if (filecxerror || blockcxerror)
