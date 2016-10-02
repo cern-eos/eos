@@ -7,6 +7,12 @@
 Beryl Release Notes
 ===================
 
+``V0.3.210 Aquamarine``
++++++++++++++++++++++++
+
+- FST: fix 'ScanDir' funcionality to deal properly with files which get opened during a scan for update and don't flag them as checksum error files
+- FST: ignore flagged checksum errors when updating a file
+
 ``V0.3.209 Aquamarine``
 +++++++++++++++++++++++
 
