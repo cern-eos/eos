@@ -365,7 +365,7 @@ LayoutWrapper::Repair(const std::string& path, const char* opaque)
   XrdCl::URL u(path);
   std::string file_path = u.GetPath();
 
-  if (file_path.substr(0, 2) == "//") {
+  if (file_path.substr(0, 2) == "//") 
   {
     file_path.erase(0, 1);
   }
@@ -569,7 +569,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       eos::fst::PlainLayout* plain_layout = static_cast<eos::fst::PlainLayout*>(mFile);
       mOpenHandler = new eos::fst::AsyncLayoutOpenHandler(plain_layout);
 
-      if (plain_layout->OpenAsync(flags & ~(SFS_O_TRUNC | SFS_O_CREAT), mode, mOpenHandler, opaque))
+      if (plain_layout->OpenAsync(path, flags & ~(SFS_O_TRUNC | SFS_O_CREAT), mode, mOpenHandler, opaque))
       {
         delete mOpenHandler;
         eos_static_err("error while async opening path=%s", path.c_str());
