@@ -40,20 +40,15 @@ class FileCfgEngineChangelog : public ICfgEngineChangelog
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @parm chlog_fn changelog file path
   //----------------------------------------------------------------------------
-  FileCfgEngineChangelog() {};
+  FileCfgEngineChangelog(const char* chlog_fn);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FileCfgEngineChangelog() {};
-
-  //----------------------------------------------------------------------------
-  //! Initialization
-  //!
-  //! @param chlog_file path to changelog file
-  //----------------------------------------------------------------------------
-  void Init(const char* chlog_file);
 
   //----------------------------------------------------------------------------
   //! Add entry to the changelog
@@ -76,7 +71,7 @@ public:
 
 private:
   XrdSysMutex mDbMapMutex; ///< Mutex protecting the acces to the map
-  eos::common::DbMap mMap; ///< Map saving recent changes
+  eos::common::DbMap mMap; ///< Map saving changes
   std::string mChLogFile; ///< Path to changelog file
 };
 

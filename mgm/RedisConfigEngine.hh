@@ -49,13 +49,6 @@ public:
   virtual ~RedisCfgEngineChangelog() {};
 
   //----------------------------------------------------------------------------
-  //! Initialization
-  //!
-  //! @param chlog_file path to changelog file
-  //----------------------------------------------------------------------------
-  void Init(const char* chlog_file) {}
-
-  //----------------------------------------------------------------------------
   //! Add entry to the changelog
   //!
   //! @param info entry info
@@ -75,7 +68,7 @@ public:
   bool Tail(unsigned int nlines, XrdOucString& tail);
 
 private:
-  std::string mChLogHashKey = "EOSConfig:changeLogHash"; ///< Hash map key
+  static std::string sChLogHashKey; ///< Hash map key
   redox::RedoxHash mChLogHash; ///< Redis changelog hash map
 };
 

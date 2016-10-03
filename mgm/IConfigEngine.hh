@@ -59,13 +59,6 @@ public:
   virtual ~ICfgEngineChangelog() {};
 
   //----------------------------------------------------------------------------
-  //! Initialization
-  //!
-  //! @param chlog_file path to changelog file
-  //----------------------------------------------------------------------------
-  virtual void Init(const char* chlog_file) = 0;
-
-  //----------------------------------------------------------------------------
   //! Add entry
   //!
   //! @param info entry info

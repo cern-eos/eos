@@ -28,6 +28,7 @@
 #include "mq/XrdMqSharedObject.hh"
 #include "common/GlobalConfig.hh"
 #include "redox/redoxSet.hpp"
+#include <ctime>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -35,11 +36,13 @@ EOSMGMNAMESPACE_BEGIN
 //                   **** RedisCfgEngineChangelog class ****
 //------------------------------------------------------------------------------
 
+std::string RedisCfgEngineChangelog::sChLogHashKey = "EOSConfig:changeLogHash";
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 RedisCfgEngineChangelog::RedisCfgEngineChangelog(redox::Redox& client)
-  : mChLogHash(client, mChLogHashKey) {}
+  : mChLogHash(client, sChLogHashKey) {}
 
 //------------------------------------------------------------------------------
 // Add entry to the changelog
@@ -54,22 +57,16 @@ bool RedisCfgEngineChangelog::AddEntry(const char* info)
     return false;
   }
 
-  //add entry to the set
-  std::time_t now = std::time(nullptr);
-  std::stringstream ss;
-  ss << now;
-  std::string timestamp = ss.str();
-  XrdOucString changeLogValue;
-  changeLogValue += action.c_str();
+  // Add entry to the set
+  std::ostringstream oss(action.c_str());
 
   if (key != "") {
-    changeLogValue += " ";
-    changeLogValue += key.c_str();
-    changeLogValue += " => ";
-    changeLogValue += value.c_str();
+    oss << " " << key.c_str() << " => " << value.c_str();
   }
 
-  mChLogHash.hset(timestamp, changeLogValue.c_str());
+  std::time_t time = std::time(NULL);
+  std::string timestamp = std::asctime(std::localtime(&time));
+  mChLogHash.hset(timestamp, oss.str().c_str());
   mConfigChanges += info;
   mConfigChanges += "\n";
   return true;
@@ -80,31 +77,34 @@ bool RedisCfgEngineChangelog::AddEntry(const char* info)
 //------------------------------------------------------------------------------
 bool RedisCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 {
-  //get keys and sort
-  std::vector<std::string> changeLogKeys = mChLogHash.hkeys();
+  // TODO (amanzi): grab the keys and values in one go and check if they are
+  // not already sorted by the keys - therefore avoid the sort overhead and
+  // requesting each value one by one with hget
+  std::vector<std::string> chlog_keys = mChLogHash.hkeys();
 
-  if (changeLogKeys.size() > 0) {
-    //sorting
-    std::sort(changeLogKeys.begin(), changeLogKeys.end());
-    unsigned int lines =  std::min(nlines, (unsigned int) changeLogKeys.size());
+  if (chlog_keys.size() > 0) {
+    // Sort according to timestamp
+    std::sort(chlog_keys.begin(), chlog_keys.end());
+    std::uint64_t lines = std::min(nlines, (unsigned int)chlog_keys.size());
+    std::ostringstream oss;
+    std::string stime;
 
-    for (std::vector<std::string>::iterator it = changeLogKeys.end() - lines ;
-         it != changeLogKeys.end(); ++it) {
-      //convert timestamp to readable string
-      std::stringstream is(*it);
-      unsigned long epoch;
-      is >> epoch;
-      time_t t = epoch;
-      std::string time = std::ctime(&t);
-      XrdOucString stime = time.c_str();
+    for (auto it = chlog_keys.end() - lines; it != chlog_keys.end(); ++it) {
+      // Convert timestamp to readable string
+      try {
+        time_t t = std::stoull(*it);
+        stime = std::ctime(&t);
+      } catch (std::exception& e) {
+        stime = "unknown_timestamp\n";
+      }
+
       stime.erase(stime.length() - 1);
-      tail += stime.c_str();
-      tail += ": ";
-      tail += mChLogHash.hget(*it).c_str();
-      tail += "\n";
+      oss << stime.c_str() << ": " << mChLogHash.hget(*it).c_str() << std::endl;
     }
+
+    tail = oss.str().c_str();
   } else {
-    tail += "No lines to show";
+    tail = "No lines to show";
     return false;
   }
 
@@ -244,9 +244,8 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     sConfigDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
   }
 
-  //store a new hash
-  std::string hash_key;
-  hash_key += conf_hash_key_prefix.c_str();
+  // Store a new hash
+  std::string hash_key = conf_hash_key_prefix.c_str();
   hash_key += ":";
   hash_key += name;
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
@@ -254,7 +253,7 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 
   if (rdx_hash.hlen() > 0) {
     if (force) {
-      //create backup
+      // Create backup
       char buff[20];
       time_t now = time(NULL);
       strftime(buff, 20, "%Y%m%d%H%M%S", localtime(&now));
@@ -265,7 +264,7 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
       hash_key_backup += "-";
       hash_key_backup += buff;
       eos_notice("HASH KEY NAME => %s", hash_key_backup.c_str());
-      //backup hash
+      // Backup hash
       redox::RedoxHash rdx_hash_backup(client, hash_key_backup);
       std::vector<std::string> resp = rdx_hash.hkeys();
 
@@ -273,14 +272,14 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
         rdx_hash_backup.hset(elem, rdx_hash.hget(elem));
       }
 
-      //clear
+      // Clear
       for (auto && elem : resp) {
         rdx_hash.hdel(elem);
       }
 
-      //add hash to backup set
+      // Add hash to backup set
       redox::RedoxSet rdx_set_backup(client, conf_set_backup_key);
-      //add the hash key to the set if it's not there
+      // Add the hash key to the set if it's not there
       rdx_set_backup.sadd(hash_key_backup);
     } else {
       errno = EEXIST;
@@ -294,14 +293,14 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   mMutex.Lock();
   sConfigDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
   mMutex.UnLock();
-  //adding  timestamp
+  // Adding  timestamp
   XrdOucString stime;
   getTimeStamp(stime);
   rdx_hash.hset("timestamp", stime.c_str());
-  //we store in redis the list of available EOSConfigs as Set
+  // We store in redis the list of available EOSConfigs as Set
   redox::RedoxSet rdx_set(client, conf_set_key);
 
-  //add the hash key to the set if it's not there
+  // Add the hash key to the set if it's not there
   if (!rdx_set.sismember(hash_key)) {
     rdx_set.sadd(hash_key);
   }
@@ -325,12 +324,12 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 {
   configlist = "Existing Configurations on Redis\n";
   configlist += "================================\n";
-  //getting the set from redis with the available configurations
+  // Get the set from redis with the available configurations
   redox::RedoxSet rdx_set(client, conf_set_key);
 
   for (auto && elem : rdx_set.smembers()) {
     redox::RedoxHash rdx_hash(client, elem);
-    //strip the prefix
+    // Strip the prefix
     XrdOucString key = elem.c_str();
     int pos = key.rfind(":");
 
@@ -338,7 +337,7 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
       key.erasefromstart(pos + 1);
     }
 
-    //retrieve the timestamp value
+    // Retrieve the timestamp value
     if (rdx_hash.hexists("timestamp")) {
       char outline[1024];
       sprintf(outline, "created: %s name: %s", rdx_hash.hget("timestamp").c_str(),
@@ -493,12 +492,12 @@ RedisConfigEngine::SetConfigValue(const char* prefix, const char* key,
   XrdOucString cl = "set config ";
 
   if (prefix) {
-    // if there is a prefix
+    // If there is a prefix
     cl += prefix;
     cl += ":";
     cl += key;
   } else {
-    // if not it is included in the key
+    // If not it is included in the key
     cl += key;
   }
 
@@ -518,9 +517,9 @@ RedisConfigEngine::SetConfigValue(const char* prefix, const char* key,
   sConfigDefinitions.Rep(configname.c_str(), sdef);
   eos_static_debug("%s => %s", key, val);
 
-  //in case the change is not coming from a broacast we can can broadcast it
+  // In case the change is not coming from a broacast we can can broadcast it
   if (mBroadcast && not_bcast) {
-    // make this value visible between MGM's
+    // Make this value visible between MGM's
     eos_notice("Setting %s", configname.c_str());
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash =
@@ -536,7 +535,7 @@ RedisConfigEngine::SetConfigValue(const char* prefix, const char* key,
     }
   }
 
-  //in case is not coming from a broadcast we can add it to the changelog
+  // In case is not coming from a broadcast we can add it to the changelog
   if (not_bcast) {
     mChangelog->AddEntry(cl.c_str());
   }
@@ -582,7 +581,7 @@ RedisConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   // In case the change is not coming from a broacast we can can broadcast it
   if (mBroadcast && not_bcast) {
     eos_static_info("Deleting %s", configname.c_str());
-    // make this value visible between MGM's
+    // Make this value visible between MGM's
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash =
       eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
@@ -596,7 +595,7 @@ RedisConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   mMutex.Lock();
   sConfigDefinitions.Del(configname.c_str());
 
-  //in case is not coming from a broadcast we can add it to the changelog
+  // In case is not coming from a broadcast we can add it to the changelog
   if (not_bcast) {
     mChangelog->AddEntry(cl.c_str());
   }
@@ -691,7 +690,7 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
 
       if (rdx_hash.hlen() > 0) {
         if (force) {
-          //create backup
+          // Create backup
           char buff[20];
           time_t now = time(NULL);
           strftime(buff, 20, "%Y%m%d%H%M%S", localtime(&now));
@@ -702,7 +701,7 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
           hash_key_backup += "-";
           hash_key_backup += buff;
           eos_notice("HASH KEY NAME => %s", hash_key_backup.c_str());
-          //backup hash
+          // Backup hash
           redox::RedoxHash rdx_hash_backup(client, hash_key_backup);
           std::vector<std::string> resp = rdx_hash.hkeys();
 
@@ -710,14 +709,14 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
             rdx_hash_backup.hset(elem, rdx_hash.hget(elem));
           }
 
-          //clear
+          // Clear
           for (auto && elem : resp) {
             rdx_hash.hdel(elem);
           }
 
-          //add hash to backup set
+          // Add hash to backup set
           redox::RedoxSet rdx_set_backup(client, conf_set_backup_key);
-          //add the hash key to the set if it's not there
+          // Add the hash key to the set if it's not there
           rdx_set_backup.sadd(hash_key_backup);
         } else {
           errno = EEXIST;
@@ -731,14 +730,14 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
       mMutex.Lock();
       sConfigDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
       mMutex.UnLock();
-      //adding key for timestamp
+      // Adding key for timestamp
       XrdOucString stime;
       getTimeStamp(stime);
       rdx_hash.hset("timestamp", stime.c_str());
-      //we store in redis the list of available EOSConfigs as Set
+      // We store in redis the list of available EOSConfigs as Set
       redox::RedoxSet rdx_set(client, conf_set_key);
 
-      //add the hash key to the set if it's not there
+      // Add the hash key to the set if it's not there
       if (!rdx_set.sismember(hash_key)) {
         rdx_set.sadd(hash_key);
       }

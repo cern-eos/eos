@@ -33,19 +33,17 @@ EOSMGMNAMESPACE_BEGIN
 //                **** FileCfgEngineChangelog class ****
 //------------------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
-// Initialize
-//------------------------------------------------------------------------------
-void
-FileCfgEngineChangelog::Init(const char* chlog_file)
+//----------------------------------------------------------------------------
+// Constructor
+//----------------------------------------------------------------------------
+FileCfgEngineChangelog::FileCfgEngineChangelog(const char* chlog_fn):
+  mChLogFile(chlog_fn)
 {
-  if (!mMap.attachLog(chlog_file, eos::common::SqliteDbLogInterface::daily,
+  if (!mMap.attachLog(mChLogFile, eos::common::SqliteDbLogInterface::daily,
                       0644)) {
     eos_emerg("failed to open %s config changelog file %s",
-              eos::common::DbMap::getDbType().c_str(), chlog_file);
+              eos::common::DbMap::getDbType().c_str(), mChLogFile.c_str());
     exit(-1);
-  } else {
-    mChLogFile = chlog_file;
   }
 }
 
@@ -55,16 +53,16 @@ FileCfgEngineChangelog::Init(const char* chlog_file)
 bool
 FileCfgEngineChangelog::AddEntry(const char* info)
 {
-  mDbMapMutex.Lock();
   std::string key, value, action;
 
   if (!ParseTextEntry(info, key, value, action)) {
-    eos_warning("failed to parse new entry %s in file %s. this entry will be ignored.",
+    eos_warning("failed to parse entry %s in file %s. This entry will be ignored.",
                 info, mChLogFile.c_str());
-    mDbMapMutex.UnLock();
     return false;
   }
 
+  // TODO (amanzi): this mutex should be removed
+  mDbMapMutex.Lock();
   mMap.set(key, value, action);
   mDbMapMutex.UnLock();
   mConfigChanges += info;
@@ -82,7 +80,7 @@ FileCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
   eos::common::DbLog::TlogentryVec qresult;
 
   if (!logfile.setDbFile(mChLogFile)) {
-    eos_err("failed to read ", mChLogFile.c_str());
+    eos_err("failed to read %s", mChLogFile.c_str());
     return false;
   }
 
@@ -120,8 +118,7 @@ FileConfigEngine::FileConfigEngine(const char* config_dir)
   SetConfigDir(config_dir);
   XrdOucString changeLogFile = mConfigDir;
   changeLogFile += "/config.changelog";
-  mChangelog.reset(new FileCfgEngineChangelog());
-  mChangelog->Init(changeLogFile.c_str());
+  mChangelog.reset(new FileCfgEngineChangelog(changeLogFile.c_str()));
 }
 
 //------------------------------------------------------------------------------

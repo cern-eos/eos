@@ -109,10 +109,6 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "mgm/IConfigEngine.hh"
-#include "mgm/FileConfigEngine.hh"
-#ifdef REDOX_FOUND
-#include "mgm/RedisConfigEngine.hh"
-#endif
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
@@ -1079,11 +1075,12 @@ public:
   int ManagerPort; //< manager port as number e.g. 1094
 
   XrdOucString MgmOfsConfigEngineType; //type of ConfigEngine ( file or redis)
-  XrdOucString MgmOfsConfigEngineRedisHost; //Redis host 
+  XrdOucString MgmOfsConfigEngineRedisHost; //Redis host
   int MgmOfsConfigEngineRedisPort; //Redis port
-  
 
-  eos::common::LinuxStat::linux_stat_t LinuxStatsStartup; // => process state after namespace load time
+
+  eos::common::LinuxStat::linux_stat_t
+  LinuxStatsStartup; // => process state after namespace load time
 
   std::map<eos::common::FileSystem::fsid_t, time_t>
   ScheduledToDrainFid; // map with scheduled fids for draining
