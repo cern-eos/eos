@@ -7,6 +7,12 @@
 Beryl Release Notes
 ===================
 
+``V0.3.211 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: don't set the truncate flag in OpenAsync to avoid increment of inode when async open is done
+- NS: fix copy constructor not duplicationg the pTreeSize variable 
+
 ``V0.3.210 Aquamarine``
 +++++++++++++++++++++++
 
