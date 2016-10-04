@@ -291,7 +291,7 @@ if(NOT KINETICIO_FOUND)
     target_include_directories(EosFstIo PUBLIC ${KINETICIO_INCLUDE_DIRS})
     if(Linux)
         add_dependencies(EosFstIo-Static kineticio-devel)
-        target_include_directories(EosFstIo PUBLIC ${KINETICIO_INCLUDE_DIRS})
+        target_include_directories(EosFstIo-Static PUBLIC ${KINETICIO_INCLUDE_DIRS})
     endif()
 endif()
 
