@@ -741,13 +741,12 @@ ProcCommand::MakeResult()
       if (!stdJson.length()) {
         Json::Value json;
         Json::Value jsonresult;
-        json["errormsg"] =
-          stdErr.c_str(); //eos::common::StringConversion::json_encode(sstdErr).c_str();
-        std::string sretc;
-        json["retc"] = (long long) retc;
-        std::string line;
+        json["errormsg"] = stdErr.c_str();
         std::stringstream ss;
+        ss << retc;
+        json["retc"] = ss.str();
         ss.str(stdOut.c_str());
+        std::string line;
 
         do {
           Json::Value jsonentry;
@@ -853,7 +852,7 @@ ProcCommand::MakeResult()
           mResultStream += "\n]);";
         } else {
           // JSON
-	  mResultStream = "mgm.proc.json=";
+          mResultStream = "mgm.proc.json=";
           mResultStream += r.str().c_str();
         }
       } else {
