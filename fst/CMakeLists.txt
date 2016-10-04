@@ -32,6 +32,10 @@ else()
     set(DAVIX_HDR "")
 endif()
 
+if (KINETICIO_FOUND)
+   include_directories(${KINETICIO_INCLUDE_DIRS})
+endif()
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -42,7 +46,6 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS}
   ${Z_INCLUDE_DIRS}
   ${XFS_INCLUDE_DIRS}
-  ${KINETICIO_INCLUDE_DIRS}
   ${JSONC_INCLUDE_DIR}
   ${DAVIX_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
@@ -282,8 +285,10 @@ if(NOT KINETICIO_FOUND)
             INSTALL_COMMAND ""
     )
     ExternalProject_Get_Property(kineticio-devel SOURCE_DIR)
-    set(KINETICIO_INCLUDE_DIRS ${SOURCE_DIR})
+    set(KINETICIO_INCLUDE_DIR ${SOURCE_DIR})
+    set(KINETICIO_INCLUDE_DIRS ${KINETICIO_INCLUDE_DIR})
     add_dependencies(EosFstIo kineticio-devel)
+    target_include_directories(EosFstIo PUBLIC ${KINETICIO_INCLUDE_DIRS})
     if(Linux)
         add_dependencies(EosFstIo-Static kineticio-devel)
     endif()
