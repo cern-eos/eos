@@ -32,14 +32,6 @@ else()
     set(DAVIX_HDR "")
 endif()
 
-if(KINETICIO_FOUND)
-  set(KINETIC_SRCS "io/kinetic/KineticIo.cc")
-  set(KINETIC_HDRS "io/kinetic/KineticIo.hh")
-else()
-  set(KINETIC_SRCS "")
-  set(KINETIC_HDRS "")
-endif()
-
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -178,8 +170,8 @@ set(
   #-----------------------------------------------------------------------------
   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
-  ${KINETIC_SRCS}                ${KINETIC_HDRS}
-  ${DAVIX_SRC}			 ${DAVIX_HDR}
+  io/kinetic/KineticIo.cc        io/kinetic/KineticIo.hh
+  ${DAVIX_SRC}                   ${DAVIX_HDR}
   io/rados/RadosIo.cc            io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -229,10 +221,6 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARIES})
 
-if(KINETICIO_FOUND)
-  target_compile_definitions(EosFstIo PUBLIC -DKINETICIO_FOUND)
-endif()
-
 set_target_properties(
   EosFstIo PROPERTIES
   VERSION ${VERSION}
@@ -280,6 +268,26 @@ if(Linux)
   set_target_properties(
     EosFstIo-Static PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
+endif()
+
+if(NOT KINETICIO_FOUND)
+    include(ExternalProject)
+    ExternalProject_add(
+            kineticio-devel
+            PREFIX vendor
+            URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz"
+            URL_MD5 "ae1a538939ee26984d4e20f96bedb2c2"
+            CONFIGURE_COMMAND ""
+            BUILD_COMMAND ""
+            INSTALL_COMMAND ""
+    )
+    ExternalProject_Get_Property(kineticio-devel SOURCE_DIR)
+    set(KINETICIO_INCLUDE_DIRS ${SOURCE_DIR})
+    message("KINETICIO_INCLUDE_DIRS set to ${KINETICIO_INCLUDE_DIRS}")
+    add_dependencies(EosFstIo kineticio-devel)
+    if(Linux)
+        add_dependencies(EosFstIo-Static kineticio-devel)
+    endif()
 endif()
 
 #-------------------------------------------------------------------------------

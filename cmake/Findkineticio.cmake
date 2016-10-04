@@ -32,10 +32,4 @@ else()
   find_package_handle_standard_args(
     kineticio DEFAULT_MSG KINETICIO_INCLUDE_DIRS KINETICIO_LIBRARIES)
 endif()
-
 mark_as_advanced(KINETICIO_INCLUDE_DIRS KINETICIO_LIBRARIES)
-
-if (NOT KINETICIO_FOUND)
-  set(KINETICIO_INCLUDE_DIRS "")
-  set(KINETICIO_LIBRARIES "")
-endif()
