@@ -25,6 +25,7 @@ include_directories(
  ${CMAKE_SOURCE_DIR}
  ${PROTOBUF_INCLUDE_DIRS}
  ${XROOTD_INCLUDE_DIRS}
+ ${KINETICIO_INCLUDE_DIRS}
  ${UUID_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------

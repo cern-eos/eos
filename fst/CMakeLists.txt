@@ -32,10 +32,6 @@ else()
     set(DAVIX_HDR "")
 endif()
 
-if (KINETICIO_FOUND)
-   include_directories(${KINETICIO_INCLUDE_DIRS})
-endif()
-
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -48,6 +44,7 @@ include_directories(
   ${XFS_INCLUDE_DIRS}
   ${JSONC_INCLUDE_DIR}
   ${DAVIX_INCLUDE_DIR}
+  ${KINETICIO_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include)
 
@@ -236,6 +233,10 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
+if(NOT KINETICIO_FOUND)
+    add_dependencies(EosFstIo kineticio-devel)
+endif()
+
 
 #-------------------------------------------------------------------------------
 # EosFstIo-Static library
@@ -271,28 +272,10 @@ if(Linux)
   set_target_properties(
     EosFstIo-Static PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
-endif()
 
-if(NOT KINETICIO_FOUND)
-    include(ExternalProject)
-    ExternalProject_add(
-            kineticio-devel
-            PREFIX vendor
-            URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz"
-            URL_MD5 "ae1a538939ee26984d4e20f96bedb2c2"
-            CONFIGURE_COMMAND ""
-            BUILD_COMMAND ""
-            INSTALL_COMMAND ""
-    )
-    ExternalProject_Get_Property(kineticio-devel SOURCE_DIR)
-    set(KINETICIO_INCLUDE_DIR ${SOURCE_DIR})
-    set(KINETICIO_INCLUDE_DIRS ${KINETICIO_INCLUDE_DIR})
-    add_dependencies(EosFstIo kineticio-devel)
-    target_include_directories(EosFstIo PUBLIC ${KINETICIO_INCLUDE_DIRS})
-    if(Linux)
-        add_dependencies(EosFstIo-Static kineticio-devel)
-        target_include_directories(EosFstIo-Static PUBLIC ${KINETICIO_INCLUDE_DIRS})
-    endif()
+  if(NOT KINETICIO_FOUND)
+    add_dependencies(EosFstIo-Static kineticio-devel)
+  endif()
 endif()
 
 #-------------------------------------------------------------------------------

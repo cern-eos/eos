@@ -1,35 +1,10 @@
 #include "console/ConsoleMain.hh"
-
-// Not implemented if Kinetic headers are not available
-#ifndef KINETICIO_FOUND
-int
-com_kinetic(char* arg)
-{
-  fprintf(stdout, "Not implemented - missing Kinetic support!\n");
-  return EXIT_FAILURE;
-}
-#else // KINETICIO_FOUND
 #include "fst/io/kinetic/KineticIo.hh"
 #define EOS
 extern int com_space(char*);
 
 /* Copy-paste kineticio-admin tool implementation here */
-/************************************************************************
- * KineticIo - a file io interface library to kinetic devices.          *
- *                                                                      *
- * This Source Code Form is subject to the terms of the Mozilla         *
- * Public License, v. 2.0. If a copy of the MPL was not                 *
- * distributed with this file, You can obtain one at                    *
- * https://mozilla.org/MP:/2.0/.                                        *
- *                                                                      *
- * This program is distributed in the hope that it will be useful,      *
- * but is provided AS-IS, WITHOUT ANY WARRANTY; including without       *
- * the implied warranty of MERCHANTABILITY, NON-INFRINGEMENT or         *
- * FITNESS FOR A PARTICULAR PURPOSE. See the Mozilla Public             *
- * License for more details.                                            *
- ************************************************************************/
-
-#include "kio/KineticIoFactory.hh"
+#include <kio/KineticIoFactory.hh>
 #include <sys/syslog.h>
 #include <iostream>
 #include <unistd.h>
@@ -674,4 +649,3 @@ int main(int argc, char** argv)
 }
 
 #endif // EOS
-#endif // KINETICIO_FOUND

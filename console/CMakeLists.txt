@@ -26,6 +26,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
+  ${KINETICIO_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
@@ -111,10 +112,6 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
-
-if (KINETICIO_FOUND)
-   target_compile_definitions(eos PUBLIC -DKINETICIO_FOUND)
-endif()
 
 add_executable(eosdropboxd dropbox/eosdropboxd.cc)
 
