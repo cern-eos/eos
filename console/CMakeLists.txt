@@ -114,7 +114,7 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT})
 
 if (KINETICIO_FOUND)
-   target_compile_definitions(eos PUBLIC -DKINETIC_FOUND)
+   target_compile_definitions(eos PUBLIC -DKINETICIO_FOUND)
 endif()
 
 add_executable(eosdropboxd dropbox/eosdropboxd.cc)

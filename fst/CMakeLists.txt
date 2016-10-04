@@ -230,7 +230,7 @@ target_link_libraries(
   ${PROTOBUF_LIBRARIES})
 
 if(KINETICIO_FOUND)
-  target_compile_definitions(EosFstIo PUBLIC -DKINETIC_FOUND)
+  target_compile_definitions(EosFstIo PUBLIC -DKINETICIO_FOUND)
 endif()
 
 set_target_properties(
