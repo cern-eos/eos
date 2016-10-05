@@ -56,12 +56,12 @@ FileCfgEngineChangelog::AddEntry(const char* info)
   std::string key, value, action;
 
   if (!ParseTextEntry(info, key, value, action)) {
-    eos_warning("failed to parse entry %s in file %s. This entry will be ignored.",
+    eos_warning("Failed to parse entry %s in file %s. Entry will be ignored.",
                 info, mChLogFile.c_str());
     return false;
   }
 
-  // TODO (amanzi): this mutex should be removed
+  // TODO (amanzi): investigate if this mutex can be removed
   mDbMapMutex.Lock();
   mMap.set(key, value, action);
   mDbMapMutex.UnLock();
@@ -115,7 +115,7 @@ FileCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 //------------------------------------------------------------------------------
 FileConfigEngine::FileConfigEngine(const char* config_dir)
 {
-  SetConfigDir(config_dir);
+  mConfigDir = config_dir;
   XrdOucString changeLogFile = mConfigDir;
   changeLogFile += "/config.changelog";
   mChangelog.reset(new FileCfgEngineChangelog(changeLogFile.c_str()));
@@ -140,7 +140,7 @@ FileConfigEngine::SetConfigDir(const char* config_dir)
 }
 
 //------------------------------------------------------------------------------
-// Get the changlog object
+// Get configuration changes
 //------------------------------------------------------------------------------
 void
 FileConfigEngine::Diffs(XrdOucString& diffs)
@@ -229,14 +229,11 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Store the current configuration to a given file or Redis
+//------------------------------------------------------------------------------
 bool
 FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Store the current configuration to a given file or Redis
- */
-/*----------------------------------------------------------------------------*/
 {
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
@@ -245,7 +242,7 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   XrdOucString cl = "";
 
   if (autosave) {
-    cl += "autosaved  config ";
+    cl += "autosaved config ";
   } else {
     cl += "saved config ";
   }
@@ -271,14 +268,8 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 
   XrdOucString sname = name;
 
-  if ((sname.find("..")) != STR_NPOS) {
-    err = "error: the config name cannot contain ..";
-    errno = EINVAL;
-    return false;
-  }
-
-  if ((sname.find("/")) != STR_NPOS) {
-    err = "error: the config name cannot contain /";
+  if ((sname.find("..") != STR_NPOS) || (sname.find("/") != STR_NPOS)) {
+    err = "error: the config name cannot contain .. or /";
     errno = EINVAL;
     return false;
   }
@@ -340,8 +331,7 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
       stime.erase(stime.length() - 1);
       stime += " ";
 
-      while (esccomment.replace("\"", "")) {
-      }
+      while (esccomment.replace("\"", "")) {}
 
       esccomment.insert(stime.c_str(), 0);
       esccomment.insert("\"", 0);
@@ -385,7 +375,7 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     struct stat buf;
     char filename[1024];
   };
-  XrdOucString FileName = "";
+  XrdOucString file_name = "";
   DIR* dir = opendir(mConfigDir.c_str());
 
   if (!dir) {
@@ -400,10 +390,10 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   tdp = telldir(dir);
 
   while ((dp = readdir(dir)) != 0) {
-    FileName = dp->d_name;
+    file_name = dp->d_name;
 
     if ((!strcmp(dp->d_name, ".")) || (!strcmp(dp->d_name, "..")) ||
-        (!FileName.endswith(EOSMGMCONFIGENGINE_EOS_SUFFIX))) {
+        (!file_name.endswith(EOSMGMCONFIGENGINE_EOS_SUFFIX))) {
       continue;
     }
 
@@ -426,10 +416,10 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   int i = 0;
 
   while ((dp = readdir(dir)) != 0) {
-    FileName = dp->d_name;
+    file_name = dp->d_name;
 
     if ((!strcmp(dp->d_name, ".")) || (!strcmp(dp->d_name, "..")) ||
-        (!FileName.endswith(EOSMGMCONFIGENGINE_EOS_SUFFIX))) {
+        (!file_name.endswith(EOSMGMCONFIGENGINE_EOS_SUFFIX))) {
       continue;
     }
 
@@ -446,7 +436,7 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   }
 
   closedir(dir);
-  // do the sorting
+  // Do the sorting
   qsort(allstat, nobjects, sizeof(struct filestat),
         FileConfigEngine::CompareCtime);
 
@@ -472,15 +462,14 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
       sprintf(outline, "created: %s name: %s", ctime(&modified), fn.c_str());
       XrdOucString removelinefeed = outline;
 
-      while (removelinefeed.replace('\n', "")) {
-      }
+      while (removelinefeed.replace('\n', "")) {}
 
-      // remove  suffix
+      // Remove suffix
       removelinefeed.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX, "");
 
       if ((!showbackup) && ((removelinefeed.find(".backup.") != STR_NPOS) ||
                             (removelinefeed.find(".autosave.") != STR_NPOS))) {
-        // don't show this ones
+        // Don't show this ones
       } else {
         configlist += removelinefeed;
         configlist += "\n";
@@ -498,7 +487,7 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 }
 
 //------------------------------------------------------------------------------
-// Filter configuration and store in output string
+// Filter configuration and store it in output string
 //------------------------------------------------------------------------------
 void
 FileConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
@@ -611,7 +600,7 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
   eos_static_debug("%s => %s", key, val);
 
   if (mBroadcast && gOFS->MgmMaster.IsMaster()) {
-    // make this value visible between MGM's
+    // Make this value visible between MGM's
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash =
       eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
@@ -619,8 +608,7 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
     if (hash) {
       XrdOucString repval = val;
 
-      while (repval.replace("&", " ")) {
-      }
+      while (repval.replace("&", " ")) {}
 
       hash->Set(configname.c_str(), repval.c_str());
     }
@@ -687,6 +675,7 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 
   mMutex.Lock();
   sConfigDefinitions.Del(configname.c_str());
+  mMutex.UnLock();
 
   if (tochangelog) {
     mChangelog->AddEntry(cl.c_str());
@@ -715,7 +704,6 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
     }
   }
 
-  mMutex.UnLock();
   eos_static_debug("%s", key);
 }
 

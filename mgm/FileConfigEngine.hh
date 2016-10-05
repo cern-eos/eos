@@ -189,11 +189,11 @@ public:
 
 private:
   //----------------------------------------------------------------------------
-  //! Filter configuration and store in output string
+  //! Filter configuration
   //!
-  //! @param info
-  //! @param out output string
-  //! @param cfg_fn configuration file to be loaded
+  //! @param info information about the output format
+  //! @param out output representation of the configuration after filtering
+  //! @param cfg_name configuration name
   //----------------------------------------------------------------------------
   void FilterConfig(PrintInfo& info, XrdOucString& out, const char* cfg_fn);
 };

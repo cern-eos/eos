@@ -268,10 +268,8 @@ public:
   //! Delete a configuration key from the responsible object
   //!
   //! @param key configuration key to be deleted
-  //!
-  //! @return 0 if successful, otherwise non-zero
   //----------------------------------------------------------------------------
-  int ApplyKeyDeletion(const char* key);
+  void ApplyKeyDeletion(const char* key);
 
   //----------------------------------------------------------------------------
   //! Delete configuration matching the pattern
@@ -282,7 +280,7 @@ public:
   void DeleteConfigValueByMatch(const char* prefix, const char* match);
 
   //----------------------------------------------------------------------------
-  //! Apply a configuration definition - the configuration engine inform the
+  //! Apply a configuration definition - the configuration engine informs the
   //! corresponding objects about the new values
   //!
   //! @param err object collecting any possible errors
@@ -292,7 +290,8 @@ public:
   bool ApplyConfig(XrdOucString& err);
 
   //----------------------------------------------------------------------------
-  //! Parse configuration from the input given as a string
+  //! Parse configuration from the input given as a string and add it to the
+  //! configuration definition hash.
   //!
   //! @param config string holding the configuration
   //! @param err object holding any possible errors
@@ -340,7 +339,7 @@ protected:
   };
 
   std::unique_ptr<ICfgEngineChangelog> mChangelog; ///< Changelog object
-  XrdSysMutex mMutex; ///< Protect the configuration definitions hash
+  XrdSysMutex mMutex; ///< Protect the static configuration definitions hash
   bool mAutosave; ///< Create autosave file for each change
   //! Broadcast changes into the MGM configuration queue (config/<inst>/mgm)
   bool mBroadcast;
@@ -351,9 +350,9 @@ private:
   //----------------------------------------------------------------------------
   //! Filter configuration
   //!
-  //! @param info
-  //! @param out
-  //! @param cfg_name
+  //! @param info information about the output format
+  //! @param out output representation of the configuration after filtering
+  //! @param cfg_name configuration name
   //----------------------------------------------------------------------------
   virtual void FilterConfig(PrintInfo& info, XrdOucString& out,
                             const char* cfg_name) = 0;

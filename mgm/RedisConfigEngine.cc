@@ -52,7 +52,7 @@ bool RedisCfgEngineChangelog::AddEntry(const char* info)
   std::string key, value, action;
 
   if (!ParseTextEntry(info, key, value, action)) {
-    eos_warning("failed to parse new entry %s. this entry will be ignored.",
+    eos_warning("Failed to parse new entry %s. Entry will be ignored.",
                 info);
     return false;
   }
@@ -195,7 +195,7 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   XrdOucString cl = "";
 
   if (autosave) {
-    cl += "autosaved  config ";
+    cl += "autosaved config ";
   } else {
     cl += "saved config ";
   }

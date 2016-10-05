@@ -151,9 +151,7 @@ ICfgEngineChangelog::ParseTextEntry(const char* entry, std::string& key,
         return false;  // error, should not happen
       }
     }
-  } else if (action.compare("autosaved  config") == 0 ||
-             action.compare("autosaved config") == 0) {
-    // Notice the double space coming from the writing procedure
+  } else if (action.compare("autosaved config") == 0) {
     ss >> key;
     getline(ss, value);
 
@@ -316,8 +314,8 @@ IConfigEngine::PrintEachConfig(const char* key, XrdOucString* val, void* arg)
     eos_static_info("%s => %s", key, val->c_str());
   } else {
     eos_static_debug("%s => %s", key, val->c_str());
-    XrdOucString* outstring = ((struct PrintInfo*) arg)->out;
-    XrdOucString option = ((struct PrintInfo*) arg)->option;
+    XrdOucString* outstring = reinterpret_cast<struct PrintInfo*>(arg)->out;
+    XrdOucString option = reinterpret_cast<struct PrintInfo*>(arg)->option;
     XrdOucString skey = key;
 
     if (((option.find("v") != STR_NPOS) && (skey.beginswith("vid:"))) ||
@@ -354,7 +352,7 @@ IConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* val,
 }
 
 //------------------------------------------------------------------------------
-// Apply a given configuration defition
+// Apply a given configuration definition
 //------------------------------------------------------------------------------
 bool
 IConfigEngine::ApplyConfig(XrdOucString& err)
@@ -395,11 +393,11 @@ IConfigEngine::ApplyConfig(XrdOucString& err)
 //------------------------------------------------------------------------------
 // Delete a configuration key from the responsible object
 //------------------------------------------------------------------------------
-int
+void
 IConfigEngine::ApplyKeyDeletion(const char* key)
 {
   XrdOucString skey = key;
-  eos_static_info("key=%s ", skey.c_str());
+  eos_static_info("key=%s", skey.c_str());
 
   if (skey.beginswith("fs:")) {
     XrdOucString stdOut;
@@ -435,7 +433,8 @@ IConfigEngine::ApplyKeyDeletion(const char* key)
 
     if ((ug_offset == STR_NPOS) || (ug_equal_offset == STR_NPOS) ||
         (tag_offset == STR_NPOS)) {
-      return 0;
+      eos_static_err("failed to remove quota definition %s", skey.c_str());
+      return;
     }
 
     XrdOucString space(skey, 0, ug_offset - 1);
@@ -458,12 +457,13 @@ IConfigEngine::ApplyKeyDeletion(const char* key)
     vidstr += skey.c_str();
     XrdOucEnv videnv(vidstr.c_str());
     Vid::Rm(videnv, retc, stdOut, stdErr, false);
+
+    if (retc) {
+      eos_static_err("failed to remove vid entry for key=%s", skey.c_str());
+    }
   } else if (skey.beginswith("policy:") || (skey.beginswith("global:"))) {
     // For policy or global tags don't do anything
-    return 0;
   }
-
-  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -480,7 +480,8 @@ IConfigEngine::DeleteConfigValueByMatch(const char* prefix, const char* match)
 }
 
 //------------------------------------------------------------------------------
-// Parse configuration from the input given as a string
+// Parse configuration from the input given as a string and add it to the
+// configuration definition hash.
 //------------------------------------------------------------------------------
 bool
 IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
@@ -507,7 +508,8 @@ IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
         return false;
       }
 
-      XrdOucString value(key, seppos + 4);
+      XrdOucString value;
+      value.assign(key, seppos + 4);
       key.erase(seppos);
       eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
       sConfigDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
@@ -533,38 +535,38 @@ IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
       filter.Get("mgm.config.policy") || filter.Get("mgm.config.global") ||
       filter.Get("mgm.config.map") || filter.Get("mgm.config.geosched")) {
     pinfo.option = "";
-  }
+  } else {
+    if (filter.Get("mgm.config.vid")) {
+      pinfo.option += "v";
+    }
 
-  if (filter.Get("mgm.config.vid")) {
-    pinfo.option += "v";
-  }
+    if (filter.Get("mgm.config.fs")) {
+      pinfo.option += "f";
+    }
 
-  if (filter.Get("mgm.config.fs")) {
-    pinfo.option += "f";
-  }
+    if (filter.Get("mgm.config.policy")) {
+      pinfo.option += "p";
+    }
 
-  if (filter.Get("mgm.config.policy")) {
-    pinfo.option += "p";
-  }
+    if (filter.Get("mgm.config.quota")) {
+      pinfo.option += "q";
+    }
 
-  if (filter.Get("mgm.config.quota")) {
-    pinfo.option += "q";
-  }
+    if (filter.Get("mgm.config.comment")) {
+      pinfo.option += "c";
+    }
 
-  if (filter.Get("mgm.config.comment")) {
-    pinfo.option += "c";
-  }
+    if (filter.Get("mgm.config.global")) {
+      pinfo.option += "g";
+    }
 
-  if (filter.Get("mgm.config.global")) {
-    pinfo.option += "g";
-  }
+    if (filter.Get("mgm.config.map")) {
+      pinfo.option += "m";
+    }
 
-  if (filter.Get("mgm.config.map")) {
-    pinfo.option += "m";
-  }
-
-  if (filter.Get("mgm.config.geosched")) {
-    pinfo.option += "s";
+    if (filter.Get("mgm.config.geosched")) {
+      pinfo.option += "s";
+    }
   }
 
   if (name == 0) {
@@ -585,7 +587,7 @@ IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
 void
 IConfigEngine::ResetConfig()
 {
-  std::string cmd = "reset  config ";
+  std::string cmd = "reset config";
   mChangelog->AddEntry(cmd.c_str());
   mChangelog->ClearChanges();
   mConfigFile = "";

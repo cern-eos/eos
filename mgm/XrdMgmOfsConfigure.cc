@@ -1271,7 +1271,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 #ifdef REDOX_FOUND
   else if (MgmOfsConfigEngineType == "redis") {
     ConfEngine = new RedisConfigEngine(MgmConfigDir.c_str(),
-                                       MgmOfsConfigEngineRedisHost.c_str(), MgmOfsConfigEngineRedisPort);
+                                       MgmOfsConfigEngineRedisHost.c_str(),
+                                       MgmOfsConfigEngineRedisPort);
   }
 
 #endif
