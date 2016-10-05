@@ -191,6 +191,9 @@ XrdMgmOfsFile::open (const char *inpath,
   // flag indicating a new injection - upload of a file into a stub without physical location
   bool isInjection = false;
 
+  // flag indicating to drop the current disk replica in the policy space
+  bool isRepair = false;
+
   // chunk upload ID
   XrdOucString ocUploadUuid = "";
 
@@ -204,6 +207,10 @@ XrdMgmOfsFile::open (const char *inpath,
 
   // tried hosts CGI
   std::string tried_cgi;
+
+  // file size
+
+  uint64_t fmdsize=0;
 
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
 
@@ -550,6 +557,7 @@ XrdMgmOfsFile::open (const char *inpath,
           fileId = fmd->getId();
           fmdlid = fmd->getLayoutId();
           cid = fmd->getContainerId();
+	  fmdsize = fmd->getSize();
         }
         d_uid = dmd->getCUid();
         d_gid = dmd->getCGid();
@@ -780,6 +788,12 @@ XrdMgmOfsFile::open (const char *inpath,
     isInjection = true;
   }
 
+
+  if (openOpaque->Get("eos.repair"))
+  {
+    isRepair = true;
+  }
+
   // disable atomic uploads for FUSE clients
   if (isFuse)
     isAtomicUpload = false;
@@ -792,7 +806,7 @@ XrdMgmOfsFile::open (const char *inpath,
   {
     // Allow updates of 0-size RAIN files so that we are able to write from the
     // FUSE mount with lazy-open mode enabled.
-    if (isRewrite && (vid.uid > 3) && (fmd->getSize() != 0) &&
+    if (isRewrite && (vid.uid > 3) && (fmdsize != 0) &&
         ((eos::common::LayoutId::GetLayoutType(fmdlid) ==
           eos::common::LayoutId::kRaidDP) ||
          (eos::common::LayoutId::GetLayoutType(fmdlid) ==
