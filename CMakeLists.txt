@@ -153,9 +153,9 @@ add_custom_command(
 
 # we get a local version of the kineticio dist so that it is embedded in the srpm because 
 # it is not always possible to download it from the machine doing the build 
-file(DOWNLOAD ${KINETICIO_URL} "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" SHOW_PROGRESS
-  STATUS status
-  EXPECTED_MD5 ${KINETICIO_URL_MD5}
+file(DOWNLOAD ${KINETICIO_URL} "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" 
+  SHOW_PROGRESS
+  EXPECTED_MD5 "${KINETICIO_URL_MD5}"
   )
   
 add_custom_target(
