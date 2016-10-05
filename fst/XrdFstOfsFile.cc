@@ -228,16 +228,11 @@ XrdFstOfsFile::open (const char* path,
   XrdOucString opaqueCheckSum = "";
   XrdOucString opaqueBlockCheckSum = "";
   std::string sec_protocol = client->prot;
-
   bool hasCreationMode = (open_mode & SFS_O_CREAT);
 
-  while (stringOpaque.replace("?", "&"))
-  {
-  }
+  while (stringOpaque.replace("?", "&")) {}
 
-  while (stringOpaque.replace("&&", "&"))
-  {
-  }
+  while (stringOpaque.replace("&&", "&")) {}
 
   int envlen;
   XrdOucString maskOpaque = opaque ? opaque : "";
@@ -268,10 +263,7 @@ XrdFstOfsFile::open (const char* path,
     isRW = true;
   }
 
-
-  // ----------------------------------------------------------------------------
-  // extract tpc keys
-  // ----------------------------------------------------------------------------
+  // Extract tpc keys
   XrdOucEnv tmpOpaque(stringOpaque.c_str());
 
   SetLogId(0, client, tident);
@@ -289,7 +281,9 @@ XrdFstOfsFile::open (const char* path,
 
   if ((val = tmpOpaque.Get("mgm.mtime")))
   {
-    // mgm.mtime=0 we set the external mtime=0 and indicated during commit, that it should not update the mtime as in case of a FUSE client which will call utimes
+    // mgm.mtime=0 we set the external mtime=0 and indicated during commit, that
+    // it should not update the mtime as in case of a FUSE client which will call
+    // utimes
     mForcedMtime = 0;
     mForcedMtime_ms = 0;
   }
@@ -316,178 +310,156 @@ XrdFstOfsFile::open (const char* path,
   std::string tpc_lfn = tmpOpaque.Get("tpc.lfn") ?
           tmpOpaque.Get("tpc.lfn") : "";
 
-  if (tpc_stage == "placement")
-  {
+  // Determin the TPC step that we are in
+  if (tpc_stage == "placement") {
     tpcFlag = kTpcSrcCanDo;
+  } else if ((tpc_stage == "copy") && tpc_key.length() && tpc_dst.length()) {
+    tpcFlag = kTpcSrcSetup;
+  } else if ((tpc_stage == "copy") && tpc_key.length() && tpc_src.length()) {
+    tpcFlag = kTpcDstSetup;
+  } else if (tpc_key.length() && tpc_org.length()) {
+    // Notice:
+    // XRootD does not full follow the TPC specification and it doesn't set the
+    // tpc.stage=copy in the TpcSrcRead step. The above condition should be:
+    // else if ((tpc_stage == "copy") && tpc_key.length() && tpc_org.length()) {
+    tpcFlag = kTpcSrcRead;
   }
 
-  if (tpc_key.length())
+  if ((tpcFlag == kTpcSrcSetup) || (tpcFlag == kTpcDstSetup))
   {
-    time_t now = time(NULL);
-    bool new_entry = false;
-
-    {
-      XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
-      new_entry = !gOFS.TpcMap[isRW].count(tpc_key.c_str());
+    // Create a TPC entry in the TpcMap
+    XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+    // TPC key replay go away
+    if (gOFS.TpcMap[isRW].count(tpc_key)) {
+      return gOFS.Emsg(epname, error, EPERM, "open - tpc key replayed", path);
     }
 
-    if ((tpc_stage == "placement") || (new_entry))
-    {
-      //.........................................................................
-      // Create a TPC entry in the TpcMap
-      //.........................................................................
-      XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
-      if (gOFS.TpcMap[isRW].count(tpc_key.c_str()))
-      {
-        //.......................................................................
-        // TPC key replay go away
-        //.......................................................................
-        return gOFS.Emsg(epname, error, EPERM, "open - tpc key replayed", path);
-      }
-      if (tpc_key == "")
-      {
-        //.......................................................................
-        // TPC key missing
-        //.......................................................................
-        return gOFS.Emsg(epname, error, EINVAL, "open - tpc key missing", path);
-      }
+    // Compute the tpc origin e.g. <name>:<pid>@<host.domain>
+    // TODO: Xrootd 4.0
+    // std::string origin_host = client->addrInfo->Name();
+    std::string origin_host = client->host ? client->host : "<sss-auth>";
+    std::string origin_tident = client->tident;
+    origin_tident.erase(origin_tident.find(":"));
+    tpc_org = origin_tident;
+    tpc_org += "@";
+    tpc_org += origin_host;
 
-      //.........................................................................
-      // Compute the tpc origin e.g. <name>:<pid>@<host.domain>
-      //.........................................................................
-
-      // TODO: Xrootd 4.0      std::string origin_host = client->addrInfo->Name();
-      std::string origin_host = client->host ? client->host : "<sss-auth>";
-      std::string origin_tident = client->tident;
-      origin_tident.erase(origin_tident.find(":"));
-      tpc_org = origin_tident;
-      tpc_org += "@";
-      tpc_org += origin_host;
-
-      //.........................................................................
       // Store the TPC initialization
-      //.........................................................................
-      gOFS.TpcMap[isRW][tpc_key].key = tpc_key;
-      gOFS.TpcMap[isRW][tpc_key].org = tpc_org;
-      gOFS.TpcMap[isRW][tpc_key].src = tpc_src;
-      gOFS.TpcMap[isRW][tpc_key].dst = tpc_dst;
-      gOFS.TpcMap[isRW][tpc_key].path = path;
-      gOFS.TpcMap[isRW][tpc_key].lfn = tpc_lfn;
-      gOFS.TpcMap[isRW][tpc_key].opaque = stringOpaque.c_str();
-      gOFS.TpcMap[isRW][tpc_key].expires = time(NULL) + 60; // one minute that's fine
+    gOFS.TpcMap[isRW][tpc_key].key = tpc_key;
+    gOFS.TpcMap[isRW][tpc_key].org = tpc_org;
+    gOFS.TpcMap[isRW][tpc_key].src = tpc_src;
+    gOFS.TpcMap[isRW][tpc_key].dst = tpc_dst;
+    gOFS.TpcMap[isRW][tpc_key].path = path;
+    gOFS.TpcMap[isRW][tpc_key].lfn = tpc_lfn;
+    gOFS.TpcMap[isRW][tpc_key].opaque = stringOpaque.c_str();
+    gOFS.TpcMap[isRW][tpc_key].expires = time(NULL) + 60; // one minute that's fine
+    TpcKey = tpc_key.c_str();
 
-      TpcKey = tpc_key.c_str();
-      if (tpc_src.length())
-      {
-        // this is a destination session setup
-        tpcFlag = kTpcDstSetup;
-        if (!tpc_lfn.length())
-        {
-          return gOFS.Emsg(epname, error, EINVAL, "open - tpc lfn missing", path);
-        }
-      }
-      else
-      {
-        // this is a source session setup
-        tpcFlag = kTpcSrcSetup;
-      }
-      if (tpcFlag == kTpcDstSetup)
-      {
-        eos_info("msg=\"tpc dst session\" key=%s, org=%s, src=%s path=%s lfn=%s expires=%llu",
-                 gOFS.TpcMap[isRW][tpc_key].key.c_str(),
-                 gOFS.TpcMap[isRW][tpc_key].org.c_str(),
-                 gOFS.TpcMap[isRW][tpc_key].src.c_str(),
-                 gOFS.TpcMap[isRW][tpc_key].path.c_str(),
-                 gOFS.TpcMap[isRW][tpc_key].lfn.c_str(),
-                 gOFS.TpcMap[isRW][tpc_key].expires);
-      }
-      else
-      {
-        eos_info("msg=\"tpc src session\" key=%s, org=%s, dst=%s path=%s expires=%llu",
-                 gOFS.TpcMap[isRW][tpc_key].key.c_str(),
-                 gOFS.TpcMap[isRW][tpc_key].org.c_str(),
-                 gOFS.TpcMap[isRW][tpc_key].dst.c_str(),
-                 gOFS.TpcMap[isRW][tpc_key].path.c_str(),
-                 gOFS.TpcMap[isRW][tpc_key].expires);
-      }
-    }
-    else
-    {
-      //.........................................................................
-      // Verify a TPC entry in the TpcMap
-      //.........................................................................
-
-      // since the destination's open can now come before the transfer has been setup
-      // we now have to give some time for the TPC client to deposit the key
-      // the not so nice side effect is that this thread stays busy during that time
-
-      bool exists = false;
-
-      for (size_t i = 0; i < 150; i++)
-      {
-        XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
-        if (gOFS.TpcMap[isRW].count(tpc_key))
-          exists = true;
-        if (!exists)
-        {
-          XrdSysTimer timer;
-          timer.Wait(100);
-        }
-        else
-        {
-          break;
-        }
+    if (tpcFlag == kTpcDstSetup) {
+      if (!tpc_lfn.length()) {
+        return gOFS.Emsg(epname, error, EINVAL, "open - tpc lfn missing", path);
       }
 
-      XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
-      if (!gOFS.TpcMap[isRW].count(tpc_key))
-      {
-        return gOFS.Emsg(epname, error, EPERM, "open - tpc key not valid", path);
-      }
-      if (gOFS.TpcMap[isRW][tpc_key].expires < now)
-      {
-        return gOFS.Emsg(epname, error, EPERM, "open - tpc key expired", path);
-      }
-
-      // we trust 'sss' anyway and we miss the host name in the 'sss' entity
-      if ((sec_protocol != "sss") && (gOFS.TpcMap[isRW][tpc_key].org != tpc_org))
-      {
-        return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch", path);
-      }
-      //.........................................................................
-      // Grab the open information
-      //.........................................................................
-      Path = gOFS.TpcMap[isRW][tpc_key].path.c_str();
-      stringOpaque = gOFS.TpcMap[isRW][tpc_key].opaque.c_str();
-      //.........................................................................
-      // Expire TPC entry
-      //.........................................................................
-      gOFS.TpcMap[isRW][tpc_key].expires = (now - 10);
-
-      // store the provided origin to compare with our local connection
-      gOFS.TpcMap[isRW][tpc_key].org = tpc_org;
-      // this must be a tpc read issued from a TPC target
-      tpcFlag = kTpcSrcRead;
-      TpcKey = tpc_key.c_str();
-      eos_info("msg=\"tpc read\" key=%s, org=%s, path=%s expires=%llu",
+      eos_info("msg=\"tpc dst session\" key=%s, org=%s, src=%s path=%s lfn=%s expires=%llu",
                gOFS.TpcMap[isRW][tpc_key].key.c_str(),
                gOFS.TpcMap[isRW][tpc_key].org.c_str(),
                gOFS.TpcMap[isRW][tpc_key].src.c_str(),
                gOFS.TpcMap[isRW][tpc_key].path.c_str(),
+               gOFS.TpcMap[isRW][tpc_key].lfn.c_str(),
                gOFS.TpcMap[isRW][tpc_key].expires);
     }
-    //...........................................................................
-    // Expire keys which are more than one 4 hours expired
-    //...........................................................................
+    else if (tpcFlag == kTpcSrcSetup) {
+      // For a TpcSrcSetup we need to store the decoded capability contents
+      XrdOucEnv* saveOpaque;
+      int caprc = gCapabilityEngine.Extract(&tmpOpaque, saveOpaque);
+
+      if (caprc == ENOKEY) {
+        delete saveOpaque;
+        return gOFS.Emsg(epname, error, caprc, "open - missing capability");
+      } else if (caprc != 0) {
+        delete saveOpaque;
+        return gOFS.Emsg(epname, error, caprc, "open - capability illegal", Path.c_str());
+      } else {
+        gOFS.TpcMap[isRW][tpc_key].capability = saveOpaque->Env(envlen);
+        delete saveOpaque;
+      }
+
+      eos_info("msg=\"tpc src session\" key=%s, org=%s, dst=%s path=%s expires=%llu",
+               gOFS.TpcMap[isRW][tpc_key].key.c_str(),
+               gOFS.TpcMap[isRW][tpc_key].org.c_str(),
+               gOFS.TpcMap[isRW][tpc_key].dst.c_str(),
+               gOFS.TpcMap[isRW][tpc_key].path.c_str(),
+               gOFS.TpcMap[isRW][tpc_key].expires);
+    }
+  }
+  else if (tpcFlag == kTpcSrcRead) {
+    // Verify a TPC entry in the TpcMap since the destination's open can now
+    // come before the transfer has been setup we have to give some time for
+    // the TPC client to deposit the key the not so nice side effect is that
+    // this thread stays busy during that time
+    bool exists = false;
+
+    for (size_t i = 0; i < 150; ++i) {
+      {
+        // Briefly take lock and release it
+        XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+        if (gOFS.TpcMap[isRW].count(tpc_key)) {
+          exists = true;
+        }
+      }
+
+      if (!exists) {
+        XrdSysTimer timer;
+        timer.Wait(100);
+      } else {
+        break;
+      }
+    }
+
+    time_t now = time(NULL);
+    XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+
+    if (!gOFS.TpcMap[isRW].count(tpc_key)) {
+      return gOFS.Emsg(epname, error, EPERM, "open - tpc key not valid", path);
+    }
+
+    if (gOFS.TpcMap[isRW][tpc_key].expires < now) {
+      return gOFS.Emsg(epname, error, EPERM, "open - tpc key expired", path);
+    }
+
+    // We trust 'sss' anyway and we miss the host name in the 'sss' entity
+    if ((sec_protocol != "sss") && (gOFS.TpcMap[isRW][tpc_key].org != tpc_org)) {
+      return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch", path);
+    }
+
+    // Grab the open information and expire entry
+    Path = gOFS.TpcMap[isRW][tpc_key].path.c_str();
+    stringOpaque = gOFS.TpcMap[isRW][tpc_key].opaque.c_str();
+    gOFS.TpcMap[isRW][tpc_key].expires = (now - 10);
+
+    // Store the provided origin to compare with our local connection
+    // gOFS.TpcMap[isRW][tpc_key].org = tpc_org;
+    TpcKey = tpc_key.c_str();
+    eos_info("msg=\"tpc read\" key=%s, org=%s, path=%s expires=%llu",
+             gOFS.TpcMap[isRW][tpc_key].key.c_str(),
+             gOFS.TpcMap[isRW][tpc_key].org.c_str(),
+             gOFS.TpcMap[isRW][tpc_key].src.c_str(),
+             gOFS.TpcMap[isRW][tpc_key].path.c_str(),
+             gOFS.TpcMap[isRW][tpc_key].expires);
+  }
+
+  // Expire keys which are more than one 4 hours expired
+  if (tpcFlag > kTpcNone) {
+    time_t now = time(NULL);
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
     auto it = (gOFS.TpcMap[isRW]).begin();
     auto del = (gOFS.TpcMap[isRW]).begin();
-    while (it != (gOFS.TpcMap[isRW]).end())
-    {
+
+    while (it != (gOFS.TpcMap[isRW]).end()) {
       del = it;
       it++;
-      if (now > (del->second.expires + (4 * 3600)))
-      {
+
+      if (now > (del->second.expires + (4 * 3600))) {
         eos_info("msg=\"expire tpc key\" key=%s", del->second.key.c_str());
         gOFS.TpcMap[isRW].erase(del);
       }
@@ -520,53 +492,37 @@ XrdFstOfsFile::open (const char* path,
   
   int caprc = 0;
 
-  //.............................................................................
-  // tpc src read can bypass capability checks
-  //.............................................................................
-  if ((tpcFlag != kTpcSrcRead) && (caprc = gCapabilityEngine.Extract(openOpaque, capOpaque)))
+  // TpcSrcRead can bypass capability checks
+  if (tpcFlag == kTpcSrcRead)
   {
-    if (caprc == ENOKEY)
+    // Grab the capability contents from the tpc key map
+    XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+    if (gOFS.TpcMap[isRW][tpc_key].capability.length())
     {
-      //.........................................................................
-      // If we just miss the key, better stall the client
-      //.........................................................................
-      return gOFS.Stall(error, 10, "FST still misses the required capability key");
-    }
+      if (capOpaque) {
+        delete capOpaque;
+      }
 
-    //...........................................................................
-    // No capability - go away!
-    //...........................................................................
-    return gOFS.Emsg(epname, error, caprc, "open - capability illegal", Path.c_str());
-  }
-  else
-  {
-    if (tpcFlag == kTpcSrcRead)
-    {
-      //.........................................................................
-      // Grab the capability contents from the tpc key map
-      //.........................................................................
-      XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
-      if (gOFS.TpcMap[isRW][tpc_key].capability.length())
-      {
-        capOpaque = new XrdOucEnv(gOFS.TpcMap[isRW][tpc_key].capability.c_str());
-      }
-      else
-      {
-        return gOFS.Emsg(epname, error, EINVAL, "open - capability not found for tpc key %s", tpc_key.c_str());
-      }
+      capOpaque = new XrdOucEnv(gOFS.TpcMap[isRW][tpc_key].capability.c_str());
     }
-    if (tpcFlag == kTpcSrcSetup)
+    else
     {
-      //.........................................................................
-      // For a TPC setup we need to store the decoded capability contents
-      //.........................................................................
-      XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
-      gOFS.TpcMap[isRW][tpc_key].capability = capOpaque->Env(envlen);
+      return gOFS.Emsg(epname, error, EINVAL, "open - capability not found "
+                       "for tpc key %s", tpc_key.c_str());
+    }
+  } else {
+    if ((caprc = gCapabilityEngine.Extract(openOpaque, capOpaque))) {
+      if (caprc == ENOKEY) {
+        // If we just miss the key, better stall the client
+        return gOFS.Stall(error, 10, "FST still misses the required capability key");
+      }
+
+      // No capability - go away!
+      return gOFS.Emsg(epname, error, caprc, "open - capability illegal", Path.c_str());
     }
   }
 
   eos_info("capability=%s", capOpaque->Env(envlen));
-
   const char* hexfid = 0;
   const char* sfsid = 0;
   const char* slid = 0;
@@ -2994,6 +2950,7 @@ XrdFstOfsFile::DoTpcTransfer()
     src_cgi += TpcKey.c_str();
     src_cgi += "&tpc.org=";
     src_cgi += gOFS.TpcMap[isRW][TpcKey.c_str()].org;
+    src_cgi += "&tpc.stage=copy";
   }
 
   XrdIo tpcIO; // the remote IO object
