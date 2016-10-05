@@ -335,7 +335,7 @@ public:
     auto entry = GetEntry (pid);
     if ((errCode = entry->UpdateIfPsChanged (this)))
     {
-      //eos_static_debug("something wrong happened in reading proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
+      eos_static_err("something wrong happened in reading proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
       eos::common::RWMutexWriteLock lock (pMutex);
       delete pCatalog[pid];
       pCatalog.erase (pid);
