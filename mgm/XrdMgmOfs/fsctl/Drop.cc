@@ -134,12 +134,15 @@
             // After update we have to get the new address - who knows ...
             fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
           }
-
-          if (quotanode)
-          {
-            quotanode->addFile(fmd);
-          }
         }
+
+	if (drop_fsid.size())
+	{
+	  if (quotanode)
+	  {
+	    quotanode->addFile(fmd);
+	  }
+	}
 
         // Finally delete the record if all replicas are dropped
         if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation()))
