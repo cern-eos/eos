@@ -69,21 +69,19 @@ set_target_properties(
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-if(Linux)
-  add_library(XrdMqClient-Static STATIC ${XRDMQCLIENT_SRCS})
+add_library(XrdMqClient-Static STATIC ${XRDMQCLIENT_SRCS})
 
-  target_link_libraries(
-    XrdMqClient-Static PRIVATE
-    ${UUID_LIBRARIES}
-    ${NCURSES_LIBRARY}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${OPENSSL_CRYPTO_LIBRARY})
+target_link_libraries(
+  XrdMqClient-Static PRIVATE
+  ${UUID_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY})
 
-  set_target_properties(
-    XrdMqClient-Static PROPERTIES
-    POSITION_INDEPENDENT_CODE TRUE)
-endif()
+set_target_properties(
+  XrdMqClient-Static PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
 # XrdMqOfs library

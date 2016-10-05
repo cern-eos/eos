@@ -99,10 +99,42 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
+add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
+
+target_include_directories(
+  eosCommon-Static PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR};${CURL_INCLUDE_DIRS}>
+  $<INSTALL_INTERFACE:include>)
+
+# !!!!!
+# TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
+# use std::atomic and the <atomic> header.
+# !!!!!
+target_compile_definitions(
+  eosCommon-Static
+  PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+
+set_target_properties(
+  eosCommon-Static PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+target_link_libraries(
+  eosCommon-Static PRIVATE
+  XrdMqClient-Static
+  ${Z_LIBRARY}
+  ${UUID_LIBRARIES}
+  ${ATTR_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${CURL_LIBRARIES}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
+
 #-------------------------------------------------------------------------------
 # eosCommonServer and eosCommon-Static libraries
 #-------------------------------------------------------------------------------
-if(Linux)
+if (Linux)
   add_library(
     eosCommonServer SHARED
     ShellExecutor.cc
@@ -159,38 +191,6 @@ if(Linux)
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-
-  add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
-
-  target_include_directories(
-    eosCommon-Static PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR};${CURL_INCLUDE_DIRS}>
-    $<INSTALL_INTERFACE:include>)
-
-  # !!!!!
-  # TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
-  # use std::atomic and the <atomic> header.
-  # !!!!!
-  target_compile_definitions(
-    eosCommon-Static
-    PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
-
-  set_target_properties(
-    eosCommon-Static PROPERTIES
-    POSITION_INDEPENDENT_CODE TRUE)
-
-  target_link_libraries(
-    eosCommon-Static PRIVATE
-    XrdMqClient-Static
-    ${Z_LIBRARY}
-    ${UUID_LIBRARIES}
-    ${ATTR_LIBRARIES}
-    ${NCURSES_LIBRARY}
-    ${CURL_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${OPENSSL_CRYPTO_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 #-------------------------------------------------------------------------------
@@ -249,12 +249,10 @@ set_target_properties(
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-if (Linux)
-  add_library(EosPluginManager-Static STATIC ${EOS_PLUGIN_MANAGER_SRCS})
-  target_link_libraries(EosPluginManager-Static PUBLIC ${XROOTD_UTILS_LIBRARY})
-  set_target_properties(EosPluginManager-Static PROPERTIES
-    POSITION_INDEPENDENT_CODE TRUE)
-endif()
+add_library(EosPluginManager-Static STATIC ${EOS_PLUGIN_MANAGER_SRCS})
+target_link_libraries(EosPluginManager-Static PUBLIC ${XROOTD_UTILS_LIBRARY})
+set_target_properties(EosPluginManager-Static PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
 install(
   TARGETS EosPluginManager

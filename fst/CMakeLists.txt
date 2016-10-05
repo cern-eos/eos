@@ -241,41 +241,39 @@ endif()
 #-------------------------------------------------------------------------------
 # EosFstIo-Static library
 #-------------------------------------------------------------------------------
-if(Linux)
-  add_library(
-    EosFstIo-Static STATIC
-    ${EOSFSTIO_SRCS}
-    io/FileIoPlugin.hh  io/FileIoPlugin.cc)
+add_library(
+  EosFstIo-Static STATIC
+  ${EOSFSTIO_SRCS}
+  io/FileIoPlugin.hh  io/FileIoPlugin.cc)
 
-  target_link_libraries(
-    EosFstIo-Static PUBLIC
-    eosCommon-Static
-    EosPluginManager-Static
-    jerasure-static
-    ${UUID_LIBRARIES}
-    ${ATTR_LIBRARIES}
-    ${Z_LIBRARY_STATIC}
-    ${GLIBC_DL_LIBRARY}
-    ${GLIBC_RT_LIBRARY}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${NCURSES_LIBRARY_STATIC}
-    ${OPENSSL_CRYPTO_LIBRARY_STATIC}
-    ${JSONC_LIBRARIES}
-    ${DAVIX_LIBRARIES}
-    ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(
+  EosFstIo-Static PUBLIC
+  eosCommon-Static
+  EosPluginManager-Static
+  jerasure-static
+  ${UUID_LIBRARIES}
+  ${ATTR_LIBRARIES}
+  ${Z_LIBRARY_STATIC}
+  ${GLIBC_DL_LIBRARY}
+  ${GLIBC_RT_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${NCURSES_LIBRARY_STATIC}
+  ${OPENSSL_CRYPTO_LIBRARY_STATIC}
+  ${JSONC_LIBRARIES}
+  ${DAVIX_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT})
 
-  target_compile_definitions(
-    EosFstIo-Static PRIVATE
-    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(
+  EosFstIo-Static PRIVATE
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-  set_target_properties(
-    EosFstIo-Static PROPERTIES
-    POSITION_INDEPENDENT_CODE TRUE)
+set_target_properties(
+  EosFstIo-Static PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
-  if(NOT PACKAGEONLY AND NOT KINETICIO_FOUND)
-    add_dependencies(EosFstIo-Static kineticio-devel)
-  endif()
+if (NOT PACKAGEONLY AND NOT KINETICIO_FOUND)
+  add_dependencies(EosFstIo-Static kineticio-devel)
 endif()
 
 #-------------------------------------------------------------------------------
