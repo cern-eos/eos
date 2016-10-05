@@ -2347,7 +2347,7 @@ XrdFstOfsFile::close ()
                     gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
                               "cleaned because the stored file does not match "
                               "the provided targetsize", Path.c_str());
-                    eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
                              "\"target size mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
                   }
 		  else 
@@ -2357,7 +2357,7 @@ XrdFstOfsFile::close ()
                     gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
                               "cleaned because the stored file does not match "
                               "the reference meta-data size/checksum", Path.c_str());
-                    eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
                              "\"meta-data size/checksum mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 		    }
 		    else
