@@ -233,7 +233,7 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
-if(NOT KINETICIO_FOUND)
+if(NOT PACKAGEONLY AND NOT KINETICIO_FOUND)
     add_dependencies(EosFstIo kineticio-devel)
 endif()
 
@@ -273,7 +273,7 @@ if(Linux)
     EosFstIo-Static PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
 
-  if(NOT KINETICIO_FOUND)
+  if(NOT PACKAGEONLY AND NOT KINETICIO_FOUND)
     add_dependencies(EosFstIo-Static kineticio-devel)
   endif()
 endif()
