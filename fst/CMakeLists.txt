@@ -204,7 +204,7 @@ add_library(EosFstIo SHARED ${EOSFSTIO_SRCS})
 target_link_libraries(
   EosFstIo PUBLIC
   eosCommon
-  EosPluginManager
+  EosPluginManager-Static
   jerasure-static
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
@@ -234,7 +234,7 @@ install(
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 if(NOT PACKAGEONLY AND NOT KINETICIO_FOUND)
-    add_dependencies(EosFstIo kineticio-devel)
+  add_dependencies(EosFstIo kineticio-devel)
 endif()
 
 

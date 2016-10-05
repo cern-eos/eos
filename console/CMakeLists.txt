@@ -101,7 +101,7 @@ add_executable(
 #-------------------------------------------------------------------------------
 target_link_libraries(
   eos PUBLIC
-  EosFstIo
+  EosFstIo-Static
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
