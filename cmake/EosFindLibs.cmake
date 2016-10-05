@@ -55,14 +55,19 @@ endif()
   find_package(Sphinx)
   find_package(kineticio COMPONENTS headers)
 
+  set(KINETICIO_URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz")
+  set(KINETICIO_URL_MD5 "ae1a538939ee26984d4e20f96bedb2c2")
+  if(EXISTS "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
+    set(KINETICIO_URL "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
+  endif()
   #if kinetic headers cannot be found, provide them to allow compiling
   if(NOT KINETICIO_FOUND)
     include(ExternalProject)
     ExternalProject_add(
             kineticio-devel
             PREFIX vendor
-            URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz"
-            URL_MD5 "ae1a538939ee26984d4e20f96bedb2c2"
+            URL ${KINETICIO_URL}
+            URL_MD5 ${KINETICIO_URL_MD5}
             CONFIGURE_COMMAND ""
             BUILD_COMMAND ""
             INSTALL_COMMAND ""
