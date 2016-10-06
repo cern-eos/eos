@@ -339,6 +339,12 @@ public:
   {
     int errCode;
 
+    // if there is no such process return an error and remove the entry from the cache
+    if(getpgid(pid) < 0)
+    {
+      RemoveEntry(pid);
+      return ESRCH;
+    }
     if (!HasEntry (pid))
     {
       //eos_static_debug("There and pid is %d",pid);
