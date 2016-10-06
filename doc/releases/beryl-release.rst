@@ -433,7 +433,7 @@ New Feature
 - FUSE: add support to compile eosd3 using libfuse3
 
 ``V0.3.176 Aquamarine``
------------------------
+=======================
 
 Bug Fix
 +++++++
@@ -451,7 +451,7 @@ New Feature
 - FUSE: use a blocking flush if the write-back size is larger than the in-memory cache - in this case there is no recovery possible so it is better to see possible errors on the application layer via the flush call
 
 ``V0.3.175 Aquamarine``
------------------------
+=======================
 
 Bug Fix
 +++++++
@@ -459,7 +459,7 @@ Bug Fix
 - FUSE: fix memory leaks and missing mutex - remove w-open tracking map
 
 ``V0.3.174 Aquamarine``
------------------------
+=======================
 
 New Feature
 +++++++++++
@@ -511,7 +511,7 @@ Bug Fixes
 - fix 'd' via ACL for OC access
 
 ``V0.3.170 Aquamarine``
------------------------
+=======================
 
 New Feature
 +++++++++++
@@ -519,7 +519,7 @@ New Feature
 - remove 'chown -R' on FST paritions which was used to compensate a bug visible in 0.3.137 since it might introduce large unnecessary boot times when updating from versions < 0.3.137
 
 ``V0.3.169 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -541,7 +541,7 @@ New Features
 - add IO error simulation for open on FSTs
 
 ``V0.3.168 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -550,7 +550,7 @@ Bug Fixes
 
 
 ``V0.3.167 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -566,7 +566,7 @@ New Features
 - introduction of 'sys.mask' attribute to apply a default mask to all chmod calls on directories (attribute disables !m in acls)
 
 ``V0.3.166 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -583,7 +583,7 @@ New Features
 - add 'service eos clean fst' and 'service eos resync fst' to enforce a start behaviour (no resync or resync)
 
 ``V0.3.165 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -596,7 +596,7 @@ New Features
 - don't set/get xattr with "security.*' keys in FUSE
 
 ``V0.3.164 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -606,7 +606,7 @@ Bug Fixes
 .. warning:: it is highly recommended to update the MGM, if possible purge all recursive deletes before reboot from the recycling bin
 
 ``V0.3.163 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -614,7 +614,7 @@ Bug Fixes
 - fix 'eosd status' script
 
 ``V0.3.162 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -630,7 +630,7 @@ New Features
 
 
 ``V0.3.161 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -639,7 +639,7 @@ Bug Fixes
 - fix check for encoding support in FUSE client 
 
 ``V0.3.160 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -658,7 +658,7 @@ New Features
 - add convenience RPMs to configure EOS repositories for YUM installation
 
 ``V0.3.159 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -673,17 +673,17 @@ New Features
 - find honours now also ACLs in all recursive directories
 
 ``V0.3.158 Aquamarine``
------------------------
+=======================
 
 - protect against failing inode reverse lookup
 
 ``V0.3.157 Aquamarine``
------------------------
+=======================
 
 - add mount scripts to eos-fuse RPM
 
 ``V0.3.156 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -718,7 +718,7 @@ Bug Fixes
 - fix FUSE daemonize behaviour killing systemd on EL7
 
 ``V0.3.155 Aquamarine``
------------------------
+=======================
 
 .. warning:: The FUSE implementation in this release is broken in various places. The sync time propagation in this release is broken. Don't use this version in production on client and server side!
 
@@ -730,7 +730,7 @@ Bug Fixes
 - fix HTTP PropFind requests for owncloud - unencoded paths in PropFind request to check quota & access permissions
 
 ``V0.3.154 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -752,7 +752,7 @@ New Features
 - => modify default values of FUSE configuration (enable lazy-open-w)
 
 ``V0.3.153 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -761,7 +761,7 @@ New Features
 - console revert to use by default host+domain names and add a '-b,--brief' option to all fs,node,group commands to get short hostnames
 
 ``V0.3.152 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -771,7 +771,7 @@ Bug Fixes
 - fix wrong timestamping of symlinks
 
 ``V0.3.151 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -779,7 +779,7 @@ Bug Fixes
 - synchronize with CITRINE FUSE implementation 
 
 ``V0.3.150 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -787,7 +787,7 @@ Bug Fixes
 - fix wrong mount-prefix handling for deepness>1
 
 ``V0.3.149 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -796,7 +796,7 @@ New Features
 - making big writes and local mtime consistency the default behaviour in FUSE
 
 ``V0.3.148 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -811,7 +811,7 @@ Bug Fixes
 
 
 ``V0.3.147 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -820,7 +820,7 @@ New Features
 - add support for multi-delegated proxy certificates
 
 ``V0.3.146 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -832,7 +832,7 @@ Bug Fixes
 - merge no-quota-error in xrootd errors response into e-nospace to avoid the client reporting an io error
 
 ``V0.3.145 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -842,7 +842,7 @@ Bug Fixes
 - remove only the leading "eos" string when building the proc path for the MGM
 
 ``V0.3.144 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -850,7 +850,7 @@ Bug Fixes
 - source sysconfig file inside MGM before running service scripts
 
 ``V0.3.142 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -858,7 +858,7 @@ New Features
 - add service alias example in eos.example how to run with systemd
 
 ``V0.3.141 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -866,7 +866,7 @@ Bug Fixes
 - fix reporting of subtree copying in 'eos cp'
 
 ``V0.3.140 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -875,7 +875,7 @@ Bug Fixes
 - add min/maxfilesize check during the open function, to block too large uploads immedeatly
 
 ``V0.3.139 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -883,7 +883,7 @@ Bug Fixes
 - make the XRD stream timeout configurable and increase the default to 5 minutes
 
 ``V0.3.138 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -891,7 +891,7 @@ New Features
 - run the FST and MGM again as daemon/daemon and switch only the monitoring thread in ShellCmd to enable ptrace for all spawned sub commands
 
 ``V0.3.137 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -899,7 +899,7 @@ Bug Fixes
 - fix recursive copy command allowing spaces in path names
 
 ``V0.3.136 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -921,28 +921,28 @@ Bug Fixes
 - avoid rescheduling of files on a location still in the deletion list
 
 ``V0.3.134 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
 - avoid 'fork' calls in the namespace library using the 'ShellCmd' class
 
 ``V0.3.133 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
 - fix wrong EXITSTATUS() macro preventing clean Slave2Master transitions
 
 ``V0.3.132 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
 - revert faulty bug fix introduced in 0.3.130 preventing a slave to boot the file namespace
 
 ``V0.3.131 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -956,21 +956,21 @@ New Features
 - add queuing functionality to the archive/backup tool
 
 ``V0.3.130 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
 - fix eternally booting slave and crazy boot times
 
 ``V0.3.129 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
 - fix for memory leak by ShellCmd not joining properly threads
 
 ``V0.3.128 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -979,7 +979,7 @@ Bug Fixes
 - fix gcc 5.1 warning
 
 ``V0.3.127 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -987,7 +987,7 @@ Bug Fixes
 - fix fuse base64 encoding to not break URL syntax 
 
 ``V0.3.126 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -998,7 +998,7 @@ New Features
 - distinguish scheduling policies for read and write via `geo.access.policy.read.exact` `geo.access.policy.write.exact` - if `on` for **write** then only groups matching the geo policy and two-site placement policy will be selected for placement and data will flow through the close fst - if `on` for **read** the replica in the same geo location will always be chosen
 
 ``V0.3.125 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -1022,7 +1022,7 @@ Bug Fixes
 - avoid timing related dead-lock in asynchronous backend flush
 
 ``V0.3.121 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -1035,7 +1035,7 @@ Bug Fixes
 - replacing system(fork) commands with ShellCmd class fixing virtual memory and fd cloning
 
 ``V0.3.120 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -1043,7 +1043,7 @@ Bug Fixes
 - fix round-robin behaviour of scheduler for single and multi-repliace placements
 
 ``V0.3.119 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -1051,7 +1051,7 @@ New Features
 - add convenient short console commands for 'ln', 'info', 'mv', 'touch'
 
 ``V0.3.118 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -1066,7 +1066,7 @@ Bug Fixes
 - implement saveguard for the manager name configurationi in FSTs
 
 ``V0.3.117 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -1074,14 +1074,14 @@ New Features
 
 
 ``V0.3.116 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
 - fix asynchronous egroup refresh query 
 
 ``V0.3.115 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -1093,14 +1093,14 @@ Bug Fixes
 - fix temporary ro master situation when slave reloads namespace when indicated from compacted master (due to stat redirection)
 
 ``V0.3.114 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
 - fix temporary ro master situation when slave reloads namespace when indicated from compacted master (due to stat redirection)
 
 ``V0.3.112 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -1115,14 +1115,14 @@ Bug Fixes
 - fix order violation bug in 'Drop' implementation which might lead to SEGV 
 
 ``V0.3.111 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
 - redirect "file versions' to the master
 
 ``V0.3.110 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -1130,14 +1130,14 @@ Bug Fixes
 - fix temp std::string assignment bugs reported by valgrind
 
 ``V0.3.109 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
 - fix timed read/write locks to use absolute times
 
 ``V0.3.108 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -1148,21 +1148,21 @@ New Features
 - support for OC-Checksum field in GET/PUT requests
 
 ``V0.3.107 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
 - support for secondary group evaluation in ACLs (enable secondary groups via /etc/sysonfig/eos:export EOS_SECONDARY_GROUPS=1
 
 ``V0.3.106 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
 - update MIME types to reflect most recent mappings for office types
 
 ``V0.3.104 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -1172,7 +1172,7 @@ Bug Fixes
 - fix mutex inversion in STATLS function
 
 ``V0.3.102 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -1181,7 +1181,7 @@ Bug Fixes
 - fix PROPPATCH response to be 'multi-status' 207
 
 ``V0.3.101 Aquamarine``
------------------------
+=======================
 
 Bug Fixes
 +++++++++
@@ -1190,7 +1190,7 @@ Bug Fixes
 - make MIME type detection case-insensitive
 
 ``V0.3.100 Aquamarine``
------------------------
+=======================
 
 New Features
 ++++++++++++
@@ -1202,7 +1202,7 @@ Bug Fixes
 - fix bug leading to wrong dual master detection after online compaction was running on the master
 
 ``V0.3.99 Aquamarine``
-----------------------
+======================
 
 New Features
 ++++++++++++
@@ -1217,7 +1217,7 @@ Bug Fixes
 - fix HTTP return codes for Put and Range Requests
 
 ``V0.3.97 Aquamarine``
-----------------------
+======================
 
 New Features
 ++++++++++++
@@ -1230,7 +1230,7 @@ Bug Fixes
 - store proxy and client identity properly in VID structure
 
 ``V0.3.96 Aquamarine``
-----------------------
+======================
 
 Bug Fixes
 +++++++++
@@ -1242,7 +1242,7 @@ New Features
 - allow to modifiy only group ownership in chown
 
 ``V0.3.95 Aquamarine``
-----------------------
+======================
 
 Bug Fixes
 +++++++++
@@ -1285,7 +1285,7 @@ New Features
 - add 'recycle config --ratio < 0 .. 1.0 >' to set a threadshold based keep ratio in the recycle bin
 
 ``V0.3.75 Aquamarine``
-----------------------
+======================
 
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
 
