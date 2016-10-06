@@ -131,6 +131,16 @@ ShellExecutor::execute (const std::string& cmd, fifo_uuid_t uuid) const
   return pid;
 }
 
+void
+ShellExecutor::alarm(int signal)
+{
+  if (kill (getppid(),0))
+  {
+    throw ShellException("Parent died - aborting");
+    abort();
+  }
+}
+
 /*----------------------------------------------------------------------------*/
 void
 ShellExecutor::run_child () const
@@ -148,14 +158,25 @@ ShellExecutor::run_child () const
   sigchld_action.sa_flags = SA_NOCLDWAIT;
   sigaction(SIGCHLD, &sigchld_action, 0);
 
+  // install an alarm handler to check for the death of our parent process
+  struct sigaction sa;
+  sa.sa_handler = &ShellExecutor::alarm;
+  sa.sa_flags = 0;
+  sigfillset(&sa.sa_mask);
+  sigaction(SIGALRM, &sa, NULL);
+
   // the message received from the parent
   msg_t msg;
 
   // the command to be executed
   std::string cmd;
 
-  while (read(outfd[0], &msg, sizeof (msg)) > 0)
+  // check every 5 seconds for parent death
+  alarm(5);
+  while ( ((read(outfd[0], &msg, sizeof (msg)) > 0) && (errno == EINTR)) )
+      
   {
+    alarm(0);
     cmd += msg.buff;
     if (msg.complete)
     {
@@ -167,6 +188,7 @@ ShellExecutor::run_child () const
       msg.complete = false;
       cmd.erase();
     }
+    alarm(5);
   }
 
   // close the 'read-end' of input pipe on child side
