@@ -101,6 +101,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Disable fast boot and always do a full resync when a fs is booting
 # export EOS_FST_NO_FAST_BOOT=0 (default off)
 
+# Set the connection pool size for FST=>FST connections (default is 64 - range 1 to 1024)
+# EOS_FST_XRDIO_CONNECTION_POOL_SIZE=64
+
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
