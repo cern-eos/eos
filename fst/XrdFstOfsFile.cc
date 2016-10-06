@@ -2950,7 +2950,6 @@ XrdFstOfsFile::DoTpcTransfer()
     src_cgi += TpcKey.c_str();
     src_cgi += "&tpc.org=";
     src_cgi += gOFS.TpcMap[isRW][TpcKey.c_str()].org;
-    src_cgi += "&tpc.stage=copy";
   }
 
   XrdIo tpcIO; // the remote IO object
