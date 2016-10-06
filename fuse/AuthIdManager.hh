@@ -368,10 +368,10 @@ protected:
       lock_w_pcache(sid);
 
       if ((errCode = gProcCache.InsertEntry(sid))) {
-        eos_static_err("updating proc cache information for session leader process %d. Error code is %d",
-                       (int)pid, errCode);
         unlock_w_pcache(sid);
-        return errCode;
+        eos_static_debug("updating proc cache information for session leader process %d failed. Session leader process %d does not exist",
+                       (int)pid, (int)sid);
+        sid = -1;
       }
 
       unlock_w_pcache(sid);
@@ -383,6 +383,8 @@ protected:
     if (gProcCache.HasEntry(sid)) {
       gProcCache.GetEntry(sid)->GetStartupTime(sessionSut);
     }
+    else
+      sessionSut = 0;
 
     // find the credentials
     CredInfo credinfo;
@@ -392,10 +394,10 @@ protected:
       if (fallback2nobody) {
         credinfo.type = nobody;
         credinfo.lmtime = credinfo.lctime = 0;
-        eos_static_debug("could not find any strong credential for sid %d, falling back on 'nobody'",
-                         (int)sid);
+        eos_static_debug("could not find any strong credential for uid %d pid %d sid %d, falling back on 'nobody'",
+                         (int)uid,(int)pid,(int)sid);
       } else {
-        eos_static_notice("could not find any strong credential for sid %d", (int)sid);
+        eos_static_notice("could not find any strong credential for uid %d pid %d sid %d", (int)uid,(int)pid,(int)sid);
         return EACCES;
       }
     }
