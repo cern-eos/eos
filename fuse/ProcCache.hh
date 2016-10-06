@@ -90,14 +90,23 @@ public:
 class ProcReaderPsStat
 {
   std::string pFileName;
+  int fd;
+  FILE *file;
+
 public:
-  ProcReaderPsStat (const std::string &filename) :
-      pFileName (filename)
+  ProcReaderPsStat () : fd(-1), file(NULL) {}
+  ProcReaderPsStat (const std::string &filename)
   {
+    fd = -1;
+    file = NULL;
+    SetFilename(filename);
   }
   ~ProcReaderPsStat ()
   {
+    Close();
   }
+  void SetFilename( const std::string &filename);
+  void Close();
   int ReadContent (long long unsigned &startTime, pid_t &ppid, pid_t &sid);
 };
 
@@ -169,6 +178,9 @@ class ProcCacheEntry
   // RWMutex to protect entry
   mutable eos::common::RWMutex pMutex;
 
+  // an important reader which is checked very often, we keep it open
+  ProcReaderPsStat pciPsStat;
+
   // internal values
   pid_t pPid;
   pid_t pPPid;
@@ -183,10 +195,10 @@ class ProcCacheEntry
   mutable int pError;
   mutable std::string pErrMessage;
 
-  //! return true fs success, false if failure
+  //! return 0 fs success
   int
   ReadContentFromFiles ();
-  //! return true if the information is up-to-date after the call, false else
+  //! return 0 if the information is up-to-date after the call
   int
   UpdateIfPsChanged ();
 
@@ -197,6 +209,7 @@ public:
     std::stringstream ss;
     ss << (procpath?procpath:"/proc/") << pPid;
     pProcPrefix = ss.str ();
+    pciPsStat.SetFilename(pProcPrefix + "/stat");
     pMutex.SetBlocking(true);
   }
 
