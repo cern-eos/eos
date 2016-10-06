@@ -95,6 +95,12 @@ public:
   virtual ~ShellExecutor ();
 
   // ---------------------------------------------------------------------------
+  // alarm handler to terminate this process if the parent disappears
+  // ---------------------------------------------------------------------------
+  static void alarm(int signal);
+  
+
+  // ---------------------------------------------------------------------------
   // execute a shell command
   // ---------------------------------------------------------------------------
   pid_t execute (std::string const & cmd, fifo_uuid_t uuid = 0) const;
