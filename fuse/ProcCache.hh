@@ -185,10 +185,10 @@ class ProcCacheEntry
 
   //! return true fs success, false if failure
   int
-  ReadContentFromFiles (ProcCache *procCache);
+  ReadContentFromFiles ();
   //! return true if the information is up-to-date after the call, false else
   int
-  UpdateIfPsChanged (ProcCache *procCache);
+  UpdateIfPsChanged ();
 
 public:
   ProcCacheEntry (unsigned int pid, const char* procpath=0) :
@@ -333,7 +333,7 @@ public:
       pCatalog[pid] = new ProcCacheEntry (pid,pProcPath.c_str());
     }
     auto entry = GetEntry (pid);
-    if ((errCode = entry->UpdateIfPsChanged (this)))
+    if ((errCode = entry->UpdateIfPsChanged()))
     {
       eos_static_err("something wrong happened in reading proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
       eos::common::RWMutexWriteLock lock (pMutex);
