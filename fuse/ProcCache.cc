@@ -344,7 +344,7 @@ time_t ProcReaderGsiIdentity::GetModifTime ()
   return mktime (clock);
 }
 
-int ProcCacheEntry::ReadContentFromFiles (ProcCache *procCache)
+int ProcCacheEntry::ReadContentFromFiles ()
 {
   eos::common::RWMutexWriteLock lock (pMutex);
   ProcReaderCmdLine pciCmd (pProcPrefix + "/cmdline"); // this one does NOT gets locked by the kernel when exeve is called
@@ -388,14 +388,14 @@ int ProcCacheEntry::ReadContentFromFiles (ProcCache *procCache)
   return finalret;
 }
 
-int ProcCacheEntry::UpdateIfPsChanged (ProcCache *procCache)
+int ProcCacheEntry::UpdateIfPsChanged ()
 {
   ProcReaderPsStat pciPsStat (pProcPrefix + "/stat");
   unsigned long long procStartTime = 0;
   pciPsStat.ReadContent(procStartTime,pPPid,pSid);
   if (procStartTime > pStartTime)
   {
-    int retc = ReadContentFromFiles (procCache);
+    int retc = ReadContentFromFiles ();
     if (retc == 0)
     {
       pStartTime = procStartTime;
