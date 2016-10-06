@@ -117,9 +117,11 @@ XrdMgmOfs::FsConfigListener()
         // handle subject modification
         // ---------------------------------------------------------------------
         eos_static_debug("received modification on subject %s", newsubject.c_str());
-        // if this is an error status on a file system, check if the filesystem is > drained state and in this case launch a drain job with
+        // if this is an error status on a file system, check if the filesystem
+        // is > drained state and in this case launch a drain job with
         // the opserror flag by calling StartDrainJob
-        // We use directly the ObjectManager Interface because it is more handy with the available information we have at this point
+        // We use directly the ObjectManager Interface because it is more handy
+        // with the available information we have at this point
         std::string key = newsubject;
         std::string queue = newsubject;
         size_t dpos = 0;

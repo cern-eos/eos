@@ -326,9 +326,10 @@ IConfigEngine::PrintEachConfig(const char* key, XrdOucString* val, void* arg)
         ((option.find("g") != STR_NPOS) && (skey.beginswith("global:"))) ||
         ((option.find("m") != STR_NPOS) && (skey.beginswith("map:"))) ||
         ((option.find("s") != STR_NPOS) && (skey.beginswith("geosched:")))) {
-      std::ostringstream oss;
-      oss << key << " => " << val->c_str() << std::endl;
-      *outstring = oss.str().c_str();
+      *outstring += key;
+      *outstring += " => ";
+      *outstring += val->c_str();
+      *outstring += "\n";
     }
   }
 
@@ -530,43 +531,43 @@ IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
   pinfo.out = &out;
   pinfo.option = "vfqcgms";
 
-  if (filter.Get("mgm.config.vid") || filter.Get("mgm.config.fs") ||
-      filter.Get("mgm.config.quota") || filter.Get("mgm.config.comment") ||
-      filter.Get("mgm.config.policy") || filter.Get("mgm.config.global") ||
-      filter.Get("mgm.config.map") || filter.Get("mgm.config.geosched")) {
+  if (filter.Get("mgm.config.comment") || filter.Get("mgm.config.fs") ||
+      filter.Get("mgm.config.global") || filter.Get("mgm.config.map") ||
+      filter.Get("mgm.config.policy") || filter.Get("mgm.config.quota") ||
+      filter.Get("mgm.config.geosched") || filter.Get("mgm.config.vid")) {
     pinfo.option = "";
-  } else {
-    if (filter.Get("mgm.config.vid")) {
-      pinfo.option += "v";
-    }
+  }
 
-    if (filter.Get("mgm.config.fs")) {
-      pinfo.option += "f";
-    }
+  if (filter.Get("mgm.config.comment")) {
+    pinfo.option += "c";
+  }
 
-    if (filter.Get("mgm.config.policy")) {
-      pinfo.option += "p";
-    }
+  if (filter.Get("mgm.config.fs")) {
+    pinfo.option += "f";
+  }
 
-    if (filter.Get("mgm.config.quota")) {
-      pinfo.option += "q";
-    }
+  if (filter.Get("mgm.config.global")) {
+    pinfo.option += "g";
+  }
 
-    if (filter.Get("mgm.config.comment")) {
-      pinfo.option += "c";
-    }
+  if (filter.Get("mgm.config.policy")) {
+    pinfo.option += "p";
+  }
 
-    if (filter.Get("mgm.config.global")) {
-      pinfo.option += "g";
-    }
+  if (filter.Get("mgm.config.map")) {
+    pinfo.option += "m";
+  }
 
-    if (filter.Get("mgm.config.map")) {
-      pinfo.option += "m";
-    }
+  if (filter.Get("mgm.config.quota")) {
+    pinfo.option += "q";
+  }
 
-    if (filter.Get("mgm.config.geosched")) {
-      pinfo.option += "s";
-    }
+  if (filter.Get("mgm.config.geosched")) {
+    pinfo.option += "s";
+  }
+
+  if (filter.Get("mgm.config.vid")) {
+    pinfo.option += "v";
   }
 
   if (name == 0) {
@@ -578,6 +579,7 @@ IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
     FilterConfig(pinfo, out, name);
   }
 
+  eos::common::StringConversion::SortLines(out);
   return true;
 }
 
