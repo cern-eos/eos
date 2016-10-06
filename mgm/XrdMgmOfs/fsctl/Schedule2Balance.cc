@@ -156,6 +156,10 @@
       {
         source_fs = 0;
         group_iterator++;
+	// whenever we jump a filesystem we advance also the cyclic group pointer for the next round
+	XrdSysMutexHelper sLock (sGroupCycleMutex);
+	sGroupCycle[target_snapshot.mGroup]++;
+	sGroupCycle[target_snapshot.mGroup] %= groupsize;
         if (group_iterator == group->end()) group_iterator = group->begin();
         continue;
       }
