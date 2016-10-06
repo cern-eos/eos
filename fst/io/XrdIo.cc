@@ -32,6 +32,10 @@ EOSFSTNAMESPACE_BEGIN
 const uint64_t ReadaheadBlock::sDefaultBlocksize = 1 *1024 * 1024; ///< 1MB default
 const uint32_t XrdIo::sNumRdAheadBlocks = 2;
 
+XrdSysMutex XrdIo::sConnectionPoolMutex;
+std::map<std::string, std::map<int, size_t> > XrdIo::sConnectionPool;
+size_t XrdIo::sConnectionPoolMaxSize = 64;
+
 //------------------------------------------------------------------------------
 // Handle asynchronous open responses
 //------------------------------------------------------------------------------
@@ -79,6 +83,8 @@ XrdIo::~XrdIo ()
     Close();
   }
 
+  DropConnection();
+  
   if (mDoReadahead)
   {
     while (!mQueueBlocks.empty())
@@ -99,6 +105,110 @@ XrdIo::~XrdIo ()
 
   if (mXrdFile) {
     delete mXrdFile;
+  }
+}
+
+
+void 
+XrdIo::AssignConnection()
+{
+  // select a slot in our connection pool, if there is not already a user name selected
+  if (mTargetUrl.GetUserName() == "")
+  {
+    std::string lTargetHost = mTargetUrl.GetHostName();
+
+    XrdSysMutexHelper sLock(sConnectionPoolMutex);
+
+    size_t max_connection_pool_size = sConnectionPoolMaxSize;
+    if (getenv("EOS_FST_XRDIO_CONNECTION_POOL_SIZE"))
+    {
+      max_connection_pool_size = strtoul(getenv("EOS_FST_XRDIO_CONNECTION_POOL_SIZE"),0,10);
+      if (max_connection_pool_size < 1)
+      {
+	max_connection_pool_size = 1;
+	eos_warning("forcing a max_connection pool size of atleast 1 - fix EOS_FST_XRDIO_CONNECTION_POOL_SIZE environment");
+      }
+      if (max_connection_pool_size > 1024)
+      {
+	max_connection_pool_size = 1024;
+	eos_warning("forcing a max_connection pool size of maximum 1024 - fix EOS_FST_XRDIO_CONNECTION_POOL_SIZE environment");
+      }
+      sConnectionPoolMaxSize = max_connection_pool_size;
+    }
+
+    bool found = false;
+    size_t best_connection_id = 1 ;
+    size_t best_connection_val = 65535;
+
+    for (auto it = sConnectionPool[lTargetHost].begin(); it!=sConnectionPool[lTargetHost].end(); ++it)
+    {
+      if (it->second < best_connection_val)
+      {
+	best_connection_id = it->first;
+	best_connection_val = it->second;
+      }
+
+      if (!it->second)
+      {
+	it->second++;
+	mConnectionId = it->first;
+	found = true;
+	break;
+      }
+    }
+
+    if (!found)
+    {
+      if (sConnectionPool[lTargetHost].size() >= sConnectionPoolMaxSize)
+      {
+	// we share the least busy connection
+	sConnectionPool[lTargetHost][best_connection_id]++;
+	mConnectionId = best_connection_id;
+	eos_warning("msg=\"connection pool limit reached - using %u/%u connections\"", sConnectionPool[lTargetHost].size(), sConnectionPoolMaxSize);
+      }
+      else
+      {
+	size_t new_connection_id = sConnectionPool[lTargetHost].size()+1;
+	sConnectionPool[lTargetHost][new_connection_id]++;
+	mConnectionId = new_connection_id;
+      }
+    }
+    XrdOucString username;
+    username += (int)mConnectionId;
+    std::string s_username=username.c_str();
+    mTargetUrl.SetUserName(s_username);
+  }
+}
+
+
+void 
+XrdIo::DropConnection()
+{
+  // if we took a connection slot, mark it now as free
+  if (mConnectionId)
+  {
+    XrdSysMutexHelper sLock(sConnectionPoolMutex);
+    if (sConnectionPool.count(mTargetUrl.GetHostName()))
+      sConnectionPool[mTargetUrl.GetHostName()][mConnectionId]--;
+    mConnectionId=0;
+  }
+  DumpConnectionPool();
+}
+
+void 
+XrdIo::DumpConnectionPool()
+{
+  XrdSysMutexHelper sLock(sConnectionPoolMutex);
+  if (EOS_LOGS_DEBUG)
+  {
+    fprintf(stderr,"\n[connection-pool] --------------------------------------------------------------------\n");
+    for (auto it = sConnectionPool.begin(); it!=sConnectionPool.end(); ++it)
+    {
+      for (auto fit = it->second.begin(); fit != it->second.end(); ++fit)
+      {
+	fprintf(stderr,"[connection-pool] host=%s cindex=%d usage=%lu\n", it->first.c_str(), fit->first, fit->second);
+      }
+    }
   }
 }
 
@@ -159,13 +269,24 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
   }
   mXrdFile = new XrdCl::File();
 
+  
+  mTargetUrl.FromString(request);
+
+  AssignConnection();
+  DumpConnectionPool();
+  
+  if (mConnectionId)
+  {
+    eos_info("connection-id=%d.%s", mConnectionId, mTargetUrl.GetHostName().c_str());
+  }
+
   // Disable recovery on read and write
   mXrdFile->EnableReadRecovery(false);
   mXrdFile->EnableWriteRecovery(false);
 
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
-  XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl, mode_xrdcl, timeout);
+  XrdCl::XRootDStatus status = mXrdFile->Open(mTargetUrl.GetURL().c_str(), flags_xrdcl, mode_xrdcl, timeout);
 
   if (!status.IsOK())
   {

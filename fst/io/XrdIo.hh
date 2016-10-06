@@ -29,6 +29,7 @@
 #include "fst/io/SimpleHandler.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClURL.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -310,6 +311,7 @@ public:
   //--------------------------------------------------------------------------
   virtual void* GetAsyncHandler ();
 
+
 private:
 
   bool mDoReadahead; ///< mark if readahead is enabled
@@ -320,6 +322,19 @@ private:
   PrefetchMap mMapBlocks; ///< map of block read/prefetched
   std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
   XrdSysMutex mPrefetchMutex; ///< mutex to serialise the prefetch step
+
+  // connection pool handler
+  static XrdSysMutex sConnectionPoolMutex;
+  static std::map<std::string, std::map<int, size_t> > sConnectionPool;
+  static size_t sConnectionPoolMaxSize;
+
+  void AssignConnection(); ///< if needed assign a connection from the connection pool
+  void DropConnection(); ///< if needed return a conection back to the pool
+  void DumpConnectionPool(); ///< dump current state of connection pool
+
+  XrdCl::URL mTargetUrl;
+  size_t mConnectionId;
+  
 
   //--------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
