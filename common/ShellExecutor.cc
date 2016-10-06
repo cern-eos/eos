@@ -167,14 +167,12 @@ ShellExecutor::run_child () const
 
   // the message received from the parent
   msg_t msg;
-
   // the command to be executed
   std::string cmd;
-
   // check every 5 seconds for parent death
   alarm(5);
-  while ( ((read(outfd[0], &msg, sizeof (msg)) > 0) && (errno == EINTR)) )
-      
+
+  while (((read(outfd[0], &msg, sizeof (msg)) > 0) || (errno == EINTR)))
   {
     alarm(0);
     cmd += msg.buff;
