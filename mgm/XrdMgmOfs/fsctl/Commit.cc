@@ -398,18 +398,12 @@
 
         if (occhunk && commitsize)
         {
-	  // we don't accept missing chunks, only repeated chunks
-	  if ( (( oc_n+1) - fmd->getFlags()) > 1) 
-	  {
-	    eos_thread_err("subcmd=commit max-chunks=%d oc-chunk=%d is-chunk=%d msg=\"order violation\"", oc_max, oc_n, fmd->getFlags());
-	    gOFS->MgmStats.Add("CommitFailedChunkOrder", 0, 0, 1);
-	    return Emsg(epname, error, EBADE, "commit chunk - order violation [EBADE]","");
-	  }
-	  
           // store the index in flags;
           fmd->setFlags(oc_n+1);
-          eos_thread_info("subcmd=commit max-chunks=%d is-chunk=%d", oc_max, fmd->getFlags());
-          if (oc_max == fmd->getFlags())
+          eos_thread_info("subcmd=commit max-chunks=%d commited-chunks=%d", oc_max, fmd->getFlags());
+
+	  // the last chunk terminates all
+          if (oc_max == oc_n)
           {
             // we are done with chunked upload, remove the flags counter
             fmd->setFlags((S_IRWXU | S_IRWXG | S_IRWXO));
