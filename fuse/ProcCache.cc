@@ -124,22 +124,42 @@ int ProcReaderFsUid::ReadContent (uid_t &fsUid, gid_t &fsGid)
 
   return retval;
 }
+
+void ProcReaderPsStat::SetFilename(const std::string &filename)
+{
+  pFileName = filename;
+  fd = open (pFileName.c_str (), O_RDONLY & O_NONBLOCK);
+  if (fd >= 0)
+  {
+    file = fdopen (fd, "r");
+  }
+  else
+    eos_static_err("could not open %s",pFileName.c_str ());
+}
+
+void ProcReaderPsStat::Close()
+{
+  if(file) fclose(file);
+  file = NULL;
+  fd = -1;
+}
+
+
 int ProcReaderPsStat::ReadContent (long long unsigned &startTime, pid_t &ppid, pid_t &sid)
 {
   int retval = 1;
-  int fd = open (pFileName.c_str (), O_RDONLY & O_NONBLOCK);
 
   if (fd >= 0)
   {
-    FILE *file = fdopen (fd, "r");
+    rewind (file);
     std::string token, line;
     const int bufsize = 16384;
     char buffer[bufsize];
     int size = 0;
 
     // read the one line of the file
-    if (!(fgets ((char*)buffer, bufsize, file))) return 2;
-    size=strlen(buffer);
+    if (!(fgets ((char*) buffer, bufsize, file))) return 2;
+    size = strlen (buffer);
 
     int tokcount = 0, tokStart = 0;
     bool inParenth = false;
@@ -169,18 +189,18 @@ int ProcReaderPsStat::ReadContent (long long unsigned &startTime, pid_t &ppid, p
           {
             case 3:
               if (!sscanf (buffer + tokStart, "%u", &ppid))
-                // error parsing parent process id
+              // error parsing parent process id
                 over = true;
               break;
             case 5:
               if (!sscanf (buffer + tokStart, "%u", &sid))
-                // error parsing session id
+              // error parsing session id
                 over = true;
               break;
             case 21:
               over = true;
               if (sscanf (buffer + tokStart, "%llu", &startTime))
-                // we parsed everything
+              // we parsed everything
                 retval = 0;
               break;
             default:
@@ -193,8 +213,6 @@ int ProcReaderPsStat::ReadContent (long long unsigned &startTime, pid_t &ppid, p
         continue;
       }
     }
-    // read char by char
-    if (file) fclose (file);
   }
 
   return retval;
@@ -390,7 +408,6 @@ int ProcCacheEntry::ReadContentFromFiles ()
 
 int ProcCacheEntry::UpdateIfPsChanged ()
 {
-  ProcReaderPsStat pciPsStat (pProcPrefix + "/stat");
   unsigned long long procStartTime = 0;
   pciPsStat.ReadContent(procStartTime,pPPid,pSid);
   if (procStartTime > pStartTime)

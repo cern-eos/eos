@@ -36,6 +36,7 @@
 #include <krb5.h>
 #include "common/Logging.hh"
 
+
 /*----------------------------------------------------------------------------*/
 class ProcCache;
 
@@ -89,16 +90,23 @@ public:
 class ProcReaderPsStat
 {
   std::string pFileName;
-  time_t pStartTime;
-  pid_t pPpid, pSid;
+  int fd;
+  FILE *file;
+
 public:
-  ProcReaderPsStat (const std::string &filename) :
-      pFileName (filename), pStartTime(), pPpid(), pSid()
+  ProcReaderPsStat () : fd(-1), file(NULL) {}
+  ProcReaderPsStat (const std::string &filename)
   {
+    fd = -1;
+    file = NULL;
+    SetFilename(filename);
   }
   ~ProcReaderPsStat ()
   {
+    Close();
   }
+  void SetFilename( const std::string &filename);
+  void Close();
   int ReadContent (long long unsigned &startTime, pid_t &ppid, pid_t &sid);
 };
 
@@ -171,6 +179,9 @@ class ProcCacheEntry
   mutable eos::common::RWMutex pMutex;
 
   // internal values
+  ProcReaderPsStat pciPsStat;
+
+  // internal values
   pid_t pPid;
   pid_t pPPid;
   pid_t pSid;
@@ -198,6 +209,7 @@ public:
     std::stringstream ss;
     ss << (procpath?procpath:"/proc/") << pPid;
     pProcPrefix = ss.str ();
+    pciPsStat.SetFilename(pProcPrefix + "/stat");
     pMutex.SetBlocking(true);
   }
 
@@ -372,5 +384,9 @@ public:
       return entry->second;
   }
 };
+
+#ifndef __PROCCACHE__NOGPROCCACHE__
+extern ProcCache gProcCache;
+#endif
 
 #endif
