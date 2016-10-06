@@ -7,20 +7,50 @@
 Beryl Release Notes
 ===================
 
+``V0.3.212 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FST: Fix race condition in TPC implementation
+- FST: convert some critical errors to warnings
+- COMMON: add an alarm timer for the ShellExecutor forked process to die on its own if the parent process disappears
+- MGM: fix miscounting quote bug when deleteOnClose is triggered
+- MGM: fix bug introduced by commit 089803efe0b0cde882ed655788985eb166eb4546  triggering a SEGV under load due to out-of-lock access
+- MGM: fix balancer bug which was in case of N full and M empty boxes balancing the M times more from first box instead of all N equally
+
+
+New Feature
++++++++++++
+
+- FST: add a connection pool to avoid bottleneck due to slow close blocking other opens to the same target FST - the connection pool size is by default 64 and can be changed by the variable EOS_FST_XRDIO_CONNECTION_POOL_SIZE
+- MGM: add an environment variable allowing read-write-modify to all all users on MGM for RAIN layouts (define EOS_ALLOW_RAIN_RWM)
+- MGM: relax OC chunked upload order restriction - order is irrelevant and retries but the last chunk terminates an upload
+
 ``V0.3.211 Aquamarine``
-+++++++++++++++++++++++
+=======================
+
+Bug Fix
++++++++
 
 - FUSE: don't set the truncate flag in OpenAsync to avoid increment of inode when async open is done
 - NS: fix copy constructor not duplicationg the pTreeSize variable 
 
 ``V0.3.210 Aquamarine``
-+++++++++++++++++++++++
+=======================
+
+Bug Fix
++++++++
 
 - FST: fix 'ScanDir' funcionality to deal properly with files which get opened during a scan for update and don't flag them as checksum error files
 - FST: ignore flagged checksum errors when updating a file
 
-``V0.3.209 Aquamarine``
-+++++++++++++++++++++++
+``V0.3.209 Aquamarine`
+=======================
+
+Bug Fix
++++++++
 
 - FUSE: move from passive cache expiration to active write-back cache cleaen-up (by thread) - the maximum allowed default size of wb-file caches is 512 MB
 - MGM: fix acl check if client sends base64 encoded acl values (as EOS 4.X does)
@@ -28,56 +58,72 @@ Beryl Release Notes
 - FST: silence "probably already unlinked" message in XrdFstOss::Unlink
 
 ``V0.3.208 Aquamarine``
-+++++++++++++++++++++++
+=======================
+
+Bug Fix
++++++++
 
 - FST: enable blockchecksums againf for plain layouts if there is an .xsmap file - this avoids bogus errors and still checks the blockchecksum files if they are available
 - CONSOLE: adjust the console command to not add block checksum for "attr set default=replica"
 
 ``V0.3.207 Aquamarine``
-+++++++++++++++++++++++
+=======================
+
+Bug Fix
++++++++
 
 - FST: put back the posix_fallocate call since xfs pre-allocation slows down when a truncate is called and produces contention in the Oss::Close handle where xrootd uses a global lock
 - COMMON: disable block checksums for plain and replica layouts by force
 
 ``V0.3.206 Aquamarine``
-+++++++++++++++++++++++
+=======================
+
+Bug Fix
++++++++
 
 - FST: avoid bogus mgm/disk size errors due to still uninitialized disk size values
 
 ``V0.3.205 Aquamarine``
-+++++++++++++++++++++++
+=======================
+
+Bug Fix
+=======
 
 - FST: avoid double deletion in Fmd code
 
 ``V0.3.204 Aquamarine``
-+++++++++++++++++++++++
+=======================
+
+Bug Fix
++++++++
 
 - FUSE: protect accessing a 0 pointer in opendir
 - FUSE: store all invisble items in the FUSE stat cache although they are not visible in the listing
 
 ``V0.3.203 Aquamarine``
-+++++++++++++++++++++++
+=======================
+
+Bug Fix
++++++++
 
 - FUSE: refactor opendir/readdir/closedir consistency and directory caching
 
-Bug Fix
-=======
 
 ``V0.3.202 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
-=======
++++++++
 
 - FST: fix return code handling of xfs pre-allocation in CheckSum.cc
 
 
 ``V0.3.201 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 
 Bug Fix
-=======
++++++++
 
 - FST: always reset the disk checksum in the meta data db when a file has been modified
 - FST: consider only flagged file/blockchecksum errors to prevent to return meta data objects
@@ -88,10 +134,10 @@ Bug Fix
 
 
 ``V0.3.200 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
-=======
++++++++
 
 - FUSE: fix out of lock scope iterator used in error message
 - FUSE: give no validity to attributes coming as fuse-replies to a create call (since uid/gid can be different on MGM side from uid/gid of the caller)
@@ -100,18 +146,18 @@ Bug Fix
 - FST: make deleteOnClose a warning on client disconnect
 
 ``V0.3.199 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
-=======
++++++++
 
 - FUSE: fix wrong lock scope when readdir buffers are retrieved
 
 ``V0.3.198 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
-=======
++++++++
 
 - HTTP: drop FileClose handler to avoid SEGVs due to inteference between FileClose and Complete handler
 - NS: avoid failing compaction when a slave was promoted to be master due to virtual root entry with 0 offset in changelog file
@@ -126,18 +172,18 @@ New Feature
 
 
 ``V0.3.197 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
-=======
++++++++
 
 - FUSE: return correct (also overlayed) mode bits after file creation
 
 ``V0.3.196 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
-=======
++++++++
 
 - NS: fix slave follower getQuotaNode exception preventing quota accounting on slave
 - FUSE: swap unlock and pool-fd push (which is protected by the same file abstraction rwmutex)
@@ -149,7 +195,7 @@ New Feature
 - MGM: add 'Treesize' to the output of 'file info'
 
 ``V0.3.195 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -162,7 +208,7 @@ New Features
 - TEST: adding eos-fuse-test suite to eos-test RPM (use eos-fuse-test to display individual test categories)
 
 ``V0.3.194 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -175,7 +221,7 @@ New Features
 - TEST: add test for truncate bug to eos-fuse-test
 
 ``V0.3.193 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -195,7 +241,7 @@ Bug Fix
 - FUSE: protect against missing response buffer
 
 ``V0.3.192 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -205,7 +251,7 @@ Bug Fix
 
 
 ``V0.3.191 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -213,7 +259,7 @@ Bug Fix
 - FST: honour (rare) xrootd XOFF send on open to retry after <n> seconds to open a file due to contention on xrootd tables
 
 ``V0.3.190 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -228,7 +274,7 @@ New Features
 - MGM: allow to change the find query limitations (by default 100k/50k files/dirs) via the 'access' interface. See 'eos access -h'.
 
 ``V0.3.189 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 New Features
 ++++++++++++
@@ -236,7 +282,7 @@ New Features
 - MGM: add JSONP response object format when 'callback=...' is specified in a query URL
 
 ``V0.3.188 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -266,7 +312,7 @@ Documentation
 - REST: document rest api for space, node, group and fs calls
 
 ``V0.3.187 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 - FUSE: forward correct errno from XrdCl::Open failures
 - FUSE: fix wrong map deletion when unlink/rmdir fails (visible with rsync  --delay-updates)
@@ -274,7 +320,7 @@ Documentation
 - MGM: fix SEGV when looking at the changelog file
 
 ``V0.3.186 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 - FUSE: fix inode mapping after repair and follow new inode
 - FUSE: avoid to force a file open for a utimes setattr call
@@ -282,14 +328,14 @@ Documentation
 - CONSOLE: update 'fs dropdeletion' and deprecate 'fs dropfiles' and MGM redirection behaviour for 'fs dropdeletion'
 
 ``V0.3.185 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 - FST: correct error codes in eoscp to flag target errors in tranfser queue jobs
 - MGM: allow 'xrd.*' to be present in proc commands (used by FUSE repair)
 
 
 ``V0.3.184 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 - FUSE: report 1k as maximum file name length in statvfs
 - FUSE: don't trigger recovery if a file is deleted before it is actually written
@@ -299,7 +345,7 @@ Documentation
 
 
 ``V0.3.183 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -308,7 +354,7 @@ Bug Fix
 - FUSE: close inconsistent mtime window present during release file (vim editor problem)
  
 ``V0.3.182 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -330,7 +376,7 @@ New Features
 - FUSE: add an environment variable to simulate slow backend behaviour in the asynchronous part of FUSE (EOS_FUSE_LAZY_LAG=<ms>)
 
 ``V0.3.181 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -341,7 +387,7 @@ Bug Fix
 - FUSE: avoid possible order inversion of Open[create] file / Open[read] file
 
 ``V0.3.180 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -350,7 +396,7 @@ Bug Fix
 - MGM: avoid dead-lock in SetQuota calls
 
 ``V0.3.179 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -358,7 +404,7 @@ Bug Fix
 - FUSE: fix SEGV introduced by XrdIo memory leak fix in 0.3.177
 
 ``V0.3.178 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -368,7 +414,7 @@ Bug Fix
 - COMMON: fix eternal loop for esoteric .././.././../ path combinations
 
 ``V0.3.177 Aquamarine``
-+++++++++++++++++++++++
+=======================
 
 Bug Fix
 +++++++
@@ -387,7 +433,7 @@ New Feature
 - FUSE: add support to compile eosd3 using libfuse3
 
 ``V0.3.176 Aquamarine``
-+++++++++++++++++++++++
+-----------------------
 
 Bug Fix
 +++++++
@@ -405,7 +451,7 @@ New Feature
 - FUSE: use a blocking flush if the write-back size is larger than the in-memory cache - in this case there is no recovery possible so it is better to see possible errors on the application layer via the flush call
 
 ``V0.3.175 Aquamarine``
-+++++++++++++++++++++++
+-----------------------
 
 Bug Fix
 +++++++
@@ -413,7 +459,7 @@ Bug Fix
 - FUSE: fix memory leaks and missing mutex - remove w-open tracking map
 
 ``V0.3.174 Aquamarine``
-+++++++++++++++++++++++
+-----------------------
 
 New Feature
 +++++++++++
