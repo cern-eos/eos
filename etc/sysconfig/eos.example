@@ -82,6 +82,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Do sync time propagation (set to 1 to enable)
 #export EOS_SYNCTIME_ACCOUNTING=0
 
+# Allow read-write-modify to unpriviledged users (define to set, undefine to unset)
+# export EOS_ALLOW_RAIN_RWM
+
 # ------------------------------------------------------------------
 # FST Configuration
 # ------------------------------------------------------------------

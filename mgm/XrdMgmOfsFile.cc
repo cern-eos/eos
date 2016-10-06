@@ -806,7 +806,7 @@ XrdMgmOfsFile::open (const char *inpath,
   {
     // Allow updates of 0-size RAIN files so that we are able to write from the
     // FUSE mount with lazy-open mode enabled.
-    if (isRewrite && (vid.uid > 3) && (fmdsize != 0) &&
+    if (!getenv("EOS_ALLOW_RAIN_RWM") && isRewrite && (vid.uid > 3) && (fmdsize != 0) &&
         ((eos::common::LayoutId::GetLayoutType(fmdlid) ==
           eos::common::LayoutId::kRaidDP) ||
          (eos::common::LayoutId::GetLayoutType(fmdlid) ==
