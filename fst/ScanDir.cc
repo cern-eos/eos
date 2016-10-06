@@ -243,6 +243,7 @@ ScanDir::CheckFile(const char* filepath)
     if (1) {
       bool blockcxerror = false;
       bool filecxerror = false;
+      bool skiptosettime = false;
       XrdOucString envstring = "eos.layout.checksum=";
       envstring += checksumType.c_str();
       XrdOucEnv env(envstring.c_str());
@@ -252,19 +253,43 @@ ScanDir::CheckFile(const char* filepath)
 
       if (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid,
                              logicalFileName.c_str(), filecxerror, blockcxerror)) {
-        if ((!io->fileStat(&buf2)) && (buf1.st_mtime == buf2.st_mtime)) {
-          if (filecxerror) {
-            if (bgThread) {
-              syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n",
-                     filePath.c_str(), logicalFileName.c_str());
-              eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(),
-                      logicalFileName.c_str());
-            } else {
-              fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n",
-                      filePath.c_str(), logicalFileName.c_str());
-            }
+        bool reopened = false;
+#ifndef _NOOFS
+
+        if (bgThread) {
+          eos::common::Path cPath(filePath.c_str());
+          eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
+          // check if somebody is again writing on that file and skip in that case
+          XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+
+          if (gOFS.WOpenFid[fsId].count(fid)) {
+            eos_err("file %s has been reopened for update during the scan ... "
+                    "ignoring checksum error", filePath.c_str());
+            reopened = true;
+          }
+        }
+
+#endif
+
+        if ((!io->fileStat(&buf2)) && (buf1.st_mtime == buf2.st_mtime) &&
+            filecxerror && !reopened) {
+          if (bgThread) {
+            syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n",
+                   filePath.c_str(), logicalFileName.c_str());
+            eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(),
+                    logicalFileName.c_str());
+          } else {
+            fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n",
+                    filePath.c_str(), logicalFileName.c_str());
           }
         } else {
+          // If the file was changed in the meanwhile or is reopened for update,
+          // the checksum might have changed in the meanwhile, we cannot know
+          // now and leave it up to a later moment.
+          blockcxerror = false;
+          filecxerror = false;
+          skiptosettime = true;
+
           if (bgThread) {
             eos_err("file %s has been modified during the scan ... ignoring checksum error",
                     filePath.c_str());
@@ -279,10 +304,20 @@ ScanDir::CheckFile(const char* filepath)
       //collect statistics
       durationScan += scantime;
       totalScanSize += scansize;
+      bool failedtoset = false;
 
-      if ((io->attrSet("user.eos.timestamp", GetTimestampSmeared())) ||
-          (io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
+      if (!skiptosettime) {
+        if (io->attrSet("user.eos.timestamp", GetTimestampSmeared())) {
+          failedtoset |= true;
+        }
+      }
+
+      if ((io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
           (io->attrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0"))) {
+        failedtoset |= true;
+      }
+
+      if (failedtoset) {
         if (bgThread) {
           eos_err("Can not set extended attributes to file %s", filePath.c_str());
         } else {
@@ -299,24 +334,19 @@ ScanDir::CheckFile(const char* filepath)
           // ask the meta data handling class to update the error flags for this file
           gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
           {
-            XrdOucString manager = "";
-            // ask the meta data handling class to update the error flags for this file
-            gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
-            {
-              XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-              manager = eos::fst::Config::gConfig.Manager.c_str();
-            }
+            XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+            manager = eos::fst::Config::gConfig.Manager.c_str();
+          }
 
-            if (manager.length()) {
-              errno = 0;
-              eos::common::Path cPath(filePath.c_str());
-              eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
+          if (manager.length()) {
+            errno = 0;
+            eos::common::Path cPath(filePath.c_str());
+            eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
 
-              if (fid && !errno) {
-                // call the autorepair method on the MGM
-                // if the MGM has autorepair disabled it won't do anything
-                gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
-              }
+            if (fid && !errno) {
+              // call the autorepair method on the MGM
+              // if the MGM has autorepair disabled it won't do anything
+              gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
             }
           }
         }

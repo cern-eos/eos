@@ -38,13 +38,14 @@ EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
-class ShellException : public std::exception {
+class ShellException : public std::exception
+{
 public:
   // ---------------------------------------------------------------------------
   // constructor
   // ---------------------------------------------------------------------------
 
-  ShellException (std::string const & msg) : msg (msg)
+  ShellException(std::string const& msg) : msg(msg)
   {
   }
 
@@ -52,7 +53,7 @@ public:
   // destructor
   // ---------------------------------------------------------------------------
 
-  virtual ~ShellException () throw ()
+  virtual ~ShellException() throw ()
   {
   }
 
@@ -60,7 +61,7 @@ public:
   // getter for message
   // ---------------------------------------------------------------------------
 
-  char const * what () const throw ()
+  char const* what() const throw ()
   {
     return msg.c_str();
   }
@@ -70,7 +71,8 @@ private:
 
 class ShellCmd;
 
-class ShellExecutor {
+class ShellExecutor
+{
   friend class ShellCmd;
 
 public:
@@ -83,7 +85,7 @@ public:
   // get an instance
   // ---------------------------------------------------------------------------
 
-  static ShellExecutor & instance ()
+  static ShellExecutor& instance()
   {
     static ShellExecutor executor;
     return executor;
@@ -92,17 +94,23 @@ public:
   // ---------------------------------------------------------------------------
   // destructor
   // ---------------------------------------------------------------------------
-  virtual ~ShellExecutor ();
+  virtual ~ShellExecutor();
+
+  // ---------------------------------------------------------------------------
+  // alarm handler to terminate this process if the parent disappears
+  // ---------------------------------------------------------------------------
+  static void alarm(int signal);
+
 
   // ---------------------------------------------------------------------------
   // execute a shell command
   // ---------------------------------------------------------------------------
-  pid_t execute (std::string const & cmd, fifo_uuid_t uuid = 0) const;
+  pid_t execute(std::string const& cmd, fifo_uuid_t uuid = 0) const;
 
   // ---------------------------------------------------------------------------
   // generate fifo name
   // ---------------------------------------------------------------------------
-  static std::string fifo_name (fifo_uuid_t uuid, std::string const & sufix);
+  static std::string fifo_name(fifo_uuid_t uuid, std::string const& sufix);
 
   // ---------------------------------------------------------------------------
   // 'stdout', 'stderr' and 'stdin' file descriptors of the 'command' process
@@ -116,17 +124,17 @@ private:
   // ---------------------------------------------------------------------------
   // constructor
   // ---------------------------------------------------------------------------
-  ShellExecutor ();
+  ShellExecutor();
 
   // ---------------------------------------------------------------------------
   // not implemented
   // ---------------------------------------------------------------------------
-  ShellExecutor (const ShellExecutor& orig);
+  ShellExecutor(const ShellExecutor& orig);
 
   // ---------------------------------------------------------------------------
   // not implemented
   // ---------------------------------------------------------------------------
-  ShellExecutor & operator= (const ShellExecutor& orig);
+  ShellExecutor& operator= (const ShellExecutor& orig);
 
   // ---------------------------------------------------------------------------
   // message for parent-child communication
@@ -145,9 +153,9 @@ private:
     fifo_uuid_t uuid;
   };
 
-  void run_child () const;
+  void run_child() const;
 
-  pid_t system (char const * cmd, fifo_uuid_t uuid) const;
+  pid_t system(char const* cmd, fifo_uuid_t uuid) const;
 
   // ---------------------------------------------------------------------------
   /// pipes for IPC
@@ -158,5 +166,4 @@ private:
 
 EOSCOMMONNAMESPACE_END
 
-#endif	/* __EOSCOMMON_SHELLEXECUTOR__HH__ */
-
+#endif  /* __EOSCOMMON_SHELLEXECUTOR__HH__ */

@@ -87,6 +87,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Do sync time propagation (set to 1 to enable)
 #export EOS_SYNCTIME_ACCOUNTING=0
 
+# Allow read-write-modify to unpriviledged users (define to set, undefine to unset)
+# export EOS_ALLOW_RAIN_RWM
+
 # ------------------------------------------------------------------
 # FST Configuration
 # ------------------------------------------------------------------
@@ -112,6 +115,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
 # Set S3 theoretical storage size 
 #export EOS_FST_S3_STORAGE_SIZE=1000000000000000
+
+# Set the connection pool size for FST=>FST connections (default is 64 - range 1 to 1024)
+# EOS_FST_XRDIO_CONNECTION_POOL_SIZE=64
 
 # ------------------------------------------------------------------
 # FUSE Configuration

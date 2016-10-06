@@ -94,6 +94,8 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pACLId    = other.pACLId;
   pXAttrs   = other.pXAttrs;
   pFlags    = other.pFlags;
+  pTreeSize = other.pTreeSize;
+  // Note: pFiles and pSubContainers are not copied here
   return *this;
 }
 
@@ -293,13 +295,11 @@ ContainerMD::deserialize(Buffer& buffer)
     if (key == "sys.mtime.s") {
       // Stored modification time in s
       pMTime.tv_sec = strtoull(strBuffer2, 0, 10);
-    }
-    else {
+    } else {
       if (key == "sys.mtime.ns") {
         // Stored modification time in ns
         pMTime.tv_nsec = strtoull(strBuffer2, 0, 10);
-      }
-      else {
+      } else {
         pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
       }
     }
