@@ -57,9 +57,9 @@ endif()
 
 #-------------------------------------------------------------------------------
 # Add XrdCl RAIN plugin library only if explicitly requested by using the
-# ENABLE_XRDCL_RAIN_PLUGIN flag.
+# BUILD_XRDCL_RAIN_PLUGIN flag.
 #-------------------------------------------------------------------------------
-if(ENABLE_XRDCL_RAIN_PLUGIN)
+if(BUILD_XRDCL_RAIN_PLUGIN)
   add_subdirectory(xrdcl_plugins)
 endif()
 

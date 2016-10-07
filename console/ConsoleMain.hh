@@ -112,20 +112,16 @@ CFunction(char*);
 
 typedef struct {
   char* name; /* User printable name of the function. */
-  CFunction* func;
-  ; /* Function to call to do the job. */
+  CFunction* func; /* Function to call to do the job. */
   char* doc; /* Documentation for this function.  */
 } COMMAND;
 
 /* Help filter function */
 extern int wants_help(const char* arg1);
-
 extern COMMAND commands[];
-
 extern int done;
 
 XrdOucString cleanPath(const std::string& pathToHandle);
-
 void addHelpOptionRecursively(ConsoleCliCommand* command);
 bool checkHelpAndErrors(ConsoleCliCommand* command);
 
