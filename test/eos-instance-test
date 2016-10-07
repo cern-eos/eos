@@ -56,6 +56,17 @@ else
   EL5=0
 fi
 
+################################################################################################################
+# Check which version on XRootD we are using
+################################################################################################################
+XRD_VERS_MAJOR=$(rpm -qa | grep xrootd-client-[[:digit:]] | awk -F "-" '{print $3}' | awk -F "." '{print $1}')
+
+if [ "${XRD_VERS_MAJOR}" -eq "3" ]; then
+ XRD4=0
+else
+ XRD4=1
+fi
+
 if [ -e /etc/sysconfig/eos ];  then
 . /etc/sysconfig/eos
 fi
@@ -907,7 +918,11 @@ categorie="tpc"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc"
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc"
 runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" 
+if [ ${XRD4} -eq 1 ]; then
 runtest "### TPC 1     " unix 0 "" tpc1 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.2"
+else
+runtest "### TPC 1     " unix 0 "" tpc2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.2"
+fi
 runtest "### TPC 2     " unix 0 "" tpc2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.3"
 runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/tpc
 
