@@ -45,6 +45,9 @@ XrdPosixXrootd posixsingleton;
 extern int com_access (char*);
 extern int com_archive (char*);
 extern int com_attr (char*);
+
+extern int com_acl (char*);
+
 extern int com_backup (char*);
 extern int com_cd (char*);
 extern int com_chmod (char*);
@@ -204,6 +207,7 @@ wants_help (const char* arg1)
 // ----------------------------------------------------------------------------
 COMMAND commands[] = {
   { (char*) "access", com_access, (char*) "Access Interface"},
+  { (char*) "acl", com_acl, (char*) "Acl Interface"},
   { (char*) "archive", com_archive, (char*) "Archive Interface"},
   { (char*) "attr", com_attr, (char*) "Attribute Interface"},
   { (char*) "backup", com_backup, (char*) "Backup Interface"},
@@ -1581,4 +1585,5 @@ stripwhite (char *string)
 
   return s;
 }
+
 

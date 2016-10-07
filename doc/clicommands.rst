@@ -6,6 +6,7 @@ Client Commands
 .. toctree::
    :maxdepth: 2
 
+   clicommands/acl
    clicommands/pointq
    clicommands/question
    clicommands/archive
