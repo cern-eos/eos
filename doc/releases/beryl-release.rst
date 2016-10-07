@@ -7,6 +7,16 @@
 Beryl Release Notes
 ===================
 
+
+``V0.3.213 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: Fix condition in ShellExecutor leading to deadlock in MGM startup
+- TEST: Adapt the eos-instance test give the modifications done to the default "replica" layout i.e. drop of the blockchecksum
+
 ``V0.3.212 Aquamarine``
 =======================
 
