@@ -156,12 +156,12 @@ ShellExecutor::run_child() const
   sigaction(SIGALRM, &sa, NULL);
   // The message received from the parent
   msg_t msg;
-  // The command to be executed
+  // the command to be executed
   std::string cmd;
-  // Check every 5 seconds for parent death
+  // check every 5 seconds for parent death
   alarm(5);
 
-  while (((read(outfd[0], &msg, sizeof(msg)) > 0) && (errno == EINTR))) {
+  while (((read(outfd[0], &msg, sizeof(msg)) > 0) || (errno == EINTR))) {
     alarm(0);
     cmd += msg.buff;
 

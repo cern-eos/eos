@@ -56,6 +56,17 @@ else
   EL5=0
 fi
 
+################################################################################################################
+# Check which version on XRootD we are using
+################################################################################################################
+XRD_VERS_MAJOR=$(rpm -qa | grep xrootd-client-[[:digit:]] | awk -F "-" '{print $3}' | awk -F "." '{print $1}')
+
+if [ "${XRD_VERS_MAJOR}" -eq "3" ]; then
+ XRD4=0
+else
+ XRD4=1
+fi
+
 if [ -e /etc/sysconfig/eos ];  then
 . /etc/sysconfig/eos
 fi
@@ -713,7 +724,7 @@ runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instan
 categorie="stress"
 # --------------------------------------------------------------------------------------------------------------
 runtest "### Chmod      " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 6"
+runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 5"
 runtest "### Stress Wpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Stress Wp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c "
 runtest "### Find       " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
@@ -729,10 +740,10 @@ runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | g
 ################################################################################################################
 # ATTRIBUTES
 ###################################################A#############################################################
-runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 6"
-runtest "### Attr Ls   " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test | grep sys | wc -l | grep -w 6"
+runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 5"
+runtest "### Attr Ls   " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test | grep sys | wc -l | grep -w 5"
 runtest "### Attr Get  " unix 0 "" eos attr get "sys.forced.space /eos/$EOS_TEST_INSTANCE/test  | grep default"
-runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.blockchecksum /eos/$EOS_TEST_INSTANCE/test"
+#runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.blockchecksum /eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.layout /eos/$EOS_TEST_INSTANCE/test"
@@ -910,7 +921,11 @@ categorie="tpc"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc"
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc"
 runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" 
+if [ ${XRD4} -eq 1 ]; then
 runtest "### TPC 1     " unix 0 "" tpc1 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.2"
+else
+runtest "### TPC 1     " unix 0 "" tpc2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.2"
+fi
 runtest "### TPC 2     " unix 0 "" tpc2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.3"
 runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/tpc
 
@@ -1060,7 +1075,7 @@ categorie="owncloud"
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
-runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc |grep success | wc -l | grep -w 6"
+runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc | grep success | wc -l | grep -w 5"
 
 # upload with chunking
 runtest "### OcChunk   " unix 0 "" shell eos-oc-test chunkedupload chunked /eos/$EOS_TEST_INSTANCE/test/instancetest/oc/
