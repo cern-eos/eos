@@ -6,9 +6,11 @@ require {
 	type var_run_t;
 	type automount_t;
 	type mount_t;
+	type unconfined_t;
 	class lnk_file { read getattr };
 	class dir add_name;
 	class file { write read create setattr };
+	class process { getpgid };
 }
 
 #============= automount_t ==============
