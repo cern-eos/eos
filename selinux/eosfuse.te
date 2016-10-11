@@ -1,4 +1,4 @@
-module eosfuse 1.1;
+module eosfuse 1.2;
 
 require {
 	type initrc_tmp_t;
