@@ -1,4 +1,3 @@
-
 module eosfuse 1.1;
 
 require {
@@ -23,3 +22,5 @@ allow mount_t var_log_t:file setattr;
 
 allow mount_t var_run_t:lnk_file getattr;
 allow mount_t var_run_t:lnk_file read;
+
+allow mount_t unconfined_t:process getpgid;
