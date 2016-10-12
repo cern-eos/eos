@@ -895,9 +895,14 @@ public:
   static void StartHeapProfiling (int);
 
   // ---------------------------------------------------------------------------
-  // Signal handler for signal 40 to start profiling the heap
+  // Signal handler for signal 41 to stop profiling the heap
   // ---------------------------------------------------------------------------
   static void StopHeapProfiling (int);
+
+  // ---------------------------------------------------------------------------
+  // Signal handler for signal 42 to dump the heap profile
+  // ---------------------------------------------------------------------------
+  static void DumpHeapProfile (int);
 
   // ---------------------------------------------------------------------------
   // Filesystem error and configuration change listener thread function

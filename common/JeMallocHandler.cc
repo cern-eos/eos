@@ -107,5 +107,9 @@ bool JeMallocHandler::StopProfiling()
   bool b=false;
   return mallctl("prof.active", NULL, NULL, &b, sizeof(bool))==0;
 }
+bool JeMallocHandler::DumpProfile()
+{
+  return mallctl("prof.dump", NULL, NULL, NULL, 0)==0;
+}
 
 EOSCOMMONNAMESPACE_END

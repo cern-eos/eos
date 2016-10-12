@@ -57,6 +57,7 @@ public:
   inline bool ProfRunning() { return pProfRunning; }
   bool StartProfiling();
   bool StopProfiling();
+  bool DumpProfile();
 };
 
 EOSCOMMONNAMESPACE_END

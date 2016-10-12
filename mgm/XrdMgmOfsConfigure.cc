@@ -337,6 +337,20 @@ void XrdMgmOfs::StopHeapProfiling( int sig )
     eos_static_warning("failed to stop jemalloc heap profiling");
 }
 
+void XrdMgmOfs::DumpHeapProfile( int sig )
+{
+  if(!gOFS->mJeMallocHandler.ProfRunning())
+  {
+    eos_static_crit("profiling is not running");
+    return;
+  }
+
+  if(gOFS->mJeMallocHandler.DumpProfile())
+    eos_static_warning("dumped heap profile");
+  else
+    eos_static_warning("failed to sump heap profile");
+}
+
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Configure (XrdSysError &Eroute)
@@ -434,6 +448,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   }
   signal(40,StartHeapProfiling);
   signal(41,StopHeapProfiling);
+  signal(42,DumpHeapProfile);
 
 
 
