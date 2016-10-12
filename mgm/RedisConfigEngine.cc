@@ -64,8 +64,10 @@ bool RedisCfgEngineChangelog::AddEntry(const char* info)
     oss << " " << key.c_str() << " => " << value.c_str();
   }
 
-  std::time_t time = std::time(NULL);
-  std::string timestamp = std::asctime(std::localtime(&time));
+  std::time_t now = std::time(NULL);
+  std::stringstream ss;
+  ss << now;
+  std::string timestamp = ss.str();
   mChLogHash.hset(timestamp, oss.str().c_str());
   mConfigChanges += info;
   mConfigChanges += "\n";
