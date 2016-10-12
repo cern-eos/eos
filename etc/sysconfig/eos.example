@@ -85,6 +85,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Allow read-write-modify to unpriviledged users (define to set, undefine to unset)
 # export EOS_ALLOW_RAIN_RWM
 
+# Allow heap profiling when using jemalloc built with profiling enabled (start profiling with signal 40 and stop with signal 41)
+# export MALLOC_CONF_mgm="prof:true,prof_active:false"
+
 # ------------------------------------------------------------------
 # FST Configuration
 # ------------------------------------------------------------------

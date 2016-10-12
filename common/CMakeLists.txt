@@ -66,6 +66,7 @@ add_library (eosCommon SHARED
             StringConversion.cc
 	    CommentLog.cc
 	    RWMutex.cc
+	    JeMallocHandler.cc
 	    )
 
 if( MacOSX )
