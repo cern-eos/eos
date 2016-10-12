@@ -70,7 +70,6 @@ public:
   bool Tail(unsigned int nlines, XrdOucString& tail);
 
 private:
-  XrdSysMutex mDbMapMutex; ///< Mutex protecting the acces to the map
   eos::common::DbMap mMap; ///< Map saving changes
   std::string mChLogFile; ///< Path to changelog file
 };

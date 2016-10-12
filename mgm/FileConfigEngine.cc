@@ -61,10 +61,7 @@ FileCfgEngineChangelog::AddEntry(const char* info)
     return false;
   }
 
-  // TODO (amanzi): investigate if this mutex can be removed
-  mDbMapMutex.Lock();
   mMap.set(key, value, action);
-  mDbMapMutex.UnLock();
   mConfigChanges += info;
   mConfigChanges += "\n";
   return true;
