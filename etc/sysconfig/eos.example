@@ -86,7 +86,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # export EOS_ALLOW_RAIN_RWM
 
 # Allow heap profiling when using jemalloc built with profiling enabled (start profiling with signal 40 and stop with signal 41)
-# export MALLOC_CONF_mgm="prof:true,prof_active:false"
+# for information about the option see https://linux.die.net/man/3/jemalloc
+# export MALLOC_CONF_mgm="prof:true,prof_active:false,prof_accum:true,lg_prof_interval:30"
+# means enable profiling support, start with NOT running profiling, issue cumulative dumps, autodump a profile every 2^30 bytes (1GB)
 
 # ------------------------------------------------------------------
 # FST Configuration
