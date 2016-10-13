@@ -446,9 +446,14 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     eos_warning("jemalloc is NOT loaded!");
     Eroute.Say("jemalloc is NOT loaded!");
   }
+  if(SIGRTMIN<=40 && 42<=SIGRTMAX)
+  {
   signal(40,StartHeapProfiling);
   signal(41,StopHeapProfiling);
   signal(42,DumpHeapProfile);
+  }
+  else
+    eos_static_warning("cannot install signal handlers for heap profiling as ports 40,41,42 don't fit in the allowed realtime dignal range. SIGRTMIN=%d  SIGRTMAX=%d",(int)SIGRTMIN,(int)SIGRTMAX);
 
 
 
