@@ -54,7 +54,7 @@ public:
   ~JeMallocHandler();
   inline bool JeMallocLoaded() { return pJeMallocLoaded; }
   inline bool CanProfile() { return pCanProfile; }
-  inline bool ProfRunning() { return pProfRunning; }
+  inline bool ProfRunning() { return IsProfgRunning(); }
   bool StartProfiling();
   bool StopProfiling();
   bool DumpProfile();
