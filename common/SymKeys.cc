@@ -37,6 +37,127 @@ SymKeyStore gSymKeyStore; //< global SymKey store singleton
 XrdSysMutex SymKey::msMutex;
 /*----------------------------------------------------------------------------*/
 
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+//------------------------------------------------------------------------------
+// Compute the HMAC SHA-256 value
+//------------------------------------------------------------------------------
+std::string
+SymKey::HmacSha256(std::string& key,
+		   std::string& data,
+		   unsigned int blockSize,
+		   unsigned int resultSize)
+{
+  HMAC_CTX *ctx = HMAC_CTX_new();
+  std::string result;
+  unsigned int data_len = data.length();
+  unsigned int key_len = key.length();
+  unsigned char* pKey = (unsigned char*) key.c_str();
+  unsigned char* pData = (unsigned char*) data.c_str();
+  result.resize(resultSize);
+  unsigned char* pResult = (unsigned char*) result.c_str();
+  ENGINE_load_builtin_engines();
+  ENGINE_register_all_complete();
+  HMAC_Init_ex(ctx, pKey, key_len, EVP_sha256(), NULL);
+
+  while (data_len > blockSize) {
+    HMAC_Update(ctx, pData, blockSize);
+    data_len -= blockSize;
+    pData += blockSize;
+  }
+
+  if (data_len) {
+    HMAC_Update(ctx, pData, data_len);
+  }
+
+  HMAC_Final(ctx, pResult, &resultSize);
+  HMAC_CTX_free(ctx);
+  return result;
+}
+
+
+//------------------------------------------------------------------------------
+// Compute the SHA256 value
+//------------------------------------------------------------------------------
+std::string
+SymKey::Sha256(const std::string& data,
+	       unsigned int blockSize)
+{
+  unsigned int data_len = data.length();
+  unsigned char* pData = (unsigned char*) data.c_str();
+  std::string result;
+  result.resize(EVP_MAX_MD_SIZE);
+  unsigned char* pResult = (unsigned char*) result.c_str();
+  unsigned int sz_result;
+  {
+    XrdSysMutexHelper scope_lock(msMutex);
+    EVP_MD_CTX* md_ctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(md_ctx, EVP_sha256(), NULL);
+
+    while (data_len > blockSize) {
+      EVP_DigestUpdate(md_ctx, pData, blockSize);
+      data_len -= blockSize;
+      pData += blockSize;
+    }
+
+    if (data_len) {
+      EVP_DigestUpdate(md_ctx, pData, data_len);
+    }
+
+    EVP_DigestFinal_ex(md_ctx, pResult, &sz_result);
+    EVP_MD_CTX_free(md_ctx);
+  }
+  // Return the hexdigest of the SHA256 value
+  std::ostringstream oss;
+  oss.fill('0');
+  oss << std::hex;
+  pResult = (unsigned char*) result.c_str();
+
+  for (unsigned int i = 0; i < sz_result; ++i) {
+    oss << std::setw(2) << (unsigned int) *pResult;
+    pResult++;
+  }
+
+  result = oss.str();
+  return result;
+}
+
+//------------------------------------------------------------------------------
+// Compute the HMAC SHA-1 value according to AWS standard
+//------------------------------------------------------------------------------
+std::string
+SymKey::HmacSha1(std::string& key,
+		 std::string& data)
+{
+  HMAC_CTX* ctx = HMAC_CTX_new();
+  std::string result;
+  unsigned int blockSize = 64;
+  unsigned int data_len = data.length();
+  unsigned int key_len = key.length();
+  unsigned char* pKey = (unsigned char*) key.c_str();
+  unsigned char* pData = (unsigned char*) data.c_str();
+  result.resize(20);
+  unsigned char* pResult = (unsigned char*) result.c_str();
+  ENGINE_load_builtin_engines();
+  ENGINE_register_all_complete();
+  HMAC_Init_ex(ctx, pKey, key_len, EVP_sha1(), NULL);
+
+  while (data_len > blockSize) {
+    HMAC_Update(ctx, pData, blockSize);
+    data_len -= blockSize;
+    pData += blockSize;
+  }
+
+  if (data_len) {
+    HMAC_Update(ctx, pData, data_len);
+  }
+
+  unsigned int resultSize;
+  HMAC_Final(ctx, pResult, &resultSize);
+  HMAC_CTX_free(ctx);
+  return result;
+}
+#else
+
 //------------------------------------------------------------------------------
 // Compute the HMAC SHA-256 value
 //------------------------------------------------------------------------------
@@ -161,11 +282,11 @@ SymKey::HmacSha1(std::string& key,
   HMAC_CTX_cleanup(&ctx);
   return result;
 }
+#endif
 
 //------------------------------------------------------------------------------
 // Base64 encoding function
 //------------------------------------------------------------------------------
-
 bool
 SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
 {
@@ -356,7 +477,7 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
   }
 
   Store.Add(key->GetDigest64(), key,
-            invalidity ? (invalidity + EOSCOMMONSYMKEYS_DELETIONOFFSET) : 0);
+	    invalidity ? (invalidity + EOSCOMMONSYMKEYS_DELETIONOFFSET) : 0);
   // point the current key to last added
   currentKey = key;
   Mutex.UnLock();
@@ -397,5 +518,3 @@ SymKeyStore::GetCurrentKey()
 
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
-
-
