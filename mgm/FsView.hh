@@ -344,14 +344,14 @@ public:
       // set the groupbalancer threshold by default
       if (GetConfigMember("groupbalancer.threshold") == "")
         SetConfigMember("groupbalancer.threshold", "5", true, "/eos/*/mgm");
-      if (GetConfigMember("geotagbalancer") == "")
-        SetConfigMember("geotagbalancer", "off", true, "/eos/*/mgm");
-      // set the geotagbalancer max number of scheduled files by default
-      if (GetConfigMember("geotagbalancer.ntx") == "")
-        SetConfigMember("geotagbalancer.ntx", "10", true, "/eos/*/mgm");
-      // set the geotagbalancer threshold by default
-      if (GetConfigMember("geotagbalancer.threshold") == "")
-        SetConfigMember("geotagbalancer.threshold", "5", true, "/eos/*/mgm");
+      if (GetConfigMember("geobalancer") == "")
+        SetConfigMember("geobalancer", "off", true, "/eos/*/mgm");
+      // set the geobalancer max number of scheduled files by default
+      if (GetConfigMember("geobalancer.ntx") == "")
+        SetConfigMember("geobalancer.ntx", "10", true, "/eos/*/mgm");
+      // set the geobalancer threshold by default
+      if (GetConfigMember("geobalancer.threshold") == "")
+        SetConfigMember("geobalancer.threshold", "5", true, "/eos/*/mgm");
       // disable lru by default
       if (GetConfigMember("lru") == "")
         SetConfigMember("converter", "off", true, "/eos/*/mgm");
