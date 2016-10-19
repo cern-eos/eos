@@ -7,6 +7,19 @@
 Beryl Release Notes
 ===================
 
+``V0.3.214 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: fix geobalancer default variable names (were geotagbalancer)
+
+New Feature
++++++++++++
+
+- MGM: bounce checksum & open requests without an attached replica to an alive master
+- MGM: add heap profiler
 
 ``V0.3.213 Aquamarine``
 =======================
