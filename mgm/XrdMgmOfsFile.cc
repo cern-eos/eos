@@ -1595,6 +1595,16 @@ XrdMgmOfsFile::open (const char *inpath,
         return rcode;
       }
 
+      if ( !gOFS->MgmMaster.IsMaster() && gOFS->MgmMaster.IsRemoteMasterOk())
+      {
+	// redirect ENONET to an alive remote master
+	redirectionhost = gOFS->MgmMaster.GetMasterHost();
+	ecode = 1094;
+	rcode = SFS_REDIRECT;
+	error.setErrInfo(ecode, redirectionhost.c_str());
+        gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
+        return rcode;
+      }
       gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1);
     }
     else

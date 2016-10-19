@@ -361,6 +361,13 @@ public:
     return fRemoteMasterRW;
   }
 
+
+  bool
+  IsRemoteMasterOk ()
+  {
+    return fRemoteMasterOk;
+  }
+
   //------------------------------------------------------------------------
   // Check if a remote service is reachable on a given port with timeout
   //------------------------------------------------------------------------
