@@ -92,7 +92,7 @@ start() {
 	echo
 	for i in ${XRD_ROLES}; do
 	        MALLOC_CONF_VARNAME="MALLOC_CONF_$i";
-            if [ "A${!MALLOC_CONF_VARNAME}" != "A ]; then
+            if [ "A${!MALLOC_CONF_VARNAME}" != "A" ]; then
                     export MALLOC_CONF="${!MALLOC_CONF_VARNAME}"
             fi
             XRD_ROLEFLAG="";
