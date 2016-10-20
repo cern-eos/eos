@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.215 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- ETC: fix typoe introduced by MALLOC_CONF_VARNAME 
+
 ``V0.3.214 Aquamarine``
 =======================
 
