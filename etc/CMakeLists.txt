@@ -32,15 +32,7 @@ install(
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/)
 
 install(
-  FILES rc.d/init.d/eos rc.d/init.d/eosha rc.d/init.d/eosslave
-        rc.d/init.d/eossync rc.d/init.d/eosd
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d
-  PERMISSIONS OWNER_READ OWNER_EXECUTE
-              GROUP_READ GROUP_EXECUTE
-              WORLD_READ WORLD_EXECUTE)
-
-install(
-  FILES sysconfig/eos.example sysconfig/xrootd.example
+  FILES sysconfig/xrootd.example
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
 
 install(
@@ -51,15 +43,39 @@ install(
   FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/)
 
-# The following files are used by systemd-enabled systems
-set(SYSTEMD_DIR /lib/systemd/system/)
+# Installing files in depend of service manager (systemd or sysVinit)
+set(SYSTEMD_DIR /etc/systemd/system/)
 
 if(EXISTS ${SYSTEMD_DIR})
 install(
-  FILES eos.systemd.conf
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/)
+  FILES sysconfig/eos_env.example
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
 
 install(
-  FILES eos@.service
-  DESTINATION /lib/systemd/system/)
+  FILES systemd/system/eos.service
+        systemd/system/eos@.service
+        systemd/system/eos@fed.service
+        systemd/system/eosfstdb@.service
+        systemd/system/eos@master.service
+        systemd/system/eos@slave.service
+        systemd/system/eosd.service
+        systemd/system/eosd@.service
+        systemd/system/eosha.service
+        systemd/system/eosslave.service
+        systemd/system/eossync.service
+        systemd/system/eossync@.service
+        systemd/system/eossync@config.service
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/systemd/system)
+else()
+install(
+  FILES sysconfig/eos.example
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
+
+install(
+ FILES rc.d/init.d/eos rc.d/init.d/eosha rc.d/init.d/eosslave
+        rc.d/init.d/eossync rc.d/init.d/eosd
+ DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d
+ PERMISSIONS OWNER_READ OWNER_EXECUTE
+            GROUP_READ GROUP_EXECUTE
+            WORLD_READ WORLD_EXECUTE)
 endif()

@@ -6,15 +6,15 @@
 
 %if %{?rhel:1}%{!?rhel:0}
     %if %{rhel} >= 7
-	%define use_systemd 1
+        %define use_systemd 1
     %else
-	%define use_systemd 0
+        %define use_systemd 0
     %endif
 %else
     %if %{?fedora}%{!?fedora:0} >= 19
-	%define use_systemd 1
+        %define use_systemd 1
     %else
-	%define use_systemd 0
+        %define use_systemd 0
     %endif
 %endif
 
@@ -201,11 +201,26 @@ The EOS server installation containing MGM, FST & MQ service.
 %config(noreplace) %{_sysconfdir}/xrd.cf.sync
 %config(noreplace) %{_sysconfdir}/xrd.cf.fed
 %config(noreplace) %{_sysconfdir}/xrd.cf.prefix
-%config(noreplace) %{_sysconfdir}/sysconfig/eos.example
-%{_sysconfdir}/rc.d/init.d/eos
-%{_sysconfdir}/rc.d/init.d/eosha
-%{_sysconfdir}/rc.d/init.d/eossync
-%{_sysconfdir}/rc.d/init.d/eosslave
+%if %{use_systemd}
+    %config(noreplace) %{_sysconfdir}/sysconfig/eos_env.example
+    %{_sysconfdir}/systemd/system/eos.service
+    %{_sysconfdir}/systemd/system/eos@.service
+    %{_sysconfdir}/systemd/system/eos@fed.service
+    %{_sysconfdir}/systemd/system/eos@master.service
+    %{_sysconfdir}/systemd/system/eos@slave.service
+    %{_sysconfdir}/systemd/system/eosfstdb@.service
+    %{_sysconfdir}/systemd/system/eosha.service
+    %{_sysconfdir}/systemd/system/eosslave.service
+    %{_sysconfdir}/systemd/system/eossync.service
+    %{_sysconfdir}/systemd/system/eossync@.service
+    %{_sysconfdir}/systemd/system/eossync@config.service
+%else
+    %config(noreplace) %{_sysconfdir}/sysconfig/eos.example
+    %{_sysconfdir}/rc.d/init.d/eos
+    %{_sysconfdir}/rc.d/init.d/eosha
+    %{_sysconfdir}/rc.d/init.d/eossync
+    %{_sysconfdir}/rc.d/init.d/eosslave
+%endif
 %{_sysconfdir}/cron.d/eos-logs
 %{_sysconfdir}/cron.d/eos-reports
 %{_sysconfdir}/logrotate.d/eos-logs
@@ -221,17 +236,31 @@ The EOS server installation containing MGM, FST & MQ service.
 /sbin/chkconfig --add eosslave
 echo "Starting conditional EOS services"
 sleep 2
-/sbin/service eos condrestart > /dev/null 2>&1 || :
-/sbin/service eosd condrestart > /dev/null 2>&1 || :
+%if %{use_systemd}
+    /sbin/systemctl daemon-reload > /dev/null 2>&1 || :
+    /sbin/systemctl restart eos@* > /dev/null 2>&1 || :
+    /sbin/systemctl restart eosd@* > /dev/null 2>&1 || :
+%else
+    /sbin/service eos condrestart > /dev/null 2>&1 || :
+    /sbin/service eosd condrestart > /dev/null 2>&1 || :
+%endif
 
 %preun -n eos-server
 if [ $1 = 0 ]; then
   echo "Stopping EOS services"
-  /sbin/service eosha stop > /dev/null 2>&1
-  /sbin/service eosd stop > /dev/null 2>&1
-  /sbin/service eos stop > /dev/null 2>&1 || :
-  /sbin/service eossync stop > /dev/null 2>&1
-  /sbin/service eosslave stop > /dev/null 2>&1
+  %if %{use_systemd}
+    /sbin/systemctl stop eosha > /dev/null 2>&1
+    /sbin/systemctl stop eosd@* > /dev/null 2>&1
+    /sbin/systemctl stop eos@* > /dev/null 2>&1 || :
+    /sbin/systemctl stop eossync@* > /dev/null 2>&1
+    /sbin/systemctl stop eosslave > /dev/null 2>&1
+  %else
+    /sbin/service eosha stop > /dev/null 2>&1
+    /sbin/service eosd stop > /dev/null 2>&1
+    /sbin/service eos stop > /dev/null 2>&1 || :
+    /sbin/service eossync stop > /dev/null 2>&1
+    /sbin/service eosslave stop > /dev/null 2>&1
+  %endif
   /sbin/chkconfig --del eos
   /sbin/chkconfig --del eosslave
 fi
@@ -273,7 +302,7 @@ Summary: The EOS fuse client with init.d and mount script
 Group: Applications/File
 
 Requires: eos-fuse-core
-Requires: eos-fuse-sysv
+Requires: eos-fuse-sys
 
 %description -n eos-fuse
 The EOS fuse client bundle.
@@ -344,35 +373,46 @@ if [ $1 -eq 0 ]; then
 fi
 
 #-------------------------------------------------------------------------------
-# Package eos-fuse-sysv
+# Package eos-fuse-sys
 #-------------------------------------------------------------------------------
-%package -n eos-fuse-sysv
+%package -n eos-fuse-sys
 Summary: The EOS fuse client
 Group: Applications/File
 
 Requires: eos-fuse-core
 
-%description -n eos-fuse-sysv
-The EOS fuse SYSV init scripts.
+%description -n eos-fuse-sys
+The EOS fuse SYSV init scripts and SystemD scripts.
 
-%files -n eos-fuse-sysv
+%files -n eos-fuse-sys
 %defattr(-, root, root, -)
-%{_sysconfdir}/rc.d/init.d/eosd
-
-%post -n eos-fuse-sysv
+%if %{use_systemd}
+    %{_sysconfdir}/systemd/system/eosd.service
+    %{_sysconfdir}/systemd/system/eosd@.service
+%else
+    %{_sysconfdir}/rc.d/init.d/eosd
+%endif
+%post -n eos-fuse-sys
+%if %{use_systemd}
+    /sbin/systemctl daemon-reload > /dev/null 2>&1 || :
+%endif
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
   echo "Skipping chkconfig for eosd"
 %else
   /sbin/chkconfig --add eosd
 %endif
 
-%preun -n eos-fuse-sysv
+%preun -n eos-fuse-sys
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
   echo "Skipping chkconfig for eosd"
 %else
   if [ $1 = 0 ]; then
     echo "Stopping EOS FUSE services"
-    /sbin/service eosd stop > /dev/null 2>&1 || :
+    %if %{use_systemd}
+        /sbin/systemctl stop eosd@* > /dev/null 2>&1 || :
+    %else
+        /sbin/service eosd stop > /dev/null 2>&1 || :
+    %endif
     /sbin/chkconfig --del eosd
   fi
 %endif
