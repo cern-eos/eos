@@ -1,0 +1,40 @@
+#-------------------------------------------------------------------------------
+# File: eosha.service
+# Author: Ivan Arizanovic - ComTrade Solutions Engineering
+#-------------------------------------------------------------------------------
+#
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2016 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+[Unit]
+Description=EOS High Availability
+Requires=eossync.service
+
+[Service]
+EnvironmentFile=/etc/sysconfig/eos_env
+Environment=EOS_MGM_FAILOVERTIME=120
+ExecStartPre=/usr/bin/mkdir -p /var/log/eos/eosha
+ExecStartPre=/usr/bin/chown daemon:daemon /var/log/eos/eosha
+ExecStart=/usr/sbin/eosha /var/log/eos//eosha//eosha.log ${EOS_MGM_MASTER1}\
+${EOS_MGM_MASTER2} ${EOS_MGM_ALIAS} ${EOS_MGM_FAILOVERTIME}
+ExecStop=/usr/bin/systemctl stop eossync@*
+Type=forking
+User=root
+Group=root
+
+[Install]
+RequiredBy=multi-user.target

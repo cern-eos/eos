@@ -1,0 +1,83 @@
+#-------------------------------------------------------------------------------
+# File: eosd@.service
+# Author: Ivan Arizanovic - ComTrade Solutions Engineering
+#-------------------------------------------------------------------------------
+#
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2016 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+[Unit]
+Description=EOSd %i
+
+[Service]
+# TODO Maybe move all these environment variables in an environment file
+Environment=EOSD=writeback_cache,
+Environment=EOS_MGM_FAILOVERTIME=120
+Environment=EOS_FUSE_DEBUG=0
+Environment=EOS_FUSE_LOWLEVEL_DEBUG=0
+Environment=EOS_FUSE_NOACCESS=1
+Environment=EOS_FUSE_SYNC=0
+Environment=EOS_FUSE_KERNELCACHE=1
+Environment=EOS_FUSE_DIRECTIO=0
+Environment=EOS_FUSE_CACHE=1
+Environment=EOS_FUSE_CACHE_SIZE=67108864
+Environment=EOS_FUSE_CACHE_PAGE_SIZE=262144
+Environment=EOS_FUSE_BIGWRITES=big_writes,
+Environment=EOS_FUSE_EXEC=0
+Environment=EOS_FUSE_NO_MT=0
+Environment=EOS_FUSE_USER_KRB5CC=0
+Environment=EOS_FUSE_USER_UNSAFEKRB5=0
+Environment=EOS_FUSE_USER_GSIPROXY=0
+Environment=EOS_FUSE_USER_KRB5FIRST=0
+Environment=EOS_FUSE_FALLBACKTONOBODY=0
+Environment=EOS_FUSE_PIDMAP=0
+Environment=EOS_FUSE_RMLVL_PROTECT=1
+Environment=EOS_FUSE_RDAHEAD=0
+Environment=EOS_FUSE_RDAHEAD_WINDOW=131072
+Environment=EOS_FUSE_LAZYOPENRO=0
+Environment=EOS_FUSE_LAZYOPENRW=1
+Environment=EOS_FUSE_SHOW_SPECIAL_FILES=0
+Environment=EOS_FUSE_SHOW_EOS_ATTRIBUTES=0
+Environment=EOS_FUSE_INLINE_REPAIR=1
+Environment=EOS_FUSE_MAX_INLINE_REPAIR_SIZE=268435456
+Environment=EOS_FUSE_LOG_PREFIX=%i
+Environment=EOS_FUSE_ENTRY_CACHE_TIME=10
+Environment=EOS_FUSE_ATTR_CACHE_TIME=10
+Environment=EOS_FUSE_NEG_ENTRY_CACHE_TIME=30
+Environment=EOS_FUSE_CREATOR_CAP_LIFETIME=30
+Environment=EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
+Environment=EOS_FUSE_MOUNTDIR=/eos/
+Environment=EOS_FUSE_REMOTEDIR=/eos/
+Environment=EOS_FUSE_MGM_ALIAS=localhost
+Type=forking
+ExecStartPre=/usr/bin/mkdir -p /var/run/eosd/
+ExecStartPre=/usr/bin/mkdir -p /var/run/eosd/credentials/store
+ExecStartPre=/usr/bin/chmod 1777 /var/run/eosd/credentials
+ExecStartPre=/usr/bin/chmod 1777 /var/run/eosd/credentials/store
+ExecStartPre=/usr/bin/mkdir -p ${EOS_FUSE_MOUNTDIR}
+ExecStartPre=/usr/bin/chmod 700 ${EOS_FUSE_MOUNTDIR}
+ExecStart=/usr/bin/eosd ${EOS_FUSE_MOUNTDIR} -o${EOS_FUSE_BIGWRITES}${$EOSD}\
+max_readahead=${EOS_FUSE_RDAHEAD_WINDOW},max_write=4194304,fsname=eos%i,\
+allow_other,url=root://${EOS_FUSE_MGM_ALIAS}/${EOS_FUSE_REMOTEDIR}
+ExecStop=/usr/bin/umount ${EOS_FUSE_MOUNTDIR}
+User=root
+Group=root
+LimitNOFILE=65000
+LimitCORE=0
+
+[Install]
+RequiredBy=multi-user.target

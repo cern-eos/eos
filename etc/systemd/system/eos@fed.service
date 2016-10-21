@@ -1,0 +1,54 @@
+#-------------------------------------------------------------------------------
+# File: eos@fed.service
+# Author: Ivan Arizanovic - ComTrade Solutions Engineering
+#-------------------------------------------------------------------------------
+#
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2016 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+[Unit]
+Description=EOS %i
+Requires=cmsd@clustered.service
+
+[Service]
+EnvironmentFile=/etc/sysconfig/eos_env
+ExecStartPre=/usr/bin/mkdir -p /var/eos/md /var/eos/config /var/eos/report
+ExecStartPre=/usr/bin/chmod 700 /var/eos/md /var/eos/config
+ExecStartPre=/usr/bin/chmod 755 /var/eos /var/eos/report
+ExecStartPre=/usr/bin/mkdir -p /var/spool/eos/core/%i \
+/var/spool/eos/admin /var/log/eos /var/eos
+ExecStartPre=/usr/bin/touch /var/eos/default.eoscf
+ExecStartPre=/usr/bin/chown -R daemon /var/spool/eos \
+/var/spool/eos/admin /var/log/eos /var/eos
+ExecStartPre=/usr/bin/chmod -R 775 /var/spool/eos
+ExecStartPre=/usr/bin/mkdir -p /var/eos/auth /var/eos/stage
+ExecStartPre=/usr/bin/chown daemon /var/eos/auth /var/eos/stage
+ExecStartPre=/usr/bin/setfacl -m default:u:daemon:r /var/eos/auth/
+ExecStart=/usr//bin/xrootd -n ${%i} -c /etc/xrd.cf.${%i} -l \
+/var/log/eos/xrdlog.${%i} -b -Rdaemon
+ExecStop=/usr/bin/systemctl stop cmsd@clustered
+Type=forking
+User=root
+Group=root
+Restart=on-abort
+RestartSec=0
+KillMode=mixed
+SuccessExitStatus=1 KILL
+LimitNOFILE=65000
+
+[Install]
+RequiredBy=multi-user.target
