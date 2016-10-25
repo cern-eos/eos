@@ -29,3 +29,11 @@ else()
 
   mark_as_advanced(LIBEV_LIBRARY LIBEV_INCLUDE_DIR)
 endif()
+
+# If Libev not found, set the variables to empty stinrgs so that they can be
+# used in CMakeLists.txt without additional checks.
+if(NOT LIBEV_FOUND)
+  set(LIBEV_INCLUDE_DIRS "")
+  set(LIBEV_LIBRARY      "")
+  set(LIBEV_LIBRARIES    "")
+endif()
