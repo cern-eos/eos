@@ -173,7 +173,7 @@ ICfgEngineChangelog::ParseTextEntry(const char* entry, std::string& key,
 // Constructor
 //------------------------------------------------------------------------------
 IConfigEngine::IConfigEngine():
-  mChangelog(nullptr), mAutosave(false), mBroadcast(true),
+  mChangelog(), mAutosave(false), mBroadcast(true),
   mConfigFile("default"), mConfigDir()
 {}
 
