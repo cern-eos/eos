@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.216 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: fix OC upload complete condition
+
+
 ``V0.3.215 Aquamarine``
 =======================
 
