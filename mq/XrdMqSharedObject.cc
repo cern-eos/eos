@@ -2146,7 +2146,7 @@ XrdMqSharedObjectManager::CloseMuxTransaction()
     IsMuxTransaction = false;
     MuxTransactions.clear();
   }
-  MuxTransactionMutex.UnLock();
+
   return true;
 }
 
