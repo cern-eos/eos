@@ -54,7 +54,8 @@ set(
   StringTokenizer.cc
   StringConversion.cc
   CommentLog.cc
-  RWMutex.cc)
+  RWMutex.cc
+  JeMallocHandler.cc)
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 

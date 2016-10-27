@@ -207,6 +207,22 @@ class Master : public eos::common::LogId
   }
 
   //----------------------------------------------------------------------------
+  //! Get if remove master is OK
+  //!
+  //! @return true if OK, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  IsRemoteMasterOk ()
+  {
+    return fRemoteMasterOk;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if a remote service is reachable on a given port with timeout
+  //----------------------------------------------------------------------------
+  bool HostCheck (const char* hostname, int port = 1094, int timeout = 5);
+
+  //----------------------------------------------------------------------------
   //! Reset master log
   //----------------------------------------------------------------------------
   void

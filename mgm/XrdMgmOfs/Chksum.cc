@@ -134,10 +134,12 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  bool enonet=false;
 
   try
   {
     fmd = gOFS->eosView->getFile(cPath.GetPath());
+    enonet = !fmd->getNumLocation();
   }
   catch (eos::MDException &e)
   {
@@ -155,6 +157,18 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
 
     error.setErrInfo(rc, "no such file or directory");
     return SFS_ERROR;
+  }
+
+  if (enonet)
+  {
+    // this file has no committed replicas, we might bounce to an alive remote master
+    if ( !gOFS->MgmMaster.IsMaster() && gOFS->MgmMaster.IsRemoteMasterOk())
+    {
+      // redirect ENONET to an alive remote master                                                                             
+      error.setErrInfo(1094, gOFS->MgmMaster.GetMasterHost());
+      gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
+      return SFS_REDIRECT;
+    }
   }
 
   // ---------------------------------------------------------------------------

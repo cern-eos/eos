@@ -91,6 +91,10 @@ start() {
 	# Start xrootd daemons
 	echo
 	for i in ${XRD_ROLES}; do
+	        MALLOC_CONF_VARNAME="MALLOC_CONF_$i";
+            if [ "A${!MALLOC_CONF_VARNAME}" != "A" ]; then
+                    export MALLOC_CONF="${!MALLOC_CONF_VARNAME}"
+            fi
             XRD_ROLEFLAG="";
             if [ "$i" = "mgm" ]; then
 		    XRD_ROLEFLAG="-m "
