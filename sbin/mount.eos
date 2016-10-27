@@ -111,7 +111,13 @@ if [ ${EOSD} == "eosd3" ]; then
     FUSE_OPT=${FUSE_OPT}"writeback_cache,"
 fi
 
-source /etc/rc.d/init.d/eosd start $1
+readonly SYSTEMD=$(pidof systemd)
+if [[ $SYSTEMD = 1 ]]
+    then
+        systemctl start eosd
+    else
+        source /etc/rc.d/init.d/eosd start $1
+fi
 echo -n "Starting $prog for instance: $1"
 
 cd /var/run/eosd/

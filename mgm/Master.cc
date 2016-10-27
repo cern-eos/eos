@@ -178,7 +178,7 @@ Master::Init()
   // get sync up if it is not up
   eos::common::ShellCmd
   scmd1(fHasSystemd ?
-        "service --skip-redirect eos status sync || service --skip-redirect eos start sync"
+        "systemctl status eos@sync || systemctl start eos@sync"
         :
         "service eos status sync || service eos start sync");
   rc = scmd1.wait(30);
@@ -191,7 +191,7 @@ Master::Init()
   // get eossync up if it is not up
   eos::common::ShellCmd
   scmd2(fHasSystemd ?
-        "service --skip-redirect eossync status || service --skip-redirect eossync start "
+        "systemctl status eossync@* || systemctl start eossync"
         : "service eossync status || service eossync start ");
   rc = scmd2.wait(30);
 
@@ -1275,7 +1275,7 @@ Master::Slave2Master()
   // -----------------------------------------------------------
   eos::common::ShellCmd
   scmd1(fHasSystemd ?
-        "service --skip-redirect eos status sync && service --skip-redirect eos stop sync"
+        "systemctl status eos@sync && systemctl stop eos@sync"
         :
         "service eos status sync && service eos stop sync");
   eos::common::cmd_status rc = scmd1.wait(30);
@@ -1297,7 +1297,9 @@ Master::Slave2Master()
     MasterLog(eos_crit("slave=>master transition aborted since sync was down"));
     fRunningState = Run::State::kIsNothing;
     eos::common::ShellCmd
-    scmd2(fHasSystemd ? "service --skip-redirect eos start sync" :
+    scmd2(fHasSystemd ?
+          "systemctl start eos@sync"
+          :
           "service eos start sync");
     rc = scmd2.wait(30);
 
@@ -1457,7 +1459,7 @@ Master::Slave2Master()
                        e.getErrno(), e.getMessage().str().c_str()));
     fRunningState = Run::State::kIsNothing;
     eos::common::ShellCmd
-    scmd3(fHasSystemd ? "service --skip-redirect eos start sync" :
+    scmd3(fHasSystemd ? "systemctl start eos@sync" :
           "service eos start sync");
     rc = scmd3.wait(30);
 
@@ -1470,7 +1472,7 @@ Master::Slave2Master()
 
   fRunningState = Run::State::kIsRunningMaster;
   eos::common::ShellCmd
-  scmd3(fHasSystemd ? "service --skip-redirect eos start sync" :
+  scmd3(fHasSystemd ? "systemctl start eos@sync" :
         "service eos start sync");
   rc = scmd3.wait(30);
 
