@@ -374,8 +374,8 @@ protected:
                        (int)pid, (int)sid);
         sid = -1;
       }
-
-      unlock_w_pcache(sid);
+      else
+        unlock_w_pcache(sid);
     }
 
     // get the startuptime of the leader of the session
