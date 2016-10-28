@@ -328,17 +328,6 @@ Storage::Publish()
                        (long long)(gFmdDbMapHandler.FmdMap.count(fsid) ?
                                    gFmdDbMapHandler.FmdMap[fsid]->size() : 0));
           }
-          unsigned long long used_files = 0;
-          {
-            eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
-            used_files = 0;
-
-            if (gFmdDbMapHandler.FmdSqliteMap.count(fsid)) {
-              eos::common::RWMutexReadLock flock(gFmdDbMapHandler.FmdSqliteMutexMap[fsid]);
-              used_files = (long long)(gFmdDbMapHandler.FmdSqliteMap[fsid].size());
-            }
-          }
-          success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", used_files);
           success &= fileSystemsVector[i]->SetString("stat.boot",
                      fileSystemsVector[i]->GetStatusAsString(fileSystemsVector[i]->GetStatus()));
           success &= fileSystemsVector[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
