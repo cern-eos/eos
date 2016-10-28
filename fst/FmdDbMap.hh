@@ -338,14 +338,8 @@ public:
   }
 #endif
 
-  // ---------------------------------------------------------------------------
-  //! Hash map pointing from fid to offset in changelog file
-  // ---------------------------------------------------------------------------
-  google::sparse_hash_map<eos::common::FileSystem::fsid_t, eos::common::DbMap* >
-  FmdMap;
-
-private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> dbmap;
+private:
 #ifndef EOS_SQLITE_DBMAP
   eos::common::LvDbDbMapInterface::Option lvdboption;
 #endif

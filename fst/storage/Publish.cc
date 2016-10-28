@@ -325,8 +325,8 @@ Storage::Publish()
           {
             eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
             success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles",
-                       (long long)(gFmdDbMapHandler.FmdMap.count(fsid) ?
-                                   gFmdDbMapHandler.FmdMap[fsid]->size() : 0));
+                       (long long)(gFmdDbMapHandler.dbmap.count(fsid) ?
+                                   gFmdDbMapHandler.dbmap[fsid]->size() : 0));
           }
           success &= fileSystemsVector[i]->SetString("stat.boot",
                      fileSystemsVector[i]->GetStatusAsString(fileSystemsVector[i]->GetStatus()));
