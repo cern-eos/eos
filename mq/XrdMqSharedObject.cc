@@ -2579,6 +2579,7 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast,
 
     if (XrdMqSharedObjectManager::broadcast && broadcast) {
       if (SOM->IsMuxTransaction) {
+        XrdSysMutexHelper mLock(SOM->MuxTransactionsMutex);
         SOM->MuxTransactions[Subject].insert(skey);
       } else {
         // we emulate a transaction for a single Set
