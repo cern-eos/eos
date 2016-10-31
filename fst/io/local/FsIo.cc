@@ -217,7 +217,7 @@ FsIo::fileRemove(uint16_t timeout)
 {
   struct stat buf;
 
-  if (fileStat(&buf)) {
+  if (!fileStat(&buf)) {
     return ::unlink(mFilePath.c_str());
   }
 

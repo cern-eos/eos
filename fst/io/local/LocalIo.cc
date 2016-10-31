@@ -288,7 +288,7 @@ LocalIo::fileRemove(uint16_t timeout)
 {
   struct stat buf;
 
-  if (fileStat(&buf)) {
+  if (!fileStat(&buf)) {
     // Only try to delete if there is something to delete!
     if (mLogicalFile) {
       return unlink(mLogicalFile->GetFstPath().c_str());
