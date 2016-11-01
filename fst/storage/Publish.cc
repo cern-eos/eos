@@ -402,7 +402,10 @@ Storage::Publish()
             hash->SetLongLong("stat.sys.vsize", osstat.vsize);
             hash->SetLongLong("stat.sys.rss", osstat.rss);
             hash->SetLongLong("stat.sys.threads", osstat.threads);
-            hash->Set("stat.sys.eos.version", VERSION);
+            {
+              XrdOucString v=VERSION; v+="-"; v+=RELEASE;
+              hash->Set("stat.sys.eos.version", v.c_str());
+            }
             hash->Set("stat.sys.keytab", eos::fst::Config::gConfig.KeyTabAdler.c_str());
             hash->Set("stat.sys.uptime", publish_uptime.c_str());
             hash->Set("stat.sys.sockets", publish_sockets.c_str());
