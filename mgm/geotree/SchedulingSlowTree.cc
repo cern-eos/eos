@@ -438,9 +438,9 @@ bool SlowTree::buildFastStrcturesSched(
     // create a new level
     nodesByDepth.resize(nodesByDepth.size()+1);
     // iterate through the nodes of the last level
+    godeeper = false;
     for(vector<const SlowTreeNode*>::const_iterator it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
     {
-      godeeper = false;
       // iterate through the children of each of those nodes
       for(SlowTreeNode::tNodeMap::const_iterator cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
       {
@@ -561,9 +561,9 @@ bool SlowTree::buildFastStrcturesSched(
     // create a new level
     nodesByDepth.resize(nodesByDepth.size()+1);
     // iterate through the nodes of the last level
+    godeeper = false;
     for(vector<const SlowTreeNode*>::const_iterator it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
     {
-      godeeper = false;
       // iterate through the children of each of those nodes
       for(auto cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
       {
@@ -703,9 +703,9 @@ bool SlowTree::buildFastStructuresGW(
     // create a new level
     nodesByDepth.resize(nodesByDepth.size()+1);
     // iterate through the nodes of the last level
+    godeeper = false;
     for(vector<const SlowTreeNode*>::const_iterator it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
     {
-      godeeper = false;
       // iterate through the children of each of those nodes
       for(SlowTreeNode::tNodeMap::const_iterator cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
       {
@@ -799,9 +799,9 @@ bool SlowTree::buildFastStructuresGW(
     // create a new level
     nodesByDepth.resize(nodesByDepth.size()+1);
     // iterate through the nodes of the last level
+    godeeper = false;
     for(vector<const SlowTreeNode*>::const_iterator it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
     {
-      godeeper = false;
       // iterate through the children of each of those nodes
       for(auto cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
       {
