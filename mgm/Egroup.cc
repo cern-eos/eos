@@ -513,7 +513,7 @@ Egroup::DumpMember (std::string &username, std::string & egroupname)
   rs += " user=";
   rs += username;
   if (member)
-    rs += " member=true ";
+    rs += " member=true";
   else
     rs += " member=false";
   rs += " lifetime=";
