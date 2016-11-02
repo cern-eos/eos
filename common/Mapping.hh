@@ -220,7 +220,7 @@ public:
   {
     std::string svid = vidstring;
     std::vector<std::string> tokens;
-    eos::common::StringConversion::Tokenize(
+    eos::common::StringConversion::EmptyTokenize(
       vidstring,
       tokens,
       ":");

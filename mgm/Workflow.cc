@@ -44,21 +44,27 @@ Workflow::Trigger(std::string event, std::string workflow,
   eos_static_info("event=\"%s\" workflow=\"%s\"", event.c_str(),
                   workflow.c_str());
 
-  if ((event == "open") || (event == "prepare")) {
+  errno = 0;
+
+  if ((event == "open") || (event == "prepare")) 
+  {
     std::string key = "sys.workflow.";
     key += event;
     key += ".";
     key += workflow;
     eos_static_info("key=%s %d %d", key.c_str(), mAttr, (*mAttr).count(key));
 
-    if (mAttr && (*mAttr).count(key)) {
+    if (mAttr && (*mAttr).count(key)) 
+    {
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
       bool ok = Create(vid);
 
-      if (ok) {
-        if ((workflow == "enonet")) {
+      if (ok) 
+      {
+        if ((workflow == "enonet")) 
+        {
           std::string stallkey = key + ".stall";
 
           if ((*mAttr).count(stallkey)) {
@@ -70,41 +76,28 @@ Workflow::Trigger(std::string event, std::string workflow,
 
         return 0;
       }
-
+      errno = EIO;
       return -1;
     }
+    else
+    {
+      errno = ENOKEY;
+    }
   }
+  else
+  {
+    std::string key = "sys.workflow." + event + "." + workflow;
 
-  if (event == "closer") {
-    std::string key = "sys.workflow.closer." + workflow;
-
-    if (mAttr && (*mAttr).count(key)) {
+    if (mAttr && (*mAttr).count(key)) 
+    {
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
       return Create(vid);
     }
-  }
-
-  if (event == "closew") {
-    std::string key = "sys.workflow.closew." + workflow;
-
-    if (mAttr && (*mAttr).count(key)) {
-      mEvent = event;
-      mWorkflow = workflow;
-      mAction = (*mAttr)[key];
-      return Create(vid);
-    }
-  }
-
-  if ((event == "delete")) {
-    std::string key = "sys.workflow.delete." + workflow;
-
-    if (mAttr && (*mAttr).count(key)) {
-      mEvent = event;
-      mWorkflow = workflow;
-      mAction = (*mAttr)[key];
-      return Create(vid);
+    else
+    {
+      errno = ENOKEY;
     }
   }
 
@@ -156,7 +149,7 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid)
   WFE::Job job(mFid, vid);
   time_t t = time(0);
   job.AddAction(mAction, mEvent, t, mWorkflow, "q");
-  return job.Save("q");
+  return (job.Save("q")?false:true);
 }
 
 /*----------------------------------------------------------------------------*/

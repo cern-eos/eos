@@ -1468,7 +1468,7 @@ WFE::Job::DoIt()
               } else {
                 eos_static_info("msg=\"done bash workflow\" job=\"%s\"",
                                 mDescription.c_str());
-                Move(mActions[0].mQueue, "d");
+                Move("r", "d");
               }
 
               // scan for result tags referencing the workflow path
@@ -1524,7 +1524,7 @@ WFE::Job::DoIt()
               // cannot retry
               Move(mActions[0].mQueue, "f");
             }
-          } else {
+	  } else {
             gOFS->eosViewRWMutex.UnLockRead();
             eos_static_err("msg=\"failed to run bash workflow - file gone\" job=\"%s\"",
                            mDescription.c_str());

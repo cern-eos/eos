@@ -77,10 +77,11 @@
   {
     ThreadLogId.SetLogId(alogid, tident);
   }
+  
+  int envlen = 0;
 
   if (!spath || !afid || !alogid || !aevent)
   {
-    int envlen = 0;
     return Emsg(epname, error, EINVAL, "notify - invalid parameters for event call",
     env.Env(envlen));
   }
@@ -120,6 +121,7 @@
       } else
       {
         fmd = gOFS->eosView->getFile(spath);
+	fid = fmd->getId();
       }
 
       dh = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
@@ -142,7 +144,22 @@
   workflow.Init(&attr, path, fid);
 
   // trigger the specified event
-  workflow.Trigger(event, aworkflow, vid);
+  int rc = workflow.Trigger(event, aworkflow, vid);
+
+  if (rc == -1)
+  {
+    if (errno == ENOKEY)
+    {
+      // there is no workflow defined
+      return Emsg(epname, error, EINVAL, "trigger workflow - there is workflow define for this <workflow>.<event>",
+		  env.Env(envlen));
+    }
+    else
+    {
+      return Emsg(epname, error, EIO, "trigger workflow - internal error",
+		  env.Env(envlen));
+    }
+  }
 
   const char* ok = "OK";
   error.setErrInfo(strlen(ok) + 1, ok);
