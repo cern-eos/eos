@@ -144,7 +144,24 @@ public:
     return (now->tv_sec - ts->tv_sec) * 1000000000 + (now->tv_nsec - ts->tv_nsec);
   }
 
-  //----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  //! Return the coarse age of a timespec
+  // ---------------------------------------------------------------------------
+  static long long
+  GetCoarseAgeInNs ( const struct timespec *ts , const struct timespec *now=NULL)
+  {
+    struct timespec tsn;
+    if(!now)
+    {
+      GetTimeSpec(tsn,true);
+      now = &tsn;
+    }
+
+    return (now->tv_sec-ts->tv_sec)*1000000000 + (now->tv_nsec-ts->tv_nsec);
+  }
+
+
+  // ---------------------------------------------------------------------------
   //! Return the age of a ns timestamp
   //----------------------------------------------------------------------------
   static long long
