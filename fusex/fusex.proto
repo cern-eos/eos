@@ -1,0 +1,56 @@
+syntax = "proto3";
+package eos.fusex;
+
+message md {
+  fixed64 id = 1; //< file/container id
+  fixed64 ctime = 2    ; //< change time
+  fixed64 ctime_ns = 3 ; //< ns of creation time
+  fixed64 mtime = 4    ; //< modification time | deletion time
+  fixed64 mtime_ns = 5 ; //< ns of modification time
+  fixed64 atime = 6    ; //< access time
+  fixed64 atime_ns = 7 ; //< ns of access time
+  fixed64 btime = 8    ; //< birth time
+  fixed64 btime_ns = 9 ; //< ns of birth time
+  fixed64 ttime = 10   ; //< tree modification time
+  fixed64 ttime_ns = 11; //< ns of tree modification time
+  sint64 size = 12     ; //< size 
+  sfixed32 uid = 13    ; //< user  id
+  sfixed32 gid = 14    ; //< group id
+  sfixed32 mode = 15   ; //< mode
+  sfixed32 nlink = 16  ; //< nlink
+  string name = 17     ; //< name
+  string authid = 18;    //< strong security auth id
+  string clientid = 19 ; //< string identifying a client
+  sint64 clock = 20    ; //< vector clock
+  bool set_size = 21   ; //< indicates a size change
+  map<string, string> attr = 22; //< xattribute map
+  map<string, fixed64> children = 23; //< children's name and id
+};
+
+message dir {
+  fixed64 id = 1; //< container id
+  repeated string linked = 2;
+  repeated string unlinked = 3;
+};
+
+message io {
+  fixed64 id = 1; //< file id
+  fixed64 offset = 2; //< offset
+  fixed64 length = 3; //< length
+  fixed64 clock = 4; //< vector clock
+};
+
+message cap {
+  fixed64 id = 1; //< file/container 
+  fixed32 type = 2; //< cap type
+  fixed32 mode = 3; //< granted mode
+  fixed64 vtime = 4; //< valid until unix timestamp
+  fixed64 vtime_ns = 5; //< valid ns resolution
+  sfixed32 uid = 6    ; //< user  id
+  sfixed32 gid = 7    ; //< group id
+  string  authid = 8; //< auth id
+  string  clientid = 9; //< client id 
+  fixed32 errc = 10; //< error code when acquired
+  repeated string token = 11; //< capability granted 
+  repeated string domain = 12; //< validity domain
+}

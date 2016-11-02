@@ -1,0 +1,11 @@
+[{
+  "name" : "",
+  "hostport" : "localhost:1094",
+  "remotedir" : "/eos/",
+  "localdir" : "/eos/",
+  "options" : {
+    "debug" : "1",
+    "lowleveldebug" : "0",
+    "debuglevel" : "5"
+  }
+}]
