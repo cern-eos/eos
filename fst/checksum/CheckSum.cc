@@ -393,6 +393,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
       if (ftruncate(ChecksumMapFd, (ChecksumMapSize))) {
         ChecksumMapSize = 0;
         //    fprintf(stderr,"CheckSum:ChangeMap ftruncate failed\n");
+        close(ChecksumMapFd);
         return false;
       }
     } else {
