@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.217 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FST: cleanup checksum error flags after "file verify -checksum"
+
 ``V0.3.216 Aquamarine``
 =======================
 
