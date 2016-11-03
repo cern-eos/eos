@@ -1123,32 +1123,40 @@ XrdFstOfs::_rem(const char* path,
 
   eos_info("fstpath=%s", fstPath.c_str());
   int rc = 0;
-  // unlink file and possible blockxs file
-  errno = 0;
-  std::unique_ptr<FileIo> io(eos::fst::FileIoPlugin::GetIoObject(
-                               fstPath.c_str()));
+  errno = 0; // If file not found this will be ENOENT
+  // Unlink file and possible blockxs file - for local files we need to go
+  // through XrdOfs::rem to also clean up any potential blockxs files
+  if (eos::common::LayoutId::GetIoType(fstPath.c_str()) ==
+      eos::common::LayoutId::kLocal) {
+    rc = XrdOfs::rem(fstPath.c_str(), error, client, 0);
 
-  if (!io) {
-    return gOFS.Emsg(epname, error, EINVAL, "open - no IO plug-in avaialble",
-                     fstPath.c_str());
+    if (rc) {
+      eos_info("rc=%i, errno=%i", rc, errno);
+    }
+  }
+  else {
+    std::unique_ptr<FileIo> io(eos::fst::FileIoPlugin::GetIoObject(fstPath.c_str()));
+
+    if (!io) {
+      return gOFS.Emsg(epname, error, EINVAL, "open - no IO plug-in avaialble",
+		       fstPath.c_str());
+    }
+
+    rc = io->fileRemove();
   }
 
-  rc = io->fileRemove();
-
-  // cleanup eventual transactions
-  if (!gOFS.Storage->CloseTransaction(fsid, fid)) {
-    // it should be the normal case that there is no open transaction for that
-    // file, in any case there is nothing to do here
-  }
+  // Cleanup possible transactions - there should be no open transaction for this
+  // file, in any case there is nothing to do here.
+  (void) gOFS.Storage->CloseTransaction(fsid, fid);
 
   if (rc) {
     if (errno == ENOENT) {
+      // Ignore error if a file to be deleted doesn't exist
       if (ignoreifnotexist) {
-        // hide error if a deleted file is deleted
-        rc = 0;
+	rc = 0;
       } else {
-        eos_notice("unable to delete file - file does not exist (anymore): %s "
-                   "fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
+	eos_notice("unable to delete file - file does not exist (anymore): %s "
+		   "fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
       }
     }
 
