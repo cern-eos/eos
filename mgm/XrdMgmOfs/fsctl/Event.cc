@@ -131,6 +131,31 @@
       {
         attr[it->first] = it->second;
       }
+
+      // check for attribute references                                                                                         
+      if (attr.count("sys.attr.link")) {
+	try 
+        {
+	  dh = gOFS->eosView->getContainer(attr["sys.attr.link"]);
+	  eos::IContainerMD::XAttrMap::const_iterator it;
+
+	  for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
+	    XrdOucString key = it->first.c_str();
+
+	    if (!attr.count(it->first)) {
+	      attr[key.c_str()] = it->second;
+	    }
+	  }
+	} 
+        catch (eos::MDException& e) 
+        {
+	  dh.reset();
+	  errno = e.getErrno();
+	  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+		    e.getMessage().str().c_str());
+	}
+	attr.erase("sys.attr.link");
+      }
     } catch (eos::MDException& e)
     {
       errno = e.getErrno();
