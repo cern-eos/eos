@@ -558,7 +558,7 @@ XrdFstOssFile::Close(long long* retsz)
 	{
 	  if (!mBlockXs->ChangeMap(statinfo.st_size, true))
 	  {
-          eos_err("error=unable to change block checksum map");
+          eos_err("error=unable to change block checksum map for file %s",mPath.c_str());
 	  }
 	  else
 	  {
@@ -567,7 +567,7 @@ XrdFstOssFile::Close(long long* retsz)
 
 	  if (!mBlockXs->AddBlockSumHoles(getFD()))
 	  {
-          eos_warning("warning=unable to fill holes of block checksum map");
+          eos_warning("warning=unable to fill holes of block checksum map for file %s",mPath.c_str());
         }
       }
     }
@@ -581,7 +581,7 @@ XrdFstOssFile::Close(long long* retsz)
       {
         if (!mBlockXs->ChangeMap(statinfo.st_size, true))
         {
-          eos_err("error=Unable to change block checksum map");
+          eos_err("error=Unable to change block checksum map for file %s",mPath.c_str());
         }
         else
         {
@@ -590,12 +590,12 @@ XrdFstOssFile::Close(long long* retsz)
 
         if (!mBlockXs->AddBlockSumHoles(getFD()))
         {
-          eos_warning("warning=unable to fill holes of block checksum map");
+          eos_warning("warning=unable to fill holes of block checksum map for file %s",mPath.c_str());
         }
       }
 
       if (!mBlockXs->CloseMap()) {
-        eos_err("error=unable to close block checksum map");
+        eos_err("error=unable to close block checksum map for file %s",mPath.c_str());
       }
 
       delete_mapping = true;
@@ -604,10 +604,10 @@ XrdFstOssFile::Close(long long* retsz)
 
   //............................................................................
   if (delete_mapping) {
-    eos_debug("Delete entry from oss map");
+    eos_debug("Delete entry from oss map for file %s",mPath.c_str());
     XrdFstSS->DropXs(mPath.c_str());
   } else {
-    eos_debug("No delete from oss map");
+    eos_debug("No delete from oss map for file %s",mPath.c_str());
   }
 
   if (unlinked)

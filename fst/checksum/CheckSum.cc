@@ -418,6 +418,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 
   if (sigaction(SIGBUS, &act, 0)) {
     fprintf(stderr, "Fatal: [CheckSum::OpenMap] sigaction failed\n");
+    close(ChecksumMapFd);
     return false;
   }
 
