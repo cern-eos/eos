@@ -195,6 +195,8 @@ Storage::Verify ()
             if (verifyfile->commitChecksum)
             {
               fMd->fMd.mgmchecksum = computedchecksum;
+	      fMd->fMd.blockcxerror = 0;
+	      fMd->fMd.filecxerror = 0;
             }
             localUpdate = true;
           }
@@ -209,6 +211,7 @@ Storage::Verify ()
             attr->Set("user.eos.checksum", checksummer->GetBinChecksum(checksumlen), checksumlen);
             attr->Set(std::string("user.eos.checksumtype"), std::string(checksummer->GetName()));
             attr->Set("user.eos.filecxerror", "0");
+            attr->Set("user.eos.blockcxerror", "0");
             delete attr;
           }
         }
