@@ -492,7 +492,7 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 
 	    // don't return a record, if there is a checksum error flagged
 
-	    if ( (!isRW) && ((fmd->fMd.filecxerror || fmd->fMd.blockcxerror) ||
+	    if ( (!isRW) && ((fmd->fMd.filecxerror) ||
 			     (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum))) )
 	    {
 	      eos_crit("msg=\"checksum error flagged/detected fid=%08llx "
