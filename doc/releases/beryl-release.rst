@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.218 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix a bug in auth cache when sid process of a calling pid does not exist anymore
+        
+
 ``V0.3.217 Aquamarine``
 =======================
 
