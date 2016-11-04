@@ -30,12 +30,14 @@
 #include <iostream>
 #include <sstream>
 
+
+std::string metad::vnode_gen::cInodeKey = "nextinode";
+
 /* -------------------------------------------------------------------------- */
 metad::metad() : mdflush(0), mdqueue_max_backlog(1000)
 /* -------------------------------------------------------------------------- */
 {
-  // make a mapping for inode 1 '/'
-  next_ino.inc();
+  // make a mapping for inode 1, it is re-loaded aftewards in init '/'
   {
     XrdSysMutexHelper mLock(inomap);
     inomap[1]=1;
@@ -74,6 +76,8 @@ metad::init()
       eos_static_debug("msg=\"GPB parsed root inode\"");
     }
   }
+  
+ next_ino.init();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -109,7 +113,7 @@ metad::mdx::convert(struct fuse_entry_param &e)
   e.attr.st_dev=0;
   e.attr.st_ino=id();
   e.attr.st_mode=mode();
-  e.attr.st_nlink=nlink();
+  e.attr.st_nlink=nlink()+2;
   e.attr.st_uid=uid();
   e.attr.st_gid=gid();
   e.attr.st_rdev=0;
@@ -175,17 +179,6 @@ metad::mdx::dump(struct fuse_entry_param &e)
 }
 
 /* -------------------------------------------------------------------------- */
-void
-/* -------------------------------------------------------------------------- */
-metad::mdx::add(metad::shared_md pmd)
-/* -------------------------------------------------------------------------- */
-{
-  auto map = pmd->mutable_children();
-  eos_static_debug("child=%s parent=%s inode=%08lx", name().c_str(), pmd->name().c_str(), id());
-  (*map)[name()] = id();
-}
-
-/* -------------------------------------------------------------------------- */
 metad::shared_md
 /* -------------------------------------------------------------------------- */
 metad::get(fuse_req_t req,
@@ -248,8 +241,13 @@ metad::add(metad::shared_md pmd, metad::shared_md md)
 /* -------------------------------------------------------------------------- */
 {
   auto map = pmd->mutable_children();
-  eos_static_debug("child=%s parent=%s inode=%08lx", md->name().c_str(), pmd->name().c_str(), md->id());
-  (*map)[md->name()] = md->id();
+  eos_static_debug("child=%s parent=%s inode=%08lx", md->name().c_str(),
+                   pmd->name().c_str(), md->id());
+  {
+    XrdSysMutexHelper mLock(pmd->Locker());
+    (*map)[md->name()] = md->id();
+    pmd->set_nlink(pmd->nlink()+1);
+  }
 
   mdflush.Lock();
 
@@ -257,6 +255,36 @@ metad::add(metad::shared_md pmd, metad::shared_md md)
     mdflush.Wait();
 
   mdqueue.insert(pmd->id());
+
+  mdflush.Signal();
+  mdflush.UnLock();
+
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+metad::remove(metad::shared_md pmd, metad::shared_md md)
+/* -------------------------------------------------------------------------- */
+{
+  auto map = pmd->mutable_children();
+  eos_static_debug("child=%s parent=%s inode=%08lx", md->name().c_str(),
+                   pmd->name().c_str(), md->id());
+  {
+    XrdSysMutexHelper mLock(pmd->Locker());
+    (*map).erase(md->name());
+    pmd->set_nlink(pmd->nlink()-1);
+  }
+
+  md->setop_delete();
+
+  mdflush.Lock();
+
+  while (mdqueue.size() == mdqueue_max_backlog)
+    mdflush.Wait();
+
+  mdqueue.insert(pmd->id());
+  mdqueue.insert(md->id());
 
   mdflush.Signal();
   mdflush.UnLock();
@@ -288,9 +316,22 @@ metad::mdcflush()
           eos_static_info("metacache::flush ino=%08lx", (unsigned long long) ino);
 
           shared_md md = mdmap[ino];
-          std::string mdstream;
-          md->SerializeToString(&mdstream);
-          kv::Instance().put(ino, mdstream);
+          metad::mdx::md_op op = md->getop();
+
+          if (op == metad::mdx::ADD)
+          {
+            std::string mdstream;
+            md->SerializeToString(&mdstream);
+            kv::Instance().put(ino, mdstream);
+          }
+          else
+          {
+            if (op == metad::mdx::DELETE)
+            {
+              kv::Instance().erase(ino);
+              mdmap.erase(ino);
+            }
+          }
         }
       }
     }

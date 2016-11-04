@@ -50,10 +50,16 @@ public:
   int connect(std::string connectionstring, int port);
 
   int get(std::string &key, std::string &value);
+  int get(std::string &key, uint64_t &value);
   int put(std::string &key, std::string &value);
+  int put(std::string &key, uint64_t &value);
+  int inc(std::string &key, uint64_t &value);
+
+  int erase(std::string &key);
 
   int get(uint64_t key, std::string &value);
   int put(uint64_t key, std::string &value);
+  int erase(uint64_t key);
 
   static kv* sKV;
 

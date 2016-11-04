@@ -71,7 +71,7 @@ kv::connect(std::string connectionstring, int port)
   }
 
   mAsyncContext = redisAsyncConnect(connectionstring.c_str(), port);
-  
+
   if (mAsyncContext->err)
   {
     int retc=mAsyncContext->err;
@@ -81,11 +81,11 @@ kv::connect(std::string connectionstring, int port)
     mAsyncContext=0;
     return retc;
   }
- 
+
   mEventBase = event_base_new();
   eos_static_info("attach event loop");
   redisLibeventAttach(mAsyncContext, mEventBase);
-  
+
   eos_static_info("redis@%s:%d connected", connectionstring.c_str(), port);
   return 0;
 }
@@ -96,31 +96,68 @@ int
 kv::get(std::string &key, std::string &value)
 /* -------------------------------------------------------------------------- */
 {
+  eos_static_info("key=%s context=%d", key.c_str(), mContext);
   int rc=0;
-  
+
   if (!mContext)
     return rc;
-  
-  redisReply* reply = (redisReply*)redisCommand( mContext, "GET %s", key.c_str());
+
+  redisReply* reply = (redisReply*) redisCommand( mContext, "GET %s", key.c_str());
   if (reply->type == REDIS_REPLY_ERROR)
   {
     rc = -1;
   }
-  
+
   if (reply->type == REDIS_REPLY_NIL)
   {
     rc = 1;
   }
-  
+
   if (reply->type == REDIS_REPLY_STRING)
   {
     value.assign(reply->str, reply->len);
   }
-  
+
   freeReplyObject(reply);
-  
+
   return rc;
 }
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+kv::inc(std::string &key, uint64_t &value)
+/* -------------------------------------------------------------------------- */
+{
+  eos_static_info("key=%s context=%d", key.c_str(), mContext);
+  int rc=0;
+
+  if (!mContext)
+    return rc;
+
+  redisReply* reply = (redisReply*) redisCommand( mContext, "INCR %s", key.c_str());
+  if (reply->type == REDIS_REPLY_ERROR)
+  {
+    rc = -1;
+  }
+
+  if (reply->type == REDIS_REPLY_NIL)
+  {
+    rc = 1;
+  }
+
+  if (reply->type == REDIS_REPLY_STRING)
+  {
+    std::string svalue;
+    svalue.assign(reply->str, reply->len);
+    value = strtoull(svalue.c_str(), 0, 10);
+  }
+
+  freeReplyObject(reply);
+
+  return rc;
+}
+
 
 /* -------------------------------------------------------------------------- */
 int
@@ -128,46 +165,100 @@ int
 kv::put(std::string &key, std::string &value)
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_info("key=%s context=%d",key.c_str(),mContext);
+  eos_static_info("key=%s context=%d", key.c_str(), mContext);
   if (!mContext)
     return 0;
-  
-  eos_static_info("key=%s",key.c_str());
-  redisAsyncCommand(mAsyncContext, 0, 0, "SET %s %b", 
-                    key.c_str(), 
-                    value.c_str(), 
+
+  redisAsyncCommand(mAsyncContext, 0, 0, "SET %s %b",
+                    key.c_str(),
+                    value.c_str(),
                     value.length());
   //event_base_dispatch(mEventBase);
   event_base_loop(mEventBase, EVLOOP_NONBLOCK);
   return 0;
 }
 
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+kv::erase(std::string &key)
+/* -------------------------------------------------------------------------- */
+{
+  eos_static_info("key=%s context=%d", key.c_str(), mContext);
+  if (!mContext)
+    return 0;
+
+  eos_static_info("key=%s", key.c_str());
+  redisAsyncCommand(mAsyncContext, 0, 0, "DEL %s",
+                    key.c_str());
+  //event_base_dispatch(mEventBase);
+  event_base_loop(mEventBase, EVLOOP_NONBLOCK);
+  return 0;
+}
 
 /* -------------------------------------------------------------------------- */
-int 
+int
 /* -------------------------------------------------------------------------- */
 kv::get(uint64_t key, std::string &value)
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_info("key=%lld", (unsigned long long)key);
+  eos_static_info("key=%lld", (unsigned long long) key);
   char buffer[128];
   longstring::unsigned_to_decimal (key, buffer);
   std::string sbuf(buffer);
   return get(sbuf, value);
 }
 
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+kv::get(std::string &key, uint64_t &value)
+/* -------------------------------------------------------------------------- */
+{
+  std::string lvalue;
+  int rc = get(key,lvalue);
+  value = strtoull(lvalue.c_str(),0,10);
+  
+  return rc;
+}
 
-int 
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+kv::put(std::string &key, uint64_t &value)
+/* -------------------------------------------------------------------------- */
+{
+  char buffer[128];
+  longstring::unsigned_to_decimal (value, buffer);
+  std::string sbuf(buffer);
+
+  return put(key, sbuf);
+}
+
+int
 /* -------------------------------------------------------------------------- */
 kv::put(uint64_t key, std::string &value)
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_info("key=%lld", (unsigned long long)key);
+  eos_static_info("key=%lld", (unsigned long long) key);
   char buffer[128];
   longstring::unsigned_to_decimal (key, buffer);
   std::string sbuf(buffer);
-  
+
   eos_static_info("key=%s", sbuf.c_str());
   return put(sbuf, value);
 }
-        
+
+int
+/* -------------------------------------------------------------------------- */
+kv::erase(uint64_t key)
+/* -------------------------------------------------------------------------- */
+{
+  eos_static_info("key=%lld", (unsigned long long) key);
+  char buffer[128];
+  longstring::unsigned_to_decimal (key, buffer);
+  std::string sbuf(buffer);
+
+  eos_static_info("key=%s", sbuf.c_str());
+  return erase(sbuf);
+}

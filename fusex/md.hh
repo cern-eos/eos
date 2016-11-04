@@ -29,11 +29,14 @@
 #include <sys/types.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
-
+#include "kv.hh"
+#include "common/Logging.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 #include <map>
 #include <set>
+#include <exception>
+#include <stdexcept>
 
 class metad
 {
@@ -46,8 +49,14 @@ public:
   {
   public:
 
+    enum md_op
+    {
+      ADD, DELETE, SETSIZE
+    } ;
+
     mdx()
     {
+      setop_add();
     }
 
     mdx(fuse_ino_t ino)
@@ -68,10 +77,33 @@ public:
     std::string dump();
     static std::string dump(struct fuse_entry_param &e);
 
-    void add(std::shared_ptr<mdx> shared_md);
+    void setop_delete()
+    {
+      op = DELETE;
+    }
 
+    void setop_add()
+    {
+      op = ADD;
+    }
+
+    void setop_setsize()
+    {
+      op = SETSIZE;
+    }
+
+    md_op getop() const
+    {
+      return op;
+    }
+
+    bool deleted() const
+    {
+      return (op == DELETE) ;
+    }
   private:
     XrdSysMutex mLock;
+    md_op op;
   } ;
 
   typedef std::shared_ptr<mdx> shared_md;
@@ -83,6 +115,8 @@ public:
   {
   public:
 
+    static std::string cInodeKey;
+    
     vnode_gen()
     {
       mNextInode=1;
@@ -92,10 +126,40 @@ public:
     {
     }
 
+    void init()
+    {
+      // load the stored next indoe
+      if (kv::Instance().get(cInodeKey, mNextInode))
+      {
+        // otherwise store it for the first time
+        inc();
+      }
+      eos_static_info("next-inode=%08lx", mNextInode);
+    }
+
     uint64_t inc()
     {
       XrdSysMutexHelper mLock(this);
-      return mNextInode++;
+      if (0)
+      {
+        //sync - works for eosxd hared REDIS backend
+        if (!kv::Instance().inc(cInodeKey, mNextInode))
+        {
+          return mNextInode;
+        }
+        else
+        {
+          // throw an exception
+          throw std::runtime_error("REDIS backend failure - nextinode");
+        }
+      }
+      else
+      {
+        //async - works for eosxd exclusive REDIS backend
+        uint64_t s_inode = mNextInode+1;
+        kv::Instance().put(cInodeKey,s_inode);
+        return mNextInode++;
+      }
     }
   private:
     uint64_t mNextInode;
@@ -149,7 +213,8 @@ public:
                   shared_md md);
 
   void add(shared_md pmd, shared_md md);
-  
+  void remove(shared_md pmd, shared_md md);
+
 
   void mdcflush(); // thread pushing into md cache
 
@@ -165,6 +230,6 @@ private:
   std::set<uint64_t> mdqueue;
 
   size_t mdqueue_max_backlog;
-  
+
 } ;
 #endif /* FUSE_MD_HH_ */

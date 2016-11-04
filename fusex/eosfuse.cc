@@ -158,9 +158,19 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.debuglevel = root["options"]["debuglevel"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
+
+    // default settings
     if (!config.statfilesuffix.length())
     {
       config.statfilesuffix="stats";
+    }
+    if (!config.mdcachehost.length())
+    {
+      config.mdcachehost="localhost";
+    }
+    if (!config.mdcacheport)
+    {
+      config.mdcacheport = 6379;
     }
   }
 
@@ -488,23 +498,35 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 
   ADD_FUSE_STAT(__func__, req);
 
+  int rc = 0;
   // retrieve cap
 
-  // retrieve md
-  metad::shared_md md = Instance().mds.get(req, ino);
+  cap::shared_cap pcap = Instance().caps.acquire(req, ino,
+                                                 S_IFDIR | X_OK | R_OK);
 
-  if (!md->id())
+  if (pcap->errc())
   {
-    fuse_reply_err(req, ENOENT);
+    rc = pcap->errc();
+    fuse_reply_err (req, rc);
   }
   else
   {
-    eos_static_info("%s", md->dump().c_str());
+    // retrieve md
+    metad::shared_md md = Instance().mds.get(req, ino);
 
-    // copy the current state
-    eos::fusex::md* fh_md = new eos::fusex::md(*md);
-    fi->fh = (unsigned long) fh_md;
-    fuse_reply_open (req, fi);
+    if (!md->id() || md->deleted())
+    {
+      fuse_reply_err(req, ENOENT);
+    }
+    else
+    {
+      eos_static_info("%s", md->dump().c_str());
+
+      // copy the current state
+      eos::fusex::md* fh_md = new eos::fusex::md(*md);
+      fi->fh = (unsigned long) fh_md;
+      fuse_reply_open (req, fi);
+    }
   }
 
   EXEC_TIMING_END(__func__);
@@ -538,10 +560,6 @@ EosFuse::readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
   {
     eos::fusex::md* md = (eos::fusex::md*) fi->fh;
     auto map = md->children();
-
-
-    struct stat st;
-
     auto it = map.begin();
 
     eos_static_info("off=%lu size=%lu", off, map.size());
@@ -565,18 +583,13 @@ EosFuse::readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
 
       mode_t mode = cmd->mode();
 
-      mode = DT_DIR << 12;
-
       struct stat stbuf;
       memset (&stbuf, 0, sizeof ( struct stat ));
       stbuf.st_ino = cino;
       stbuf.st_mode = mode;
 
-
-      stbuf.st_mode = S_IFREG;
-
       size_t a_size = fuse_add_direntry (req, b_ptr , size - b_size,
-                                         bname.c_str(), &st, ++off);
+                                         bname.c_str(), &stbuf, ++off);
 
       eos_static_info("name=%s ino=%08lx mode=%08lx bytes=%u/%u",
                       bname.c_str(), cino, mode, a_size, size - b_size);
@@ -715,7 +728,7 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode)
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
-  eos_static_debug("");
+  eos_static_debug("name=%s", name);
 
   EXEC_TIMING_BEGIN("mkdir");
 
@@ -739,7 +752,7 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode)
     pmd = Instance().mds.get(req, parent);
 
 
-    if (md->id())
+    if (md->id() && !md->deleted())
     {
       rc = EEXIST;
       fuse_reply_err (req, rc);
@@ -765,6 +778,7 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode)
       Instance().mds.add(pmd, md);
 
       struct fuse_entry_param e;
+      memset(&e, 0, sizeof (e));
       md->convert(e);
       fuse_reply_entry(req, &e);
       eos_static_info("%s", md->dump(e).c_str());
@@ -774,7 +788,8 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode)
   EXEC_TIMING_END("mkdir");
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(req, parent, 0, rc).c_str());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -854,10 +869,69 @@ EosFuse::rmdir(fuse_req_t req, fuse_ino_t parent, const char * name)
 
   EXEC_TIMING_BEGIN("rmdir");
 
+  int rc = 0;
+  // retrieve cap
+
+  cap::shared_cap pcap = Instance().caps.acquire(req, parent,
+                                                 S_IFDIR | X_OK | D_OK);
+
+  if (pcap->errc())
+  {
+    rc = pcap->errc();
+    fuse_reply_err (req, rc);
+  }
+  else
+  {
+    std::string sname = name;
+
+    if (sname == ".")
+    {
+      rc = EINVAL;
+      fuse_reply_err (req, rc);
+    }
+
+    if (sname.length() > 1024)
+    {
+      rc = ENAMETOOLONG;
+    }
+
+    if (!rc)
+    {
+      metad::shared_md md;
+      metad::shared_md pmd;
+
+      md = Instance().mds.lookup(req, parent, name);
+
+      if (!md->id() || md->deleted())
+      {
+        rc = ENOENT;
+        fuse_reply_err (req, rc);
+      }
+
+      if ((!rc) && (! (md->mode() & S_IFDIR)))
+      {
+        rc = ENOTDIR;
+      }
+
+      if ((!rc) && md->children().size())
+      {;
+        rc = ENOTEMPTY;
+      }
+
+      if (!rc)
+      {
+        pmd = Instance().mds.get(req, parent);
+        Instance().mds.remove(pmd, md);
+      }
+    }
+    fuse_reply_err (req, rc);
+  }
+
   EXEC_TIMING_END("rmdir");
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(req, parent, 0, rc).c_str());
 }
 
 #ifdef _FUSE3

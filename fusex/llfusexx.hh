@@ -31,16 +31,18 @@
 #ifndef FUSE_USE_VERSION
 #ifdef __APPLE__
 #define FUSE_USE_VERSION 27
+#pragma message("FUSE 27")
 #else
 
 #ifdef _FUSE3
 #define FUSE_USE_VERSION 30
+#pragma message("FUSE 30")
 #else
-#define FUSE_USE_VERSION 26
+#define FUSE_USE_VERSION 29
+#pragma message("FUSE 29")
 #endif
 
 
-//#pragma message("FUSE VERSION 26")
 #endif
 #endif
 

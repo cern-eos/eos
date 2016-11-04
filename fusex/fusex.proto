@@ -22,7 +22,7 @@ message md {
   string authid = 18;    //< strong security auth id
   string clientid = 19 ; //< string identifying a client
   sint64 clock = 20    ; //< vector clock
-  bool set_size = 21   ; //< indicates a size change
+  fixed32 operation = 21   ; //< indicates operations to execute
   map<string, string> attr = 22; //< xattribute map
   map<string, fixed64> children = 23; //< children's name and id
 };

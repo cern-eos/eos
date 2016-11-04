@@ -34,6 +34,10 @@
 #include <memory>
 #include <map>
 
+
+// extension to check for deletion permission
+#define D_OK 8
+
 class cap
 {
 public:

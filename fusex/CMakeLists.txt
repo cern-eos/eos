@@ -119,7 +119,14 @@ install(
 if (FUSE3_FOUND)
 add_executable(
   eosxd3
-  main.cc eosfuse.cc eosfuse.hh
+  main.cc 
+  eosfuse.cc eosfuse.hh 
+  Stat.cc Stat.hh 
+  md.cc md.hh 
+  cap.cc cap.hh 
+  kv.cc kv.hh 
+  longstring.cc longstring.hh 
+  ${PROTO_SRC} ${PROTO_HEADER}
   )
 
   target_link_libraries(
@@ -131,6 +138,8 @@ add_executable(
     ${CMAKE_THREAD_LIBS_INIT}
     ${KRB5_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY}
+    ${PROTOBUF_LIBRARY}
+    ${JSONCPP_LIBRARIES}
     ${HIREDIS_LIBRARIES}
     {LIBEVENT_LIBRARIES})
 
