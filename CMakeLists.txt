@@ -125,7 +125,6 @@ else()
   set(RT_LIBS rt)
 endif()
 
-include_directories(/usr/include/xrootd/ /usr/include/)
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
 
 #-------------------------------------------------------------------------------
