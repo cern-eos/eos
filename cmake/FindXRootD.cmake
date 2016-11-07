@@ -64,7 +64,7 @@ else()
     XROOTD_SERVER_LIBRARY
     XROOTD_UTILS_LIBRARY
     XROOTD_CL_LIBRARY
-    XROOTD_INCLUDE_DIR
+                                          XROOTD_INCLUDE_DIR
     XROOTD_PRIVATE_INCLUDE_DIR)
 
   mark_as_advanced(

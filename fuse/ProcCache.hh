@@ -36,7 +36,7 @@
 #include <krb5.h>
 #include "common/Logging.hh"
 
-
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 class ProcCache;
 
@@ -178,7 +178,7 @@ class ProcCacheEntry
   // RWMutex to protect entry
   mutable eos::common::RWMutex pMutex;
 
-  // an important reader which is checked very often, we keep it open
+  // internal values
   ProcReaderPsStat pciPsStat;
 
   // internal values
@@ -195,10 +195,10 @@ class ProcCacheEntry
   mutable int pError;
   mutable std::string pErrMessage;
 
-  //! return 0 fs success
+  //! return true fs success, false if failure
   int
   ReadContentFromFiles ();
-  //! return 0 if the information is up-to-date after the call
+  //! return true if the information is up-to-date after the call, false else
   int
   UpdateIfPsChanged ();
 

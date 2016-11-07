@@ -772,8 +772,9 @@ public:
  //----------------------------------------------------------------------------
  //! Initialisation function
  //----------------------------------------------------------------------------
-  void init(int argc, char* argv[], void* userdata,
-            std::map<std::string, std::string>* features);
+ void initlogging();
+ bool init (int argc, char* argv[], void *userdata, std::map<std::string,std::string> *features);
+ bool check_mgm (std::map<std::string,std::string> *features);
 
   void log(const char* level, const char* msg);
   void log_settings();
@@ -1127,9 +1128,7 @@ private:
   char*
   myrealpath(const char* __restrict path, char* __restrict resolved, pid_t pid);
 
-  bool get_features(const std::string& url,
-                    std::map<std::string, std::string>* features);
-  int check_mgm(std::map<std::string, std::string>* features);
+ bool get_features(const std::string &url, std::map<std::string,std::string> *features);
 
  std::string mount_dir;
 };

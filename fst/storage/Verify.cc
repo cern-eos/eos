@@ -149,7 +149,7 @@ Storage::Verify()
       fMd->fMd.set_size(statinfo.st_size);
       fMd->fMd.set_lid(verifyfile->lId);
       fMd->fMd.set_cid(verifyfile->cId);
-      // if set recalculate the checksum
+
       CheckSum* checksummer = ChecksumPlugins::GetChecksumObject(fMd->fMd.lid());
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
@@ -174,7 +174,7 @@ Storage::Verify()
         if (checksummer && verifyfile->computeChecksum) {
           int checksumlen = 0;
           checksummer->GetBinChecksum(checksumlen);
-          // check if the computed checksum differs from the one in the change log
+
           bool cxError = false;
           std::string computedchecksum = checksummer->GetHexChecksum();
 
@@ -202,6 +202,8 @@ Storage::Verify()
 
             if (verifyfile->commitChecksum) {
               fMd->fMd.set_mgmchecksum(computedchecksum);
+	      fMd->fMd.set_blockcxerror(0);
+	      fMd->fMd.set_filecxerror(0);
             }
 
             localUpdate = true;
@@ -209,7 +211,7 @@ Storage::Verify()
             eos_static_info("checksum OK        : path=%s fid=%s checksum=%s",
                             verifyfile->path.c_str(), hexfid.c_str(), checksummer->GetHexChecksum());
           }
-
+            // update the extended attributes
           if (io) {
             // update the extended attributes
             io->attrSet("user.eos.checksum", checksummer->GetBinChecksum(checksumlen),
@@ -217,6 +219,7 @@ Storage::Verify()
             io->attrSet("user.eos.checksumtype", checksummer->GetName(),
                         strlen(checksummer->GetName()));
             io->attrSet("user.eos.filecxerror", "0", 1);
+            io->attrSet("user.eos.blockcxerror", "0");
           }
         }
 
@@ -230,7 +233,7 @@ Storage::Verify()
           if (localUpdate) {
             eos_static_info("commited verified meta data locally id=%llu on fs=%u path=%s",
                             verifyfile->fId, verifyfile->fsId, fstPath.c_str());
-          }
+        }
 
           // commit to central mgm cache, only if commitSize or commitChecksum is set
           XrdOucString capOpaqueFile = "";

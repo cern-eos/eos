@@ -63,6 +63,7 @@ Environment=EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
 Environment=EOS_FUSE_MOUNTDIR=/eos/
 Environment=EOS_FUSE_REMOTEDIR=/eos/
 Environment=EOS_FUSE_MGM_ALIAS=localhost
+Environment=XRD_RUNFORKHANDLER=1
 Type=forking
 ExecStartPre=/usr/bin/mkdir -p /var/run/eosd/
 ExecStartPre=/usr/bin/mkdir -p /var/run/eosd/credentials/store

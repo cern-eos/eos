@@ -4380,7 +4380,7 @@ bool filesystem::get_features(const std::string& url,
 //
 // @return 1 if MGM avilable, otherwise 0
 //------------------------------------------------------------------------------
-int
+bool
 filesystem::check_mgm(std::map<std::string, std::string>* features)
 {
   std::string address = getenv("EOS_RDRURL") ? getenv("EOS_RDRURL") : "";
@@ -4400,13 +4400,17 @@ filesystem::check_mgm(std::map<std::string, std::string>* features)
  }
 
  // Check MGM is available
- uint16_t timeout = 3;
-  XrdCl::FileSystem fs(url);
-  XrdCl::XRootDStatus st = fs.Ping(timeout);
+  if (!features)
+  {
+    uint16_t timeout = 10;
+    XrdCl::FileSystem fs (url);
+    XrdCl::XRootDStatus st = fs.Ping (timeout);
 
-  if (!st.IsOK()) {
-    eos_static_err("Unable to contact MGM at address=%s", address.c_str());
-   return 0;
+    if (!st.IsOK ())
+    {
+      eos_static_err("Unable to contact MGM at address=%s (timed out after 10 seconds)", address.c_str ());
+      return false;
+    }
  }
 
   if (features) {
@@ -4427,58 +4431,93 @@ filesystem::check_mgm(std::map<std::string, std::string>* features)
     gMgmHost.erase(gMgmHost.length() - 1);
   }
 
- return 1;
+ return true;
 }
 
 //------------------------------------------------------------------------------
 // Init function
 //------------------------------------------------------------------------------
+
 void
+filesystem::initlogging()
+{
+  FILE* fstderr;
+
+  // Open log file
+  if (getuid ())
+  {
+    fuse_shared = false; //eosfsd
+    char logfile[1024];
+    if (getenv ("EOS_FUSE_LOGFILE"))
+    {
+      snprintf (logfile, sizeof ( logfile) - 1, "%s", getenv ("EOS_FUSE_LOGFILE"));
+    }
+    else
+    {
+      snprintf (logfile, sizeof ( logfile) - 1, "/tmp/eos-fuse.%d.log", getuid ());
+    }
+
+    // Running as a user ... we log into /tmp/eos-fuse.$UID.log
+    if (!(fstderr = freopen (logfile, "a+", stderr)))
+      fprintf (stderr, "error: cannot open log file %s\n", logfile);
+    else
+      ::chmod (logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  }
+  else
+  {
+    fuse_shared = true; //eosfsd
+
+    // Running as root ... we log into /var/log/eos/fuse
+    std::string log_path = "/var/log/eos/fuse/fuse.";
+    if (getenv ("EOS_FUSE_LOG_PREFIX"))
+    {
+      log_path += getenv ("EOS_FUSE_LOG_PREFIX");
+      log_path += ".log";
+    }
+    else
+    {
+      log_path += "log";
+    }
+
+    eos::common::Path cPath (log_path.c_str ());
+    cPath.MakeParentPath (S_IRWXU | S_IRGRP | S_IROTH);
+
+    if (!(fstderr = freopen (cPath.GetPath (), "a+", stderr)))
+      fprintf (stderr, "error: cannot open log file %s\n", cPath.GetPath ());
+    else
+      ::chmod (cPath.GetPath (), S_IRUSR | S_IWUSR);
+  }
+
+  setvbuf (fstderr, (char*) NULL, _IONBF, 0);
+
+  eos::common::Mapping::VirtualIdentity_t vid;
+  eos::common::Mapping::Root (vid);
+  eos::common::Logging::Init ();
+  eos::common::Logging::SetUnit ("FUSE@localhost");
+  eos::common::Logging::gShortFormat = true;
+  XrdOucString fusedebug = getenv("EOS_FUSE_DEBUG");
+
+  if ((getenv ("EOS_FUSE_DEBUG")) && (fusedebug != "0"))
+  {
+    eos::common::Logging::SetLogPriority (LOG_DEBUG);
+  }
+  else
+  {
+    if ((getenv ("EOS_FUSE_LOGLEVEL")))
+      eos::common::Logging::SetLogPriority (atoi (getenv ("EOS_FUSE_LOGLEVEL")));
+    else
+      eos::common::Logging::SetLogPriority (LOG_INFO);
+  }
+
+}
+
+bool
 filesystem::init(int argc, char* argv[], void* userdata,
                  std::map<std::string, std::string>* features)
 {
- FILE* fstderr;
+ initlogging();
 
- // Open log file
-  if (getuid()) {
-   fuse_shared = false; //eosfsd
-   char logfile[1024];
-
-    if (getenv("EOS_FUSE_LOGFILE")) {
-      snprintf(logfile, sizeof(logfile) - 1, "%s", getenv("EOS_FUSE_LOGFILE"));
-    } else {
-      snprintf(logfile, sizeof(logfile) - 1, "/tmp/eos-fuse.%d.log", getuid());
-   }
-
-   // Running as a user ... we log into /tmp/eos-fuse.$UID.log
-    if (!(fstderr = freopen(logfile, "a+", stderr))) {
-      fprintf(stderr, "error: cannot open log file %s\n", logfile);
-    } else {
-      ::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
- }
-  } else {
-   fuse_shared = true; //eosfsd
-    std::string log_path = "/var/log/eos/fuse/fuse.";
-
-   // Running as root ... we log into /var/log/eos/fuse
-    if (getenv("EOS_FUSE_LOG_PREFIX")) {
-      log_path += getenv("EOS_FUSE_LOG_PREFIX");
-     log_path += ".log";
-    } else {
-     log_path += "log";
-   }
-
-    eos::common::Path cPath(log_path.c_str());
-    cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
-
-    if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr))) {
-      fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
-    } else {
-      ::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR);
-    }
- }
-
-  setvbuf(fstderr, (char*) NULL, _IONBF, 0);
+  // Initialize hashes
   path2inode.set_empty_key("");
   path2inode.set_deleted_key("#__deleted__#");
   inodexrdlogin2fds.set_empty_key("");
@@ -4492,22 +4531,16 @@ filesystem::init(int argc, char* argv[], void* userdata,
  // Create the root entry
  path2inode["/"] = 1;
  inode2path[1] = "/";
- eos::common::Mapping::VirtualIdentity_t vid;
-  eos::common::Mapping::Root(vid);
-  eos::common::Logging::Init();
-  eos::common::Logging::SetUnit("FUSE@localhost");
- eos::common::Logging::gShortFormat = true;
-  XrdOucString fusedebug = getenv("EOS_FUSE_DEBUG");
+
 #ifdef STOPONREDIRECT
  // Set the redirect limit
   XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
   setenv("XRD_REDIRECTLIMIT", "1", 1);
 #endif
 
-  if (check_mgm(features) == 0) {
-    exit(-1);
-  }
 
+ if (!check_mgm ( features ) )
+   return false;
  // Extract MGM endpoint and check availability
  // Get read-ahead configuration
   if (getenv("EOS_FUSE_RDAHEAD") && (!strcmp(getenv("EOS_FUSE_RDAHEAD"), "1"))) {
@@ -4573,16 +4606,6 @@ filesystem::init(int argc, char* argv[], void* userdata,
    lazy_open_ro = false;
    lazy_open_rw = false;
    lazy_open_disabled = true;
- }
-
-  if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0")) {
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
-  } else {
-    if ((getenv("EOS_FUSE_LOGLEVEL"))) {
-      eos::common::Logging::SetLogPriority(atoi(getenv("EOS_FUSE_LOGLEVEL")));
-    } else {
-      eos::common::Logging::SetLogPriority(LOG_INFO);
- }
  }
 
   if (getenv("EOS_FUSE_CREATOR_CAP_LIFETIME")) {
@@ -4824,9 +4847,10 @@ filesystem::init(int argc, char* argv[], void* userdata,
  if ((XrdSysThread::Run(&tid, filesystem::CacheCleanup, static_cast<void *> (this), 0, "Cache Cleanup Thread")))
  {
    eos_static_crit("failed to start cache clean-up thread");
-   abort();
+   return false;
  }
 
+ return true;
 }
 
 //------------------------------------------------------------------------------

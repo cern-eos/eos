@@ -52,7 +52,7 @@ endif ()
 
 include(EosUtils)
 EOS_CheckOutOfSourceBuild()
-EOS_GetUidGid("daemon" "DAEMONUID" "DAEMONGID")
+EOS_GetUidGid("daemon" "DAEMONUID" "DAEMONGID")	 
 EOS_GetVersion("${VERSION_MAJOR}" "${VERSION_MINOR}" "${VERSION_PATCH}" "${RELEASE}")
 include(EosOSDefaults)
 
@@ -143,13 +143,13 @@ ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
+	       "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
 
 add_custom_command(
   OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
-  COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
-  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
-      "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
+		   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+		   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+			   "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
 
 # we get a local version of the kineticio dist so that it is embedded in the srpm because 
 # it is not always possible to download it from the machine doing the build 
@@ -157,7 +157,7 @@ file(DOWNLOAD ${KINETICIO_URL} "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz"
   SHOW_PROGRESS
   EXPECTED_MD5 "${KINETICIO_URL_MD5}"
   )
-  
+
 add_custom_target(
   dist
   COMMAND ${CMAKE_MAKE_PROGRAM} package_source
@@ -166,7 +166,7 @@ add_custom_target(
 
 add_custom_command(
   TARGET dist POST_BUILD
-  COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
+		   COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
   COMMENT "Clean generated spec file")
 
 include(CPack)

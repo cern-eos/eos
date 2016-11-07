@@ -209,11 +209,19 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     while (mountprefix[strlen(mountprefix) - 1] == '/') {
       mountprefix[strlen(mountprefix) - 1] = '\0';
     }
+}
+
+ if (getuid () <= DAEMONUID)
+ {
+  unsetenv ("KRB5CCNAME");
+  unsetenv ("X509_USER_PROXY");
  }
 
-  if (getuid() <= DAEMONUID) {
-    unsetenv("KRB5CCNAME");
-    unsetenv("X509_USER_PROXY");
+  if (!me.fs ().check_mgm (NULL))
+  {
+    me.fs().initlogging();
+    eos_static_crit("failed to contact configured mgm");
+    return 1;
  }
 
   if ((fuse_parse_cmdline(&args, &local_mount_dir, NULL,
@@ -243,8 +251,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     me.fs().setMountPoint(me.config.mount_point);
     me.fs().setPrefix(me.config.mountprefix);
     std::map<std::string, std::string> features;
-    me.fs().init(argc, argv, userdata, & features);
-    me.config.encode_pathname = features.find("eos.encodepath") != features.end();
+    if(!me.fs ().init (argc, argv, userdata, &features)) return 1;
+ 
+   me.config.encode_pathname = features.find("eos.encodepath") != features.end();
     me.config.lazy_open = (features.find("eos.lazyopen") != features.end()) ? true :
                           false;
     eos_static_warning("********************************************************************************");
