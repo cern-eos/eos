@@ -4572,7 +4572,7 @@ bool filesystem::get_features(const std::string &url, std::map<std::string,std::
 // @return 1 if MGM avilable, otherwise 0
 //------------------------------------------------------------------------------
 
-int
+bool
 filesystem::check_mgm (std::map<std::string,std::string> *features)
 {
  std::string address = getenv ("EOS_RDRURL") ? getenv ("EOS_RDRURL") : "";
@@ -4582,7 +4582,7 @@ filesystem::check_mgm (std::map<std::string,std::string> *features)
    fprintf (stderr, "error: EOS_RDRURL is not defined so we fall back to "
             "root://localhost:1094// \n");
    address = "root://localhost:1094//";
-   return 0;
+   return false;
  }
 
  XrdCl::URL url (address);
@@ -4590,18 +4590,18 @@ filesystem::check_mgm (std::map<std::string,std::string> *features)
  if (!url.IsValid ())
  {
    eos_static_err ("URL is not valid: %s", address.c_str ());
-   return 0;
+   return false;
  }
 
  // Check MGM is available
- uint16_t timeout = 3;
+ uint16_t timeout = 10;
  XrdCl::FileSystem fs (url);
  XrdCl::XRootDStatus st = fs.Ping (timeout);
 
  if (!st.IsOK ())
  {
-   eos_static_err ("Unable to contact MGM at address=%s", address.c_str ());
-   return 0;
+   eos_static_err ("Unable to contact MGM at address=%s (timed out after 10 seconds)", address.c_str ());
+   return false;
  }
 
  if(features)
@@ -4618,14 +4618,14 @@ filesystem::check_mgm (std::map<std::string,std::string> *features)
  if (gMgmHost.endswith ("/"))
    gMgmHost.erase (gMgmHost.length () - 1);
 
- return 1;
+ return true;
 }
 
 //------------------------------------------------------------------------------
 // Init function
 //------------------------------------------------------------------------------
 
-void
+bool
 filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,std::string> *features )
 {
  FILE* fstderr;
@@ -4711,10 +4711,9 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
 
 
  // Extract MGM endpoint and check availability
- if (check_mgm ( features ) == 0)
- {
-   exit (-1);
- }
+ if (!check_mgm ( features ) == 0)
+   return false;
+
  // Get read-ahead configuration
  if (getenv ("EOS_FUSE_RDAHEAD") && (!strcmp (getenv ("EOS_FUSE_RDAHEAD"), "1")))
  {
@@ -5002,9 +5001,10 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  if ((XrdSysThread::Run(&tid, filesystem::CacheCleanup, static_cast<void *> (this), 0, "Cache Cleanup Thread")))
  {
    eos_static_crit("failed to start cache clean-up thread");
-   abort();
+   return false;
  }
 
+ return true;
 }
 
 //------------------------------------------------------------------------------

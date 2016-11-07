@@ -774,7 +774,7 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
  //----------------------------------------------------------------------------
  //! Initialisation function
  //----------------------------------------------------------------------------
- void init (int argc, char* argv[], void *userdata, std::map<std::string,std::string> *features);
+ bool init (int argc, char* argv[], void *userdata, std::map<std::string,std::string> *features);
 
  void log (const char* level, const char *msg);
  void
@@ -1121,7 +1121,7 @@ private:
  myrealpath (const char * __restrict path, char * __restrict resolved, pid_t pid);
 
  bool get_features(const std::string &url, std::map<std::string,std::string> *features);
- int check_mgm (std::map<std::string,std::string> *features);
+ bool check_mgm (std::map<std::string,std::string> *features);
 
  std::string mount_dir;
 };
