@@ -228,9 +228,21 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
   unsetenv ("X509_USER_PROXY");
  }
 
+  if (!me.fs ().check_mgm (NULL))
+  {
+    me.fs().initlogging();
+    eos_static_crit("failed to contact configured mgm");
+    return 1;
+  }
+
  if ( (fuse_parse_cmdline (&args, &local_mount_dir, NULL, &me.config.isdebug) != -1) &&
       ((ch = fuse_mount (local_mount_dir, &args)) != NULL) &&
-      (fuse_daemonize (0) != -1 ) )
+#ifdef __APPLE__
+     (fuse_daemonize(1) != -1)
+#else
+     (fuse_daemonize (0) != -1)
+#endif
+     )
  {
    me.config.isdebug = 0;
    if (getenv ("EOS_FUSE_LOWLEVEL_DEBUG") && (!strcmp (getenv ("EOS_FUSE_LOWLEVEL_DEBUG"), "1")))
@@ -248,8 +260,8 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
    me.fs ().setMountPoint (me.config.mount_point);
    me.fs ().setPrefix(me.config.mountprefix);
 
-   std::map<std::string,std::string> features;
-   me.fs ().init (argc, argv, userdata, & features);
+   std::map<std::string, std::string> features;
+   if(!me.fs ().init (argc, argv, userdata, &features)) return 1;
 
    me.config.encode_pathname = features.find("eos.encodepath")!=features.end();
    me.config.lazy_open = (features.find("eos.lazyopen")!=features.end())?true:false;
