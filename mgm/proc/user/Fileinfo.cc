@@ -126,9 +126,6 @@ ProcCommand::FileInfo (const char* path)
         fid = strtoull(spath.c_str(), 0, 16);
       }
 
-      if (fid >=  eos::common::FileId::FidToInode(1))
-        fid = eos::common::FileId::InodeToFid(fid);
-
       // reference by fid+fsid
       //-------------------------------------------
       gOFS->eosViewRWMutex.LockRead();
