@@ -372,11 +372,11 @@ ScanDir::GetBlockXS(const char* filepath, unsigned long long maxfilesize)
   XrdOucString fileXSPath = filepath;
   std::unique_ptr<eos::fst::FileIo> io(FileIoPluginHelper::GetIoObject(filepath));
 
-  if (!io->fileOpen(0)) {
+  struct stat s;
+  if (!io->fileStat(&s,0)) {
     io->attrGet("user.eos.blockchecksum", checksumType);
     io->attrGet("user.eos.blocksize", checksumSize);
     io->attrGet("user.eos.lfn", logicalFileName);
-    io->fileClose();
 
     if (checksumType.compare("")) {
       XrdOucString envstring = "eos.layout.blockchecksum=";
