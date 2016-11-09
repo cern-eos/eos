@@ -54,7 +54,10 @@ FsIo::FsIo(std::string path, std::string iotype) :
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-FsIo::~FsIo() {}
+FsIo::~FsIo()
+{
+  if(mFd!=-1) fileClose(mFd);
+}
 
 //------------------------------------------------------------------------------
 // Open file
@@ -68,6 +71,7 @@ FsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque,
   if (mFd > 0) {
     return 0;
   } else {
+    mFd = -1;
     return -1;
   }
 }
@@ -206,7 +210,9 @@ FsIo::fileStat(struct stat* buf, uint16_t timeout)
 int
 FsIo::fileClose(uint16_t timeout)
 {
-  return ::close(mFd);
+  int rc = ::close(mFd);
+  mFd = -1;
+  return rc;
 }
 
 //------------------------------------------------------------------------------
