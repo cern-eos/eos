@@ -3,6 +3,8 @@
   "hostport" : "localhost:1094",
   "remotedir" : "/eos/",
   "localdir" : "/eos/",
+  "mdcachehost" : "localhost",
+  "mdcacheport" : 6379,
   "options" : {
     "debug" : "1",
     "lowleveldebug" : "0",
