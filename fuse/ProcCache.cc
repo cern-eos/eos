@@ -412,7 +412,10 @@ int ProcCacheEntry::ReadContentFromFiles ()
 int ProcCacheEntry::UpdateIfPsChanged ()
 {
   unsigned long long procStartTime = 0;
+  // TODO: find a way not to open and close this proc file every time we call this function if possible
+  pciPsStat.SetFilename(pProcPrefix + "/stat");
   pciPsStat.ReadContent(procStartTime,pPPid,pSid);
+  pciPsStat.Close();
   if (procStartTime > pStartTime)
   {
     int retc = ReadContentFromFiles ();

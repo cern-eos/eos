@@ -209,7 +209,6 @@ public:
     std::stringstream ss;
     ss << (procpath?procpath:"/proc/") << pPid;
     pProcPrefix = ss.str ();
-    pciPsStat.SetFilename(pProcPrefix + "/stat");
     pMutex.SetBlocking(true);
   }
 
