@@ -177,6 +177,7 @@ FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
 
     if (dbmap[fsid]->detachDb()) {
       delete dbmap[fsid];
+      dbmap.erase(fsid);
       return true;
     }
   }
