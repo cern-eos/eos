@@ -412,7 +412,7 @@ FmdDbMapHandler::DeleteFmd(eos::common::FileId::fileid_t fid,
   bool entryexist = ExistFmd(fid, fsid);
 
   // erase the hash entry
-  if (dbmap.count(fsid) && entryexist) {
+  if (entryexist) {
     // delete in the in-memory hash
     if (dbmap[fsid]->remove(eos::common::Slice((const char*)&fid, sizeof(fid)))) {
       eos_err("unable to delete fid=%08llx from fst table\n", fid);
@@ -513,9 +513,8 @@ FmdDbMapHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  Fmd valfmd = RetrieveFmd(fid, fsid);
-
   if (dbmap.count(fsid)) {
+    Fmd valfmd = RetrieveFmd(fid, fsid);
     // update in-memory
     valfmd.set_disksize(disksize);
     // fix the reference value from disk
@@ -575,10 +574,10 @@ FmdDbMapHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  bool entryexist = ExistFmd(fid, fsid);
-  Fmd valfmd = RetrieveFmd(fid, fsid);
-
   if (dbmap.count(fsid)) {
+    bool entryexist = ExistFmd(fid, fsid);
+    Fmd valfmd = RetrieveFmd(fid, fsid);
+
     if (!entryexist) {
       valfmd.set_disksize(0xfffffffffff1ULL);
     }
