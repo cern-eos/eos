@@ -76,8 +76,8 @@ metad::init()
       eos_static_debug("msg=\"GPB parsed root inode\"");
     }
   }
-  
- next_ino.init();
+
+  next_ino.init();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -113,7 +113,7 @@ metad::mdx::convert(struct fuse_entry_param &e)
   e.attr.st_dev=0;
   e.attr.st_ino=id();
   e.attr.st_mode=mode();
-  e.attr.st_nlink=nlink()+2;
+  e.attr.st_nlink=nlink() + 2;
   e.attr.st_uid=uid();
   e.attr.st_gid=gid();
   e.attr.st_rdev=0;
@@ -216,6 +216,7 @@ uint64_t
 /* -------------------------------------------------------------------------- */
 metad::insert(fuse_req_t req,
               metad::shared_md md)
+/* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper mLock(mdmap);
   uint64_t newinode = next_ino.inc();
@@ -235,6 +236,23 @@ metad::insert(fuse_req_t req,
 }
 
 /* -------------------------------------------------------------------------- */
+void 
+/* -------------------------------------------------------------------------- */
+metad::update(fuse_req_t req,
+            shared_md md)
+/* -------------------------------------------------------------------------- */
+{
+  mdflush.Lock();
+  while (mdqueue.size() == mdqueue_max_backlog)
+    mdflush.Wait();
+
+  mdqueue.insert(md->id());
+
+  mdflush.Signal();
+  mdflush.UnLock();
+}
+
+/* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 metad::add(metad::shared_md pmd, metad::shared_md md)
@@ -246,7 +264,7 @@ metad::add(metad::shared_md pmd, metad::shared_md md)
   {
     XrdSysMutexHelper mLock(pmd->Locker());
     (*map)[md->name()] = md->id();
-    pmd->set_nlink(pmd->nlink()+1);
+    pmd->set_nlink(pmd->nlink() + 1);
   }
 
   mdflush.Lock();
@@ -273,7 +291,7 @@ metad::remove(metad::shared_md pmd, metad::shared_md md)
   {
     XrdSysMutexHelper mLock(pmd->Locker());
     (*map).erase(md->name());
-    pmd->set_nlink(pmd->nlink()-1);
+    pmd->set_nlink(pmd->nlink() - 1);
   }
 
   md->setop_delete();

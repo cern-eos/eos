@@ -38,8 +38,8 @@
 #define FUSE_USE_VERSION 30
 #pragma message("FUSE 30")
 #else
-#define FUSE_USE_VERSION 29
-#pragma message("FUSE 29")
+#define FUSE_USE_VERSION 28
+#pragma message("FUSE 28")
 #endif
 
 

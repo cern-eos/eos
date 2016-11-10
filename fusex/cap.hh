@@ -36,7 +36,10 @@
 
 
 // extension to check for deletion permission
-#define D_OK 8
+#define D_OK 8     // delete
+#define M_OK 16    // chmod
+#define C_OK 32    // chown
+#define SA_OK 64    // set xattr
 
 class cap
 {

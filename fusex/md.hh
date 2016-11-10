@@ -116,7 +116,7 @@ public:
   public:
 
     static std::string cInodeKey;
-    
+
     vnode_gen()
     {
       mNextInode=1;
@@ -156,8 +156,8 @@ public:
       else
       {
         //async - works for eosxd exclusive REDIS backend
-        uint64_t s_inode = mNextInode+1;
-        kv::Instance().put(cInodeKey,s_inode);
+        uint64_t s_inode = mNextInode + 1;
+        kv::Instance().put(cInodeKey, s_inode);
         return mNextInode++;
       }
     }
@@ -211,6 +211,9 @@ public:
 
   uint64_t insert(fuse_req_t req,
                   shared_md md);
+
+  void update(fuse_req_t req,
+              shared_md md);
 
   void add(shared_md pmd, shared_md md);
   void remove(shared_md pmd, shared_md md);

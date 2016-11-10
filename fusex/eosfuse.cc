@@ -269,6 +269,10 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
     fusestat.Add("getattr", 0, 0, 0);
     fusestat.Add("setattr", 0, 0, 0);
+    fusestat.Add("setattr:chown", 0, 0, 0);
+    fusestat.Add("setattr:chmod", 0, 0, 0);
+    fusestat.Add("setattr:utimes", 0, 0, 0);
+    fusestat.Add("setattr:truncate", 0, 0, 0);
     fusestat.Add("lookup", 0, 0, 0);
     fusestat.Add("opendir", 0, 0, 0);
     fusestat.Add("readdir", 0, 0, 0);
@@ -295,6 +299,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     fusestat.Add("removexattr", 0, 0, 0);
     fusestat.Add("readlink", 0, 0, 0);
     fusestat.Add("symlink", 0, 0, 0);
+    fusestat.Add(__SUM__TOTAL__, 0, 0, 0);
 
     tDumpStatistic = std::thread(EosFuse::DumpStatistic);
     tDumpStatistic.detach();
@@ -399,7 +404,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 
   ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_BEGIN("getattr");
+  EXEC_TIMING_BEGIN(__func__);
 
   int rc = 0;
 
@@ -417,7 +422,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     fuse_reply_attr (req, &e.attr, e.attr_timeout);
   }
 
-  EXEC_TIMING_END("getattr");
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
@@ -427,7 +432,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
+EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
                  struct fuse_file_info *fi)
 /* -------------------------------------------------------------------------- */
 {
@@ -436,9 +441,324 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("setattr");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("setattr");
+  EXEC_TIMING_BEGIN(__func__);
+
+  int rc = 0;
+
+  cap::shared_cap pcap;
+
+  // retrieve the appropriate cap
+
+
+  if (op & FUSE_SET_ATTR_MODE)
+  {
+    // retrieve cap for mode setting
+    pcap = Instance().caps.acquire(req, ino,
+                                   M_OK);
+  }
+  else
+    if ((op & FUSE_SET_ATTR_UID) && (op & FUSE_SET_ATTR_GID))
+  {
+    // retrieve cap for owner setting
+    pcap = Instance().caps.acquire(req, ino,
+                                   C_OK);
+  }
+  else
+    if (op & FUSE_SET_ATTR_SIZE)
+  {
+    // retrieve cap for write
+    pcap = Instance().caps.acquire(req, ino,
+                                   W_OK);
+  }
+  else
+    if ( (op & FUSE_SET_ATTR_ATIME)
+        || (op & FUSE_SET_ATTR_MTIME)
+        || (op & FUSE_SET_ATTR_ATIME_NOW)
+        || (op & FUSE_SET_ATTR_MTIME_NOW)
+        )
+  {
+    // retrieve cap for write
+    pcap = Instance().caps.acquire(req, ino,
+                                   W_OK);
+  }
+
+  if (pcap->errc())
+  {
+    rc = pcap->errc();
+    fuse_reply_err (req, rc);
+  }
+  else
+  {
+    if (!rc)
+    {
+      metad::shared_md md;
+
+      md = Instance().mds.get(req, ino);
+
+      if (!md->id() || md->deleted())
+      {
+        rc = ENOENT;
+        fuse_reply_err (req, rc);
+      }
+
+      if (!rc)
+      {
+        if (op & FUSE_SET_ATTR_MODE)
+        {
+          /*
+            EACCES Search permission is denied on a component of the path prefix.  
+
+            EFAULT path points outside your accessible address space.
+
+            EIO    An I/O error occurred.
+
+            ELOOP  Too many symbolic links were encountered in resolving path.
+
+            ENAMETOOLONG
+                   path is too long.
+
+            ENOENT The file does not exist.
+
+            ENOMEM Insufficient kernel memory was available.
+
+            ENOTDIR
+                   A component of the path prefix is not a directory.
+
+            EPERM  The  effective  UID does not match the owner of the file, 
+                   and the process is not privileged (Linux: it does not
+           
+                   have the CAP_FOWNER capability).
+
+            EROFS  The named file resides on a read-only filesystem.
+
+            The general errors for fchmod() are listed below:
+
+            EBADF  The file descriptor fd is not valid.
+
+            EIO    See above.
+
+            EPERM  See above.
+
+            EROFS  See above.
+           */
+          ADD_FUSE_STAT("setattr:chmod", req);
+
+          EXEC_TIMING_BEGIN("setattr:chmod");
+
+          XrdSysMutexHelper mLock(md->Locker());
+
+          md->set_mode(attr->st_mode);
+
+          Instance().mds.update(req, md);
+
+          struct fuse_entry_param e;
+          md->convert(e);
+          eos_static_info("%s", md->dump(e).c_str());
+          fuse_reply_attr (req, &e.attr, e.attr_timeout);
+
+          EXEC_TIMING_END("setattr:chmod");
+        }
+
+        if ((op & FUSE_SET_ATTR_UID) && (op & FUSE_SET_ATTR_GID))
+        {
+          /*
+            EACCES Search permission is denied on a component of the path prefix.  
+
+            EFAULT path points outside your accessible address space.
+
+            ELOOP  Too many symbolic links were encountered in resolving path.
+
+            ENAMETOOLONG
+                   path is too long.
+
+            ENOENT The file does not exist.
+
+            ENOMEM Insufficient kernel memory was available.
+
+            ENOTDIR
+                   A component of the path prefix is not a directory.
+
+            EPERM  The calling process did not have the required permissions 
+                   (see above) to change owner and/or group.
+
+            EROFS  The named file resides on a read-only filesystem.
+
+            The general errors for fchown() are listed below:
+
+            EBADF  The descriptor is not valid.
+
+            EIO    A low-level I/O error occurred while modifying the inode.
+
+            ENOENT See above.
+
+            EPERM  See above.
+
+            EROFS  See above.
+           */
+
+          ADD_FUSE_STAT("setattr:chown", req);
+
+          EXEC_TIMING_BEGIN("setattr:chown");
+
+          XrdSysMutexHelper mLock(md->Locker());
+
+          md->set_uid(attr->st_uid);
+          md->set_gid(attr->st_gid);
+
+          Instance().mds.update(req, md);
+
+          struct fuse_entry_param e;
+          md->convert(e);
+          eos_static_info("%s", md->dump(e).c_str());
+          fuse_reply_attr (req, &e.attr, e.attr_timeout);
+
+          EXEC_TIMING_END("setattr:chown");
+
+        }
+
+        if (
+            (op & FUSE_SET_ATTR_ATIME)
+            || (op & FUSE_SET_ATTR_MTIME)
+            || (op & FUSE_SET_ATTR_ATIME_NOW)
+            || (op & FUSE_SET_ATTR_MTIME_NOW)
+            )
+        {
+          /*
+          EACCES Search permission is denied for one of the directories in 
+     the  path  prefix  of  path
+
+          EACCES times  is  NULL,  the caller's effective user ID does not match 
+     the owner of the file, the caller does not have
+     write access to the file, and the caller is not privileged 
+     (Linux: does not have either the CAP_DAC_OVERRIDE or
+     the CAP_FOWNER capability).
+
+          ENOENT filename does not exist.
+
+          EPERM  times is not NULL, the caller's effective UID does not 
+     match the owner of the file, and the caller is not priv‐
+     ileged (Linux: does not have the CAP_FOWNER capability).
+
+          EROFS  path resides on a read-only filesystem.
+           */
+
+          ADD_FUSE_STAT("setattr:utimes", req);
+          
+          EXEC_TIMING_BEGIN("setattr:utimes");
+
+          XrdSysMutexHelper mLock(md->Locker());
+
+          if (op & FUSE_SET_ATTR_ATIME)
+          {
+            md->set_atime(attr->ATIMESPEC.tv_sec);
+            md->set_atime_ns(attr->ATIMESPEC.tv_nsec);
+          }
+          if (op & FUSE_SET_ATTR_MTIME)
+          {
+            md->set_mtime(attr->MTIMESPEC.tv_sec);
+            md->set_mtime_ns(attr->MTIMESPEC.tv_nsec);
+          }
+
+          if ( ( op & FUSE_SET_ATTR_ATIME_NOW) ||
+              ( op & FUSE_SET_ATTR_MTIME_NOW) )
+          {
+            struct timespec tsnow;
+            eos::common::Timing::GetTimeSpec(tsnow);
+
+            if (op & FUSE_SET_ATTR_ATIME_NOW)
+            {
+              md->set_mtime(tsnow.tv_sec);
+              md->set_mtime_ns(tsnow.tv_nsec);
+            }
+
+            if (op & FUSE_SET_ATTR_MTIME_NOW)
+            {
+              md->set_mtime(tsnow.tv_sec);
+              md->set_mtime_ns(tsnow.tv_nsec);
+            }
+          }
+          Instance().mds.update(req, md);
+
+          struct fuse_entry_param e;
+          md->convert(e);
+          eos_static_info("%s", md->dump(e).c_str());
+          fuse_reply_attr (req, &e.attr, e.attr_timeout);
+
+          EXEC_TIMING_END("setattr:chown");
+        }
+
+
+        if (op & FUSE_SET_ATTR_SIZE)
+        {
+          /*
+EACCES Search  permission is denied for a component of the path 
+       prefix, or the named file is not writable by the user.
+             
+EFAULT Path points outside the process's allocated address space.
+
+EFBIG  The argument length is larger than the maximum file size. 
+
+EINTR  While blocked waiting to complete, the call was interrupted 
+       by a signal handler; see fcntl(2) and signal(7).
+
+EINVAL The argument length is negative or larger than the maximum 
+       file size.
+
+EIO    An I/O error occurred updating the inode.
+
+EISDIR The named file is a directory.
+
+ELOOP  Too many symbolic links were encountered in translating the 
+       pathname.
+
+ENAMETOOLONG
+       A component of a pathname exceeded 255 characters, or an 
+       entire pathname exceeded 1023 characters.
+
+ENOENT The named file does not exist.
+
+ENOTDIR
+       A component of the path prefix is not a directory.
+
+EPERM  The underlying filesystem does not support extending a file 
+       beyond its current size.
+
+EROFS  The named file resides on a read-only filesystem.
+
+ETXTBSY
+       The file is a pure procedure (shared text) file that is 
+       being executed.
+
+For ftruncate() the same errors apply, but instead of things that 
+can be wrong with path, we now have things that  can
+be wrong with the file descriptor, fd:
+
+EBADF  fd is not a valid descriptor.
+
+EBADF or EINVAL
+       fd is not open for writing.
+
+EINVAL fd does not reference a regular file.
+           */
+          
+          ADD_FUSE_STAT("setattr:truncate", req);
+          
+          EXEC_TIMING_BEGIN("setattr:truncate");
+
+          rc = EOPNOTSUPP;
+
+          EXEC_TIMING_END("setattr:truncate");
+        }
+      }
+    }
+
+    if (rc)
+      fuse_reply_err (req, rc);
+  }
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -452,10 +772,12 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 
   eos_static_debug("");
 
+  ADD_FUSE_STAT(__func__, req);
+
+  EXEC_TIMING_BEGIN(__func__);
+
   struct fuse_entry_param e;
   memset(&e, 0, sizeof (e));
-
-  EXEC_TIMING_BEGIN("lookup");
 
   {
     metad::shared_md md;
@@ -469,13 +791,14 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     else
     {
       // negative cache entry
+
       e.ino = 0;
       e.attr_timeout = 0;
       e.entry_timeout = 0;
     }
   }
 
-  EXEC_TIMING_END("lookup");
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -486,7 +809,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
+EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
   eos::common::Timing timing(__func__);
@@ -520,6 +843,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     }
     else
     {
+
       eos_static_info("%s", md->dump().c_str());
 
       // copy the current state
@@ -539,10 +863,10 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 void
 /* -------------------------------------------------------------------------- */
 EosFuse::readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                 struct fuse_file_info *fi)
+                 struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 /*
-    EBADF  Invalid directory stream descriptor fi->fh
+EBADF  Invalid directory stream descriptor fi->fh
  */
 {
   eos::common::Timing timing(__func__);
@@ -615,7 +939,7 @@ EosFuse::readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-EosFuse::releasedir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
+EosFuse::releasedir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
   eos::common::Timing timing(__func__);
@@ -630,6 +954,7 @@ EosFuse::releasedir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   eos::fusex::md* md = (eos::fusex::md*) fi->fh;
   if (md)
   {
+
     delete md;
     fi->fh = 0;
   }
@@ -666,6 +991,7 @@ EosFuse::statfs(fuse_req_t req, fuse_ino_t ino)
 
   if (rc)
     fuse_reply_err (req, rc);
+
   else
     fuse_reply_statfs (req, &svfs);
 
@@ -684,53 +1010,55 @@ void
 EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode)
 /* -------------------------------------------------------------------------- */
 /*
-  EACCES The parent directory does not allow write permission to the process, 
-         or one of the directories in pathname  did
+EACCES The parent directory does not allow write permission to the process, 
+or one of the directories in pathname  did
   
-         not allow search permission.  (See also path_resolution(7).)
+not allow search permission.  (See also path_resolution(7).)
 
-  EDQUOT The user's quota of disk blocks or inodes on the filesystem has been 
-         exhausted.
+EDQUOT The user's quota of disk blocks or inodes on the filesystem has been 
+exhausted.
 
-  EEXIST pathname  already exists (not necessarily as a directory).  
-         This includes the case where pathname is a symbolic
-         link, dangling or not.
+EEXIST pathname  already exists (not necessarily as a directory).  
+This includes the case where pathname is a symbolic
+link, dangling or not.
 
-  EFAULT pathname points outside your accessible address space.
+EFAULT pathname points outside your accessible address space.
 
-  ELOOP  Too many symbolic links were encountered in resolving pathname.
+ELOOP  Too many symbolic links were encountered in resolving pathname.
 
-  EMLINK The number of links to the parent directory would exceed LINK_MAX.
+EMLINK The number of links to the parent directory would exceed LINK_MAX.
 
-  ENAMETOOLONG
-         pathname was too long.
+ENAMETOOLONG
+pathname was too long.
 
-  ENOENT A directory component in pathname does not exist or is a dangling 
-         symbolic link.
+ENOENT A directory component in pathname does not exist or is a dangling 
+symbolic link.
 
-  ENOMEM Insufficient kernel memory was available.
+ENOMEM Insufficient kernel memory was available.
 
-  ENOSPC The device containing pathname has no room for the new directory.
+ENOSPC The device containing pathname has no room for the new directory.
 
-  ENOSPC The new directory cannot be created because the user's disk quota is 
-         exhausted.
+ENOSPC The new directory cannot be created because the user's disk quota is 
+exhausted.
 
-  ENOTDIR
-         A component used as a directory in pathname is not, in fact, a directory.
+ENOTDIR
+A component used as a directory in pathname is not, in fact, a directory.
 
-  EPERM  The filesystem containing pathname does not support the creation of 
-         directories.
+EPERM  The filesystem containing pathname does not support the creation of 
+directories.
 
-  EROFS  pathname refers to a file on a read-only filesystem.
+EROFS  pathname refers to a file on a read-only filesystem.
  */
 /* -------------------------------------------------------------------------- */
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
-  eos_static_debug("name=%s", name);
+  eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("mkdir");
+  ADD_FUSE_STAT(__func__, req);
+
+  EXEC_TIMING_BEGIN(__func__);
 
   int rc = 0;
 
@@ -759,6 +1087,7 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode)
     }
     else
     {
+
       md->set_mode(mode | S_IFDIR);
       struct timespec ts;
       eos::common::Timing::GetTimeSpec(ts);
@@ -785,7 +1114,7 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode)
     }
   }
 
-  EXEC_TIMING_END("mkdir");
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
@@ -798,12 +1127,15 @@ void
 EosFuse::unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("unlink");
+  ADD_FUSE_STAT(__func__, req);
+
+  EXEC_TIMING_BEGIN(__func__);
 
   EXEC_TIMING_END("unlink");
 
@@ -817,48 +1149,48 @@ void
 EosFuse::rmdir(fuse_req_t req, fuse_ino_t parent, const char * name)
 /* -------------------------------------------------------------------------- */
 /*
-  EACCES Write access to the directory containing pathname was not allowed, 
-         or one of the directories in the path prefix
-         of pathname did not allow search permission.  
+EACCES Write access to the directory containing pathname was not allowed, 
+or one of the directories in the path prefix
+of pathname did not allow search permission.  
 
-  EBUSY  pathname is currently in use by the system or some process that 
-         prevents its  removal.   On  Linux  this  means
-         pathname is currently used as a mount point or is the root directory of
-           the calling process.
+EBUSY  pathname is currently in use by the system or some process that 
+prevents its  removal.   On  Linux  this  means
+pathname is currently used as a mount point or is the root directory of
+the calling process.
 
-  EFAULT pathname points outside your accessible address space.
+EFAULT pathname points outside your accessible address space.
 
-  EINVAL pathname has .  as last component.
+EINVAL pathname has .  as last component.
 
-  ELOOP  Too many symbolic links were encountered in resolving pathname.
+ELOOP  Too many symbolic links were encountered in resolving pathname.
 
-  ENAMETOOLONG
-         pathname was too long.
+ENAMETOOLONG
+pathname was too long.
 
-  ENOENT A directory component in pathname does not exist or is a dangling 
-         symbolic link.
+ENOENT A directory component in pathname does not exist or is a dangling 
+symbolic link.
 
-  ENOMEM Insufficient kernel memory was available.
+ENOMEM Insufficient kernel memory was available.
 
-  ENOTDIR
-         pathname, or a component used as a directory in pathname, is not, 
-         in fact, a directory.
+ENOTDIR
+pathname, or a component used as a directory in pathname, is not, 
+in fact, a directory.
 
-  ENOTEMPTY
-         pathname contains entries other than . and .. ; or, pathname has ..  
-         as its final component.  POSIX.1-2001 also
-         allows EEXIST for this condition.
+ENOTEMPTY
+pathname contains entries other than . and .. ; or, pathname has ..  
+as its final component.  POSIX.1-2001 also
+allows EEXIST for this condition.
 
-  EPERM  The directory containing pathname has the sticky bit (S_ISVTX) set and 
-         the process's effective user ID is  nei‐
-         ther  the  user  ID  of  the file to be deleted nor that of the 
-         directory containing it, and the process is not
-         privileged (Linux: does not have the CAP_FOWNER capability).
+EPERM  The directory containing pathname has the sticky bit (S_ISVTX) set and 
+the process's effective user ID is  nei‐
+ther  the  user  ID  of  the file to be deleted nor that of the 
+directory containing it, and the process is not
+privileged (Linux: does not have the CAP_FOWNER capability).
 
-  EPERM  The filesystem containing pathname does not support the removal of 
-        directories.
+EPERM  The filesystem containing pathname does not support the removal of 
+directories.
 
-  EROFS  pathname refers to a directory on a read-only filesystem.
+EROFS  pathname refers to a directory on a read-only filesystem.
 
  */
 {
@@ -867,7 +1199,9 @@ EosFuse::rmdir(fuse_req_t req, fuse_ino_t parent, const char * name)
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("rmdir");
+  ADD_FUSE_STAT(__func__, req);
+
+  EXEC_TIMING_BEGIN(__func__);
 
   int rc = 0;
   // retrieve cap
@@ -914,12 +1248,14 @@ EosFuse::rmdir(fuse_req_t req, fuse_ino_t parent, const char * name)
       }
 
       if ((!rc) && md->children().size())
-      {;
+      {
+        ;
         rc = ENOTEMPTY;
       }
 
       if (!rc)
       {
+
         pmd = Instance().mds.get(req, parent);
         Instance().mds.remove(pmd, md);
       }
@@ -927,7 +1263,7 @@ EosFuse::rmdir(fuse_req_t req, fuse_ino_t parent, const char * name)
     fuse_reply_err (req, rc);
   }
 
-  EXEC_TIMING_END("rmdir");
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
@@ -951,14 +1287,17 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 /* -------------------------------------------------------------------------- */
 #endif
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("rename");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("rename");
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -970,6 +1309,7 @@ void
 EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
@@ -979,7 +1319,7 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
 
   fuse_reply_err(req, 0);
 
-  EXEC_TIMING_END("access");
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -991,14 +1331,17 @@ void
 EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("open");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("open");
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -1011,14 +1354,17 @@ EosFuse::mknod(fuse_req_t req, fuse_ino_t parent, const char *name,
                mode_t mode, dev_t rdev)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("mknod");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("mknod");
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -1028,17 +1374,21 @@ EosFuse::mknod(fuse_req_t req, fuse_ino_t parent, const char *name,
 void
 /* -------------------------------------------------------------------------- */
 EosFuse::create(fuse_req_t req, fuse_ino_t parent, const char *name,
-                mode_t mode, struct fuse_file_info *fi)
+                mode_t mode, struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("create");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("create");
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
+
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -1050,12 +1400,17 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
               struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
+
   eos_static_debug("inode=%llu size=%li off=%llu",
                    (unsigned long long) ino, size, (unsigned long long) off);
 
-  EXEC_TIMING_BEGIN("read");
+  eos_static_debug("");
 
-  EXEC_TIMING_END("read");
+  ADD_FUSE_STAT(__func__, req);
+
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 
 }
 
@@ -1066,13 +1421,18 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
                off_t off, struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
+
   eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld",
                    (long long) ino, (long long) size,
                    (long long) off, (long long) buf);
 
-  EXEC_TIMING_BEGIN("write");
+  eos_static_debug("");
 
-  EXEC_TIMING_END("write");
+  ADD_FUSE_STAT(__func__, req);
+
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1081,14 +1441,17 @@ void
 EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("release");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("release");
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -1101,14 +1464,17 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
                struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("fsync");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("fsync");
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -1120,14 +1486,17 @@ void
 EosFuse::forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("forget");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("forget");
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -1139,14 +1508,17 @@ void
 EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("flush");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("flush");
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f errno=%d", __FUNCTION__, timing.RealTime(), errno);
@@ -1169,19 +1541,107 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 /* -------------------------------------------------------------------------- */
 #endif
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("getxattr");
+  ADD_FUSE_STAT(__func__, req);
 
-  fuse_reply_err (req, ENOATTR);
+  EXEC_TIMING_BEGIN(__func__);
 
-  EXEC_TIMING_END("getxattr");
+  int rc = 0;
+
+  cap::shared_cap pcap;
+
+  // retrieve the appropriate cap
+  pcap = Instance().caps.acquire(req, ino,
+                                 R_OK);
+
+  if (pcap->errc())
+  {
+    rc = pcap->errc();
+  }
+  else
+  {
+    metad::shared_md md;
+
+    md = Instance().mds.get(req, ino);
+
+    if (!md->id() || md->deleted())
+    {
+      rc = ENOENT;
+    }
+    else
+    {
+      XrdSysMutexHelper mLock(md->Locker());
+
+      auto map = md->attr();
+
+      std::string key = xattr_name;
+      static std::string s_sec = "security.";
+      static std::string s_acl = "system.posix_acl";
+      static std::string s_apple = "com.apple";
+
+      // don't return any security attribute
+      if (key.substr(0, s_sec.length()) == s_sec)
+      {
+        rc = ENOATTR;
+      }
+      else
+        // don't return any posix acl attribute
+        if (key == s_acl)
+      {
+        rc = ENOATTR;
+      }
+#ifdef __APPLE__
+      else
+        // don't return any finder attribute
+        if (key.substr(0, s_apple.length()) == s_apple)
+      {
+        rc = ENOATTR;
+      }
+#endif
+      else
+      {
+        if (!map.count(key))
+        {
+          rc = ENOATTR;
+        }
+        else
+        {
+          std::string value = map[key];
+
+
+          if (size == 0 )
+          {
+            fuse_reply_xattr (req, value.size());
+          }
+          else
+          {
+            if (value.size() > size)
+            {
+              fuse_reply_err (req, ERANGE);
+            }
+            else
+            {
+              fuse_reply_buf (req, value.c_str(), value.size());
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (rc)
+    fuse_reply_err (req, rc);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(req, ino, 0, rc).c_str());
 }
 
 #ifdef __APPLE__
@@ -1189,7 +1649,8 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 void
 /* -------------------------------------------------------------------------- */
 EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
-                  const char *xattr_value, size_t size, int flags, uint32_t position)
+                  const char *xattr_value, size_t size, int flags,
+                  uint32_t position)
 /* -------------------------------------------------------------------------- */
 #else
 
@@ -1201,17 +1662,108 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 /* -------------------------------------------------------------------------- */
 #endif
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("setxattr");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("setxattr");
+  EXEC_TIMING_BEGIN(__func__);
+
+  int rc = 0;
+
+  cap::shared_cap pcap;
+
+  // retrieve the appropriate cap
+  pcap = Instance().caps.acquire(req, ino,
+                                 SA_OK);
+
+  if (pcap->errc())
+  {
+    rc = pcap->errc();
+  }
+  else
+  {
+
+    metad::shared_md md;
+
+    md = Instance().mds.get(req, ino);
+
+    if (!md->id() || md->deleted())
+    {
+      rc = ENOENT;
+    }
+    else
+    {
+      std::string key = xattr_name;
+      std::string value;
+      value.assign(xattr_value, size);
+
+      static std::string s_sec = "security.";
+      static std::string s_acl = "system.posix_acl";
+      static std::string s_apple = "com.apple";
+
+      // ignore silently any security attribute
+      if (key.substr(0, s_sec.length()) == s_sec)
+      {
+        rc = 0;
+      }
+      else
+        // ignore silently any posix acl attribute
+        if (key == s_acl)
+      {
+        rc = 0;
+      }
+#ifdef __APPLE__
+      else
+        // ignore silently any finder attribute
+        if (key.substr(0, s_apple.length()) == s_apple)
+      {
+        rc = 0;
+      }
+#endif
+      else
+      {
+        XrdSysMutexHelper mLock(md->Locker());
+
+        auto map = md->mutable_attr();
+
+        bool exists=false;
+        if ( (*map).count(key))
+        {
+          exists = true;
+        }
+
+        if (exists && (flags == XATTR_CREATE) )
+        {
+          rc = EEXIST;
+        }
+        else
+          if ( !exists && (flags == XATTR_REPLACE) )
+        {
+          rc = ENOATTR;
+        }
+        else
+        {
+          (
+
+                  *map)[key] = value;
+          Instance().mds.update(req, md);
+        }
+      }
+    }
+  }
+
+  fuse_reply_err (req, rc);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(req, ino, 0, rc).c_str());
+
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1220,17 +1772,81 @@ void
 EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("listxattr");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("listxattr");
+  EXEC_TIMING_BEGIN(__func__);
+
+  int rc = 0;
+
+  cap::shared_cap pcap;
+
+  // retrieve the appropriate cap
+  pcap = Instance().caps.acquire(req, ino,
+                                 R_OK);
+
+  if (pcap->errc())
+  {
+    rc = pcap->errc();
+  }
+  else
+  {
+
+    metad::shared_md md;
+
+    md = Instance().mds.get(req, ino);
+
+    if (!md->id() || md->deleted())
+    {
+      rc = ENOENT;
+    }
+    else
+    {
+      XrdSysMutexHelper mLock(md->Locker());
+
+      auto map = md->attr();
+
+      size_t attrlistsize=0;
+      std::string attrlist;
+
+      for ( auto it = map.begin(); it != map.end(); ++it)
+      {
+        attrlistsize += it->first.length() + 1;
+        attrlist += it->first;
+        attrlist += '\0';
+      }
+
+      if (size == 0 )
+      {
+        fuse_reply_xattr (req, attrlistsize);
+      }
+      else
+      {
+        if (attrlist.size() > size)
+        {
+          fuse_reply_err (req, ERANGE);
+        }
+        else
+        {
+          fuse_reply_buf (req, attrlist.c_str(), attrlist.length());
+        }
+      }
+    }
+  }
+
+  if (rc)
+    fuse_reply_err (req, rc);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(req, ino, 0, rc).c_str());
 }
 
 void
@@ -1238,17 +1854,100 @@ void
 EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("removexattr");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("removexattr");
+  EXEC_TIMING_BEGIN(__func__);
+
+  int rc = 0 ;
+
+  cap::shared_cap pcap;
+
+  // retrieve the appropriate cap
+  pcap = Instance().caps.acquire(req, ino,
+                                 SA_OK);
+
+  if (pcap->errc())
+  {
+    rc = pcap->errc();
+  }
+  else
+  {
+
+    metad::shared_md md;
+
+    md = Instance().mds.get(req, ino);
+
+    if (!md->id() || md->deleted())
+    {
+      rc = ENOENT;
+    }
+    else
+    {
+      std::string key = xattr_name;
+
+      static std::string s_sec = "security.";
+      static std::string s_acl = "system.posix_acl";
+      static std::string s_apple = "com.apple";
+
+      // ignore silently any security attribute
+      if (key.substr(0, s_sec.length()) == s_sec)
+      {
+        rc = 0;
+      }
+      else
+        // ignore silently any posix acl attribute
+        if (key == s_acl)
+      {
+        rc = 0;
+      }
+#ifdef __APPLE__
+      else
+        // ignore silently any finder attribute
+        if (key.substr(0, s_apple.length()) == s_apple)
+      {
+        rc = 0;
+      }
+#endif
+      else
+      {
+        XrdSysMutexHelper mLock(md->Locker());
+
+        auto map = md->mutable_attr();
+
+        bool exists=false;
+        if ( (*map).count(key))
+        {
+          exists = true;
+        }
+
+        if ( !exists )
+        {
+          rc = ENOATTR;
+        }
+        else
+        {
+          (
+
+                  *map).erase(key);
+          Instance().mds.update(req, md);
+        }
+      }
+    }
+  }
+
+  fuse_reply_err (req, rc);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(req, ino, 0, rc).c_str());
 }
 
 void
@@ -1256,14 +1955,17 @@ void
 EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
+
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("readlink");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("readlink");
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -1279,9 +1981,11 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
 
   eos_static_debug("");
 
-  EXEC_TIMING_BEGIN("symlink");
+  ADD_FUSE_STAT(__func__, req);
 
-  EXEC_TIMING_END("symlink");
+  EXEC_TIMING_BEGIN(__func__);
+
+  EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
