@@ -753,7 +753,6 @@ WFE::Job::DoIt()
                              e.getMessage().str().c_str());
           }
 
-          \
 
           if (fmd.get() && cmd.get()) {
             std::shared_ptr<eos::IFileMD> cfmd  = fmd;
@@ -1215,6 +1214,7 @@ WFE::Job::DoIt()
               } else {
                 bool b64encode = false;
                 std::string key;
+		std::string value;
                 key.assign(execargs.c_str() + xstart + 18, xend - xstart - 18);
                 execargs.erase(xstart, xend + 1 - xstart);
                 XrdOucString skey = key.c_str();
@@ -1224,21 +1224,23 @@ WFE::Job::DoIt()
                   b64encode = true;
                 }
 
-                try {
-                  std::string value = cfmd->getAttribute(key);
-
-                  if (b64encode) {
-                    unbase64 = value.c_str();
-                    eos::common::SymKey::Base64(unbase64, base64);
-                    value = base64.c_str();
-                  }
+		if (gOFS->_attr_get(cfmd->getId(), key, value))
+		{
+		  if (b64encode) 
+		  {
+		    unbase64 = value.c_str();
+		    eos::common::SymKey::Base64(unbase64, base64);
+		    value = base64.c_str();
+		  }
 
                   if (xstart == execargs.length()) {
                     execargs += value.c_str();
                   } else {
                     execargs.insert(value.c_str(), xstart);
                   }
-                } catch (eos::MDException& e) {
+                } 
+		else
+		{
                   execargs.insert("UNDEF", xstart);
                 }
               }
@@ -1262,30 +1264,32 @@ WFE::Job::DoIt()
               } else {
                 bool b64encode = false;
                 std::string key;
+		std::string value;
                 key.assign(execargs.c_str() + xstart + 18, xend - xstart - 18);
                 execargs.erase(xstart, xend + 1 - xstart);
                 XrdOucString skey = key.c_str();
-
+		
                 if (skey.beginswith("base64:")) {
                   key.erase(0, 7);
                   b64encode = true;
                 }
 
-                try {
-                  std::string value = ccmd->getAttribute(key);
-
-                  if (b64encode) {
-                    unbase64 = value.c_str();
-                    eos::common::SymKey::Base64(unbase64, base64);
-                    value = base64.c_str();
-                  }
-
+		if (gOFS->_attr_get(ccmd->getId(), key, value))
+		{
+		  if (b64encode) 
+		  {
+		    unbase64 = value.c_str();
+		    eos::common::SymKey::Base64(unbase64, base64);
+		    value = base64.c_str();
+		  }
                   if (xstart == execargs.length()) {
                     execargs += value.c_str();
                   } else {
                     execargs.insert(value.c_str(), xstart);
                   }
-                } catch (eos::MDException& e) {
+                } 
+		else
+		{
                   execargs.insert("UNDEF", xstart);
                 }
               }

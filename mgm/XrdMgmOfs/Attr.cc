@@ -538,6 +538,93 @@ XrdMgmOfs::_attr_get(const char* path,
   return SFS_OK;
 }
 
+
+/*----------------------------------------------------------------------------*/
+bool 
+XrdMgmOfs::_attr_get(uint64_t cid, 
+                     std::string key,
+		     std::string &rvalue)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief get an extended attribute for a given inode by key
+ *
+ * @param info CGI
+ * @param key key to get
+ * @param rvalue value returned
+ * 
+ * @return true if exists, otherwise false
+ *
+ */
+/*----------------------------------------------------------------------------*/
+{
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
+  errno = 0;
+  EXEC_TIMING_BEGIN("AttrGet");
+  gOFS->MgmStats.Add("AttrGet", vid.uid, vid.gid, 1);
+
+  if (!key.length()) {
+    return false;
+  }
+
+  XrdOucString value = "";
+  XrdOucString link;
+
+  eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+
+  try {
+    dh = gOFS->eosDirectoryService->getContainerMD(cid);
+    value = (dh->getAttribute(key)).c_str();
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  if (dh && errno) {
+    // try linked attributes
+    try {
+      std::string lkey = "sys.attr.link";
+      link = (dh->getAttribute(lkey)).c_str();
+      dh = gOFS->eosView->getContainer(link.c_str());
+      value = (dh->getAttribute(key)).c_str();
+      errno = 0;
+    } catch (eos::MDException& e) {
+      dh.reset();
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+
+  if (!dh) {
+    try {
+      fmd = gOFS->eosFileService->getFileMD(cid);
+      value = (fmd->getAttribute(key)).c_str();
+      errno = 0;
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+
+  // we always decode attributes here, even if they are stored as base64:
+  XrdOucString val64 = value;
+  eos::common::SymKey::DeBase64(val64, value);
+
+  rvalue = value.c_str();
+
+  EXEC_TIMING_END("AttrGet");
+
+  if (errno) 
+  {
+    return false;
+  }
+
+  return true;
+}
+
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_rem(const char* path,

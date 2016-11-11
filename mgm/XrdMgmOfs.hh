@@ -617,7 +617,7 @@ public:
                const char* opaque,
                const char* key,
                XrdOucString& value);
-
+  
   // ---------------------------------------------------------------------------
   // remove extended attribute of a directory
   // ---------------------------------------------------------------------------
@@ -658,6 +658,15 @@ public:
                 const char* key,
                 XrdOucString& value,
                 bool islocked = false);
+
+  // ---------------------------------------------------------------------------
+  // get extended attribute by id
+  // ---------------------------------------------------------------------------
+  bool
+  _attr_get(uint64_t id,
+		       std::string key,
+		       std::string &rvalue);
+
 
   // ---------------------------------------------------------------------------
   // remove extended attribute by vid

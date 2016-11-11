@@ -671,10 +671,10 @@ ProcCommand::File()
         opaque += workflow.c_str();
         opaque += "&mgm.path=";
         opaque += spath.c_str();
-        opaque += "&mgm.ruid=";
-        opaque += (int) vid.uid;
-        opaque += "&mgm.rgid=";
-        opaque += (int) vid.gid;
+	opaque += "&mgm.ruid=";
+	opaque += (int) vid.uid;
+	opaque += "&mgm.rgid=";
+	opaque += (int) vid.gid;
         XrdSecEntity lClient(pVid->prot.c_str());
         lClient.name = (char*) pVid->name.c_str();
         lClient.tident = (char*) pVid->tident.c_str();
