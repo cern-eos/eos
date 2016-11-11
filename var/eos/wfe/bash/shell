@@ -9,7 +9,7 @@ echo "--------------------------------------------------------------------------
 echo -n  `date +%s` `date`  >> $tmplogfile
 echo " $bn $*" >> $tmplogfile
 
-eval $* >>  $tmplogfile
+eval $* | tee -a $tmplogfile
 retc=$?
 echo "retc=$retc" >> $tmplogfile
 cat $tmplogfile >> $logfile
