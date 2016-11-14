@@ -90,6 +90,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # export MALLOC_CONF_mgm="prof:true,prof_active:false,prof_accum:true,lg_prof_interval:30"
 # means enable profiling support, start with NOT running profiling, issue cumulative dumps, autodump a profile every 2^30 bytes (1GB)
 
+# Duplicate all logging information to SYSLOG
+# export EOS_LOG_SYSLOG=0 ( set 1 or true to enable)
+
 # ------------------------------------------------------------------
 # FST Configuration
 # ------------------------------------------------------------------
