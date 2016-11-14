@@ -7,6 +7,25 @@
 Beryl Release Notes
 ===================
 
+``V0.3.219 Aquamarine``
+=======================
+
+Feature
++++++++
+
+- COMMON: allow to duplicate EOS log to syslog via export EOS_LOG_SYSLOG=1
+
+
+Bug Fix
++++++++
+
+- COMMON/FUSE: fix base64 encoding of not-string buffers
+- FUSE: fix memory leak in proc cache
+- FUSE: use FORKHANDLER in XrdCl and check mgm before forking the FUSE daemon
+- FUSE: fix shutdown behaviour after MGM ping failure
+- MGM: fix 'fileinfo' for high inode numbers
+
+
 ``V0.3.218 Aquamarine``
 =======================
 
