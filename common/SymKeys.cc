@@ -74,10 +74,10 @@ SymKey::HmacSha256(std::string& key,
   return result;
 }
 
+//------------------------------------------------------------------------------
+// Compute the HMAC SHA-256 value
+//------------------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
-// Compute the SHA256 value
-//------------------------------------------------------------------------------
 std::string
 SymKey::Sha256(const std::string& data,
 	       unsigned int blockSize)
@@ -164,9 +164,9 @@ SymKey::HmacSha1(std::string& key,
 
 std::string
 SymKey::HmacSha256(std::string& key,
-                   std::string& data,
-                   unsigned int blockSize,
-                   unsigned int resultSize)
+                    std::string& data,
+                    unsigned int blockSize,
+                    unsigned int resultSize)
 {
   HMAC_CTX ctx;
   std::string result;
@@ -203,7 +203,7 @@ SymKey::HmacSha256(std::string& key,
 
 std::string
 SymKey::Sha256(const std::string& data,
-               unsigned int blockSize)
+                unsigned int blockSize)
 {
   unsigned int data_len = data.length();
   unsigned char* pData = (unsigned char*) data.c_str();
@@ -229,7 +229,7 @@ SymKey::Sha256(const std::string& data,
     EVP_DigestFinal_ex(md_ctx, pResult, &sz_result);
     EVP_MD_CTX_cleanup(md_ctx);
   }
-  // Return the hexdigest of the SHA256 value
+
   std::ostringstream oss;
   oss.fill('0');
   oss << std::hex;
@@ -251,7 +251,7 @@ SymKey::Sha256(const std::string& data,
 
 std::string
 SymKey::HmacSha1(std::string& key,
-                 std::string& data)
+                  std::string& data)
 {
   HMAC_CTX ctx;
   std::string result;
@@ -283,18 +283,18 @@ SymKey::HmacSha1(std::string& key,
   return result;
 }
 #endif
-
 //------------------------------------------------------------------------------
 // Base64 encoding function
 //------------------------------------------------------------------------------
+
 bool
 SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
 {
   BIO* bmem, *b64;
   BUF_MEM* bptr;
-  /* base64 encode */
-  b64 = BIO_new(BIO_f_base64());
 
+  b64 = BIO_new(BIO_f_base64());
+  /* base64 encode */
   if (!b64) {
     return false;
   }
@@ -314,13 +314,14 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
   // retrieve size
   char* dummy;
   long size = BIO_get_mem_data(b64, &dummy);
-  // retrieve buffer pointer
+
   BIO_get_mem_ptr(b64, &bptr);
 
-  if (bptr->data) {
-    std::string sout;
-    sout.assign((char*) bptr->data, 0, size);
-    out = sout.c_str(); // XrdOucString assign can only assign portions of 0 terminated strings
+  if (bptr->data)
+  {
+    std::string s(bptr->data,size);
+    out=s.c_str();
+    // we don't use out.assign() as the buffer does not have null terminating character
   }
 
   BIO_free_all(b64);
@@ -470,7 +471,7 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
 
   // check if it exists
   SymKey* existkey = Store.Find(key->GetDigest64());
-
+  // if it exists we remove it add it with the new validity time
   // if it exists we remove it add it with the new validity time
   if (existkey) {
     Store.Del(existkey->GetDigest64());
@@ -510,7 +511,7 @@ SymKeyStore::GetCurrentKey()
   if (currentKey) {
     if (currentKey->IsValid()) {
       return currentKey;
-    }
+  }
   }
 
   return 0;

@@ -49,14 +49,14 @@ ProcCommand::Fileinfo()
 
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
-  // stat the path
+
   struct stat buf;
 
   if (
-    (!spath.beginswith("inode:")) &&
-    (!spath.beginswith("fid:")) &&
-    (!spath.beginswith("fxid:")) &&
-    (!spath.beginswith("pid:")) &&
+      (!spath.beginswith("inode:")) &&
+      (!spath.beginswith("fid:")) &&
+      (!spath.beginswith("fxid:")) &&
+      (!spath.beginswith("pid:")) &&
     (!spath.beginswith("pxid:"))) {
     if (gOFS->_stat(path, &buf, *mError, *pVid, (char*) 0)) {
       stdErr = "error: cannot stat ";
@@ -86,15 +86,15 @@ ProcCommand::Fileinfo()
         buf.st_mode = S_IFREG;
       } else {
         buf.st_mode = S_IFDIR;
-      }
     }
+  }
   }
 
   if (S_ISDIR(buf.st_mode)) {
     return DirInfo(path);
   } else {
     return FileInfo(path);
-  }
+}
 }
 
 int
@@ -116,10 +116,6 @@ ProcCommand::FileInfo(const char* path)
       if (spath.beginswith("fxid:")) {
         spath.replace("fxid:", "");
         fid = strtoull(spath.c_str(), 0, 16);
-      }
-
-      if (fid >=  eos::common::FileId::FidToInode(1)) {
-        fid = eos::common::FileId::InodeToFid(fid);
       }
 
       // reference by fid+fsid
@@ -476,7 +472,7 @@ ProcCommand::FileInfo(const char* path)
 
           eos::IFileMD::LocationVector::const_iterator lociter;
           eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
-          // scheduling stuff to get the proxy scheduling
+
           std::vector<unsigned int> selectedfs;
           std::vector<std::string> proxys;
           std::vector<std::string> firewalleps;
@@ -487,7 +483,7 @@ ProcCommand::FileInfo(const char* path)
           Scheduler::AccessArguments acsargs;
           int i = 0;
           int schedretc = -1;
-
+            // ignore filesystem id 0
           for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
             // ignore filesystem id 0
             if (!(*lociter)) {
@@ -559,7 +555,7 @@ ProcCommand::FileInfo(const char* path)
 
                     for (auto it = loc_vect.begin(); it != loc_vect.end(); it++) {
                       selectedfs.push_back(*it);
-                    }
+              }
 
                     std::string stried_cgi = "";
                     acsargs.tried_cgi = &stried_cgi;
@@ -784,19 +780,19 @@ ProcCommand::DirInfo(const char* path)
         dmd->getMTime(mtime);
         dmd->getTMTime(tmtime);
         //fprintf(stderr,"%lli.%lli %lli.%lli %lli.%lli\n",
-        //        static_cast<long long int>(ctime.tv_sec),
-        //        static_cast<long long int>(ctime.tv_nsec),
-        //        static_cast<long long int>(mtime.tv_sec),
-        //        static_cast<long long int>(mtime.tv_nsec),
-        //        static_cast<long long int>(tmtime.tv_sec),
-        //        static_cast<long long int>(tmtime.tv_sec));
+
+	//fprintf(stderr,"%llu.%llu %llu.%llu %llu.%llu\n", (unsigned long long)ctime.tv_sec,
+        //        (unsigned long long)ctime.tv_nsec, (unsigned long long)mtime.tv_sec,
+        //        (unsigned long long)mtime.tv_nsec, (unsigned long long)tmtime.tv_sec,
+        //        (unsigned long long)tmtime.tv_sec);
+
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;
         time_t filetmtime = (time_t) tmtime.tv_sec;
         char fid[32];
         snprintf(fid, 32, "%llu", (unsigned long long) dmd->getId());
         std::string etag;
-        // use inode + tmtime
+
         char setag[256];
         snprintf(setag, sizeof(setag) - 1, "%llx:%llu.%03lu",
                  (unsigned long long)dmd->getId(), (unsigned long long)tmtime.tv_sec,
@@ -807,10 +803,10 @@ ProcCommand::DirInfo(const char* path)
           stdOut = "  Directory: '";
           stdOut += spath;
           stdOut += "'";
-          stdOut += "  Treesize: ";
+	  stdOut += "  Treesize: ";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring,
                     (unsigned long long) dmd->getTreeSize());
-          stdOut += "\n";
+	  stdOut += "\n";
           stdOut += "  Container: ";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring,
                     (unsigned long long)num_containers);
@@ -877,10 +873,10 @@ ProcCommand::DirInfo(const char* path)
           stdOut += "file=";
           stdOut += spath;
           stdOut += " ";
-          stdOut += "treesize=";
+	  stdOut += "treesize=";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring,
                     (unsigned long long) dmd->getTreeSize());
-          stdOut += " ";
+	  stdOut += " ";
           stdOut += "container=";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring,
                     (unsigned long long)num_containers);

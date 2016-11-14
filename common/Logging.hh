@@ -242,6 +242,7 @@ class Logging
   static Mapping::VirtualIdentity gZeroVid; //< root vid
   static int gLogMask; //< log mask
   static int gPriorityLevel; //< log priority
+  static bool gToSysLog; //< duplicate into syslog
   static XrdSysMutex gMutex; //< global mutex
   static XrdOucString gUnit; //< global unit name
   static XrdOucHash<const char*> gAllowFilter; ///< global list of function names allowed to log
@@ -270,6 +271,12 @@ class Logging
   SetUnit (const char* unit)
   {
     gUnit = unit;
+  }
+
+  static void
+  SetSysLog (bool onoff)
+  {
+    gToSysLog = onoff;
   }
 
   // ---------------------------------------------------------------------------
