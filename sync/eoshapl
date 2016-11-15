@@ -62,24 +62,6 @@ sub now {
     return $now;
 }
 
-# Variable for checking if service manager is systemd
-my $SYSTEMD = `pidof systemd`;
-
-# Function for checking status of EOS services
-sub service_status {
-	if ( $SYSTEMD = 1 ) {
-		$mastermgm = system("env CONSOLETYPE=serial systemctl status eos\@mgm >&/dev/null");
-		$mastermq  = system("env CONSOLETYPE=serial systemctl status eos\@mq >&/dev/null");
-		$masterfed = system("env CONSOLETYPE=serial systemctl status eos\@fed >&/dev/null");
-		$eossync   = system("env CONSOLETYPE=serial systemctl status eossync@* >&/dev/null");
-	} else {
-		$mastermgm = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mgm >&/dev/null");
-		$mastermq  = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mq >&/dev/null");
-		$masterfed = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status fed >&/dev/null");
-		$eossync   = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync status >&/dev/null");
-	}
-}
-
 my $cnt=0;
 printf "$now ===================================================================\n";
 printf "$now Started EOSHA - EOS High Availability\n";
@@ -87,39 +69,43 @@ printf "$now ___________________________________________________________________
 
 while(1) {
     now();
-    service_status();
-
+    $mastermgm =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mgm >&/dev/null");
+    $mastermq  =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mq >&/dev/null");
+    $masterfed =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status fed >&/dev/null");
+    $eossync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync status >&/dev/null");
     $mastermgm = ($mastermgm >> 8);
     $mastermq  = ($mastermq >> 8);
     $masterfed = ($masterfed >> 8);
-    $eossync   = ($eossync >> 8);
+    $eossync= ($eossync >> 8);
 
     if (!$mastermgm) {
-	$mgmstatus="<up>";
+        $mgmstatus="<up>";
     } else {
-	$mgmstatus="<down>";
+        $mgmstatus="<down>";
     }
 
     if (!$mastermq) {
-	$mqstatus="<up>";
+        $mqstatus="<up>";
     } else {
-	$mqstatus="<down>";
+        $mqstatus="<down>";
     }
 
     if (!$eossync) {
-	$eossyncstatus="<up>";
+        $eossyncstatus="<up>";
     } else {
-	$eossyncstatus="<down>";
+        $eossyncstatus="<down>";
     }
 
     if ($debug || (!$cnt)) {print "$now hostname=$host [$host_ip]  aliases=$aliasname\n";}
-
-	service_status();
-
+    
+    $mastermgm = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mgm >&/dev/null");
+    $mastermq  = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mq >&/dev/null");
+    $masterfed = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status fed >&/dev/null");
+    $eossync   = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync status >&/dev/null");
     $mastermgm = ($mastermgm >> 8);
     $mastermq  = ($mastermq >> 8);
-    $masterfed = ($masterfed >> 8);
-    $eossync   = ($eossync >> 8);
+    $masterfed = ($masterfed >>8);
+    $eossync   = ($eossync >>8);
 
     if ( $mastermgm && ($mastermgm != 2)) {
 	now();
@@ -127,11 +113,7 @@ while(1) {
 	printf("$now restart dead MGM ...\n");
 	printf "$now ___________________________________________________________________\n";
 	# service dead ... let's restart
-	if ( $SYSTEMD = 1 ) {
-		my $startupmgm = system("env CONSOLETYPE=serial systemctl restart eos\@mgm >> $logfile 2>&1 ");
-	} else {
-		my $startupmgm = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart mgm >> $logfile 2>&1 ");
-	}
+	my $startupmgm = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart mgm >> $logfile 2>&1 ");
     }
 
     if ( $mastermq && ($mastermq != 2)) {
@@ -140,24 +122,16 @@ while(1) {
 	printf("$now restart dead MQ ...\n");
 	printf "$now ___________________________________________________________________\n";
 	# service dead ... let's restart
-	if ( $SYSTEMD = 1 ) {
-		my $startupmq = system("env CONSOLETYPE=serial systemctl restart eos\@mq >> $logfile 2>&1 ");
-	} else {
-		my $startupmq = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart mq >> $logfile 2>&1 ");
-	}
+	my $startupmq = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart mq >> $logfile 2>&1 ");
     }
 
     if ( $masterfed ) {
 	now();
 	printf "$now ===================================================================\n";
-	    printf("$now (re-)start FED ...\n");
+            printf("$now (re-)start FED ...\n");
 	printf "$now ___________________________________________________________________\n";
 	# service dead ... let's restart
-	if ( $SYSTEMD = 1 ) {
-		my $startupfed = system("env CONSOLETYPE=serial systemctl restart eos\@fed >> /dev/null 2>&1 ");
-	} else {
-		my $startupfed = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart fed >> /dev/null 2>&1 ");
-	}
+	my $startupfed = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart fed >> /dev/null 2>&1 ");
     }
 
     if ( $eossync ) {
@@ -166,12 +140,8 @@ while(1) {
 	printf("$now (re-)start EOS SYNC ...\n");
 	printf "$now ___________________________________________________________________\n";
 	# service dead ... let's restart
-	if ( $SYSTEMD = 1 ) {
-		my $startupsync = system("env CONSOLETYPE=serial systemctl restart eossync@* >> $logfile 2>&1 ");
-	} else {
-		my $startupsync = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync restart >> $logfile 2>&1 ");
-	}
-    }
+	my $startupsync = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync restart >> $logfile 2>&1 ");
+    }  
     # check that the MGM is operational
     if (!$mastermgm) {
 	my $mgmdead=system("eossh-timeout -t $eosshtimeout xrd localhost stat / >& /dev/null");
