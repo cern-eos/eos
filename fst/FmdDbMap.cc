@@ -927,7 +927,6 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
           return DeleteFmd(fMd.fid(), fsid);
         } else {
           // we proceed
-          delete fmd;
         }
       }
     } else {
