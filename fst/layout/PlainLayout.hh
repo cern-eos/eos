@@ -163,6 +163,14 @@ public:
                          XrdSfsXferSize length);
 
   //--------------------------------------------------------------------------
+  //! Wait for all async IO and return global response code
+  //--------------------------------------------------------------------------
+  virtual int WaitAsyncIO()
+  {
+    return mPlainFile->WaitAsyncIO();
+  }
+
+  //--------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value

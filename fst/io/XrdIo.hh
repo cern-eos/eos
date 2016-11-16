@@ -251,6 +251,15 @@ public:
                               uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
+  //! Wait for all async IO
+  //!    
+  //! @return global return code of async IO 
+  //! 
+  //--------------------------------------------------------------------------
+  virtual int WaitAsyncIO();
+
+
+  //--------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value

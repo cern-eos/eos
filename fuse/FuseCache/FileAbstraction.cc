@@ -204,6 +204,17 @@ FileAbstraction::WaitFinishWrites()
 
   while (mSizeWrites)
     mCondUpdate.Wait();
+
+  if (mFileRW)
+  {
+    int retc = mFileRW->WaitAsyncIO();
+    if (retc)
+    {
+      error_type er = std::make_pair((int)retc,(off_t)0);
+      // since requests are async, we have to add the global error return code to the queue
+      errorsQueue->push(er);
+    }
+  }
 }
 
 
