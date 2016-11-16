@@ -3725,7 +3725,15 @@ filesystem::flush (int fd, uid_t uid, gid_t gid, pid_t pid)
 
    fabst->mMutexRW.WriteLock ();
    // if we wrote more than the in-memory cache-size we wait for the writes in flush and evt. report an error
-   XFC->ForceAllWrites (fabst.get(), (cache_size > file_write_back_cache_size)?true:false);
+
+   bool wait_async = true;
+   if (fabst->GetRawFileRW() && fabst->GetRawFileRW()->CanCache())
+   {
+     if (cache_size < file_write_back_cache_size)
+       wait_async = false;
+   }
+
+   XFC->ForceAllWrites (fabst.get(), wait_async);
    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue ();
    error_type error;
 
