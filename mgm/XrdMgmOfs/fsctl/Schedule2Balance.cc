@@ -287,10 +287,18 @@
 
               XrdOucString source_capability = "";
               XrdOucString sizestring;
+
+	      unsigned long long target_lid = lid & 0xffffff0f;
+	      if (!eos::common::LayoutId::GetBlockChecksum(lid))
+	      {
+		// mask block checksums (e.g. for replica layouts)
+		target_lid &= 0xf0ffffff;
+	      }
+
               source_capability += "mgm.access=read";
               source_capability += "&mgm.lid=";
               source_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                                                                (unsigned long long) lid & 0xffffff0f);
+                                                                                (unsigned long long) target_lid);
               // make's it a plain replica
               source_capability += "&mgm.cid=";
               source_capability += eos::common::StringConversion::GetSizeString(sizestring, cid);
@@ -329,7 +337,7 @@
               target_capability += "mgm.access=write";
               target_capability += "&mgm.lid=";
               target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                                                                (unsigned long long) lid & 0xffffff0f);
+                                                                                (unsigned long long) target_lid);
               // make's it a plain replica
               target_capability += "&mgm.source.lid=";
               target_capability += eos::common::StringConversion::GetSizeString(sizestring,
