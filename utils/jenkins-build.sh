@@ -159,4 +159,5 @@ echo "Save RPMs in YUM repo: ${YUM_REPO_PATH}"
 aklog
 mkdir -p ${YUM_REPO_PATH}
 cp -f *fuse*.rpm ${YUM_REPO_PATH}
+cp -f *.src.rpm ${YUM_REPO_PATH}
 createrepo --update -q ${YUM_REPO_PATH}
