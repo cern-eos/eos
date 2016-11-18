@@ -57,6 +57,8 @@
 #include "md.hh"
 #include "kv.hh"
 
+#include "EosFuseSessionLoop.hh"
+
 #define _FILE_OFFSET_BITS 64 
 
 EosFuse* EosFuse::sEosFuse = 0;
@@ -145,6 +147,15 @@ EosFuse::run(int argc, char* argv[], void *userdata)
               jsonconfig.c_str(), reader.getFormatedErrorMessages().c_str());
       exit(EINVAL);
     }
+
+//  std::cout << "root.size(): " << root.size() << std::endl;
+//  Json::Value::iterator itr;
+//  for( itr = root.begin() ; itr != root.end() ; ++itr )
+//  {
+//    std::cout << *itr << std::endl;
+//    std::cout << (*itr)["name"] << std::endl;
+//  }
+//    root = *root.begin();
 
     const Json::Value jname = root["name"];
     config.name = root["name"].asString();
@@ -330,7 +341,9 @@ EosFuse::run(int argc, char* argv[], void *userdata)
         }
         else
         {
-          err = fuse_session_loop_mt(se);
+           EosFuseSessionLoop loop( 10, 20, 10, 20 );
+           err = loop.Loop( se );
+          // err = fuse_session_loop_mt(se);
         }
 
         fuse_remove_signal_handlers(se);
