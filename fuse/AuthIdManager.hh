@@ -1,3 +1,4 @@
+
 // ----------------------------------------------------------------------
 // File: AuthIdManager.hh
 // Author: Geoffray Adde - CERN
@@ -175,13 +176,13 @@ protected:
     int sidx = 1, sn = 2;
 
     if (!use_user_krb5cc && use_user_gsiproxy) {
-      (sidx = 2) && (sn = 1);
+      sidx = 2; sn = 1;
     } else if (use_user_krb5cc && !use_user_gsiproxy) {
-      (sidx = 0) && (sn = 2);
+      sidx = 0; sn = 2;
     } else if (tryKrb5First) {
-      (sidx = 0) && (sn = 3);
+      sidx = 0; sn = 3;
     } else {
-      (sidx = 2) && (sn = 3);
+      sidx = 2; sn = 3;
     }
 
     // try all the credential types according to settings and stop as soon as a credetnial is found
@@ -195,46 +196,46 @@ protected:
         } else {
           snprintf(buffer, 1024, formats[f], (int) uid, suffixes[i]);
         }
-            //eos_static_debug("trying to stat %s", buffer);
+
+        size_t bsize = 0;
         //eos_static_debug("trying to stat %s", buffer);
-        if (!::lstat(buffer, &linkstat)) {
-                ret = true;
-                credinfo.lname = buffer;
-                credinfo.lmtime = linkstat.MTIMESPEC.tv_sec;
-                credinfo.lctime = linkstat.CTIMESPEC.tv_sec;
-                credinfo.type = credtypes[i];
-          size_t bsize = readlink(buffer, buffer2, 1024);
-                buffer2[bsize] = 0;
+        if (!::lstat(buffer, &linkstat) && (bsize = readlink(buffer, buffer2, 1023))>=0 ) {
+          ret = true;
+          credinfo.lname = buffer;
+          credinfo.lmtime = linkstat.MTIMESPEC.tv_sec;
+          credinfo.lctime = linkstat.CTIMESPEC.tv_sec;
+          credinfo.type = credtypes[i];
+          buffer2[bsize] = 0;
           eos_static_debug("found credential link %s for uid %d and sid %d",
                            credinfo.lname.c_str(), (int) uid, (int) sid);
 
           if (credinfo.type == krk5) {
-                    credinfo.fname = buffer2;
-                    break; // there is no file to stat in that case
-                  }
+            credinfo.fname = buffer2;
+            break; // there is no file to stat in that case
+          }
 
           if (!stat(buffer2, &filestat)) {
             if (bsize > 0) {
-                        buffer2[bsize] = 0;
-                        credinfo.fname = buffer2;
+              buffer2[bsize] = 0;
+              credinfo.fname = buffer2;
               eos_static_debug("found credential file %s for uid %d and sid %d",
                                credinfo.fname.c_str(), (int) uid, (int) sid);
-                      }
+            }
           } else {
             eos_static_debug("could not stat file %s for uid %d and sid %d",
                              credinfo.fname.c_str(), (int) uid, (int) sid);
-                  }
-
-                // we found some credential, we stop searching here
-                brk = true;
-                break;
-              }
           }
+
+          // we found some credential, we stop searching here
+          brk = true;
+          break;
+        }
+      }
 
       if (brk) {
         break;
       }
-      }
+    }
 
     if (!ret) {
       eos_static_debug("could not find any credential for uid %d and sid %d",
@@ -253,11 +254,11 @@ protected:
                      credinfo.fname.c_str());
 
     if (credinfo.type == krk5) {
-        // fileless authentication cannot rely on symlinks to be able to change the cache credential file
-        // instead of the identity, we use the keyring information and each has a different xrd login
-        credinfo.identity = credinfo.fname;
-        ret = true;
-      }
+      // fileless authentication cannot rely on symlinks to be able to change the cache credential file
+      // instead of the identity, we use the keyring information and each has a different xrd login
+      credinfo.identity = credinfo.fname;
+      ret = true;
+    }
 
     if (credinfo.type == krb5) {
       ProcReaderKrb5UserName reader(credinfo.fname);
@@ -266,7 +267,7 @@ protected:
         eos_static_debug("could not read principal in krb5 cc file %s",
                          credinfo.fname.c_str());
       } else {
-          ret = true;
+        ret = true;
       }
     }
 
@@ -277,7 +278,7 @@ protected:
         eos_static_debug("could not read identity in x509 proxy file %s",
                          credinfo.fname.c_str());
       } else {
-          ret = true;
+        ret = true;
       }
     }
 
@@ -290,17 +291,17 @@ protected:
   {
     //eos_static_debug("linkstat.st_uid=%d  filestat.st_uid=%d  filestat.st_mode=%o  requiredmode=%o",(int)linkstat.st_uid,(int)filestat.st_uid,filestat.st_mode & 0777,reqMode);
     if (
-        // check owner ship
+      // check owner ship
       linkstat.st_uid == uid) {
       if (credtype == krk5) {
-          return true;
+        return true;
       } else if (filestat.st_uid == uid &&
                  (filestat.st_mode & 0077) == 0 // no access to other users/groups
                  && (filestat.st_mode & 0400) != 0 // read allowed for the user
                 ) {
         return true;
       }
-      }
+    }
 
     return false;
   }
@@ -349,17 +350,17 @@ protected:
 
     // get the startuptime of the process
     time_t processSut = 0;
-    // get the session id
+
     if (gProcCache.HasEntry(pid)) {
       gProcCache.GetEntry(pid)->GetStartupTime(processSut);
     }
-    // update the proccache of the session leader
+
     // get the session id
     pid_t sid = 0;
 
     if (gProcCache.HasEntry(pid)) {
       gProcCache.GetEntry(pid)->GetSid(sid);
-      }
+    }
 
     bool isSessionLeader = (sid == pid);
 
@@ -413,7 +414,7 @@ protected:
     if (sessionInCache) {
       sessionInCache = false;
       const CredInfo& ci = cacheEntry->second;
-      // we also check ctime to be sure that permission/ownership has not changed
+
       // we also check ctime to be sure that permission/ownership has not changed
       if (ci.type == credinfo.type
           && ci.lmtime == credinfo.lmtime
@@ -450,16 +451,16 @@ protected:
 
     if (credinfo.type == nobody) {
       sId = "unix:nobody";
+
       /*** using unix authentication and user nobody ***/
-      // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       if (gProcCache.HasEntry(pid)) {
         gProcCache.GetEntry(pid)->SetAuthMethod(sId);
-    }
-      // refresh the credentials in the cache
+      }
+
       if (gProcCache.HasEntry(sid)) {
         gProcCache.GetEntry(sid)->SetAuthMethod(sId);
       }
-      // check the credential security
+
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       pid2StrongLogin[pid] = "nobody";
     } else {
@@ -469,12 +470,12 @@ protected:
         eos_static_alert("credentials are not safe");
         return EACCES;
       }
-      // check the credential security
 
+      // check the credential security
       if (!readCred(credinfo)) {
         return EACCES;
       }
-      // update authmethods for session leader and current pid
+
       // update authmethods for session leader and current pid
       if (credinfo.type == krb5) {
         sId = "krb5:";
@@ -491,7 +492,7 @@ protected:
                        (int)uid, credinfo.fname.c_str());
         return EPERM;
       }
-      // using directly the value of the pointed file (which is the text in the case ofin memory credentials)
+
       // using directly the value of the pointed file (which is the text in the case ofin memory credentials)
       sId.append(credinfo.fname);
       newauthmeth = sId;
@@ -516,7 +517,7 @@ protected:
         errCode = EBUSY;
         return errCode;
       }
-      // update pid2StrongLogin (no lock needed as only one thread per process can access this)
+
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       map_user xrdlogin(uid, gid, authid);
       std::string mapped = mapUser(uid, gid, 0, authid);
@@ -551,11 +552,11 @@ protected:
     base64(std::string& mapped)
     {
       if (!base64computed) {
-          // pid is actually meaningless
+        // pid is actually meaningless
         strncpy(base64buf, mapped.c_str(), 8);
-          base64buf[8] = 0;
-          base64computed = true;
-        }
+        base64buf[8] = 0;
+        base64computed = true;
+      }
 
       return base64buf;
     }

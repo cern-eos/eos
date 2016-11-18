@@ -186,6 +186,13 @@ public:
                         const char* buffer,
                         XrdSfsXferSize length);
 
+  //--------------------------------------------------------------------------
+  //! Wait for all async IO and return global response code
+  //--------------------------------------------------------------------------
+  virtual int WaitAsyncIO()
+  {
+    return mFileIO->fileWaitAsyncIO();
+  }
 
   //----------------------------------------------------------------------------
   //! Truncate

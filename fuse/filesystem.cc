@@ -3268,7 +3268,7 @@ filesystem::open(const char* path,
       std::string url = file->GetLastUrl().c_str();
       XrdOucEnv RedEnv = file->GetLastUrl().c_str();
       const char* sino = RedEnv.Get("mgm.id");
-      ino_t old_ino = return_inode ? *return_inode : 0;
+      ino_t old_ino = *return_inode;
       ino_t new_ino = sino ? (eos::common::FileId::Hex2Fid(sino) << 28) : 0;
 
       if (old_ino && (old_ino != new_ino)) {
@@ -3551,15 +3551,37 @@ filesystem::flush(int fd, uid_t uid, gid_t gid, pid_t pid)
 
   if (XFC && fuse_cache_write) {
     off_t cache_size = fabst->GetMaxWriteOffset();
-    fabst->mMutexRW.WriteLock();
-    XFC->ForceAllWrites(fabst.get(),
-                        (cache_size > file_write_back_cache_size) ? true : false);
-    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
+
+    eos_static_notice("cache-size=%llu max-offset=%d force=%d", cache_size, file_write_back_cache_size, (cache_size > file_write_back_cache_size));
+ 
+   fabst->mMutexRW.WriteLock();
+   // if we wrote more than the in-memory cache-size we wait for the writes in flush and evt. report an error
+
+   bool wait_async = true;
+   if (fabst->GetRawFileRW() && fabst->GetRawFileRW()->CanCache())
+   {
+     if (cache_size < file_write_back_cache_size)
+       wait_async = false;
+   }
+
+   XFC->ForceAllWrites (fabst.get(), wait_async);
+
+   eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
    error_type error;
 
     if (err_queue.try_pop(error)) {
       eos_static_info("Extract error from queue");
      retc = error.first;
+
+     if (retc) 
+     {
+       errno = retc;
+       retc = -1;
+     }
+   }
+   else
+   {
+     eos_static_info("No flush error");
    }
 
     fabst->mMutexRW.UnLock();
@@ -3724,11 +3746,11 @@ filesystem::pread(int fildes,
           fabst->mMutexRW.WriteLock();
           XFC->ForceAllWrites(fabst.get());
           ret = file->Read(offset, static_cast<char*>(buf), nbyte,
-                           isRW ? false : do_rdahead);
+                           false);
           fabst->mMutexRW.UnLock();
         } else {
           ret = file->Read(offset, static_cast<char*>(buf), nbyte,
-                           isRW ? false : do_rdahead);
+                           do_rdahead);
        }
       } else {
        origin = "cache-short";

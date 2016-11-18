@@ -187,6 +187,18 @@ class LayoutWrapper
   int64_t Write(XrdSfsFileOffset offset, const char* buffer,
                 XrdSfsXferSize length, bool touchMtime = true);
 
+  
+  //----------------------------------------------------------------------------
+  //! Wait for all async IO to finish
+  //----------------------------------------------------------------------------
+  int WaitAsyncIO()
+  {
+    if (mFile)
+      return mFile->WaitAsyncIO();
+    else
+      return 0;
+  }
+    
   //----------------------------------------------------------------------------
   //! Overloading member functions of FileLayout class
   //----------------------------------------------------------------------------
