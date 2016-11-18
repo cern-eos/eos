@@ -176,13 +176,13 @@ protected:
     int sidx = 1, sn = 2;
 
     if (!use_user_krb5cc && use_user_gsiproxy) {
-      (sidx = 2) && (sn = 1);
+      sidx = 2; sn = 1;
     } else if (use_user_krb5cc && !use_user_gsiproxy) {
-      (sidx = 0) && (sn = 2);
+      sidx = 0; sn = 2;
     } else if (tryKrb5First) {
-      (sidx = 0) && (sn = 3);
+      sidx = 0; sn = 3;
     } else {
-      (sidx = 2) && (sn = 3);
+      sidx = 2; sn = 3;
     }
 
     // try all the credential types according to settings and stop as soon as a credetnial is found
