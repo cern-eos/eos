@@ -249,6 +249,14 @@ public:
   int64_t fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
                          XrdSfsXferSize length, uint16_t timeout = 0);
 
+  //--------------------------------------------------------------------------
+  //! Wait for all async IO
+  //!    
+  //! @return global return code of async IO 
+  //! 
+  //--------------------------------------------------------------------------
+  virtual int fileWaitAsyncIO();
+
   //----------------------------------------------------------------------------
   //! Truncate
   //!

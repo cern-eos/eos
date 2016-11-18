@@ -225,6 +225,10 @@ public:
                         const char* buffer,
                         XrdSfsXferSize length) = 0;
 
+  virtual int WaitAsyncIO() 
+  {
+    return 0;
+  }
 
   //----------------------------------------------------------------------------
   //! Truncate

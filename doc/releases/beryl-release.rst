@@ -7,8 +7,16 @@
 Beryl Release Notes
 ===================
 
-``V0.3.219 Aquamarine``
+``V0.3.220 Aquamarine``
 =======================
+
+Bug Fix
++++++++
+
+- MGM: avoid triggering recreation of xsmap files during draining/balancing for replica layouts
+- FUSE/FST: fix 'critical' bug in async write implementation not collecting async writes errors when flush is called and file exceeds the cache size
+- FUSE: always wait for asynchronous writes in case of file modifications
+
 
 Feature
 +++++++

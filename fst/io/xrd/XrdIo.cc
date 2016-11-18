@@ -715,6 +715,49 @@ XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
 }
 
 //------------------------------------------------------------------------------
+// Wait for async IO 
+//------------------------------------------------------------------------------
+
+int 
+XrdIo::fileWaitAsyncIO()
+{
+  bool async_ok = true;
+
+  if (mDoReadahead)
+  {
+    // Wait for any requests on the fly and then close
+    while (!mMapBlocks.empty())
+    {
+      SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
+      if (shandler->HasRequest())
+      {
+        async_ok = shandler->WaitOK();
+      }
+      delete mMapBlocks.begin()->second;
+      mMapBlocks.erase(mMapBlocks.begin());
+    }
+  }
+
+  // Wait for any async requests before closing
+  if (mMetaHandler)
+  {
+    if (mMetaHandler->WaitOK() != XrdCl::errNone)
+    {
+      eos_err("error=async requests failed for file path=%s", mFilePath.c_str());
+      async_ok = false;
+    }
+  }
+  
+  if (async_ok)
+    return 0;
+  else
+  {
+    errno = EIO;
+    return -1;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
 int
@@ -830,27 +873,8 @@ XrdIo::fileClose(uint16_t timeout)
   bool async_ok = true;
   mIsOpen = false;
 
-  if (mDoReadahead) {
-    // Wait for any requests on the fly and then close
-    while (!mMapBlocks.empty()) {
-      SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
-
-      if (shandler->HasRequest()) {
-        async_ok = shandler->WaitOK();
-      }
-
-      delete mMapBlocks.begin()->second;
-      mMapBlocks.erase(mMapBlocks.begin());
-    }
-  }
-
-  // Wait for any async requests before closing
-  if (mMetaHandler) {
-    if (mMetaHandler->WaitOK() != XrdCl::errNone) {
-      eos_err("error=async requests failed for file path=%s", mFilePath.c_str());
-      async_ok = false;
-    }
-  }
+  if (fileWaitAsyncIO())
+    async_ok = false;
 
   XrdCl::XRootDStatus status = mXrdFile->Close(timeout);
 
