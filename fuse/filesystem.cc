@@ -1565,7 +1565,8 @@ filesystem::stat (const char* path,
                   path, (int) uid, (int) gid, inode);
  eos::common::Timing stattiming ("stat");
  off_t file_size = -1;
- struct timespec atim, mtim;
+ struct timespec _tim[2];
+ struct timespec atim, &mtim=_tim[0];
  atim.tv_sec = atim.tv_nsec = mtim.tv_sec = mtim.tv_nsec = 0;
  errno = 0;
  COMMONTIMING ("START", &stattiming);
