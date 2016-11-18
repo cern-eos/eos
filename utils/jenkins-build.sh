@@ -199,7 +199,12 @@ if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
   echo "Save RPMs in YUM repo: ${YUM_REPO_PATH}"
   aklog
   mkdir -p ${YUM_REPO_PATH}
-  cp -f *.rpm ${YUM_REPO_PATH}
+  if [[ ${BRANCH} == 'citrine' ]]; then
+    # dont'copy fuse rpms , they are copied from the eos-fuse build
+    find . -iname '*.rpm' | grep -v "fuse" | xargs | awk -v target="${YUM_REPO_PATH}" '{ print "cp -f " $0 " " target  }' | source /dev/stdin 
+  else
+    cp -f *.rpm ${YUM_REPO_PATH}
+  fi
   createrepo --update -q ${YUM_REPO_PATH}
 else
   echo "RPMs for branch ${BRANCH} are NOT saved in any YUM repository!"
