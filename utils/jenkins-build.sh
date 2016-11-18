@@ -132,6 +132,7 @@ echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.c
 # Add kineticio repos for kineticio-devel header-only package...
 # TODO: move kineticio-devel to regular eos-depend repo?
 echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
+echo -e '"""' >> eos.cfg
 
 # Build the RPMs (without yum repo rpms)
 echo "-------- content of eos.cfg --------"
