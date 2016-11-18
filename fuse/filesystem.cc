@@ -3422,7 +3422,7 @@ filesystem::open (const char* path,
 
      const char* sino = RedEnv.Get ("mgm.id");
 
-     ino_t old_ino = return_inode ? *return_inode : 0;
+     ino_t old_ino = *return_inode;
      ino_t new_ino = sino ? (eos::common::FileId::Hex2Fid (sino) << 28) : 0;
      if (old_ino && (old_ino != new_ino))
      {
@@ -3923,12 +3923,12 @@ filesystem::pread (int fildes,
          // cache miss
          fabst->mMutexRW.WriteLock ();
          XFC->ForceAllWrites (fabst.get());
-         ret = file->Read (offset, static_cast<char*> (buf), nbyte, isRW ? false : do_rdahead);
+         ret = file->Read (offset, static_cast<char*> (buf), nbyte, false);
          fabst->mMutexRW.UnLock ();
        }
        else
        {
-         ret = file->Read (offset, static_cast<char*> (buf), nbyte, isRW ? false : do_rdahead);
+         ret = file->Read (offset, static_cast<char*> (buf), nbyte, do_rdahead);
        }
      }
      else
