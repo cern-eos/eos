@@ -58,7 +58,6 @@ function getLocalBranchAndDistTag()
   local BRANCH_OR_TAG=${1}
   local PLATFORM=${2}
 
-  BRANCH="citrine"
   BRANCH="fuse_master"
 
   # For any other branch use the latest XRootD release
@@ -135,9 +134,6 @@ echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/
 echo -e '"""' >> eos.cfg
 
 # Build the RPMs (without yum repo rpms)
-echo "-------- content of eos.cfg --------"
-cat eos.cfg
-echo mock --yum --init --uniqueext="eos_fuse" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
 mock --yum --init --uniqueext="eos_fuse" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
 
 # ==== push rpms to YUM repo ====
@@ -155,6 +151,8 @@ else
   BUILD_TYPE="tag"
 fi
 
+# the rpms are pushed to the citrine repo
+BRANCH="citrine"
 # Make sure the directories are created and rebuild the YUM repo
 YUM_REPO_PATH="${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}"
 echo "Save RPMs in YUM repo: ${YUM_REPO_PATH}"
