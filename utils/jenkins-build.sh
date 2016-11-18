@@ -57,45 +57,12 @@ function getLocalBranchAndDistTag()
 
   local BRANCH_OR_TAG=${1}
   local PLATFORM=${2}
-  local TAG_REGEX="^[034]+\..*$"
-  local TAG_REGEX_AQUAMARINE="^0.3.*$"
-  local TAG_REGEX_EMERALD="^3.*$"
 
-  local TAG_REGEX_CITRINE="^4.*$"
+  BRANCH="citrine"
 
-  # If this is a tag get the branch it belogs to
-  if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX} ]]; then
-      if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_AQUAMARINE} ]]; then
-	  BRANCH="aquamarine"
-	  elif [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_EMERALD} ]]; then
-	  BRANCH="emerald"
-      elif [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_CITRINE} ]]; then
-	  BRANCH="citrine"
-      fi
-  else
-      BRANCH=$(basename ${BRANCH_OR_TAG})
-      # For beryl_aquamarine use aquamarine as release
-      if [[ "${BRANCH}" == "beryl_aquamarine" ]]; then
-	  BRANCH="aquamarine"
-      elif [[ "${BRANCH}"  == "beryl_emerald" ]]; then
-	  BRANCH="emerald"
-      elif [[ "${BRANCH}"  == "master" ]]; then
-	  BRANCH="citrine"
-      fi
-  fi
-
-  # For aquamarine still use the old ".slc-*" dist tag for SLC5/6
-  if [[ "${BRANCH}" == "aquamarine" ]] || [[ "${BRANCH}" == "emerald" ]] ; then
-      if [[ "${PLATFORM}" == "el-5" ]] || [[ "${PLATFORM}" == "el-6" ]]; then
-	  DIST=".slc${PLATFORM: -1}"
-      else
-	  DIST=".${PLATFORM}"
-      fi
-  else
-      # For any other branch use the latest XRootD release
-      XROOTD_TAG="v4.3.0"
-      DIST=".${PLATFORM}"
-  fi
+  # For any other branch use the latest XRootD release
+  XROOTD_TAG="v4.3.0"
+  DIST=".${PLATFORM}"
 
   # Remove any "-" from the dist tag
   DIST="${DIST//-}"
@@ -164,43 +131,29 @@ echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.c
 # Add kineticio repos for kineticio-devel header-only package...
 # TODO: move kineticio-devel to regular eos-depend repo?
 echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
-if [[ ${BRANCH} == 'emerald' || ${BRANCH} == 'danburite' ]]; then
-    # Add kineticio and kineticio dependency repos
-    echo -e '\n[kio-depend]\nname=kio-depend\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio-depend/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
-fi
-echo -e '"""' >> eos.cfg
 
-## Build the RPMs (with yum repo rpms)
-#mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
 # Build the RPMs (without yum repo rpms)
-mock --yum --init --uniqueext="eos_${BRANCH}" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}" --with=server
+mock --yum --init --uniqueext="eos_fuse" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
 
-# List of branches for CI YUM repo
-BRANCH_LIST=('aquamarine' 'citrine' 'emerald' 'danburite')
+# ==== push rpms to YUM repo ====
+cd ../rpms/
+# Get the release string length
+COMMIT_LEN=24
+RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 \
+    | awk -F "-" '{print $3;}' \
+    | awk -F "." '{print length($1);}')
 
-# If building one of the production branches then push rpms to YUM repo
-if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
-  cd ../rpms/
-  # Get the release string length
-  COMMIT_LEN=24
-  RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 \
-      | awk -F "-" '{print $3;}' \
-      | awk -F "." '{print length($1);}')
-
-  # For not tagged builds the release string is 24 characters i.e date + git + commit_hash
-  if [[ ${RELEASE_LEN} -eq ${COMMIT_LEN} ]]; then
-    BUILD_TYPE="commit"
-  else
-    BUILD_TYPE="tag"
-  fi
-
-  # Make sure the directories are created and rebuild the YUM repo
-  YUM_REPO_PATH="${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}"
-  echo "Save RPMs in YUM repo: ${YUM_REPO_PATH}"
-  aklog
-  mkdir -p ${YUM_REPO_PATH}
-  cp -f *.rpm ${YUM_REPO_PATH}
-  createrepo --update -q ${YUM_REPO_PATH}
+# For not tagged builds the release string is 24 characters i.e date + git + commit_hash
+if [[ ${RELEASE_LEN} -eq ${COMMIT_LEN} ]]; then
+  BUILD_TYPE="commit"
 else
-  echo "RPMs for branch ${BRANCH} are NOT saved in any YUM repository!"
+  BUILD_TYPE="tag"
 fi
+
+# Make sure the directories are created and rebuild the YUM repo
+YUM_REPO_PATH="${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}"
+echo "Save RPMs in YUM repo: ${YUM_REPO_PATH}"
+aklog
+mkdir -p ${YUM_REPO_PATH}
+cp -f *fuse*.rpm ${YUM_REPO_PATH}
+createrepo --update -q ${YUM_REPO_PATH}
