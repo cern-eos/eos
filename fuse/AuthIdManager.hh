@@ -197,14 +197,14 @@ protected:
           snprintf(buffer, 1024, formats[f], (int) uid, suffixes[i]);
         }
 
+        size_t bsize = 0;
         //eos_static_debug("trying to stat %s", buffer);
-        if (!::lstat(buffer, &linkstat)) {
+        if (!::lstat(buffer, &linkstat) && (bsize = readlink(buffer, buffer2, 1023))>=0 ) {
           ret = true;
           credinfo.lname = buffer;
           credinfo.lmtime = linkstat.MTIMESPEC.tv_sec;
           credinfo.lctime = linkstat.CTIMESPEC.tv_sec;
           credinfo.type = credtypes[i];
-          size_t bsize = readlink(buffer, buffer2, 1024);
           buffer2[bsize] = 0;
           eos_static_debug("found credential link %s for uid %d and sid %d",
                            credinfo.lname.c_str(), (int) uid, (int) sid);
