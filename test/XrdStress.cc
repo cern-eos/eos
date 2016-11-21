@@ -258,7 +258,8 @@ XrdStress::RunTestProcesses()
   for ( unsigned int i = 0; i < numChilds; i++ ) {
     char readbuffer[30];
     close( pipefd[i][1] );   //close writing end
-    read( pipefd[i][0], readbuffer, sizeof( readbuffer ) );
+    int sz = read( pipefd[i][0], readbuffer, sizeof( readbuffer ) );
+    readbuffer[sz] = '\0';
     std::stringstream ss( std::stringstream::in | std::stringstream::out );
  
     if ( opType == "rd" ) {

@@ -334,15 +334,12 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     // this error will be reported by XrdOfsFS.Configure
   } else {
     // Try to open the configuration file.
-    //
     if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0) {
       return Eroute.Emsg("Config", errno, "open config file fn=", ConfigFN);
     }
 
     Config.Attach(cfgFD);
     // Now start reading records until eof.
-    //
-
     while ((var = Config.GetMyFirstWord())) {
       if (!strncmp(var, "fstofs.", 7)) {
         var += 7;
@@ -397,6 +394,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     }
 
     Config.Close();
+    close(cfgFD);
   }
 
   if (eos::fst::Config::gConfig.autoBoot) {

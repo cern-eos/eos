@@ -207,18 +207,31 @@ utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
   obj->reqid = ((proto_obj.reqid() == "") ? 0 : strdup(proto_obj.reqid().c_str()));
   obj->notify = ((proto_obj.notify() == "") ? 0 : strdup(proto_obj.notify().c_str()));
   obj->opts = proto_obj.opts();
+  obj->paths = obj->oinfo = 0;
   XrdOucTList* next_paths = obj->paths;
   XrdOucTList* next_oinfo = obj->oinfo;
 
   for (int i = 0; i < proto_obj.paths_size(); i++)
   {
-    next_paths = new XrdOucTList(proto_obj.paths(i).c_str());
-    next_paths = next_paths->next;
-    
+    auto tmp_path = new XrdOucTList(proto_obj.paths(i).c_str());
+
+    if (next_paths) {
+      next_paths->next = tmp_path;
+      next_paths = next_paths->next;
+    } else {
+      next_paths = tmp_path;
+    }
+
     if (proto_obj.oinfo_size())
     {
-      next_oinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
-      next_oinfo = next_oinfo->next;
+      auto tmp_oinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
+
+      if (next_oinfo) {
+	next_oinfo->next = tmp_oinfo;
+	next_oinfo = next_oinfo->next;
+      } else {
+	next_oinfo = tmp_oinfo;
+      }
     }
   }
 

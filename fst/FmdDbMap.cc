@@ -833,6 +833,7 @@ FmdDbMapHandler::ResyncAllDisk(const char* path,
 
   if (!ResetDiskInformation(fsid)) {
     eos_err("failed to reset the disk information before resyncing");
+    free(paths);
     return false;
   }
 

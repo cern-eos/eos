@@ -170,8 +170,9 @@ EosAuthOfs::Configure(XrdSysError& error)
   else
   {
     // Try to open the configuration file.
-    if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
+    if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0) {
       return error.Emsg("Configure", errno, "open config file fn=", ConfigFN);
+    }
 
     Config.Attach(cfgFD);
     std::string auth_tag = "eosauth.";
@@ -311,6 +312,8 @@ EosAuthOfs::Configure(XrdSysError& error)
       eos_err("No master MGM specified e.g. eos.master.cern.ch:15555");
       NoGo = 1;
     }
+
+    close(cfgFD);
   }
 
   //----------------------------------------------------------------------------

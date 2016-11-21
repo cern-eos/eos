@@ -202,8 +202,15 @@ LvDbDbLogInterface::archive (const tTimeToPeriodedFile::iterator &entry)
   options.create_if_missing = true;
   leveldb::Status status = dbOpen(options, archivename, &archivedb);
 
-  if (pDebugMode) printf("LEVELDB>> opening db %s --> %p\n", archivename, archivedb);
-  if(!status.ok()) return 1;
+  if (pDebugMode) {
+    printf("LEVELDB>> opening db %s --> %p\n", archivename, archivedb);
+  }
+
+  if(!status.ok()) {
+    delete[] archivename;
+    return 1;
+  }
+
   leveldb::WriteBatch batchcp;
   leveldb::WriteBatch batchrm;
   leveldb::Iterator *it = db->NewIterator(leveldb::ReadOptions());

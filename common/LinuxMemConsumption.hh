@@ -58,13 +58,15 @@ public:
       return false;
     }
     if(7 != fscanf(f,"%lld %lld %lld %lld %lld %lld %lld",
-		   &result.vmsize,&result.resident,&result.share,&result.text,&result.lib,&result.data,&result.dt))
-      {
-	perror(statm_path);
-	return false;
-      }
+		   &result.vmsize,&result.resident,&result.share,
+		   &result.text,&result.lib,&result.data,&result.dt)) {
+      perror(statm_path);
+      (void) fclose(f);
+      return false;
+    }
+
     fclose(f);
-    // convert into bytes
+    // Convert into bytes
     result.vmsize*=4096;
     result.resident*=4096;
     result.share*=4096;

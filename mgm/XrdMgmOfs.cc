@@ -167,6 +167,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 XrdMgmOfs::~XrdMgmOfs()
 {
   StopArchiveSubmitter();
+  delete mZmqContext;
 }
 
 //------------------------------------------------------------------------------

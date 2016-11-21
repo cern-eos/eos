@@ -181,6 +181,7 @@ XrdFstOss::Configure(const char* configfn, XrdSysError& Eroute)
            mPrDepth, mPrQSize, mPrBytes);
   
   Config.Close();
+  (void) close(cfgFD);
   return NoGo;
 }
 
