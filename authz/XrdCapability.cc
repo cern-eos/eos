@@ -139,9 +139,14 @@ XrdCapability::Create(XrdOucEnv *inenv,
 int 
 XrdCapability::Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv)
 {
-  outenv = 0;
-  if (!inenv)
+  if (outenv) {
+    delete outenv;
+    outenv = 0;
+  }
+
+  if (!inenv) {
     return EINVAL;
+  }
 
   int envlen;
   XrdOucString instring = inenv->Env(envlen);
