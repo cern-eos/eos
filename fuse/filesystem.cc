@@ -1721,7 +1721,7 @@ filesystem::stat (const char* path,
 
  COMMONTIMING ("GETPLUGIN", &stattiming);
 
- if (status.IsOK () && response)
+ if (status.IsOK () && response && response->GetBuffer () )
  {
    unsigned long long sval[10];
    unsigned long long ival[6];
@@ -1793,7 +1793,7 @@ filesystem::stat (const char* path,
  }
  else
  {
-   if (!response)
+   if (!response || !response->GetBuffer())
    {
      eos_static_err ("no response received");
    }
