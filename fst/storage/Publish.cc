@@ -324,6 +324,7 @@ Storage::Publish()
                      fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           {
             eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
+            eos::common::RWMutexWriteLock vlock(gFmdDbMapHandler.FmdSqliteMutexMap[fsid]);
             success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles",
                        (long long)(gFmdDbMapHandler.dbmap.count(fsid) ?
                                    gFmdDbMapHandler.dbmap[fsid]->size() : 0));
