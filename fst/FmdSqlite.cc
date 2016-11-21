@@ -666,13 +666,17 @@ FmdSqliteHandler::Commit (FmdSqlite* fmd, bool lockit)
   {
     // update in-memory
     FmdSqliteMap[fsid][fid] = fmd->fMd;
+    // this operation involve writing in the sqlite db that could be slow
+    // for lock contention reasons, it could be done under a readlock only
+    // but we would lose atomicity/consistency with the in memory map
+    bool res = CommitFromMemory(fid, fsid);
     if (lockit)
     {
       FmdSqliteMutexMap[fsid].UnLockWrite();
       Mutex.UnLockRead();
       // <----
     }
-    return CommitFromMemory(fid, fsid);
+    return res;
   }
   else
   {
