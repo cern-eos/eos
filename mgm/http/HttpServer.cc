@@ -65,7 +65,8 @@ HttpServer::Handler (void *cls,
     {
       {
 	XrdSysMutexHelper(gOFS->InitializationMutex);
-	if (gOFS->Initialized == gOFS->kBooted)
+	if ( (gOFS->Initialized == gOFS->kBooted) ||
+	     (gOFS->Initialized == gOFS->kCompacting) )
 	{
 	  go = true;
 	}
