@@ -176,13 +176,13 @@ protected:
     int sidx = 1, sn = 2;
 
     if (!use_user_krb5cc && use_user_gsiproxy) {
-      (sidx = 2) && (sn = 1);
+      sidx = 2; sn = 1;
     } else if (use_user_krb5cc && !use_user_gsiproxy) {
-      (sidx = 0) && (sn = 2);
+      sidx = 0; sn = 2;
     } else if (tryKrb5First) {
-      (sidx = 0) && (sn = 3);
+      sidx = 0; sn = 3;
     } else {
-      (sidx = 2) && (sn = 3);
+      sidx = 2; sn = 3;
     }
 
     // try all the credential types according to settings and stop as soon as a credetnial is found
@@ -197,14 +197,14 @@ protected:
           snprintf(buffer, 1024, formats[f], (int) uid, suffixes[i]);
         }
 
+        size_t bsize = 0;
         //eos_static_debug("trying to stat %s", buffer);
-        if (!::lstat(buffer, &linkstat)) {
+        if (!::lstat(buffer, &linkstat) && (bsize = readlink(buffer, buffer2, 1023))>=0 ) {
           ret = true;
           credinfo.lname = buffer;
           credinfo.lmtime = linkstat.MTIMESPEC.tv_sec;
           credinfo.lctime = linkstat.CTIMESPEC.tv_sec;
           credinfo.type = credtypes[i];
-          size_t bsize = readlink(buffer, buffer2, 1024);
           buffer2[bsize] = 0;
           eos_static_debug("found credential link %s for uid %d and sid %d",
                            credinfo.lname.c_str(), (int) uid, (int) sid);

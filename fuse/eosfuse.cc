@@ -985,48 +985,43 @@ EosFuse::mkdir (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
 
  if (!retc)
  {
-   e.ino = e.attr.st_ino;
+    e.ino = e.attr.st_ino;
 
-   if (retc)
-     fuse_reply_err (req, errno);
-   else
-   {
-     me.fs ().store_p2i ((unsigned long long) e.attr.st_ino, ifullpath.c_str ());
+    me.fs ().store_p2i ((unsigned long long) e.attr.st_ino, ifullpath.c_str ());
 
-     const char* ptr = strrchr (parentpath.c_str (), (int) ('/'));
+    const char* ptr = strrchr (parentpath.c_str (), (int) ('/'));
 
-     if (ptr)
-     {
-       char gparent[16384];
-       int num = (int) (ptr - parentpath.c_str ());
+    if (ptr)
+    {
+      char gparent[16384];
+      int num = (int) (ptr - parentpath.c_str ());
 
-       if (num)
-       {
-         strncpy (gparent, parentpath.c_str (), num);
-         gparent[num] = '\0';
+      if (num)
+      {
+        strncpy (gparent, parentpath.c_str (), num);
+        gparent[num] = '\0';
 
-         ptr = strrchr (gparent, (int) ('/'));
+        ptr = strrchr (gparent, (int) ('/'));
 
-         if (ptr && ptr != gparent)
-         {
-           num = (int) (ptr - gparent);
-           strncpy (gparent, parentpath.c_str (), num);
-           parentpath[num] = '\0';
-           strcpy (gparent, parentpath.c_str ());
-         }
-       }
-       else
-       {
-         strcpy (gparent, "/\0");
-       }
+        if (ptr && ptr != gparent)
+        {
+          num = (int) (ptr - gparent);
+          strncpy (gparent, parentpath.c_str (), num);
+          parentpath[num] = '\0';
+          strcpy (gparent, parentpath.c_str ());
+        }
+      }
+      else
+      {
+        strcpy (gparent, "/\0");
+      }
 
-       unsigned long long ino_gparent = me.fs ().inode (gparent);
-       me.fs ().dir_cache_forget (ino_gparent);
-     }
+      unsigned long long ino_gparent = me.fs ().inode (gparent);
+      me.fs ().dir_cache_forget (ino_gparent);
+    }
 
-     fuse_reply_entry (req, &e);
-     eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
-   }
+    fuse_reply_entry (req, &e);
+    eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
  }
  else
    fuse_reply_err (req, errno);
