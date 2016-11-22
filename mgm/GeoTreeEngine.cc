@@ -839,7 +839,7 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 	}
 	continue;
       }
-      existingReplicasIdx->push_back(*idx);
+      if(idx) existingReplicasIdx->push_back(*idx);
     }
   }
   if(excludeFs)
