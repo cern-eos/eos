@@ -1021,6 +1021,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "trace option not specified");
+	    close(cfgFD);
             return 1;
           }
 

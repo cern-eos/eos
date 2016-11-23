@@ -219,6 +219,7 @@ FuseFileTest::MultiProcessTest()
     int status;
     CPPUNIT_ASSERT(wait(&status) == pid);
     CPPUNIT_ASSERT(WIFEXITED(status));
+    close(fd);
     CPPUNIT_ASSERT((fd = open(fname.c_str(), O_RDONLY, 0)) != -1);
     char* rbuff = new char[sz_buff];
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

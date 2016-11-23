@@ -199,7 +199,7 @@ protected:
 
         size_t bsize = 0;
         //eos_static_debug("trying to stat %s", buffer);
-        if (!::lstat(buffer, &linkstat) && (bsize = readlink(buffer, buffer2, 1023))>=0 ) {
+        if (!::lstat(buffer, &linkstat) && ((bsize = readlink(buffer, buffer2, 1023))>=0)) {
           ret = true;
           credinfo.lname = buffer;
           credinfo.lmtime = linkstat.MTIMESPEC.tv_sec;
