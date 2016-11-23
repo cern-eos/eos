@@ -376,7 +376,7 @@ XrdFstOfsFile::open(const char* path,
                gOFS.TpcMap[isRW][tpc_key].expires);
     } else if (tpcFlag == kTpcSrcSetup) {
       // For a TpcSrcSetup we need to store the decoded capability contents
-      XrdOucEnv* saveOpaque;
+      XrdOucEnv* saveOpaque = 0;
       int caprc = gCapabilityEngine.Extract(&tmpOpaque, saveOpaque);
 
       if (caprc == ENOKEY) {

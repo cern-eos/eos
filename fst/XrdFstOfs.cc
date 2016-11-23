@@ -339,6 +339,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     }
 
     Config.Attach(cfgFD);
+
     // Now start reading records until eof.
     while ((var = Config.GetMyFirstWord())) {
       if (!strncmp(var, "fstofs.", 7)) {
@@ -1042,7 +1043,7 @@ XrdFstOfs::rem(const char* path,
   stringOpaque.replace("?", "&");
   stringOpaque.replace("&&", "&");
   XrdOucEnv openOpaque(stringOpaque.c_str());
-  XrdOucEnv* capOpaque;
+  XrdOucEnv* capOpaque = 0;
   int caprc = 0;
 
   if ((caprc = gCapabilityEngine.Extract(&openOpaque, capOpaque))) {
@@ -1122,6 +1123,7 @@ XrdFstOfs::_rem(const char* path,
   eos_info("fstpath=%s", fstPath.c_str());
   int rc = 0;
   errno = 0; // If file not found this will be ENOENT
+
   // Unlink file and possible blockxs file - for local files we need to go
   // through XrdOfs::rem to also clean up any potential blockxs files
   if (eos::common::LayoutId::GetIoType(fstPath.c_str()) ==
@@ -1131,13 +1133,13 @@ XrdFstOfs::_rem(const char* path,
     if (rc) {
       eos_info("rc=%i, errno=%i", rc, errno);
     }
-  }
-  else {
-    std::unique_ptr<FileIo> io(eos::fst::FileIoPlugin::GetIoObject(fstPath.c_str()));
+  } else {
+    std::unique_ptr<FileIo> io(eos::fst::FileIoPlugin::GetIoObject(
+                                 fstPath.c_str()));
 
     if (!io) {
       return gOFS.Emsg(epname, error, EINVAL, "open - no IO plug-in avaialble",
-		       fstPath.c_str());
+                       fstPath.c_str());
     }
 
     rc = io->fileRemove();
@@ -1151,10 +1153,10 @@ XrdFstOfs::_rem(const char* path,
     if (errno == ENOENT) {
       // Ignore error if a file to be deleted doesn't exist
       if (ignoreifnotexist) {
-	rc = 0;
+        rc = 0;
       } else {
-	eos_notice("unable to delete file - file does not exist (anymore): %s "
-		   "fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
+        eos_notice("unable to delete file - file does not exist (anymore): %s "
+                   "fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
       }
     }
 

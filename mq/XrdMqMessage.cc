@@ -54,11 +54,11 @@ XrdSysError  XrdMqMessage::Eroute(0);
 // Constructor
 //------------------------------------------------------------------------------
 XrdMqMessageHeader::XrdMqMessageHeader():
-    kMessageId(""), kReplyId(""), kSenderId(""), kBrokerId(""), kReceiverId(""),
-    kSenderTime_sec(0), kSenderTime_nsec(0), kBrokerTime_sec(0),
-    kBrokerTime_nsec(0), kReceiverTime_sec(0), kReceiverTime_nsec(0),
-    kMessageSignature(""), kMessageDigest(""), kEncrypted(false),
-    mMsgHdrBuffer(""), kCertificateHash("")
+  kMessageId(""), kReplyId(""), kSenderId(""), kBrokerId(""), kReceiverId(""),
+  kSenderTime_sec(0), kSenderTime_nsec(0), kBrokerTime_sec(0),
+  kBrokerTime_nsec(0), kReceiverTime_sec(0), kReceiverTime_nsec(0),
+  kMessageSignature(""), kMessageDigest(""), kEncrypted(false),
+  mMsgHdrBuffer(""), kCertificateHash("")
 {
 }
 
@@ -93,7 +93,6 @@ XrdMqMessageHeader::Encode()
   char buff[1024];
   char sep = '^';
   std::ostringstream oss;
-
   // TODO: check that none of this strings contains a : !
   oss << XMQHEADER << "=" << kMessageId << sep << kReplyId  << sep
       << kSenderId  << sep << kBrokerId << sep << kReceiverId << sep
@@ -127,132 +126,116 @@ XrdMqMessageHeader::Decode(const char* str_header)
   mMsgHdrBuffer = XMQHEADER;
   mMsgHdrBuffer += "=";
 
-  if (hp)
+  if (hp) {
     mMsgHdrBuffer += hp;
-  else
+  } else {
     mMsgHdrBuffer += str_header;
+  }
 
-  if (!mMsgHdrBuffer.length())
+  if (!mMsgHdrBuffer.length()) {
     return false;
+  }
 
   char sep = '^';
   int pos  = strlen(XMQHEADER) + 1;
   int ppos = STR_NPOS;
 
-  if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-  {
+  if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
     kMessageId.assign(mMsgHdrBuffer, pos, ppos - 1);
     pos = ppos + 1;
 
-    if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-    {
+    if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
       kReplyId.assign(mMsgHdrBuffer, pos, ppos - 1);
       pos = ppos + 1;
 
-      if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-      {
-	kSenderId.assign(mMsgHdrBuffer, pos, ppos - 1);
-	pos = ppos + 1;
+      if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+        kSenderId.assign(mMsgHdrBuffer, pos, ppos - 1);
+        pos = ppos + 1;
 
-	if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-	{
-	  kBrokerId.assign(mMsgHdrBuffer, pos, ppos - 1);
-	  pos = ppos + 1;
+        if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+          kBrokerId.assign(mMsgHdrBuffer, pos, ppos - 1);
+          pos = ppos + 1;
 
-	  if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-	  {
-	    kReceiverId.assign(mMsgHdrBuffer, pos, ppos - 1);
-	    pos = ppos + 1;
+          if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+            kReceiverId.assign(mMsgHdrBuffer, pos, ppos - 1);
+            pos = ppos + 1;
 
-	    if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-	    {
-	      kReceiverQueue.assign(mMsgHdrBuffer, pos, ppos - 1);
-	      pos = ppos + 1;
+            if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+              kReceiverQueue.assign(mMsgHdrBuffer, pos, ppos - 1);
+              pos = ppos + 1;
 
-	      if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-	      {
-		kDescription.assign(mMsgHdrBuffer, pos, ppos - 1);
-		pos = ppos + 1;
-		XrdOucString tmpstring;
+              if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                kDescription.assign(mMsgHdrBuffer, pos, ppos - 1);
+                pos = ppos + 1;
+                XrdOucString tmpstring;
 
-		if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-		{
-		  tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
-		  pos = ppos + 1;
-		  kSenderTime_sec = (time_t)strtol(tmpstring.c_str(), 0, 10);
+                if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                  tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
+                  pos = ppos + 1;
+                  kSenderTime_sec = (time_t)strtol(tmpstring.c_str(), 0, 10);
 
-		  if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-		  {
-		    tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
-		    pos = ppos + 1;
-		    kSenderTime_nsec = (long)strtol(tmpstring.c_str(), 0, 10);
+                  if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                    tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
+                    pos = ppos + 1;
+                    kSenderTime_nsec = (long)strtol(tmpstring.c_str(), 0, 10);
 
-		    if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-		    {
-		      tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
-		      pos = ppos + 1;
-		      kBrokerTime_sec = (time_t)strtol(tmpstring.c_str(), 0, 10);
+                    if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                      tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
+                      pos = ppos + 1;
+                      kBrokerTime_sec = (time_t)strtol(tmpstring.c_str(), 0, 10);
 
-		      if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-		      {
-			tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
-			pos = ppos + 1;
-			kBrokerTime_nsec = (long)strtol(tmpstring.c_str(), 0, 10);
+                      if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                        tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
+                        pos = ppos + 1;
+                        kBrokerTime_nsec = (long)strtol(tmpstring.c_str(), 0, 10);
 
-			if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-			{
-			  tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
-			  pos = ppos + 1;
-			  kReceiverTime_sec = (time_t)strtol(tmpstring.c_str(), 0, 10);
+                        if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                          tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
+                          pos = ppos + 1;
+                          kReceiverTime_sec = (time_t)strtol(tmpstring.c_str(), 0, 10);
 
-			  if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-			  {
-			    tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
-			    pos = ppos + 1;
-			    kReceiverTime_nsec = (long)strtol(tmpstring.c_str(), 0, 10);
+                          if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                            tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
+                            pos = ppos + 1;
+                            kReceiverTime_nsec = (long)strtol(tmpstring.c_str(), 0, 10);
 
-			    if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-			    {
-			      kCertificateHash.assign(mMsgHdrBuffer, pos, ppos - 1);
-			      pos = ppos + 1;
+                            if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                              kCertificateHash.assign(mMsgHdrBuffer, pos, ppos - 1);
+                              pos = ppos + 1;
 
-			      if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-			      {
-				kMessageSignature.assign(mMsgHdrBuffer, pos, ppos - 1);
-				pos = ppos + 1;
+                              if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                                kMessageSignature.assign(mMsgHdrBuffer, pos, ppos - 1);
+                                pos = ppos + 1;
 
-				if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-				{
-				  kMessageDigest.assign(mMsgHdrBuffer, pos, ppos - 1);
-				  pos = ppos + 1;
+                                if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                                  kMessageDigest.assign(mMsgHdrBuffer, pos, ppos - 1);
+                                  pos = ppos + 1;
 
-				  if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-				  {
-				    tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
-				    pos = ppos + 1;
-				    kEncrypted = atoi(tmpstring.c_str());
+                                  if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                                    tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
+                                    pos = ppos + 1;
+                                    kEncrypted = atoi(tmpstring.c_str());
 
-				    if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS)
-				    {
-				      tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
-				      pos = ppos + 1;
-				      kType = atoi(tmpstring.c_str());
-				      return true;
-				    }
-				  }
-				}
-			      }
-			    }
-			  }
-			}
-		      }
-		    }
-		  }
-		}
-	      }
-	    }
-	  }
-	}
+                                    if ((ppos = mMsgHdrBuffer.find(sep, pos)) != STR_NPOS) {
+                                      tmpstring.assign(mMsgHdrBuffer, pos, ppos - 1);
+                                      pos = ppos + 1;
+                                      kType = atoi(tmpstring.c_str());
+                                      return true;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -325,13 +308,10 @@ XrdMqMessage::Create(const char* messagebuffer)
   XrdOucString mbuf = messagebuffer;
   XrdMqMessage* msg = new XrdMqMessage(mbuf);
 
-  if (!msg->Decode())
-  {
+  if (!msg->Decode()) {
     delete msg;
     return 0;
-  }
-  else
-  {
+  } else {
     return msg;
   }
 }
@@ -360,8 +340,7 @@ XrdMqMessage::Configure(const char* ConfigFN)
   int  cfgFD;
   ERR_load_crypto_strings();
 
-  if (!Logger)
-  {
+  if (!Logger) {
     // Create a logger, if there was none set before
     Logger = new XrdSysLogger();
   }
@@ -369,162 +348,145 @@ XrdMqMessage::Configure(const char* ConfigFN)
   Eroute.logger(Logger);
   XrdOucStream Config(&Eroute, "xmessage");
 
-  if ((! ConfigFN) || (!strlen(ConfigFN)))
+  if ((! ConfigFN) || (!strlen(ConfigFN))) {
     return false;
+  }
 
-  if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
+  if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0) {
     return Eroute.Emsg("Config", errno, "open config file fn=", ConfigFN);
+  }
 
   Config.Attach(cfgFD);
 
-  while ((var = Config.GetMyFirstWord()))
-  {
-    if (!strncmp(var, "mq.", 3))
-    {
+  while ((var = Config.GetMyFirstWord())) {
+    if (!strncmp(var, "mq.", 3)) {
       var += 3;
 
-      if (!strcmp("privatekeyfile", var))
-      {
-	if ((val = Config.GetWord()))
-	{
-	  PrivateKeyFile = val;
-	}
+      if (!strcmp("privatekeyfile", var)) {
+        if ((val = Config.GetWord())) {
+          PrivateKeyFile = val;
+        }
       }
 
-      if (!strcmp("publickeydirectory", var))
-      {
-	if ((val = Config.GetWord()))
-	{
-	  PublicKeyDirectory = val;
-	}
+      if (!strcmp("publickeydirectory", var)) {
+        if ((val = Config.GetWord())) {
+          PublicKeyDirectory = val;
+        }
       }
 
-      if (!strcmp("publickeyfilehash", var))
-      {
-	if ((val = Config.GetWord()))
-	{
-	  PublicKeyFileHash = val;
-	}
+      if (!strcmp("publickeyfilehash", var)) {
+        if ((val = Config.GetWord())) {
+          PublicKeyFileHash = val;
+        }
       }
     }
   }
 
   Config.Close();
+  close(cfgFD);
 
-  if (PrivateKeyFile.length())
-  {
+  if (PrivateKeyFile.length()) {
     // Load the private key
     FILE* fp = fopen(PrivateKeyFile.c_str(), "r");
 
-    if (fp == 0)
-    {
+    if (fp == 0) {
       return Eroute.Emsg("Config", errno, "open private key file fn=",
-			 PrivateKeyFile.c_str());
+                         PrivateKeyFile.c_str());
     }
 
     PrivateKey = PEM_read_PrivateKey(fp, 0, 0, 0);
     fclose(fp);
 
-    if (!PrivateKey)
-    {
+    if (!PrivateKey) {
       return Eroute.Emsg("Config", EINVAL, "load private key from file fn=",
-			 PrivateKeyFile.c_str());
+                         PrivateKeyFile.c_str());
     }
 
-    if (!PublicKeyFileHash.length())
-    {
+    if (!PublicKeyFileHash.length()) {
       return Eroute.Emsg("Config", EINVAL, "continue - you have to provide the "
-			 "hash value of the corresponding public key for your "
-			 "private key [ use: openssl x509 -in <cert> -hash ]");
+                         "hash value of the corresponding public key for your "
+                         "private key [ use: openssl x509 -in <cert> -hash ]");
     }
 
     kCanSign = true;
   }
 
-  if (PublicKeyDirectory.length())
-  {
+  if (PublicKeyDirectory.length()) {
     // Read all public keys into the public key hash
     DIR* dp;
     struct dirent* ep;
     dp = opendir(PublicKeyDirectory.c_str());
 
-    if (dp != 0)
-    {
-      while ((ep = readdir(dp)))
-      {
-	if (!strncmp(ep->d_name, ".", 1))
-	  continue;
+    if (dp != 0) {
+      while ((ep = readdir(dp))) {
+        if (!strncmp(ep->d_name, ".", 1)) {
+          continue;
+        }
 
-	XrdOucString fullcertpath = PublicKeyDirectory;
-	fullcertpath += "/";
-	fullcertpath += (char*)ep->d_name;
-	FILE* fp = fopen(fullcertpath.c_str(), "r");
+        XrdOucString fullcertpath = PublicKeyDirectory;
+        fullcertpath += "/";
+        fullcertpath += (char*)ep->d_name;
+        FILE* fp = fopen(fullcertpath.c_str(), "r");
 
-	if (!fp)
-	{
-	  closedir(dp);
-	  return Eroute.Emsg("Config", errno, "open public key file fn=",
-			     fullcertpath.c_str());
-	}
+        if (!fp) {
+          closedir(dp);
+          return Eroute.Emsg("Config", errno, "open public key file fn=",
+                             fullcertpath.c_str());
+        }
 
-	X509* x509 = PEM_read_X509(fp, 0, 0, 0);
-	fclose(fp);
+        X509* x509 = PEM_read_X509(fp, 0, 0, 0);
+        fclose(fp);
 
-	if (x509 == 0)
-	{
-	  ERR_print_errors_fp(stderr);
+        if (x509 == 0) {
+          ERR_print_errors_fp(stderr);
 
-	  if (dp)
-	  {
-	    closedir(dp);
-	  }
+          if (dp) {
+            closedir(dp);
+          }
 
-	  return Eroute.Emsg("Config", EINVAL, "load public key file fn=",
-			     fullcertpath.c_str());
-	}
+          return Eroute.Emsg("Config", EINVAL, "load public key file fn=",
+                             fullcertpath.c_str());
+        }
 
-	EVP_PKEY* pkey = X509_extract_key(x509);
+        EVP_PKEY* pkey = X509_extract_key(x509);
 
-	if (pkey == 0)
-	{
-	  ERR_print_errors_fp(stderr);
+        if (pkey == 0) {
+          ERR_print_errors_fp(stderr);
 
-	  if (dp)
-	    closedir(dp);
+          if (dp) {
+            closedir(dp);
+          }
 
-	  return Eroute.Emsg("Config", EINVAL, "extract public key from file fn=",
-			     fullcertpath.c_str());
-	}
+          return Eroute.Emsg("Config", EINVAL, "extract public key from file fn=",
+                             fullcertpath.c_str());
+        }
 
-	// add to the public key hash
-	PublicKeyHash.Add(ep->d_name, pkey);
-	X509_free(x509);
-	x509 = 0;
+        // add to the public key hash
+        PublicKeyHash.Add(ep->d_name, pkey);
+        X509_free(x509);
+        x509 = 0;
       }
 
       (void) closedir(dp);
-    }
-    else
-    {
+    } else {
       return Eroute.Emsg("Config", errno, "open public key directory dn=",
-			 PublicKeyDirectory.c_str());
+                         PublicKeyDirectory.c_str());
     }
 
     kCanVerify = true;
   }
 
-  if (kCanSign)
-  {
+  if (kCanSign) {
     Eroute.Say("*****> mq-client can sign messages");
     Eroute.Say("=====> mq.privatekeyfile     :     ", PrivateKeyFile.c_str(), "");
     Eroute.Say("=====> mq.publickeyhash      :     ", PublicKeyFileHash.c_str(),
-	       "");
+               "");
   }
 
-  if (kCanVerify)
-  {
+  if (kCanVerify) {
     Eroute.Say("*****> mq-client can verify messages");
-    Eroute.Say("=====> mq.publickeydirectory :     ", PublicKeyDirectory.c_str(), "");
+    Eroute.Say("=====> mq.publickeydirectory :     ", PublicKeyDirectory.c_str(),
+               "");
     XrdOucString nh = "";
     nh += PublicKeyHash.Num();
     Eroute.Say("=====> public keys <#>   :   :     ", nh.c_str(), "");
@@ -545,8 +507,7 @@ void XrdMqMessage::Encode()
   kMessageBuffer += "=";
   kMessageBuffer += kMessageBody;
 
-  if (kMonitor)
-  {
+  if (kMonitor) {
     kMessageBuffer += "&";
     kMessageBuffer += XMQMONITOR;
     kMessageBuffer += "=1";
@@ -571,14 +532,13 @@ bool XrdMqMessage::Decode()
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::Base64Encode(char* decoded_bytes, ssize_t decoded_length,
-			   std::string& out)
+                           std::string& out)
 {
   BIO* bmem, *b64;
   BUF_MEM* bptr;
   b64 = BIO_new(BIO_f_base64());
 
-  if (!b64)
-  {
+  if (!b64) {
     Eroute.Emsg("Verify", ENOMEM, "get new base64 BIO");
     return false;
   }
@@ -586,8 +546,7 @@ XrdMqMessage::Base64Encode(char* decoded_bytes, ssize_t decoded_length,
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   bmem = BIO_new(BIO_s_mem());
 
-  if (!bmem)
-  {
+  if (!bmem) {
     Eroute.Emsg("Verify", ENOMEM, "get new mem BIO");
     return false;
   }
@@ -595,8 +554,7 @@ XrdMqMessage::Base64Encode(char* decoded_bytes, ssize_t decoded_length,
   b64 = BIO_push(b64, bmem);
   BIO_write(b64, decoded_bytes, decoded_length);
 
-  if (BIO_flush(b64) != 1)
-  {
+  if (BIO_flush(b64) != 1) {
     BIO_free_all(b64);
     Eroute.Emsg("Verify", EIO, "flush bio");
     return false;
@@ -613,22 +571,20 @@ XrdMqMessage::Base64Encode(char* decoded_bytes, ssize_t decoded_length,
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::Base64Decode(char* encoded_bytes, char*& decoded_bytes,
-			   ssize_t& decoded_length)
+                           ssize_t& decoded_length)
 {
   BIO* b64, *bmem;
   ssize_t buffer_length;
-  bmem = BIO_new_mem_buf((void *)encoded_bytes, -1);
+  bmem = BIO_new_mem_buf((void*)encoded_bytes, -1);
 
-  if (!bmem)
-  {
+  if (!bmem) {
     Eroute.Emsg("Verify", ENOMEM, "get new mem BIO");
     return false;
   }
 
   b64 = BIO_new(BIO_f_base64());
 
-  if (!b64)
-  {
+  if (!b64) {
     Eroute.Emsg("Verify", ENOMEM, "get new BIO");
     return false;
   }
@@ -644,9 +600,11 @@ XrdMqMessage::Base64Decode(char* encoded_bytes, char*& decoded_bytes,
 }
 
 bool
-XrdMqMessage::Base64DecodeBroken(XrdOucString &in, char* &out, ssize_t &outlen) {
-  BIO *b64, *bmem;
+XrdMqMessage::Base64DecodeBroken(XrdOucString& in, char*& out, ssize_t& outlen)
+{
+  BIO* b64, *bmem;
   b64 = BIO_new(BIO_f_base64());
+
   if (!b64) {
     Eroute.Emsg("Verify", ENOMEM, "get new BIO");
     return false;
@@ -654,13 +612,13 @@ XrdMqMessage::Base64DecodeBroken(XrdOucString &in, char* &out, ssize_t &outlen) 
 
   unsigned int body64len = in.length();
   bmem = BIO_new_mem_buf((void*)in.c_str(), body64len);
+
   if (!bmem) {
     Eroute.Emsg("Verify", ENOMEM, "get new mem BIO");
     return false;
   }
 
   char* encryptionbuffer = (char*) malloc(body64len);
-
   bmem                = BIO_push(b64  , bmem);
   outlen = BIO_read(bmem , encryptionbuffer, body64len);
   BIO_free_all(b64);
@@ -675,16 +633,15 @@ XrdMqMessage::Base64DecodeBroken(XrdOucString &in, char* &out, ssize_t &outlen) 
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
-			    char*& encrypted_data, ssize_t& encrypted_length,
-			    char* key)
+                            char*& encrypted_data, ssize_t& encrypted_length,
+                            char* key)
 {
   // Set the initialization vector so that the encrypted text is unique
   uint_fast8_t iv[EVP_MAX_IV_LENGTH];
   sprintf((char*)iv, "$KJh#(}q");
   const EVP_CIPHER* cipher = XMQCIPHER();
 
-  if (!cipher)
-  {
+  if (!cipher) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "get cipher");
     return false;
   }
@@ -693,8 +650,7 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
   int buff_capacity = data_length + EVP_CIPHER_block_size(cipher);
   char* encrypt_buff = (char*) malloc(buff_capacity);
 
-  if (!encrypt_buff)
-  {
+  if (!encrypt_buff) {
     Eroute.Emsg(__FUNCTION__, ENOMEM, "allocate encryption memory");
     return false;
   }
@@ -708,16 +664,14 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
   EVP_EncryptInit_ex(ctx, 0, 0, (const unsigned char*)key, iv);
 
   if (!(EVP_EncryptUpdate(ctx, fast_ptr, (int*)&encrypted_length,
-			  (uint_fast8_t*)data, data_length)))
-  {
+                          (uint_fast8_t*)data, data_length))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "update cipher block");
     EVP_CIPHER_CTX_free(ctx);
     free(encrypt_buff);
     return false;
   }
 
-  if (encrypted_length < 0)
-  {
+  if (encrypted_length < 0) {
     EVP_CIPHER_CTX_free(ctx);
     free(encrypt_buff);
     return false;
@@ -726,8 +680,7 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
   fast_ptr += encrypted_length;
   int tmplen = 0;
 
-  if (!(EVP_EncryptFinal(ctx, fast_ptr, &tmplen)))
-  {
+  if (!(EVP_EncryptFinal(ctx, fast_ptr, &tmplen))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "finalize cipher block");
     EVP_CIPHER_CTX_free(ctx);
     free(encrypt_buff);
@@ -736,10 +689,9 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
 
   encrypted_length += tmplen;
 
-  if (encrypted_length > buff_capacity)
-  {
+  if (encrypted_length > buff_capacity) {
     Eroute.Emsg(__FUNCTION__, ENOMEM, "guarantee uncorrupted memory - memory"
-		" overwrite detected");
+                " overwrite detected");
     EVP_CIPHER_CTX_free(ctx);
     free(encrypt_buff);
     return false;
@@ -755,15 +707,14 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
-			    char*& data, ssize_t& data_length, char* key, bool noerror)
+                            char*& data, ssize_t& data_length, char* key, bool noerror)
 {
   // Set the initialization vector
   uint_fast8_t iv[EVP_MAX_IV_LENGTH];
   sprintf((char*)iv, "$KJh#(}q");
   const EVP_CIPHER* cipher = XMQCIPHER();
 
-  if (!cipher)
-  {
+  if (!cipher) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "get cipher");
     return false;
   }
@@ -774,8 +725,7 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
   int buff_capacity = encrypted_length + EVP_CIPHER_block_size(cipher) + 1;
   data = (char*) malloc(buff_capacity);
 
-  if (!data)
-  {
+  if (!data) {
     Eroute.Emsg(__FUNCTION__, ENOMEM, "allocate decryption memory");
     return false;
   }
@@ -790,16 +740,14 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
   int decrypt_len = 0;
 
   if (!EVP_DecryptUpdate(ctx, fast_ptr, &decrypt_len,
-			 (uint_fast8_t*)encrypted_data, encrypted_length))
-  {
+                         (uint_fast8_t*)encrypted_data, encrypted_length)) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "update cipher block");
     EVP_CIPHER_CTX_free(ctx);
     free(data);
     return false;
   }
 
-  if (decrypt_len < 0)
-  {
+  if (decrypt_len < 0) {
     EVP_CIPHER_CTX_free(ctx);
     free(data);
     return false;
@@ -808,12 +756,11 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
   fast_ptr += decrypt_len;
   int tmplen = 0;
 
-  if (!EVP_DecryptFinal(ctx, fast_ptr, &tmplen))
-  {
-    if (!noerror)
-    {
+  if (!EVP_DecryptFinal(ctx, fast_ptr, &tmplen)) {
+    if (!noerror) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "finalize cipher block");
     }
+
     EVP_CIPHER_CTX_free(ctx);
     free(data);
     return false;
@@ -821,10 +768,9 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
 
   data_length = decrypt_len + tmplen;
 
-  if (data_length > buff_capacity)
-  {
+  if (data_length > buff_capacity) {
     Eroute.Emsg(__FUNCTION__, ENOMEM, "guarantee uncorrupted memory - "
-		"memory overwrite detected");
+                "memory overwrite detected");
     EVP_CIPHER_CTX_free(ctx);
     free(data);
     return false;
@@ -842,23 +788,23 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::RSAEncrypt(char* data, ssize_t data_length, char*& encrypted_data,
-			 ssize_t& encrypted_length)
+                         ssize_t& encrypted_length)
 {
   encrypted_data = (char*)malloc(RSA_size(EVP_PKEY_get1_RSA(PrivateKey)));
 
-  if (!encrypted_data)
+  if (!encrypted_data) {
     return false;
+  }
 
   encrypted_length = RSA_private_encrypt(data_length, (uint_fast8_t*)data,
-					 (uint_fast8_t*)encrypted_data,
-					 EVP_PKEY_get1_RSA(PrivateKey), RSA_PKCS1_PADDING);
+                                         (uint_fast8_t*)encrypted_data,
+                                         EVP_PKEY_get1_RSA(PrivateKey), RSA_PKCS1_PADDING);
 
-  if (encrypted_length < 0)
-  {
+  if (encrypted_length < 0) {
     free(encrypted_data);
     encrypted_data = 0;
     Eroute.Emsg(__FUNCTION__, EINVAL, "encrypt with private key",
-		ERR_error_string(ERR_get_error(), 0));
+                ERR_error_string(ERR_get_error(), 0));
     return false;
   }
 
@@ -870,39 +816,38 @@ XrdMqMessage::RSAEncrypt(char* data, ssize_t data_length, char*& encrypted_data,
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::RSADecrypt(char* encrypted_data, ssize_t encrypted_length,
-			 char*& data, ssize_t& data_length, XrdOucString& key_hash)
+                         char*& data, ssize_t& data_length, XrdOucString& key_hash)
 {
   EVP_PKEY* pkey = PublicKeyHash.Find(key_hash.c_str());
 
-  if (!pkey)
-  {
+  if (!pkey) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "load requested public key:",
-		key_hash.c_str());
+                key_hash.c_str());
     return false;
   }
 
-  if ((encrypted_length != (unsigned int)RSA_size(EVP_PKEY_get1_RSA(pkey))))
-  {
+  if ((encrypted_length != (unsigned int)RSA_size(EVP_PKEY_get1_RSA(pkey)))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "decrypt - keylength/encryption buffer"
-		" mismatch");
+                " mismatch");
     return false;
   }
 
   data = (char*)malloc(RSA_size(EVP_PKEY_get1_RSA(pkey)));
 
-  if (!data)
+  if (!data) {
     return false;
+  }
 
-  data_length = RSA_public_decrypt(encrypted_length, (uint_fast8_t*)encrypted_data,
-				   (uint_fast8_t*)data, EVP_PKEY_get1_RSA(pkey),
-				   RSA_PKCS1_PADDING);
+  data_length = RSA_public_decrypt(encrypted_length,
+                                   (uint_fast8_t*)encrypted_data,
+                                   (uint_fast8_t*)data, EVP_PKEY_get1_RSA(pkey),
+                                   RSA_PKCS1_PADDING);
 
-  if (data_length < 0)
-  {
+  if (data_length < 0) {
     free(data);
     data = 0;
     Eroute.Emsg(__FUNCTION__, EINVAL, "decrypt with public key",
-		ERR_error_string(ERR_get_error(), 0));
+                ERR_error_string(ERR_get_error(), 0));
     return false;
   }
 
@@ -923,16 +868,14 @@ bool XrdMqMessage::Sign(bool encrypt)
   EVP_SignUpdate(md_ctx, kMessageBody.c_str(), kMessageBody.length());
   sig_len = sizeof(sig_buf);
 
-  if (!EVP_SignFinal(md_ctx, sig_buf, &sig_len, PrivateKey))
-  {
+  if (!EVP_SignFinal(md_ctx, sig_buf, &sig_len, PrivateKey)) {
     EVP_MD_CTX_destroy(md_ctx);
     return false;
   }
 
   std::string signature;
 
-  if (!Base64Encode((char*)sig_buf, sig_len, signature))
-  {
+  if (!Base64Encode((char*)sig_buf, sig_len, signature)) {
     EVP_MD_CTX_destroy(md_ctx);
     return false;
   }
@@ -942,11 +885,10 @@ bool XrdMqMessage::Sign(bool encrypt)
   kMessageHeader.kMessageSignature += ":";
   kMessageHeader.kMessageSignature += signature.c_str();
 
-  if (!encrypt)
-  {
+  if (!encrypt) {
     // Base64 encode the message digest
-    if (!Base64Encode((char*)EVP_MD_CTX_md_data(md_ctx), SHA_DIGEST_LENGTH, b64out))
-    {
+    if (!Base64Encode((char*)EVP_MD_CTX_md_data(md_ctx), SHA_DIGEST_LENGTH,
+                      b64out)) {
       EVP_MD_CTX_destroy(md_ctx);
       return false;
     }
@@ -962,16 +904,14 @@ bool XrdMqMessage::Sign(bool encrypt)
   ssize_t rsalen;
 
   if (!RSAEncrypt((char*)EVP_MD_CTX_md_data(md_ctx), SHA_DIGEST_LENGTH, rsadigest,
-		  rsalen))
-  {
+                  rsalen)) {
     EVP_MD_CTX_destroy(md_ctx);
     free(rsadigest);
     return false;
   }
 
   // Base64 encode the rsa encoded digest
-  if (!Base64Encode(rsadigest, rsalen, b64out))
-  {
+  if (!Base64Encode(rsadigest, rsalen, b64out)) {
     EVP_MD_CTX_destroy(md_ctx);
     free(rsadigest);
     return false;
@@ -979,28 +919,24 @@ bool XrdMqMessage::Sign(bool encrypt)
 
   kMessageHeader.kMessageDigest = b64out.c_str();
   free(rsadigest);
-
   // Add a prefix with the public key rsa:<pubkey>:<encrypted64>digest
   XrdOucString sdigest = "rsa:";
   sdigest += PublicKeyFileHash;
   sdigest += ":";
   sdigest += kMessageHeader.kMessageDigest;
   kMessageHeader.kMessageDigest = sdigest;
-
   // Encrypt the message with the plain digest
   char* encryptptr = 0;
   ssize_t encryptlen = 0;
 
   if ((!CipherEncrypt(kMessageBody.c_str(), kMessageBody.length(),
-		      encryptptr, encryptlen, (char*)EVP_MD_CTX_md_data(md_ctx))))
-  {
+                      encryptptr, encryptlen, (char*)EVP_MD_CTX_md_data(md_ctx)))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "encrypt message");
     EVP_MD_CTX_destroy(md_ctx);
     return false;
   }
 
-  if ((!Base64Encode(encryptptr, encryptlen, b64out)))
-  {
+  if ((!Base64Encode(encryptptr, encryptlen, b64out))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "base64 encode message");
     EVP_MD_CTX_destroy(md_ctx);
     free(encryptptr);
@@ -1010,7 +946,6 @@ bool XrdMqMessage::Sign(bool encrypt)
   kMessageBody = b64out.c_str();
   kMessageHeader.kEncrypted = true;
   free(encryptptr);
-
   EVP_MD_CTX_destroy(md_ctx);
   Encode();
   return true;
@@ -1021,18 +956,16 @@ bool XrdMqMessage::Sign(bool encrypt)
 //------------------------------------------------------------------------------
 bool XrdMqMessage::Verify()
 {
-  if (!Decode())
-  {
+  if (!Decode()) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "decode message");
     return false;
   }
 
-  if (kMessageHeader.kEncrypted)
-  {
+  if (kMessageHeader.kEncrypted) {
     // Decode the digest
-    if (!kMessageHeader.kMessageDigest.beginswith("rsa:"))
-    {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "decode message digest - is not rsa encrypted");
+    if (!kMessageHeader.kMessageDigest.beginswith("rsa:")) {
+      Eroute.Emsg(__FUNCTION__, EINVAL,
+                  "decode message digest - is not rsa encrypted");
       return false;
     }
 
@@ -1040,13 +973,11 @@ bool XrdMqMessage::Verify()
     XrdOucString PublicKeyName;
     int dpos = kMessageHeader.kMessageDigest.find(":", 4);
 
-    if (dpos != STR_NPOS)
-    {
+    if (dpos != STR_NPOS) {
       PublicKeyName.assign(kMessageHeader.kMessageDigest, 4, dpos - 1);
-    }
-    else
-    {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "find public key reference in message digest");
+    } else {
+      Eroute.Emsg(__FUNCTION__, EINVAL,
+                  "find public key reference in message digest");
       return false;
     }
 
@@ -1059,26 +990,23 @@ bool XrdMqMessage::Verify()
     ssize_t decrypteddigestlen = 0;
 
     if (!Base64Decode((char*)kMessageHeader.kMessageDigest.c_str(), encrypteddigest,
-		      encrypteddigestlen))
-    {
+                      encrypteddigestlen)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message digest");
       free(encrypteddigest);
       return false;
     }
 
     if (!RSADecrypt(encrypteddigest, (unsigned int) encrypteddigestlen,
-		    decrypteddigest, decrypteddigestlen, PublicKeyName))
-    {
+                    decrypteddigest, decrypteddigestlen, PublicKeyName)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "RSA decrypt encrypted message digest");
       free(encrypteddigest);
       free(decrypteddigest);
       return false;
     }
 
-    if (decrypteddigestlen != SHA_DIGEST_LENGTH)
-    {
+    if (decrypteddigestlen != SHA_DIGEST_LENGTH) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "RSA decrypted message digest has illegal "
-		  "length");
+                  "length");
       free(encrypteddigest);
       free(decrypteddigest);
       return false;
@@ -1088,8 +1016,8 @@ bool XrdMqMessage::Verify()
     char* encryptedbody = 0;
     ssize_t encryptedbodylen = 0;
 
-    if (!Base64Decode((char*)kMessageBody.c_str(), encryptedbody, encryptedbodylen))
-    {
+    if (!Base64Decode((char*)kMessageBody.c_str(), encryptedbody,
+                      encryptedbodylen)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message body");
       free(encryptedbody);
       free(encrypteddigest);
@@ -1102,8 +1030,7 @@ bool XrdMqMessage::Verify()
     ssize_t data_len;
 
     if (!CipherDecrypt(encryptedbody, encryptedbodylen, data, data_len,
-		       decrypteddigest))
-    {
+                       decrypteddigest)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message body");
       free(encryptedbody);
       free(encrypteddigest);
@@ -1119,8 +1046,7 @@ bool XrdMqMessage::Verify()
   }
 
   // Decompose the signature
-  if (!kMessageHeader.kMessageSignature.beginswith("rsa:"))
-  {
+  if (!kMessageHeader.kMessageSignature.beginswith("rsa:")) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "decode message signature - misses rsa: tag");
     return false;
   }
@@ -1129,12 +1055,9 @@ bool XrdMqMessage::Verify()
   XrdOucString PublicKeyName = "";
   int dpos = kMessageHeader.kMessageSignature.find(":", 4);
 
-  if (dpos != STR_NPOS)
-  {
+  if (dpos != STR_NPOS) {
     PublicKeyName.assign(kMessageHeader.kMessageSignature, 4, dpos - 1);
-  }
-  else
-  {
+  } else {
     Eroute.Emsg(__FUNCTION__, EINVAL, "find public key reference in signature");
     return false;
   }
@@ -1145,8 +1068,8 @@ bool XrdMqMessage::Verify()
   char* sig = 0;
   ssize_t siglen = 0;
 
-  if (!Base64Decode((char*)kMessageHeader.kMessageSignature.c_str(), sig, siglen))
-  {
+  if (!Base64Decode((char*)kMessageHeader.kMessageSignature.c_str(), sig,
+                    siglen)) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode message signature");
     free(sig);
     return false;
@@ -1154,10 +1077,9 @@ bool XrdMqMessage::Verify()
 
   EVP_PKEY* PublicKey = PublicKeyHash.Find(PublicKeyName.c_str());
 
-  if (!PublicKey)
-  {
+  if (!PublicKey) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "load requested public key:",
-		PublicKeyName.c_str());
+                PublicKeyName.c_str());
     free(sig);
     return false;
   }
@@ -1169,10 +1091,9 @@ bool XrdMqMessage::Verify()
   int retc = EVP_VerifyFinal(md_ctx, (unsigned char*) sig, siglen, PublicKey);
   EVP_MD_CTX_destroy(md_ctx);
 
-  if (!retc)
-  {
+  if (!retc) {
     Eroute.Emsg(__FUNCTION__, EPERM, "verify signature of message body",
-		ERR_error_string(ERR_get_error(), 0));
+                ERR_error_string(ERR_get_error(), 0));
     free(sig);
     return false;
   }
@@ -1191,16 +1112,15 @@ bool XrdMqMessage::Verify()
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
-			    char*& encrypted_data, ssize_t& encrypted_length,
-			    char* key)
+                            char*& encrypted_data, ssize_t& encrypted_length,
+                            char* key)
 {
   // Set the initialization vector so that the encrypted text is unique
   uint_fast8_t iv[EVP_MAX_IV_LENGTH];
   sprintf((char*)iv, "$KJh#(}q");
   const EVP_CIPHER* cipher = XMQCIPHER();
 
-  if (!cipher)
-  {
+  if (!cipher) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "get cipher");
     return false;
   }
@@ -1209,8 +1129,7 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
   int buff_capacity = data_length + EVP_CIPHER_block_size(cipher);
   char* encrypt_buff = (char*) malloc(buff_capacity);
 
-  if (!encrypt_buff)
-  {
+  if (!encrypt_buff) {
     Eroute.Emsg(__FUNCTION__, ENOMEM, "allocate encryption memory");
     return false;
   }
@@ -1224,16 +1143,14 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
   EVP_EncryptInit_ex(&ctx, 0, 0, (const unsigned char*)key, iv);
 
   if (!(EVP_EncryptUpdate(&ctx, fast_ptr, (int*)&encrypted_length,
-			  (uint_fast8_t*)data, data_length)))
-  {
+                          (uint_fast8_t*)data, data_length))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "update cipher block");
     EVP_CIPHER_CTX_cleanup(&ctx);
     free(encrypt_buff);
     return false;
   }
 
-  if (encrypted_length < 0)
-  {
+  if (encrypted_length < 0) {
     EVP_CIPHER_CTX_cleanup(&ctx);
     free(encrypt_buff);
     return false;
@@ -1242,8 +1159,7 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
   fast_ptr += encrypted_length;
   int tmplen = 0;
 
-  if (!(EVP_EncryptFinal(&ctx, fast_ptr, &tmplen)))
-  {
+  if (!(EVP_EncryptFinal(&ctx, fast_ptr, &tmplen))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "finalize cipher block");
     EVP_CIPHER_CTX_cleanup(&ctx);
     free(encrypt_buff);
@@ -1252,10 +1168,9 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
 
   encrypted_length += tmplen;
 
-  if (encrypted_length > buff_capacity)
-  {
+  if (encrypted_length > buff_capacity) {
     Eroute.Emsg(__FUNCTION__, ENOMEM, "guarantee uncorrupted memory - memory"
-		" overwrite detected");
+                " overwrite detected");
     EVP_CIPHER_CTX_cleanup(&ctx);
     free(encrypt_buff);
     return false;
@@ -1271,15 +1186,14 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
-			    char*& data, ssize_t& data_length, char* key, bool noerror)
+                            char*& data, ssize_t& data_length, char* key, bool noerror)
 {
   // Set the initialization vector
   uint_fast8_t iv[EVP_MAX_IV_LENGTH];
   sprintf((char*)iv, "$KJh#(}q");
   const EVP_CIPHER* cipher = XMQCIPHER();
 
-  if (!cipher)
-  {
+  if (!cipher) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "get cipher");
     return false;
   }
@@ -1290,8 +1204,7 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
   int buff_capacity = encrypted_length + EVP_CIPHER_block_size(cipher) + 1;
   data = (char*) malloc(buff_capacity);
 
-  if (!data)
-  {
+  if (!data) {
     Eroute.Emsg(__FUNCTION__, ENOMEM, "allocate decryption memory");
     return false;
   }
@@ -1306,16 +1219,14 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
   int decrypt_len = 0;
 
   if (!EVP_DecryptUpdate(&ctx, fast_ptr, &decrypt_len,
-			 (uint_fast8_t*)encrypted_data, encrypted_length))
-  {
+                         (uint_fast8_t*)encrypted_data, encrypted_length)) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "update cipher block");
     EVP_CIPHER_CTX_cleanup(&ctx);
     free(data);
     return false;
   }
 
-  if (decrypt_len < 0)
-  {
+  if (decrypt_len < 0) {
     EVP_CIPHER_CTX_cleanup(&ctx);
     free(data);
     return false;
@@ -1324,12 +1235,11 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
   fast_ptr += decrypt_len;
   int tmplen = 0;
 
-  if (!EVP_DecryptFinal(&ctx, fast_ptr, &tmplen))
-  {
-    if (!noerror)
-    {
+  if (!EVP_DecryptFinal(&ctx, fast_ptr, &tmplen)) {
+    if (!noerror) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "finalize cipher block");
     }
+
     EVP_CIPHER_CTX_cleanup(&ctx);
     free(data);
     return false;
@@ -1337,10 +1247,9 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
 
   data_length = decrypt_len + tmplen;
 
-  if (data_length > buff_capacity)
-  {
+  if (data_length >= buff_capacity) {
     Eroute.Emsg(__FUNCTION__, ENOMEM, "guarantee uncorrupted memory - "
-		"memory overwrite detected");
+                "memory overwrite detected");
     EVP_CIPHER_CTX_cleanup(&ctx);
     free(data);
     return false;
@@ -1358,23 +1267,23 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::RSAEncrypt(char* data, ssize_t data_length, char*& encrypted_data,
-			 ssize_t& encrypted_length)
+                         ssize_t& encrypted_length)
 {
   encrypted_data = (char*)malloc(RSA_size(PrivateKey->pkey.rsa));
 
-  if (!encrypted_data)
+  if (!encrypted_data) {
     return false;
+  }
 
   encrypted_length = RSA_private_encrypt(data_length, (uint_fast8_t*)data,
-					 (uint_fast8_t*)encrypted_data,
-					 PrivateKey->pkey.rsa, RSA_PKCS1_PADDING);
+                                         (uint_fast8_t*)encrypted_data,
+                                         PrivateKey->pkey.rsa, RSA_PKCS1_PADDING);
 
-  if (encrypted_length < 0)
-  {
+  if (encrypted_length < 0) {
     free(encrypted_data);
     encrypted_data = 0;
     Eroute.Emsg(__FUNCTION__, EINVAL, "encrypt with private key",
-		ERR_error_string(ERR_get_error(), 0));
+                ERR_error_string(ERR_get_error(), 0));
     return false;
   }
 
@@ -1386,39 +1295,38 @@ XrdMqMessage::RSAEncrypt(char* data, ssize_t data_length, char*& encrypted_data,
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::RSADecrypt(char* encrypted_data, ssize_t encrypted_length,
-			 char*& data, ssize_t& data_length, XrdOucString& key_hash)
+                         char*& data, ssize_t& data_length, XrdOucString& key_hash)
 {
   EVP_PKEY* pkey = PublicKeyHash.Find(key_hash.c_str());
 
-  if (!pkey)
-  {
+  if (!pkey) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "load requested public key:",
-		key_hash.c_str());
+                key_hash.c_str());
     return false;
   }
 
-  if ((encrypted_length != (unsigned int)RSA_size(pkey->pkey.rsa)))
-  {
+  if ((encrypted_length != (unsigned int)RSA_size(pkey->pkey.rsa))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "decrypt - keylength/encryption buffer"
-		" mismatch");
+                " mismatch");
     return false;
   }
 
   data = (char*)malloc(RSA_size(pkey->pkey.rsa));
 
-  if (!data)
+  if (!data) {
     return false;
+  }
 
-  data_length = RSA_public_decrypt(encrypted_length, (uint_fast8_t*)encrypted_data,
-				   (uint_fast8_t*)data, pkey->pkey.rsa,
-				   RSA_PKCS1_PADDING);
+  data_length = RSA_public_decrypt(encrypted_length,
+                                   (uint_fast8_t*)encrypted_data,
+                                   (uint_fast8_t*)data, pkey->pkey.rsa,
+                                   RSA_PKCS1_PADDING);
 
-  if (data_length < 0)
-  {
+  if (data_length < 0) {
     free(data);
     data = 0;
     Eroute.Emsg(__FUNCTION__, EINVAL, "decrypt with public key",
-		ERR_error_string(ERR_get_error(), 0));
+                ERR_error_string(ERR_get_error(), 0));
     return false;
   }
 
@@ -1439,16 +1347,14 @@ bool XrdMqMessage::Sign(bool encrypt)
   EVP_SignUpdate(&md_ctx, kMessageBody.c_str(), kMessageBody.length());
   sig_len = sizeof(sig_buf);
 
-  if (!EVP_SignFinal(&md_ctx, sig_buf, &sig_len, PrivateKey))
-  {
+  if (!EVP_SignFinal(&md_ctx, sig_buf, &sig_len, PrivateKey)) {
     EVP_MD_CTX_cleanup(&md_ctx);
     return false;
   }
 
   std::string signature;
 
-  if (!Base64Encode((char*)sig_buf, sig_len, signature))
-  {
+  if (!Base64Encode((char*)sig_buf, sig_len, signature)) {
     EVP_MD_CTX_cleanup(&md_ctx);
     return false;
   }
@@ -1458,11 +1364,9 @@ bool XrdMqMessage::Sign(bool encrypt)
   kMessageHeader.kMessageSignature += ":";
   kMessageHeader.kMessageSignature += signature.c_str();
 
-  if (!encrypt)
-  {
+  if (!encrypt) {
     // Base64 encode the message digest
-    if (!Base64Encode((char*)md_ctx.md_data, SHA_DIGEST_LENGTH, b64out))
-    {
+    if (!Base64Encode((char*)md_ctx.md_data, SHA_DIGEST_LENGTH, b64out)) {
       EVP_MD_CTX_cleanup(&md_ctx);
       return false;
     }
@@ -1478,16 +1382,14 @@ bool XrdMqMessage::Sign(bool encrypt)
   ssize_t rsalen;
 
   if (!RSAEncrypt((char*)md_ctx.md_data, SHA_DIGEST_LENGTH, rsadigest,
-		  rsalen))
-  {
+                  rsalen)) {
     EVP_MD_CTX_cleanup(&md_ctx);
     free(rsadigest);
     return false;
   }
 
   // Base64 encode the rsa encoded digest
-  if (!Base64Encode(rsadigest, rsalen, b64out))
-  {
+  if (!Base64Encode(rsadigest, rsalen, b64out)) {
     EVP_MD_CTX_cleanup(&md_ctx);
     free(rsadigest);
     return false;
@@ -1495,28 +1397,24 @@ bool XrdMqMessage::Sign(bool encrypt)
 
   kMessageHeader.kMessageDigest = b64out.c_str();
   free(rsadigest);
-
   // Add a prefix with the public key rsa:<pubkey>:<encrypted64>digest
   XrdOucString sdigest = "rsa:";
   sdigest += PublicKeyFileHash;
   sdigest += ":";
   sdigest += kMessageHeader.kMessageDigest;
   kMessageHeader.kMessageDigest = sdigest;
-
   // Encrypt the message with the plain digest
   char* encryptptr = 0;
   ssize_t encryptlen = 0;
 
   if ((!CipherEncrypt(kMessageBody.c_str(), kMessageBody.length(),
-		      encryptptr, encryptlen, (char*)md_ctx.md_data)))
-  {
+                      encryptptr, encryptlen, (char*)md_ctx.md_data))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "encrypt message");
     EVP_MD_CTX_cleanup(&md_ctx);
     return false;
   }
 
-  if ((!Base64Encode(encryptptr, encryptlen, b64out)))
-  {
+  if ((!Base64Encode(encryptptr, encryptlen, b64out))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "base64 encode message");
     EVP_MD_CTX_cleanup(&md_ctx);
     free(encryptptr);
@@ -1526,7 +1424,6 @@ bool XrdMqMessage::Sign(bool encrypt)
   kMessageBody = b64out.c_str();
   kMessageHeader.kEncrypted = true;
   free(encryptptr);
-
   EVP_MD_CTX_cleanup(&md_ctx);
   Encode();
   return true;
@@ -1537,18 +1434,16 @@ bool XrdMqMessage::Sign(bool encrypt)
 //------------------------------------------------------------------------------
 bool XrdMqMessage::Verify()
 {
-  if (!Decode())
-  {
+  if (!Decode()) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "decode message");
     return false;
   }
 
-  if (kMessageHeader.kEncrypted)
-  {
+  if (kMessageHeader.kEncrypted) {
     // Decode the digest
-    if (!kMessageHeader.kMessageDigest.beginswith("rsa:"))
-    {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "decode message digest - is not rsa encrypted");
+    if (!kMessageHeader.kMessageDigest.beginswith("rsa:")) {
+      Eroute.Emsg(__FUNCTION__, EINVAL,
+                  "decode message digest - is not rsa encrypted");
       return false;
     }
 
@@ -1556,13 +1451,11 @@ bool XrdMqMessage::Verify()
     XrdOucString PublicKeyName;
     int dpos = kMessageHeader.kMessageDigest.find(":", 4);
 
-    if (dpos != STR_NPOS)
-    {
+    if (dpos != STR_NPOS) {
       PublicKeyName.assign(kMessageHeader.kMessageDigest, 4, dpos - 1);
-    }
-    else
-    {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "find public key reference in message digest");
+    } else {
+      Eroute.Emsg(__FUNCTION__, EINVAL,
+                  "find public key reference in message digest");
       return false;
     }
 
@@ -1575,26 +1468,23 @@ bool XrdMqMessage::Verify()
     ssize_t decrypteddigestlen = 0;
 
     if (!Base64Decode((char*)kMessageHeader.kMessageDigest.c_str(), encrypteddigest,
-		      encrypteddigestlen))
-    {
+                      encrypteddigestlen)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message digest");
       free(encrypteddigest);
       return false;
     }
 
     if (!RSADecrypt(encrypteddigest, (unsigned int) encrypteddigestlen,
-		    decrypteddigest, decrypteddigestlen, PublicKeyName))
-    {
+                    decrypteddigest, decrypteddigestlen, PublicKeyName)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "RSA decrypt encrypted message digest");
       free(encrypteddigest);
       free(decrypteddigest);
       return false;
     }
 
-    if (decrypteddigestlen != SHA_DIGEST_LENGTH)
-    {
+    if (decrypteddigestlen != SHA_DIGEST_LENGTH) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "RSA decrypted message digest has illegal "
-		  "length");
+                  "length");
       free(encrypteddigest);
       free(decrypteddigest);
       return false;
@@ -1604,8 +1494,8 @@ bool XrdMqMessage::Verify()
     char* encryptedbody = 0;
     ssize_t encryptedbodylen = 0;
 
-    if (!Base64Decode((char*)kMessageBody.c_str(), encryptedbody, encryptedbodylen))
-    {
+    if (!Base64Decode((char*)kMessageBody.c_str(), encryptedbody,
+                      encryptedbodylen)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message body");
       free(encryptedbody);
       free(encrypteddigest);
@@ -1618,8 +1508,7 @@ bool XrdMqMessage::Verify()
     ssize_t data_len;
 
     if (!CipherDecrypt(encryptedbody, encryptedbodylen, data, data_len,
-		       decrypteddigest))
-    {
+                       decrypteddigest)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message body");
       free(encryptedbody);
       free(encrypteddigest);
@@ -1635,8 +1524,7 @@ bool XrdMqMessage::Verify()
   }
 
   // Decompose the signature
-  if (!kMessageHeader.kMessageSignature.beginswith("rsa:"))
-  {
+  if (!kMessageHeader.kMessageSignature.beginswith("rsa:")) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "decode message signature - misses rsa: tag");
     return false;
   }
@@ -1645,12 +1533,9 @@ bool XrdMqMessage::Verify()
   XrdOucString PublicKeyName = "";
   int dpos = kMessageHeader.kMessageSignature.find(":", 4);
 
-  if (dpos != STR_NPOS)
-  {
+  if (dpos != STR_NPOS) {
     PublicKeyName.assign(kMessageHeader.kMessageSignature, 4, dpos - 1);
-  }
-  else
-  {
+  } else {
     Eroute.Emsg(__FUNCTION__, EINVAL, "find public key reference in signature");
     return false;
   }
@@ -1661,8 +1546,8 @@ bool XrdMqMessage::Verify()
   char* sig = 0;
   ssize_t siglen = 0;
 
-  if (!Base64Decode((char*)kMessageHeader.kMessageSignature.c_str(), sig, siglen))
-  {
+  if (!Base64Decode((char*)kMessageHeader.kMessageSignature.c_str(), sig,
+                    siglen)) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode message signature");
     free(sig);
     return false;
@@ -1670,10 +1555,9 @@ bool XrdMqMessage::Verify()
 
   EVP_PKEY* PublicKey = PublicKeyHash.Find(PublicKeyName.c_str());
 
-  if (!PublicKey)
-  {
+  if (!PublicKey) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "load requested public key:",
-		PublicKeyName.c_str());
+                PublicKeyName.c_str());
     free(sig);
     return false;
   }
@@ -1685,10 +1569,9 @@ bool XrdMqMessage::Verify()
   int retc = EVP_VerifyFinal(&md_ctx, (unsigned char*) sig, siglen, PublicKey);
   EVP_MD_CTX_cleanup(&md_ctx);
 
-  if (!retc)
-  {
+  if (!retc) {
     Eroute.Emsg(__FUNCTION__, EPERM, "verify signature of message body",
-		ERR_error_string(ERR_get_error(), 0));
+                ERR_error_string(ERR_get_error(), 0));
     free(sig);
     return false;
   }
@@ -1708,19 +1591,18 @@ bool XrdMqMessage::Verify()
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::SymmetricStringEncrypt(XrdOucString& in, XrdOucString& out,
-				     char* key)
+                                     char* key)
 {
   char* tmpbuf = 0;
   ssize_t tmpbuflen = 0;
 
-  if (!CipherEncrypt(in.c_str(), in.length(), tmpbuf, tmpbuflen, key))
-  {
+  if (!CipherEncrypt(in.c_str(), in.length(), tmpbuf, tmpbuflen, key)) {
     return false;
   }
 
   std::string b64out;
-  if (!Base64Encode(tmpbuf, tmpbuflen, b64out))
-  {
+
+  if (!Base64Encode(tmpbuf, tmpbuflen, b64out)) {
     free(tmpbuf);
     return false;
   }
@@ -1736,19 +1618,15 @@ XrdMqMessage::SymmetricStringEncrypt(XrdOucString& in, XrdOucString& out,
 //------------------------------------------------------------------------------
 bool
 XrdMqMessage::SymmetricStringDecrypt(XrdOucString& in, XrdOucString& out,
-				     char* key)
+                                     char* key)
 {
   char* tmpbuf = 0;
   ssize_t tmpbuflen;
 
-  if (!Base64Decode((char*)in.c_str(), tmpbuf, tmpbuflen))
-  {
-    if (Base64DecodeBroken(in, tmpbuf, tmpbuflen))
-    {
+  if (!Base64Decode((char*)in.c_str(), tmpbuf, tmpbuflen)) {
+    if (Base64DecodeBroken(in, tmpbuf, tmpbuflen)) {
       // might be an old encoder
-    }
-    else
-    {
+    } else {
       free(tmpbuf);
       return false;
     }
@@ -1757,20 +1635,16 @@ XrdMqMessage::SymmetricStringDecrypt(XrdOucString& in, XrdOucString& out,
   char* data;
   ssize_t data_len;
 
-  if (!CipherDecrypt(tmpbuf, tmpbuflen, data, data_len, key, true))
-  {
+  if (!CipherDecrypt(tmpbuf, tmpbuflen, data, data_len, key, true)) {
     // test with an older decoding version
-    if (Base64DecodeBroken(in, tmpbuf, tmpbuflen))
-    {
+    if (Base64DecodeBroken(in, tmpbuf, tmpbuflen)) {
       // might be an old encoder
-    }
-    else
-    {
+    } else {
       free(tmpbuf);
       return false;
     }
-    if (!CipherDecrypt(tmpbuf, tmpbuflen, data, data_len, key))
-    {
+
+    if (!CipherDecrypt(tmpbuf, tmpbuflen, data, data_len, key)) {
       free(tmpbuf);
       return false;
     }
@@ -1800,25 +1674,19 @@ XrdMqMessage::Print()
 {
   kMessageHeader.Print();
 
-  if (kMessageBody.length() > 256)
-  {
+  if (kMessageBody.length() > 256) {
     std::cerr << "kMessageBody           : (...) too long" << std::endl;
-  }
-  else
-  {
+  } else {
     std::cerr << "kMessageBody           : " << kMessageBody << std::endl;
   }
 
   std::cerr << "--------------------------------------------------" << std::endl;
 
-  if (kMessageBuffer.length() > 256)
-  {
+  if (kMessageBuffer.length() > 256) {
     std::cerr << "kMessageBuffer         : (...) too long" << std::endl;
     std::cerr << "Length                 : " << kMessageBuffer.length() <<
-	std::endl;
-  }
-  else
-  {
+              std::endl;
+  } else {
     std::cerr << "kMessageBuffer         : " << kMessageBuffer << std::endl;
   }
 
@@ -1848,8 +1716,7 @@ void XrdAdvisoryMqMessage::Encode()
 //------------------------------------------------------------------------------
 bool XrdAdvisoryMqMessage::Decode()
 {
-  if (!kMessageHeader.Decode(kMessageBuffer.c_str()))
-  {
+  if (!kMessageHeader.Decode(kMessageBuffer.c_str())) {
     fprintf(stderr, "Failed to decode message header\n");
     return false;
   }
@@ -1858,8 +1725,7 @@ bool XrdAdvisoryMqMessage::Decode()
   const char* q = mq.Get(XMQADVISORYHOST);
   const char* p = mq.Get(XMQADVISORYSTATE);
 
-  if ((!q) || (!p))
-  {
+  if ((!q) || (!p)) {
     return false;
   }
 
@@ -1890,13 +1756,10 @@ XrdAdvisoryMqMessage::Create(const char* messagebuffer)
   XrdAdvisoryMqMessage* msg = new XrdAdvisoryMqMessage();
   msg->kMessageBuffer = messagebuffer;
 
-  if (!msg->Decode())
-  {
+  if (!msg->Decode()) {
     delete msg;
     return 0;
-  }
-  else
-  {
+  } else {
     return msg;
   }
 }

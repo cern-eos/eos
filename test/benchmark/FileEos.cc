@@ -97,6 +97,7 @@ FileEos::Write(Result*& result)
   if (retc) {
     eos_err("Error while opening file: %s", full_path.c_str());
     delete file;
+    delete[] buffer;
     return retc;
   }
 

@@ -46,52 +46,61 @@ utils::ConvertToProtoBuf(const XrdSecEntity* obj,
 {
   proto->set_prot(obj->prot);
 
-  if (obj->name)
+  if (obj->name) {
     proto->set_name(obj->name);
-  else
+  } else {
     proto->set_name("");
+  }
 
-  if (obj->host)
+  if (obj->host) {
     proto->set_host(obj->host);
-  else
+  } else {
     proto->set_host("");
+  }
 
-  if (obj->vorg)
+  if (obj->vorg) {
     proto->set_vorg(obj->vorg);
-  else
+  } else {
     proto->set_vorg("");
+  }
 
-  if (obj->role)
+  if (obj->role) {
     proto->set_role(obj->role);
-  else
+  } else {
     proto->set_role("");
+  }
 
-  if (obj->grps)
+  if (obj->grps) {
     proto->set_grps(obj->grps);
-  else
+  } else {
     proto->set_grps("");
+  }
 
-  if (obj->endorsements)
+  if (obj->endorsements) {
     proto->set_endorsements(obj->endorsements);
-  else
+  } else {
     proto->set_endorsements("");
+  }
 
-  if (obj->creds)
+  if (obj->creds) {
     proto->set_creds(obj->creds);
-  else
+  } else {
     proto->set_creds("");
+  }
 
   proto->set_credslen(obj->credslen);
 
-  if (obj->moninfo)
+  if (obj->moninfo) {
     proto->set_moninfo(obj->moninfo);
-  else
+  } else {
     proto->set_moninfo("");
+  }
 
-  if (obj->tident)
+  if (obj->tident) {
     proto->set_tident(obj->tident);
-  else
+  } else {
     proto->set_tident("");
+  }
 }
 
 
@@ -115,12 +124,14 @@ void
 utils::ConvertToProtoBuf(const XrdSfsFSctl* obj,
                          XrdSfsFSctlProto*& proto)
 {
-  if (obj->Arg1)
+  if (obj->Arg1) {
     proto->set_arg1(obj->Arg1);
+  }
 
-  if (obj->Arg2)
+  if (obj->Arg2) {
     proto->set_arg2(obj->Arg2);
-  
+  }
+
   proto->set_arg1len(obj->Arg1Len);
   proto->set_arg2len(obj->Arg2Len);
 }
@@ -139,13 +150,11 @@ utils::ConvertToProtoBuf(const XrdSfsPrep* obj,
   XrdOucTList* next_path = obj->paths;
   XrdOucTList* next_oinfo = obj->oinfo;
 
-  while (next_path && next_oinfo)
-  {
+  while (next_path && next_oinfo) {
     proto->add_paths(next_path->text);
     next_path = next_path->next;
 
-    if (next_oinfo && next_oinfo->text)
-    {
+    if (next_oinfo && next_oinfo->text) {
       proto->add_oinfo(next_oinfo->text);
       next_oinfo = next_oinfo->next;
     }
@@ -204,15 +213,16 @@ XrdSfsPrep*
 utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
 {
   XrdSfsPrep* obj = new XrdSfsPrep();
-  obj->reqid = ((proto_obj.reqid() == "") ? 0 : strdup(proto_obj.reqid().c_str()));
-  obj->notify = ((proto_obj.notify() == "") ? 0 : strdup(proto_obj.notify().c_str()));
+  obj->reqid = ((proto_obj.reqid() == "") ? 0 : strdup(
+                  proto_obj.reqid().c_str()));
+  obj->notify = ((proto_obj.notify() == "") ? 0 : strdup(
+                   proto_obj.notify().c_str()));
   obj->opts = proto_obj.opts();
   obj->paths = obj->oinfo = 0;
   XrdOucTList* next_paths = obj->paths;
   XrdOucTList* next_oinfo = obj->oinfo;
 
-  for (int i = 0; i < proto_obj.paths_size(); i++)
-  {
+  for (int i = 0; i < proto_obj.paths_size(); i++) {
     auto tmp_path = new XrdOucTList(proto_obj.paths(i).c_str());
 
     if (next_paths) {
@@ -222,16 +232,19 @@ utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
       next_paths = tmp_path;
     }
 
-    if (proto_obj.oinfo_size())
-    {
+    tmp_path = 0;
+
+    if (proto_obj.oinfo_size()) {
       auto tmp_oinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
 
       if (next_oinfo) {
-	next_oinfo->next = tmp_oinfo;
-	next_oinfo = next_oinfo->next;
+        next_oinfo->next = tmp_oinfo;
+        next_oinfo = next_oinfo->next;
       } else {
-	next_oinfo = tmp_oinfo;
+        next_oinfo = tmp_oinfo;
       }
+
+      tmp_oinfo = 0;
     }
   }
 
@@ -263,12 +276,14 @@ utils::GetXrdSfsFSctl(const eos::auth::XrdSfsFSctlProto& proto_obj)
   obj->Arg1Len = proto_obj.arg1len();
   obj->Arg2Len = proto_obj.arg2len();
 
-  if (proto_obj.has_arg1())
+  if (proto_obj.has_arg1()) {
     obj->Arg1 = const_cast<const char*>(strdup(proto_obj.arg1().c_str()));
+  }
 
-  if (proto_obj.has_arg2())
+  if (proto_obj.has_arg2()) {
     obj->Arg2 = const_cast<const char*>(strdup(proto_obj.arg2().c_str()));
-  
+  }
+
   return obj;
 }
 
@@ -295,9 +310,8 @@ utils::ComputeHMAC(RequestProto*& req)
 {
   std::string smsg;
   req->set_hmac(""); // set it temporarily, we update it later
- 
-  if (!req->SerializeToString(&smsg))
-  {
+
+  if (!req->SerializeToString(&smsg)) {
     eos_static_err("unable to serialize message to string for HMAC computation");
     return false;
   }
@@ -305,11 +319,10 @@ utils::ComputeHMAC(RequestProto*& req)
   std::string key = eos::common::gSymKeyStore.GetCurrentKey()->GetKey();
   std::string hmac = eos::common::SymKey::HmacSha1(key, smsg);
   XrdOucString base64hmac;
-  bool do_encoding = eos::common::SymKey::Base64Encode((char*)hmac.c_str(), 
-                                           hmac.length(), base64hmac);
+  bool do_encoding = eos::common::SymKey::Base64Encode((char*)hmac.c_str(),
+                     hmac.length(), base64hmac);
 
-  if (!do_encoding)
-  {
+  if (!do_encoding) {
     eos_static_err("unable to do base64encoding on HMAC");
     return do_encoding;
   }
@@ -338,8 +351,9 @@ utils::GetStatRequest(RequestProto_OperationType type,
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
 
-  if (opaque)
+  if (opaque) {
     stat_proto->set_opaque(opaque);
+  }
 
   // This can either be a stat to get a struct stat or just to retrieve the
   // mode of the file/directory
@@ -412,8 +426,9 @@ utils::GetChmodRequest(const char* path,
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
 
-  if (opaque)
+  if (opaque) {
     chmod_proto->set_opaque(opaque);
+  }
 
   req_proto->set_type(RequestProto_OperationType_CHMOD);
   return req_proto;
@@ -437,21 +452,22 @@ utils::GetChksumRequest(XrdSfsFileSystem::csFunc func,
   chksum_proto->set_func(func);
   chksum_proto->set_csname(csname);
 
-  if (inpath)
+  if (inpath) {
     chksum_proto->set_path(inpath);
-  else
+  } else {
     chksum_proto->set_path("");
+  }
 
   ConvertToProtoBuf(&error, xoei_proto);
 
-  if (client)
-  {
+  if (client) {
     eos::auth::XrdSecEntityProto* xse_proto = chksum_proto->mutable_client();
     ConvertToProtoBuf(client, xse_proto);
   }
 
-  if (opaque)
+  if (opaque) {
     chksum_proto->set_opaque(opaque);
+  }
 
   req_proto->set_type(RequestProto_OperationType_CHKSUM);
   return req_proto;
@@ -475,8 +491,9 @@ utils::GetExistsRequest(const char* path,
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
 
-  if (opaque)
+  if (opaque) {
     exists_proto->set_opaque(opaque);
+  }
 
   req_proto->set_type(RequestProto_OperationType_EXISTS);
   return req_proto;
@@ -502,8 +519,9 @@ utils::GetMkdirRequest(const char* path,
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
 
-  if (opaque)
+  if (opaque) {
     mkdir_proto->set_opaque(opaque);
+  }
 
   req_proto->set_type(RequestProto_OperationType_MKDIR);
   return req_proto;
@@ -528,8 +546,9 @@ utils::GetRemdirRequest(const char* path,
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
 
-  if (opaque)
+  if (opaque) {
     remdir_proto->set_opaque(opaque);
+  }
 
   req_proto->set_type(RequestProto_OperationType_REMDIR);
   return req_proto;
@@ -553,8 +572,9 @@ utils::GetRemRequest(const char* path,
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
 
-  if (opaque)
+  if (opaque) {
     rem_proto->set_opaque(opaque);
+  }
 
   req_proto->set_type(RequestProto_OperationType_REM);
   return req_proto;
@@ -581,11 +601,13 @@ utils::GetRenameRequest(const char* oldName,
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
 
-  if (opaqueO)
+  if (opaqueO) {
     rename_proto->set_opaqueo(opaqueO);
+  }
 
-  if (opaqueN)
+  if (opaqueN) {
     rename_proto->set_opaqueo(opaqueN);
+  }
 
   req_proto->set_type(RequestProto_OperationType_RENAME);
   return req_proto;
@@ -632,8 +654,9 @@ utils::GetTruncateRequest(const char* path,
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
 
-  if (opaque)
+  if (opaque) {
     truncate_proto->set_opaque(opaque);
+  }
 
   req_proto->set_type(RequestProto_OperationType_TRUNCATE);
   return req_proto;
@@ -659,8 +682,9 @@ utils::GetDirOpenRequest(std::string&& uuid,
   dopen_proto->set_name(name);
   ConvertToProtoBuf(client, xse_proto);
 
-  if (opaque)
+  if (opaque) {
     dopen_proto->set_opaque(opaque);
+  }
 
   dopen_proto->set_user(user);
   dopen_proto->set_monid(monid);
@@ -727,7 +751,6 @@ utils::GetFileOpenRequest(std::string&& uuid,
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::FileOpenProto* fopen_proto = req_proto->mutable_fileopen();
   eos::auth::XrdSecEntityProto* xse_proto = fopen_proto->mutable_client();
-
   // Save the address of the file object
   fopen_proto->set_uuid(uuid);
   fopen_proto->set_name(fileName);
@@ -735,8 +758,9 @@ utils::GetFileOpenRequest(std::string&& uuid,
   fopen_proto->set_createmode(createMode);
   ConvertToProtoBuf(client, xse_proto);
 
-  if (opaque)
+  if (opaque) {
     fopen_proto->set_opaque(opaque);
+  }
 
   fopen_proto->set_user(user);
   fopen_proto->set_monid(monid);

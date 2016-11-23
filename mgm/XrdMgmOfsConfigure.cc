@@ -285,46 +285,46 @@ XrdMgmOfs::InitializeFileView()
   return 0;
 }
 
-void XrdMgmOfs::StartHeapProfiling( int sig )
+void XrdMgmOfs::StartHeapProfiling(int sig)
 {
-  if(!gOFS->mJeMallocHandler.CanProfile())
-  {
+  if (!gOFS->mJeMallocHandler.CanProfile()) {
     eos_static_crit("cannot run heap profiling");
     return;
   }
 
-  if(gOFS->mJeMallocHandler.StartProfiling())
+  if (gOFS->mJeMallocHandler.StartProfiling()) {
     eos_static_warning("started jemalloc heap profiling");
-  else
+  } else {
     eos_static_warning("failed to start jemalloc heap profiling");
+  }
 }
 
-void XrdMgmOfs::StopHeapProfiling( int sig )
+void XrdMgmOfs::StopHeapProfiling(int sig)
 {
-  if(!gOFS->mJeMallocHandler.CanProfile())
-  {
+  if (!gOFS->mJeMallocHandler.CanProfile()) {
     eos_static_crit("cannot run heap profiling");
     return;
   }
 
-  if(gOFS->mJeMallocHandler.StopProfiling())
+  if (gOFS->mJeMallocHandler.StopProfiling()) {
     eos_static_warning("stopped jemalloc heap profiling");
-  else
+  } else {
     eos_static_warning("failed to stop jemalloc heap profiling");
+  }
 }
 
-void XrdMgmOfs::DumpHeapProfile( int sig )
+void XrdMgmOfs::DumpHeapProfile(int sig)
 {
-  if(!gOFS->mJeMallocHandler.ProfRunning())
-  {
+  if (!gOFS->mJeMallocHandler.ProfRunning()) {
     eos_static_crit("profiling is not running");
     return;
   }
 
-  if(gOFS->mJeMallocHandler.DumpProfile())
+  if (gOFS->mJeMallocHandler.DumpProfile()) {
     eos_static_warning("dumped heap profile");
-  else
+  } else {
     eos_static_warning("failed to sump heap profile");
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -394,38 +394,33 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // configure heap profiling if any
-  if(mJeMallocHandler.JeMallocLoaded())
-  {
+  if (mJeMallocHandler.JeMallocLoaded()) {
     eos_warning("jemalloc is loaded!");
     Eroute.Say("jemalloc is loaded!");
-    if(mJeMallocHandler.CanProfile())
-    {
-      Eroute.Say(mJeMallocHandler.ProfRunning()?"jemalloc heap profiling enabled and running":"jemalloc heap profiling enabled and NOT running");
+
+    if (mJeMallocHandler.CanProfile()) {
+      Eroute.Say(mJeMallocHandler.ProfRunning() ?
+                 "jemalloc heap profiling enabled and running" :
+                 "jemalloc heap profiling enabled and NOT running");
       eos_warning("jemalloc heap profiling enabled and %srunning. will start running on signal 40 and will stop running on signal 41",
-                  mJeMallocHandler.ProfRunning()?"":"NOT ");
-    }
-    else
-    {
+                  mJeMallocHandler.ProfRunning() ? "" : "NOT ");
+    } else {
       eos_warning("jemalloc heap profiling is disabled");
       Eroute.Say("jemalloc heap profiling is disabled");
     }
-
-  }
-  else
-  {
+  } else {
     eos_warning("jemalloc is NOT loaded!");
     Eroute.Say("jemalloc is NOT loaded!");
   }
-  if(SIGRTMIN<=40 && 42<=SIGRTMAX)
-  {
-  signal(40,StartHeapProfiling);
-  signal(41,StopHeapProfiling);
-  signal(42,DumpHeapProfile);
+
+  if (SIGRTMIN <= 40 && 42 <= SIGRTMAX) {
+    signal(40, StartHeapProfiling);
+    signal(41, StopHeapProfiling);
+    signal(42, DumpHeapProfile);
+  } else {
+    eos_static_warning("cannot install signal handlers for heap profiling as ports 40,41,42 don't fit in the allowed realtime dignal range. SIGRTMIN=%d  SIGRTMAX=%d",
+                       (int)SIGRTMIN, (int)SIGRTMAX);
   }
-  else
-    eos_static_warning("cannot install signal handlers for heap profiling as ports 40,41,42 don't fit in the allowed realtime dignal range. SIGRTMIN=%d  SIGRTMAX=%d",(int)SIGRTMIN,(int)SIGRTMAX);
-
-
 
   // Create and own the output cache directory or clean it up if it exists -
   // this is used to store temporary results for commands like find, backup
@@ -1084,6 +1079,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         }
       }
     }
+
+    close(cfgFD);
   }
 
   if (MgmRedirector) {
@@ -1405,7 +1402,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   int fd = ::open("/etc/eos.keytab", O_RDONLY);
   XrdOucString symkey = "";
 
-  if (fd > 0) {
+  if (fd >= 0) {
     char buffer[65535];
     char keydigest[SHA_DIGEST_LENGTH + 1];
     SHA_CTX sha1;
@@ -1590,23 +1587,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
                        S_IWGRP | S_IXGRP | S_ISGID);
-
         // set default checksum 'adler'
         eosmd->setAttribute("sys.forced.checksum", "adler");
         eosView->updateContainerStore(eosmd.get());
         eos_info("/eos permissions are %o checksum is set <adler>", eosmd->getMode());
-
         eosmd = eosView->createContainer(instancepath.c_str(), true);
         // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
                        S_IWGRP | S_IXGRP | S_ISGID);
-
         // set default checksum 'adler'
         eosmd->setAttribute("sys.forced.checksum", "adler");
         eosView->updateContainerStore(eosmd.get());
-        eos_info("%s permissions are %o checksum is set <adler>", instancepath.c_str(), eosmd->getMode());
-
-
+        eos_info("%s permissions are %o checksum is set <adler>", instancepath.c_str(),
+                 eosmd->getMode());
       } catch (eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/ directory mode to inital mode");
         eos_crit("cannot set the /eos/ directory mode to 755");
