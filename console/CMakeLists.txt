@@ -42,9 +42,9 @@ add_executable(
   ConsolePipe.cc  ConsolePipe.hh
   ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
-  commands/AclCommand.cc
+#  commands/AclCommand.cc
   commands/com_access.cc
-  commands/com_acl.cc
+#  commands/com_acl.cc
   commands/com_archive.cc
   commands/com_attr.cc
   commands/com_backup.cc
