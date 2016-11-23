@@ -1779,9 +1779,8 @@ filesystem::statfs(const char* path, struct statvfs* stbuf,
 
   for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount;
        retrycount++) {
-    SyncResponseHandler handler;
-    fs.Query(XrdCl::QueryCode::OpaqueFile, arg, &handler);
-    XrdCl::XRootDStatus status = handler.Sync(response);
+    XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                          response);
     errno = 0;
 
     if (status.IsOK() && response && response->GetBuffer()) {
