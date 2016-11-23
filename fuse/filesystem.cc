@@ -195,15 +195,6 @@ filesystem::log_settings()
   }
 
   log("WARNING", s.c_str());
-  s = "async-open             := ";
-
-  if (lazy_open_disabled) {
-    s += "disabled";
-  } else {
-    s += async_open ? "true" : "false";
-  }
-
-  log("WARNING", s.c_str());
   s = "hide-special-files     := ";
 
   if (hide_special_files) {
@@ -283,6 +274,10 @@ filesystem::log_settings()
                      use_user_gsiproxy ? "true" : "false");
   eos_static_warning("fallback to nobody     := %s",
                      fallback2nobody ? "true" : "false");
+  eos_static_warning("xrd null resp retry    := %d",
+                     xrootd_nullresponsebug_retrycount);
+  eos_static_warning("xrd null resp sleep    := %d",
+                     xrootd_nullresponsebug_retrysleep);
 }
 
 
@@ -1781,49 +1776,71 @@ filesystem::statfs(const char* path, struct statvfs* stbuf,
   surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
-  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
-                                        response);
-  errno = 0;
 
-  if (status.IsOK()) {
-    int retc;
-    char tag[1024];
+  for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount;
+       retrycount++) {
+    SyncResponseHandler handler;
+    fs.Query(XrdCl::QueryCode::OpaqueFile, arg, &handler);
+    XrdCl::XRootDStatus status = handler.Sync(response);
+    errno = 0;
 
-    if (!response->GetBuffer()) {
+    if (status.IsOK() && response && response->GetBuffer()) {
+      int retc;
+      char tag[1024];
+
+      if (!response->GetBuffer()) {
+        statmutex.UnLock();
+        errno = EFAULT;
+        delete response;
+        return errno;
+      }
+
+      // Parse output
+      int items = sscanf(response->GetBuffer(),
+                         "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
+                         "f_max_bytes=%llu f_max_files=%llu",
+                         tag, &retc, &a1, &a2, &a3, &a4);
+
+      if ((items != 6) || (strcmp(tag, "statvfs:"))) {
+        statmutex.UnLock();
+        errno = EFAULT;
+        delete response;
+        return errno;
+      }
+
+      errno = retc;
+      laststat = time(NULL);
       statmutex.UnLock();
-      errno = EFAULT;
-      delete response;
-      return errno;
-    }
+      stbuf->f_bsize = 4096;
+      stbuf->f_frsize = 4096;
+      stbuf->f_blocks = a3 / 4096;
+      stbuf->f_bfree = a1 / 4096;
+      stbuf->f_bavail = a1 / 4096;
+      stbuf->f_files = a4;
+      stbuf->f_ffree = a2;
+      stbuf->f_namemax = 1024;
+      break;
+    } else {
+      if (!response || !response->GetBuffer()) {
+        if (retrycount + 1 < xrootd_nullresponsebug_retrycount) {
+          XrdSysTimer sleeper;
 
-    // Parse output
-    int items = sscanf(response->GetBuffer(),
-                       "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
-                       "f_max_bytes=%llu f_max_files=%llu",
-                       tag, &retc, &a1, &a2, &a3, &a4);
+          if (xrootd_nullresponsebug_retrysleep) {
+            sleeper.Wait(xrootd_nullresponsebug_retrysleep);
+          }
 
-    if ((items != 6) || (strcmp(tag, "statvfs:"))) {
+          continue;
+        } else {
+          eos_static_err("no response received after %d attempts", retrycount);
+        }
+      } else {
+        eos_static_err("status is NOT ok : %s", status.ToString().c_str());
+      }
+
       statmutex.UnLock();
-      errno = EFAULT;
-      delete response;
-      return errno;
+      errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+      break;
     }
-
-    errno = retc;
-    laststat = time(NULL);
-    statmutex.UnLock();
-    stbuf->f_bsize = 4096;
-    stbuf->f_frsize = 4096;
-    stbuf->f_blocks = a3 / 4096;
-    stbuf->f_bfree = a1 / 4096;
-    stbuf->f_bavail = a1 / 4096;
-    stbuf->f_files = a4;
-    stbuf->f_ffree = a2;
-    stbuf->f_namemax = 1024;
-  } else {
-    statmutex.UnLock();
-    eos_static_err("status is NOT ok : %s", status.ToString().c_str());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
   }
 
   COMMONTIMING("END", &statfstiming);
