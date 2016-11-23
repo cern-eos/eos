@@ -1,7 +1,7 @@
-#-------------------------------------------------------------------------------
-# File: eosd.service
+# ----------------------------------------------------------------------
+# File: eosdonfailure.service
 # Author: Ivan Arizanovic - ComTrade Solutions Engineering
-#-------------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 #
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
@@ -21,12 +21,13 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 [Unit]
-Description=EOSd
-Wants=eosd@main.service eosd@user.service eosd@pps.service eosd@public.service eosdonfailure.service
+Description=EOSd - OnFailure
 
 [Service]
-EnvironmentFile=/etc/sysconfig/eos_env
-ExecStartPre=/bin/echo Starting: $user $pps $public
-ExecStart=/bin/echo When you want to see status of the EOSd service, \
-please run \'systemctl status eosd@*\'.
 Type=oneshot
+EnvironmentFile=/etc/sysconfig/eos_env
+ExecStart=/bin/sleep 0.5
+ExecStart=-/usr/bin/systemctl reset-failed eosd@main
+ExecStart=-/usr/bin/systemctl reset-failed eosd@user${user}
+ExecStart=-/usr/bin/systemctl reset-failed eosd@pps${pps}
+ExecStart=-/usr/bin/systemctl reset-failed eosd@public${public}
