@@ -859,7 +859,7 @@ TransferJob::DoIt()
     rc = rcst.exit_code;
   }
 
-  // now set the transfer state and send the log output
+  // Now set the transfer state and send the log output
   if (rc) {
     eos_static_err("transfer returned %d", command.str().c_str(), rc);
 
@@ -870,7 +870,7 @@ TransferJob::DoIt()
     if (stagefile.length()) {
       SendState(eos::mgm::TransferEngine::kStageOut);
 
-      // we have still to do the stage-out step with the external protocol
+      // We have still to do the stage-out step with the external protocol
       if (mId) {
         int spid = 0;
         forkMutex.Lock();
