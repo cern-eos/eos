@@ -368,7 +368,7 @@ ProcCommand::Fs ()
            stdOut += "# FileSystem Variables\n";
            stdOut += "# ....................................................................................\n";
            std::vector<std::string> keylist;
-           fs->GetKeys(keylist);
+	   fs->GetKeys(keylist);
            std::sort(keylist.begin(), keylist.end());
            for (size_t i = 0; i < keylist.size(); i++)
            {

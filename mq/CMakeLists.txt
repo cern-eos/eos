@@ -105,13 +105,13 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # Other executables
 #-------------------------------------------------------------------------------
-add_executable(xrdmqclienttest   XrdMqClientTest.cc)
-add_executable(xrdmqdumper       XrdMqQueueDumper.cc)
-add_executable(xrdmqfeeder       XrdMqQueueFeeder.cc)
-add_executable(xrdmqinjection    XrdMqQueueInjection.cc)
-add_executable(xrdmqclientmaster XrdMqClientMaster.cc)
-add_executable(xrdmqclientworker XrdMqClientWorker.cc)
-add_executable(xrdmqcryptotest   XrdMqCryptoTest.cc)
+add_executable(xrdmqclienttest   XrdMqClientTest.cc  XrdMqSharedObject.cc)
+add_executable(xrdmqdumper       XrdMqQueueDumper.cc XrdMqSharedObject.cc)
+add_executable(xrdmqfeeder       XrdMqQueueFeeder.cc  XrdMqSharedObject.cc)
+add_executable(xrdmqinjection    XrdMqQueueInjection.cc  XrdMqSharedObject.cc)
+add_executable(xrdmqclientmaster XrdMqClientMaster.cc  XrdMqSharedObject.cc)
+add_executable(xrdmqclientworker XrdMqClientWorker.cc XrdMqSharedObject.cc)
+add_executable(xrdmqcryptotest   XrdMqCryptoTest.cc  XrdMqSharedObject.cc)
 add_executable(xrdmqsharedobjectclient          XrdMqSharedObjectClient.cc)
 add_executable(xrdmqsharedobjectqueueclient     XrdMqSharedObjectQueueClient.cc)
 add_executable(xrdmqsharedobjectbroadcastclient XrdMqSharedObjectBroadCastClient.cc)

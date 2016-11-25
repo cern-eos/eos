@@ -1706,7 +1706,7 @@ FsView::SetGlobalConfig(std::string key, std::string value)
                             MgmConfigQueueName.c_str());
 
   if (hash) {
-    hash->Set(key, value);
+    hash->Set(key.c_str(), value.c_str());
   }
 
 #ifndef EOSMGMFSVIEWTEST
@@ -1734,7 +1734,7 @@ FsView::GetGlobalConfig(std::string key)
                             MgmConfigQueueName.c_str());
 
   if (hash) {
-    return hash->Get(key);
+    return hash->Get(key.c_str());
   }
 
   return "";
@@ -2064,7 +2064,7 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create,
   }
 
   if (hash) {
-    success = hash->Set(key, value);
+    success = hash->Set(key.c_str(), value.c_str());
 
     if (key == "txgw") {
       eos::common::RWMutexWriteLock gwlock(FsView::gFsView.GwMutex);
@@ -2109,7 +2109,7 @@ BaseView::GetConfigMember(std::string key)
                             nodeconfigname.c_str());
 
   if (hash) {
-    return hash->Get(key);
+    return hash->Get(key.c_str());
   }
 
 #endif
@@ -2130,7 +2130,7 @@ BaseView::GetConfigKeys(std::vector<std::string>& keys)
                             nodeconfigname.c_str());
 
   if (hash) {
-    hash->GetKeys(keys);
+    keys = hash->GetKeys();
     return true;
   }
 

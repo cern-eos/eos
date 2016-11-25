@@ -142,7 +142,7 @@ XrdMgmOfs::FsConfigListener()
 
             if (hash) {
               XrdOucString err;
-              XrdOucString value = hash->Get(key).c_str();
+              XrdOucString value = hash->Get(key.c_str()).c_str();
               gOFS->ObjectManager.HashMutex.UnLockRead();
 
               if (value.c_str()) {

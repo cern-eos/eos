@@ -77,7 +77,7 @@ int main (int argc, char* argv[]) {
       }
 
       if (i==0) {
-        queue->BroadCastRequest("/eos/*/worker");
+        queue->BroadcastRequest("/eos/*/worker");
         sleep(3);
       }
       queue->OpenTransaction();

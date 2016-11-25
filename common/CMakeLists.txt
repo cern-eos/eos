@@ -62,6 +62,7 @@ add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 target_link_libraries(
   eosCommon PUBLIC
   XrdMqClient
+  fmt
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -122,6 +123,7 @@ set_target_properties(
 target_link_libraries(
   eosCommon-Static PRIVATE
   XrdMqClient-Static
+  fmt
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}

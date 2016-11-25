@@ -1976,7 +1976,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (!MgmRedirector) {
     if (hash) {
       // ask for a broadcast from fst's
-      hash->BroadCastRequest("/eos/*/fst");
+      hash->BroadcastRequest("/eos/*/fst");
     }
   }
 

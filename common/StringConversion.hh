@@ -33,6 +33,7 @@
 #include "common/Timing.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "curl/curl.h"
+#include "namespace/utils/fmt/fmt/format.h"
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -614,6 +615,22 @@ public:
    */
   // ---------------------------------------------------------------------------
   static void SortLines(XrdOucString& data);
+
+
+  //------------------------------------------------------------------------------
+  //! Fast convert element to string representation
+  //!
+  //! @param elem element to be converted
+  //!
+  //! @return string representation
+  //------------------------------------------------------------------------------
+  template <typename T>
+  static std::string stringify(const T& elem)
+  {
+    fmt::MemoryWriter out;
+    out << elem;
+    return out.str();
+  }
 
   //----------------------------------------------------------------------------
   //! Constructor

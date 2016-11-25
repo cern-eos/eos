@@ -413,14 +413,15 @@ Storage::Publish()
             hash->Set("stat.sys.eos.start", eos::fst::Config::gConfig.StartDate.c_str());
             hash->Set("stat.geotag", lNodeGeoTag.c_str());
             hash->Set("debug.state",
-                      LC_STRING(eos::common::Logging::GetPriorityString(
-                                  eos::common::Logging::gPriorityLevel)));
+                      eos::common::StringConversion::ToLower
+		      (eos::common::Logging::GetPriorityString
+		       (eos::common::Logging::gPriorityLevel)).c_str());
             // copy out net info
-            hash->SetDouble("stat.net.ethratemib", netspeed / (8 * 1024 * 1024));
-            hash->SetDouble("stat.net.inratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),
-                            "rxbytes") / 1024.0 / 1024.0);
-            hash->SetDouble("stat.net.outratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),
-                            "txbytes") / 1024.0 / 1024.0);
+            hash->Set("stat.net.ethratemib", netspeed / (8 * 1024 * 1024));
+            hash->Set("stat.net.inratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),
+		      "rxbytes") / 1024.0 / 1024.0);
+            hash->Set("stat.net.outratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),
+                      "txbytes") / 1024.0 / 1024.0);
             struct timeval tvfs;
             gettimeofday(&tvfs, &tz);
             size_t nowms = tvfs.tv_sec * 1000 + tvfs.tv_usec / 1000;

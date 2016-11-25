@@ -544,7 +544,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (hash) {
     // Ask for a broadcast
-    hash->BroadCastRequest(
+    hash->BroadcastRequest(
       eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   }
 
@@ -559,7 +559,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (queue) {
     // Ask for a broadcast
-    queue->BroadCastRequest(
+    queue->BroadcastRequest(
       eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   }
 
@@ -574,7 +574,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (hash) {
     // Ask for a broadcast
-    hash->BroadCastRequest(
+    hash->BroadcastRequest(
       eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   }
 
