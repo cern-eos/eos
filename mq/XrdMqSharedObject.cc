@@ -41,7 +41,7 @@ unsigned long long XrdMqSharedHash::SetCounter = 0;
 unsigned long long XrdMqSharedHash::SetNLCounter = 0;
 unsigned long long XrdMqSharedHash::GetCounter = 0;
 
-
+/*----------------------------------------------------------------------------*/
 XrdMqSharedObjectManager::XrdMqSharedObjectManager ()
 {
   broadcast = true;
@@ -425,7 +425,7 @@ XrdMqSharedObjectManager::ParseEnvMessage (XrdMqMessage* message, XrdOucString &
     XrdMqSharedHash* sh = 0;
 
     std::vector<std::string> subjectlist;
-    // support 'wild card' broadcasts with <name>/*
+
     // support 'wild card' broadcasts with <name>/*
     int wpos = 0;
     if ((wpos = subject.find("/*")) != STR_NPOS)
@@ -657,7 +657,7 @@ XrdMqSharedObjectManager::ParseEnvMessage (XrdMqMessage* message, XrdOucString &
 
 
           std::string sstr;
-          //          XrdSysMutexHelper(TransactionMutex);
+
           //          XrdSysMutexHelper(TransactionMutex);
 
           {
@@ -708,7 +708,7 @@ XrdMqSharedObjectManager::ParseEnvMessage (XrdMqMessage* message, XrdOucString &
               }
 
               sh->SetNoLockNoBroadCast(key.c_str(), value.c_str(), true);
-              //sh->Set(key, value, false, true);
+              //sh->Set(key, value, false, true);            
             }
             sh->StoreMutex.UnLockWrite();
             SubjectsMutex.UnLock();
@@ -851,7 +851,7 @@ XrdMqSharedObjectManager::MakeMuxUpdateEnvHeader (XrdOucString &out)
     subjects += it->first;
     subjects += "%";
   }
-
+  // remove trailing '%'
   if (subjects.length() > 0)
     subjects.erase(subjects.length() - 1, 1);
 
@@ -891,8 +891,8 @@ XrdMqSharedObjectManager::AddMuxTransactionEnvString (XrdOucString &out)
       XrdMqRWMutexReadLock lock(hash->StoreMutex);
       for (it = subjectit->second.begin(); it != subjectit->second.end(); it++)
       {
-
         // loop over variables
+
         if ((hash->Store.count(it->c_str())))
         {
           out += "|";
@@ -965,7 +965,7 @@ XrdMqSharedObjectManager::OpenMuxTransaction (const char* type, const char* broa
       MuxTransactionBroadCastQueue = AutoReplyQueue;
     else
       return false;
-    }
+  }
   else
   {
     MuxTransactionBroadCastQueue = broadcastqueue;
@@ -996,7 +996,7 @@ XrdMqSharedHash::CloseTransaction ()
       {
         txmessage = "";
         MakeUpdateEnvHeader(txmessage);
-        // encoding works as "mysh.pairs=|<key1>~<value1>%<changeid1>|<key2>~<value2>%<changeid2 ...."
+
         // encoding works as "mysh.pairs=|<key1>~<value1>%<changeid1>|<key2>~<value2>%<changeid2 ...."
         txmessage += "&";
         txmessage += XRDMQSHAREDHASH_PAIRS;
@@ -1137,7 +1137,7 @@ XrdMqSharedHash::BroadCastEnvString (const char* receiver)
     message.MarkAsMonitor();
     if (XrdMqSharedObjectManager::debug)fprintf(stderr, "XrdMqSharedObjectManager::BroadCastEnvString=>[%s]=>%s \n", Subject.c_str(), receiver);
     return XrdMqMessaging::gMessageClient.SendMessage(message, receiver, false, false, true);
-    }
+  }
   return true;
 }
 
@@ -1169,7 +1169,7 @@ XrdMqSharedHash::AddTransactionEnvString (XrdOucString &out, bool clearafter)
   }
   if (clearafter)
     Transactions.clear();
-  }
+}
 
 /*----------------------------------------------------------------------------*/
 void
@@ -1242,6 +1242,7 @@ XrdMqSharedHash::Set (const char* key, const char* value, bool broadcast, bool t
   if (!value)
     return false;
 
+  bool emuatetransaction = false;
   std::string skey = key;
 
   {
@@ -1278,6 +1279,7 @@ XrdMqSharedHash::Set (const char* key, const char* value, bool broadcast, bool t
         {
           TransactionMutex.Lock();
           Transactions.clear();
+          emulatetransaction = true;
         }
 
         Transactions.insert(skey);
@@ -1303,29 +1305,25 @@ XrdMqSharedHash::Set (const char* key, const char* value, bool broadcast, bool t
 
       if (postit)
       {
-      std::string fkey = Subject.c_str();
-      fkey += ";";
-      fkey += skey;
+        std::string fkey = Subject.c_str();
+        fkey += ";";
+        fkey += skey;
         if (XrdMqSharedObjectManager::debug)fprintf(stderr, "XrdMqSharedObjectManager::Set=>[%s:%s]=>%s notified\n", Subject.c_str(), skey.c_str(), value);
         if (tempmodsubjects)
-        SOM->ModificationTempSubjects.push_back(fkey);
+          SOM->ModificationTempSubjects.push_back(fkey);
         else
         {
           XrdMqSharedObjectManager::Notification event(fkey, XrdMqSharedObjectManager::kMqSubjectModification);
-        SOM->NotificationSubjects.push_back(event);
-        SOM->SubjectsSem.Post();
-      }
+          SOM->NotificationSubjects.push_back(event);
+          SOM->SubjectsSem.Post();
+        }
       }
       SOM->SubjectsMutex.UnLock();
     }
   }
 
-  if (XrdMqSharedObjectManager::broadcast && broadcast)
-  {
-    if (!SOM->IsMuxTransaction)
-      if (!IsTransaction)
+  if (emulatetransaction)
         CloseTransaction();
-      }
 
   return true;
 }
@@ -1376,20 +1374,20 @@ XrdMqSharedHash::SetNoLockNoBroadCast (const char* key, const char* value, bool 
 
       if (postit)
       {
-      std::string fkey = Subject.c_str();
-      fkey += ";";
-      fkey += skey;
+        std::string fkey = Subject.c_str();
+        fkey += ";";
+        fkey += skey;
         if (XrdMqSharedObjectManager::debug)fprintf(stderr, "XrdMqSharedObjectManager::Set=>[%s:%s]=>%s notified\n", Subject.c_str(), skey.c_str(), value);
         if (tempmodsubjects)
-        SOM->ModificationTempSubjects.push_back(fkey);
+          SOM->ModificationTempSubjects.push_back(fkey);
         else
         {
           XrdMqSharedObjectManager::Notification event(fkey, XrdMqSharedObjectManager::kMqSubjectModification);
-        SOM->NotificationSubjects.push_back(event);
-        SOM->SubjectsSem.Post();
+          SOM->NotificationSubjects.push_back(event);
+          SOM->SubjectsSem.Post();
+        }
       }
     }
-  }
   }
   return true;
 }
@@ -1445,14 +1443,14 @@ XrdMqSharedHash::Delete (const char* key, bool broadcast, bool notify)
 
       if (postit)
       {
-      std::string fkey = Subject.c_str();
-      fkey += ";";
-      fkey += skey;
+        std::string fkey = Subject.c_str();
+        fkey += ";";
+        fkey += skey;
 
         if (XrdMqSharedObjectManager::debug)fprintf(stderr, "XrdMqSharedObjectManager::Delete=>[%s:%s] notified\n", Subject.c_str(), skey.c_str());
         XrdMqSharedObjectManager::Notification event(fkey, XrdMqSharedObjectManager::kMqSubjectKeyDeletion);
-      SOM->NotificationSubjects.push_back(event);
-      SOM->SubjectsSem.Post();
+        SOM->NotificationSubjects.push_back(event);
+        SOM->SubjectsSem.Post();
       }
       SOM->SubjectsMutex.UnLock();
     }
@@ -1604,10 +1602,10 @@ XrdMqSharedHash::Print (std::string &out, std::string format)
 
         if ((formattags["format"].find("S")) != std::string::npos)
 	{
-          std::string shortstring = Get(formattags["key"].c_str());
-          shortstring.erase(shortstring.find("."));
+	  std::string shortstring = Get(formattags["key"].c_str());
+	  shortstring.erase(shortstring.find("."));
           snprintf(tmpline, sizeof (tmpline) - 1, lformat, shortstring.c_str());
-        }
+	}
 
         if ((formattags["format"].find("l")) != std::string::npos)
         {
@@ -1620,7 +1618,7 @@ XrdMqSharedHash::Print (std::string &out, std::string format)
           else
           {
             snprintf(tmpline, sizeof (tmpline) - 1, lformat, GetLongLong(formattags["key"].c_str()));
-        }
+          }
         }
         if ((formattags["format"].find("f")) != std::string::npos)
           snprintf(tmpline, sizeof (tmpline) - 1, lformat, GetDouble(formattags["key"].c_str()));
@@ -1658,9 +1656,9 @@ XrdMqSharedHash::Print (std::string &out, std::string format)
         buildheader = false; // auto disable header
         if (formattags.count("key"))
         {
-
-          XrdOucString noblankline=line;
           // we are encoding spaces here in the URI way
+          XrdOucString noblankline=line;
+
           {
             // replace all inner blanks with %20
             std::string snoblankline=line;
@@ -1672,7 +1670,7 @@ XrdMqSharedHash::Print (std::string &out, std::string format)
           snprintf(keyval, sizeof (keyval) - 1, "%s=%s", formattags["key"].c_str(), noblankline.c_str());
           }
         body += keyval;
-        }
+          }
       else
       {
         std::string sline = line;
@@ -1703,7 +1701,7 @@ XrdMqSharedHash::Print (std::string &out, std::string format)
 
   bool accepted = true;
 
-  // here we can match an EXACT condition or the beginning if '*' is
+  // here we can match an EXACT condition or the beginning if '*' is 
   if (conditionkey != "")
   {
     XrdOucString condval = conditionval.c_str();
@@ -1714,7 +1712,7 @@ XrdMqSharedHash::Print (std::string &out, std::string format)
       condisval = Get(conditionkey.c_str()).c_str();
       if (!(condisval.beginswith(condval)))
         accepted = false;
-      }
+    }
     else
     {
       if (condval.beginswith("!"))
