@@ -2560,6 +2560,7 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast,
     return false;
   }
 
+  bool emuatetransaction = false;
   std::string skey = key;
   {
     bool callback = false;
@@ -2586,6 +2587,7 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast,
         if (!IsTransaction) {
           TransactionMutex.Lock();
           Transactions.clear();
+          emulatetransaction = true;
         }
 
         Transactions.insert(skey);
@@ -2617,13 +2619,9 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast,
     }
   }
 
-  if (XrdMqSharedObjectManager::broadcast && broadcast) {
-    if (!SOM->IsMuxTransaction)
-      if (!IsTransaction) {
-        CloseTransaction();
-  }
-  }
-
+  if (emulatetransaction)
+    CloseTransaction();
+  
   return true;
 }
 
