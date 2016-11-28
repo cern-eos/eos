@@ -1242,7 +1242,7 @@ XrdMqSharedHash::Set (const char* key, const char* value, bool broadcast, bool t
   if (!value)
     return false;
 
-  bool emuatetransaction = false;
+  bool emulatetransaction = false;
   std::string skey = key;
 
   {
