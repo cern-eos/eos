@@ -10,13 +10,13 @@ if(LIBEVENT_INCLUDE_DIRS AND LIBEVENT_LIBRARIES)
 else()
   find_path(
     LIBEVENT_INCLUDE_DIR
-    NAMES libevent.h
+    NAMES event.h
     HINTS ${LIBEVENT_ROOT_DIR}
     PATH_SUFFIXES include)
 
   find_library(
     LIBEVENT_LIBRARY
-    NAME event
+    NAME event2
     HINTS ${LIBEVENT_ROOT_DIR}
     PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
