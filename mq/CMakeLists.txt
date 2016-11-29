@@ -134,11 +134,18 @@ target_link_libraries(xrdmqinjection PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqclientmaster PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqclientworker PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqcryptotest PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqsharedobjectclient PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqsharedobjectqueueclient PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(
-  xrdmqsharedobjectbroadcastclient
-  PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+  xrdmqsharedobjectclient PRIVATE
+  eosCommon-Static
+  ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(
+  xrdmqsharedobjectqueueclient PRIVATE
+  eosCommon-Static
+  ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(
+  xrdmqsharedobjectbroadcastclient PRIVATE
+  eosCommon-Static
+  ${XRDMQ_OTHER_LINK_LIBRARIES})
 
 install(
   TARGETS XrdMqClient XrdMqOfs xrdmqdumper

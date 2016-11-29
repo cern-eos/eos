@@ -80,13 +80,12 @@ int main (int argc, char* argv[]) {
         queue->BroadcastRequest("/eos/*/worker");
         sleep(3);
       }
-      queue->OpenTransaction();
-      
-      XrdOucString var = "var"; var += v;
-      
-      queue->PushBack(0,var.c_str());
 
+      XrdOucString var = "var"; var += v;
+      queue->OpenTransaction();
+      queue->PushBack(0,var.c_str());
       queue->CloseTransaction();
+
       XrdOucString out;
       out += "---------------------------\n";
       out += "subject="; out += str.c_str(); out += "\n";
@@ -95,10 +94,12 @@ int main (int argc, char* argv[]) {
 
       ObjectManager.HashMutex.LockRead();
       std::deque<XrdMqSharedHashEntry*>::iterator it;
-      printf("QUEUE [%d]: \n", (int)queue->GetQueue()->size());
-      for (it=queue->GetQueue()->begin(); it != queue->GetQueue()->end(); it++) {
-        printf("%s ", ((XrdMqSharedHashEntry*)(*it))->GetKey());
-      }
+      printf("QUEUE [%d]: \n", (int)queue->GetSize());
+      // TODO(esindril): Use the get keys method to retrieve the elements of the
+      // queue
+      //for (it=queue->GetQueue()->begin(); it != queue->GetQueue()->end(); it++) {
+      //  printf("%s ", ((XrdMqSharedHashEntry*)(*it))->GetKey());
+      // }
       printf("\n");
       ObjectManager.HashMutex.UnLockRead();
       if (!(i%=10)) {

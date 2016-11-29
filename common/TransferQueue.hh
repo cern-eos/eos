@@ -155,12 +155,8 @@ public:
     {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
       mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
-      if (mHashQueue)
-      {
-        if (mHashQueue->GetQueue())
-        {
-          return mHashQueue->GetQueue()->size();
-        }
+      if (mHashQueue) {
+	return mHashQueue->GetSize();
       }
     }
     return 0;
@@ -177,13 +173,9 @@ public:
     {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
       mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
-      if (mHashQueue)
-      {
-        if (mHashQueue->GetQueue())
-        {
-          mHashQueue->Clear();
-          return true;
-        }
+      if (mHashQueue) {
+	mHashQueue->Clear();
+	return true;
       }
     }
     return false;
@@ -200,12 +192,9 @@ public:
     {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
       mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
-      if (mHashQueue)
-      {
-        if (mHashQueue->GetQueue())
-        {
-          return mHashQueue->OpenTransaction();
-        }
+
+      if (mHashQueue) {
+	return mHashQueue->OpenTransaction();
       }
     }
     return false;
@@ -222,12 +211,9 @@ public:
     {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
       mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
-      if (mHashQueue)
-      {
-        if (mHashQueue->GetQueue())
-        {
-          return mHashQueue->CloseTransaction();
-        }
+
+      if (mHashQueue) {
+	return mHashQueue->CloseTransaction();
       }
     }
     return false;

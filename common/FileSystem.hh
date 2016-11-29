@@ -314,7 +314,7 @@ public:
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      mHash->SetLongLong("id", (long long) fsid);
+      mHash->Set("id", (long long) fsid);
       return true;
     } else {
       return false;
@@ -365,7 +365,7 @@ public:
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      mHash->SetLongLong(key, l, broadcast);
+      mHash->Set(key, l, broadcast);
       return true;
     } else {
       return false;

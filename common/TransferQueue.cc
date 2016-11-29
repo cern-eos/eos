@@ -173,13 +173,13 @@ TransferQueue::Get ()
       }
       else
       {
-	if (!entry->GetEntry())
+	if (!entry->GetValue())
 	{
 	  mHashQueue->mQMutex.UnLock();
 	  mSom->HashMutex.UnLockRead();
 	  return 0;
 	}
-	TransferJob* job = TransferJob::Create(entry->GetEntry());
+	TransferJob* job = TransferJob::Create(entry->GetValue());
 	mHashQueue->mQMutex.UnLock();
 	// remove it from the queue
 	mHashQueue->Delete(entry);

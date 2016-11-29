@@ -400,9 +400,9 @@ Storage::Publish()
 
           if (hash) {
             hash->Set("stat.sys.kernel", eos::fst::Config::gConfig.KernelVersion.c_str());
-            hash->SetLongLong("stat.sys.vsize", osstat.vsize);
-            hash->SetLongLong("stat.sys.rss", osstat.rss);
-            hash->SetLongLong("stat.sys.threads", osstat.threads);
+            hash->Set("stat.sys.vsize", osstat.vsize);
+            hash->Set("stat.sys.rss", osstat.rss);
+            hash->Set("stat.sys.threads", osstat.threads);
             {
               XrdOucString v=VERSION; v+="-"; v+=RELEASE;
               hash->Set("stat.sys.eos.version", v.c_str());
@@ -425,7 +425,7 @@ Storage::Publish()
             struct timeval tvfs;
             gettimeofday(&tvfs, &tz);
             size_t nowms = tvfs.tv_sec * 1000 + tvfs.tv_usec / 1000;
-            hash->SetLongLong("stat.publishtimestamp", nowms);
+            hash->Set("stat.publishtimestamp", nowms);
           }
 
           gOFS.ObjectManager.HashMutex.UnLockRead();
