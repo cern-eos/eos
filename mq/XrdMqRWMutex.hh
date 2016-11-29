@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: XrdMqRWMutex.hh
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file XrdMqRWMutex.hh
+//! @author Andreas-Joachim Peters - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -24,106 +24,192 @@
 #ifndef __XRDMQ_RWMUTEX_HH__
 #define __XRDMQ_RWMUTEX_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysAtomics.hh"
-/*----------------------------------------------------------------------------*/
-
 #include <stdio.h>
 #define _MULTI_THREADED
 #include <pthread.h>
 
-/*----------------------------------------------------------------------------*/
-/* THIS CLASS IMPLEMENTS A FAIR RW MUTEX                                      */
-/*----------------------------------------------------------------------------*/
-
-class XrdMqRWMutex  
+//------------------------------------------------------------------------------
+//! Class XrdMqRWMutex - implements a fair RW mutex
+//------------------------------------------------------------------------------
+class XrdMqRWMutex
 {
-private:
-  pthread_rwlock_t       rwlock;
-  pthread_rwlockattr_t   attr;
-  unsigned long long     wlockid;
-
 public:
-  XrdMqRWMutex() { 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMqRWMutex()
+  {
     int retc;
     pthread_rwlockattr_init(&attr);
-    wlockid=0;
+    wlockid = 0;
 #ifndef __APPLE__
-    if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) { throw "pthread_rwlockattr_setkind_np failed";}
-    if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED)){ throw "pthread_rwlockattr_setpshared failed";}
-#endif
-    if ((retc=pthread_rwlock_init(&rwlock, &attr))) {fprintf(stderr,"LockInit: retc=%d\n", retc);throw "pthread_rwlock_init failed";} }
+    if (pthread_rwlockattr_setkind_np
+	(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) {
+      throw "pthread_rwlockattr_setkind_np failed";
+    }
 
+    if (pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED)) {
+      throw "pthread_rwlockattr_setpshared failed";
+    }
+#endif
+
+    if ((retc = pthread_rwlock_init(&rwlock, &attr))) {
+      fprintf(stderr, "LockInit: retc=%d\n", retc);
+      throw "pthread_rwlock_init failed";
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~XrdMqRWMutex() {}
 
-  void LockRead() {
-    int retc; 
+  //----------------------------------------------------------------------------
+  //! Read lock
+  //----------------------------------------------------------------------------
+  void LockRead()
+  {
+    int retc;
+
     if (AtomicGet(wlockid) == (unsigned long long) XrdSysThread::ID()) {
-      fprintf(stderr,"MQ === WRITE LOCK FOLLOWED BY READ === TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+      fprintf(stderr, "MQ === WRITE LOCK FOLLOWED BY READ === TID=%llu OBJECT=%llx\n",
+	      (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
       throw "pthread_rwlock_wrlock write then read lock";
     }
 
-    // fprintf(stderr,"MQ --- READ  LOCK WANTED    ---- TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+    // fprintf(stderr,"MQ --- READ  LOCK WANTED    ---- TID=%llu OBJECT=%llx\n",
+    // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
 
-    if ((retc=pthread_rwlock_rdlock(&rwlock))) { fprintf(stderr,"LockRead: retc=%d\n", retc);throw "pthread_rwlock_rdlock failed";}
+    if ((retc = pthread_rwlock_rdlock(&rwlock))) {
+      fprintf(stderr, "LockRead: retc=%d\n", retc);
+      throw "pthread_rwlock_rdlock failed";
+    }
 
-    //fprintf(stderr,"MQ ... READ  LOCK ACQUIRED  .... TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+    //fprintf(stderr,"MQ ... READ  LOCK ACQUIRED  .... TID=%llu OBJECT=%llx\n",
+    //(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
   }
-  
-  void UnLockRead() { 
-    int retc; 
-    if ((retc=pthread_rwlock_unlock(&rwlock))) { fprintf(stderr,"UnLockRead: retc=%d\n", retc);throw "pthread_rwlock_unlock failed";}
-    //    fprintf(stderr,"MQ ... READ  LOCK RELEASED  .... TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+
+  //----------------------------------------------------------------------------
+  //! Unlock read
+  //----------------------------------------------------------------------------
+  void UnLockRead()
+  {
+    int retc;
+
+    if ((retc = pthread_rwlock_unlock(&rwlock))) {
+      fprintf(stderr, "UnLockRead: retc=%d\n", retc);
+      throw "pthread_rwlock_unlock failed";
+    }
+
+    //fprintf(stderr,"MQ ... READ  LOCK RELEASED  .... TID=%llu OBJECT=%llx\n",
+    //(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
   }
 
-  void LockWrite() {
-    int retc; 
+  //----------------------------------------------------------------------------
+  //! Write lock
+  //----------------------------------------------------------------------------
+  void LockWrite()
+  {
     if (AtomicGet(wlockid) == (unsigned long long) XrdSysThread::ID()) {
-      fprintf(stderr,"MQ === WRITE LOCK DOUBLELOCK === TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+      fprintf(stderr, "MQ === WRITE LOCK DOUBLELOCK === TID=%llu OBJECT=%llx\n",
+	      (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
       throw "pthread_rwlock_wrlock double lock";
     }
-    //    fprintf(stderr,"MQ --- WRITE LOCK WANTED    ---- TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
 
-    if ((retc=pthread_rwlock_wrlock(&rwlock))) { fprintf(stderr,"LockWrite: retc=%d\n", retc);throw "pthread_rwlock_wrlock failed";}
+    //fprintf(stderr,"MQ --- WRITE LOCK WANTED    ---- TID=%llu OBJECT=%llx\n",
+    //(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+    int retc;
 
-    AtomicFAZ(wlockid);
-    AtomicAdd(wlockid,(unsigned long long)XrdSysThread::ID());
-
-    //    fprintf(stderr,"MQ === WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
-  }
-  
-  void UnLockWrite() { 
-    int retc; 
-    if ((retc=pthread_rwlock_unlock(&rwlock))) { fprintf(stderr,"UnLockWrite: retc=%d\n", retc);throw "pthread_rwlock_unlock failed";}
-    //    fprintf(stderr,"MQ --- WRITE LOCK RELEASED  ---- TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+    if ((retc = pthread_rwlock_wrlock(&rwlock))) {
+      fprintf(stderr, "LockWrite: retc=%d\n", retc);
+      throw "pthread_rwlock_wrlock failed";
+    }
 
     AtomicFAZ(wlockid);
+    AtomicAdd(wlockid, (unsigned long long)XrdSysThread::ID());
+    //fprintf(stderr,"MQ === WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",
+    //(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
   }
+
+  //----------------------------------------------------------------------------
+  //! Unlock write
+  //----------------------------------------------------------------------------
+  void UnLockWrite()
+  {
+    int retc;
+
+    if ((retc = pthread_rwlock_unlock(&rwlock))) {
+      fprintf(stderr, "UnLockWrite: retc=%d\n", retc);
+      throw "pthread_rwlock_unlock failed";
+    }
+
+    //fprintf(stderr,"MQ --- WRITE LOCK RELEASED  ---- TID=%llu OBJECT=%llx\n",
+    //(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+    AtomicFAZ(wlockid);
+  }
+
+private:
+  pthread_rwlock_t rwlock; ///< Underlying rwlock
+  pthread_rwlockattr_t attr; ///< RWlock attirbute
+  unsigned long long wlockid; ///< Thread id holding the lock
 };
 
 
+//------------------------------------------------------------------------------
+//! Class XrdMqRWMutexWriteLock
+//------------------------------------------------------------------------------
 class XrdMqRWMutexWriteLock
 {
-private:
-  XrdMqRWMutex* Mutex;
-
 public:
-  XrdMqRWMutexWriteLock(XrdMqRWMutex &mutex) { Mutex = &mutex; Mutex->LockWrite();}
-  ~XrdMqRWMutexWriteLock() { Mutex->UnLockWrite();}
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMqRWMutexWriteLock(XrdMqRWMutex& mutex)
+  {
+    mMutex = &mutex;
+    mMutex->LockWrite();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~XrdMqRWMutexWriteLock()
+  {
+    mMutex->UnLockWrite();
+  }
+
+private:
+  XrdMqRWMutex* mMutex; ///< Pointer to managed mutex object
 };
 
+
+//----------------------------------------------------------------------------
+//! Class XrdMqRWMutexWriteLock
+//----------------------------------------------------------------------------
 class XrdMqRWMutexReadLock
 {
-private:
-  XrdMqRWMutex* Mutex;
-
 public:
-  XrdMqRWMutexReadLock(XrdMqRWMutex &mutex) { Mutex = &mutex; Mutex->LockRead();}
-  ~XrdMqRWMutexReadLock() { Mutex->UnLockRead();}
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMqRWMutexReadLock(XrdMqRWMutex& mutex)
+  {
+    mMutex = &mutex;
+    mMutex->LockRead();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~XrdMqRWMutexReadLock()
+  {
+    mMutex->UnLockRead();
+  }
+
+private:
+  XrdMqRWMutex* mMutex; ///< Pointer to managed mutex object
 };
-
-
-
 
 #endif
