@@ -8,6 +8,7 @@
   "options" : {
     "debug" : "1",
     "lowleveldebug" : "0",
-    "debuglevel" : "5"
+    "debuglevel" : "5",
+    "libfusethreads" : "0"
   }
 }]

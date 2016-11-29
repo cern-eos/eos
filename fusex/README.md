@@ -16,7 +16,8 @@ Configuration File
   "options" : {
     "debug" : 1,
     "lowleveldebug" : 0,
-    "debuglevel" : 6
+    "debuglevel" : 6,
+    "libfusethreads" : 0
   }
 }
 ```
@@ -69,7 +70,10 @@ ALL        write                                       0     0.00     0.00     0
 
 ```
 # mount on /eos/
-eosxd /eos/
+mount -t fuse eosxd /eos/
+
+# umount /eos/
+umount -f /eos/
 ```
 
 

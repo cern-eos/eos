@@ -178,6 +178,7 @@ private:
       int debug;
       bool lowleveldebug;
       int debuglevel;
+      int libfusethreads;
     } options_t;
     options_t options;
   } cfg_t;

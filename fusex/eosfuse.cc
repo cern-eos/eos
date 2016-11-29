@@ -148,14 +148,14 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       exit(EINVAL);
     }
 
-//  std::cout << "root.size(): " << root.size() << std::endl;
-//  Json::Value::iterator itr;
-//  for( itr = root.begin() ; itr != root.end() ; ++itr )
-//  {
-//    std::cout << *itr << std::endl;
-//    std::cout << (*itr)["name"] << std::endl;
-//  }
-//    root = *root.begin();
+    //  std::cout << "root.size(): " << root.size() << std::endl;
+    //  Json::Value::iterator itr;
+    //  for( itr = root.begin() ; itr != root.end() ; ++itr )
+    //  {
+    //    std::cout << *itr << std::endl;
+    //    std::cout << (*itr)["name"] << std::endl;
+    //  }
+    //    root = *root.begin();
 
     const Json::Value jname = root["name"];
     config.name = root["name"].asString();
@@ -167,6 +167,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.debug = root["options"]["debug"].asInt();
     config.options.lowleveldebug = root["options"]["lowleveldebug"].asInt();
     config.options.debuglevel = root["options"]["debuglevel"].asInt();
+    config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
 
@@ -322,7 +323,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("********************************************************************************");
     eos_static_warning("eosdx started version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
     eos_static_warning("eos-instance-url       := %s", config.hostport.c_str());
-
+    eos_static_warning("thread-pool            := %s", config.options.libfusethreads ? "libfuse" : "custom");
     struct fuse_session* se;
     se = fuse_lowlevel_new(&args,
                            &(get_operations()),
@@ -341,9 +342,15 @@ EosFuse::run(int argc, char* argv[], void *userdata)
         }
         else
         {
-           EosFuseSessionLoop loop( 10, 20, 10, 20 );
-           err = loop.Loop( se );
-          // err = fuse_session_loop_mt(se);
+          if (config.options.libfusethreads)
+          {
+            err = fuse_session_loop_mt(se);
+          }
+          else
+          {
+            EosFuseSessionLoop loop( 10, 20, 10, 20 );
+            err = loop.Loop( se );
+          }
         }
 
         fuse_remove_signal_handlers(se);
@@ -351,6 +358,9 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
       fuse_session_destroy(se);
     }
+
+    eos_static_warning("eosdx stopped version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
+    eos_static_warning("********************************************************************************");
 
     fuse_unmount(local_mount_dir, ch);
   }
@@ -658,7 +668,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
            */
 
           ADD_FUSE_STAT("setattr:utimes", req);
-          
+
           EXEC_TIMING_BEGIN("setattr:utimes");
 
           XrdSysMutexHelper mLock(md->Locker());
@@ -755,9 +765,9 @@ EBADF or EINVAL
 
 EINVAL fd does not reference a regular file.
            */
-          
+
           ADD_FUSE_STAT("setattr:truncate", req);
-          
+
           EXEC_TIMING_BEGIN("setattr:truncate");
 
           rc = EOPNOTSUPP;
@@ -1400,11 +1410,80 @@ EosFuse::create(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   EXEC_TIMING_BEGIN(__func__);
 
+  int rc = 0;
+
+  // do a parent check
+  cap::shared_cap pcap = Instance().caps.acquire(req, parent,
+                                                 S_IFDIR | W_OK);
+
+
+  if (pcap->errc())
+  {
+    rc = pcap->errc();
+    fuse_reply_err (req, rc);
+  }
+  else
+  {
+    metad::shared_md md;
+    metad::shared_md pmd;
+    md = Instance().mds.lookup(req, parent, name);
+    pmd = Instance().mds.get(req, parent);
+
+
+    if (md->id() && !md->deleted())
+    {
+      rc = EEXIST;
+      fuse_reply_err (req, rc);
+    }
+    else
+    {
+      md->set_mode(mode | S_IFREG);
+      struct timespec ts;
+      eos::common::Timing::GetTimeSpec(ts);
+      md->set_name(name);
+      md->set_atime(ts.tv_sec);
+      md->set_atime_ns(ts.tv_nsec);
+      md->set_mtime(ts.tv_sec);
+      md->set_mtime_ns(ts.tv_sec);
+      md->set_ctime(ts.tv_sec);
+      md->set_ctime_ns(ts.tv_nsec);
+      md->set_btime(ts.tv_sec);
+      md->set_btime_ns(ts.tv_nsec);
+      md->set_uid(pcap->uid());
+      md->set_gid(pcap->gid());
+      md->set_id(Instance().mds.insert(req, md));
+
+      Instance().mds.add(pmd, md);
+
+      struct fuse_entry_param e;
+      memset(&e, 0, sizeof (e));
+      md->convert(e);
+
+      // -----------------------------------------------------------------------
+      // TODO: for the moment there is no kernel cache used until 
+      // we add top-level management on it
+      // -----------------------------------------------------------------------
+      // FUSE caches the file for reads on the same filedescriptor in the buffer
+      // cache, but the pages are released once this filedescriptor is released.
+      fi->keep_cache = 0;
+
+      if ( (mode & O_DIRECT) ||
+           (mode & O_SYNC) )
+        fi->direct_io = 1;
+      else
+        fi->direct_io = 0;
+
+      fuse_reply_create(req, &e, fi);
+      eos_static_info("%s", md->dump(e).c_str());
+    }
+  }
+
   EXEC_TIMING_END(__func__);
 
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(req, parent, 0, rc).c_str());
 }
 
 void
