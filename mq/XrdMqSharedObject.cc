@@ -87,6 +87,31 @@ XrdMqSharedHashEntry::XrdMqSharedHashEntry(const char* key, const char* value):
 }
 
 //------------------------------------------------------------------------------
+// Assignment operator
+//------------------------------------------------------------------------------
+XrdMqSharedHashEntry&
+XrdMqSharedHashEntry::operator=(const XrdMqSharedHashEntry& other)
+{
+  if (this != &other) {
+    mChangeId = other.mChangeId;
+    mKey = other.mKey;
+    mValue = other.mValue;
+    mMtime.tv_sec = other.mMtime.tv_sec;
+    mMtime.tv_usec = other.mMtime.tv_usec;
+  }
+
+  return *this;
+}
+
+//------------------------------------------------------------------------------
+// Copy constructor
+//------------------------------------------------------------------------------
+XrdMqSharedHashEntry::XrdMqSharedHashEntry(const XrdMqSharedHashEntry& other)
+{
+  *this = other;
+}
+
+//------------------------------------------------------------------------------
 // Get age in milliseconds
 //------------------------------------------------------------------------------
 long long

@@ -801,9 +801,10 @@ public:
   //------------------------------------------------------------------------
   //! Snapshot host.
   //------------------------------------------------------------------------
-
   static bool SnapShotHost(XrdMqSharedObjectManager* som,
-                           const std::string& queue, FileSystem::host_snapshot_t& fs, bool dolock = true);
+                           const std::string& queue,
+			   FileSystem::host_snapshot_t& fs,
+			   bool dolock = true);
 
   //------------------------------------------------------------------------
   //! Dump Function printing the filesystem variables to out.

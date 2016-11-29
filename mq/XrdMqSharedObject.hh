@@ -80,6 +80,16 @@ public:
   virtual ~XrdMqSharedHashEntry() {};
 
   //----------------------------------------------------------------------------
+  //! Copy constructor
+  //----------------------------------------------------------------------------
+  XrdMqSharedHashEntry(const XrdMqSharedHashEntry& other);
+
+  //----------------------------------------------------------------------------
+  //! Assignment operator
+  //----------------------------------------------------------------------------
+  XrdMqSharedHashEntry& operator=(const XrdMqSharedHashEntry& other);
+
+  //----------------------------------------------------------------------------
   //! Get value
   //!
   //! @return entry value
@@ -965,9 +975,10 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
 
   if (mStore.count(skey) == 0) {
     callback = true;
+    mStore.emplace(skey, XrdMqSharedHashEntry(key, svalue.c_str()));
+  } else {
+    mStore[key] = XrdMqSharedHashEntry(key, svalue.c_str());
   }
-
-  mStore.emplace(skey, XrdMqSharedHashEntry(key, svalue.c_str()));
 
   if (callback) {
     CallBackInsert(&mStore[skey], skey.c_str());
