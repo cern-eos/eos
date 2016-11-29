@@ -25,6 +25,7 @@
 #ifndef FUSE_MACOSXHELPER_HH_
 #define FUSE_MACOSXHELPER_HH_
 #ifdef __APPLE__
+#include <pthread.h>
 #define MTIMESPEC st_mtimespec
 #define ATIMESPEC st_atimespec
 #define CTIMESPEC st_ctimespec
@@ -37,5 +38,24 @@
 #define MTIMESPEC st_mtim
 #define ATIMESPEC st_atim
 #define CTIMESPEC st_ctim
+#include <sys/types.h>
+#include <signal.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 #endif
+
+#ifdef __APPLE__
+#define thread_id(_x_) (pthread_t) pthread_self()
+#else
+#define thread_id(_x_) (pthread_t) syscall(SYS_gettid)
 #endif
+
+#ifdef __APPLE__
+#define thread_alive(_x_) (pthread_kill(_x_,0)==ESRCH)?false:true
+#else
+#define thread_alive(_x_) (kill( (pid_t)_x_,0))?false:true
+#endif
+
+#endif
+
+

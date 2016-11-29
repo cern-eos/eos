@@ -114,6 +114,32 @@ filesystem::CacheCleanup(void *p)
   while (1)
   {
     sleeper.Snooze(10);
+    size_t n_read_buffer=0;
+    uint64_t size_read_buffer=0;
+    // clean left-over thread buffers
+    {
+      XrdSysMutexHelper lock (me->IoBufferLock);
+      for (auto it = me->IoBufferMap.begin(); it != me->IoBufferMap.end();)
+      {
+	bool alive = thread_alive(it->first);
+	eos_static_debug("thread-id %lld buffer-size=%lld alive-%d", it->first, it->second.GetSize(), alive);
+
+	if (!alive)
+	{
+	  auto del_it = it;
+	  eos_static_notice("releasing read-buffer thread=%lld", it->first);
+	  ++it;
+	  me->IoBufferMap.erase(del_it);
+	}
+	else
+	{
+	  size_read_buffer += it->second.GetSize();
+	  n_read_buffer++;
+	  ++it;
+	}
+      }
+    }
+    
     time_t now = time(NULL);
     XrdSysMutexHelper cLock(LayoutWrapper::gCacheAuthorityMutex);
 
@@ -153,7 +179,8 @@ filesystem::CacheCleanup(void *p)
 	  break;
       }
     }
-    eos_static_notice("in-memory wb cache in-size=%.02f MB out-time-size=%.02f MB out-max-size=%.02f MB nominal-max-size=%.02f MB", totalsize_before/1000000., totalsize_after/1000000.0, totalsize_clean/1000000.0, me->max_wb_in_memory_size/1000000.0);
+    eos_static_notice("in-memory wb cache in-size=%.02f MB out-time-size=%.02f MB out-max-size=%.02f MB nominal-max-size=%.02f MB rd-buffer=%u rd-buffer-size=%.02f MB", totalsize_before/1000000., totalsize_after/1000000.0, totalsize_clean/1000000.0, me->max_wb_in_memory_size/1000000.0, n_read_buffer, size_read_buffer/1000000.);
+
   }
   return 0;
 }
@@ -1108,24 +1135,10 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
 char*
 filesystem::attach_rd_buff (pthread_t tid, size_t size)
 {
- XrdSysMutexHelper lock (IoBufferLock);
- IoBufferMap[tid].Resize (size);
- return (char*) IoBufferMap[tid].GetBuffer ();
+  XrdSysMutexHelper lock (IoBufferLock);
+  IoBufferMap[tid].Resize (size);
+  return (char*) IoBufferMap[tid].GetBuffer ();
 }
-
-
-//------------------------------------------------------------------------------
-// Release read buffer corresponding to the thread
-//------------------------------------------------------------------------------
-
-void
-filesystem::release_rd_buff (pthread_t tid)
-{
- XrdSysMutexHelper lock (IoBufferLock);
- IoBufferMap.erase (tid);
- return;
-}
-
 
 //------------------------------------------------------------------------------
 //             ******* XROOTD connection/authentication functions *******
@@ -5120,7 +5133,7 @@ filesystem::mylstat (const char *__restrict name, struct stat *__restrict __buf,
  if ((path.length () >= mount_dir.length ()) &&
      (path.find (mount_dir) == 0))
  {
-   eos_static_debug ("name=%%s\n", name);
+   eos_static_debug ("name=%s\n", name);
 
    uid_t uid;
    gid_t gid;

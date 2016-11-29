@@ -1635,7 +1635,7 @@ EosFuse::read (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fu
  if (fi && fi->fh)
  {
    struct filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
-   char* buf = me.fs ().attach_rd_buff (pthread_self (), size);
+   char* buf = me.fs ().attach_rd_buff (thread_id (), size);
 
    eos_static_debug ("inode=%lld size=%lld off=%lld buf=%lld fh=%lld",
                      (long long) ino, (long long) size,
@@ -1727,7 +1727,6 @@ EosFuse::release (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
    eos_static_debug ("try to close file fd=%llu", info->fd);
    me.fs ().close (info->fd, ino, info->uid, info->gid, info->pid);
-   me.fs ().release_rd_buff (pthread_self ());
 
    // Free memory
    free (info);
