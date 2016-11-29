@@ -1399,8 +1399,73 @@ void
 EosFuse::create(fuse_req_t req, fuse_ino_t parent, const char *name,
                 mode_t mode, struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
-{
+/*
+EACCES The  requested  access to the file is not allowed, or search permission is denied for one of the directories in
+      the path prefix of pathname, or the file did not exist yet and write access to  the  parent  directory  is  not
+      allowed.  (See also path_resolution(7).)
 
+EDQUOT Where  O_CREAT  is  specified,  the  file  does not exist, and the user's quota of disk blocks or inodes on the
+      filesystem has been exhausted.
+
+EEXIST pathname already exists and O_CREAT and O_EXCL were used.
+
+EFAULT pathname points outside your accessible address space.
+
+EFBIG  See EOVERFLOW.
+
+EINTR  While blocked waiting to complete an open of a slow device (e.g., a FIFO; see fifo(7)),  the  call  was  inter‐
+      rupted by a signal handler; see signal(7).
+
+EINVAL The filesystem does not support the O_DIRECT flag. See NOTES for more information.
+
+EISDIR pathname refers to a directory and the access requested involved writing (that is, O_WRONLY or O_RDWR is set).
+
+ELOOP  Too  many symbolic links were encountered in resolving pathname, or O_NOFOLLOW was specified but pathname was a
+      symbolic link.
+
+EMFILE The process already has the maximum number of files open.
+
+ENAMETOOLONG
+      pathname was too long.
+
+ENFILE The system limit on the total number of open files has been reached.
+
+ENODEV pathname refers to a device special file and no corresponding device exists.  (This is a Linux kernel  bug;  in
+      this situation ENXIO must be returned.)
+
+ENOENT O_CREAT  is not set and the named file does not exist.  Or, a directory component in pathname does not exist or
+      is a dangling symbolic link.
+
+ENOMEM Insufficient kernel memory was available.
+
+ENOSPC pathname was to be created but the device containing pathname has no room for the new file.
+
+ENOTDIR
+      A component used as a directory in pathname is not, in fact, a directory,  or  O_DIRECTORY  was  specified  and
+      pathname was not a directory.
+
+ENXIO  O_NONBLOCK  |  O_WRONLY is set, the named file is a FIFO and no process has the file open for reading.  Or, the
+      file is a device special file and no corresponding device exists.
+
+EOVERFLOW
+      pathname refers to a regular file that is too large to be opened.  The usual scenario here is that an  applica‐
+      tion  compiled  on  a  32-bit  platform  without -D_FILE_OFFSET_BITS=64 tried to open a file whose size exceeds
+      (2<<31)-1 bits; see also O_LARGEFILE above.  This is the error specified by  POSIX.1-2001;  in  kernels  before
+      2.6.24, Linux gave the error EFBIG for this case.
+
+EPERM  The  O_NOATIME  flag was specified, but the effective user ID of the caller did not match the owner of the file
+      and the caller was not privileged (CAP_FOWNER).
+
+EROFS  pathname refers to a file on a read-only filesystem and write access was requested.
+
+ETXTBSY
+      pathname refers to an executable image which is currently being executed and write access was requested.
+
+EWOULDBLOCK
+      The O_NONBLOCK flag was specified, and an incompatible lease was held on the file (see fcntl(2)).
+ */
+/* -------------------------------------------------------------------------- */
+{
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 

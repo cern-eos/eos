@@ -61,7 +61,8 @@ add_executable(
   eosfuse.cc eosfuse.hh 
   Stat.cc Stat.hh 
   md.cc md.hh 
-  cap.cc cap.hh 
+  cap.cc cap.hh
+  data.cc data.hh 
   kv.cc kv.hh 
   longstring.cc longstring.hh 
   ${PROTO_SRC} ${PROTO_HEADER}
