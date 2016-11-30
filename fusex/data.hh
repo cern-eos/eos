@@ -83,6 +83,25 @@ public:
 
   typedef std::shared_ptr<datax> shared_data;
 
+  typedef struct _data_fh
+  {
+    shared_data data;
+
+    _data_fh(shared_data io)
+    {
+      data = io;
+    }
+
+    ~_data_fh()
+    {
+    }
+    
+    static struct _data_fh* Instance(shared_data io) 
+    {
+      return new struct _data_fh(io);
+    }
+  } data_fh;
+
   //----------------------------------------------------------------------------
 
   class dmap : public std::map<fuse_ino_t, shared_data> , public XrdSysMutex
@@ -108,9 +127,10 @@ public:
   shared_data get(fuse_req_t req,
                   fuse_ino_t ino);
 
-  uint64_t insert(fuse_req_t req,
-                  shared_data dd);
+  uint64_t commit(fuse_req_t req,
+                  shared_data io);
 
+  void unlink(fuse_ino_t ino);
 
   void dataxflush(); // thread pushing into data cache
 

@@ -1149,6 +1149,47 @@ void
 /* -------------------------------------------------------------------------- */
 EosFuse::unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
 /* -------------------------------------------------------------------------- */
+/*
+EACCES Write access to the directory containing pathname is not allowed for the process's effective UID, or one of the
+      directories in pathname did not allow search permission.  (See also path_resolution(7).)
+
+EBUSY  The file pathname cannot be unlinked because it is being used by the system or another process; for example, it
+      is a mount point or the NFS client software created it to represent an  active  but  otherwise  nameless  inode
+      ("NFS silly renamed").
+
+EFAULT pathname points outside your accessible address space.
+
+EIO    An I/O error occurred.
+
+EISDIR pathname refers to a directory.  (This is the non-POSIX value returned by Linux since 2.1.132.)
+
+ELOOP  Too many symbolic links were encountered in translating pathname.
+
+ENAMETOOLONG
+      pathname was too long.
+
+ENOENT A component in pathname does not exist or is a dangling symbolic link, or pathname is empty.
+
+ENOMEM Insufficient kernel memory was available.
+
+ENOTDIR
+      A component used as a directory in pathname is not, in fact, a directory.
+
+EPERM  The  system  does  not allow unlinking of directories, or unlinking of directories requires privileges that the
+      calling process doesn't have.  (This is the POSIX prescribed error return; as noted above, Linux returns EISDIR
+      for this case.)
+
+EPERM (Linux only)
+      The filesystem does not allow unlinking of files.
+
+EPERM or EACCES
+      The  directory  containing pathname has the sticky bit (S_ISVTX) set and the process's effective UID is neither
+      the UID of the file to be deleted nor that of the directory containing it, and the process  is  not  privileged
+      (Linux: does not have the CAP_FOWNER capability).
+
+EROFS  pathname refers to a file on a read-only filesystem.
+
+ */
 {
 
   eos::common::Timing timing(__func__);
@@ -1160,6 +1201,62 @@ EosFuse::unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
 
   EXEC_TIMING_BEGIN(__func__);
 
+  int rc = 0;
+  // retrieve cap
+
+  cap::shared_cap pcap = Instance().caps.acquire(req, parent,
+                                                 S_IFDIR | X_OK | D_OK);
+
+  if (pcap->errc())
+  {
+    rc = pcap->errc();
+    fuse_reply_err (req, rc);
+  }
+  else
+  {
+    std::string sname = name;
+
+    if (sname == ".")
+    {
+      rc = EINVAL;
+      fuse_reply_err (req, rc);
+    }
+
+    if (sname.length() > 1024)
+    {
+      rc = ENAMETOOLONG;
+    }
+
+    if (!rc)
+    {
+      metad::shared_md md;
+      metad::shared_md pmd;
+
+      md = Instance().mds.lookup(req, parent, name);
+
+      if (!md->id() || md->deleted())
+      {
+        rc = ENOENT;
+        fuse_reply_err (req, rc);
+      }
+
+      if ((!rc) && ( (md->mode() & S_IFDIR)))
+      {
+        rc = EISDIR;
+      }
+
+      if (!rc)
+      {
+
+        pmd = Instance().mds.get(req, parent);
+        Instance().mds.remove(pmd, md);
+      }
+    }
+    fuse_reply_err (req, rc);
+  }
+
+  EXEC_TIMING_END(__func__);
+  
   EXEC_TIMING_END("unlink");
 
   COMMONTIMING("_stop_", &timing);
@@ -1533,10 +1630,15 @@ EWOULDBLOCK
       fi->keep_cache = 0;
 
       if ( (mode & O_DIRECT) ||
-           (mode & O_SYNC) )
+          (mode & O_SYNC) )
         fi->direct_io = 1;
       else
         fi->direct_io = 0;
+
+      // attach a datapool object
+      fi->fh = (uint64_t)
+              data::data_fh::Instance(Instance().datas.get(req, md->id()));
+
 
       fuse_reply_create(req, &e, fi);
       eos_static_info("%s", md->dump(e).c_str());
@@ -1608,10 +1710,20 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
   EXEC_TIMING_BEGIN(__func__);
 
+  int rc = 0;
+  
+  if (fi->fh)
+  {
+    data::data_fh* io = (data::data_fh*) fi->fh;
+    delete io;
+
+  }
   EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(req, ino, 0, rc).c_str());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1675,6 +1787,10 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
   EXEC_TIMING_BEGIN(__func__);
 
+  int rc = 0;
+  
+  fuse_reply_err (req, rc);
+  
   EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);

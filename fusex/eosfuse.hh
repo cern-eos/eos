@@ -28,6 +28,7 @@
 #include "Stat.hh"
 #include "md.hh"
 #include "cap.hh"
+#include "data.hh"
 #include "kv.hh"
 #include "llfusexx.hh"
 
@@ -141,6 +142,7 @@ public:
   symlink(fuse_req_t req, const char *link, fuse_ino_t parent, const char *name);
 
   metad mds;
+  data datas;
   cap caps;
   
 private:
