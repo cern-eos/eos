@@ -157,41 +157,26 @@ TransferQueue::Add (eos::common::TransferJob* job)
 TransferJob*
 TransferQueue::Get ()
 {
-  XrdMqSharedHashEntry* entry = 0;
   if (mSom)
   {
     mSom->HashMutex.LockRead();
-    if ((mHashQueue = mSom->GetQueue(mFullQueue.c_str())))
-    {
-      mHashQueue->mQMutex.Lock();
-      entry = mHashQueue->GetQueue()->front();
-      if (!entry)
-      {
-	mHashQueue->mQMutex.UnLock();
+
+    if ((mHashQueue = mSom->GetQueue(mFullQueue.c_str()))) {
+      std::string value = mHashQueue->PopFront();
+
+      if (value.empty()) {
 	mSom->HashMutex.UnLockRead();
 	return 0;
-      }
-      else
-      {
-	if (!entry->GetValue())
-	{
-	  mHashQueue->mQMutex.UnLock();
-	  mSom->HashMutex.UnLockRead();
-	  return 0;
-	}
-	TransferJob* job = TransferJob::Create(entry->GetValue());
-	mHashQueue->mQMutex.UnLock();
-	// remove it from the queue
-	mHashQueue->Delete(entry);
+      } else {
+	TransferJob* job = TransferJob::Create(value.c_str());
 	mSom->HashMutex.UnLockRead();
 	IncGetJobCount();
 	return job;
       }
-    }
-    else
-    {
+    } else {
       fprintf(stderr, "error: couldn't get queue %s!\n", mFullQueue.c_str());
     }
+
     mSom->HashMutex.UnLockRead();
   }
   return 0;

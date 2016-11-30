@@ -53,6 +53,7 @@
 #define XRDMQSHAREDHASH_REPLY     "mqsh.reply"
 #define XRDMQSHAREDHASH_TYPE      "mqsh.type"
 
+//! Forward declaration
 class XrdMqSharedObjectManager;
 
 //------------------------------------------------------------------------------
@@ -189,20 +190,6 @@ public:
   virtual ~XrdMqSharedHash() {};
 
   //----------------------------------------------------------------------------
-  //! Callback for insert operation
-  //!
-  //! @param entry entry which is inserted
-  //----------------------------------------------------------------------------
-  virtual void CallBackInsert(XrdMqSharedHashEntry* entry, const char* key) {};
-
-  //----------------------------------------------------------------------------
-  //! Callback for delete operation
-  //!
-  //! @param entry entry which is deleted
-  //----------------------------------------------------------------------------
-  virtual void CallBackDelete(XrdMqSharedHashEntry* entry) {};
-
-  //----------------------------------------------------------------------------
   //! Get size of the hash
   //!
   //! @return size of hash
@@ -234,7 +221,7 @@ public:
   //!
   //! @return entry value corresponding to this key
   //----------------------------------------------------------------------------
-  std::string Get(const char* key);
+  std::string Get(const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Get a copy of all the keys
@@ -298,7 +285,7 @@ public:
   //!
   //! @return true if deletion done, otherwise false
   //----------------------------------------------------------------------------
-  bool Delete(const char* key, bool broadcast = true);
+  bool Delete(const std::string& key, bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Clear contents of the hash
@@ -321,7 +308,7 @@ public:
   //! Set entry in hash map
   //!
   //! @param key key value
-  //! @param value entry value
+  //! @param value entry value which can NOT be an empty string
   //! @param broadcast do broadcast for current subject
   //! @param tempmodsubjects add to temporary modified subjects
   //! @param do_lock if true then take all the necessary locks, otherwise
@@ -413,7 +400,7 @@ public:
 protected:
   std::map<std::string, XrdMqSharedHashEntry> mStore; ///< Underlying map obj.
   std::string mType; ///< Type of object
-  XrdMqSharedObjectManager* SOM; ///< Pointer to shared object manager
+  XrdMqSharedObjectManager* mSOM; ///< Pointer to shared object manager
 
 private:
   std::string mBroadcastQueue; ///< Name of the broadcast queue
@@ -485,10 +472,6 @@ class XrdMqSharedQueue: public XrdMqSharedHash
 {
   friend class XrdMqSharedObjectManager;
 public:
-
-  // TODO(esindril): This should be made private
-  XrdSysMutex mQMutex; ///< Mutex protecting the mQueue object
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -504,24 +487,12 @@ public:
   //----------------------------------------------------------------------------
   virtual ~XrdMqSharedQueue() {}
 
-  virtual void CallBackInsert(XrdMqSharedHashEntry* entry, const char* key);
-  virtual void CallBackDelete(XrdMqSharedHashEntry* entry);
-
-  //----------------------------------------------------------------------------
-  //! Get underlying queue object
-  //! TODO(esindril): This should be removed
-  //----------------------------------------------------------------------------
-  inline std::deque<XrdMqSharedHashEntry*>* GetQueue()
-  {
-    return &mQueue;
-  }
-
   //----------------------------------------------------------------------------
   //! Delete entry from queue
   //!
-  //! @param entry hash entry pointer
+  //! @param key entry key value
   //----------------------------------------------------------------------------
-  bool Delete(XrdMqSharedHashEntry* entry);
+  bool Delete(const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Push back entry into the queue
@@ -531,17 +502,18 @@ public:
   //!
   //! @return true if entry added successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool PushBack(const char* key, const char* value);
+  bool PushBack(const std::string& key, const std::string &value);
 
   //----------------------------------------------------------------------------
-  //! Pop first entry from the queue
+  //! Pop entry value from the queue
   //!
-  //! @return shared entry object
+  //! @return entry value or emtpy string if queue is empty
   //----------------------------------------------------------------------------
-  //XrdMqSharedHashEntry PopFront();
+  std::string PopFront();
 
 private:
-  std::deque<XrdMqSharedHashEntry*> mQueue; ///< Underlying queue
+  XrdSysMutex mQMutex; ///< Mutex protecting the mQueue object
+  std::deque<std::string> mQueue; ///< Underlying queue
   unsigned long long mLastObjId; ///< Id of the last object added to the queue
 };
 
@@ -556,25 +528,35 @@ class XrdMqSharedObjectManager
   friend class XrdMqSharedObjectChangeNotifier;
 
 private:
-  pthread_t dumper_tid;       // thread ID of the dumper thread
-
-  std::map<std::string, XrdMqSharedHash*> hashsubjects;
-  std::map<std::string, XrdMqSharedQueue> queuesubjects;
-
-  std::string DumperFile;
-  //! Queue which is used to setup the reply queue of hashes which have been broadcasted
+  pthread_t mDumperTid; ///< Dumper thread tid
+  ///! Map of subjects to shared hash objects
+  std::map<std::string, XrdMqSharedHash*> mHashSubjects;
+  ///! Map of subjects to shared queue objects
+  std::map<std::string, XrdMqSharedQueue> mQueueSubjects;
+  std::string mDumperFile; ///< File where dumps are written
+  //! Queue used to setup the reply queue of hashes which have been broadcasted
   std::string AutoReplyQueue;
-  //! If this is true, the reply queue is derived from the subject e.g.
+  //! True if the reply queue is derived from the subject e.g. the subject
+  // "/eos/<host>/fst/<path>" derives as "/eos/<host>/fst"
   bool AutoReplyQueueDerive;
-  // the subject "/eos/<host>/fst/<path>" derives as "/eos/<host>/fst"
 
 public:
   static bool sDebug; ///< Set debug mode
   static bool sBroadcast; ///< Set broadcasting mode
 
-  // If this is true, creation/deletionsubjects are filled and SubjectsSem
-  // get's posted for every new creation/deletion
-  bool EnableQueue;
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMqSharedObjectManager();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~XrdMqSharedObjectManager();
+
+  // If true, creation/deletion subjects are filled and SubjectsSem gets posted
+  // for every new creation/deletion.
+  bool mEnableQueue;
 
   typedef enum {
     kMqSubjectNothing = -1,
@@ -601,151 +583,204 @@ public:
     }
   };
 
-  // Clean the bulk modification subject list
+  //----------------------------------------------------------------------------
+  //! Clean the bulk modification subject list
+  //----------------------------------------------------------------------------
   void PostModificationTempSubjects();
 
   XrdMqRWMutex HashMutex;
   XrdMqRWMutex ListMutex;
 
-  XrdMqSharedObjectManager();
-  ~XrdMqSharedObjectManager();
-
+  //----------------------------------------------------------------------------
+  //! Switch to globally en-/disable broadcasting of changes into  shared queues
+  //!
+  //! @param enable if true enable broadcast, otherwise disable - default enabled
+  //----------------------------------------------------------------------------
+  // TODO(esindril): This method should be static
   void EnableBroadCast(bool enable)
   {
-    // Switch to globally en-/disable broadcasting of changes into
-    // shared queues - default is enabled
     sBroadcast = enable;
   }
-  bool ShouldBroadCast()
+
+  //----------------------------------------------------------------------------
+  //! Indicate if we are broadcasting
+  //----------------------------------------------------------------------------
+  // TODO(esindril): This method should be static
+  inline bool ShouldBroadCast()
   {
-    return sBroadcast;  // indicate if we are broadcasting
+    return sBroadcast;
   }
 
-  void SetAutoReplyQueue(const char* queue);
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  void SetAutoReplyQueue(const char* queue) {
+    AutoReplyQueue = queue;
+  }
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   void SetAutoReplyQueueDerive(bool val)
   {
     AutoReplyQueueDerive = val;
   }
 
-  bool CreateSharedObject(const char* subject, const char* broadcastqueue,
-			  const char* type = "hash", XrdMqSharedObjectManager* som = 0)
-  {
-    std::string stype = type;
+  //----------------------------------------------------------------------------
+  //! Create requested type of shared object
+  //!
+  //! @param subject shared object subject
+  //! @param bcast_queue broadcast queue name
+  //! @param type type of shared object hash/queue
+  //! @param som pointer shared object manager
+  //!
+  //! @return true if create successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CreateSharedObject(const char* subject, const char* bcast_queue,
+			  const char* type = "hash",
+			  XrdMqSharedObjectManager* som = 0);
 
-    if (stype == "hash") {
-      return CreateSharedHash(subject, broadcastqueue, som ? som : this);
-    }
-
-    if (stype == "queue") {
-      return CreateSharedQueue(subject, broadcastqueue, som ? som : this);
-    }
-
-    return false;
-  }
-
-  bool DeleteSharedObject(const char* subject, const char* type, bool broadcast)
-  {
-    std::string stype = type;
-
-    if (stype == "hash") {
-      return DeleteSharedHash(subject, broadcast);
-    }
-
-    if (stype == "queue") {
-      return DeleteSharedQueue(subject, broadcast);
-    }
-
-    return false;
-  }
-
-  bool CreateSharedHash(const char* subject, const char* broadcastqueue,
+  //----------------------------------------------------------------------------
+  //! Create shared hash object. Parameters are the same as for the
+  //! CreateSharedObject method.
+  //----------------------------------------------------------------------------
+  bool CreateSharedHash(const char* subject, const char* bcast_queue,
 			XrdMqSharedObjectManager* som = 0);
-  bool CreateSharedQueue(const char* subject, const char* broadcastqueue,
+
+  //----------------------------------------------------------------------------
+  //! Create shared queue object. Parameters are the same as for the
+  //! CreateSharedObject method.
+  //----------------------------------------------------------------------------
+  bool CreateSharedQueue(const char* subject, const char* bcast_queue,
 			 XrdMqSharedObjectManager* som = 0);
 
+  //----------------------------------------------------------------------------
+  //! Delete shared object type
+  //!
+  //! @param subject shared object subject
+  //! @param type shared object type
+  //! @param broadcast if true broadcast deletion
+  //!
+  //! @return true if deletion successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool DeleteSharedObject(const char* subject, const char* type, bool broadcast);
+
+  //----------------------------------------------------------------------------
+  //! Delete shared hash object
+  //----------------------------------------------------------------------------
   bool DeleteSharedHash(const char* subject, bool broadcast = true);
+
+  //----------------------------------------------------------------------------
+  //! Delete shared hash queue
+  //----------------------------------------------------------------------------
   bool DeleteSharedQueue(const char* subject , bool broadcast = true);
 
-  XrdMqSharedHash* GetObject(const char* subject, const char* type)
-  {
-    std::string stype = type;
+  //----------------------------------------------------------------------------
+  //! Get pointer to shared object type
+  //!
+  //! @param subject shared object subject
+  //! @param type shared object type
+  //!
+  //! @return pointer to shared object if found, otherwise null
+  //----------------------------------------------------------------------------
+  XrdMqSharedHash* GetObject(const char* subject, const char* type);
 
-    if (stype == "hash") {
-      return GetHash(subject);
-    }
+  //----------------------------------------------------------------------------
+  //! Get shared hash object corresponding to the subject
+  //!
+  //! @param subject reuqested subject
+  //!
+  //! @return shared hash object or NULL
+  //----------------------------------------------------------------------------
+  XrdMqSharedHash* GetHash(const char* subject);
 
-    if (stype == "queue") {
-      return GetQueue(subject);
-    }
+  //----------------------------------------------------------------------------
+  //! Get shared queue object corresponding to the subject
+  //!
+  //! @param subject reuqested subject
+  //!
+  //! @return shared queue object or NULL
+  //----------------------------------------------------------------------------
+  XrdMqSharedQueue* GetQueue(const char* subject);
 
-    return 0;
-  }
-
-  // Don't forget to use the RWMutex for read or write locks
-  XrdMqSharedHash* GetHash(const char* subject)
-  {
-    std::string ssubject = subject;
-
-    if (hashsubjects.count(ssubject)) {
-      return hashsubjects[ssubject];
-    } else {
-      return 0;
-    }
-  }
-
-  // Don't forget to use the RWMutex for read or write locks
-  XrdMqSharedQueue* GetQueue(const char* subject)
-  {
-    std::string ssubject = subject;
-
-    if (queuesubjects.count(ssubject)) {
-      return &queuesubjects[ssubject];
-    } else {
-      return 0;
-    }
-  }
-
+  //----------------------------------------------------------------------------
+  //! Dump contents of all shared objects to the output string
+  //!
+  //! @param out output string
+  //----------------------------------------------------------------------------
   void DumpSharedObjects(XrdOucString& out);
 
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   bool ParseEnvMessage(XrdMqMessage* message, XrdOucString& error);
 
+  //----------------------------------------------------------------------------
+  //! Set debug level
+  //!
+  //! @param dbg if true enable debug, otherwise disable
+  //----------------------------------------------------------------------------
   void SetDebug(bool dbg = false)
   {
     sDebug = dbg;
   }
 
-  // Starts a thread which continously dumps all the hashes
+  //----------------------------------------------------------------------------
+  //! Starts a thread which continously dumps all the hashes
+  //----------------------------------------------------------------------------
   void StartDumper(const char* file);
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   static void* StartHashDumper(void* pp);
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   void FileDumper();
 
-  // Calls clear on each managed hash and queue
+  //----------------------------------------------------------------------------
+  //! Clear all managed hashes and queues
+  //----------------------------------------------------------------------------
   void Clear();
 
-  // Multiplexed transactions doing a compound transaction for transactions
-  // on several hashes
+  //----------------------------------------------------------------------------
+  //! Multiplexed transactions doing a compound transaction for transactions
+  //! on several hashes
+  //----------------------------------------------------------------------------
   bool OpenMuxTransaction(const char* type = "hash",
 			  const char* broadcastqueue = 0);
 
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   bool CloseMuxTransaction();
 
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   void MakeMuxUpdateEnvHeader(XrdOucString& out);
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   void AddMuxTransactionEnvString(XrdOucString& out);
 
 protected:
-  XrdSysMutex MuxTransactionMutex;  //! blocks mux transactions
-  XrdSysMutex MuxTransactionsMutex; //! protects the mux transaction map
-  std::string MuxTransactionType;
+  XrdSysMutex MuxTransactionMutex;  ///< blocks mux transactions
+  XrdSysMutex MuxTransactionsMutex; ///< protects the mux transaction map
+  std::string MuxTransactionType; ///<
   std::string MuxTransactionBroadCastQueue;
   bool IsMuxTransaction;
   std::map<std::string, std::set<std::string> > MuxTransactions;
   std::deque<Notification> NotificationSubjects;
-  std::deque<std::string>
-  ModificationTempSubjects;// these are posted as <queue>:<key>
+  //! These are posted as <queue>:<key>
+  std::deque<std::string> ModificationTempSubjects;
   //! Semaphore to wait for new creations/deletions/modifications
   XrdSysSemWait SubjectsSem;
-  //! Mutex to safeguard the creations/deletions/modifications & watch subjects
-  XrdSysMutex SubjectsMutex;
+  //! Mutex to protect the creations/deletions/modifications & watch subjects
+  XrdSysMutex mSubjectsMutex;
 };
 
 //------------------------------------------------------------------------------
@@ -757,24 +792,31 @@ public:
   struct Subscriber {
     std::string Name;
     // some of the members are array of size 5, one for each type of notification
-    // kMqSubjectNothing=-1,kMqSubjectCreation=0, kMqSubjectDeletion=1,
-    // kMqSubjectModification=2, kMqSubjectKeyDeletion=3
-    // the value 4 is a variant of kMqSubjectModification that could be called
-    // kMqSubjectModificationStrict in which the value is actually checked for a change
-    // the last value being recorded in LastValues
-    std::set<std::string>   WatchKeys[5];
-    std::set<std::string>   WatchKeysRegex[5];
-    std::set<std::string>   WatchSubjects[5];
-    std::set<std::string>   WatchSubjectsRegex[5];
+    // kMqSubjectNothing=-1,
+    // kMqSubjectCreation=0,
+    // kMqSubjectDeletion=1,
+    // kMqSubjectModification=2,
+    // kMqSubjectKeyDeletion=3
+    // The value 4 is a variant of kMqSubjectModification that could be called
+    // kMqSubjectModificationStrict in which the value is actually checked
+    // for a change the last value being recorded in LastValues
+    std::set<std::string>  WatchKeys[5];
+    std::set<std::string>  WatchKeysRegex[5];
+    std::set<std::string>  WatchSubjects[5];
+    std::set<std::string>  WatchSubjectsRegex[5];
     std::vector< std::pair<std::set<std::string>, std::set<std::string> > >
     WatchSubjectsXKeys[5];
-    XrdSysMutex             WatchMutex; //< protects access to all Watch* c
+    XrdSysMutex WatchMutex; //< protects access to all Watch* c
 
     std::deque<XrdMqSharedObjectManager::Notification> NotificationSubjects;
-    XrdSysSemWait           SubjectsSem;
-    XrdSysMutex             SubjectsMutex;
-    bool                    Notify;
-    Subscriber(const std::string& name = "") : Name(name), Notify(false) {}
+    XrdSysSemWait SubjectsSem;
+    XrdSysMutex SubjectsMutex;
+    bool Notify;
+
+    Subscriber(const std::string& name = ""):
+      Name(name), Notify(false)
+    {}
+
     bool empty()
     {
       for (int k = 0; k < 4; k++) {
@@ -792,6 +834,7 @@ public:
       return true;
     }
   };
+
   typedef enum {
     kMqSubjectNothing = XrdMqSharedObjectManager::kMqSubjectNothing,
     kMqSubjectCreation = XrdMqSharedObjectManager::kMqSubjectCreation,
@@ -802,7 +845,7 @@ public:
   } notification_t;
 
   inline Subscriber* GetSubscriberFromCatalog(const std::string& name,
-      bool createIfNeeded = true)
+					      bool createIfNeeded = true)
   {
     Subscriber* ret = NULL;
 
@@ -837,53 +880,81 @@ public:
     SOM = som;
   }
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   XrdMqSharedObjectChangeNotifier() {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~XrdMqSharedObjectChangeNotifier() {}
 
   bool SubscribesToSubject(const std::string& susbcriber,
 			   const std::string& subject,
 			   XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool SubscribesToKey(const std::string& susbcriber, const std::string& key,
 		       XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool SubscribesToSubjectRegex(const std::string& susbcriber,
 				const std::string& subject,
 				XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool SubscribesToKeyRegex(const std::string& susbcriber, const std::string& key,
 			    XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool SubscribesToSubjectAndKey(const std::string& susbcriber,
-				 const std::set<std::string>& subjects, const std::set<std::string>& keys,
+				 const std::set<std::string>& subjects,
+				 const std::set<std::string>& keys,
 				 XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool SubscribesToSubjectAndKey(const std::string& susbcriber,
 				 const std::string& subject, const std::string& key,
 				 XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool SubscribesToSubjectAndKey(const std::string& susbcriber,
-				 const std::string& subject, const std::set<std::string>& keys,
+				 const std::string& subject,
+				 const std::set<std::string>& keys,
 				 XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool SubscribesToSubjectAndKey(const std::string& susbcriber,
 				 const std::set<std::string>& subjects, const std::string& key,
 				 XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool UnsubscribesToSubject(const std::string& susbcriber,
 			     const std::string& subject,
 			     XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool UnsubscribesToKey(const std::string& susbcriber, const std::string& key,
 			 XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool UnsubscribesToSubjectRegex(const std::string& susbcriber,
 				  const std::string& subject,
 				  XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool UnsubscribesToKeyRegex(const std::string& susbcriber,
-			      const std::string& key, XrdMqSharedObjectChangeNotifier::notification_t type);
+			      const std::string& key,
+			      XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool UnsubscribesToSubjectAndKey(const std::string& susbcriber,
 				   std::set<std::string> subjects, std::set<std::string> keys,
 				   XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool UnsubscribesToSubjectAndKey(const std::string& susbcriber,
 				   const std::string& subject, const std::string& key,
 				   XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool UnsubscribesToSubjectAndKey(const std::string& susbcriber,
-				   const std::string& subject, const std::set<std::string>& keys,
+				   const std::string& subject,
+				   const std::set<std::string>& keys,
 				   XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool UnsubscribesToSubjectAndKey(const std::string& susbcriber,
-				   const std::set<std::string>& subjects, const std::string& key,
+				   const std::set<std::string>& subjects,
+				   const std::string& key,
 				   XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool UnsubscribesToEverything(const std::string& susbcriber);
   bool StartNotifyCurrentThread();
   bool StopNotifyCurrentThread();
@@ -901,20 +972,16 @@ private:
       mRegex = NULL;
     }
   };
-  // some of the members are array of size 5, one for each type of notification
-  // kMqSubjectNothing=-1,kMqSubjectCreation=0, kMqSubjectDeletion=1,
-  // kMqSubjectModification=2, kMqSubjectKeyDeletion=3
-  // the value 4 is a variant of kMqSubjectModification that could be called
-  // kMqSubjectModificationStrict in which the value is actually checked for a change
-  // the last value being recorded in LastValues
+
+  // TODO(esindril): This variable is also defined in the public part
   XrdSysMutex WatchMutex;
   std::map<std::string, WatchItemInfo > WatchKeys2Subscribers[5];
   std::map<std::string, WatchItemInfo > WatchSubjects2Subscribers[5];
   std::vector< std::pair< std::pair<std::set<std::string>, std::set<std::string> >
   , std::set<Subscriber*> > >
   WatchSubjectsXKeys2Subscribers[5];
+  //!  listof((Subjects,Keys),Subscribers)
   std::map<std::string, std::string> LastValues;
-  //<  listof((Subjects,Keys),Subscribers)
 
   pthread_t tid; //< Thread ID of the dispatching change thread
   void SomListener();
@@ -925,25 +992,34 @@ private:
 
   bool StartNotifyKey(Subscriber* subscriber, const std::string& key,
 		      XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool StopNotifyKey(Subscriber* subscriber, const std::string& key,
 		     XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool StartNotifySubject(Subscriber* subscriber, const std::string& subject ,
 			  XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool StopNotifySubject(Subscriber* subscriber, const std::string& subject ,
 			 XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool StartNotifyKeyRegex(Subscriber* subscriber, const std::string& key ,
 			   XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool StopNotifyKeyRegex(Subscriber* subscriber, const std::string& key ,
 			  XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool StartNotifySubjectRegex(Subscriber* subscriber,
 			       const std::string& subject ,
 			       XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool StopNotifySubjectRegex(Subscriber* subscriber, const std::string& subject ,
 			      XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool StartNotifySubjectsAndKeys(Subscriber* subscriber,
 				  const std::set<std::string>& subjects,
 				  const std::set<std::string>& keys ,
 				  XrdMqSharedObjectChangeNotifier::notification_t type);
+
   bool StopNotifySubjectsAndKeys(Subscriber* subscriber,
 				 const std::set<std::string>& subjects,
 				 const std::set<std::string>& keys ,
@@ -967,21 +1043,15 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
   }
 
   std::string skey = key;
-  bool callback = false;
 
   if (do_lock) {
     mStoreMutex.LockWrite();
   }
 
   if (mStore.count(skey) == 0) {
-    callback = true;
     mStore.emplace(skey, XrdMqSharedHashEntry(key, svalue.c_str()));
   } else {
-    mStore[key] = XrdMqSharedHashEntry(key, svalue.c_str());
-  }
-
-  if (callback) {
-    CallBackInsert(&mStore[skey], skey.c_str());
+    mStore[skey] = XrdMqSharedHashEntry(key, svalue.c_str());
   }
 
   if (do_lock) {
@@ -989,9 +1059,9 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
   }
 
   if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
-    if (SOM->IsMuxTransaction) {
-      XrdSysMutexHelper mLock(SOM->MuxTransactionsMutex);
-      SOM->MuxTransactions[mSubject].insert(skey);
+    if (mSOM->IsMuxTransaction) {
+      XrdSysMutexHelper mLock(mSOM->MuxTransactionsMutex);
+      mSOM->MuxTransactions[mSubject].insert(skey);
     } else {
       // Emulate a transaction for a single set operation
       if (!mIsTransaction) {
@@ -1008,9 +1078,9 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
   }
 
   // Check if we have to post for this subject
-  if (SOM) {
+  if (mSOM) {
     if (do_lock) {
-      SOM->SubjectsMutex.Lock();
+      mSOM->mSubjectsMutex.Lock();
     }
 
     std::string fkey = mSubject.c_str();
@@ -1023,16 +1093,16 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
     }
 
     if (tempmodsubjects) {
-      SOM->ModificationTempSubjects.push_back(fkey);
+      mSOM->ModificationTempSubjects.push_back(fkey);
     } else {
       XrdMqSharedObjectManager::Notification
-      event(fkey, XrdMqSharedObjectManager::kMqSubjectModification);
-      SOM->NotificationSubjects.push_back(event);
-      SOM->SubjectsSem.Post();
+	event(fkey, XrdMqSharedObjectManager::kMqSubjectModification);
+      mSOM->NotificationSubjects.push_back(event);
+      mSOM->SubjectsSem.Post();
     }
 
     if (do_lock) {
-      SOM->SubjectsMutex.UnLock();
+      mSOM->mSubjectsMutex.UnLock();
     }
   }
 

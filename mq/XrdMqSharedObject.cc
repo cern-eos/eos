@@ -155,7 +155,7 @@ XrdMqSharedHashEntry::Dump(XrdOucString& out)
 //------------------------------------------------------------------------------
 XrdMqSharedHash::XrdMqSharedHash(const char* subject, const char* bcast_queue,
 				 XrdMqSharedObjectManager* som):
-  mType("hash"), SOM(som),
+  mType("hash"), mSOM(som),
   mBroadcastQueue((bcast_queue ? bcast_queue : "")),
   mSubject((subject ? subject : "")),
   mIsTransaction(false)
@@ -200,7 +200,7 @@ XrdMqSharedHash::GetAgeInSeconds(const char* key)
 // Get entry value for key
 //------------------------------------------------------------------------------
 std::string
-XrdMqSharedHash::Get(const char* key)
+XrdMqSharedHash::Get(const std::string& key)
 {
   AtomicInc(sGetCounter);
   std::string value = "";
@@ -326,7 +326,7 @@ XrdMqSharedHash::CloseTransaction()
 
     if (txmessage.length() > (2 * 1000 * 1000)) {
       // Set the message size limit to 2M, if the message is bigger then just
-      // transaction item by item.
+      // send transaction item by item.
       for (auto it = mTransactions.begin(); it != mTransactions.end(); it++) {
 	txmessage = "";
 	MakeUpdateEnvHeader(txmessage);
@@ -588,18 +588,16 @@ XrdMqSharedHash::Dump(XrdOucString& out)
 // Delete key entry
 //-------------------------------------------------------------------------------
 bool
-XrdMqSharedHash::Delete(const char* key, bool broadcast)
+XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
 {
   bool deleted = false;
-  std::string skey = key;
   XrdMqRWMutexWriteLock wr_lock(mStoreMutex);
 
   if (mStore.count(key)) {
-    CallBackDelete(&mStore[key]);
     mStore.erase(key);
     deleted = true;
 
-    if (broadcast && XrdMqSharedObjectManager::sBroadcast) {
+    if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
       // Emulate transaction for single shot deletions
       if (!mIsTransaction) {
 	mTransactMutex.Lock();
@@ -616,22 +614,22 @@ XrdMqSharedHash::Delete(const char* key, bool broadcast)
     }
 
     // Check if we have to post for this subject
-    if (SOM) {
-      SOM->SubjectsMutex.Lock();
+    if (mSOM) {
       std::string fkey = mSubject.c_str();
       fkey += ";";
-      fkey += skey;
+      fkey += key;
 
       if (XrdMqSharedObjectManager::sDebug) {
 	fprintf(stderr, "XrdMqSharedObjectManager::Delete=>[%s:%s] notified\n",
-		mSubject.c_str(), skey.c_str());
+		mSubject.c_str(), key.c_str());
       }
 
       XrdMqSharedObjectManager::Notification event(fkey,
 	  XrdMqSharedObjectManager::kMqSubjectKeyDeletion);
-      SOM->NotificationSubjects.push_back(event);
-      SOM->SubjectsSem.Post();
-      SOM->SubjectsMutex.UnLock();
+      mSOM->mSubjectsMutex.Lock();
+      mSOM->NotificationSubjects.push_back(event);
+      mSOM->SubjectsSem.Post();
+      mSOM->mSubjectsMutex.UnLock();
     }
   }
 
@@ -644,11 +642,9 @@ XrdMqSharedHash::Delete(const char* key, bool broadcast)
 void
 XrdMqSharedHash::Clear(bool broadcast)
 {
-  XrdMqRWMutexWriteLock lock(mStoreMutex);
+  XrdMqRWMutexWriteLock wr_lock(mStoreMutex);
 
   for (auto it = mStore.begin(); it != mStore.end(); it++) {
-    CallBackDelete(&it->second);
-
     if (mIsTransaction) {
       if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
 	mDeletions.insert(it->first);
@@ -926,7 +922,7 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
 
 
 //------------------------------------------------------------------------------
-// Class XrdMqSharedQueue
+//                 * * * Class XrdMqSharedQueue  * * *
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -934,58 +930,33 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
 //------------------------------------------------------------------------------
 XrdMqSharedQueue::XrdMqSharedQueue(const char* subject, const char* bcast_queue,
 				   XrdMqSharedObjectManager* som):
-  XrdMqSharedHash(subject, bcast_queue)
+  XrdMqSharedHash(subject, bcast_queue, som)
 {
   mType = "queue";
   mLastObjId = 0;
-  SOM = som;
-}
-
-//------------------------------------------------------------------------------
-// Callback for insert operation
-//------------------------------------------------------------------------------
-void
-XrdMqSharedQueue::CallBackInsert(XrdMqSharedHashEntry* entry, const char* key)
-{
-  entry->SetKey(key);
-  {
-    XrdSysMutexHelper lock(mQMutex);
-    mQueue.push_back(entry);
-  }
-  mLastObjId++;
-  //  fprintf(stderr,"XrdMqSharedObjectManager::CallBackInsert=> on %s "
-  //          "=> LOID=%llu\n", key, mLastObjId);
-}
-
-//------------------------------------------------------------------------------
-// Callback for delete operation
-//------------------------------------------------------------------------------
-void
-XrdMqSharedQueue::CallBackDelete(XrdMqSharedHashEntry* entry)
-{
-  XrdSysMutexHelper lock(mQMutex);
-
-  for (auto it = mQueue.begin(); it != mQueue.end(); it++) {
-    if (*it == entry) {
-      mQueue.erase(it);
-      break;
-    }
-  }
-
-  //fprintf(stderr,"XrdMqSharedObjectManager::CallBackDelete=> on %s \n",
-  //        entry->GetKey());
 }
 
 //------------------------------------------------------------------------------
 // Delete entry from queue
 //------------------------------------------------------------------------------
 bool
-XrdMqSharedQueue::Delete(XrdMqSharedHashEntry* entry)
+XrdMqSharedQueue::Delete(const std::string& key)
 {
-  if (entry) {
-    // Remove hash entry - which callbacks and removes it also from the queue
-    std::string key = entry->GetKey();
-    return XrdMqSharedHash::Delete(key.c_str());
+  if (!key.empty()) {
+    XrdSysMutexHelper lock(mQMutex);
+    bool found = false;
+
+    for (auto it = mQueue.begin(); it != mQueue.end(); it++) {
+      if (*it == key) {
+	mQueue.erase(it);
+	found = true;
+	break;
+      }
+    }
+
+    if (found) {
+      return XrdMqSharedHash::Delete(key);
+    }
   }
 
   return false;
@@ -995,49 +966,50 @@ XrdMqSharedQueue::Delete(XrdMqSharedHashEntry* entry)
 // Push back entry into the queue
 //------------------------------------------------------------------------------
 bool
-XrdMqSharedQueue::PushBack(const char* key, const char* value)
+XrdMqSharedQueue::PushBack(const std::string& key, const std::string& value)
 {
   std::string uuid;
 
-  if (key) {
-    uuid = key;
-  } else {
+  if (key.empty()){
     char lld[1024];
     snprintf(lld, 1023, "%llu", mLastObjId + 1);
     uuid = lld;
+  } else {
+    uuid = key;
   }
 
-  // TODO(esindril): Review this as access to the mStore object is unprotected
-  if (mStore.count(uuid)) {
-    return false;
-  } else {
+  XrdSysMutexHelper lock(mQMutex);
+  if (Get(key).empty()) {
+    mQueue.push_back(uuid);
+    mLastObjId++;
     Set(uuid.c_str(), value);
     return true;
   }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
-// Pop first entry from the queue
+// Get first entry value from the queue
 //------------------------------------------------------------------------------
-/*
-XrdMqSharedHashEntry*
+std::string
 XrdMqSharedQueue::PopFront()
 {
-  XrdMqRWMutexWriteLock wr_lock(mStoreMutex);
+  std::string value = "";
   XrdSysMutexHelper lock(mQMutex);
 
   if (!mQueue.empty()) {
-    XrdMqSharedHashEntry* entry = mQueue.pop_front();
-    (void) mStore.erase(entry->GetKey());
-    return entry;
-  } else {
-    return NULL;
+    std::string key = mQueue.front();
+    mQueue.pop_front();
+    value = Get(key);
+    (void) XrdMqSharedHash::Delete(key);
   }
+
+  return value;
 }
-*/
 
 //------------------------------------------------------------------------------
-// Class XrdMqSharedObjectChangeNotifier
+//            * * * Class XrdMqSharedObjectChangeNotifier  * * *
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -1923,9 +1895,9 @@ XrdMqSharedObjectChangeNotifier::StopNotifySubjectsAndKeys(
 //        eos_static_info("%s", buffer);
 //        delete[] buffer;
 //    }
-    if (it->first.first == subjects
-	&& std::includes(it->first.second.begin(), it->first.second.end(), keys.begin(),
-			 keys.end())) {
+    if ((it->first.first == subjects) &&
+	std::includes(it->first.second.begin(), it->first.second.end(), keys.begin(),
+		      keys.end())) {
       if (it->second.count(subscriber)) {
 	// if the subscriber is there
 	if (it->second.size() > 1) {
@@ -1951,12 +1923,13 @@ XrdMqSharedObjectChangeNotifier::StopNotifySubjectsAndKeys(
 	removedAll = true;
 	break;
       }
-    } else if (it->first.second == keys
-	       && std::includes(it->first.first.begin(), it->first.first.end(),
-				subjects.begin(), subjects.end())) {
+    } else if ((it->first.second == keys) &&
+	       std::includes(it->first.first.begin(), it->first.first.end(),
+			     subjects.begin(), subjects.end())) {
       if (it->second.count(subscriber)) {
 	// if the subscriber is there
-	//eos_static_debug("1 element size is %d vector size is %d",it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
+	// eos_static_debug("1 element size is %d vector size is %d",
+	// it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
 	if (it->second.size() > 1) {
 	  // there's some other subscriber, split before update
 	  it->second.erase(subscriber);
@@ -1966,14 +1939,16 @@ XrdMqSharedObjectChangeNotifier::StopNotifySubjectsAndKeys(
 	  it = WatchSubjectsXKeys2Subscribers[type].end() - 1;
 	}
 
-	//eos_static_debug("2 element size is %d vector size is %d",it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
+	// eos_static_debug("2 element size is %d vector size is %d",
+	// it->second.size(), WatchSubjectsXKeys2Subscribers[type].size());
 	if (it->second.size() == 1) {
 	  // if the subscriber is the only guy there
 	  for (auto its = subjects.begin(); its != subjects.end(); its++) {
 	    it->first.first.erase(*its);
 	  }
 
-	  //eos_static_debug("3 element size is %d vector size is %d",it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
+	  // eos_static_debug("3 element size is %d vector size is %d",
+	  // it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
 	  if (it->first.first.empty()) { // if this entry is now empty, remove it
 	    WatchSubjectsXKeys2Subscribers[type].erase(it);
 	  }
@@ -2062,10 +2037,9 @@ XrdMqSharedObjectChangeNotifier::StartNotifyCurrentThread()
     }
   }
 
-  for (int type = 0; type < 5; type++)
+  for (int type = 0; type < 5; ++type)
     for (auto it = tlSubscriber->WatchSubjectsXKeys[type].begin();
-	 it != tlSubscriber->WatchSubjectsXKeys[type].end();
-	 it++)
+	 it != tlSubscriber->WatchSubjectsXKeys[type].end(); ++it)
       StartNotifySubjectsAndKeys(tlSubscriber, it->first, it->second,
 				 static_cast<XrdMqSharedObjectChangeNotifier::notification_t>(type));
 
@@ -2159,7 +2133,7 @@ XrdMqSharedObjectChangeNotifier::SomListener()
     SOM->SubjectsSem.Wait();
     XrdSysThread::SetCancelOff();
     // we always take a lock to take something from the queue and then release it
-    SOM->SubjectsMutex.Lock();
+    SOM->mSubjectsMutex.Lock();
     // listens
     WatchMutex.Lock();
     std::set<Subscriber*> notifiedSubscribers;
@@ -2169,7 +2143,7 @@ XrdMqSharedObjectChangeNotifier::SomListener()
       XrdMqSharedObjectManager::Notification event;
       event = SOM->NotificationSubjects.front();
       SOM->NotificationSubjects.pop_front();
-      SOM->SubjectsMutex.UnLock();
+      SOM->mSubjectsMutex.UnLock();
       std::string newsubject = event.mSubject.c_str();
       //eos_static_debug("SOM Listener new notification %d on %s",
       // event.mType,event.mSubject.c_str());
@@ -2338,7 +2312,7 @@ XrdMqSharedObjectChangeNotifier::SomListener()
 	}
       } while (true);
 
-      SOM->SubjectsMutex.Lock();
+      SOM->mSubjectsMutex.Lock();
     }
 
     // wake up all subscriber threads
@@ -2348,7 +2322,7 @@ XrdMqSharedObjectChangeNotifier::SomListener()
     }
 
     WatchMutex.UnLock();
-    SOM->SubjectsMutex.UnLock();
+    SOM->mSubjectsMutex.UnLock();
     XrdSysThread::SetCancelOff();
   } while (true);
 }
@@ -2392,13 +2366,18 @@ XrdMqSharedObjectChangeNotifier::Stop()
   return true;
 }
 
+
 //------------------------------------------------------------------------------
-//
+//                * * * Class XrdMqSharedObjectManager  * * *
 //------------------------------------------------------------------------------
-XrdMqSharedObjectManager::XrdMqSharedObjectManager()
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+XrdMqSharedObjectManager::XrdMqSharedObjectManager():
+  mDumperTid(0), mDumperFile("")
 {
-  EnableQueue = false;
-  DumperFile = "";
+  mEnableQueue = false;
   AutoReplyQueue = "";
   AutoReplyQueueDerive = false;
   IsMuxTransaction = false;
@@ -2406,59 +2385,72 @@ XrdMqSharedObjectManager::XrdMqSharedObjectManager()
     XrdSysMutexHelper mLock(MuxTransactionsMutex);
     MuxTransactions.clear();
   }
-  dumper_tid = 0;
 }
 
 //------------------------------------------------------------------------------
-//
+// Destructor
 //------------------------------------------------------------------------------
 XrdMqSharedObjectManager::~XrdMqSharedObjectManager()
 {
-  if (dumper_tid) {
-    XrdSysThread::Cancel(dumper_tid);
-    XrdSysThread::Join(dumper_tid, 0);
+  if (mDumperTid) {
+    XrdSysThread::Cancel(mDumperTid);
+    XrdSysThread::Join(mDumperTid, 0);
   }
 
   std::map<std::string, XrdMqSharedHash*>::iterator hashit; // hashsubjects;
 
-  for (hashit = hashsubjects.begin(); hashit != hashsubjects.end(); hashit++) {
+  for (hashit = mHashSubjects.begin(); hashit != mHashSubjects.end(); hashit++) {
     delete hashit->second;
   }
 }
 
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-void
-XrdMqSharedObjectManager::SetAutoReplyQueue(const char* queue)
+//----------------------------------------------------------------------------
+// Create requested shared object type
+//----------------------------------------------------------------------------
+bool
+XrdMqSharedObjectManager::CreateSharedObject(const char* subject,
+					     const char* bcast_queue,
+					     const char* type,
+					     XrdMqSharedObjectManager* som)
 {
-  AutoReplyQueue = queue;
+  std::string stype = type;
+
+  if (stype == "hash") {
+    return CreateSharedHash(subject, bcast_queue, som ? som : this);
+  }
+
+  if (stype == "queue") {
+    return CreateSharedQueue(subject, bcast_queue, som ? som : this);
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
-//
+// Create shared hash object
 //------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::CreateSharedHash(const char* subject,
-    const char* broadcastqueue, XrdMqSharedObjectManager* som)
+					   const char* broadcastqueue,
+					   XrdMqSharedObjectManager* som)
 {
   std::string ss = subject;
   Notification event(ss, XrdMqSharedObjectManager::kMqSubjectCreation);
   HashMutex.LockWrite();
 
-  if (hashsubjects.count(ss) > 0) {
-    hashsubjects[ss]->SetBroadCastQueue(broadcastqueue);
+  if (mHashSubjects.count(ss) > 0) {
+    mHashSubjects[ss]->SetBroadCastQueue(broadcastqueue);
     HashMutex.UnLockWrite();
     return false;
   } else {
     XrdMqSharedHash* newhash = new XrdMqSharedHash(subject, broadcastqueue, som);
-    hashsubjects.insert(std::pair<std::string, XrdMqSharedHash*> (ss, newhash));
+    mHashSubjects.insert(std::pair<std::string, XrdMqSharedHash*> (ss, newhash));
     HashMutex.UnLockWrite();
 
-    if (EnableQueue) {
-      SubjectsMutex.Lock();
+    if (mEnableQueue) {
+      mSubjectsMutex.Lock();
       NotificationSubjects.push_back(event);
-      SubjectsMutex.UnLock();
+      mSubjectsMutex.UnLock();
       SubjectsSem.Post();
     }
 
@@ -2467,28 +2459,29 @@ XrdMqSharedObjectManager::CreateSharedHash(const char* subject,
 }
 
 //------------------------------------------------------------------------------
-//
+// Create shared queue object
 //------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::CreateSharedQueue(const char* subject,
-    const char* broadcastqueue, XrdMqSharedObjectManager* som)
+					    const char* broadcastqueue,
+					    XrdMqSharedObjectManager* som)
 {
   std::string ss = subject;
   Notification event(ss, XrdMqSharedObjectManager::kMqSubjectCreation);
   ListMutex.LockWrite();
 
-  if (queuesubjects.count(ss) > 0) {
+  if (mQueueSubjects.count(ss) > 0) {
     ListMutex.UnLockWrite();
     return false;
   } else {
-    XrdMqSharedQueue newlist(subject, broadcastqueue, som);
-    queuesubjects.insert(std::pair<std::string, XrdMqSharedQueue > (ss, newlist));
+    XrdMqSharedQueue queue(subject, broadcastqueue, som);
+    mQueueSubjects.insert(std::pair<std::string, XrdMqSharedQueue > (ss, queue));
     ListMutex.UnLockWrite();
 
-    if (EnableQueue) {
-      SubjectsMutex.Lock();
+    if (mEnableQueue) {
+      mSubjectsMutex.Lock();
       NotificationSubjects.push_back(event);
-      SubjectsMutex.UnLock();
+      mSubjectsMutex.UnLock();
       SubjectsSem.Post();
     }
 
@@ -2497,7 +2490,27 @@ XrdMqSharedObjectManager::CreateSharedQueue(const char* subject,
 }
 
 //------------------------------------------------------------------------------
-//
+// Delete shared object type
+//------------------------------------------------------------------------------
+bool
+XrdMqSharedObjectManager::DeleteSharedObject(const char* subject,
+					     const char* type, bool broadcast)
+{
+  std::string stype = type;
+
+  if (stype == "hash") {
+    return DeleteSharedHash(subject, broadcast);
+  }
+
+  if (stype == "queue") {
+    return DeleteSharedQueue(subject, broadcast);
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Delete shared hash object
 //------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast)
@@ -2506,24 +2519,24 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast)
   Notification event(ss, XrdMqSharedObjectManager::kMqSubjectDeletion);
   HashMutex.LockWrite();
 
-  if ((hashsubjects.count(ss) > 0)) {
+  if ((mHashSubjects.count(ss) > 0)) {
     if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
       XrdOucString txmessage = "";
-      hashsubjects[ss]->MakeRemoveEnvHeader(txmessage);
+      mHashSubjects[ss]->MakeRemoveEnvHeader(txmessage);
       XrdMqMessage message("XrdMqSharedHashMessage");
       message.SetBody(txmessage.c_str());
       message.MarkAsMonitor();
       XrdMqMessaging::gMessageClient.SendMessage(message, 0, false, false, true);
     }
 
-    delete(hashsubjects[ss]);
-    hashsubjects.erase(ss);
+    delete(mHashSubjects[ss]);
+    mHashSubjects.erase(ss);
     HashMutex.UnLockWrite();
 
-    if (EnableQueue) {
-      SubjectsMutex.Lock();
+    if (mEnableQueue) {
+      mSubjectsMutex.Lock();
       NotificationSubjects.push_back(event);
-      SubjectsMutex.UnLock();
+      mSubjectsMutex.UnLock();
       SubjectsSem.Post();
     }
 
@@ -2535,7 +2548,7 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast)
 }
 
 //------------------------------------------------------------------------------
-//
+// Delete shared queue
 //------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject, bool broadcast)
@@ -2544,23 +2557,23 @@ XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject, bool broadcast)
   Notification event(ss, XrdMqSharedObjectManager::kMqSubjectDeletion);
   ListMutex.LockWrite();
 
-  if ((queuesubjects.count(ss) > 0)) {
+  if ((mQueueSubjects.count(ss) > 0)) {
     if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
       XrdOucString txmessage = "";
-      hashsubjects[ss]->MakeRemoveEnvHeader(txmessage);
+      mHashSubjects[ss]->MakeRemoveEnvHeader(txmessage);
       XrdMqMessage message("XrdMqSharedHashMessage");
       message.SetBody(txmessage.c_str());
       message.MarkAsMonitor();
       XrdMqMessaging::gMessageClient.SendMessage(message, 0, false, false, true);
     }
 
-    queuesubjects.erase(ss);
+    mQueueSubjects.erase(ss);
     ListMutex.UnLockWrite();
 
-    if (EnableQueue) {
-      SubjectsMutex.Lock();
+    if (mEnableQueue) {
+      mSubjectsMutex.Lock();
       NotificationSubjects.push_back(event);
-      SubjectsMutex.UnLock();
+      mSubjectsMutex.UnLock();
       SubjectsSem.Post();
     }
 
@@ -2572,35 +2585,81 @@ XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject, bool broadcast)
 }
 
 //------------------------------------------------------------------------------
-//
+// Get pointer to shared object type
+//------------------------------------------------------------------------------
+XrdMqSharedHash*
+XrdMqSharedObjectManager::GetObject(const char* subject, const char* type)
+{
+  std::string stype = type;
+
+  if (stype == "hash") {
+    return GetHash(subject);
+  }
+
+  if (stype == "queue") {
+    return GetQueue(subject);
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Get shared hash object
+//------------------------------------------------------------------------------
+XrdMqSharedHash*
+XrdMqSharedObjectManager::GetHash(const char* subject)
+{
+  std::string ssubject = subject;
+
+  if (mHashSubjects.count(ssubject)) {
+    return mHashSubjects[ssubject];
+  } else {
+    return 0;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get shared queue object
+//------------------------------------------------------------------------------
+XrdMqSharedQueue*
+XrdMqSharedObjectManager::GetQueue(const char* subject)
+{
+  std::string ssubject = subject;
+
+  if (mQueueSubjects.count(ssubject)) {
+    return &mQueueSubjects[ssubject];
+  } else {
+    return 0;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Dump contents of all shared objects to the output string
 //------------------------------------------------------------------------------
 void
 XrdMqSharedObjectManager::DumpSharedObjects(XrdOucString& out)
 {
   out = "";
   XrdMqRWMutexReadLock lock(HashMutex);
-  std::map<std::string, XrdMqSharedHash*>::iterator it_hash;
-  std::map<std::string, XrdMqSharedQueue>::iterator it_queue;
 
-  for (it_hash = hashsubjects.begin(); it_hash != hashsubjects.end(); it_hash++) {
+  for (auto it = mHashSubjects.begin(); it != mHashSubjects.end(); ++it) {
     out += "===================================================\n";
-    out += it_hash->first.c_str();
+    out += it->first.c_str();
     out += " [ hash=>  ";
-    out += it_hash->second->GetBroadCastQueue();
+    out += it->second->GetBroadCastQueue();
     out += " ]\n";
     out += "---------------------------------------------------\n";
-    it_hash->second->Dump(out);
+    it->second->Dump(out);
   }
 
-  for (it_queue = queuesubjects.begin(); it_queue != queuesubjects.end();
-       it_queue++) {
+  for (auto it = mQueueSubjects.begin(); it != mQueueSubjects.end(); ++it) {
     out += "===================================================\n";
-    out += it_queue->first.c_str();
+    out += it->first.c_str();
     out += " [ queue=> ";
-    out += it_queue->second.GetBroadCastQueue();
+    out += it->second.GetBroadCastQueue();
     out += " ]\n";
     out += "---------------------------------------------------\n";
-    it_queue->second.Dump(out);
+    it->second.Dump(out);
   }
 }
 
@@ -2610,15 +2669,15 @@ XrdMqSharedObjectManager::DumpSharedObjects(XrdOucString& out)
 void
 XrdMqSharedObjectManager::StartDumper(const char* file)
 {
-  pthread_t dumper_tid;
   int rc = 0;
-  DumperFile = file;
+  mDumperFile = file;
 
-  if ((rc = XrdSysThread::Run(&dumper_tid,
-			      XrdMqSharedObjectManager::StartHashDumper, static_cast<void*>(this),
+  if ((rc = XrdSysThread::Run(&mDumperTid,
+			      XrdMqSharedObjectManager::StartHashDumper,
+			      static_cast<void*>(this),
 			      XRDSYSTHREAD_HOLD, "HashDumper"))) {
-    fprintf(stderr,
-	    "XrdMqSharedObjectManager::StartDumper=> failed to run dumper thread\n");
+    fprintf(stderr, "XrdMqSharedObjectManager::StartDumper=> failed to run "
+	    "dumper thread\n");
   }
 }
 
@@ -2644,7 +2703,7 @@ XrdMqSharedObjectManager::FileDumper()
     XrdSysThread::SetCancelOff();
     XrdOucString s;
     DumpSharedObjects(s);
-    std::string df = DumperFile;
+    std::string df = mDumperFile;
     df += ".tmp";
     FILE* f = fopen(df.c_str(), "w+");
 
@@ -2653,16 +2712,14 @@ XrdMqSharedObjectManager::FileDumper()
       fclose(f);
     }
 
-    if (chmod(DumperFile.c_str(), S_IRWXU | S_IRGRP | S_IROTH)) {
-      fprintf(stderr,
-	      "XrdMqSharedObjectManager::FileDumper=> unable to set 755 permissions on file %s\n",
-	      DumperFile.c_str());
+    if (chmod(mDumperFile.c_str(), S_IRWXU | S_IRGRP | S_IROTH)) {
+      fprintf(stderr, "XrdMqSharedObjectManager::FileDumper=> unable to set "
+	      "755 permissions on file %s\n", mDumperFile.c_str());
     }
 
-    if (rename(df.c_str(), DumperFile.c_str())) {
-      fprintf(stderr,
-	      "XrdMqSharedObjectManager::FileDumper=> unable to write dumper file %s\n",
-	      DumperFile.c_str());
+    if (rename(df.c_str(), mDumperFile.c_str())) {
+      fprintf(stderr, "XrdMqSharedObjectManager::FileDumper=> unable to write "
+	      "dumper file %s\n", mDumperFile.c_str());
     }
 
     XrdSysThread::SetCancelOn();
@@ -2688,7 +2745,7 @@ XrdMqSharedObjectManager::PostModificationTempSubjects()
 	    "XrdMqSharedObjectManager::PostModificationTempSubjects=> posting now\n");
   }
 
-  SubjectsMutex.Lock();
+  mSubjectsMutex.Lock();
 
   for (it = ModificationTempSubjects.begin();
        it != ModificationTempSubjects.end(); it++) {
@@ -2703,7 +2760,7 @@ XrdMqSharedObjectManager::PostModificationTempSubjects()
   }
 
   ModificationTempSubjects.clear();
-  SubjectsMutex.UnLock();
+  mSubjectsMutex.UnLock();
 }
 
 //------------------------------------------------------------------------------
@@ -2766,7 +2823,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
       {
 	std::map<std::string, XrdMqSharedHash*>::iterator it;
 
-	for (it = hashsubjects.begin(); it != hashsubjects.end(); it++) {
+	for (it = mHashSubjects.begin(); it != mHashSubjects.end(); it++) {
 	  XrdOucString hs = it->first.c_str();
 
 	  if (hs.beginswith(wmatch)) {
@@ -2777,7 +2834,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
       {
 	std::map<std::string, XrdMqSharedQueue>::iterator it;
 
-	for (it = queuesubjects.begin(); it != queuesubjects.end(); it++) {
+	for (it = mQueueSubjects.begin(); it != mQueueSubjects.end(); it++) {
 	  XrdOucString hs = it->first.c_str();
 
 	  if (hs.beginswith(wmatch)) {
@@ -2793,7 +2850,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 	{
 	  std::map<std::string, XrdMqSharedHash*>::iterator it;
 
-	  for (it = hashsubjects.begin(); it != hashsubjects.end(); it++) {
+	  for (it = mHashSubjects.begin(); it != mHashSubjects.end(); it++) {
 	    XrdOucString hs = it->first.c_str();
 
 	    if (hs.endswith(wmatch)) {
@@ -2804,7 +2861,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 	{
 	  std::map<std::string, XrdMqSharedQueue>::iterator it;
 
-	  for (it = queuesubjects.begin(); it != queuesubjects.end(); it++) {
+	  for (it = mQueueSubjects.begin(); it != mQueueSubjects.end(); it++) {
 	    XrdOucString hs = it->first.c_str();
 
 	    if (hs.endswith(wmatch)) {
@@ -2827,7 +2884,8 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
       sh = GetObject(subjectlist[0].c_str(), type.c_str());
     }
 
-    if ((ftag == XRDMQSHAREDHASH_BCREQUEST) || (ftag == XRDMQSHAREDHASH_DELETE) ||
+    if ((ftag == XRDMQSHAREDHASH_BCREQUEST) ||
+	(ftag == XRDMQSHAREDHASH_DELETE) ||
 	(ftag == XRDMQSHAREDHASH_REMOVE)) {
       // if we don't know the subject, we don't create it with a BCREQUEST
       if ((ftag == XRDMQSHAREDHASH_BCREQUEST) && (reply == "")) {
@@ -2964,7 +3022,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 	  std::string sstr;
 	  {
 	    sh->mStoreMutex.LockWrite();
-	    SubjectsMutex.Lock();
+	    mSubjectsMutex.Lock();
 
 	    for (unsigned int i = parseindex; i < keystart.size(); i++) {
 	      key.assign(val, keystart[i] + 1, valuestart[i] - 1 - (keystart[i]));
@@ -3015,7 +3073,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 	    }
 
 	    sh->mStoreMutex.UnLockWrite();
-	    SubjectsMutex.UnLock();
+	    mSubjectsMutex.UnLock();
 	  }
 	  PostModificationTempSubjects();
 	}
@@ -3061,7 +3119,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 	  }
 	}
 
-	XrdSysMutexHelper(mTransactMutex);
+	XrdSysMutexHelper lock(sh->mTransactMutex);
 	std::string sstr;
 
 	for (unsigned int i = 0; i < keystart.size(); i++) {
@@ -3075,7 +3133,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 	  // message->Print();
 	  // fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Deleting"
 	  //         " [%s] %s\n", subject.c_str(),key.c_str());
-	  sh->Delete(key.c_str(), false);
+	  sh->Delete(key, false);
 	}
       }
     } // end of read mutex on HashMutex
@@ -3105,17 +3163,13 @@ void
 XrdMqSharedObjectManager::Clear()
 {
   XrdMqRWMutexReadLock lock(HashMutex);
-  std::map<std::string, XrdMqSharedHash*>::iterator it_hash;
 
-  for (it_hash = hashsubjects.begin(); it_hash != hashsubjects.end(); it_hash++) {
-    it_hash->second->Clear();
+  for (auto it  = mHashSubjects.begin(); it != mHashSubjects.end(); it++) {
+    it->second->Clear();
   }
 
-  std::map<std::string, XrdMqSharedQueue>::iterator it_queue;
-
-  for (it_queue = queuesubjects.begin(); it_queue != queuesubjects.end();
-       it_queue++) {
-    it_queue->second.Clear();
+  for (auto it = mQueueSubjects.begin(); it != mQueueSubjects.end(); it++) {
+    it->second.Clear();
   }
 }
 
@@ -3163,7 +3217,6 @@ XrdMqSharedObjectManager::MakeMuxUpdateEnvHeader(XrdOucString& out)
   }
 
   // remove trailing '%'
-  // remove trailing '%'
   if (subjects.length() > 0) {
     subjects.erase(subjects.length() - 1, 1);
   }
@@ -3185,27 +3238,26 @@ XrdMqSharedObjectManager::MakeMuxUpdateEnvHeader(XrdOucString& out)
 void
 XrdMqSharedObjectManager::AddMuxTransactionEnvString(XrdOucString& out)
 {
-  // encoding works as "mysh.pairs=|<key1>~<value1>%<changeid1>|<key2>~<value2>%<changeid2 ...."
+  // Encoding has the following format
+  // "mysh.pairs=|<key1>~<value1>%<changeid1>|<key2>~<value2>%<changeid2 ...."
   out += "&";
   out += XRDMQSHAREDHASH_PAIRS;
   out += "=";
-  std::map< std::string, std::set<std::string> >::const_iterator subjectit;
   size_t index = 0;
 
-  for (subjectit = MuxTransactions.begin(); subjectit != MuxTransactions.end();
-       subjectit++) {
+  for (auto it_subj = MuxTransactions.begin(); it_subj != MuxTransactions.end();
+       it_subj++) {
     XrdOucString sindex = "";
     sindex += (int) index;
     // loop over subjects
-    std::set<std::string>::const_iterator it;
-    XrdMqSharedHash* hash = GetObject(subjectit->first.c_str(),
+    XrdMqSharedHash* hash = GetObject(it_subj->first.c_str(),
 				      MuxTransactionType.c_str());
 
     if (hash) {
       XrdMqRWMutexReadLock lock(hash->mStoreMutex);
 
       // loop over variables
-      for (it = subjectit->second.begin(); it != subjectit->second.end(); it++) {
+      for (auto it = it_subj->second.begin(); it != it_subj->second.end(); ++it) {
 	if ((hash->mStore.count(it->c_str()))) {
 	  out += "|";
 	  // the subject is a prefix to the key as #<subject-index>#
@@ -3233,7 +3285,7 @@ XrdMqSharedObjectManager::AddMuxTransactionEnvString(XrdOucString& out)
 //-------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::OpenMuxTransaction(const char* type,
-    const char* broadcastqueue)
+					     const char* broadcastqueue)
 {
   MuxTransactionType = type;
 
