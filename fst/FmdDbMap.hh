@@ -254,13 +254,6 @@ public:
 
   // that is all we need for meta data handling
 
-
-  // ---------------------------------------------------------------------------
-  //! Hash map pointing from fsid to a map of file id to meta data
-  // ---------------------------------------------------------------------------
-  google::dense_hash_map<eos::common::FileSystem::fsid_t, google::dense_hash_map<unsigned long long, struct Fmd > >
-    FmdSqliteMap;
-
   // ---------------------------------------------------------------------------
   //! Hash map protecting each filesystem map in FmdSqliteMap
   // ---------------------------------------------------------------------------
@@ -285,8 +278,6 @@ public:
     lvdboption.CacheSizeMb = 0;
     lvdboption.BloomFilterNbits = 0;
 #endif
-    FmdSqliteMap.set_deleted_key(std::numeric_limits<eos::common::FileSystem::fsid_t>::max()-2);
-    FmdSqliteMap.set_empty_key(std::numeric_limits<eos::common::FileSystem::fsid_t>::max()-1);
     FmdSqliteMutexMap.set_deleted_key(std::numeric_limits<eos::common::FileSystem::fsid_t>::max()-2);
     FmdSqliteMutexMap.set_empty_key(std::numeric_limits<eos::common::FileSystem::fsid_t>::max()-1);
     FmdHelperMap.set_deleted_key(std::numeric_limits<eos::common::FileSystem::fsid_t>::max()-2);
