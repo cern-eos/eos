@@ -7,6 +7,18 @@
 Beryl Release Notes
 ===================
 
+``V0.3.221 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: don't hold (timeout) HTTP requests during compacting
+- FST: fix mutex race condition
+- FUSE: fix memory issues and remove unreachable code
+- FUSE: avoid SEGV on empty XRootD buffer responses
+- FUSE: restructure read-buffer handling and clean-up not used read-buffers in CacheCleanup function - avois significant memory leaking under parallel access
+
 ``V0.3.220 Aquamarine``
 =======================
 

@@ -74,7 +74,7 @@ filesystem::filesystem()
  fuse_shared = false;
  creator_cap_lifetime = 30;
  file_write_back_cache_size = 64 * 1024 * 1024;
- max_wb_in_memory_size=512*1024*1024;
+  max_wb_in_memory_size = 512 * 1024 * 1024;
  base_fd = 1;
  XFC = 0;
 }
@@ -99,55 +99,84 @@ filesystem::~filesystem()
 }
 
 void*
-filesystem::CacheCleanup(void *p)
+filesystem::CacheCleanup(void* p)
 {
   filesystem* me = (filesystem*)p;
-
   XrdSysTimer sleeper;
-  while (1)
-  {
+
+  while (1) {
     sleeper.Snooze(10);
+    size_t n_read_buffer=0;
+    uint64_t size_read_buffer=0;
+    // clean left-over thread buffers
+    {
+      XrdSysMutexHelper lock (me->IoBufferLock);
+      for (auto it = me->IoBufferMap.begin(); it != me->IoBufferMap.end();)
+      {
+	bool alive = thread_alive(it->first);
+	eos_static_debug("thread-id %lld buffer-size=%lld alive-%d", it->first, it->second.GetSize(), alive);
+
+	if (!alive)
+	{
+	  auto del_it = it;
+	  eos_static_notice("releasing read-buffer thread=%lld", it->first);
+	  ++it;
+	  me->IoBufferMap.erase(del_it);
+	}
+	else
+	{
+	  size_read_buffer += it->second.GetSize();
+	  n_read_buffer++;
+	  ++it;
+	}
+      }
+    }
+
     time_t now = time(NULL);
     XrdSysMutexHelper cLock(LayoutWrapper::gCacheAuthorityMutex);
+    uint64_t totalsize_before = 0;
+    uint64_t totalsize_after = 0;
+    uint64_t totalsize_clean = 0;
 
-    uint64_t totalsize_before=0;
-    uint64_t totalsize_after=0;
-    uint64_t totalsize_clean=0;
     // release according to owner authority time
-    for (auto it = LayoutWrapper::gCacheAuthority.begin(); it != LayoutWrapper::gCacheAuthority.end();)
-    {
+    for (auto it = LayoutWrapper::gCacheAuthority.begin();
+         it != LayoutWrapper::gCacheAuthority.end();) {
       totalsize_before += it->second.mSize;
-      if ((it->second.mLifeTime) && (it->second.mLifeTime < now))
-      {
+
+      if ((it->second.mLifeTime) && (it->second.mLifeTime < now)) {
 	auto d = it;
 	it++;
-	eos_static_notice("released cap owner-authority for file inode=%lu expire-by-time", d->first);
+        eos_static_notice("released cap owner-authority for file inode=%lu expire-by-time",
+                          d->first);
 	LayoutWrapper::gCacheAuthority.erase(d);
-      }
-      else
-      {
+      } else {
 	it++;
 	totalsize_after += it->second.mSize;
       }
     }
 
     // clean according to memory pressure and cache setting
-    totalsize_clean=totalsize_after;
-    if (totalsize_after > me->max_wb_in_memory_size)
-    {
-      for (auto it = LayoutWrapper::gCacheAuthority.begin(); it != LayoutWrapper::gCacheAuthority.end();)
-      {
+    totalsize_clean = totalsize_after;
+
+    if (totalsize_after > me->max_wb_in_memory_size) {
+      for (auto it = LayoutWrapper::gCacheAuthority.begin();
+           it != LayoutWrapper::gCacheAuthority.end();) {
 	totalsize_clean -= it->second.mSize;
 	auto d = it;
 	it++;
-	eos_static_notice("released cap owner-authority for file inode=%lu expire-by-memory-pressure", d->first);
+        eos_static_notice("released cap owner-authority for file inode=%lu expire-by-memory-pressure",
+                          d->first);
 	LayoutWrapper::gCacheAuthority.erase(d);
-	if (totalsize_clean < me->max_wb_in_memory_size)
+
+        if (totalsize_clean < me->max_wb_in_memory_size)
 	  break;
       }
     }
-    eos_static_notice("in-memory wb cache in-size=%.02f MB out-time-size=%.02f MB out-max-size=%.02f MB nominal-max-size=%.02f MB", totalsize_before/1000000., totalsize_after/1000000.0, totalsize_clean/1000000.0, me->max_wb_in_memory_size/1000000.0);
+    eos_static_notice("in-memory wb cache in-size=%.02f MB out-time-size=%.02f MB out-max-size=%.02f MB nominal-max-size=%.02f MB",
+                      totalsize_before / 1000000., totalsize_after / 1000000.0,
+                      totalsize_clean / 1000000.0, me->max_wb_in_memory_size / 1000000.0);
   }
+
   return 0;
 }
 
@@ -187,15 +216,6 @@ filesystem::log_settings()
    s += "disabled";
   } else {
    s += lazy_open_rw ? "true" : "false";
-  }
-
-  log("WARNING", s.c_str());
-  s = "async-open             := ";
-
-  if (lazy_open_disabled) {
-    s += "disabled";
-  } else {
-    s += async_open ? "true" : "false";
   }
 
   log("WARNING", s.c_str());
@@ -258,24 +278,30 @@ filesystem::log_settings()
   log("WARNING", s.c_str());
  s = "file-wb-cache-size     := ";
  XrdOucString fbcs;
- fbcs += (int) (file_write_back_cache_size / 1024 * 1024);
- s += fbcs.c_str ();
+  fbcs += (int)(file_write_back_cache_size / 1024 * 1024);
+  s += fbcs.c_str();
  s += " MB";
- log ("WARNING", s.c_str ());
-
+  log("WARNING", s.c_str());
  s = "file-wb-cache-max-size := ";
  XrdOucString mcs;
- mcs += (int) (max_wb_in_memory_size / 1024 * 1024);
- s += mcs.c_str ();
+  mcs += (int)(max_wb_in_memory_size / 1024 * 1024);
+  s += mcs.c_str();
  s += " MB";
- log ("WARNING", s.c_str ());
-
- eos_static_warning ("proc filesystem path   := %s", getenv ("EOS_FUSE_PROCPATH")?getenv ("EOS_FUSE_PROCPATH"):"/proc/");
- eos_static_warning ("krb5 authentication    := %s", use_user_krb5cc? "true" : "false");
- eos_static_warning ("krb5 unsafe inmem krb5 := %s", use_unsafe_krk5? "true" : "false");
- eos_static_warning ("x509 authentication    := %s", use_user_gsiproxy? "true" : "false");
- eos_static_warning ("fallback to nobody     := %s", fallback2nobody? "true" : "false");
-
+  log("WARNING", s.c_str());
+  eos_static_warning("proc filesystem path   := %s",
+                     getenv("EOS_FUSE_PROCPATH") ? getenv("EOS_FUSE_PROCPATH") : "/proc/");
+  eos_static_warning("krb5 authentication    := %s",
+                     use_user_krb5cc ? "true" : "false");
+  eos_static_warning("krb5 unsafe inmem krb5 := %s",
+                     use_unsafe_krk5 ? "true" : "false");
+  eos_static_warning("x509 authentication    := %s",
+                     use_user_gsiproxy ? "true" : "false");
+  eos_static_warning("fallback to nobody     := %s",
+                     fallback2nobody ? "true" : "false");
+  eos_static_warning("xrd null resp retry    := %d",
+                     xrootd_nullresponsebug_retrycount);
+  eos_static_warning("xrd null resp sleep    := %d",
+                     xrootd_nullresponsebug_retrysleep);
 }
 
 
@@ -514,6 +540,7 @@ filesystem::redirect_p2i(unsigned long long inode, unsigned long long new_inode)
    //   inode2path.erase (inode);
     //   inode2path.erase (inode);
     //   inode2path.erase (inode);
+    //   inode2path.erase (inode);
    inode2path[new_inode] = path;
  }
 }
@@ -669,6 +696,7 @@ filesystem::dir_cache_get_entry(fuse_req_t req,
     if (dir->IsFilled()) {
      struct fuse_entry_param e;
        // we eventually need to overwrite the cached information
+      // we eventually need to overwrite the cached information
       // we eventually need to overwrite the cached information
       if (dir->GetEntry(entry_inode, e)) {
         // we eventually need to overwrite the cached information
@@ -963,6 +991,7 @@ filesystem::remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
         iter1 = inodexrdlogin2fds.find(sstr.str());
          // if a file is repaired during an RW open, the inode can change and we find the fd in a different inode
          // search the map for the filedescriptor and remove it
+        // search the map for the filedescriptor and remove it
         if (iter1 != inodexrdlogin2fds.end()) {
           iter1->second.erase(fd);
         } else {
@@ -1007,6 +1036,7 @@ filesystem::remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
      // properly close the file
       // properly close the file
       // properly close the file
+      // properly close the file
       if (isRW) {
         fabst->DecNumRefRW();
         fabst->DecNumOpenRW();
@@ -1023,26 +1053,14 @@ filesystem::remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
  return retc;
 }
 
-
-
-
-char*
-filesystem::attach_rd_buff(pthread_t tid, size_t size)
-{
-  XrdSysMutexHelper lock(IoBufferLock);
-  IoBufferMap[tid].Resize(size);
-  return (char*) IoBufferMap[tid].GetBuffer();
-}
-
-
 //------------------------------------------------------------------------------
-// Release read buffer corresponding to the thread
-void
-filesystem::release_rd_buff(pthread_t tid)
+// Attach read buffer corresponding to the thread
+char*
+filesystem::attach_rd_buff (pthread_t tid, size_t size)
 {
-  XrdSysMutexHelper lock(IoBufferLock);
-  IoBufferMap.erase(tid);
- return;
+  XrdSysMutexHelper lock (IoBufferLock);
+  IoBufferMap[tid].Resize (size);
+  return (char*) IoBufferMap[tid].GetBuffer ();
 }
 
 
@@ -1449,20 +1467,16 @@ filesystem::listxattr(const char* path,
 //------------------------------------------------------------------------------
 // Return file attributes. If a field is meaningless or semi-meaningless
 // (e.g., st_ino) then it should be set to 0 or given a "reasonable" value.
+//------------------------------------------------------------------------------
 int
-filesystem::stat(const char* path,
-                  struct stat* buf,
-                  uid_t uid,
-                  gid_t gid,
-                  pid_t pid,
-                  unsigned long inode,
-                  bool onlysizemtime)
+filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
+                 pid_t pid, unsigned long inode, bool onlysizemtime)
 {
   eos_static_info("path=%s, uid=%i, gid=%i inode=%lu",
                   path, (int) uid, (int) gid, inode);
   eos::common::Timing stattiming("stat");
  off_t file_size = -1;
- struct timespec atim, mtim;
+  struct timespec atim, mtim;
  atim.tv_sec = atim.tv_nsec = mtim.tv_sec = mtim.tv_nsec = 0;
  errno = 0;
   COMMONTIMING("START", &stattiming);
@@ -1598,14 +1612,14 @@ filesystem::stat(const char* path,
   COMMONTIMING("GETPLUGIN", &stattiming);
 
   if (status.IsOK() && response) {
-   unsigned long long sval[10];
-   unsigned long long ival[6];
-   char tag[1024];
-   tag[0] = 0;
-   // Parse output
+     unsigned long long sval[10];
+     unsigned long long ival[6];
+     char tag[1024];
+     tag[0] = 0;
+     // Parse output
     int items = sscanf(response->GetBuffer(),
                        "%s %llu %llu %llu %llu %llu %llu %llu %llu "
-                       "%llu %llu %llu %llu %llu %llu %llu %llu",
+                         "%llu %llu %llu %llu %llu %llu %llu %llu",
                        tag, (unsigned long long*) &sval[0],
                        (unsigned long long*) &sval[1],
                        (unsigned long long*) &sval[2],
@@ -1621,51 +1635,51 @@ filesystem::stat(const char* path,
                        (unsigned long long*) &ival[2],
                        (unsigned long long*) &ival[3],
                        (unsigned long long*) &ival[4],
-                       (unsigned long long*) &ival[5]);
+                         (unsigned long long*) &ival[5]);
 
     if ((items != 17) || (strcmp(tag, "stat:"))) {
-     int retc = 0;
+       int retc = 0;
       items = sscanf(response->GetBuffer(), "%s retc=%i", tag, &retc);
 
       if ((!strcmp(tag, "stat:")) && (items == 2)) {
-       errno = retc;
+         errno = retc;
       } else {
-       errno = EFAULT;
+         errno = EFAULT;
       }
 
-      eos_static_info("path=%s errno=%i tag=%s", path, errno, tag);
-     delete response;
-     return errno;
+       eos_static_info("path=%s errno=%i tag=%s", path, errno, tag);
+       delete response;
+       return errno;
     } else {
-     buf->st_dev = (dev_t) sval[0];
-     buf->st_ino = (ino_t) sval[1];
-     buf->st_mode = (mode_t) sval[2];
-     buf->st_nlink = (nlink_t) sval[3];
-     buf->st_uid = (uid_t) sval[4];
-     buf->st_gid = (gid_t) sval[5];
-     buf->st_rdev = (dev_t) sval[6];
-     buf->st_size = (off_t) sval[7];
-     buf->st_blksize = (blksize_t) sval[8];
-     buf->st_blocks = (blkcnt_t) sval[9];
-     buf->st_atime = (time_t) ival[0];
-     buf->st_mtime = (time_t) ival[1];
-     buf->st_ctime = (time_t) ival[2];
-     buf->ATIMESPEC.tv_sec = (time_t) ival[0];
-     buf->MTIMESPEC.tv_sec = (time_t) ival[1];
-     buf->CTIMESPEC.tv_sec = (time_t) ival[2];
-     buf->ATIMESPEC.tv_nsec = (time_t) ival[3];
-     buf->MTIMESPEC.tv_nsec = (time_t) ival[4];
-     buf->CTIMESPEC.tv_nsec = (time_t) ival[5];
+       buf->st_dev = (dev_t) sval[0];
+       buf->st_ino = (ino_t) sval[1];
+       buf->st_mode = (mode_t) sval[2];
+       buf->st_nlink = (nlink_t) sval[3];
+       buf->st_uid = (uid_t) sval[4];
+       buf->st_gid = (gid_t) sval[5];
+       buf->st_rdev = (dev_t) sval[6];
+       buf->st_size = (off_t) sval[7];
+       buf->st_blksize = (blksize_t) sval[8];
+       buf->st_blocks = (blkcnt_t) sval[9];
+       buf->st_atime = (time_t) ival[0];
+       buf->st_mtime = (time_t) ival[1];
+       buf->st_ctime = (time_t) ival[2];
+       buf->ATIMESPEC.tv_sec = (time_t) ival[0];
+       buf->MTIMESPEC.tv_sec = (time_t) ival[1];
+       buf->CTIMESPEC.tv_sec = (time_t) ival[2];
+       buf->ATIMESPEC.tv_nsec = (time_t) ival[3];
+       buf->MTIMESPEC.tv_nsec = (time_t) ival[4];
+       buf->CTIMESPEC.tv_nsec = (time_t) ival[5];
 
       if (S_ISREG(buf->st_mode) && fuse_exec) {
-       buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
+        buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
       }
 
-     buf->st_mode &= (~S_ISVTX); // clear the vxt bit
-     buf->st_mode &= (~S_ISUID); // clear suid
-     buf->st_mode &= (~S_ISGID); // clear sgid
-     errno = 0;
-   }
+        buf->st_mode &= (~S_ISVTX); // clear the vxt bit
+       buf->st_mode &= (~S_ISUID); // clear suid
+       buf->st_mode &= (~S_ISGID); // clear sgid
+       errno = 0;
+     }
   } else {
     if (!response) {
       eos_static_err("no response received");
@@ -1673,7 +1687,7 @@ filesystem::stat(const char* path,
       eos_static_err("status is NOT ok : %s", status.ToString().c_str());
    }
 
-   errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
+      errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
  }
 
   if (file_size == (off_t) - 1) {
@@ -1774,49 +1788,70 @@ filesystem::statfs(const char* path, struct statvfs* stbuf,
   surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
-  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
-                                        response);
- errno = 0;
 
-  if (status.IsOK()) {
-   int retc;
-   char tag[1024];
+  for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount;
+       retrycount++) {
+    XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                          response);
+   errno = 0;
 
-    if (!response->GetBuffer()) {
+    if (status.IsOK() && response && response->GetBuffer()) {
+     int retc;
+     char tag[1024];
+
+      if (!response->GetBuffer()) {
+        statmutex.UnLock();
+       errno = EFAULT;
+       delete response;
+       return errno;
+     }
+     // Parse output
+      // Parse output
+      int items = sscanf(response->GetBuffer(),
+                         "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
+                         "f_max_bytes=%llu f_max_files=%llu",
+                         tag, &retc, &a1, &a2, &a3, &a4);
+
+      if ((items != 6) || (strcmp(tag, "statvfs:"))) {
+        statmutex.UnLock();
+       errno = EFAULT;
+       delete response;
+       return errno;
+     }
+
+     errno = retc;
+      laststat = time(NULL);
       statmutex.UnLock();
-     errno = EFAULT;
-     delete response;
-     return errno;
+     stbuf->f_bsize = 4096;
+     stbuf->f_frsize = 4096;
+     stbuf->f_blocks = a3 / 4096;
+     stbuf->f_bfree = a1 / 4096;
+     stbuf->f_bavail = a1 / 4096;
+     stbuf->f_files = a4;
+     stbuf->f_ffree = a2;
+     stbuf->f_namemax = 1024;
+     break;
+    } else {
+      if (!response || !response->GetBuffer()) {
+        if (retrycount + 1 < xrootd_nullresponsebug_retrycount) {
+          XrdSysTimer sleeper;
+
+          if (xrootd_nullresponsebug_retrysleep) {
+            sleeper.Wait(xrootd_nullresponsebug_retrysleep);
    }
 
-   // Parse output
-    int items = sscanf(response->GetBuffer(),
-                       "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
-                       "f_max_bytes=%llu f_max_files=%llu",
-                       tag, &retc, &a1, &a2, &a3, &a4);
+         continue;
+        } else {
+         eos_static_err("no response received after %d attempts", retrycount);
+     }
+      } else {
+        eos_static_err("status is NOT ok : %s", status.ToString().c_str());
+     }
 
-    if ((items != 6) || (strcmp(tag, "statvfs:"))) {
       statmutex.UnLock();
-     errno = EFAULT;
-     delete response;
-     return errno;
+     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+     break;
    }
-
-   errno = retc;
-    laststat = time(NULL);
-    statmutex.UnLock();
-   stbuf->f_bsize = 4096;
-   stbuf->f_frsize = 4096;
-   stbuf->f_blocks = a3 / 4096;
-   stbuf->f_bfree = a1 / 4096;
-   stbuf->f_bavail = a1 / 4096;
-   stbuf->f_files = a4;
-   stbuf->f_ffree = a2;
-   stbuf->f_namemax = 1024;
-  } else {
-    statmutex.UnLock();
-    eos_static_err("status is NOT ok : %s", status.ToString().c_str());
-   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
  }
 
   COMMONTIMING("END", &statfstiming);
@@ -2281,8 +2316,8 @@ filesystem::inodirlist(unsigned long long dirinode,
   char* value = 0;
   int doinodirlist = -1;
   std::string request = path;
-  
   size_t a_pos = request.find("mgm.path=/");
+  
   // we have to replace '&' in path names with '#AND#'
   while ((a_pos = request.find("&", a_pos + 1)) != std::string::npos) {
     request.erase(a_pos, 1);
@@ -2387,6 +2422,7 @@ filesystem::inodirlist(unsigned long long dirinode,
       }
       // go next field and set null character
       // go next field and set null character
+      // go next field and set null character
       ptr = strchr(ptr + 1, ' ');
 
       if (ptr == 0 || ptr >= endptr) {
@@ -2394,8 +2430,8 @@ filesystem::inodirlist(unsigned long long dirinode,
       }
 
       *ptr = 0;
-      
       char* inodeptr = ptr + 1;
+      
       // parse the inode
       while (inodeptr < endptr && *inodeptr == ' ') {
         inodeptr++;
@@ -2406,6 +2442,7 @@ filesystem::inodirlist(unsigned long long dirinode,
       if (ptr >= endptr) {
         break;
       }
+      // go next field and set null character
       // go next field and set null character
       // go next field and set null character
       ptr = strchr(ptr + 1, ' ');
@@ -2927,7 +2964,6 @@ filesystem::open(const char* path,
  bool isRO = (flags_sfs == SFS_O_RDONLY);
   eos::common::Timing opentiming("open");
   COMMONTIMING("START", &opentiming);
-
  spath += safePath(path).c_str();
  errno = 0;
  int t0;
@@ -3230,6 +3266,7 @@ filesystem::open(const char* path,
  // upgrade the WRONLY open to RW
 // upgrade the WRONLY open to RW
 // upgrade the WRONLY open to RW
+// upgrade the WRONLY open to RW
   if (flags_sfs & SFS_O_WRONLY) {
    flags_sfs &= ~SFS_O_WRONLY;
    flags_sfs |= SFS_O_RDWR;
@@ -3255,7 +3292,8 @@ filesystem::open(const char* path,
   LayoutWrapper* file = new LayoutWrapper(
     new eos::fst::PlainLayout(NULL, 0, NULL, NULL, spath.c_str()));
   retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str(),
-                    exists ? &buf : NULL, async_open, !lazy_open, creator_cap_lifetime, do_inline_repair);
+                    exists ? &buf : NULL, async_open, !lazy_open, creator_cap_lifetime,
+                   do_inline_repair);
 
   if (retc) {
     eos_static_err("open failed for %s : error code is %d.", spath.c_str(),
@@ -3364,6 +3402,7 @@ filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst,
       }
       // run the utimes command now after the close
       // run the utimes command now after the close
+      // run the utimes command now after the close
       eos_static_debug("CLOSEDEBUG closing file open-path=%s current-path=%s open with flag %d and utiming",
                        raw_file->GetOpenPath().c_str(), path, (int) raw_file->GetOpenFlags());
 
@@ -3427,6 +3466,7 @@ filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst,
       // this still allows to jump in for a rename, but we neglect this possiblity for now
       eos_static_debug("CLOSEDEBUG closing touched file open-path=%s current-path=%s open with flag %d and utiming",
                        raw_file->GetOpenPath().c_str(), path, (int) raw_file->GetOpenFlags());
+      // run the utimes command now after the close
       // run the utimes command now after the close
       // run the utimes command now after the close
       // run the utimes command now after the close
@@ -3551,36 +3591,31 @@ filesystem::flush(int fd, uid_t uid, gid_t gid, pid_t pid)
 
   if (XFC && fuse_cache_write) {
     off_t cache_size = fabst->GetMaxWriteOffset();
+    eos_static_notice("cache-size=%llu max-offset=%d force=%d", cache_size,
+                      file_write_back_cache_size, (cache_size > file_write_back_cache_size));
+    fabst->mMutexRW.WriteLock();
 
-    eos_static_notice("cache-size=%llu max-offset=%d force=%d", cache_size, file_write_back_cache_size, (cache_size > file_write_back_cache_size));
- 
-   fabst->mMutexRW.WriteLock();
-   // if we wrote more than the in-memory cache-size we wait for the writes in flush and evt. report an error
+    bool wait_async = true;
 
-   bool wait_async = true;
-   if (fabst->GetRawFileRW() && fabst->GetRawFileRW()->CanCache())
-   {
-     if (cache_size < file_write_back_cache_size)
+    if (fabst->GetRawFileRW() && fabst->GetRawFileRW()->CanCache()) {
+      if (cache_size < file_write_back_cache_size) {
        wait_async = false;
    }
+    }
 
-   XFC->ForceAllWrites (fabst.get(), wait_async);
-
-   eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
+    XFC->ForceAllWrites(fabst.get(), wait_async);
+    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
    error_type error;
 
     if (err_queue.try_pop(error)) {
       eos_static_info("Extract error from queue");
      retc = error.first;
 
-     if (retc) 
-     {
+      if (retc) {
        errno = retc;
        retc = -1;
      }
-   }
-   else
-   {
+    } else {
      eos_static_info("No flush error");
    }
 
@@ -3685,7 +3720,7 @@ filesystem::truncate2(const char* fullpath, unsigned long inode,
  }
 
  int fd, retc = -1;
- unsigned long rinode;
+  unsigned long rinode = 0;
 
   if ((fd = open(fullpath, O_WRONLY,
                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
@@ -3734,6 +3769,7 @@ filesystem::pread(int fildes,
     ret = file->ReadCache(offset, static_cast<char*>(buf), nbyte,
                           file_write_back_cache_size);
      // either the data is not in the cache, the cache is empty or the cache request is not complete
+    // either the data is not in the cache, the cache is empty or the cache request is not complete
     // either the data is not in the cache, the cache is empty or the cache request is not complete
     if (ret != (int) nbyte) {
       off_t cache_size = fabst->GetMaxWriteOffset();
@@ -4100,6 +4136,7 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
     auto it_map = mMapPidDenyRm.find(pid);
      // if the cached denial is up to date, return it
     // if the cached denial is up to date, return it
+    // if the cached denial is up to date, return it
     if (it_map != mMapPidDenyRm.end()) {
       eos_static_debug("found an entry in the cache");
 
@@ -4411,34 +4448,34 @@ filesystem::check_mgm(std::map<std::string, std::string>* features)
     fprintf(stderr, "error: EOS_RDRURL is not defined so we fall back to "
             "root://localhost:1094// \n");
    address = "root://localhost:1094//";
-   return 0;
+    return 0;
  }
 
   XrdCl::URL url(address);
 
   if (!url.IsValid()) {
     eos_static_err("URL is not valid: %s", address.c_str());
-   return 0;
+    return 0;
  }
 
  // Check MGM is available
-  if (!features)
-  {
+  if (!features) {
     uint16_t timeout = 10;
-    XrdCl::FileSystem fs (url);
-    XrdCl::XRootDStatus st = fs.Ping (timeout);
+    XrdCl::FileSystem fs(url);
+    XrdCl::XRootDStatus st = fs.Ping(timeout);
 
-    if (!st.IsOK ())
-    {
-      eos_static_err("Unable to contact MGM at address=%s (timed out after 10 seconds)", address.c_str ());
+    if (!st.IsOK()) {
+      eos_static_err("Unable to contact MGM at address=%s (timed out after 10 seconds)",
+                     address.c_str());
       return false;
     }
- }
+  }
 
   if (features) {
     get_features(address, features);
   }
  // make sure the host has not '/' in the end and no prefix anymore
+// make sure the host has not '/' in the end and no prefix anymore
 // make sure the host has not '/' in the end and no prefix anymore
 // make sure the host has not '/' in the end and no prefix anymore
   gMgmHost = address.c_str();
@@ -4466,80 +4503,69 @@ filesystem::initlogging()
   FILE* fstderr;
 
   // Open log file
-  if (getuid ())
-  {
+  if (getuid()) {
     fuse_shared = false; //eosfsd
     char logfile[1024];
-    if (getenv ("EOS_FUSE_LOGFILE"))
-    {
-      snprintf (logfile, sizeof ( logfile) - 1, "%s", getenv ("EOS_FUSE_LOGFILE"));
-    }
-    else
-    {
-      snprintf (logfile, sizeof ( logfile) - 1, "/tmp/eos-fuse.%d.log", getuid ());
+
+    if (getenv("EOS_FUSE_LOGFILE")) {
+      snprintf(logfile, sizeof(logfile) - 1, "%s", getenv("EOS_FUSE_LOGFILE"));
+    } else {
+      snprintf(logfile, sizeof(logfile) - 1, "/tmp/eos-fuse.%d.log", getuid());
     }
 
     // Running as a user ... we log into /tmp/eos-fuse.$UID.log
-    if (!(fstderr = freopen (logfile, "a+", stderr)))
-      fprintf (stderr, "error: cannot open log file %s\n", logfile);
-    else
-      ::chmod (logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if (!(fstderr = freopen(logfile, "a+", stderr))) {
+      fprintf(stdout, "error: cannot open log file %s\n", logfile);
+    } else {
+      ::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   }
-  else
-  {
+  } else {
     fuse_shared = true; //eosfsd
 
-    // Running as root ... we log into /var/log/eos/fuse
     std::string log_path = "/var/log/eos/fuse/fuse.";
-    if (getenv ("EOS_FUSE_LOG_PREFIX"))
-    {
-      log_path += getenv ("EOS_FUSE_LOG_PREFIX");
+    // Running as root ... we log into /var/log/eos/fuse
+    if (getenv("EOS_FUSE_LOG_PREFIX")) {
+      log_path += getenv("EOS_FUSE_LOG_PREFIX");
       log_path += ".log";
-    }
-    else
-    {
+    } else {
       log_path += "log";
     }
 
-    eos::common::Path cPath (log_path.c_str ());
-    cPath.MakeParentPath (S_IRWXU | S_IRGRP | S_IROTH);
+    eos::common::Path cPath(log_path.c_str());
+    cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
 
-    if (!(fstderr = freopen (cPath.GetPath (), "a+", stderr)))
-      fprintf (stderr, "error: cannot open log file %s\n", cPath.GetPath ());
-    else
-      ::chmod (cPath.GetPath (), S_IRUSR | S_IWUSR);
+    if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr))) {
+      fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
+    } else {
+      ::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR);
+    }
   }
 
-  setvbuf (fstderr, (char*) NULL, _IONBF, 0);
-
+  setvbuf(fstderr, (char*) NULL, _IONBF, 0);
   eos::common::Mapping::VirtualIdentity_t vid;
-  eos::common::Mapping::Root (vid);
-  eos::common::Logging::Init ();
-  eos::common::Logging::SetUnit ("FUSE@localhost");
+  eos::common::Mapping::Root(vid);
+  eos::common::Logging::Init();
+  eos::common::Logging::SetUnit("FUSE@localhost");
   eos::common::Logging::gShortFormat = true;
   XrdOucString fusedebug = getenv("EOS_FUSE_DEBUG");
 
-  if ((getenv ("EOS_FUSE_DEBUG")) && (fusedebug != "0"))
-  {
-    eos::common::Logging::SetLogPriority (LOG_DEBUG);
+  if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0")) {
+    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  } else {
+    if ((getenv("EOS_FUSE_LOGLEVEL"))) {
+      eos::common::Logging::SetLogPriority(atoi(getenv("EOS_FUSE_LOGLEVEL")));
+    } else {
+      eos::common::Logging::SetLogPriority(LOG_INFO);
   }
-  else
-  {
-    if ((getenv ("EOS_FUSE_LOGLEVEL")))
-      eos::common::Logging::SetLogPriority (atoi (getenv ("EOS_FUSE_LOGLEVEL")));
-    else
-      eos::common::Logging::SetLogPriority (LOG_INFO);
   }
-
 }
 
 bool
 filesystem::init(int argc, char* argv[], void* userdata,
                  std::map<std::string, std::string>* features)
 {
- initlogging();
+  initlogging();
 
-  // Initialize hashes
   path2inode.set_empty_key("");
   path2inode.set_deleted_key("#__deleted__#");
   inodexrdlogin2fds.set_empty_key("");
@@ -4548,23 +4574,22 @@ filesystem::init(int argc, char* argv[], void* userdata,
   fd2fabst.set_deleted_key(-2);
   fd2count.set_empty_key(-1);
   fd2count.set_deleted_key(-2);
-
   eos::common::StringConversion::InitLookupTables();
  // Create the root entry
  path2inode["/"] = 1;
  inode2path[1] = "/";
-
 #ifdef STOPONREDIRECT
  // Set the redirect limit
   XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
   setenv("XRD_REDIRECTLIMIT", "1", 1);
 #endif
 
-
- if (!check_mgm ( features ) )
+  if (!check_mgm(features)) {
    return false;
- // Extract MGM endpoint and check availability
+  }
+
  // Get read-ahead configuration
+// Get read-ahead configuration
   if (getenv("EOS_FUSE_RDAHEAD") && (!strcmp(getenv("EOS_FUSE_RDAHEAD"), "1"))) {
    do_rdahead = true;
 
@@ -4675,7 +4700,8 @@ filesystem::init(int argc, char* argv[], void* userdata,
  }
 
     gProcCache.SetProcPath(pp.c_str());
-  }
+ }
+
  // Get the number of levels in the top hierarchy protected agains deletions
 // Get the number of levels in the top hierarchy protected agains deletions
 // Get the number of levels in the top hierarchy protected agains deletions
@@ -4862,12 +4888,11 @@ filesystem::init(int argc, char* argv[], void* userdata,
 
   eos_static_notice("krb5=%d", use_user_krb5cc ? 1 : 0);
 
- // start a thread doing the in-memory write-back cache cleanup
-
  pthread_t tid;
  eos_static_notice("starting filesystem");
- if ((XrdSysThread::Run(&tid, filesystem::CacheCleanup, static_cast<void *> (this), 0, "Cache Cleanup Thread")))
- {
+
+  if ((XrdSysThread::Run(&tid, filesystem::CacheCleanup, static_cast<void*>(this),
+                         0, "Cache Cleanup Thread"))) {
    eos_static_crit("failed to start cache clean-up thread");
    return false;
  }
@@ -4926,7 +4951,7 @@ filesystem::mylstat(const char* __restrict name, struct stat* __restrict __buf,
 
   if ((path.length() >= mount_dir.length()) &&
       (path.find(mount_dir) == 0)) {
-    eos_static_debug("name=%%s\n", name);
+    eos_static_debug("name=%s\n", name);
    uid_t uid;
    gid_t gid;
 

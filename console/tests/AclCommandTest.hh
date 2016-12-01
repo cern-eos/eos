@@ -1,12 +1,11 @@
 //------------------------------------------------------------------------------
-//! @file MacOSXHelper.hh
-//! @author Andreas-Joachim Peters, Geoffray Adde, Elvin Sindrilaru CERN
-//! @brief remote IO filesystem implementation
+//! @file AclCommandTest.hh
+//! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,40 +21,37 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_MACOSXHELPER_HH_
-#define FUSE_MACOSXHELPER_HH_
-#ifdef __APPLE__
-#include <pthread.h>
-#define MTIMESPEC st_mtimespec
-#define ATIMESPEC st_atimespec
-#define CTIMESPEC st_ctimespec
-#define EBADE 52
-#define EBADR 53
-#define EADV 68
-#define EREMOTEIO 121
-#define ENOKEY 126
-#else
-#define MTIMESPEC st_mtim
-#define ATIMESPEC st_atim
-#define CTIMESPEC st_ctim
-#include <sys/types.h>
-#include <signal.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-#endif
+#ifndef __ACLCOMMANDTEST_HH__
+#define __ACLCOMMANDTEST_HH__
 
-#ifdef __APPLE__
-#define thread_id(_x_) (pthread_t) pthread_self()
-#else
-#define thread_id(_x_) (pthread_t) syscall(SYS_gettid)
-#endif
+#include <cppunit/extensions/HelperMacros.h>
+#include "console/commands/AclCommand.hh"
+#include <iostream>
+#include <string>
+#include <functional>
 
-#ifdef __APPLE__
-#define thread_alive(_x_) (pthread_kill(_x_,0)==ESRCH)?false:true
-#else
-#define thread_alive(_x_) (kill( (pid_t)_x_,0))?false:true
-#endif
+class AclCommandTest : public CppUnit::TestCase
+{
+  CPPUNIT_TEST_SUITE(AclCommandTest);
+  CPPUNIT_TEST(TestSyntax);
+  CPPUNIT_TEST(TestCheckId);
+  CPPUNIT_TEST(TestGetRuleInt);
+  CPPUNIT_TEST(TestAclRuleFromString);
+  CPPUNIT_TEST(TestFunctionality);
+  CPPUNIT_TEST_SUITE_END();
 
-#endif
+public:
+  // CPPUNIT required methods
+  void setUp(void) {}
+  void tearDown(void) {}
 
+  // Test helper method
+  void TestSyntaxCommand(std::string command, bool outcome = true);
+  void TestSyntax();
+  void TestCheckId();
+  void TestGetRuleInt();
+  void TestAclRuleFromString();
+  void TestFunctionality();
+};
 
+#endif //__ACLCOMMANDTEST_HH__

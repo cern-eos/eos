@@ -104,8 +104,14 @@ public:
   long long ino;
  } fd_user_info;
 
- void setMaxWbInMemorySize(uint64_t size) { max_wb_in_memory_size = size;}
- uint64_t getMaxWbInMemorySize() const { return max_wb_in_memory_size;}
+  void setMaxWbInMemorySize(uint64_t size)
+  {
+    max_wb_in_memory_size = size;
+  }
+  uint64_t getMaxWbInMemorySize() const
+  {
+    return max_wb_in_memory_size;
+  }
  
 
  //------------------------------------------------------------------------------
@@ -307,25 +313,14 @@ public:
  //----------------------------------------------------------------------------
   char* attach_rd_buff(pthread_t tid, size_t size);
 
-
- //----------------------------------------------------------------------------
- //! Release a read buffer for the specified thread id
- //!
- //! @param tid thread id
- //!
- //----------------------------------------------------------------------------
-  void release_rd_buff(pthread_t tid);
-
-
-
  //----------------------------------------------------------------------------
  //              ******* POSIX opened file descriptors *******
  //----------------------------------------------------------------------------
 
  //----------------------------------------------------------------------------
  //! Create an artificial file descriptor
-  int generate_fd();
  //----------------------------------------------------------------------------
+ int generate_fd ();
 
 
  //----------------------------------------------------------------------------
@@ -716,8 +711,8 @@ public:
                  uid_t uid,
                  gid_t gid,
                  pid_t pid,
-		 dirlist &dlist,
-                 struct fuse_entry_param **stats, 
+                 dirlist& dlist,
+                 struct fuse_entry_param** stats,
 		 size_t* nstats);
 
  //----------------------------------------------------------------------------
@@ -773,8 +768,9 @@ public:
  //! Initialisation function
  //----------------------------------------------------------------------------
  void initlogging();
- bool init (int argc, char* argv[], void *userdata, std::map<std::string,std::string> *features);
- bool check_mgm (std::map<std::string,std::string> *features);
+  bool init(int argc, char* argv[], void* userdata,
+            std::map<std::string, std::string>* features);
+  bool check_mgm(std::map<std::string, std::string>* features);
 
   void log(const char* level, const char* msg);
   void log_settings();
@@ -850,30 +846,25 @@ public:
       Monitor(const char* caller, Track& tracker, unsigned long long ino,
               bool exclusive = false)
    {
-        eos_static_debug("trylock caller=%s self=%llx in=%llu exclusive=%d", caller,
-                         pthread_self(), ino, exclusive);
-        this->me = tracker.Attach(ino, exclusive);
+    eos_static_debug ("trylock caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
+
+    this->me = tracker.Attach (ino, exclusive);
     this->ino = ino;
     this->caller = caller;
     this->exclusive = exclusive;
-        eos_static_debug("locked  caller=%s self=%llx in=%llu exclusive=%d obj=%llx",
-                         caller, pthread_self(), ino, exclusive,
+    eos_static_debug ("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx", caller, thread_id (), ino, exclusive,
                      &(*(this->me)));
    }
 
       ~Monitor()
    {
-        eos_static_debug("unlock  caller=%s self=%llx in=%llu exclusive=%d", caller,
-                         pthread_self(), ino, exclusive);
+    eos_static_debug ("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
 
-        if (exclusive) {
-          me->mInUse.UnLockWrite();
-        } else {
-          me->mInUse.UnLockRead();
-        }
-
-        eos_static_debug("unlocked  caller=%s self=%llx in=%llu exclusive=%d", caller,
-                         pthread_self(), ino, exclusive);
+    if (exclusive)
+      me->mInUse.UnLockWrite ();
+    else
+      me->mInUse.UnLockRead ();
+    eos_static_debug ("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
    }
   private:
    std::shared_ptr<meta_t> me;
@@ -902,7 +893,7 @@ public:
   {
     return max_inline_repair_size;
   }
-  
+
   
 protected:
 private:
@@ -917,7 +908,7 @@ private:
  bool fallback2nobody; ///< indicated if unix authentication (as nobody) should be used as a fallback if strong authentication is configured and none is found
  bool lazy_open_ro; ///< indicated if lazy openning of the file should be used for files open in RO
  bool lazy_open_rw; ///< indicated if lazy openning of the file should be used for files open in RW
- bool async_open; ///< indicated if async open should be used (this used only in coordination with lazy_open)
+  bool async_open; ///< indicated if async open should be used (this used only in coordination with lazy_open)
  bool lazy_open_disabled; ///< indicated if lazy openning is disabled because the server does not support it
  bool inline_repair; ///< indicate if we should try to repair broken files for wrinting inlined in the open
  off_t max_inline_repair_size; ///< define maximum inline repair size
@@ -937,6 +928,8 @@ private:
  bool encode_pathname; ///< indicated if filename should be encoded
  bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
  bool show_eos_attributes; ///< show all sys.* and emulated user.eos attributes when listing xattributes
+ int xrootd_nullresponsebug_retrycount; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we retry.
+ int xrootd_nullresponsebug_retrysleep; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we sleep between attempts.
  mode_t mode_overlay; ///< mask which is or'ed into the retrieved mode
  uint64_t max_wb_in_memory_size; ///< maximum size of in-memory wb cache structures
  XrdOucString gMgmHost; ///< host name of the FUSE contact point
@@ -1022,7 +1015,7 @@ private:
  std::queue<int> pool_fd;
 
  // WB Cache Cleanup Thread
- static void* CacheCleanup (void* pp);
+  static void* CacheCleanup(void* pp);
 
  //------------------------------------------------------------------------------
  //        ******* Implementation IO Buffer Management *******
@@ -1128,7 +1121,8 @@ private:
   char*
   myrealpath(const char* __restrict path, char* __restrict resolved, pid_t pid);
 
- bool get_features(const std::string &url, std::map<std::string,std::string> *features);
+  bool get_features(const std::string& url,
+                    std::map<std::string, std::string>* features);
 
  std::string mount_dir;
 };

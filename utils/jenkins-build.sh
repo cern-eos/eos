@@ -60,9 +60,9 @@ function getLocalBranchAndDistTag()
 
   BRANCH="fuse_master"
 
-  # For any other branch use the latest XRootD release
-  XROOTD_TAG="v4.3.0"
-  DIST=".${PLATFORM}"
+      # For any other branch use the latest XRootD release
+      XROOTD_TAG="v4.3.0"
+      DIST=".${PLATFORM}"
 
   # Remove any "-" from the dist tag
   DIST="${DIST//-}"
@@ -127,7 +127,7 @@ git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
 head -n -1 ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/$XROOTD_TAG/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
 # Add eos dependencies repos
 # TODO: move these dependencies inside the dss-ci-mock repository
-echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/citrine-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\n' >> eos.cfg
+echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\n' >> eos.cfg
 # Add kineticio repos for kineticio-devel header-only package...
 # TODO: move kineticio-devel to regular eos-depend repo?
 echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
@@ -137,27 +137,27 @@ echo -e '"""' >> eos.cfg
 mock --yum --init --uniqueext="eos_fuse" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
 
 # ==== push rpms to YUM repo ====
-cd ../rpms/
-# Get the release string length
-COMMIT_LEN=24
-RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 \
-    | awk -F "-" '{print $3;}' \
-    | awk -F "." '{print length($1);}')
+  cd ../rpms/
+  # Get the release string length
+  COMMIT_LEN=24
+  RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 \
+      | awk -F "-" '{print $3;}' \
+      | awk -F "." '{print length($1);}')
 
-# For not tagged builds the release string is 24 characters i.e date + git + commit_hash
-if [[ ${RELEASE_LEN} -eq ${COMMIT_LEN} ]]; then
-  BUILD_TYPE="commit"
-else
-  BUILD_TYPE="tag"
-fi
+  # For not tagged builds the release string is 24 characters i.e date + git + commit_hash
+  if [[ ${RELEASE_LEN} -eq ${COMMIT_LEN} ]]; then
+    BUILD_TYPE="commit"
+  else
+    BUILD_TYPE="tag"
+  fi
 
 # the rpms are pushed to the citrine repo
 BRANCH="citrine"
-# Make sure the directories are created and rebuild the YUM repo
-YUM_REPO_PATH="${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}"
-echo "Save RPMs in YUM repo: ${YUM_REPO_PATH}"
-aklog
-mkdir -p ${YUM_REPO_PATH}
+  # Make sure the directories are created and rebuild the YUM repo
+  YUM_REPO_PATH="${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}"
+  echo "Save RPMs in YUM repo: ${YUM_REPO_PATH}"
+  aklog
+  mkdir -p ${YUM_REPO_PATH}
 cp -f *fuse*.rpm ${YUM_REPO_PATH}
 cp -f *.src.rpm ${YUM_REPO_PATH}
-createrepo --update -q ${YUM_REPO_PATH}
+  createrepo --update -q ${YUM_REPO_PATH}

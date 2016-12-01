@@ -26,7 +26,8 @@
 #-------------------------------------------------------------------------------
 option(PACKAGEONLY "Build without dependencies" OFF)
 option(CLIENT "Build only client packages" OFF)
-option(ENABLE_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
+option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
+option(BUILD_TESTS "Build CppUnit tests" OFF)
 
 set(KINETICIO_URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz")
 set(KINETICIO_URL_MD5 "ae1a538939ee26984d4e20f96bedb2c2")
@@ -70,8 +71,7 @@ if (NOT PACKAGEONLY)
             URL_MD5 ${KINETICIO_URL_MD5}
             CONFIGURE_COMMAND ""
             BUILD_COMMAND ""
-            INSTALL_COMMAND ""
-    )
+            INSTALL_COMMAND "")
     ExternalProject_Get_Property(kineticio-devel SOURCE_DIR)
     set(KINETICIO_INCLUDE_DIR ${SOURCE_DIR})
     set(KINETICIO_INCLUDE_DIRS ${KINETICIO_INCLUDE_DIR})
@@ -79,10 +79,13 @@ if (NOT PACKAGEONLY)
 
   # The server build also requires
   if (NOT CLIENT)
-    # find_package(RAMCloud REQUIRED)
     find_package(ldap REQUIRED)
     find_package(jsoncpp REQUIRED)
-    find_package(CPPUnit)
+    if (BUILD_TESTS)
+      find_package(CPPUnit REQUIRED)
+    else()
+      find_package(CPPUnit)
+    endif()
     find_package(microhttpd)
     find_package(httpd)
     find_package(libev)

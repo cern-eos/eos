@@ -99,8 +99,7 @@ StartRoutine(void* arg)
   uint32_t id_thread = arg_thread->id;
 
   // Decide on the type of operation to be done and save it as a callback
-  switch (pb_config.operation())
-  {
+  switch (pb_config.operation()) {
   case ConfigProto_OperationType_WRITE:
     operation_callback = &FileEos::Write;
     break;
@@ -131,13 +130,10 @@ StartRoutine(void* arg)
   uint32_t start_indx = 0;
   uint32_t end_indx = 0;
 
-  if (pb_config.access() == ConfigProto_AccessMode_PARALLEL)
-  {
+  if (pb_config.access() == ConfigProto_AccessMode_PARALLEL) {
     start_indx = id_thread * pb_config.numfiles();
     end_indx = (id_thread + 1) * pb_config.numfiles();
-  }
-  else if (pb_config.access() == ConfigProto_AccessMode_CONCURRENT)
-  {
+  } else if (pb_config.access() == ConfigProto_AccessMode_CONCURRENT) {
     start_indx = 0;
     end_indx = pb_config.numfiles();
   }
@@ -145,8 +141,7 @@ StartRoutine(void* arg)
   // Result object which collects all the partial results
   Result* job_result = new Result();
 
-  for (uint32_t i = start_indx; i < end_indx; i++)
-  {
+  for (uint32_t i = start_indx; i < end_indx; i++) {
     eos_static_debug("Execute operation for file:%s, at index:%i ",
                      config.GetFileName(i).c_str(), i);
     int retc = -1;
@@ -157,8 +152,7 @@ StartRoutine(void* arg)
     // Execute the required operation
     retc = (*file.*operation_callback)(job_result);
 
-    if (retc)
-    {
+    if (retc) {
       cerr << "Error while executin operation on file" << endl;
       delete file;
       delete job_result;
@@ -187,8 +181,7 @@ RunThreadConfig(Configuration& config, const string& outputFile)
   uint32_t num_jobs = pb_config.numjobs();
 
   // Start all threads and run the proper operations on the files
-  for (uint32_t i = 0; i < num_jobs; i++)
-  {
+  for (uint32_t i = 0; i < num_jobs; i++) {
     // Arguments passed to the thread are allocated dynamically and then
     // deleted by the thread at the end of the StartRoutine method
     pthread_t thread;
@@ -198,13 +191,11 @@ RunThreadConfig(Configuration& config, const string& outputFile)
   }
 
   // Join all threads and collect the results for the run
-  for (uint32_t i = 0; i < num_jobs; i++)
-  {
+  for (uint32_t i = 0; i < num_jobs; i++) {
     Result* ret_result;
     pthread_join(vect_threads[i], (void**) &ret_result);
 
-    if (ret_result != NULL)
-    {
+    if (ret_result != NULL) {
       merged_result.Merge(*ret_result);
       delete ret_result;
     }
@@ -213,8 +204,7 @@ RunThreadConfig(Configuration& config, const string& outputFile)
   // Write the configuration and final result object to the file
   ProtoWriter writer(outputFile);
 
-  if (!writer(config.GetPbConfig()) || !writer(merged_result.GetPbResult()))
-  {
+  if (!writer(config.GetPbConfig()) || !writer(merged_result.GetPbResult())) {
     cerr << "Errot while writing config and result objects to file. " <<
          endl;
     exit(-1);
@@ -232,14 +222,12 @@ RunProcessConfig(Configuration& config, const string& outputFile)
   Result merged_result;
   ConfigProto& ll_config = config.GetPbConfig();
   uint32_t num_jobs = ll_config.numjobs();
-  int** pipefd = new int*[num_jobs];
+  int** pipefd = new int* [num_jobs];
 
-  for (unsigned int i = 0; i < num_jobs; i++)
-  {
+  for (unsigned int i = 0; i < num_jobs; i++) {
     pipefd[i] = new int[2];
 
-    if (pipe(pipefd[i]) == -1)
-    {
+    if (pipe(pipefd[i]) == -1) {
       eos_static_err("error=error opening pipe");
       exit(-1);
     }
@@ -248,18 +236,15 @@ RunProcessConfig(Configuration& config, const string& outputFile)
   size_t buff_size;
   pid_t* cpid = new pid_t[num_jobs];
 
-  for (uint32_t i = 0; i < num_jobs; i++)
-  {
+  for (uint32_t i = 0; i < num_jobs; i++) {
     cpid[i] = fork();
 
-    if (cpid[i] == -1)
-    {
+    if (cpid[i] == -1) {
       eos_static_err("error=error in fork");
       exit(-1);
     }
 
-    if (cpid[i] == 0)
-    {
+    if (cpid[i] == 0) {
       //child process
       close(pipefd[i][0]);    //close reading end
       struct ConfIdStruct* arg_process = new ConfIdStruct(config, i);
@@ -281,8 +266,7 @@ RunProcessConfig(Configuration& config, const string& outputFile)
   //............................................................................
   // Parent process
   //............................................................................
-  for (unsigned int i = 0; i < num_jobs; i++)
-  {
+  for (unsigned int i = 0; i < num_jobs; i++) {
     std::string read_buff;
     close(pipefd[i][1]);   //close writing end
     // Read first the size of the result object and then the object itself
@@ -302,8 +286,7 @@ RunProcessConfig(Configuration& config, const string& outputFile)
   //............................................................................
   // Free memory
   //............................................................................
-  for (unsigned int i = 0; i < num_jobs; i++)
-  {
+  for (unsigned int i = 0; i < num_jobs; i++) {
     delete pipefd[i];
   }
 
@@ -312,8 +295,7 @@ RunProcessConfig(Configuration& config, const string& outputFile)
   // Write the configuration and final result object to the file
   ProtoWriter writer(outputFile);
 
-  if (!writer(config.GetPbConfig()) || !writer(merged_result.GetPbResult()))
-  {
+  if (!writer(config.GetPbConfig()) || !writer(merged_result.GetPbResult())) {
     cerr << "Error while trying to write config and result objects to file. " <<
          endl;
     exit(-1);
@@ -329,8 +311,7 @@ RunConfiguration(const string& configFile, const string& outputFile)
 {
   Configuration config;
 
-  if (!config.ReadFromFile(configFile))
-  {
+  if (!config.ReadFromFile(configFile)) {
     cerr << "Could not read configuration from the input file." << endl;
     exit(-1);
   }
@@ -338,19 +319,15 @@ RunConfiguration(const string& configFile, const string& outputFile)
   ConfigProto pb_config = config.GetPbConfig();
 
   // Check that the path and files exist
-  if (!config.CheckDirAndFiles())
-  {
+  if (!config.CheckDirAndFiles()) {
     cerr << "Failed while checking dir and files." << endl;
     exit(-1);
   }
 
   // Start processing using either threads or processes
-  if (pb_config.jobtype() == ConfigProto_JobType_THREAD)
-  {
+  if (pb_config.jobtype() == ConfigProto_JobType_THREAD) {
     RunThreadConfig(config, outputFile);
-  }
-  else if (pb_config.jobtype() == ConfigProto_JobType_PROCESS)
-  {
+  } else if (pb_config.jobtype() == ConfigProto_JobType_PROCESS) {
     RunProcessConfig(config, outputFile);
   }
 }
@@ -362,8 +339,7 @@ RunConfiguration(const string& configFile, const string& outputFile)
 void
 PrintResults(const string& resultsFile, const string& configFile)
 {
-  if (resultsFile.empty())
-  {
+  if (resultsFile.empty()) {
     cerr << "Results file is empty." << endl;
     return;
   }
@@ -372,12 +348,10 @@ PrintResults(const string& resultsFile, const string& configFile)
   typedef std::map< size_t, std::pair< Configuration*, Result* > >
   MapConfigResults;
 
-  if (!configFile.empty())
-  {
+  if (!configFile.empty()) {
     reference_config = new Configuration();
 
-    if (!reference_config->ReadFromFile(configFile))
-    {
+    if (!reference_config->ReadFromFile(configFile)) {
       cerr << "Failed to read config from file." << endl;
       delete reference_config;
       return;
@@ -394,15 +368,13 @@ PrintResults(const string& resultsFile, const string& configFile)
   MapConfigResults map_config;
   ProtoReader reader(resultsFile);
 
-  do
-  {
+  do {
     current_config = new Configuration();
     current_result = new Result();
     pb_config = reader.ReadNext<ConfigProto>();
     pb_result = reader.ReadNext<ResultProto>();
 
-    if (!pb_config || !pb_result)
-    {
+    if (!pb_config || !pb_result) {
       delete current_config;
       delete current_result;
       break;
@@ -413,41 +385,30 @@ PrintResults(const string& resultsFile, const string& configFile)
     hash = current_config->GetHash();
 
     // If configuration already in map then just append the new result
-    if (map_config.count(hash))
-    {
+    if (map_config.count(hash)) {
       Result* ptr_result = map_config[hash].second;
       ptr_result->Merge(*current_result);
       delete current_config;
       delete current_result;
-    }
-    else
-    {
+    } else {
       map_config[hash] = std::make_pair(current_config, current_result);
     }
-  }
-  while (1);
+  } while (1);
 
   // Print the results matching the configuration supplied
-  if (reference_config)
-  {
+  if (reference_config) {
     hash = reference_config->GetHash();
 
-    if (map_config.count(hash))
-    {
+    if (map_config.count(hash)) {
       Result* ptr_result = map_config[hash].second;
       ptr_result->Print();
-    }
-    else
-    {
+    } else {
       cout << "No matching configuration in the supplied file." << endl;
     }
-  }
-  else
-  {
+  } else {
     // If there is no reference config then we print all
     for (MapConfigResults::iterator iter = map_config.begin();
-         iter != map_config.end(); iter++)
-    {
+         iter != map_config.end(); iter++) {
       current_config = iter->second.first;
       current_result = iter->second.second;
       current_config->Print();
@@ -457,8 +418,7 @@ PrintResults(const string& resultsFile, const string& configFile)
 
   // Free allocated memory
   for (MapConfigResults::iterator iter = map_config.begin();
-       iter != map_config.end(); iter++)
-  {
+       iter != map_config.end(); iter++) {
     delete iter->second.first;
     delete iter->second.second;
   }
@@ -477,8 +437,7 @@ using namespace eos::benchmark;
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-  if (argc < 2)
-  {
+  if (argc < 2) {
     Usage();
     exit(-1);
   }
@@ -503,45 +462,35 @@ int main(int argc, char* argv[])
   eos::common::Logging::gShortFormat = true;
   XrdOucString bmk_debug = getenv("EOS_BMK_DEBUG");
 
-  if ((getenv("EOS_BMK_DEBUG")) && (bmk_debug != "0"))
-  {
+  if ((getenv("EOS_BMK_DEBUG")) && (bmk_debug != "0")) {
     eos::common::Logging::SetLogPriority(LOG_DEBUG);
-  }
-  else
-  {
+  } else {
     eos::common::Logging::SetLogPriority(LOG_INFO);
   }
 
   FILE* fstderr;
 
   // Open log file
-  if (getuid())
-  {
+  if (getuid()) {
     char logfile[1024];
     snprintf(logfile, sizeof(logfile) - 1, "/tmp/eos-fuse.%d.log", getuid());
 
     // Running as a user ... we log into /tmp/eos-fuse.$UID.log
-    if (!(fstderr = freopen(logfile, "a+", stderr)))
-    {
-      fprintf(stderr, "error: cannot open bmk log file %s\n", logfile);
+    if (!(fstderr = freopen(logfile, "a+", stderr))) {
+      fprintf(stdout, "error: cannot open bmk log file %s\n", logfile);
     }
-  }
-  else
-  {
+  } else {
     // Running as root ... we log into /var/log/eos/fuse
     eos::common::Path cPath("/var/log/eos/bmk/bmk.log");
     cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
 
-    if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr)))
-    {
+    if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr))) {
       fprintf(stderr, "error: cannot open bmk log file %s\n", cPath.GetPath());
     }
   }
 
-  while (1)
-  {
-    static struct option long_options[] =
-    {
+  while (1) {
+    static struct option long_options[] = {
       {"create-config", required_argument, 0, 'c'},
       {"list-config",   required_argument, 0, 'l'},
       {"list-results",  required_argument, 0, 'p'},
@@ -557,13 +506,12 @@ int main(int argc, char* argv[])
                         long_options, &option_index);
 
     // Detect the end of the options
-    if (c == -1)
+    if (c == -1) {
       break;
+    }
 
-    switch (c)
-    {
-    case 'c':
-    {
+    switch (c) {
+    case 'c': {
       configFile = optarg;
       cout << "Create configuration option with file: " << configFile << endl;
       Configuration config;
@@ -572,14 +520,12 @@ int main(int argc, char* argv[])
       break;
     }
 
-    case 'l':
-    {
+    case 'l': {
       configFile = optarg;
       cout << "Print configuration file: " << configFile << endl;
       Configuration config;
 
-      if (!config.ReadFromFile(configFile))
-      {
+      if (!config.ReadFromFile(configFile)) {
         cerr << "Failed to read configuration from file: " << configFile << endl;
         exit(-1);
       }
@@ -589,23 +535,20 @@ int main(int argc, char* argv[])
       break;
     }
 
-    case 'p':
-    {
+    case 'p': {
       resultsFile = optarg;
       do_print = true;
       break;
     }
 
-    case 'f':
-    {
+    case 'f': {
       configFile = optarg;
       cout << "Filter only the ones matching configuration: "
            << configFile << endl;
       break;
     }
 
-    case 'r':
-    {
+    case 'r': {
       configFile = optarg;
       cout << "Run configuration: "
            << configFile << endl;
@@ -613,16 +556,14 @@ int main(int argc, char* argv[])
       break;
     }
 
-    case 'o':
-    {
+    case 'o': {
       outputFile = optarg;
       cout << "Output file for the run : "
            << outputFile << endl;
       break;
     }
 
-    case '?':
-    {
+    case '?': {
       // getopt_long already printed an error message
       break;
     }
@@ -632,28 +573,19 @@ int main(int argc, char* argv[])
     }
   }
 
-  if (!done_work)
-  {
-    if (do_run)
-    {
-      if (outputFile.empty())
-      {
+  if (!done_work) {
+    if (do_run) {
+      if (outputFile.empty()) {
         cout << "No output file specified." << endl;
         Usage();
-      }
-      else
-      {
+      } else {
         // We are about to run a configuration
         RunConfiguration(configFile, outputFile);
       }
-    }
-    else if (do_print)
-    {
+    } else if (do_print) {
       // Print the results from a file optionally matching the supplied config
       PrintResults(resultsFile, configFile);
-    }
-    else
-    {
+    } else {
       Usage();
     }
   }

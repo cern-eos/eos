@@ -1,12 +1,11 @@
 //------------------------------------------------------------------------------
-//! @file MacOSXHelper.hh
-//! @author Andreas-Joachim Peters, Geoffray Adde, Elvin Sindrilaru CERN
-//! @brief remote IO filesystem implementation
+//! @file MgmExecuteTest.hh
+//! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,40 +21,49 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_MACOSXHELPER_HH_
-#define FUSE_MACOSXHELPER_HH_
-#ifdef __APPLE__
-#include <pthread.h>
-#define MTIMESPEC st_mtimespec
-#define ATIMESPEC st_atimespec
-#define CTIMESPEC st_ctimespec
-#define EBADE 52
-#define EBADR 53
-#define EADV 68
-#define EREMOTEIO 121
-#define ENOKEY 126
-#else
-#define MTIMESPEC st_mtim
-#define ATIMESPEC st_atim
-#define CTIMESPEC st_ctim
-#include <sys/types.h>
-#include <signal.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-#endif
+#ifndef __MGMEXECUTETEST_HH__
+#define __MGMEXECUTETEST_HH__
 
-#ifdef __APPLE__
-#define thread_id(_x_) (pthread_t) pthread_self()
-#else
-#define thread_id(_x_) (pthread_t) syscall(SYS_gettid)
-#endif
+#include <iostream>
+#include <string>
+#include <queue>
+#include <utility>
 
-#ifdef __APPLE__
-#define thread_alive(_x_) (pthread_kill(_x_,0)==ESRCH)?false:true
-#else
-#define thread_alive(_x_) (kill( (pid_t)_x_,0))?false:true
-#endif
+using ReqRes = std::pair<std::string, std::string>;
+using QueueComm = std::queue<ReqRes>;
 
-#endif
+class MgmExecute
+{
+public:
+  std::string m_result;
+  std::string m_error;
+  bool test_failed;
+  QueueComm m_queue;
 
+  MgmExecute() : test_failed(false) {}
 
+  bool ExecuteCommand(const char* command)
+  {
+    std::string comm = std::string(command);
+
+    if (m_queue.front().first == comm) {
+      this->m_result = m_queue.front().second;
+    } else {
+      this->test_failed = true;
+    }
+
+    m_queue.pop();
+    return true;
+  }
+
+  inline std::string& GetResult()
+  {
+    return this->m_result;
+  }
+  inline std::string& GetError()
+  {
+    return this->m_error;
+  }
+};
+
+#endif //__MGMEXECUTETEST_HH__

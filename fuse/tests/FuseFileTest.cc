@@ -46,27 +46,27 @@
 class FuseFileTest: public CppUnit::TestCase
 {
   CPPUNIT_TEST_SUITE(FuseFileTest);
-    CPPUNIT_TEST(WriteStatTest);
-    CPPUNIT_TEST(MultiProcessTest);
-    CPPUNIT_TEST(WriteReadTest);
-    CPPUNIT_TEST(SparseWriteTest);
-    CPPUNIT_TEST(ManyWriteFilesTest);
+  CPPUNIT_TEST(WriteStatTest);
+  CPPUNIT_TEST(MultiProcessTest);
+  CPPUNIT_TEST(WriteReadTest);
+  CPPUNIT_TEST(SparseWriteTest);
+  CPPUNIT_TEST(ManyWriteFilesTest);
   CPPUNIT_TEST_SUITE_END();
 
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! setUp function called before each test is done
   //----------------------------------------------------------------------------
   void setUp(void);
 
-  
+
   //----------------------------------------------------------------------------
   //! tearDown function after each test is done
   //----------------------------------------------------------------------------
   void tearDown(void);
 
-  
+
   //----------------------------------------------------------------------------
   //! Write and stat file in a loop. We also sync every two steps so we would
   //! expect that the size obtained by doing stat on the opened file to be
@@ -77,8 +77,8 @@ class FuseFileTest: public CppUnit::TestCase
 
   //----------------------------------------------------------------------------
   //! Access the same file from two different processes. The parent proceess
-  //! creates the file and the child process writes and closes it. At the end 
-  //! the parent proceess reopens the newly created file to check that the 
+  //! creates the file and the child process writes and closes it. At the end
+  //! the parent proceess reopens the newly created file to check that the
   //! contents is correct.
   //----------------------------------------------------------------------------
   void MultiProcessTest();
@@ -98,15 +98,15 @@ class FuseFileTest: public CppUnit::TestCase
 
 
   //----------------------------------------------------------------------------
-  //! Have many files opened for writing which only contain an incomplete 
-  //! cache entry such that the write cache is rapidly filled with parital 
+  //! Have many files opened for writing which only contain an incomplete
+  //! cache entry such that the write cache is rapidly filled with parital
   //! entries. This should trigger the automatic eviction of some cache entries
   //! such that the writing does not block.
   //!
   //----------------------------------------------------------------------------
   void ManyWriteFilesTest();
 
- private:
+private:
 
   eos::fuse::test::TestEnv* mEnv; ///< testing environment object
 };
@@ -141,26 +141,24 @@ void
 FuseFileTest::WriteStatTest()
 {
   // Fill buffer with random characters
-  off_t sz_buff = 1024*1024 + 3; // ~ 1MB
+  off_t sz_buff = 1024 * 1024 + 3; // ~ 1MB
   char* buff = new char[sz_buff];
-  std::ifstream urandom ("/dev/urandom", std::fstream::in | std::fstream::binary);
+  std::ifstream urandom("/dev/urandom", std::fstream::in | std::fstream::binary);
   urandom.read(buff, sz_buff);
   urandom.close();
-
   // Create file
   int fd = -1;
   struct stat buf;
   mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-  std::string fname = mEnv->GetMapping("file_dummy"); fname += "_wst";
+  std::string fname = mEnv->GetMapping("file_dummy");
+  fname += "_wst";
   CPPUNIT_ASSERT((fd = creat(fname.c_str(), mode)) != -1);
-  
   // Write-(sync)-stat the file
   int count = 0;
   off_t offset = 0;
-  off_t sz_file = 10.3 * 1024 *1024; // ~ 10MB
+  off_t sz_file = 10.3 * 1024 * 1024; // ~ 10MB
 
-  while (offset < sz_file)
-  {                 
+  while (offset < sz_file) {
     CPPUNIT_ASSERT(!fstat(fd, &buf));
     // Expect correct real size all the time
     CPPUNIT_ASSERT(buf.st_size == offset);
@@ -168,19 +166,21 @@ FuseFileTest::WriteStatTest()
     CPPUNIT_ASSERT((buf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO)) == mode);
     CPPUNIT_ASSERT(write(fd, buff, sz_buff) == (ssize_t) sz_buff);
     offset += sz_buff;
-   
-    if (count % 2)
+
+    if (count % 2) {
       CPPUNIT_ASSERT(!fsync(fd));
-       
-    if (offset + sz_buff > sz_file)
+    }
+
+    if (offset + sz_buff > sz_file) {
       sz_buff = sz_file - offset;
+    }
 
     count++;
   }
-  
+
   CPPUNIT_ASSERT(!close(fd));
   CPPUNIT_ASSERT(!stat(fname.c_str(), &buf));
-  CPPUNIT_ASSERT(buf.st_size == sz_file);               
+  CPPUNIT_ASSERT(buf.st_size == sz_file);
   CPPUNIT_ASSERT(!remove(fname.c_str()));
   delete[] buff;
 }
@@ -188,40 +188,34 @@ FuseFileTest::WriteStatTest()
 
 //------------------------------------------------------------------------------
 // Access the same file from two different processes. The parent proceess
-// creates the file and the child process writes and closes it. At the end 
-// the parent proceess reopens the newly created file to check that the 
+// creates the file and the child process writes and closes it. At the end
+// the parent proceess reopens the newly created file to check that the
 // contents is correct.
 //------------------------------------------------------------------------------
-void 
+void
 FuseFileTest::MultiProcessTest()
 {
   // Fill buffer with random characters
-  off_t sz_buff = 1024*1024 + 137; // ~ 1MB
+  off_t sz_buff = 1024 * 1024 + 137; // ~ 1MB
   char* buff = new char[sz_buff];
-  std::ifstream urandom ("/dev/urandom", std::fstream::in | std::fstream::binary);
+  std::ifstream urandom("/dev/urandom", std::fstream::in | std::fstream::binary);
   urandom.read(buff, sz_buff);
   urandom.close();
-
   int fd = -1;
-  std::string fname = mEnv->GetMapping("file_dummy"); fname += "_mpt";
+  std::string fname = mEnv->GetMapping("file_dummy");
+  fname += "_mpt";
   CPPUNIT_ASSERT((fd = creat(fname.c_str(), S_IRUSR | S_IWUSR)) != -1);
   pid_t pid = fork();
 
-  if (pid == -1)
-  {
+  if (pid == -1) {
     // Error while forking
-    CPPUNIT_ASSERT_MESSAGE("Error while forking", pid == -1 );    
-  }
-  else if (pid == 0)
-  {
+    CPPUNIT_ASSERT_MESSAGE("Error while forking", pid == -1);
+  } else if (pid == 0) {
     // Child
     CPPUNIT_ASSERT(write(fd, buff, sz_buff) == (ssize_t)sz_buff);
     CPPUNIT_ASSERT(!close(fd));
-    delete[] buff;
-  }
-  else 
-  {
-    // Parent 
+  } else {
+    // Parent
     int status;
     CPPUNIT_ASSERT(wait(&status) == pid);
     CPPUNIT_ASSERT(WIFEXITED(status));
@@ -238,9 +232,11 @@ FuseFileTest::MultiProcessTest()
     CPPUNIT_ASSERT_MESSAGE("WR/RD buffer missmatch", !strncmp(buff, rbuff, nread));
     CPPUNIT_ASSERT(!close(fd));
     CPPUNIT_ASSERT(!remove(fname.c_str()));
+    close(fd);
     delete[] rbuff;
-    delete[] buff;
   }
+
+  delete[] buff;
 }
 
 
@@ -252,14 +248,14 @@ FuseFileTest::WriteReadTest()
 {
   int fd = -1;
   size_t buff_sz = 10240;
-  char *buf = new char[buff_sz];
+  char* buf = new char[buff_sz];
   memset(buf, 7, buff_sz);
-
-  std::string fname = mEnv->GetMapping("file_dummy"); fname += "_wrt";
+  std::string fname = mEnv->GetMapping("file_dummy");
+  fname += "_wrt";
   CPPUNIT_ASSERT((fd = open(fname.c_str(), O_CREAT | O_RDWR, S_IRWXU)) != -1);
   CPPUNIT_ASSERT(write(fd, buf, buff_sz) == (ssize_t)buff_sz);
   ssize_t nread = pread(fd, buf, 30, 10200);
-  CPPUNIT_ASSERT( nread == 30);
+  CPPUNIT_ASSERT(nread == 30);
   CPPUNIT_ASSERT(!close(fd));
   CPPUNIT_ASSERT(!remove(fname.c_str()));
   delete[] buf;
@@ -280,26 +276,26 @@ FuseFileTest::SparseWriteTest()
   char buff[sz_buff];
   memset(&buff, 13, sz_buff);
   int sz_cache = atoi(mEnv->GetMapping("fuse_cache_size").c_str());
-  std::string fname = mEnv->GetMapping("file_dummy"); fname += "_swt";
+  std::string fname = mEnv->GetMapping("file_dummy");
+  fname += "_swt";
   CPPUNIT_ASSERT((fd = creat(fname.c_str(), S_IRWXU)) != -1);
-  off_t sz_gap = 4 * 1024 *1024;
+  off_t sz_gap = 4 * 1024 * 1024;
   off_t sz_final = 1.5 * sz_cache; // fill all cache and beyond
-  
-  while (offset < sz_final)
-  {
-    if (sz_final - offset < sz_buff)
+
+  while (offset < sz_final) {
+    if (sz_final - offset < sz_buff) {
       sz_buff = sz_final - offset;
-    
+    }
+
     CPPUNIT_ASSERT(pwrite(fd, buff, sz_buff, offset) == sz_buff);
     offset += sz_gap; // write 1KB every 4MB
   }
 
   CPPUNIT_ASSERT(!close(fd));
-
   // Check size of the file
   struct stat info;
   CPPUNIT_ASSERT(!stat(fname.c_str(), &info));
-  CPPUNIT_ASSERT(info.st_size == (offset - sz_gap + sz_buff) );  
+  CPPUNIT_ASSERT(info.st_size == (offset - sz_gap + sz_buff));
   CPPUNIT_ASSERT(!remove(fname.c_str()));
 }
 
@@ -326,8 +322,7 @@ FuseFileTest::ManyWriteFilesTest()
   std::ostringstream oss;
 
   // Open files and write to them
-  for (int findx = 0; findx < num_files; ++findx)
-  {
+  for (int findx = 0; findx < num_files; ++findx) {
     oss.str("");
     oss << base_fname << findx;
     CPPUNIT_ASSERT((fd = creat(oss.str().c_str(), S_IRWXU)) != -1);
@@ -337,8 +332,7 @@ FuseFileTest::ManyWriteFilesTest()
   }
 
   // Close files and check the expected size
-  for (int findx = 0; findx < num_files; ++findx)
-  {
+  for (int findx = 0; findx < num_files; ++findx) {
     CPPUNIT_ASSERT(!close(vfd[findx]));
     CPPUNIT_ASSERT(!stat(vfname[findx].c_str(), &info));
     // std::cout << "Fname:" << vfname[findx] << " stat size: "
@@ -348,12 +342,13 @@ FuseFileTest::ManyWriteFilesTest()
     // we get the cached value
     CPPUNIT_ASSERT(info.st_size == sz_buff);
   }
-  
+
   // Remove all files
-  for (int findx = 0; findx < num_files; ++findx)
+  for (int findx = 0; findx < num_files; ++findx) {
     CPPUNIT_ASSERT(!remove(vfname[findx].c_str()));
+  }
 }
-      
+
 #endif // __EOS_FUSE_FUSEFILETEST_HH__
 
 

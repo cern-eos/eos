@@ -460,13 +460,14 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
   }
 
   if (dbmap.count(fsid)) {
+    bool res = PutFmd(fid, fsid, fmd->fMd);
     // update in-memory
     if (lockit) {
       FmdSqliteMutexMap[fsid].UnLockWrite();
       Mutex.UnLockRead(); // <----
     }
 
-    return PutFmd(fid, fsid, fmd->fMd);
+    return res;
   } else {
     eos_crit("no %s DB open for fsid=%llu", eos::common::DbMap::getDbType().c_str(),
              (unsigned long) fsid);
@@ -832,6 +833,7 @@ FmdDbMapHandler::ResyncAllDisk(const char* path,
 
   if (!ResetDiskInformation(fsid)) {
     eos_err("failed to reset the disk information before resyncing");
+    free(paths);
     return false;
   }
 

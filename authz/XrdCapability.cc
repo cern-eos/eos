@@ -43,134 +43,154 @@
 #endif
 
 /*----------------------------------------------------------------------------*/
-XrdSysError TkEroute(0,"capability");
+XrdSysError TkEroute(0, "capability");
 XrdOucTrace TkTrace(&TkEroute);
 /*----------------------------------------------------------------------------*/
 XrdCapability gCapabilityEngine;
 
 /*----------------------------------------------------------------------------*/
 XrdAccPrivs
-XrdCapability::Access(const XrdSecEntity    *Entity,
-                      const char            *path,
+XrdCapability::Access(const XrdSecEntity*    Entity,
+                      const char*            path,
                       const Access_Operation oper,
-                      XrdOucEnv       *Env)
+                      XrdOucEnv*       Env)
 {
   return XrdAccPriv_All;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdCapability::Configure(const char* ConfigFN) 
+XrdCapability::Configure(const char* ConfigFN)
 {
-  char *var;
+  char* var;
   int  cfgFD, NoGo = 0;
   XrdOucStream Config(&TkEroute, getenv("XRDINSTANCE"));
 
   if (!ConfigFN || !*ConfigFN) {
-    TkEroute.Emsg("Config","Configuration file not specified.");
+    TkEroute.Emsg("Config", "Configuration file not specified.");
   } else {
     // Try to open the configuration file
-    //
-    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
+    if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0) {
       return TkEroute.Emsg("Config", errno, "open config file", ConfigFN);
+    }
+
     Config.Attach(cfgFD);
+
     // Now start reading records until eof.
     //
     while ((var = Config.GetMyFirstWord())) {
-      if (!strncmp(var, "capability.",10)) {
-        var+= 10;
+      if (!strncmp(var, "capability.", 10)) {
+        var += 10;
       }
     }
-    
+
     Config.Close();
+    close(cfgFD);
   }
-  
-  return ( (bool) (!NoGo) );
+
+  return ((bool)(!NoGo));
 }
-  
+
 /*----------------------------------------------------------------------------*/
-bool 
-XrdCapability::Init() 
+bool
+XrdCapability::Init()
 {
-  
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdCapability::Create(XrdOucEnv *inenv, 
-                      XrdOucEnv* &outenv, 
+XrdCapability::Create(XrdOucEnv* inenv,
+                      XrdOucEnv*& outenv,
                       eos::common::SymKey* key,
                       uint64_t cap_validity)
 {
   outenv = 0;
 
-  if (!key)
+  if (!key) {
     return ENOKEY;
+  }
 
-  if (!inenv) 
+  if (!inenv) {
     return EINVAL;
+  }
 
   int envlen;
   XrdOucString toencrypt = inenv->Env(envlen);
-  
   // Add the validity time - default 1 hour
   toencrypt += "&cap.valid=";
   char validity[32];
-  snprintf(validity, 32, "%llu", (long long unsigned int) (time(NULL) + cap_validity));
+  snprintf(validity, 32, "%llu",
+           (long long unsigned int)(time(NULL) + cap_validity));
   toencrypt += validity;
-  XrdOucString encrypted="";
-  
-  if (!XrdMqMessage::SymmetricStringEncrypt(toencrypt, 
-                                            encrypted, 
-                                            (char*)key->GetKey())) {
+  XrdOucString encrypted = "";
+
+  if (!XrdMqMessage::SymmetricStringEncrypt(toencrypt,
+      encrypted,
+      (char*)key->GetKey())) {
     return EKEYREJECTED;
-  } 
-  
+  }
+
   XrdOucString encenv = "";
-  encenv += "cap.sym="; encenv+= key->GetDigest64();
-  encenv += "&cap.msg="; encenv += encrypted;
-  while (encenv.replace('\n','#')) {};
+  encenv += "cap.sym=";
+  encenv += key->GetDigest64();
+  encenv += "&cap.msg=";
+  encenv += encrypted;
+
+  while (encenv.replace('\n', '#')) {};
+
   outenv = new XrdOucEnv(encenv.c_str());
+
   return 0;
 }
 
 /*----------------------------------------------------------------------------*/
-int 
-XrdCapability::Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv)
+int
+XrdCapability::Extract(XrdOucEnv* inenv, XrdOucEnv*& outenv)
 {
-  outenv = 0;
-  if (!inenv)
+  if (outenv) {
+    delete outenv;
+    outenv = 0;
+  }
+
+  if (!inenv) {
     return EINVAL;
+  }
 
   int envlen;
   XrdOucString instring = inenv->Env(envlen);
-  while (instring.replace('#','\n')) {};
+
+  while (instring.replace('#', '\n')) {};
+
   XrdOucEnv fixedenv(instring.c_str());
 
   //  fprintf(stderr,"Extracting: %s\n", fixedenv.Env(envlen));
   const char* symkey = fixedenv.Get("cap.sym");
+
   const char* symmsg = fixedenv.Get("cap.msg");
 
   //  fprintf(stderr,"%s\n%s\n", symkey, symmsg);
-  if ( (!symkey) || (!symmsg) ) 
+  if ((!symkey) || (!symmsg)) {
     return EINVAL;
-  
+  }
+
   eos::common::SymKey* key = 0;
+
   if (!(key = eos::common::gSymKeyStore.GetKey(symkey))) {
     return ENOKEY;
   }
-  
+
   XrdOucString todecrypt = symmsg;
-  XrdOucString decrypted ="";
-  if (!XrdMqMessage::SymmetricStringDecrypt(todecrypt, 
-                                            decrypted, 
-                                            (char*)key->GetKey())) {
+  XrdOucString decrypted = "";
+
+  if (!XrdMqMessage::SymmetricStringDecrypt(todecrypt,
+      decrypted,
+      (char*)key->GetKey())) {
     return EKEYREJECTED;
-  } 
-  
+  }
+
   outenv = new XrdOucEnv(decrypted.c_str());
-  
+
   // ---------------------------------------------------------------------------
   // check the validity time
   // ---------------------------------------------------------------------------
@@ -180,10 +200,13 @@ XrdCapability::Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv)
   } else {
     time_t now = time(NULL);
     time_t capnow = atoi(outenv->Get("cap.valid"));
+
     // capability expired!
-    if (capnow < now)
+    if (capnow < now) {
       return ETIME;
+    }
   }
+
   return 0;
 }
 
@@ -208,24 +231,24 @@ XrdVERSIONINFO(XrdAccAuthorizeObject, EosCapability);
    parm  -> Parameters specified on the authlib directive. If none it is zero.
 */
 
-extern "C" XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp,
-                                                  const char   *cfn,
-                                                  const char   *parm)
+extern "C" XrdAccAuthorize* XrdAccAuthorizeObject(XrdSysLogger* lp,
+    const char*   cfn,
+    const char*   parm)
 {
   TkEroute.SetPrefix("capability_");
   TkEroute.logger(lp);
   XrdOucString version = "Capability (authorization) ";
   version += VERSION;
-
   TkEroute.Say("++++++ (c) 2010 CERN/IT-DSS ", version.c_str());
-
   XrdAccAuthorize* acc = (XrdAccAuthorize*) new XrdCapability();
+
   if (!acc) {
     TkEroute.Say("------ XrdCapability Allocation Failed!");
     return 0;
   }
 
-  if (!((XrdCapability*)acc)->Configure(cfn) || (!((XrdCapability*)acc)->Init())) {
+  if (!((XrdCapability*)acc)->Configure(cfn) ||
+      (!((XrdCapability*)acc)->Init())) {
     TkEroute.Say("------ XrdCapability Initialization Failed!");
     delete acc;
     return 0;

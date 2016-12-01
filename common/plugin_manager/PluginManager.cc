@@ -232,6 +232,7 @@ PluginManager::LoadAll(std::string dir_path,
     }
   }
 
+  (void) closedir(dir);
   return 0;
 }
 

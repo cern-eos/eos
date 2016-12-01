@@ -7,6 +7,7 @@ Client Commands
   :maxdepth: 2
 
   clicommands/motd
+  clicommands/acl
   clicommands/help
   clicommands/vid
   clicommands/chmod

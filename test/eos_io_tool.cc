@@ -553,6 +553,7 @@ WritePattern(XrdCl::URL& url,
 
   if (map_pattern.empty()) {
     eos_static_err("Error the pattern map is empty");
+    close(ext_fd);
     delete eosf;
     delete[] buffer;
     return false;
