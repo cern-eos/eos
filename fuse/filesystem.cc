@@ -1607,6 +1607,9 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
   XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   eos_static_debug("arg = %s", arg.ToString().c_str());
+
+ for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount; retrycount++)
+ {
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
                                         response);
   COMMONTIMING("GETPLUGIN", &stattiming);
@@ -1680,15 +1683,30 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
        buf->st_mode &= (~S_ISGID); // clear sgid
        errno = 0;
      }
-  } else {
-    if (!response) {
-      eos_static_err("no response received");
-    } else {
-      eos_static_err("status is NOT ok : %s", status.ToString().c_str());
-   }
+     break;
+  } 
+   else
+   {
+     if (!response || !response->GetBuffer ())
+     {
+       if(retrycount+1<xrootd_nullresponsebug_retrycount)
+       {
+         XrdSysTimer sleeper;
+         if(xrootd_nullresponsebug_retrysleep) sleeper.Wait(xrootd_nullresponsebug_retrysleep);
 
+         continue;
+       }
+       else
+         eos_static_err("no response received after %d attempts", retrycount);
+     }
+     else
+     {
+       eos_static_err("status is NOT ok : %s", status.ToString ().c_str ());
+     }
       errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
- }
+      break;
+   } 
+}
 
   if (file_size == (off_t) - 1) {
    eos_static_debug("querying the cache for inode=%x", inode);
@@ -4700,6 +4718,24 @@ filesystem::init(int argc, char* argv[], void* userdata,
  }
 
     gProcCache.SetProcPath(pp.c_str());
+ }
+
+ if (getenv ("EOS_FUSE_XRDBUGNULLRESPONSE_RETRYCOUNT"))
+ {
+   xrootd_nullresponsebug_retrycount = std::max(0,(int)strtoul (getenv ("EOS_FUSE_XRDBUGNULLRESPONSE_RETRYCOUNT"), 0, 10));
+ }
+ else
+ {
+   xrootd_nullresponsebug_retrycount = 3; // 256 MB
+ }
+
+ if (getenv ("EOS_FUSE_XRDBUGNULLRESPONSE_RETRYSLEEPMS"))
+ {
+   xrootd_nullresponsebug_retrysleep = std::max(0,(int)strtoul (getenv ("EOS_FUSE_XRDBUGNULLRESPONSE_RETRYSLEEPMS"), 0, 10));
+ }
+ else
+ {
+   xrootd_nullresponsebug_retrysleep = 1; // 256 MB
  }
 
  // Get the number of levels in the top hierarchy protected agains deletions
