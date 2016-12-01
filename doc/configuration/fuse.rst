@@ -295,7 +295,7 @@ Define two FUSE mounts in /etc/sysconfig/eos
    # tag xroot traffic
    export XRD_APPNAME=eos-fuse
    export XRD_CONNECTIONRETRY=4096
-   export XRD_CONNECTIONWINDOW=0
+   export XRD_CONNECTIONWINDOW=10
    # keep connections to FSTs for 5 minutes
    export XRD_DATASERVERTTL=300
    # keep connections to MGM for 30 minutes

@@ -209,7 +209,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     while (mountprefix[strlen(mountprefix) - 1] == '/') {
       mountprefix[strlen(mountprefix) - 1] = '\0';
     }
-}
+ }
 
  if (getuid () <= DAEMONUID)
  {
@@ -222,7 +222,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     me.fs().initlogging();
     eos_static_crit("failed to contact configured mgm");
     return 1;
- }
+  }
 
   if ((fuse_parse_cmdline(&args, &local_mount_dir, NULL,
                           &me.config.isdebug) != -1) &&
@@ -250,9 +250,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
    me.config.mounthostport = mounthostport;
     me.fs().setMountPoint(me.config.mount_point);
     me.fs().setPrefix(me.config.mountprefix);
-    std::map<std::string, std::string> features;
-    if(!me.fs ().init (argc, argv, userdata, &features)) return 1;
- 
+   std::map<std::string, std::string> features;
+   if(!me.fs ().init (argc, argv, userdata, &features)) return 1;
+
    me.config.encode_pathname = features.find("eos.encodepath") != features.end();
     me.config.lazy_open = (features.find("eos.lazyopen") != features.end()) ? true :
                           false;
@@ -1479,8 +1479,9 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
 
   if (fi && fi->fh) {
    struct filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
-    char* buf = me.fs().attach_rd_buff(pthread_self(), size);
-    eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld fh=%lld",
+   char* buf = me.fs ().attach_rd_buff (thread_id (), size);
+
+   eos_static_debug ("inode=%lld size=%lld off=%lld buf=%lld fh=%lld",
                      (long long) ino, (long long) size,
                      (long long) off, (long long) buf, (long long) info->fd);
     int res = me.fs().pread(info->fd, buf, size, off);
@@ -1556,9 +1557,9 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                      (long long) ino, (long long) fd);
     eos_static_debug("try to close file fd=%llu", info->fd);
     me.fs().close(info->fd, ino, info->uid, info->gid, info->pid);
-    me.fs().release_rd_buff(pthread_self());
 
-    free(info);
+   // Free memory
+   free (info);
    fi->fh = 0;
 
     unsigned long long new_inode;
