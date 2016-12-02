@@ -3181,24 +3181,21 @@ XrdMqSharedObjectManager::CloseMuxTransaction()
 {
   // Mux Transactions can only update values with the same broadcastqueue,
   // no deletions of subjects
-  {
-    XrdSysMutexHelper mLock(MuxTransactionsMutex);
+  XrdSysMutexHelper mLock(MuxTransactionsMutex);
 
-    if (MuxTransactions.size()) {
-      XrdOucString txmessage = "";
-      MakeMuxUpdateEnvHeader(txmessage);
-      AddMuxTransactionEnvString(txmessage);
-      XrdMqMessage message("XrdMqSharedHashMessage");
-      message.SetBody(txmessage.c_str());
-      message.MarkAsMonitor();
-      XrdMqMessaging::gMessageClient.SendMessage(message,
-	  MuxTransactionBroadCastQueue.c_str(), false, false, true);
-    }
-
-    IsMuxTransaction = false;
-    MuxTransactions.clear();
+  if (MuxTransactions.size()) {
+    XrdOucString txmessage = "";
+    MakeMuxUpdateEnvHeader(txmessage);
+    AddMuxTransactionEnvString(txmessage);
+    XrdMqMessage message("XrdMqSharedHashMessage");
+    message.SetBody(txmessage.c_str());
+    message.MarkAsMonitor();
+    XrdMqMessaging::gMessageClient.SendMessage(message,
+      MuxTransactionBroadCastQueue.c_str(), false, false, true);
   }
-  MuxTransactionMutex.UnLock();
+
+  IsMuxTransaction = false;
+  MuxTransactions.clear();
   return true;
 }
 
@@ -3287,6 +3284,7 @@ bool
 XrdMqSharedObjectManager::OpenMuxTransaction(const char* type,
 					     const char* broadcastqueue)
 {
+  XrdSysMutexHelper lock(MuxTransactionsMutex);
   MuxTransactionType = type;
 
   if (MuxTransactionType != "hash") {
@@ -3303,7 +3301,6 @@ XrdMqSharedObjectManager::OpenMuxTransaction(const char* type,
     MuxTransactionBroadCastQueue = broadcastqueue;
   }
 
-  MuxTransactionMutex.Lock();
   MuxTransactions.clear();
   IsMuxTransaction = true;
   return true;

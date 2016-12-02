@@ -768,7 +768,6 @@ public:
   void AddMuxTransactionEnvString(XrdOucString& out);
 
 protected:
-  XrdSysMutex MuxTransactionMutex;  ///< blocks mux transactions
   XrdSysMutex MuxTransactionsMutex; ///< protects the mux transaction map
   std::string MuxTransactionType; ///<
   std::string MuxTransactionBroadCastQueue;
@@ -1059,19 +1058,33 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
   }
 
   if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
+    bool is_transact = false;
+
+    // mSOM->IsMuxTransaction is tested first to avoid contention on the
+    // MuxTransactionsMutex and then is tested again when we actually have the
+    // lock to check it didn't change in the meantime - hackish, needs fix!
     if (mSOM->IsMuxTransaction) {
-      XrdSysMutexHelper mLock(mSOM->MuxTransactionsMutex);
-      mSOM->MuxTransactions[mSubject].insert(skey);
-    } else {
+      XrdSysMutexHelper lock(mSOM->MuxTransactionsMutex);
+
+      if (mSOM->IsMuxTransaction) {
+	mSOM->MuxTransactions[mSubject].insert(skey);
+	is_transact = true;
+      }
+    }
+
+    if (!is_transact) {
       // Emulate a transaction for a single set operation
+      bool emulate_transact = false;
+
       if (!mIsTransaction) {
 	mTransactMutex.Lock();
 	mTransactions.clear();
+	emulate_transact = true;
       }
 
       mTransactions.insert(skey);
 
-      if (!mIsTransaction) {
+      if (!emulate_transact) {
 	CloseTransaction();
       }
     }
