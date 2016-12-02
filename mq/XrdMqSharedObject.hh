@@ -1084,7 +1084,7 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
 
       mTransactions.insert(skey);
 
-      if (!emulate_transact) {
+      if (emulate_transact) {
 	CloseTransaction();
       }
     }
