@@ -150,7 +150,7 @@ private:
   // this flag is triggered by the class management and indicate to each thread to reset some thread specific stuff
   static __thread bool* orderCheckReset_staticthread;
   // this map contains the previously referenced flag for reset
-  static std::map<pthread_t, bool> threadOrderCheckResetFlags_static;
+  static std::map<pthread_t, bool> *threadOrderCheckResetFlags_static;
   // each unsigned long is used as 64 bit flags to trace the lock status of mutexes for a given rule
   static __thread unsigned long ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
   // a mutex can be associated to up to EOS_RWMUTEX_ORDER_NRULES and the following array gives the locking rank for "this" RWMutex
@@ -161,12 +161,12 @@ private:
   // ****************************************
   // ******** Order Rules management  *******
   // to issue the message and to manage the rules. Not involved in the online checking.
-  static std::map<unsigned char, std::string> ruleIndex2Name_static;
-  static std::map<std::string, unsigned char> ruleName2Index_static;
+  static std::map<unsigned char, std::string> *ruleIndex2Name_static;
+  static std::map<std::string, unsigned char> *ruleName2Index_static;
   unsigned char ruleLocalIndexToGlobalIndex[EOS_RWMUTEX_ORDER_NRULES];
   // rulename -> order
   typedef std::map< std::string , std::vector<RWMutex*> > rules_t;
-  static rules_t rules_static;
+  static rules_t *rules_static;
   // lock to guarantee unique access to rules management
   static pthread_rwlock_t orderChkMgmLock;
   // ****************************************
@@ -175,6 +175,7 @@ private:
   static size_t orderCheckingLatency;
   // ****************************************
   // ###########################################
+  void StaticInitialize();
 #endif
 public:
   // ---------------------------------------------------------------------------

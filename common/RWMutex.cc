@@ -47,13 +47,13 @@ int RWMutex::samplingModulo_static = (int)(0.01 * RAND_MAX);
 bool RWMutex::staticInitialized = false;
 bool RWMutex::enabletimingglobal = false;
 bool RWMutex::enableordercheckglobal = false;
-RWMutex::rules_t RWMutex::rules_static;
-std::map<unsigned char, std::string> RWMutex::ruleIndex2Name_static;
-std::map<std::string, unsigned char> RWMutex::ruleName2Index_static;
+RWMutex::rules_t *RWMutex::rules_static=NULL;
+std::map<unsigned char, std::string> *RWMutex::ruleIndex2Name_static=NULL;
+std::map<std::string, unsigned char> *RWMutex::ruleName2Index_static=NULL;
 __thread bool* RWMutex::orderCheckReset_staticthread = NULL;
 __thread unsigned long
 RWMutex::ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
-std::map<pthread_t, bool> RWMutex::threadOrderCheckResetFlags_static;
+std::map<pthread_t, bool> *RWMutex::threadOrderCheckResetFlags_static=NULL;
 pthread_rwlock_t RWMutex::orderChkMgmLock;
 
 #define EOS_RWMUTEX_CHECKORDER_LOCK if(enableordercheckglobal) CheckAndLockOrder();
@@ -162,13 +162,13 @@ RWMutex::~RWMutex()
   pthread_rwlock_rdlock(&orderChkMgmLock);
   std::map<std::string, std::vector<RWMutex*> >* rules = NULL;
 
-  for (auto rit = rules_static.begin(); rit != rules_static.end(); rit++) {
+  for (auto rit = rules_static->begin(); rit != rules_static->end(); rit++) {
     // for each rule
     for (auto it = rit->second.begin(); it != rit->second.end(); it++) {
       // for each RWMutex involved in that rule
       if ((*it) == this) {
         if (rules == NULL) {
-          rules = new std::map<std::string, std::vector<RWMutex*> >(rules_static);
+          rules = new std::map<std::string, std::vector<RWMutex*> >(*rules_static);
         }
 
         rules->erase(rit->first); // remove the rule if it contains this
@@ -445,13 +445,13 @@ RWMutex::OrderViolationMessage(unsigned char rule, const std::string& message)
   // get void*'s for all entries on the stack
   size = backtrace(array, 10);
   const std::string& rulename =
-    ruleIndex2Name_static[ruleLocalIndexToGlobalIndex[rule]];
+    (*ruleIndex2Name_static)[ruleLocalIndexToGlobalIndex[rule]];
   fprintf(stderr,
           "RWMutex: Order Checking Error in thread %lu\n %s\n In rule %s :\nLocking Order should be:\n",
           threadid,
           message.c_str(),
           rulename.c_str());
-  std::vector<RWMutex*> order = rules_static[rulename];
+  std::vector<RWMutex*> order = (*rules_static)[rulename];
 
   for (std::vector<RWMutex*>::iterator ito = order.begin(); ito != order.end();
        ito++) {
@@ -835,9 +835,16 @@ RWMutex::InitializeClass()
   // ---------------------------------------------------------------------------
   //! Performs the initialization of the class
   // ---------------------------------------------------------------------------
-  if (pthread_rwlock_init(&orderChkMgmLock, NULL)) {
+
+  if (pthread_rwlock_init(&orderChkMgmLock, NULL))
+  {
     throw "pthread_orderChkMgmLock_init failed";
   }
+
+  rules_static=new RWMutex::rules_t();
+  RWMutex::ruleIndex2Name_static=new std::map<unsigned char, std::string>;
+  RWMutex::ruleName2Index_static=new std::map<std::string, unsigned char>;
+  RWMutex::threadOrderCheckResetFlags_static=new std::map<pthread_t, bool>;
 }
 
 void
@@ -899,17 +906,17 @@ RWMutex::AddOrderRule(const std::string& rulename,
   pthread_rwlock_wrlock(&orderChkMgmLock);
 
   // if we reached the max number of rules, ignore
-  if (rules_static.size() == EOS_RWMUTEX_ORDER_NRULES || order.size() > 63) {
+  if (rules_static->size() == EOS_RWMUTEX_ORDER_NRULES || order.size() > 63) {
     enableordercheckglobal = sav;
     pthread_rwlock_unlock(&orderChkMgmLock);
     return -1;
   }
 
-  rules_static[rulename] = order;
-  int ruleIdx = rules_static.size() - 1;
+  (*rules_static)[rulename] = order;
+  int ruleIdx = rules_static->size() - 1;
   // update the maps
-  ruleName2Index_static[rulename] = ruleIdx;
-  ruleIndex2Name_static[ruleIdx] = rulename;
+  (*ruleName2Index_static)[rulename] = ruleIdx;
+  (*ruleIndex2Name_static)[ruleIdx] = rulename;
   // update each object
   unsigned char count = 0;
 
@@ -956,13 +963,13 @@ RWMutex::ResetOrderRule()
 #endif
 
   // tell the threads to reset the states of the order mask (because it's thread-local)
-  for (auto it = threadOrderCheckResetFlags_static.begin();
-       it != threadOrderCheckResetFlags_static.end(); it++) {
+  for (auto it = threadOrderCheckResetFlags_static->begin();
+       it != threadOrderCheckResetFlags_static->end(); it++) {
     it->second = true;
   }
 
   // tell all the RWMutex that they are not involved in any order checking anymore
-  for (auto rit = rules_static.begin(); rit != rules_static.end(); rit++) {
+  for (auto rit = rules_static->begin(); rit != rules_static->end(); rit++) {
     // for each rule
     for (auto it = rit->second.begin(); it != rit->second.end(); it++) {
       // for each RWMutex involved in that rule
@@ -971,9 +978,9 @@ RWMutex::ResetOrderRule()
   }
 
   // clean the manager side.
-  ruleName2Index_static.clear();
-  ruleIndex2Name_static.clear();
-  rules_static.clear();
+  ruleName2Index_static->clear();
+  ruleIndex2Name_static->clear();
+  rules_static->clear();
   pthread_rwlock_unlock(&orderChkMgmLock);
   enableordercheckglobal = sav;
 }
@@ -992,7 +999,7 @@ int
 RWMutex::RemoveOrderRule(const std::string& rulename)
 {
   // make a local copy of the rules and remove the rule to remove
-  std::map<std::string, std::vector<RWMutex*> > rules = rules_static;
+  std::map<std::string, std::vector<RWMutex*> > rules = (*rules_static);
 
   if (!rules.erase(rulename)) {
     return 0;
@@ -1026,14 +1033,14 @@ RWMutex::ResetCheckOrder()
   pthread_t tid = XrdSysThread::ID();
   pthread_rwlock_rdlock(&orderChkMgmLock);
 
-  if (threadOrderCheckResetFlags_static.find(tid) ==
-      threadOrderCheckResetFlags_static.end()) {
+  if (threadOrderCheckResetFlags_static->find(tid) ==
+      threadOrderCheckResetFlags_static->end()) {
     pthread_rwlock_unlock(&orderChkMgmLock);
     pthread_rwlock_wrlock(&orderChkMgmLock);
-    threadOrderCheckResetFlags_static[tid] = false;
+    (*threadOrderCheckResetFlags_static)[tid] = false;
   }
 
-  orderCheckReset_staticthread = &threadOrderCheckResetFlags_static[tid];
+  orderCheckReset_staticthread = &(*threadOrderCheckResetFlags_static)[tid];
   pthread_rwlock_unlock(&orderChkMgmLock);
 }
 
