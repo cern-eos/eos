@@ -109,6 +109,7 @@ public:
     std::string cachedStrongLogin;
   };
 
+  const unsigned int proccachenbins;
   std::vector<eos::common::RWMutex> proccachemutexes;
 
   //------------------------------------------------------------------------------
@@ -118,13 +119,13 @@ public:
   void
   lock_r_pcache(pid_t pid)
   {
-    proccachemutexes[pid].LockRead();
+    proccachemutexes[pid%proccachenbins].LockRead();
   }
 
   void
   lock_w_pcache(pid_t pid)
   {
-    proccachemutexes[pid].LockWrite();
+    proccachemutexes[pid%proccachenbins].LockWrite();
   }
 
 
@@ -135,13 +136,18 @@ public:
   void
   unlock_r_pcache(pid_t pid)
   {
-    proccachemutexes[pid].UnLockRead();
+    proccachemutexes[pid%proccachenbins].UnLockRead();
   }
 
   void
   unlock_w_pcache(pid_t pid)
   {
-    proccachemutexes[pid].UnLockWrite();
+    proccachemutexes[pid%proccachenbins].UnLockWrite();
+  }
+
+  AuthIdManager() : proccachenbins(32768)
+  {
+    resize(proccachenbins);
   }
 
 protected:
@@ -152,7 +158,9 @@ protected:
   std::map< std::pair<uid_t, pid_t>, CredInfo > uidsid2credinfo;
   // maps procid -> xrootd_login
   // only one thread per process will access this (protected by one mutex per process)
-  std::vector<std::string> pid2StrongLogin;
+  // we have a pool of shared maps
+  // it is protected by proccachemutexes
+  std::vector<std::map<pid_t,std::string> > pid2StrongLogin;
   static uint64_t sConIdCount;
 
   bool
@@ -432,7 +440,7 @@ protected:
       // no lock needed as only one thread per process can access this (lock is supposed to be already taken -> beginning of the function)
       eos_static_debug("uid=%d  sid=%d  pid=%d  found stronglogin in cache %s",
                        (int)uid, (int)sid, (int)pid, cacheEntry->second.cachedStrongLogin.c_str());
-      pid2StrongLogin[pid] = cacheEntry->second.cachedStrongLogin;
+      pid2StrongLogin[pid%proccachenbins][pid] = cacheEntry->second.cachedStrongLogin;
 
       if (gProcCache.HasEntry(sid)) {
         std::string authmeth;
@@ -462,7 +470,7 @@ protected:
       }
 
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
-      pid2StrongLogin[pid] = "nobody";
+      pid2StrongLogin[pid%proccachenbins][pid] = "nobody";
     } else {
       // refresh the credentials in the cache
       // check the credential security
@@ -521,11 +529,11 @@ protected:
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       map_user xrdlogin(uid, gid, authid);
       std::string mapped = mapUser(uid, gid, 0, authid);
-      pid2StrongLogin[pid] = std::string(xrdlogin.base64(mapped));
+      pid2StrongLogin[pid%proccachenbins][pid] = std::string(xrdlogin.base64(mapped));
     }
 
     // update uidsid2credinfo
-    credinfo.cachedStrongLogin = pid2StrongLogin[pid];
+    credinfo.cachedStrongLogin = pid2StrongLogin[pid%proccachenbins][pid];
     eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",
                      (int)uid, (int)sid, (int)pid, credinfo.cachedStrongLogin.c_str());
     pMutex.LockWrite();
@@ -533,7 +541,7 @@ protected:
     pMutex.UnLockWrite();
     eos_static_info("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)",
                     sId.c_str(), (int)pid,
-                    pid2StrongLogin[pid].c_str(), (int)uid, (int)authid);
+                    pid2StrongLogin[pid%proccachenbins][pid].c_str(), (int)uid, (int)authid);
     return errCode;
   }
 
@@ -574,22 +582,22 @@ public:
   inline int
   updateProcCache(uid_t uid, gid_t gid, pid_t pid)
   {
-    eos::common::RWMutexWriteLock lock(proccachemutexes[pid]);
+    eos::common::RWMutexWriteLock lock(proccachemutexes[pid%proccachenbins]);
     return updateProcCache(uid, gid, pid, false);
   }
 
   inline int
   reconnectProcCache(uid_t uid, gid_t gid, pid_t pid)
   {
-    eos::common::RWMutexWriteLock lock(proccachemutexes[pid]);
+    eos::common::RWMutexWriteLock lock(proccachemutexes[pid%proccachenbins]);
     return updateProcCache(uid, gid, pid, true);
   }
 
   std::string
   getXrdLogin(pid_t pid)
   {
-    eos::common::RWMutexReadLock lock(proccachemutexes[pid]);
-    return pid2StrongLogin[pid];
+    eos::common::RWMutexReadLock lock(proccachemutexes[pid%proccachenbins]);
+    return pid2StrongLogin[pid%proccachenbins][pid];
   }
 
   std::string

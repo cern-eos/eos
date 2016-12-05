@@ -5061,7 +5061,7 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    }
    if (f) fclose (f);
  }
- authidmanager.resize (pid_max + 1);
+ // we make fixed size sharding now authidmanager.resize (pid_max + 1);
 
  // Get parameters about strong authentication
  if (getenv ("EOS_FUSE_PIDMAP") && (atoi (getenv ("EOS_FUSE_PIDMAP")) == 1))
