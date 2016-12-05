@@ -291,7 +291,7 @@ Storage::Publish ()
 	    used_files = 0;
 	    if (gFmdSqliteHandler.FmdSqliteMap.count(fsid))
 	    {
-	      eos::common::RWMutexReadLock flock(gFmdSqliteHandler.FmdSqliteMutexMap[fsid]);
+	      FmdSqliteReadLock flock(fsid);
 	      used_files = (long long) (gFmdSqliteHandler.FmdSqliteMap[fsid].size());
 	    }
 	  }
