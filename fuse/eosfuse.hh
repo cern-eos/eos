@@ -140,6 +140,7 @@ private:
   typedef struct cfg
   {
     int isdebug;
+    int foreground;
     double entrycachetime;
     double attrcachetime;
     double neg_entrycachetime;
