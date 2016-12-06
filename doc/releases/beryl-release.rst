@@ -7,6 +7,23 @@
 Beryl Release Notes
 ===================
 
+``V0.3.222 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MQ: fix race condition multiplexed/non-multiplexed set
+- FST: fix race condition in filesystem mutex map
+- FUSE: fix wrong default values for query retry sleep time
+- MGM: protect scheduling against scheduling in a space without filesystems 
+
+New Feature
++++++++++++
+
+- FUSE: use proc map sharding to avoid too large mutex maps for machines with high max proc ID settings
+- FUSE: allow to run eosd as a foreground process when specified in /etc/sysconfig/eos
+
 ``V0.3.221 Aquamarine``
 =======================
 
