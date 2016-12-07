@@ -1001,7 +1001,7 @@ XrdMqSharedQueue::PopFront()
   if (!mQueue.empty()) {
     std::string key = mQueue.front();
     mQueue.pop_front();
-    value = Get(key);
+    value = XrdMqSharedHash::Get(key);
     (void) XrdMqSharedHash::Delete(key);
   }
 

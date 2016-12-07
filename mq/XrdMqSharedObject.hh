@@ -285,7 +285,7 @@ public:
   //!
   //! @return true if deletion done, otherwise false
   //----------------------------------------------------------------------------
-  bool Delete(const std::string& key, bool broadcast = true);
+  virtual bool Delete(const std::string& key, bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Clear contents of the hash
@@ -491,6 +491,8 @@ public:
   //! Delete entry from queue
   //!
   //! @param key entry key value
+  //!
+  //! @return true if entry deleted, otherwise false
   //----------------------------------------------------------------------------
   bool Delete(const std::string& key);
 
@@ -513,7 +515,7 @@ public:
 
 private:
   XrdSysMutex mQMutex; ///< Mutex protecting the mQueue object
-  std::deque<std::string> mQueue; ///< Underlying queue
+  std::deque<std::string> mQueue; ///< Underlying queue holding keys
   unsigned long long mLastObjId; ///< Id of the last object added to the queue
 };
 
