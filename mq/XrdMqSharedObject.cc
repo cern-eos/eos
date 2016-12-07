@@ -979,7 +979,7 @@ XrdMqSharedQueue::PushBack(const std::string& key, const std::string& value)
   }
 
   XrdSysMutexHelper lock(mQMutex);
-  if (Get(key).empty()) {
+  if (Get(uuid).empty()) {
     mQueue.push_back(uuid);
     mLastObjId++;
     Set(uuid.c_str(), value);
