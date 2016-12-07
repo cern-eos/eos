@@ -17,6 +17,7 @@ Bug Fix
 - FST: fix race condition in filesystem mutex map
 - FUSE: fix wrong default values for query retry sleep time
 - MGM: protect scheduling against scheduling in a space without filesystems 
+- MGM: fix 'fileinfo by inode' 
 
 New Feature
 +++++++++++
