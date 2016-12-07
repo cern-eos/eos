@@ -125,14 +125,17 @@ TransferMultiplexer::ThreadProc (void)
          if (freeslots <= 0)
            break;
 
-	 fprintf(stderr,"Found %u transfers in queue %s\n", (unsigned int) mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
+	 fprintf(stderr,"Found %u transfers in queue %s\n", (unsigned int)
+		 mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
 
          mQueues[i]->GetQueue()->OpenTransaction();
          eos::common::TransferJob* cjob = mQueues[i]->GetQueue()->Get();
          mQueues[i]->GetQueue()->CloseTransaction();
 
-         if (!cjob)
+         if (!cjob) {
+	   fprintf(stderr, "No transfer job created\n");
            break;
+	 }
 
          XrdOucString out = "";
          cjob->PrintOut(out);
