@@ -513,6 +513,23 @@ public:
   //----------------------------------------------------------------------------
   std::string PopFront();
 
+  //----------------------------------------------------------------------------
+  //! Set entry in queue
+  //!
+  //! @param key key value
+  //! @param value entry value which can NOT be an empty string
+  //! @param broadcast do broadcast for current subject
+  //! @param tempmodsubjects add to temporary modified subjects
+  //! @param do_lock if true then take all the necessary locks, otherwise
+  //!        assume we are protected.
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  template <typename T>
+  bool Set(const char* key, T&& value, bool broadcast = true,
+	   bool tempmodsubjects = false, bool do_lock = true);
+
+
 private:
   XrdSysMutex mQMutex; ///< Mutex protecting the mQueue object
   std::deque<std::string> mQueue; ///< Underlying queue holding keys
@@ -1040,6 +1057,7 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
   AtomicInc(sSetCounter);
 
   if (svalue.empty()) {
+    fprintf(stderr, "Error: empty values are not allowed in the hash!\n");
     return false;
   }
 
@@ -1122,6 +1140,25 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
   }
 
   return true;
+}
+
+//-------------------------------------------------------------------------------
+// Set entry in hash map
+//-------------------------------------------------------------------------------
+template <typename T>
+bool
+XrdMqSharedQueue::Set(const char* key, T&& value, bool broadcast,
+		      bool tempmodsubjects, bool do_lock)
+{
+  std::string svalue = eos::common::StringConversion::stringify(value);
+  AtomicInc(sSetCounter);
+
+  if (svalue.empty()) {
+    fprintf(stderr, "Error: empty values are not allowed in the queue!\n");
+    return false;
+  }
+
+  return PushBack(key, svalue);
 }
 
 #endif

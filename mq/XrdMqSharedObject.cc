@@ -969,21 +969,22 @@ bool
 XrdMqSharedQueue::PushBack(const std::string& key, const std::string& value)
 {
   std::string uuid;
+  XrdSysMutexHelper lock(mQMutex);
 
   if (key.empty()){
     char lld[1024];
-    snprintf(lld, 1023, "%llu", mLastObjId + 1);
+    mLastObjId++;
+    snprintf(lld, 1023, "%llu", mLastObjId);
     uuid = lld;
   } else {
     uuid = key;
   }
 
-  XrdSysMutexHelper lock(mQMutex);
-  if (Get(uuid).empty()) {
-    mQueue.push_back(uuid);
-    mLastObjId++;
-    Set(uuid.c_str(), value);
-    return true;
+  if (XrdMqSharedHash::Get(uuid).empty()) {
+    if (XrdMqSharedHash::Set(uuid.c_str(), value)) {
+      mQueue.push_back(uuid);
+      return true;
+    }
   }
 
   return false;
