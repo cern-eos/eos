@@ -317,8 +317,8 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  bool Set(const char* key, T&& value, bool broadcast = true,
-	   bool tempmodsubjects = false, bool do_lock = true);
+   bool Set(const char* key, T&& value, bool broadcast = true,
+	    bool tempmodsubjects = false, bool do_lock = true);
 
   //============================================================================
   //                          THIS SHOULD BE REVIEWED - BEGIN
@@ -401,6 +401,22 @@ protected:
   std::map<std::string, XrdMqSharedHashEntry> mStore; ///< Underlying map obj.
   std::string mType; ///< Type of object
   XrdMqSharedObjectManager* mSOM; ///< Pointer to shared object manager
+
+  //----------------------------------------------------------------------------
+  //! Set entry in hash map - internal implementation
+  //!
+  //! @param key key value
+  //! @param value entry value - non-empty string
+  //! @param broadcast do broadcast for current subject
+  //! @param tempmodsubjects add to temporary modified subjects
+  //! @param do_lock if true then take all the necessary locks, otherwise
+  //!        assume we are protected.
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  virtual
+  bool SetImpl(const char* key, const char* value,  bool broadcast,
+	       bool tempmodsubjects, bool do_lock);
 
 private:
   std::string mBroadcastQueue; ///< Name of the broadcast queue
@@ -513,11 +529,13 @@ public:
   //----------------------------------------------------------------------------
   std::string PopFront();
 
+private:
+
   //----------------------------------------------------------------------------
-  //! Set entry in queue
+  //! Set entry in hash map - internal implementation
   //!
   //! @param key key value
-  //! @param value entry value which can NOT be an empty string
+  //! @param value entry value - non-empty string
   //! @param broadcast do broadcast for current subject
   //! @param tempmodsubjects add to temporary modified subjects
   //! @param do_lock if true then take all the necessary locks, otherwise
@@ -525,10 +543,9 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  template <typename T>
-  bool Set(const char* key, T&& value, bool broadcast = true,
-	   bool tempmodsubjects = false, bool do_lock = true);
-
+  virtual
+  bool SetImpl(const char* key, const char* value, bool broadcast,
+	       bool tempmodsubjects, bool do_lock);
 
 private:
   XrdSysMutex mQMutex; ///< Mutex protecting the mQueue object
@@ -1046,7 +1063,7 @@ private:
 
 
 //-------------------------------------------------------------------------------
-// Set entry in hash map
+// Set entry in hash map /queue
 //-------------------------------------------------------------------------------
 template <typename T>
 bool
@@ -1057,108 +1074,11 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
   AtomicInc(sSetCounter);
 
   if (svalue.empty()) {
-    fprintf(stderr, "Error: empty values are not allowed in the hash!\n");
+    fprintf(stderr, "Error: key=%s uses an empty value!\n", key);
     return false;
   }
 
-  std::string skey = key;
-
-  if (do_lock) {
-    mStoreMutex.LockWrite();
-  }
-
-  if (mStore.count(skey) == 0) {
-    mStore.insert(std::make_pair(skey, XrdMqSharedHashEntry(key, svalue.c_str())));
-  } else {
-    mStore[skey] = XrdMqSharedHashEntry(key, svalue.c_str());
-  }
-
-  if (do_lock) {
-    mStoreMutex.UnLockWrite();
-  }
-
-  if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
-    bool is_transact = false;
-
-    // mSOM->IsMuxTransaction is tested first to avoid contention on the
-    // MuxTransactionsMutex and then is tested again when we actually have the
-    // lock to check it didn't change in the meantime - hackish, needs fix!
-    if (mSOM->IsMuxTransaction) {
-      XrdSysMutexHelper lock(mSOM->MuxTransactionsMutex);
-
-      if (mSOM->IsMuxTransaction) {
-	mSOM->MuxTransactions[mSubject].insert(skey);
-	is_transact = true;
-      }
-    }
-
-    if (!is_transact) {
-      // Emulate a transaction for a single set operation
-      bool emulate_transact = false;
-
-      if (!mIsTransaction) {
-	mTransactMutex.Lock();
-	mTransactions.clear();
-	emulate_transact = true;
-      }
-
-      mTransactions.insert(skey);
-
-      if (emulate_transact) {
-	CloseTransaction();
-      }
-    }
-  }
-
-  // Check if we have to post for this subject
-  if (mSOM) {
-    if (do_lock) {
-      mSOM->mSubjectsMutex.Lock();
-    }
-
-    std::string fkey = mSubject.c_str();
-    fkey += ";";
-    fkey += skey;
-
-    if (XrdMqSharedObjectManager::sDebug) {
-      fprintf(stderr, "XrdMqSharedObjectManager::Set=>[%s:%s]=>%s notified\n",
-	      mSubject.c_str(), skey.c_str(), svalue.c_str());
-    }
-
-    if (tempmodsubjects) {
-      mSOM->ModificationTempSubjects.push_back(fkey);
-    } else {
-      XrdMqSharedObjectManager::Notification
-	event(fkey, XrdMqSharedObjectManager::kMqSubjectModification);
-      mSOM->NotificationSubjects.push_back(event);
-      mSOM->SubjectsSem.Post();
-    }
-
-    if (do_lock) {
-      mSOM->mSubjectsMutex.UnLock();
-    }
-  }
-
-  return true;
-}
-
-//-------------------------------------------------------------------------------
-// Set entry in hash map
-//-------------------------------------------------------------------------------
-template <typename T>
-bool
-XrdMqSharedQueue::Set(const char* key, T&& value, bool broadcast,
-		      bool tempmodsubjects, bool do_lock)
-{
-  std::string svalue = eos::common::StringConversion::stringify(value);
-  AtomicInc(sSetCounter);
-
-  if (svalue.empty()) {
-    fprintf(stderr, "Error: empty values are not allowed in the queue!\n");
-    return false;
-  }
-
-  return PushBack(key, svalue);
+  return SetImpl(key, svalue.c_str(), broadcast, tempmodsubjects, do_lock);
 }
 
 #endif

@@ -657,6 +657,93 @@ XrdMqSharedHash::Clear(bool broadcast)
   mStore.clear();
 }
 
+//-------------------------------------------------------------------------------
+// Set entry in hash map
+//-------------------------------------------------------------------------------
+bool
+XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast,
+		     bool tempmodsubjects, bool do_lock)
+{
+  std::string skey = key;
+
+  if (do_lock) {
+    mStoreMutex.LockWrite();
+  }
+
+  if (mStore.count(skey) == 0) {
+    mStore.insert(std::make_pair(skey, XrdMqSharedHashEntry(key, value)));
+  } else {
+    mStore[skey] = XrdMqSharedHashEntry(key, value);
+  }
+
+  if (do_lock) {
+    mStoreMutex.UnLockWrite();
+  }
+
+  if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
+    bool is_transact = false;
+
+    // mSOM->IsMuxTransaction is tested first to avoid contention on the
+    // MuxTransactionsMutex and then is tested again when we actually have the
+    // lock to check it didn't change in the meantime - hackish, needs fix!
+    if (mSOM->IsMuxTransaction) {
+      XrdSysMutexHelper lock(mSOM->MuxTransactionsMutex);
+
+      if (mSOM->IsMuxTransaction) {
+	mSOM->MuxTransactions[mSubject].insert(skey);
+	is_transact = true;
+      }
+    }
+
+    if (!is_transact) {
+      // Emulate a transaction for a single set operation
+      bool emulate_transact = false;
+
+      if (!mIsTransaction) {
+	mTransactMutex.Lock();
+	mTransactions.clear();
+	emulate_transact = true;
+      }
+
+      mTransactions.insert(skey);
+
+      if (emulate_transact) {
+	CloseTransaction();
+      }
+    }
+  }
+
+  // Check if we have to post for this subject
+  if (mSOM) {
+    if (do_lock) {
+      mSOM->mSubjectsMutex.Lock();
+    }
+
+    std::string fkey = mSubject.c_str();
+    fkey += ";";
+    fkey += skey;
+
+    if (XrdMqSharedObjectManager::sDebug) {
+      fprintf(stderr, "XrdMqSharedObjectManager::Set=>[%s:%s]=>%s notified\n",
+	      mSubject.c_str(), skey.c_str(), value);
+    }
+
+    if (tempmodsubjects) {
+      mSOM->ModificationTempSubjects.push_back(fkey);
+    } else {
+      XrdMqSharedObjectManager::Notification
+	event(fkey, XrdMqSharedObjectManager::kMqSubjectModification);
+      mSOM->NotificationSubjects.push_back(event);
+      mSOM->SubjectsSem.Post();
+    }
+
+    if (do_lock) {
+      mSOM->mSubjectsMutex.UnLock();
+    }
+  }
+
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Format contents of the hash map and append it to the output string. Note
@@ -968,26 +1055,12 @@ XrdMqSharedQueue::Delete(const std::string& key)
 bool
 XrdMqSharedQueue::PushBack(const std::string& key, const std::string& value)
 {
-  std::string uuid;
-  XrdSysMutexHelper lock(mQMutex);
-
-  if (key.empty()){
-    char lld[1024];
-    mLastObjId++;
-    snprintf(lld, 1023, "%llu", mLastObjId);
-    uuid = lld;
-  } else {
-    uuid = key;
+  if (value.empty()) {
+    fprintf(stderr, "Error: key=%s has empty value for queue!\n", key.c_str());
+    return false;
   }
 
-  if (XrdMqSharedHash::Get(uuid).empty()) {
-    if (XrdMqSharedHash::Set(uuid.c_str(), value)) {
-      mQueue.push_back(uuid);
-      return true;
-    }
-  }
-
-  return false;
+  return SetImpl(key.c_str(), value.c_str(), true, false, true);
 }
 
 //------------------------------------------------------------------------------
@@ -1008,6 +1081,37 @@ XrdMqSharedQueue::PopFront()
 
   return value;
 }
+
+//-------------------------------------------------------------------------------
+// Set entry in queue
+//-------------------------------------------------------------------------------
+bool
+XrdMqSharedQueue::SetImpl(const char* key, const char* value, bool broadcast,
+			  bool tempmodsubjects, bool do_lock)
+{
+  std::string uuid;
+  XrdSysMutexHelper lock(mQMutex);
+
+  if (!key || (*key == '\0')){
+    char lld[1024];
+    mLastObjId++;
+    snprintf(lld, 1023, "%llu", mLastObjId);
+    uuid = lld;
+  } else {
+    uuid = key;
+  }
+
+  if (mStore.find(uuid) == mStore.end()) {
+    if (XrdMqSharedHash::SetImpl(uuid.c_str(), value, broadcast,
+				 tempmodsubjects, do_lock)) {
+      mQueue.push_back(uuid);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 
 //------------------------------------------------------------------------------
 //            * * * Class XrdMqSharedObjectChangeNotifier  * * *
