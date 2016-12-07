@@ -4234,8 +4234,8 @@ filesystem::strongauth_cgi (pid_t pid)
  if (fuse_shared && (use_user_krb5cc || use_user_gsiproxy))
  {
     std::string authmet;
-    if(gProcCache.HasEntry(pid))
-      gProcCache.GetEntry(pid)->GetAuthMethod(authmet);
+    if(gProcCacheV[pid%authidmanager.proccachenbins].HasEntry(pid))
+      gProcCacheV[pid%authidmanager.proccachenbins].GetEntry(pid)->GetAuthMethod(authmet);
 
    if (authmet.compare (0, 5, "krb5:") == 0)
    {
@@ -4312,10 +4312,10 @@ filesystem::is_toplevel_rm (int pid, const char* local_dir)
  if (rm_level_protect == 0)
     return 0;
 
-  time_t psstime;
+  time_t psstime=0;
   if (
-      !gProcCache.HasEntry(pid) ||
-      !gProcCache.GetEntry(pid)->GetStartupTime(psstime)
+      !gProcCacheV[pid%authidmanager.proccachenbins].HasEntry(pid) ||
+      !gProcCacheV[pid%authidmanager.proccachenbins].GetEntry(pid)->GetStartupTime(psstime)
       ) {
     eos_static_err("could not get process start time");
   }
@@ -4333,7 +4333,7 @@ filesystem::is_toplevel_rm (int pid, const char* local_dir)
        eos_static_debug ("found in cache pid=%i, rm_deny=%i", it_map->first, it_map->second.second);
        if (it_map->second.second)
        {
-         std::string cmd = gProcCache.GetEntry (pid)->GetArgsStr ();
+         std::string cmd = gProcCacheV[pid%authidmanager.proccachenbins].GetEntry (pid)->GetArgsStr ();
          eos_static_notice ("rejected toplevel recursive deletion command %s", cmd.c_str ());
         }
         return (it_map->second.second ? 1 : 0);
@@ -4348,8 +4348,8 @@ filesystem::is_toplevel_rm (int pid, const char* local_dir)
 
 // Try to print the command triggering the unlink
   std::ostringstream oss;
- const auto &cmdv = gProcCache.GetEntry (pid)->GetArgsVec ();
- std::string cmd = gProcCache.GetEntry (pid)->GetArgsStr ();
+ const auto &cmdv = gProcCacheV[pid%authidmanager.proccachenbins].GetEntry (pid)->GetArgsVec ();
+ std::string cmd = gProcCacheV[pid%authidmanager.proccachenbins].GetEntry (pid)->GetArgsStr ();
   std::set<std::string> rm_entries;
   std::set<std::string> rm_opt; // rm command options (long and short)
   char exe[PATH_MAX];
@@ -4903,7 +4903,8 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  {
    std::string pp(getenv ("EOS_FUSE_PROCPATH"));
    if(pp[pp.size()]!='/') pp.append("/");
-   gProcCache.SetProcPath(pp.c_str());
+   for(auto it=gProcCacheV.begin();it!=gProcCacheV.end();++it)
+     it->SetProcPath(pp.c_str());
    if(authidmanager.StartCleanupThread())
      eos_static_notice("started proccache cleanup thread");
    else
@@ -5146,8 +5147,8 @@ filesystem::mylstat (const char *__restrict name, struct stat *__restrict __buf,
     gid_t gid;
 
     if (
-        !gProcCache.HasEntry(pid) ||
-        !gProcCache.GetEntry(pid)->GetFsUidGid(uid,gid)
+        !gProcCacheV[pid%authidmanager.proccachenbins].HasEntry(pid) ||
+        !gProcCacheV[pid%authidmanager.proccachenbins].GetEntry(pid)->GetFsUidGid(uid,gid)
         ) {
       return ESRCH;
     }

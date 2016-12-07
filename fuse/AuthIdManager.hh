@@ -347,10 +347,10 @@ protected:
     // when entering this function proccachemutexes[pid] must be write locked
 
     errno = 0;
-    auto dirp = opendir (gProcCache.GetProcPath().c_str());
+    auto dirp = opendir (gProcCacheV[0].GetProcPath().c_str());
     if(dirp==NULL)
     {
-      eos_static_err("error openning %s to get running pids. errno=%d",gProcCache.GetProcPath().c_str(),errno);
+      eos_static_err("error openning %s to get running pids. errno=%d",gProcCacheV[0].GetProcPath().c_str(),errno);
       return false;
     }
     // this is useful even in gateway mode because of the recursive deletion protection
@@ -371,7 +371,7 @@ protected:
     bool result = false;
     if (!runningPids.count (pid))
     {
-      result = gProcCache.RemoveEntry (pid);
+      result = gProcCacheV[pid%proccachenbins].RemoveEntry (pid);
       if (!result) eos_static_err("error removing proccache entry for pid=%d", (int )pid);
     }
 
@@ -383,7 +383,7 @@ protected:
   {
     eos::common::RWMutexWriteLock lock (proccachemutexes[i]);
 
-    //cleancountProcCache += gProcCache.RemoveEntries(proccachenbins, i);
+    cleancountProcCache += gProcCacheV[i].RemoveEntries(proccachenbins, i,&runningPids);
 
     for (auto it = pid2StrongLogin[i].begin (); it != pid2StrongLogin[i].end ();)
     {
@@ -418,7 +418,7 @@ protected:
       for (unsigned int i = 0; i < proccachenbins; i++)
         cleanProcCacheBin (i,cleancountProcCache,cleancountStrongLogin,cleancountCredInfo);
 
-      cleancountProcCache += gProcCache.RemoveEntries(1, 0,&runningPids);
+      //cleancountProcCache += gProcCache.RemoveEntries(1, 0,&runningPids);
     }
     eos_static_info("ProcCache cleaning removed %d entries in gProcCache",cleancountProcCache);
     eos_static_debug("ProcCache cleaning removed %d entries in pid2StrongLogin",cleancountStrongLogin);
@@ -447,7 +447,7 @@ protected:
     int errCode;
 
     // this is useful even in gateway mode because of the recursive deletion protection
-    if ((errCode = gProcCache.InsertEntry(pid))) {
+    if ((errCode = gProcCacheV[pid%proccachenbins].InsertEntry(pid))) {
       eos_static_err("updating proc cache information for process %d. Error code is %d",
                      (int)pid, errCode);
       return errCode;
@@ -461,22 +461,22 @@ protected:
     // get the startuptime of the process
     time_t processSut = 0;
 
-    if (gProcCache.HasEntry(pid)) {
-      gProcCache.GetEntry(pid)->GetStartupTime(processSut);
+    if (gProcCacheV[pid%proccachenbins].HasEntry(pid)) {
+      gProcCacheV[pid%proccachenbins].GetEntry(pid)->GetStartupTime(processSut);
     }
 
     // get the session id
     pid_t sid = 0;
 
-    if (gProcCache.HasEntry(pid)) {
-      gProcCache.GetEntry(pid)->GetSid(sid);
+    if (gProcCacheV[pid%proccachenbins].HasEntry(pid)) {
+      gProcCacheV[pid%proccachenbins].GetEntry(pid)->GetSid(sid);
     }
 
     // update the proccache of the session leader
     if (sid!=pid) {
       lock_w_pcache(sid);
 
-      if ((errCode = gProcCache.InsertEntry(sid))) {
+      if ((errCode = gProcCacheV[sid%proccachenbins].InsertEntry(sid))) {
         unlock_w_pcache(sid);
         eos_static_debug("updating proc cache information for session leader process %d failed. Session leader process %d does not exist",
                        (int)pid, (int)sid);
@@ -489,8 +489,8 @@ protected:
     // get the startuptime of the leader of the session
     time_t sessionSut = 0;
 
-    if (gProcCache.HasEntry(sid)) {
-      gProcCache.GetEntry(sid)->GetStartupTime(sessionSut);
+    if (gProcCacheV[sid%proccachenbins].HasEntry(sid)) {
+      gProcCacheV[sid%proccachenbins].GetEntry(sid)->GetStartupTime(sessionSut);
     }
     else
       sessionSut = 0;
@@ -547,12 +547,12 @@ protected:
                        (int)uid, (int)sid, (int)pid, cacheEntry->second.cachedStrongLogin.c_str());
       pid2StrongLogin[pid%proccachenbins][pid] = cacheEntry->second.cachedStrongLogin;
 
-      if (gProcCache.HasEntry(sid)) {
+      if (gProcCacheV[sid%proccachenbins].HasEntry(sid)) {
         std::string authmeth;
-        gProcCache.GetEntry(sid)->GetAuthMethod(authmeth);
+        gProcCacheV[sid%proccachenbins].GetEntry(sid)->GetAuthMethod(authmeth);
 
-        if (gProcCache.HasEntry(pid)) {
-          gProcCache.GetEntry(pid)->SetAuthMethod(authmeth);
+        if (gProcCacheV[pid%proccachenbins].HasEntry(pid)) {
+          gProcCacheV[pid%proccachenbins].GetEntry(pid)->SetAuthMethod(authmeth);
         }
       }
 
@@ -566,12 +566,12 @@ protected:
       sId = "unix:nobody";
       /*** using unix authentication and user nobody ***/
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
-      if (gProcCache.HasEntry(pid)) {
-        gProcCache.GetEntry(pid)->SetAuthMethod(sId);
+      if (gProcCacheV[pid%proccachenbins].HasEntry(pid)) {
+        gProcCacheV[pid%proccachenbins].GetEntry(pid)->SetAuthMethod(sId);
     }
       // refresh the credentials in the cache
-      if (gProcCache.HasEntry(sid)) {
-        gProcCache.GetEntry(sid)->SetAuthMethod(sId);
+      if (gProcCacheV[sid%proccachenbins].HasEntry(sid)) {
+        gProcCacheV[sid%proccachenbins].GetEntry(sid)->SetAuthMethod(sId);
       }
       // check the credential security
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
@@ -615,12 +615,12 @@ protected:
         return EACCES;
       }
 
-      if (gProcCache.HasEntry(pid)) {
-        gProcCache.GetEntry(pid)->SetAuthMethod(newauthmeth);
+      if (gProcCacheV[pid%proccachenbins].HasEntry(pid)) {
+        gProcCacheV[pid%proccachenbins].GetEntry(pid)->SetAuthMethod(newauthmeth);
       }
 
-      if (gProcCache.HasEntry(sid)) {
-        gProcCache.GetEntry(sid)->SetAuthMethod(newauthmeth);
+      if (gProcCacheV[sid%proccachenbins].HasEntry(sid)) {
+        gProcCacheV[sid%proccachenbins].GetEntry(sid)->SetAuthMethod(newauthmeth);
       }
 
       authid = getNewConId(uid, gid, pid);

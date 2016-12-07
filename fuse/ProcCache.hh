@@ -437,6 +437,7 @@ public:
 
 #ifndef __PROCCACHE__NOGPROCCACHE__
 extern ProcCache gProcCache;
+extern std::vector<ProcCache> gProcCacheV;
 #endif
 
 #endif
