@@ -32,6 +32,11 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
+# Build the libfmt for fast convertions
+#-------------------------------------------------------------------------------
+add_subdirectory(fmt)
+
+#-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS PROTOFILES dbmaptest/test.proto)

@@ -33,7 +33,7 @@
 #include "common/Timing.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "curl/curl.h"
-#include "namespace/utils/fmt/fmt/format.h"
+#include "fmt/fmt/format.h"
 #include <string>
 #include <vector>
 #include <algorithm>

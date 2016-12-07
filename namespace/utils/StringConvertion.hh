@@ -25,7 +25,7 @@
 #define __EOS_NS_STRINGCONVERTION_HH__
 
 #include "namespace/Namespace.hh"
-#include "fmt/format.h"
+#include "common/fmt/fmt/format.h"
 
 EOSNSNAMESPACE_BEGIN
 
