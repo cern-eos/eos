@@ -1048,7 +1048,7 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
   }
 
   if (mStore.count(skey) == 0) {
-    mStore.emplace(skey, XrdMqSharedHashEntry(key, svalue.c_str()));
+    mStore.insert(std::make_pair(skey, XrdMqSharedHashEntry(key, svalue.c_str())));
   } else {
     mStore[skey] = XrdMqSharedHashEntry(key, svalue.c_str());
   }
