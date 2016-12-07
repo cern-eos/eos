@@ -708,7 +708,7 @@ TEST(ArgVisitorTest, VisitUnhandledArg) {
 
 TEST(ArgVisitorTest, VisitInvalidArg) {
   Arg arg = Arg();
-  arg.type = static_cast<Arg::Type>(Arg::CUSTOM + 1);
+  arg.type = static_cast<Arg::Type>(Arg::NONE);
   EXPECT_ASSERT(TestVisitor().visit(arg), "invalid argument type");
 }
 
@@ -834,10 +834,10 @@ void check_throw_error(int error_code, FormatErrorMessage format) {
 
 TEST(UtilTest, FormatSystemError) {
   fmt::MemoryWriter message;
-  fmt::format_system_error(message, EDOM, "test");
+  fmt::internal::format_system_error(message, EDOM, "test");
   EXPECT_EQ(fmt::format("test: {}", get_system_error(EDOM)), message.str());
   message.clear();
-  fmt::format_system_error(
+  fmt::internal::format_system_error(
         message, EDOM, fmt::StringRef(0, std::numeric_limits<size_t>::max()));
   EXPECT_EQ(fmt::format("error {}", EDOM), message.str());
 }
@@ -846,12 +846,12 @@ TEST(UtilTest, SystemError) {
   fmt::SystemError e(EDOM, "test");
   EXPECT_EQ(fmt::format("test: {}", get_system_error(EDOM)), e.what());
   EXPECT_EQ(EDOM, e.error_code());
-  check_throw_error<fmt::SystemError>(EDOM, fmt::format_system_error);
+  check_throw_error<fmt::SystemError>(EDOM, fmt::internal::format_system_error);
 }
 
 TEST(UtilTest, ReportSystemError) {
   fmt::MemoryWriter out;
-  fmt::format_system_error(out, EDOM, "test error");
+  fmt::internal::format_system_error(out, EDOM, "test error");
   out << '\n';
   EXPECT_WRITE(stderr, fmt::report_system_error(EDOM, "test error"), out.str());
 }
@@ -955,4 +955,18 @@ TEST(UtilTest, Conditional) {
   char c = 0;
   fmt::internal::Conditional<false, int, char>::type *pc = &c;
   (void)pc;
+}
+
+struct TestLConv {
+  char *thousands_sep;
+};
+
+struct EmptyLConv {};
+
+TEST(UtilTest, ThousandsSep) {
+  char foo[] = "foo";
+  TestLConv lc = {foo};
+  EXPECT_EQ("foo", fmt::internal::thousands_sep(&lc).to_string());
+  EmptyLConv empty_lc;
+  EXPECT_EQ("", fmt::internal::thousands_sep(&empty_lc));
 }

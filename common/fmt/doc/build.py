@@ -9,12 +9,18 @@ from distutils.version import LooseVersion
 def pip_install(package, commit=None, **kwargs):
   "Install package using pip."
   if commit:
+    check_version = kwargs.get('check_version', '')
+    #output = check_output(['pip', 'show', package.split('/')[1]])
+    #if check_version in output:
+    #  print('{} already installed'.format(package))
+    #  return
     package = 'git+git://github.com/{0}.git@{1}'.format(package, commit)
   print('Installing {}'.format(package))
-  check_call(['pip', 'install', '--upgrade', package])
+  check_call(['pip', 'install', package])
 
-def create_build_env():
+def build_docs(version='dev'):
   # Create virtualenv.
+  doc_dir = os.path.dirname(os.path.realpath(__file__))
   virtualenv_dir = 'virtualenv'
   check_call(['virtualenv', virtualenv_dir])
   import sysconfig
@@ -40,15 +46,11 @@ def create_build_env():
   except DistributionNotFound:
     pass
   # Install Sphinx and Breathe.
-  pip_install('fmtlib/sphinx',
-              '12dde8afdb0a7bb5576e2656692c3478c69d8cc3',
-              check_version='1.4a0.dev-20151013')
+  pip_install('sphinx-doc/sphinx',
+              '12b83372ac9316e8cbe86e7fed889296a4cc29ee',
+              check_version='1.4.1.dev20160525')
   pip_install('michaeljones/breathe',
-              '6b1c5bb7a1866f15fc328b8716258354b10c1daa')
-
-def build_docs(version='dev', **kwargs):
-  doc_dir = kwargs.get('doc_dir', os.path.dirname(os.path.realpath(__file__)))
-  include_dir = kwargs.get('include_dir', os.path.join(os.path.dirname(doc_dir), 'fmt'))
+              '1c9d7f80378a92cffa755084823a78bb38ee4acc')
   # Build docs.
   cmd = ['doxygen', '-']
   p = Popen(cmd, stdin=PIPE)
@@ -58,7 +60,7 @@ def build_docs(version='dev', **kwargs):
       GENERATE_MAN      = NO
       GENERATE_RTF      = NO
       CASE_SENSE_NAMES  = NO
-      INPUT             = {0}/format.h {0}/ostream.h {0}/string.h
+      INPUT             = {0}/format.h {0}/ostream.h
       QUIET             = YES
       JAVADOC_AUTOBRIEF = YES
       AUTOLINK_SUPPORT  = NO
@@ -74,7 +76,7 @@ def build_docs(version='dev', **kwargs):
                           FMT_USE_USER_DEFINED_LITERALS=1 \
                           FMT_API=
       EXCLUDE_SYMBOLS   = fmt::internal::* StringValue write_str
-    '''.format(include_dir).encode('UTF-8'))
+    '''.format(os.path.join(os.path.dirname(doc_dir), 'fmt')).encode('UTF-8'))
   if p.returncode != 0:
     raise CalledProcessError(p.returncode, cmd)
   check_call(['sphinx-build',
@@ -82,7 +84,7 @@ def build_docs(version='dev', **kwargs):
               '-Dversion=' + version, '-Drelease=' + version, '-Aversion=' + version,
               '-b', 'html', doc_dir, 'html'])
   try:
-    check_call(['lessc', #'--clean-css',
+    check_call(['lessc', '--clean-css',
                 '--include-path=' + os.path.join(doc_dir, 'bootstrap'),
                 os.path.join(doc_dir, 'fmt.less'),
                 'html/_static/fmt.css'])
@@ -94,5 +96,4 @@ def build_docs(version='dev', **kwargs):
   return 'html'
 
 if __name__ == '__main__':
-  create_build_env()
   build_docs(sys.argv[1])

@@ -28,7 +28,7 @@ option(FMT_USE_CPP11 "Enable the addition of C++11 compiler flags." ON)
 project(FMT)
 
 # Starting with cmake 3.0 VERSION is part of the project command.
-set(FMT_VERSION 3.0.0)
+set(FMT_VERSION 3.0.1)
 if (NOT FMT_VERSION MATCHES "^([0-9]+).([0-9]+).([0-9]+)$")
   message(FATAL_ERROR "Invalid version format ${FMT_VERSION}.")
 endif ()
@@ -93,7 +93,7 @@ if (MASTER_PROJECT AND EXISTS ${gitignore})
     string(REPLACE "*" ".*" line "${line}")
     set(ignored_files ${ignored_files} "${line}$" "${line}/")
   endforeach ()
-  set(ignored_files ${ignored_files}
+  set(ignored_files ${ignored_files} ${PROJECT_BINARY_DIR}
     /.git /breathe /format-benchmark sphinx/ .buildinfo .doctrees)
 
   set(CPACK_SOURCE_GENERATOR ZIP)

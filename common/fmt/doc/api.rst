@@ -181,8 +181,6 @@ Utilities
 .. doxygenclass:: fmt::ArgList
    :members:
 
-.. doxygenfunction:: fmt::to_string(const T&)
-
 .. doxygenclass:: fmt::BasicStringRef
    :members:
 
@@ -198,8 +196,6 @@ System errors
 
 .. doxygenclass:: fmt::SystemError
    :members:
-
-.. doxygenfunction:: fmt::format_system_error
 
 .. doxygenclass:: fmt::WindowsError
    :members:

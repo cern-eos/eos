@@ -1,12 +1,12 @@
 # Define the fmt library, its includes and the needed defines.
 # format.cc is added to FMT_HEADERS for the header-only configuration.
-set(FMT_HEADERS format.h format.cc ostream.h ostream.cc string.h time.h)
+set(FMT_HEADERS format.h format.cc ostream.h ostream.cc time.h)
 if (HAVE_OPEN)
   set(FMT_HEADERS ${FMT_HEADERS} posix.h)
   set(FMT_SOURCES ${FMT_SOURCES} posix.cc)
 endif ()
 
-add_library(fmt ${FMT_SOURCES} ${FMT_HEADERS} ../README.rst ../ChangeLog.rst)
+add_library(fmt ${FMT_SOURCES} ${FMT_HEADERS} ../ChangeLog.rst)
 
 option(FMT_CPPFORMAT "Build cppformat library for backward compatibility." OFF)
 if (FMT_CPPFORMAT)
@@ -25,8 +25,7 @@ target_include_directories(fmt PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 set_target_properties(fmt PROPERTIES
-  VERSION ${FMT_VERSION} SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}
-  POSITION_INDEPENDENT_CODE True)
+  VERSION ${FMT_VERSION} SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR})
 
 if (BUILD_SHARED_LIBS)
   if (UNIX AND NOT APPLE)
@@ -75,7 +74,8 @@ if (FMT_INSTALL)
     ${PROJECT_SOURCE_DIR}/support/cmake/fmt-config.cmake.in
     ${project_config}
     INSTALL_DESTINATION ${FMT_CMAKE_DIR})
-  export(TARGETS ${INSTALL_TARGETS} FILE ${PROJECT_BINARY_DIR}/${targets_export_name}.cmake)
+  export(TARGETS ${INSTALL_TARGETS}
+         FILE ${PROJECT_BINARY_DIR}/${targets_export_name}.cmake)
 
   # Install version, config and target files.
   install(
@@ -84,7 +84,8 @@ if (FMT_INSTALL)
   install(EXPORT ${targets_export_name} DESTINATION ${FMT_CMAKE_DIR})
 
   # Install the library and headers.
-  install(TARGETS ${INSTALL_TARGETS} EXPORT ${targets_export_name} DESTINATION ${FMT_LIB_DIR})
+  install(TARGETS ${INSTALL_TARGETS} EXPORT ${targets_export_name}
+          DESTINATION ${FMT_LIB_DIR})
   install(FILES ${FMT_HEADERS} DESTINATION include/fmt)
   if (FMT_CPPFORMAT)
     install(TARGETS cppformat DESTINATION ${FMT_LIB_DIR})
