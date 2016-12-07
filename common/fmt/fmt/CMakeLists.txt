@@ -34,6 +34,10 @@ if (BUILD_SHARED_LIBS)
     target_link_libraries(fmt -Wl,--as-needed)
   endif ()
   target_compile_definitions(fmt PRIVATE FMT_EXPORT INTERFACE FMT_SHARED)
+else ()
+  set_target_properties(
+   fmt PROPERTIES
+   POSITION_INDEPENDENT_CODE TRUE)
 endif ()
 
 #------------------------------------------------------------------------------
