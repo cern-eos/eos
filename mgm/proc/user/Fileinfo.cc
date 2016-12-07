@@ -79,8 +79,10 @@ ProcCommand::Fileinfo ()
       if (id >=  eos::common::FileId::FidToInode(1))
       {
         buf.st_mode = S_IFREG;
-        spath.replace("inode:","fid:");
-        path = spath.c_str();
+	spath = "fid:";
+	id = eos::common::FileId::InodeToFid(id);
+	spath += eos::common::StringConversion::GetSizeString(sid, id);
+	path = spath.c_str();
       }
       else
       {
