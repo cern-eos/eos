@@ -154,7 +154,7 @@ public:
     if (mSom)
     {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
       if (mHashQueue) {
 	return mHashQueue->GetSize();
       }
@@ -172,7 +172,7 @@ public:
     if (mSom)
     {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
       if (mHashQueue) {
 	mHashQueue->Clear();
 	return true;
@@ -191,7 +191,7 @@ public:
     if (mSom)
     {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
 
       if (mHashQueue) {
 	return mHashQueue->OpenTransaction();
@@ -210,7 +210,7 @@ public:
     if (mSom)
     {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
 
       if (mHashQueue) {
 	return mHashQueue->CloseTransaction();

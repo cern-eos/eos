@@ -134,7 +134,7 @@ TransferQueue::Add (eos::common::TransferJob* job)
     mSom->HashMutex.LockRead();
     if ((mHashQueue = mSom->GetQueue(mFullQueue.c_str())))
     {
-      retc = mHashQueue->PushBack(0, job->GetSealed());
+      retc = mHashQueue->PushBack("", job->GetSealed());
     }
     else
     {
