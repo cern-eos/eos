@@ -4901,6 +4901,10 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    std::string pp(getenv ("EOS_FUSE_PROCPATH"));
    if(pp[pp.size()]!='/') pp.append("/");
    proccache_SetProcPath(pp.c_str());
+   if(authidmanager.StartCleanupThread())
+     eos_static_notice("started proccache cleanup thread");
+   else
+     eos_static_err("filed to start proccache cleanup thread");
  }
 
  if (getenv ("EOS_FUSE_XRDBUGNULLRESPONSE_RETRYCOUNT"))

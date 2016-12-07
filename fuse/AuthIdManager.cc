@@ -29,6 +29,14 @@
 //------------------------------------------------------------------------------
 // Get user name from the uid and change the effective user ID of the thread
 //------------------------------------------------------------------------------
+void*
+AuthIdManager::CleanupThread (void* arg)
+{
+  AuthIdManager* am = static_cast<AuthIdManager*> (arg);
+  am->CleanupLoop();
+  return static_cast<void*> (am);
+}
+;
 
 std::string AuthIdManager::mapUser (uid_t uid, gid_t gid, pid_t pid, uint64_t conid)
 {
