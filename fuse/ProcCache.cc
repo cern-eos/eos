@@ -38,8 +38,9 @@
 #include <XrdSys/XrdSysAtomics.hh>
 #include <vector>
 
-ProcCache gProcCache;
+//ProcCache gProcCache;
 std::vector<ProcCache> gProcCacheV;
+int gProcCacheShardSize;
 
 int ProcReaderCmdLine::ReadContent (std::vector<std::string> &cmdLine)
 {

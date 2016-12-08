@@ -111,7 +111,7 @@ public:
     std::string cachedStrongLogin;
   };
 
-  const unsigned int proccachenbins;
+  static const unsigned int proccachenbins;
   std::vector<eos::common::RWMutex> proccachemutexes;
 
   //------------------------------------------------------------------------------
@@ -147,18 +147,19 @@ public:
     proccachemutexes[pid%proccachenbins].UnLockWrite();
   }
 
-  AuthIdManager() : proccachenbins(32768)
+  AuthIdManager()
   {
     resize(proccachenbins);
   }
 
 protected:
-  // mutex protecting the maps
-  // maps (userid,sessionid) -> ( credinfo )
-  // several threads (each from different process) might concurrently access this
-  // maps procid -> xrootd_login
-  // only one thread per process will access this (protected by one mutex per process)
-  // it is protected by proccachemutexes
+  // LOCKING INFORMATION
+  // The AuthIdManager is a stressed system. The credentials are checked for (almost) every single call to fuse.
+  // To speed up things, several levels of caching are implemented.
+  // On top of that, the following maps that are used for this caching are sharded to avoid contention.
+  // This sharding is made such that AuthIdManager::proccachemutexes consecutive pids don't interfere at all between each other.
+  // The size of the sharding is given by AuthIdManager::proccachenbins which is copied to gProcCacheShardingSize
+  // AuthIdManager::proccachemutexes vector of mutex each one protecting a bin in the sharding.
   std::vector<std::map<pid_t,std::string> > pid2StrongLogin;
   // maps (sessionid,userid) -> ( credinfo )
   std::vector<std::map<pid_t, std::map<uid_t, CredInfo>  >> siduid2credinfo;
@@ -347,10 +348,10 @@ protected:
     // when entering this function proccachemutexes[pid] must be write locked
 
     errno = 0;
-    auto dirp = opendir (gProcCacheV[0].GetProcPath().c_str());
+    auto dirp = opendir (gProcCache(0).GetProcPath().c_str());
     if(dirp==NULL)
     {
-      eos_static_err("error openning %s to get running pids. errno=%d",gProcCacheV[0].GetProcPath().c_str(),errno);
+      eos_static_err("error openning %s to get running pids. errno=%d",gProcCache(0).GetProcPath().c_str(),errno);
       return false;
     }
     // this is useful even in gateway mode because of the recursive deletion protection
@@ -371,7 +372,7 @@ protected:
     bool result = false;
     if (!runningPids.count (pid))
     {
-      result = gProcCacheV[pid%proccachenbins].RemoveEntry (pid);
+      result = gProcCache(pid).RemoveEntry (pid);
       if (!result) eos_static_err("error removing proccache entry for pid=%d", (int )pid);
     }
 
@@ -444,10 +445,14 @@ protected:
   updateProcCache(uid_t uid, gid_t gid, pid_t pid, bool reconnect)
     {
     // when entering this function proccachemutexes[pid] must be write locked
+    // this is to prevent several thread calling fuse from the same pid to enter this code
+    // and to create a race condition
+    // most of the time, credentials in the cache are up to date and the lock is held for a short time
+    // and the locking is shared so that only the pid with the same pid%AuthIdManager::proccachenbins
     int errCode;
 
     // this is useful even in gateway mode because of the recursive deletion protection
-    if ((errCode = gProcCacheV[pid%proccachenbins].InsertEntry(pid))) {
+    if ((errCode = gProcCache(pid).InsertEntry(pid))) {
       eos_static_err("updating proc cache information for process %d. Error code is %d",
                      (int)pid, errCode);
       return errCode;
@@ -461,22 +466,22 @@ protected:
     // get the startuptime of the process
     time_t processSut = 0;
 
-    if (gProcCacheV[pid%proccachenbins].HasEntry(pid)) {
-      gProcCacheV[pid%proccachenbins].GetEntry(pid)->GetStartupTime(processSut);
+    if (gProcCache(pid).HasEntry(pid)) {
+      gProcCache(pid).GetEntry(pid)->GetStartupTime(processSut);
     }
 
     // get the session id
     pid_t sid = 0;
 
-    if (gProcCacheV[pid%proccachenbins].HasEntry(pid)) {
-      gProcCacheV[pid%proccachenbins].GetEntry(pid)->GetSid(sid);
+    if (gProcCache(pid).HasEntry(pid)) {
+      gProcCache(pid).GetEntry(pid)->GetSid(sid);
     }
 
     // update the proccache of the session leader
     if (sid!=pid) {
       lock_w_pcache(sid);
 
-      if ((errCode = gProcCacheV[sid%proccachenbins].InsertEntry(sid))) {
+      if ((errCode = gProcCache(sid).InsertEntry(sid))) {
         unlock_w_pcache(sid);
         eos_static_debug("updating proc cache information for session leader process %d failed. Session leader process %d does not exist",
                        (int)pid, (int)sid);
@@ -489,8 +494,8 @@ protected:
     // get the startuptime of the leader of the session
     time_t sessionSut = 0;
 
-    if (gProcCacheV[sid%proccachenbins].HasEntry(sid)) {
-      gProcCacheV[sid%proccachenbins].GetEntry(sid)->GetStartupTime(sessionSut);
+    if (gProcCache(sid).HasEntry(sid)) {
+      gProcCache(sid).GetEntry(sid)->GetStartupTime(sessionSut);
     }
     else
       sessionSut = 0;
@@ -547,12 +552,12 @@ protected:
                        (int)uid, (int)sid, (int)pid, cacheEntry->second.cachedStrongLogin.c_str());
       pid2StrongLogin[pid%proccachenbins][pid] = cacheEntry->second.cachedStrongLogin;
 
-      if (gProcCacheV[sid%proccachenbins].HasEntry(sid)) {
+      if (gProcCache(sid).HasEntry(sid)) {
         std::string authmeth;
-        gProcCacheV[sid%proccachenbins].GetEntry(sid)->GetAuthMethod(authmeth);
+        gProcCache(sid).GetEntry(sid)->GetAuthMethod(authmeth);
 
-        if (gProcCacheV[pid%proccachenbins].HasEntry(pid)) {
-          gProcCacheV[pid%proccachenbins].GetEntry(pid)->SetAuthMethod(authmeth);
+        if (gProcCache(pid).HasEntry(pid)) {
+          gProcCache(pid).GetEntry(pid)->SetAuthMethod(authmeth);
         }
       }
 
@@ -566,12 +571,12 @@ protected:
       sId = "unix:nobody";
       /*** using unix authentication and user nobody ***/
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
-      if (gProcCacheV[pid%proccachenbins].HasEntry(pid)) {
-        gProcCacheV[pid%proccachenbins].GetEntry(pid)->SetAuthMethod(sId);
+      if (gProcCache(pid).HasEntry(pid)) {
+        gProcCache(pid).GetEntry(pid)->SetAuthMethod(sId);
     }
       // refresh the credentials in the cache
-      if (gProcCacheV[sid%proccachenbins].HasEntry(sid)) {
-        gProcCacheV[sid%proccachenbins].GetEntry(sid)->SetAuthMethod(sId);
+      if (gProcCache(sid).HasEntry(sid)) {
+        gProcCache(sid).GetEntry(sid)->SetAuthMethod(sId);
       }
       // check the credential security
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
@@ -615,12 +620,12 @@ protected:
         return EACCES;
       }
 
-      if (gProcCacheV[pid%proccachenbins].HasEntry(pid)) {
-        gProcCacheV[pid%proccachenbins].GetEntry(pid)->SetAuthMethod(newauthmeth);
+      if (gProcCache(pid).HasEntry(pid)) {
+        gProcCache(pid).GetEntry(pid)->SetAuthMethod(newauthmeth);
       }
 
-      if (gProcCacheV[sid%proccachenbins].HasEntry(sid)) {
-        gProcCacheV[sid%proccachenbins].GetEntry(sid)->SetAuthMethod(newauthmeth);
+      if (gProcCache(sid).HasEntry(sid)) {
+        gProcCache(sid).GetEntry(sid)->SetAuthMethod(newauthmeth);
       }
 
       authid = getNewConId(uid, gid, pid);

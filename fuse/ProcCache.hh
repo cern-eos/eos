@@ -436,8 +436,10 @@ public:
 };
 
 #ifndef __PROCCACHE__NOGPROCCACHE__
-extern ProcCache gProcCache;
+//extern ProcCache gProcCache;
 extern std::vector<ProcCache> gProcCacheV;
+extern int gProcCacheShardSize;
+inline ProcCache& gProcCache(int i) { return gProcCacheV[i%gProcCacheShardSize]; }
 #endif
 
 #endif

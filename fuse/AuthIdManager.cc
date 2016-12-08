@@ -26,6 +26,8 @@
 #include "AuthIdManager.hh"
 /*----------------------------------------------------------------------------*/
 
+const unsigned int AuthIdManager::proccachenbins = 32768;
+
 //------------------------------------------------------------------------------
 // Get user name from the uid and change the effective user ID of the thread
 //------------------------------------------------------------------------------
