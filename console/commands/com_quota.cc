@@ -364,27 +364,15 @@ com_quota_usage:
       ": show personal quota for all or only the quota node responsible for <path>"
     },
     {
-      "quota ls [-n] [-m] [-u <uid>] [-g <gid>] [-p <path>]",
+      "quota ls [-n] [-m] [-u <uid>] [-g <gid>] [ [-p] <path> ]",
       ": list configured quota and quota node(s)"
     },
     {
-      "quota ls [-n] [-m] [-u <uid>] [-g <gid>] [<path>]",
-      ": list configured quota and quota node(s)"
-    },
-    {
-      "quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] -p <path>",
+      "quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] [-p] <path>",
       ": set volume and/or inode quota by uid or gid"
     },
     {
-      "quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] <path>",
-      ": set volume and/or inode quota by uid or gid"
-    },
-    {
-      "quota rm -u <uid>|-g <gid> [-v] [-i] -p <path>",
-      ": remove configured quota type(s) for uid/gid in path"
-    },
-    {
-      "quota rm -u <uid>|-g <gid> [-v] [-i] <path>",
+      "quota rm -u <uid>|-g <gid> [-v] [-i] [-p] <path>",
       ": remove configured quota type(s) for uid/gid in path"
     },
     {

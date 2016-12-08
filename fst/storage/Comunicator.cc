@@ -349,9 +349,9 @@ Storage::Communicator()
               std::string kinetic_security_key = "kinetic.security.";
               kinetic_security_key += space;
               // base64 decode new keys
-              XrdOucString k_cluster_64 = hash->Get(kinetic_cluster_key).c_str();
-              XrdOucString k_location_64 = hash->Get(kinetic_location_key).c_str();
-              XrdOucString k_security_64 = hash->Get(kinetic_security_key).c_str();
+              XrdOucString k_cluster_64 = hash->Get(kinetic_cluster_key.c_str()).c_str();
+              XrdOucString k_location_64 = hash->Get(kinetic_location_key.c_str()).c_str();
+              XrdOucString k_security_64 = hash->Get(kinetic_security_key.c_str()).c_str();
               XrdOucString k_cluster;
               XrdOucString k_location;
               XrdOucString k_security;

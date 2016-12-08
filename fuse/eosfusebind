@@ -193,6 +193,14 @@ function GetSymlinkBaseNameSession
   SymlinkBaseNameSession="${SymlinkBaseNameUser}_sid${SID}_sst${SUT}"
 }
 
+function CheckSessionLeader
+{
+  if test ! -n SUT ; then
+    echo "the session leader for the current session is not alive" >&2; 
+    exit 1;
+  fi
+}
+
 function ShowLink
 {
   local LINK="$1"
@@ -254,16 +262,24 @@ function ShowUserGlob
   GetSymlinkBaseNameUser
   ShowHeaderGlob
   local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameUser}.*)
-  #echo "FILELIST=$FILELIST" 
-  if [[ "X$FILELIST" = "X" ]]; then echo "[none]"; return ; fi  
-  for LINK in `echo $FILELIST` ; do ShowGlob $LINK ; done
+  #echo "FILELIST=$FILELIST"
+  local NOTHING="" 
+  for LINK in `echo $FILELIST` ;
+  do
+    # don't show lock files !
+    [[ $LINK =~ .*\.lock ]] && continue 
+    ShowGlob $LINK ;
+    NOTHING="FALSE" 
+  done
+  if [[ "X$NOTHING" = "X" ]]; then echo "[none]"; return ; fi  
   echo
 }
 
 function ShowSession
 {
   GetSymlinkBaseNameSession
-  if [[ "X$SymlinkBaseNameSession" = "X" ]]; then return ; fi
+  # if no session leader alive, nothing to show
+  if [[ "X$SUT" = "X" ]]; then return ; fi
   local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameSession}*)
   if [[ "X$FILELIST" != "X" ]]; then 
     ShowHeader
@@ -295,6 +311,7 @@ function ShowUser
 function LinkSession
 {
   GetSymlinkBaseNameSession
+  CheckSessionLeader
   local EXTENSION="${AUTHTYPE}"
   if [[ "$AUTHTYPE" == "krb5" && "${CREDISFILE}" != "0" ]]; then
   local EXTENSION="krk5"
@@ -371,7 +388,7 @@ function UnlinkUserGlob
 function UnlinkUserSessions
 {
   GetSymlinkBaseNameUser
-  if [[ "X$SymlinkBaseNameUser" = "X" ]]; then "error unbinding user"; exit 1; fi
+  CheckSessionLeader
   #echo rm -f ${SymlinkBaseNameUser}_*
   rm -f ${SymlinkBaseNameUser}_*
 }

@@ -819,8 +819,8 @@ ContainerMD::deserialize(Buffer& buffer)
 
   // Grab the files and subcontainers
   try {
-    long long cursor = 0;
-    std::pair<int64_t, std::unordered_map<std::string, std::string>> reply;
+    std::string cursor = "0";
+    std::pair<std::string, std::unordered_map<std::string, std::string>> reply;
 
     do {
       reply = pFilesMap.hscan(cursor);
@@ -829,10 +829,10 @@ ContainerMD::deserialize(Buffer& buffer)
       for (auto && elem : reply.second) {
         mFilesMap.emplace(elem.first, std::stoull(elem.second));
       }
-    } while (cursor != 0);
+    } while (cursor != "0");
 
     // Get the subcontainers
-    cursor = 0;
+    cursor = "0";
 
     do {
       reply = pDirsMap.hscan(cursor);
@@ -841,7 +841,7 @@ ContainerMD::deserialize(Buffer& buffer)
       for (auto && elem : reply.second) {
         mDirsMap.emplace(elem.first, std::stoull(elem.second));
       }
-    } while (cursor != 0);
+    } while (cursor != "0");
   } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << pId << "failed to get subentries";

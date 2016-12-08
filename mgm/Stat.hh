@@ -62,20 +62,23 @@ public:
   void
   Add (unsigned long val)
   {
-    unsigned int bin3600 = (time (0) % 3600);
-    unsigned int bin300 = (time (0) % 300);
-    unsigned int bin60 = (time (0) % 60);
-    unsigned int bin5 = (time (0) % 5);
+    int64_t time_val = time(0);
+    
+    if (time_val < 0) {
+      time_val = 0;
+    }
+    
+    unsigned int bin3600 = time_val % 3600;
+    unsigned int bin300 = time_val % 300;
+    unsigned int bin60 = time_val % 60;
+    unsigned int bin5 = time_val % 5;
 
     avg3600[(bin3600 + 1) % 3600] = 0;
     avg3600[bin3600] += val;
-
     avg300[(bin300 + 1) % 300] = 0;
     avg300[bin300] += val;
-
     avg60[(bin60 + 1) % 60] = 0;
     avg60[bin60] += val;
-
     avg5[(bin5 + 1) % 5] = 0;
     avg5[bin5] += val;
   }
@@ -83,10 +86,16 @@ public:
   void
   StampZero ()
   {
-    unsigned int bin3600 = (time (0) % 3600);
-    unsigned int bin300 = (time (0) % 300);
-    unsigned int bin60 = (time (0) % 60);
-    unsigned int bin5 = (time (0) % 5);
+    int64_t time_val = time(0);
+    
+    if (time_val < 0) {
+      time_val = 0;
+    }
+
+    unsigned int bin3600 = time_val % 3600;
+    unsigned int bin300 = time_val % 300;
+    unsigned int bin60 = time_val % 60;
+    unsigned int bin5 = time_val % 5;
 
     avg3600[(bin3600 + 1) % 3600] = 0;
     avg300[(bin300 + 1) % 300] = 0;
@@ -188,11 +197,16 @@ public:
   void
   Insert (unsigned long nsample, const double &avgv, const double &minv, const double &maxv)
   {
-    unsigned int bin3600 = (time (0) % 3600);
-    unsigned int bin300 = (time (0) % 300);
-    unsigned int bin60 = (time (0) % 60);
-    unsigned int bin5 = (time (0) % 5);
+    int64_t time_val = time(0);
+    
+    if (time_val < 0) {
+      time_val = 0;
+    }
 
+    unsigned int bin3600 = time_val % 3600;
+    unsigned int bin300 = time_val % 300;
+    unsigned int bin60 = time_val % 60;
+    unsigned int bin5 = time_val % 5;
     n3600[(bin3600 + 1) % 3600] = 0;
     n3600[bin3600] += nsample;
     sum3600[(bin3600 + 1) % 3600] = 0;
@@ -233,11 +247,16 @@ public:
   void
   StampZero ()
   {
-    unsigned int bin3600 = (time (0) % 3600);
-    unsigned int bin300 = (time (0) % 300);
-    unsigned int bin60 = (time (0) % 60);
-    unsigned int bin5 = (time (0) % 5);
+    int64_t time_val = time(0);
+    
+    if (time_val < 0) {
+      time_val = 0;
+    }
 
+    unsigned int bin3600 = time_val % 3600;
+    unsigned int bin300 = time_val % 300;
+    unsigned int bin60 = time_val % 60;
+    unsigned int bin5 = time_val % 5;
     n3600[(bin3600 + 1) % 3600] = 0;
     n300[(bin300 + 1) % 300] = 0;
     n60[(bin60 + 1) % 60] = 0;

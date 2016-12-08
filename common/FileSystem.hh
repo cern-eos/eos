@@ -314,7 +314,7 @@ public:
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      mHash->SetLongLong("id", (long long) fsid);
+      mHash->Set("id", (long long) fsid);
       return true;
     } else {
       return false;
@@ -348,7 +348,7 @@ public:
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      mHash->SetDouble(key, f, broadcast);
+      mHash->Set(key, f, broadcast);
       return true;
     } else {
       return false;
@@ -365,7 +365,7 @@ public:
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      mHash->SetLongLong(key, l, broadcast);
+      mHash->Set(key, l, broadcast);
       return true;
     } else {
       return false;
@@ -505,7 +505,7 @@ public:
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      mHash->GetKeys(keys);
+      keys = mHash->GetKeys();
       return true;
     } else {
       return false;
@@ -801,9 +801,10 @@ public:
   //------------------------------------------------------------------------
   //! Snapshot host.
   //------------------------------------------------------------------------
-
   static bool SnapShotHost(XrdMqSharedObjectManager* som,
-                           const std::string& queue, FileSystem::host_snapshot_t& fs, bool dolock = true);
+                           const std::string& queue,
+			   FileSystem::host_snapshot_t& fs,
+			   bool dolock = true);
 
   //------------------------------------------------------------------------
   //! Dump Function printing the filesystem variables to out.

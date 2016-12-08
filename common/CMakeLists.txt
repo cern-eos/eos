@@ -32,6 +32,11 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
+# Build the libfmt for fast convertions
+#-------------------------------------------------------------------------------
+add_subdirectory(fmt)
+
+#-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS PROTOFILES dbmaptest/test.proto)
@@ -62,6 +67,7 @@ add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 target_link_libraries(
   eosCommon PUBLIC
   XrdMqClient
+  fmt
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -122,6 +128,7 @@ set_target_properties(
 target_link_libraries(
   eosCommon-Static PRIVATE
   XrdMqClient-Static
+  fmt
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}

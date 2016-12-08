@@ -332,6 +332,12 @@ public:
     pProcPath = procpath;
   }
 
+  const std::string&
+  GetProcPath () const
+  {
+    return pProcPath;
+  }
+
   //! returns true if the cache has an up-to-date entry after the call
   int
   InsertEntry (int pid)
@@ -377,6 +383,24 @@ public:
     }
   }
 
+  //! returns true if the entry is removed after the call
+  int RemoveEntries (const std::set<pid_t>* protect)
+  {
+    int count = 0;
+    eos::common::RWMutexWriteLock lock (pMutex);
+    for (auto it = pCatalog.begin (); it != pCatalog.end ();)
+    {
+      if (protect && protect->count (it->first))
+        ++it;
+      else
+      {
+        pCatalog.erase (it++);
+        ++count;
+      }
+    }
+    return count;
+  }
+
   //! get the entry associated to the pid if it exists
   //! gets NULL if the the cache does not have such an entry
   ProcCacheEntry* GetEntry (int pid)
@@ -391,7 +415,10 @@ public:
 };
 
 #ifndef __PROCCACHE__NOGPROCCACHE__
-extern ProcCache gProcCache;
+//extern ProcCache gProcCache;
+extern std::vector<ProcCache> gProcCacheV;
+extern int gProcCacheShardSize;
+inline ProcCache& gProcCache(int i) { return gProcCacheV[i%gProcCacheShardSize]; }
 #endif
 
 #endif

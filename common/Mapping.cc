@@ -1173,6 +1173,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
                              bituser, n_tohll(bituser));
           } else {
             eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d", outlen);
+	    delete id;
             return;
           }
 

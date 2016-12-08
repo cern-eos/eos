@@ -72,7 +72,7 @@ int main (int argc, char* argv[]) {
       XrdOucString str = "statistics"; str += v;
       XrdMqSharedHash* hash = ObjectManager.GetHash(str.c_str());
       
-      hash->BroadCastRequest("/eos/*/worker");
+      hash->BroadcastRequest("/eos/*/worker");
     }
 
     ObjectManager.HashMutex.UnLockRead();

@@ -294,28 +294,32 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
           return 0;
         }
 
-        // the force flag allows to retrieve 'any' value even with inconsistencies as needed by ResyncAllMgm
-
+        // The force flag allows to retrieve 'any' value even with inconsistencies
+	// as needed by ResyncAllMgm
         if (!force) {
-          if (strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid()),
-                     "raid6") &&
+          if (strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid()),"raid6") &&
               strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid()), "raiddp") &&
               strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid()), "archive")) {
-            // if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the Fmd record
-            if ((!isRW) && ((fmd->fMd.disksize() &&
-                             (fmd->fMd.disksize() != fmd->fMd.size())) ||
-                            (fmd->fMd.mgmsize() && (fmd->fMd.mgmsize() != 0xfffffffffff1ULL) &&
-                             (fmd->fMd.mgmsize() != fmd->fMd.size())))) {
-              eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
-                       fid, (unsigned long) fsid, fmd->fMd.size(), fmd->fMd.disksize(),
-                       fmd->fMd.mgmsize());
+            // If we have a mismatch between the mgm/disk and 'ref' value in size,
+	    // we don't return the Fmd record
+            if ((!isRW) &&
+		((fmd->fMd.disksize() &&
+		  (fmd->fMd.disksize() != fmd->fMd.size())) ||
+		 (fmd->fMd.mgmsize() && (fmd->fMd.mgmsize() != 0xfffffffffff1ULL) &&
+		  (fmd->fMd.mgmsize() != fmd->fMd.size())))) {
+              eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx "
+		       "fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
+                       fid, (unsigned long) fsid, fmd->fMd.size(),
+		       fmd->fMd.disksize(), fmd->fMd.mgmsize());
               delete fmd;
               FmdSqliteUnLockRead(fsid);
               return 0;
             }
 
-            // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
-            // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
+            // If we have a mismatch between the mgm/disk and 'ref' value in
+	    // checksum, we don't return the Fmd record. This check we can do
+	    // only if the file is !zero otherwise we don't have a checksum on
+	    // disk (e.g. a touch <a> file)
             if ((!isRW) && fmd->fMd.mgmsize() &&
                 ((fmd->fMd.diskchecksum().length() &&
                   (fmd->fMd.diskchecksum() != fmd->fMd.checksum())) ||

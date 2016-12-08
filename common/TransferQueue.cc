@@ -32,9 +32,9 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Constructor for a transfer queue
- * 
+ *
  * @param queue name of the queue e.g. /eos/'host'/fst/
  * @param queuepath name of the queue path e.g. /eos/'host'/fst/'mountpoint'/
  * @param subqueue name of the subqueue e.g. drainq,balanceq,externalq
@@ -77,13 +77,13 @@ TransferQueue::TransferQueue (const char* queue, const char* queuepath, const ch
       // create the hash object
       if (mSom->CreateSharedQueue(mFullQueue.c_str(), mQueue.c_str(), som))
       {
-        mSom->HashMutex.LockRead();
-        mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
-        mSom->HashMutex.UnLockRead();
+	mSom->HashMutex.LockRead();
+	mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+	mSom->HashMutex.UnLockRead();
       }
       else
       {
-        mHashQueue = 0;
+	mHashQueue = 0;
       }
     }
     else
@@ -91,7 +91,7 @@ TransferQueue::TransferQueue (const char* queue, const char* queuepath, const ch
       // remove all scheduled objects
       if (!mSlave)
       {
-        mHashQueue->Clear();
+	mHashQueue->Clear();
       }
       mSom->HashMutex.UnLockRead();
     }
@@ -116,11 +116,11 @@ TransferQueue::~TransferQueue ()
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Add a transfer job to the queue
- * 
+ *
  * @param job pointer to job to add
- * 
+ *
  * @return true if successful otherwise false
  */
 
@@ -134,7 +134,7 @@ TransferQueue::Add (eos::common::TransferJob* job)
     mSom->HashMutex.LockRead();
     if ((mHashQueue = mSom->GetQueue(mFullQueue.c_str())))
     {
-      retc = mHashQueue->PushBack(0, job->GetSealed());
+      retc = mHashQueue->PushBack("", job->GetSealed());
     }
     else
     {
@@ -146,10 +146,10 @@ TransferQueue::Add (eos::common::TransferJob* job)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Get a job from the queue. The caller has to clean-up the job object.
- * 
- * 
+ *
+ *
  * @return pointer to job
  */
 
@@ -157,52 +157,37 @@ TransferQueue::Add (eos::common::TransferJob* job)
 TransferJob*
 TransferQueue::Get ()
 {
-  XrdMqSharedHashEntry* entry = 0;
   if (mSom)
   {
     mSom->HashMutex.LockRead();
-    if ((mHashQueue = mSom->GetQueue(mFullQueue.c_str())))
-    {
-      mHashQueue->QueueMutex.Lock();
-      entry = mHashQueue->GetQueue()->front();
-      if (!entry)
-      {
-        mHashQueue->QueueMutex.UnLock();
-        mSom->HashMutex.UnLockRead();
-        return 0;
+
+    if ((mHashQueue = mSom->GetQueue(mFullQueue.c_str()))) {
+      std::string value = mHashQueue->PopFront();
+
+      if (value.empty()) {
+	mSom->HashMutex.UnLockRead();
+	return 0;
+      } else {
+	TransferJob* job = TransferJob::Create(value.c_str());
+	mSom->HashMutex.UnLockRead();
+	IncGetJobCount();
+	return job;
       }
-      else
-      {
-        if (!entry->GetEntry())
-        {
-          mHashQueue->QueueMutex.UnLock();
-          mSom->HashMutex.UnLockRead();
-          return 0;
-        }
-        TransferJob* job = TransferJob::Create(entry->GetEntry());
-        mHashQueue->QueueMutex.UnLock();
-        // remove it from the queue
-        mHashQueue->Delete(entry);
-        mSom->HashMutex.UnLockRead();
-        IncGetJobCount();
-        return job;
-      }
-    }
-    else
-    {
+    } else {
       fprintf(stderr, "error: couldn't get queue %s!\n", mFullQueue.c_str());
     }
+
     mSom->HashMutex.UnLockRead();
   }
   return 0;
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Remove a job from the queue. Currently this is not implemented!
- * 
+ *
  * @param job pointer to job object
- * 
+ *
  * @return true if successful otherwise false
  */
 
@@ -216,4 +201,3 @@ TransferQueue::Remove (eos::common::TransferJob* job)
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_END
-

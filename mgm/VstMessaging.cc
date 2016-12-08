@@ -403,7 +403,7 @@ VstMessaging::SetInfluxUdpEndpoint (const char* hostport, bool onlyme)
 
   PublishOnlySelf = onlyme;
 
-  if (udpsocket > 0)
+  if (udpsocket >= 0)
   {
     // close previously defined UDP socket
     if (InfluxUdpSocket)

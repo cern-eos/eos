@@ -85,10 +85,8 @@ XrdMgmOfs::stat(const char* inpath,
   ACCESSMODE_R;
   MAYSTALL;
   eos::common::Path cPath(path);
-  // ---------------------------------------------------------------------------
-  // never redirect stat's for the master mode
-  // ---------------------------------------------------------------------------
 
+  // Never redirect stat's for the master mode
   if (cPath.GetFullPath() != gOFS->MgmProcMasterPath) {
     MAYREDIRECT;
   }

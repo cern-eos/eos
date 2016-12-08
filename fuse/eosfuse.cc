@@ -621,7 +621,7 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   struct dirbuf b;
   struct dirbuf* tmp_buf;
   struct dirbuf* fh_buf;
-  struct stat attr;
+  struct stat attr {};
   
   b.size=0;
   b.alloc_size=0;
@@ -632,14 +632,16 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   me.fs ().lock_r_p2i (); // =>
   const char* tmpname = me.fs ().path ((unsigned long long) ino);
   
-  if (tmpname)
-    name = strdup (tmpname);
+  if (tmpname) {
+    name = strdup(tmpname);
+  }
   
   me.fs ().unlock_r_p2i (); // <=
   
   if (!name || !checkpathname(name) )
   {
     fuse_reply_err (req, ENOENT);
+    free(name);
     return;
   }
   
@@ -677,7 +679,8 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   }
 
   // No dirview entry, try to use the directory cache
-  if ((retc = me.fs ().stat (dirfullpath.c_str (), &attr, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, ino)))
+  if ((retc = me.fs().stat(dirfullpath.c_str(), &attr, fuse_req_ctx(req)->uid,
+			   fuse_req_ctx(req)->gid, fuse_req_ctx(req)->pid, ino)))
   {
     eos_static_err ("could not stat %s", dirfullpath.c_str ());
     fuse_reply_err (req, errno);
@@ -694,8 +697,9 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     filesystem::dirlist dlist;
     size_t nstats=0;
 
-    me.fs ().inodirlist ((unsigned long long) ino, fullpath,
-			 fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, dlist, &entriesstats, &nstats);
+    me.fs ().inodirlist((unsigned long long) ino, fullpath, fuse_req_ctx (req)->uid,
+			fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, dlist,
+			&entriesstats, &nstats);
     
     unsigned long long in;
     
@@ -1220,8 +1224,8 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
  // this is useful only if krb5 is not enabled
   uid_t fsuid = fuse_req_ctx(req)->uid;
   gid_t fsgid = fuse_req_ctx(req)->gid;
-  if(gProcCache.HasEntry(fuse_req_ctx(req)->pid))
-    gProcCache.GetEntry(fuse_req_ctx(req)->pid)->GetFsUidGid(fsuid, fsgid);
+  if(gProcCache(fuse_req_ctx(req)->pid).HasEntry(fuse_req_ctx(req)->pid))
+    gProcCache(fuse_req_ctx(req)->pid).GetEntry(fuse_req_ctx(req)->pid)->GetFsUidGid(fsuid, fsgid);
   int retc = me.fs().access(fullpath.c_str(), mask, fsuid,
                             fsgid, fuse_req_ctx(req)->pid);
 

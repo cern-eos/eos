@@ -26,26 +26,26 @@
 #include "mgm/Quota.hh"
 #include "GeoTreeEngine.hh"
 /*----------------------------------------------------------------------------*/
-
+/*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
-// Initialize static variables
+/*----------------------------------------------------------------------------*/
 XrdSysMutex Scheduler::pMapMutex;
 std::map<std::string, FsGroup*> Scheduler::schedulingGroup;
 
-//------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
+
+/* ------------------------------------------------------------------------- */
+
 Scheduler::Scheduler() { }
+/* ------------------------------------------------------------------------- */
 
-//------------------------------------------------------------------------------
-// Desstructor
-//------------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
+  //! -------------------------------------------------------------
 Scheduler::~Scheduler() { }
+  //! the write placement routine
+  //! ------------------------------------------------------------- 
 
-//------------------------------------------------------------------------------
-// Take the decision where to place a new file in the system
-//------------------------------------------------------------------------------
+  // the caller routine has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) 
 int
 Scheduler::FilePlacement(PlacementArguments* args)
 {
@@ -55,8 +55,8 @@ Scheduler::FilePlacement(PlacementArguments* args)
   std::map<eos::common::FileSystem::fsid_t, float> availablefs;
   std::map<eos::common::FileSystem::fsid_t, std::string> availablefsgeolocation;
   std::list<eos::common::FileSystem::fsid_t> availablevector;
-  // Compute the number of locations of stripes according to the placement policy
-  // 0 = 1 replica !
+
+  // fill the avoid list from the selected_filesystems input vector
   unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(
                                 args->lid) + 1;
   unsigned int ncollocatedfs = 0;
@@ -83,7 +83,7 @@ Scheduler::FilePlacement(PlacementArguments* args)
     }
 
     break;
-
+      // we only do geolocations for replica layouts
   case kGathered:
     ncollocatedfs = nfilesystems;
   }
@@ -108,30 +108,30 @@ Scheduler::FilePlacement(PlacementArguments* args)
   std::vector<std::string> fsidsgeotags;
   std::vector<FsGroup*> groupsToTry;
 
-  // If there are pre-existing replicas, check in which group they are located
-  // and chose the group where they are located the most
+  // place the group iterator
+
   if (!args->alreadyused_filesystems->empty()) {
     if (!gGeoTreeEngine.getInfosFromFsIds(*args->alreadyused_filesystems,
                                           &fsidsgeotags,
                                           0, &groupsToTry)) {
       eos_static_debug("could not retrieve scheduling group for all avoid fsids");
     }
-  }
+      }
 
-  // Place the group iterator
+
   if (args->forced_scheduling_group_index >= 0) {
     for (git = FsView::gFsView.mSpaceGroupView[*args->spacename].begin();
          git != FsView::gFsView.mSpaceGroupView[*args->spacename].end(); git++) {
       if ((*git)->GetIndex() == (unsigned int) args->forced_scheduling_group_index) {
-        break;
+          break;
+        }
       }
-    }
 
     if ((git != FsView::gFsView.mSpaceGroupView[*args->spacename].end()) &&
         ((*git)->GetIndex() != (unsigned int) args->forced_scheduling_group_index)) {
       args->selected_filesystems->clear();
       return ENOSPC;
-    }
+      }
   } else {
     XrdSysMutexHelper scope_lock(pMapMutex);
 
@@ -142,27 +142,27 @@ Scheduler::FilePlacement(PlacementArguments* args)
     } else {
       git = FsView::gFsView.mSpaceGroupView[*args->spacename].begin();
       schedulingGroup[indextag] = *git;
-    }
-
+	  }
+	  
     git++;
 
     if (git ==  FsView::gFsView.mSpaceGroupView[*args->spacename].end()) {
       git = FsView::gFsView.mSpaceGroupView[*args->spacename].begin();
-    }
-  }
-
-  // We can loop over all existing scheduling views
+		}
+		}
+		// rotate scheduling view ptr
+	    // remove it from the selection map
   for (unsigned int groupindex = 0;
        groupindex < FsView::gFsView.mSpaceGroupView[*args->spacename].size() +
        groupsToTry.size();
        groupindex++) {
-    // In case there are pre existing replicas, search for space in the groups
-    // they lay in first if it's unsuccessful, go to the other groups
+	    // rotate scheduling view ptr
+          // we select a random one
     FsGroup* group = groupindex < groupsToTry.size() ? groupsToTry[groupindex] :
                      (*git);
-    // We search for available slots for replicas but all in the same group.
-    // If we fail on a group, we look in the next one  placement is spread
-    // out in all the tree to strengthen reliability ( -> "" )
+
+
+
     bool placeRes = gGeoTreeEngine.placeNewReplicasOneGroup(
                       group, nfilesystems,
                       args->selected_filesystems,
@@ -184,98 +184,98 @@ Scheduler::FilePlacement(PlacementArguments* args)
       char buffer[1024];
       buffer[0] = 0;
       char* buf = buffer;
-
+          // only when we need one more geo location, we lower the selection probability
       for (auto it = args->selected_filesystems->begin();
            it != args->selected_filesystems->end(); ++it) {
         buf += sprintf(buf, "%lu  ", (unsigned long)(*it));
-      }
-
+          }
+	  
       eos_static_debug("GeoTree Placement returned %d with fs id's -> %s",
                        (int)placeRes, buffer);
-    }
-
+	    }
+	    
     if (placeRes) {
       eos_static_debug("placing replicas for %s in subgroup %s", args->path,
                        group->mName.c_str());
     } else {
       eos_static_debug("could not place all replica(s) for %s in subgroup %s, "
                        "checking next group", args->path, group->mName.c_str());
-    }
+            }
 
     if (groupindex >= groupsToTry.size()) {
       git++;
 
       if (git == FsView::gFsView.mSpaceGroupView[*args->spacename].end()) {
         git = FsView::gFsView.mSpaceGroupView[*args->spacename].begin();
-      }
+    }
 
-      // remember the last group for that indextag
+    // remember the last group for that indextag
       pMapMutex.Lock();
-      schedulingGroup[indextag] = *git;
+    schedulingGroup[indextag] = *git;
       pMapMutex.UnLock();
     }
 
     if (placeRes) {
-      return 0;
+    return 0;
     } else {
-      continue;
-    }
-  }
-
+          continue;
+      }
+        }
+          // check if we are in any kind of no-update mode
   args->selected_filesystems->clear();
   return ENOSPC;
-}
+          }
 
-//------------------------------------------------------------------------------
-// Take the decision from where to access a file
-//------------------------------------------------------------------------------
+          // we are off the wire
 
+          // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
+          // drain patch
 int Scheduler::FileAccess(AccessArguments* args)
-{
+          {
   size_t nReqStripes = args->isRW ? eos::common::LayoutId::GetOnlineStripeNumber(
                          args->lid) :
                        eos::common::LayoutId::GetMinOnlineReplica(args->lid);
   eos_static_debug("requesting file access from geolocation %s",
                    args->vid->geolocation.c_str());
   GeoTreeEngine::SchedType st = GeoTreeEngine::regularRO;
-
+            // we set a low weight for drain filesystems if there is more than one replica
   if (args->schedtype == regular) {
     if (args->isRW) {
       st = GeoTreeEngine::regularRW;
     } else {
       st = GeoTreeEngine::regularRO;
-    }
-  }
+            }
+          }
 
   if (args->schedtype == draining) {
     st = GeoTreeEngine::draining;
-  }
-
+            }
+		// make sure we have the matching geo location before the not matching one
   if (args->schedtype == balancing) {
     st = GeoTreeEngine::balancing;
-  }
+	      }
+		
 
-  // add the already tried fs to the unavailable ones
   if (!args->tried_cgi->empty()) {
     std::vector<std::string> hosts;
 
     if (!gGeoTreeEngine.getInfosFromFsIds(*args->locationsfs, 0,
                                           &hosts, 0)) {
       eos_static_debug("could not retrieve host for all the avoided fsids");
-    }
+          }
 
     size_t idx = 0;
-
-    // consider already tried replicas as unavailable
+          // -----------------------------------------------------------------------
+          // we store not available filesystems in the unavail vector 
     for (auto it = hosts.begin(); it != hosts.end(); it++) {
       if ((!it->empty()) && args->tried_cgi->find((*it) + ",") != std::string::npos) {
-        // should not keep this replica as available
+          // - this matters for RAID layouts because we have to remove there URLs to let the RAID driver use only online stripes
         args->unavailfs->push_back((*args->locationsfs)[idx]);
-      }
+    }
 
       idx++;
+      }
     }
-  }
 
   return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes,
          *args->fsindex,

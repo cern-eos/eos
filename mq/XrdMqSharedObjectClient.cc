@@ -77,7 +77,7 @@ int main (int argc, char* argv[]) {
         XrdOucString var = "var"; var += j;
         unsigned long long r= random();
         fprintf(stderr,"Set %s %s %llu\n", str.c_str(), var.c_str(),r);
-        hash->SetLongLong(var.c_str(), r);
+        hash->Set(var.c_str(), r);
       }
 
       hash->Set("hostname", hostname.c_str());

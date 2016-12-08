@@ -131,7 +131,7 @@ filesystem::CacheCleanup(void* p)
 	}
       }
     }
-
+    
     time_t now = time(NULL);
     XrdSysMutexHelper cLock(LayoutWrapper::gCacheAuthorityMutex);
     uint64_t totalsize_before = 0;
@@ -168,7 +168,7 @@ filesystem::CacheCleanup(void* p)
                           d->first);
 	LayoutWrapper::gCacheAuthority.erase(d);
 
-        if (totalsize_clean < me->max_wb_in_memory_size)
+	if (totalsize_clean < me->max_wb_in_memory_size)
 	  break;
       }
     }
@@ -1053,8 +1053,8 @@ filesystem::remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
  return retc;
 }
 
-//------------------------------------------------------------------------------
-// Attach read buffer corresponding to the thread
+
+
 char*
 filesystem::attach_rd_buff (pthread_t tid, size_t size)
 {
@@ -1063,13 +1063,13 @@ filesystem::attach_rd_buff (pthread_t tid, size_t size)
   return (char*) IoBufferMap[tid].GetBuffer ();
 }
 
-
 //------------------------------------------------------------------------------
 //             ******* XROOTD connection/authentication functions *******
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Get user name from the uid and change the effective user ID of the thread
+//------------------------------------------------------------------------------
 int
 filesystem::update_proc_cache(uid_t uid, gid_t gid, pid_t pid)
 {
@@ -1476,7 +1476,8 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
                   path, (int) uid, (int) gid, inode);
   eos::common::Timing stattiming("stat");
  off_t file_size = -1;
-  struct timespec atim, mtim;
+ struct timespec _tim[2];
+  struct timespec atim, &mtim = _tim[0];
  atim.tv_sec = atim.tv_nsec = mtim.tv_sec = mtim.tv_nsec = 0;
  errno = 0;
   COMMONTIMING("START", &stattiming);
@@ -1684,7 +1685,7 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
        errno = 0;
      }
      break;
-  } 
+   }
    else
    {
      if (!response || !response->GetBuffer ())
@@ -1705,8 +1706,8 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
      }
       errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
       break;
-   } 
-}
+   }
+ }
 
   if (file_size == (off_t) - 1) {
    eos_static_debug("querying the cache for inode=%x", inode);
@@ -4066,14 +4067,14 @@ filesystem::strongauth_cgi(pid_t pid)
 {
  XrdOucString str = "";
 
-  if (fuse_shared && (use_user_krb5cc || use_user_gsiproxy)) {
+ if (fuse_shared && (use_user_krb5cc || use_user_gsiproxy))
+ {
     std::string authmet;
+    if(gProcCache(pid).HasEntry(pid))
+      gProcCache(pid).GetEntry(pid)->GetAuthMethod(authmet);
 
-    if (gProcCache.HasEntry(pid)) {
-      gProcCache.GetEntry(pid)->GetAuthMethod(authmet);
-    }
-
-    if (authmet.compare(0, 5, "krb5:") == 0) {
+   if (authmet.compare (0, 5, "krb5:") == 0)
+   {
      str += "xrd.k5ccname=";
       str += (authmet.c_str() + 5);
      str += "&xrd.wantprot=krb5,unix";
@@ -4139,12 +4140,11 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
    return 0;
   }
 
-  time_t psstime = 0;
-
+  time_t psstime=0;
   if (
-    !gProcCache.HasEntry(pid) ||
-    !gProcCache.GetEntry(pid)->GetStartupTime(psstime)
-  ) {
+      !gProcCache(pid).HasEntry(pid) ||
+      !gProcCache(pid).GetEntry(pid)->GetStartupTime(psstime)
+      ) {
     eos_static_err("could not get process start time");
   }
  // Check the cache
@@ -4153,8 +4153,6 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
     eos::common::RWMutexReadLock rlock(mMapPidDenyRmMutex);
     auto it_map = mMapPidDenyRm.find(pid);
      // if the cached denial is up to date, return it
-    // if the cached denial is up to date, return it
-    // if the cached denial is up to date, return it
     if (it_map != mMapPidDenyRm.end()) {
       eos_static_debug("found an entry in the cache");
 
@@ -4164,7 +4162,7 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
                          it_map->second.second);
 
         if (it_map->second.second) {
-          std::string cmd = gProcCache.GetEntry(pid)->GetArgsStr();
+          std::string cmd = gProcCache(pid).GetEntry(pid)->GetArgsStr();
           eos_static_notice("rejected toplevel recursive deletion command %s",
                             cmd.c_str());
        }
@@ -4181,8 +4179,8 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
   auto entry = std::make_pair(psstime, false);
  // Try to print the command triggering the unlink
  std::ostringstream oss;
-  const auto& cmdv = gProcCache.GetEntry(pid)->GetArgsVec();
-  std::string cmd = gProcCache.GetEntry(pid)->GetArgsStr();
+ const auto &cmdv = gProcCache(pid).GetEntry (pid)->GetArgsVec ();
+ std::string cmd = gProcCache(pid).GetEntry (pid)->GetArgsStr ();
  std::set<std::string> rm_entries;
  std::set<std::string> rm_opt; // rm command options (long and short)
  char exe[PATH_MAX];
@@ -4710,15 +4708,19 @@ filesystem::init(int argc, char* argv[], void* userdata,
  }
 
  // set the path of the proc fs (default is "/proc/"
-  if (getenv("EOS_FUSE_PROCPATH")) {
-    std::string pp(getenv("EOS_FUSE_PROCPATH"));
-
-    if (pp[pp.size()] != '/') {
-      pp.append("/");
+ gProcCacheShardSize = AuthIdManager::proccachenbins;
+ gProcCacheV.resize(gProcCacheShardSize);
+ if (getenv ("EOS_FUSE_PROCPATH"))
+ {
+   std::string pp(getenv ("EOS_FUSE_PROCPATH"));
+   if(pp[pp.size()]!='/') pp.append("/");
+   for(auto it=gProcCacheV.begin();it!=gProcCacheV.end();++it)
+     it->SetProcPath(pp.c_str());
  }
-
-    gProcCache.SetProcPath(pp.c_str());
- }
+ if(authidmanager.StartCleanupThread())
+   eos_static_notice("started proccache cleanup thread");
+ else
+   eos_static_err("filed to start proccache cleanup thread");
 
  if (getenv ("EOS_FUSE_XRDBUGNULLRESPONSE_RETRYCOUNT"))
  {
@@ -4913,7 +4915,6 @@ filesystem::init(int argc, char* argv[], void* userdata,
  }
   }
 #endif
-  authidmanager.resize(pid_max + 1);
 
  // Get parameters about strong authentication
   if (getenv("EOS_FUSE_PIDMAP") && (atoi(getenv("EOS_FUSE_PIDMAP")) == 1)) {
@@ -4992,8 +4993,8 @@ filesystem::mylstat(const char* __restrict name, struct stat* __restrict __buf,
    gid_t gid;
 
     if (
-      !gProcCache.HasEntry(pid) ||
-      !gProcCache.GetEntry(pid)->GetFsUidGid(uid, gid)
+      !gProcCache(pid).HasEntry(pid) ||
+      !gProcCache(pid).GetEntry(pid)->GetFsUidGid(uid, gid)
     ) {
       return ESRCH;
  }

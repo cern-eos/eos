@@ -590,7 +590,7 @@ RedisConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 
     if (hash) {
       eos_static_info("Deleting on hash %s", configname.c_str());
-      hash->Delete(configname.c_str(), true);
+      hash->Delete(configname.c_str());
     }
   }
 

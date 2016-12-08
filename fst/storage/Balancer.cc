@@ -231,8 +231,7 @@ Storage::GetFileSystemInBalanceMode (std::vector<unsigned int> &balancefsvector,
       {
         // skip this one in bad state
         eos_static_debug("FileSystem %lu status=%u configstatus=%u",
-                         bootstatus,
-                         configstatus);
+                         id, bootstatus, configstatus);
         continue;
       }
 

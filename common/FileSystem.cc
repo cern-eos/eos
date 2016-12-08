@@ -81,9 +81,9 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
 
       if (mHash) {
         mHash->OpenTransaction();
-        mHash->Set("queue", mQueue);
-        mHash->Set("queuepath", mQueuePath);
-        mHash->Set("path", mPath);
+        mHash->Set("queue", mQueue.c_str());
+        mHash->Set("queuepath", mQueuePath.c_str());
+        mHash->Set("path", mPath.c_str());
         std::string hostport =
           eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
 
@@ -99,9 +99,9 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
             port = "1094";
           }
 
-          mHash->Set("hostport", hostport);
-          mHash->Set("host", host);
-          mHash->Set("port", port);
+          mHash->Set("hostport", hostport.c_str());
+          mHash->Set("host", host.c_str());
+          mHash->Set("port", port.c_str());
           mHash->Set("configstatus", "down");
         } else {
           eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
@@ -114,9 +114,9 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
     } else {
       mHash->SetBroadCastQueue(broadcast.c_str());
       mHash->OpenTransaction();
-      mHash->Set("queue", mQueue);
-      mHash->Set("queuepath", mQueuePath);
-      mHash->Set("path", mPath);
+      mHash->Set("queue", mQueue.c_str());
+      mHash->Set("queuepath", mQueuePath.c_str());
+      mHash->Set("path", mPath.c_str());
       std::string hostport =
         eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
 
@@ -132,9 +132,9 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
           port = "1094";
         }
 
-        mHash->Set("hostport", hostport);
-        mHash->Set("host", host);
-        mHash->Set("port", port);
+        mHash->Set("hostport", hostport.c_str());
+        mHash->Set("host", host.c_str());
+        mHash->Set("port", port.c_str());
       } else {
         eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
       }
@@ -535,15 +535,13 @@ FileSystem::GetRegisterRequestString()
   return "mgm.cmd=register";
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Store a configuration key-val pair. Internally these keys are prefixed with 'stat.'
- *
- * @param key key string
- * @param val value string
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Store a configuration key-val pair. Internally these keys are prefixed
+//! with 'stat.'
+//!
+//! para, key key string
+//! @param val value string
+//------------------------------------------------------------------------------
 void
 FileSystem::CreateConfig(std::string& key, std::string& val)
 {
@@ -551,7 +549,7 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   fs_snapshot_t fs;
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
   key = mQueuePath;
-  val = mHash->StoreAsString("stat.");
+  val = mHash->SerializeWithFilter("stat.");
 }
 
 /*----------------------------------------------------------------------------*/
