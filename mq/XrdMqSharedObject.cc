@@ -661,14 +661,10 @@ XrdMqSharedHash::Clear(bool broadcast)
 // Set entry in hash map
 //-------------------------------------------------------------------------------
 bool
-XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast,
-		     bool tempmodsubjects, bool do_lock)
+XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
 {
   std::string skey = key;
-
-  if (do_lock) {
-    mStoreMutex.LockWrite();
-  }
+  mStoreMutex.LockWrite();
 
   if (mStore.count(skey) == 0) {
     mStore.insert(std::make_pair(skey, XrdMqSharedHashEntry(key, value)));
@@ -676,9 +672,7 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast,
     mStore[skey] = XrdMqSharedHashEntry(key, value);
   }
 
-  if (do_lock) {
-    mStoreMutex.UnLockWrite();
-  }
+  mStoreMutex.UnLockWrite();
 
   if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
     bool is_transact = false;
@@ -715,10 +709,6 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast,
 
   // Check if we have to post for this subject
   if (mSOM) {
-    if (do_lock) {
-      mSOM->mSubjectsMutex.Lock();
-    }
-
     std::string fkey = mSubject.c_str();
     fkey += ";";
     fkey += skey;
@@ -728,18 +718,11 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast,
 	      mSubject.c_str(), skey.c_str(), value);
     }
 
-    if (tempmodsubjects) {
-      mSOM->ModificationTempSubjects.push_back(fkey);
-    } else {
-      XrdMqSharedObjectManager::Notification
-	event(fkey, XrdMqSharedObjectManager::kMqSubjectModification);
-      mSOM->NotificationSubjects.push_back(event);
-      mSOM->SubjectsSem.Post();
-    }
-
-    if (do_lock) {
-      mSOM->mSubjectsMutex.UnLock();
-    }
+    XrdSysMutexHelper lock(mSOM->mSubjectsMutex);
+    XrdMqSharedObjectManager::Notification
+      event(fkey, XrdMqSharedObjectManager::kMqSubjectModification);
+    mSOM->NotificationSubjects.push_back(event);
+    mSOM->SubjectsSem.Post();
   }
 
   return true;
@@ -1060,7 +1043,7 @@ XrdMqSharedQueue::PushBack(const std::string& key, const std::string& value)
     return false;
   }
 
-  return SetImpl(key.c_str(), value.c_str(), true, false, true);
+  return SetImpl(key.c_str(), value.c_str(), true);
 }
 
 //------------------------------------------------------------------------------
@@ -1086,8 +1069,7 @@ XrdMqSharedQueue::PopFront()
 // Set entry in queue
 //-------------------------------------------------------------------------------
 bool
-XrdMqSharedQueue::SetImpl(const char* key, const char* value, bool broadcast,
-			  bool tempmodsubjects, bool do_lock)
+XrdMqSharedQueue::SetImpl(const char* key, const char* value, bool broadcast)
 {
   std::string uuid;
   XrdSysMutexHelper lock(mQMutex);
@@ -1102,8 +1084,7 @@ XrdMqSharedQueue::SetImpl(const char* key, const char* value, bool broadcast,
   }
 
   if (mStore.find(uuid) == mStore.end()) {
-    if (XrdMqSharedHash::SetImpl(uuid.c_str(), value, broadcast,
-				 tempmodsubjects, do_lock)) {
+    if (XrdMqSharedHash::SetImpl(uuid.c_str(), value, broadcast)) {
       mQueue.push_back(uuid);
       return true;
     }
@@ -2837,36 +2818,6 @@ XrdMqSharedObjectManager::FileDumper()
   }
 }
 
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-void
-XrdMqSharedObjectManager::PostModificationTempSubjects()
-{
-  std::deque<std::string>::iterator it;
-
-  if (sDebug) {
-    fprintf(stderr,
-	    "XrdMqSharedObjectManager::PostModificationTempSubjects=> posting now\n");
-  }
-
-  mSubjectsMutex.Lock();
-
-  for (it = ModificationTempSubjects.begin();
-       it != ModificationTempSubjects.end(); it++) {
-    if (sDebug) {
-      fprintf(stderr, "XrdMqSharedObjectManager::PostModificationTempSubjects=> %s\n",
-	      it->c_str());
-    }
-
-    Notification event(*it, XrdMqSharedObjectManager::kMqSubjectModification);
-    NotificationSubjects.push_back(event);
-    SubjectsSem.Post();
-  }
-
-  ModificationTempSubjects.clear();
-  mSubjectsMutex.UnLock();
-}
 
 //------------------------------------------------------------------------------
 //
@@ -3125,62 +3076,53 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 	  }
 
 	  std::string sstr;
-	  {
-	    sh->mStoreMutex.LockWrite();
-	    mSubjectsMutex.Lock();
+	  for (unsigned int i = parseindex; i < keystart.size(); i++) {
+	    key.assign(val, keystart[i] + 1, valuestart[i] - 1 - (keystart[i]));
+	    value.assign(val, valuestart[i] + 1, cidstart[i] - 1 - (valuestart[i]));
 
-	    for (unsigned int i = parseindex; i < keystart.size(); i++) {
-	      key.assign(val, keystart[i] + 1, valuestart[i] - 1 - (keystart[i]));
-	      value.assign(val, valuestart[i] + 1, cidstart[i] - 1 - (valuestart[i]));
-
-	      if (i == (keystart.size() - 1)) {
-		cid.assign(val, cidstart[i] + 1, val.length() - cidstart[i] - 1);
-	      } else {
-		cid.assign(val, cidstart[i] + 1, keystart[i + 1] - 1 - (cidstart[i]));
-	      }
-
-	      if (sDebug) {
-		fprintf(stderr,
-			"XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=> %s\n",
-			subject.c_str(), key.c_str(), value.c_str());
-	      }
-
-	      if (subjectlist.size() > 1) {
-		// This is a multiplexed update, where we have to remove the
-		// subject from the key if there is a match with the current subject
-		// MUX transactions have the #<subject-index># as key prefix
-		XrdOucString skey = "#";
-		skey += (int) s;
-		skey += "#";
-
-		if (!key.compare(0, skey.length(), skey.c_str())) {
-		  // this is the right key for the subject we are dealing with
-		  key.erase(0, skey.length());
-		} else {
-		  parseindex = i;
-		  break;
-		}
-	      } else {
-		// This can be the case for a single multiplexed message, so
-		// we have also to remove the prefix in that case
-		XrdOucString skey = "#";
-		skey += (int) s;
-		skey += "#";
-
-		if (!key.compare(0, skey.length(), skey.c_str())) {
-		  // this is the right key for the subject we are dealing with
-		  key.erase(0, skey.length());
-		}
-	      }
-
-	      // sh->SetNoLockNoBroadCast(key.c_str(), value.c_str(), true);
-	      sh->Set(key.c_str(), value.c_str(), false, false, false);
+	    if (i == (keystart.size() - 1)) {
+	      cid.assign(val, cidstart[i] + 1, val.length() - cidstart[i] - 1);
+	    } else {
+	      cid.assign(val, cidstart[i] + 1, keystart[i + 1] - 1 - (cidstart[i]));
 	    }
 
-	    sh->mStoreMutex.UnLockWrite();
-	    mSubjectsMutex.UnLock();
+	    if (sDebug) {
+	      fprintf(stderr,
+		      "XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=> %s\n",
+		      subject.c_str(), key.c_str(), value.c_str());
+	    }
+
+	    if (subjectlist.size() > 1) {
+	      // This is a multiplexed update, where we have to remove the
+	      // subject from the key if there is a match with the current subject
+	      // MUX transactions have the #<subject-index># as key prefix
+	      XrdOucString skey = "#";
+	      skey += (int) s;
+	      skey += "#";
+
+	      if (!key.compare(0, skey.length(), skey.c_str())) {
+		// this is the right key for the subject we are dealing with
+		key.erase(0, skey.length());
+	      } else {
+		parseindex = i;
+		break;
+	      }
+	    } else {
+	      // This can be the case for a single multiplexed message, so
+	      // we have also to remove the prefix in that case
+	      XrdOucString skey = "#";
+	      skey += (int) s;
+	      skey += "#";
+
+	      if (!key.compare(0, skey.length(), skey.c_str())) {
+		// this is the right key for the subject we are dealing with
+		key.erase(0, skey.length());
+	      }
+	    }
+
+	    // Set entry without broadcast
+	    sh->Set(key.c_str(), value.c_str(), false);
 	  }
-	  PostModificationTempSubjects();
 	}
 
 	return true;

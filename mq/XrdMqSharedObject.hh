@@ -310,15 +310,11 @@ public:
   //! @param key key value
   //! @param value entry value which can NOT be an empty string
   //! @param broadcast do broadcast for current subject
-  //! @param tempmodsubjects add to temporary modified subjects
-  //! @param do_lock if true then take all the necessary locks, otherwise
-  //!        assume we are protected.
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-   bool Set(const char* key, T&& value, bool broadcast = true,
-	    bool tempmodsubjects = false, bool do_lock = true);
+   bool Set(const char* key, T&& value, bool broadcast = true);
 
   //============================================================================
   //                          THIS SHOULD BE REVIEWED - BEGIN
@@ -408,15 +404,11 @@ protected:
   //! @param key key value
   //! @param value entry value - non-empty string
   //! @param broadcast do broadcast for current subject
-  //! @param tempmodsubjects add to temporary modified subjects
-  //! @param do_lock if true then take all the necessary locks, otherwise
-  //!        assume we are protected.
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   virtual
-  bool SetImpl(const char* key, const char* value,  bool broadcast,
-	       bool tempmodsubjects, bool do_lock);
+  bool SetImpl(const char* key, const char* value,  bool broadcast);
 
 private:
   std::string mBroadcastQueue; ///< Name of the broadcast queue
@@ -537,15 +529,11 @@ private:
   //! @param key key value
   //! @param value entry value - non-empty string
   //! @param broadcast do broadcast for current subject
-  //! @param tempmodsubjects add to temporary modified subjects
-  //! @param do_lock if true then take all the necessary locks, otherwise
-  //!        assume we are protected.
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   virtual
-  bool SetImpl(const char* key, const char* value, bool broadcast,
-	       bool tempmodsubjects, bool do_lock);
+  bool SetImpl(const char* key, const char* value, bool broadcast);
 
 private:
   XrdSysMutex mQMutex; ///< Mutex protecting the mQueue object
@@ -618,11 +606,6 @@ public:
       mSubject = "";
     }
   };
-
-  //----------------------------------------------------------------------------
-  //! Clean the bulk modification subject list
-  //----------------------------------------------------------------------------
-  void PostModificationTempSubjects();
 
   XrdMqRWMutex HashMutex;
   XrdMqRWMutex ListMutex;
@@ -810,8 +793,6 @@ protected:
   bool IsMuxTransaction;
   std::map<std::string, std::set<std::string> > MuxTransactions;
   std::deque<Notification> NotificationSubjects;
-  //! These are posted as <queue>:<key>
-  std::deque<std::string> ModificationTempSubjects;
   //! Semaphore to wait for new creations/deletions/modifications
   XrdSysSemWait SubjectsSem;
   //! Mutex to protect the creations/deletions/modifications & watch subjects
@@ -1067,8 +1048,7 @@ private:
 //-------------------------------------------------------------------------------
 template <typename T>
 bool
-XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
-		     bool tempmodsubjects, bool do_lock)
+XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast)
 {
   std::string svalue = eos::common::StringConversion::stringify(value);
   AtomicInc(sSetCounter);
@@ -1078,7 +1058,7 @@ XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast,
     return false;
   }
 
-  return SetImpl(key, svalue.c_str(), broadcast, tempmodsubjects, do_lock);
+  return SetImpl(key, svalue.c_str(), broadcast);
 }
 
 #endif
