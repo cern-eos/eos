@@ -384,7 +384,7 @@ protected:
   {
     eos::common::RWMutexWriteLock lock (proccachemutexes[i]);
 
-    cleancountProcCache += gProcCacheV[i].RemoveEntries(proccachenbins, i,&runningPids);
+    cleancountProcCache += gProcCacheV[i].RemoveEntries(&runningPids);
 
     for (auto it = pid2StrongLogin[i].begin (); it != pid2StrongLogin[i].end ();)
     {
@@ -419,7 +419,6 @@ protected:
       for (unsigned int i = 0; i < proccachenbins; i++)
         cleanProcCacheBin (i,cleancountProcCache,cleancountStrongLogin,cleancountCredInfo);
 
-      //cleancountProcCache += gProcCache.RemoveEntries(1, 0,&runningPids);
     }
     eos_static_info("ProcCache cleaning removed %d entries in gProcCache",cleancountProcCache);
     eos_static_debug("ProcCache cleaning removed %d entries in pid2StrongLogin",cleancountStrongLogin);

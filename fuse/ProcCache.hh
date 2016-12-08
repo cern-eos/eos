@@ -384,40 +384,18 @@ public:
   }
 
   //! returns true if the entry is removed after the call
-  int RemoveEntries (int bsize, int mod, const std::set<pid_t>* protect)
+  int RemoveEntries (const std::set<pid_t>* protect)
   {
     int count = 0;
-    if(bsize>1)
+    eos::common::RWMutexWriteLock lock (pMutex);
+    for (auto it = pCatalog.begin (); it != pCatalog.end ();)
     {
-      eos::common::RWMutexWriteLock lock (pMutex);
-      for (auto it = pCatalog.begin (); it != pCatalog.end ();
-          it = pCatalog.lower_bound (it->first + ((it->first % bsize)!=mod)?(mod+bsize - (it->first % bsize))%bsize:0) )
+      if (protect && protect->count (it->first))
+        ++it;
+      else
       {
-        if( it==pCatalog.end() ) break;
-        if (it->first%bsize==mod)
-        {
-          if(protect && protect->count(it->first))
-            ++it;
-          else
-          {
-          it = pCatalog.erase (it);
-          ++count;
-          }
-        }
-      }
-    }
-    else if(bsize==1)
-    {
-      eos::common::RWMutexWriteLock lock (pMutex);
-      for (auto it = pCatalog.begin (); it != pCatalog.end ();)
-      {
-          if(protect && protect->count(it->first))
-            ++it;
-          else
-          {
-          it = pCatalog.erase (it);
-          ++count;
-          }
+        it = pCatalog.erase (it);
+        ++count;
       }
     }
     return count;
