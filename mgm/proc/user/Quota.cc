@@ -63,6 +63,7 @@ ProcCommand::Quota ()
     }
   }
 
+  /*
   if (mSubCmd == "lsuser")
   {
     XrdOucString monitoring = pOpaque->Get("mgm.quota.format");
@@ -74,17 +75,26 @@ ProcCommand::Quota ()
     }
 
     eos_notice("quota ls (user)");
-    XrdOucString out1 = "";
-    XrdOucString out2 = "";
-    if (!monitor) stdOut += "By user ...\n";
-    Quota::PrintOut(space, out1, pVid->uid, -1, monitor, true);
-    stdOut += out1;
-    if (!monitor)stdOut += "By group ...\n";
-    Quota::PrintOut(space, out2, -1, pVid->gid, monitor, true);
-    stdOut += out2;
+    XrdOucString out = "";
+
+    if (!monitor) {
+      stdOut += "By user ...\n";
+    }
+
+    bool is_ok = Quota::PrintOut(space, out, pVid->uid, -1, monitor, true);
+    stdOut += out;
+    out = "";
+
+    if (!monitor) {
+      stdOut += "By group ...\n";
+    }
+
+    is_ok = Quota::PrintOut(space, out, -1, pVid->gid, monitor, true);
+    stdOut += out;
     mDoSort = false;
     return SFS_OK;
   }
+  */
 
   bool canQuota = false;
 
@@ -120,41 +130,50 @@ ProcCommand::Quota ()
       XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
       XrdOucString monitoring = pOpaque->Get("mgm.quota.format");
       XrdOucString printid = pOpaque->Get("mgm.quota.printid");
-
       std::string suid = (uid_sel.length()) ? uid_sel.c_str() : "0";
       std::string sgid = (gid_sel.length()) ? gid_sel.c_str() : "0";
       long uid = Mapping::UserNameToUid(suid, errc);
       long gid = Mapping::GroupNameToGid(sgid, errc);
-
       bool monitor = false;
       bool translate = true;
 
-      if (monitoring == "m")
+      if (monitoring == "m") {
 	monitor = true;
+      }
 
-      if (printid == "n")
+      if (printid == "n") {
 	translate = false;
+      }
 
       XrdOucString out1 = "";
-      XrdOucString out2 = "";
+      bool is_ok = false;
 
-      if ((!uid_sel.length() && (!gid_sel.length())))
-      {
-	Quota::PrintOut(space, stdOut, -1, -1, monitor, translate);
+      if ((!uid_sel.length() && (!gid_sel.length()))) {
+	is_ok = Quota::PrintOut(space, out1, -1, -1, monitor, translate);
       }
-      else
-      {
-	if (uid_sel.length())
-	{
-	  Quota::PrintOut(space, out1, uid, -1, monitor, translate);
-	  stdOut += out1;
+      else {
+	if (uid_sel.length()) {
+	  is_ok = Quota::PrintOut(space, out1, uid, -1, monitor, translate);
 	}
 
-	if (gid_sel.length())
-	{
-	  Quota::PrintOut(space, out2, -1, gid, monitor, translate);
-	  stdOut += out2;
+	if (is_ok && gid_sel.length()) {
+	  XrdOucString out2;
+	  is_ok = Quota::PrintOut(space, out2, -1, gid, monitor, translate);
+
+	  if (is_ok) {
+	    out1 += out2.c_str();
+	  } else {
+	    out1 = out2.c_str();
+	  }
 	}
+      }
+
+      if (is_ok) {
+	stdOut = out1.c_str();
+      } else {
+	stdOut = "";
+	stdErr = out1.c_str();
+	retc = EINVAL;
       }
     }
 

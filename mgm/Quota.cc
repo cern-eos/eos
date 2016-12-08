@@ -1695,7 +1695,7 @@ Quota::LoadNodes()
 //------------------------------------------------------------------------------
 // Print out quota information
 //------------------------------------------------------------------------------
-void
+bool
 Quota::PrintOut(const std::string& path, XrdOucString& output, long uid_sel,
                 long gid_sel, bool monitoring, bool translate_ids)
 {
@@ -1730,8 +1730,14 @@ Quota::PrintOut(const std::string& path, XrdOucString& output, long uid_sel,
     if (squota) {
       squota->Refresh();
       squota->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
+    } else {
+      output = "error: no quota for path ";
+      output += path.c_str();
+      return false;
     }
   }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------
