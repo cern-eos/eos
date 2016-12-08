@@ -393,6 +393,7 @@ public:
       for (auto it = pCatalog.begin (); it != pCatalog.end ();
           it = pCatalog.lower_bound (it->first + ((it->first % bsize)!=mod)?(mod+bsize - (it->first % bsize))%bsize:0) )
       {
+        if( it==pCatalog.end() ) break;
         if (it->first%bsize==mod)
         {
           if(protect && protect->count(it->first))
