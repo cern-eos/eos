@@ -36,6 +36,11 @@
 #include <unistd.h>
 #include <ctime>
 #include <XrdSys/XrdSysAtomics.hh>
+#include <vector>
+
+//ProcCache gProcCache;
+std::vector<ProcCache> gProcCacheV;
+int gProcCacheShardSize;
 
 ProcCache gProcCache;
 
