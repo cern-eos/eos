@@ -434,7 +434,7 @@ protected:
     XrdSysTimer sleeper;
     while(true)
     {
-      sleeper.Snooze(60);
+      sleeper.Snooze(300);
       cleanProcCache();
     }
   }
