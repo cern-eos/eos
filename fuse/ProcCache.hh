@@ -394,7 +394,7 @@ public:
         ++it;
       else
       {
-        it = pCatalog.erase (it);
+        pCatalog.erase (it++);
         ++count;
       }
     }

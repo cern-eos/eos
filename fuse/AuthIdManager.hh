@@ -390,7 +390,7 @@ protected:
     {
       if (!runningPids.count(it->first))
       {
-        it = pid2StrongLogin[i].erase(it);
+        pid2StrongLogin[i].erase(it++);
         ++cleancountStrongLogin;
       }
       else
@@ -400,7 +400,7 @@ protected:
     {
       if (!runningPids.count(it->first))
       {
-        it = siduid2credinfo[i].erase(it);
+        siduid2credinfo[i].erase(it++);
         cleancountCredInfo++;
       }
       else
