@@ -183,7 +183,7 @@ public:
       eos_static_err("cannot set errcode for filesystem %s", GetQueuePath().c_str());
     }
 
-    if (!SetString("stat.errmsg", errmsg)) {
+    if (errmsg && strlen(errmsg) && !SetString("stat.errmsg", errmsg)) {
       eos_static_err("cannot set errmsg for filesystem %s", GetQueuePath().c_str());
     }
   }
