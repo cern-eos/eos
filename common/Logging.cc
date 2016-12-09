@@ -189,7 +189,7 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
 
   if (gToSysLog)
   {
-    syslog(priority,ptr, strlen(ptr));
+    syslog(priority,"%s", ptr);
   }
 
   if (gLogFanOut.size())
