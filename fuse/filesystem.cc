@@ -5016,6 +5016,8 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  else
     tryKrb5First = false;
 
+ if(!use_user_krb5cc && !use_user_gsiproxy) setenv("XrdSecPROTOCOL","unix",1);
+
  authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, fallback2nobody, tryKrb5First);
 
 

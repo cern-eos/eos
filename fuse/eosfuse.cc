@@ -232,10 +232,10 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
      mountprefix[strlen (mountprefix) - 1] = '\0';
     }
 
- if (getuid () <= DAEMONUID)
- {
-  unsetenv ("KRB5CCNAME");
-  unsetenv ("X509_USER_PROXY");
+  if (getuid () <= DAEMONUID)
+  {
+    setenv("KRB5CCNAME","FILE:/dev/null",1);
+    setenv("X509_USER_PROXY","/dev/null",1);
   }
 
   if (!me.fs ().check_mgm (NULL))
