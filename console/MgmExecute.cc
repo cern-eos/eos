@@ -32,15 +32,15 @@ bool MgmExecute::proccess(XrdOucEnv* response)
   rstderr = response->Get("mgm.proc.stderr");
 
   if (rstderr.length() != 0) {
-    this->m_error = std::string(rstderr.c_str());
+    m_error = std::string(rstderr.c_str());
     delete response;
     return false;
   }
 
-  this->m_result = std::string("");
+  m_result = std::string("");
 
   if (rstdout.length() > 0) {
-    this->m_result = std::string(rstdout.c_str());
+    m_result = std::string(rstdout.c_str());
   }
 
   delete response;
@@ -51,14 +51,14 @@ bool MgmExecute::ExecuteCommand(const char* command)
 {
   XrdOucString command_xrd = XrdOucString(command);
   XrdOucEnv* response = client_user_command(command_xrd);
-  return this->proccess(response);
+  return proccess(response);
 }
 
 bool MgmExecute::ExecuteAdminCommand(const char* command)
 {
   XrdOucString command_xrd = XrdOucString(command);
   XrdOucEnv* response = client_admin_command(command_xrd);
-  return this->proccess(response);
+  return proccess(response);
 }
 
 #endif

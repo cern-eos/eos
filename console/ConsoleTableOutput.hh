@@ -56,14 +56,14 @@ class ConsoleTableOutput
   template<typename T>
   void ProcessRow(const T& t)
   {
-    if (this->m_curr_field == this->m_header.size()) {
+    if (m_curr_field == m_header.size()) {
       throw std::string("Row has more items than it should!");
     }
 
-    this->m_output.fill(' ');
-    this->m_output.width(this->m_header[m_curr_field].second);
-    this->m_output << t << this->m_colors[ConsoleTableOutput::DEFAULT];
-    ++this->m_curr_field;
+    m_output.fill(' ');
+    m_output.width(m_header[m_curr_field].second);
+    m_output << t << m_colors[ConsoleTableOutput::DEFAULT];
+    ++m_curr_field;
   }
 
 public:
@@ -85,7 +85,7 @@ public:
   ConsoleTableOutput()
     : m_curr_field(0)
   {
-    this->m_colors = ColorVec{"\33[31m", "\33[32m", "\33[33m", "\33[0m"};
+    m_colors = ColorVec{"\33[31m", "\33[32m", "\33[33m", "\33[0m"};
   }
 
   //----------------------------------------------------------------------------
@@ -95,24 +95,24 @@ public:
   //----------------------------------------------------------------------------
   void SetHeader(HeaderInfo heads)
   {
-    this->m_header = heads;
+    m_header = heads;
     int sum = 0;
 
-    for (auto item = this->m_header.begin(); item != this->m_header.end(); ++item) {
+    for (auto item = m_header.begin(); item != m_header.end(); ++item) {
       sum += item->second;
     }
 
-    this->m_separator = std::string(sum + 2, '-');
-    this->m_output << this->m_separator << std::endl;
+    m_separator = std::string(sum + 2, '-');
+    m_output << m_separator << std::endl;
 
-    for (auto item = this->m_header.begin(); item != this->m_header.end(); ++item) {
-      this->m_output.fill(' ');
-      this->m_output.width(item->second);
-      this->m_output << item->first;
+    for (auto item = m_header.begin(); item != m_header.end(); ++item) {
+      m_output.fill(' ');
+      m_output.width(item->second);
+      m_output << item->first;
     }
 
-    this->m_output << std::endl;
-    this->m_output << this->m_separator << std::endl;
+    m_output << std::endl;
+    m_output << m_separator << std::endl;
   }
 
   //----------------------------------------------------------------------------
@@ -121,7 +121,7 @@ public:
   template <typename T>
   T Colorify(ConsoleTableOutput::Color c, const T t)
   {
-    this->m_output << ConsoleTableOutput::m_colors[c];
+    m_output << ConsoleTableOutput::m_colors[c];
     return t;
   }
 
@@ -134,7 +134,7 @@ public:
   template<typename T, typename... Args>
   void AddRow(const T& t, const Args& ... args)
   {
-    this->ProcessRow<T>(t);
+    ProcessRow<T>(t);
     AddRow(args...);
   }
 
@@ -146,9 +146,9 @@ public:
   template<typename T>
   void AddRow(const T& t)
   {
-    this->ProcessRow<T>(t);
-    this->m_curr_field = 0;
-    this->m_output << std::endl;
+    ProcessRow<T>(t);
+    m_curr_field = 0;
+    m_output << std::endl;
   }
 
   //----------------------------------------------------------------------------
@@ -160,9 +160,9 @@ public:
   template<typename T, typename... Args>
   void CustomRow(const std::pair<T, int>& t, const Args& ... args)
   {
-    this->m_output.fill(' ');
-    this->m_output.width(t.second);
-    this->m_output << t.first << this->m_colors[ConsoleTableOutput::DEFAULT];
+    m_output.fill(' ');
+    m_output.width(t.second);
+    m_output << t.first << m_colors[ConsoleTableOutput::DEFAULT];
     CustomRow(args...);
   }
 
@@ -174,23 +174,23 @@ public:
   template<typename T>
   void CustomRow(const std::pair<T, int>& t)
   {
-    this->m_output.fill(' ');
-    this->m_output.width(t.second);
-    this->m_output << t.first << this->m_colors[ConsoleTableOutput::DEFAULT];
-    this->m_output << std::endl;
-    this->m_curr_field = 0;
+    m_output.fill(' ');
+    m_output.width(t.second);
+    m_output << t.first << m_colors[ConsoleTableOutput::DEFAULT];
+    m_output << std::endl;
+    m_curr_field = 0;
   }
 
   void Separator()
   {
-    this->m_output << this->m_separator << std::endl;
+    m_output << m_separator << std::endl;
   }
   //----------------------------------------------------------------------------
   //! Getting current string of class.
   //----------------------------------------------------------------------------
   std::string Str()
   {
-    return this->m_output.str();
+    return m_output.str();
   }
 
 };

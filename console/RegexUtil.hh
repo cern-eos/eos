@@ -35,7 +35,8 @@
 //!     TODO: This will be obsolete when min supported gcc is 4.9 and std::regex
 //!           become available.
 //------------------------------------------------------------------------------
-class RegexUtil {
+class RegexUtil
+{
   static const unsigned max_num_of_matches = 128; //< Length of matched regex arr
   //< Enum containing signal values if smth gone wrong
   enum RegexErr {NOTOKENMODEON = -1, NOMOREMATCHES = -2};
@@ -45,7 +46,7 @@ class RegexUtil {
   bool m_tokenize; //< Tokenizer mode indicator
 
   int m_regex_flags; //< Flages for posix regex_t
-  std::string* m_origin; //< pointer to source string
+  std::string m_origin; //< pointer to source string
   std::string m_regex_string; //< Regex string
 
 public:
@@ -67,7 +68,10 @@ public:
   //!
   //! @param in pointer to origin string
   //----------------------------------------------------------------------------
-  inline void SetOrigin(std::string* origin) { m_origin = origin; }
+  inline void SetOrigin(const std::string& origin)
+  {
+    m_origin = origin;
+  }
 
   //----------------------------------------------------------------------------
   //! Applying regex actually on string and storing matches

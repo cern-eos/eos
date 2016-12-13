@@ -8,7 +8,7 @@ void RegexUtilTest::TestUtility()
   std::string origin("asdfasfsssstest12kksdjftestossskso");
   std::string temp;
   // Pass case
-  CPPUNIT_ASSERT_NO_THROW(test.SetOrigin(&origin));
+  CPPUNIT_ASSERT_NO_THROW(test.SetOrigin(origin));
   CPPUNIT_ASSERT_NO_THROW(test.SetRegex("test[0-9]+"));
   CPPUNIT_ASSERT_NO_THROW(test.initTokenizerMode());
   CPPUNIT_ASSERT_NO_THROW(temp = test.Match());
@@ -17,7 +17,7 @@ void RegexUtilTest::TestUtility()
   CPPUNIT_ASSERT(temp ==  "test12");
   // Few fail cases
   test = RegexUtil();
-  CPPUNIT_ASSERT_NO_THROW(test.SetOrigin(&origin));
+  CPPUNIT_ASSERT_NO_THROW(test.SetOrigin(origin));
   CPPUNIT_ASSERT_THROW(test.SetRegex("test[0-9"),  std::string);
   test = RegexUtil();
   CPPUNIT_ASSERT_THROW(test.SetRegex("test[0-9"),  std::string);

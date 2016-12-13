@@ -50,11 +50,11 @@ public:
   bool ExecuteAdminCommand(const char* command);
   inline std::string& GetResult()
   {
-    return this->m_result;
+    return m_result;
   }
   inline std::string& GetError()
   {
-    return this->m_error;
+    return m_error;
   }
 };
 

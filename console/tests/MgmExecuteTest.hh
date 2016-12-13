@@ -48,9 +48,9 @@ public:
     std::string comm = std::string(command);
 
     if (m_queue.front().first == comm) {
-      this->m_result = m_queue.front().second;
+      m_result = m_queue.front().second;
     } else {
-      this->test_failed = true;
+      test_failed = true;
     }
 
     m_queue.pop();
@@ -62,9 +62,9 @@ public:
     std::string comm = std::string(command);
 
     if (m_queue.front().first == comm) {
-      this->m_result = m_queue.front().second;
+      m_result = m_queue.front().second;
     } else {
-      this->test_failed = true;
+      test_failed = true;
     }
 
     m_queue.pop();
@@ -82,12 +82,12 @@ public:
       temp.first = line;
 
       if (std::getline(file, line,  '#')) {
-	temp.second = line;
+        temp.second = line;
       } else {
-	throw std::string("Load failed!!");
+        throw std::string("Load failed!!");
       }
 
-      this->m_queue.push(temp);
+      m_queue.push(temp);
     }
 
     file.close();
@@ -95,12 +95,12 @@ public:
 
   inline std::string& GetResult()
   {
-    return this->m_result;
+    return m_result;
   }
 
   inline std::string& GetError()
   {
-    return this->m_error;
+    return m_error;
   }
 };
 

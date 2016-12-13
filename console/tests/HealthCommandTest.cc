@@ -26,7 +26,7 @@
 CPPUNIT_TEST_SUITE_REGISTRATION(HealthCommandTest);
 
 void HealthCommandTest::DumpStringData(const std::string& path,
-				       const std::string& data)
+                                       const std::string& data)
 {
   std::ofstream file;
   file.open(std::string("/root/dumped_data/") + path);
@@ -38,10 +38,10 @@ void HealthCommandTest::GroupEqualityTest(HealthCommand& health,
     std::string type)
 {
   auto iter1 = health.m_group_data.begin();
-  auto iter2 = this->m_mock_data.m_info_data[type].begin();
+  auto iter2 = m_mock_data.m_info_data[type].begin();
 
   while (iter1 != health.m_group_data.end() &&
-	 iter2 != this->m_mock_data.m_info_data[type].end()) {
+         iter2 != m_mock_data.m_info_data[type].end()) {
     CPPUNIT_ASSERT(iter1->first == iter2->first);
     auto iter3 = iter1->second.begin();
     auto iter4 = iter2->second.begin();
@@ -60,9 +60,9 @@ void HealthCommandTest::GroupEqualityTest(HealthCommand& health,
 
 void HealthCommandTest::setUp()
 {
-  this->m_mock_data.GenerateInfoData();
-  this->m_mock_data.GenerateOutputs();
-  this->m_mock_data.GenerateMgms();
+  m_mock_data.GenerateInfoData();
+  m_mock_data.GenerateOutputs();
+  m_mock_data.GenerateMgms();
 }
 
 void HealthCommandTest::tearDown()
@@ -72,39 +72,39 @@ void HealthCommandTest::tearDown()
 void HealthCommandTest::DeadNodesTest()
 {
   HealthCommand health("");
-  health.m_mgm_execute = this->m_mock_data.m_mexecs["good_nodes"];
+  health.m_mgm_execute = m_mock_data.m_mexecs["good_nodes"];
   CPPUNIT_ASSERT_NO_THROW(health.DeadNodesCheck());
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["nodes_good"]);
+                 m_mock_data.m_outputs["nodes_good"]);
   health.m_output.str("");
-  health.m_mgm_execute = this->m_mock_data.m_mexecs["bad_nodes"];
+  health.m_mgm_execute = m_mock_data.m_mexecs["bad_nodes"];
   CPPUNIT_ASSERT_NO_THROW(health.DeadNodesCheck());
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["nodes_bad"]);
+                 m_mock_data.m_outputs["nodes_bad"]);
   health.m_output.str("");
   health.m_all = true;
-  health.m_mgm_execute = this->m_mock_data.m_mexecs["good_nodes"];
+  health.m_mgm_execute = m_mock_data.m_mexecs["good_nodes"];
   CPPUNIT_ASSERT_NO_THROW(health.DeadNodesCheck());
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["nodes_good_-a"]);
+                 m_mock_data.m_outputs["nodes_good_-a"]);
   health.m_output.str("");
-  health.m_mgm_execute = this->m_mock_data.m_mexecs["bad_nodes"];
+  health.m_mgm_execute = m_mock_data.m_mexecs["bad_nodes"];
   CPPUNIT_ASSERT_NO_THROW(health.DeadNodesCheck());
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["nodes_bad_-a"]);
+                 m_mock_data.m_outputs["nodes_bad_-a"]);
 }
 void HealthCommandTest::GetGroupsInfoTest()
 {
   HealthCommand health("");
-  health.m_mgm_execute = this->m_mock_data.m_mexecs["good"];
+  health.m_mgm_execute = m_mock_data.m_mexecs["good"];
   health.GetGroupsInfo();
-  this->GroupEqualityTest(health, std::string("good"));
-  health.m_mgm_execute = this->m_mock_data.m_mexecs["bad"];
+  GroupEqualityTest(health, std::string("good"));
+  health.m_mgm_execute = m_mock_data.m_mexecs["bad"];
   health.GetGroupsInfo();
-  this->GroupEqualityTest(health, "bad");
-  health.m_mgm_execute = this->m_mock_data.m_mexecs["good"];
+  GroupEqualityTest(health, "bad");
+  health.m_mgm_execute = m_mock_data.m_mexecs["good"];
   health.GetGroupsInfo();
-  this->GroupEqualityTest(health, "bad_drain");
+  GroupEqualityTest(health, "bad_drain");
 }
 
 void HealthCommandTest::ParseCommandTest()
@@ -137,79 +137,79 @@ void HealthCommandTest::ParseCommandTest()
 void HealthCommandTest::PlacementTest()
 {
   HealthCommand health("/");
-  health.m_group_data = this->m_mock_data.m_info_data["good"];
+  health.m_group_data = m_mock_data.m_info_data["good"];
   health.PlacementContentionCheck();
-  this->DumpStringData("11", health.m_output.str());
-  this->DumpStringData("22", this->m_mock_data.m_outputs["placement_good"]);
+  DumpStringData("11", health.m_output.str());
+  DumpStringData("22", m_mock_data.m_outputs["placement_good"]);
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["placement_good"]);
+                 m_mock_data.m_outputs["placement_good"]);
   health.m_output.str(std::string(""));
   health.m_monitoring = true;
   health.PlacementContentionCheck();
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["placement_good_-m"]);
+                 m_mock_data.m_outputs["placement_good_-m"]);
   health.m_output.str(std::string(""));
-  health.m_group_data = this->m_mock_data.m_info_data["bad"];
+  health.m_group_data = m_mock_data.m_info_data["bad"];
   health.m_monitoring = false;
   health.PlacementContentionCheck();
-  this->DumpStringData("11", health.m_output.str());
-  this->DumpStringData("22", this->m_mock_data.m_outputs["placement_bad"]);
+  DumpStringData("11", health.m_output.str());
+  DumpStringData("22", m_mock_data.m_outputs["placement_bad"]);
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["placement_bad"]);
+                 m_mock_data.m_outputs["placement_bad"]);
   health.m_output.str(std::string(""));
   health.m_monitoring = true;
   health.PlacementContentionCheck();
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["placement_bad_-m"]);
+                 m_mock_data.m_outputs["placement_bad_-m"]);
   health.m_output.str(std::string(""));
   health.m_monitoring = false;
   health.m_all = true;
-  health.m_group_data = this->m_mock_data.m_info_data["good"];
+  health.m_group_data = m_mock_data.m_info_data["good"];
   health.PlacementContentionCheck();
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["placement_good_-a"]);
+                 m_mock_data.m_outputs["placement_good_-a"]);
   health.m_output.str(std::string(""));
-  health.m_group_data = this->m_mock_data.m_info_data["bad"];
+  health.m_group_data = m_mock_data.m_info_data["bad"];
   health.PlacementContentionCheck();
-  this->DumpStringData("11", health.m_output.str());
-  this->DumpStringData("22", this->m_mock_data.m_outputs["placement_bad_-a"]);
+  DumpStringData("11", health.m_output.str());
+  DumpStringData("22", m_mock_data.m_outputs["placement_bad_-a"]);
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["placement_bad_-a"]);
+                 m_mock_data.m_outputs["placement_bad_-a"]);
 }
 
 void HealthCommandTest::TooFullDrainTest()
 {
   HealthCommand health("/");
-  health.m_group_data = this->m_mock_data.m_info_data["good"];
+  health.m_group_data = m_mock_data.m_info_data["good"];
   health.TooFullForDrainingCheck();
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["drain_good"]);
+                 m_mock_data.m_outputs["drain_good"]);
   health.m_output.str(std::string(""));
   health.m_monitoring = true;
   health.TooFullForDrainingCheck();
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["drain_good_-m"]);
+                 m_mock_data.m_outputs["drain_good_-m"]);
   health.m_output.str(std::string(""));
-  health.m_group_data = this->m_mock_data.m_info_data["bad_drain"];
+  health.m_group_data = m_mock_data.m_info_data["bad_drain"];
   health.m_monitoring = false;
   health.TooFullForDrainingCheck();
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["drain_bad"]);
+                 m_mock_data.m_outputs["drain_bad"]);
   health.m_output.str(std::string(""));
   health.m_monitoring = true;
   health.TooFullForDrainingCheck();
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["drain_bad_-m"]);
+                 m_mock_data.m_outputs["drain_bad_-m"]);
   health.m_monitoring = false;
   health.m_all = true;
   health.m_output.str(std::string(""));
-  health.m_group_data = this->m_mock_data.m_info_data["good"];
+  health.m_group_data = m_mock_data.m_info_data["good"];
   health.TooFullForDrainingCheck();
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["drain_good_-a"]);
+                 m_mock_data.m_outputs["drain_good_-a"]);
   health.m_output.str(std::string(""));
-  health.m_group_data = this->m_mock_data.m_info_data["bad_drain"];
+  health.m_group_data = m_mock_data.m_info_data["bad_drain"];
   health.TooFullForDrainingCheck();
   CPPUNIT_ASSERT(health.m_output.str() ==
-		 this->m_mock_data.m_outputs["drain_bad_-a"]);
+                 m_mock_data.m_outputs["drain_bad_-a"]);
 }

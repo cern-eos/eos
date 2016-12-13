@@ -27,7 +27,7 @@ std::string HealthCommand::GetValueWrapper::GetValue(const std::string& key)
   try {
     RegexUtil reg;
     reg.SetRegex(key + "=[%a-zA-Z0-9/.:-]*");
-    reg.SetOrigin(&(this->m_token));
+    reg.SetOrigin(m_token);
     reg.initTokenizerMode();
     std::string temp = reg.Match();
     auto pos = temp.find('=');
@@ -38,7 +38,7 @@ std::string HealthCommand::GetValueWrapper::GetValue(const std::string& key)
 
     return std::string(temp.begin() + pos + 1, temp.end());
   } catch (std::string e) {
-    this->m_error_message = e;
+    m_error_message = e;
     throw std::string(" REGEX_ERROR: " + e);
   }
 }
@@ -49,57 +49,57 @@ void FSInfo::ReadFromString(const std::string& input)
   std::string value;
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    this->host = input.substr(last, pos);
+    host = input.substr(last, pos);
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    this->port = std::stoi(input.substr(last, pos));
+    port = std::stoi(input.substr(last, pos));
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    this->id = std::stoi(input.substr(last, pos));
+    id = std::stoi(input.substr(last, pos));
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    this->active = input.substr(last, pos - last);
+    active = input.substr(last, pos - last);
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    this->path = input.substr(last, pos - last);
+    path = input.substr(last, pos - last);
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    this->headroom = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
+    headroom = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    this->free_bytes = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
+    free_bytes = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    this->used_bytes = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
+    used_bytes = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    this->capacity = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
+    capacity = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
     last = ++pos;
   }
 }
 
 bool FSInfo::operator==(const FSInfo& other)
 {
-  return this->host == other.host && this->port == other.port &&
-	 this->id == other.id && this->active == other.active &&
-	 this->path == other.path && this->free_bytes == other.free_bytes &&
-	 this->capacity == other.capacity && this->headroom == other.headroom;
+  return host == other.host && port == other.port &&
+         id == other.id && active == other.active &&
+         path == other.path && free_bytes == other.free_bytes &&
+         capacity == other.capacity && headroom == other.headroom;
 }
 
 
@@ -113,14 +113,14 @@ HealthCommand::HealthCommand(const char* comm)
 
 void HealthCommand::DeadNodesCheck()
 {
-  if (!this->m_mgm_execute.ExecuteAdminCommand(
-	"mgm.cmd=node&mgm.subcmd=ls&mgm.outformat=m"
+  if (!m_mgm_execute.ExecuteAdminCommand(
+        "mgm.cmd=node&mgm.subcmd=ls&mgm.outformat=m"
       )
      ) {
-    throw std::string("MGMError: " + this->m_mgm_execute.GetError());
+    throw std::string("MGMError: " + m_mgm_execute.GetError());
   }
 
-  std::string ret = this->m_mgm_execute.GetResult();
+  std::string ret = m_mgm_execute.GetResult();
   std::string line;
   std::istringstream splitter(ret);
   ConsoleTableOutput table;
@@ -131,43 +131,43 @@ void HealthCommand::DeadNodesCheck()
   //table.SetHeader({{"Hostport:", 30}, {"Status:", 10}});
 
   if (m_monitoring) {
-    this->m_output << "type=DeadNodesCheck" << std::endl;
+    m_output << "type=DeadNodesCheck" << std::endl;
   }
 
   while (std::getline(splitter, line, '\n')) {
     GetValueWrapper extractor(line);
     std::string status = extractor.GetValue("status");
 
-    if (this->m_monitoring) {
-      this->m_output << extractor.GetValue("hostport") << "=";
-      this->m_output << status << " ";
+    if (m_monitoring) {
+      m_output << extractor.GetValue("hostport") << "=";
+      m_output << status << " ";
     } else {
       bool trigger = status != "online";
 
-      if (trigger || this->m_all)
-	table.AddRow(
-	  extractor.GetValue("hostport"),
-	  table.Colorify(
-	    trigger ? ConsoleTableOutput::RED : ConsoleTableOutput::GREEN,
-	    status
-	  )
-	);
+      if (trigger || m_all)
+        table.AddRow(
+          extractor.GetValue("hostport"),
+          table.Colorify(
+            trigger ? ConsoleTableOutput::RED : ConsoleTableOutput::GREEN,
+            status
+          )
+        );
     }
   }
 
   if (!m_monitoring) {
-    this->m_output << table.Str() << std::endl;
+    m_output << table.Str() << std::endl;
   }
 
-  this->m_output << std::endl;
+  m_output << std::endl;
 }
 
 void HealthCommand::TooFullForDrainingCheck()
 {
   ConsoleTableOutput table;
 
-  if (this->m_monitoring) {
-    this->m_output << "type=FullDrainCheck" << std::endl;
+  if (m_monitoring) {
+    m_output << "type=FullDrainCheck" << std::endl;
   } else {
     std::vector<std::pair<std::string, unsigned>> header;
     header.push_back(std::make_pair("Group:", 20));
@@ -180,63 +180,63 @@ void HealthCommand::TooFullForDrainingCheck()
 //       {"Online Free(GB)", 18}, {"Status:", 10}});
   }
 
-  for (auto group = this->m_group_data.begin();
-       group !=  this->m_group_data.end(); ++group) {
+  for (auto group = m_group_data.begin();
+       group !=  m_group_data.end(); ++group) {
     uint64_t summed_free_space = 0;
     uint64_t offline_used_space = 0;
 
     for (auto fs = group->second.begin(); fs != group->second.end(); ++fs) {
       if (fs->active != "online") {
-	offline_used_space += fs->used_bytes;
+        offline_used_space += fs->used_bytes;
       } else {
-	summed_free_space += fs->free_bytes - fs->headroom;
+        summed_free_space += fs->free_bytes - fs->headroom;
       }
     }
 
     if (m_monitoring) {
-      this->m_output << "group=" << group->first << " ";
-      this->m_output << "offline_used_space=";
-      this->m_output << (offline_used_space * 1.) / (1 << 30) << " ";
-      this->m_output << "online_free_space=";
-      this->m_output << (summed_free_space * 1.) / (1 << 30) << " ";
-      this->m_output << "status=";
+      m_output << "group=" << group->first << " ";
+      m_output << "offline_used_space=";
+      m_output << (offline_used_space * 1.) / (1 << 30) << " ";
+      m_output << "online_free_space=";
+      m_output << (summed_free_space * 1.) / (1 << 30) << " ";
+      m_output << "status=";
 
       if (summed_free_space <= offline_used_space) {
-	this->m_output << "full ";
+        m_output << "full ";
       } else {
-	this->m_output << "ok ";
+        m_output << "ok ";
       }
 
-      this->m_output << std::endl;
+      m_output << std::endl;
     } else {
       bool trigger = summed_free_space <= offline_used_space;
 
-      if (trigger || this->m_all)
-	table.AddRow(
-	  group->first,
-	  (offline_used_space * 1.) / (1 << 30),
-	  (summed_free_space * 1.) / (1 << 30),
-	  table.Colorify(
-	    trigger ? ConsoleTableOutput::RED : ConsoleTableOutput::GREEN,
-	    trigger ? "FULL" : "OK"
-	  )
-	);
+      if (trigger || m_all)
+        table.AddRow(
+          group->first,
+          (offline_used_space * 1.) / (1 << 30),
+          (summed_free_space * 1.) / (1 << 30),
+          table.Colorify(
+            trigger ? ConsoleTableOutput::RED : ConsoleTableOutput::GREEN,
+            trigger ? "FULL" : "OK"
+          )
+        );
     }
   }
 
   if (!m_monitoring) {
-    this->m_output << table.Str() << std::endl;
+    m_output << table.Str() << std::endl;
   }
 
-  this->m_output << std::endl;
+  m_output << std::endl;
 }
 
 void HealthCommand::PlacementContentionCheck()
 {
   ConsoleTableOutput table;
 
-  if (this->m_monitoring) {
-    this->m_output << "type=PlacementContentionCheck"  << std::endl;
+  if (m_monitoring) {
+    m_output << "type=PlacementContentionCheck"  << std::endl;
   } else {
     std::vector<std::pair<std::string, unsigned>> header;
     header.push_back(std::make_pair("Group", 20));
@@ -253,18 +253,18 @@ void HealthCommand::PlacementContentionCheck()
   std::string critical_group;
   unsigned min_free_fs = 1024;
 
-  for (auto group = this->m_group_data.begin();
-       group !=  this->m_group_data.end();
+  for (auto group = m_group_data.begin();
+       group !=  m_group_data.end();
        ++group) {
     if (group->second.size() < 4) {
-      if (this->m_monitoring) {
-	this->m_output << group->first << "=\"Less than 4 fs in group\" ";
+      if (m_monitoring) {
+        m_output << group->first << "=\"Less than 4 fs in group\" ";
       } else {
-	table.Colorify(ConsoleTableOutput::YELLOW, "");
-	table.CustomRow(
-	  std::make_pair(group->first, 15),
-	  std::make_pair("Group has less than 4 filesystem in group", 45)
-	);
+        table.Colorify(ConsoleTableOutput::YELLOW, "");
+        table.CustomRow(
+          std::make_pair(group->first, 15),
+          std::make_pair("Group has less than 4 filesystem in group", 45)
+        );
       }
 
       continue;
@@ -274,7 +274,7 @@ void HealthCommand::PlacementContentionCheck()
 
     for (auto fs = group->second.begin(); fs !=  group->second.end(); ++fs) {
       if (fs->free_bytes > uint64_t(2) * fs->headroom) {
-	++free_space_left;
+        ++free_space_left;
       }
     }
 
@@ -283,40 +283,40 @@ void HealthCommand::PlacementContentionCheck()
       critical_group = group->first;
     }
 
-    if (this->m_monitoring) {
-      this->m_output << "group=" << group->first << " ";
-      this->m_output << "free_fs=" << free_space_left << " ";
-      this->m_output << "full_fs=" << group->second.size() - free_space_left << " ";
-      this->m_output << "status=" << (free_space_left <= 2 ? "full" : "fine");
-      this->m_output << std::endl;
+    if (m_monitoring) {
+      m_output << "group=" << group->first << " ";
+      m_output << "free_fs=" << free_space_left << " ";
+      m_output << "full_fs=" << group->second.size() - free_space_left << " ";
+      m_output << "status=" << (free_space_left <= 2 ? "full" : "fine");
+      m_output << std::endl;
     } else {
       bool trigger = free_space_left <= 2;
       unsigned contention = 100 - (free_space_left * 1. / group->second.size()) * 100;
       avg += contention;
 
       if (contention < min) {
-	min = contention;
+        min = contention;
       }
 
       if (contention > max) {
-	max = contention;
+        max = contention;
       }
 
-      if (trigger || this->m_all)
-	table.AddRow(
-	  group->first,
-	  free_space_left,
-	  group->second.size() - free_space_left,
-	  table.Colorify(
-	    trigger ? ConsoleTableOutput::RED : ConsoleTableOutput::GREEN,
-	    std::to_string((long long)contention) + "%"
-	  )
-	);
+      if (trigger || m_all)
+        table.AddRow(
+          group->first,
+          free_space_left,
+          group->second.size() - free_space_left,
+          table.Colorify(
+            trigger ? ConsoleTableOutput::RED : ConsoleTableOutput::GREEN,
+            std::to_string((long long)contention) + "%"
+          )
+        );
     }
   }
 
   if (!m_monitoring) {
-    avg = avg / this->m_group_data.size();
+    avg = avg / m_group_data.size();
     std::vector<std::pair<std::string, unsigned>> header;
     header.push_back(std::make_pair("min", 6));
     header.push_back(std::make_pair("avg", 6));
@@ -334,22 +334,22 @@ void HealthCommand::PlacementContentionCheck()
       min_free_fs,
       critical_group
     );
-    this->m_output << table.Str() << std::endl;
+    m_output << table.Str() << std::endl;
   }
 
-  this->m_output << std::endl;
+  m_output << std::endl;
 }
 
 void HealthCommand::GetGroupsInfo()
 {
-  if (!this->m_mgm_execute.ExecuteAdminCommand(
-	"mgm.cmd=fs&mgm.subcmd=ls&mgm.outformat=m"
+  if (!m_mgm_execute.ExecuteAdminCommand(
+        "mgm.cmd=fs&mgm.subcmd=ls&mgm.outformat=m"
       )
      ) {
-    throw std::string("MGMError: " + this->m_mgm_execute.GetError());
+    throw std::string("MGMError: " + m_mgm_execute.GetError());
   }
 
-  std::string ret = this->m_mgm_execute.GetResult();
+  std::string ret = m_mgm_execute.GetResult();
 
   if (ret.empty()) {
     throw std::string("There is no FileSystems registered!");
@@ -383,22 +383,22 @@ void HealthCommand::GetGroupsInfo()
     str_temp = extractor.GetValue("stat.statfs.capacity");
     temp.capacity   = std::stoll(str_temp.empty() ? "0" : str_temp);
 
-    if (this->m_group_data.find(group) == m_group_data.end()) {
+    if (m_group_data.find(group) == m_group_data.end()) {
       FSInfoVec temp_vec;
       temp_vec.push_back(temp);
-      this->m_group_data[group] = temp_vec;
+      m_group_data[group] = temp_vec;
     } else {
-      this->m_group_data[group].push_back(temp);
+      m_group_data[group].push_back(temp);
     }
   }
 }
 
 void HealthCommand::AllCheck()
 {
-  this->m_output << "Whole report!" << std::endl;
-  this->DeadNodesCheck();
-  this->TooFullForDrainingCheck();
-  this->PlacementContentionCheck();
+  m_output << "Whole report!" << std::endl;
+  DeadNodesCheck();
+  TooFullForDrainingCheck();
+  PlacementContentionCheck();
 }
 
 
@@ -416,35 +416,35 @@ void HealthCommand::ParseCommand()
   while ((temp = m_subtokenizer.GetToken()) != 0) {
     token = std::string(temp);
     token.erase(std::find_if(token.rbegin(), token.rend(),
-			     std::not1(std::ptr_fun<int, int> (std::isspace))).base(),
-		token.end());
+                             std::not1(std::ptr_fun<int, int> (std::isspace))).base(),
+                token.end());
 
     if (token == "") {
       continue;
     }
 
     if (token == "all"   ||
-	token == "nodes" ||
-	token == "drain" ||
-	token == "placement"
+        token == "nodes" ||
+        token == "drain" ||
+        token == "placement"
        ) {
-      this->m_section = token;
+      m_section = token;
       continue;
     }
 
     if (token == "-a") {
-      this->m_all = true;
+      m_all = true;
       continue;
     }
 
     if (token == "-m") {
-      this->m_monitoring = true;
+      m_monitoring = true;
       continue;
     }
 
     if (token == "--help") {
-      this->PrintHelp();
-      this->m_section = "/";
+      PrintHelp();
+      m_section = "/";
       return;
     }
 
@@ -454,24 +454,24 @@ void HealthCommand::ParseCommand()
 
 void HealthCommand::Execute()
 {
-  this->ParseCommand();
-  this->GetGroupsInfo();
+  ParseCommand();
+  GetGroupsInfo();
 
-  if (this->m_section == "nodes") {
-    this->DeadNodesCheck();
+  if (m_section == "nodes") {
+    DeadNodesCheck();
   }
 
-  if (this->m_section == "drain") {
-    this->TooFullForDrainingCheck();
+  if (m_section == "drain") {
+    TooFullForDrainingCheck();
   }
 
-  if (this->m_section == "placement") {
-    this->PlacementContentionCheck();
+  if (m_section == "placement") {
+    PlacementContentionCheck();
   }
 
-  if (this->m_section.empty() || this->m_section == "all") {
-    this->AllCheck();
+  if (m_section.empty() || m_section == "all") {
+    AllCheck();
   }
 
-  std::cout << this->m_output.str();
+  std::cout << m_output.str();
 }
