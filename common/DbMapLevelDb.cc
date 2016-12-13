@@ -513,35 +513,30 @@ LvDbDbLogInterface::getAll (TlogentryVec *retvec, size_t nmax, Tlogentry *starta
     Slice slice;
     if(!ExtractSliceFromSlice(it->value(),&pos,&slice))
     {
-      delete it;
       eos_err("%s : could not parse seqid in db entry key=%s  value=%s",pDbName.c_str(),it->key().data(),it->value().data());
       continue;
     }
     else entry.seqid.assign(slice.data(),slice.size());
     if(!ExtractSliceFromSlice(it->value(),&pos,&slice))
     {
-      delete it;
       eos_err("%s : could not parse writer in db entry key=%s  value=%s",pDbName.c_str(),it->key().data(),it->value().data());
       continue;
     }
     else entry.writer.assign(slice.data(),slice.size());
     if(!ExtractSliceFromSlice(it->value(),&pos,&slice))
     {
-      delete it;
       eos_err("%s : could not parse key in db entry key=%s  value=%s",pDbName.c_str(),it->key().data(),it->value().data());
       continue;
     }
     else entry.key.assign(slice.data(),slice.size());
     if(!ExtractSliceFromSlice(it->value(),&pos,&slice))
     {
-      delete it;
       eos_err("%s : could not parse value in db entry key=%s  value=%s",pDbName.c_str(),it->key().data(),it->value().data());
       continue;
     }
     else entry.value.assign(slice.data(),slice.size());
     if(!ExtractSliceFromSlice(it->value(),&pos,&slice))
     {
-      delete it;
       eos_err("%s : could not parse comment in db entry key=%s  value=%s",pDbName.c_str(),it->key().data(),it->value().data());
       continue;
     }
@@ -987,15 +982,35 @@ size_t LvDbDbMapInterface::getAll( TlogentryVec *retvec, size_t nmax=0, Tlogentr
 
       size_t pos=0;
       Slice slice;
-      if(!ExtractSliceFromSlice(it->value(),&pos,&slice)) return false;
+      if(!ExtractSliceFromSlice(it->value(),&pos,&slice))
+      {
+        eos_err("%s : could not parse value in db entry key=%s  value=%s",pName.c_str(),it->key().data(),it->value().data());
+        continue;
+      }
       else entry.value.assign(slice.data(),slice.size());
-      if(!ExtractSliceFromSlice(it->value(),&pos,&slice)) return false;
+      if(!ExtractSliceFromSlice(it->value(),&pos,&slice))
+      {
+        eos_err("%s : could not parse comment in db entry key=%s  value=%s",pName.c_str(),it->key().data(),it->value().data());
+        continue;
+      }
       else entry.comment.assign(slice.data(),slice.size());
-      if(!ExtractSliceFromSlice(it->value(),&pos,&slice)) return false;
+      if(!ExtractSliceFromSlice(it->value(),&pos,&slice))
+      {
+        eos_err("%s : could not parse seqid in db entry key=%s  value=%s",pName.c_str(),it->key().data(),it->value().data());
+        continue;
+      }
       else entry.seqid.assign(slice.data(),slice.size());
-      if(!ExtractSliceFromSlice(it->value(),&pos,&slice)) return false;
+      if(!ExtractSliceFromSlice(it->value(),&pos,&slice))
+      {
+        eos_err("%s : could not parse timestamp in db entry key=%s  value=%s",pName.c_str(),it->key().data(),it->value().data());
+        continue;
+      }
       else entry.timestampstr.assign(slice.data(),slice.size());
-      if(!ExtractSliceFromSlice(it->value(),&pos,&slice)) return false;
+      if(!ExtractSliceFromSlice(it->value(),&pos,&slice))
+      {
+        eos_err("%s : could not parse writer in db entry key=%s  value=%s",pName.c_str(),it->key().data(),it->value().data());
+        continue;
+      }
       else entry.writer.assign(slice.data(),slice.size());
 
       retvec->push_back(entry);
