@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file AclCommandTest.hh
+//! @file ICommand.hh
 //! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 
@@ -21,40 +21,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __ACLCOMMANDTEST__HH__
-#define __ACLCOMMANDTEST__HH__
+#ifndef __ICOMMAND__HH__
+#define __ICOMMAND__HH__
 
-#include <cppunit/extensions/HelperMacros.h>
-#include <iostream>
-#include <string>
-#include <functional>
-#include "console/commands/AclCommand.hh"
-
-class AclCommandTest : public CppUnit::TestCase
+//------------------------------------------------------------------------------
+//! Class ICommand
+//!
+//! @description Interface for console commands.
+//------------------------------------------------------------------------------
+class ICommand
 {
-  CPPUNIT_TEST_SUITE(AclCommandTest);
-  CPPUNIT_TEST(TestSyntax);
-  CPPUNIT_TEST(TestCheckId);
-  CPPUNIT_TEST(TestGetRuleInt);
-  CPPUNIT_TEST(TestAclRuleFromString);
-  CPPUNIT_TEST(TestFunctionality);
-  CPPUNIT_TEST_SUITE_END();
-
 public:
-  // CPPUNIT required methods
-  void setUp(void) {};
-  void tearDown(void) {};
-
-
-  // test helper method
-  void TestSyntaxCommand(std::string command, bool outcome = true);
-
-  // Method implemen
-  void TestSyntax();
-  void TestCheckId();
-  void TestGetRuleInt();
-  void TestAclRuleFromString();
-  void TestFunctionality();
+  virtual void PrintHelp() = 0;
+  virtual void Execute()   = 0;
+  virtual ~ICommand()      = default;
 };
 
-#endif //__ACLCOMMANDTEST__HH__
+#endif //__ICOMMAND__HH__

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file AclCommandTest.hh
+//! @file ConsoleTableOutputTest.cc
 //! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 
@@ -21,40 +21,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __ACLCOMMANDTEST__HH__
-#define __ACLCOMMANDTEST__HH__
+#include "ConsoleTableOutputTest.hh"
+#include <fstream>
 
-#include <cppunit/extensions/HelperMacros.h>
-#include <iostream>
-#include <string>
-#include <functional>
-#include "console/commands/AclCommand.hh"
+CPPUNIT_TEST_SUITE_REGISTRATION(ConsoleTableOutputTest);
 
-class AclCommandTest : public CppUnit::TestCase
+void ConsoleTableOutputTest::TestUtility()
 {
-  CPPUNIT_TEST_SUITE(AclCommandTest);
-  CPPUNIT_TEST(TestSyntax);
-  CPPUNIT_TEST(TestCheckId);
-  CPPUNIT_TEST(TestGetRuleInt);
-  CPPUNIT_TEST(TestAclRuleFromString);
-  CPPUNIT_TEST(TestFunctionality);
-  CPPUNIT_TEST_SUITE_END();
-
-public:
-  // CPPUNIT required methods
-  void setUp(void) {};
-  void tearDown(void) {};
-
-
-  // test helper method
-  void TestSyntaxCommand(std::string command, bool outcome = true);
-
-  // Method implemen
-  void TestSyntax();
-  void TestCheckId();
-  void TestGetRuleInt();
-  void TestAclRuleFromString();
-  void TestFunctionality();
-};
-
-#endif //__ACLCOMMANDTEST__HH__
+  ConsoleTableOutput test;
+  test.SetHeader({{"title1",  8}, {"title2", 8} });
+  std::string test_out = "------------------\n  title1  title2\n";
+  test_out += "------------------\n";
+  CPPUNIT_ASSERT(test.Str() ==  test_out);
+  test.AddRow("Value1",  3);
+  test_out +=  "  Value1\33[0m       3\33[0m\n";
+  CPPUNIT_ASSERT(test.Str() ==  test_out);
+  test.AddRow(0xAB,  "Value2");
+  test_out +=  "     171\33[0m  Value2\33[0m\n";
+  CPPUNIT_ASSERT(test.Str() ==  test_out);
+  test.CustomRow(std::make_pair("Test test 1, 2, 3",  20));
+  test_out +=  "   Test test 1, 2, 3\33[0m\n";
+  CPPUNIT_ASSERT(test.Str() ==  test_out);
+  test.AddRow(
+    test.Colorify(ConsoleTableOutput::RED,   "test_red"),
+    45
+  );
+  test_out +=  "\33[31mtest_red\33[0m      45\33[0m\n";
+  CPPUNIT_ASSERT(test.Str() ==  test_out);
+  CPPUNIT_ASSERT_THROW(test.AddRow(1, 2, 3),  std::string);
+}

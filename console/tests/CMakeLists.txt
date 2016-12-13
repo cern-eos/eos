@@ -27,22 +27,23 @@ include_directories(
   ${CPPUNIT_INCLUDE_DIRS})
 
 add_definitions(-DBUILD_TESTS)
-
 #-------------------------------------------------------------------------------
 # EosConsoleTests library
 #-------------------------------------------------------------------------------
 add_library(
   EosConsoleTests SHARED
-  AclCommandTest.hh         AclCommandTest.cc
   ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/AclCommand.hh
-  ${CMAKE_SOURCE_DIR}/console/commands/AclCommand.cc
+  AclCommandTest.cc AclCommandTest.hh
+  HealthCommandTest.cc HealthCommandTest.hh
+  RegexUtilTest.cc RegexUtilTest.hh
+  ConsoleTableOutputTest.cc ConsoleTableOutputTest.hh
   ${CMAKE_SOURCE_DIR}/console/ConsoleMain.cc
-  ${CMAKE_SOURCE_DIR}/console/ConsoleMain.hh
   ${CMAKE_SOURCE_DIR}/console/ConsolePipe.cc
-  ${CMAKE_SOURCE_DIR}/console/ConsolePipe.hh
+  ${CMAKE_SOURCE_DIR}/console/RegexUtil.cc
+  ${CMAKE_SOURCE_DIR}/console/MgmExecute.cc
   ${CMAKE_SOURCE_DIR}/console/commands/AclCommand.cc
+  ${CMAKE_SOURCE_DIR}/console/commands/HealthCommand.cc
   ${CMAKE_SOURCE_DIR}/console/commands/com_access.cc
   ${CMAKE_SOURCE_DIR}/console/commands/com_acl.cc
   ${CMAKE_SOURCE_DIR}/console/commands/com_archive.cc
@@ -63,6 +64,7 @@ add_library(
   ${CMAKE_SOURCE_DIR}/console/commands/com_fsck.cc
   ${CMAKE_SOURCE_DIR}/console/commands/com_fuse.cc
   ${CMAKE_SOURCE_DIR}/console/commands/com_geosched.cc
+  ${CMAKE_SOURCE_DIR}/console/commands/com_health.cc
   ${CMAKE_SOURCE_DIR}/console/commands/com_group.cc
   ${CMAKE_SOURCE_DIR}/console/commands/com_info.cc
   ${CMAKE_SOURCE_DIR}/console/commands/com_io.cc
@@ -105,16 +107,19 @@ target_link_libraries(
   EosConsoleTests
   EosFstIo-Static
   ${CMAKE_THREAD_LIBS_INIT}
-  ${CPPUNIT_LIBRARIES}
-  ${NCURSES_LIBRARIES}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${READLINE_LIBRARIES}
-  ${PROTOBUF_LIBRARY}
   ${UUID_LIBRARIES}
+  ${XROOTD_SERVER_LIBRARY}
+  ${CPPUNIT_LIBRARIES}
+  ${Z_LIBRARY}
+  ${UUID_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${READLINE_LIBRARY}
+  ${PROTOBUF_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
-  ${Z_LIBRARIES})
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
 
 install(
   TARGETS EosConsoleTests

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file AclCommandTest.hh
+//! @file ConsoleTableOutputTest.hh
 //! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 
@@ -21,40 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __ACLCOMMANDTEST__HH__
-#define __ACLCOMMANDTEST__HH__
+#ifndef __CONSOLETABLEOUTPUTTEST__HH__
+#define __CONSOLETABLEOUTPUTTEST__HH__
 
-#include <cppunit/extensions/HelperMacros.h>
-#include <iostream>
 #include <string>
-#include <functional>
-#include "console/commands/AclCommand.hh"
+#include <cppunit/extensions/HelperMacros.h>
+#include "../ConsoleTableOutput.hh"
 
-class AclCommandTest : public CppUnit::TestCase
+class ConsoleTableOutputTest : public CppUnit::TestCase
 {
-  CPPUNIT_TEST_SUITE(AclCommandTest);
-  CPPUNIT_TEST(TestSyntax);
-  CPPUNIT_TEST(TestCheckId);
-  CPPUNIT_TEST(TestGetRuleInt);
-  CPPUNIT_TEST(TestAclRuleFromString);
-  CPPUNIT_TEST(TestFunctionality);
+  CPPUNIT_TEST_SUITE(ConsoleTableOutputTest);
+  CPPUNIT_TEST(TestUtility);
   CPPUNIT_TEST_SUITE_END();
 
 public:
-  // CPPUNIT required methods
-  void setUp(void) {};
-  void tearDown(void) {};
-
-
-  // test helper method
-  void TestSyntaxCommand(std::string command, bool outcome = true);
-
-  // Method implemen
-  void TestSyntax();
-  void TestCheckId();
-  void TestGetRuleInt();
-  void TestAclRuleFromString();
-  void TestFunctionality();
+  //  CPPUNIT required methods
+  void setUp() {};
+  void tearDown() {};
+  void TestUtility();
 };
 
-#endif //__ACLCOMMANDTEST__HH__
+#endif //__CONSOLETABLEOUTPUTTEST__HH__

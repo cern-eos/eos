@@ -64,6 +64,7 @@ extern int com_fsck(char*);
 extern int com_fuse(char*);
 extern int com_geosched(char*);
 extern int com_group(char*);
+extern int com_health(char*);
 extern int com_help(char*);
 extern int com_info(char*);
 extern int com_io(char*);
@@ -236,6 +237,7 @@ COMMAND commands[] = {
   { (char*) "fuse", com_fuse, (char*) "Fuse Mounting"},
   { (char*) "geosched", com_geosched, (char*) "Geoscheduler Interface"},
   { (char*) "group", com_group, (char*) "Group configuration"},
+  { (char*) "health", com_health, (char*) "Health information about system"},
   { (char*) "help", com_help, (char*) "Display this text"},
   { (char*) "info", com_info, (char*) "Retrieve file or directory information"},
   { (char*) "io", com_io, (char*) "IO Interface"},

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file MgmExecuteTest.hh
+//! @file MgmExecute.hh
 //! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 
@@ -21,87 +21,43 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __MGMEXECUTETEST__HH__
-#define __MGMEXECUTETEST__HH__
+#ifndef __MGMEXECUT__HH__
+#define __MGMEXECUT__HH__
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <queue>
-#include <utility>
+#include "console/ConsoleMain.hh"
 
-using ReqRes = std::pair<std::string, std::string>;
-using QueueComm = std::queue<ReqRes>;
+#ifdef BUILD_TESTS
+class AclCommandTest;
+#include "console/tests/MgmExecuteTest.hh"
+#else
 
+//------------------------------------------------------------------------------
+//! Class MgmExecute
+//!
+//! @description Class wrapper around communication with MGM node. Intended to
+//!   be easily hotswapped in testing purposes of console commands.
+//------------------------------------------------------------------------------
 class MgmExecute
 {
-public:
   std::string m_result;
   std::string m_error;
-  bool test_failed;
-  QueueComm m_queue;
+  bool proccess(XrdOucEnv* response);
 
-  MgmExecute() : test_failed(false) {}
+public:
+  MgmExecute();
 
-  bool ExecuteCommand(const char* command)
-  {
-    std::string comm = std::string(command);
-
-    if (m_queue.front().first == comm) {
-      this->m_result = m_queue.front().second;
-    } else {
-      this->test_failed = true;
-    }
-
-    m_queue.pop();
-    return true;
-  }
-
-  bool ExecuteAdminCommand(const char* command)
-  {
-    std::string comm = std::string(command);
-
-    if (m_queue.front().first == comm) {
-      this->m_result = m_queue.front().second;
-    } else {
-      this->test_failed = true;
-    }
-
-    m_queue.pop();
-    return true;
-  }
-
-  void LoadResponsesFromFile(const std::string& path)
-  {
-    std::ifstream file;
-    file.open(path);
-    std::string line;
-    ReqRes temp;
-
-    while (std::getline(file, line,  '#')) {
-      temp.first = line;
-
-      if (std::getline(file, line,  '#')) {
-	temp.second = line;
-      } else {
-	throw std::string("Load failed!!");
-      }
-
-      this->m_queue.push(temp);
-    }
-
-    file.close();
-  }
-
+  bool ExecuteCommand(const char* command);
+  bool ExecuteAdminCommand(const char* command);
   inline std::string& GetResult()
   {
     return this->m_result;
   }
-
   inline std::string& GetError()
   {
     return this->m_error;
   }
 };
 
-#endif //__MGMEXECUTETEST__HH__
+#endif //BUILD_TESTS
+
+#endif // __MGMEXECUT__HH__

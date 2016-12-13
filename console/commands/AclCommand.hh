@@ -21,52 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __ACL_COMMAND__HH__
-#define __ACL_COMMAND__HH__
+#ifndef __ACL__COMMAND__HH__
+#define __ACL__COMMAND__HH__
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "console/MgmExecute.hh"
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <regex>
 #include <string>
 #include <unordered_map>
 #include <utility>
 
-using Rule = std::pair<std::string, unsigned short>;
-using RuleMap = std::unordered_map<std::string, unsigned short>;
-
-// Macro responsible for testing.
-// Swapping MgmExecute with test part rather than with real one.
-#ifdef BUILD_TESTS
-class AclCommandTest;
-#include "console/tests/MgmExecuteTest.hh"
-#else
-//----------------------------------------------------------------------------
-//! Class MgmExecute
-//!
-//! @description Class wrapper around communication with MGM node. Intended to
-//!   be easily hotswapped in testing purposes of console commands.
-//----------------------------------------------------------------------------
-class MgmExecute
-{
-  std::string m_result;
-  std::string m_error;
-public:
-  bool ExecuteCommand(const char* command);
-  inline std::string& GetResult()
-  {
-    return m_result;
-  }
-  inline std::string& GetError()
-  {
-    return m_error;
-  }
-};
-
-#endif
+typedef std::pair<std::string, unsigned short> Rule;
+typedef std::unordered_map<std::string, unsigned short> RuleMap;
 
 //------------------------------------------------------------------------------
 //! Class AclCommand
@@ -77,36 +49,44 @@ public:
 class AclCommand
 {
   // Making test class friend so can access to private parts for testing purposes
-#ifdef BUILD_TESTS
-  friend AclCommandTest;
-#endif
+# ifdef BUILD_TESTS
+  // Ugly hack to allow test class to access private members
+  // due missing friend directive support in gcc 4.4.7 (support for SLC6)
+public:
+# endif
 
-  RuleMap m_rules;  ///< Map containing current ACL rules
-  MgmExecute m_mgm_execute;  ///< Object for executing mgm commands
+
+  RuleMap m_rules; ///< Map containing current ACL rules
+
+  MgmExecute m_mgm_execute; ///< Object for executing mgm commands
+
   std::string m_id; ///< Identifier for rule. Extracted from command line.
+
   ///< ACL rule bitmasks for adding and removing
   unsigned short m_add_rule, m_rm_rule;
-  std::string m_path;  ///< Path extracted from command line
-  std::string m_rule;  ///< Rule extracted from command line
+
+  std::string m_path; ///< Path extracted from command line
+  std::string m_rule; ///< Rule extracted from command line
+
   std::string m_error_message;
 
   // Loaded strings from mgm.
   std::string m_sys_acl_string;
   std::string m_usr_acl_string;
-  char* m_comm;  ///< Pointer to original command
+
+  char* m_comm; ///< pointer to original command
 
   // Flags
-  bool m_recursive;  ///< -R --recursive flag bool
-  bool m_list;  ///< -l --lists flag bool
-  bool m_usr_acl;  ///< --usr flag bool
-  bool m_sys_acl;  ///< --sys flag bool
-  bool m_set;  ///< Is rule set or not. (Containing =).
+  bool m_recursive; ///< -R --recursive flag bool
+  bool m_list; ///< -l --lists flag bool
+  bool m_usr_acl; ///< --usr flag bool
+  bool m_sys_acl; ///< --sys flag bool
+  bool m_set; ///< Is rule set or not. (Containing =).
 
   //----------------------------------------------------------------------------
   //! Converting ACL bitmask to string representation
   //!
   //! @param in ACL bitmask
-  //!
   //! @return std::string representation of ACL
   //----------------------------------------------------------------------------
   std::string AclShortToString(unsigned short in);
@@ -116,7 +96,6 @@ class AclCommand
   //! string which MGM sent.
   //!
   //! @param in ACL bitmask
-  //!
   //! @return std::pair containing id and ACL rule bitmask
   //----------------------------------------------------------------------------
   Rule AclRuleFromString(const std::string& in);
@@ -124,17 +103,16 @@ class AclCommand
   //----------------------------------------------------------------------------
   //! Reading acl strings for given path from MGM
   //!
-  //! @param path Path for which we are asking acl strings for
-  //!
-  //! @return bool if operation is succesfull or not
+  //! @param path Path for which we are asking acl strings for.
+  //! @return bool if operation is succesfull or not.
   //----------------------------------------------------------------------------
   bool GetAclStringsForPath(const std::string& path);
 
   //----------------------------------------------------------------------------
-  //! Universal method for setting given acl string from mgm format
+  //! Universal method for setting given acl string from mgm format.
   //!
   //! @param res String from MGM response containing acl_string
-  //! @param which Reference to string where rules will be stored
+  //! @param which Reference to string where rules will be stored.
   //----------------------------------------------------------------------------
   void SetAclString(const std::string& res, std::string& which, const char* type);
 
@@ -150,8 +128,7 @@ class AclCommand
   //! Checking if id is in correct format
   //!
   //! @param id string containing id
-  //!
-  //! @return bool if id is correct or not
+  //! @return bool if id is correct or not.
   //----------------------------------------------------------------------------
   bool CheckCorrectId(const std::string& id);
 
@@ -160,7 +137,6 @@ class AclCommand
   //!
   //! @param rule string containing rule from command line
   //! @param set indicating if set mode is active or not
-  //!
   //! @return bool if rule is correct or not.
   //----------------------------------------------------------------------------
   bool GetRuleInt(const std::string& rule, bool set = false);
@@ -171,7 +147,7 @@ class AclCommand
   void ApplyRule();
 
   //----------------------------------------------------------------------------
-  //! Converting map with rules to string for storing within MGM
+  //! Convertin map with rules to string for storing within MGM
   //!
   //! @return string
   //----------------------------------------------------------------------------
@@ -188,37 +164,45 @@ class AclCommand
   //----------------------------------------------------------------------------
   //! Applying changes to MGM
   //!
-  //! @param path string containing path for which we are applying changes
-  //!
-  //! @return bool indicating if we succesfully applied rules or not
+  //! @param path string containing path for which we are applying changes.
+  //! @param set indicating if set mode is active or not
+  //! @return bool indicating if we succesfully applied rules or not.
   //----------------------------------------------------------------------------
   bool MgmSet(const std::string& path);
 
   //----------------------------------------------------------------------------
-  //! Determining Acl type flags if there is no flag risen for acl type
+  //! Determining Acl type flags if there is no flag risen for acl type.
   //!
-  //! @return bool indicating if flags are correctly set
+  //! @return bool indicating if flags are correctly set.
   //----------------------------------------------------------------------------
   bool SetDefaultAclRoleFlag();
 
   //----------------------------------------------------------------------------
-  //! Process command
+  //! Converting ACL string rule to bitmask
   //!
-  //! @return true if successful, otherwise false
+  //! @param rule string containing rule from command line
+  //! @param set indicating if set mode is active or not
+  //! @return bool if rule is correct or not.
   //----------------------------------------------------------------------------
   bool ProcessCommand();
 
   //----------------------------------------------------------------------------
-  //! Recursive call for all directories in subtree from given directory
+  //! Recursive calling for all directories in subtree from given directory
   //!
   //! @param action Action to be done for every directory
   //----------------------------------------------------------------------------
-  void RecursiveCall(std::function<bool(std::string&)>& action);
+  void RecursiveCall(bool apply);
+
+  //----------------------------------------------------------------------------
+  //! Doing relevant action.
+  //!
+  //! @param apply True for apply action, false for list action
+  //! @param path On which path to execute action.
+  //----------------------------------------------------------------------------
+  bool Action(bool apply, const std::string& path);
 
 public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
+
   AclCommand(const char* comm) :
     m_rules(),
     m_comm(const_cast<char*>(comm)),
@@ -227,26 +211,21 @@ public:
     m_usr_acl(false),
     m_sys_acl(false),
     m_set(false)
+
   {}
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~AclCommand() {};
-
-  ///< Enumerator defining which bit represents which acl flag
+  ///< Enumerator defining which bit represents which acl flag.
   enum ACLPos {
-    R  = 1 << 0, // 1    -  r
-    W  = 1 << 1, // 2    -  w
-    X  = 1 << 2, // 4    -  x
-    M  = 1 << 3, // 8    -  m
-    nM = 1 << 4, // 16   - !m
-    nD = 1 << 5, // 32   - !d
-    pD = 1 << 6, // 64   - +d
-    nU = 1 << 7, // 128  - !u
-    pU = 1 << 8, // 256  - +u
-    Q  = 1 << 9, // 512  -  q
-    C  = 1 << 10 // 1024 -  c
+    R  = 1 << 0,                                            // 1    -  r
+    W  = 1 << 1,                                            // 2    -  w
+    X  = 1 << 2,                                            // 4    -  x
+    M  = 1 << 3,                                            // 8    -  m
+    nM = 1 << 4,                                            // 16   - !m
+    nD = 1 << 5,                                            // 32   - !d
+    pD = 1 << 6,                                            // 64   - +d
+    nU = 1 << 7,                                            // 128  - !u
+    pU = 1 << 8,                                            // 256  - +u
+    Q  = 1 << 9,                                            // 512  -  q
+    C  = 1 << 10                                            // 1024 -  c
   };
 
   //----------------------------------------------------------------------------
@@ -256,18 +235,58 @@ public:
   //----------------------------------------------------------------------------
   inline std::string getErrorMessage()
   {
-    return m_error_message;
+    return this->m_error_message;
   }
+
+  //----------------------------------------------------------------------------
+  //! Printing help
+  //----------------------------------------------------------------------------
+  void PrintHelp();
 
   //----------------------------------------------------------------------------
   //! Executing command
   //----------------------------------------------------------------------------
   void Execute();
-
-  //----------------------------------------------------------------------------
-  //! Print help
-  //----------------------------------------------------------------------------
-  void PrintHelp();
+  ~AclCommand();
 };
 
-#endif //__ACL_COMMAND__HH__
+//----------------------------------------------------------------------------
+//! Hiearchy of functor classes to replace original lambda implementation.
+//----------------------------------------------------------------------------
+class RuleParseActionBase
+{
+public:
+  virtual void operator()(const AclCommand::ACLPos& pos) = 0;
+};
+
+class RuleParseActionAdd : public RuleParseActionBase
+{
+  unsigned short& add_ret;
+  unsigned short& ret;
+public:
+  RuleParseActionAdd(unsigned short& add_ret_, unsigned short& ret_)
+    : add_ret(add_ret_), ret(ret_) {}
+
+  virtual void operator()(const AclCommand::ACLPos& pos)
+  {
+    add_ret = add_ret | pos;
+    ret = ret | pos;
+  }
+};
+
+class RuleParseActionRm : public RuleParseActionBase
+{
+  unsigned short& rm_ret;
+  unsigned short& ret;
+public:
+  RuleParseActionRm(unsigned short& rm_ret_, unsigned short& ret_)
+    : rm_ret(rm_ret_), ret(ret_) {}
+
+  virtual void operator()(const AclCommand::ACLPos& pos)
+  {
+    rm_ret = rm_ret | pos;
+    ret = ret & (~pos);
+  }
+};
+
+#endif //__ACL__COMMAND__HH__

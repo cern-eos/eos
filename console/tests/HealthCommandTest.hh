@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file AclCommandTest.hh
+//! @file HealthCommandTest.hh
 //! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 
@@ -21,40 +21,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __ACLCOMMANDTEST__HH__
-#define __ACLCOMMANDTEST__HH__
+#ifndef __HEALTHCOMMANDTEST__HH__
+#define __HEALTHCOMMANDTEST__HH__
 
 #include <cppunit/extensions/HelperMacros.h>
-#include <iostream>
+#include <cstdio>
 #include <string>
-#include <functional>
-#include "console/commands/AclCommand.hh"
+#include <vector>
+#include <unordered_map>
+#include "HealthMockData.hh"
+#include "../commands/HealthCommand.hh"
+#include "MgmExecuteTest.hh"
 
-class AclCommandTest : public CppUnit::TestCase
+using FSInfoVec     = std::vector<FSInfo>;
+using GroupsInfo    = std::unordered_map<std::string, FSInfoVec>;
+using TestOutputs   = std::unordered_map<std::string,  std::string>;
+
+class HealthCommandTest : public CppUnit::TestCase
 {
-  CPPUNIT_TEST_SUITE(AclCommandTest);
-  CPPUNIT_TEST(TestSyntax);
-  CPPUNIT_TEST(TestCheckId);
-  CPPUNIT_TEST(TestGetRuleInt);
-  CPPUNIT_TEST(TestAclRuleFromString);
-  CPPUNIT_TEST(TestFunctionality);
+  CPPUNIT_TEST_SUITE(HealthCommandTest);
+  CPPUNIT_TEST(DeadNodesTest);
+  CPPUNIT_TEST(TooFullDrainTest);
+  CPPUNIT_TEST(PlacementTest);
+  CPPUNIT_TEST(ParseCommandTest);
   CPPUNIT_TEST_SUITE_END();
 
+  void DumpStringData(const std::string& path,  const std::string& data);
+  void GroupEqualityTest(HealthCommand& health, std::string type);
+
+  HealthMockData m_mock_data;
+
 public:
-  // CPPUNIT required methods
-  void setUp(void) {};
-  void tearDown(void) {};
+  void setUp();
+  void tearDown();
 
+  void DeadNodesTest();
+  void TooFullDrainTest();
+  void PlacementTest();
+  void ParseCommandTest();
+  void GetGroupsInfoTest();
 
-  // test helper method
-  void TestSyntaxCommand(std::string command, bool outcome = true);
-
-  // Method implemen
-  void TestSyntax();
-  void TestCheckId();
-  void TestGetRuleInt();
-  void TestAclRuleFromString();
-  void TestFunctionality();
 };
 
-#endif //__ACLCOMMANDTEST__HH__
+#endif //__HEALTHCOMMANDTEST__HH__

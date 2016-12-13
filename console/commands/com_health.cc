@@ -1,7 +1,7 @@
-//------------------------------------------------------------------------------
-//! @file AclCommandTest.hh
-//! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
-//------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
+// File com_health.cc
+// Author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,40 +21,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __ACLCOMMANDTEST__HH__
-#define __ACLCOMMANDTEST__HH__
-
-#include <cppunit/extensions/HelperMacros.h>
+#include "HealthCommand.hh"
 #include <iostream>
-#include <string>
-#include <functional>
-#include "console/commands/AclCommand.hh"
 
-class AclCommandTest : public CppUnit::TestCase
+int com_health(char* arg1)
 {
-  CPPUNIT_TEST_SUITE(AclCommandTest);
-  CPPUNIT_TEST(TestSyntax);
-  CPPUNIT_TEST(TestCheckId);
-  CPPUNIT_TEST(TestGetRuleInt);
-  CPPUNIT_TEST(TestAclRuleFromString);
-  CPPUNIT_TEST(TestFunctionality);
-  CPPUNIT_TEST_SUITE_END();
+  HealthCommand health(arg1);
 
-public:
-  // CPPUNIT required methods
-  void setUp(void) {};
-  void tearDown(void) {};
+  try {
+    if (wants_help(arg1)) {
+      health.PrintHelp();
+    } else {
+      health.Execute();
+    }
+  } catch (std::string e) {
+    std::cout << "Error: " << e << std::endl;
+  }
 
-
-  // test helper method
-  void TestSyntaxCommand(std::string command, bool outcome = true);
-
-  // Method implemen
-  void TestSyntax();
-  void TestCheckId();
-  void TestGetRuleInt();
-  void TestAclRuleFromString();
-  void TestFunctionality();
-};
-
-#endif //__ACLCOMMANDTEST__HH__
+  return (0);
+}
