@@ -748,7 +748,7 @@ FmdDbMapHandler::ResyncDisk(const char* path,
     std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(
                                            path));
 
-    if (!io) {
+    if (io.get()) {
       struct stat buf;
 
       if ((!io->fileStat(&buf)) && S_ISREG(buf.st_mode)) {
