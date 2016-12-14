@@ -2312,8 +2312,11 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset,
   }
 
   if (rc > 0) {
-    XrdSysMutexHelper vecLock(vecMutex);
-    rvec.push_back(rc);
+    if(layOut->IsEntryServer())
+    {
+      XrdSysMutexHelper vecLock(vecMutex);
+      rvec.push_back(rc);
+    }
     rOffset = fileOffset + rc;
   }
 
@@ -2371,8 +2374,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset,
   }
 
   if (rc > 0) {
-    XrdSysMutexHelper vecLock(vecMutex);
-    rvec.push_back(rc);
     rOffset = fileOffset + rc;
   }
 
@@ -2555,9 +2556,12 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset,
     }
   }
 
-  if (rc > 0) {
-    XrdSysMutexHelper(vecMutex);
-    wvec.push_back(rc);
+  if (rc > 0 ) {
+    if(layOut->IsEntryServer())
+    {
+      XrdSysMutexHelper(vecMutex);
+      wvec.push_back(rc);
+    }
     wOffset = fileOffset + rc;
   }
 
