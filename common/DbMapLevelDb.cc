@@ -817,6 +817,7 @@ bool LvDbDbMapInterface::clear()
   if(!pAttachedDbname.empty())
   {
     leveldb::Status s;
+#if 0
     leveldb::WriteBatch batch;
     leveldb::Iterator* it = AttachedDb->NewIterator(leveldb::ReadOptions());
     for (it->SeekToFirst(); it->Valid(); it->Next())
@@ -827,6 +828,12 @@ bool LvDbDbMapInterface::clear()
     TestLvDbError(s, this);
     delete it;
     pNDbEntries=0;
+#else
+    auto dbname = pAttachedDbname;
+    detachDb();
+    s = leveldb::DestroyDB(pAttachedDbname.c_str(),leveldb::Options());
+    attachDb(dbname);
+#endif
     return s.ok();
   }
   else
