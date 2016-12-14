@@ -542,13 +542,13 @@ private:
   //!
   //--------------------------------------------------------------------------
   template <typename T>
-  void ComputeStatistics(std::vector<T> vect, T& min, T& max,
+  void ComputeStatistics(const std::vector<T> &vect, T& min, T& max,
                          T& sum, double& sigma)
   {
     double avg, sum2;
     max = sum = sum2 = avg = sigma = 0;
     min = 0xffffffff;
-    sum = std::accumulate(vect.begin(), vect.end(), 0);
+    sum = std::accumulate(vect.begin(), vect.end(), static_cast<unsigned long long>(0));
     avg = vect.size() ? (1.0 * sum / vect.size()) : 0;
 
     // For when the compiler will be smart enough
