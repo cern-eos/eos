@@ -19,12 +19,13 @@ message md {
   sfixed32 mode = 15   ; //< mode
   sfixed32 nlink = 16  ; //< nlink
   string name = 17     ; //< name
-  string authid = 18;    //< strong security auth id
-  string clientid = 19 ; //< string identifying a client
-  sint64 clock = 20    ; //< vector clock
-  fixed32 operation = 21   ; //< indicates operations to execute
-  map<string, string> attr = 22; //< xattribute map
-  map<string, fixed64> children = 23; //< children's name and id
+  string target = 18   ; //< symlink target
+  string authid = 19;    //< strong security auth id
+  string clientid = 20 ; //< string identifying a client
+  sint64 clock = 21    ; //< vector clock
+  fixed32 operation = 22   ; //< indicates operations to execute
+  map<string, string> attr = 23; //< xattribute map
+  map<string, fixed64> children = 24; //< children's name and id
 };
 
 message dir {

@@ -22,6 +22,18 @@ Configuration File
 }
 ```
 
+To get data persisted locally add the cache location:
+
+```
+  "cache" : {
+    "type" : "disk",
+    "size-mb" : 1000,
+    "location" : "/var/tmp/eosxd-cache/"  
+  }
+
+```
+
+
 
 Statistics File
 ---------------

@@ -342,11 +342,10 @@ const char*
 StringConversion::GetReadableSizeString (std::string& sizestring, unsigned long long insize, const char* unit)
 {
 
-  const char* ptr = 0;
   XrdOucString oucsizestring = "";
-  ptr = GetReadableSizeString(oucsizestring, insize, unit);
+  GetReadableSizeString(oucsizestring, insize, unit);
   sizestring = oucsizestring.c_str();
-  return ptr;
+  return sizestring.c_str();
 }
 
 // ---------------------------------------------------------------------------

@@ -158,7 +158,6 @@ kv::inc(std::string &key, uint64_t &value)
   return rc;
 }
 
-
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
@@ -216,9 +215,11 @@ kv::get(std::string &key, uint64_t &value)
 /* -------------------------------------------------------------------------- */
 {
   std::string lvalue;
-  int rc = get(key,lvalue);
-  value = strtoull(lvalue.c_str(),0,10);
-  
+  int rc = get(key, lvalue);
+  if (!rc)
+  {
+    value = strtoull(lvalue.c_str(), 0, 10);
+  }
   return rc;
 }
 

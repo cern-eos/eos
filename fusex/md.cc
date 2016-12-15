@@ -37,7 +37,7 @@ std::string metad::vnode_gen::cInodeKey = "nextinode";
 metad::metad() : mdflush(0), mdqueue_max_backlog(1000)
 /* -------------------------------------------------------------------------- */
 {
-  // make a mapping for inode 1, it is re-loaded aftewards in init '/'
+  // make a mapping for inode 1, it is re-loaded afterwards in init '/'
   {
     XrdSysMutexHelper mLock(inomap);
     inomap[1]=1;
@@ -47,6 +47,8 @@ metad::metad() : mdflush(0), mdqueue_max_backlog(1000)
   mdmap[1]->set_nlink(2);
   mdmap[1]->set_mode( S_IRWXU | S_IRWXG | S_IRWXO | S_IFDIR);
   mdmap[1]->set_name(":root:");
+  stat.inodes_inc();
+  stat.inodes_ever_inc();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -76,7 +78,12 @@ metad::init()
       eos_static_debug("msg=\"GPB parsed root inode\"");
     }
   }
-
+  else
+  {
+    fuse_req_t req = 0;
+    XrdSysMutexHelper mLock(mdmap);
+    update(req, mdmap[1]);
+  }
   next_ino.init();
 }
 
@@ -104,6 +111,34 @@ metad::lookup(fuse_req_t req,
 }
 
 /* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+metad::forget(fuse_req_t req,
+              fuse_ino_t ino,
+              int nlookup)
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysMutexHelper mLock(mdmap);
+  if (mdmap.count(ino))
+  {
+    metad::shared_md md = mdmap[ino];
+    if (md->id())
+    {
+      XrdSysMutexHelper mLock(md->Locker());
+      if (md->lookup_dec(nlookup))
+      {
+        // forget this inode
+        mdmap.erase(ino);
+        stat.inodes_dec();
+        return 0;
+      }
+    }
+    return EAGAIN;
+  }
+  return ENOENT;
+}
+
+/* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 metad::mdx::convert(struct fuse_entry_param &e)
@@ -119,7 +154,7 @@ metad::mdx::convert(struct fuse_entry_param &e)
   e.attr.st_rdev=0;
   e.attr.st_size=size();
   e.attr.st_blksize=4096;
-  e.attr.st_blocks=e.attr.st_size / 512;
+  e.attr.st_blocks=(e.attr.st_size + 511) / 512;
   e.attr.st_atime=atime();
   e.attr.st_mtime=mtime();
   e.attr.st_ctime=ctime();
@@ -129,8 +164,9 @@ metad::mdx::convert(struct fuse_entry_param &e)
   e.attr.MTIMESPEC.tv_nsec=mtime_ns();
   e.attr.CTIMESPEC.tv_sec=ctime();
   e.attr.CTIMESPEC.tv_nsec=ctime_ns();
-  e.attr_timeout=0;
-  e.entry_timeout=0;
+  e.attr_timeout=0.0;
+  e.entry_timeout=0.0;
+  e.generation = 1;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -206,6 +242,8 @@ metad::get(fuse_req_t req,
         eos_static_debug("msg=\"GPB parsed inode\" inode=%08lx", ino);
       }
       mdmap[ino] = md;
+      stat.inodes_inc();
+      stat.inodes_ever_inc();
     }
     return md;
   }
@@ -225,10 +263,11 @@ metad::insert(fuse_req_t req,
 
   mdflush.Lock();
 
+  stat.inodes_backlog_store(mdqueue.size());
+
   while (mdqueue.size() == mdqueue_max_backlog)
     mdflush.Wait();
   mdqueue.insert(md->id());
-
   mdflush.Signal();
   mdflush.UnLock();
 
@@ -236,15 +275,18 @@ metad::insert(fuse_req_t req,
 }
 
 /* -------------------------------------------------------------------------- */
-void 
+void
 /* -------------------------------------------------------------------------- */
 metad::update(fuse_req_t req,
-            shared_md md)
+              shared_md md)
 /* -------------------------------------------------------------------------- */
 {
   mdflush.Lock();
+  stat.inodes_backlog_store(mdqueue.size());
+
   while (mdqueue.size() == mdqueue_max_backlog)
     mdflush.Wait();
+
 
   mdqueue.insert(md->id());
 
@@ -258,6 +300,9 @@ void
 metad::add(metad::shared_md pmd, metad::shared_md md)
 /* -------------------------------------------------------------------------- */
 {
+  stat.inodes_inc();
+  stat.inodes_ever_inc();
+
   auto map = pmd->mutable_children();
   eos_static_debug("child=%s parent=%s inode=%08lx", md->name().c_str(),
                    pmd->name().c_str(), md->id());
@@ -294,6 +339,13 @@ metad::remove(metad::shared_md pmd, metad::shared_md md)
     pmd->set_nlink(pmd->nlink() - 1);
   }
 
+  if (!md->deleted())
+  {
+    md->lookup_inc();
+    stat.inodes_deleted_inc();
+    stat.inodes_deleted_ever_inc();
+  }
+
   md->setop_delete();
 
   mdflush.Lock();
@@ -303,6 +355,8 @@ metad::remove(metad::shared_md pmd, metad::shared_md md)
 
   mdqueue.insert(pmd->id());
   mdqueue.insert(md->id());
+
+  stat.inodes_backlog_store(mdqueue.size());
 
   mdflush.Signal();
   mdflush.UnLock();
@@ -319,13 +373,15 @@ metad::mdcflush()
   {
     {
       mdflush.Lock();
+
+      stat.inodes_backlog_store(mdqueue.size());
+
       while (mdqueue.size() == 0)
         mdflush.Wait();
 
       auto it= mdqueue.begin();
       uint64_t ino = *it;
       mdqueue.erase(it);
-
       mdflush.UnLock();
       {
         XrdSysMutexHelper mLock(mdmap);
@@ -347,7 +403,15 @@ metad::mdcflush()
             if (op == metad::mdx::DELETE)
             {
               kv::Instance().erase(ino);
-              mdmap.erase(ino);
+              // this step is coupled to the forget function, since we cannot
+              // forget an entry if we didn't process the outstanding KV changes
+              stat.inodes_deleted_dec();
+              if (md->lookup_dec(1))
+              {
+                // forget this inode
+                mdmap.erase(ino);
+                stat.inodes_dec();
+              }
             }
           }
         }

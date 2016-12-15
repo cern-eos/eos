@@ -435,7 +435,6 @@ public:
                     fuse_req_ctx(__REQ__)->uid, \
                     fuse_req_ctx(__REQ__)->gid, \
                              1);                
-
 #define EXEC_TIMING_BEGIN(__ID__)               \
   struct timeval start__ID__;                   \
   struct timeval stop__ID__;                    \
@@ -445,7 +444,6 @@ public:
 #define EXEC_TIMING_END(__ID__)                                         \
   gettimeofday(&stop__ID__, &tz__ID__);                                 \
   EosFuse::Instance().getFuseStat().AddExec(__ID__, ((stop__ID__.tv_sec-start__ID__.tv_sec)*1000.0) + ((stop__ID__.tv_usec-start__ID__.tv_usec)/1000.0) );
-
 
 class Stat
 {

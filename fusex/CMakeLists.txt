@@ -65,6 +65,7 @@ add_executable(
   data.cc data.hh 
   kv.cc kv.hh 
   longstring.cc longstring.hh 
+  cache.cc cache.hh bufferll.hh
   ${PROTO_SRC} ${PROTO_HEADER}
 )
 

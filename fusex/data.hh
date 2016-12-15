@@ -27,6 +27,8 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "cache.hh"
+#include "md.hh"
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
 #include "common/Logging.hh"
@@ -34,6 +36,7 @@
 #include <memory>
 #include <map>
 #include <set>
+#include <atomic>
 #include <exception>
 #include <stdexcept>
 
@@ -65,6 +68,7 @@ public:
     {
       XrdSysMutexHelper mLock(Locker());
       mIno = ino;
+      mFile = cachehandler::get(ino);
     }
 
     uint64_t id () const
@@ -76,9 +80,66 @@ public:
     {
     }
 
+    int attach()
+    {
+      return mFile->attach();
+    }
+
+    int detach()
+    {
+      return mFile->detach();
+    }
+    
+    int unlink()
+    {
+      cachehandler::rm(mIno);
+      return mFile->unlink();
+    }
+
+    // IO bridgeinterface
+
+    ssize_t pread(void *buf, size_t count, off_t offset)
+    {
+      return mFile->pread(buf, count, offset);
+    }
+
+    ssize_t pwrite(const void *buf, size_t count, off_t offset)
+    {
+      cache::shared_file lfile = mFile;
+
+      return mFile->pwrite(buf, count, offset);
+    }
+
+    ssize_t peek_pread(char* &buf, size_t count, off_t offset)
+    {
+      return mFile->peek_read(buf, count, offset);
+    }
+
+    void release_pread()
+    {
+      return mFile->release_read();
+    }
+
+    int truncate(off_t offset)
+    {
+      return mFile->truncate(offset);
+    }
+
+    int sync()
+    {
+      return mFile->sync();
+    }
+
+    size_t size()
+    {
+      return mFile->size();
+    }
+
   private:
     XrdSysMutex mLock;
     uint64_t mIno;
+    cache::shared_file mFile;
+
   } ;
 
   typedef std::shared_ptr<datax> shared_data;
@@ -86,19 +147,48 @@ public:
   typedef struct _data_fh
   {
     shared_data data;
+    metad::shared_md md;
+    std::atomic<bool> update_mtime_on_flush;
 
-    _data_fh(shared_data io)
+    _data_fh(shared_data _data, metad::shared_md _md)
     {
-      data = io;
+      data = _data;
+      md = _md;
+      update_mtime_on_flush.store(false, std::memory_order_seq_cst);
     }
 
     ~_data_fh()
     {
     }
-    
-    static struct _data_fh* Instance(shared_data io) 
+
+    static struct _data_fh* Instance(shared_data io, metad::shared_md md)
     {
-      return new struct _data_fh(io);
+      return new struct _data_fh(io, md);
+    }
+
+    shared_data ioctx()
+    {
+      return data;
+    }
+
+    metad::shared_md mdctx()
+    {
+      return md;
+    }
+
+    void set_update()
+    {
+      update_mtime_on_flush.store(true, std::memory_order_seq_cst);
+    }
+
+    bool has_update()
+    {
+      if (update_mtime_on_flush.load())
+      {
+        update_mtime_on_flush.store(false, std::memory_order_seq_cst);
+        return true;
+      }
+      return false;
     }
   } data_fh;
 

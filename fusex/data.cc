@@ -71,18 +71,7 @@ data::get(fuse_req_t req,
   {
     std::string mdstream;
     shared_data io = std::make_shared<datax>();
-    /*if (!kv::Instance().get(ino, mdstream))
-    {
-      if (!md->ParseFromString(mdstream))
-      {
-        eos_static_err("msg=\"GPB parsing failed\" inode=%08lx", ino);
-      }
-      else
-      {
-        eos_static_debug("msg=\"GPB parsed inode\" inode=%08lx", ino);
-      }
-      mdmap[ino] = md;
-    }*/
+    io->set_id(ino);
     datamap[io->id()] = io;
     return io;
   }
@@ -120,7 +109,9 @@ data::unlink(fuse_ino_t ino)
   XrdSysMutexHelper mLock(datamap);
   if (datamap.count(ino))
   {
+    datamap[ino]->unlink();
     datamap.erase(ino);
+    eos_static_info("datacache::unlink size=%lu", datamap.size());
   }
 }
 

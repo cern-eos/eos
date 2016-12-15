@@ -3721,9 +3721,19 @@ filesystem::flush (int fd, uid_t uid, gid_t gid, pid_t pid)
  {
    off_t cache_size = fabst->GetMaxWriteOffset ();
 
+   eos_static_notice("cache-size=%llu max-offset=%d force=%d", cache_size, file_write_back_cache_size, (cache_size > file_write_back_cache_size));
+
    fabst->mMutexRW.WriteLock ();
    // if we wrote more than the in-memory cache-size we wait for the writes in flush and evt. report an error
-   XFC->ForceAllWrites (fabst.get(), (cache_size > file_write_back_cache_size)?true:false);
+
+   bool wait_async = true;
+   if (fabst->GetRawFileRW() && fabst->GetRawFileRW()->CanCache())
+   {
+     if (cache_size < file_write_back_cache_size)
+       wait_async = false;
+   }
+
+   XFC->ForceAllWrites (fabst.get(), wait_async);
    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue ();
    error_type error;
 
@@ -3731,6 +3741,16 @@ filesystem::flush (int fd, uid_t uid, gid_t gid, pid_t pid)
    {
      eos_static_info ("Extract error from queue");
      retc = error.first;
+
+     if (retc) 
+     {
+       errno = retc;
+       retc = -1;
+     }
+   }
+   else
+   {
+     eos_static_info("No flush error");
    }
 
    fabst->mMutexRW.UnLock ();
