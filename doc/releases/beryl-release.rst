@@ -7,6 +7,17 @@
 Beryl Release Notes
 ===================
 
+``V0.3.223 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix foreground option for eosd
+- FUSE: shard proc cache to keep memory footprint low for high MAX_PID settings and run AuthId cleanup every 5 minutes
+- FUSE: don't pick up root credentials inside eosd
+- COMMON: fix syslog logging interface using wrong argument list
+
 ``V0.3.222 Aquamarine``
 =======================
 
