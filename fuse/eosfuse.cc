@@ -250,7 +250,7 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
 #ifdef __APPLE__
      (fuse_daemonize(1) != -1)
 #else
-     (fuse_daemonize (0) != -1)
+     (fuse_daemonize (me.config.foreground) != -1)
 #endif
      )
   {
