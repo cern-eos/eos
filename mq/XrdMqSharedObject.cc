@@ -895,9 +895,10 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
 	    std::string snoblankline = line;
 	    size_t pos = snoblankline.find_last_not_of(" ");
 
-	    if (noblankline.length() > 1)
+	    if (noblankline.length() > 1) {
 	      while (noblankline.replace(" ", "%20", 0,
 					 (pos == std::string::npos) ? -1 : pos)) {}
+	    }
 	  }
 	  snprintf(keyval, sizeof(keyval) - 1, "%s=%s", formattags["key"].c_str(),
 		   noblankline.c_str());
