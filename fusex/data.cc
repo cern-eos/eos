@@ -113,6 +113,12 @@ data::unlink(fuse_ino_t ino)
     datamap.erase(ino);
     eos_static_info("datacache::unlink size=%lu", datamap.size());
   }
+  else
+  {
+    shared_data io = std::make_shared<datax>();
+    io->set_id(ino);
+    io->unlink();
+  }
 }
 
   
