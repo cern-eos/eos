@@ -1864,9 +1864,9 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
       // attach a datapool object
       fi->fh = (uint64_t) io;
-              
+
       io->ioctx()->attach();
-      
+
       fuse_reply_create(req, &e, fi);
       eos_static_info("%s", md->dump(e).c_str());
     }
@@ -2555,6 +2555,29 @@ void
 /* -------------------------------------------------------------------------- */
 EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
+/*
+ EACCES Search permission is denied for a component of the path prefix.  (See also path_resolution(7).)
+
+ EFAULT buf extends outside the process’s allocated address space.
+
+ EINVAL bufsiz is not positive.
+
+ EINVAL The named file is not a symbolic link.
+
+ EIO    An I/O error occurred while reading from the file system.
+
+ ELOOP  Too many symbolic links were encountered in translating the pathname.
+
+ ENAMETOOLONG
+        A pathname, or a component of a pathname, was too long.
+
+ ENOENT The named file does not exist.
+
+ ENOMEM Insufficient kernel memory was available.
+
+ ENOTDIR
+        A component of the path prefix is not a directory.
+ */
 {
 
   eos::common::Timing timing(__func__);
@@ -2566,18 +2589,100 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
 
   EXEC_TIMING_BEGIN(__func__);
 
+  int rc = 0;
+  std::string target;
+
+  fuse_id id(req);
+
+  cap::shared_cap pcap;
+
+  // retrieve the appropriate cap
+  pcap = Instance().caps.acquire(req, ino,
+                                 R_OK);
+
+  if (pcap->errc())
+  {
+    rc = pcap->errc();
+  }
+  else
+  {
+    metad::shared_md md;
+
+    md = Instance().mds.get(req, ino);
+
+    XrdSysMutexHelper mLock(md->Locker());
+
+    if (!md->id() || md->deleted())
+    {
+      rc = ENOENT;
+    }
+    else
+    {
+      if (! md->mode() & S_IFLNK)
+      {
+        // no a link
+        rc = EINVAL;
+      }
+      else
+      {
+        target = md->target();
+      }
+    }
+  }
+
+  if (!rc)
+  {
+    fuse_reply_readlink (req, target.c_str());
+    return;
+  }
+  else
+  {
+    fuse_reply_err (req, errno);
+    return;
+  }
+
   EXEC_TIMING_END(__func__);
 
-  fuse_reply_err (req, EOPNOTSUPP);
-
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(id, ino, 0, rc).c_str());
 }
 
-void/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
 EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
                  const char *name)
 /* -------------------------------------------------------------------------- */
+/*
+ EACCES Write access to the directory containing newpath is denied, or one of the directories in the path
+        prefix of newpath did not allow search permission.  (See also path_resolution(7).)
+
+ EEXIST newpath already exists.
+
+ EFAULT oldpath or newpath points outside your accessible address space.
+
+ EIO    An I/O error occurred.
+
+ ELOOP  Too many symbolic links were encountered in resolving newpath.
+
+ ENAMETOOLONG
+        oldpath or newpath was too long.
+
+ ENOENT A directory component in newpath does not exist or is a dangling symbolic link, or oldpath is the
+        empty string.
+
+ ENOMEM Insufficient kernel memory was available.
+
+ ENOSPC The device containing the file has no room for the new directory entry.
+
+ ENOTDIR
+        A component used as a directory in newpath is not, in fact, a directory.
+
+ EPERM  The file system containing newpath does not support the creation of symbolic links.
+
+ EROFS  newpath is on a read-only file system.
+
+ */
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
@@ -2588,10 +2693,68 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
 
   EXEC_TIMING_BEGIN(__func__);
 
+  int rc = 0;
+
+  fuse_id id(req);
+
+  // do a parent check
+  cap::shared_cap pcap = Instance().caps.acquire(req, parent,
+                                                 S_IFDIR | W_OK);
+
+  if (pcap->errc())
+  {
+    rc = pcap->errc();
+  }
+  else
+  {
+    metad::shared_md md;
+    metad::shared_md pmd;
+    md = Instance().mds.lookup(req, parent, name);
+    pmd = Instance().mds.get(req, parent);
+
+    XrdSysMutexHelper mLock(md->Locker());
+
+    if (md->id() && !md->deleted())
+    {
+      rc = EEXIST;
+    }
+    else
+    {
+      md->set_mode( S_IRWXU | S_IRWXG | S_IRWXO | S_IFLNK );
+      md->set_target(link);
+      
+      struct timespec ts;
+      eos::common::Timing::GetTimeSpec(ts);
+      md->set_name(name);
+      md->set_atime(ts.tv_sec);
+      md->set_atime_ns(ts.tv_nsec);
+      md->set_mtime(ts.tv_sec);
+      md->set_mtime_ns(ts.tv_sec);
+      md->set_ctime(ts.tv_sec);
+      md->set_ctime_ns(ts.tv_nsec);
+      md->set_btime(ts.tv_sec);
+      md->set_btime_ns(ts.tv_nsec);
+      md->set_uid(pcap->uid());
+      md->set_gid(pcap->gid());
+      md->set_id(Instance().mds.insert(req, md));
+
+      Instance().mds.add(pmd, md);
+
+      struct fuse_entry_param e;
+      memset(&e, 0, sizeof (e));
+      md->convert(e);
+      fuse_reply_entry (req, &e);
+    }
+  }
+
+  if (rc)
+  {
+    fuse_reply_err (req, rc);
+  }
+
   EXEC_TIMING_END(__func__);
 
-  fuse_reply_err (req, EOPNOTSUPP);
-
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(id, parent, 0, rc).c_str());
 }
