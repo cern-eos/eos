@@ -103,6 +103,7 @@ public:
     }
 
     m_separator = std::string(sum + 2, '-');
+    m_separator[0] = '#';
     m_output << m_separator << std::endl;
 
     for (auto item = m_header.begin(); item != m_header.end(); ++item) {

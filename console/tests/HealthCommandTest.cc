@@ -125,10 +125,14 @@ void HealthCommandTest::ParseCommandTest()
   CPPUNIT_ASSERT_NO_THROW(health.ParseCommand());
   CPPUNIT_ASSERT(health.m_section == "placement");
   health.m_comm = const_cast<char*>("--help");
+  // Making sure that there is no info printed on the console
+  // during the tests.
+  std::cerr.setstate(std::ios_base::failbit);
   CPPUNIT_ASSERT_NO_THROW(health.ParseCommand());
   CPPUNIT_ASSERT(health.m_section == "/");
   health.m_comm = const_cast<char*>("placement nodes --help");
   CPPUNIT_ASSERT_NO_THROW(health.ParseCommand());
+  std::cerr.clear();
   CPPUNIT_ASSERT(health.m_section == "/");
   health.m_comm = const_cast<char*>("banana smurf placement");
   CPPUNIT_ASSERT_THROW(health.ParseCommand(),  std::string);

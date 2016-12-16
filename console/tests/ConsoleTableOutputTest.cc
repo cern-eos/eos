@@ -30,8 +30,8 @@ void ConsoleTableOutputTest::TestUtility()
 {
   ConsoleTableOutput test;
   test.SetHeader({{"title1",  8}, {"title2", 8} });
-  std::string test_out = "------------------\n  title1  title2\n";
-  test_out += "------------------\n";
+  std::string test_out = "#-----------------\n  title1  title2\n";
+  test_out += "#-----------------\n";
   CPPUNIT_ASSERT(test.Str() ==  test_out);
   test.AddRow("Value1",  3);
   test_out +=  "  Value1\33[0m       3\33[0m\n";

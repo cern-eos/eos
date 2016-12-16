@@ -404,6 +404,20 @@ void HealthCommand::AllCheck()
 
 void HealthCommand::PrintHelp()
 {
+  std::cerr << "Usage: eos health [OPTION] [SECTION]" << std::endl;
+  std::cerr << std::endl;
+  std::cerr << "Options available: " << std::endl;
+  std::cerr << "  --help    Print help" << std::endl;
+  std::cerr << "   -m       Turn on monitoring mode" << std::endl;
+  std::cerr << "   -a       Display all information, not just critical" <<
+            std::endl;
+  std::cerr << std::endl;
+  std::cerr << "Sections available: " << std::endl;
+  std::cerr << "  all         Display all sections (default value)" << std::endl;
+  std::cerr << "  nodes       Display only information about nodes" << std::endl;
+  std::cerr << "  drain       Display drain health information" << std::endl;
+  std::cerr << "  placement   Display placement contention health information" <<
+            std::endl;
 }
 
 void HealthCommand::ParseCommand()
