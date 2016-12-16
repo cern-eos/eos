@@ -321,7 +321,6 @@ metad::add(metad::shared_md pmd, metad::shared_md md)
 
   mdflush.Signal();
   mdflush.UnLock();
-
 }
 
 /* -------------------------------------------------------------------------- */
@@ -361,6 +360,60 @@ metad::remove(metad::shared_md pmd, metad::shared_md md)
   mdflush.Signal();
   mdflush.UnLock();
 
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname)
+/* -------------------------------------------------------------------------- */
+{
+  auto map1 = p1md->mutable_children();
+  auto map2 = p2md->mutable_children();
+
+  eos_static_debug("child=%s parent=%s newparent=%s inode=%08lx", md->name().c_str(),
+                   p1md->name().c_str(), p2md->name().c_str(), md->id());
+
+  XrdSysMutexHelper mLock(md->Locker());
+
+  if (p1md->id() != p2md->id())
+  {
+    // move between directories
+    XrdSysMutexHelper m1Lock(p1md->Locker());
+    XrdSysMutexHelper m2Lock(p2md->Locker());
+    (*map2)[newname] = md->id();
+    (*map1).erase(md->name());
+    p1md->set_nlink(p1md->nlink() - 1);
+    p2md->set_nlink(p2md->nlink() + 1);
+    md->set_name(newname);
+  }
+  else
+  {
+    // move within directory
+    XrdSysMutexHelper m1Lock(p1md->Locker());
+    (*map2)[newname] = md->id();
+    (*map1).erase(md->name());
+    md->set_name(newname);
+  }
+
+  mdflush.Lock();
+
+  while (mdqueue.size() == mdqueue_max_backlog)
+    mdflush.Wait();
+
+  mdqueue.insert(p1md->id());
+  
+  if (p1md->id() != p2md->id())
+  {
+    mdqueue.insert(p2md->id());
+  }
+
+  mdqueue.insert(md->id());
+ 
+  stat.inodes_backlog_store(mdqueue.size());
+
+  mdflush.Signal();
+  mdflush.UnLock();
 }
 
 /* -------------------------------------------------------------------------- */

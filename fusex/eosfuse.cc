@@ -1587,7 +1587,55 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   EXEC_TIMING_BEGIN(__func__);
 
+  int rc=0;
+
+  fuse_id id(req);
+
+  // do a parent check
+  cap::shared_cap p1cap = Instance().caps.acquire(req, parent,
+                                                  S_IFDIR | R_OK);
+
+  cap::shared_cap p2cap = Instance().caps.acquire(req, newparent,
+                                                  S_IFDIR | W_OK);
+
+  if (p1cap->errc())
+  {
+    rc = p1cap->errc();
+  }
+  if (!rc && p2cap->errc())
+  {
+    rc = p2cap->errc();
+  }
+
+  if (!rc)
+  {
+    metad::shared_md md;
+    metad::shared_md p1md;
+    metad::shared_md p2md;
+
+    md = Instance().mds.lookup(req, parent, name);
+    p1md = Instance().mds.get(req, parent);
+    p2md = Instance().mds.get(req, newparent);
+
+    {
+      XrdSysMutexHelper mLock(md->Locker());
+
+      if (!md->id() || md->deleted())
+      {
+        rc = ENOENT;
+      }
+    }
+
+    if (!rc)
+    {
+      std::string new_name = newname;
+      Instance().mds.mv (p1md, p2md, md, newname);
+    }
+  }
+
   EXEC_TIMING_END(__func__);
+
+  fuse_reply_err(req, rc);
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
@@ -2722,7 +2770,7 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
     {
       md->set_mode( S_IRWXU | S_IRWXG | S_IRWXO | S_IFLNK );
       md->set_target(link);
-      
+
       struct timespec ts;
       eos::common::Timing::GetTimeSpec(ts);
       md->set_name(name);

@@ -242,7 +242,7 @@ public:
 
   void add(shared_md pmd, shared_md md);
   void remove(shared_md pmd, shared_md md);
-
+  void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname);
 
   void mdcflush(); // thread pushing into md cache
 
@@ -341,7 +341,7 @@ public:
   {
     return stat;
   }
-  
+
 private:
 
   pmap mdmap;
