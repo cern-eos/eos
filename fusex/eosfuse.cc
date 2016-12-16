@@ -1756,6 +1756,16 @@ EosFuse::mknod(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   EXEC_TIMING_BEGIN(__func__);
 
+  int rc = 0;
+
+  if (!S_ISREG(mode))
+  {
+    // we only implement files
+    rc = ENOSYS;
+  }
+  else
+    create(req, parent, name, mode, 0);
+
   EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
@@ -1893,29 +1903,39 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       memset(&e, 0, sizeof (e));
       md->convert(e);
       md->lookup_inc();
-      // -----------------------------------------------------------------------
-      // TODO: for the moment there is no kernel cache used until 
-      // we add top-level management on it
-      // -----------------------------------------------------------------------
-      // FUSE caches the file for reads on the same filedescriptor in the buffer
-      // cache, but the pages are released once this filedescriptor is released.
-      fi->keep_cache = 0;
 
-      if ( (fi->flags & O_DIRECT) ||
-          (fi->flags & O_SYNC) )
-        fi->direct_io = 1;
+      if (fi)
+      {
+        // -----------------------------------------------------------------------
+        // TODO: for the moment there is no kernel cache used until 
+        // we add top-level management on it
+        // -----------------------------------------------------------------------
+        // FUSE caches the file for reads on the same filedescriptor in the buffer
+        // cache, but the pages are released once this filedescriptor is released.
+        fi->keep_cache = 0;
 
+        if ( (fi->flags & O_DIRECT) ||
+            (fi->flags & O_SYNC) )
+          fi->direct_io = 1;
+
+        else
+          fi->direct_io = 0;
+
+        data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id()), md);
+
+        // attach a datapool object
+        fi->fh = (uint64_t) io;
+
+        io->ioctx()->attach();
+
+        // create
+        fuse_reply_create(req, &e, fi);
+      }
       else
-        fi->direct_io = 0;
-
-      data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id()), md);
-
-      // attach a datapool object
-      fi->fh = (uint64_t) io;
-
-      io->ioctx()->attach();
-
-      fuse_reply_create(req, &e, fi);
+      {
+        // mknod
+        fuse_reply_entry(req, &e);
+      }
       eos_static_info("%s", md->dump(e).c_str());
     }
   }
