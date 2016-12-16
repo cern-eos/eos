@@ -1013,6 +1013,9 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
       // copy the current state
       eos::fusex::md* fh_md = new eos::fusex::md(*md);
+      auto map = fh_md->mutable_children();
+      (*map)["."] = ino;
+
       fi->fh = (unsigned long) fh_md;
       fuse_reply_open (req, fi);
     }
@@ -1096,7 +1099,10 @@ EBADF  Invalid directory stream descriptor fi->fh
       b_size += a_size;
     }
 
-    fuse_reply_buf (req, b_size ? b : 0, b_size);
+    if (b_size)
+      fuse_reply_buf (req, b_size ? b : 0, b_size);
+    else
+      fuse_reply_err (req, 0);
 
     eos_static_debug("size=%lu off=%llu reply-size=%lu", size, off, b_size);
   }
@@ -1765,6 +1771,9 @@ EosFuse::mknod(fuse_req_t req, fuse_ino_t parent, const char *name,
   }
   else
     create(req, parent, name, mode, 0);
+
+  if (rc)
+    fuse_reply_err(req, rc);
 
   EXEC_TIMING_END(__func__);
 
