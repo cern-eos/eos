@@ -18,6 +18,7 @@ Bug Fix
 - FUSE: don't pick up root credentials inside eosd
 - COMMON: fix syslog logging interface using wrong argument list
 
+
 ``V0.3.222 Aquamarine``
 =======================
 
