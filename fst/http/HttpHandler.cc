@@ -528,7 +528,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       if (stored != *request->GetBodySize())
       {
         // HTTP write error
-        mErrCode = response->SERVICE_UNAVAILABLE;
+        mErrCode = response->INTERNAL_SERVER_ERROR;
         mErrText = "Write error occured";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         delete mFile;
@@ -645,7 +645,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       mCloseCode = mFile->close();
       if (mCloseCode)
       {
-        mErrCode = response->SERVICE_UNAVAILABLE;
+        mErrCode = response->INTERNAL_SERVER_ERROR;
         mErrText = "File close failed";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
 
