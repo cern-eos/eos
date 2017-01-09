@@ -202,7 +202,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     cconfig.location = root["cache"]["location"].asString();
     cconfig.mbsize = root["cache"]["size-mb"].asInt();
 
-    int rc=0;
+    int rc = 0;
 
     if ( (rc = cachehandler::instance().init(cconfig)))
     {
@@ -507,20 +507,24 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 
   fuse_id id(req);
 
+  struct fuse_entry_param e;
+
   metad::shared_md md = Instance().mds.get(req, ino);
   if (!md->id())
   {
     rc = ENOENT;
-    fuse_reply_err(req, rc);
   }
   else
   {
     XrdSysMutexHelper mLock(md->Locker());
-    struct fuse_entry_param e;
     md->convert(e);
     eos_static_info("%s", md->dump(e).c_str());
-    fuse_reply_attr (req, &e.attr, e.attr_timeout);
   }
+
+  if (rc)
+    fuse_reply_err(req, rc);
+  else
+    fuse_reply_attr (req, &e.attr, e.attr_timeout);
 
   EXEC_TIMING_END(__func__);
 
@@ -551,8 +555,9 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
   cap::shared_cap pcap;
 
-  // retrieve the appropriate cap
+  metad::shared_md md;
 
+  // retrieve the appropriate cap
 
   if (op & FUSE_SET_ATTR_MODE)
   {
@@ -594,19 +599,14 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
   {
     if (!rc)
     {
-      metad::shared_md md;
-
       md = Instance().mds.get(req, ino);
 
+      XrdSysMutexHelper mLock(md->Locker());
+      if (!md->id() || md->deleted())
       {
-        XrdSysMutexHelper mLock(md->Locker());
-
-        if (!md->id() || md->deleted())
-        {
-          rc = ENOENT;
-        }
+        rc = ENOENT;
       }
-      if (!rc)
+      else
       {
         if (op & FUSE_SET_ATTR_MODE)
         {
@@ -650,16 +650,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
           EXEC_TIMING_BEGIN("setattr:chmod");
 
-          XrdSysMutexHelper mLock(md->Locker());
-
           md->set_mode(attr->st_mode);
-
-          Instance().mds.update(req, md);
-
-          struct fuse_entry_param e;
-          md->convert(e);
-          eos_static_info("%s", md->dump(e).c_str());
-          fuse_reply_attr (req, &e.attr, e.attr_timeout);
 
           EXEC_TIMING_END("setattr:chmod");
         }
@@ -705,20 +696,10 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
           EXEC_TIMING_BEGIN("setattr:chown");
 
-          XrdSysMutexHelper mLock(md->Locker());
-
           md->set_uid(attr->st_uid);
           md->set_gid(attr->st_gid);
 
-          Instance().mds.update(req, md);
-
-          struct fuse_entry_param e;
-          md->convert(e);
-          eos_static_info("%s", md->dump(e).c_str());
-          fuse_reply_attr (req, &e.attr, e.attr_timeout);
-
           EXEC_TIMING_END("setattr:chown");
-
         }
 
         if (
@@ -751,8 +732,6 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
           EXEC_TIMING_BEGIN("setattr:utimes");
 
-          XrdSysMutexHelper mLock(md->Locker());
-
           if (op & FUSE_SET_ATTR_ATIME)
           {
             md->set_atime(attr->ATIMESPEC.tv_sec);
@@ -782,13 +761,6 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
               md->set_mtime_ns(tsnow.tv_nsec);
             }
           }
-          Instance().mds.update(req, md);
-
-          struct fuse_entry_param e;
-          md->convert(e);
-          eos_static_info("%s", md->dump(e).c_str());
-          fuse_reply_attr (req, &e.attr, e.attr_timeout);
-
           EXEC_TIMING_END("setattr:chown");
         }
 
@@ -853,7 +825,7 @@ EINVAL fd does not reference a regular file.
 
           int rc = 0;
 
-          // do a parent check
+          // check for a file
           cap::shared_cap pcap = Instance().caps.acquire(req, ino,
                                                          S_IFREG | W_OK);
 
@@ -863,11 +835,6 @@ EINVAL fd does not reference a regular file.
           }
           else
           {
-            metad::shared_md md;
-            md = Instance().mds.get(req, ino);
-
-            XrdSysMutexHelper mLock(md->Locker());
-
             if (!md->id() || md->deleted())
             {
               rc = ENOENT;
@@ -886,12 +853,6 @@ EINVAL fd does not reference a regular file.
                 if (!rc)
                 {
                   md->set_size(attr->st_size);
-                  Instance().mds.update(req, md);
-
-                  struct fuse_entry_param e;
-                  md->convert(e);
-                  eos_static_info("%s", md->dump(e).c_str());
-                  fuse_reply_attr (req, &e.attr, e.attr_timeout);
                 }
               }
             }
@@ -904,6 +865,14 @@ EINVAL fd does not reference a regular file.
 
   if (rc)
     fuse_reply_err (req, rc);
+  else
+  {
+    struct fuse_entry_param e;
+    memset(&e, 0, sizeof (e));
+    md->convert(e);
+    eos_static_info("%s", md->dump(e).c_str());
+    fuse_reply_attr (req, &e.attr, e.attr_timeout);
+  }
 
   EXEC_TIMING_END(__func__);
 
@@ -938,6 +907,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     if (md->id() && !md->deleted())
     {
       XrdSysMutexHelper mLock(md->Locker());
+      md->set_pid(parent);
       md->convert(e);
       eos_static_info("%s", md->dump(e).c_str());
       md->lookup_inc();
@@ -994,7 +964,6 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   if (pcap->errc())
   {
     rc = pcap->errc();
-    fuse_reply_err (req, rc);
   }
   else
   {
@@ -1005,7 +974,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
     if (!md->id() || md->deleted())
     {
-      fuse_reply_err(req, ENOENT);
+      rc = ENOENT;
     }
     else
     {
@@ -1015,11 +984,15 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       eos::fusex::md* fh_md = new eos::fusex::md(*md);
       auto map = fh_md->mutable_children();
       (*map)["."] = ino;
+      (*map)[".."] = md->pid();
 
       fi->fh = (unsigned long) fh_md;
-      fuse_reply_open (req, fi);
     }
   }
+  if (rc)
+    fuse_reply_err(req, rc);
+  else
+    fuse_reply_open (req, fi);
 
   EXEC_TIMING_END(__func__);
 
@@ -1164,7 +1137,7 @@ EosFuse::statfs(fuse_req_t req, fuse_ino_t ino)
 
   EXEC_TIMING_BEGIN(__func__);
 
-  int rc=0;
+  int rc = 0;
 
   fuse_id id(req);
 
@@ -1253,6 +1226,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
   fuse_id id(req);
 
+  struct fuse_entry_param e;
+
   // do a parent check
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
                                                  S_IFDIR | X_OK | W_OK);
@@ -1269,43 +1244,45 @@ EROFS  pathname refers to a file on a read-only filesystem.
     md = Instance().mds.lookup(req, parent, name);
     pmd = Instance().mds.get(req, parent);
 
-    XrdSysMutexHelper mLock(md->Locker());
-    if (md->id() && !md->deleted())
     {
-      rc = EEXIST;
-    }
-    else
-    {
+      XrdSysMutexHelper mLock(md->Locker());
+      if (md->id() && !md->deleted())
+      {
+        rc = EEXIST;
+      }
+      else
+      {
+        md->set_mode(mode | S_IFDIR);
+        struct timespec ts;
+        eos::common::Timing::GetTimeSpec(ts);
+        md->set_name(name);
+        md->set_atime(ts.tv_sec);
+        md->set_atime_ns(ts.tv_nsec);
+        md->set_mtime(ts.tv_sec);
+        md->set_mtime_ns(ts.tv_sec);
+        md->set_ctime(ts.tv_sec);
+        md->set_ctime_ns(ts.tv_nsec);
+        md->set_btime(ts.tv_sec);
+        md->set_btime_ns(ts.tv_nsec);
+        md->set_uid(pcap->uid());
+        md->set_gid(pcap->gid());
+        md->set_id(Instance().mds.insert(req, md));
 
-      md->set_mode(mode | S_IFDIR);
-      struct timespec ts;
-      eos::common::Timing::GetTimeSpec(ts);
-      md->set_name(name);
-      md->set_atime(ts.tv_sec);
-      md->set_atime_ns(ts.tv_nsec);
-      md->set_mtime(ts.tv_sec);
-      md->set_mtime_ns(ts.tv_sec);
-      md->set_ctime(ts.tv_sec);
-      md->set_ctime_ns(ts.tv_nsec);
-      md->set_btime(ts.tv_sec);
-      md->set_btime_ns(ts.tv_nsec);
-      md->set_uid(pcap->uid());
-      md->set_gid(pcap->gid());
-      md->set_id(Instance().mds.insert(req, md));
+        Instance().mds.add(pmd, md);
 
-      Instance().mds.add(pmd, md);
+        memset(&e, 0, sizeof (e));
+        md->convert(e);
+        md->lookup_inc();
 
-      struct fuse_entry_param e;
-      memset(&e, 0, sizeof (e));
-      md->convert(e);
-      md->lookup_inc();
-      fuse_reply_entry(req, &e);
-      eos_static_info("%s", md->dump(e).c_str());
+        eos_static_info("%s", md->dump(e).c_str());
+      }
     }
   }
 
   if (rc)
     fuse_reply_err (req, rc);
+  else
+    fuse_reply_entry(req, &e);
 
   EXEC_TIMING_END(__func__);
 
@@ -1593,7 +1570,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   EXEC_TIMING_BEGIN(__func__);
 
-  int rc=0;
+  int rc = 0;
 
   fuse_id id(req);
 
@@ -1729,13 +1706,15 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
       fi->keep_cache = 0;
       fi->direct_io = 0;
-      fuse_reply_open(req, fi);
       eos_static_info("%s", md->dump(e).c_str());
     }
   }
 
   if (rc)
     fuse_reply_err (req, rc);
+  else
+    fuse_reply_open(req, fi);
+
   EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
@@ -1871,6 +1850,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
                                                  S_IFDIR | W_OK);
 
+  struct fuse_entry_param e;
+
   if (pcap->errc())
   {
     rc = pcap->errc();
@@ -1908,7 +1889,6 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
       Instance().mds.add(pmd, md);
 
-      struct fuse_entry_param e;
       memset(&e, 0, sizeof (e));
       md->convert(e);
       md->lookup_inc();
@@ -1936,14 +1916,6 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         fi->fh = (uint64_t) io;
 
         io->ioctx()->attach();
-
-        // create
-        fuse_reply_create(req, &e, fi);
-      }
-      else
-      {
-        // mknod
-        fuse_reply_entry(req, &e);
       }
       eos_static_info("%s", md->dump(e).c_str());
     }
@@ -1951,6 +1923,15 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
   if (rc)
     fuse_reply_err (req, rc);
+  else
+  {
+    if (fi)
+      // create
+      fuse_reply_create(req, &e, fi);
+    else
+      // mknod
+      fuse_reply_entry(req, &e);
+  }
 
   EXEC_TIMING_END(__func__);
 
@@ -2230,6 +2211,8 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
   cap::shared_cap pcap;
 
+  std::string value;
+
   // retrieve the appropriate cap
   pcap = Instance().caps.acquire(req, ino,
                                  R_OK);
@@ -2244,64 +2227,59 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
     md = Instance().mds.get(req, ino);
 
-    XrdSysMutexHelper mLock(md->Locker());
-
-    if (!md->id() || md->deleted())
     {
-      rc = ENOENT;
-    }
-    else
-    {
-      auto map = md->attr();
+      XrdSysMutexHelper mLock(md->Locker());
 
-      std::string key = xattr_name;
-      static std::string s_sec = "security.";
-      static std::string s_acl = "system.posix_acl";
-      static std::string s_apple = "com.apple";
+      if (!md->id() || md->deleted())
+      {
+        rc = ENOENT;
+      }
+      else
+      {
+        auto map = md->attr();
 
-      // don't return any security attribute
-      if (key.substr(0, s_sec.length()) == s_sec)
-      {
-        rc = ENOATTR;
-      }
-      else
-        // don't return any posix acl attribute
-        if (key == s_acl)
-      {
-        rc = ENOATTR;
-      }
-#ifdef __APPLE__
-      else
-        // don't return any finder attribute
-        if (key.substr(0, s_apple.length()) == s_apple)
-      {
-        rc = ENOATTR;
-      }
-#endif
-      else
-      {
-        if (!map.count(key))
+        std::string key = xattr_name;
+        static std::string s_sec = "security.";
+        static std::string s_acl = "system.posix_acl";
+        static std::string s_apple = "com.apple";
+
+        // don't return any security attribute
+        if (key.substr(0, s_sec.length()) == s_sec)
         {
           rc = ENOATTR;
         }
         else
         {
-          std::string value = map[key];
-
-
-          if (size == 0 )
+          // don't return any posix acl attribute
+          if (key == s_acl)
           {
-            fuse_reply_xattr (req, value.size());
+            rc = ENOATTR;
           }
+#ifdef __APPLE__
+          else
+            // don't return any finder attribute
+            if (key.substr(0, s_apple.length()) == s_apple)
+          {
+            rc = ENOATTR;
+          }
+#endif
           else
           {
-            if (value.size() > size)
+            if (!map.count(key))
             {
-              rc = ERANGE;
+              rc = ENOATTR;
             }
             else
             {
-              fuse_reply_buf (req, value.c_str(), value.size());
+              value = map[key];
+
+              if (size != 0 )
+              {
+                if (value.size() > size)
+                {
+                  rc = ERANGE;
+                }
+              }
             }
           }
         }
@@ -2311,7 +2289,17 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
   if (rc)
     fuse_reply_err (req, rc);
-
+  else
+  {
+    if (size == 0)
+    {
+      fuse_reply_xattr (req, value.size());
+    }
+    else
+    {
+      fuse_reply_buf (req, value.c_str(), value.size());
+    }
+  }
   EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
@@ -2353,6 +2341,8 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
   cap::shared_cap pcap;
 
+  std::string value;
+
   // retrieve the appropriate cap
   pcap = Instance().caps.acquire(req, ino,
                                  SA_OK);
@@ -2377,7 +2367,6 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
     else
     {
       std::string key = xattr_name;
-      std::string value;
       value.assign(xattr_value, size);
 
       static std::string s_sec = "security.";
@@ -2424,9 +2413,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
         }
         else
         {
-          (
-
-                  *map)[key] = value;
+          (*map)[key] = value;
           Instance().mds.update(req, md);
         }
       }
@@ -2464,6 +2451,8 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   fuse_id id(req);
 
   cap::shared_cap pcap;
+  std::string attrlist;
+
 
   // retrieve the appropriate cap
   pcap = Instance().caps.acquire(req, ino,
@@ -2475,44 +2464,41 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   }
   else
   {
-
     metad::shared_md md;
 
     md = Instance().mds.get(req, ino);
 
-    XrdSysMutexHelper mLock(md->Locker());
-
-    if (!md->id() || md->deleted())
     {
-      rc = ENOENT;
-    }
-    else
-    {
-      auto map = md->attr();
+      XrdSysMutexHelper mLock(md->Locker());
 
-      size_t attrlistsize=0;
-      std::string attrlist;
-
-      for ( auto it = map.begin(); it != map.end(); ++it)
+      if (!md->id() || md->deleted())
       {
-        attrlistsize += it->first.length() + 1;
-        attrlist += it->first;
-        attrlist += '\0';
-      }
-
-      if (size == 0 )
-      {
-        fuse_reply_xattr (req, attrlistsize);
+        rc = ENOENT;
       }
       else
       {
-        if (attrlist.size() > size)
+        auto map = md->attr();
+
+        size_t attrlistsize=0;
+        attrlist="";
+
+        for ( auto it = map.begin(); it != map.end(); ++it)
         {
-          rc = ERANGE;
+          attrlistsize += it->first.length() + 1;
+          attrlist += it->first;
+          attrlist += '\0';
+        }
+
+        if (size == 0 )
+        {
+          fuse_reply_xattr (req, attrlistsize);
         }
         else
         {
-          fuse_reply_buf (req, attrlist.c_str(), attrlist.length());
+          if (attrlist.size() > size)
+          {
+            rc = ERANGE;
+          }
         }
       }
     }
@@ -2520,6 +2506,8 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 
   if (rc)
     fuse_reply_err (req, rc);
+  else
+    fuse_reply_buf (req, attrlist.c_str(), attrlist.length());
 
   EXEC_TIMING_END(__func__);
 
@@ -2774,6 +2762,8 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
 
   fuse_id id(req);
 
+  struct fuse_entry_param e;
+
   // do a parent check
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
                                                  S_IFDIR | W_OK);
@@ -2817,16 +2807,18 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
 
       Instance().mds.add(pmd, md);
 
-      struct fuse_entry_param e;
       memset(&e, 0, sizeof (e));
       md->convert(e);
-      fuse_reply_entry (req, &e);
     }
   }
 
   if (rc)
   {
     fuse_reply_err (req, rc);
+  }
+  else
+  {
+    fuse_reply_entry (req, &e);
   }
 
   EXEC_TIMING_END(__func__);

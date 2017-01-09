@@ -2,30 +2,31 @@ syntax = "proto3";
 package eos.fusex;
 
 message md {
-  fixed64 id = 1; //< file/container id
-  fixed64 ctime = 2    ; //< change time
-  fixed64 ctime_ns = 3 ; //< ns of creation time
-  fixed64 mtime = 4    ; //< modification time | deletion time
-  fixed64 mtime_ns = 5 ; //< ns of modification time
-  fixed64 atime = 6    ; //< access time
-  fixed64 atime_ns = 7 ; //< ns of access time
-  fixed64 btime = 8    ; //< birth time
-  fixed64 btime_ns = 9 ; //< ns of birth time
-  fixed64 ttime = 10   ; //< tree modification time
-  fixed64 ttime_ns = 11; //< ns of tree modification time
-  sint64 size = 12     ; //< size 
-  sfixed32 uid = 13    ; //< user  id
-  sfixed32 gid = 14    ; //< group id
-  sfixed32 mode = 15   ; //< mode
-  sfixed32 nlink = 16  ; //< nlink
-  string name = 17     ; //< name
-  string target = 18   ; //< symlink target
-  string authid = 19;    //< strong security auth id
-  string clientid = 20 ; //< string identifying a client
-  sint64 clock = 21    ; //< vector clock
-  fixed32 operation = 22   ; //< indicates operations to execute
-  map<string, string> attr = 23; //< xattribute map
-  map<string, fixed64> children = 24; //< children's name and id
+  fixed64 id = 1;        //< file/container id
+  fixed64 pid = 2;       //< parent id
+  fixed64 ctime = 3    ; //< change time
+  fixed64 ctime_ns = 4 ; //< ns of creation time
+  fixed64 mtime = 5    ; //< modification time | deletion time
+  fixed64 mtime_ns = 6 ; //< ns of modification time
+  fixed64 atime = 7    ; //< access time
+  fixed64 atime_ns = 8 ; //< ns of access time
+  fixed64 btime = 9    ; //< birth time
+  fixed64 btime_ns = 10; //< ns of birth time
+  fixed64 ttime = 11   ; //< tree modification time
+  fixed64 ttime_ns = 12; //< ns of tree modification time
+  sint64 size = 13     ; //< size 
+  sfixed32 uid = 14    ; //< user  id
+  sfixed32 gid = 15    ; //< group id
+  sfixed32 mode = 16   ; //< mode
+  sfixed32 nlink = 17  ; //< nlink
+  string name = 18     ; //< name
+  string target = 19   ; //< symlink target
+  string authid = 20   ; //< strong security auth id
+  string clientid = 21 ; //< string identifying a client
+  sint64 clock = 22    ; //< vector clock
+  fixed32 operation = 23   ; //< indicates operations to execute
+  map<string, string> attr = 24; //< xattribute map
+  map<string, fixed64> children = 25; //< children's name and id
 };
 
 message dir {

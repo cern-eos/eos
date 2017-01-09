@@ -203,7 +203,7 @@ private:
       int libfusethreads;
       int foreground;
     } options_t;
-    options_t options; 
+    options_t options;
   } cfg_t;
 
   cfg_t config;
