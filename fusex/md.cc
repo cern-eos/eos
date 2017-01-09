@@ -402,14 +402,14 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname)
     mdflush.Wait();
 
   mdqueue.insert(p1md->id());
-  
+
   if (p1md->id() != p2md->id())
   {
     mdqueue.insert(p2md->id());
   }
 
   mdqueue.insert(md->id());
- 
+
   stat.inodes_backlog_store(mdqueue.size());
 
   mdflush.Signal();
