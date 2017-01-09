@@ -95,7 +95,7 @@ public:
     void renew(mode_t mode);
 
     bool valid();
-    
+
   private:
     XrdSysMutex mLock;
   } ;
@@ -127,9 +127,9 @@ public:
                  fuse_ino_t ino);
 
   shared_cap acquire(fuse_req_t req,
-                    fuse_ino_t ino,
-                    mode_t mode
-                    );
+                     fuse_ino_t ino,
+                     mode_t mode
+                     );
 
 private:
 

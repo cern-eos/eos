@@ -82,13 +82,13 @@ cap::get(fuse_req_t req,
 cap::shared_cap
 /* -------------------------------------------------------------------------- */
 cap::acquire(fuse_req_t req,
-            fuse_ino_t ino,
-            mode_t mode
-            )
+             fuse_ino_t ino,
+             mode_t mode
+             )
 /* -------------------------------------------------------------------------- */
 {
   shared_cap cap = get(req, ino);
-  
+
   if (!cap->satisfy(mode) ||
       !cap->valid())
   {
