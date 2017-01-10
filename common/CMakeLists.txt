@@ -36,6 +36,11 @@ include_directories(
 #-------------------------------------------------------------------------------
 if (NOT TARGET fmt)
   add_subdirectory(fmt)
+
+  set_target_properties(
+    fmt
+    PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
 #-------------------------------------------------------------------------------
