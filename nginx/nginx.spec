@@ -10,7 +10,7 @@
 %define nginx_webroot   %{nginx_datadir}/html
 
 Name:           eos-nginx
-Version:        1.6.2
+Version:        1.10.2
 Release:        3
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
@@ -63,6 +63,8 @@ Patch3:     nginx-auth-ldap.patch
 
 Patch4:     nginx-no-put-body.patch
 
+Patch5:     nginx-get-method-on-redirect.patch
+
 %description
 Nginx [engine x] is an HTTP(S) server, HTTP(S) reverse proxy and IMAP/POP3
 proxy server written by Igor Sysoev.
@@ -75,6 +77,9 @@ A second third party modul, nginx-auth-ldap has been added.
 
 #%patch0 -p0
 %patch4 -p1
+
+# undo the X-Accel-Redirect Method Change Commit: http://mailman.nginx.org/pipermail/nginx/2015-December/049539.html
+%patch5 -p1 -R
 
 #%patch1 -p0
 #%patch2 -p0
