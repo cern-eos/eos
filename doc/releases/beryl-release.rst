@@ -10,6 +10,15 @@ Beryl Release Notes
 ``V0.3.223 Aquamarine``
 =======================
 
+New Feature
++++++++++++
+
+- FST: allow 'eos.checksum=ignore' for file uploads to avoid checksum computation
+- FST: fix 'eoscp -a' and add 'eoscp -A <offset>' to upload a file to a certain offset
+
+``V0.3.223 Aquamarine``
+=======================
+
 Bug Fix
 +++++++
 
