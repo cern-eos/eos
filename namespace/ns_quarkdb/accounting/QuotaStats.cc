@@ -362,9 +362,9 @@ QuotaStats::removeNode(IContainerMD::id_t node_id)
   // Delete the hmaps associated with the current node
   std::string key = snode_id + sQuotaUidsSuffix;
   // TODO: deal with connection errors
-  auto future = pQcl->execute({"DEL", key});
+  (void) pQcl->del(key);
   key = snode_id + sQuotaGidsSuffix;
-  future = pQcl->execute({"DEL", key});
+  (void) pQcl->del(key);
 }
 
 //------------------------------------------------------------------------------

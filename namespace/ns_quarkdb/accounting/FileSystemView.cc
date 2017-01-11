@@ -43,7 +43,6 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   std::string key, val;
   FileMD* file = static_cast<FileMD*>(e->file);
   qclient::QSet fs_set;
-  std::future<qclient::redisReplyPtr> future;
 
   switch (e->action) {
   // New file has been created
@@ -93,13 +92,11 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 
     // Cleanup fsid if it doesn't hold any files anymore
     key = std::to_string(e->location) + fsview::sFilesSuffix;
-    future = pQcl->execute({"EXISTS", key});
 
-    if (future.get()->integer == 0) {
+    if (pQcl->exists(key) == 0) {
       key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
-      future = pQcl->execute({"EXISTS", key});
 
-      if (future.get()->integer == 0) {
+      if (pQcl->exists(key) == 0) {
         // FS does not hold any file replicas or unlinked ones, remove it
         key = std::to_string(e->location);
         pFsIdsSet.srem(key);
@@ -301,8 +298,7 @@ bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
   std::string key = std::to_string(location) + fsview::sUnlinkedSuffix;
-  std::future<qclient::redisReplyPtr> future = pQcl->execute({"DEL", key});
-  return (future.get()->integer == 1);
+  return (pQcl->del(key) >= 0);
 }
 
 //------------------------------------------------------------------------------

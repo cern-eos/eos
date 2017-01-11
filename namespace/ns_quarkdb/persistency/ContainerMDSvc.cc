@@ -180,7 +180,7 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
 
   // If this was the root container i.e. id=1 then drop also the meta map
   if (obj->getId() == 1) {
-    (void) pQcl->execute({"DEL", constants::sMapMetaInfoKey});
+    (void) pQcl->del(constants::sMapMetaInfoKey);
   }
 
   mContainerCache.remove(obj->getId());
