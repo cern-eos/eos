@@ -59,16 +59,12 @@ function getLocalBranchAndDistTag()
   local PLATFORM=${2}
   local TAG_REGEX="^[034]+\..*$"
   local TAG_REGEX_AQUAMARINE="^0.3.*$"
-  local TAG_REGEX_EMERALD="^3.*$"
-
   local TAG_REGEX_CITRINE="^4.*$"
 
   # If this is a tag get the branch it belogs to
   if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX} ]]; then
       if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_AQUAMARINE} ]]; then
 	  BRANCH="aquamarine"
-	  elif [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_EMERALD} ]]; then
-	  BRANCH="emerald"
       elif [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_CITRINE} ]]; then
 	  BRANCH="citrine"
       fi
@@ -77,15 +73,13 @@ function getLocalBranchAndDistTag()
       # For beryl_aquamarine use aquamarine as release
       if [[ "${BRANCH}" == "beryl_aquamarine" ]]; then
 	  BRANCH="aquamarine"
-      elif [[ "${BRANCH}"  == "beryl_emerald" ]]; then
-	  BRANCH="emerald"
       elif [[ "${BRANCH}"  == "master" ]]; then
 	  BRANCH="citrine"
       fi
   fi
 
   # For aquamarine still use the old ".slc-*" dist tag for SLC5/6
-  if [[ "${BRANCH}" == "aquamarine" ]] || [[ "${BRANCH}" == "emerald" ]] ; then
+  if [[ "${BRANCH}" == "aquamarine" ]] ; then
       if [[ "${PLATFORM}" == "el-5" ]] || [[ "${PLATFORM}" == "el-6" ]]; then
 	  DIST=".slc${PLATFORM: -1}"
       else
@@ -93,7 +87,7 @@ function getLocalBranchAndDistTag()
       fi
   else
       # For any other branch use the latest XRootD release
-      XROOTD_TAG="v4.3.0"
+      XROOTD_TAG="v4.5.0"
       DIST=".${PLATFORM}"
   fi
 
@@ -164,10 +158,6 @@ echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.c
 # Add kineticio repos for kineticio-devel header-only package...
 # TODO: move kineticio-devel to regular eos-depend repo?
 echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
-if [[ ${BRANCH} == 'emerald' || ${BRANCH} == 'danburite' ]]; then
-    # Add kineticio and kineticio dependency repos
-    echo -e '\n[kio-depend]\nname=kio-depend\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio-depend/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
-fi
 echo -e '"""' >> eos.cfg
 
 ## Build the RPMs (with yum repo rpms)
@@ -176,7 +166,7 @@ echo -e '"""' >> eos.cfg
 mock --yum --init --uniqueext="eos_${BRANCH}" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}" --with=server
 
 # List of branches for CI YUM repo
-BRANCH_LIST=('aquamarine' 'citrine' 'emerald' 'danburite')
+BRANCH_LIST=('aquamarine' 'citrine')
 
 # If building one of the production branches then push rpms to YUM repo
 if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
