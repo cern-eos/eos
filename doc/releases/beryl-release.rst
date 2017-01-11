@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.225 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: fix vulnerability for http GET of '/./' via eos::common::Path
+- COMMON: make '/' the full and parent path of /. /.. /./ /../
+
 ``V0.3.224 Aquamarine``
 =======================
 
