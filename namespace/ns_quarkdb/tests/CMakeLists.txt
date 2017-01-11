@@ -24,10 +24,10 @@
 include_directories(${CPPUNIT_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
-# EosNsOnRedisTests library
+# EosNsQuarkdbTests library
 #-------------------------------------------------------------------------------
 add_library(
-  EosNsOnRedisTests MODULE
+  EosNsQuarkdbTests MODULE
   ContainerMDSvcTest.cc
   FileMDSvcTest.cc
   HierarchicalViewTest.cc
@@ -36,8 +36,8 @@ add_library(
 
 
 target_link_libraries(
-  EosNsOnRedisTests
-  EosNsOnRedis-Static
+  EosNsQuarkdbTests
+  EosNsQuarkdb-Static
   ${CPPUNIT_LIBRARIES})
 
 
@@ -50,7 +50,7 @@ target_compile_options(
   eosnsbench
   PUBLIC -DFILE_OFFSET_BITS=64)
 
-target_link_libraries(eosnsbench EosNsOnRedis-Static eosCommon-Static)
+target_link_libraries(eosnsbench EosNsQuarkdb-Static eosCommon-Static)
 
 install(
   TARGETS

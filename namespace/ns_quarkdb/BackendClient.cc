@@ -23,7 +23,7 @@ EOSNSNAMESPACE_BEGIN
 // Static variables
 std::atomic<qclient::QClient*> BackendClient::sQdbClient(nullptr);
 std::string BackendClient::sQdbHost("localhost");
-int BackendClient::sQdbPort(6382);
+int BackendClient::sQdbPort(7777);
 std::map<std::string, qclient::QClient*> BackendClient::pMapClients;
 std::mutex BackendClient::pMutexMap;
 

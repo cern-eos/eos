@@ -38,9 +38,9 @@ endif(CPPUNIT_FOUND)
 add_subdirectory(qclient)
 
 #-----------------------------------------------------------------------------
-# EosNsOnRedis library sources
+# EosNsQuarkdb library sources
 #-----------------------------------------------------------------------------
-set(EOS_NS_REDIS_SRCS
+set(EOS_NS_QDB_SRCS
   NsOnRedisPlugin.cc     NsOnRedisPlugin.hh
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
@@ -62,14 +62,14 @@ set(EOS_NS_REDIS_SRCS
   ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
 #-------------------------------------------------------------------------------
-# EosNsOnRedis library
+# EosNsQuarkdb library
 #-------------------------------------------------------------------------------
 add_library(
-  EosNsOnRedis MODULE
-  ${EOS_NS_REDIS_SRCS})
+  EosNsQuarkdb MODULE
+  ${EOS_NS_QDB_SRCS})
 
 target_link_libraries(
-  EosNsOnRedis
+  EosNsQuarkdb
   EosNsCommon
   eosCommon
   qclient
@@ -81,15 +81,15 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
-# EosNsOnRedis-Static library
+# EosNsQuarkdb-Static library
 #-------------------------------------------------------------------------------
 if (Linux)
   add_library(
-    EosNsOnRedis-Static STATIC
-    ${EOS_NS_REDIS_SRCS})
+    EosNsQuarkdb-Static STATIC
+    ${EOS_NS_QDB_SRCS})
 
   target_link_libraries(
-    EosNsOnRedis-Static
+    EosNsQuarkdb-Static
     EosNsCommon-Static
     eosCommon-Static
     qclient
@@ -101,19 +101,19 @@ if (Linux)
     ${CMAKE_THREAD_LIBS_INIT})
 
   set_target_properties(
-    EosNsOnRedis-Static
+    EosNsQuarkdb-Static
     PROPERTIES
     POSITION_INDEPENDENT_CODE True)
 
   install(
-    TARGETS EosNsOnRedis-Static
+    TARGETS EosNsQuarkdb-Static
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 endif()
 
 install(
-  TARGETS EosNsOnRedis
+  TARGETS EosNsQuarkdb
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
