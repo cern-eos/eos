@@ -60,13 +60,16 @@ BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
-BuildRequires: hiredis-devel
 
 %if %{?_with_server:1}%{!?_with_server:0}
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: jsoncpp, jsoncpp-devel
+# Hiredis not available on SLC6 - therefore ns_quarkdb not built
+%if 0%{distribution} > 6
+BuildRequires: hiredis-devel
+%endif
 %endif
 
 %if 0%{distribution} == 5
