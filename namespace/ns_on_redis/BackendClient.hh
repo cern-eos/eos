@@ -18,16 +18,15 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch.
-//! @brief Redis client singleton
+//! @brief QClient singleton
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_REDIS_CLIENT_HH__
-#define __EOS_NS_REDIS_CLIENT_HH__
-
+#pragma once
 #include "namespace/Namespace.hh"
-#include "redox.hpp"
-#include "redox/redoxSet.hpp"
-#include "redox/redoxHash.hpp"
+#include "qclient/QClient.hh"
+#include "qclient/QHash.hh"
+#include "qclient/QSet.hh"
+#include "qclient/AsyncHandler.hh"
 #include <atomic>
 #include <map>
 #include <mutex>
@@ -35,9 +34,9 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Singleton Redis client class used throughout the namespace implementation
+//! Singleton client class used throughout the namespace implementation
 //------------------------------------------------------------------------------
-class RedisClient
+class BackendClient
 {
 public:
   //----------------------------------------------------------------------------
@@ -51,26 +50,22 @@ public:
   static void Finalize();
 
   //----------------------------------------------------------------------------
-  //! Get client for a particular Redis instance
+  //! Get client for a particular quarkdb instance
   //!
-  //! @param host Redis host
-  //! @param port Redis port
+  //! @param host quarkdb host
+  //! @param port quarkdb port
   //!
-  //! @return Redis client object
+  //! @return qclient object
   //----------------------------------------------------------------------------
-  static redox::Redox* getInstance(const std::string& host = "",
-                                   uint32_t port = 0);
+  static qclient::QClient* getInstance(const std::string& host = "",
+                                       uint32_t port = 0);
 
 private:
-  //! Redis client for the default case
-  static std::atomic<redox::Redox*> sRedoxClient;
-  static std::string sRedisHost; ///< Redis instance host
-  static int sRedisPort;         ///< Redis instance port
-  //! Map between Redis instance and Redox client
-  static std::map<std::string, redox::Redox*> pMapClients;
+  static std::atomic<qclient::QClient*> sQdbClient;
+  static std::string sQdbHost; ///< quarkdb instance host
+  static int sQdbPort;         ///< quarkddb instance port
+  static std::map<std::string, qclient::QClient*> pMapClients;
   static std::mutex pMutexMap; ///< Mutex to protect the access to the map
 };
 
 EOSNSNAMESPACE_END
-
-#endif //__EOS_NS_REDIS_CLIENT_HH__

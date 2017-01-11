@@ -36,8 +36,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 HierarchicalView::HierarchicalView()
   : pContainerSvc(nullptr), pFileSvc(nullptr),
-    pRoot(std::shared_ptr<IContainerMD>(nullptr)), pRedox(nullptr),
-    pRedisHost(), pRedisPort(0)
+    pRoot(std::shared_ptr<IContainerMD>(nullptr)), pQcl(nullptr),
+    pBkndHost(), pBkndPort(0)
 {
   std::map<std::string, std::string> config;
   pQuotaStats = new QuotaStats(config);
@@ -71,18 +71,18 @@ HierarchicalView::configure(const std::map<std::string, std::string>& config)
 
   delete pQuotaStats;
   pQuotaStats = new QuotaStats(config);
-  const std::string key_host = "redis_host";
-  const std::string key_port = "redis_port";
+  const std::string key_host = "qdb_host";
+  const std::string key_port = "qdb_port";
 
   if (config.find(key_host) != config.end()) {
-    pRedisHost = config.at(key_host);
+    pBkndHost = config.at(key_host);
   }
 
   if (config.find(key_port) != config.end()) {
-    pRedisPort = std::stoul(config.at(key_port));
+    pBkndPort = std::stoul(config.at(key_port));
   }
 
-  pRedox = RedisClient::getInstance(pRedisHost, pRedisPort);
+  pQcl = BackendClient::getInstance(pBkndHost, pBkndPort);
 }
 
 //------------------------------------------------------------------------------

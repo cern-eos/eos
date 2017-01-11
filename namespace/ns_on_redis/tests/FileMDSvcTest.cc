@@ -58,8 +58,8 @@ FileMDSvcTest::loadTest()
   std::unique_ptr<eos::IContainerMDSvc> contSvc{new eos::ContainerMDSvc};
   std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc};
   fileSvc->setContMDService(contSvc.get());
-  std::map<std::string, std::string> config = {{"redis_host", "localhost"},
-    {"redis_port", "6380"}
+  std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
+    {"qdb_port", "6380"}
   };
   fileSvc->configure(config);
   CPPUNIT_ASSERT_NO_THROW(fileSvc->initialize());
@@ -120,8 +120,8 @@ void
 FileMDSvcTest::checkFileTest()
 {
   std::map<std::string, std::string> config = {
-    {"redis_host", "localhost"},
-    {"redis_port", "6380"}
+    {"qdb_host", "localhost"},
+    {"qdb_port", "6380"}
   };
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
@@ -156,10 +156,10 @@ FileMDSvcTest::checkFileTest()
   view->updateFileStore(file.get());
   // Corrupt the backend KV store
   std::string key;
-  redox::Redox* redox = eos::RedisClient::getInstance(
-                          config["redis_host"], std::stoi(config["redis_port"]));
+  qclient::QClient* qcl = eos::BackendClient::getInstance(
+                            config["qdb_host"], std::stoi(config["qdb_port"]));
   key = "1" + eos::fsview::sFilesSuffix;
-  redox::RedoxSet fs_set(*redox, key);
+  qclient::QSet fs_set(*qcl, key);
   CPPUNIT_ASSERT(fs_set.srem(sfid));
   key = "4" + eos::fsview::sUnlinkedSuffix;
   fs_set.setKey(key);

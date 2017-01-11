@@ -26,7 +26,7 @@
 
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/BackendClient.hh"
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
@@ -36,12 +36,6 @@
 #include <string>
 #include <sys/time.h>
 #include <vector>
-
-//! Forward declarations
-namespace redox
-{
-class Redox;
-}
 
 EOSNSNAMESPACE_BEGIN
 
@@ -433,13 +427,6 @@ protected:
   XAttrMap pXAttrs;
 
 private:
-  //------------------------------------------------------------------------------
-  //! Wait for asynchronous requests
-  //!
-  //! @return true if all successful, otherwise false
-  //------------------------------------------------------------------------------
-  bool waitAsyncReplies();
-
   // Non-presistent data members
   mtime_t pMTime;
   tmtime_t pTMTime;
@@ -447,23 +434,15 @@ private:
 
   IContainerMDSvc* pContSvc;  ///< Container metadata service
   IFileMDSvc* pFileSvc;       ///< File metadata service
-  redox::Redox* pRedox;       ///< Redis client
+  qclient::QClient* pQcl;     ///< QClient object
+  qclient::AsyncHandler pAh;  ///< Async handler
   std::string pFilesKey; ///< Map files key
   std::string pDirsKey; ///< Map dir key
-  redox::RedoxHash pFilesMap; ///< Map holding info about files
-  redox::RedoxHash pDirsMap;  ///< Map holding info about subcontainers
+  qclient::QHash pFilesMap; ///< Map holding info about files
+  qclient::QHash pDirsMap;  ///< Map holding info about subcontainers
   //! Dir name to id map
   std::map<std::string, eos::IContainerMD::id_t> mDirsMap;
   std::map<std::string, eos::IFileMD::id_t> mFilesMap; ///< File name to id map
-  std::list<std::string> mErrors; ///< Error messages from the callbacks
-  std::mutex mMutex; ///< Mutex for the condition variable and errors list
-  std::condition_variable mAsyncCv; ///< Condition variable for async requests
-  //! Number of in-flight async requests
-  std::atomic<std::uint64_t> mNumAsyncReq;
-  //! Callback function for Redox asynchronous requests
-  std::function<void(redox::Command<int>&)> mNotificationCb;
-  //! Wrapper callback which returns a callback used by the Redox client
-  std::function<decltype(mNotificationCb)(void)> mWrapperCb;
 };
 
 EOSNSNAMESPACE_END

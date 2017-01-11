@@ -20,10 +20,11 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_on_redis/Constants.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/BackendClient.hh"
 #include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include <sys/stat.h>
+#include <algorithm>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -35,56 +36,18 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   : IContainerMD(), pId(id), pParentId(0), pFlags(0), pCTime{0}, pName(""),
     pCUid(0), pCGid(0), pMode(040755), pACLId(0), pMTime{0}, pTMTime{0},
     pTreeSize(0), pContSvc(cont_svc), pFileSvc(file_svc),
-    pRedox(dynamic_cast<ContainerMDSvc*>(cont_svc)->pRedox),
+    pQcl(dynamic_cast<ContainerMDSvc*>(cont_svc)->pQcl),
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
     pDirsKey(stringify(id) + constants::sMapDirsSuffix),
-    pFilesMap(*pRedox, pFilesKey), pDirsMap(*pRedox, pDirsKey),
-    mDirsMap(), mFilesMap(), mErrors(), mMutex(), mAsyncCv(), mNumAsyncReq(0)
-{
-  // Notification callback used by Redox client
-  mNotificationCb = [&](redox::Command<int>& c) {
-    // The return value in all these cases should be 1 except for HDEL/DEL
-    // when it can also be 0.
-    bool failed = false;
-    std::string cmd = c.cmd();
-    std::string op = cmd.substr(0, cmd.find(' '));
-
-    if ((op == "HDEL") || (op == "DEL")) {
-      if (!c.ok()) {
-        failed = true;
-      }
-    } else {
-      if (((c.ok() && c.reply() != 1) || !c.ok())) {
-        failed = true;
-      }
-    }
-
-    if (failed) {
-      std::ostringstream oss;
-      oss << "Failed command: " << cmd << " error: " << c.lastError()
-          << " for directory: " << pName.c_str();
-      std::unique_lock<std::mutex> lock(mMutex);
-      mErrors.emplace(mErrors.end(), oss.str());
-    }
-
-    if (--mNumAsyncReq == 0) {
-      mAsyncCv.notify_one();
-    }
-  };
-  // Wrapper callback accounts for the number of requests in-flight
-  mWrapperCb = [&]() -> decltype(mNotificationCb) {
-    ++mNumAsyncReq;
-    return mNotificationCb;
-  };
-}
+    pFilesMap(*pQcl, pFilesKey), pDirsMap(*pQcl, pDirsKey),
+    mDirsMap(), mFilesMap()
+{}
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 ContainerMD::~ContainerMD()
 {
-  // Wait for any in-flight async requests
-  (void) waitAsyncReplies();
 }
 
 //------------------------------------------------------------------------------
@@ -150,7 +113,7 @@ ContainerMD::findContainer(const std::string& name)
   // Curate the list of subcontainers in case entry is not found
   if (cont == nullptr) {
     mDirsMap.erase(iter);
-    pDirsMap.hdel(name);
+    (void) pDirsMap.hdel(name);
   }
 
   return cont;
@@ -174,8 +137,8 @@ ContainerMD::removeContainer(const std::string& name)
 
   // Do async call to KV backend
   try {
-    pDirsMap.hdel(name);
-  } catch (std::runtime_error& redis_err) {
+    (void) pDirsMap.hdel(name);
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container " << name << " not found or KV-backend "
                    << "connection error";
@@ -201,11 +164,15 @@ ContainerMD::addContainer(IContainerMD* container)
 
   // Add to new container to KV backend
   try {
-    pDirsMap.hset(container->getName(), container->getId());
-  } catch (std::runtime_error& redis_err) {
+    if (!pDirsMap.hset(container->getName(), container->getId())) {
+      MDException e(EINVAL);
+      e.getMessage() << "Failed to add subcontainer #" << container->getId();
+      throw e;
+    }
+  } catch (std::runtime_error& qdb_err) {
     MDException e(EINVAL);
     e.getMessage() << "Failed to add subcontainer #" << container->getId()
-                   << " or KV-backend connection error";
+                   << " KV-backend connection error";
     throw e;
   }
 }
@@ -233,9 +200,12 @@ ContainerMD::findFile(const std::string& name)
   // Curate the list of files in case file entry is not found
   if (file == nullptr) {
     mFilesMap.erase(iter);
-    pFilesMap.hdel(stringify(iter->second));
-    fprintf(stderr, "Container name=%s, cid=%lu, file name=%s, fid=%lu not "
-            "found\n", pName.c_str(), pId, name.c_str(), iter->second);
+
+    try {
+      (void) pFilesMap.hdel(stringify(iter->second));
+    } catch (std::runtime_error& qdb_err) {
+      // ignore any error
+    }
   }
 
   return file;
@@ -258,11 +228,14 @@ ContainerMD::addFile(IFileMD* file)
   }
 
   try {
-    pFilesMap.hset(file->getName(), file->getId());
-  } catch (std::runtime_error& redis_err) {
+    if (!pFilesMap.hset(file->getName(), file->getId())) {
+      MDException e(EINVAL);
+      e.getMessage() << "File #" << file->getId() << " already exists";
+      throw e;
+    }
+  } catch (std::runtime_error& qdb_err) {
     MDException e(EINVAL);
-    e.getMessage() << "File #" << file->getId() << " already exists or"
-                   << " KV-backend conntection error";
+    e.getMessage() << "File #" << file->getId() << " KV-backend conntection error";
     throw e;
   }
 
@@ -293,8 +266,8 @@ ContainerMD::removeFile(const std::string& name)
 
   // Do async call to KV backend
   try {
-    pFilesMap.hdel(name);
-  } catch (std::runtime_error& redis_err) {
+    (void) pFilesMap.hdel(name);
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "Unknown file " << name << " in container " << pName
                    << " or KV-backend connection error";
@@ -345,16 +318,8 @@ ContainerMD::cleanUp()
 
   file.reset();
   mFilesMap.clear();
-
-  try {
-    pRedox->del(pFilesKey, mWrapperCb());
-  } catch (std::runtime_error& redis_err) {
-    mNumAsyncReq--;
-    MDException e(ECOMM);
-    e.getMessage() << "Failed to clean-up files in container" << pName
-                   << " or KV-backend connection error";
-    throw e;
-  }
+  qclient::AsyncHandler ah;
+  ah.Register(pQcl->execute({"DEL" , pFilesKey}), qclient::OpType::DEL);
 
   // Remove all subcontainers
   for (auto && elem : mDirsMap) {
@@ -364,22 +329,21 @@ ContainerMD::cleanUp()
   }
 
   mDirsMap.clear();
+  ah.Register(pQcl->execute({"DEL", pDirsKey}), qclient::OpType::DEL);
 
-  try {
-    pRedox->del(pDirsKey, mWrapperCb());
-  } catch (std::runtime_error& redis_err) {
-    mNumAsyncReq--;
-    MDException e(ECOMM);
-    e.getMessage() << "Failed to clean-up subcontainers in container " << pName
-                   << " or KV-backend connection error";
-    throw e;
-  }
+  if (!ah.Wait()) {
+    auto resp = ah.GetResponses();
+    int err_conn = std::count_if(resp.begin(), resp.end(),
+    [](long long int elem) {
+      return (elem == -ECOMM);
+    });
 
-  if (!waitAsyncReplies()) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container " << pName << " error contacting KV-store in "
-                   << __FUNCTION__;
-    throw e;
+    if (err_conn) {
+      MDException e(ENOENT);
+      e.getMessage() << "Clean-up " << pName << " error contacting KV-store in "
+                     << __FUNCTION__;
+      throw e;
+    }
   }
 }
 
@@ -744,12 +708,11 @@ void
 ContainerMD::serialize(Buffer& buffer)
 {
   // Wait for any ongoing async requests and throw error if smth failed
-  if (!waitAsyncReplies()) {
-    MDException e(EFAULT);
-    e.getMessage() << "Container #" << pId << " has failed async replies";
-    throw e;
-  }
-
+  // if (!waitAsyncReplies()) {
+  //   MDException e(EFAULT);
+  //   e.getMessage() << "Container #" << pId << " has failed async replies";
+  //   throw e;
+  // }
   buffer.putData(&pId, sizeof(pId));
   buffer.putData(&pParentId, sizeof(pParentId));
   buffer.putData(&pFlags, sizeof(pFlags));
@@ -882,36 +845,11 @@ ContainerMD::deserialize(Buffer& buffer)
         mDirsMap.emplace(elem.first, std::stoull(elem.second));
       }
     } while (cursor != "0");
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << pId << "failed to get subentries";
     throw e;
   }
-}
-
-//------------------------------------------------------------------------------
-// Wait for asynchronous requests
-//------------------------------------------------------------------------------
-bool
-ContainerMD::waitAsyncReplies()
-{
-  // Wait for any in-flight async requests
-  std::unique_lock<std::mutex> lock(mMutex);
-
-  while (mNumAsyncReq != 0u) {
-    mAsyncCv.wait(lock);
-  }
-
-  if (!mErrors.empty()) {
-    // TODO(esindril): print the accumulated errors
-    for (auto && elem : mErrors) {
-      fprintf(stderr, "[%s] Error: %s\n", __FUNCTION__, elem.c_str());
-    }
-
-    return false;
-  }
-
-  return true;
 }
 
 EOSNSNAMESPACE_END

@@ -27,7 +27,7 @@
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFsView.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/BackendClient.hh"
 #include <utility>
 
 EOSNSNAMESPACE_BEGIN
@@ -156,9 +156,9 @@ public:
   void RemoveTree(IContainerMD* obj, int64_t dsize) {};
 
 private:
-  redox::Redox* pRedox; ///< Redix C++ client
-  redox::RedoxSet pNoReplicasSet; ///< Set of file ids without replicas
-  redox::RedoxSet pFsIdsSet; ///< Set of file ids in use
+  qclient::QClient* pQcl;    ///< QClient object
+  qclient::QSet pNoReplicasSet; ///< Set of file ids without replicas
+  qclient::QSet pFsIdsSet; ///< Set of file ids in use
 };
 
 EOSNSNAMESPACE_END

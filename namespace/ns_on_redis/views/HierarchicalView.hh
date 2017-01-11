@@ -277,9 +277,9 @@ private:
   IFileMDSvc* pFileSvc;
   IQuotaStats* pQuotaStats;
   std::shared_ptr<IContainerMD> pRoot;
-  redox::Redox* pRedox;   ///< RedisClient
-  std::string pRedisHost; ///< Redis instance host
-  uint32_t pRedisPort;    ///< Redis instance port
+  qclient::QClient* pQcl;    ///< QClient object
+  std::string pBkndHost;     ///< Backend host
+  uint32_t pBkndPort;        ///< Backend port
 };
 
 EOSNSNAMESPACE_END

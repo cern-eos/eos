@@ -32,12 +32,6 @@
 #include <list>
 #include <map>
 
-//! Forward declarations
-namespace redox
-{
-class Redox;
-}
-
 EOSNSNAMESPACE_BEGIN
 
 class ContainerMD;
@@ -179,15 +173,15 @@ private:
   std::string getBucketKey(IContainerMD::id_t id) const;
 
   static std::uint64_t sNumContBuckets; ///< Number of buckets power of 2
-  ListenerList pListeners;  ///< List of listeners to be notified
-  IQuotaStats* pQuotaStats; ///< Quota view
-  IFileMDSvc* pFileSvc;     ///< File metadata service
-  redox::Redox* pRedox;     ///< Redis client
-  std::string pRedisHost;   ///< Redis instance host
-  uint32_t pRedisPort;      ///< Redis instance port
+  ListenerList pListeners;   ///< List of listeners to be notified
+  IQuotaStats* pQuotaStats;  ///< Quota view
+  IFileMDSvc* pFileSvc;      ///< File metadata service
+  qclient::QClient* pQcl;    ///< QClient objectfil
+  std::string pBkndHost;     ///< Backend host
+  uint32_t pBkndPort;        ///< Backend port
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;
   // TODO: decide on how to ensure container consistency in case of a crash
-  redox::RedoxSet pCheckConts; ///< Set of container idsd to be checked
+  qclient::QSet pCheckConts; ///< Set of container idsd to be checked
 };
 
 EOSNSNAMESPACE_END

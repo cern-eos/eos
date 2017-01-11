@@ -29,7 +29,7 @@
 #include "namespace/ns_in_memory/ContainerMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/BackendClient.hh"
 #include <cstdint>
 
 EOSNSNAMESPACE_BEGIN
@@ -69,8 +69,8 @@ public:
 private:
   std::string pFilesKey; ///< Key of hmap holding info about files
   std::string pDirsKey;  ///< Key of hmap holding info about subcontainers
-  redox::RedoxHash pFilesMap; ///< Map of files
-  redox::RedoxHash pDirsMap; ///< Map of dirs
+  qclient::QHash pFilesMap; ///< Map of files
+  qclient::QHash pDirsMap; ///< Map of dirs
 };
 
 

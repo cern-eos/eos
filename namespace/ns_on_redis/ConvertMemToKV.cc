@@ -25,7 +25,7 @@
 #include "namespace/utils/StringConvertion.hh"
 
 // Static global variables
-static redox::Redox* sRedox;
+static qclient::QClient* sQcl;
 
 EOSNSNAMESPACE_BEGIN
 
@@ -45,8 +45,8 @@ ConvertContainerMD::ConvertContainerMD(id_t id, IFileMDSvc* file_svc,
 {
   pFilesKey = stringify(id) + constants::sMapFilesSuffix;
   pDirsKey = stringify(id) + constants::sMapDirsSuffix;
-  pFilesMap = redox::RedoxHash(*sRedox, pFilesKey);
-  pDirsMap = redox::RedoxHash(*sRedox, pDirsKey);
+  pFilesMap = qclient::QHash(*sQcl, pFilesKey);
+  pDirsMap = qclient::QHash(*sQcl, pDirsKey);
 }
 
 //------------------------------------------------------------------------------
@@ -69,7 +69,7 @@ ConvertContainerMD::addContainer(eos::IContainerMD* container)
 {
   try {
     pDirsMap.hset(container->getName(), container->getId());
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(EINVAL);
     e.getMessage() << "Failed to add subcontainer #" << container->getId()
                    << " or KV-backend connection error";
@@ -85,7 +85,7 @@ ConvertContainerMD::addFile(eos::IFileMD* file)
 {
   try {
     pFilesMap.hset(file->getName(), file->getId());
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(EINVAL);
     e.getMessage() << "File #" << file->getId() << " already exists or"
                    << " KV-backend conntection error";
@@ -144,9 +144,9 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
   try {
     std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
     std::string sid = stringify(container->getId());
-    redox::RedoxHash bucket_map(*sRedox, getBucketKey(container->getId()));
+    qclient::QHash bucket_map(*sQcl, getBucketKey(container->getId()));
     bucket_map.hset(sid, buffer);
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << container->getId()
                    << " failed to contact backend";
@@ -161,7 +161,7 @@ void
 ConvertContainerMDSvc::exportToQuotaView(IContainerMD* cont)
 {
   if ((cont->getFlags() & QUOTA_NODE_FLAG) != 0) {
-    redox::RedoxSet set_quotaids(*sRedox, quota::sSetQuotaIds);
+    qclient::QSet set_quotaids(*sQcl, quota::sSetQuotaIds);
     set_quotaids.sadd(cont->getId());
   }
 }
@@ -238,9 +238,9 @@ ConvertFileMDSvc::initialize()
       std::string buffer(elem.second.buffer->getDataPtr(),
                          elem.second.buffer->getSize());
       std::string sid = stringify(file->getId());
-      redox::RedoxHash bucket_map(*sRedox, getBucketKey(file->getId()));
+      qclient::QHash bucket_map(*sQcl, getBucketKey(file->getId()));
       bucket_map.hset(sid, buffer);
-    } catch (std::runtime_error& redis_err) {
+    } catch (std::runtime_error& qdb_err) {
       MDException e(ENOENT);
       e.getMessage() << "File #" << file->getId() << " failed to contact backend";
       throw e;
@@ -282,7 +282,7 @@ ConvertFileMDSvc::exportToFsView(IFileMD* file)
 {
   IFileMD::LocationVector loc_vect = file->getLocations();
   std::string key, val;
-  redox::RedoxSet fs_set(*sRedox, "");
+  qclient::QSet fs_set(*sQcl, "");
 
   for (const auto& elem : loc_vect) {
     // Store fsid if it doesn't exist
@@ -345,7 +345,7 @@ ConvertFileMDSvc::exportToQuotaView(IFileMD* file)
   eos::IFileMD::layoutId_t lid = file->getLayoutId();
   const int64_t size =
     file->getSize() * eos::common::LayoutId::GetSizeFactor(lid);
-  redox::RedoxHash quota_map(*sRedox, quota_uid_key);
+  qclient::QHash quota_map(*sQcl, quota_uid_key);
   std::string field = suid + quota::sPhysicalSpaceTag;
   (void)quota_map.hincrby(field, size);
   field = suid + quota::sSpaceTag;
@@ -370,12 +370,12 @@ void
 usage()
 {
   std::cerr << "Usage:                                            " << std::endl
-            << "  ./convert_mem_to_kv <file_chlog> <dir_chlog> <redis_host> "
-            << "<redis_port>" << std::endl
+            << "  ./convert_mem_to_kv <file_chlog> <dir_chlog> <bknd_host> "
+            << "<bknd_port>" << std::endl
             << "    file_chlog - file changelog                   " << std::endl
             << "    dir_chlog  - directory changelog              " << std::endl
-            << "    redis_host - Redis host destination           " << std::endl
-            << "    redis_port - Redis port destination           "
+            << "    bknd_host  - Backend host destination         " << std::endl
+            << "    bknd_port  - Backend port destination         "
             << std::endl;
 }
 
@@ -394,9 +394,9 @@ main(int argc, char* argv[])
 
   std::string file_chlog(argv[1]);
   std::string dir_chlog(argv[2]);
-  std::string redis_host(argv[3]);
-  std::uint32_t redis_port(std::stoull(argv[4]));
-  sRedox = eos::RedisClient::getInstance(redis_host, redis_port);
+  std::string bknd_host(argv[3]);
+  std::uint32_t bknd_port(std::stoull(argv[4]));
+  sQcl = eos::BackendClient::getInstance(bknd_host, bknd_port);
   // Check file and directory changelog files
   int ret;
   struct stat info = {0};

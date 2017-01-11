@@ -26,16 +26,10 @@
 
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_on_redis/LRU.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/BackendClient.hh"
 #include <condition_variable>
 #include <list>
 #include <mutex>
-
-//! Forward declarations
-namespace redox
-{
-class Redox;
-}
 
 EOSNSNAMESPACE_BEGIN
 
@@ -201,11 +195,11 @@ private:
   IQuotaStats* pQuotaStats; ///< Quota view
   IContainerMDSvc* pContSvc; ///< Container metadata service
   std::time_t mFlushTimestamp; ///< Timestamp of the last dirty set flush
-  uint32_t pRedisPort; ///< Redis instance port
-  std::string pRedisHost; ///< Redis intance host
-  redox::Redox* pRedox; ///< Redox client object
-  redox::RedoxHash mMetaMap ; ///< Map holding metainfo about the namespace
-  redox::RedoxSet mDirtyFidBackend; ///< Set of "dirty" files
+  uint32_t pBkendPort; ///< Backend instance port
+  std::string pBkendHost; ///< Backend intance host
+  qclient::QClient* pQcl; ///< QClient object
+  qclient::QHash mMetaMap ; ///< Map holding metainfo about the namespace
+  qclient::QSet mDirtyFidBackend; ///< Set of "dirty" files
   std::set<std::string> mFlushFidSet; ///< Modified fids which are consistent
   LRU<IFileMD::id_t, IFileMD> mFileCache; ///< Local cache of file objects
 };

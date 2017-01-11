@@ -16,22 +16,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/BackendClient.hh"
 
 EOSNSNAMESPACE_BEGIN
 
 // Static variables
-std::atomic<redox::Redox*> RedisClient::sRedoxClient(nullptr);
-std::string RedisClient::sRedisHost("localhost");
-int RedisClient::sRedisPort(6382);
-std::map<std::string, redox::Redox*> RedisClient::pMapClients;
-std::mutex RedisClient::pMutexMap;
+std::atomic<qclient::QClient*> BackendClient::sQdbClient(nullptr);
+std::string BackendClient::sQdbHost("localhost");
+int BackendClient::sQdbPort(6382);
+std::map<std::string, qclient::QClient*> BackendClient::pMapClients;
+std::mutex BackendClient::pMutexMap;
 
 //------------------------------------------------------------------------------
 // Initialize
 //------------------------------------------------------------------------------
 void
-RedisClient::Initialize() noexcept
+BackendClient::Initialize() noexcept
 {
   // empty
 }
@@ -40,7 +40,7 @@ RedisClient::Initialize() noexcept
 // Finalize
 //------------------------------------------------------------------------------
 void
-RedisClient::Finalize()
+BackendClient::Finalize()
 {
   std::lock_guard<std::mutex> lock(pMutexMap);
 
@@ -54,50 +54,38 @@ RedisClient::Finalize()
 //------------------------------------------------------------------------------
 // Get instance
 //------------------------------------------------------------------------------
-redox::Redox*
-RedisClient::getInstance(const std::string& host, uint32_t port)
+qclient::QClient*
+BackendClient::getInstance(const std::string& host, uint32_t port)
 {
   bool is_default{false};
   std::string host_tmp{host};
-  redox::Redox* instance{nullptr};
+  qclient::QClient* instance{nullptr};
 
   if (host_tmp.empty() || (port == 0u)) {
     // Try to be as efficient as possible in the default case
-    instance = sRedoxClient.load();
+    instance = sQdbClient.load();
 
     if (instance != nullptr) {
       return instance;
     }
 
-    host_tmp = sRedisHost;
-    port = sRedisPort;
+    host_tmp = sQdbHost;
+    port = sQdbPort;
     is_default = true;
   }
 
-  std::string redis_id = host_tmp + ":" + std::to_string(port);
+  std::string qdb_id = host_tmp + ":" + std::to_string(port);
   std::lock_guard<std::mutex> lock(pMutexMap);
 
-  if (pMapClients.find(redis_id) == pMapClients.end()) {
-    instance = new redox::Redox();
-    instance->logger_.level(redox::log::Error);
-
-    // TODO(esindril): consider enabling the noWait option which keeps one CPU
-    // at 100%  but improves the performance of the event loop
-
-    try {
-      instance->connect(host_tmp, port);
-    } catch (...) {
-      std::cerr << "ERROR: Failed to connect to Redis instance" << std::endl;
-      throw;
-    }
-
-    pMapClients.insert(std::make_pair(redis_id, instance));
+  if (pMapClients.find(qdb_id) == pMapClients.end()) {
+    instance = new qclient::QClient(host_tmp, port);
+    pMapClients.insert(std::make_pair(qdb_id, instance));
 
     if (is_default) {
-      sRedoxClient.store(instance);
+      sQdbClient.store(instance);
     }
   } else {
-    instance = pMapClients[redis_id];
+    instance = pMapClients[qdb_id];
   }
 
   return instance;
@@ -112,13 +100,13 @@ struct RedisInitializer {
   // Initializer
   RedisInitializer() noexcept
   {
-    RedisClient::Initialize();
+    BackendClient::Initialize();
   }
 
   // Finalizer
   ~RedisInitializer()
   {
-    RedisClient::Finalize();
+    BackendClient::Finalize();
   }
 } finalizer;
 } // namespace

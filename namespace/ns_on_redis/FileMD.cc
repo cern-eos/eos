@@ -29,29 +29,10 @@ EOSNSNAMESPACE_BEGIN
 FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc)
   : IFileMD(), pId(id), pCTime{0}, pMTime{0}, pSize(0), pContainerId(0), pCUid(0),
     pCGid(0), pLayoutId(0), pFlags(0), pChecksum(0),
-    pFileMDSvc(dynamic_cast<FileMDSvc*>(fileMDSvc)), mMutex(), mAsyncCv(),
-    mNumAsyncReq(0)
+    pFileMDSvc(dynamic_cast<FileMDSvc*>(fileMDSvc)), mAh()
 {
   pCTime.tv_sec = pCTime.tv_nsec = 0;
   pMTime.tv_sec = pMTime.tv_nsec = 0;
-  // Notification callback used by Redox client
-  mNotificationCb = [&](redox::Command<int>& c) {
-    if (!c.ok()) {
-      std::unique_lock<std::mutex> lock(mMutex);
-      std::ostringstream oss;
-      oss << "Failed command: " << c.cmd() << " error: " << c.lastError();
-      mErrors.emplace(mErrors.end(), oss.str());
-    }
-
-    if (--mNumAsyncReq == 0) {
-      mAsyncCv.notify_one();
-    }
-  };
-  // Wrapper callback accounts for the number of requests in-flight
-  mWrapperCb = [&]() -> decltype(mNotificationCb) {
-    ++mNumAsyncReq;
-    return mNotificationCb;
-  };
 }
 
 //------------------------------------------------------------------------------
@@ -350,13 +331,7 @@ FileMD::serialize(eos::Buffer& buffer)
 
   if (!waitAsyncReplies()) {
     MDException ex(EIO);
-    ex.getMessage() << "KV-store asynchronous reuqests failed: ";
-
-    // Append all the error messages to the exception description
-    for (auto && err : mErrors) {
-      ex.getMessage() << "(" << err << ") ";
-    }
-
+    ex.getMessage() << "KV-store asynchronous reuqests failed";
     throw ex;
   }
 }
@@ -526,17 +501,31 @@ FileMD::setMTimeNow()
 bool
 FileMD::waitAsyncReplies()
 {
-  std::unique_lock<std::mutex> lock(mMutex);
+  bool ret = mAh.Wait();
 
-  while (mNumAsyncReq != 0u) {
-    mAsyncCv.wait(lock);
+  if (!ret) {
+    std::ostringstream oss;
+    auto resp = mAh.GetResponses();
+
+    for (auto && elem : resp) {
+      oss << elem << " ";
+    }
+
+    oss << std::endl;
+    fprintf(stderr, "Vector of async responses: %s\n", oss.str().c_str());
   }
 
-  if (!mErrors.empty()) {
-    return false;
-  }
+  return ret;
+}
 
-  return true;
+//------------------------------------------------------------------------------
+// Register asynchronous request
+//------------------------------------------------------------------------------
+void
+FileMD::Register(std::future<qclient::redisReplyPtr>&& future,
+                 qclient::OpType op)
+{
+  mAh.Register(std::move(future), op);
 }
 
 EOSNSNAMESPACE_END

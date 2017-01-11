@@ -19,10 +19,11 @@
 #include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
 #include "namespace/ns_on_redis/Constants.hh"
 #include "namespace/ns_on_redis/FileMD.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/BackendClient.hh"
 #include "namespace/ns_on_redis/accounting/QuotaStats.hh"
 #include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
 #include "namespace/utils/StringConvertion.hh"
+#include <numeric>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -34,7 +35,7 @@ std::chrono::seconds FileMDSvc::sFlushInterval(5);
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc()
   : pQuotaStats(nullptr), pContSvc(nullptr), mFlushTimestamp(std::time(nullptr)),
-    pRedisPort(0), pRedisHost(""), pRedox(nullptr), mMetaMap(),
+    pBkendPort(0), pBkendHost(""), pQcl(nullptr), mMetaMap(),
     mDirtyFidBackend(), mFlushFidSet(), mFileCache(10e6) {}
 
 //------------------------------------------------------------------------------
@@ -43,15 +44,15 @@ FileMDSvc::FileMDSvc()
 void
 FileMDSvc::configure(const std::map<std::string, std::string>& config)
 {
-  const std::string key_host = "redis_host";
-  const std::string key_port = "redis_port";
+  const std::string key_host = "qdb_host";
+  const std::string key_port = "qdb_port";
 
   if (config.find(key_host) != config.end()) {
-    pRedisHost = config.at(key_host);
+    pBkendHost = config.at(key_host);
   }
 
   if (config.find(key_port) != config.end()) {
-    pRedisPort = std::stoul(config.at(key_port));
+    pBkendPort = std::stoul(config.at(key_port));
   }
 }
 
@@ -67,11 +68,11 @@ FileMDSvc::initialize()
     throw e;
   }
 
-  pRedox = RedisClient::getInstance(pRedisHost, pRedisPort);
+  pQcl = BackendClient::getInstance(pBkendHost, pBkendPort);
   mMetaMap.setKey(constants::sMapMetaInfoKey);
-  mMetaMap.setClient(*pRedox);
+  mMetaMap.setClient(*pQcl);
   mDirtyFidBackend.setKey(constants::sSetCheckFiles);
-  mDirtyFidBackend.setClient(*pRedox);
+  mDirtyFidBackend.setClient(*pQcl);
 }
 
 //------------------------------------------------------------------------------
@@ -92,9 +93,9 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
 
   try {
     std::string sid = stringify(id);
-    redox::RedoxHash bucket_map(*pRedox, getBucketKey(id));
+    qclient::QHash bucket_map(*pQcl, getBucketKey(id));
     blob = bucket_map.hget(sid);
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << id << " not found";
     throw e;
@@ -144,9 +145,9 @@ FileMDSvc::updateStore(IFileMD* obj)
 
   try {
     std::string sid = stringify(obj->getId());
-    redox::RedoxHash bucket_map(*pRedox, getBucketKey(obj->getId()));
+    qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
     bucket_map.hset(sid, buffer);
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
     throw e;
@@ -164,9 +165,9 @@ FileMDSvc::removeFile(IFileMD* obj)
 {
   try {
     std::string sid = stringify(obj->getId());
-    redox::RedoxHash bucket_map(*pRedox, getBucketKey(obj->getId()));
+    qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
     bucket_map.hdel(sid);
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " not found. ";
     e.getMessage() << "The object was not created in this store!";
@@ -190,44 +191,19 @@ FileMDSvc::getNumFiles()
   std::atomic<std::uint32_t> num_requests(0);
   std::atomic<std::uint64_t> num_files(0);
   std::string bucket_key("");
-  std::mutex mutex;
-  std::condition_variable cond_var;
-  auto callback_len = [&num_files, &num_requests,
-  &cond_var](redox::Command<long long int>& c) {
-    if (c.ok()) {
-      num_files += c.reply();
-    }
-
-    if (--num_requests == 0u) {
-      cond_var.notify_one();
-    }
-  };
-  auto wrapper_cb = [&num_requests, &callback_len]() -> decltype(callback_len) {
-    num_requests++;
-    return callback_len;
-  };
+  qclient::AsyncHandler ah;
 
   for (std::uint64_t i = 0; i < sNumFileBuckets; ++i) {
     bucket_key = stringify(i);
     bucket_key += constants::sFileKeySuffix;
-    redox::RedoxHash bucket_map(*pRedox, bucket_key);
-
-    try {
-      bucket_map.hlen(wrapper_cb());
-    } catch (std::runtime_error& redis_err) {
-      // no change
-    }
+    qclient::QHash bucket_map(*pQcl, bucket_key);
+    ah.Register(bucket_map.hlen_async(), qclient::OpType::HLEN);
   }
 
-  {
-    // Wait for all responses
-    std::unique_lock<std::mutex> lock(mutex);
-
-    while (num_requests != 0u) {
-      cond_var.wait(lock);
-    }
-  }
-
+  // Wait for all responses and sum up the results
+  (void) ah.Wait();
+  std::vector<long long int> resp = ah.GetResponses();
+  num_files = std::accumulate(resp.begin(), resp.end(), (long long int)0);
   return num_files;
 }
 
@@ -300,8 +276,8 @@ bool
 FileMDSvc::checkFiles()
 {
   bool is_ok = true;
-  int64_t cursor = 0;
-  std::pair<int64_t, std::vector<std::string>> reply;
+  std::string cursor {"0"};
+  std::pair<std::string, std::vector<std::string>> reply;
   std::vector<std::string> to_drop;
 
   do {
@@ -315,7 +291,7 @@ FileMDSvc::checkFiles()
         is_ok = false;
       }
     }
-  } while (cursor != 0);
+  } while (cursor != "0");
 
   if (!to_drop.empty()) {
     try {
@@ -381,7 +357,7 @@ FileMDSvc::addToDirtySet(IFileMD* file)
   if (mFlushFidSet.erase(stringify(fid)) == 0) {
     try {
       mDirtyFidBackend.sadd(fid);  // add to backend set
-    } catch (std::runtime_error& redis_err) {
+    } catch (std::runtime_error& qdb_err) {
       MDException e(ENOENT);
       e.getMessage() << "File #" << fid
                      << " failed to insert into the set of files to be checked "
@@ -409,7 +385,7 @@ FileMDSvc::flushDirtySet(IFileMD::id_t id, bool force)
 
     try {
       mDirtyFidBackend.srem(to_del);
-    } catch (std::runtime_error& redis_err) {
+    } catch (std::runtime_error& qdb_err) {
       MDException e(ENOENT);
       e.getMessage() << "Failed to clear set of dirty files - backend error";
       throw e;

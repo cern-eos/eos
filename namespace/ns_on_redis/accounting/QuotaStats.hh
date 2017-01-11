@@ -26,7 +26,7 @@
 
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/BackendClient.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -174,13 +174,13 @@ private:
   //----------------------------------------------------------------------------
   std::vector<std::string> getAllGidFields();
 
-  redox::Redox* pRedox; ///< Redis client
+  qclient::QClient* pQcl; ///< Backend client
   //! Quota quota node uid hash key e.g. quota_node:id_t:uid
   std::string pQuotaUidKey;
   //! Quota quota node gid hash key e.g. quota_node:id_t:gid
   std::string pQuotaGidKey;
-  redox::RedoxHash pUidMap; ///< Redox hmap for uids
-  redox::RedoxHash pGidMap; ///< Redox hmap for gids
+  qclient::QHash pUidMap; ///< Backend map for uids
+  qclient::QHash pGidMap; ///< Backend map for gids
   static const std::string sSpaceTag;         ///< Tag for space quota
   static const std::string sPhysicalSpaceTag; ///< Tag for physical space quota
   static const std::string sFilesTag;         ///< Tag for number of files quota
@@ -239,8 +239,8 @@ private:
   static const std::string sQuotaUidsSuffix; ///< Quota hmap of uids suffix
   static const std::string sQuotaGidsSuffix; ///< Quota hmap of gids suffix
   std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
-  redox::Redox* pRedox;                      ///< Redix client
-  redox::RedoxSet pIdsSet; ///< Set of quota node ids
+  qclient::QClient* pQcl; ///< Backend client
+  qclient::QSet pIdsSet; ///< Set of quota node ids
 };
 
 EOSNSNAMESPACE_END

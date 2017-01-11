@@ -42,12 +42,12 @@ const std::string QuotaNode::sFilesTag = ":files";
 //------------------------------------------------------------------------------
 QuotaNode::QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t node_id)
   : IQuotaNode(quotaStats),
-    pRedox(dynamic_cast<QuotaStats*>(quotaStats)->pRedox)
+    pQcl(dynamic_cast<QuotaStats*>(quotaStats)->pQcl)
 {
   pQuotaUidKey = std::to_string(node_id) + QuotaStats::sQuotaUidsSuffix;
-  pUidMap = redox::RedoxHash(*pRedox, pQuotaUidKey);
+  pUidMap = qclient::QHash(*pQcl, pQuotaUidKey);
   pQuotaGidKey = std::to_string(node_id) + QuotaStats::sQuotaGidsSuffix;
-  pGidMap = redox::RedoxHash(*pRedox, pQuotaGidKey);
+  pGidMap = qclient::QHash(*pQcl, pQuotaGidKey);
 }
 
 //------------------------------------------------------------------------------
@@ -104,8 +104,8 @@ void
 QuotaNode::meld(const IQuotaNode* node)
 {
   std::string field;
-  redox::RedoxHash hmap(*pRedox,
-                        dynamic_cast<const QuotaNode*>(node)->getUidKey());
+  qclient::QHash hmap(*pQcl,
+                      dynamic_cast<const QuotaNode*>(node)->getUidKey());
   std::vector<std::string> elems = hmap.hgetall();
 
   for (auto it = elems.begin(); it != elems.end(); ++it) {
@@ -267,8 +267,8 @@ QuotaNode::getGids()
 //------------------------------------------------------------------------------
 QuotaStats::QuotaStats(const std::map<std::string, std::string>& config)
 {
-  const std::string key_host = "redis_host";
-  const std::string key_port = "redis_port";
+  const std::string key_host = "qdb_host";
+  const std::string key_port = "qdb_port";
   std::string host{""};
   uint32_t port{0};
 
@@ -280,8 +280,8 @@ QuotaStats::QuotaStats(const std::map<std::string, std::string>& config)
     port = std::stoul(config.find(key_port)->second);
   }
 
-  pRedox = RedisClient::getInstance(host, port);
-  pIdsSet.setClient(*pRedox);
+  pQcl = BackendClient::getInstance(host, port);
+  pIdsSet.setClient(*pQcl);
   pIdsSet.setKey(sSetQuotaIds);
 }
 
@@ -290,7 +290,7 @@ QuotaStats::QuotaStats(const std::map<std::string, std::string>& config)
 //------------------------------------------------------------------------------
 QuotaStats::~QuotaStats()
 {
-  pRedox = nullptr;
+  pQcl = nullptr;
 
   for (auto && elem : pNodeMap) {
     delete elem.second;
@@ -361,9 +361,10 @@ QuotaStats::removeNode(IContainerMD::id_t node_id)
 
   // Delete the hmaps associated with the current node
   std::string key = snode_id + sQuotaUidsSuffix;
-  (void)pRedox->del(key);
+  // TODO: deal with connection errors
+  auto future = pQcl->execute({"DEL", key});
   key = snode_id + sQuotaGidsSuffix;
-  (void)pRedox->del(key);
+  future = pQcl->execute({"DEL", key});
 }
 
 //------------------------------------------------------------------------------

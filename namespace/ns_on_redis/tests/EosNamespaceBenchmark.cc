@@ -220,13 +220,13 @@ main(int argc, char** argv)
   // Check up the commandline params
   if (argc != 5) {
     std::cerr << "Usage:" << std::endl;
-    std::cerr << "  eos-namespace-benchmark <redis_host> <redis_port> "
+    std::cerr << "  eos-namespace-benchmark <qdb_host> <qdb_port> "
               << "<level1-dirs> <level3-files> " << std::endl;
     return 1;
   }
 
-  std::map<std::string, std::string> config = {{"redis_host", argv[1]},
-    {"redis_port", argv[2]}
+  std::map<std::string, std::string> config = {{"qdb_host", argv[1]},
+    {"qdb_port", argv[2]}
   };
   size_t n_i = std::stoi(argv[3]);
   size_t n_j = 64;

@@ -25,7 +25,7 @@
 #define __EOS_NS_FILE_MD_HH__
 
 #include "namespace/interface/IFileMD.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/BackendClient.hh"
 #include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
 #include <atomic>
 #include <condition_variable>
@@ -573,6 +573,16 @@ public:
   //----------------------------------------------------------------------------
   bool waitAsyncReplies();
 
+
+  //----------------------------------------------------------------------------
+  //! Register asynchronous request
+  //!
+  //! @param future future object of the async request
+  //! @param op operation type
+  //----------------------------------------------------------------------------
+  void Register(std::future<qclient::redisReplyPtr>&& future,
+                qclient::OpType op);
+
 protected:
   id_t pId;
   ctime_t pCTime;
@@ -592,15 +602,7 @@ protected:
   FileMDSvc* pFileMDSvc;
 
 private:
-  std::list<std::string> mErrors; ///< Error messages from the callbacks
-  std::mutex mMutex; ///< Mutex for condition variable and access to the errors
-  std::condition_variable mAsyncCv; ///< Condition variable for async requests
-  //! Number of in-flight async requests
-  std::atomic<std::uint32_t> mNumAsyncReq;
-  //! Redox callback for notifications sent to listeners
-  std::function<void(redox::Command<int>&)> mNotificationCb;
-  //! Wrapper callback which returns a callback used by the Redox client
-  std::function<decltype(mNotificationCb)(void)> mWrapperCb;
+  qclient::AsyncHandler mAh; ///< Async handler
 };
 
 EOSNSNAMESPACE_END

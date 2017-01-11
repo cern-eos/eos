@@ -22,7 +22,9 @@
 # ************************************************************************
 
 include_directories(
- ${CMAKE_SOURCE_DIR}/namespace/ns_on_redis/
+ ${CMAKE_SOURCE_DIR}/namespace/ns_on_redis
+ ${CMAKE_SOURCE_DIR}/namespace/ns_on_redis/qclient/include
+ ${CMAKE_SOURCE_DIR}/namespace/ns_on_redis/qclient/src
  ${SPARSEHASH_INCLUDE_DIR}
  ${XROOTD_INCLUDE_DIR})
 
@@ -42,7 +44,7 @@ set(EOS_NS_REDIS_SRCS
   NsOnRedisPlugin.cc     NsOnRedisPlugin.hh
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
-  RedisClient.cc         RedisClient.hh
+  BackendClient.cc         BackendClient.hh
   LRU.hh
 
   persistency/ContainerMDSvc.hh
@@ -70,6 +72,7 @@ target_link_libraries(
   EosNsOnRedis
   EosNsCommon
   eosCommon
+  qclient
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${REDOX_LIBRARIES}
@@ -89,6 +92,7 @@ if (Linux)
     EosNsOnRedis-Static
     EosNsCommon-Static
     eosCommon-Static
+    qclient
     ${UUID_LIBRARIES}
     ${REDOX_LIBRARIES}
     ${LIBEV_LIBRARIES}
@@ -120,10 +124,11 @@ install(
 add_executable(
   convert_mem_to_kv
   ConvertMemToKV.cc
-  ${CMAKE_SOURCE_DIR}/namespace/ns_on_redis/RedisClient.cc)
+  ${CMAKE_SOURCE_DIR}/namespace/ns_on_redis/BackendClient.cc)
 
 target_link_libraries(
   convert_mem_to_kv
+  qclient
   EosNsInMemory-Static
   ${LIBEV_LIBRARIES}
   ${REDOX_LIBRARIES})

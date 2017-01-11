@@ -20,9 +20,10 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_on_redis/ContainerMD.hh"
 #include "namespace/ns_on_redis/FileMD.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/BackendClient.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include <memory>
+#include <numeric>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -32,8 +33,8 @@ std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 // Constructor
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
-  : pQuotaStats(nullptr), pFileSvc(nullptr), pRedox(nullptr), pRedisHost(""),
-    pRedisPort(0), mContainerCache(static_cast<uint64_t>(10e6))
+  : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pBkndHost(""),
+    pBkndPort(0), mContainerCache(static_cast<uint64_t>(10e6))
 {
 }
 
@@ -43,15 +44,15 @@ ContainerMDSvc::ContainerMDSvc()
 void
 ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 {
-  const std::string key_host = "redis_host";
-  const std::string key_port = "redis_port";
+  const std::string key_host = "qdb_host";
+  const std::string key_port = "qdb_port";
 
   if (config.find(key_host) != config.end()) {
-    pRedisHost = config.at(key_host);
+    pBkndHost = config.at(key_host);
   }
 
   if (config.find(key_port) != config.end()) {
-    pRedisPort = std::stoul(config.at(key_port));
+    pBkndPort = std::stoul(config.at(key_port));
   }
 }
 
@@ -61,7 +62,7 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 void
 ContainerMDSvc::initialize()
 {
-  pRedox = RedisClient::getInstance(pRedisHost, pRedisPort);
+  pQcl = BackendClient::getInstance(pBkndHost, pBkndPort);
 
   if (pFileSvc == nullptr) {
     MDException e(EINVAL);
@@ -89,9 +90,9 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 
   try {
     std::string sid = stringify(id);
-    redox::RedoxHash bucket_map(*pRedox, getBucketKey(id));
+    qclient::QHash bucket_map(*pQcl, getBucketKey(id));
     blob = bucket_map.hget(sid);
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << id << " not found";
     throw e;
@@ -119,12 +120,12 @@ ContainerMDSvc::createContainer()
 {
   try {
     // Get the first free container id
-    redox::RedoxHash meta_map(*pRedox, constants::sMapMetaInfoKey);
+    qclient::QHash meta_map(*pQcl, constants::sMapMetaInfoKey);
     uint64_t free_id = meta_map.hincrby(constants::sFirstFreeCid, 1);
     std::shared_ptr<IContainerMD> cont{new ContainerMD(
         free_id, pFileSvc, static_cast<IContainerMDSvc*>(this))};
     return mContainerCache.put(cont->getId(), cont);
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "Failed to create new container" << std::endl;
     throw e;
@@ -143,9 +144,9 @@ ContainerMDSvc::updateStore(IContainerMD* obj)
 
   try {
     std::string sid = stringify(obj->getId());
-    redox::RedoxHash bucket_map(*pRedox, getBucketKey(obj->getId()));
+    qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
     bucket_map.hset(sid, buffer);
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
     throw e;
@@ -168,18 +169,18 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
 
   try {
     std::string sid = stringify(obj->getId());
-    redox::RedoxHash bucket_map(*pRedox, getBucketKey(obj->getId()));
+    qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
     bucket_map.hdel(sid);
-  } catch (std::runtime_error& redis_err) {
+  } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << obj->getId() << " not found. "
                    << "The object was not created in this store!";
     throw e;
   }
 
-  // If this was the root container i.e. id=1 then drop the meta map
+  // If this was the root container i.e. id=1 then drop also the meta map
   if (obj->getId() == 1) {
-    (void)pRedox->del(constants::sMapMetaInfoKey);
+    (void) pQcl->execute({"DEL", constants::sMapMetaInfoKey});
   }
 
   mContainerCache.remove(obj->getId());
@@ -261,47 +262,20 @@ ContainerMDSvc::getLostFoundContainer(const std::string& name)
 uint64_t
 ContainerMDSvc::getNumContainers()
 {
-  std::atomic<std::uint32_t> num_requests{0};
-  std::atomic<std::uint64_t> num_conts{0};
+  std::uint64_t num_conts = 0;
   std::string bucket_key("");
-  std::mutex mutex;
-  std::condition_variable cond_var;
-  auto callback_len = [&num_conts, &num_requests,
-  &cond_var](redox::Command<long long int>& c) {
-    if (c.ok()) {
-      num_conts += c.reply();
-    }
-
-    if (--num_requests == 0u) {
-      cond_var.notify_one();
-    }
-  };
-  auto wrapper_cb = [&num_requests, &callback_len]() -> decltype(callback_len) {
-    num_requests++;
-    return callback_len;
-  };
+  qclient::AsyncHandler ah;
 
   for (std::uint64_t i = 0; i < sNumContBuckets; ++i) {
     bucket_key = stringify(i);
     bucket_key += constants::sContKeySuffix;
-    redox::RedoxHash bucket_map(*pRedox, bucket_key);
-
-    try {
-      bucket_map.hlen(wrapper_cb());
-    } catch (std::runtime_error& redis_err) {
-      // no change
-    }
+    qclient::QHash bucket_map(*pQcl, bucket_key);
+    ah.Register(bucket_map.hlen_async(), qclient::OpType::HLEN);
   }
 
-  {
-    // Wait for all responses
-    std::unique_lock<std::mutex> lock(mutex);
-
-    while (num_requests != 0u) {
-      cond_var.wait(lock);
-    }
-  }
-
+  (void) ah.Wait();
+  auto resp = ah.GetResponses();
+  num_conts = std::accumulate(resp.begin(), resp.end(), (long long int)0);
   return num_conts;
 }
 

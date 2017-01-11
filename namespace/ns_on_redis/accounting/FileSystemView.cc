@@ -27,9 +27,9 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileSystemView::FileSystemView():
-  pRedox(RedisClient::getInstance()),
-  pNoReplicasSet(*pRedox, fsview::sNoReplicaPrefix),
-  pFsIdsSet(*pRedox, fsview::sSetFsIds)
+  pQcl(BackendClient::getInstance()),
+  pNoReplicasSet(*pQcl, fsview::sNoReplicaPrefix),
+  pFsIdsSet(*pQcl, fsview::sSetFsIds)
 {
   // empty
 }
@@ -42,59 +42,64 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 {
   std::string key, val;
   FileMD* file = static_cast<FileMD*>(e->file);
-  redox::RedoxSet fs_set;
+  qclient::QSet fs_set;
+  std::future<qclient::redisReplyPtr> future;
 
   switch (e->action) {
   // New file has been created
   case IFileMDChangeListener::Created:
-    pNoReplicasSet.sadd(file->getId(), file->mWrapperCb());
+    file->Register(pNoReplicasSet.sadd_async(file->getId()),
+                   qclient::OpType::SADD);
     break;
 
   // File has been deleted
   case IFileMDChangeListener::Deleted:
-    pNoReplicasSet.srem(file->getId(), file->mWrapperCb());
+    file->Register(pNoReplicasSet.srem_async(file->getId()),
+                   qclient::OpType::SREM);
     break;
 
   // Add location
   case IFileMDChangeListener::LocationAdded:
     val = std::to_string(e->location);
-    pFsIdsSet.sadd(val, file->mWrapperCb());
+    file->Register(pFsIdsSet.sadd_async(val), qclient::OpType::SADD);
     key = val + fsview::sFilesSuffix;
     val = std::to_string(file->getId());
-    fs_set = redox::RedoxSet(*pRedox, key);
-    fs_set.sadd(val, file->mWrapperCb());
-    pNoReplicasSet.srem(val, file->mWrapperCb());
+    fs_set = qclient::QSet(*pQcl, key);
+    file->Register(fs_set.sadd_async(val), qclient::OpType::SADD);
+    file->Register(pNoReplicasSet.srem_async(val), qclient::OpType::SREM);
     break;
 
   // Replace location
   case IFileMDChangeListener::LocationReplaced:
     key = std::to_string(e->oldLocation) + fsview::sFilesSuffix;
     val = std::to_string(file->getId());
-    fs_set = redox::RedoxSet(*pRedox, key);
-    fs_set.srem(val, file->mWrapperCb());
+    fs_set = qclient::QSet(*pQcl, key);
+    file->Register(fs_set.srem_async(val), qclient::OpType::SREM);
     key = std::to_string(e->location) + fsview::sFilesSuffix;
     fs_set.setKey(key);
-    fs_set.sadd(val, file->mWrapperCb());
+    file->Register(fs_set.sadd_async(val), qclient::OpType::SADD);
     break;
 
   // Remove location
   case IFileMDChangeListener::LocationRemoved:
     key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
     val = std::to_string(file->getId());
-    fs_set = redox::RedoxSet(*pRedox, key);
+    fs_set = qclient::QSet(*pQcl, key);
     fs_set.srem(val);
 
     if (!e->file->getNumUnlinkedLocation() && !e->file->getNumLocation()) {
-      pNoReplicasSet.sadd(val, file->mWrapperCb());
+      file->Register(pNoReplicasSet.sadd_async(val), qclient::OpType::SADD);
     }
 
     // Cleanup fsid if it doesn't hold any files anymore
     key = std::to_string(e->location) + fsview::sFilesSuffix;
+    future = pQcl->execute({"EXISTS", key});
 
-    if (!pRedox->exists(key)) {
+    if (future.get()->integer == 0) {
       key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
+      future = pQcl->execute({"EXISTS", key});
 
-      if (!pRedox->exists(key)) {
+      if (future.get()->integer == 0) {
         // FS does not hold any file replicas or unlinked ones, remove it
         key = std::to_string(e->location);
         pFsIdsSet.srem(key);
@@ -107,11 +112,11 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   case IFileMDChangeListener::LocationUnlinked:
     key = std::to_string(e->location) + fsview::sFilesSuffix;
     val = std::to_string(e->file->getId());
-    fs_set = redox::RedoxSet(*pRedox, key);
-    fs_set.srem(val, file->mWrapperCb());
+    fs_set = qclient::QSet(*pQcl, key);
+    file->Register(fs_set.srem_async(val), qclient::OpType::SREM);
     key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
     fs_set.setKey(key);
-    fs_set.sadd(val, file->mWrapperCb());
+    file->Register(fs_set.sadd_async(val), qclient::OpType::SADD);
     break;
 
   default:
@@ -130,39 +135,22 @@ FileSystemView::fileMDCheck(IFileMD* file)
   IFileMD::LocationVector replica_locs = file->getLocations();
   IFileMD::LocationVector unlink_locs = file->getUnlinkedLocations();
   bool has_no_replicas = replica_locs.empty() && unlink_locs.empty();
-  long long cursor = 0;
-  std::pair<long long, std::vector<std::string>> reply;
-  // Variables used for the asynchronous callbacks
+  std::string cursor {"0"};
+  std::pair<std::string, std::vector<std::string>> reply;
   std::atomic<bool> has_error{false};
-  std::mutex mutex;
-  std::condition_variable cond_var;
-  std::atomic<std::int32_t> num_async_req{0};
-  // Function called by the redox client when async response arrives
-  auto callback = [&](redox::Command<int>& c) {
-    if (!c.ok()) {
-      std::unique_lock<std::mutex> lock(mutex);
-      has_error = true;
-    }
-
-    if (--num_async_req == 0) {
-      cond_var.notify_one();
-    }
-  };
-  // Wrapper callback that accounts for the number of issued requests
-  auto wrapper_cb = [&]() -> decltype(callback) {
-    num_async_req++;
-    return callback;
-  };
+  qclient::AsyncHandler ah;
 
   // If file has no replicas make sure it's accounted for
   if (has_no_replicas) {
-    pNoReplicasSet.sadd(file->getId(), wrapper_cb());
+    ah.Register(pNoReplicasSet.sadd_async(file->getId()),
+                qclient::OpType::SADD);
   } else {
-    pNoReplicasSet.srem(file->getId(), wrapper_cb());
+    ah.Register(pNoReplicasSet.srem_async(file->getId()),
+                qclient::OpType::SREM);
   }
 
-  redox::RedoxSet replica_set(*pRedox, "");
-  redox::RedoxSet unlink_set(*pRedox, "");
+  qclient::QSet replica_set(*pQcl, "");
+  qclient::QSet unlink_set(*pQcl, "");
   IFileMD::id_t fsid;
 
   do {
@@ -177,9 +165,11 @@ FileSystemView::fileMDCheck(IFileMD* file)
 
       if (std::find(replica_locs.begin(), replica_locs.end(), fsid) !=
           replica_locs.end()) {
-        replica_set.sadd(file->getId(), wrapper_cb());
+        ah.Register(replica_set.sadd_async(file->getId()),
+                    qclient::OpType::SADD);
       } else {
-        replica_set.srem(file->getId(), wrapper_cb());
+        ah.Register(replica_set.srem_async(file->getId()),
+                    qclient::OpType::SREM);
       }
 
       // Deal with the fs unlinked set
@@ -188,21 +178,17 @@ FileSystemView::fileMDCheck(IFileMD* file)
 
       if (std::find(unlink_locs.begin(), unlink_locs.end(), fsid) !=
           unlink_locs.end()) {
-        unlink_set.sadd(file->getId(), wrapper_cb());
+        ah.Register(unlink_set.sadd_async(file->getId()),
+                    qclient::OpType::SADD);
       } else {
-        unlink_set.srem(file->getId(), wrapper_cb());
+        ah.Register(unlink_set.srem_async(file->getId()),
+                    qclient::OpType::SREM);
       }
     }
-  } while (cursor);
+  } while (cursor != "0");
 
-  {
-    // Wait for all async responses
-    std::unique_lock<std::mutex> lock(mutex);
-
-    while (num_async_req) {
-      cond_var.wait(lock);
-    }
-  }
+  // Wait for all async responses
+  (void) ah.Wait();
   // Clean up all the fsids that don't hold any files either replicas
   // or unlinked
   std::vector<std::string> to_remove;
@@ -222,7 +208,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
         to_remove.emplace_back(sfsid);
       }
     }
-  } while (cursor);
+  } while (cursor != "0");
 
   // Drop all the unused fs ids
   if (pFsIdsSet.srem(to_remove) != (long long int)to_remove.size()) {
@@ -240,9 +226,11 @@ FileSystemView::getFileList(IFileMD::location_t location)
 {
   std::string key = std::to_string(location) + fsview::sFilesSuffix;
   IFsView::FileList set_files;
-  std::pair<long long, std::vector<std::string>> reply;
-  long long cursor = 0, count = 10000;
-  redox::RedoxSet fs_set(*pRedox, key);
+  set_files.set_empty_key(-1);
+  std::pair<std::string, std::vector<std::string>> reply;
+  std::string cursor {"0"};
+  long long count = 10000;
+  qclient::QSet fs_set(*pQcl, key);
 
   do {
     reply = fs_set.sscan(cursor, count);
@@ -251,7 +239,7 @@ FileSystemView::getFileList(IFileMD::location_t location)
     for (const auto& elem : reply.second) {
       set_files.insert(std::stoul(elem));
     }
-  } while (cursor);
+  } while (cursor != "0");
 
   return set_files;
 }
@@ -264,9 +252,11 @@ FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
   std::string key = std::to_string(location) + fsview::sUnlinkedSuffix;
   IFsView::FileList set_unlinked;
-  std::pair<long long, std::vector<std::string>> reply;
-  long long cursor = 0, count = 10000;
-  redox::RedoxSet fs_set(*pRedox, key);
+  set_unlinked.set_empty_key(-1);
+  std::pair<std::string, std::vector<std::string>> reply;
+  std::string cursor = {"0"};
+  long long count = 10000;
+  qclient::QSet fs_set(*pQcl, key);
 
   do {
     reply = fs_set.sscan(cursor, count);
@@ -275,7 +265,7 @@ FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
     for (const auto& elem : reply.second) {
       set_unlinked.insert(std::stoul(elem));
     }
-  } while (cursor);
+  } while (cursor != "0");
 
   return set_unlinked;
 }
@@ -287,8 +277,10 @@ IFsView::FileList
 FileSystemView::getNoReplicasFileList()
 {
   IFsView::FileList set_noreplicas;
-  std::pair<long long, std::vector<std::string>> reply;
-  long long cursor = 0, count = 10000;
+  set_noreplicas.set_empty_key(-1);
+  std::pair<std::string, std::vector<std::string>> reply;
+  std::string cursor {"0"};
+  long long count = 10000;
 
   do {
     reply = pNoReplicasSet.sscan(cursor, count);
@@ -297,7 +289,7 @@ FileSystemView::getNoReplicasFileList()
     for (const auto& elem : reply.second) {
       set_noreplicas.insert(std::stoul(elem));
     }
-  } while (cursor);
+  } while (cursor != "0");
 
   return set_noreplicas;
 }
@@ -309,7 +301,8 @@ bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
   std::string key = std::to_string(location) + fsview::sUnlinkedSuffix;
-  return pRedox->del(key);
+  std::future<qclient::redisReplyPtr> future = pQcl->execute({"DEL", key});
+  return (future.get()->integer == 1);
 }
 
 //------------------------------------------------------------------------------
@@ -331,8 +324,8 @@ FileSystemView::getNumFileSystems()
 void
 FileSystemView::initialize(const std::map<std::string, std::string>& config)
 {
-  const std::string key_host = "redis_host";
-  const std::string key_port = "redis_port";
+  const std::string key_host = "qdb_host";
+  const std::string key_port = "qdb_port";
   std::string host{""};
   uint32_t port{0};
 
@@ -344,9 +337,9 @@ FileSystemView::initialize(const std::map<std::string, std::string>& config)
     port = std::stoul(config.find(key_port)->second);
   }
 
-  pRedox = RedisClient::getInstance(host, port);
-  pNoReplicasSet.setClient(*pRedox);
-  pFsIdsSet.setClient(*pRedox);
+  pQcl = BackendClient::getInstance(host, port);
+  pNoReplicasSet.setClient(*pQcl);
+  pFsIdsSet.setClient(*pQcl);
 }
 
 EOSNSNAMESPACE_END
