@@ -60,6 +60,7 @@ BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
+BuildRequires: hiredis-devel
 
 %if %{?_with_server:1}%{!?_with_server:0}
 BuildRequires: openldap-devel
