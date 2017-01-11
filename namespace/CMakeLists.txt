@@ -116,4 +116,4 @@ if (CPPUNIT_FOUND)
 endif()
 
 add_subdirectory(ns_in_memory)
-add_subdirectory(ns_on_redis)
+add_subdirectory(ns_quarkdb)

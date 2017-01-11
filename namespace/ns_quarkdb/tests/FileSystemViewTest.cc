@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -20,22 +20,22 @@
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //! @brief FileSystemView test
 //------------------------------------------------------------------------------
-#include <stdint.h>
-#include <unistd.h>
-#include <sstream>
-#include <cstdlib>
-#include <ctime>
-#include <cppunit/extensions/HelperMacros.h>
-#include "namespace/utils/TestHelpers.hh"
-#include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/utils/TestHelpers.hh"
+#include <cppunit/extensions/HelperMacros.h>
+#include <cstdlib>
+#include <cstdint>
+#include <ctime>
+#include <sstream>
+#include <unistd.h>
 
 //------------------------------------------------------------------------------
 // Declaration
 //------------------------------------------------------------------------------
-class FileSystemViewTest: public CppUnit::TestCase
+class FileSystemViewTest : public CppUnit::TestCase
 {
 public:
   CPPUNIT_TEST_SUITE(FileSystemViewTest);
@@ -50,7 +50,8 @@ CPPUNIT_TEST_SUITE_REGISTRATION(FileSystemViewTest);
 //------------------------------------------------------------------------------
 // Randomize a location
 //------------------------------------------------------------------------------
-eos::IFileMD::location_t getRandomLocation()
+eos::IFileMD::location_t
+getRandomLocation()
 {
   return 1 + random() % 50;
 }
@@ -58,7 +59,8 @@ eos::IFileMD::location_t getRandomLocation()
 //------------------------------------------------------------------------------
 // Count replicas
 //------------------------------------------------------------------------------
-size_t countReplicas(eos::IFsView* fs)
+size_t
+countReplicas(eos::IFsView* fs)
 {
   size_t replicas = 0;
 
@@ -72,7 +74,8 @@ size_t countReplicas(eos::IFsView* fs)
 //------------------------------------------------------------------------------
 // Count unlinked
 //------------------------------------------------------------------------------
-size_t countUnlinked(eos::IFsView* fs)
+size_t
+countUnlinked(eos::IFsView* fs)
 {
   size_t unlinked = 0;
 
@@ -86,19 +89,19 @@ size_t countUnlinked(eos::IFsView* fs)
 //------------------------------------------------------------------------------
 // Concrete implementation tests
 //------------------------------------------------------------------------------
-void FileSystemViewTest::fileSystemViewTest()
+void
+FileSystemViewTest::fileSystemViewTest()
 {
-  srandom(time(0));
+  srandom(time(nullptr));
 
   try {
-    std::map<std::string, std::string> config = {
-      {"redis_host", "localhost"},
-      {"redis_port", "6380"}
+    std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
+      {"qdb_port", "6380"}
     };
-    std::unique_ptr<eos::ContainerMDSvc> contSvc {new eos::ContainerMDSvc()};
-    std::unique_ptr<eos::FileMDSvc> fileSvc {new eos::FileMDSvc()};
-    std::unique_ptr<eos::IView> view {new eos::HierarchicalView()};
-    std::unique_ptr<eos::IFsView> fsView {new eos::FileSystemView()};
+    std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
+    std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
+    std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
+    std::unique_ptr<eos::IFsView> fsView{new eos::FileSystemView()};
     fileSvc->setContMDService(contSvc.get());
     contSvc->setFileMDService(fileSvc.get());
     contSvc->configure(config);
@@ -107,7 +110,7 @@ void FileSystemViewTest::fileSystemViewTest()
     view->setFileMDSvc(fileSvc.get());
     view->configure(config);
     view->initialize();
-    static_cast<eos::FileSystemView*>(fsView.get())->initialize(config);
+    dynamic_cast<eos::FileSystemView*>(fsView.get())->initialize(config);
     fileSvc->addChangeListener(fsView.get());
     view->createContainer("/test/embed/embed1", true);
     std::shared_ptr<eos::IContainerMD> c =
@@ -168,7 +171,7 @@ void FileSystemViewTest::fileSystemViewTest()
       std::ostringstream o;
       o << "file" << i;
       // Unlink some replicas
-      std::shared_ptr<eos::IFileMD> f {c->findFile(o.str())};
+      std::shared_ptr<eos::IFileMD> f{c->findFile(o.str())};
       f->unlinkAllLocations();
       c->removeFile(o.str());
       f->setContainerId(0);
@@ -190,7 +193,8 @@ void FileSystemViewTest::fileSystemViewTest()
     numUnlinked = countUnlinked(fsView.get());
     CPPUNIT_ASSERT(numUnlinked == 2800);
     CPPUNIT_ASSERT(fsView->getNoReplicasFileList().size() == 500);
-    std::shared_ptr<eos::IFileMD> f {view->getFile(std::string("/test/embed/embed1/file1"))};
+    std::shared_ptr<eos::IFileMD> f{
+      view->getFile(std::string("/test/embed/embed1/file1"))};
     f->unlinkAllLocations();
     numReplicas = countReplicas(fsView.get());
     CPPUNIT_ASSERT(numReplicas == 17195);
@@ -223,7 +227,7 @@ void FileSystemViewTest::fileSystemViewTest()
           continue;
         }
 
-        std::shared_ptr<eos::IFileMD> file {view->getFile(elem)};
+        std::shared_ptr<eos::IFileMD> file{view->getFile(elem)};
         CPPUNIT_ASSERT_NO_THROW(view->unlinkFile(file.get()));
         CPPUNIT_ASSERT_NO_THROW(file->removeAllLocations());
         CPPUNIT_ASSERT_NO_THROW(view->removeFile(file.get()));
@@ -241,7 +245,7 @@ void FileSystemViewTest::fileSystemViewTest()
       std::ostringstream o;
       o << "noreplicasfile" << i;
       std::string path = "/test/embed/embed1/" + o.str();
-      std::shared_ptr<eos::IFileMD> file {view->getFile(path)};
+      std::shared_ptr<eos::IFileMD> file{view->getFile(path)};
       CPPUNIT_ASSERT_NO_THROW(view->unlinkFile(file.get()));
       CPPUNIT_ASSERT_NO_THROW(view->removeFile(file.get()));
     }
@@ -249,7 +253,7 @@ void FileSystemViewTest::fileSystemViewTest()
     // Remove all containers
     CPPUNIT_ASSERT_NO_THROW(view->removeContainer("/test/", true));
     // Remove the root container
-    std::shared_ptr<eos::IContainerMD> root {view->getContainer("/")};
+    std::shared_ptr<eos::IContainerMD> root{view->getContainer("/")};
     CPPUNIT_ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
     view->finalize();
   } catch (eos::MDException& e) {
