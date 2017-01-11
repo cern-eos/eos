@@ -985,7 +985,7 @@ XrdFstOfsFile::open (const char* path,
   // Call the checksum factory function with the selected layout
   //............................................................................
 
-  if (isRW || (opaqueCheckSum != "ignore"))
+  if ( (isRW && (opaqueCheckSum != "ignore")) || (opaqueCheckSum != "ignore") )
   {
     checkSum = eos::fst::ChecksumPlugins::GetChecksumObject(lid);
     eos_debug("checksum requested %d %u", checkSum, lid);
@@ -1596,7 +1596,7 @@ XrdFstOfsFile::verifychecksum ()
         XrdOucString opaqueChecksum = openOpaque->Get("mgm.checksum");
         XrdOucString hexChecksum = checkSum->GetHexChecksum();
 
-        if (opaqueChecksum != hexChecksum)
+        if ( (opaqueChecksum != "disable") && (opaqueChecksum != hexChecksum))
         {
           eos_err("requested checksum %s does not match checksum %s of uploaded"
                   " file", opaqueChecksum.c_str(), hexChecksum.c_str());
