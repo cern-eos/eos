@@ -1875,7 +1875,7 @@ main (int argc, char* argv[])
                               st[i].st_mode, "");
         }
 
-	if (!startwritebyte)
+	if (!startwritebyte && response)
 	  startwritebyte = response->GetSize();
         delete response;
       }
