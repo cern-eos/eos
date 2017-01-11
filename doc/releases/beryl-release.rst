@@ -7,7 +7,7 @@
 Beryl Release Notes
 ===================
 
-``V0.3.223 Aquamarine``
+``V0.3.224 Aquamarine``
 =======================
 
 New Feature
