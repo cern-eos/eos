@@ -64,26 +64,26 @@ function getLocalBranchAndDistTag()
   # If this is a tag get the branch it belogs to
   if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX} ]]; then
       if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_AQUAMARINE} ]]; then
-	  BRANCH="aquamarine"
+          BRANCH="aquamarine"
       elif [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_CITRINE} ]]; then
-	  BRANCH="citrine"
+          BRANCH="citrine"
       fi
   else
       BRANCH=$(basename ${BRANCH_OR_TAG})
       # For beryl_aquamarine use aquamarine as release
       if [[ "${BRANCH}" == "beryl_aquamarine" ]]; then
-	  BRANCH="aquamarine"
+          BRANCH="aquamarine"
       elif [[ "${BRANCH}"  == "master" ]]; then
-	  BRANCH="citrine"
+          BRANCH="citrine"
       fi
   fi
 
   # For aquamarine still use the old ".slc-*" dist tag for SLC5/6
   if [[ "${BRANCH}" == "aquamarine" ]] ; then
       if [[ "${PLATFORM}" == "el-5" ]] || [[ "${PLATFORM}" == "el-6" ]]; then
-	  DIST=".slc${PLATFORM: -1}"
+          DIST=".slc${PLATFORM: -1}"
       else
-	  DIST=".${PLATFORM}"
+          DIST=".${PLATFORM}"
       fi
   else
       # For any other branch use the latest XRootD release
@@ -125,6 +125,9 @@ echo "Running in directory: $(pwd)"
 # Exit script immediately if a command exits with a non-zero status
 set -e
 
+# List of branches for CI YUM repo
+BRANCH_LIST=('aquamarine' 'citrine')
+
 # Get local branch and dist tag for the RPMS
 getLocalBranchAndDistTag ${BRANCH_OR_TAG} ${PLATFORM}
 
@@ -152,21 +155,25 @@ git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
 
 # Prepare the mock configuration
 head -n -1 ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/$XROOTD_TAG/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
+
 # Add eos dependencies repos
+if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
+  REPO_DEPEND="${BRANCH}-depend"
+else
+  # For any other branch use the citrine dependencies
+  REPO_DEPEND="citrine-depend"
+fi
+
 # TODO: move these dependencies inside the dss-ci-mock repository
-echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\n' >> eos.cfg
+echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${REPO_DEPEND}'/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\n' >> eos.cfg
+
 # Add kineticio repos for kineticio-devel header-only package...
 # TODO: move kineticio-devel to regular eos-depend repo?
 echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
 echo -e '"""' >> eos.cfg
 
-## Build the RPMs (with yum repo rpms)
-#mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
-# Build the RPMs (without yum repo rpms)
+## Build the RPMs
 mock --yum --init --uniqueext="eos_${BRANCH}" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}" --with=server
-
-# List of branches for CI YUM repo
-BRANCH_LIST=('aquamarine' 'citrine')
 
 # If building one of the production branches then push rpms to YUM repo
 if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
@@ -191,7 +198,7 @@ if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
   mkdir -p ${YUM_REPO_PATH}
   if [[ ${BRANCH} == 'citrine' ]]; then
     # dont'copy fuse rpms , they are copied from the eos-fuse build
-    find . -iname '*.rpm' | grep -v "fuse" | xargs | awk -v target="${YUM_REPO_PATH}" '{ print "cp -f " $0 " " target  }' | source /dev/stdin 
+    find . -iname '*.rpm' | grep -v "fuse" | xargs | awk -v target="${YUM_REPO_PATH}" '{ print "cp -f " $0 " " target  }' | source /dev/stdin
   else
     cp -f *.rpm ${YUM_REPO_PATH}
   fi
