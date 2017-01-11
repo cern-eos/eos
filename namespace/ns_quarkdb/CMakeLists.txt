@@ -75,7 +75,6 @@ target_link_libraries(
   qclient
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
-  ${REDOX_LIBRARIES}
   ${XROOTD_UTILS_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
@@ -94,8 +93,6 @@ if (Linux)
     eosCommon-Static
     qclient
     ${UUID_LIBRARIES}
-    ${REDOX_LIBRARIES}
-    ${LIBEV_LIBRARIES}
     ${Z_LIBRARY_STATIC}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
@@ -129,9 +126,7 @@ add_executable(
 target_link_libraries(
   convert_mem_to_kv
   qclient
-  EosNsInMemory-Static
-  ${LIBEV_LIBRARIES}
-  ${REDOX_LIBRARIES})
+  EosNsInMemory-Static)
 
 install(
   TARGETS convert_mem_to_kv

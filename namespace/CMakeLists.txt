@@ -116,4 +116,8 @@ if (CPPUNIT_FOUND)
 endif()
 
 add_subdirectory(ns_in_memory)
-add_subdirectory(ns_quarkdb)
+
+# Build EosNsQuarkdb only if hiredis is available
+if (HIREDIS_FOUND)
+  add_subdirectory(ns_quarkdb)
+endif()
