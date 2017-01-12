@@ -46,7 +46,7 @@ ShellCmd::ShellCmd (std::string const & cmd) : cmd (cmd), monitor_active(false),
   //----------------------------------------------------------------------------
   // generate the 'uuid' for the 'fifos'
   uuid_t uu;
-  uuid_generate(uu);
+  uuid_generate_time(uu);
   uuid_unparse(uu, uuid);
 
   // create a 'fifo' for 'stdout'
