@@ -67,6 +67,9 @@
 
 filesystem::filesystem ()
 {
+  xrootd_nullresponsebug_retrycount=3;
+  xrootd_nullresponsebug_retrysleep=1;
+
   lazy_open_ro = false;
   lazy_open_rw = false;
   lazy_open_disabled = false;
@@ -1200,12 +1203,10 @@ filesystem::rmxattr (const char* path,
  XrdCl::URL Url (surl.c_str ());
  XrdCl::FileSystem fs (Url);
 
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("GETPLUGIN", &rmxattrtiming);
-  errno = 0;
+ errno = 0;
 
  if (status.IsOK ())
  {
@@ -1224,8 +1225,8 @@ filesystem::rmxattr (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-    errno = ((status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT);
-  }
+   errno = ((status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT);
+ }
 
  COMMONTIMING ("END", &rmxattrtiming);
 
@@ -1298,12 +1299,10 @@ filesystem::setxattr (const char* path,
  XrdCl::URL Url (surl.c_str ());
  XrdCl::FileSystem fs (Url);
 
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("GETPLUGIN", &setxattrtiming);
-  errno = 0;
+ errno = 0;
 
  if (status.IsOK ())
  {
@@ -1321,16 +1320,16 @@ filesystem::setxattr (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+ }
 
  COMMONTIMING ("END", &setxattrtiming);
 
  if (EOS_LOGS_DEBUG)
-   setxattrtiming.Print ();
+  setxattrtiming.Print ();
 
-  delete response;
-  return errno;
+ delete response;
+ return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -1380,12 +1379,10 @@ filesystem::getxattr (const char* path,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("GETPLUGIN", &getxattrtiming);
-  errno = 0;
+ errno = 0;
 
  if (status.IsOK ())
  {
@@ -1433,17 +1430,16 @@ filesystem::getxattr (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
-
+   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+ }
 
  COMMONTIMING ("END", &getxattrtiming);
 
  if (EOS_LOGS_DEBUG)
-   getxattrtiming.Print ();
+  getxattrtiming.Print ();
 
-  delete response;
-  return errno;
+ delete response;
+ return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -1478,12 +1474,9 @@ filesystem::listxattr (const char* path,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
  COMMONTIMING ("GETPLUGIN", &listxattrtiming);
-  errno = 0;
+ errno = 0;
 
  if (status.IsOK ())
  {
@@ -1547,17 +1540,67 @@ filesystem::listxattr (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
-
+   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+ }
 
  COMMONTIMING ("END", &listxattrtiming);
 
  if (EOS_LOGS_DEBUG)
-   listxattrtiming.Print ();
+  listxattrtiming.Print ();
 
-  delete response;
-  return errno;
+ delete response;
+ return errno;
+}
+
+//------------------------------------------------------------------------------
+// Issue an Xrootd request.
+// If a null response or a null buffer is got, try up to
+// xrootd_nullresponsebug_retrycount times waiting
+// xrootd_nullresponsebug_retrysleep ms between the tries
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
+XrdCl::XRootDStatus filesystem::xrdreq_retryonnullbuf(XrdCl::FileSystem &fs,
+                                                      XrdCl::Buffer &arg,
+                                                      XrdCl::Buffer *&response)
+{
+  XrdCl::XRootDStatus status;
+  for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount; retrycount++)
+  {
+    SyncResponseHandler handler;
+    fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+    status = handler.Sync (response);
+
+    if (status.IsOK ())
+    {
+      if (response && response->GetBuffer ()) // we get a well-formatted response
+        break;
+      else // we get a wrongly formatted response
+      {
+        if (retrycount + 1 < xrootd_nullresponsebug_retrycount)
+        {
+          if (response)
+          { // we are going to retry so delete the previous reponse if any not to leak memory
+            delete response;
+            response = 0;
+          }
+          XrdSysTimer sleeper;
+          if (xrootd_nullresponsebug_retrysleep) sleeper.Wait (xrootd_nullresponsebug_retrysleep);
+
+          continue;
+        }
+        else
+          eos_static_err("no response received after %d attempts", retrycount);
+      }
+    }
+    else
+    {
+      eos_static_err("status is NOT ok : %s", status.ToString ().c_str ());
+    }
+    errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
+    break;
+  }
+  return status;
 }
 
 //------------------------------------------------------------------------------
@@ -1565,7 +1608,6 @@ filesystem::listxattr (const char* path,
 // (e.g., st_ino) then it should be set to 0 or given a "reasonable" value.
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-
 int
 filesystem::stat (const char* path,
                  struct stat* buf,
@@ -1730,95 +1772,66 @@ filesystem::stat (const char* path,
 
  eos_static_debug ("arg = %s", arg.ToString ().c_str ());
 
- for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount; retrycount++)
+ COMMONTIMING ("GETPLUGIN", &stattiming);
+
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
+ if (status.IsOK () && response && response->GetBuffer ())
  {
-   SyncResponseHandler handler;
-   fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-   XrdCl::XRootDStatus status = handler.Sync(response);
+  unsigned long long sval[10];
+  unsigned long long ival[6];
+  char tag[1024];
+  tag[0] = 0;
+  // Parse output
+  int items = sscanf (response->GetBuffer (), "%s %llu %llu %llu %llu %llu %llu %llu %llu "
+                      "%llu %llu %llu %llu %llu %llu %llu %llu",
+                      tag, (unsigned long long*) &sval[0], (unsigned long long*) &sval[1], (unsigned long long*) &sval[2],
+                      (unsigned long long*) &sval[3], (unsigned long long*) &sval[4], (unsigned long long*) &sval[5],
+                      (unsigned long long*) &sval[6], (unsigned long long*) &sval[7], (unsigned long long*) &sval[8],
+                      (unsigned long long*) &sval[9], (unsigned long long*) &ival[0], (unsigned long long*) &ival[1],
+                      (unsigned long long*) &ival[2], (unsigned long long*) &ival[3], (unsigned long long*) &ival[4],
+                      (unsigned long long*) &ival[5]);
 
-   COMMONTIMING ("GETPLUGIN", &stattiming);
-
-   if (status.IsOK () && response && response->GetBuffer ())
-   {
-    unsigned long long sval[10];
-    unsigned long long ival[6];
-    char tag[1024];
-    tag[0] = 0;
-    // Parse output
-     int items = sscanf (response->GetBuffer (), "%s %llu %llu %llu %llu %llu %llu %llu %llu "
-                       "%llu %llu %llu %llu %llu %llu %llu %llu",
-                         tag, (unsigned long long*) &sval[0], (unsigned long long*) &sval[1], (unsigned long long*) &sval[2],
-                         (unsigned long long*) &sval[3], (unsigned long long*) &sval[4], (unsigned long long*) &sval[5],
-                         (unsigned long long*) &sval[6], (unsigned long long*) &sval[7], (unsigned long long*) &sval[8],
-                         (unsigned long long*) &sval[9], (unsigned long long*) &ival[0], (unsigned long long*) &ival[1],
-                         (unsigned long long*) &ival[2], (unsigned long long*) &ival[3], (unsigned long long*) &ival[4],
-                       (unsigned long long*) &ival[5]);
-
-     if ((items != 17) || (strcmp (tag, "stat:")))
-     {
-      int retc = 0;
-       items = sscanf (response->GetBuffer (), "%s retc=%i", tag, &retc);
-       if ((!strcmp (tag, "stat:")) && (items == 2))
-        errno = retc;
-       else
-        errno = EFAULT;
-      eos_static_info("path=%s errno=%i tag=%s", path, errno, tag);
-      delete response;
-      return errno;
-     }
-     else
-     {
-      buf->st_dev = (dev_t) sval[0];
-      buf->st_ino = (ino_t) sval[1];
-      buf->st_mode = (mode_t) sval[2];
-      buf->st_nlink = (nlink_t) sval[3];
-      buf->st_uid = (uid_t) sval[4];
-      buf->st_gid = (gid_t) sval[5];
-      buf->st_rdev = (dev_t) sval[6];
-      buf->st_size = (off_t) sval[7];
-      buf->st_blksize = (blksize_t) sval[8];
-      buf->st_blocks = (blkcnt_t) sval[9];
-      buf->st_atime = (time_t) ival[0];
-      buf->st_mtime = (time_t) ival[1];
-      buf->st_ctime = (time_t) ival[2];
-      buf->ATIMESPEC.tv_sec = (time_t) ival[0];
-      buf->MTIMESPEC.tv_sec = (time_t) ival[1];
-      buf->CTIMESPEC.tv_sec = (time_t) ival[2];
-      buf->ATIMESPEC.tv_nsec = (time_t) ival[3];
-      buf->MTIMESPEC.tv_nsec = (time_t) ival[4];
-      buf->CTIMESPEC.tv_nsec = (time_t) ival[5];
-
-       if (S_ISREG (buf->st_mode) && fuse_exec) buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
-        buf->st_mode &= (~S_ISVTX); // clear the vxt bit
-
-      buf->st_mode &= (~S_ISUID); // clear suid
-      buf->st_mode &= (~S_ISGID); // clear sgid
-      errno = 0;
-    }
-     break;
-    }
+  if ((items != 17) || (strcmp (tag, "stat:")))
+  {
+   int retc = 0;
+   items = sscanf (response->GetBuffer (), "%s retc=%i", tag, &retc);
+   if ((!strcmp (tag, "stat:")) && (items == 2))
+    errno = retc;
    else
-   {
-     if (!response || !response->GetBuffer ())
-     {
-       if(retrycount+1<xrootd_nullresponsebug_retrycount)
-       {
-         XrdSysTimer sleeper;
-         if(xrootd_nullresponsebug_retrysleep) sleeper.Wait(xrootd_nullresponsebug_retrysleep);
-
-         continue;
-       }
-       else
-         eos_static_err("no response received after %d attempts", retrycount);
-     }
-     else
-     {
-       eos_static_err("status is NOT ok : %s", status.ToString ().c_str ());
-     }
-    errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
-      break;
-   }
+    errno = EFAULT;
+   eos_static_info("path=%s errno=%i tag=%s", path, errno, tag);
+   delete response;
+   return errno;
   }
+  else
+  {
+   buf->st_dev = (dev_t) sval[0];
+   buf->st_ino = (ino_t) sval[1];
+   buf->st_mode = (mode_t) sval[2];
+   buf->st_nlink = (nlink_t) sval[3];
+   buf->st_uid = (uid_t) sval[4];
+   buf->st_gid = (gid_t) sval[5];
+   buf->st_rdev = (dev_t) sval[6];
+   buf->st_size = (off_t) sval[7];
+   buf->st_blksize = (blksize_t) sval[8];
+   buf->st_blocks = (blkcnt_t) sval[9];
+   buf->st_atime = (time_t) ival[0];
+   buf->st_mtime = (time_t) ival[1];
+   buf->st_ctime = (time_t) ival[2];
+   buf->ATIMESPEC.tv_sec = (time_t) ival[0];
+   buf->MTIMESPEC.tv_sec = (time_t) ival[1];
+   buf->CTIMESPEC.tv_sec = (time_t) ival[2];
+   buf->ATIMESPEC.tv_nsec = (time_t) ival[3];
+   buf->MTIMESPEC.tv_nsec = (time_t) ival[4];
+   buf->CTIMESPEC.tv_nsec = (time_t) ival[5];
+
+   if (S_ISREG (buf->st_mode) && fuse_exec) buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
+   buf->st_mode &= (~S_ISVTX); // clear the vxt bit
+   buf->st_mode &= (~S_ISUID); // clear suid
+   buf->st_mode &= (~S_ISGID); // clear sgid
+   errno = 0;
+  }
+ }
 
  if (file_size == (off_t)-1)
  {
@@ -1915,71 +1928,44 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount; retrycount++)
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
+
+ if (status.IsOK () && response && response->GetBuffer ())
  {
-   SyncResponseHandler handler;
-   fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-   XrdCl::XRootDStatus status = handler.Sync(response);
-
-  errno = 0;
-
-   if (status.IsOK () && response && response->GetBuffer ())
-   {
-    int retc;
-    char tag[1024];
-     if (!response->GetBuffer ())
-     {
-       statmutex.UnLock ();
-      errno = EFAULT;
-      delete response;
-      return errno;
-    }
-
-     int items = sscanf (response->GetBuffer (), "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
-                       "f_max_bytes=%llu f_max_files=%llu",
-                       tag, &retc, &a1, &a2, &a3, &a4);
-     if ((items != 6) || (strcmp (tag, "statvfs:")))
-     {
-       statmutex.UnLock ();
-      errno = EFAULT;
-      delete response;
-      return errno;
-    }
-    errno = retc;
-     laststat = time (NULL);
-     statmutex.UnLock ();
-    stbuf->f_bsize = 4096;
-    stbuf->f_frsize = 4096;
-    stbuf->f_blocks = a3 / 4096;
-    stbuf->f_bfree = a1 / 4096;
-    stbuf->f_bavail = a1 / 4096;
-    stbuf->f_files = a4;
-    stbuf->f_ffree = a2;
-    stbuf->f_namemax = 1024;
-     break;
-   }
-   else
-   {
-     if (!response || !response->GetBuffer ())
-     {
-       if (retrycount + 1 < xrootd_nullresponsebug_retrycount)
-       {
-         XrdSysTimer sleeper;
-         if (xrootd_nullresponsebug_retrysleep) sleeper.Wait (xrootd_nullresponsebug_retrysleep);
-         continue;
-       }
-       else
-         eos_static_err("no response received after %d attempts", retrycount);
-     }
-     else
-     {
-       eos_static_err("status is NOT ok : %s", status.ToString ().c_str ());
-     }
-     statmutex.UnLock ();
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-     break;
-   }
+  int retc;
+  char tag[1024];
+  if (!response->GetBuffer ())
+  {
+    statmutex.UnLock ();
+   errno = EFAULT;
+   delete response;
+   return errno;
   }
+
+  int items = sscanf (response->GetBuffer (), "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
+                    "f_max_bytes=%llu f_max_files=%llu",
+                    tag, &retc, &a1, &a2, &a3, &a4);
+  if ((items != 6) || (strcmp (tag, "statvfs:")))
+  {
+   statmutex.UnLock ();
+   errno = EFAULT;
+   delete response;
+   return errno;
+  }
+  errno = retc;
+  laststat = time (NULL);
+  statmutex.UnLock ();
+  stbuf->f_bsize = 4096;
+  stbuf->f_frsize = 4096;
+  stbuf->f_blocks = a3 / 4096;
+  stbuf->f_bfree = a1 / 4096;
+  stbuf->f_bavail = a1 / 4096;
+  stbuf->f_files = a4;
+  stbuf->f_ffree = a2;
+  stbuf->f_namemax = 1024;
+ }
+ else
+   statmutex.UnLock ();
 
  COMMONTIMING ("END", &statfstiming);
 
@@ -2023,12 +2009,10 @@ filesystem::chmod (const char* path,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("END", &chmodtiming);
-  errno = 0;
+ errno = 0;
 
  if (EOS_LOGS_DEBUG)
    chmodtiming.Print ();
@@ -2055,11 +2039,11 @@ filesystem::chmod (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+ }
 
-  delete response;
-  return errno;
+ delete response;
+ return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -2139,12 +2123,10 @@ filesystem::utimes (const char* path,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("END", &utimestiming);
-  errno = 0;
+ errno = 0;
 
  if (EOS_LOGS_DEBUG)
    utimestiming.Print ();
@@ -2160,15 +2142,15 @@ filesystem::utimes (const char* path,
       errno = EFAULT;
    else
       errno = retc;
-    }
+ }
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+ }
 
-  delete response;
-  return errno;
+ delete response;
+ return errno;
 }
 
 //----------------------------------------------------------------------------
@@ -2214,12 +2196,10 @@ filesystem::symlink (const char* path,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("STOP", &symlinktiming);
-  errno = 0;
+ errno = 0;
 
  if (EOS_LOGS_DEBUG)
    symlinktiming.Print ();
@@ -2237,15 +2217,15 @@ filesystem::symlink (const char* path,
       errno = EFAULT;
    else
       errno = retc;
-    }
+ }
  else
  {
    eos_static_err ("error=status is NOT ok : %s", status.ToString ().c_str ());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+ }
 
-  delete response;
-  return errno;
+ delete response;
+ return errno;
 }
 
 //----------------------------------------------------------------------------
@@ -2279,12 +2259,10 @@ filesystem::readlink (const char* path,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("END", &readlinktiming);
-  errno = 0;
+ errno = 0;
 
  if (EOS_LOGS_DEBUG)
    readlinktiming.Print ();
@@ -2339,11 +2317,11 @@ filesystem::readlink (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+ }
 
-  delete response;
-  return errno;
+ delete response;
+ return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -2383,12 +2361,10 @@ filesystem::access (const char* path,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("STOP", &accesstiming);
-  errno = 0;
+ errno = 0;
 
  if (EOS_LOGS_DEBUG)
    accesstiming.Print ();
@@ -2406,15 +2382,15 @@ filesystem::access (const char* path,
       errno = EFAULT;
    else
       errno = retc;
-    }
+ }
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+ }
 
-  delete response;
-  return errno;
+ delete response;
+ return errno;
 }
 
 
@@ -2840,9 +2816,7 @@ filesystem::mkdir (const char* path,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
+ XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("GETPLUGIN", &mkdirtiming);
 
@@ -2925,17 +2899,17 @@ filesystem::mkdir (const char* path,
  else
  {
    eos_static_err ("status is NOT ok");
-    errno = EFAULT;
-  }
+   errno = EFAULT;
+ }
 
  COMMONTIMING ("END", &mkdirtiming);
 
  if (EOS_LOGS_DEBUG)
-   mkdirtiming.Print ();
+  mkdirtiming.Print ();
 
  eos_static_debug ("path=%s inode=%llu", path, buf->st_ino);
-  delete response;
-  return errno;
+ delete response;
+ return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -3260,9 +3234,7 @@ filesystem::open (const char* path,
    XrdCl::URL Url (surl);
    XrdCl::FileSystem fs (Url);
 
-   SyncResponseHandler handler;
-   fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-   status = handler.Sync(response);
+   status = xrdreq_retryonnullbuf(fs, arg, response);
 
    if (status.IsOK ())
    {
@@ -4565,14 +4537,12 @@ bool filesystem::get_features(const std::string &url, std::map<std::string,std::
   XrdCl::URL Url (url.c_str());
   XrdCl::FileSystem fs (Url);
 
-  SyncResponseHandler handler;
-  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-  status = handler.Sync(response);
+  status = xrdreq_retryonnullbuf(fs, arg, response);
 
   if (!status.IsOK ())
   {
     eos_static_crit("cannot read eos version");
-    delete response;
+    if(response) delete response;
     return false;
   }
 
@@ -4597,7 +4567,7 @@ bool filesystem::get_features(const std::string &url, std::map<std::string,std::
       if(pos == std::string::npos)
       {
         eos_static_crit("error parsing instance features");
-        delete response;
+        if(response) delete response;
         return false; // there is something wrong here
       }
       string key   = line.substr(0,pos);
@@ -4610,10 +4580,10 @@ bool filesystem::get_features(const std::string &url, std::map<std::string,std::
   if(!infeatures)
   {
     eos_static_warning("retrieving features is not supported on this eos instance");
-    delete response;
+    if(response) delete response;
     return false;
   }
-  delete response;
+  if(response) delete response;
   return true;
 }
 
@@ -4661,7 +4631,8 @@ filesystem::check_mgm (std::map<std::string,std::string> *features)
 
  if(features)
    get_features(address,features);
-// make sure the host has not '/' in the end and no prefix anymore
+
+ // make sure the host has not '/' in the end and no prefix anymore
  gMgmHost = address.c_str ();
  gMgmHost.replace ("root://", "");
   int pos;
@@ -4786,7 +4757,9 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
 
 // Extract MGM endpoint and check availability
  if (!check_mgm ( features ) )
+ {
    return false;
+ }
 
 // Get read-ahead configuration
  if (getenv ("EOS_FUSE_RDAHEAD") && (!strcmp (getenv ("EOS_FUSE_RDAHEAD"), "1")))

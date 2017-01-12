@@ -450,7 +450,7 @@ unsigned long long redirect_i2i (unsigned long long inode);
  //! @param entry_inode
  //! @param buf stat info
  //----------------------------------------------------------------------------
-bool dir_cache_update_entry (unsigned long long entry_inode,
+ bool dir_cache_update_entry (unsigned long long entry_inode,
 			      struct stat* buf);
 
 
@@ -458,6 +458,14 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
  //----------------------------------------------------------------------------
  //              ******* XROOT interfacing ********
  //----------------------------------------------------------------------------
+
+ //----------------------------------------------------------------------------
+ //!
+ //----------------------------------------------------------------------------
+ XrdCl::XRootDStatus xrdreq_retryonnullbuf(
+    XrdCl::FileSystem &fs,
+    XrdCl::Buffer &arg,
+    XrdCl::Buffer *&response);
 
  //----------------------------------------------------------------------------
  //!
