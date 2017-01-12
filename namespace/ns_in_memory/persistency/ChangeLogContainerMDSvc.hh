@@ -316,7 +316,7 @@ public:
   //------------------------------------------------------------------------
   //! Get first free container id
   //------------------------------------------------------------------------
-  IContainerMD::id_t getFirstFreeId() const
+  IContainerMD::id_t getFirstFreeId()
   {
     return pFirstFreeId;
   }

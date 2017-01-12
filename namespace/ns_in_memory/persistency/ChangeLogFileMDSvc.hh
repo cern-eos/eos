@@ -290,7 +290,7 @@ public:
   //------------------------------------------------------------------------
   //! Get first free file id
   //------------------------------------------------------------------------
-  IFileMD::id_t getFirstFreeId() const
+  IFileMD::id_t getFirstFreeId()
   {
     return pFirstFreeId;
   }

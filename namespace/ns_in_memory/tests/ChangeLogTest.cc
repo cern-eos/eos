@@ -103,7 +103,7 @@ public:
   {
     return;
   }
-  virtual eos::IFileMD::id_t getFirstFreeId() const
+  virtual eos::IFileMD::id_t getFirstFreeId()
   {
     return 0;
   }
