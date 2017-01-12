@@ -27,15 +27,8 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
-#include <atomic>
-#include <condition_variable>
-#include <cstdint>
-#include <functional>
-#include <list>
-#include <mutex>
 #include <string>
 #include <sys/time.h>
-#include <vector>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -435,11 +428,10 @@ private:
   IContainerMDSvc* pContSvc;  ///< Container metadata service
   IFileMDSvc* pFileSvc;       ///< File metadata service
   qclient::QClient* pQcl;     ///< QClient object
-  qclient::AsyncHandler pAh;  ///< Async handler
-  std::string pFilesKey; ///< Map files key
-  std::string pDirsKey; ///< Map dir key
-  qclient::QHash pFilesMap; ///< Map holding info about files
-  qclient::QHash pDirsMap;  ///< Map holding info about subcontainers
+  std::string pFilesKey;      ///< Map files key
+  std::string pDirsKey;       ///< Map dir key
+  qclient::QHash pFilesMap;   ///< Map holding info about files
+  qclient::QHash pDirsMap;    ///< Map holding info about subcontainers
   //! Dir name to id map
   std::map<std::string, eos::IContainerMD::id_t> mDirsMap;
   std::map<std::string, eos::IFileMD::id_t> mFilesMap; ///< File name to id map

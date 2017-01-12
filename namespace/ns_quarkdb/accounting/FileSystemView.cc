@@ -84,6 +84,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
     key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
     val = std::to_string(file->getId());
     fs_set = qclient::QSet(*pQcl, key);
+    // TODO: this could be done asynchronously if first exists is false
     fs_set.srem(val);
 
     if (!e->file->getNumUnlinkedLocation() && !e->file->getNumLocation()) {

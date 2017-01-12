@@ -20,7 +20,6 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include <sys/stat.h>
@@ -113,7 +112,14 @@ ContainerMD::findContainer(const std::string& name)
   // Curate the list of subcontainers in case entry is not found
   if (cont == nullptr) {
     mDirsMap.erase(iter);
-    (void) pDirsMap.hdel(name);
+
+    try {
+      (void) pDirsMap.hdel(name);
+    } catch (std::runtime_error& qdb_err) {
+      MDException e(ECOMM);
+      e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
+      throw e;
+    }
   }
 
   return cont;
@@ -140,8 +146,7 @@ ContainerMD::removeContainer(const std::string& name)
     (void) pDirsMap.hdel(name);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
-    e.getMessage() << "Container " << name << " not found or KV-backend "
-                   << "connection error";
+    e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
     throw e;
   }
 }
@@ -170,9 +175,8 @@ ContainerMD::addContainer(IContainerMD* container)
       throw e;
     }
   } catch (std::runtime_error& qdb_err) {
-    MDException e(EINVAL);
-    e.getMessage() << "Failed to add subcontainer #" << container->getId()
-                   << " KV-backend connection error";
+    MDException e(ECOMM);
+    e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
     throw e;
   }
 }
@@ -204,7 +208,9 @@ ContainerMD::findFile(const std::string& name)
     try {
       (void) pFilesMap.hdel(stringify(iter->second));
     } catch (std::runtime_error& qdb_err) {
-      // ignore any error
+      MDException e(ECOMM);
+      e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
+      throw e;
     }
   }
 
@@ -235,7 +241,7 @@ ContainerMD::addFile(IFileMD* file)
     }
   } catch (std::runtime_error& qdb_err) {
     MDException e(EINVAL);
-    e.getMessage() << "File #" << file->getId() << " KV-backend conntection error";
+    e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
     throw e;
   }
 
@@ -269,8 +275,7 @@ ContainerMD::removeFile(const std::string& name)
     (void) pFilesMap.hdel(name);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
-    e.getMessage() << "Unknown file " << name << " in container " << pName
-                   << " or KV-backend connection error";
+    e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
     throw e;
   }
 
@@ -319,7 +324,7 @@ ContainerMD::cleanUp()
   file.reset();
   mFilesMap.clear();
   qclient::AsyncHandler ah;
-  ah.Register(pQcl->execute({"DEL" , pFilesKey}), qclient::OpType::DEL);
+  ah.Register(pQcl->del_async(pFilesKey), qclient::OpType::DEL);
 
   // Remove all subcontainers
   for (auto && elem : mDirsMap) {
@@ -329,7 +334,7 @@ ContainerMD::cleanUp()
   }
 
   mDirsMap.clear();
-  ah.Register(pQcl->execute({"DEL", pDirsKey}), qclient::OpType::DEL);
+  ah.Register(pQcl->del_async(pDirsKey), qclient::OpType::DEL);
 
   if (!ah.Wait()) {
     auto resp = ah.GetResponses();
@@ -339,9 +344,9 @@ ContainerMD::cleanUp()
     });
 
     if (err_conn) {
-      MDException e(ENOENT);
-      e.getMessage() << "Clean-up " << pName << " error contacting KV-store in "
-                     << __FUNCTION__;
+      MDException e(ECOMM);
+      e.getMessage() << __FUNCTION__ << "Container " << pName
+                     << " error contacting KV-store";
       throw e;
     }
   }

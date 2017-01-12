@@ -147,11 +147,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get first free container id
   //----------------------------------------------------------------------------
-  IContainerMD::id_t getFirstFreeId() const
-  {
-    // TODO(esindril): add implemention
-    return 0;
-  }
+  IContainerMD::id_t getFirstFreeId();
 
 
 private:
@@ -176,7 +172,8 @@ private:
   ListenerList pListeners;   ///< List of listeners to be notified
   IQuotaStats* pQuotaStats;  ///< Quota view
   IFileMDSvc* pFileSvc;      ///< File metadata service
-  qclient::QClient* pQcl;    ///< QClient objectfil
+  qclient::QClient* pQcl;    ///< QClient object
+  qclient::QHash mMetaMap ;  ///< Map holding metainfo about the namespace
   std::string pBkndHost;     ///< Backend host
   uint32_t pBkndPort;        ///< Backend port
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;

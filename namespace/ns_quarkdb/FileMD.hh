@@ -27,12 +27,6 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
-#include <atomic>
-#include <condition_variable>
-#include <cstring>
-#include <functional>
-#include <list>
-#include <mutex>
 #include <stdint.h>
 #include <string>
 #include <sys/time.h>
@@ -130,7 +124,7 @@ public:
   void setSize(uint64_t size);
 
   //----------------------------------------------------------------------------
-  //! Get tag
+  //! Get parent id
   //----------------------------------------------------------------------------
   inline IContainerMD::id_t
   getContainerId() const
@@ -139,7 +133,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set tag
+  //! Set parent id
   //----------------------------------------------------------------------------
   void
   setContainerId(IContainerMD::id_t containerId)
@@ -216,7 +210,10 @@ public:
   //----------------------------------------------------------------------------
   //! Set name
   //----------------------------------------------------------------------------
-  void setName(const std::string& name);
+  inline void setName(const std::string& name)
+  {
+    pName = name;
+  }
 
   //----------------------------------------------------------------------------
   //! Add location
@@ -226,7 +223,10 @@ public:
   //----------------------------------------------------------------------------
   //! Get vector with all the locations
   //----------------------------------------------------------------------------
-  LocationVector getLocations() const;
+  inline LocationVector getLocations() const
+  {
+    return pLocation;
+  }
 
   //----------------------------------------------------------------------------
   //! Get location
@@ -292,7 +292,10 @@ public:
   //----------------------------------------------------------------------------
   //! Get vector with all unlinked locations
   //----------------------------------------------------------------------------
-  LocationVector getUnlinkedLocations() const;
+  inline LocationVector getUnlinkedLocations() const
+  {
+    return pUnlinkedLocation;
+  }
 
   //----------------------------------------------------------------------------
   //! Unlink location
@@ -573,9 +576,9 @@ public:
   //----------------------------------------------------------------------------
   bool waitAsyncReplies();
 
-
   //----------------------------------------------------------------------------
-  //! Register asynchronous request
+  //! Register asynchronous request which are handled by the AsyncHandler
+  //! member object.
   //!
   //! @param future future object of the async request
   //! @param op operation type

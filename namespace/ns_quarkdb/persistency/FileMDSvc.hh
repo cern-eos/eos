@@ -18,7 +18,7 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
-//! @brief File MD service based on redis
+//! @brief File MD service based on quarkdb
 //------------------------------------------------------------------------------
 
 #ifndef __EOS_NS_FILE_MD_SVC_HH__
@@ -27,9 +27,6 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
-#include <condition_variable>
-#include <list>
-#include <mutex>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -137,15 +134,10 @@ public:
   //----------------------------------------------------------------------------
   //! Get first free file id
   //----------------------------------------------------------------------------
-  IFileMD::id_t getFirstFreeId() const
-  {
-    // TODO(esindril): add implementation
-    return 0;
-  }
+  IFileMD::id_t getFirstFreeId();
 
 private:
   typedef std::list<IFileMDChangeListener*> ListenerList;
-
   static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
   //! Interval for backend flush of consistent file ids
   static std::chrono::seconds sFlushInterval;

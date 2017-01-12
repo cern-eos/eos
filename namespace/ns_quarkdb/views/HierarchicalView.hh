@@ -277,9 +277,6 @@ private:
   IFileMDSvc* pFileSvc;
   IQuotaStats* pQuotaStats;
   std::shared_ptr<IContainerMD> pRoot;
-  qclient::QClient* pQcl;    ///< QClient object
-  std::string pBkndHost;     ///< Backend host
-  uint32_t pBkndPort;        ///< Backend port
 };
 
 EOSNSNAMESPACE_END

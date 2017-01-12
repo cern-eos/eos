@@ -393,4 +393,20 @@ FileMDSvc::flushDirtySet(IFileMD::id_t id, bool force)
   }
 }
 
+//------------------------------------------------------------------------------
+// Get first free file id
+//------------------------------------------------------------------------------
+IFileMD::id_t
+FileMDSvc::getFirstFreeId()
+{
+  id_t id = 0;
+  std::string sval = mMetaMap.hget(constants::sFirstFreeFid);
+
+  if (!sval.empty()) {
+    id = std::stoull(sval);
+  }
+
+  return id;
+}
+
 EOSNSNAMESPACE_END

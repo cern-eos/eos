@@ -36,8 +36,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 HierarchicalView::HierarchicalView()
   : pContainerSvc(nullptr), pFileSvc(nullptr),
-    pRoot(std::shared_ptr<IContainerMD>(nullptr)), pQcl(nullptr),
-    pBkndHost(), pBkndPort(0)
+    pRoot(std::shared_ptr<IContainerMD>(nullptr))
 {
   std::map<std::string, std::string> config;
   pQuotaStats = new QuotaStats(config);
@@ -71,18 +70,6 @@ HierarchicalView::configure(const std::map<std::string, std::string>& config)
 
   delete pQuotaStats;
   pQuotaStats = new QuotaStats(config);
-  const std::string key_host = "qdb_host";
-  const std::string key_port = "qdb_port";
-
-  if (config.find(key_host) != config.end()) {
-    pBkndHost = config.at(key_host);
-  }
-
-  if (config.find(key_port) != config.end()) {
-    pBkndPort = std::stoul(config.at(key_port));
-  }
-
-  pQcl = BackendClient::getInstance(pBkndHost, pBkndPort);
 }
 
 //------------------------------------------------------------------------------
@@ -515,14 +502,13 @@ HierarchicalView::removeContainer(const std::string& uri, bool recursive)
     throw e;
   }
 
-  // This is a two-step delete
-  parent->removeContainer(cont->getName());
-
   if (recursive) {
     cleanUpContainer(cont.get());
   }
 
+  // This is a two-step delete
   pContainerSvc->removeContainer(cont.get());
+  parent->removeContainer(cont->getName());
 }
 
 //------------------------------------------------------------------------------

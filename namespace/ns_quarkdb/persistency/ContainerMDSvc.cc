@@ -33,8 +33,8 @@ std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 // Constructor
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
-  : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pBkndHost(""),
-    pBkndPort(0), mContainerCache(static_cast<uint64_t>(10e6))
+  : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), mMetaMap(),
+    pBkndHost(""), pBkndPort(0), mContainerCache(static_cast<uint64_t>(10e6))
 {
 }
 
@@ -63,6 +63,8 @@ void
 ContainerMDSvc::initialize()
 {
   pQcl = BackendClient::getInstance(pBkndHost, pBkndPort);
+  mMetaMap.setKey(constants::sMapMetaInfoKey);
+  mMetaMap.setClient(*pQcl);
 
   if (pFileSvc == nullptr) {
     MDException e(EINVAL);
@@ -120,8 +122,7 @@ ContainerMDSvc::createContainer()
 {
   try {
     // Get the first free container id
-    qclient::QHash meta_map(*pQcl, constants::sMapMetaInfoKey);
-    uint64_t free_id = meta_map.hincrby(constants::sFirstFreeCid, 1);
+    uint64_t free_id = mMetaMap.hincrby(constants::sFirstFreeCid, 1);
     std::shared_ptr<IContainerMD> cont{new ContainerMD(
         free_id, pFileSvc, static_cast<IContainerMDSvc*>(this))};
     return mContainerCache.put(cont->getId(), cont);
@@ -304,6 +305,22 @@ ContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
   std::string bucket_key = stringify(id);
   bucket_key += constants::sContKeySuffix;
   return bucket_key;
+}
+
+//------------------------------------------------------------------------------
+// Get first free container id
+//------------------------------------------------------------------------------
+IContainerMD::id_t
+ContainerMDSvc::getFirstFreeId()
+{
+  id_t id = 0;
+  std::string sval = mMetaMap.hget(constants::sFirstFreeCid);
+
+  if (!sval.empty()) {
+    id = std::stoull(sval);
+  }
+
+  return id;
 }
 
 EOSNSNAMESPACE_END

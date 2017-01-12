@@ -93,33 +93,6 @@ FileMD::addLocation(location_t location)
 }
 
 //------------------------------------------------------------------------------
-// Set name
-//------------------------------------------------------------------------------
-void
-FileMD::setName(const std::string& name)
-{
-  pName = name;
-}
-
-//------------------------------------------------------------------------------
-// Get vector with all the locations
-//------------------------------------------------------------------------------
-IFileMD::LocationVector
-FileMD::getLocations() const
-{
-  return pLocation;
-}
-
-//------------------------------------------------------------------------------
-// Get vector with all unlinked locations
-//------------------------------------------------------------------------------
-IFileMD::LocationVector
-FileMD::getUnlinkedLocations() const
-{
-  return pUnlinkedLocation;
-}
-
-//------------------------------------------------------------------------------
 // Replace location by index
 //------------------------------------------------------------------------------
 void
@@ -133,7 +106,7 @@ FileMD::replaceLocation(unsigned int index, location_t newlocation)
 }
 
 //------------------------------------------------------------------------------
-// Remove location
+// Remove location that was previously unlinked
 //------------------------------------------------------------------------------
 void
 FileMD::removeLocation(location_t location)
@@ -141,8 +114,8 @@ FileMD::removeLocation(location_t location)
   for (auto it = pUnlinkedLocation.begin(); it < pUnlinkedLocation.end(); ++it) {
     if (*it == location) {
       pUnlinkedLocation.erase(it);
-      IFileMDChangeListener::Event e(
-        this, IFileMDChangeListener::LocationRemoved, location);
+      IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationRemoved,
+                                     location);
       pFileMDSvc->notifyListeners(&e);
       return;
     }
@@ -512,7 +485,7 @@ FileMD::waitAsyncReplies()
     }
 
     oss << std::endl;
-    fprintf(stderr, "Vector of async responses: %s\n", oss.str().c_str());
+    fprintf(stderr, "Async responses: %s\n", oss.str().c_str());
   }
 
   return ret;
