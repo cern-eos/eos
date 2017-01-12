@@ -168,7 +168,7 @@ ShellExecutor::run_child() const
 
     // we can get an interrupt and didn't read anything
     if (!nread)
-      continue
+      continue;
 
     cmd += msg.buff;
 
