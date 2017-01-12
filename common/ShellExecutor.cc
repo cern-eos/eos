@@ -161,8 +161,15 @@ ShellExecutor::run_child() const
   // check every 5 seconds for parent death
   alarm(5);
 
-  while (((read(outfd[0], &msg, sizeof(msg)) > 0) || (errno == EINTR))) {
+  ssize_t nread=0;
+
+  while (((nread = read(outfd[0], &msg, sizeof(msg)) > 0) || (errno == EINTR))) {
     alarm(0);
+
+    // we can get an interrupt and didn't read anything
+    if (!nread)
+      continue
+
     cmd += msg.buff;
 
     if (msg.complete) {
