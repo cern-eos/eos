@@ -119,8 +119,8 @@ ShellExecutor::execute(const std::string& cmd, fifo_uuid_t uuid) const
   }
 
   // the child will respond with pid of the 'command' process
-  pid_t pid;
-  read(infd[0], &pid, sizeof(pid_t));
+  pid_t pid=0;
+  TEMP_FAILURE_RETRY(read(infd[0], &pid, sizeof(pid_t)));
   return pid;
 }
 
@@ -161,28 +161,27 @@ ShellExecutor::run_child() const
   // check every 5 seconds for parent death
   alarm(5);
 
-  ssize_t nread=0;
+  size_t nread=0;
+  off_t off=0;
 
-  while (((nread = read(outfd[0], &msg, sizeof(msg)) > 0) || (errno == EINTR))) {
+  if ( (nread = TEMP_FAILURE_RETRY(read(outfd[0], (char*)&msg + off, sizeof(msg)))) > 0)
+  {
     alarm(0);
+    off += nread;
 
-    // we can get an interrupt and didn't read anything
-    if (nread<=0)
+    if (off == sizeof(msg))
     {
-      alarm(5);
-      continue;
-    }
-
-    cmd += msg.buff;
-
-    if (msg.complete) {
-      // execute the command
-      pid_t pid = system(cmd.c_str(), msg.uuid);
-      // respond with 'command' pid
-      write(infd[1], &pid, sizeof(pid_t));
-      // clean up
-      msg.complete = false;
-      cmd.erase();
+      cmd += msg.buff;
+      
+      if (msg.complete) {
+	// execute the command
+	pid_t pid = system(cmd.c_str(), msg.uuid);
+	// respond with 'command' pid
+	write(infd[1], &pid, sizeof(pid_t));
+	// clean up
+	msg.complete = false;
+	cmd.erase();
+      }
     }
 
     alarm(5);
@@ -283,6 +282,7 @@ ShellExecutor::msg_t::msg_t (fifo_uuid_t uuid) : complete(false)
     strncpy(this->uuid, uuid, 36);
     this->uuid[36] = 0;
   }
+  memset(buff, 0, max_size);
 }
 
 /*----------------------------------------------------------------------------*/
