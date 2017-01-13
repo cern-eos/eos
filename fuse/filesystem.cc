@@ -58,6 +58,7 @@
 #include "FuseCache/CacheEntry.hh"
 #include "filesystem.hh"
 #include "SyncResponseHandler.hh"
+#include "xrdutils.hh"
 
 #ifndef __macos__
 #define OSPAGESIZE 4096
@@ -67,9 +68,6 @@
 
 filesystem::filesystem ()
 {
-  xrootd_nullresponsebug_retrycount=3;
-  xrootd_nullresponsebug_retrysleep=1;
-
   lazy_open_ro = false;
   lazy_open_rw = false;
   lazy_open_disabled = false;
@@ -1550,57 +1548,6 @@ filesystem::listxattr (const char* path,
 
  delete response;
  return errno;
-}
-
-//------------------------------------------------------------------------------
-// Issue an Xrootd request.
-// If a null response or a null buffer is got, try up to
-// xrootd_nullresponsebug_retrycount times waiting
-// xrootd_nullresponsebug_retrysleep ms between the tries
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-
-XrdCl::XRootDStatus filesystem::xrdreq_retryonnullbuf(XrdCl::FileSystem &fs,
-                                                      XrdCl::Buffer &arg,
-                                                      XrdCl::Buffer *&response)
-{
-  XrdCl::XRootDStatus status;
-  for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount; retrycount++)
-  {
-    SyncResponseHandler handler;
-    fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-    status = handler.Sync (response);
-
-    if (status.IsOK ())
-    {
-      if (response && response->GetBuffer ()) // we get a well-formatted response
-        break;
-      else // we get a wrongly formatted response
-      {
-        if (retrycount + 1 < xrootd_nullresponsebug_retrycount)
-        {
-          if (response)
-          { // we are going to retry so delete the previous reponse if any not to leak memory
-            delete response;
-            response = 0;
-          }
-          XrdSysTimer sleeper;
-          if (xrootd_nullresponsebug_retrysleep) sleeper.Wait (xrootd_nullresponsebug_retrysleep);
-
-          continue;
-        }
-        else
-          eos_static_err("no response received after %d attempts", retrycount);
-      }
-    }
-    else
-    {
-      eos_static_err("status is NOT ok : %s", status.ToString ().c_str ());
-    }
-    errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
-    break;
-  }
-  return status;
 }
 
 //------------------------------------------------------------------------------

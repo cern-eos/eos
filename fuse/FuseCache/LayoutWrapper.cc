@@ -29,6 +29,7 @@
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
+#include "../xrdutils.hh"
 
 XrdSysMutex LayoutWrapper::gCacheAuthorityMutex;
 std::map<unsigned long long, LayoutWrapper::CacheEntry>
@@ -276,9 +277,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   u = XrdCl::URL(user_url);
   XrdCl::FileSystem fs(u);
 
-  SyncResponseHandler handler;
-  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-  status = handler.Sync(response);
+  status = xrdreq_retryonnullbuf(fs, arg, response);
 
   if (!status.IsOK())
   {
@@ -297,9 +296,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
       else
       {
         // Reissue the open
-        SyncResponseHandler handler;
-        fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-        status = handler.Sync(response);
+        XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
         if (!status.IsOK())
         {
