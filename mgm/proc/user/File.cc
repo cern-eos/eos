@@ -46,7 +46,7 @@ ProcCommand::File()
   XrdOucString spathid = pOpaque->Get("mgm.file.id");
 
   if (spathid.length()) {
-    funcGetPathFromFid(spath, "Cannot get fid");
+    GetPathFromFid(spath, pOpaque, "Cannot get fid");
   } else {
     spath = pOpaque->Get("mgm.path");
   }

@@ -322,14 +322,15 @@ private:
   XrdOucString mJsonCallback; ///< sets the JSONP callback name in a response
 
   //----------------------------------------------------------------------------
-  //! Function used to get a file's full from fid inforamtion stored in the
-  //! opaque information.
+  //! Get a file's full path using the fid information stored in the opaque
+  //! data.
   //!
-  //! @param path full path for current file
-  //! @param errMessage message in case there is any error
+  //! @param path full path of the file
+  //! @param opaque request opaque information
+  //! @param err_msg error message to be displayed in case of exception
   //----------------------------------------------------------------------------
-  std::function<void(XrdOucString&, const std::string&)>
-  funcGetPathFromFid;
+  void GetPathFromFid(XrdOucString& path, XrdOucEnv* opaque,
+                      const std::string& err_msg);
 
   //----------------------------------------------------------------------------
   //! Create archive file. If successful then the archive file is copied to the

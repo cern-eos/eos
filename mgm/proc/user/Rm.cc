@@ -38,7 +38,7 @@ int
 ProcCommand::Rm()
 {
   XrdOucString spath = pOpaque->Get("mgm.path");
-  funcGetPathFromFid(spath, "Cannot get fid");
+  GetPathFromFid(spath, pOpaque, "Cannot get fid");
   XrdOucString option = pOpaque->Get("mgm.option");
   XrdOucString deep = pOpaque->Get("mgm.deletion");
   const char* inpath = spath.c_str();
@@ -56,7 +56,7 @@ ProcCommand::Rm()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
-  funcGetPathFromFid(spath, "Cannot get fid");
+  GetPathFromFid(spath, pOpaque, "Cannot get fid");
 
   if (force && (vid.uid)) {
     stdErr = "warning: removing the force flag - this is only allowed for the 'root' role!\n";
