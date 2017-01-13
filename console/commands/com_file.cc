@@ -187,11 +187,9 @@ com_file(char* arg1)
     }
 
     fsid1 = abspath(fsid1.c_str());
-    in += "&mgm.path=";
-    in += path;
     in += "&mgm.subcmd=rename";
-    in += "&mgm.file.source=";
-    in += path.c_str();
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
+    in += path;
     in += "&mgm.file.target=";
     in += fsid1.c_str();
   }
@@ -236,7 +234,7 @@ com_file(char* arg1)
       goto com_file_usage;
     }
 
-    in += "&mgm.path=";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
     in += "&mgm.subcmd=touch";
   }
@@ -247,7 +245,7 @@ com_file(char* arg1)
     }
 
     in += "&mgm.subcmd=drop";
-    in += "&mgm.path=";
+    in += Path2FileDenominator(path) ? "mgm.file.id" : "&mgm.path=";
     in += path;
     in += "&mgm.file.fsid=";
     in += fsid1;
@@ -267,7 +265,7 @@ com_file(char* arg1)
     }
 
     in += "&mgm.subcmd=move";
-    in += "&mgm.path=";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
     in += "&mgm.file.sourcefsid=";
     in += fsid1;
@@ -283,7 +281,7 @@ com_file(char* arg1)
     }
 
     in += "&mgm.subcmd=copy";
-    in += "&mgm.path=";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
 
     if (option.length()) {
@@ -315,7 +313,7 @@ com_file(char* arg1)
     }
 
     in += "&mgm.subcmd=convert";
-    in += "&mgm.path=";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
 
     if (layout.length()) {
@@ -353,7 +351,7 @@ com_file(char* arg1)
     }
 
     in += "&mgm.subcmd=replicate";
-    in += "&mgm.path=";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
     in += "&mgm.file.sourcefsid=";
     in += fsid1;
@@ -876,7 +874,7 @@ com_file_usage:
   fprintf(stdout,
           "                                                  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
   fprintf(stdout,
-          "file check <path> [%%size%%checksum%%nrep%%checksumattr%%force%%output%%silent] :\n");
+          "file check [<path>|fid:<fid-dec>|fxid:<fid-hex>] [%%size%%checksum%%nrep%%checksumattr%%force%%output%%silent] :\n");
   fprintf(stdout,
           "                                                  retrieves stat information from the physical replicas and verifies the correctness\n");
   fprintf(stdout,
@@ -894,7 +892,7 @@ com_file_usage:
   fprintf(stdout,
           "       - %%output                                                     :  prints lines with inconsitency information\n");
   fprintf(stdout,
-          "file convert [--sync|--rewrite] <path> [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space] [placement-policy]:\n");
+          "file convert [--sync|--rewrite] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space] [placement-policy]:\n");
   fprintf(stdout,
           "                                                                         convert the layout of a file\n");
   fprintf(stdout,
@@ -914,17 +912,18 @@ com_file_usage:
   fprintf(stdout,
           "file copy [-f] [-s] [-c] <src> <dst>                                   :  synchronous third party copy from <src> to <dst>\n");
   fprintf(stdout,
-          "         <src>                                                         :  source can be a file or a directory\n");
+          "         <src>                                                         :  source can be a file or a directory (<path>|fid:<fid-dec>|fxid:<fid-hex>) \n");
   fprintf(stdout,
           "         <dst>                                                         :  destination can be a file (if source is a file) or a directory\n");
   fprintf(stdout,
           "                                                                     -f :  force overwrite\n");
   fprintf(stdout,
           "                                                                     -c :  clone the file (keep ctime,mtime)\n");
-  fprintf(stdout, "file drop <path> <fsid> [-f] :\n");
+  fprintf(stdout,
+          "file drop [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid> [-f] :\n");
   fprintf(stdout,
           "                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
-  fprintf(stdout, "file info <path> :\n");
+  fprintf(stdout, "file info [<path>|fid:<fid-dec>|fxid:<fid-hex>] :\n");
   fprintf(stdout,
           "                                                  convenience function aliasing to 'fileinfo' command\n");
   fprintf(stdout,
@@ -935,16 +934,18 @@ com_file_usage:
           "file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -checksum <checksum-type> :\n");
   fprintf(stdout,
           "                                                  change the checksum-type of a file to <checksum-type>\n");
-  fprintf(stdout, "file move <path> <fsid1> <fsid2> :\n");
+  fprintf(stdout,
+          "file move [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2> :\n");
   fprintf(stdout,
           "                                                  move the file <path> from  <fsid1> to <fsid2>\n");
   fprintf(stdout, "file purge <path> [purge-version] :\n");
   fprintf(stdout,
           "                                                  keep maximumg <purge-version> versions of a file. If not specified apply the attribute definition from sys.versioning.\n");
-  fprintf(stdout, "file rename <old> <new> :\n");
+  fprintf(stdout, "file rename [<path>|fid:<fid-dec>|fxid:<fid-hex>] <new> :\n");
   fprintf(stdout,
           "                                                  rename from <old> to <new> name (works for files and directories!).\n");
-  fprintf(stdout, "file replicate <path> <fsid1> <fsid2> :\n");
+  fprintf(stdout,
+          "file replicate [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2> :\n");
   fprintf(stdout,
           "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
   fprintf(stdout, "file symlink <name> <link-name> :\n");
@@ -955,7 +956,7 @@ com_file_usage:
           "                                                  add/remove/unlink a filesystem location to/from a file in the location index - attention this does not move any data!\n");
   fprintf(stdout,
           "                                                  unlink keeps the location in the list of deleted files e.g. the location get's a deletion request\n");
-  fprintf(stdout, "file touch <path> :\n");
+  fprintf(stdout, "file touch [<path>|fid:<fid-dec>|fxid:<fid-hex>] :\n");
   fprintf(stdout,
           "                                                   create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
   fprintf(stdout,

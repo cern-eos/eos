@@ -231,6 +231,32 @@ ProcCommand::ProcCommand()
   ininfo = 0;
   fstdout = fstderr = fresultStream = 0;
   fstdoutfilename = fstderrfilename = fresultStreamfilename = "";
+  funcGetPathFromFid = [this](XrdOucString & path,
+  const std::string & errMessage) {
+    std::string tag = "mgm.file.id";
+
+    if (path == "") {
+      unsigned long long fid = strtoull(pOpaque->Get(tag.c_str()), 0, 10);
+
+      if (fid == 0ULL) {
+        stdErr += "error: fid unknown!";
+        retc = errno;
+      }
+
+      try {
+        std::string temp =
+          gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
+        path = XrdOucString(temp.c_str());
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        stdErr = errMessage.c_str();
+        stdErr += e.getMessage().str().c_str();
+        stdErr += "\n";
+        eos_debug("caught exception %d %s\n",
+                  e.getErrno(), e.getMessage().str().c_str());
+      }
+    }
+  };
 }
 
 /*----------------------------------------------------------------------------*/

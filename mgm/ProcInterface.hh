@@ -264,24 +264,35 @@ public:
     ~ArchDirStatus() {};
   };
 
-private:
-  XrdOucString path; //< path argument for the proc command
-  eos::common::Mapping::VirtualIdentity* pVid; //< pointer to virtual identity
-  XrdOucString mCmd; //< proc command name
-  XrdOucString mSubCmd; //< proc sub command name
-  XrdOucString mArgs; //< full args from opaque input
+  //----------------------------------------------------------------------------
+  //! Create a result stream from stdOut, stdErr & retc
+  //----------------------------------------------------------------------------
+  void MakeResult();
 
-  XrdOucString stdOut; //< stdOut returned by proc command
-  XrdOucString stdErr; //< stdErr returned by proc command
-  XrdOucString stdJson; //< JSON output returned by proc command
-  int retc; //< return code from the proc command
-  XrdOucString mResultStream; //< string containing the assembled stream
-  XrdOucEnv* pOpaque; //< pointer to the opaque information object
-  const char* ininfo; //< original opaque info string
-  bool mDoSort; //< sort flag (true = sorting)
-  const char* mSelection; //< selection argument from the opaque request
-  XrdOucString mOutFormat; //< output format type e.g. fuse or json
-  unsigned mOutDepth; //< depth of aggregation along the topology tree
+  //----------------------------------------------------------------------------
+  //! Helper function able to detect key value pair output and convert to http
+  //! table format
+  //----------------------------------------------------------------------------
+  bool KeyValToHttpTable(XrdOucString& stdOut);
+
+private:
+  XrdOucString path; ///< path argument for the proc command
+  eos::common::Mapping::VirtualIdentity* pVid; ///< pointer to virtual identity
+  XrdOucString mCmd; ///< proc command name
+  XrdOucString mSubCmd; ///< proc sub command name
+  XrdOucString mArgs; ///< full args from opaque input
+
+  XrdOucString stdOut; ///< stdOut returned by proc command
+  XrdOucString stdErr; ///< stdErr returned by proc command
+  XrdOucString stdJson; ///< JSON output returned by proc command
+  int retc; ///< return code from the proc command
+  XrdOucString mResultStream; ///< string containing the assembled stream
+  XrdOucEnv* pOpaque; ///< pointer to the opaque information object
+  const char* ininfo; ///< original opaque info string
+  bool mDoSort; ///< sort flag (true = sorting)
+  const char* mSelection; ///< selection argument from the opaque request
+  XrdOucString mOutFormat; ///< output format type e.g. fuse or json
+  unsigned mOutDepth; ///< depth of aggregation along the topology tree
 
   //----------------------------------------------------------------------------
   //! The 'find' command does not keep results in memory but writes to
@@ -295,20 +306,30 @@ private:
   XrdOucString fresultStreamfilename;
   XrdOucErrInfo* mError;
 
-  XrdOucString mComment; //< comment issued by the user for the proc comamnd
-  time_t mExecTime; //< execution time measured for the proc command
+  XrdOucString mComment; ///< comment issued by the user for the proc comamnd
+  time_t mExecTime; ///< execution time measured for the proc command
 
-  size_t mLen; //< len of the result stream
-  off_t mOffset; //< offset from where to read in the result stream
+  size_t mLen; ///< len of the result stream
+  off_t mOffset; ///< offset from where to read in the result stream
   bool mAdminCmd; // < indicates an admin command
-  bool mUserCmd; //< indicates a user command
+  bool mUserCmd; ///< indicates a user command
 
-  bool mFuseFormat; //< indicates FUSE format
-  bool mJsonFormat; //< indicates JSON format
-  bool mHttpFormat; //< indicates HTTP format
-  bool mClosed; //< indicates the proc command has been closed already
-  bool mBase64Encoding; //< indicates base64 encoding of response
-  XrdOucString mJsonCallback; //< sets the JSONP callback name in a response
+  bool mFuseFormat; ///< indicates FUSE format
+  bool mJsonFormat; ///< indicates JSON format
+  bool mHttpFormat; ///< indicates HTTP format
+  bool mClosed; ///< indicates the proc command has been closed already
+  bool mBase64Encoding; ///< indicates base64 encoding of response
+  XrdOucString mJsonCallback; ///< sets the JSONP callback name in a response
+
+  //----------------------------------------------------------------------------
+  //! Function used to get a file's full from fid inforamtion stored in the
+  //! opaque information.
+  //!
+  //! @param path full path for current file
+  //! @param errMessage message in case there is any error
+  //----------------------------------------------------------------------------
+  std::function<void(XrdOucString&, const std::string&)>
+  funcGetPathFromFid;
 
   //----------------------------------------------------------------------------
   //! Create archive file. If successful then the archive file is copied to the
@@ -428,19 +449,6 @@ private:
                    const std::string& twindow_type,
                    const std::string& twindow_val,
                    const std::set<std::string>& excl_xattr);
-
-public:
-
-  //----------------------------------------------------------------------------
-  //! Create a result stream from stdOut, stdErr & retc
-  //----------------------------------------------------------------------------
-  void MakeResult();
-
-  //----------------------------------------------------------------------------
-  //! Helper function able to detect key value pair output and convert to http
-  //! table format
-  //----------------------------------------------------------------------------
-  bool KeyValToHttpTable(XrdOucString& stdOut);
 };
 
 

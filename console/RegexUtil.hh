@@ -25,7 +25,7 @@
 #define __REGEXUTIL__HH__
 
 #include <iostream>
-#include<string>
+#include <string>
 #include <regex.h>
 
 //------------------------------------------------------------------------------
