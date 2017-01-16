@@ -230,8 +230,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %attr(555,daemon,daemon) /var/eos/wfe/bash/shell
 
 %post -n eos-server
-/sbin/chkconfig --add eos
-/sbin/chkconfig --add eosslave
 echo "Starting conditional EOS services"
 sleep 2
 %if %{use_systemd}
@@ -239,6 +237,8 @@ sleep 2
     /sbin/systemctl restart eos@* > /dev/null 2>&1 || :
     /sbin/systemctl restart eosd@* > /dev/null 2>&1 || :
 %else
+    /sbin/chkconfig --add eos
+    /sbin/chkconfig --add eosslave
     /sbin/service eos condrestart > /dev/null 2>&1 || :
     /sbin/service eosd condrestart > /dev/null 2>&1 || :
 %endif
@@ -258,9 +258,9 @@ if [ $1 = 0 ]; then
     /sbin/service eos stop > /dev/null 2>&1 || :
     /sbin/service eossync stop > /dev/null 2>&1
     /sbin/service eosslave stop > /dev/null 2>&1
+    /sbin/chkconfig --del eos
+    /sbin/chkconfig --del eosslave
   %endif
-  /sbin/chkconfig --del eos
-  /sbin/chkconfig --del eosslave
 fi
 %endif
 
