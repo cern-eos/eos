@@ -164,7 +164,7 @@ ShellExecutor::run_child() const
   size_t nread=0;
   off_t off=0;
 
-  if ( (nread = TEMP_FAILURE_RETRY(read(outfd[0], (char*)&msg + off, sizeof(msg)))) > 0)
+  while ( (nread = TEMP_FAILURE_RETRY(read(outfd[0], (char*)&msg + off, sizeof(msg)))) > 0)
   {
     alarm(0);
     off += nread;
