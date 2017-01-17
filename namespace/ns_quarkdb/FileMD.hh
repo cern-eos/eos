@@ -580,11 +580,10 @@ public:
   //! Register asynchronous request which are handled by the AsyncHandler
   //! member object.
   //!
-  //! @param future future object of the async request
-  //! @param op operation type
+  //! @param aresp pair holding the future and the command that was executed
+  //! @param qcl pointer to client object used to send the initial request
   //----------------------------------------------------------------------------
-  void Register(std::future<qclient::redisReplyPtr>&& future,
-                qclient::OpType op);
+  void Register(qclient::AsyncResponseType aresp, qclient::QClient* qcl);
 
 protected:
   id_t pId;

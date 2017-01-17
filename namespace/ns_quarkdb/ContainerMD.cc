@@ -324,7 +324,7 @@ ContainerMD::cleanUp()
   file.reset();
   mFilesMap.clear();
   qclient::AsyncHandler ah;
-  ah.Register(pQcl->del_async(pFilesKey), qclient::OpType::DEL);
+  ah.Register(pQcl->del_async(pFilesKey), pQcl);
 
   // Remove all subcontainers
   for (auto && elem : mDirsMap) {
@@ -334,7 +334,7 @@ ContainerMD::cleanUp()
   }
 
   mDirsMap.clear();
-  ah.Register(pQcl->del_async(pDirsKey), qclient::OpType::DEL);
+  ah.Register(pQcl->del_async(pDirsKey), pQcl);
 
   if (!ah.Wait()) {
     auto resp = ah.GetResponses();

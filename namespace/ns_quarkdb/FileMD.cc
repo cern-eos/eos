@@ -495,10 +495,9 @@ FileMD::waitAsyncReplies()
 // Register asynchronous request
 //------------------------------------------------------------------------------
 void
-FileMD::Register(std::future<qclient::redisReplyPtr>&& future,
-                 qclient::OpType op)
+FileMD::Register(qclient::AsyncResponseType aresp, qclient::QClient* qcl)
 {
-  mAh.Register(std::move(future), op);
+  mAh.Register(std::move(aresp), qcl);
 }
 
 EOSNSNAMESPACE_END

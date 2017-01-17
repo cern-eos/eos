@@ -48,24 +48,24 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   // New file has been created
   case IFileMDChangeListener::Created:
     file->Register(pNoReplicasSet.sadd_async(file->getId()),
-                   qclient::OpType::SADD);
+                   pNoReplicasSet.getClient());
     break;
 
   // File has been deleted
   case IFileMDChangeListener::Deleted:
     file->Register(pNoReplicasSet.srem_async(file->getId()),
-                   qclient::OpType::SREM);
+                   pNoReplicasSet.getClient());
     break;
 
   // Add location
   case IFileMDChangeListener::LocationAdded:
     val = std::to_string(e->location);
-    file->Register(pFsIdsSet.sadd_async(val), qclient::OpType::SADD);
+    file->Register(pFsIdsSet.sadd_async(val), pFsIdsSet.getClient());
     key = val + fsview::sFilesSuffix;
     val = std::to_string(file->getId());
     fs_set = qclient::QSet(*pQcl, key);
-    file->Register(fs_set.sadd_async(val), qclient::OpType::SADD);
-    file->Register(pNoReplicasSet.srem_async(val), qclient::OpType::SREM);
+    file->Register(fs_set.sadd_async(val), fs_set.getClient());
+    file->Register(pNoReplicasSet.srem_async(val), pNoReplicasSet.getClient());
     break;
 
   // Replace location
@@ -73,10 +73,10 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
     key = std::to_string(e->oldLocation) + fsview::sFilesSuffix;
     val = std::to_string(file->getId());
     fs_set = qclient::QSet(*pQcl, key);
-    file->Register(fs_set.srem_async(val), qclient::OpType::SREM);
+    file->Register(fs_set.srem_async(val), fs_set.getClient());
     key = std::to_string(e->location) + fsview::sFilesSuffix;
     fs_set.setKey(key);
-    file->Register(fs_set.sadd_async(val), qclient::OpType::SADD);
+    file->Register(fs_set.sadd_async(val), fs_set.getClient());
     break;
 
   // Remove location
@@ -88,7 +88,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
     fs_set.srem(val);
 
     if (!e->file->getNumUnlinkedLocation() && !e->file->getNumLocation()) {
-      file->Register(pNoReplicasSet.sadd_async(val), qclient::OpType::SADD);
+      file->Register(pNoReplicasSet.sadd_async(val), pNoReplicasSet.getClient());
     }
 
     // Cleanup fsid if it doesn't hold any files anymore
@@ -111,10 +111,10 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
     key = std::to_string(e->location) + fsview::sFilesSuffix;
     val = std::to_string(e->file->getId());
     fs_set = qclient::QSet(*pQcl, key);
-    file->Register(fs_set.srem_async(val), qclient::OpType::SREM);
+    file->Register(fs_set.srem_async(val), fs_set.getClient());
     key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
     fs_set.setKey(key);
-    file->Register(fs_set.sadd_async(val), qclient::OpType::SADD);
+    file->Register(fs_set.sadd_async(val), fs_set.getClient());
     break;
 
   default:
@@ -141,10 +141,10 @@ FileSystemView::fileMDCheck(IFileMD* file)
   // If file has no replicas make sure it's accounted for
   if (has_no_replicas) {
     ah.Register(pNoReplicasSet.sadd_async(file->getId()),
-                qclient::OpType::SADD);
+                pNoReplicasSet.getClient());
   } else {
     ah.Register(pNoReplicasSet.srem_async(file->getId()),
-                qclient::OpType::SREM);
+                pNoReplicasSet.getClient());
   }
 
   qclient::QSet replica_set(*pQcl, "");
@@ -164,10 +164,10 @@ FileSystemView::fileMDCheck(IFileMD* file)
       if (std::find(replica_locs.begin(), replica_locs.end(), fsid) !=
           replica_locs.end()) {
         ah.Register(replica_set.sadd_async(file->getId()),
-                    qclient::OpType::SADD);
+                    replica_set.getClient());
       } else {
         ah.Register(replica_set.srem_async(file->getId()),
-                    qclient::OpType::SREM);
+                    replica_set.getClient());
       }
 
       // Deal with the fs unlinked set
@@ -177,10 +177,10 @@ FileSystemView::fileMDCheck(IFileMD* file)
       if (std::find(unlink_locs.begin(), unlink_locs.end(), fsid) !=
           unlink_locs.end()) {
         ah.Register(unlink_set.sadd_async(file->getId()),
-                    qclient::OpType::SADD);
+                    unlink_set.getClient());
       } else {
         ah.Register(unlink_set.srem_async(file->getId()),
-                    qclient::OpType::SREM);
+                    unlink_set.getClient());
       }
     }
   } while (cursor != "0");
