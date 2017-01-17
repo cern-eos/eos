@@ -557,7 +557,7 @@ XrdStress::WrProc( void* arg )
   for ( unsigned int indx = startIndx; indx < endIndx ; indx++ ) {
     std::string urlFile = pxt->vectFilename[indx];
     count_open++;
-    int fdWrite = XrdPosixXrootd::Open( urlFile.c_str(),
+    int fdWrite = XrdPosixXrootd::Open( urlFile.c_str(), O_CREAT | O_WRONLY |
                                         kXR_async | kXR_mkpath | kXR_open_updt | kXR_new,
                                         kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or );
 
