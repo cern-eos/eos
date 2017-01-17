@@ -170,7 +170,7 @@ ShellExecutor::run_child() const
   size_t nread=0;
   off_t off=0;
 
-  while ( (nread = TEMP_FAILURE_RETRY(read(outfd[0], (char*)&msg + off, sizeof(msg)))) > 0)
+  while ( (nread = TEMP_FAILURE_RETRY(read(outfd[0], (char*)&msg + off, sizeof(msg) - off))) > 0)
   {
     alarm(0);
     off += nread;
@@ -178,9 +178,9 @@ ShellExecutor::run_child() const
     if (off == sizeof(msg))
     {
       cmd += msg.buff;
-      
+      off = 0;
+
       if (msg.complete) {
-	off = 0;
 	// execute the command
 	pid_t pid = system(cmd.c_str(), msg.uuid);
 	// respond with 'command' pid
