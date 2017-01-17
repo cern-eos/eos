@@ -181,6 +181,7 @@ private:
   std::string pQuotaGidKey;
   qclient::QHash pUidMap; ///< Backend map for uids
   qclient::QHash pGidMap; ///< Backend map for gids
+  qclient::AsyncHandler pAh; ///< Async handler for qclient requests
   static const std::string sSpaceTag;         ///< Tag for space quota
   static const std::string sPhysicalSpaceTag; ///< Tag for physical space quota
   static const std::string sFilesTag;         ///< Tag for number of files quota

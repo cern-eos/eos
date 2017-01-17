@@ -60,17 +60,37 @@ QuotaNode::addFile(const IFileMD* file)
   const std::string sgid = std::to_string(file->getCGid());
   const int64_t size = pQuotaStats->getPhysicalSize(file);
   std::string field = suid + sPhysicalSpaceTag;
-  (void)pUidMap.hincrby(field, size);
+  pAh.Register(pUidMap.hincrby_async(field, size), pUidMap.getClient());
   field = sgid + sPhysicalSpaceTag;
-  (void)pGidMap.hincrby(field, size);
+  pAh.Register(pGidMap.hincrby_async(field, size), pGidMap.getClient());
   field = suid + sSpaceTag;
-  (void)pUidMap.hincrby(field, file->getSize());
+  pAh.Register(pUidMap.hincrby_async(field, file->getSize()),
+               pUidMap.getClient());
   field = sgid + sSpaceTag;
-  (void)pGidMap.hincrby(field, file->getSize());
+  pAh.Register(pGidMap.hincrby_async(field, file->getSize()),
+               pGidMap.getClient());
   field = suid + sFilesTag;
-  (void)pUidMap.hincrby(field, 1);
+  pAh.Register(pUidMap.hincrby_async(field, 1), pUidMap.getClient());
   field = sgid + sFilesTag;
-  (void)pGidMap.hincrby(field, 1);
+  pAh.Register(pGidMap.hincrby_async(field, 1), pGidMap.getClient());
+
+  if (!pAh.Wait()) {
+    std::vector<long long int> resp = pAh.GetResponses();
+
+    for (auto& r : resp) {
+      if (r == -ECOMM) {
+        // Communication error
+        MDException e;
+        e.getMessage() << "Failed to connect to backend while updating quota";
+        throw e;
+      } else if (r == -1) {
+        // Unexpected reply type
+        MDException e;
+        e.getMessage() << "Unexpected reply type while updating quota";
+        throw e;
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -83,18 +103,36 @@ QuotaNode::removeFile(const IFileMD* file)
   const std::string sgid = std::to_string(file->getCGid());
   int64_t size = pQuotaStats->getPhysicalSize(file);
   std::string field = suid + sPhysicalSpaceTag;
-  (void)pUidMap.hincrby(field, -size);
+  pAh.Register(pUidMap.hincrby_async(field, -size), pUidMap.getClient());
   field = sgid + sPhysicalSpaceTag;
-  (void)pGidMap.hincrby(field, -size);
+  pAh.Register(pGidMap.hincrby_async(field, -size), pGidMap.getClient());
   field = suid + sSpaceTag;
   size = static_cast<int64_t>(file->getSize());
-  (void)pUidMap.hincrby(field, -size);
+  pAh.Register(pUidMap.hincrby_async(field, -size), pUidMap.getClient());
   field = sgid + sSpaceTag;
-  (void)pGidMap.hincrby(field, -size);
+  pAh.Register(pGidMap.hincrby_async(field, -size), pGidMap.getClient());
   field = suid + sFilesTag;
-  (void)pUidMap.hincrby(field, -1);
+  pAh.Register(pUidMap.hincrby_async(field, -1), pUidMap.getClient());
   field = sgid + sFilesTag;
-  (void)pGidMap.hincrby(field, -1);
+  pAh.Register(pGidMap.hincrby_async(field, -1), pGidMap.getClient());
+
+  if (!pAh.Wait()) {
+    std::vector<long long int> resp = pAh.GetResponses();
+
+    for (auto& r : resp) {
+      if (r == -ECOMM) {
+        // Communication error
+        MDException e;
+        e.getMessage() << "Failed to connect to backend while updating quota";
+        throw e;
+      } else if (r == -1) {
+        // Unexpected reply type
+        MDException e;
+        e.getMessage() << "Unexpected reply type while updating quota";
+        throw e;
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -104,8 +142,7 @@ void
 QuotaNode::meld(const IQuotaNode* node)
 {
   std::string field;
-  qclient::QHash hmap(*pQcl,
-                      dynamic_cast<const QuotaNode*>(node)->getUidKey());
+  qclient::QHash hmap(*pQcl, dynamic_cast<const QuotaNode*>(node)->getUidKey());
   std::vector<std::string> elems = hmap.hgetall();
 
   for (auto it = elems.begin(); it != elems.end(); ++it) {
@@ -353,18 +390,24 @@ QuotaStats::removeNode(IContainerMD::id_t node_id)
     pNodeMap.erase(node_id);
   }
 
-  if (!pIdsSet.srem(snode_id)) {
+  try {
+    if (!pIdsSet.srem(snode_id)) {
+      MDException e;
+      e.getMessage() << "Quota node " << node_id << " does not exist in set";
+      throw e;
+    }
+
+    // Delete the hmaps associated with the current node
+    std::string key = snode_id + sQuotaUidsSuffix;
+    (void) pQcl->del(key);
+    key = snode_id + sQuotaGidsSuffix;
+    (void) pQcl->del(key);
+  } catch (std::runtime_error& qdb_err) {
     MDException e;
-    e.getMessage() << "Quota node " << node_id << " does not exist in set";
+    e.getMessage() << "Remove quota node " << node_id << " failed - "
+                   << qdb_err.what();
     throw e;
   }
-
-  // Delete the hmaps associated with the current node
-  std::string key = snode_id + sQuotaUidsSuffix;
-  // TODO: deal with connection errors
-  (void) pQcl->del(key);
-  key = snode_id + sQuotaGidsSuffix;
-  (void) pQcl->del(key);
 }
 
 //------------------------------------------------------------------------------
