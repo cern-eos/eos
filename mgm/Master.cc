@@ -542,20 +542,23 @@ Master::Supervisor ()
           }
           else
           {
-            // remove any redirect or stall in this case
-            if (Access::gRedirectionRules.count(std::string("w:*")))
-            {
-              Access::gRedirectionRules.erase(std::string("w:*"));
-            }
-            if (Access::gStallRules.count(std::string("w:*")))
-            {
-              Access::gStallRules.erase(std::string("w:*"));
-              Access::gStallWrite = false;
-            }
-            if (Access::gRedirectionRules.count(std::string("ENOENT:*")))
-            {
-              Access::gRedirectionRules.erase(std::string("ENOENT:*"));
-            }
+	    if (fRunningState == kIsRunningMaster)
+	    {
+	      // remove any redirect or stall in this case
+	      if (Access::gRedirectionRules.count(std::string("w:*")))
+	      {
+		Access::gRedirectionRules.erase(std::string("w:*"));
+	      }
+	      if (Access::gStallRules.count(std::string("w:*")))
+	      {
+		Access::gStallRules.erase(std::string("w:*"));
+		Access::gStallWrite = false;
+	      }
+	      if (Access::gRedirectionRules.count(std::string("ENOENT:*")))
+	      {
+		Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+	      }
+	    }
           }
         }
       }
@@ -1137,6 +1140,9 @@ Master::PrintOut (XrdOucString &out)
       break;
     case kIsReadOnlyMaster:
       out += " state=master-ro";
+      break;
+    case kIsTransition:
+      out += " state=trasition";
       break;
   }
 
