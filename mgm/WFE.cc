@@ -39,6 +39,8 @@
 
 XrdSysMutex eos::mgm::WFE::gSchedulerMutex;
 XrdScheduler* eos::mgm::WFE::gScheduler;
+XrdSysMutex eos::mgm::WFE::gQueueChangeMutex;
+
 /*----------------------------------------------------------------------------*/
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
@@ -268,7 +270,7 @@ WFE::WFEr()
                 }
               } else {
                 // don't schedule jobs for the future
-                if (now < job->mActions[0].mTime) {
+                if ((!job->mActions.size()) || (now < job->mActions[0].mTime)) {
                   delete job;
                   continue;
                 }
@@ -390,6 +392,8 @@ int
 /*----------------------------------------------------------------------------*/
 WFE::Job::Save(std::string queue, time_t when, int action, int retry)
 {
+  XrdSysMutexHelper lLock(&gQueueChangeMutex);
+
   if (mActions.size() != 1) {
     return -1;
   }
@@ -512,6 +516,8 @@ WFE::Job::Load(std::string path2entry)
  */
 /*----------------------------------------------------------------------------*/
 {
+  XrdSysMutexHelper lLock(&gQueueChangeMutex);
+
   XrdOucErrInfo lError;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
@@ -621,6 +627,8 @@ WFE::Job::Delete(std::string queue)
  */
 /*----------------------------------------------------------------------------*/
 {
+  XrdSysMutexHelper lLock(&gQueueChangeMutex);
+
   if (mActions.size() != 1) {
     return SFS_ERROR;
   }

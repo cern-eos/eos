@@ -62,6 +62,8 @@ private:
   eos::common::Mapping::VirtualIdentity mRootVid; //< we operate with the root vid
   XrdOucErrInfo mError; //< XRootD error object
 
+  static XrdSysMutex gQueueChangeMutex; //< whenever a load/save/delete is executed it uses this mutex
+
   mutable XrdSysMutex mActiveJobsMutex;
 
   /// this are all jobs which are queued and didn't run yet
