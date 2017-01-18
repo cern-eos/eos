@@ -22,17 +22,35 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+if [[ -r /etc/sysconfig/eos ]]; then
+ # Handle old SysV scripts
+ . /etc/sysconfig/eos
+elif [[ -r /etc/sysconfig/eos_env ]]; then
+ # Handle systemd environment script
+ set -a
+ . /etc/sysconfig/eos_env
+ set +a
+fi
 
-test -r /etc/sysconfig/eos && . /etc/sysconfig/eos
-test -r /etc/quattor_install_info && . /etc/quattor_install_info
+NORMAL=$(tput sgr0)
+RED=$(tput setaf 1)
 
-# set the redirector name like the quattor cluster name
-if [ "x$EOS_MGM_URL" = "x" ]; then
-        EOS_MGM_URL=root://$CDB_CLUSTER
+function red() {
+    echo -e "$RED$*$NORMAL"
+}
+
+# Try to guess the value of EOS_MGM_URL if not exit.
+if [[ -z "${EOS_MGM_URL}" ]]; then
+  if [[ -n "${EOS_MGM_ALIAS}" ]]; then
+    EOS_MGM_URL=root://${EOS_MGM_ALIAS}
+  fi
+fi
+
+if [[ -z "${EOS_MGM_URL}" ]]; then
+  red "EOS_MGM_URL is not defined. Please review the sysconfig script."
+  exit 1;
 fi
 
 export EOS_MGM_URL
 export XrdSecPROTOCOL=sss
 eos $*
-
-
