@@ -891,6 +891,12 @@ ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id)
     throw e;
   }
 
+  if (it->second.ptr == NULL) {
+    MDException e(ENOENT);
+    e.getMessage() << "File #" << id << " not found in map";
+    throw e;
+  }
+
   it->second.ptr->setFileMDSvc(this);
   return it->second.ptr;
 }
