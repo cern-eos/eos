@@ -216,8 +216,8 @@ The EOS shell client.
 Summary: The EOS fuse client with init.d and mount script
 Group: Applications/File
 
-Requires: eos-fuse-core
-Requires: eos-fuse-sysv
+Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
+Requires: eos-fuse-sysv = @CPACK_PACKAGE_VERSION@
 
 %description -n eos-fuse
 The EOS fuse client bundle.
@@ -312,7 +312,7 @@ fi
 Summary: The EOS fuse client
 Group: Applications/File
 
-Requires: eos-fuse-core
+Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
 
 %description -n eos-fuse-sysv
 The EOS fuse SYSV init scripts.
