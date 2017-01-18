@@ -245,6 +245,10 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Set the FUSE maximum in-memory size for all write-back cache entries - default 512M - clean-interval is fixed at 10 seconds
 # export EOS_FUSE_MAX_WB_INMEMORY_SIZE=536870912
 
+# Enable SSS connection. The path to the keytab file should be given there.  
+#    if KRB5 or GSI authentication is enabled, this is ignored 
+# EOS_FUSE_SSS_KEYTAB=""
+
 # ---------------------------------------------------------------------------------
 # this options are not available since AQUAMARINE is compiled with XROOTD3 
 # --------------------------------------------------------------------------------- 
