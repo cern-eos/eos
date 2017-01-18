@@ -29,8 +29,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
-
-/*----------------------------------------------------------------------------*/
+#include <regex.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -99,6 +98,14 @@ ProcCommand::Rm()
     }
 
     if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length()) {
+      regex_t regex_filter;
+      // Adding regex anchors for begining and end of string
+      XrdOucString filter_temp = "^";
+      // Changing wildcard * into regex syntax
+      filter.replace("*", ".*");
+      filter_temp += filter;
+      filter_temp += "$";
+      regcomp(&(regex_filter), filter_temp.c_str(), REG_EXTENDED | REG_NEWLINE);
       XrdMgmOfsDirectory dir;
       // list the path and match against filter
       int listrc = dir.open(spath.c_str(), *pVid, (const char*) 0);
@@ -116,7 +123,7 @@ ProcCommand::Rm()
             continue;
           }
 
-          if (entry.matches(filter.c_str())) {
+          if (!regexec(&regex_filter, entry.c_str(), 0, NULL, 0)) {
             rmList.insert(mpath.c_str());
           }
         }
