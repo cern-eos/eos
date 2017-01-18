@@ -3825,8 +3825,9 @@ BaseView::Print(std::string& out, std::string headerformat,
       // Check non key:value selections.
       fs->Print(lbody, listformat);
 
-      for (auto selection : plain_selections) {
-        if (regexec(&(selection), lbody.c_str(), 0, NULL, 0)) {
+      for (auto selection = plain_selections.begin();
+           selection != plain_selections.end(); ++selection) {
+        if (regexec(&(*selection), lbody.c_str(), 0, NULL, 0)) {
           matches = false;
         }
       }
