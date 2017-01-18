@@ -188,10 +188,12 @@ public:
   int Cd ();
   int Chmod ();
   int DirInfo (const char* path);
+  int DirJSON (uint64_t id);
   int Find ();
   int File ();
   int Fileinfo ();
   int FileInfo (const char* path);
+  int FileJSON (uint64_t id);
   int Fuse ();
   int Ls ();
   int Map ();

@@ -874,14 +874,31 @@ ProcCommand::MakeResult ()
         else
         {
           // JSON
-          mResultStream = "mgm.proc.json=";
+	  if (vid.prot != "http")
+	  {
+	    mResultStream = "mgm.proc.json=";
+	  }
           mResultStream += r.str().c_str();
         }
       }
       else
       {
-        mResultStream = "mgm.proc.json=";
-        mResultStream += stdJson;
+        if (mJsonCallback.length())
+        {
+          // JSONP
+          mResultStream = mJsonCallback;
+          mResultStream += "([\n";
+	  mResultStream += stdJson;
+          mResultStream += "\n]);";
+        }
+	else
+	{
+	  if (vid.prot != "http") 
+	  {
+	    mResultStream = "mgm.proc.json=";
+	  }
+	  mResultStream += stdJson;
+	}
       }
     }
     if (!mResultStream.endswith('\n'))

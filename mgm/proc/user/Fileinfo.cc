@@ -27,6 +27,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "common/LayoutId.hh"
+#include <json/json.h>
 
 /*----------------------------------------------------------------------------*/
 
@@ -51,6 +52,8 @@ ProcCommand::Fileinfo ()
 
   struct stat buf;
 
+  unsigned long long id=0;
+    
   if (
       (!spath.beginswith("inode:")) &&
       (!spath.beginswith("fid:")) &&
@@ -66,11 +69,17 @@ ProcCommand::Fileinfo ()
       retc = ENOENT;
       return SFS_OK;
     }
+    if ( S_ISDIR (buf.st_mode) )
+    {
+      id = buf.st_ino;
+    }
+    else
+    {
+      id = eos::common::FileId::InodeToFid(buf.st_ino);
+    }
   }
   else
   {
-    unsigned long long id=0;
-
     XrdOucString sid=spath;
     if ( (sid.replace("inode:","")) )
     {
@@ -100,10 +109,21 @@ ProcCommand::Fileinfo ()
     }
   }
 
-  if (S_ISDIR(buf.st_mode))
-    return DirInfo(path);
+
+  if (mJsonFormat)
+  {
+    if (S_ISDIR(buf.st_mode))
+      return DirJSON(id);
+    else
+      return FileJSON(id);
+  }
   else
-    return FileInfo(path);
+  {
+    if (S_ISDIR(buf.st_mode))
+      return DirInfo(path);
+    else
+      return FileInfo(path);
+  }
 }
 
 int
@@ -346,7 +366,7 @@ ProcCommand::FileInfo (const char* path)
             eos::FileMD::ctime_t mtime;
             fmd->getMTime(mtime);
             time_t filemtime = (time_t) mtime.tv_sec;
-	    snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) eos::common::FileId::FidToInode(fmd->getId()), (unsigned long long) filemtime);
+	    snprintf(setag, sizeof (setag) - 1, "%llu:%llu", (unsigned long long) eos::common::FileId::FidToInode(fmd->getId()), (unsigned long long) filemtime);
             etag = setag;
           }
 
@@ -925,4 +945,255 @@ ProcCommand::DirInfo (const char* path)
 
   return SFS_OK;
 }
+
+/*----------------------------------------------------------------------------*/
+int
+ProcCommand::FileJSON(uint64_t fid)
+/*----------------------------------------------------------------------------*/
+{
+  // fills file meta data by file id
+  eos::FileMD* fmd = 0;
+  eos::FileMD::ctime_t ctime;
+  eos::FileMD::ctime_t mtime;
+
+  eos_static_debug("fid=%llu", fid);
+
+  Json::Value json;
+  json["id"] = (Json::Value::UInt64)fid;
+ 
+  std::string fullpath;
+
+  try
+  {
+    gOFS->eosViewRWMutex.LockRead();
+    fmd = gOFS->eosFileService->getFileMD(fid);
+    fullpath = gOFS->eosView->getUri(fmd);
+    eos::FileMD fmdCopy(*fmd);
+    fmd = &fmdCopy;
+    gOFS->eosViewRWMutex.UnLockRead();
+
+    fmd->getCTime(ctime);
+    fmd->getMTime(mtime);
+    
+    json["inode"] = (Json::Value::UInt64) eos::common::FileId::FidToInode(fid);
+    json["ctime"] = (Json::Value::UInt64) ctime.tv_sec;
+    json["ctime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
+    json["atime"] = (Json::Value::UInt64) ctime.tv_sec;
+    json["atime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
+    json["mtime"] = (Json::Value::UInt64) mtime.tv_sec;
+    json["mtime_ns"] = (Json::Value::UInt64) mtime.tv_nsec;
+    json["size"] = (Json::Value::UInt64) fmd->getSize();
+    json["uid"] = fmd->getCUid();
+    json["gid"] = fmd->getCGid();
+    json["mode"] = fmd->getFlags();
+    json["nlink"] = 1;
+    json["name"] = fmd->getName();
+
+    Json::Value jsonxattr;
+    for ( eos::FileMD::XAttrMap::iterator it = fmd->attributesBegin();
+	  it != fmd->attributesEnd(); ++it)
+    {
+      jsonxattr[it->first] = it->second;
+    }
+
+    if (fmd->numAttributes())
+    {
+      json["xattr"] = jsonxattr;
+    }
+
+    Json::Value jsonhosts;
+    Json::Value jsonfsids;
+    std::set<std::string> fsHosts;
+    eos::FileMD::LocationVector::const_iterator lociter;
+    for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+    {
+      // get host name for fs id                                                                           
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      eos::common::FileSystem* filesystem = 0;
+      if (FsView::gFsView.mIdView.count(*lociter))
+      {
+	filesystem = FsView::gFsView.mIdView[*lociter];
+      }
+
+      if (filesystem)
+      {
+	eos::common::FileSystem::fs_snapshot_t fs;
+	if (filesystem->SnapShotFileSystem(fs, true))
+	{
+	  fsHosts.insert(fs.mHost);
+	  jsonfsids.append(fs.mId);
+	}
+      }
+    }
+
+    for (auto hostit = fsHosts.begin(); hostit != fsHosts.end(); hostit++)
+    {
+      jsonhosts.append(hostit->c_str());
+    }
+    
+    json["hosts"] = jsonhosts;
+    json["locations"] = jsonfsids;
+
+    json["checksumtype"] = eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+    
+    std::string cks;
+    for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
+    {
+      char hb[3];
+      sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+      cks += hb;
+    }
+    json["checksumvalue"] = cks;
+
+    std::string etag;
+    size_t cxlen = 0;
+    if ( (cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId())) )
+    {
+      // use inode + checksum
+      char setag[256];
+      snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)eos::common::FileId::FidToInode(fmd->getId()));
+      etag = setag;
+      for (unsigned int i = 0; i < cxlen; i++)
+      {
+	char hb[3];
+	sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
+	etag += hb;
+      }
+    }
+    else
+    {
+      // use inode + mtime
+      char setag[256];
+      eos::FileMD::ctime_t mtime;
+      fmd->getMTime(mtime);
+      time_t filemtime = (time_t) mtime.tv_sec;
+      snprintf(setag, sizeof (setag) - 1, "%llu:%llu", (unsigned long long) eos::common::FileId::FidToInode(fmd->getId()), (unsigned long long) filemtime);
+      etag = setag;
+    }
+
+    json["etag"] = etag;
+    json["path"] = fullpath;
+  }
+  catch (eos::MDException &e)
+  {
+    gOFS->eosViewRWMutex.UnLockRead();
+    errno = e.getErrno();
+    eos_static_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+    json["errc"] = errno;
+    json["errmsg"] = e.getMessage().str().c_str();
+  }
+  
+  std::stringstream r;
+  r << json;
+  stdJson += r.str().c_str();
+  retc = 0;
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+ProcCommand::DirJSON(uint64_t fid)
+{
+  // fills dir meta data by file id
+  eos::ContainerMD* cmd = 0;
+  eos::FileMD::ctime_t ctime;
+  eos::FileMD::ctime_t mtime;
+  eos::FileMD::ctime_t tmtime;
+
+  eos_static_debug("fid=%llu", fid);
+
+  Json::Value json;
+  json["id"] = (Json::Value::UInt64)fid;
+ 
+  std::string fullpath;
+
+  try
+  {
+    gOFS->eosViewRWMutex.LockRead();
+    cmd = gOFS->eosDirectoryService->getContainerMD(fid);
+    fullpath = gOFS->eosView->getUri(cmd);
+
+    cmd->getCTime(ctime);
+    cmd->getMTime(mtime);
+    cmd->getTMTime(tmtime);
+    
+    json["inode"] = (Json::Value::UInt64) fid;
+    json["ctime"] = (Json::Value::UInt64) ctime.tv_sec;
+    json["ctime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
+    json["atime"] = (Json::Value::UInt64) ctime.tv_sec;
+    json["atime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
+    json["mtime"] = (Json::Value::UInt64) mtime.tv_sec;
+    json["mtime_ns"] = (Json::Value::UInt64) mtime.tv_nsec;
+    json["tmtime"] = (Json::Value::UInt64) tmtime.tv_sec;
+    json["tmtime_ns"] = (Json::Value::UInt64) tmtime.tv_nsec;
+    json["treesize"] = (Json::Value::UInt64) cmd->getTreeSize();
+    json["uid"] = cmd->getCUid();
+    json["gid"] = cmd->getCGid();
+    json["mode"] = cmd->getFlags();
+    json["nlink"] = 1;
+    json["name"] = cmd->getName();
+    json["nndirectories"] = (int)cmd->getNumContainers();
+    json["nfiles"] = (int)cmd->getNumFiles();
+
+
+    Json::Value chld;
+
+    for ( eos::ContainerMD::FileMap::iterator it = cmd->filesBegin();
+	  it != cmd->filesEnd() ; ++it)
+    {
+      chld.append(it->first);
+    }
+
+    for ( eos::ContainerMD::ContainerMap::iterator it = cmd->containersBegin();
+	  it != cmd->containersEnd(); ++it)
+    {
+      chld.append(it->first + "/");
+    }
+
+    if (cmd->getNumFiles()+ cmd->getNumContainers())
+      json["children"] = chld;
+
+    Json::Value jsonxattr;
+    for ( eos::FileMD::XAttrMap::iterator it = cmd->attributesBegin();
+	  it != cmd->attributesEnd(); ++it)
+    {
+      jsonxattr[it->first] = it->second;
+    }
+
+    if (cmd->numAttributes())
+    {
+      json["xattr"] = jsonxattr;
+    }
+
+    std::string etag;
+    // use inode + mtime
+    char setag[256];
+    eos::FileMD::ctime_t mtime;
+    cmd->getMTime(mtime);
+    time_t filemtime = (time_t) mtime.tv_sec;
+    snprintf(setag, sizeof (setag) - 1, "%llu:%llu", (unsigned long long) eos::common::FileId::FidToInode(cmd->getId()), (unsigned long long) filemtime);
+    etag = setag;
+
+    json["etag"] = etag;
+    json["path"] = fullpath;
+
+    gOFS->eosViewRWMutex.UnLockRead();
+  }
+  catch (eos::MDException &e)
+  {
+    gOFS->eosViewRWMutex.UnLockRead();
+    errno = e.getErrno();
+    eos_static_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+    json["errc"] = errno;
+    json["errmsg"] = e.getMessage().str().c_str();
+  }
+  
+  std::stringstream r;
+  r << json;
+  stdJson += r.str().c_str();
+  retc = 0;
+  return SFS_OK;
+}
+/*----------------------------------------------------------------------------*/
+
 EOSMGMNAMESPACE_END
