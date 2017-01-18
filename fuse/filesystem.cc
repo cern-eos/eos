@@ -4565,7 +4565,9 @@ filesystem::check_mgm (std::map<std::string,std::string> *features)
 // Check MGM is available
   if (!features)
   {
-    uint16_t timeout = 10;
+    uint16_t timeout = 15;
+    if(getenv("EOS_FUSE_PING_TIMEOUT"))
+      timeout = (uint16_t) strtol(getenv("EOS_FUSE_PING_TIMEOUT"), 0,10);
     XrdCl::FileSystem fs (url);
     XrdCl::XRootDStatus st = fs.Ping (timeout);
 

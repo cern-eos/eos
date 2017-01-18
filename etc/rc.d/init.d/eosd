@@ -110,6 +110,7 @@ start() {
         eosdpid=`pgrep -f "${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR}"`
         getstatus $i
         eosdstatus="$?"
+        export EOS_FUSE_PING_TIMEOUT=${EOS_FUSE_PING_TIMEOUT-15}
         export EOS_FUSE_DEBUG=${EOS_FUSE_DEBUG-0}
         export EOS_FUSE_LOWLEVEL_DEBUG=${EOS_FUSE_LOWLEVEL_DEBUG-0}
         export EOS_FUSE_NOACCESS=${EOS_FUSE_NOACCESS-1}
@@ -235,6 +236,7 @@ start() {
             fi
             echo
 
+            echo "EOS_FUSE_PING_TIMEOUT            : ${EOS_FUSE_PING_TIMEOUT}"
             echo "EOS_FUSE_DEBUG                   : ${EOS_FUSE_DEBUG}"
             echo "EOS_FUSE_LOWLEVEL_DEBUG          : ${EOS_FUSE_DEBUG}"
             echo "EOS_FUSE_NOACCESS                : ${EOS_FUSE_NOACCESS}"
