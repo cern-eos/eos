@@ -3775,20 +3775,21 @@ BaseView::Print(std::string& out, std::string headerformat,
     std::vector<regex_t> plain_selections;
 
     // Parse selections
-    for (auto& selection : selections) {
+    for (auto selection = selections.begin();
+         selection != selections.end(); ++selection) {
       std::pair<std::string, regex_t> curr;
-      auto pos = selection.find(":");
-      curr.first = selection.substr(0, pos);
+      auto pos = selection->find(":");
+      curr.first = selection->substr(0, pos);
 
       // Selection is not allowed,  ignore it
       if (allowed_columns.find(curr.first) == allowed_columns.end()) {
         regex_t temp;
-        regcomp(&(temp), selection.c_str(), REG_EXTENDED | REG_NEWLINE);
+        regcomp(&(temp), selection->c_str(), REG_EXTENDED | REG_NEWLINE);
         plain_selections.push_back(temp);
         continue;
       }
 
-      std::string reg_str = selection.substr(pos + 1, selection.size());
+      std::string reg_str = selection->substr(pos + 1, selection->size());
 
       // In case something went wrong during regex compilation, ignore regex
       if (regcomp(&(curr.second), reg_str.c_str(), REG_EXTENDED | REG_NEWLINE) != 0) {
@@ -3812,10 +3813,11 @@ BaseView::Print(std::string& out, std::string headerformat,
       FileSystem* fs = FsView::gFsView.mIdView[*it];
 
       // Apply each selection as a find match in the string
-      for (auto& selection : parsed_selections) {
-        std::string value = fs->GetString(selection.first.c_str());
+      for (auto selection = parsed_selections.begin();
+           selection != parsed_selections.end(); ++selection) {
+        std::string value = fs->GetString(selection->first.c_str());
 
-        if (regexec(&(selection.second), value.c_str(), 0, NULL, 0)) {
+        if (regexec(&(selection->second), value.c_str(), 0, NULL, 0)) {
           matches = false;
         }
       }
