@@ -135,7 +135,7 @@ Requires: gdb
 Requires: protobuf
 Requires: jemalloc
 Requires: jsoncpp
-Required: psmisc
+Requires: psmisc
 
 %if 0%{distribution} == 5
 Requires: zeromq
