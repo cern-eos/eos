@@ -42,8 +42,8 @@ AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
   eos_info("handling response in AsyncLayoutOpenHandler");
   // response and hostList are nullptr
   bool is_ok = false;
-
   mPlainLayout->mLastTriedUrl = mPlainLayout->mFileIO->GetLastTriedUrl();
+
   if (status->IsOK()) {
     // Store the last URL we are connected after open
     mPlainLayout->mLastUrl = mPlainLayout->mFileIO->GetLastUrl();
@@ -91,7 +91,6 @@ PlainLayout::PlainLayout(XrdFstOfsFile* file,
   pthread_mutex_init(&mMutex, NULL);
   pthread_cond_init(&mCondVar, NULL);
   mIsEntryServer = true;
-  mLocalPath = path;
 }
 
 //------------------------------------------------------------------------------
