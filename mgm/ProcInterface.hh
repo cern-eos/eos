@@ -32,6 +32,8 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSec/XrdSecEntity.hh"
 
+#include <json/json.h>
+
 EOSMGMNAMESPACE_BEGIN
 
 /**
@@ -188,12 +190,12 @@ public:
   int Cd ();
   int Chmod ();
   int DirInfo (const char* path);
-  int DirJSON (uint64_t id);
+  int DirJSON (uint64_t id, Json::Value *json);
   int Find ();
   int File ();
   int Fileinfo ();
   int FileInfo (const char* path);
-  int FileJSON (uint64_t id);
+  int FileJSON (uint64_t id, Json::Value *json);
   int Fuse ();
   int Ls ();
   int Map ();

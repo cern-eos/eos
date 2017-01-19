@@ -61,7 +61,7 @@ ProcCommand::Fileinfo ()
       (!spath.beginswith("pid:")) &&
       (!spath.beginswith("pxid:")) )
   {
-    if (gOFS->_stat(path,&buf,*mError, *pVid, (char*) 0))
+    if (gOFS->_stat(path,&buf,*mError, *pVid,  (char*) 0, (std::string*)0, false))
     {
       stdErr = "error: cannot stat ";
       stdErr += path;
@@ -113,9 +113,9 @@ ProcCommand::Fileinfo ()
   if (mJsonFormat)
   {
     if (S_ISDIR(buf.st_mode))
-      return DirJSON(id);
+      return DirJSON(id, 0);
     else
-      return FileJSON(id);
+      return FileJSON(id, 0);
   }
   else
   {
@@ -948,7 +948,7 @@ ProcCommand::DirInfo (const char* path)
 
 /*----------------------------------------------------------------------------*/
 int
-ProcCommand::FileJSON(uint64_t fid)
+ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
 /*----------------------------------------------------------------------------*/
 {
   // fills file meta data by file id
@@ -988,6 +988,11 @@ ProcCommand::FileJSON(uint64_t fid)
     json["mode"] = fmd->getFlags();
     json["nlink"] = 1;
     json["name"] = fmd->getName();
+
+    if (fmd->isLink())
+    {
+      json["target"] = fmd->getLink();
+    }
 
     Json::Value jsonxattr;
     for ( eos::FileMD::XAttrMap::iterator it = fmd->attributesBegin();
@@ -1082,17 +1087,24 @@ ProcCommand::FileJSON(uint64_t fid)
     json["errc"] = errno;
     json["errmsg"] = e.getMessage().str().c_str();
   }
-  
-  std::stringstream r;
-  r << json;
-  stdJson += r.str().c_str();
+
+  if (!ret_json)
+  {
+    std::stringstream r;
+    r << json;
+    stdJson += r.str().c_str();
+  }
+  else
+  {
+    *ret_json = json;
+  }
   retc = 0;
   return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-ProcCommand::DirJSON(uint64_t fid)
+ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json)
 {
   // fills dir meta data by file id
   eos::ContainerMD* cmd = 0;
@@ -1138,16 +1150,23 @@ ProcCommand::DirJSON(uint64_t fid)
 
     Json::Value chld;
 
-    for ( eos::ContainerMD::FileMap::iterator it = cmd->filesBegin();
-	  it != cmd->filesEnd() ; ++it)
+    if (!ret_json)
     {
-      chld.append(it->first);
-    }
-
-    for ( eos::ContainerMD::ContainerMap::iterator it = cmd->containersBegin();
-	  it != cmd->containersEnd(); ++it)
-    {
-      chld.append(it->first + "/");
+      for ( eos::ContainerMD::FileMap::iterator it = cmd->filesBegin();
+	    it != cmd->filesEnd() ; ++it)
+      {
+	Json::Value fjson;
+	FileJSON(it->second->getId(), &fjson);
+	chld.append(fjson);
+      }
+      
+      for ( eos::ContainerMD::ContainerMap::iterator it = cmd->containersBegin();
+	    it != cmd->containersEnd(); ++it)
+      {
+	Json::Value djson;
+	DirJSON(it->second->getId(), &djson);
+	chld.append(djson);
+      }
     }
 
     if (cmd->getNumFiles()+ cmd->getNumContainers())
@@ -1188,10 +1207,18 @@ ProcCommand::DirJSON(uint64_t fid)
     json["errmsg"] = e.getMessage().str().c_str();
   }
   
-  std::stringstream r;
-  r << json;
-  stdJson += r.str().c_str();
-  retc = 0;
+  if (!ret_json)
+  {
+    std::stringstream r;
+    r << json;
+    stdJson += r.str().c_str();
+    retc = 0;
+  }
+  else
+  {
+    *ret_json = json;
+  }
+
   return SFS_OK;
 }
 /*----------------------------------------------------------------------------*/
