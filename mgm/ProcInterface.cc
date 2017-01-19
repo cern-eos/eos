@@ -874,7 +874,7 @@ ProcCommand::MakeResult ()
         else
         {
           // JSON
-	  if (vid.prot != "http")
+	  if (!vid.prot.beginswith("http"))
 	  {
 	    mResultStream = "mgm.proc.json=";
 	  }
@@ -893,7 +893,7 @@ ProcCommand::MakeResult ()
         }
 	else
 	{
-	  if (vid.prot != "http") 
+	  if (!vid.prot.beginswith("http"))
 	  {
 	    mResultStream = "mgm.proc.json=";
 	  }
