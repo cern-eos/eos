@@ -245,7 +245,7 @@ com_file(char* arg1)
     }
 
     in += "&mgm.subcmd=drop";
-    in += Path2FileDenominator(path) ? "mgm.file.id" : "&mgm.path=";
+    in += Path2FileDenominator(path) ? "?mgm.file.id=" : "&mgm.path=";
     in += path;
     in += "&mgm.file.fsid=";
     in += fsid1;
