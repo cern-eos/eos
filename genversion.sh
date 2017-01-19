@@ -82,8 +82,6 @@ else
     # set in the eos.spec file.
     if [[ -e "eos.spec" ]]; then
        VERSION="$(grep "Version:" eos.spec | head -1 | awk '{print $2;}')"
-    elif [[ -e "eos-clientsonly.spec" ]]; then
-       VERSION="$(grep "Version:" eos-clientsonly.spec | head -1 | awk '{print $2;}')"
     else
       echo "[!] Unable to get version from git or spec file." 1>&2
       exit 1
