@@ -24,54 +24,77 @@
 #ifndef __EOSFST_TRANSFERMULTIPLEXER__
 #define __EOSFST_TRANSFERMULTIPLEXER__
 
-/* ------------------------------------------------------------------------- */
 #include "fst/Namespace.hh"
-#include "fst/txqueue/TransferJob.hh"
 #include "common/RWMutex.hh"
-/* ------------------------------------------------------------------------- */
-#include "Xrd/XrdScheduler.hh"
-/* ------------------------------------------------------------------------- */
+#include "fst/txqueue/TransferJob.hh"
 #include <vector>
-#include <string>
-#include <deque>
-#include <cstring>
 #include <pthread.h>
-
-/* ------------------------------------------------------------------------- */
 
 EOSFSTNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Class TransferMultiplexer
+//------------------------------------------------------------------------------
 class TransferMultiplexer
 {
-private:
-  //  std::deque <std::string> queue;
-  std::vector<TransferQueue*> mQueues;
-  pthread_t thread;
-
 public:
-  eos::common::RWMutex Mutex;
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  TransferMultiplexer();
 
-  TransferMultiplexer ();
-  ~TransferMultiplexer ();
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~TransferMultiplexer();
 
-  void
-  Add (TransferQueue* queue)
-  {
-    eos::common::RWMutexWriteLock lock(Mutex);
-    // add all queues and then call Run()
-    mQueues.push_back(queue);
-  }
+  //----------------------------------------------------------------------------
+  //! Add queue to multiplexer
+  //!
+  //! @param queue new queue to be added
+  //----------------------------------------------------------------------------
+  void Add(TransferQueue* queue);
 
-  void SetSlots (size_t slots); // apply in all attached queues
-  void SetBandwidth (size_t band); // apply in all attached queues
+  //----------------------------------------------------------------------------
+  //! Set number of slots for each of the attached queues
+  //!
+  //! @param slots number of slots
+  //----------------------------------------------------------------------------
+  void SetSlots(size_t slots);
 
-  void Run (); //  start the multiplexer thread (add all queues beforehand)
-  void Stop (); // stop the multiplexer thread
+  //----------------------------------------------------------------------------
+  //! Set bandwidth limitation for each of the attached queues
+  //!
+  //! @param band bandwidth limit
+  //----------------------------------------------------------------------------
+  void SetBandwidth(size_t band);
 
-  static void* StaticThreadProc (void*);
-  void* ThreadProc ();
+  //----------------------------------------------------------------------------
+  //! Start the multiplexer thread. All the queues need to be attached
+  //! beforehand.
+  //----------------------------------------------------------------------------
+  void Run();
+
+  //----------------------------------------------------------------------------
+  //! Stop multiplexer thread.
+  //----------------------------------------------------------------------------
+  void Stop();
+
+  //----------------------------------------------------------------------------
+  //! Static helper function to start the thread.
+  //----------------------------------------------------------------------------
+  static void* StaticThreadProc(void*);
+
+  //----------------------------------------------------------------------------
+  //! Multiplexer thread loop.
+  //----------------------------------------------------------------------------
+  void* ThreadProc();
+
+private:
+  eos::common::RWMutex mMutex;
+  std::vector<TransferQueue*> mQueues;
+  pthread_t mTid;
 };
 
 EOSFSTNAMESPACE_END
 #endif
-
