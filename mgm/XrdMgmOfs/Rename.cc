@@ -252,6 +252,11 @@ XrdMgmOfs::_rename(const char* old_name,
     errno = ENOENT;
     return Emsg(epname, error, ENOENT, "rename - source does not exist");
   } else {
+    if (file_exists == XrdSfsFileExistNo) {
+      errno = ENOENT;
+      return Emsg(epname, error, ENOENT, "rename - source does not exist");
+    }
+
     if (file_exists == XrdSfsFileExistIsFile) {
       XrdSfsFileExistence version_exists;
       renameFile = true;
