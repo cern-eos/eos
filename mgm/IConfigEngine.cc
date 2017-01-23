@@ -345,7 +345,7 @@ IConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* val,
 {
   XrdOucString* match = reinterpret_cast<XrdOucString*>(arg);
 
-  if (strncmp(key, match->c_str(), match->length()) == 1) {
+  if (strncmp(key, match->c_str(), match->length()) == 0) {
     return -1;
   }
 
