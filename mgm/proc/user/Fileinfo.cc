@@ -1030,6 +1030,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
 	  jsonfsinfo["fsid"] = fs.mId;
 	  jsonfsinfo["mountpoint"] = fs.mPath;
 	  jsonfsinfo["geotag"] = fs.mGeoTag;
+	  jsonfsinfo["status"] = eos::common::FileSystem::GetStatusAsString(fs.mStatus);
 	  fsHosts.insert(fs.mHost);
 	  jsonfsids.append(jsonfsinfo);
 	}
