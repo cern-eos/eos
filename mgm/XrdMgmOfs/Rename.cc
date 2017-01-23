@@ -465,7 +465,7 @@ XrdMgmOfs::_rename(const char* old_name,
                 }
               }
 
-              if ((!userok) && (!groupok)) {
+              if ((!userok) || (!groupok)) {
                 // Deletion will fail as there is not enough quota on the target
                 return Emsg(epname, error, ENOSPC, "rename - cannot get all "
                             "the needed quota for the target directory");
