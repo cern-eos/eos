@@ -53,7 +53,7 @@ class Quota;
 //------------------------------------------------------------------------------
 //! Class SpaceQuota
 //------------------------------------------------------------------------------
-class SpaceQuota
+class SpaceQuota : public eos::common::LogId
 {
   friend class Quota;
 
@@ -89,15 +89,15 @@ public:
   //! @return true if user has enough quota, otherwise false
   //----------------------------------------------------------------------------
   bool CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
-		       unsigned int desired_inodes);
+                       unsigned int desired_inodes);
 
   //----------------------------------------------------------------------------
   //! Print quota information
   //!
   //----------------------------------------------------------------------------
   void PrintOut(XrdOucString& output, long uid_sel = -1,
-		long gid_sel = -1, bool monitoring = false,
-		bool translate_ids = false);
+                long gid_sel = -1, bool monitoring = false,
+                bool translate_ids = false);
 
   //----------------------------------------------------------------------------
   //! Quota type tags
@@ -250,7 +250,7 @@ private:
   //----------------------------------------------------------------------------
   const char*
   GetQuotaPercentage(unsigned long long is, unsigned long long avail,
-		     XrdOucString& spercentage);
+                     XrdOucString& spercentage);
 
   //----------------------------------------------------------------------------
   //! Get quota status
@@ -366,11 +366,11 @@ public:
   //!
   //----------------------------------------------------------------------------
   static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
-				 const std::string& path,
-				 long long& max_bytes,
-				 long long& free_bytes,
-				 long long& max_files,
-				 long long& free_files);
+                                 const std::string& path,
+                                 long long& max_bytes,
+                                 long long& free_bytes,
+                                 long long& max_files,
+                                 long long& free_files);
 
 
   //----------------------------------------------------------------------------
@@ -387,9 +387,9 @@ public:
   //! @return true if quota set successful, otherwise false
   //----------------------------------------------------------------------------
   static bool SetQuotaTypeForId(const std::string& qpath, long id,
-				Quota::IdT id_type, Quota::Type quota_type,
-				unsigned long long value, std::string& msg,
-				int& retc);
+                                Quota::IdT id_type, Quota::Type quota_type,
+                                unsigned long long value, std::string& msg,
+                                int& retc);
 
 
   //----------------------------------------------------------------------------
@@ -404,8 +404,8 @@ public:
   //! @return true if quota set successful, otherwise false
   //----------------------------------------------------------------------------
   static bool SetQuotaForTag(const std::string& qpath,
-			     const std::string& quota_tag,
-			     long id, unsigned long long value);
+                             const std::string& quota_tag,
+                             long id, unsigned long long value);
 
   //----------------------------------------------------------------------------
   //! Remove all quota types for an id
@@ -419,7 +419,7 @@ public:
   //! @return true if operation successful, otherwise false
   //----------------------------------------------------------------------------
   static bool RmQuotaForId(const std::string& path, long id,
-			   Quota::IdT id_type, std::string& msg, int& retc);
+                           Quota::IdT id_type, std::string& msg, int& retc);
 
   //----------------------------------------------------------------------------
   //! Remove quota type for id
@@ -434,8 +434,8 @@ public:
   //! @return true if operation successful, otherwise false
   //----------------------------------------------------------------------------
   static bool RmQuotaTypeForId(const std::string& qpath, long id,
-			       Quota::IdT id_type, Quota::Type quota_type,
-			       std::string& msg, int& retc);
+                               Quota::IdT id_type, Quota::Type quota_type,
+                               std::string& msg, int& retc);
 
   //------------------------------------------------------------------------------
   //! Remove quota specified by the quota tag
@@ -448,8 +448,8 @@ public:
   //! @return true if quota set successful, otherwise false
   //------------------------------------------------------------------------------
   static bool RmQuotaForTag(const std::string& space,
-			    const std::string& quota_stag,
-			    long id);
+                            const std::string& quota_stag,
+                            long id);
 
   //----------------------------------------------------------------------------
   //! Removes a quota node
@@ -501,7 +501,7 @@ public:
   //! @return true if quota is respected, otherwise false
   //----------------------------------------------------------------------------
   static bool Check(const std::string& path, uid_t uid, gid_t gid,
-		    long long desired_vol, unsigned int desired_inodes);
+                    long long desired_vol, unsigned int desired_inodes);
 
   //----------------------------------------------------------------------------
   //! Callback function to calculate how much pyhisical space a file occupies
@@ -530,8 +530,8 @@ public:
   //!         output string with the error messsage
   //----------------------------------------------------------------------------
   static bool PrintOut(const std::string& path, XrdOucString& output,
-		       long uid_sel = -1, long gid_sel = -1,
-		       bool monitoring = false, bool translate_ids = false);
+                       long uid_sel = -1, long gid_sel = -1,
+                       bool monitoring = false, bool translate_ids = false);
 
   //----------------------------------------------------------------------------
   //! Take the decision where to place a new file in the system. The core of the
