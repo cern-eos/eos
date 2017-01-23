@@ -203,6 +203,13 @@ Storage::Verify ()
           else
           {
             eos_static_info("checksum OK        : path=%s fid=%s checksum=%s", verifyfile->path.c_str(), hexfid.c_str(), checksummer->GetHexChecksum());
+	    // reset error flags if needed
+	    if (fMd->fMd.blockcxerror || fMd->fMd.filecxerror)
+	    {
+	      fMd->fMd.blockcxerror = 0;
+	      fMd->fMd.filecxerror = 0;
+	      localUpdate = true;
+	    }
           }
           eos::common::Attr *attr = eos::common::Attr::OpenAttr(fstPath.c_str());
           if (attr)
