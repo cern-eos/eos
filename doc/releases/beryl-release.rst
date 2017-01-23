@@ -7,6 +7,23 @@
 Beryl Release Notes
 ===================
 
+``V0.3.226 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- COMMON: make ShellExecutor thread/interrupt safe
+- FST: reset checksum error flags also after correct 'verify -checksum' 
+- FUSE: fix ping timeouts and dependencies, allow sss mounts
+- NS: remove ns file archiving process by default in SLAVE->MASTER transition and fix too early enabling of the namespace for write
+
+New Feature
++++++++++++
+
+- MGM: add REST API for 'fileinfo'
+
+
 ``V0.3.225 Aquamarine``
 =======================
 
