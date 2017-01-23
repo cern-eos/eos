@@ -1006,7 +1006,6 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
       json["xattr"] = jsonxattr;
     }
 
-    Json::Value jsonhosts;
     Json::Value jsonfsids;
     std::set<std::string> fsHosts;
     eos::FileMD::LocationVector::const_iterator lociter;
@@ -1015,6 +1014,8 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
       // get host name for fs id                                                                           
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
       eos::common::FileSystem* filesystem = 0;
+
+      Json::Value jsonfsinfo;
       if (FsView::gFsView.mIdView.count(*lociter))
       {
 	filesystem = FsView::gFsView.mIdView[*lociter];
@@ -1025,18 +1026,16 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
 	eos::common::FileSystem::fs_snapshot_t fs;
 	if (filesystem->SnapShotFileSystem(fs, true))
 	{
+	  jsonfsinfo["host"] = fs.mHost;
+	  jsonfsinfo["fsid"] = fs.mId;
+	  jsonfsinfo["mountpoint"] = fs.mPath;
+	  jsonfsinfo["geotag"] = fs.mGeoTag;
 	  fsHosts.insert(fs.mHost);
-	  jsonfsids.append(fs.mId);
+	  jsonfsids.append(jsonfsinfo);
 	}
       }
     }
 
-    for (auto hostit = fsHosts.begin(); hostit != fsHosts.end(); hostit++)
-    {
-      jsonhosts.append(hostit->c_str());
-    }
-    
-    json["hosts"] = jsonhosts;
     json["locations"] = jsonfsids;
 
     json["checksumtype"] = eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
