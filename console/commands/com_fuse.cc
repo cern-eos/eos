@@ -306,10 +306,10 @@ com_fuse(char* arg1)
     }
 
 #ifdef __APPLE__
-    size_t cnt = 5;
+    int cnt = 5;
 
     for (cnt = 5; cnt > 0; cnt--) {
-      fprintf(stderr, "\r[wait] %ds ...", cnt);
+      fprintf(stderr, "\r[wait] %i seconds ...", cnt);
       fflush(stderr);
       sleep(1);
     }
