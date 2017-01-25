@@ -24,7 +24,7 @@
 Description=EOSd %i
 
 [Service]
-Environment=EOSD=writeback_cache,
+#Environment=EOSD=writeback_cache,
 Environment=EOS_FUSE_DEBUG=0
 Environment=EOS_FUSE_LOWLEVEL_DEBUG=0
 Environment=EOS_FUSE_NOACCESS=1
@@ -71,7 +71,7 @@ ExecStartPre=/usr/bin/chmod 1777 /var/run/eosd/credentials \
 /var/run/eosd/credentials/store
 ExecStartPre=/usr/bin/chmod 700 ${EOS_FUSE_MOUNTDIR}
 ExecStart=/usr/bin/eosd ${EOS_FUSE_MOUNTDIR} -o${EOS_FUSE_BIGWRITES}${EOSD}max_readahead=${EOS_FUSE_RDAHEAD_WINDOW},max_write=4194304,fsname=eos${%i},allow_other,url=root://${EOS_FUSE_MGM_ALIAS}/${EOS_FUSE_REMOTEDIR}
-ExecStop=/usr/bin/umount ${EOS_FUSE_MOUNTDIR}
+ExecStop=-/usr/bin/umount ${EOS_FUSE_MOUNTDIR}
 Type=forking
 User=root
 Group=root
