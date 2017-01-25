@@ -53,8 +53,8 @@ XrdMqSharedObjectChangeNotifier::tlSubscriber = NULL;
     entry->second.mSubscribers.erase(subscriber);  \
     if(entry->second.mSubscribers.empty()) {       \
       if(entry->second.mRegex) {                   \
-	regfree(entry->second.mRegex);             \
-	delete entry->second.mRegex;               \
+  regfree(entry->second.mRegex);             \
+  delete entry->second.mRegex;               \
       }                                            \
       map.erase(entry);                            \
     }                                              \
@@ -120,7 +120,7 @@ XrdMqSharedHashEntry::GetAgeInMilliSeconds()
   struct timeval ntime;
   gettimeofday(&ntime, 0);
   return (((ntime.tv_sec - mMtime.tv_sec) * 1000) +
-	  ((ntime.tv_usec - mMtime.tv_usec) / 1000));
+          ((ntime.tv_usec - mMtime.tv_usec) / 1000));
 }
 
 //------------------------------------------------------------------------------
@@ -140,8 +140,8 @@ XrdMqSharedHashEntry::Dump(XrdOucString& out)
 {
   char format_line[65536];
   snprintf(format_line, sizeof(format_line) - 1,
-	   "value:%-32s age:%.2f changeid:%llu", mValue.c_str(),
-	   GetAgeInSeconds(), mChangeId);
+           "value:%-32s age:%.2f changeid:%llu", mValue.c_str(),
+           GetAgeInSeconds(), mChangeId);
   out += format_line;
 }
 
@@ -154,7 +154,7 @@ XrdMqSharedHashEntry::Dump(XrdOucString& out)
 // Constructor
 //------------------------------------------------------------------------------
 XrdMqSharedHash::XrdMqSharedHash(const char* subject, const char* bcast_queue,
-				 XrdMqSharedObjectManager* som):
+                                 XrdMqSharedObjectManager* som):
   mType("hash"), mSOM(som),
   mBroadcastQueue((bcast_queue ? bcast_queue : "")),
   mSubject((subject ? subject : "")),
@@ -179,7 +179,7 @@ XrdMqSharedHash::GetAgeInMilliSeconds(const char* key)
 {
   XrdMqRWMutexReadLock rd_lock(mStoreMutex);
   unsigned long long val  = (mStore.count(key) ?
-			     mStore[key].GetAgeInMilliSeconds() : 0);
+                             mStore[key].GetAgeInMilliSeconds() : 0);
   return val;
 }
 
@@ -192,7 +192,7 @@ XrdMqSharedHash::GetAgeInSeconds(const char* key)
   XrdMqRWMutexReadLock rd_lock(mStoreMutex);
   unsigned long long
   val = (mStore.count(key) ? (unsigned long long)
-	 mStore[key].GetAgeInSeconds() : (unsigned long long) 0);
+         mStore[key].GetAgeInSeconds() : (unsigned long long) 0);
   return val;
 }
 
@@ -288,7 +288,7 @@ XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix)
     key = it->first.c_str();
 
     if ((!filter_prefix) || (filter_prefix && (!strlen(filter_prefix))) ||
-	(!key.beginswith(filter_prefix))) {
+        (!key.beginswith(filter_prefix))) {
       out += it->first.c_str();
       out += "=";
       out += it->second.GetValue();
@@ -328,36 +328,36 @@ XrdMqSharedHash::CloseTransaction()
       // Set the message size limit to 2M, if the message is bigger then just
       // send transaction item by item.
       for (auto it = mTransactions.begin(); it != mTransactions.end(); it++) {
-	txmessage = "";
-	MakeUpdateEnvHeader(txmessage);
-	txmessage += "&";
-	txmessage += XRDMQSHAREDHASH_PAIRS;
-	txmessage += "=";
-	XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+        txmessage = "";
+        MakeUpdateEnvHeader(txmessage);
+        txmessage += "&";
+        txmessage += XRDMQSHAREDHASH_PAIRS;
+        txmessage += "=";
+        XrdMqRWMutexReadLock rd_lock(mStoreMutex);
 
-	if ((mStore.count(it->c_str()))) {
-	  txmessage += "|";
-	  txmessage += it->c_str();
-	  txmessage += "~";
-	  txmessage += mStore[it->c_str()].GetValue();
-	  txmessage += "%";
-	  char cid[1024];
-	  snprintf(cid, sizeof(cid) - 1, "%llu", mStore[it->c_str()].GetChangeId());
-	  txmessage += cid;
-	}
+        if ((mStore.count(it->c_str()))) {
+          txmessage += "|";
+          txmessage += it->c_str();
+          txmessage += "~";
+          txmessage += mStore[it->c_str()].GetValue();
+          txmessage += "%";
+          char cid[1024];
+          snprintf(cid, sizeof(cid) - 1, "%llu", mStore[it->c_str()].GetChangeId());
+          txmessage += cid;
+        }
 
-	XrdMqMessage message("XrdMqSharedHashMessage");
-	message.SetBody(txmessage.c_str());
-	message.MarkAsMonitor();
-	retval &= XrdMqMessaging::gMessageClient.SendMessage(message,
-		  mBroadcastQueue.c_str(), false, false, true);
+        XrdMqMessage message("XrdMqSharedHashMessage");
+        message.SetBody(txmessage.c_str());
+        message.MarkAsMonitor();
+        retval &= XrdMqMessaging::gMessageClient.SendMessage(message,
+                  mBroadcastQueue.c_str(), false, false, true);
       }
     } else {
       XrdMqMessage message("XrdMqSharedHashMessage");
       message.SetBody(txmessage.c_str());
       message.MarkAsMonitor();
       retval &= XrdMqMessaging::gMessageClient.SendMessage(message,
-		mBroadcastQueue.c_str(), false, false, true);
+                mBroadcastQueue.c_str(), false, false, true);
     }
   }
 
@@ -369,7 +369,7 @@ XrdMqSharedHash::CloseTransaction()
     message.SetBody(txmessage.c_str());
     message.MarkAsMonitor();
     retval &= XrdMqMessaging::gMessageClient.SendMessage(message,
-	      mBroadcastQueue.c_str(), false, false, true);
+              mBroadcastQueue.c_str(), false, false, true);
   }
 
   mTransactions.clear();
@@ -461,7 +461,7 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
       XrdMqRWMutexReadLock rd_lock(mStoreMutex);
 
       for (auto it = mStore.begin(); it != mStore.end(); it++) {
-	mTransactions.insert(it->first);
+        mTransactions.insert(it->first);
       }
     }
     MakeBroadCastEnvHeader(txmessage);
@@ -477,11 +477,11 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
 
     if (XrdMqSharedObjectManager::sDebug) {
       fprintf(stderr, "XrdMqSharedObjectManager::BroadCastEnvString=>[%s]=>%s \n",
-	      mSubject.c_str(), receiver);
+              mSubject.c_str(), receiver);
     }
 
     return XrdMqMessaging::gMessageClient.SendMessage(message, receiver, false,
-	   false, true);
+           false, true);
   }
 
   return true;
@@ -563,7 +563,7 @@ XrdMqSharedHash::BroadcastRequest(const char* req_target)
   message.SetBody(out.c_str());
   message.MarkAsMonitor();
   return XrdMqMessaging::gMessageClient.SendMessage(message, req_target, false,
-	 false, true);
+         false, true);
 }
 
 //-------------------------------------------------------------------------------
@@ -600,8 +600,8 @@ XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
     if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
       // Emulate transaction for single shot deletions
       if (!mIsTransaction) {
-	mTransactMutex.Lock();
-	mTransactions.clear();
+        mTransactMutex.Lock();
+        mTransactions.clear();
       }
 
       mDeletions.insert(key);
@@ -609,7 +609,7 @@ XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
 
       // Emulate transaction for single shot deletions
       if (!mIsTransaction) {
-	CloseTransaction();
+        CloseTransaction();
       }
     }
 
@@ -620,12 +620,12 @@ XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
       fkey += key;
 
       if (XrdMqSharedObjectManager::sDebug) {
-	fprintf(stderr, "XrdMqSharedObjectManager::Delete=>[%s:%s] notified\n",
-		mSubject.c_str(), key.c_str());
+        fprintf(stderr, "XrdMqSharedObjectManager::Delete=>[%s:%s] notified\n",
+                mSubject.c_str(), key.c_str());
       }
 
       XrdMqSharedObjectManager::Notification event(fkey,
-	  XrdMqSharedObjectManager::kMqSubjectKeyDeletion);
+          XrdMqSharedObjectManager::kMqSubjectKeyDeletion);
       mSOM->mSubjectsMutex.Lock();
       mSOM->NotificationSubjects.push_back(event);
       mSOM->SubjectsSem.Post();
@@ -647,7 +647,7 @@ XrdMqSharedHash::Clear(bool broadcast)
   for (auto it = mStore.begin(); it != mStore.end(); it++) {
     if (mIsTransaction) {
       if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
-	mDeletions.insert(it->first);
+        mDeletions.insert(it->first);
       }
 
       mTransactions.erase(it->first);
@@ -684,8 +684,8 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
       XrdSysMutexHelper lock(mSOM->MuxTransactionsMutex);
 
       if (mSOM->IsMuxTransaction) {
-	mSOM->MuxTransactions[mSubject].insert(skey);
-	is_transact = true;
+        mSOM->MuxTransactions[mSubject].insert(skey);
+        is_transact = true;
       }
     }
 
@@ -694,15 +694,15 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
       bool emulate_transact = false;
 
       if (!mIsTransaction) {
-	mTransactMutex.Lock();
-	mTransactions.clear();
-	emulate_transact = true;
+        mTransactMutex.Lock();
+        mTransactions.clear();
+        emulate_transact = true;
       }
 
       mTransactions.insert(skey);
 
       if (emulate_transact) {
-	CloseTransaction();
+        CloseTransaction();
       }
     }
   }
@@ -715,12 +715,12 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
 
     if (XrdMqSharedObjectManager::sDebug) {
       fprintf(stderr, "XrdMqSharedObjectManager::Set=>[%s:%s]=>%s notified\n",
-	      mSubject.c_str(), skey.c_str(), value);
+              mSubject.c_str(), skey.c_str(), value);
     }
 
     XrdSysMutexHelper lock(mSOM->mSubjectsMutex);
     XrdMqSharedObjectManager::Notification
-      event(fkey, XrdMqSharedObjectManager::kMqSubjectModification);
+    event(fkey, XrdMqSharedObjectManager::kMqSubjectModification);
     mSOM->NotificationSubjects.push_back(event);
     mSOM->SubjectsSem.Post();
   }
@@ -755,10 +755,10 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
       XrdMqStringConversion::Tokenize(tagtoken[j], keyval, "=");
 
       if (keyval.size() == 3) {
-	conditionkey = keyval[1];
-	conditionval = keyval[2];
+        conditionkey = keyval[1];
+        conditionval = keyval[2];
       } else {
-	formattags[keyval[0]] = keyval[1];
+        formattags[keyval[0]] = keyval[1];
       }
     }
 
@@ -772,7 +772,7 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
     if (formattags.count("header")) {
       // add the desired seperator
       if (formattags.count("header") == 1) {
-	buildheader = true;
+        buildheader = true;
       }
     }
 
@@ -782,7 +782,7 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
 
     if (formattags.count("indent")) {
       for (int i = 0; i < atoi(formattags["indent"].c_str()); i++) {
-	indent += " ";
+        indent += " ";
       }
     }
 
@@ -797,126 +797,126 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
       snprintf(lformat, sizeof(lformat) - 1, "%%s");
 
       if ((formattags["format"].find("s")) != std::string::npos) {
-	snprintf(lformat, sizeof(lformat) - 1, "%%s");
+        snprintf(lformat, sizeof(lformat) - 1, "%%s");
       }
 
       if ((formattags["format"].find("l")) != std::string::npos) {
-	snprintf(lformat, sizeof(lformat) - 1, "%%lld");
+        snprintf(lformat, sizeof(lformat) - 1, "%%lld");
       }
 
       if ((formattags["format"].find("f")) != std::string::npos) {
-	snprintf(lformat, sizeof(lformat) - 1, "%%.02f");
+        snprintf(lformat, sizeof(lformat) - 1, "%%.02f");
       }
 
       if (width == 0) {
-	if (alignleft) {
-	  snprintf(lenformat, sizeof(lenformat) - 1, "%%-s");
-	} else {
-	  snprintf(lenformat, sizeof(lenformat) - 1, "%%s");
-	}
+        if (alignleft) {
+          snprintf(lenformat, sizeof(lenformat) - 1, "%%-s");
+        } else {
+          snprintf(lenformat, sizeof(lenformat) - 1, "%%s");
+        }
       } else {
-	if (alignleft) {
-	  snprintf(lenformat, sizeof(lenformat) - 1, "%%-%ds", width);
-	} else {
-	  snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width);
-	}
+        if (alignleft) {
+          snprintf(lenformat, sizeof(lenformat) - 1, "%%-%ds", width);
+        } else {
+          snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width);
+        }
       }
 
       // normal member printout
       if (formattags.count("key")) {
-	if ((formattags["format"].find("s")) != std::string::npos) {
-	  snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-		   Get(formattags["key"].c_str()).c_str());
-	}
+        if ((formattags["format"].find("s")) != std::string::npos) {
+          snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                   Get(formattags["key"].c_str()).c_str());
+        }
 
-	if ((formattags["format"].find("S")) != std::string::npos) {
-	  std::string shortstring = Get(formattags["key"].c_str());
-	  shortstring.erase(shortstring.find("."));
-	  snprintf(tmpline, sizeof(tmpline) - 1, lformat, shortstring.c_str());
-	}
+        if ((formattags["format"].find("S")) != std::string::npos) {
+          std::string shortstring = Get(formattags["key"].c_str());
+          shortstring.erase(shortstring.find("."));
+          snprintf(tmpline, sizeof(tmpline) - 1, lformat, shortstring.c_str());
+        }
 
-	if ((formattags["format"].find("l")) != std::string::npos) {
-	  if (((formattags["format"].find("+")) != std::string::npos)) {
-	    std::string ssize;
-	    XrdMqStringConversion::GetReadableSizeString(ssize,
-		(unsigned long long) GetLongLong(formattags["key"].c_str()),
-		formattags["unit"].c_str());
-	    snprintf(tmpline, sizeof(tmpline) - 1, "%s", ssize.c_str());
-	  } else {
-	    snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-		     GetLongLong(formattags["key"].c_str()));
-	  }
-	}
+        if ((formattags["format"].find("l")) != std::string::npos) {
+          if (((formattags["format"].find("+")) != std::string::npos)) {
+            std::string ssize;
+            XrdMqStringConversion::GetReadableSizeString(ssize,
+                (unsigned long long) GetLongLong(formattags["key"].c_str()),
+                formattags["unit"].c_str());
+            snprintf(tmpline, sizeof(tmpline) - 1, "%s", ssize.c_str());
+          } else {
+            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                     GetLongLong(formattags["key"].c_str()));
+          }
+        }
 
-	if ((formattags["format"].find("f")) != std::string::npos) {
-	  snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-		   GetDouble(formattags["key"].c_str()));
-	}
+        if ((formattags["format"].find("f")) != std::string::npos) {
+          snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                   GetDouble(formattags["key"].c_str()));
+        }
 
-	if (buildheader) {
-	  char headline[1024];
-	  char lenformat[1024];
-	  snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 1);
-	  XrdOucString name = formattags["key"].c_str();
-	  name.replace("stat.", "");
-	  name.replace("stat.statfs.", "");
+        if (buildheader) {
+          char headline[1024];
+          char lenformat[1024];
+          snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 1);
+          XrdOucString name = formattags["key"].c_str();
+          name.replace("stat.", "");
+          name.replace("stat.statfs.", "");
 
-	  if (formattags.count("tag")) {
-	    name = formattags["tag"].c_str();
-	  }
+          if (formattags.count("tag")) {
+            name = formattags["tag"].c_str();
+          }
 
-	  snprintf(headline, sizeof(headline) - 1, lenformat, name.c_str());
-	  std::string sline = headline;
+          snprintf(headline, sizeof(headline) - 1, lenformat, name.c_str());
+          std::string sline = headline;
 
-	  if (sline.length() > (width - 1)) {
-	    sline.erase(0, ((sline.length() - width + 1 + 3) > 0) ?
-			(sline.length() - width + 1 + 3) : 0);
-	    sline.insert(0, "...");
-	  }
+          if (sline.length() > (width - 1)) {
+            sline.erase(0, ((sline.length() - width + 1 + 3) > 0) ?
+                        (sline.length() - width + 1 + 3) : 0);
+            sline.insert(0, "...");
+          }
 
-	  header += "#";
-	  header += sline;
-	}
+          header += "#";
+          header += sline;
+        }
 
-	snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+        snprintf(line, sizeof(line) - 1, lenformat, tmpline);
       }
 
       body += indent;
 
       if ((formattags["format"].find("o") != std::string::npos)) {
-	char keyval[4096];
-	buildheader = false; // auto disable header
+        char keyval[4096];
+        buildheader = false; // auto disable header
 
-	// we are encoding spaces here in the URI way
-	if (formattags.count("key")) {
-	  XrdOucString noblankline = line;
-	  {
-	    // replace all inner blanks with %20
-	    std::string snoblankline = line;
-	    size_t pos = snoblankline.find_last_not_of(" ");
+        // we are encoding spaces here in the URI way
+        if (formattags.count("key")) {
+          XrdOucString noblankline = line;
+          {
+            // replace all inner blanks with %20
+            std::string snoblankline = line;
+            size_t pos = snoblankline.find_last_not_of(" ");
 
-	    if (noblankline.length() > 1) {
-	      while (noblankline.replace(" ", "%20", 0,
-					 (pos == std::string::npos) ? -1 : pos)) {}
-	    }
-	  }
-	  snprintf(keyval, sizeof(keyval) - 1, "%s=%s", formattags["key"].c_str(),
-		   noblankline.c_str());
-	}
+            if (noblankline.length() > 1) {
+              while (noblankline.replace(" ", "%20", 0,
+                                         (pos == std::string::npos) ? -1 : pos)) {}
+            }
+          }
+          snprintf(keyval, sizeof(keyval) - 1, "%s=%s", formattags["key"].c_str(),
+                   noblankline.c_str());
+        }
 
-	body += keyval;
+        body += keyval;
       } else {
-	std::string sline = line;
+        std::string sline = line;
 
-	if (width) {
-	  if (sline.length() > width) {
-	    sline.erase(0, ((sline.length() - width + 3) > 0) ? (sline.length() - width + 3)
-			: 0);
-	    sline.insert(0, "...");
-	  }
-	}
+        if (width) {
+          if (sline.length() > width) {
+            sline.erase(0, ((sline.length() - width + 3) > 0) ? (sline.length() - width + 3)
+                        : 0);
+            sline.insert(0, "...");
+          }
+        }
 
-	body += sline;
+        body += sline;
       }
     }
 
@@ -925,7 +925,7 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
       body += formattags["sep"];
 
       if (buildheader) {
-	header += formattags["sep"];
+        header += formattags["sep"];
       }
     }
   }
@@ -943,24 +943,24 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
       condisval = Get(conditionkey.c_str()).c_str();
 
       if (!(condisval.beginswith(condval))) {
-	accepted = false;
+        accepted = false;
       }
     } else {
       if (condval.beginswith("!")) {
-	condisval = Get(conditionkey.c_str()).c_str();
-	condval.erase(0, 1);
+        condisval = Get(conditionkey.c_str()).c_str();
+        condval.erase(0, 1);
 
-	if (!condisval.length()) {
-	  accepted = false;
-	}
+        if (!condisval.length()) {
+          accepted = false;
+        }
 
-	if ((condisval == condval)) {
-	  accepted = false;
-	}
+        if ((condisval == condval)) {
+          accepted = false;
+        }
       } else {
-	if (Get(conditionkey.c_str()) != conditionval) {
-	  accepted = false;
-	}
+        if (Get(conditionkey.c_str()) != conditionval) {
+          accepted = false;
+        }
       }
     }
   }
@@ -1000,7 +1000,7 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
 // Constructor
 //------------------------------------------------------------------------------
 XrdMqSharedQueue::XrdMqSharedQueue(const char* subject, const char* bcast_queue,
-				   XrdMqSharedObjectManager* som):
+                                   XrdMqSharedObjectManager* som):
   XrdMqSharedHash(subject, bcast_queue, som)
 {
   mType = "queue";
@@ -1011,7 +1011,7 @@ XrdMqSharedQueue::XrdMqSharedQueue(const char* subject, const char* bcast_queue,
 // Delete entry from queue
 //------------------------------------------------------------------------------
 bool
-XrdMqSharedQueue::Delete(const std::string& key)
+XrdMqSharedQueue::Delete(const std::string& key, bool broadcast)
 {
   if (!key.empty()) {
     XrdSysMutexHelper lock(mQMutex);
@@ -1019,9 +1019,9 @@ XrdMqSharedQueue::Delete(const std::string& key)
 
     for (auto it = mQueue.begin(); it != mQueue.end(); it++) {
       if (*it == key) {
-	mQueue.erase(it);
-	found = true;
-	break;
+        mQueue.erase(it);
+        found = true;
+        break;
       }
     }
 
@@ -1075,7 +1075,7 @@ XrdMqSharedQueue::SetImpl(const char* key, const char* value, bool broadcast)
   std::string uuid;
   XrdSysMutexHelper lock(mQMutex);
 
-  if (!key || (*key == '\0')){
+  if (!key || (*key == '\0')) {
     char lld[1024];
     mLastObjId++;
     snprintf(lld, 1023, "%llu", mLastObjId);
@@ -1260,7 +1260,7 @@ XrdMqSharedObjectChangeNotifier::SubscribesToSubjectAndKey(
   bool insertIntoExisiting = false;
   {
     for (auto it = s->WatchSubjectsXKeys[type].begin();
-	 it != s->WatchSubjectsXKeys[type].end(); it++) {
+         it != s->WatchSubjectsXKeys[type].end(); it++) {
 //      {
 //         size_t bufsize=0;
 //           for(auto it2 = it->first.begin(); it2 != it->first.end(); ++it2)
@@ -1297,25 +1297,25 @@ XrdMqSharedObjectChangeNotifier::SubscribesToSubjectAndKey(
 //           delete[] buffer;
 //       }
       if (subjects == it->first) {
-	size_t sizeBefore = it->second.size();
-	it->second.insert(keys.begin(), keys.end());
+        size_t sizeBefore = it->second.size();
+        it->second.insert(keys.begin(), keys.end());
 
-	if (sizeBefore == it->second.size()) {
-	  return false;  // nothing to insert
-	} else {
-	  insertIntoExisiting = true;
-	  break;
-	}
+        if (sizeBefore == it->second.size()) {
+          return false;  // nothing to insert
+        } else {
+          insertIntoExisiting = true;
+          break;
+        }
       } else if (keys == it->second) {
-	size_t sizeBefore = it->first.size();
-	it->first.insert(subjects.begin(), subjects.end());
+        size_t sizeBefore = it->first.size();
+        it->first.insert(subjects.begin(), subjects.end());
 
-	if (sizeBefore == it->first.size()) {
-	  return false;  // nothing to insert
-	} else {
-	  insertIntoExisiting = true;
-	  break;
-	}
+        if (sizeBefore == it->first.size()) {
+          return false;  // nothing to insert
+        } else {
+          insertIntoExisiting = true;
+          break;
+        }
       }
     }
 
@@ -1562,37 +1562,37 @@ XrdMqSharedObjectChangeNotifier::UnsubscribesToSubjectAndKey(
   bool removedAll = false;
   {
     for (auto it = s->WatchSubjectsXKeys[type].begin();
-	 it != s->WatchSubjectsXKeys[type].end(); it++) {
+         it != s->WatchSubjectsXKeys[type].end(); it++) {
       if (it->first == subjects &&
-	  std::includes(it->second.begin(), it->second.end(), keys.begin(), keys.end())) {
-	set<string> newKeys;
-	set_difference(it->second.begin(), it->second.end(), keys.begin(), keys.end(),
-		       inserter(newKeys, newKeys.end()));
-	it->second = newKeys;
-	//it->second.erase(keys.begin(),keys.end());
-	removedAll = true;
+          std::includes(it->second.begin(), it->second.end(), keys.begin(), keys.end())) {
+        set<string> newKeys;
+        set_difference(it->second.begin(), it->second.end(), keys.begin(), keys.end(),
+                       inserter(newKeys, newKeys.end()));
+        it->second = newKeys;
+        //it->second.erase(keys.begin(),keys.end());
+        removedAll = true;
 
-	if (it->second.empty()) {
-	  s->WatchSubjectsXKeys[type].erase(it);
-	}
+        if (it->second.empty()) {
+          s->WatchSubjectsXKeys[type].erase(it);
+        }
 
-	break;
+        break;
       } else if (it->second == keys
-		 && std::includes(it->first.begin(), it->first.end(), subjects.begin(),
-				  subjects.end())) {
-	set<string> newSubjects;
-	set_difference(it->first.begin(), it->first.end(), subjects.begin(),
-		       subjects.end(),
-		       inserter(newSubjects, newSubjects.end()));
-	it->first = newSubjects;
-	//it->first.erase(subjects.begin(),subjects.end());
-	removedAll = true;
+                 && std::includes(it->first.begin(), it->first.end(), subjects.begin(),
+                                  subjects.end())) {
+        set<string> newSubjects;
+        set_difference(it->first.begin(), it->first.end(), subjects.begin(),
+                       subjects.end(),
+                       inserter(newSubjects, newSubjects.end()));
+        it->first = newSubjects;
+        //it->first.erase(subjects.begin(),subjects.end());
+        removedAll = true;
 
-	if (it->first.empty()) {
-	  s->WatchSubjectsXKeys[type].erase(it);
-	}
+        if (it->first.empty()) {
+          s->WatchSubjectsXKeys[type].erase(it);
+        }
 
-	break;
+        break;
       }
     }
 
@@ -1650,7 +1650,7 @@ XrdMqSharedObjectChangeNotifier::StartNotifyKey(Subscriber* subscriber,
 {
   XrdSysMutexHelper lock(WatchMutex);
   return (WatchKeys2Subscribers[type][key].mSubscribers.insert(
-	    subscriber)).second;
+            subscriber)).second;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1661,7 +1661,7 @@ XrdMqSharedObjectChangeNotifier::StartNotifyKeyRegex(Subscriber* subscriber,
 {
   XrdSysMutexHelper lock(WatchMutex);
   bool res = (WatchKeys2Subscribers[type][key].mSubscribers.insert(
-		subscriber)).second;
+                subscriber)).second;
 
   if (WatchKeys2Subscribers[type][key].mRegex == NULL) {
     regex_t* r = new regex_t;
@@ -1708,7 +1708,7 @@ XrdMqSharedObjectChangeNotifier::StartNotifySubject(Subscriber* subscriber,
 {
   XrdSysMutexHelper lock(WatchMutex);
   return (WatchSubjects2Subscribers[type][subject].mSubscribers.insert(
-	    subscriber)).second;
+            subscriber)).second;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1719,7 +1719,7 @@ XrdMqSharedObjectChangeNotifier::StartNotifySubjectRegex(Subscriber* subscriber,
 {
   XrdSysMutexHelper lock(WatchMutex);
   bool res = (WatchSubjects2Subscribers[type][subject].mSubscribers.insert(
-		subscriber)).second;
+                subscriber)).second;
 
   if (WatchSubjects2Subscribers[type][subject].mRegex) {
     regex_t* r = new regex_t;
@@ -1848,37 +1848,37 @@ XrdMqSharedObjectChangeNotifier::StartNotifySubjectsAndKeys(
 //  }
     if (subjects == it->first.first) {
       if (it->second.size() == 1 && it->second.count(subscriber)) {
-	// only one subscriber and it's the same, factor
-	size_t sizeBefore = it->first.second.size();
-	it->first.second.insert(keys.begin(), keys.end());
+        // only one subscriber and it's the same, factor
+        size_t sizeBefore = it->first.second.size();
+        it->first.second.insert(keys.begin(), keys.end());
 
-	if (sizeBefore == it->first.second.size()) {
-	  return false;  // nothing to insert
-	} else {
-	  insertIntoExisiting = true;
-	  break;
-	}
+        if (sizeBefore == it->first.second.size()) {
+          return false;  // nothing to insert
+        } else {
+          insertIntoExisiting = true;
+          break;
+        }
       } else if (keys == it->first.second && it->second.count(subscriber) == 0) {
-	it->second.insert(
-	  subscriber);  // same SubjectXKey without this subscriber -> we insert it
-	break;
+        it->second.insert(
+          subscriber);  // same SubjectXKey without this subscriber -> we insert it
+        break;
       }
     } else if (keys == it->first.second) {
       if (it->second.size() == 1 && it->second.count(subscriber)) {
-	// only one subscriber and it's the same, factor
-	size_t sizeBefore = it->first.first.size();
-	it->first.first.insert(subjects.begin(), subjects.end());
+        // only one subscriber and it's the same, factor
+        size_t sizeBefore = it->first.first.size();
+        it->first.first.insert(subjects.begin(), subjects.end());
 
-	if (sizeBefore == it->first.first.size()) {
-	  return false;  // nothing to insert
-	} else {
-	  insertIntoExisiting = true;
-	  break;
-	}
+        if (sizeBefore == it->first.first.size()) {
+          return false;  // nothing to insert
+        } else {
+          insertIntoExisiting = true;
+          break;
+        }
       } else if (subjects == it->first.first && it->second.count(subscriber) == 0) {
-	it->second.insert(
-	  subscriber);  // same SubjectXKey without this subscriber -> we insert it
-	break;
+        it->second.insert(
+          subscriber);  // same SubjectXKey without this subscriber -> we insert it
+        break;
       }
     }
   }
@@ -1887,7 +1887,7 @@ XrdMqSharedObjectChangeNotifier::StartNotifySubjectsAndKeys(
     std::set<Subscriber*> s;
     s.insert(subscriber);
     WatchSubjectsXKeys2Subscribers[type].push_back(make_pair(make_pair(subjects,
-	keys), s));
+        keys), s));
   }
 
   return true;
@@ -1983,66 +1983,66 @@ XrdMqSharedObjectChangeNotifier::StopNotifySubjectsAndKeys(
 //        delete[] buffer;
 //    }
     if ((it->first.first == subjects) &&
-	std::includes(it->first.second.begin(), it->first.second.end(), keys.begin(),
-		      keys.end())) {
+        std::includes(it->first.second.begin(), it->first.second.end(), keys.begin(),
+                      keys.end())) {
       if (it->second.count(subscriber)) {
-	// if the subscriber is there
-	if (it->second.size() > 1) {
-	  // there's some other subscriber, split before update
-	  it->second.erase(subscriber);
-	  WatchSubjectsXKeys2Subscribers[type].push_back(
-	    std::make_pair(it->first, std::set<Subscriber*> (&subscriber,
-			   &subscriber + 1)));
-	  it = WatchSubjectsXKeys2Subscribers[type].end() - 1;
-	}
+        // if the subscriber is there
+        if (it->second.size() > 1) {
+          // there's some other subscriber, split before update
+          it->second.erase(subscriber);
+          WatchSubjectsXKeys2Subscribers[type].push_back(
+            std::make_pair(it->first, std::set<Subscriber*> (&subscriber,
+                           &subscriber + 1)));
+          it = WatchSubjectsXKeys2Subscribers[type].end() - 1;
+        }
 
-	if (it->second.size() == 1) {
-	  // if the subscriber is the only guy there
-	  for (auto itk = keys.begin(); itk != keys.end(); itk++) {
-	    it->first.second.erase(*itk);
-	  }
+        if (it->second.size() == 1) {
+          // if the subscriber is the only guy there
+          for (auto itk = keys.begin(); itk != keys.end(); itk++) {
+            it->first.second.erase(*itk);
+          }
 
-	  if (it->first.second.empty()) { // if this entry is now empty, remove it
-	    WatchSubjectsXKeys2Subscribers[type].erase(it);
-	  }
-	}
+          if (it->first.second.empty()) { // if this entry is now empty, remove it
+            WatchSubjectsXKeys2Subscribers[type].erase(it);
+          }
+        }
 
-	removedAll = true;
-	break;
+        removedAll = true;
+        break;
       }
     } else if ((it->first.second == keys) &&
-	       std::includes(it->first.first.begin(), it->first.first.end(),
-			     subjects.begin(), subjects.end())) {
+               std::includes(it->first.first.begin(), it->first.first.end(),
+                             subjects.begin(), subjects.end())) {
       if (it->second.count(subscriber)) {
-	// if the subscriber is there
-	// eos_static_debug("1 element size is %d vector size is %d",
-	// it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
-	if (it->second.size() > 1) {
-	  // there's some other subscriber, split before update
-	  it->second.erase(subscriber);
-	  WatchSubjectsXKeys2Subscribers[type].push_back(
-	    std::make_pair(it->first, std::set<Subscriber*> (&subscriber,
-			   &subscriber + 1)));
-	  it = WatchSubjectsXKeys2Subscribers[type].end() - 1;
-	}
+        // if the subscriber is there
+        // eos_static_debug("1 element size is %d vector size is %d",
+        // it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
+        if (it->second.size() > 1) {
+          // there's some other subscriber, split before update
+          it->second.erase(subscriber);
+          WatchSubjectsXKeys2Subscribers[type].push_back(
+            std::make_pair(it->first, std::set<Subscriber*> (&subscriber,
+                           &subscriber + 1)));
+          it = WatchSubjectsXKeys2Subscribers[type].end() - 1;
+        }
 
-	// eos_static_debug("2 element size is %d vector size is %d",
-	// it->second.size(), WatchSubjectsXKeys2Subscribers[type].size());
-	if (it->second.size() == 1) {
-	  // if the subscriber is the only guy there
-	  for (auto its = subjects.begin(); its != subjects.end(); its++) {
-	    it->first.first.erase(*its);
-	  }
+        // eos_static_debug("2 element size is %d vector size is %d",
+        // it->second.size(), WatchSubjectsXKeys2Subscribers[type].size());
+        if (it->second.size() == 1) {
+          // if the subscriber is the only guy there
+          for (auto its = subjects.begin(); its != subjects.end(); its++) {
+            it->first.first.erase(*its);
+          }
 
-	  // eos_static_debug("3 element size is %d vector size is %d",
-	  // it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
-	  if (it->first.first.empty()) { // if this entry is now empty, remove it
-	    WatchSubjectsXKeys2Subscribers[type].erase(it);
-	  }
-	}
+          // eos_static_debug("3 element size is %d vector size is %d",
+          // it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
+          if (it->first.first.empty()) { // if this entry is now empty, remove it
+            WatchSubjectsXKeys2Subscribers[type].erase(it);
+          }
+        }
 
-	removedAll = true;
-	break;
+        removedAll = true;
+        break;
       }
     }
   }
@@ -2076,59 +2076,59 @@ XrdMqSharedObjectChangeNotifier::StartNotifyCurrentThread()
       XrdSysMutexHelper lock2(WatchMutex);
 
       for (int type = 0; type < 5; type++) {
-	for (auto it = tlSubscriber->WatchKeys[type].begin();
-	     it != tlSubscriber->WatchKeys[type].end(); it++) {
-	  WatchKeys2Subscribers[type][*it].mSubscribers.insert(tlSubscriber);
-	}
+        for (auto it = tlSubscriber->WatchKeys[type].begin();
+             it != tlSubscriber->WatchKeys[type].end(); it++) {
+          WatchKeys2Subscribers[type][*it].mSubscribers.insert(tlSubscriber);
+        }
 
-	for (auto it = tlSubscriber->WatchSubjects[type].begin();
-	     it != tlSubscriber->WatchSubjects[type].end(); it++) {
-	  WatchSubjects2Subscribers[type][*it].mSubscribers.insert(tlSubscriber);
-	}
+        for (auto it = tlSubscriber->WatchSubjects[type].begin();
+             it != tlSubscriber->WatchSubjects[type].end(); it++) {
+          WatchSubjects2Subscribers[type][*it].mSubscribers.insert(tlSubscriber);
+        }
 
-	for (auto it = tlSubscriber->WatchKeysRegex[type].begin();
-	     it != tlSubscriber->WatchKeysRegex[type].end();
-	     it++) {
-	  WatchKeys2Subscribers[type][*it].mSubscribers.insert(tlSubscriber);
+        for (auto it = tlSubscriber->WatchKeysRegex[type].begin();
+             it != tlSubscriber->WatchKeysRegex[type].end();
+             it++) {
+          WatchKeys2Subscribers[type][*it].mSubscribers.insert(tlSubscriber);
 
-	  if (!WatchKeys2Subscribers[type][*it].mRegex) {
-	    regex_t* r = new regex_t;
+          if (!WatchKeys2Subscribers[type][*it].mRegex) {
+            regex_t* r = new regex_t;
 
-	    if (regcomp(r, it->c_str(), REG_NOSUB)) {
-	      WatchKeys2Subscribers[type].erase(*it);
-	      delete r;
-	      return false;
-	    }
+            if (regcomp(r, it->c_str(), REG_NOSUB)) {
+              WatchKeys2Subscribers[type].erase(*it);
+              delete r;
+              return false;
+            }
 
-	    WatchKeys2Subscribers[type][*it].mRegex = r;
-	  }
-	}
+            WatchKeys2Subscribers[type][*it].mRegex = r;
+          }
+        }
 
-	for (auto it = tlSubscriber->WatchSubjectsRegex[type].begin();
-	     it != tlSubscriber->WatchSubjectsRegex[type].end(); it++) {
-	  WatchSubjects2Subscribers[type][*it].mSubscribers.insert(tlSubscriber);
+        for (auto it = tlSubscriber->WatchSubjectsRegex[type].begin();
+             it != tlSubscriber->WatchSubjectsRegex[type].end(); it++) {
+          WatchSubjects2Subscribers[type][*it].mSubscribers.insert(tlSubscriber);
 
-	  if (!WatchSubjects2Subscribers[type][*it].mRegex) {
-	    regex_t* r = new regex_t;
+          if (!WatchSubjects2Subscribers[type][*it].mRegex) {
+            regex_t* r = new regex_t;
 
-	    if (regcomp(r, it->c_str(), REG_NOSUB)) {
-	      WatchSubjects2Subscribers[type].erase(*it);
-	      delete r;
-	      return false;
-	    }
+            if (regcomp(r, it->c_str(), REG_NOSUB)) {
+              WatchSubjects2Subscribers[type].erase(*it);
+              delete r;
+              return false;
+            }
 
-	    WatchSubjects2Subscribers[type][*it].mRegex = r;
-	  }
-	}
+            WatchSubjects2Subscribers[type][*it].mRegex = r;
+          }
+        }
       }
     }
   }
 
   for (int type = 0; type < 5; ++type)
     for (auto it = tlSubscriber->WatchSubjectsXKeys[type].begin();
-	 it != tlSubscriber->WatchSubjectsXKeys[type].end(); ++it)
+         it != tlSubscriber->WatchSubjectsXKeys[type].end(); ++it)
       StartNotifySubjectsAndKeys(tlSubscriber, it->first, it->second,
-				 static_cast<XrdMqSharedObjectChangeNotifier::notification_t>(type));
+                                 static_cast<XrdMqSharedObjectChangeNotifier::notification_t>(type));
 
   tlSubscriber->Notify = true;
   return true;
@@ -2156,54 +2156,54 @@ XrdMqSharedObjectChangeNotifier::StopNotifyCurrentThread()
       XrdSysMutexHelper lock2(WatchMutex);
 
       for (int type = 0; type < 5; type++) {
-	for (auto it = tlSubscriber->WatchKeys[type].begin();
-	     it != tlSubscriber->WatchKeys[type].end(); it++) {
-	  _NotifierMapUpdate(WatchKeys2Subscribers[type], *it, tlSubscriber);
-	}
+        for (auto it = tlSubscriber->WatchKeys[type].begin();
+             it != tlSubscriber->WatchKeys[type].end(); it++) {
+          _NotifierMapUpdate(WatchKeys2Subscribers[type], *it, tlSubscriber);
+        }
 
-	for (auto it = tlSubscriber->WatchSubjects[type].begin();
-	     it != tlSubscriber->WatchSubjects[type].end(); it++) {
-	  _NotifierMapUpdate(WatchSubjects2Subscribers[type], *it, tlSubscriber);
-	}
+        for (auto it = tlSubscriber->WatchSubjects[type].begin();
+             it != tlSubscriber->WatchSubjects[type].end(); it++) {
+          _NotifierMapUpdate(WatchSubjects2Subscribers[type], *it, tlSubscriber);
+        }
 
-	for (auto it = tlSubscriber->WatchKeysRegex[type].begin();
-	     it != tlSubscriber->WatchKeysRegex[type].end();
-	     it++) {
-	  _NotifierMapUpdate(WatchKeys2Subscribers[type], *it, tlSubscriber);
-	}
+        for (auto it = tlSubscriber->WatchKeysRegex[type].begin();
+             it != tlSubscriber->WatchKeysRegex[type].end();
+             it++) {
+          _NotifierMapUpdate(WatchKeys2Subscribers[type], *it, tlSubscriber);
+        }
 
-	for (auto it = tlSubscriber->WatchSubjectsRegex[type].begin();
-	     it != tlSubscriber->WatchSubjectsRegex[type].end(); it++) {
-	  _NotifierMapUpdate(WatchSubjects2Subscribers[type], *it, tlSubscriber);
-	}
+        for (auto it = tlSubscriber->WatchSubjectsRegex[type].begin();
+             it != tlSubscriber->WatchSubjectsRegex[type].end(); it++) {
+          _NotifierMapUpdate(WatchSubjects2Subscribers[type], *it, tlSubscriber);
+        }
 
-	std::vector<decltype(WatchSubjectsXKeys2Subscribers[type].begin())> toRemove;
+        std::vector<decltype(WatchSubjectsXKeys2Subscribers[type].begin())> toRemove;
 
-	for (auto it = WatchSubjectsXKeys2Subscribers[type].begin();
-	     it != WatchSubjectsXKeys2Subscribers[type].end();
-	     it++) {
-	  auto entry = it->second.find(tlSubscriber);
+        for (auto it = WatchSubjectsXKeys2Subscribers[type].begin();
+             it != WatchSubjectsXKeys2Subscribers[type].end();
+             it++) {
+          auto entry = it->second.find(tlSubscriber);
 
-	  if (entry != it->second.end()) {
-	    // if the current threads is a subscriber of this entry
-	    it->second.erase(tlSubscriber);
+          if (entry != it->second.end()) {
+            // if the current threads is a subscriber of this entry
+            it->second.erase(tlSubscriber);
 
-	    if (it->second.empty()) {
-	      // if the set of subscribers is empty, remove this entry
-	      toRemove.push_back(it);
-	    }
-	  }
-	}
+            if (it->second.empty()) {
+              // if the set of subscribers is empty, remove this entry
+              toRemove.push_back(it);
+            }
+          }
+        }
       }
     }
   }
 
   for (int type = 0; type < 5; type++)
     for (auto it = tlSubscriber->WatchSubjectsXKeys[type].begin();
-	 it != tlSubscriber->WatchSubjectsXKeys[type].end();
-	 it++)
+         it != tlSubscriber->WatchSubjectsXKeys[type].end();
+         it++)
       StopNotifySubjectsAndKeys(tlSubscriber, it->first, it->second,
-				static_cast<XrdMqSharedObjectChangeNotifier::notification_t>(type));
+                                static_cast<XrdMqSharedObjectChangeNotifier::notification_t>(type));
 
   tlSubscriber->Notify = false;
   return true;
@@ -2242,8 +2242,8 @@ XrdMqSharedObjectChangeNotifier::SomListener()
       size_t dpos = 0;
 
       if ((dpos = queue.find(";")) != std::string::npos) {
-	key.erase(0, dpos + 1);
-	queue.erase(dpos);
+        key.erase(0, dpos + 1);
+        queue.erase(dpos);
       }
 
       // these are useful only if type==4
@@ -2252,151 +2252,151 @@ XrdMqSharedObjectChangeNotifier::SomListener()
       bool isNewVal = false;
 
       do {
-	// check if there is a matching key
-	for (auto it = WatchKeys2Subscribers[type].begin();
-	     it != WatchKeys2Subscribers[type].end(); it++) {
-	  if ((it->second.mRegex == NULL && key == it->first)
-	      || (it->second.mRegex != NULL &&
-		  !regexec(it->second.mRegex, key.c_str(), 0, NULL, 0))) {
-	    if (type == 4) {
-	      if (!newValAsserted) {
-		auto lvIt = LastValues.find(newsubject);
-		SOM->HashMutex.LockRead();
-		XrdMqSharedHash* hash = SOM->GetObject(queue.c_str(), "hash");
-		SOM->HashMutex.UnLockRead();
-		newVal = hash->Get(key.c_str());
+        // check if there is a matching key
+        for (auto it = WatchKeys2Subscribers[type].begin();
+             it != WatchKeys2Subscribers[type].end(); it++) {
+          if ((it->second.mRegex == NULL && key == it->first)
+              || (it->second.mRegex != NULL &&
+                  !regexec(it->second.mRegex, key.c_str(), 0, NULL, 0))) {
+            if (type == 4) {
+              if (!newValAsserted) {
+                auto lvIt = LastValues.find(newsubject);
+                SOM->HashMutex.LockRead();
+                XrdMqSharedHash* hash = SOM->GetObject(queue.c_str(), "hash");
+                SOM->HashMutex.UnLockRead();
+                newVal = hash->Get(key.c_str());
 
-		if (lvIt == LastValues.end() || lvIt->second != newVal) {
-		  isNewVal = true;
-		}
+                if (lvIt == LastValues.end() || lvIt->second != newVal) {
+                  isNewVal = true;
+                }
 
-		newValAsserted = true;
-	      }
+                newValAsserted = true;
+              }
 
-	      if (isNewVal) {
-		// eos_static_debug("notification on %s : new value %s IS a"
-		// "strict change",newsubject.c_str(),newVal.c_str());
-		LastValues[newsubject] = newVal;
-	      } else {
-		//eos_static_debug("notification on %s : new value %s IS NOT"
-		//" a strict change",newsubject.c_str(),newVal.c_str());
-		continue;
-	      }
-	    }
+              if (isNewVal) {
+                // eos_static_debug("notification on %s : new value %s IS a"
+                // "strict change",newsubject.c_str(),newVal.c_str());
+                LastValues[newsubject] = newVal;
+              } else {
+                //eos_static_debug("notification on %s : new value %s IS NOT"
+                //" a strict change",newsubject.c_str(),newVal.c_str());
+                continue;
+              }
+            }
 
-	    for (auto it2 = it->second.mSubscribers.begin();
-		 it2 != it->second.mSubscribers.end(); it2++) {
-	      //eos_static_debug("match!");
-	      (*it2)->SubjectsMutex.Lock();
-	      (*it2)->NotificationSubjects.push_back(event);
-	      (*it2)->SubjectsMutex.UnLock();
-	      notifiedSubscribersForCurrentEvent.insert(*it2);
-	      notifiedSubscribers.insert(*it2);
-	    }
-	  }
-	}
+            for (auto it2 = it->second.mSubscribers.begin();
+                 it2 != it->second.mSubscribers.end(); it2++) {
+              //eos_static_debug("match!");
+              (*it2)->SubjectsMutex.Lock();
+              (*it2)->NotificationSubjects.push_back(event);
+              (*it2)->SubjectsMutex.UnLock();
+              notifiedSubscribersForCurrentEvent.insert(*it2);
+              notifiedSubscribers.insert(*it2);
+            }
+          }
+        }
 
-	// check if there is a matching subject
-	for (auto it = WatchSubjects2Subscribers[type].begin();
-	     it != WatchSubjects2Subscribers[type].end(); it++) {
-	  if ((it->second.mRegex == NULL && queue == it->first)
-	      || (it->second.mRegex != NULL &&
-		  !regexec(it->second.mRegex, queue.c_str(), 0, NULL, 0))) {
-	    if (type == 4) {
-	      if (!newValAsserted) {
-		auto lvIt = LastValues.find(newsubject);
-		SOM->HashMutex.LockRead();
-		XrdMqSharedHash* hash = SOM->GetObject(queue.c_str(), "hash");
-		SOM->HashMutex.UnLockRead();
-		newVal = hash->Get(key.c_str());
+        // check if there is a matching subject
+        for (auto it = WatchSubjects2Subscribers[type].begin();
+             it != WatchSubjects2Subscribers[type].end(); it++) {
+          if ((it->second.mRegex == NULL && queue == it->first)
+              || (it->second.mRegex != NULL &&
+                  !regexec(it->second.mRegex, queue.c_str(), 0, NULL, 0))) {
+            if (type == 4) {
+              if (!newValAsserted) {
+                auto lvIt = LastValues.find(newsubject);
+                SOM->HashMutex.LockRead();
+                XrdMqSharedHash* hash = SOM->GetObject(queue.c_str(), "hash");
+                SOM->HashMutex.UnLockRead();
+                newVal = hash->Get(key.c_str());
 
-		if (lvIt == LastValues.end() || lvIt->second != newVal) {
-		  isNewVal = true;
-		}
+                if (lvIt == LastValues.end() || lvIt->second != newVal) {
+                  isNewVal = true;
+                }
 
-		newValAsserted = true;
-	      }
+                newValAsserted = true;
+              }
 
-	      if (isNewVal) {
-		// eos_static_debug("notification on %s : new value %s IS a "
-		// "strict change",newsubject.c_str(),newVal.c_str());
-		LastValues[newsubject] = newVal;
-	      } else {
-		//eos_static_debug("notification on %s : new value %s IS NOT "
-		// "a strict change",newsubject.c_str(),newVal.c_str());
-		continue;
-	      }
-	    }
+              if (isNewVal) {
+                // eos_static_debug("notification on %s : new value %s IS a "
+                // "strict change",newsubject.c_str(),newVal.c_str());
+                LastValues[newsubject] = newVal;
+              } else {
+                //eos_static_debug("notification on %s : new value %s IS NOT "
+                // "a strict change",newsubject.c_str(),newVal.c_str());
+                continue;
+              }
+            }
 
-	    for (auto it2 = it->second.mSubscribers.begin();
-		 it2 != it->second.mSubscribers.end(); it2++) {
-	      if (notifiedSubscribersForCurrentEvent.count(*it2) == 0) {
-		// don't notofy twice for the same event
-		(*it2)->SubjectsMutex.Lock();
-		(*it2)->NotificationSubjects.push_back(event);
-		(*it2)->SubjectsMutex.UnLock();
-		notifiedSubscribersForCurrentEvent.insert(*it2);
-		notifiedSubscribers.insert(*it2);
-	      }
-	    }
-	  } else {
-	    //if(it->second.mRegex!=NULL)
-	    //  eos_static_info("regex %s DID NOT MATCH %s",it->first.c_str(),queue.c_str());
-	  }
-	}
+            for (auto it2 = it->second.mSubscribers.begin();
+                 it2 != it->second.mSubscribers.end(); it2++) {
+              if (notifiedSubscribersForCurrentEvent.count(*it2) == 0) {
+                // don't notofy twice for the same event
+                (*it2)->SubjectsMutex.Lock();
+                (*it2)->NotificationSubjects.push_back(event);
+                (*it2)->SubjectsMutex.UnLock();
+                notifiedSubscribersForCurrentEvent.insert(*it2);
+                notifiedSubscribers.insert(*it2);
+              }
+            }
+          } else {
+            //if(it->second.mRegex!=NULL)
+            //  eos_static_info("regex %s DID NOT MATCH %s",it->first.c_str(),queue.c_str());
+          }
+        }
 
-	// check if there is a matching subjectXkey
-	for (auto it = WatchSubjectsXKeys2Subscribers[type].begin();
-	     it != WatchSubjectsXKeys2Subscribers[type].end();
-	     it++) {
-	  if (it->first.first.count(queue) && it->first.second.count(key)) {
-	    if (type == 4) {
-	      if (!newValAsserted) {
-		auto lvIt = LastValues.find(newsubject);
-		SOM->HashMutex.LockRead();
-		XrdMqSharedHash* hash = SOM->GetObject(queue.c_str(), "hash");
-		SOM->HashMutex.UnLockRead();
-		newVal = hash->Get(key.c_str());
+        // check if there is a matching subjectXkey
+        for (auto it = WatchSubjectsXKeys2Subscribers[type].begin();
+             it != WatchSubjectsXKeys2Subscribers[type].end();
+             it++) {
+          if (it->first.first.count(queue) && it->first.second.count(key)) {
+            if (type == 4) {
+              if (!newValAsserted) {
+                auto lvIt = LastValues.find(newsubject);
+                SOM->HashMutex.LockRead();
+                XrdMqSharedHash* hash = SOM->GetObject(queue.c_str(), "hash");
+                SOM->HashMutex.UnLockRead();
+                newVal = hash->Get(key.c_str());
 
-		if (lvIt == LastValues.end() || lvIt->second != newVal) {
-		  isNewVal = true;
-		}
+                if (lvIt == LastValues.end() || lvIt->second != newVal) {
+                  isNewVal = true;
+                }
 
-		newValAsserted = true;
-	      }
+                newValAsserted = true;
+              }
 
-	      if (isNewVal) {
-		//if(key=="id") {
-		// eos_static_warning("WARNING ID CHANGE in queue %s FROM %s "
-		// "to %s",queue.c_str(),LastValues[newsubject].c_str(),newVal.c_str());
-		//}
-		LastValues[newsubject] = newVal;
-	      } else {
-		// eos_static_info("notification on %s : new value %s IS NOT "
-		// "a strict change",newsubject.c_str(),newVal.c_str());
-		continue;
-	      }
-	    }
+              if (isNewVal) {
+                //if(key=="id") {
+                // eos_static_warning("WARNING ID CHANGE in queue %s FROM %s "
+                // "to %s",queue.c_str(),LastValues[newsubject].c_str(),newVal.c_str());
+                //}
+                LastValues[newsubject] = newVal;
+              } else {
+                // eos_static_info("notification on %s : new value %s IS NOT "
+                // "a strict change",newsubject.c_str(),newVal.c_str());
+                continue;
+              }
+            }
 
-	    for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
-	      if (notifiedSubscribersForCurrentEvent.count(*it2) == 0) {
-		// don't notofy twice for the same event
-		(*it2)->SubjectsMutex.Lock();
-		(*it2)->NotificationSubjects.push_back(event);
-		(*it2)->SubjectsMutex.UnLock();
-		notifiedSubscribersForCurrentEvent.insert(*it2);
-		notifiedSubscribers.insert(*it2);
-	      }
-	    }
-	  }
-	}
+            for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
+              if (notifiedSubscribersForCurrentEvent.count(*it2) == 0) {
+                // don't notofy twice for the same event
+                (*it2)->SubjectsMutex.Lock();
+                (*it2)->NotificationSubjects.push_back(event);
+                (*it2)->SubjectsMutex.UnLock();
+                notifiedSubscribersForCurrentEvent.insert(*it2);
+                notifiedSubscribers.insert(*it2);
+              }
+            }
+          }
+        }
 
-	if (type == 2) {
-	  // If it's a modification, check also the strict modifications to be notified
-	  type = 4;
-	} else {
-	  break;
-	}
+        if (type == 2) {
+          // If it's a modification, check also the strict modifications to be notified
+          type = 4;
+        } else {
+          break;
+        }
       } while (true);
 
       SOM->mSubjectsMutex.Lock();
@@ -2404,7 +2404,7 @@ XrdMqSharedObjectChangeNotifier::SomListener()
 
     // wake up all subscriber threads
     for (auto it = notifiedSubscribers.begin(); it != notifiedSubscribers.end();
-	 it++) {
+         it++) {
       (*it)->SubjectsSem.Post();
     }
 
@@ -2433,9 +2433,9 @@ XrdMqSharedObjectChangeNotifier::Start()
   int rc;
 
   if ((rc = XrdSysThread::Run(&tid,
-			      XrdMqSharedObjectChangeNotifier::StartSomListener,
-			      static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-			      "XrdMqSharedObject Change Notifier"))) {
+                              XrdMqSharedObjectChangeNotifier::StartSomListener,
+                              static_cast<void*>(this), XRDSYSTHREAD_HOLD,
+                              "XrdMqSharedObject Change Notifier"))) {
     return false;
   }
 
@@ -2496,9 +2496,9 @@ XrdMqSharedObjectManager::~XrdMqSharedObjectManager()
 //----------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::CreateSharedObject(const char* subject,
-					     const char* bcast_queue,
-					     const char* type,
-					     XrdMqSharedObjectManager* som)
+    const char* bcast_queue,
+    const char* type,
+    XrdMqSharedObjectManager* som)
 {
   std::string stype = type;
 
@@ -2518,8 +2518,8 @@ XrdMqSharedObjectManager::CreateSharedObject(const char* subject,
 //------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::CreateSharedHash(const char* subject,
-					   const char* broadcastqueue,
-					   XrdMqSharedObjectManager* som)
+    const char* broadcastqueue,
+    XrdMqSharedObjectManager* som)
 {
   std::string ss = subject;
   Notification event(ss, XrdMqSharedObjectManager::kMqSubjectCreation);
@@ -2550,8 +2550,8 @@ XrdMqSharedObjectManager::CreateSharedHash(const char* subject,
 //------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::CreateSharedQueue(const char* subject,
-					    const char* broadcastqueue,
-					    XrdMqSharedObjectManager* som)
+    const char* broadcastqueue,
+    XrdMqSharedObjectManager* som)
 {
   std::string ss = subject;
   Notification event(ss, XrdMqSharedObjectManager::kMqSubjectCreation);
@@ -2581,7 +2581,7 @@ XrdMqSharedObjectManager::CreateSharedQueue(const char* subject,
 //------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::DeleteSharedObject(const char* subject,
-					     const char* type, bool broadcast)
+    const char* type, bool broadcast)
 {
   std::string stype = type;
 
@@ -2760,11 +2760,11 @@ XrdMqSharedObjectManager::StartDumper(const char* file)
   mDumperFile = file;
 
   if ((rc = XrdSysThread::Run(&mDumperTid,
-			      XrdMqSharedObjectManager::StartHashDumper,
-			      static_cast<void*>(this),
-			      XRDSYSTHREAD_HOLD, "HashDumper"))) {
+                              XrdMqSharedObjectManager::StartHashDumper,
+                              static_cast<void*>(this),
+                              XRDSYSTHREAD_HOLD, "HashDumper"))) {
     fprintf(stderr, "XrdMqSharedObjectManager::StartDumper=> failed to run "
-	    "dumper thread\n");
+            "dumper thread\n");
   }
 }
 
@@ -2801,12 +2801,12 @@ XrdMqSharedObjectManager::FileDumper()
 
     if (chmod(mDumperFile.c_str(), S_IRWXU | S_IRGRP | S_IROTH)) {
       fprintf(stderr, "XrdMqSharedObjectManager::FileDumper=> unable to set "
-	      "755 permissions on file %s\n", mDumperFile.c_str());
+              "755 permissions on file %s\n", mDumperFile.c_str());
     }
 
     if (rename(df.c_str(), mDumperFile.c_str())) {
       fprintf(stderr, "XrdMqSharedObjectManager::FileDumper=> unable to write "
-	      "dumper file %s\n", mDumperFile.c_str());
+              "dumper file %s\n", mDumperFile.c_str());
     }
 
     XrdSysThread::SetCancelOn();
@@ -2825,7 +2825,7 @@ XrdMqSharedObjectManager::FileDumper()
 //------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
-					  XrdOucString& error)
+    XrdOucString& error)
 {
   error = "";
   std::string subject = "";
@@ -2844,7 +2844,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
   if (sDebug) {
     env.Env(envlen);
     fprintf(stderr, "XrdMqSharedObjectManager::ParseEnvMessage=> size=%d text=%s\n",
-	    envlen, env.Env(envlen));
+            envlen, env.Env(envlen));
   }
 
   if (env.Get(XRDMQSHAREDHASH_SUBJECT)) {
@@ -2878,58 +2878,58 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
       XrdOucString wmatch = subject.c_str();
       wmatch.erase(wpos);
       {
-	std::map<std::string, XrdMqSharedHash*>::iterator it;
+        std::map<std::string, XrdMqSharedHash*>::iterator it;
 
-	for (it = mHashSubjects.begin(); it != mHashSubjects.end(); it++) {
-	  XrdOucString hs = it->first.c_str();
+        for (it = mHashSubjects.begin(); it != mHashSubjects.end(); it++) {
+          XrdOucString hs = it->first.c_str();
 
-	  if (hs.beginswith(wmatch)) {
-	    subjectlist.push_back(hs.c_str());
-	  }
-	}
+          if (hs.beginswith(wmatch)) {
+            subjectlist.push_back(hs.c_str());
+          }
+        }
       }
       {
-	std::map<std::string, XrdMqSharedQueue>::iterator it;
+        std::map<std::string, XrdMqSharedQueue>::iterator it;
 
-	for (it = mQueueSubjects.begin(); it != mQueueSubjects.end(); it++) {
-	  XrdOucString hs = it->first.c_str();
+        for (it = mQueueSubjects.begin(); it != mQueueSubjects.end(); it++) {
+          XrdOucString hs = it->first.c_str();
 
-	  if (hs.beginswith(wmatch)) {
-	    subjectlist.push_back(hs.c_str());
-	  }
-	}
+          if (hs.beginswith(wmatch)) {
+            subjectlist.push_back(hs.c_str());
+          }
+        }
       }
     } else {
       // support 'wild card' broadcasts with */<name>
       if ((subject.find("*/")) == 0) {
-	XrdOucString wmatch = subject.c_str();
-	wmatch.erase(0, 2);
-	{
-	  std::map<std::string, XrdMqSharedHash*>::iterator it;
+        XrdOucString wmatch = subject.c_str();
+        wmatch.erase(0, 2);
+        {
+          std::map<std::string, XrdMqSharedHash*>::iterator it;
 
-	  for (it = mHashSubjects.begin(); it != mHashSubjects.end(); it++) {
-	    XrdOucString hs = it->first.c_str();
+          for (it = mHashSubjects.begin(); it != mHashSubjects.end(); it++) {
+            XrdOucString hs = it->first.c_str();
 
-	    if (hs.endswith(wmatch)) {
-	      subjectlist.push_back(hs.c_str());
-	    }
-	  }
-	}
-	{
-	  std::map<std::string, XrdMqSharedQueue>::iterator it;
+            if (hs.endswith(wmatch)) {
+              subjectlist.push_back(hs.c_str());
+            }
+          }
+        }
+        {
+          std::map<std::string, XrdMqSharedQueue>::iterator it;
 
-	  for (it = mQueueSubjects.begin(); it != mQueueSubjects.end(); it++) {
-	    XrdOucString hs = it->first.c_str();
+          for (it = mQueueSubjects.begin(); it != mQueueSubjects.end(); it++) {
+            XrdOucString hs = it->first.c_str();
 
-	    if (hs.endswith(wmatch)) {
-	      subjectlist.push_back(hs.c_str());
-	    }
-	  }
-	}
+            if (hs.endswith(wmatch)) {
+              subjectlist.push_back(hs.c_str());
+            }
+          }
+        }
       } else {
-	std::string delimiter = "%";
-	// we support also multiplexed subject updates and split the list
-	XrdMqStringConversion::Tokenize(subject, subjectlist, delimiter);
+        std::string delimiter = "%";
+        // we support also multiplexed subject updates and split the list
+        XrdMqStringConversion::Tokenize(subject, subjectlist, delimiter);
       }
     }
 
@@ -2942,78 +2942,78 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
     }
 
     if ((ftag == XRDMQSHAREDHASH_BCREQUEST) ||
-	(ftag == XRDMQSHAREDHASH_DELETE) ||
-	(ftag == XRDMQSHAREDHASH_REMOVE)) {
+        (ftag == XRDMQSHAREDHASH_DELETE) ||
+        (ftag == XRDMQSHAREDHASH_REMOVE)) {
       // if we don't know the subject, we don't create it with a BCREQUEST
       if ((ftag == XRDMQSHAREDHASH_BCREQUEST) && (reply == "")) {
-	HashMutex.UnLockRead();
-	error = "bcrequest: no reply address present";
-	return false;
+        HashMutex.UnLockRead();
+        error = "bcrequest: no reply address present";
+        return false;
       }
 
       if (!sh) {
-	if (ftag == XRDMQSHAREDHASH_BCREQUEST) {
-	  error = "bcrequest: don't know this subject";
-	}
+        if (ftag == XRDMQSHAREDHASH_BCREQUEST) {
+          error = "bcrequest: don't know this subject";
+        }
 
-	if (ftag == XRDMQSHAREDHASH_DELETE) {
-	  error = "delete: don't know this subject";
-	}
+        if (ftag == XRDMQSHAREDHASH_DELETE) {
+          error = "delete: don't know this subject";
+        }
 
-	if (ftag == XRDMQSHAREDHASH_REMOVE) {
-	  error = "remove: don't know this subject";
-	}
+        if (ftag == XRDMQSHAREDHASH_REMOVE) {
+          error = "remove: don't know this subject";
+        }
 
-	HashMutex.UnLockRead();
-	return false;
+        HashMutex.UnLockRead();
+        return false;
       } else {
-	HashMutex.UnLockRead();
+        HashMutex.UnLockRead();
       }
     } else {
       // automatically create the subject, if it does not exist
       if (!sh) {
-	HashMutex.UnLockRead();
+        HashMutex.UnLockRead();
 
-	if (AutoReplyQueueDerive) {
-	  AutoReplyQueue = subject.c_str();
-	  int pos = 0;
+        if (AutoReplyQueueDerive) {
+          AutoReplyQueue = subject.c_str();
+          int pos = 0;
 
-	  for (int i = 0; i < 4; i++) {
-	    pos = subject.find("/", pos);
+          for (int i = 0; i < 4; i++) {
+            pos = subject.find("/", pos);
 
-	    if (i < 3) {
-	      if (pos == STR_NPOS) {
-		AutoReplyQueue = "";
-		error = "cannot derive the reply queue from ";
-		error += subject.c_str();
-		return false;
-	      } else {
-		pos++;
-	      }
-	    } else {
-	      AutoReplyQueue.erase(pos);
-	    }
-	  }
-	}
+            if (i < 3) {
+              if (pos == STR_NPOS) {
+                AutoReplyQueue = "";
+                error = "cannot derive the reply queue from ";
+                error += subject.c_str();
+                return false;
+              } else {
+                pos++;
+              }
+            } else {
+              AutoReplyQueue.erase(pos);
+            }
+          }
+        }
 
-	// create the list of subjects
-	for (size_t i = 0; i < subjectlist.size(); i++) {
-	  if (!CreateSharedObject(subjectlist[i].c_str(), AutoReplyQueue.c_str(),
-				  type.c_str())) {
-	    error = "cannot create shared object for ";
-	    error += subject.c_str();
-	    error += " and type ";
-	    error += type.c_str();
-	    return false;
-	  }
-	}
+        // create the list of subjects
+        for (size_t i = 0; i < subjectlist.size(); i++) {
+          if (!CreateSharedObject(subjectlist[i].c_str(), AutoReplyQueue.c_str(),
+                                  type.c_str())) {
+            error = "cannot create shared object for ";
+            error += subject.c_str();
+            error += " and type ";
+            error += type.c_str();
+            return false;
+          }
+        }
 
-	{
-	  XrdMqRWMutexReadLock lock(HashMutex);
-	  sh = GetObject(subject.c_str(), type.c_str());
-	}
+        {
+          XrdMqRWMutexReadLock lock(HashMutex);
+          sh = GetObject(subject.c_str(), type.c_str());
+        }
       } else {
-	HashMutex.UnLockRead();
+        HashMutex.UnLockRead();
       }
     }
 
@@ -3022,177 +3022,178 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
       // from here on we have a read lock on 'sh'
 
       if ((ftag == XRDMQSHAREDHASH_UPDATE) || (ftag == XRDMQSHAREDHASH_BCREPLY)) {
-	std::string val = (env.Get(XRDMQSHAREDHASH_PAIRS) ? env.Get(
-			     XRDMQSHAREDHASH_PAIRS) : "");
+        std::string val = (env.Get(XRDMQSHAREDHASH_PAIRS) ? env.Get(
+                             XRDMQSHAREDHASH_PAIRS) : "");
 
-	if (val.length() <= 0) {
-	  error = "no pairs in message body";
-	  return false;
-	}
+        if (val.length() <= 0) {
+          error = "no pairs in message body";
+          return false;
+        }
 
-	if (ftag == XRDMQSHAREDHASH_BCREPLY) {
-	  // we don't have to broad cast this clear => it is a broad cast reply
-	  sh->Clear(false);
-	}
+        if (ftag == XRDMQSHAREDHASH_BCREPLY) {
+          // we don't have to broad cast this clear => it is a broad cast reply
+          sh->Clear(false);
+        }
 
-	std::string key;
-	std::string value;
-	std::string cid;
-	std::vector<int> keystart;
-	std::vector<int> valuestart;
-	std::vector<int> cidstart;
+        std::string key;
+        std::string value;
+        std::string cid;
+        std::vector<int> keystart;
+        std::vector<int> valuestart;
+        std::vector<int> cidstart;
 
-	for (unsigned int i = 0; i < val.length(); i++) {
-	  if (val.c_str()[i] == '|') {
-	    keystart.push_back(i);
-	  }
+        for (unsigned int i = 0; i < val.length(); i++) {
+          if (val.c_str()[i] == '|') {
+            keystart.push_back(i);
+          }
 
-	  if (val.c_str()[i] == '~') {
-	    valuestart.push_back(i);
-	  }
+          if (val.c_str()[i] == '~') {
+            valuestart.push_back(i);
+          }
 
-	  if (val.c_str()[i] == '%') {
-	    cidstart.push_back(i);
-	  }
-	}
+          if (val.c_str()[i] == '%') {
+            cidstart.push_back(i);
+          }
+        }
 
-	if (keystart.size() != valuestart.size()) {
-	  error = "update: parsing error in pairs tag";
-	  return false;
-	}
+        if (keystart.size() != valuestart.size()) {
+          error = "update: parsing error in pairs tag";
+          return false;
+        }
 
-	if (keystart.size() != cidstart.size()) {
-	  error = "update: parsing error in pairs tag";
-	  return false;
-	}
+        if (keystart.size() != cidstart.size()) {
+          error = "update: parsing error in pairs tag";
+          return false;
+        }
 
-	int parseindex = 0;
+        int parseindex = 0;
 
-	for (size_t s = 0; s < subjectlist.size(); s++) {
-	  sh = GetObject(subjectlist[s].c_str(), type.c_str());
+        for (size_t s = 0; s < subjectlist.size(); s++) {
+          sh = GetObject(subjectlist[s].c_str(), type.c_str());
 
-	  if (!sh) {
-	    error = "update: subject does not exist (FATAL!)";
-	    return false;
-	  }
+          if (!sh) {
+            error = "update: subject does not exist (FATAL!)";
+            return false;
+          }
 
-	  std::string sstr;
-	  for (unsigned int i = parseindex; i < keystart.size(); i++) {
-	    key.assign(val, keystart[i] + 1, valuestart[i] - 1 - (keystart[i]));
-	    value.assign(val, valuestart[i] + 1, cidstart[i] - 1 - (valuestart[i]));
+          std::string sstr;
 
-	    if (i == (keystart.size() - 1)) {
-	      cid.assign(val, cidstart[i] + 1, val.length() - cidstart[i] - 1);
-	    } else {
-	      cid.assign(val, cidstart[i] + 1, keystart[i + 1] - 1 - (cidstart[i]));
-	    }
+          for (unsigned int i = parseindex; i < keystart.size(); i++) {
+            key.assign(val, keystart[i] + 1, valuestart[i] - 1 - (keystart[i]));
+            value.assign(val, valuestart[i] + 1, cidstart[i] - 1 - (valuestart[i]));
 
-	    if (sDebug) {
-	      fprintf(stderr,
-		      "XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=> %s\n",
-		      subject.c_str(), key.c_str(), value.c_str());
-	    }
+            if (i == (keystart.size() - 1)) {
+              cid.assign(val, cidstart[i] + 1, val.length() - cidstart[i] - 1);
+            } else {
+              cid.assign(val, cidstart[i] + 1, keystart[i + 1] - 1 - (cidstart[i]));
+            }
 
-	    if (subjectlist.size() > 1) {
-	      // This is a multiplexed update, where we have to remove the
-	      // subject from the key if there is a match with the current subject
-	      // MUX transactions have the #<subject-index># as key prefix
-	      XrdOucString skey = "#";
-	      skey += (int) s;
-	      skey += "#";
+            if (sDebug) {
+              fprintf(stderr,
+                      "XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=> %s\n",
+                      subject.c_str(), key.c_str(), value.c_str());
+            }
 
-	      if (!key.compare(0, skey.length(), skey.c_str())) {
-		// this is the right key for the subject we are dealing with
-		key.erase(0, skey.length());
-	      } else {
-		parseindex = i;
-		break;
-	      }
-	    } else {
-	      // This can be the case for a single multiplexed message, so
-	      // we have also to remove the prefix in that case
-	      XrdOucString skey = "#";
-	      skey += (int) s;
-	      skey += "#";
+            if (subjectlist.size() > 1) {
+              // This is a multiplexed update, where we have to remove the
+              // subject from the key if there is a match with the current subject
+              // MUX transactions have the #<subject-index># as key prefix
+              XrdOucString skey = "#";
+              skey += (int) s;
+              skey += "#";
 
-	      if (!key.compare(0, skey.length(), skey.c_str())) {
-		// this is the right key for the subject we are dealing with
-		key.erase(0, skey.length());
-	      }
-	    }
+              if (!key.compare(0, skey.length(), skey.c_str())) {
+                // this is the right key for the subject we are dealing with
+                key.erase(0, skey.length());
+              } else {
+                parseindex = i;
+                break;
+              }
+            } else {
+              // This can be the case for a single multiplexed message, so
+              // we have also to remove the prefix in that case
+              XrdOucString skey = "#";
+              skey += (int) s;
+              skey += "#";
 
-	    // Set entry without broadcast
-	    sh->Set(key.c_str(), value.c_str(), false);
-	  }
-	}
+              if (!key.compare(0, skey.length(), skey.c_str())) {
+                // this is the right key for the subject we are dealing with
+                key.erase(0, skey.length());
+              }
+            }
 
-	return true;
+            // Set entry without broadcast
+            sh->Set(key.c_str(), value.c_str(), false);
+          }
+        }
+
+        return true;
       }
 
       if (ftag == XRDMQSHAREDHASH_BCREQUEST) {
-	bool success = true;
+        bool success = true;
 
-	for (unsigned int l = 0; l < subjectlist.size(); l++) {
-	  // try 'queue' and 'hash' to have wildcard broadcasts for both
-	  sh = GetObject(subjectlist[l].c_str(), "queue");
+        for (unsigned int l = 0; l < subjectlist.size(); l++) {
+          // try 'queue' and 'hash' to have wildcard broadcasts for both
+          sh = GetObject(subjectlist[l].c_str(), "queue");
 
-	  if (!sh) {
-	    sh = GetObject(subjectlist[l].c_str(), "hash");
-	  }
+          if (!sh) {
+            sh = GetObject(subjectlist[l].c_str(), "hash");
+          }
 
-	  if (sh) {
-	    success *= sh->BroadCastEnvString(reply.c_str());
-	  }
-	}
+          if (sh) {
+            success *= sh->BroadCastEnvString(reply.c_str());
+          }
+        }
 
-	return success;
+        return success;
       }
 
       if (ftag == XRDMQSHAREDHASH_DELETE) {
-	std::string val = (env.Get(XRDMQSHAREDHASH_KEYS) ? env.Get(
-			     XRDMQSHAREDHASH_KEYS) : "");
+        std::string val = (env.Get(XRDMQSHAREDHASH_KEYS) ? env.Get(
+                             XRDMQSHAREDHASH_KEYS) : "");
 
-	if (val.length() <= 1) {
-	  error = "no keys in message body : ";
-	  error += env.Env(envlen);
-	  return false;
-	}
+        if (val.length() <= 1) {
+          error = "no keys in message body : ";
+          error += env.Env(envlen);
+          return false;
+        }
 
-	std::string key;
-	std::vector<int> keystart;
+        std::string key;
+        std::vector<int> keystart;
 
-	for (unsigned int i = 0; i < val.length(); i++) {
-	  if (val.c_str()[i] == '|') {
-	    keystart.push_back(i);
-	  }
-	}
+        for (unsigned int i = 0; i < val.length(); i++) {
+          if (val.c_str()[i] == '|') {
+            keystart.push_back(i);
+          }
+        }
 
-	XrdSysMutexHelper lock(sh->mTransactMutex);
-	std::string sstr;
+        XrdSysMutexHelper lock(sh->mTransactMutex);
+        std::string sstr;
 
-	for (unsigned int i = 0; i < keystart.size(); i++) {
-	  if (i < (keystart.size() - 1)) {
-	    sstr = val.substr(keystart[i] + 1, keystart[i + 1] - 1 - (keystart[i]));
-	  } else {
-	    sstr = val.substr(keystart[i] + 1);
-	  }
+        for (unsigned int i = 0; i < keystart.size(); i++) {
+          if (i < (keystart.size() - 1)) {
+            sstr = val.substr(keystart[i] + 1, keystart[i + 1] - 1 - (keystart[i]));
+          } else {
+            sstr = val.substr(keystart[i] + 1);
+          }
 
-	  key = sstr;
-	  // message->Print();
-	  // fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Deleting"
-	  //         " [%s] %s\n", subject.c_str(),key.c_str());
-	  sh->Delete(key, false);
-	}
+          key = sstr;
+          // message->Print();
+          // fprintf(stderr,"XrdMqSharedObjectManager::ParseEnvMessage=>Deleting"
+          //         " [%s] %s\n", subject.c_str(),key.c_str());
+          sh->Delete(key, false);
+        }
       }
     } // end of read mutex on HashMutex
 
     if (ftag == XRDMQSHAREDHASH_REMOVE) {
       for (unsigned int l = 0; l < subjectlist.size(); l++) {
-	if (!DeleteSharedObject(subjectlist[l].c_str(), type.c_str(), false)) {
-	  error = "cannot delete subject ";
-	  error += subjectlist[l].c_str();
-	  return false;
-	}
+        if (!DeleteSharedObject(subjectlist[l].c_str(), type.c_str(), false)) {
+          error = "cannot delete subject ";
+          error += subjectlist[l].c_str();
+          return false;
+        }
       }
     }
 
@@ -3239,7 +3240,7 @@ XrdMqSharedObjectManager::CloseMuxTransaction()
     message.SetBody(txmessage.c_str());
     message.MarkAsMonitor();
     XrdMqMessaging::gMessageClient.SendMessage(message,
-      MuxTransactionBroadCastQueue.c_str(), false, false, true);
+        MuxTransactionBroadCastQueue.c_str(), false, false, true);
   }
 
   IsMuxTransaction = false;
@@ -3296,27 +3297,27 @@ XrdMqSharedObjectManager::AddMuxTransactionEnvString(XrdOucString& out)
     sindex += (int) index;
     // loop over subjects
     XrdMqSharedHash* hash = GetObject(it_subj->first.c_str(),
-				      MuxTransactionType.c_str());
+                                      MuxTransactionType.c_str());
 
     if (hash) {
       XrdMqRWMutexReadLock lock(hash->mStoreMutex);
 
       // loop over variables
       for (auto it = it_subj->second.begin(); it != it_subj->second.end(); ++it) {
-	if ((hash->mStore.count(it->c_str()))) {
-	  out += "|";
-	  // the subject is a prefix to the key as #<subject-index>#
-	  out += "#";
-	  out += sindex.c_str();
-	  out += "#";
-	  out += it->c_str();
-	  out += "~";
-	  out += hash->mStore[it->c_str()].GetValue();
-	  out += "%";
-	  char cid[1024];
-	  snprintf(cid, sizeof(cid) - 1, "%llu", hash->mStore[it->c_str()].GetChangeId());
-	  out += cid;
-	}
+        if ((hash->mStore.count(it->c_str()))) {
+          out += "|";
+          // the subject is a prefix to the key as #<subject-index>#
+          out += "#";
+          out += sindex.c_str();
+          out += "#";
+          out += it->c_str();
+          out += "~";
+          out += hash->mStore[it->c_str()].GetValue();
+          out += "%";
+          char cid[1024];
+          snprintf(cid, sizeof(cid) - 1, "%llu", hash->mStore[it->c_str()].GetChangeId());
+          out += cid;
+        }
       }
     }
 
@@ -3330,7 +3331,7 @@ XrdMqSharedObjectManager::AddMuxTransactionEnvString(XrdOucString& out)
 //-------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectManager::OpenMuxTransaction(const char* type,
-					     const char* broadcastqueue)
+    const char* broadcastqueue)
 {
   XrdSysMutexHelper lock(MuxTransactionsMutex);
   MuxTransactionType = type;

@@ -182,7 +182,7 @@ public:
   //! @param som shared object manager pointer
   //----------------------------------------------------------------------------
   XrdMqSharedHash(const char* subject = "", const char* broadcastqueue = "",
-		  XrdMqSharedObjectManager* som = 0) ;
+                  XrdMqSharedObjectManager* som = 0) ;
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -314,7 +314,7 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-   bool Set(const char* key, T&& value, bool broadcast = true);
+  bool Set(const char* key, T&& value, bool broadcast = true);
 
   //============================================================================
   //                          THIS SHOULD BE REVIEWED - BEGIN
@@ -488,7 +488,7 @@ public:
   //! @param som shard object manager pointer
   //----------------------------------------------------------------------------
   XrdMqSharedQueue(const char* subject = "", const char* bcast_queue = "",
-		   XrdMqSharedObjectManager* som = 0);
+                   XrdMqSharedObjectManager* som = 0);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -496,13 +496,14 @@ public:
   virtual ~XrdMqSharedQueue() {}
 
   //----------------------------------------------------------------------------
-  //! Delete entry from queue
+  //! Delete key entry
   //!
-  //! @param key entry key value
+  //! @param key key value
+  //! @param broadcast if true broadcast deletion
   //!
-  //! @return true if entry deleted, otherwise false
+  //! @return true if deletion done, otherwise false
   //----------------------------------------------------------------------------
-  bool Delete(const std::string& key);
+  bool Delete(const std::string& key, bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Push back entry into the queue
@@ -512,7 +513,7 @@ public:
   //!
   //! @return true if entry added successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool PushBack(const std::string& key, const std::string &value);
+  bool PushBack(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Pop entry value from the queue
@@ -633,7 +634,8 @@ public:
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  void SetAutoReplyQueue(const char* queue) {
+  void SetAutoReplyQueue(const char* queue)
+  {
     AutoReplyQueue = queue;
   }
 
@@ -656,22 +658,22 @@ public:
   //! @return true if create successful, otherwise false
   //----------------------------------------------------------------------------
   bool CreateSharedObject(const char* subject, const char* bcast_queue,
-			  const char* type = "hash",
-			  XrdMqSharedObjectManager* som = 0);
+                          const char* type = "hash",
+                          XrdMqSharedObjectManager* som = 0);
 
   //----------------------------------------------------------------------------
   //! Create shared hash object. Parameters are the same as for the
   //! CreateSharedObject method.
   //----------------------------------------------------------------------------
   bool CreateSharedHash(const char* subject, const char* bcast_queue,
-			XrdMqSharedObjectManager* som = 0);
+                        XrdMqSharedObjectManager* som = 0);
 
   //----------------------------------------------------------------------------
   //! Create shared queue object. Parameters are the same as for the
   //! CreateSharedObject method.
   //----------------------------------------------------------------------------
   bool CreateSharedQueue(const char* subject, const char* bcast_queue,
-			 XrdMqSharedObjectManager* som = 0);
+                         XrdMqSharedObjectManager* som = 0);
 
   //----------------------------------------------------------------------------
   //! Delete shared object type
@@ -769,7 +771,7 @@ public:
   //! on several hashes
   //----------------------------------------------------------------------------
   bool OpenMuxTransaction(const char* type = "hash",
-			  const char* broadcastqueue = 0);
+                          const char* broadcastqueue = 0);
 
   //----------------------------------------------------------------------------
   //!
@@ -836,15 +838,15 @@ public:
     bool empty()
     {
       for (int k = 0; k < 4; k++) {
-	if (
-	  WatchSubjects[k].size()
-	  || WatchKeys[k].size()
-	  || WatchSubjectsRegex[k].size()
-	  || WatchKeysRegex[k].size()
-	  || WatchSubjectsXKeys[k].size()
-	) {
-	  return false;
-	}
+        if (
+          WatchSubjects[k].size()
+          || WatchKeys[k].size()
+          || WatchSubjectsRegex[k].size()
+          || WatchKeysRegex[k].size()
+          || WatchSubjectsXKeys[k].size()
+        ) {
+          return false;
+        }
       }
 
       return true;
@@ -861,7 +863,7 @@ public:
   } notification_t;
 
   inline Subscriber* GetSubscriberFromCatalog(const std::string& name,
-					      bool createIfNeeded = true)
+      bool createIfNeeded = true)
   {
     Subscriber* ret = NULL;
 
@@ -869,15 +871,15 @@ public:
       XrdSysMutexHelper lock(pCatalogMutex);
 
       if (pSubscribersCatalog.count(name)) {
-	ret = pSubscribersCatalog[name];
+        ret = pSubscribersCatalog[name];
       } else {
-	ret = (pSubscribersCatalog[name] = new Subscriber(name));
+        ret = (pSubscribersCatalog[name] = new Subscriber(name));
       }
     } else {
       XrdSysMutexHelper lock(pCatalogMutex);
 
       if (pSubscribersCatalog.count(name)) {
-	ret = pSubscribersCatalog[name];
+        ret = pSubscribersCatalog[name];
       }
     }
 
@@ -885,7 +887,7 @@ public:
   }
 
   inline Subscriber* BindCurrentThread(const std::string& name,
-				       bool createIfNeeded = true)
+                                       bool createIfNeeded = true)
   {
     return tlSubscriber = GetSubscriberFromCatalog(name, createIfNeeded);
   }
@@ -907,69 +909,69 @@ public:
   ~XrdMqSharedObjectChangeNotifier() {}
 
   bool SubscribesToSubject(const std::string& susbcriber,
-			   const std::string& subject,
-			   XrdMqSharedObjectChangeNotifier::notification_t type);
+                           const std::string& subject,
+                           XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool SubscribesToKey(const std::string& susbcriber, const std::string& key,
-		       XrdMqSharedObjectChangeNotifier::notification_t type);
+                       XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool SubscribesToSubjectRegex(const std::string& susbcriber,
-				const std::string& subject,
-				XrdMqSharedObjectChangeNotifier::notification_t type);
+                                const std::string& subject,
+                                XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool SubscribesToKeyRegex(const std::string& susbcriber, const std::string& key,
-			    XrdMqSharedObjectChangeNotifier::notification_t type);
+                            XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool SubscribesToSubjectAndKey(const std::string& susbcriber,
-				 const std::set<std::string>& subjects,
-				 const std::set<std::string>& keys,
-				 XrdMqSharedObjectChangeNotifier::notification_t type);
+                                 const std::set<std::string>& subjects,
+                                 const std::set<std::string>& keys,
+                                 XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool SubscribesToSubjectAndKey(const std::string& susbcriber,
-				 const std::string& subject, const std::string& key,
-				 XrdMqSharedObjectChangeNotifier::notification_t type);
+                                 const std::string& subject, const std::string& key,
+                                 XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool SubscribesToSubjectAndKey(const std::string& susbcriber,
-				 const std::string& subject,
-				 const std::set<std::string>& keys,
-				 XrdMqSharedObjectChangeNotifier::notification_t type);
+                                 const std::string& subject,
+                                 const std::set<std::string>& keys,
+                                 XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool SubscribesToSubjectAndKey(const std::string& susbcriber,
-				 const std::set<std::string>& subjects, const std::string& key,
-				 XrdMqSharedObjectChangeNotifier::notification_t type);
+                                 const std::set<std::string>& subjects, const std::string& key,
+                                 XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool UnsubscribesToSubject(const std::string& susbcriber,
-			     const std::string& subject,
-			     XrdMqSharedObjectChangeNotifier::notification_t type);
+                             const std::string& subject,
+                             XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool UnsubscribesToKey(const std::string& susbcriber, const std::string& key,
-			 XrdMqSharedObjectChangeNotifier::notification_t type);
+                         XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool UnsubscribesToSubjectRegex(const std::string& susbcriber,
-				  const std::string& subject,
-				  XrdMqSharedObjectChangeNotifier::notification_t type);
+                                  const std::string& subject,
+                                  XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool UnsubscribesToKeyRegex(const std::string& susbcriber,
-			      const std::string& key,
-			      XrdMqSharedObjectChangeNotifier::notification_t type);
+                              const std::string& key,
+                              XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool UnsubscribesToSubjectAndKey(const std::string& susbcriber,
-				   std::set<std::string> subjects, std::set<std::string> keys,
-				   XrdMqSharedObjectChangeNotifier::notification_t type);
+                                   std::set<std::string> subjects, std::set<std::string> keys,
+                                   XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool UnsubscribesToSubjectAndKey(const std::string& susbcriber,
-				   const std::string& subject, const std::string& key,
-				   XrdMqSharedObjectChangeNotifier::notification_t type);
+                                   const std::string& subject, const std::string& key,
+                                   XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool UnsubscribesToSubjectAndKey(const std::string& susbcriber,
-				   const std::string& subject,
-				   const std::set<std::string>& keys,
-				   XrdMqSharedObjectChangeNotifier::notification_t type);
+                                   const std::string& subject,
+                                   const std::set<std::string>& keys,
+                                   XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool UnsubscribesToSubjectAndKey(const std::string& susbcriber,
-				   const std::set<std::string>& subjects,
-				   const std::string& key,
-				   XrdMqSharedObjectChangeNotifier::notification_t type);
+                                   const std::set<std::string>& subjects,
+                                   const std::string& key,
+                                   XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool UnsubscribesToEverything(const std::string& susbcriber);
   bool StartNotifyCurrentThread();
@@ -1007,39 +1009,39 @@ private:
   XrdSysMutex pCatalogMutex;
 
   bool StartNotifyKey(Subscriber* subscriber, const std::string& key,
-		      XrdMqSharedObjectChangeNotifier::notification_t type);
+                      XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool StopNotifyKey(Subscriber* subscriber, const std::string& key,
-		     XrdMqSharedObjectChangeNotifier::notification_t type);
+                     XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool StartNotifySubject(Subscriber* subscriber, const std::string& subject ,
-			  XrdMqSharedObjectChangeNotifier::notification_t type);
+                          XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool StopNotifySubject(Subscriber* subscriber, const std::string& subject ,
-			 XrdMqSharedObjectChangeNotifier::notification_t type);
+                         XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool StartNotifyKeyRegex(Subscriber* subscriber, const std::string& key ,
-			   XrdMqSharedObjectChangeNotifier::notification_t type);
+                           XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool StopNotifyKeyRegex(Subscriber* subscriber, const std::string& key ,
-			  XrdMqSharedObjectChangeNotifier::notification_t type);
+                          XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool StartNotifySubjectRegex(Subscriber* subscriber,
-			       const std::string& subject ,
-			       XrdMqSharedObjectChangeNotifier::notification_t type);
+                               const std::string& subject ,
+                               XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool StopNotifySubjectRegex(Subscriber* subscriber, const std::string& subject ,
-			      XrdMqSharedObjectChangeNotifier::notification_t type);
+                              XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool StartNotifySubjectsAndKeys(Subscriber* subscriber,
-				  const std::set<std::string>& subjects,
-				  const std::set<std::string>& keys ,
-				  XrdMqSharedObjectChangeNotifier::notification_t type);
+                                  const std::set<std::string>& subjects,
+                                  const std::set<std::string>& keys ,
+                                  XrdMqSharedObjectChangeNotifier::notification_t type);
 
   bool StopNotifySubjectsAndKeys(Subscriber* subscriber,
-				 const std::set<std::string>& subjects,
-				 const std::set<std::string>& keys ,
-				 XrdMqSharedObjectChangeNotifier::notification_t type);
+                                 const std::set<std::string>& subjects,
+                                 const std::set<std::string>& keys ,
+                                 XrdMqSharedObjectChangeNotifier::notification_t type);
 };
 
 
