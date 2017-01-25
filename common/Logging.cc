@@ -50,9 +50,9 @@ Mapping::VirtualIdentity Logging::gZeroVid;
 bool Logging::gToSysLog = false;
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Should log function
- * 
+ *
  * @param func name of the calling function
  * @param priority priority level of the message
  */
@@ -60,31 +60,30 @@ bool Logging::gToSysLog = false;
 /*----------------------------------------------------------------------------*/
 
 bool
-Logging::shouldlog (const char* func, int priority)
+Logging::shouldlog(const char* func, int priority)
 {
   // short cut if log messages are masked
-  if (!((LOG_MASK(priority) & gLogMask)))
+  if (!((LOG_MASK(priority) & gLogMask))) {
     return false;
+  }
 
   // apply filter to avoid message flooding for debug messages
-  if (priority >= LOG_INFO)
-  {
-    if (gDenyFilter.Num())
-    {
+  if (priority >= LOG_INFO) {
+    if (gDenyFilter.Num()) {
       // this is a normal filter by function name
-      if (gDenyFilter.Find(func))
-      {
+      if (gDenyFilter.Find(func)) {
         return false;
       }
     }
   }
+
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Logging function
- * 
+ *
  * @param func name of the calling function
  * @param file name of the source file calling
  * @param line line in the source file
@@ -99,30 +98,27 @@ Logging::shouldlog (const char* func, int priority)
 /*----------------------------------------------------------------------------*/
 
 const char*
-Logging::log (const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid, const char* cident, int priority, const char *msg, ...)
+Logging::log(const char* func, const char* file, int line, const char* logid,
+             const Mapping::VirtualIdentity& vid, const char* cident, int priority,
+             const char* msg, ...)
 {
   static int logmsgbuffersize = 1024 * 1024;
 
   // short cut if log messages are masked
-  if (!((LOG_MASK(priority) & gLogMask)))
+  if (!((LOG_MASK(priority) & gLogMask))) {
     return "";
+  }
 
   // apply filter to avoid message flooding for debug messages
-  if (priority >= LOG_INFO)
-  {
-    if (gAllowFilter.Num())
-    {
+  if (priority >= LOG_INFO) {
+    if (gAllowFilter.Num()) {
       // if this is a pass-through filter e.g. we want to see exactly this messages
-      if (!gAllowFilter.Find(func))
-      {
+      if (!gAllowFilter.Find(func)) {
         return "";
       }
-    }
-    else if (gDenyFilter.Num())
-    {
+    } else if (gDenyFilter.Num()) {
       // this is a normal filter by function name
-      if (gDenyFilter.Find(func))
-      {
+      if (gDenyFilter.Find(func)) {
         return "";
       }
     }
@@ -130,26 +126,21 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
 
   static char* buffer = 0;
 
-  if (!buffer)
-  {
+  if (!buffer) {
     // 1 M print buffer
     buffer = (char*) malloc(logmsgbuffersize);
   }
 
   XrdOucString File = file;
-
   // we show only one hierarchy directory like Acl (assuming that we have only
   // file names like *.cc and *.hh
   File.erase(0, File.rfind("/") + 1);
   File.erase(File.length() - 3);
-
   static time_t current_time;
   static struct timeval tv;
   static struct timezone tz;
-  static struct tm *tm;
-
+  static struct tm* tm;
   XrdSysMutexHelper scope_lock(gMutex);
-
   va_list args;
   va_start(args, msg);
   gettimeofday(&tv, &tz);
@@ -160,50 +151,51 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   XrdOucString truncname = vid.name;
 
   // we show only the last 16 bytes of the name
-  if (truncname.length() > 16)
-  {
+  if (truncname.length() > 16) {
     truncname.insert("..", 0);
     truncname.erase(0, truncname.length() - 16);
   }
 
   char sourceline[64];
 
-  if (gShortFormat)
-  {
+  if (gShortFormat) {
     tm = localtime(&current_time);
-    snprintf(sourceline, sizeof (sourceline) - 1, "%s:%s", File.c_str(), linen);
-    sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d t=%lu.%06lu f=%-16s l=%s tid=%016lx s=%-24s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), (unsigned long) XrdSysThread::ID(), sourceline);
-  }
-  else
-  {
-    sprintf(fcident, "tident=%s sec=%-5s uid=%d gid=%d name=%s geo=\"%s\"", cident, vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str());
+    snprintf(sourceline, sizeof(sourceline) - 1, "%s:%s", File.c_str(), linen);
+    sprintf(buffer,
+            "%02d%02d%02d %02d:%02d:%02d t=%lu.%06lu f=%-16s l=%s tid=%016lx s=%-24s ",
+            tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min,
+            tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func,
+            GetPriorityString(priority), (unsigned long) XrdSysThread::ID(), sourceline);
+  } else {
+    sprintf(fcident, "tident=%s sec=%-5s uid=%d gid=%d name=%s geo=\"%s\"", cident,
+            vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str());
     tm = localtime(&current_time);
-    snprintf(sourceline, sizeof (sourceline) - 1, "%s:%s", File.c_str(), linen);
-    sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%016lx source=%-30s %s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), logid, gUnit.c_str(), (unsigned long) XrdSysThread::ID(), sourceline, fcident);
+    snprintf(sourceline, sizeof(sourceline) - 1, "%s:%s", File.c_str(), linen);
+    sprintf(buffer,
+            "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%016lx source=%-30s %s ",
+            tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min,
+            tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func,
+            GetPriorityString(priority), logid, gUnit.c_str(),
+            (unsigned long) XrdSysThread::ID(), sourceline, fcident);
   }
 
   char* ptr = buffer + strlen(buffer);
-
   // limit the length of the output to buffer-1 length
   vsnprintf(ptr, logmsgbuffersize - (ptr - buffer - 1), msg, args);
 
-  if (gToSysLog)
-  {
-    syslog(priority,ptr, strlen(ptr));
+  if (gToSysLog) {
+    syslog(priority, "%s", ptr);
   }
 
-  if (gLogFanOut.size())
-  {
+  if (gLogFanOut.size()) {
     // we do log-message fanout
-    if (gLogFanOut.count("*"))
-    {
+    if (gLogFanOut.count("*")) {
       fprintf(gLogFanOut["*"], "%s\n", buffer);
       fflush(gLogFanOut["*"]);
     }
-    if (gLogFanOut.count(File.c_str()))
-    {
-      buffer[15] = 0;
 
+    if (gLogFanOut.count(File.c_str())) {
+      buffer[15] = 0;
       fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
               buffer,
               GetLogColour(GetPriorityString(priority)),
@@ -211,16 +203,11 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
               EOS_TEXTNORMAL,
               sourceline,
               ptr);
-
       fflush(gLogFanOut[File.c_str()]);
       buffer[15] = ' ';
-    }
-    else
-    {
-      if (gLogFanOut.count("#"))
-      {
+    } else {
+      if (gLogFanOut.count("#")) {
         buffer[15] = 0;
-
         fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
                 buffer,
                 GetLogColour(GetPriorityString(priority)),
@@ -231,57 +218,58 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
                 truncname.c_str(),
                 func,
                 ptr
-                );
-
+               );
         fflush(gLogFanOut["#"]);
         buffer[15] = ' ';
       }
     }
-    fprintf(stderr, "%s\n", buffer);
-    fflush(stderr);
-  }
-  else
-  {
-    fprintf(stderr, "%s\n", buffer);
-    fflush(stderr);
-  }
-  va_end(args);
 
+    fprintf(stderr, "%s\n", buffer);
+    fflush(stderr);
+  } else {
+    fprintf(stderr, "%s\n", buffer);
+    fflush(stderr);
+  }
+
+  va_end(args);
   const char* rptr;
   // store into global log memory
-  gLogMemory[priority][(gLogCircularIndex[priority]) % gCircularIndexSize] = buffer;
-  rptr = gLogMemory[priority][(gLogCircularIndex[priority]) % gCircularIndexSize].c_str();
+  gLogMemory[priority][(gLogCircularIndex[priority]) % gCircularIndexSize] =
+    buffer;
+  rptr = gLogMemory[priority][(gLogCircularIndex[priority]) %
+                              gCircularIndexSize].c_str();
   gLogCircularIndex[priority]++;
   return rptr;
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Initialize the circular index and logging object
- * 
+ *
  */
 
 /*----------------------------------------------------------------------------*/
 void
-Logging::Init ()
+Logging::Init()
 {
   // initialize the log array and sets the log circular size
   gLogCircularIndex.resize(LOG_DEBUG + 1);
   gLogMemory.resize(LOG_DEBUG + 1);
   gCircularIndexSize = EOSCOMMONLOGGING_CIRCULARINDEXSIZE;
-  for (int i = 0; i <= LOG_DEBUG; i++)
-  {
+
+  for (int i = 0; i <= LOG_DEBUG; i++) {
     gLogCircularIndex[i] = 0;
     gLogMemory[i].resize(gCircularIndexSize);
   }
+
   gZeroVid.name = "-";
   XrdOucString tosyslog;
-  if (getenv("EOS_LOG_SYSLOG"))
-  {
+
+  if (getenv("EOS_LOG_SYSLOG")) {
     tosyslog = getenv("EOS_LOG_SYSLOG");
-    if ( (tosyslog == "1" ||
-	  (tosyslog == "true") ) )
-    {
+
+    if ((tosyslog == "1" ||
+         (tosyslog == "true"))) {
       gToSysLog = true;
       eos_static_info("logging to syslog");
     }

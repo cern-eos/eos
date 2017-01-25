@@ -60,6 +60,9 @@ export EOS_MGM_MASTER2=eosdevsrv2.cern.ch
 # The alias which selects master 1 or 2
 export EOS_MGM_ALIAS=eosdev.cern.ch
 
+# Define if you want a namespace copy when doing a slave2master transition [default off]
+# export EOS_MGM_CP_ON_FAILOVER=1
+
 # The mail notification in case of fail-over
 export EOS_MAIL_CC="apeters@mail.cern.ch"
 export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
@@ -153,6 +156,10 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 
 # Set FUSE to not daemonize the process, staying open in the foreground
 # export EOS_FUSE_FOREGROUND=1
+
+# Timeout in seconds of the initial ping to the instance to check if the fs should be mounted
+#   note that this is constrained by XRD_TIMEOUTRESOLUTION which by default is 15 sec
+# export EOS_FUSE_PING_TIMEOUT=15
 
 # Disable parallel IO mode (default on)
 #export EOS_FUSE_NOPIO=1
@@ -343,6 +350,10 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 
 # Set the FUSE maximum in-memory size for all write-back cache entries - default 512M - clean-interval is fixed at 10 seconds
 # export EOS_FUSE_MAX_WB_INMEMORY_SIZE=536870912
+
+# Enable SSS connection. The path to the keytab file should be given there.  
+#    if KRB5 or GSI authentication is enabled, this is ignored 
+# EOS_FUSE_SSS_KEYTAB=""
 
 # ---------------------------------------------------------------------------------
 # this options are not available since AQUAMARINE is compiled with XROOTD3 

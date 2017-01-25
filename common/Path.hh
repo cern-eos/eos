@@ -256,66 +256,66 @@ public:
   Init(const char* path)
   {
     fullPath = path;
-    parentPath = "";
+
+    while (fullPath.replace("//", "/")) {}
+
+    parentPath = "/";
     lastPath = "";
 
-    if (eos::common::LayoutId::GetIoType(path) == eos::common::LayoutId::kLocal) {
-      while (fullPath.replace("//", "/")) {
-      }
+    if ((fullPath == "/") ||
+        (fullPath == "/.") ||
+        (fullPath == "/..") ||
+        (fullPath == "/./") ||
+        (fullPath == "/../")) {
+      fullPath = "/";
+      return;
+    }
 
-      if ((fullPath == "/") ||
-          (fullPath == "/.") ||
-          (fullPath == "/..")) {
+    if (fullPath.endswith('/')) {
+      fullPath.erase(fullPath.length() - 1);
+    }
+
+    // remove  /.$
+    if (fullPath.endswith("/.")) {
+      fullPath.erase(fullPath.length() - 2);
+    }
+
+    // recompute /..$
+    if (fullPath.endswith("/..")) {
+      int spos = fullPath.rfind("/", fullPath.length() - 4);
+
+      if (spos != STR_NPOS) {
+        fullPath.erase(spos + 1);
+      }
+    }
+
+    if (!fullPath.beginswith("/")) {
+      lastPath = fullPath;
+      return;
+    }
+
+    int bppos;
+
+    // convert /./
+    while ((bppos = fullPath.find("/./")) != STR_NPOS) {
+      fullPath.erase(bppos, 2);
+    }
+
+    // convert /..
+    while ((bppos = fullPath.find("/../")) != STR_NPOS) {
+      int spos = fullPath.rfind("/", bppos - 1);
+
+      if (spos != STR_NPOS) {
+        fullPath.erase(bppos, 4);
+        fullPath.erase(spos + 1, bppos - spos - 1);
+      } else {
         fullPath = "/";
-        return;
+        break;
       }
+    }
 
-      if (fullPath.endswith('/')) {
-        fullPath.erase(fullPath.length() - 1);
-      }
-
-      // remove  /.$
-      if (fullPath.endswith("/.")) {
-        fullPath.erase(fullPath.length() - 2);
-      }
-
-      // recompute /..$
-      if (fullPath.endswith("/..")) {
-        int spos = fullPath.rfind("/", fullPath.length() - 4);
-
-        if (spos != STR_NPOS) {
-          fullPath.erase(spos + 1);
-        }
-      }
-
-      if (!fullPath.beginswith("/")) {
-        lastPath = fullPath;
-        return;
-      }
-
-      int bppos;
-
-      // convert /./
-      while ((bppos = fullPath.find("/./")) != STR_NPOS) {
-        fullPath.erase(bppos, 2);
-      }
-
-      // convert /..
-      while ((bppos = fullPath.find("/../")) != STR_NPOS) {
-        int spos = fullPath.rfind("/", bppos - 1);
-
-        if (spos != STR_NPOS) {
-          fullPath.erase(bppos, 4);
-          fullPath.erase(spos + 1, bppos - spos - 1);
-        } else {
-          fullPath = "/";
-          break;
-        }
-      }
-
-      if (!fullPath.length()) {
-        fullPath = "/";
-      }
+    if (!fullPath.length()) {
+      fullPath = "/";
     }
 
     int lastpos = 0;

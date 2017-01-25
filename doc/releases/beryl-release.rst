@@ -7,6 +7,53 @@
 Beryl Release Notes
 ===================
 
+``V0.3.226 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- COMMON: make ShellExecutor thread/interrupt safe
+- FST: reset checksum error flags also after correct 'verify -checksum' 
+- FUSE: fix ping timeouts and dependencies, allow sss mounts
+- NS: remove ns file archiving process by default in SLAVE->MASTER transition and fix too early enabling of the namespace for write
+
+New Feature
++++++++++++
+
+- MGM: add REST API for 'fileinfo'
+
+
+``V0.3.225 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: fix vulnerability for http GET of '/./' via eos::common::Path
+- COMMON: make '/' the full and parent path of /. /.. /./ /../
+
+``V0.3.224 Aquamarine``
+=======================
+
+New Feature
++++++++++++
+
+- FST: allow 'eos.checksum=ignore' for file uploads to avoid checksum computation
+- FST: fix 'eoscp -a' and add 'eoscp -A <offset>' to upload a file to a certain offset
+
+``V0.3.223 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix foreground option for eosd
+- FUSE: shard proc cache to keep memory footprint low for high MAX_PID settings and run AuthId cleanup every 5 minutes
+- FUSE: don't pick up root credentials inside eosd
+- COMMON: fix syslog logging interface using wrong argument list
+
+
 ``V0.3.222 Aquamarine``
 =======================
 

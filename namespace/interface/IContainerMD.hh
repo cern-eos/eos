@@ -49,7 +49,7 @@ class IFileMD;
 //------------------------------------------------------------------------------
 class IContainerMD
 {
- public:
+public:
   //----------------------------------------------------------------------------
   //! Type definitions
   //----------------------------------------------------------------------------
@@ -68,6 +68,11 @@ class IContainerMD
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~IContainerMD() {};
+
+  //----------------------------------------------------------------------------
+  //! Virtual copy constructor
+  //----------------------------------------------------------------------------
+  virtual IContainerMD* clone() const = 0;
 
   //----------------------------------------------------------------------------
   //! Add container
@@ -158,12 +163,12 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Trigger an mtime change event
   //----------------------------------------------------------------------------
-  virtual void notifyMTimeChange(IContainerMDSvc *containerMDSvc) = 0;
+  virtual void notifyMTimeChange(IContainerMDSvc* containerMDSvc) = 0;
 
   //----------------------------------------------------------------------------
   //! Get modification time
   //----------------------------------------------------------------------------
-  virtual void getMTime(mtime_t &mtime) const  = 0;
+  virtual void getMTime(mtime_t& mtime) const  = 0;
 
   //----------------------------------------------------------------------------
   //! Set propagated modification time (if newer)
@@ -178,7 +183,7 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
-  virtual void getTMTime(tmtime_t &tmtime) const = 0;
+  virtual void getTMTime(tmtime_t& tmtime) const = 0;
 
   //----------------------------------------------------------------------------
   //! Get tree size
@@ -264,7 +269,7 @@ class IContainerMD
   //! Add extended attribute
   //----------------------------------------------------------------------------
   virtual void setAttribute(const std::string& name,
-			    const std::string& value) = 0;
+                            const std::string& value) = 0;
 
   //----------------------------------------------------------------------------
   //! Remove attribute
@@ -318,7 +323,7 @@ class IContainerMD
   //----------------------------------------------------------------------------
   virtual std::set<std::string> getNameContainers() const = 0;
 
- private:
+private:
 
   //----------------------------------------------------------------------------
   //! Make copy constructor and assignment operator private to avoid "slicing"

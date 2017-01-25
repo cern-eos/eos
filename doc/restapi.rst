@@ -14,4 +14,5 @@ REST API
    restapi/version
    restapi/who
    restapi/ns
+   restapi/fileinfo
    

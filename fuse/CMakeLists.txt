@@ -45,7 +45,7 @@ add_executable(
   main.cc eosfuse.cc eosfuse.hh
   filesystem.cc      filesystem.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh
-  AuthIdManager.cc)
+  AuthIdManager.cc xrdutils.cc )
 
 if(MacOSX)
   target_link_libraries(
@@ -99,7 +99,7 @@ add_executable(
   main.cc eosfuse.cc eosfuse.hh
   filesystem.cc      filesystem.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh
-  AuthIdManager.cc)
+  AuthIdManager.cc xrdutils.cc )
 
   target_link_libraries(
     eosd3 PRIVATE

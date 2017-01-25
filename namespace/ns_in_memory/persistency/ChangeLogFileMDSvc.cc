@@ -781,13 +781,16 @@ void ChangeLogFileMDSvc::slave2Master(
   copyCmd += currentChangeLogPath.c_str();
   copyCmd += " ";
   copyCmd += tmpChangeLogPath.c_str();
-  eos::common::ShellCmd scmd(copyCmd);
-  eos::common::cmd_status rc = scmd.wait(60);
 
-  if (rc.exit_code) {
-    MDException e(EIO) ;
-    e.getMessage() << "Failed to copy the current change log file <";
-    e.getMessage() << pChangeLogPath << ">";
+  if (getenv("EOS_MGM_CP_ON_FAILOVER")) {
+    eos::common::ShellCmd scmd(copyCmd);
+    eos::common::cmd_status rc = scmd.wait(60);
+
+    if (rc.exit_code) {
+      MDException e(EIO) ;
+      e.getMessage() << "Failed to copy the current change log file <";
+      e.getMessage() << pChangeLogPath << ">";
+    }
   }
 
   // Redefine the valid changelog path
@@ -801,12 +804,14 @@ void ChangeLogFileMDSvc::slave2Master(
     throw e;
   }
 
-  // Rename the temp changelog file to the new file name
-  if (rename(tmpChangeLogPath.c_str(), currentChangeLogPath.c_str())) {
-    MDException e(EINVAL);
-    e.getMessage() << "Failed to rename changelog file from <";
-    e.getMessage() << tmpChangeLogPath << "> to <" << currentChangeLogPath;
-    throw e;
+  if (getenv("EOS_MGM_CP_ON_FAILOVER")) {
+    // Rename the temp changelog file to the new file name
+    if (rename(tmpChangeLogPath.c_str(), currentChangeLogPath.c_str())) {
+      MDException e(EINVAL);
+      e.getMessage() << "Failed to rename changelog file from <";
+      e.getMessage() << tmpChangeLogPath << "> to <" << currentChangeLogPath;
+      throw e;
+    }
   }
 
   // Stop the follower thread

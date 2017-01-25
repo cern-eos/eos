@@ -73,36 +73,42 @@
 
 #define PAGESIZE 128 * 1024
 
+extern int
+xrootd_nullresponsebug_retrycount; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we retry.
+extern int
+xrootd_nullresponsebug_retrysleep; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we sleep between attempts.
+
+
 class filesystem
 {
 public:
 
   filesystem();
 
- virtual
+  virtual
   ~filesystem();
 
- typedef std::vector<unsigned long long> dirlist;
-  
- void
-  setMountPoint(const std::string& md)
- {
-  mount_dir = md;
- }
+  typedef std::vector<unsigned long long> dirlist;
 
- const char*
+  void
+  setMountPoint(const std::string& md)
+  {
+    mount_dir = md;
+  }
+
+  const char*
   getMountPoint()
- {
+  {
     return mount_dir.c_str();
- }
+  }
 
   typedef struct fd_user_info {
-  unsigned long long fd;
-  uid_t uid;
-  gid_t gid;
-  gid_t pid;
-  long long ino;
- } fd_user_info;
+    unsigned long long fd;
+    uid_t uid;
+    gid_t gid;
+    gid_t pid;
+    long long ino;
+  } fd_user_info;
 
   void setMaxWbInMemorySize(uint64_t size)
   {
@@ -112,232 +118,232 @@ public:
   {
     return max_wb_in_memory_size;
   }
- 
 
- //------------------------------------------------------------------------------
- // Lock
- //------------------------------------------------------------------------------
 
- void
+//------------------------------------------------------------------------------
+// Lock
+//------------------------------------------------------------------------------
+
+  void
   lock_r_pcache(pid_t pid);
 
- void
+  void
   lock_w_pcache(pid_t pid);
 
 
- //------------------------------------------------------------------------------
- // Unlock
- //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Unlock
+//------------------------------------------------------------------------------
 
- void
+  void
   unlock_r_pcache(pid_t pid);
 
- void
+  void
   unlock_w_pcache(pid_t pid);
 
 
- //----------------------------------------------------------------------------
- //                ******* Path translation *******
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//                ******* Path translation *******
+//----------------------------------------------------------------------------
 
- //----------------------------------------------------------------------------
- //! Read lock for path or inode translation
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Read lock for path or inode translation
+//----------------------------------------------------------------------------
   void lock_r_p2i();
 
 
- //----------------------------------------------------------------------------
- //! Read unlock after path or inode translation
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Read unlock after path or inode translation
+//----------------------------------------------------------------------------
   void unlock_r_p2i();
 
 
- //----------------------------------------------------------------------------
- //! Translate from inode to path
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Translate from inode to path
+//----------------------------------------------------------------------------
   const char* path(unsigned long long inode);
 
 
- //----------------------------------------------------------------------------
- //! Return the basename of a file
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Return the basename of a file
+//----------------------------------------------------------------------------
   std::string base_name(unsigned long long inode);
 
 
- //----------------------------------------------------------------------------
- //! Translate from path to inode
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Translate from path to inode
+//----------------------------------------------------------------------------
   unsigned long long inode(const char* path);
 
- //----------------------------------------------------------------------------
- //! Get URL without CGI
- //----------------------------------------------------------------------------
- XrdOucString
+//----------------------------------------------------------------------------
+//! Get URL without CGI
+//----------------------------------------------------------------------------
+  XrdOucString
   get_url_nocgi(const char* url);
 
- //----------------------------------------------------------------------------
- //! Store an inode/path mapping
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Store an inode/path mapping
+//----------------------------------------------------------------------------
   void store_p2i(unsigned long long inode, const char* path);
 
 
- //----------------------------------------------------------------------------
- //! Store an inode/path mapping starting from the parent:
- //! inode + child inode + child base name
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Store an inode/path mapping starting from the parent:
+//! inode + child inode + child base name
+//----------------------------------------------------------------------------
   void store_child_p2i(unsigned long long inode,
                        unsigned long long childinode,
                        const char* name);
 
 
- //----------------------------------------------------------------------------
- //! Forget an inode/path mapping by inode
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Forget an inode/path mapping by inode
+//----------------------------------------------------------------------------
   void forget_p2i(unsigned long long inode);
 
 
- //----------------------------------------------------------------------------
- //! redirect inode to a new inode
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! redirect inode to a new inode
+//----------------------------------------------------------------------------
   void redirect_p2i(unsigned long long inode, unsigned long long new_inode);
 
 
- //----------------------------------------------------------------------------
- //! redirect inode to latest version of an inode
+//----------------------------------------------------------------------------
+//! redirect inode to latest version of an inode
   unsigned long long redirect_i2i(unsigned long long inode);
 
- //----------------------------------------------------------------------------
- //! Replace all names with a given prefix
- //----------------------------------------------------------------------------
- void
+//----------------------------------------------------------------------------
+//! Replace all names with a given prefix
+//----------------------------------------------------------------------------
+  void
   replace_prefix(const char* oldprefix, const char* newprefix);
 
 
- //----------------------------------------------------------------------------
- //                ******* Path computation *******
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//                ******* Path computation *******
+//----------------------------------------------------------------------------
 
- inline void
+  inline void
   getPath(std::string& out,
           std::string& prefix,
           const char* name)
- {
-  out = "/";
-  out += prefix;
-  out += name;
- }
+  {
+    out = "/";
+    out += prefix;
+    out += name;
+  }
 
- inline void
+  inline void
   getPPath(std::string& out,
            std::string& prefix,
            const char* parent,
            const char* name)
- {
-  out = "/";
-  out += prefix;
-  out += parent;
-  out += "/";
-  out += name;
- }
+  {
+    out = "/";
+    out += prefix;
+    out += parent;
+    out += "/";
+    out += name;
+  }
 
- inline void
+  inline void
   getUrl(std::string& out,
          std::string& user,
          std::string& hostport,
          std::string& prefix,
          const char* parent,
          const char* name)
- {
-  out = "root://";
-  out += user;
-  out += "@";
-  out += hostport;
-  out += "//";
-  out += prefix;
-  out += parent;
-  out += "/";
-  out += name;
- }
+  {
+    out = "root://";
+    out += user;
+    out += "@";
+    out += hostport;
+    out += "//";
+    out += prefix;
+    out += parent;
+    out += "/";
+    out += name;
+  }
 
- inline void
+  inline void
   getParentUrl(
     std::string& out,
     std::string& user,
     std::string& hostport,
     std::string& prefix,
     std::string& parent)
- {
-  out = "root://";
-  out += user;
-  out += "@";
-  out += hostport;
-  out += "//";
-  out += prefix;
-  out += parent;
- }
+  {
+    out = "root://";
+    out += user;
+    out += "@";
+    out += hostport;
+    out += "//";
+    out += prefix;
+    out += parent;
+  }
 
- static inline bool checkpathname(const char* pathname)
- {
+  static inline bool checkpathname(const char* pathname)
+  {
     static const std::vector<char> forbidden = {'?'};
 
     for (const char* c = pathname; *c != 0; c++)
       for (size_t i = 0; i < forbidden.size(); i++)
         if (*c == forbidden[i]) {
-         return false;
+          return false;
         }
 
-   return true;
- }
-
-  inline std::string safePath(const char* unsafe)
- {
-    if (encode_pathname) {
-     return eos::common::StringConversion::curl_escaped(unsafe);
-    } else {
-     return unsafe;
- }
+    return true;
   }
 
- //----------------------------------------------------------------------------
- //                ******* IO buffers *******
- //----------------------------------------------------------------------------
+  inline std::string safePath(const char* unsafe)
+  {
+    if (encode_pathname) {
+      return eos::common::StringConversion::curl_escaped(unsafe);
+    } else {
+      return unsafe;
+    }
+  }
 
- //----------------------------------------------------------------------------
- //! Guarantee a buffer for reading of at least 'size' for the specified thread
- //!
- //! @param tid thread id
- //! @param size size of the read buffer
- //!
- //! @return pointer to buffer region
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//                ******* IO buffers *******
+//----------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------
+//! Guarantee a buffer for reading of at least 'size' for the specified thread
+//!
+//! @param tid thread id
+//! @param size size of the read buffer
+//!
+//! @return pointer to buffer region
+//!
+//----------------------------------------------------------------------------
   char* attach_rd_buff(pthread_t tid, size_t size);
 
- //----------------------------------------------------------------------------
- //              ******* POSIX opened file descriptors *******
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//              ******* POSIX opened file descriptors *******
+//----------------------------------------------------------------------------
 
- //----------------------------------------------------------------------------
- //! Create an artificial file descriptor
- //----------------------------------------------------------------------------
- int generate_fd ();
+//----------------------------------------------------------------------------
+//! Create an artificial file descriptor
+//----------------------------------------------------------------------------
+  int generate_fd();
 
 
- //----------------------------------------------------------------------------
- //! Add new inodeuser to fd mapping used when doing stat through the file obj.
- //!
- //! @param inode inode number
- //! @param uid user uid
- //! @param fd file descriptor
- //!
+//----------------------------------------------------------------------------
+//! Add new inodeuser to fd mapping used when doing stat through the file obj.
+//!
+//! @param inode inode number
+//! @param uid user uid
+//! @param fd file descriptor
+//!
   void add_inodeuser_fd(unsigned long inode, uid_t uid, gid_t gid, pid_t pid,
                         int fd);
 
- //----------------------------------------------------------------------------
- //! Add new mapping between fd and raw file object
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Add new mapping between fd and raw file object
+//----------------------------------------------------------------------------
 
- int
+  int
   add_fd2file(LayoutWrapper* raw_file,
               unsigned long inode,
               uid_t uid, gid_t gid, pid_t pid,
@@ -345,106 +351,106 @@ public:
               const char* path = "",
               bool mknod = false);
 
- //----------------------------------------------------------------------------
- //! Force pending rw open to happen (in case of lazy open)
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Force pending rw open to happen (in case of lazy open)
+//----------------------------------------------------------------------------
 
- int
+  int
   force_rwopen(
-               unsigned long inode,
-               uid_t uid, gid_t gid, pid_t pid
-               );
+    unsigned long inode,
+    uid_t uid, gid_t gid, pid_t pid
+  );
 
- //----------------------------------------------------------------------------
- //! Get the file abstraction object corresponding to the fd
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Get the file abstraction object corresponding to the fd
+//----------------------------------------------------------------------------
 
   std::shared_ptr<FileAbstraction>
   get_file(int fd, bool* isRW = NULL, bool forceRWtoo = false);
 
 
- //----------------------------------------------------------------------------
- //! Remove file descriptor from mapping
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Remove file descriptor from mapping
+//----------------------------------------------------------------------------
   int remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
                      pid_t pid);
 
 
- int
+  int
   get_open_idx(const unsigned long long& inode);
 
- //----------------------------------------------------------------------------
- //              ******* FUSE Directory Cache *******
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//              ******* FUSE Directory Cache *******
+//----------------------------------------------------------------------------
 
- //----------------------------------------------------------------------------
- //!
- //! Get a cached directory
- //!
- //! @param inode inode value of the directory to be cached
- //! @param mtime modification time
- //! @param ctime modification time
- //! @param b dirbuf structure
- //!
- //! @return true if found, otherwise false
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//! Get a cached directory
+//!
+//! @param inode inode value of the directory to be cached
+//! @param mtime modification time
+//! @param ctime modification time
+//! @param b dirbuf structure
+//!
+//! @return true if found, otherwise false
+//!
+//----------------------------------------------------------------------------
   int dir_cache_get(unsigned long long inode,
                     struct timespec mtime,
                     struct timespec ctime,
                     struct dirbuf** b);
 
- //----------------------------------------------------------------------------
- //!
- //! Forget a cached directory
- //!
- //! @param inode inode value of the directory to be forgotten
- //! @return true if found, otherwise false
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//! Forget a cached directory
+//!
+//! @param inode inode value of the directory to be forgotten
+//! @return true if found, otherwise false
+//!
+//----------------------------------------------------------------------------
   int dir_cache_forget(unsigned long long inode);
 
 
 
- //----------------------------------------------------------------------------
- //! Get a subentry from a cached directory
- //!
- //! @param req
- //! @param inode directory inode
- //! @param einode entry inode
- //! @param ifullpath full path of the subentry
- //!
- //! @return true if entry found, otherwise false
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Get a subentry from a cached directory
+//!
+//! @param req
+//! @param inode directory inode
+//! @param einode entry inode
+//! @param ifullpath full path of the subentry
+//!
+//! @return true if entry found, otherwise false
+//!
+//----------------------------------------------------------------------------
   int dir_cache_get_entry(fuse_req_t req,
                           unsigned long long inode,
                           unsigned long long einode,
-                          const char* ifullpath, 
-			  struct stat* overwrite_stat = 0);
+                          const char* ifullpath,
+                          struct stat* overwrite_stat = 0);
 
- //----------------------------------------------------------------------------
- //! Add new subentry to a cached directory
- //!
- //! @param inode directory inode
- //! @param entry_inode subentry inode
- //! @param e fuse_entry_param structure
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Add new subentry to a cached directory
+//!
+//! @param inode directory inode
+//! @param entry_inode subentry inode
+//! @param e fuse_entry_param structure
+//!
+//----------------------------------------------------------------------------
   void dir_cache_add_entry(unsigned long long inode,
                            unsigned long long entry_inode,
                            struct fuse_entry_param* e);
 
 
- //----------------------------------------------------------------------------
- //! Add or update a cache directory entry
- //!
- //! @param inode directory inode value
- //! @param nentries number of entries in the current directory
- //! @param mtime modifcation time
- //! @param b dirbuf structure
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Add or update a cache directory entry
+//!
+//! @param inode directory inode value
+//! @param nentries number of entries in the current directory
+//! @param mtime modifcation time
+//! @param b dirbuf structure
+//!
+//----------------------------------------------------------------------------
   void dir_cache_sync(unsigned long long inode,
                       int nentries,
                       struct timespec mtime,
@@ -452,45 +458,44 @@ public:
                       struct dirbuf* b);
 
 
- //----------------------------------------------------------------------------
- //! Update stat information of an entry
- //!
- //! @param entry_inode
- //! @param buf stat info
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Update stat information of an entry
+//!
+//! @param entry_inode
+//! @param buf stat info
+//----------------------------------------------------------------------------
   bool dir_cache_update_entry(unsigned long long entry_inode,
-			      struct stat* buf);
+                              struct stat* buf);
 
 
+//----------------------------------------------------------------------------
+//              ******* XROOT interfacing ********
+//----------------------------------------------------------------------------
 
- //----------------------------------------------------------------------------
- //              ******* XROOT interfacing ********
- //----------------------------------------------------------------------------
-
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int stat(const char* path,
            struct stat* buf,
            uid_t uid,
            gid_t gid,
            pid_t pid,
-           unsigned long inode, 
+           unsigned long inode,
            bool onlysizemtime = false);
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int statfs(const char* path,
              struct statvfs* stbuf,
              uid_t uid,
              gid_t gid,
              pid_t pid
-             );
+            );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int getxattr(const char* path,
                const char* xattr_name,
                char** xattr_value,
@@ -498,22 +503,22 @@ public:
                uid_t uid,
                gid_t gid,
                pid_t pid
-               );
+              );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int listxattr(const char* path,
                 char** xattr_list,
                 size_t* size,
                 uid_t uid,
                 gid_t gid,
                 pid_t pid
-                );
+               );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int setxattr(const char* path,
                const char* xattr_name,
                const char* xattr_value,
@@ -521,142 +526,142 @@ public:
                uid_t uid,
                gid_t gid,
                pid_t pid
-               );
+              );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int rmxattr(const char* path,
               const char* xattr_name,
               uid_t uid,
               gid_t gid,
               pid_t pid
-              );
+             );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   struct dirent* readdir(const char* path_dir,
                          size_t* size,
                          uid_t uid,
                          gid_t gid,
                          pid_t pid
-                         );
+                        );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int mkdir(const char* path,
             mode_t mode,
             uid_t uid,
             gid_t gid,
             pid_t pid,
             struct stat* buf
-            );
+           );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int rmdir(const char* path,
             uid_t uid,
             gid_t gid,
             pid_t pid
-            );
+           );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int open(const char* pathname,
            int flags,
            mode_t mode,
            uid_t uid,
            gid_t gid,
            pid_t pid,
-           unsigned long* return_inode, 
-	   bool mknod = false);
+           unsigned long* return_inode,
+           bool mknod = false);
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int truncate(int fildes, off_t offset);
   int truncate2(const char* fullpath, unsigned long inode,
                 unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid);
 
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   ssize_t pread(int fildes,
                 void* buf,
                 size_t nbyte,
                 off_t offset);
 
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst,
                         unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
 
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int close(int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
 
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int flush(int fd, uid_t uid, gid_t gid, pid_t pid);
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   ssize_t pwrite(int fildes,
                  const void* buf,
                  size_t nbyte,
                  off_t offset);
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int fsync(int fildes);
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int unlink(const char* path,
              uid_t uid,
              gid_t gid,
-             pid_t pid, 
-	     unsigned long inode
-             );
+             pid_t pid,
+             unsigned long inode
+            );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int rename(const char* oldpath,
              const char* newpath,
              uid_t uid,
              gid_t gid,
              pid_t pid
-             );
+            );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int chmod(const char* path,
             mode_t mode,
             uid_t uid,
             gid_t gid,
             pid_t pid
-            );
+           );
 
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
 
   int symlink(const char* path,
               const char* newpath,
@@ -664,9 +669,9 @@ public:
               gid_t gid,
               pid_t pid);
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
 
   int readlink(const char* path,
                char* buf,
@@ -676,36 +681,36 @@ public:
                pid_t pid);
 
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int access(const char* path,
              int mode,
              uid_t uid,
              gid_t gid,
              pid_t pid
-             );
+            );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int utimes_if_open(unsigned long long inode,
                      struct timespec* tvp,
                      uid_t uid, gid_t gid, pid_t pid);
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int utimes(const char* path,
              struct timespec* tvp,
              uid_t uid,
              gid_t gid,
              pid_t pid
-             );
+            );
 
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//!
+//----------------------------------------------------------------------------
   int inodirlist(unsigned long long dirinode,
                  const char* path,
                  uid_t uid,
@@ -713,61 +718,61 @@ public:
                  pid_t pid,
                  dirlist& dlist,
                  struct fuse_entry_param** stats,
-		 size_t* nstats);
+                 size_t* nstats);
 
- //----------------------------------------------------------------------------
- //! Do user mapping
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Do user mapping
+//----------------------------------------------------------------------------
   const char* mapuser(uid_t uid, gid_t gid, pid_t pid, uint8_t authid);
 
- //----------------------------------------------------------------------------
- //! updates the proccache entry for the given pid (only if needed)
- //! the proccache entry contains the environment, the command line
- //! the fsuid, the fsgid amd if kerberos is used the krb5ccname and the krb5login
- //! used in it
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! updates the proccache entry for the given pid (only if needed)
+//! the proccache entry contains the environment, the command line
+//! the fsuid, the fsgid amd if kerberos is used the krb5ccname and the krb5login
+//! used in it
+//----------------------------------------------------------------------------
   int update_proc_cache(uid_t uid, gid_t gid, pid_t pid);
 
- //----------------------------------------------------------------------------
- //! Create the cgi argument to be added to the url to use the kerberos cc file
- //!   for the given pid. e.g. xrd.k5ccname=<krb5login>
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Create the cgi argument to be added to the url to use the kerberos cc file
+//!   for the given pid. e.g. xrd.k5ccname=<krb5login>
+//----------------------------------------------------------------------------
   std::string strongauth_cgi(pid_t pid);
 
- //----------------------------------------------------------------------------
- //! Create an URL
- //! - with a user private physical channel e.g. root://<uid-gid>@<host> if krb5 is not used
- //! - with kerberos authentication if used e.g. root://<krb5login>@<host>
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Create an URL
+//! - with a user private physical channel e.g. root://<uid-gid>@<host> if krb5 is not used
+//! - with kerberos authentication if used e.g. root://<krb5login>@<host>
+//----------------------------------------------------------------------------
   std::string user_url(uid_t uid, gid_t gid, pid_t pid);
 
- //----------------------------------------------------------------------------
- //! Return the CGI of an URL
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Return the CGI of an URL
+//----------------------------------------------------------------------------
   const char* get_cgi(const char* url);
 
- //----------------------------------------------------------------------------
- //! Check if rm command was issued on one of the top level directories
- //!
- //! @param pid process id
- //! @param local_dir local mount point directory
- //!
- //! @return 0 if false, otherwise 1
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Check if rm command was issued on one of the top level directories
+//!
+//! @param pid process id
+//! @param local_dir local mount point directory
+//!
+//! @return 0 if false, otherwise 1
+//----------------------------------------------------------------------------
   int is_toplevel_rm(pid_t pid, const char* local_dir);
 
 
- //----------------------------------------------------------------------------
- //! Get the configured overlay mode
- mode_t get_mode_overlay() 
- {
-   return mode_overlay;
- }
+//----------------------------------------------------------------------------
+//! Get the configured overlay mode
+  mode_t get_mode_overlay()
+  {
+    return mode_overlay;
+  }
 
- //----------------------------------------------------------------------------
- //! Initialisation function
- //----------------------------------------------------------------------------
- void initlogging();
+//----------------------------------------------------------------------------
+//! Initialisation function
+//----------------------------------------------------------------------------
+  void initlogging();
   bool init(int argc, char* argv[], void* userdata,
             std::map<std::string, std::string>* features);
   bool check_mgm(std::map<std::string, std::string>* features);
@@ -778,107 +783,112 @@ public:
   typedef struct _meta {
 
     _meta()
+    {
+      openr = openw = 0;
+    }
+
+    RWMutex mInUse;
+    XrdSysMutex mlocker;
+    size_t openr;
+    size_t openw;
+  } meta_t;
+
+  class Track
   {
-   openr = openw = 0;
-  }
-
-  RWMutex mInUse;
-  XrdSysMutex mlocker;
-  size_t openr;
-  size_t openw;
- } meta_t;
-
- class Track
- {
- public:
+  public:
 
     Track() { }
 
     ~Track() { }
 
-  void
+    void
     assure(unsigned long long ino)
-  {
+    {
       XrdSysMutexHelper l(iMutex);
-   iNodes[ino] = std::make_shared<meta_t>();
-  }
+      iNodes[ino] = std::make_shared<meta_t>();
+    }
 
-  void
+    void
     forget(unsigned long long ino)
-  {
+    {
       XrdSysMutexHelper l(iMutex);
       iNodes.erase(ino);
-  }
+    }
 
-  std::shared_ptr<meta_t>
+    std::shared_ptr<meta_t>
     Attach(unsigned long long ino, bool exclusive = false)
-  {
-   std::shared_ptr<meta_t> m;
-   {
+    {
+      std::shared_ptr<meta_t> m;
+      {
         XrdSysMutexHelper l(iMutex);
 
         if (!iNodes.count(ino)) {
-       iNodes[ino] = std::make_shared<meta_t>();
-     }
+          iNodes[ino] = std::make_shared<meta_t>();
+        }
 
-     m = iNodes[ino];
-   }
-   
+        m = iNodes[ino];
+      }
+
       if (exclusive) {
         m->mInUse.LockWrite();
       } else {
         m->mInUse.LockRead();
-   }
+      }
 
-   return m;
-  }
+      return m;
+    }
 
-  void
+    void
     Detach(std::shared_ptr<meta_t> m)
-  {
+    {
       m->mInUse.UnLockRead();
-  }
+    }
 
-  class Monitor
-  {
-  public:
+    class Monitor
+    {
+    public:
 
       Monitor(const char* caller, Track& tracker, unsigned long long ino,
               bool exclusive = false)
-   {
-    eos_static_debug ("trylock caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
-
-    this->me = tracker.Attach (ino, exclusive);
-    this->ino = ino;
-    this->caller = caller;
-    this->exclusive = exclusive;
-    eos_static_debug ("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx", caller, thread_id (), ino, exclusive,
-                     &(*(this->me)));
-   }
+      {
+        eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
+                         thread_id(), ino, exclusive);
+        this->me = tracker.Attach(ino, exclusive);
+        this->ino = ino;
+        this->caller = caller;
+        this->exclusive = exclusive;
+        eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
+                         caller, thread_id(), ino, exclusive,
+                         &(*(this->me)));
+      }
 
       ~Monitor()
-   {
-    eos_static_debug ("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
+      {
+        eos_static_debug("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller,
+                         thread_id(), ino, exclusive);
 
-    if (exclusive)
-      me->mInUse.UnLockWrite ();
-    else
-      me->mInUse.UnLockRead ();
-    eos_static_debug ("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
-   }
+        if (exclusive) {
+          me->mInUse.UnLockWrite();
+        } else {
+          me->mInUse.UnLockRead();
+        }
+
+        eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,
+                         thread_id(), ino, exclusive);
+      }
+    private:
+      std::shared_ptr<meta_t> me;
+      bool exclusive;
+      unsigned long long ino;
+      const char* caller;
+    };
+
   private:
-   std::shared_ptr<meta_t> me;
-   bool exclusive;
-   unsigned long long ino;
-   const char* caller;
+    XrdSysMutex iMutex;
+    std::map<unsigned long long, std::shared_ptr<meta_t> > iNodes;
   };
 
- private:
-  XrdSysMutex iMutex;
-  std::map<unsigned long long, std::shared_ptr<meta_t> > iNodes;
- };
-
- Track iTrack;
+  Track iTrack;
 
   void setPrefix(std::string& prefix)
   {
@@ -894,228 +904,226 @@ public:
     return max_inline_repair_size;
   }
 
-  
+
 protected:
 private:
 
- uint64_t pid_max;
- uint64_t uid_max;
+  uint64_t pid_max;
+  uint64_t uid_max;
 
- bool link_pidmap; ///< indicated if mapping between pid and strong authentication is symlinked in /var/run/eosd/credentials/pidXXX
- bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
- bool use_user_gsiproxy; ///< indicated if user gsi proxy should be used for authentication
- bool use_unsafe_krk5; ///< indicated if in memory krb5 tickets can be used without any safety check
- bool fallback2nobody; ///< indicated if unix authentication (as nobody) should be used as a fallback if strong authentication is configured and none is found
- bool lazy_open_ro; ///< indicated if lazy openning of the file should be used for files open in RO
- bool lazy_open_rw; ///< indicated if lazy openning of the file should be used for files open in RW
+  bool link_pidmap; ///< indicated if mapping between pid and strong authentication is symlinked in /var/run/eosd/credentials/pidXXX
+  bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
+  bool use_user_gsiproxy; ///< indicated if user gsi proxy should be used for authentication
+  bool use_unsafe_krk5; ///< indicated if in memory krb5 tickets can be used without any safety check
+  bool fallback2nobody; ///< indicated if unix authentication (as nobody) should be used as a fallback if strong authentication is configured and none is found
+  bool lazy_open_ro; ///< indicated if lazy openning of the file should be used for files open in RO
+  bool lazy_open_rw; ///< indicated if lazy openning of the file should be used for files open in RW
   bool async_open; ///< indicated if async open should be used (this used only in coordination with lazy_open)
- bool lazy_open_disabled; ///< indicated if lazy openning is disabled because the server does not support it
- bool inline_repair; ///< indicate if we should try to repair broken files for wrinting inlined in the open
- off_t max_inline_repair_size; ///< define maximum inline repair size
- bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
- bool do_rdahead; ///< true if readahead is to be enabled, otherwise false
- std::string rdahead_window; ///< size of the readahead window
- int rm_level_protect; ///< number of levels in hierarchy protected against rm -rf
+  bool lazy_open_disabled; ///< indicated if lazy openning is disabled because the server does not support it
+  bool inline_repair; ///< indicate if we should try to repair broken files for wrinting inlined in the open
+  off_t max_inline_repair_size; ///< define maximum inline repair size
+  bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
+  bool do_rdahead; ///< true if readahead is to be enabled, otherwise false
+  std::string rdahead_window; ///< size of the readahead window
+  int rm_level_protect; ///< number of levels in hierarchy protected against rm -rf
   std::string
   rm_command; ///< full path of the system rm command (e.g. "/bin/rm" )
- bool rm_watch_relpath; ///< indicated if the system rm command changes it CWD making relative path expansion impossible
- int fuse_cache_write; ///< 0 if fuse cache write disabled, otherwise 1
- int fuse_cache_negstat; ///< 0 if fuse negstat cache disabled, otherwise 1
- bool fuse_exec; ///< indicates if files should be make exectuble
- bool fuse_shared; ///< indicated if this is eosd = true or eosfsd = false
- int creator_cap_lifetime; ///< time period where files are considered owned locally e.g. remote modifications are not reflected locally
- int file_write_back_cache_size; ///< max temporary write-back cache per file size in bytes
- bool encode_pathname; ///< indicated if filename should be encoded
- bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
- bool show_eos_attributes; ///< show all sys.* and emulated user.eos attributes when listing xattributes
- int xrootd_nullresponsebug_retrycount; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we retry.
- int xrootd_nullresponsebug_retrysleep; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we sleep between attempts.
- mode_t mode_overlay; ///< mask which is or'ed into the retrieved mode
- uint64_t max_wb_in_memory_size; ///< maximum size of in-memory wb cache structures
- XrdOucString gMgmHost; ///< host name of the FUSE contact point
+  bool rm_watch_relpath; ///< indicated if the system rm command changes it CWD making relative path expansion impossible
+  int fuse_cache_write; ///< 0 if fuse cache write disabled, otherwise 1
+  int fuse_cache_negstat; ///< 0 if fuse negstat cache disabled, otherwise 1
+  bool fuse_exec; ///< indicates if files should be make exectuble
+  bool fuse_shared; ///< indicated if this is eosd = true or eosfsd = false
+  int creator_cap_lifetime; ///< time period where files are considered owned locally e.g. remote modifications are not reflected locally
+  int file_write_back_cache_size; ///< max temporary write-back cache per file size in bytes
+  bool encode_pathname; ///< indicated if filename should be encoded
+  bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
+  bool show_eos_attributes; ///< show all sys.* and emulated user.eos attributes when listing xattributes
+  mode_t mode_overlay; ///< mask which is or'ed into the retrieved mode
+  uint64_t max_wb_in_memory_size; ///< maximum size of in-memory wb cache structures
+  XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
- //----------------------------------------------------------------------------
- //             ******* Implementation Translations *******
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//             ******* Implementation Translations *******
+//----------------------------------------------------------------------------
 
- // Protecting the path/inode translation table
- eos::common::RWMutex mutex_inode_path;
+// Protecting the path/inode translation table
+  eos::common::RWMutex mutex_inode_path;
 
- // Mapping path name to inode
- google::dense_hash_map<std::string, unsigned long long> path2inode;
+// Mapping path name to inode
+  google::dense_hash_map<std::string, unsigned long long> path2inode;
 
- // Mapping inode to path name
- std::map<unsigned long long, std::string> inode2path;
+// Mapping inode to path name
+  std::map<unsigned long long, std::string> inode2path;
 
- // Prefix (duplicated from upstream object)
- std::string mPrefix;
+// Prefix (duplicated from upstream object)
+  std::string mPrefix;
 
- //------------------------------------------------------------------------------
- //      ******* Implementation of the directory listing table *******
- //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//      ******* Implementation of the directory listing table *******
+//------------------------------------------------------------------------------
 
- // Protecting the directory listing table
- eos::common::RWMutex mutex_dir2inodelist;
+// Protecting the directory listing table
+  eos::common::RWMutex mutex_dir2inodelist;
 
- // Dir listing map
- std::map<unsigned long long, std::vector<unsigned long long> > dir2inodelist;
- std::map<unsigned long long, struct dirbuf> dir2dirbuf;
+// Dir listing map
+  std::map<unsigned long long, std::vector<unsigned long long> > dir2inodelist;
+  std::map<unsigned long long, struct dirbuf> dir2dirbuf;
 
- //------------------------------------------------------------------------------
- //      ******* Implementation of the FUSE directory cache *******
- //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//      ******* Implementation of the FUSE directory cache *******
+//------------------------------------------------------------------------------
 
- //------------------------------------------------------------------------------
- // Get maximum number of directories in cache
- //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Get maximum number of directories in cache
+//------------------------------------------------------------------------------
 
- const unsigned long long
+  const unsigned long long
   GetMaxCacheSize()
- {
-  return 1024;
- }
-
- // Protecting the cache entry map
- eos::common::RWMutex mutex_fuse_cache;
-
- // Directory cache
- std::map<unsigned long long, FuseCacheEntry*> inode2cache;
- 
- // Parent cache
- std::map<unsigned long long, unsigned long long> inode2parent;
-
- //------------------------------------------------------------------------------
- //      ******* Implementation of the open File Descriptor map *******
- //------------------------------------------------------------------------------
-
- // Map used for associating file descriptors with XrdCl::File objects
- eos::common::RWMutex rwmutex_fd2fabst;
- google::dense_hash_map<int, shared_ptr<FileAbstraction>> fd2fabst;
-
- // Counting write open of inodes
- eos::common::RWMutex rwmutex_inodeopenw;
- std::map<unsigned long long, int> inodeopenw;
-
-
-
- // the count is >0 for RW and <0 for RO
- google::dense_hash_map<int, int> fd2count;
- eos::common::RWMutex openmutexes[N_OPEN_MUTEXES];
-
-
- // Map <inode, user> to a set of file descriptors - used only in the stat method
- // note : the set of file descriptors for one key point to the same fabst
- google::dense_hash_map<std::string, std::set<int> > inodexrdlogin2fds;
- // Helper function to construct a key in the previous map
- std::string
-  get_login(uid_t uid, gid_t gid, pid_t pid);
-
- // Pool of available file descriptors
- int base_fd;
- std::queue<int> pool_fd;
-
- // WB Cache Cleanup Thread
-  static void* CacheCleanup(void* pp);
-
- //------------------------------------------------------------------------------
- //        ******* Implementation IO Buffer Management *******
- //------------------------------------------------------------------------------
-
- //------------------------------------------------------------------------------
- //! Class IoBuf
- //------------------------------------------------------------------------------
-
- class IoBuf
- {
- private:
-
-  void* buffer;
-  size_t size;
-
- public:
-
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-
-    IoBuf()
   {
-   buffer = 0;
-   size = 0;
+    return 1024;
   }
 
+// Protecting the cache entry map
+  eos::common::RWMutex mutex_fuse_cache;
 
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
+// Directory cache
+  std::map<unsigned long long, FuseCacheEntry*> inode2cache;
 
-  virtual
-    ~IoBuf()
+// Parent cache
+  std::map<unsigned long long, unsigned long long> inode2parent;
+
+//------------------------------------------------------------------------------
+//      ******* Implementation of the open File Descriptor map *******
+//------------------------------------------------------------------------------
+
+// Map used for associating file descriptors with XrdCl::File objects
+  eos::common::RWMutex rwmutex_fd2fabst;
+  google::dense_hash_map<int, shared_ptr<FileAbstraction>> fd2fabst;
+
+// Counting write open of inodes
+  eos::common::RWMutex rwmutex_inodeopenw;
+  std::map<unsigned long long, int> inodeopenw;
+
+
+
+// the count is >0 for RW and <0 for RO
+  google::dense_hash_map<int, int> fd2count;
+  eos::common::RWMutex openmutexes[N_OPEN_MUTEXES];
+
+
+// Map <inode, user> to a set of file descriptors - used only in the stat method
+// note : the set of file descriptors for one key point to the same fabst
+  google::dense_hash_map<std::string, std::set<int> > inodexrdlogin2fds;
+// Helper function to construct a key in the previous map
+  std::string
+  get_login(uid_t uid, gid_t gid, pid_t pid);
+
+// Pool of available file descriptors
+  int base_fd;
+  std::queue<int> pool_fd;
+
+// WB Cache Cleanup Thread
+  static void* CacheCleanup(void* pp);
+
+//------------------------------------------------------------------------------
+//        ******* Implementation IO Buffer Management *******
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+//! Class IoBuf
+//------------------------------------------------------------------------------
+
+  class IoBuf
   {
+  private:
+
+    void* buffer;
+    size_t size;
+
+  public:
+
+    //----------------------------------------------------------------------------
+    //! Constructor
+    //----------------------------------------------------------------------------
+
+    IoBuf()
+    {
+      buffer = 0;
+      size = 0;
+    }
+
+
+    //----------------------------------------------------------------------------
+    //! Destructor
+    //----------------------------------------------------------------------------
+
+    virtual
+    ~IoBuf()
+    {
       if (buffer && size) {
         free(buffer);
       }
-  }
+    }
 
 
-  //----------------------------------------------------------------------------
-  //! Get buffer
-  //----------------------------------------------------------------------------
+    //----------------------------------------------------------------------------
+    //! Get buffer
+    //----------------------------------------------------------------------------
 
-  char*
+    char*
     GetBuffer()
-  {
-   return (char*) buffer;
-  }
+    {
+      return (char*) buffer;
+    }
 
 
-  //----------------------------------------------------------------------------
-  //! Get size of buffer
-  //----------------------------------------------------------------------------
+    //----------------------------------------------------------------------------
+    //! Get size of buffer
+    //----------------------------------------------------------------------------
 
-  size_t
+    size_t
     GetSize()
-  {
-   return size;
-  }
+    {
+      return size;
+    }
 
-  //----------------------------------------------------------------------------
-  //! Resize buffer
-  //----------------------------------------------------------------------------
+    //----------------------------------------------------------------------------
+    //! Resize buffer
+    //----------------------------------------------------------------------------
 
-  void
+    void
     Resize(size_t newsize)
-  {
+    {
       if (newsize > size) {
-     size = (newsize < (128 * 1024)) ? 128 * 1024 : newsize;
+        size = (newsize < (128 * 1024)) ? 128 * 1024 : newsize;
         buffer = realloc(buffer, size);
-   }
-  }
- };
+      }
+    }
+  };
 
- // Protecting the IO buffer map
- XrdSysMutex IoBufferLock;
+// Protecting the IO buffer map
+  XrdSysMutex IoBufferLock;
 
- // IO buffer table. Each fuse thread has its own read buffer
- std::map<pthread_t, IoBuf> IoBufferMap;
-
-
- AuthIdManager authidmanager;
-
- //------------------------------------------------------------------------------
- // Cache that holds the mapping from a pid to a time stamp (to see if the cache needs
- // to be refreshed and bool to check if the operation needs to be denied.
- // variable which is true if this is a top level rm operation and false other-
- // wise. It is used by recursive rm commands which belong to the same pid in
- // order to decide if his operation is denied or not.
- //------------------------------------------------------------------------------
- eos::common::RWMutex mMapPidDenyRmMutex;
- std::map<pid_t, std::pair<time_t, bool> > mMapPidDenyRm;
+// IO buffer table. Each fuse thread has its own read buffer
+  std::map<pthread_t, IoBuf> IoBufferMap;
 
 
- FuseWriteCache* XFC;
+  AuthIdManager authidmanager;
 
- int
+//------------------------------------------------------------------------------
+// Cache that holds the mapping from a pid to a time stamp (to see if the cache needs
+// to be refreshed and bool to check if the operation needs to be denied.
+// variable which is true if this is a top level rm operation and false other-
+// wise. It is used by recursive rm commands which belong to the same pid in
+// order to decide if his operation is denied or not.
+//------------------------------------------------------------------------------
+  eos::common::RWMutex mMapPidDenyRmMutex;
+  std::map<pid_t, std::pair<time_t, bool> > mMapPidDenyRm;
+
+
+  FuseWriteCache* XFC;
+
+  int
   mylstat(const char* __restrict name, struct stat* __restrict __buf, pid_t pid);
 
   char*
@@ -1124,6 +1132,6 @@ private:
   bool get_features(const std::string& url,
                     std::map<std::string, std::string>* features);
 
- std::string mount_dir;
+  std::string mount_dir;
 };
 #endif
