@@ -291,6 +291,20 @@ XrdMgmOfs::_rename(const char* old_name,
         errno = EINVAL;
         return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
       }
+
+      // Check if old path is a quota node - this is forbidden
+      try {
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        rdir = eosView->getContainer(oPath.GetPath());
+
+        if (rdir->getFlags() & eos::QUOTA_NODE_FLAG) {
+          errno = EACCES;
+          return Emsg(epname, error, EACCES, "rename - source is a quota node");
+        }
+      } catch (eos::MDException& e) {
+        errno = ENOENT;
+        return Emsg(epname, error, ENOENT, "rename - source does not exist");
+      }
     }
   }
 
