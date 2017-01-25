@@ -31,7 +31,8 @@ add_library(
   FuseWriteCache.cc  FuseWriteCache.hh
   CacheEntry.cc      CacheEntry.hh
   FileAbstraction.cc FileAbstraction.hh
-  LayoutWrapper.cc LayoutWrapper.hh)
+  LayoutWrapper.cc   LayoutWrapper.hh
+  ../xrdutils.cc     ../xrdutils.hh)
 
 target_link_libraries(
   FuseCache PUBLIC
