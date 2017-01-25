@@ -284,7 +284,6 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   // Send the request for FsCtl
   u = XrdCl::URL(user_url);
   XrdCl::FileSystem fs(u);
-  status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
   status = xrdreq_retryonnullbuf(fs, arg, response);
 
   if (!status.IsOK()) {
