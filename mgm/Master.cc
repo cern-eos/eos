@@ -175,11 +175,10 @@ Master::Init()
   // start the heartbeat thread anyway
   XrdSysThread::Run(&fThread, Master::StaticSupervisor, static_cast<void*>(this),
                     XRDSYSTHREAD_HOLD, "Master Supervisor Thread");
-  // get sync up if it is not up
+  // Get sync up if it is not up
   eos::common::ShellCmd
   scmd1(fHasSystemd ?
-        "systemctl status eos@sync || systemctl start eos@sync"
-        :
+        "systemctl status eos@sync || systemctl start eos@sync" :
         "service eos status sync || service eos start sync");
   rc = scmd1.wait(30);
 
@@ -188,11 +187,11 @@ Master::Init()
     return false;
   }
 
-  // get eossync up if it is not up
+  // Get eossync up if it is not up
   eos::common::ShellCmd
   scmd2(fHasSystemd ?
-        "systemctl status eossync@* || systemctl start eossync"
-        : "service eossync status || service eossync start ");
+        "systemctl status eossync@* || systemctl start eossync" :
+        "service eossync status || service eossync start ");
   rc = scmd2.wait(30);
 
   if (rc.exit_code) {
