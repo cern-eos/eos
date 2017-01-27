@@ -97,6 +97,16 @@ ConvertContainerMD::addFile(eos::IFileMD* file)
 //         ************* ConvertContainerMDSvc Class ************
 //------------------------------------------------------------------------------
 
+//----------------------------------------------------------------------------
+//! Destructor
+//----------------------------------------------------------------------------
+ConvertContainerMDSvc::~ConvertContainerMDSvc()
+{
+  std::cerr << __FUNCTION__ << "Got error response from the backend"
+            << std::endl;
+  exit(1);
+}
+
 //------------------------------------------------------------------------------
 // Convert the containers
 //------------------------------------------------------------------------------
@@ -105,6 +115,9 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
     ContainerList& orphans,
     ContainerList& nameConflicts)
 {
+  static std::time_t start = std::time(nullptr);
+  static std::uint64_t count = 0;
+  static std::uint64_t total = getNumContainers();
   eos::Buffer ebuff;
   pChangeLog->readRecord(it->second.logOffset, ebuff);
   std::shared_ptr<IContainerMD> container =
@@ -142,10 +155,23 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 
   // Add container to the KV store
   try {
+    ++count;
     std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
     std::string sid = stringify(container->getId());
     qclient::QHash bucket_map(*sQcl, getBucketKey(container->getId()));
-    bucket_map.hset(sid, buffer);
+    mAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
+
+    if (count % 10000 == 0) {
+      if (!mAh.Wait()) {
+        std::cerr << __FUNCTION__ << "Got error response from the backend"
+                  << std::endl;
+        exit(1);
+      }
+
+      double rate = (double) count / (std::time(nullptr) - start);
+      std::cout << "Processed " << count << "/" << total << " directories at "
+                << rate << " Hz" << std::endl;
+    }
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << container->getId()
@@ -162,7 +188,7 @@ ConvertContainerMDSvc::exportToQuotaView(IContainerMD* cont)
 {
   if ((cont->getFlags() & QUOTA_NODE_FLAG) != 0) {
     qclient::QSet set_quotaids(*sQcl, quota::sSetQuotaIds);
-    set_quotaids.sadd(cont->getId());
+    mAh.Register(set_quotaids.sadd_async(cont->getId()), set_quotaids.getClient());
   }
 }
 
@@ -221,9 +247,28 @@ ConvertFileMDSvc::initialize()
   FileMDScanner scanner(pIdMap, pSlaveMode);
   pFollowStart = pChangeLog->scanAllRecords(&scanner);
   pFirstFreeId = scanner.getLargestId() + 1;
+  std::uint64_t count = 0;
+  std::uint64_t total = pIdMap.size();
+  std::time_t start = std::time(nullptr);
 
   // Recreate the files
   for (auto && elem : pIdMap) {
+    ++count;
+
+    if (count % 10000 == 0) {
+      if (!mAh.Wait()) {
+        std::cerr << __FUNCTION__ << "Got error response from the backend"
+                  << std::endl;
+        exit(1);
+      }
+
+      std::time_t now = std::time(nullptr);
+      std::chrono::seconds duration(now - start);
+      double rate = (double)count / duration.count();
+      std::cout << "Processed " << count << "/" << total << " files at "
+                << rate << " Hz" << std::endl;
+    }
+
     // Unpack the serialized buffers
     std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
     dynamic_cast<FileMD*>(file.get())->deserialize(*elem.second.buffer);
@@ -239,7 +284,7 @@ ConvertFileMDSvc::initialize()
                          elem.second.buffer->getSize());
       std::string sid = stringify(file->getId());
       qclient::QHash bucket_map(*sQcl, getBucketKey(file->getId()));
-      bucket_map.hset(sid, buffer);
+      mAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
     } catch (std::runtime_error& qdb_err) {
       MDException e(ENOENT);
       e.getMessage() << "File #" << file->getId() << " failed to contact backend";
@@ -289,15 +334,11 @@ ConvertFileMDSvc::exportToFsView(IFileMD* file)
     key = fsview::sSetFsIds;
     val = stringify(elem);
     fs_set.setKey(key);
-
-    if (!fs_set.sismember(val)) {
-      fs_set.sadd(val);
-    }
-
+    mAh.Register(fs_set.sadd_async(val), fs_set.getClient());
     // Add file to corresponding fs file set
     key = val + fsview::sFilesSuffix;
     fs_set.setKey(key);
-    fs_set.sadd(stringify(file->getId()));
+    mAh.Register(fs_set.sadd_async(stringify(file->getId())), fs_set.getClient());
   }
 
   IFileMD::LocationVector unlink_vect = file->getUnlinkedLocations();
@@ -305,13 +346,13 @@ ConvertFileMDSvc::exportToFsView(IFileMD* file)
   for (const auto& elem : unlink_vect) {
     key = stringify(elem) + fsview::sUnlinkedSuffix;
     fs_set.setKey(key);
-    fs_set.sadd(stringify(file->getId()));
+    mAh.Register(fs_set.sadd_async(stringify(file->getId())), fs_set.getClient());
   }
 
   fs_set.setKey(fsview::sNoReplicaPrefix);
 
   if ((file->getNumLocation() == 0) && (file->getNumUnlinkedLocation() == 0)) {
-    fs_set.sadd(stringify(file->getId()));
+    mAh.Register(fs_set.sadd_async(stringify(file->getId())), fs_set.getClient());
   }
 }
 
@@ -347,18 +388,20 @@ ConvertFileMDSvc::exportToQuotaView(IFileMD* file)
     file->getSize() * eos::common::LayoutId::GetSizeFactor(lid);
   qclient::QHash quota_map(*sQcl, quota_uid_key);
   std::string field = suid + quota::sPhysicalSpaceTag;
-  (void)quota_map.hincrby(field, size);
+  mAh.Register(quota_map.hincrby_async(field, size), quota_map.getClient());
   field = suid + quota::sSpaceTag;
-  (void)quota_map.hincrby(field, file->getSize());
+  mAh.Register(quota_map.hincrby_async(field, file->getSize()),
+               quota_map.getClient());
   field = suid + quota::sFilesTag;
-  (void)quota_map.hincrby(field, 1);
+  mAh.Register(quota_map.hincrby_async(field, 1), quota_map.getClient());
   quota_map.setKey(quota_gid_key);
   field = sgid + quota::sPhysicalSpaceTag;
-  (void)quota_map.hincrby(field, size);
+  mAh.Register(quota_map.hincrby_async(field, size), quota_map.getClient());
   field = sgid + quota::sSpaceTag;
-  (void)quota_map.hincrby(field, file->getSize());
+  mAh.Register(quota_map.hincrby_async(field, file->getSize()),
+               quota_map.getClient());
   field = sgid + quota::sFilesTag;
-  (void)quota_map.hincrby(field, 1);
+  mAh.Register(quota_map.hincrby_async(field, 1), quota_map.getClient());
 }
 
 EOSNSNAMESPACE_END
@@ -419,10 +462,16 @@ main(int argc, char* argv[])
   std::map<std::string, std::string> config_file{{"changelog_path", file_chlog},
     {"slave_mode", "false"}};
   // Initialize the container meta-data service
+  std::cout << "Initialize the container meta-data service" << std::endl;
   cont_svc->setFileMDService(file_svc.get());
   cont_svc->configure(config_cont);
+  std::time_t cont_start = std::time(nullptr);
   cont_svc->initialize();
+  std::chrono::seconds cont_duration {std::time(nullptr) - cont_start};
+  std::cout << "Container init: " << cont_duration.count() << " seconds" <<
+            std::endl;
   // Initialize the file meta-data service
+  std::cout << "Initialize the file meta-data service" << std::endl;
   file_svc->setContMDService(cont_svc.get());
   file_svc->configure(config_file);
   file_svc->initialize();

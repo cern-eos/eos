@@ -36,6 +36,7 @@ ContainerMDSvc::ContainerMDSvc()
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), mMetaMap(),
     pBkndHost(""), pBkndPort(0), mContainerCache(static_cast<uint64_t>(10e6))
 {
+  // TODO (esindril): Make size of the container cache configurable
 }
 
 //------------------------------------------------------------------------------

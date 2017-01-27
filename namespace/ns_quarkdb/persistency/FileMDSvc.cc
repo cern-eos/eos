@@ -36,7 +36,10 @@ std::chrono::seconds FileMDSvc::sFlushInterval(5);
 FileMDSvc::FileMDSvc()
   : pQuotaStats(nullptr), pContSvc(nullptr), mFlushTimestamp(std::time(nullptr)),
     pBkendPort(0), pBkendHost(""), pQcl(nullptr), mMetaMap(),
-    mDirtyFidBackend(), mFlushFidSet(), mFileCache(10e6) {}
+    mDirtyFidBackend(), mFlushFidSet(), mFileCache(10e6)
+{
+  // TODO (esindril): Make size of the file cache configurable
+}
 
 //------------------------------------------------------------------------------
 // Configure the file service

@@ -80,6 +80,12 @@ private:
 class ConvertContainerMDSvc : public eos::ChangeLogContainerMDSvc
 {
 public:
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~ConvertContainerMDSvc();
+
   //----------------------------------------------------------------------------
   //! Recreate the container in the KV store
   //----------------------------------------------------------------------------
@@ -104,6 +110,8 @@ private:
   //! @parma cont container object
   //------------------------------------------------------------------------------
   void exportToQuotaView(IContainerMD* cont);
+
+  qclient::AsyncHandler mAh; ///< Async handler
 };
 
 
@@ -143,6 +151,8 @@ private:
   //! @param file file object
   //------------------------------------------------------------------------------
   void exportToQuotaView(IFileMD* file);
+
+  qclient::AsyncHandler mAh; ///< Async handler
 };
 
 EOSNSNAMESPACE_END
