@@ -102,9 +102,11 @@ ConvertContainerMD::addFile(eos::IFileMD* file)
 //----------------------------------------------------------------------------
 ConvertContainerMDSvc::~ConvertContainerMDSvc()
 {
-  std::cerr << __FUNCTION__ << "Got error response from the backend"
-            << std::endl;
-  exit(1);
+  if (!mAh.Wait()) {
+    std::cerr << __FUNCTION__ << " Got error response from the backend"
+              << std::endl;
+    exit(1);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -163,7 +165,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 
     if (count % 10000 == 0) {
       if (!mAh.Wait()) {
-        std::cerr << __FUNCTION__ << "Got error response from the backend"
+        std::cerr << __FUNCTION__ << " Got error response from the backend"
                   << std::endl;
         exit(1);
       }
@@ -257,7 +259,7 @@ ConvertFileMDSvc::initialize()
 
     if (count % 10000 == 0) {
       if (!mAh.Wait()) {
-        std::cerr << __FUNCTION__ << "Got error response from the backend"
+        std::cerr << __FUNCTION__ << " Got error response from the backend"
                   << std::endl;
         exit(1);
       }
