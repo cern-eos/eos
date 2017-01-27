@@ -42,9 +42,12 @@ add_executable(
   ConsolePipe.cc  ConsolePipe.hh
   ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
-#  commands/AclCommand.cc
+  commands/AclCommand.cc commands/AclCommand.hh
+  commands/HealthCommand.cc commands/HealthCommand.hh
+  RegexUtil.cc RegexUtil.hh
+  MgmExecute.cc MgmExecute.hh
   commands/com_access.cc
-#  commands/com_acl.cc
+  commands/com_acl.cc
   commands/com_archive.cc
   commands/com_attr.cc
   commands/com_backup.cc
@@ -64,6 +67,7 @@ add_executable(
   commands/com_fuse.cc
   commands/com_geosched.cc
   commands/com_group.cc
+  commands/com_health.cc
   commands/com_info.cc
   commands/com_io.cc
   commands/com_kinetic.cc

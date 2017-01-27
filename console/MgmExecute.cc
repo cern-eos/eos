@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file AclCommandTest.hh
+//! @file MgmExecute.cc
 //! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 
@@ -21,40 +21,44 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __ACLCOMMANDTEST__HH__
-#define __ACLCOMMANDTEST__HH__
+#include "MgmExecute.hh"
 
-#include <cppunit/extensions/HelperMacros.h>
-#include <iostream>
-#include <string>
-#include <functional>
-#include "console/commands/AclCommand.hh"
+#ifndef BUILD_TESTS
+MgmExecute::MgmExecute() {}
 
-class AclCommandTest : public CppUnit::TestCase
+bool MgmExecute::proccess(XrdOucEnv* response)
 {
-  CPPUNIT_TEST_SUITE(AclCommandTest);
-  CPPUNIT_TEST(TestSyntax);
-  CPPUNIT_TEST(TestCheckId);
-  CPPUNIT_TEST(TestGetRuleInt);
-  CPPUNIT_TEST(TestAclRuleFromString);
-  CPPUNIT_TEST(TestFunctionality);
-  CPPUNIT_TEST_SUITE_END();
+  rstdout = response->Get("mgm.proc.stdout");
+  rstderr = response->Get("mgm.proc.stderr");
 
-public:
-  // CPPUNIT required methods
-  void setUp(void) {};
-  void tearDown(void) {};
+  if (rstderr.length() != 0) {
+    m_error = std::string(rstderr.c_str());
+    delete response;
+    return false;
+  }
 
+  m_result = std::string("");
 
-  // test helper method
-  void TestSyntaxCommand(std::string command, bool outcome = true);
+  if (rstdout.length() > 0) {
+    m_result = std::string(rstdout.c_str());
+  }
 
-  // Method implemen
-  void TestSyntax();
-  void TestCheckId();
-  void TestGetRuleInt();
-  void TestAclRuleFromString();
-  void TestFunctionality();
-};
+  delete response;
+  return true;
+}
 
-#endif //__ACLCOMMANDTEST__HH__
+bool MgmExecute::ExecuteCommand(const char* command)
+{
+  XrdOucString command_xrd = XrdOucString(command);
+  XrdOucEnv* response = client_user_command(command_xrd);
+  return proccess(response);
+}
+
+bool MgmExecute::ExecuteAdminCommand(const char* command)
+{
+  XrdOucString command_xrd = XrdOucString(command);
+  XrdOucEnv* response = client_admin_command(command_xrd);
+  return proccess(response);
+}
+
+#endif

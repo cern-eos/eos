@@ -34,7 +34,14 @@ include_directories(
 #-------------------------------------------------------------------------------
 # Build the libfmt for fast convertions
 #-------------------------------------------------------------------------------
-add_subdirectory(fmt)
+if (NOT TARGET fmt)
+  add_subdirectory(fmt)
+
+  set_target_properties(
+    fmt
+    PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
+endif()
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files

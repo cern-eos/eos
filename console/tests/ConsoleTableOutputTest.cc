@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file MgmExecuteTest.hh
+//! @file ConsoleTableOutputTest.cc
 //! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 
@@ -21,87 +21,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __MGMEXECUTETEST__HH__
-#define __MGMEXECUTETEST__HH__
-
-#include <iostream>
+#include "ConsoleTableOutputTest.hh"
 #include <fstream>
-#include <string>
-#include <queue>
-#include <utility>
 
-using ReqRes = std::pair<std::string, std::string>;
-using QueueComm = std::queue<ReqRes>;
+CPPUNIT_TEST_SUITE_REGISTRATION(ConsoleTableOutputTest);
 
-class MgmExecute
+void ConsoleTableOutputTest::TestUtility()
 {
-public:
-  std::string m_result;
-  std::string m_error;
-  bool test_failed;
-  QueueComm m_queue;
-
-  MgmExecute() : test_failed(false) {}
-
-  bool ExecuteCommand(const char* command)
-  {
-    std::string comm = std::string(command);
-
-    if (m_queue.front().first == comm) {
-      m_result = m_queue.front().second;
-    } else {
-      test_failed = true;
-    }
-
-    m_queue.pop();
-    return true;
-  }
-
-  bool ExecuteAdminCommand(const char* command)
-  {
-    std::string comm = std::string(command);
-
-    if (m_queue.front().first == comm) {
-      m_result = m_queue.front().second;
-    } else {
-      test_failed = true;
-    }
-
-    m_queue.pop();
-    return true;
-  }
-
-  void LoadResponsesFromFile(const std::string& path)
-  {
-    std::ifstream file;
-    file.open(path);
-    std::string line;
-    ReqRes temp;
-
-    while (std::getline(file, line,  '#')) {
-      temp.first = line;
-
-      if (std::getline(file, line,  '#')) {
-        temp.second = line;
-      } else {
-        throw std::string("Load failed!!");
-      }
-
-      m_queue.push(temp);
-    }
-
-    file.close();
-  }
-
-  inline std::string& GetResult()
-  {
-    return m_result;
-  }
-
-  inline std::string& GetError()
-  {
-    return m_error;
-  }
-};
-
-#endif //__MGMEXECUTETEST__HH__
+  ConsoleTableOutput test;
+  test.SetHeader({{"title1",  8}, {"title2", 8} });
+  std::string test_out = "#-----------------\n  title1  title2\n";
+  test_out += "#-----------------\n";
+  CPPUNIT_ASSERT(test.Str() ==  test_out);
+  test.AddRow("Value1",  3);
+  test_out +=  "  Value1\33[0m       3\33[0m\n";
+  CPPUNIT_ASSERT(test.Str() ==  test_out);
+  test.AddRow(0xAB,  "Value2");
+  test_out +=  "     171\33[0m  Value2\33[0m\n";
+  CPPUNIT_ASSERT(test.Str() ==  test_out);
+  test.CustomRow(std::make_pair("Test test 1, 2, 3",  20));
+  test_out +=  "   Test test 1, 2, 3\33[0m\n";
+  CPPUNIT_ASSERT(test.Str() ==  test_out);
+  test.AddRow(
+    test.Colorify(ConsoleTableOutput::RED,   "test_red"),
+    45
+  );
+  test_out +=  "\33[31mtest_red\33[0m      45\33[0m\n";
+  CPPUNIT_ASSERT(test.Str() ==  test_out);
+  CPPUNIT_ASSERT_THROW(test.AddRow(1, 2, 3),  std::string);
+}

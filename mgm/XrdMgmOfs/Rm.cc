@@ -186,7 +186,9 @@ XrdMgmOfs::_rem(const char* path,
       if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
         errno = EPERM;
         gOFS->eosViewRWMutex.UnLockWrite();
-        return Emsg(epname, error, errno, "remove file", path);
+        std::ostringstream oss;
+        oss << path << " by tident=" << vid.tident;
+        return Emsg(epname, error, errno, "remove file", oss.str().c_str());
       }
 
       // check if this directory is write-once for the mapped user

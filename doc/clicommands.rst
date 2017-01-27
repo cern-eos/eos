@@ -8,6 +8,7 @@ Client Commands
 
   clicommands/motd
   clicommands/acl
+  clicommands/health
   clicommands/help
   clicommands/vid
   clicommands/chmod

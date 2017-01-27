@@ -32,17 +32,18 @@ void AclCommandTest::TestSyntaxCommand(std::string command, bool outcome)
   CPPUNIT_ASSERT(result == outcome);
 }
 
+
 void AclCommandTest::TestSyntax()
 {
   // Basic test functionality
-  this->TestSyntaxCommand("--sys rule path", true);
-  this->TestSyntaxCommand("--user rule path", true);
-  this->TestSyntaxCommand("-l path", true);
-  this->TestSyntaxCommand("-lR path", true);
-  this->TestSyntaxCommand("rule path", true);
-  this->TestSyntaxCommand("-R --recursive rule path", true);
-  this->TestSyntaxCommand("-FD --recursive rule path", false);
-  this->TestSyntaxCommand("-Rgg --recursive rule path", false);
+  TestSyntaxCommand("--sys rule path", true);
+  TestSyntaxCommand("--user rule path", true);
+  TestSyntaxCommand("-l path", true);
+  TestSyntaxCommand("-lR path", true);
+  TestSyntaxCommand("rule path", true);
+  TestSyntaxCommand("-R --recursive rule path", true);
+  TestSyntaxCommand("-FD --recursive rule path", false);
+  TestSyntaxCommand("-Rgg --recursive rule path", false);
 }
 
 void AclCommandTest::TestCheckId()
@@ -95,7 +96,7 @@ void AclCommandTest::TestFunctionality()
 {
   ReqRes temp;
   AclCommand test{""};
-  // Forbid cout use
+  // Forbid cout use.
   std::cout.setstate(std::ios_base::failbit);
   // Single listing
   {
@@ -174,8 +175,8 @@ void AclCommandTest::TestFunctionality()
   {
     test = AclCommand{"u:user1:+wr+d!d!u-r test"};
     temp.first = std::string("mgm.cmd=whoami");
-    temp.second =
-      "Virtual Identity: uid=0 (2,99,3,0) gid=0 (99,4,0) [authz:sss] sudo* host=localhost";
+    temp.second = "Virtual Identity: uid=0 (2,99,3,0) gid=0 (99,4,0) "
+                  "[authz:sss] sudo* host=localhost";
     test.m_mgm_execute.m_queue.push(temp);
     temp.first = std::string("mgm.cmd=attr&mgm.subcmd=ls&mgm.path=/test");
     temp.second = std::string(
@@ -187,9 +188,8 @@ void AclCommandTest::TestFunctionality()
                     "sys.forced.space=\"default\"\n"
                   );
     test.m_mgm_execute.m_queue.push(temp);
-    temp.first =
-      std::string("mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=sys.acl&"
-                  "mgm.attr.value=u:user1:w!d+d!u&mgm.path=/test");
+    temp.first = std::string("mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=sys.acl&"
+                             "mgm.attr.value=u:user1:w!d+d!u&mgm.path=/test");
     temp.second =
       "success: set attribute sys.acl=\"u:user1:w!d+d!u\" in file/directory /test";
     test.m_mgm_execute.m_queue.push(temp);
@@ -200,8 +200,8 @@ void AclCommandTest::TestFunctionality()
   {
     test = AclCommand{"-R g:group1=rw!uc-r++d test"};
     temp.first = std::string("mgm.cmd=whoami");
-    temp.second =
-      "Virtual Identity: uid=0 (2,99,3,0) gid=0 (99,4,0) [authz:sss] sudo* host=localhost";
+    temp.second = "Virtual Identity: uid=0 (2,99,3,0) gid=0 (99,4,0) "
+                  "[authz:sss] sudo* host=localhost";
     test.m_mgm_execute.m_queue.push(temp);
     temp.first = std::string("mgm.cmd=find&mgm.path=/test&mgm.option=d");
     temp.second = std::string(
@@ -231,8 +231,9 @@ void AclCommandTest::TestFunctionality()
     temp.first = std::string("mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=sys.acl&"
                              "mgm.attr.value=g:group1:w+d!uc,u:user1:w!d+d!u&"
                              "mgm.path=/test/");
-    temp.second = "success: set attribute sys.acl=\"g:group1:w+d!uc,"
-                  "u:user1:w!d+d!u\" in file/directory /test";
+    temp.second =
+      "success: set attribute sys.acl=\"g:group1:w+d!uc,u:user1:w!d+d!u\""
+      " in file/directory /test";
     test.m_mgm_execute.m_queue.push(temp);
     temp.first = std::string("mgm.cmd=attr&mgm.subcmd=ls&mgm.path=/test/abc/");
     temp.second = "";

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file MgmExecuteTest.hh
+//! @file HealthCommandTest.hh
 //! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 
@@ -21,87 +21,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __MGMEXECUTETEST__HH__
-#define __MGMEXECUTETEST__HH__
+#ifndef __HEALTHCOMMANDTEST__HH__
+#define __HEALTHCOMMANDTEST__HH__
 
-#include <iostream>
-#include <fstream>
+#include <cppunit/extensions/HelperMacros.h>
+#include <cstdio>
 #include <string>
-#include <queue>
-#include <utility>
+#include <vector>
+#include <unordered_map>
+#include "HealthMockData.hh"
+#include "../commands/HealthCommand.hh"
+#include "MgmExecuteTest.hh"
 
-using ReqRes = std::pair<std::string, std::string>;
-using QueueComm = std::queue<ReqRes>;
+using FSInfoVec     = std::vector<FSInfo>;
+using GroupsInfo    = std::unordered_map<std::string, FSInfoVec>;
+using TestOutputs   = std::unordered_map<std::string,  std::string>;
 
-class MgmExecute
+class HealthCommandTest : public CppUnit::TestCase
 {
+  CPPUNIT_TEST_SUITE(HealthCommandTest);
+  CPPUNIT_TEST(DeadNodesTest);
+  CPPUNIT_TEST(TooFullDrainTest);
+  CPPUNIT_TEST(PlacementTest);
+  CPPUNIT_TEST(ParseCommandTest);
+  CPPUNIT_TEST_SUITE_END();
+
+  void DumpStringData(const std::string& path,  const std::string& data);
+  void GroupEqualityTest(HealthCommand& health, std::string type);
+
+  HealthMockData m_mock_data;
+
 public:
-  std::string m_result;
-  std::string m_error;
-  bool test_failed;
-  QueueComm m_queue;
+  void setUp();
+  void tearDown();
 
-  MgmExecute() : test_failed(false) {}
+  void DeadNodesTest();
+  void TooFullDrainTest();
+  void PlacementTest();
+  void ParseCommandTest();
+  void GetGroupsInfoTest();
 
-  bool ExecuteCommand(const char* command)
-  {
-    std::string comm = std::string(command);
-
-    if (m_queue.front().first == comm) {
-      m_result = m_queue.front().second;
-    } else {
-      test_failed = true;
-    }
-
-    m_queue.pop();
-    return true;
-  }
-
-  bool ExecuteAdminCommand(const char* command)
-  {
-    std::string comm = std::string(command);
-
-    if (m_queue.front().first == comm) {
-      m_result = m_queue.front().second;
-    } else {
-      test_failed = true;
-    }
-
-    m_queue.pop();
-    return true;
-  }
-
-  void LoadResponsesFromFile(const std::string& path)
-  {
-    std::ifstream file;
-    file.open(path);
-    std::string line;
-    ReqRes temp;
-
-    while (std::getline(file, line,  '#')) {
-      temp.first = line;
-
-      if (std::getline(file, line,  '#')) {
-        temp.second = line;
-      } else {
-        throw std::string("Load failed!!");
-      }
-
-      m_queue.push(temp);
-    }
-
-    file.close();
-  }
-
-  inline std::string& GetResult()
-  {
-    return m_result;
-  }
-
-  inline std::string& GetError()
-  {
-    return m_error;
-  }
 };
 
-#endif //__MGMEXECUTETEST__HH__
+#endif //__HEALTHCOMMANDTEST__HH__

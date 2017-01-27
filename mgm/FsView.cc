@@ -3696,37 +3696,46 @@ BaseView::Print(std::string& out, std::string headerformat,
           }
         }
 
-        if ((formattags["format"].find("o") != std::string::npos)) {
-          char keyval[4096];
-          buildheader = false; // auto disable header
+	if ((formattags["format"].find("o") != std::string::npos)) {
+	  char keyval[4096];
+	  buildheader = false; // auto disable header
+	  XrdOucString noblankline=line;
+	  {
+	    // replace all inner blanks with %20
+	    std::string snoblankline=line;
+	    size_t pos = snoblankline.find_last_not_of(" ");
+	    if (noblankline.length()>1) {
+	      while (noblankline.replace(" ", "%20", 0, (pos==std::string::npos)?-1:pos)) {}
+	    }
+	  }
 
-          if (formattags.count("member")) {
-            snprintf(keyval, sizeof(keyval) - 1, "%s=%s", formattags["member"].c_str(),
-                     line);
-          }
+	  if (formattags.count("member")) {
+	    snprintf(keyval, sizeof(keyval) - 1, "%s=%s", formattags["member"].c_str(),
+		     noblankline.c_str());
+	  }
 
-          if (formattags.count("sum")) {
-            snprintf(keyval, sizeof(keyval) - 1, "sum.%s=%s", formattags["sum"].c_str(),
-                     line);
-          }
+	  if (formattags.count("sum")) {
+	    snprintf(keyval, sizeof(keyval) - 1, "sum.%s=%s", formattags["sum"].c_str(),
+		     noblankline.c_str());
+	  }
 
-          if (formattags.count("avg")) {
-            snprintf(keyval, sizeof(keyval) - 1, "avg.%s=%s", formattags["avg"].c_str(),
-                     line);
-          }
+	  if (formattags.count("avg")) {
+	    snprintf(keyval, sizeof(keyval) - 1, "avg.%s=%s", formattags["avg"].c_str(),
+		     noblankline.c_str());
+	  }
 
-          if (formattags.count("sig")) {
-            snprintf(keyval, sizeof(keyval) - 1, "sig.%s=%s", formattags["sig"].c_str(),
-                     line);
-          }
+	  if (formattags.count("sig")) {
+	    snprintf(keyval, sizeof(keyval) - 1, "sig.%s=%s", formattags["sig"].c_str(),
+		     noblankline.c_str());
+	  }
 
-          if (formattags.count("maxdev")) {
-            snprintf(keyval, sizeof(keyval) - 1, "dev.%s=%s", formattags["maxdev"].c_str(),
-                     line);
-          }
+	  if (formattags.count("maxdev")) {
+	    snprintf(keyval, sizeof(keyval) - 1, "dev.%s=%s", formattags["maxdev"].c_str(),
+		     noblankline.c_str());
+	  }
 
-          body += keyval;
-        } else {
+	  body += keyval;
+	} else {
           std::string sline = line;
 
           if (sline.length() > width) {

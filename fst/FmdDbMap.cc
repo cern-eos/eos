@@ -304,8 +304,10 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
 	    // we don't return the Fmd record
             if ((!isRW) &&
 		((fmd->fMd.disksize() &&
+		  (fmd->fMd.disksize() != 0xfffffffffff1ULL) &&
 		  (fmd->fMd.disksize() != fmd->fMd.size())) ||
-		 (fmd->fMd.mgmsize() && (fmd->fMd.mgmsize() != 0xfffffffffff1ULL) &&
+		 (fmd->fMd.mgmsize() &&
+		  (fmd->fMd.mgmsize() != 0xfffffffffff1ULL) &&
 		  (fmd->fMd.mgmsize() != fmd->fMd.size())))) {
               eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx "
 		       "fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
@@ -746,7 +748,7 @@ FmdDbMapHandler::ResyncDisk(const char* path,
     std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(
                                            path));
 
-    if (!io) {
+    if (io.get()) {
       struct stat buf;
 
       if ((!io->fileStat(&buf)) && S_ISREG(buf.st_mode)) {

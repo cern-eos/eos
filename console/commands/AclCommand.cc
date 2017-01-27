@@ -28,37 +28,6 @@
 #include <unistd.h>
 #include <getopt.h>
 
-#ifndef BUILD_TESTS
-//------------------------------------------------------------------------------
-// Execute command
-//------------------------------------------------------------------------------
-bool MgmExecute::ExecuteCommand(const char* command)
-{
-  XrdOucString command_xrd = XrdOucString(command);
-  XrdOucEnv* response = client_user_command(command_xrd);
-  rstdout = response->Get("mgm.proc.stdout");
-  rstderr = response->Get("mgm.proc.stderr");
-
-  if (rstderr.length() != 0) {
-    m_error = std::string(rstderr.c_str());
-    delete response;
-    return false;
-  }
-
-  m_result = std::string("");
-
-  if (rstdout.length() > 0) {
-    m_result = std::string(rstdout.c_str());
-  }
-
-  delete response;
-  return true;
-}
-#endif
-
-//------------------------------------------------------------------------------
-// Converting ACL bitmask to string representation
-//------------------------------------------------------------------------------
 std::string AclCommand::AclShortToString(unsigned short int in)
 {
   std::string ret = "";
@@ -110,10 +79,6 @@ std::string AclCommand::AclShortToString(unsigned short int in)
   return ret;
 }
 
-//------------------------------------------------------------------------------
-// Getting whole rule from string. Intended for extracting rules from acl
-// string which MGM sent.
-//------------------------------------------------------------------------------
 Rule AclCommand::AclRuleFromString(const std::string& single_acl)
 {
   Rule ret;
@@ -149,7 +114,7 @@ Rule AclCommand::AclRuleFromString(const std::string& single_acl)
       break;
 
     case '+' :
-      // There are only two + flags in current acl permissions +d and +u
+      // There is only two + flags in current acl permissions +d and +u
       i++;
 
       if (single_acl.at(i) == 'd') {
@@ -183,9 +148,6 @@ Rule AclCommand::AclRuleFromString(const std::string& single_acl)
   return ret;
 }
 
-//------------------------------------------------------------------------------
-// Reading acl strings for given path from MGM
-//------------------------------------------------------------------------------
 bool AclCommand::GetAclStringsForPath(const std::string& path)
 {
   std::string command = std::string("mgm.cmd=attr&mgm.subcmd=ls&mgm.path=") +
@@ -202,11 +164,9 @@ bool AclCommand::GetAclStringsForPath(const std::string& path)
   return true;
 }
 
-//------------------------------------------------------------------------------
-// Universal method for setting given acl string from mgm format
-//------------------------------------------------------------------------------
 void AclCommand::SetAclString(const std::string& result,
-                              std::string& which, const char* type)
+                              std::string& which,
+                              const char* type)
 {
   which = "";
   size_t pos_begin = result.find(type);
@@ -218,9 +178,6 @@ void AclCommand::SetAclString(const std::string& result,
   }
 }
 
-//------------------------------------------------------------------------------
-// Generating rule map based on acl string
-//------------------------------------------------------------------------------
 void AclCommand::GenerateRuleMap(const std::string& acl_string, RuleMap& map)
 {
   size_t curr_pos = 0, pos = 0;
@@ -240,8 +197,8 @@ void AclCommand::GenerateRuleMap(const std::string& acl_string, RuleMap& map)
       pos = acl_string.length();
     }
 
-    std::string single_acl = std::string(acl_string.begin() + curr_pos,
-                                         acl_string.begin() + pos);
+    std::string single_acl =
+      std::string(acl_string.begin() + curr_pos, acl_string.begin() + pos);
     Rule temp = AclRuleFromString(single_acl);
     m_rules[temp.first] = temp.second;
     curr_pos = pos + 1;
@@ -252,9 +209,6 @@ void AclCommand::GenerateRuleMap(const std::string& acl_string, RuleMap& map)
   }
 }
 
-//------------------------------------------------------------------------------
-// Checking if id is in correct format
-//------------------------------------------------------------------------------
 bool AclCommand::CheckCorrectId(const std::string& id)
 {
   std::string allowed_chars =
@@ -272,22 +226,15 @@ bool AclCommand::CheckCorrectId(const std::string& id)
   return false;
 }
 
-//------------------------------------------------------------------------------
-// Converting ACL string rule to bitmask
-//------------------------------------------------------------------------------
 bool AclCommand::GetRuleInt(const std::string& rule, bool set)
 {
   unsigned short int ret = 0, add_ret = 0, rm_ret = 0;
   bool lambda_happen = false;
-  auto add_lambda = [&add_ret, &ret](AclCommand::ACLPos pos) {
-    add_ret = add_ret | pos;
-    ret = ret | pos;
-  };
-  auto remove_lambda = [&rm_ret, &ret](AclCommand::ACLPos pos) {
-    rm_ret = rm_ret | pos;
-    ret = ret & (~pos);
-  };
-  std::function<void(AclCommand::ACLPos)>curr_lambda = add_lambda;
+  std::shared_ptr<RuleParseActionBase>
+  add_lambda(new RuleParseActionAdd(add_ret, ret));
+  std::shared_ptr<RuleParseActionBase>
+  remove_lambda(new RuleParseActionRm(rm_ret, ret));
+  std::shared_ptr<RuleParseActionBase> curr_lambda = add_lambda;
 
   for (auto flag = rule.begin(); flag != rule.end(); ++flag) {
     // Check for add/rm rules
@@ -319,32 +266,32 @@ bool AclCommand::GetRuleInt(const std::string& rule, bool set)
 
     // Check for flags
     if (*flag == 'r') {
-      curr_lambda(AclCommand::R);
+      (*curr_lambda)(AclCommand::R);
       continue;
     }
 
     if (*flag == 'w') {
-      curr_lambda(AclCommand::W);
+      (*curr_lambda)(AclCommand::W);
       continue;
     }
 
     if (*flag == 'x') {
-      curr_lambda(AclCommand::X);
+      (*curr_lambda)(AclCommand::X);
       continue;
     }
 
     if (*flag == 'm') {
-      curr_lambda(AclCommand::M);
+      (*curr_lambda)(AclCommand::M);
       continue;
     }
 
     if (*flag == 'q') {
-      curr_lambda(AclCommand::Q);
+      (*curr_lambda)(AclCommand::Q);
       continue;
     }
 
     if (*flag == 'c') {
-      curr_lambda(AclCommand::C);
+      (*curr_lambda)(AclCommand::C);
       continue;
     }
 
@@ -356,17 +303,17 @@ bool AclCommand::GetRuleInt(const std::string& rule, bool set)
       }
 
       if (*flag == 'd') {
-        curr_lambda(AclCommand::nD);
+        (*curr_lambda)(AclCommand::nD);
         continue;
       }
 
       if (*flag == 'u') {
-        curr_lambda(AclCommand::nU);
+        (*curr_lambda)(AclCommand::nU);
         continue;
       }
 
       if (*flag == 'm') {
-        curr_lambda(AclCommand::nM);
+        (*curr_lambda)(AclCommand::nM);
         continue;
       }
 
@@ -377,12 +324,12 @@ bool AclCommand::GetRuleInt(const std::string& rule, bool set)
       ++flag;
 
       if (*flag == 'd') {
-        curr_lambda(AclCommand::pD);
+        (*curr_lambda)(AclCommand::pD);
         continue;
       }
 
       if (*flag == 'u') {
-        curr_lambda(AclCommand::pU);
+        (*curr_lambda)(AclCommand::pU);
         continue;
       }
     }
@@ -391,8 +338,8 @@ bool AclCommand::GetRuleInt(const std::string& rule, bool set)
   }
 
   // Ret is representing mask for flags which are goint to be added or removed
-  // As if we need to remove flags that flags will be set to 1 in rm_ret and
-  // set to 0 in ret and vice versa for adding flags.
+  // As if we need to remove flags that flags will be setted to 1 in rm_ret and
+  // setted to 0 in ret and vice versa for adding flags.
   m_add_rule = add_ret == 0 ? 0 : ret & add_ret;
   m_rm_rule  = rm_ret == 0 ? 0 : ~ret & rm_ret;
   return true;
@@ -401,9 +348,6 @@ error_label:
   return false;
 }
 
-//------------------------------------------------------------------------------
-// Applying current rule (which user give in command) to current rules loaded
-//------------------------------------------------------------------------------
 void AclCommand::ApplyRule()
 {
   unsigned short temp_rule = 0;
@@ -423,30 +367,23 @@ void AclCommand::ApplyRule()
   m_rules[m_id] = temp_rule;
 }
 
-//------------------------------------------------------------------------------
-// Converting map with rules to string for storing within MGM
-//------------------------------------------------------------------------------
 std::string AclCommand::MapToAclString()
 {
   std::string ret = "";
 
-  for (auto item : m_rules) {
-    if (item.second != 0) {
-      ret += item.first + ":" + AclShortToString(item.second) + ",";
+  for (auto item = m_rules.begin(); item != m_rules.end(); item++)
+    if ((*item).second != 0) {
+      ret += (*item).first + ":" + AclShortToString((*item).second) + ",";
     }
-  }
 
   // Removing last ','
   if (ret != "") {
-    ret.pop_back();
+    ret = ret.substr(0,  ret.size() - 1);
   }
 
   return ret;
 }
 
-//------------------------------------------------------------------------------
-// Parsing command line rule
-//------------------------------------------------------------------------------
 bool AclCommand::ParseRule(const std::string& input)
 {
   size_t pos_del_first, pos_del_last, pos_equal;
@@ -454,46 +391,28 @@ bool AclCommand::ParseRule(const std::string& input)
   pos_del_last  = input.rfind(":");
   pos_equal     = input.find("=");
   std::string id, rule;
-  // Lambda for checking id
-  auto id_lambda = [&id, &input, this](size_t pos) -> bool {
-    id = std::string(input.begin(), input.begin() + pos);
 
-    if (!CheckCorrectId(id))
-    {
+  if (pos_del_first == pos_del_last && pos_equal != std::string::npos) {
+    // u:id=rw+x
+    m_set = true;
+    // Check if id and rule are correct
+    id = std::string(input.begin(), input.begin() + pos_equal);
+
+    if (!CheckCorrectId(id)) {
       m_error_message = "Rule: Incorrect format of id!";
       return false;
     }
 
     m_id = id;
-    return true;
-  };
-  // Lambda for checking rule
-  auto rule_lambda =
-  [&rule, &input, this](size_t pos, bool set_l) -> bool {
-    rule = std::string(input.begin() + pos, input.end());
+    rule = std::string(input.begin() + pos_equal + 1, input.end());
 
-    if (!GetRuleInt(rule, set_l))
-    {
+    if (!GetRuleInt(rule, true)) {
       m_error_message = "Rule: Rule is not in correct format!";
       return false;
     }
 
-    return true;
-  };
-
-  if (pos_del_first == pos_del_last && pos_equal != std::string::npos) {
-    // u:id=rw+x
-    m_set = true;
-
-    // Check if id and rule are correct
-    if (!id_lambda(pos_equal)) {
-      return false;
-    }
-
-    if (!rule_lambda(pos_equal + 1, true)) {
-      return false;
-    }
-
+    // if( !id_lambda(pos_equal))             return false;
+    // if( !rule_lambda(pos_equal + 1, true)) return false;
     return true;
   } else {
     if (pos_del_first != pos_del_last &&
@@ -501,17 +420,25 @@ bool AclCommand::ParseRule(const std::string& input)
         pos_del_last  != std::string::npos
        ) {
       m_set = false;
-
       // u:id:+rwx
       // Check if id and rule are correct
-      if (!id_lambda(pos_del_last)) {
+      id = std::string(input.begin(), input.begin() + pos_del_last);
+
+      if (!CheckCorrectId(id)) {
+        m_error_message = "Rule: Incorrect format of id!";
         return false;
       }
 
-      if (!rule_lambda(pos_del_last + 1, false)) {
+      m_id = id;
+      rule = std::string(input.begin() + pos_del_last + 1, input.end());
+
+      if (!GetRuleInt(rule, false)) {
+        m_error_message = "Rule: Rule is not in correct format!";
         return false;
       }
 
+      //if(!id_lambda(pos_del_last))            return false;
+      //if(!rule_lambda(pos_del_last+1, false)) return false;
       return true;
     } else {
       // Error
@@ -521,9 +448,6 @@ bool AclCommand::ParseRule(const std::string& input)
   }
 }
 
-//------------------------------------------------------------------------------
-// Applying changes to MGM
-//------------------------------------------------------------------------------
 bool AclCommand::MgmSet(const std::string& path)
 {
   std::string command;
@@ -551,9 +475,6 @@ bool AclCommand::MgmSet(const std::string& path)
   return true;
 }
 
-//------------------------------------------------------------------------------
-// Determining Acl type flags if there is no flag risen for acl type
-//------------------------------------------------------------------------------
 bool AclCommand::SetDefaultAclRoleFlag()
 {
   if (m_sys_acl && m_usr_acl) {
@@ -596,21 +517,11 @@ bool AclCommand::SetDefaultAclRoleFlag()
   return true;
 }
 
-//------------------------------------------------------------------------------
-// Process command
-//------------------------------------------------------------------------------
+// Check!
 bool AclCommand::ProcessCommand()
 {
   std::string token;
   const char* temp;
-  auto trim_lambda = [&token]() {
-    auto it1 =  std::find_if(token.rbegin(), token.rend(),
-    [](char ch) {
-      return !std::isspace<char>(ch , std::locale::classic());
-    }
-                            );
-    token.erase(it1.base() , token.end());
-  };
   eos::common::StringTokenizer m_subtokenizer(m_comm);
   m_subtokenizer.GetLine();
 
@@ -618,7 +529,8 @@ bool AclCommand::ProcessCommand()
   while ((temp = m_subtokenizer.GetToken()) != 0) {
     //trimming
     token = std::string(temp);
-    trim_lambda();
+    token.erase(std::find_if(token.rbegin(), token.rend(),
+                             std::not1(std::ptr_fun<int, int> (std::isspace))).base(), token.end());
 
     if (token == "") {
       continue;
@@ -633,7 +545,7 @@ bool AclCommand::ProcessCommand()
       continue;
     }
 
-    if (token == "-R") {
+    if (token == "-R")          {
       m_recursive = true;
       continue;
     }
@@ -643,7 +555,7 @@ bool AclCommand::ProcessCommand()
       continue;
     }
 
-    if (token == "-l") {
+    if (token == "-l")      {
       m_list = true;
       continue;
     }
@@ -653,7 +565,7 @@ bool AclCommand::ProcessCommand()
       continue;
     }
 
-    if (token == "--sys") {
+    if (token == "--sys")  {
       m_sys_acl = true;
       continue;
     }
@@ -675,12 +587,8 @@ bool AclCommand::ProcessCommand()
 
         if ((temp = m_subtokenizer.GetToken()) != 0) {
           token = std::string(temp);
-          trim_lambda();
-
-          if (token == "") {
-            return false;
-          }
-
+          token.erase(std::find_if(token.rbegin(), token.rend(),
+                                   std::not1(std::ptr_fun<int, int> (std::isspace))).base(), token.end());
           m_path = std::string(token);
         } else {
           return false;
@@ -694,10 +602,7 @@ bool AclCommand::ProcessCommand()
   return true;
 }
 
-//------------------------------------------------------------------------------
-// Recursive call for all directories in subtree from given directory
-//------------------------------------------------------------------------------
-void AclCommand::RecursiveCall(std::function<bool(std::string&)>& action)
+void AclCommand::RecursiveCall(bool apply)
 {
   std::string prefix_command = "mgm.cmd=find&mgm.path=";
   std::string postfix_command = "&mgm.option=d";
@@ -708,7 +613,7 @@ void AclCommand::RecursiveCall(std::function<bool(std::string&)>& action)
     return;
   }
 
-  // Get path and add it to stack
+  // get paths and add it into stack
   std::string path;
   std::string result = m_mgm_execute.GetResult();
   std::stringstream stream {result};
@@ -721,69 +626,18 @@ void AclCommand::RecursiveCall(std::function<bool(std::string&)>& action)
     }
 
     // execute command
-    action(path);
+    Action(apply, path);
   }
 }
 
-//------------------------------------------------------------------------------
-// Print help
-//------------------------------------------------------------------------------
-void AclCommand::PrintHelp()
+bool AclCommand::Action(bool apply , const std::string& path)
 {
-  std::cerr << "Usage: eos acl [-l|--list] [-R|--recursive]";
-  std::cerr << "[--sys|--user] <rule> <path>" << std::endl;
-  std::cerr << std::endl;
-  std::cerr << "-h | --help          Print help" << std::endl;
-  std::cerr << "-R, --recursive      Apply on directories recursively" <<
-            std::endl;
-  std::cerr << "-l, --lists          List ACL rules" << std::endl;
-  std::cerr << "    --user           Set usr.acl rules on directory" << std::endl;
-  std::cerr << "    --sys            Set sys.acl rules on directory" << std::endl;
-  std::cerr << "<rule> is created based on chmod rules. " << std::endl;
-  std::cerr << "Every rule begins with [u|g|egroup] followed by : and identifier."
-            <<  std::endl;
-  std::cerr <<  std::endl;
-  std::cerr << "Afterwards can be:" << std::endl;
-  std::cerr << "= for setting new permission" << std::endl;
-  std::cerr << ": for modification of existing permission" << std::endl;
-  std::cerr << std::endl;
-  std::cerr << "This is followed by rule definition." << std::endl;
-  std::cerr << "Every ACL flag can be added with + or removed with -, or in case"
-            << std::endl;
-  std::cerr << "of setting new ACL permission just entered ACL flag." <<
-            std::endl;
-}
-
-//------------------------------------------------------------------------------
-// Executing command
-//------------------------------------------------------------------------------
-void AclCommand::Execute()
-{
-  auto list_lambda = [this](std::string & path) -> bool {
-    if (!GetAclStringsForPath(path))
-    {
+  if (apply) {
+    if (!GetAclStringsForPath(path)) {
       return false;
     }
 
-    std::cout << path << '\t';
-
-    if (m_usr_acl)
-    {
-      std::cout << "usr: " << m_usr_acl_string << std::endl;
-    } else {
-      std::cout << "sys: " << m_sys_acl_string << std::endl;
-    }
-
-    return true;
-  };
-  auto apply_lambda = [this](std::string & path) -> bool {
-    if (!GetAclStringsForPath(path))
-    {
-      return false;
-    }
-
-    if (m_sys_acl)
-    {
+    if (m_sys_acl) {
       GenerateRuleMap(m_sys_acl_string, m_rules);
     } else {
       GenerateRuleMap(m_usr_acl_string, m_rules);
@@ -791,8 +645,54 @@ void AclCommand::Execute()
 
     ApplyRule();
     return MgmSet(path);
-  };
-  std::function<bool(std::string&)> choice;
+  } else {
+    if (!GetAclStringsForPath(path)) {
+      return false;
+    }
+
+    std::cout << path << '\t';
+
+    if (m_usr_acl) {
+      std::cout << "usr: " << m_usr_acl_string << std::endl;
+    } else {
+      std::cout << "sys: " << m_sys_acl_string << std::endl;
+    }
+
+    return true;
+  }
+}
+
+
+void AclCommand::PrintHelp()
+{
+  std::cerr << "Usage: eos acl [-l|--list] [-R|--recursive]";
+  std::cerr << "[--sys|--user] <rule> <path>" << std::endl;
+  std::cerr << std::endl;
+  std::cerr << "    --help           Print help" << std::endl;
+  std::cerr << "-R, --recursive      Apply on directories recursively" <<
+            std::endl;
+  std::cerr << "-l, --lists          List ACL rules" << std::endl;
+  std::cerr << "    --user           Set usr.acl rules on directory" << std::endl;
+  std::cerr << "    --sys            Set sys.acl rules on directory" << std::endl;
+  std::cerr << "<rule> is created based on chmod rules. " << std::endl;
+  std::cerr <<
+            "Every rule begins with [u|g|egroup] followed with : and identifier." <<
+            std::endl;
+  std::cerr <<  std::endl;
+  std::cerr << "Afterwards can be:" << std::endl;
+  std::cerr << "= for setting new permission ." << std::endl;
+  std::cerr << ": for modification of existing permission." << std::endl;
+  std::cerr << std::endl;
+  std::cerr << "This is followed with rule definition." << std::endl;
+  std::cerr << "Every ACL flag can be added with + or removed with -, or in case"
+            << std::endl;
+  std::cerr << "of setting new ACL permission just entered ACL flag." <<
+            std::endl;
+}
+
+void AclCommand::Execute()
+{
+  bool choice;
   m_error_message = "";
 
   // Initial processing of command
@@ -812,32 +712,21 @@ void AclCommand::Execute()
     goto error_handling;
   }
 
-  // List acls
-  if (m_list) {
-    choice = list_lambda;
-  } else {
-    choice = apply_lambda;
-  }
+  choice = m_list ? false : true;
 
   if (m_recursive) {
     RecursiveCall(choice);
   } else {
-    if (!choice(m_path)) {
+    if (!Action(choice, m_path)) {
       goto error_handling;
     }
   }
 
+  std::cout << "Success!" << std::endl;
   return;
 error_handling:
-
-  if (!m_error_message.empty()) {
-    std::cout << m_error_message << std::endl;
-  }
-
-  if (!m_mgm_execute.GetError().empty()) {
-    std::cout << m_mgm_execute.GetError() << std::endl << std::endl;
-  }
-
+  std::cout << m_error_message << std::endl;
+  std::cout << m_mgm_execute.GetError() << std::endl << std::endl;
   PrintHelp();
   return;
 }

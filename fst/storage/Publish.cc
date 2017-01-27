@@ -282,17 +282,23 @@ Storage::Publish()
 
           // copy out net info 
           {
+            // File system implementation may override standard implementation
             std::map<std::string, std::string> health;
-          //          eos_static_debug("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
-            // file system implementation may override standard implementation.
+
             if (!fileSystemsVector[i]->getHealth(health)) {
               health = fstHealth.getDiskHealth(fileSystemsVector[i]->GetPath().c_str());
             }
-            success &= fileSystemsVector[i]->SetString("stat.health", health["summary"].c_str());
-            success &= fileSystemsVector[i]->SetLongLong("stat.health.indicator", strtoll(health["indicator"].c_str(), 0, 10));
-            success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_total", strtoll(health["drives_total"].c_str(), 0, 10));
-            success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_failed", strtoll(health["drives_failed"].c_str(), 0, 10));
-            success &= fileSystemsVector[i]->SetLongLong("stat.health.redundancy_factor",  strtoll(health["redundancy_factor"].c_str(), 0, 10));
+
+            success &= fileSystemsVector[i]->SetString("stat.health",
+			 (health.count("summary") ? health["summary"].c_str() : "N/A"));
+            success &= fileSystemsVector[i]->SetLongLong("stat.health.indicator",
+			 strtoll(health["indicator"].c_str(), 0, 10));
+            success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_total",
+			 strtoll(health["drives_total"].c_str(), 0, 10));
+            success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_failed",
+			 strtoll(health["drives_failed"].c_str(), 0, 10));
+            success &= fileSystemsVector[i]->SetLongLong("stat.health.redundancy_factor",
+			 strtoll(health["redundancy_factor"].c_str(), 0, 10));
           }
 
 	  long long r_open = 0;
