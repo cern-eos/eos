@@ -31,7 +31,7 @@ static qclient::AsyncHandler sAh;
 
 EOSNSNAMESPACE_BEGIN
 
-std::uint64_t ConvertContainerMDSvc::sNumContBuckets = 128 * 1024 - 1;
+std::uint64_t ConvertContainerMDSvc::sNumContBuckets = 128 * 1024;
 std::uint64_t ConvertFileMDSvc::sNumFileBuckets = 1024 * 1024;
 
 //------------------------------------------------------------------------------
