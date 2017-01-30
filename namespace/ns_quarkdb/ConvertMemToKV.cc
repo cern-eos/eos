@@ -83,6 +83,8 @@ ConvertContainerMD::addContainer(eos::IContainerMD* container)
 void
 ConvertContainerMD::addFile(eos::IFileMD* file)
 {
+  // TODO (esindril): add the file also to the pFiles map and do the operation
+  // asynchronously
   try {
     pFilesMap.hset(file->getName(), file->getId());
   } catch (std::runtime_error& qdb_err) {
@@ -97,9 +99,16 @@ ConvertContainerMD::addFile(eos::IFileMD* file)
 //         ************* ConvertContainerMDSvc Class ************
 //------------------------------------------------------------------------------
 
-//----------------------------------------------------------------------------
-//! Destructor
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+ConvertContainerMDSvc::ConvertContainerMDSvc():
+  ChangeLogContainerMDSvc(), mFirstFreeId(0)
+{}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 ConvertContainerMDSvc::~ConvertContainerMDSvc()
 {
   if (!mAh.Wait()) {
@@ -157,6 +166,10 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 
   // Add container to the KV store
   try {
+    if (getFirstFreeId() <= container->getId()) {
+      mFirstFreeId = container->getId() + 1;
+    }
+
     ++count;
     std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
     std::string sid = stringify(container->getId());
@@ -210,8 +223,24 @@ ConvertContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
 }
 
 //------------------------------------------------------------------------------
+// Get first free container id
+//------------------------------------------------------------------------------
+IContainerMD::id_t
+ConvertContainerMDSvc::getFirstFreeId()
+{
+  return mFirstFreeId;
+}
+
+//------------------------------------------------------------------------------
 //         ************* ConvertFileMDSvc Class ************
 //------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+ConvertFileMDSvc::ConvertFileMDSvc():
+  ChangeLogFileMDSvc(), mFirstFreeId(0)
+{}
 
 //------------------------------------------------------------------------------
 // Get file bucket
@@ -280,6 +309,11 @@ ConvertFileMDSvc::initialize()
       continue;
     }
 
+    // Update the first free id
+    if (getFirstFreeId() <= file->getId()) {
+      mFirstFreeId = file->getId() + 1;
+    }
+
     // Add file to the KV store
     try {
       std::string buffer(elem.second.buffer->getDataPtr(),
@@ -314,7 +348,7 @@ ConvertFileMDSvc::initialize()
       continue;
     } else {
       cont->addFile(file.get());
-      // Populate the FilsSystemView and QuotaView
+      // Populate the FileSystemView and QuotaView
       exportToFsView(file.get());
       exportToQuotaView(file.get());
     }
@@ -406,6 +440,15 @@ ConvertFileMDSvc::exportToQuotaView(IFileMD* file)
   mAh.Register(quota_map.hincrby_async(field, 1), quota_map.getClient());
 }
 
+//------------------------------------------------------------------------------
+// Get first free container id
+//------------------------------------------------------------------------------
+IFileMD::id_t
+ConvertFileMDSvc::getFirstFreeId()
+{
+  return mFirstFreeId;
+}
+
 EOSNSNAMESPACE_END
 
 //------------------------------------------------------------------------------
@@ -476,7 +519,14 @@ main(int argc, char* argv[])
   std::cout << "Initialize the file meta-data service" << std::endl;
   file_svc->setContMDService(cont_svc.get());
   file_svc->configure(config_file);
+  std::time_t file_start = std::time(nullptr);
   file_svc->initialize();
-  // TODO(esindril): save the first free file and container id in the meta_hmap
+  std::chrono::seconds file_duration {std::time(nullptr) - file_start};
+  std::cout << "File init: " << file_duration.count() << " seconds" <<
+            std::endl;
+  // Save the first free file and container id in the meta_hmap
+  qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
+  meta_map.hset(eos::constants::sFirstFreeFid, file_svc->getFirstFreeId() - 1);
+  meta_map.hset(eos::constants::sFirstFreeCid, cont_svc->getFirstFreeId() - 1);
   return 0;
 }

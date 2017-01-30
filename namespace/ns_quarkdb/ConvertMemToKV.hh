@@ -80,17 +80,26 @@ private:
 class ConvertContainerMDSvc : public eos::ChangeLogContainerMDSvc
 {
 public:
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  ConvertContainerMDSvc();
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ConvertContainerMDSvc();
+  virtual ~ConvertContainerMDSvc();
 
   //----------------------------------------------------------------------------
   //! Recreate the container in the KV store
   //----------------------------------------------------------------------------
   void recreateContainer(IdMap::iterator& it, ContainerList& orphans,
                          ContainerList& nameConflicts);
+
+  //----------------------------------------------------------------------------
+  //! Get first free container id
+  //----------------------------------------------------------------------------
+  IContainerMD::id_t getFirstFreeId();
 
 private:
   static std::uint64_t sNumContBuckets; ///< Numnber of buckets power of 2
@@ -112,6 +121,7 @@ private:
   void exportToQuotaView(IContainerMD* cont);
 
   qclient::AsyncHandler mAh; ///< Async handler
+  IContainerMD::id_t mFirstFreeId; ///< First free container id
 };
 
 
@@ -122,9 +132,24 @@ class ConvertFileMDSvc : public eos::ChangeLogFileMDSvc
 {
 public:
   //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  ConvertFileMDSvc();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~ConvertFileMDSvc() {};
+
+  //----------------------------------------------------------------------------
   //! Initizlize the file service
   //----------------------------------------------------------------------------
   virtual void initialize();
+
+  //----------------------------------------------------------------------------
+  //! Get first free file id
+  //----------------------------------------------------------------------------
+  IFileMD::id_t getFirstFreeId();
 
 private:
   static std::uint64_t sNumFileBuckets; ///< Numnber of buckets power of 2
@@ -153,6 +178,7 @@ private:
   void exportToQuotaView(IFileMD* file);
 
   qclient::AsyncHandler mAh; ///< Async handler
+  IFileMD::id_t mFirstFreeId; ///< First free file id
 };
 
 EOSNSNAMESPACE_END
