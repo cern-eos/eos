@@ -25,11 +25,13 @@
 #include "namespace/utils/StringConvertion.hh"
 
 // Static global variables
+static long long int sAsyncBatch = 128 * 256 - 1;
 static qclient::QClient* sQcl;
+static qclient::AsyncHandler sAh;
 
 EOSNSNAMESPACE_BEGIN
 
-std::uint64_t ConvertContainerMDSvc::sNumContBuckets = 128 * 1024;
+std::uint64_t ConvertContainerMDSvc::sNumContBuckets = 128 * 1024 - 1;
 std::uint64_t ConvertFileMDSvc::sNumFileBuckets = 1024 * 1024;
 
 //------------------------------------------------------------------------------
@@ -68,13 +70,16 @@ void
 ConvertContainerMD::addContainer(eos::IContainerMD* container)
 {
   try {
-    pDirsMap.hset(container->getName(), container->getId());
+    sAh.Register(pDirsMap.hset_async(container->getName(), container->getId()),
+                 pDirsMap.getClient());
   } catch (std::runtime_error& qdb_err) {
     MDException e(EINVAL);
     e.getMessage() << "Failed to add subcontainer #" << container->getId()
                    << " or KV-backend connection error";
     throw e;
   }
+
+  pSubContainers[container->getName()] = container->getId();
 }
 
 //------------------------------------------------------------------------------
@@ -83,16 +88,17 @@ ConvertContainerMD::addContainer(eos::IContainerMD* container)
 void
 ConvertContainerMD::addFile(eos::IFileMD* file)
 {
-  // TODO (esindril): add the file also to the pFiles map and do the operation
-  // asynchronously
   try {
-    pFilesMap.hset(file->getName(), file->getId());
+    sAh.Register(pFilesMap.hset_async(file->getName(), file->getId()),
+                 pFilesMap.getClient());
   } catch (std::runtime_error& qdb_err) {
     MDException e(EINVAL);
     e.getMessage() << "File #" << file->getId() << " already exists or"
                    << " KV-backend conntection error";
     throw e;
   }
+
+  pFiles[file->getName()] = file->getId();
 }
 
 //------------------------------------------------------------------------------
@@ -105,18 +111,6 @@ ConvertContainerMD::addFile(eos::IFileMD* file)
 ConvertContainerMDSvc::ConvertContainerMDSvc():
   ChangeLogContainerMDSvc(), mFirstFreeId(0)
 {}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-ConvertContainerMDSvc::~ConvertContainerMDSvc()
-{
-  if (!mAh.Wait()) {
-    std::cerr << __FUNCTION__ << " Got error response from the backend"
-              << std::endl;
-    exit(1);
-  }
-}
 
 //------------------------------------------------------------------------------
 // Convert the containers
@@ -174,10 +168,10 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
     std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
     std::string sid = stringify(container->getId());
     qclient::QHash bucket_map(*sQcl, getBucketKey(container->getId()));
-    mAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
+    sAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
 
-    if (count % 10000 == 0) {
-      if (!mAh.Wait()) {
+    if ((count & sAsyncBatch) == 0) {
+      if (!sAh.WaitForAtLeast(sAsyncBatch)) {
         std::cerr << __FUNCTION__ << " Got error response from the backend"
                   << std::endl;
         exit(1);
@@ -203,7 +197,7 @@ ConvertContainerMDSvc::exportToQuotaView(IContainerMD* cont)
 {
   if ((cont->getFlags() & QUOTA_NODE_FLAG) != 0) {
     qclient::QSet set_quotaids(*sQcl, quota::sSetQuotaIds);
-    mAh.Register(set_quotaids.sadd_async(cont->getId()), set_quotaids.getClient());
+    sAh.Register(set_quotaids.sadd_async(cont->getId()), set_quotaids.getClient());
   }
 }
 
@@ -272,7 +266,6 @@ ConvertFileMDSvc::initialize()
   }
 
   int logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
-  // Rescan the change log if needed
   pChangeLog->open(pChangeLogPath, logOpenFlags, FILE_LOG_MAGIC);
   pFollowStart = pChangeLog->getFirstOffset();
   FileMDScanner scanner(pIdMap, pSlaveMode);
@@ -286,8 +279,8 @@ ConvertFileMDSvc::initialize()
   for (auto && elem : pIdMap) {
     ++count;
 
-    if (count % 10000 == 0) {
-      if (!mAh.Wait()) {
+    if ((count & sAsyncBatch) == 0) {
+      if (!sAh.WaitForAtLeast(sAsyncBatch)) {
         std::cerr << __FUNCTION__ << " Got error response from the backend"
                   << std::endl;
         exit(1);
@@ -320,7 +313,7 @@ ConvertFileMDSvc::initialize()
                          elem.second.buffer->getSize());
       std::string sid = stringify(file->getId());
       qclient::QHash bucket_map(*sQcl, getBucketKey(file->getId()));
-      mAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
+      sAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
     } catch (std::runtime_error& qdb_err) {
       MDException e(ENOENT);
       e.getMessage() << "File #" << file->getId() << " failed to contact backend";
@@ -370,11 +363,11 @@ ConvertFileMDSvc::exportToFsView(IFileMD* file)
     key = fsview::sSetFsIds;
     val = stringify(elem);
     fs_set.setKey(key);
-    mAh.Register(fs_set.sadd_async(val), fs_set.getClient());
+    sAh.Register(fs_set.sadd_async(val), fs_set.getClient());
     // Add file to corresponding fs file set
     key = val + fsview::sFilesSuffix;
     fs_set.setKey(key);
-    mAh.Register(fs_set.sadd_async(stringify(file->getId())), fs_set.getClient());
+    sAh.Register(fs_set.sadd_async(stringify(file->getId())), fs_set.getClient());
   }
 
   IFileMD::LocationVector unlink_vect = file->getUnlinkedLocations();
@@ -382,13 +375,13 @@ ConvertFileMDSvc::exportToFsView(IFileMD* file)
   for (const auto& elem : unlink_vect) {
     key = stringify(elem) + fsview::sUnlinkedSuffix;
     fs_set.setKey(key);
-    mAh.Register(fs_set.sadd_async(stringify(file->getId())), fs_set.getClient());
+    sAh.Register(fs_set.sadd_async(stringify(file->getId())), fs_set.getClient());
   }
 
   fs_set.setKey(fsview::sNoReplicaPrefix);
 
   if ((file->getNumLocation() == 0) && (file->getNumUnlinkedLocation() == 0)) {
-    mAh.Register(fs_set.sadd_async(stringify(file->getId())), fs_set.getClient());
+    sAh.Register(fs_set.sadd_async(stringify(file->getId())), fs_set.getClient());
   }
 }
 
@@ -420,24 +413,24 @@ ConvertFileMDSvc::exportToQuotaView(IFileMD* file)
   const std::string sgid = stringify(file->getCGid());
   // Compute physical size
   eos::IFileMD::layoutId_t lid = file->getLayoutId();
-  const int64_t size =
-    file->getSize() * eos::common::LayoutId::GetSizeFactor(lid);
+  const int64_t size = file->getSize() * eos::common::LayoutId::GetSizeFactor(
+                         lid);
   qclient::QHash quota_map(*sQcl, quota_uid_key);
   std::string field = suid + quota::sPhysicalSpaceTag;
-  mAh.Register(quota_map.hincrby_async(field, size), quota_map.getClient());
+  sAh.Register(quota_map.hincrby_async(field, size), quota_map.getClient());
   field = suid + quota::sSpaceTag;
-  mAh.Register(quota_map.hincrby_async(field, file->getSize()),
+  sAh.Register(quota_map.hincrby_async(field, file->getSize()),
                quota_map.getClient());
   field = suid + quota::sFilesTag;
-  mAh.Register(quota_map.hincrby_async(field, 1), quota_map.getClient());
+  sAh.Register(quota_map.hincrby_async(field, 1), quota_map.getClient());
   quota_map.setKey(quota_gid_key);
   field = sgid + quota::sPhysicalSpaceTag;
-  mAh.Register(quota_map.hincrby_async(field, size), quota_map.getClient());
+  sAh.Register(quota_map.hincrby_async(field, size), quota_map.getClient());
   field = sgid + quota::sSpaceTag;
-  mAh.Register(quota_map.hincrby_async(field, file->getSize()),
+  sAh.Register(quota_map.hincrby_async(field, file->getSize()),
                quota_map.getClient());
   field = sgid + quota::sFilesTag;
-  mAh.Register(quota_map.hincrby_async(field, 1), quota_map.getClient());
+  sAh.Register(quota_map.hincrby_async(field, 1), quota_map.getClient());
 }
 
 //------------------------------------------------------------------------------
@@ -524,6 +517,14 @@ main(int argc, char* argv[])
   std::chrono::seconds file_duration {std::time(nullptr) - file_start};
   std::cout << "File init: " << file_duration.count() << " seconds" <<
             std::endl;
+
+  // Wait for all in-flight async requests
+  if (!sAh.Wait()) {
+    std::cerr << __FUNCTION__ << " Got error response from the backend"
+              << std::endl;
+    exit(1);
+  }
+
   // Save the first free file and container id in the meta_hmap
   qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
   meta_map.hset(eos::constants::sFirstFreeFid, file_svc->getFirstFreeId() - 1);

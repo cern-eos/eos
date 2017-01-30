@@ -88,7 +88,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ConvertContainerMDSvc();
+  virtual ~ConvertContainerMDSvc() {};
 
   //----------------------------------------------------------------------------
   //! Recreate the container in the KV store
@@ -120,7 +120,6 @@ private:
   //------------------------------------------------------------------------------
   void exportToQuotaView(IContainerMD* cont);
 
-  qclient::AsyncHandler mAh; ///< Async handler
   IContainerMD::id_t mFirstFreeId; ///< First free container id
 };
 
@@ -177,7 +176,6 @@ private:
   //------------------------------------------------------------------------------
   void exportToQuotaView(IFileMD* file);
 
-  qclient::AsyncHandler mAh; ///< Async handler
   IFileMD::id_t mFirstFreeId; ///< First free file id
 };
 
