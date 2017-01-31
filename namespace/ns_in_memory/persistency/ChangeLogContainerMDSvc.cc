@@ -571,6 +571,7 @@ void ChangeLogContainerMDSvc::initialize()
         continue;
       }
 
+      ++cnt;
       recreateContainer(it, orphans, nameConflicts);
       notifyListeners(it->second.ptr.get() , IContainerMDChangeListener::MTimeChange);
 
