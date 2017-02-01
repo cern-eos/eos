@@ -1140,11 +1140,21 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
                 snapshot.mId, fs);
     } else {
       FsSpace* space = new FsSpace(snapshot.mSpace.c_str());
+
+      // Set new space default parameters
+      if ((!space->SetConfigMember(std::string("groupsize"), "0",
+                                   true, "/eos/*/mgm")) ||
+          (!space->SetConfigMember(std::string("groupmod"), "24",
+                                   true, "/eos/*/mgm"))) {
+        eos_err("failed setting space %s default config values",
+                snapshot.mSpace.c_str());
+        return false;
+      }
+
       mSpaceView[snapshot.mSpace] = space;
       space->insert(snapshot.mId);
       eos_debug("creating/inserting into space view %s<=>%u %x",
-                snapshot.mSpace.c_str(),
-                snapshot.mId, fs);
+                snapshot.mSpace.c_str(), snapshot.mId, fs);
     }
   }
 
