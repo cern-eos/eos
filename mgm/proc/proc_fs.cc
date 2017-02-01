@@ -765,7 +765,7 @@ proc_fs_mv_bestgroup(FileSystem* fs, std::string space)
       if (std::find(space_count.begin(), space_count.end(), i) == space_count.end()) {
         best_grp_exists = true;
         space += ".";
-        space += std::to_string(i);
+        space += std::to_string((long long int)i);
         break;
       }
     }
@@ -852,9 +852,9 @@ proc_fs_mv_bestgroup(FileSystem* fs, std::string space)
   }
 
   space += "..";
-  space += std::to_string(best_grp_exists);
+  space += (best_grp_exists ? "1" : "0");
   space += ".";
-  space += std::to_string(check_node);
+  space += (check_node ? "1" : "0");
   return space;
 }
 
@@ -1041,7 +1041,7 @@ proc_fs_mv(std::string& sfsid, std::string& space, XrdOucString& stdOut,
                 (*item2)->SnapShotFileSystem(snapshot);
                 best_grp_exists = false;
                 fsid_exist = true;
-                std::string sfsid2 = std::to_string(snapshot.mId);
+                std::string sfsid2 = std::to_string((long long int)snapshot.mId);
                 fsid = std::atoi(sfsid2.c_str());
                 fs = FsView::gFsView.mIdView[fsid];
 
