@@ -193,6 +193,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosNsCommon.so.%{major_version}
 %{_libdir}/libEosNsCommon.so
 %{_libdir}/libEosNsInMemory.so
+%{_libdir}/libEosNsQuarkdb.so
 %{_libdir}/libEosAuthProto.so.%{version}
 %{_libdir}/libEosAuthProto.so.%{major_version}
 %{_libdir}/libEosAuthProto.so
