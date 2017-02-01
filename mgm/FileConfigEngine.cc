@@ -167,6 +167,29 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
   XrdOucString fullpath = mConfigDir;
   fullpath += name;
   fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
+  struct stat info;
+
+  // If default configuration file not found then create it
+  if (stat(fullpath.c_str(), &info) == -1) {
+    if ((errno == ENOENT) && fullpath.endswith("default.eoscf")) {
+      int fd = creat(fullpath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
+      if (fd == -1) {
+        err = "error: failed to create file ";
+        err += fullpath.c_str();
+        return false;
+      } else {
+        if (fchown(fd, DAEMONUID, DAEMONGID) == 1) {
+          err = "error: failed to chown file ";
+          err += fullpath.c_str();
+          (void) close(fd);
+          return false;
+        }
+
+        (void) close(fd);
+      }
+    }
+  }
 
   if (::access(fullpath.c_str(), R_OK)) {
     err = "error: unable to open config file ";
