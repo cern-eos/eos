@@ -32,37 +32,36 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::AdminQuota()
 {
-  if (mSubCmd == "rmnode")
-  {
+  if (mSubCmd == "rmnode") {
     eos_notice("quota rmnode");
 
-    if (pVid->uid == 0)
-    {
+    if (pVid->uid == 0) {
       std::string msg = "";
       std::string tag = "mgm.quota.space";
+      std::string path = (pOpaque->Get(tag.c_str()) ?
+                          pOpaque->Get(tag.c_str()) : "");
 
-      if (!pOpaque->Get(tag.c_str()))
-      {
-	retc = EINVAL;
-	stdErr = "error: no quota space specified";
-	return SFS_OK;
+      if (path.empty()) {
+        retc = EINVAL;
+        stdErr = "error: no quota path specified";
+        return SFS_OK;
       }
 
-      std::string space = pOpaque->Get(tag.c_str());
+      // Make sure path ends with /
+      if (*path.rbegin() != '/') {
+        path += '/';
+      }
 
-      if (Quota::RmSpaceQuota(space, msg, retc))
-	stdOut = msg.c_str();
-      else
-	stdErr = msg.c_str();
-    }
-    else
-    {
+      if (Quota::RmSpaceQuota(path, msg, retc)) {
+        stdOut = msg.c_str();
+      } else {
+        stdErr = msg.c_str();
+      }
+    } else {
       retc = EPERM;
       stdErr = "error: you cannot remove quota nodes without having the root role!";
     }
-  }
-  else
-  {
+  } else {
     stdErr = "error: unknown subcommand <";
     stdErr += mSubCmd;
     stdErr += ">";

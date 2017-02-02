@@ -21,143 +21,159 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/* ------------------------------------------------------------------------- */
 #include "fst/txqueue/TransferMultiplexer.hh"
-#include "fst/txqueue/TransferJob.hh"
 #include "fst/XrdFstOfs.hh"
 #include "common/Logging.hh"
-/* ------------------------------------------------------------------------- */
 #include <cstdio>
-
-/* ------------------------------------------------------------------------- */
 
 EOSFSTNAMESPACE_BEGIN
 
-/* ------------------------------------------------------------------------- */
-TransferMultiplexer::TransferMultiplexer ()
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+TransferMultiplexer::TransferMultiplexer():
+  mTid(0)
+{}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+TransferMultiplexer::~TransferMultiplexer()
 {
- thread = 0;
+  Stop();
 }
 
-/* ------------------------------------------------------------------------- */
-TransferMultiplexer::~TransferMultiplexer ()
-{
- Stop();
-}
-
-/* ------------------------------------------------------------------------- */
+//------------------------------------------------------------------------------
+// Stop multiplexer thread
+//------------------------------------------------------------------------------
 void
-TransferMultiplexer::Stop ()
+TransferMultiplexer::Stop()
 {
- if (thread)
- {
-   XrdSysThread::Cancel(thread);
-   XrdSysThread::Join(thread, NULL);
-   thread = 0;
- }
+  if (mTid) {
+    XrdSysThread::Cancel(mTid);
+    XrdSysThread::Join(mTid, NULL);
+    mTid = 0;
+  }
 }
 
-/* ------------------------------------------------------------------------- */
+//------------------------------------------------------------------------------
+// Run multiplexer thread
+//------------------------------------------------------------------------------
 void
-TransferMultiplexer::Run ()
+TransferMultiplexer::Run()
 {
- if (!thread)
- {
-   XrdSysThread::Run(&thread, TransferMultiplexer::StaticThreadProc, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Multiplexer Thread");
- }
+  if (!mTid) {
+    XrdSysThread::Run(&mTid, TransferMultiplexer::StaticThreadProc,
+                      static_cast<void*>(this), XRDSYSTHREAD_HOLD,
+                      "Multiplexer Thread");
+  }
 }
 
-/* ------------------------------------------------------------------------- */
+//------------------------------------------------------------------------------
+// Add queue to multiplexer
+//------------------------------------------------------------------------------
 void
-TransferMultiplexer::SetBandwidth (size_t band)
+TransferMultiplexer::Add(TransferQueue* queue)
 {
- eos::common::RWMutexWriteLock lock(Mutex);
- for (size_t i = 0; i < mQueues.size(); i++)
- {
-   mQueues[i]->SetBandwidth(band);
- }
- return;
+  eos::common::RWMutexWriteLock lock(mMutex);
+  mQueues.push_back(queue);
 }
 
-/* ------------------------------------------------------------------------- */
+//------------------------------------------------------------------------------
+// Set bandwith for each of the queues attached
+//------------------------------------------------------------------------------
 void
-TransferMultiplexer::SetSlots (size_t slots)
+TransferMultiplexer::SetBandwidth(size_t band)
 {
- eos::common::RWMutexWriteLock lock(Mutex);
- for (size_t i = 0; i < mQueues.size(); i++)
- {
-   mQueues[i]->SetSlots(slots);
- }
- return;
+  eos::common::RWMutexWriteLock lock(mMutex);
 
+  for (size_t i = 0; i < mQueues.size(); i++) {
+    mQueues[i]->SetBandwidth(band);
+  }
+
+  return;
 }
 
-/* ------------------------------------------------------------------------- */
+//------------------------------------------------------------------------------
+// Set number of slots for each of the queues attached
+//------------------------------------------------------------------------------
+void
+TransferMultiplexer::SetSlots(size_t slots)
+{
+  eos::common::RWMutexWriteLock lock(mMutex);
+
+  for (size_t i = 0; i < mQueues.size(); i++) {
+    mQueues[i]->SetSlots(slots);
+  }
+
+  return;
+}
+
+//------------------------------------------------------------------------------
+// Static helper function to run the thread
+//------------------------------------------------------------------------------
 void*
-TransferMultiplexer::StaticThreadProc (void* arg)
+TransferMultiplexer::StaticThreadProc(void* arg)
 {
- return reinterpret_cast<TransferMultiplexer*> (arg)->ThreadProc();
+  return reinterpret_cast<TransferMultiplexer*>(arg)->ThreadProc();
 }
 
-/* ------------------------------------------------------------------------- */
+//------------------------------------------------------------------------------
+// Multiplexer thread loop
+//------------------------------------------------------------------------------
 void*
-TransferMultiplexer::ThreadProc (void)
+TransferMultiplexer::ThreadProc(void)
 {
- std::string sTmp, src, dest;
+  std::string sTmp, src, dest;
+  eos_static_info("running transfer multiplexer with %d queues", mQueues.size());
 
- eos_static_info("running transfer multiplexer with %d queues", mQueues.size());
+  while (1) {
+    {
+      XrdSysThread::SetCancelOff();
+      eos::common::RWMutexReadLock lock(mMutex);
 
+      for (size_t i = 0; i < mQueues.size(); i++) {
+        while (mQueues[i]->GetQueue()->Size()) {
+          // look in all registered queues
+          // take an entry from the queue
+          int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
 
- while (1)
- {
-   {
-     XrdSysThread::SetCancelOff();
-     eos::common::RWMutexReadLock lock(Mutex);
-     for (size_t i = 0; i < mQueues.size(); i++)
-     {
+          if (freeslots <= 0) {
+            break;
+          }
 
-       while (mQueues[i]->GetQueue()->Size())
-       {
-         // look in all registered queues
-         // take an entry from the queue
+          eos_static_info("Found %u transfers in queue %s", (unsigned int)
+                          mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
+          mQueues[i]->GetQueue()->OpenTransaction();
+          eos::common::TransferJob* cjob = mQueues[i]->GetQueue()->Get();
+          mQueues[i]->GetQueue()->CloseTransaction();
 
-         int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
-         if (freeslots <= 0)
-           break;
+          if (!cjob) {
+            eos_static_err("No transfer job created");
+            break;
+          }
 
-	 fprintf(stderr,"Found %u transfers in queue %s\n", (unsigned int)
-		 mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
+          XrdOucString out = "";
+          cjob->PrintOut(out);
+          eos_static_info("New transfer %s", out.c_str());
+          //create new TransferJob and submit it to the scheduler
+          TransferJob* job = new TransferJob(mQueues[i], cjob,
+                                             mQueues[i]->GetBandwidth());
+          gOFS.TransferSchedulerMutex.Lock();
+          gOFS.TransferScheduler->Schedule(job);
+          gOFS.TransferSchedulerMutex.UnLock();
+          mQueues[i]->IncRunning();
+        }
+      }
+    }
+    XrdSysThread::SetCancelOn();
+    XrdSysTimer sleeper;
+    sleeper.Wait(100);
+  }
 
-         mQueues[i]->GetQueue()->OpenTransaction();
-         eos::common::TransferJob* cjob = mQueues[i]->GetQueue()->Get();
-         mQueues[i]->GetQueue()->CloseTransaction();
-
-         if (!cjob) {
-	   fprintf(stderr, "No transfer job created\n");
-           break;
-	 }
-
-         XrdOucString out = "";
-         cjob->PrintOut(out);
-	 fprintf(stderr, "New transfer %s\n", out.c_str());
-
-         //create new TransferJob and submit it to the scheduler
-         TransferJob* job = new TransferJob(mQueues[i], cjob, mQueues[i]->GetBandwidth());
-         gOFS.TransferSchedulerMutex.Lock();
-         gOFS.TransferScheduler->Schedule(job);
-         gOFS.TransferSchedulerMutex.UnLock();
-         mQueues[i]->IncRunning();
-       }
-     }
-   }
-   
-   XrdSysThread::SetCancelOn();
-   XrdSysTimer sleeper;
-   sleeper.Wait(100);
- }
-
- // we wait that the scheduler is empty, otherwise we might have call backs to our queues
- return NULL;
+  // Wait that the scheduler is empty, otherwise we might have callbacks
+  // to our queues
+  return NULL;
 }
 
 EOSFSTNAMESPACE_END

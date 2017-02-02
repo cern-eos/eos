@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include <math.h>
+#include <unordered_set>
 #include "mgm/FsView.hh"
 #include "common/StringConversion.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -1139,11 +1140,21 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
                 snapshot.mId, fs);
     } else {
       FsSpace* space = new FsSpace(snapshot.mSpace.c_str());
+
+      // Set new space default parameters
+      if ((!space->SetConfigMember(std::string("groupsize"), "0",
+                                   true, "/eos/*/mgm")) ||
+          (!space->SetConfigMember(std::string("groupmod"), "24",
+                                   true, "/eos/*/mgm"))) {
+        eos_err("failed setting space %s default config values",
+                snapshot.mSpace.c_str());
+        return false;
+      }
+
       mSpaceView[snapshot.mSpace] = space;
       space->insert(snapshot.mId);
       eos_debug("creating/inserting into space view %s<=>%u %x",
-                snapshot.mSpace.c_str(),
-                snapshot.mId, fs);
+                snapshot.mSpace.c_str(), snapshot.mId, fs);
     }
   }
 
@@ -3696,46 +3707,48 @@ BaseView::Print(std::string& out, std::string headerformat,
           }
         }
 
-	if ((formattags["format"].find("o") != std::string::npos)) {
-	  char keyval[4096];
-	  buildheader = false; // auto disable header
-	  XrdOucString noblankline=line;
-	  {
-	    // replace all inner blanks with %20
-	    std::string snoblankline=line;
-	    size_t pos = snoblankline.find_last_not_of(" ");
-	    if (noblankline.length()>1) {
-	      while (noblankline.replace(" ", "%20", 0, (pos==std::string::npos)?-1:pos)) {}
-	    }
-	  }
+        if ((formattags["format"].find("o") != std::string::npos)) {
+          char keyval[4096];
+          buildheader = false; // auto disable header
+          XrdOucString noblankline = line;
+          {
+            // replace all inner blanks with %20
+            std::string snoblankline = line;
+            size_t pos = snoblankline.find_last_not_of(" ");
 
-	  if (formattags.count("member")) {
-	    snprintf(keyval, sizeof(keyval) - 1, "%s=%s", formattags["member"].c_str(),
-		     noblankline.c_str());
-	  }
+            if (noblankline.length() > 1) {
+              while (noblankline.replace(" ", "%20", 0,
+                                         (pos == std::string::npos) ? -1 : pos)) {}
+            }
+          }
 
-	  if (formattags.count("sum")) {
-	    snprintf(keyval, sizeof(keyval) - 1, "sum.%s=%s", formattags["sum"].c_str(),
-		     noblankline.c_str());
-	  }
+          if (formattags.count("member")) {
+            snprintf(keyval, sizeof(keyval) - 1, "%s=%s", formattags["member"].c_str(),
+                     noblankline.c_str());
+          }
 
-	  if (formattags.count("avg")) {
-	    snprintf(keyval, sizeof(keyval) - 1, "avg.%s=%s", formattags["avg"].c_str(),
-		     noblankline.c_str());
-	  }
+          if (formattags.count("sum")) {
+            snprintf(keyval, sizeof(keyval) - 1, "sum.%s=%s", formattags["sum"].c_str(),
+                     noblankline.c_str());
+          }
 
-	  if (formattags.count("sig")) {
-	    snprintf(keyval, sizeof(keyval) - 1, "sig.%s=%s", formattags["sig"].c_str(),
-		     noblankline.c_str());
-	  }
+          if (formattags.count("avg")) {
+            snprintf(keyval, sizeof(keyval) - 1, "avg.%s=%s", formattags["avg"].c_str(),
+                     noblankline.c_str());
+          }
 
-	  if (formattags.count("maxdev")) {
-	    snprintf(keyval, sizeof(keyval) - 1, "dev.%s=%s", formattags["maxdev"].c_str(),
-		     noblankline.c_str());
-	  }
+          if (formattags.count("sig")) {
+            snprintf(keyval, sizeof(keyval) - 1, "sig.%s=%s", formattags["sig"].c_str(),
+                     noblankline.c_str());
+          }
 
-	  body += keyval;
-	} else {
+          if (formattags.count("maxdev")) {
+            snprintf(keyval, sizeof(keyval) - 1, "dev.%s=%s", formattags["maxdev"].c_str(),
+                     noblankline.c_str());
+          }
+
+          body += keyval;
+        } else {
           std::string sline = line;
 
           if (sline.length() > width) {
@@ -3762,27 +3775,70 @@ BaseView::Print(std::string& out, std::string headerformat,
     body += "\n";
   } // l from 0 to nLines
 
-  //---------------------------------------------------------------------------------------
   if (listformat.length()) {
     bool first = true;
+    std::unordered_set<std::string> allowed_columns = {"host", "id", "path", "schedgroup",
+                                                       "geotag", "boot", "configstatus",
+                                                       "drain", "active", "health"
+                                                      };
+    std::vector<std::pair<std::string, regex_t>> parsed_selections;
+    std::vector<regex_t> plain_selections;
+
+    // Parse selections
+    for (auto selection = selections.begin();
+         selection != selections.end(); ++selection) {
+      std::pair<std::string, regex_t> curr;
+      auto pos = selection->find(":");
+      curr.first = selection->substr(0, pos);
+
+      // Selection is not allowed,  ignore it
+      if (allowed_columns.find(curr.first) == allowed_columns.end()) {
+        regex_t temp;
+        regcomp(&(temp), selection->c_str(), REG_EXTENDED | REG_NEWLINE);
+        plain_selections.push_back(temp);
+        continue;
+      }
+
+      std::string reg_str = selection->substr(pos + 1, selection->size());
+
+      // In case something went wrong during regex compilation, ignore regex
+      if (regcomp(&(curr.second), reg_str.c_str(), REG_EXTENDED | REG_NEWLINE) != 0) {
+        eos_static_debug("Regex couldn't be compiled!");
+        continue;
+      }
+
+      // Geotag is special, it needs "stat." in front
+      if (curr.first == "geotag") {
+        curr.first = "stat.geotag";
+      }
+
+      parsed_selections.push_back(curr);
+    }
 
     // If a format was given for the filesystem children, forward the print to
     // the filesystems
     for (auto it = begin(); it != end(); it++) {
       std::string lbody;
       bool matches = true;
-      FsView::gFsView.mIdView[*it]->Print(lbody, listformat);
+      FileSystem* fs = FsView::gFsView.mIdView[*it];
 
       // Apply each selection as a find match in the string
-      if (selections.size()) {
-        for (size_t i = 0; i < selections.size(); i++) {
-          if (selections[i].substr(0, 6) == "space:") {
-            continue;
-          }
+      for (auto selection = parsed_selections.begin();
+           selection != parsed_selections.end(); ++selection) {
+        std::string value = fs->GetString(selection->first.c_str());
 
-          if (lbody.find(selections[i]) == std::string::npos) {
-            matches = false;
-          }
+        if (regexec(&(selection->second), value.c_str(), 0, NULL, 0)) {
+          matches = false;
+        }
+      }
+
+      // Check non key:value selections.
+      fs->Print(lbody, listformat);
+
+      for (auto selection = plain_selections.begin();
+           selection != plain_selections.end(); ++selection) {
+        if (regexec(&(*selection), lbody.c_str(), 0, NULL, 0)) {
+          matches = false;
         }
       }
 

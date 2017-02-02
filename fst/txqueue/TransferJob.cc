@@ -861,7 +861,7 @@ TransferJob::DoIt()
 
   // Now set the transfer state and send the log output
   if (rc) {
-    eos_static_err("transfer returned %d", command.str().c_str(), rc);
+    eos_static_err("transfer cmd=\"%s\" returned %d", command.str().c_str(), rc);
 
     if (mId) {
       SendState(eos::mgm::TransferEngine::kFailed, fileOutput.c_str());
@@ -933,7 +933,7 @@ TransferJob::DoIt()
       }
 
       if (rc) {
-        eos_static_err("transfer returned %d", commando.str().c_str(), rc);
+        eos_static_err("transfer cmd=\"%s\" returned %d", commando.str().c_str(), rc);
 
         // send failed status
         if (mId) {

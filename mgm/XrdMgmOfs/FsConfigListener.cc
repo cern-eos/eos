@@ -49,19 +49,28 @@ XrdMgmOfs::FsConfigListener()
   std::string watch_geotag = "stat.geotag";
   std::string watch_proxygroups = "proxygroups";
   bool ok = true;
+  // Need to notify the FsView when a geotag changes to keep the tree structure
+  // up-to-date
   ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener", watch_geotag,
-                                       XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to notify the FsView when a geotag changes to keep the tree structure up-to-date
+                                       XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  // Need to take action on filesystem errors
   ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener", watch_errc,
-                                       XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to take action an filesystem errors
+                                       XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  // Need to notify GeoTreeEngine when the proxygroups to which a node belongs to are changing
   ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener", watch_proxygroups,
-                                       XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to notify GeoTreeEngine when the proxygroups to which a node belongs to are changing
-  // this one would be necessary to be equivalent to beryl but it's probably not needed => ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_errc,XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion); // we need to take action an filesystem errors
+                                       XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  // This one would be necessary to be equivalent to beryl but it's probably not needed =>
+  // Need to take action an filesystem errors
+  // ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_errc,
+  //                                      XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);
+  // Need to apply remote configuration changes
   ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",
         MgmConfigQueue.c_str(),
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);  // we need to apply remote configuration changes
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  // Need to apply remote configuration changes
   ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",
         MgmConfigQueue.c_str(),
-        XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion); // we need to apply remote configuration changes
+        XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);
 
   if (!ok) {
     eos_crit("error subscribing to shared objects change notifications");
@@ -73,11 +82,7 @@ XrdMgmOfs::FsConfigListener()
     eos_crit("error starting shared objects change notifications");
   }
 
-  //  leave some time to the notifier to start up
-  //  XrdSysTimer sleeper;
-  //  sleeper.Snooze(5);
-
-  // thread listening on filesystem errors and configuration changes
+  // Thread listening on filesystem errors and configuration changes
   do {
     gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
     XrdSysThread::SetCancelOff();
@@ -94,28 +99,22 @@ XrdMgmOfs::FsConfigListener()
                        event.mSubject.c_str());
       std::string newsubject = event.mSubject.c_str();
 
+      // Handle subject creation
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
-        // ---------------------------------------------------------------------
-        // handle subject creation
-        // ---------------------------------------------------------------------
         eos_static_debug("received creation on subject %s\n", newsubject.c_str());
         gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
         continue;
       }
 
+      // Handle subject deletion
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
-        // ---------------------------------------------------------------------
-        // handle subject deletion
-        // ---------------------------------------------------------------------
         eos_static_debug("received deletion on subject %s\n", newsubject.c_str());
         gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
         continue;
       }
 
+      // Handle subject modification
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification) {
-        // ---------------------------------------------------------------------
-        // handle subject modification
-        // ---------------------------------------------------------------------
         eos_static_debug("received modification on subject %s", newsubject.c_str());
         // if this is an error status on a file system, check if the filesystem
         // is > drained state and in this case launch a drain job with
@@ -132,9 +131,7 @@ XrdMgmOfs::FsConfigListener()
         }
 
         if (queue == MgmConfigQueue.c_str()) {
-          // -------------------------------------------------------------------
-          // this is an MGM configuration modification
-          // -------------------------------------------------------------------
+          // This is an MGM configuration modification
           if (!gOFS->MgmMaster.IsMaster()) {
             // only an MGM slave needs to aplly this
             gOFS->ObjectManager.HashMutex.LockRead();
@@ -146,7 +143,8 @@ XrdMgmOfs::FsConfigListener()
               gOFS->ObjectManager.HashMutex.UnLockRead();
 
               if (value.c_str()) {
-                // here we might get a change without the namespace, in this case we add the global namespace
+                // Here we might get a change without the namespace, in this
+                // case we add the global namespace
                 if ((key.substr(0, 4) != "map:") &&
                     (key.substr(0, 3) != "fs:") &&
                     (key.substr(0, 6) != "quota:") &&
@@ -195,8 +193,8 @@ XrdMgmOfs::FsConfigListener()
           gOFS->ObjectManager.HashMutex.UnLockRead();
 
           if (!fsid) {
-            eos_debug("Received a geotag modification (might be no change) for queue %s which is not registered ",
-                      queue.c_str());
+            eos_debug("Received a geotag modification (might be no change) for "
+                      "queue %s which is not registered ", queue.c_str());
           } else {
             FsView::gFsView.ViewMutex.LockRead();
             fs = FsView::gFsView.mIdView[fsid];
@@ -209,8 +207,9 @@ XrdMgmOfs::FsConfigListener()
             }
 
             if (oldgeotag != newgeotag) {
-              eos_warning("Received a geotag change for fsid %lu new geotag is %s, old geotag was %s ",
-                          (unsigned long)fsid, newgeotag.c_str(), oldgeotag.c_str());
+              eos_warning("Received a geotag change for fsid %lu new geotag is "
+                          "%s, old geotag was %s ", (unsigned long)fsid,
+                          newgeotag.c_str(), oldgeotag.c_str());
               {
                 FsView::gFsView.ViewMutex.UnLockRead();
                 eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
@@ -223,60 +222,54 @@ XrdMgmOfs::FsConfigListener()
                 if (fs) {
                   fs->SnapShotFileSystem(snapshot);
 
-                  //----------------------------------------------------------------
-                  //! update node view tree structure
-                  //----------------------------------------------------------------
+                  // Update node view tree structure
                   if (FsView::gFsView.mNodeView.count(snapshot.mQueue)) {
                     FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
-                    eos_static_info("updating geotag of fsid %lu in node %s", (unsigned long)fsid,
-                                    node->mName.c_str());
+                    eos_static_info("updating geotag of fsid %lu in node %s",
+                                    (unsigned long)fsid, node->mName.c_str());
 
                     if (!static_cast<GeoTree*>(node)->erase(fsid)) {
-                      eos_static_err("error removing fsid %lu from node %s", (unsigned long)fsid,
-                                     node->mName.c_str());
+                      eos_static_err("error removing fsid %lu from node %s",
+                                     (unsigned long)fsid, node->mName.c_str());
                     }
 
                     if (!static_cast<GeoTree*>(node)->insert(fsid)) {
-                      eos_static_err("error inserting fsid %lu into node %s", (unsigned long)fsid,
-                                     node->mName.c_str());
+                      eos_static_err("error inserting fsid %lu into node %s",
+                                     (unsigned long)fsid, node->mName.c_str());
                     }
                   }
 
-                  //----------------------------------------------------------------
-                  //! update group view tree structure
-                  //----------------------------------------------------------------
+                  // Update group view tree structure
                   if (FsView::gFsView.mGroupView.count(snapshot.mGroup)) {
                     FsGroup* group = FsView::gFsView.mGroupView[snapshot.mGroup];
-                    eos_static_info("updating geotag of fsid %lu in group %s", (unsigned long)fsid,
-                                    group->mName.c_str());
+                    eos_static_info("updating geotag of fsid %lu in group %s",
+                                    (unsigned long)fsid, group->mName.c_str());
 
                     if (!static_cast<GeoTree*>(group)->erase(fsid)) {
-                      eos_static_err("error removing fsid %lu from group %s", (unsigned long)fsid,
-                                     group->mName.c_str());
+                      eos_static_err("error removing fsid %lu from group %s",
+                                     (unsigned long)fsid, group->mName.c_str());
                     }
 
                     if (!static_cast<GeoTree*>(group)->insert(fsid)) {
-                      eos_static_err("error inserting fsid %lu into group %s", (unsigned long)fsid,
-                                     group->mName.c_str());
+                      eos_static_err("error inserting fsid %lu into group %s",
+                                     (unsigned long)fsid, group->mName.c_str());
                     }
                   }
 
-                  //----------------------------------------------------------------
-                  //! update space view tree structure
-                  //----------------------------------------------------------------
+                  // Update space view tree structure
                   if (FsView::gFsView.mSpaceView.count(snapshot.mSpace)) {
                     FsSpace* space = FsView::gFsView.mSpaceView[snapshot.mSpace];
-                    eos_static_info("updating geotag of fsid %lu in space %s", (unsigned long)fsid,
-                                    space->mName.c_str());
+                    eos_static_info("updating geotag of fsid %lu in space %s",
+                                    (unsigned long)fsid, space->mName.c_str());
 
                     if (!static_cast<GeoTree*>(space)->erase(fsid)) {
-                      eos_static_err("error removing fsid %lu from space %s", (unsigned long)fsid,
-                                     space->mName.c_str());
+                      eos_static_err("error removing fsid %lu from space %s",
+                                     (unsigned long)fsid, space->mName.c_str());
                     }
 
                     if (!static_cast<GeoTree*>(space)->insert(fsid)) {
-                      eos_static_err("error inserting fsid %lu into space %s", (unsigned long)fsid,
-                                     space->mName.c_str());
+                      eos_static_err("error inserting fsid %lu into space %s",
+                                     (unsigned long)fsid, space->mName.c_str());
                     }
                   }
                 }
@@ -286,9 +279,7 @@ XrdMgmOfs::FsConfigListener()
             }
           }
         } else if (key == watch_proxygroups) {
-          // -------------------------------------------------------------------
-          // this is a dataproxy / dataep status update
-          // -------------------------------------------------------------------
+          // This is a dataproxy / dataep status update
           std::string status;
           eos::mgm::FsNode* node = 0;
           // read the proxygrouplist
@@ -313,9 +304,7 @@ XrdMgmOfs::FsConfigListener()
 
           eos::mgm::FsView::gFsView.ViewMutex.UnLockRead();
         } else {
-          // -------------------------------------------------------------------
-          // this is a filesystem status error
-          // -------------------------------------------------------------------
+          // This is a filesystem status error
           if (gOFS->MgmMaster.IsMaster()) {
             // only an MGM master needs to initiate draining
             eos::common::FileSystem::fsid_t fsid = 0;
@@ -378,10 +367,8 @@ XrdMgmOfs::FsConfigListener()
         continue;
       }
 
+      // Handle subject key deletion
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectKeyDeletion) {
-        // ---------------------------------------------------------------------
-        // handle subject key deletion
-        // ---------------------------------------------------------------------
         eos_static_info("received deletion on subject %s\n", newsubject.c_str());
         std::string key = newsubject;
         std::string queue = newsubject;

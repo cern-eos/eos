@@ -248,10 +248,7 @@ Storage::GetFileSystemInDrainMode(std::vector<unsigned int>& drainfsvector,
         continue;
       }
 
-      eos_static_debug("id=%u nparalleltx=%llu",
-                       id,
-                       nparalleltx
-                      );
+      eos_static_debug("id=%u nparalleltx=%llu", id, nparalleltx);
       // add this filesystem to the vector of draining filesystems
       drainfsvector.push_back(index);
     }

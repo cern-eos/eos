@@ -1571,3 +1571,31 @@ stripwhite(char* string)
   return s;
 }
 
+bool RegWrapDenominator(XrdOucString& path, const std::string& key)
+{
+  try {
+    RegexUtil reg;
+    reg.SetRegex(key);
+    reg.SetOrigin(path.c_str());
+    reg.initTokenizerMode();
+    std::string temp = reg.Match();
+    auto pos = temp.find(':');
+    temp = std::string(temp.begin() + pos + 1, temp.end());
+    path = XrdOucString(temp.c_str());
+    return true;
+  } catch (std::string e) {
+    return false;
+  }
+}
+
+bool Path2FileDenominator(XrdOucString& path)
+{
+  if (RegWrapDenominator(path, "fxid:[A-F0-9]+$")) {
+    std::string temp = std::to_string(strtoull(path.c_str(), 0, 16));
+    path = XrdOucString(temp.c_str());
+    return true;
+  }
+
+  return RegWrapDenominator(path, "fid:[0-9]+$");
+}
+

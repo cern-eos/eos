@@ -852,12 +852,26 @@ ProcCommand::MakeResult()
           mResultStream += "\n]);";
         } else {
           // JSON
-          mResultStream = "mgm.proc.json=";
+          if (!vid.prot.beginswith("http")) {
+            mResultStream = "mgm.proc.json=";
+          }
+
           mResultStream += r.str().c_str();
         }
       } else {
-        mResultStream = "mgm.proc.json=";
-        mResultStream += stdJson;
+        if (mJsonCallback.length()) {
+          // JSONP
+          mResultStream = mJsonCallback;
+          mResultStream += "([\n";
+          mResultStream += stdJson;
+          mResultStream += "\n]);";
+        } else {
+          if (!vid.prot.beginswith("http")) {
+            mResultStream = "mgm.proc.json=";
+          }
+
+          mResultStream += stdJson;
+        }
       }
     }
 
@@ -1044,7 +1058,39 @@ table
   }
   return ok;
 }
-/*----------------------------------------------------------------------------*/
+
+
+//------------------------------------------------------------------------------
+// Get a file's full path using the fid information stored in the opaque data
+//------------------------------------------------------------------------------
+void
+ProcCommand::GetPathFromFid(XrdOucString& path, XrdOucEnv* opaque,
+			    const std::string& err_msg)
+{
+  std::string tag = "mgm.file.id";
+
+  if (path == "") {
+    unsigned long long fid = strtoull(pOpaque->Get(tag.c_str()), 0, 10);
+
+    if (fid == 0ULL) {
+      stdErr += "error: fid unknown!";
+      retc = errno;
+    }
+
+    try {
+      std::string temp =
+	gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
+      path = XrdOucString(temp.c_str());
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      stdErr = err_msg.c_str();
+      stdErr += e.getMessage().str().c_str();
+      stdErr += "\n";
+      eos_debug("caught exception %d %s\n",
+		e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+}
 
 EOSMGMNAMESPACE_END
 

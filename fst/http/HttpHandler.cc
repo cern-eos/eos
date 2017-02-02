@@ -48,46 +48,43 @@ eos::common::MimeTypes HttpHandler::gMime;
 /*----------------------------------------------------------------------------*/
 
 bool
-HttpHandler::Matches (const std::string &meth, HeaderMap &headers)
+HttpHandler::Matches(const std::string& meth, HeaderMap& headers)
 {
   int method = ParseMethodString(meth);
 
   // We only support GET, HEAD and PUT on the FST
-  if (method == GET || method == HEAD || method == PUT)
-  {
+  if (method == GET || method == HEAD || method == PUT) {
     eos_static_info("Matched HTTP protocol for request");
     return true;
+  } else {
+    return false;
   }
-  else return false;
 }
 
 /*----------------------------------------------------------------------------*/
 void
-HttpHandler::HandleRequest (eos::common::HttpRequest *request)
+HttpHandler::HandleRequest(eos::common::HttpRequest* request)
 {
   eos_static_debug("Handling HTTP request");
 
-  if (!mFile)
+  if (!mFile) {
     Initialize(request);
+  }
 
-  if (!mFile)
-  {
+  if (!mFile) {
     mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
-
     // default modes are for GET=read
     XrdSfsFileOpenMode open_mode = 0;
     mode_t create_mode = 0;
-
     XrdOucString openUrl = request->GetUrl().c_str();
     XrdOucString query = request->GetQuery().c_str();
-    if (request->GetMethod() == "PUT")
-    {
+
+    if (request->GetMethod() == "PUT") {
       // use the proper creation/open flags for PUT's
       open_mode |= SFS_O_CREAT;
 
       // avoid truncation of chunked uploads
-      if (!request->GetHeaders().count("oc-chunked"))
-      {
+      if (!request->GetHeaders().count("oc-chunked")) {
         open_mode |= SFS_O_TRUNC;
       }
 
@@ -97,7 +94,6 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
     }
 
     XrdSysMutex* hMutex = 0;
-
     {
       // use path dependent locks for opens
       // we will accumulate up to 64k mutexes for this
@@ -107,13 +103,10 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       {
         XrdSysMutexHelper oLock(mOpenMutexMapMutex);
 
-        if (!mOpenMutexMap.count(lHash.GetAdler()))
-        {
+        if (!mOpenMutexMap.count(lHash.GetAdler())) {
           hMutex = new XrdSysMutex();
           mOpenMutexMap[lHash.GetAdler()] = hMutex;
-        }
-        else
-        {
+        } else {
           hMutex = mOpenMutexMap[lHash.GetAdler()];
         }
       }
@@ -126,49 +119,38 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
                         &mClient,
                         query.c_str());
     }
-
     mFileSize = mFile->getOpenSize();
-
     mFileId = mFile->getFileId();
     mLogId = mFile->logId;
 
     // check for range requests
-    if (request->GetHeaders().count("range"))
-    {
+    if (request->GetHeaders().count("range")) {
       if (!DecodeByteRange(request->GetHeaders()["range"],
                            mOffsetMap,
                            mRangeRequestSize,
-                           mFileSize))
-      {
+                           mFileSize)) {
         // indicate range decoding error
         mRangeDecodingError = true;
-      }
-      else
-      {
+      } else {
         mRangeRequest = true;
       }
     }
 
-    if (!mRangeRequest)
-    {
+    if (!mRangeRequest) {
       // we put the file size as request size if this is not a range request
       // aka full file download
       mRangeRequestSize = mFile->getOpenSize();
     }
   }
 
-  if (request->GetMethod() == "GET")
-  {
+  if (request->GetMethod() == "GET") {
     // call the HttpHandler::Get method
     mHttpResponse = Get(request);
   }
 
-  if (request->GetMethod() == "PUT")
-  {
-
+  if (request->GetMethod() == "PUT") {
     if (((mUploadLeftSize > (1 * 1024 * 1024)) &&
-        ((*request->GetBodySize()) < (1 * 1024 * 1024))))
-    {
+         ((*request->GetBodySize()) < (1 * 1024 * 1024)))) {
       // we want more bytes, we don't process this
       eos_static_debug("msg=\"wait for more bytes\" leftsize=%llu uploadsize=%llu",
                        mUploadLeftSize, *request->GetBodySize());
@@ -179,11 +161,9 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 
     mHttpResponse = Put(request);
 
-    if (!mHttpResponse || (*request->GetBodySize()) == 0)
-    {
+    if (!mHttpResponse || (*request->GetBodySize()) == 0) {
       // clean-up left-over objects on error or end-of-put
-      if (mFile)
-      {
+      if (mFile) {
         delete mFile;
         mFile = 0;
       }
@@ -193,18 +173,14 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 void
-HttpHandler::Initialize (eos::common::HttpRequest *request)
+HttpHandler::Initialize(eos::common::HttpRequest* request)
 {
-  if (request->GetCookies().count("EOSCAPABILITY"))
-  {
+  if (request->GetCookies().count("EOSCAPABILITY")) {
     // if we have a capability we don't use the query CGI but that one
     request->SetQuery(request->GetCookies()["EOSCAPABILITY"]);
-
   }
 
-  if (request->GetHeaders().count("content-length"))
-  {
-
+  if (request->GetHeaders().count("content-length")) {
     mContentLength = strtoull(request->GetHeaders()["content-length"].c_str(),
                               0, 10);
     mUploadLeftSize = mContentLength;
@@ -213,10 +189,8 @@ HttpHandler::Initialize (eos::common::HttpRequest *request)
   std::string query = request->GetQuery();
   HttpServer::DecodeURI(query); // unescape '+' '/' '='
   request->SetQuery(query);
-
   eos_static_debug("path=%s query=%s", request->GetUrl().c_str(),
                    request->GetQuery().c_str());
-
   // define the client sec entity object
   strncpy(mClient.prot, "unix", XrdSecPROTOIDSIZE - 1);
   mClient.prot[XrdSecPROTOIDSIZE - 1] = '\0';
@@ -227,88 +201,70 @@ HttpHandler::Initialize (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Get (eos::common::HttpRequest *request)
+HttpHandler::Get(eos::common::HttpRequest* request)
 {
-  eos::common::HttpResponse *response = 0;
+  eos::common::HttpResponse* response = 0;
 
-  if (mRangeDecodingError)
-  {
+  if (mRangeDecodingError) {
     mErrCode = response->REQUESTED_RANGE_NOT_SATISFIABLE;
     mErrText = "Illegal Range request";
     response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
-  }
-  else
-  {
-    if (mErrCode)
-    {
-      eos_static_err("msg=\"return stored error\" errc=%d errmsg=\"%s\"", mErrCode, mErrText.c_str());
+  } else {
+    if (mErrCode) {
+      eos_static_err("msg=\"return stored error\" errc=%d errmsg=\"%s\"", mErrCode,
+                     mErrText.c_str());
       response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       return response;
     }
 
-    if (mRc != SFS_OK)
-    {
-      if (mRc == SFS_REDIRECT)
-      {
+    if (mRc != SFS_OK) {
+      if (mRc == SFS_REDIRECT) {
         mErrCode = response->INTERNAL_SERVER_ERROR;
         mErrText = mFile->error.getErrText();
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
-      }
-      else if (mRc == SFS_ERROR)
-      {
+      } else if (mRc == SFS_ERROR) {
         mErrCode = mFile->error.getErrInfo();
         mErrText = mFile->error.getErrText();
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
-      }
-      else if (mRc == SFS_DATA)
-      {
+      } else if (mRc == SFS_DATA) {
         response = HttpServer::HttpData(mFile->error.getErrText(),
                                         mFile->error.getErrInfo());
-      }
-      else if (mRc == SFS_STALL)
-      {
+      } else if (mRc == SFS_STALL) {
         response = HttpServer::HttpStall(mFile->error.getErrText(),
                                          mFile->error.getErrInfo());
-      }
-      else
-      {
+      } else {
         response = HttpServer::HttpError("unexpected result from file open",
                                          EOPNOTSUPP);
       }
+
       delete mFile;
       mFile = 0;
-    }
-    else
-    {
+    } else {
       response = new eos::common::PlainHttpResponse();
 
-      if (mRangeRequest)
-      {
+      if (mRangeRequest) {
         CreateMultipartHeader("application/octet-stream");
         eos_static_debug(Print());
         char clength[16];
-        snprintf(clength, sizeof (clength) - 1, "%llu",
+        snprintf(clength, sizeof(clength) - 1, "%llu",
                  (unsigned long long) mRequestSize);
-        if (mOffsetMap.size() == 1)
-        {
+
+        if (mOffsetMap.size() == 1) {
           // if there is only one range we don't send a multipart response
           response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
           response->AddHeader("Content-Range", mSinglepartHeader);
-        }
-        else
-        {
+        } else {
           // for several ranges we send a multipart response
           response->AddHeader("Content-Type", mMultipartHeader);
         }
+
         response->AddHeader("Content-Length", clength);
         response->mResponseLength = mRequestSize;
         response->SetResponseCode(response->PARTIAL_CONTENT);
-      }
-      else
-      {
+      } else {
         // successful http open
         char clength[16];
-        snprintf(clength, sizeof (clength) - 1, "%llu",
+        snprintf(clength, sizeof(clength) - 1, "%llu",
                  (unsigned long long) mFile->getOpenSize());
         mRequestSize = mFile->getOpenSize();
         response->mResponseLength = mRequestSize;
@@ -316,41 +272,41 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         response->AddHeader("Content-Length", clength);
 
         // retrieve a checksum when file is still open
-        if (mFile && mFile->GetChecksum())
-        {
+        if (mFile && mFile->GetChecksum()) {
           std::string checksum_name = mFile->GetChecksum()->GetName();
           std::string checksum_val = mFile->GetFmdChecksum();
-          while (checksum_val[0] == '0')
-          {
+
+          while (checksum_val[0] == '0') {
             checksum_val.erase(0, 1);
           }
+
           response->AddHeader("OC-Checksum",
                               eos::common::OwnCloud::GetChecksumString(checksum_name,
-                                                                       checksum_val));
+                                  checksum_val));
         }
       }
 
       std::string query = request->GetQuery();
-      if (query.find("mgm.etag") != std::string::npos)
-      {
+
+      if (query.find("mgm.etag") != std::string::npos) {
         XrdOucEnv queryenv(query.c_str());
         const char* etag = 0;
-        if ((etag = queryenv.Get("mgm.etag")))
-        {
+
+        if ((etag = queryenv.Get("mgm.etag"))) {
           //
           response->AddHeader("ETag", etag);
         }
-        if (mRangeRequest)
+
+        if (mRangeRequest) {
           response->SetResponseCode(response->PARTIAL_CONTENT);
-        else
+        } else {
           response->SetResponseCode(response->OK);
+        }
       }
     }
   }
 
-  if (mFile)
-  {
-
+  if (mFile) {
     time_t mtime = mFile->GetMtime();
     response->AddHeader("Last-Modified", eos::common::Timing::utctime(mtime));
     // We want to use the file callbacks
@@ -362,13 +318,12 @@ HttpHandler::Get (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Head (eos::common::HttpRequest *request)
+HttpHandler::Head(eos::common::HttpRequest* request)
 {
-  eos::common::HttpResponse *response = Get(request);
+  eos::common::HttpResponse* response = Get(request);
   response->mUseFileReaderCallback = false;
-  if (mFile)
-  {
 
+  if (mFile) {
     mFile->close();
     delete mFile;
     mFile = 0;
@@ -379,84 +334,64 @@ HttpHandler::Head (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Put (eos::common::HttpRequest *request)
+HttpHandler::Put(eos::common::HttpRequest* request)
 {
   eos_static_info("method=PUT offset=%llu size=%llu size_ptr=%llu",
                   mCurrentCallbackOffset,
                   request->GetBodySize() ? *request->GetBodySize() : 0,
                   request->GetBodySize());
-
-  eos::common::HttpResponse *response = 0;
+  eos::common::HttpResponse* response = 0;
   bool checksumError = false;
   bool checksumMatch = false;
-  if (mErrCode)
-  {
-    eos_static_err("msg=\"return stored error\" errc=%d errmsg=\"%s\"", mErrCode, mErrText.c_str());
+
+  if (mErrCode) {
+    eos_static_err("msg=\"return stored error\" errc=%d errmsg=\"%s\"", mErrCode,
+                   mErrText.c_str());
     response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
     return response;
   }
 
-  if (mRc)
-  {
-    if (mRc != SFS_OK)
-    {
-      if (mRc == SFS_REDIRECT)
-      {
+  if (mRc) {
+    if (mRc != SFS_OK) {
+      if (mRc == SFS_REDIRECT) {
         // we cannot redirect the PUT at this point, just send an error back
         mErrCode = response->INTERNAL_SERVER_ERROR;
         mErrText = mFile->error.getErrText();
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
-      }
-      else
-        if (mRc == SFS_ERROR)
-      {
+      } else if (mRc == SFS_ERROR) {
         mErrCode = mFile->error.getErrInfo();
         mErrText = mFile->error.getErrText();
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
-      }
-      else
-        if (mRc == SFS_DATA)
-      {
+      } else if (mRc == SFS_DATA) {
         response = HttpServer::HttpData(mFile->error.getErrText(),
                                         mFile->error.getErrInfo());
-      }
-      else
-        if (mRc == SFS_STALL)
-      {
+      } else if (mRc == SFS_STALL) {
         response = HttpServer::HttpStall(mFile->error.getErrText(),
                                          mFile->error.getErrInfo());
-      }
-      else
-      {
+      } else {
         response = HttpServer::HttpError("unexpected result from file open",
                                          EOPNOTSUPP);
       }
+
       delete mFile;
       mFile = 0;
-
       return response;
     }
-  }
-
-  else
-  {
+  } else {
     // check for chunked uploads
-    if (!mCurrentCallbackOffset && request->GetHeaders().count("oc-chunked"))
-    {
+    if (!mCurrentCallbackOffset && request->GetHeaders().count("oc-chunked")) {
       int chunk_n = 0;
       int chunk_max = 0;
       XrdOucString chunk_uuid;
 
       if ((!request->GetHeaders().count("cbox-chunked-android-issue-900")) &&
-          (!eos::common::OwnCloud::getContentSize(request)))
-      {
+          (!eos::common::OwnCloud::getContentSize(request))) {
         // -------------------------------------------------------
         // WARNING:
         // there is buggy ANDROID client not providing this header
         // but we let it pass if a special cbox header allows a
         // bypass
         // -------------------------------------------------------
-
         mErrCode = response->BAD_REQUEST;
         mErrText = "Missing total length in OC request";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
@@ -470,8 +405,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
                                           chunk_max,
                                           chunk_uuid);
 
-      if (chunk_n >= chunk_max)
-      {
+      if (chunk_n >= chunk_max) {
         // there is something inconsistent here
         // HTTP write error
         mErrCode = response->BAD_REQUEST;
@@ -482,17 +416,17 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         return response;
       }
 
-      unsigned long long contentlength = eos::common::StringConversion::GetSizeFromString(request->GetHeaders()["content-length"]);
+      unsigned long long contentlength =
+        eos::common::StringConversion::GetSizeFromString(
+          request->GetHeaders()["content-length"]);
+
       // recompute offset where to write
-      if ((chunk_n + 1) < chunk_max)
-      {
+      if ((chunk_n + 1) < chunk_max) {
         // the first n-1 chunks have a straight forward offset
         mCurrentCallbackOffset = contentlength * chunk_n;
         eos_static_debug("setting to false %lld", mCurrentCallbackOffset);
         mLastChunk = false;
-      }
-      else
-      {
+      } else {
         // -------------------------------------------------------
         // WARNING:
         // there is buggy ANDROID client not providing this header
@@ -500,15 +434,13 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         // -------------------------------------------------------
 
         // the last chunks has to be written at offset=total-length - chunk-length
-
-        if (eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request)))
-        {
+        if (eos::common::StringConversion::GetSizeFromString(
+              eos::common::OwnCloud::getContentSize(request))) {
           mCurrentCallbackOffset =
-                  eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
+            eos::common::StringConversion::GetSizeFromString(
+              eos::common::OwnCloud::getContentSize(request));
           mCurrentCallbackOffset -= contentlength;
-        }
-        else
-        {
+        } else {
           mCurrentCallbackOffset = (chunk_n * (1 * 1024 * 1000)); // ANDROID client
         }
 
@@ -517,97 +449,87 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       }
     }
 
-
     // file streaming in
-    size_t *bodySize = request->GetBodySize();
-    if (request->GetBody().c_str() && bodySize && (*bodySize))
-    {
+    size_t* bodySize = request->GetBodySize();
+
+    if (request->GetBody().c_str() && bodySize && (*bodySize)) {
       size_t stored = mFile->write(mCurrentCallbackOffset,
                                    request->GetBody().c_str(),
                                    *request->GetBodySize());
-      if (stored != *request->GetBodySize())
-      {
+
+      if (stored != *request->GetBodySize()) {
         // HTTP write error
-        mErrCode = response->SERVICE_UNAVAILABLE;
+        mErrCode = response->INTERNAL_SERVER_ERROR;
         mErrText = "Write error occured";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         delete mFile;
         mFile = 0;
         return response;
-      }
-      else
-      {
-        eos_static_info("msg=\"stored requested bytes\" offset=%lld", mCurrentCallbackOffset);
+      } else {
+        eos_static_info("msg=\"stored requested bytes\" offset=%lld",
+                        mCurrentCallbackOffset);
         // decrease the upload left data size
         mUploadLeftSize -= *request->GetBodySize();
         mCurrentCallbackOffset += *request->GetBodySize();
-
         response = new eos::common::PlainHttpResponse();
-
         std::string query = request->GetQuery();
         XrdOucEnv queryenv(query.c_str());
         const char* etag = 0;
-        if ((etag = queryenv.Get("mgm.etag")))
-        {
+
+        if ((etag = queryenv.Get("mgm.etag"))) {
           //
           response->AddHeader("ETag", etag);
         }
+
         response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;
       }
-    }
-    else
-    {
+    } else {
       eos_static_info("entering close handler");
       eos::common::HttpRequest::HeaderMap header = request->GetHeaders();
 
-      if (header.count("x-oc-mtime"))
-      {
+      if (header.count("x-oc-mtime")) {
         // there is an X-OC-Mtime header to force the mtime for that file
         mFile->SetForcedMtime(strtoull(header["x-oc-mtime"].c_str(), 0, 10), 0);
       }
 
-      if ((!mLastChunk) && (request->GetHeaders().count("oc-chunked")))
-      {
+      if ((!mLastChunk) && (request->GetHeaders().count("oc-chunked"))) {
         // WARNING: this assumes that chunks are uploaded in order
         mFile->disableChecksum();
       }
 
       // retrieve a checksum when file is still open
       eos::common::OwnCloud::checksum_t checksum;
-      if (mFile->GetChecksum())
-      {
 
-        if (header.count("x-oc-mtime") && (mLastChunk || (!request->GetHeaders().count("oc-chunked"))))
-        {
-          // call the checksum verification explicite now because 
+      if (mFile->GetChecksum()) {
+        if (header.count("x-oc-mtime") && (mLastChunk ||
+                                           (!request->GetHeaders().count("oc-chunked")))) {
+          // call the checksum verification explicite now because
           mFile->verifychecksum();
           std::string checksum_name = mFile->GetChecksum()->GetName();
           std::string checksum_val = mFile->GetChecksum()->GetHexChecksum();
-          while (checksum_val[0] == '0')
-          {
+
+          while (checksum_val[0] == '0') {
             checksum_val.erase(0, 1);
           }
-          checksum = std::make_pair (
-                  checksum_name,
-                  checksum_val);
 
+          checksum = std::make_pair(
+                       checksum_name,
+                       checksum_val);
           // inspect if there is checksum provided
-          eos::common::OwnCloud::checksum_t client_checksum = eos::common::OwnCloud::GetChecksum(request);
-
+          eos::common::OwnCloud::checksum_t client_checksum =
+            eos::common::OwnCloud::GetChecksum(request);
           eos_static_debug("client-checksum-type=%s client-checksum-value=%s "
                            "server-checksum-type=%s server-checksum-value=%s",
                            client_checksum.first.c_str(),
                            client_checksum.second.c_str(),
                            checksum.first.c_str(),
                            checksum.second.c_str());
-          if (client_checksum.first != "")
-          {
-            if (client_checksum.first == checksum.first)
-            {
+
+          if (client_checksum.first != "") {
+            if (client_checksum.first == checksum.first) {
               // compare only if the algorithm is the same
-              if (client_checksum.second != checksum.second)
-              {
+              if (client_checksum.second != checksum.second) {
                 eos_static_err("msg=\"invalid checksum\" client-checksum-type=%s client-checksum-value=%s "
                                "server-checksum-type=%s server-checksum-value=%s",
                                client_checksum.first.c_str(),
@@ -616,25 +538,22 @@ HttpHandler::Put (eos::common::HttpRequest *request)
                                checksum.second.c_str());
                 checksumError = true;
               }
-	      checksumMatch = true;
+
+              checksumMatch = true;
             }
-          }
-	  else
-	  {
-	    eos_static_warning("msg=\"client required different checksum\" "
-			       "client-checksum-type=%s client-checksum-value=%s "
+          } else {
+            eos_static_warning("msg=\"client required different checksum\" "
+                               "client-checksum-type=%s client-checksum-value=%s "
                                "server-checksum-type=%s server-checksum-value=%s",
                                client_checksum.first.c_str(),
                                client_checksum.second.c_str(),
                                checksum.first.c_str(),
                                checksum.second.c_str());
-	  }
+          }
         }
-
       }
 
-      if (checksumError)
-      {
+      if (checksumError) {
         response = new eos::common::PlainHttpResponse();
         response->SetResponseCode(eos::common::HttpResponse::PRECONDITION_FAILED);
         delete mFile;
@@ -643,22 +562,19 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       }
 
       mCloseCode = mFile->close();
-      if (mCloseCode)
-      {
-        mErrCode = response->SERVICE_UNAVAILABLE;
+
+      if (mCloseCode) {
+        mErrCode = response->INTERNAL_SERVER_ERROR;
         mErrText = "File close failed";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
-
         delete mFile;
         mFile = 0;
         return response;
-      }
-      else
-      {
+      } else {
         response = new eos::common::PlainHttpResponse();
 
-        if (header.count("x-oc-mtime") && (mLastChunk || (!request->GetHeaders().count("oc-chunked"))))
-        {
+        if (header.count("x-oc-mtime") && (mLastChunk ||
+                                           (!request->GetHeaders().count("oc-chunked")))) {
           response->AddHeader("ETag", mFile->GetETag());
           // only normal uploads or the last chunk receive these extra response headers
           response->AddHeader("X-OC-Mtime", "accepted");
@@ -666,11 +582,12 @@ HttpHandler::Put (eos::common::HttpRequest *request)
           std::string ocid;
           eos::common::StringConversion::GetSizeString(ocid, mFileId << 28);
           response->AddHeader("OC-FileId", ocid);
-          if (checksumMatch && request->GetHeaders().count("oc-checksum"))
-          {
+
+          if (checksumMatch && request->GetHeaders().count("oc-checksum")) {
             response->AddHeader("OC-Checksum", request->GetHeaders()["oc-checksum"]);
           }
         }
+
         response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;
       }
@@ -686,137 +603,119 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 bool
-HttpHandler::DecodeByteRange (std::string rangeheader,
-                              std::map<off_t, ssize_t> &offsetmap,
-                              off_t &requestsize,
-                              off_t filesize)
+HttpHandler::DecodeByteRange(std::string rangeheader,
+                             std::map<off_t, ssize_t>& offsetmap,
+                             off_t& requestsize,
+                             off_t filesize)
 {
   std::vector<std::string> tokens;
-  if (rangeheader.substr(0, 6) != "bytes=")
-  {
+
+  if (rangeheader.substr(0, 6) != "bytes=") {
     // this is an illegal header
     return false;
-  }
-  else
-  {
+  } else {
     rangeheader.erase(0, 6);
   }
 
   eos::common::StringConversion::Tokenize(rangeheader, tokens, ",");
+
   // decode the string parts
-  for (size_t i = 0; i < tokens.size(); i++)
-  {
+  for (size_t i = 0; i < tokens.size(); i++) {
     eos_static_debug("decoding %s", tokens[i].c_str());
     off_t start = 0;
     off_t stop = 0;
     off_t length = 0;
-
     size_t mpos = tokens[i].find("-");
-    if (mpos == std::string::npos)
-    {
+
+    if (mpos == std::string::npos) {
       // there must always be a '-'
       return false;
     }
+
     std::string sstop = tokens[i];
     std::string sstart = tokens[i];
     sstart.erase(mpos);
     sstop.erase(0, mpos + 1);
-    if (sstart.length())
-    {
+
+    if (sstart.length()) {
       start = strtoull(sstart.c_str(), 0, 10);
-    }
-    else
-    {
+    } else {
       start = 0;
     }
 
-    if (sstop.length())
-    {
+    if (sstop.length()) {
       stop = strtoull(sstop.c_str(), 0, 10);
-    }
-    else
-    {
-      if (filesize > 0)
+    } else {
+      if (filesize > 0) {
         stop = filesize - 1;
-      else
+      } else {
         stop = 0;
+      }
     }
 
-    if (!sstart.length())
-    {
+    if (!sstart.length()) {
       // case '-X' = the last X bytes
       start = filesize - stop;
       stop = filesize - 1;
     }
 
-    if ((start > filesize) || (stop > filesize))
-    {
+    if ((start > filesize) || (stop > filesize)) {
       return false;
     }
 
-    if (stop >= start)
-    {
+    if (stop >= start) {
       length = (stop - start) + 1;
-    }
-    else
-    {
+    } else {
       continue;
     }
 
-    if (offsetmap.count(start))
-    {
-      if (offsetmap[start] < length)
-      {
+    if (offsetmap.count(start)) {
+      if (offsetmap[start] < length) {
         // a previous block has been replaced with a longer one
         offsetmap[start] = length;
       }
-    }
-    else
-    {
+    } else {
       offsetmap[start] = length;
     }
   }
 
   // now merge overlapping requests
   bool merged = true;
-  while (merged)
-  {
+
+  while (merged) {
     requestsize = 0;
-    if (offsetmap.begin() == offsetmap.end())
-    {
+
+    if (offsetmap.begin() == offsetmap.end()) {
       // if there is nothing in the map just return with error
       eos_static_err("msg=\"range map is empty\"");
       return false;
     }
-    for (auto it = offsetmap.begin(); it != offsetmap.end(); it++)
-    {
+
+    for (auto it = offsetmap.begin(); it != offsetmap.end(); it++) {
       eos_static_debug("offsetmap %llu:%llu", it->first, it->second);
       auto next = it;
       next++;
-      if (next != offsetmap.end())
-      {
+
+      if (next != offsetmap.end()) {
         // check if we have two overlapping requests
-        if ((it->first + it->second) >= (next->first))
-        {
+        if ((it->first + it->second) >= (next->first)) {
           merged = true;
           // merge this two
           it->second = next->first + next->second - it->first;
           offsetmap.erase(next);
           break;
-        }
-        else
-        {
+        } else {
           merged = false;
         }
-      }
-      else
-      {
+      } else {
         merged = false;
       }
+
       // compute the total size
       requestsize += it->second;
     }
   }
+
   return true;
 }
 

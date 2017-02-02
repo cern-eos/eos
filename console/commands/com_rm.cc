@@ -28,7 +28,7 @@
 
 /* Remove a file */
 int
-com_rm (char* arg1)
+com_rm(char* arg1)
 {
   // split subcommands
   eos::common::StringTokenizer subtokenizer(arg1);
@@ -40,107 +40,93 @@ com_rm (char* arg1)
   eos::common::Path* cPath = 0;
   XrdOucString in = "mgm.cmd=rm&";
 
-  if (wants_help(arg1))
-    goto com_rm_usage;
-
-  if ((s1 == "--help") || (s1 == "-h"))
-  {
+  if (wants_help(arg1)) {
     goto com_rm_usage;
   }
 
-  if (s1 == "-r")
-  {
+  if ((s1 == "--help") || (s1 == "-h")) {
+    goto com_rm_usage;
+  }
+
+  if (s1 == "-r") {
     option = "r";
     path = s2;
-  }
-  else if ( (s1 == "-rF") || (s1 == "-Fr") )
-  {
+  } else if ((s1 == "-rF") || (s1 == "-Fr")) {
     option = "rf";
     path = s2;
-  } else if (s1 == "-f")
-  {
+  } else if (s1 == "-f") {
     option = "f";
-    path =s2;
-  } else if (s1.beginswith("-"))
-  {
+    path = s2;
+  } else if (s1.beginswith("-")) {
     goto com_rm_usage;
-  } else 
-  {
+  } else {
     option = "";
     path = s1;
   }
 
-
-  do
-  {
+  do {
     XrdOucString param = subtokenizer.GetToken();
-    if (param.length())
-    {
+
+    if (param.length()) {
       path += " ";
       path += param;
-    }
-    else
-    {
+    } else {
       break;
     }
-  }
-  while (1);
+  } while (1);
 
   // remove escaped blanks
-  while (path.replace("\\ ", " "))
-  {
+  while (path.replace("\\ ", " ")) {
   }
 
-  if (!path.length())
-  {
+  if (!path.length()) {
     goto com_rm_usage;
-
-  }
-  else
-  {
+  } else {
     path = abspath(path.c_str());
-    in += "mgm.path=";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
     in += "&mgm.option=";
     in += option;
-
     cPath = new eos::common::Path(path.c_str());
 
-    if ( (option == "r") && (cPath->GetSubPathSize() < 4) )
-    {
+    if ((option == "r") && (cPath->GetSubPathSize() < 4)) {
       string s;
-      fprintf(stdout, "Do you really want to delete ALL files starting at %s ?\n", path.c_str());
+      fprintf(stdout, "Do you really want to delete ALL files starting at %s ?\n",
+              path.c_str());
       fprintf(stdout, "Confirm the deletion by typing => ");
       XrdOucString confirmation = "";
-      for (int i = 0; i < 10; i++)
-      {
-        confirmation += (int) (9.0 * rand() / RAND_MAX);
+
+      for (int i = 0; i < 10; i++) {
+        confirmation += (int)(9.0 * rand() / RAND_MAX);
       }
+
       fprintf(stdout, "%s\n", confirmation.c_str());
       fprintf(stdout, "                               => ");
       getline(std::cin, s);
       std::string sconfirmation = confirmation.c_str();
-      if (s == sconfirmation)
-      {
+
+      if (s == sconfirmation) {
         fprintf(stdout, "\nDeletion confirmed\n");
         in += "&mgm.deletion=deep";
         delete cPath;
-      }
-      else
-      {
+      } else {
         fprintf(stdout, "\nDeletion aborted\n");
         global_retc = EINTR;
         delete cPath;
         return (0);
       }
     }
+
     global_retc = output_result(client_user_command(in));
     return (0);
   }
 
 com_rm_usage:
-  fprintf(stdout, "usage: rm [-rF] <path>                                                 :  remove file <path>\n");
-  fprintf(stdout, "                                                                    -r :  remove recursivly\n");
-  fprintf(stdout, "                                                                    -F :  remove bypassing recycling policies (you have to take the root role to use this flag!)\n");
+  fprintf(stdout,
+          "usage: rm [-rF] [<path>|fid:<fid-dec>|fxid:<fid-hex>]                    :  remove file <path>\n");
+  fprintf(stdout,
+          "                                                                    -r :  remove recursivly\n");
+  fprintf(stdout,
+          "                                                                    -F :  remove bypassing recycling policies (you have to take the root role to use this flag!)\n");
   return (0);
 }

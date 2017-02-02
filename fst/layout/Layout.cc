@@ -61,7 +61,7 @@ Layout::Layout(XrdFstOfsFile* file,
   mIoType = eos::common::LayoutId::GetIoType(path);
   mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);
   mIsEntryServer = false;
-  mLocalPath = "";
+  mLocalPath = (path ? path : "");
   mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
 }
 

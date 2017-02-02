@@ -177,10 +177,11 @@ usage()
   fprintf(stderr, "       -d           : debug mode\n");
   fprintf(stderr, "       -v           : verbose mode\n");
   fprintf(stderr, "       -V           : write summary as key value pairs\n");
-  fprintf(stderr,
-          "       -l           : try to force the destination to the local disk server [not supported]\n");
-  fprintf(stderr,
-          "       -a           : append to the file rather than truncate an existing file\n");
+  fprintf(stderr, "       -l           : try to force the destination to the "
+          "local disk server [not supported]\n");
+  fprintf(stderr, "       -a           : append to the file rather than truncate"
+          " an existing file\n");
+  fprintf(stderr, "       -A <offset>  : append/overwrite at offset\n");
   fprintf(stderr,
           "       -b <size>    : use <size> as buffer size for copy operations\n");
   fprintf(stderr,
@@ -530,7 +531,7 @@ main(int argc, char* argv[])
   extern int optind;
 
   while ((c = getopt(argc, argv,
-                     "nshxdvlipfce:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:V0")) != -1) {
+                     "nshdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -566,6 +567,11 @@ main(int argc, char* argv[])
 
     case 'a':
       appendmode = 1;
+      break;
+
+    case 'A':
+      appendmode = 1;
+      startwritebyte = strtoull(optarg, 0, 10);
       break;
 
     case 'c':
@@ -1823,6 +1829,10 @@ main(int argc, char* argv[])
         } else {
           retc = file->fileOpen(SFS_O_CREAT | SFS_O_RDWR,
                                 S_IRUSR | S_IWUSR | S_IRGRP, "");
+        }
+
+        if (!startwritebyte && response) {
+          startwritebyte = response->GetSize();
         }
 
         delete response;

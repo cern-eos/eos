@@ -42,7 +42,15 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::File()
 {
-  XrdOucString spath = pOpaque->Get("mgm.path");
+  XrdOucString spath = "";
+  XrdOucString spathid = pOpaque->Get("mgm.file.id");
+
+  if (spathid.length()) {
+    GetPathFromFid(spath, pOpaque, "Cannot get fid");
+  } else {
+    spath = pOpaque->Get("mgm.path");
+  }
+
   const char* inpath = spath.c_str();
 
   if (!inpath) {
@@ -549,11 +557,12 @@ ProcCommand::File()
     // -------------------------------------------------------------------------
     if (mSubCmd == "rename") {
       cmdok = true;
-      XrdOucString source = pOpaque->Get("mgm.file.source");
+      XrdOucString source = spath;
       XrdOucString target = pOpaque->Get("mgm.file.target");
 
       if (gOFS->rename(source.c_str(), target.c_str(), *mError, *pVid, 0, 0, true)) {
-        stdErr += "error: unable to rename";
+        stdErr += "error: ";
+        stdErr += mError->getErrText();
         retc = errno;
       } else {
         stdOut += "success: renamed '";
@@ -671,10 +680,10 @@ ProcCommand::File()
         opaque += workflow.c_str();
         opaque += "&mgm.path=";
         opaque += spath.c_str();
-	opaque += "&mgm.ruid=";
-	opaque += (int) vid.uid;
-	opaque += "&mgm.rgid=";
-	opaque += (int) vid.gid;
+        opaque += "&mgm.ruid=";
+        opaque += (int) vid.uid;
+        opaque += "&mgm.rgid=";
+        opaque += (int) vid.gid;
         XrdSecEntity lClient(pVid->prot.c_str());
         lClient.name = (char*) pVid->name.c_str();
         lClient.tident = (char*) pVid->tident.c_str();
@@ -1010,10 +1019,10 @@ ProcCommand::File()
 
     if (mSubCmd == "convert") {
       cmdok = true;
+
       // -----------------------------------------------------------------------
       // check access permissions on source
       // -----------------------------------------------------------------------
-
       if ((gOFS->_access(spath.c_str(), W_OK, *mError, *pVid, "") != SFS_OK)) {
         stdErr += "error: you have no write permission on '";
         stdErr += spath.c_str();
@@ -1238,13 +1247,20 @@ ProcCommand::File()
     if (mSubCmd == "touch") {
       cmdok = true;
 
-      if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0)) {
-        stdErr += "error: unable to touch";
-        retc = errno;
+      if (!spath.length()) {
+        stdErr = "error: There is no file with given id! '";
+        stdErr += spathid;
+        stdErr += "'";
+        retc = ENOENT;
       } else {
-        stdOut += "success: touched '";
-        stdOut += spath.c_str();
-        stdOut += "'";
+        if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0)) {
+          stdErr = "error: unable to touch";
+          retc = errno;
+        } else {
+          stdOut += "success: touched '";
+          stdOut += spath.c_str();
+          stdOut += "'";
+        }
       }
     }
 
@@ -2083,7 +2099,7 @@ ProcCommand::File()
   }
 
   if (!cmdok) {
-    stdErr += "error: don't know subcmd=";
+    stdErr = "error: don't know subcmd=";
     stdErr += mSubCmd;
     retc = EINVAL;
   }

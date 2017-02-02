@@ -39,6 +39,8 @@
 
 #include "mq/XrdMqTiming.hh"
 
+#include "console/RegexUtil.hh"
+
 /*----------------------------------------------------------------------------*/
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -124,5 +126,8 @@ extern int done;
 XrdOucString cleanPath(const std::string& pathToHandle);
 void addHelpOptionRecursively(ConsoleCliCommand* command);
 bool checkHelpAndErrors(ConsoleCliCommand* command);
+
+bool RegWrap(XrdOucString& path, const std::string& key);
+bool Path2FileDenominator(XrdOucString& path);
 
 #endif

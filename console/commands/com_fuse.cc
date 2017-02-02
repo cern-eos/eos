@@ -251,11 +251,9 @@ com_fuse(char* arg1)
       env += " EOS_FUSE_LOGLEVEL=5";
     }
 
-    // no pio
+    env += " XRD_RUNFORKHANDLER=1";
     env += " EOS_FUSE_NOPIO=1";
-    // use the kernel cache
     env += " EOS_FUSE_KERNELCACHE=1";
-    // use big writes
     env += " EOS_FUSE_BIGWRITES=1";
     fprintf(stderr, "===> fuse readahead        : %s\n",
             getenv("EOS_FUSE_RDAHEAD"));
@@ -276,43 +274,42 @@ com_fuse(char* arg1)
     fprintf(stderr, "===> fuse lazy-open-rw     : %s\n",
             getenv("EOS_FUSE_LAZYOPENRW"));
     fprintf(stderr, "==== fuse multi-threading  : %s\n", mt ? "true" : "false");
-    XrdOucString mount = env;
-#ifdef __APPLE__
 
     if (!getenv("EOS_MGM_URL")) {
-      fprintf(stderr,
-              "Error: please define the variable EOS_MGM_URL like root://eouser.cern.ch before mounting!\n");
+      fprintf(stderr, "error: please define the variable EOS_MGM_URL like "
+              "root://eosuser.cern.ch before mounting!\n");
       exit(-1);
     }
 
+    XrdOucString mount = env;
+    mount += " eosd ";
+#ifdef __APPLE__
     // El Captian does not forward DYLD_LIBRARY_PATH to subshells
     mount += " env DYLD_LIBRARY_PATH=/usr/local/opt/eos/usr/local/lib eosd ";
+#else
     mount += mountpoint.c_str();
+#endif
     mount += " -f";
     mount += " -o";
     mount += params;
+#ifdef __APPLE__
     mount += " >& /dev/null &";
 #else
-    mount += " eosd ";
-    mount += mountpoint.c_str();
-    mount += " -f";
-    mount += " -o";
-    mount += params;
     mount += " >& /dev/null ";
 #endif
     int rc = system(mount.c_str());
 
     if (WEXITSTATUS(rc)) {
-      fprintf(stderr,
-              "error: failed mount, maybe still mounted? Check with df and eventually 'killall eosd'\n");
+      fprintf(stderr, "error: failed mount, maybe still mounted? Check with "
+              "df and eventually 'killall eosd'\n");
       exit(-1);
     }
 
 #ifdef __APPLE__
-    size_t cnt = 5;
+    int cnt = 5;
 
     for (cnt = 5; cnt > 0; cnt--) {
-      fprintf(stderr, "\r[wait] %ds ...", cnt);
+      fprintf(stderr, "\r[wait] %i seconds ...", cnt);
       fflush(stderr);
       sleep(1);
     }
@@ -336,8 +333,8 @@ com_fuse(char* arg1)
     }
 
     if (!mountok) {
-      fprintf(stderr,
-              "error: failed mount, maybe still mounted? Check with df and eventually 'killall eosd'\n");
+      fprintf(stderr, "error: failed mount, maybe still mounted? Check with "
+              "df and eventually 'killall eosd'\n");
       exit(-1);
     } else {
       fprintf(stderr, "info: successfully mounted EOS [%s] under %s\n",

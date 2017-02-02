@@ -29,58 +29,54 @@
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
-
-/*----------------------------------------------------------------------------*/
+#include <regex.h>
 
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Rm ()
+ProcCommand::Rm()
 {
   XrdOucString spath = pOpaque->Get("mgm.path");
+  GetPathFromFid(spath, pOpaque, "Cannot get fid");
   XrdOucString option = pOpaque->Get("mgm.option");
   XrdOucString deep = pOpaque->Get("mgm.deletion");
-
   const char* inpath = spath.c_str();
   eos::common::Path cPath(inpath);
-
   bool force = (option.find("f") != STR_NPOS);
-
   XrdOucString filter = "";
   std::set<std::string> rmList;
-
   NAMESPACEMAP;
   info = 0;
-  if (info)info = 0; // for compiler happyness
+
+  if (info) {
+    info = 0;  // for compiler happyness
+  }
+
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
-
   spath = path;
+  GetPathFromFid(spath, pOpaque, "Cannot get fid");
 
-  if (force && (vid.uid))
-  {
+  if (force && (vid.uid)) {
     stdErr = "warning: removing the force flag - this is only allowed for the 'root' role!\n";
     force = false;
   }
 
-  if (!spath.length())
-  {
+  if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'rm'";
     retc = EINVAL;
-  }
-  else
-  {
-    if (spath.find("*") != STR_NPOS)
-    {
+  } else {
+    if (spath.find("*") != STR_NPOS) {
       // this is wildcard deletion
       eos::common::Path cPath(spath.c_str());
       spath = cPath.GetParentPath();
       filter = cPath.GetName();
     }
+
     // check if this file exists
     XrdSfsFileExistence file_exists;
-    if (gOFS->_exists(spath.c_str(), file_exists, *mError, *pVid, 0))
-    {
+
+    if (gOFS->_exists(spath.c_str(), file_exists, *mError, *pVid, 0)) {
       stdErr += "error: unable to run exists on path '";
       stdErr += spath.c_str();
       stdErr += "'";
@@ -88,8 +84,7 @@ ProcCommand::Rm ()
       return SFS_OK;
     }
 
-    if (file_exists == XrdSfsFileExistNo)
-    {
+    if (file_exists == XrdSfsFileExistNo) {
       stdErr += "error: no such file or directory with path '";
       stdErr += spath.c_str();
       stdErr += "'";
@@ -97,92 +92,89 @@ ProcCommand::Rm ()
       return SFS_OK;
     }
 
-    if (file_exists == XrdSfsFileExistIsFile)
-    {
+    if (file_exists == XrdSfsFileExistIsFile) {
       // if we have rm -r <file> we remove the -r flag
-      option.replace("r","");
+      option.replace("r", "");
     }
 
-    if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length())
-    {
+    if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length()) {
+      regex_t regex_filter;
+      // Adding regex anchors for begining and end of string
+      XrdOucString filter_temp = "^";
+      // Changing wildcard * into regex syntax
+      filter.replace("*", ".*");
+      filter_temp += filter;
+      filter_temp += "$";
+      regcomp(&(regex_filter), filter_temp.c_str(), REG_EXTENDED | REG_NEWLINE);
       XrdMgmOfsDirectory dir;
       // list the path and match against filter
       int listrc = dir.open(spath.c_str(), *pVid, (const char*) 0);
-      if (!listrc)
-      {
+
+      if (!listrc) {
         const char* val;
-        while ((val = dir.nextEntry()))
-        {
+
+        while ((val = dir.nextEntry())) {
           XrdOucString mpath = spath;
           XrdOucString entry = val;
           mpath += val;
+
           if ((entry == ".") ||
-              (entry == ".."))
-          {
+              (entry == "..")) {
             continue;
           }
-          if (entry.matches(filter.c_str()))
-          {
+
+          if (!regexec(&regex_filter, entry.c_str(), 0, NULL, 0)) {
             rmList.insert(mpath.c_str());
           }
         }
       }
+
       // if we have rm * (whatever wildcard) we remove the -r flag
-      option.replace("r","");
-    }
-    else
-    {
+      option.replace("r", "");
+    } else {
       rmList.insert(spath.c_str());
     }
 
     // find everything to be deleted
-    if (option.find("r") != STR_NPOS)
-    {
+    if (option.find("r") != STR_NPOS) {
       std::map<std::string, std::set<std::string> > found;
       std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
       std::set<std::string>::const_iterator fileit;
 
-      if (((cPath.GetSubPathSize() < 4) && (deep != "deep")) || (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found)))
-      {
-        if ((cPath.GetSubPathSize() < 4) && (deep != "deep"))
-        {
+      if (((cPath.GetSubPathSize() < 4) && (deep != "deep")) ||
+          (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found))) {
+        if ((cPath.GetSubPathSize() < 4) && (deep != "deep")) {
           stdErr += "error: deep recursive deletes are forbidden without shell confirmation code!";
           retc = EPERM;
-        }
-        else
-        {
+        } else {
           stdErr += "error: unable to remove file/directory";
           retc = errno;
         }
-      }
-      else
-      {
-	XrdOucString recyclingAttribute;
+      } else {
+        XrdOucString recyclingAttribute;
 
-	if (!force)
-	{
-	  // only recycle if there is no '-f' flag
-	  int rpos;
-	  if ( (rpos = spath.find("/.sys.v#.")) == STR_NPOS)
-	  {
-	    // check if this path has a recycle attribute
-	    gOFS->_attr_get(spath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
-	  }
-	  else
-	  {
-	    XrdOucString ppath = spath;
-	    ppath.erase(rpos);
-	    // get it from the parent directory for version directories
-	    gOFS->_attr_get(ppath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
-	  }
-	}
+        if (!force) {
+          // only recycle if there is no '-f' flag
+          int rpos;
+
+          if ((rpos = spath.find("/.sys.v#.")) == STR_NPOS) {
+            // check if this path has a recycle attribute
+            gOFS->_attr_get(spath.c_str(), *mError, *pVid, "",
+                            Recycle::gRecyclingAttribute.c_str(), recyclingAttribute);
+          } else {
+            XrdOucString ppath = spath;
+            ppath.erase(rpos);
+            // get it from the parent directory for version directories
+            gOFS->_attr_get(ppath.c_str(), *mError, *pVid, "",
+                            Recycle::gRecyclingAttribute.c_str(), recyclingAttribute);
+          }
+        }
 
         //.......................................................................
-        // see if we have a recycle policy set 
+        // see if we have a recycle policy set
         //.......................................................................
-	if (recyclingAttribute.length() &&
-	    (!spath.beginswith(Recycle::gRecyclingPrefix.c_str())) )
-	{
+        if (recyclingAttribute.length() &&
+            (!spath.beginswith(Recycle::gRecyclingPrefix.c_str()))) {
           //.....................................................................
           // two step deletion via recycle bin
           //.....................................................................
@@ -190,20 +182,20 @@ ProcCommand::Rm ()
           std::map<uid_t, unsigned long long> user_deletion_size;
           std::map<gid_t, unsigned long long> group_deletion_size;
 
-          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
-          {
-            for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
-            {
+          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
+            for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
+                 fileit++) {
               std::string fspath = rfoundit->first;
-	      size_t l_pos;
+              size_t l_pos;
+              std::string entry = *fileit;
 
-	      std::string entry = *fileit;
-	      if ( (l_pos = entry.find(" ->")) != std::string::npos)
-		entry.erase(l_pos);
+              if ((l_pos = entry.find(" ->")) != std::string::npos) {
+                entry.erase(l_pos);
+              }
 
               fspath += entry;
-              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0, true))
-              {
+
+              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0, true)) {
                 stdErr += "error: unable to remove file - bulk deletion aborted\n";
                 retc = errno;
                 return SFS_OK;
@@ -212,14 +204,16 @@ ProcCommand::Rm ()
           }
 
           // delete directories in simulation mode
-          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
-          {
+          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
             // don't even try to delete the root directory
             std::string fspath = rfoundit->first.c_str();
-            if (fspath == "/")
+
+            if (fspath == "/") {
               continue;
-            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0, true) && (errno != ENOENT))
-            {
+            }
+
+            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0,
+                              true) && (errno != ENOENT)) {
               stdErr += "error: unable to remove directory - bulk deletion aborted\n";
               retc = errno;
               return SFS_OK;
@@ -227,90 +221,86 @@ ProcCommand::Rm ()
           }
 
           struct stat buf;
-          if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, ""))
-          {
+
+          if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, "")) {
             stdErr = "error: failed to stat bulk deletion directory: ";
             stdErr += spath.c_str();
             retc = errno;
             return SFS_OK;
           }
-          spath += "/";
 
+          spath += "/";
           eos::mgm::Recycle lRecycle(spath.c_str(), recyclingAttribute.c_str(),
-				     pVid, buf.st_uid, buf.st_gid,
-				     (unsigned long long) buf.st_ino);
+                                     pVid, buf.st_uid, buf.st_gid,
+                                     (unsigned long long) buf.st_ino);
           int rc = 0;
-          if ((rc = lRecycle.ToGarbage("rm-r", *mError)))
-          {
+
+          if ((rc = lRecycle.ToGarbage("rm-r", *mError))) {
             stdErr = "error: failed to recycle path ";
             stdErr += path;
             stdErr += "\n";
             stdErr += mError->getErrText();
             retc = mError->getErrInfo();
             return SFS_OK;
-          }
-          else
-          {
+          } else {
             stdOut += "success: you can recycle this deletion using 'recycle restore ";
             char sp[256];
-            snprintf(sp, sizeof (sp) - 1, "%016llx", (unsigned long long) buf.st_ino);
+            snprintf(sp, sizeof(sp) - 1, "%016llx", (unsigned long long) buf.st_ino);
             stdOut += sp;
             stdOut += "'\n";
             retc = 0;
             return SFS_OK;
           }
-        }
-        else
-        {
+        } else {
           //.....................................................................
           // standard way to delete files recursively
           //.....................................................................
           // delete files starting at the deepest level
-          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
-          {
-            for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
-            {
+          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
+            for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
+                 fileit++) {
               std::string fspath = rfoundit->first;
-	      size_t l_pos;
+              size_t l_pos;
+              std::string entry = *fileit;
 
-	      std::string entry = *fileit;
-	      if ( (l_pos = entry.find(" ->")) != std::string::npos)
-		entry.erase(l_pos);
+              if ((l_pos = entry.find(" ->")) != std::string::npos) {
+                entry.erase(l_pos);
+              }
 
               fspath += entry;
-              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0, false, false, force))
-              {
+
+              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0, false, false,
+                             force)) {
                 stdErr += "error: unable to remove file : \n";
-		stdErr += fspath.c_str();
+                stdErr += fspath.c_str();
                 retc = errno;
               }
             }
           }
+
           // delete directories starting at the deepest level
-          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
-          {
+          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
             // don't even try to delete the root directory
             std::string fspath = rfoundit->first.c_str();
-            if (fspath == "/")
+
+            if (fspath == "/") {
               continue;
-            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0))
-            {
-	      if (errno != ENOENT) {
-		stdErr += "error: unable to remove directory :";
-		stdErr += rfoundit->first.c_str();
-		retc = errno;
-	      }
+            }
+
+            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0)) {
+              if (errno != ENOENT) {
+                stdErr += "error: unable to remove directory :";
+                stdErr += rfoundit->first.c_str();
+                retc = errno;
+              }
             }
           }
         }
       }
-    }
-    else
-    {
-      for (auto it = rmList.begin(); it != rmList.end(); ++it)
-      {
-        if (gOFS->_rem(it->c_str(), *mError, *pVid, (const char*) 0, false, false, force) && (errno != ENOENT))
-        {
+    } else {
+      for (auto it = rmList.begin(); it != rmList.end(); ++it) {
+        if (gOFS->_rem(it->c_str(), *mError, *pVid, (const char*) 0, false, false,
+                       force) && (errno != ENOENT)) {
           stdErr += "error: unable to remove file/directory '";
           stdErr += it->c_str();
           stdErr += "'";
@@ -319,6 +309,7 @@ ProcCommand::Rm ()
       }
     }
   }
+
   return SFS_OK;
 }
 

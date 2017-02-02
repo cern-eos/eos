@@ -252,6 +252,11 @@ XrdMgmOfs::_rename(const char* old_name,
     errno = ENOENT;
     return Emsg(epname, error, ENOENT, "rename - source does not exist");
   } else {
+    if (file_exists == XrdSfsFileExistNo) {
+      errno = ENOENT;
+      return Emsg(epname, error, ENOENT, "rename - source does not exist");
+    }
+
     if (file_exists == XrdSfsFileExistIsFile) {
       XrdSfsFileExistence version_exists;
       renameFile = true;
@@ -285,6 +290,20 @@ XrdMgmOfs::_rename(const char* old_name,
           (!n_path.compare(0, o_path.length(), o_path))) {
         errno = EINVAL;
         return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
+      }
+
+      // Check if old path is a quota node - this is forbidden
+      try {
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        rdir = eosView->getContainer(oPath.GetPath());
+
+        if (rdir->getFlags() & eos::QUOTA_NODE_FLAG) {
+          errno = EACCES;
+          return Emsg(epname, error, EACCES, "rename - source is a quota node");
+        }
+      } catch (eos::MDException& e) {
+        errno = ENOENT;
+        return Emsg(epname, error, ENOENT, "rename - source does not exist");
       }
     }
   }
@@ -460,7 +479,7 @@ XrdMgmOfs::_rename(const char* old_name,
                 }
               }
 
-              if ((!userok) && (!groupok)) {
+              if ((!userok) || (!groupok)) {
                 // Deletion will fail as there is not enough quota on the target
                 return Emsg(epname, error, ENOSPC, "rename - cannot get all "
                             "the needed quota for the target directory");

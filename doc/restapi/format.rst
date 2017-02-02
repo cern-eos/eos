@@ -63,3 +63,23 @@ The JSON object contains a tag for errors messages 'errormsg' and the return cod
      "foo" : null,
      "retc" : 22
     }
+
+
+JSONP Callbacks
++++++++++++++++
+
+To request a JSON callback object one uses a callback query:
+
+.. code-block:: text
+   
+   curl "http://localhost:8000/proc/admin/?mgm.cmd=foo&mgm.subcmd=bar&eos.ruid=0&eos.rgid=0&callback=cmd"
+   cmd([
+   {
+     "errormsg" : "error: no such admin command 'foo'",
+     "foo" : 
+     {
+       "bar" : null
+     },
+     "retc" : "22"
+   }
+   ]);

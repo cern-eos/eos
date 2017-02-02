@@ -29,6 +29,7 @@
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
+#include "../xrdutils.hh"
 
 XrdSysMutex LayoutWrapper::gCacheAuthorityMutex;
 std::map<unsigned long long, LayoutWrapper::CacheEntry>
@@ -82,8 +83,8 @@ bool LayoutWrapper::ToCGI(const std::map<std::string, std::string>& m ,
 // Constructor
 //------------------------------------------------------------------------------
 LayoutWrapper::LayoutWrapper(eos::fst::Layout* file) :
-    mFile(file), mOpen(false), mClose(false), mFabs(NULL), mDoneAsyncOpen(false),
-    mOpenHandler(NULL)
+  mFile(file), mOpen(false), mClose(false), mFabs(NULL), mDoneAsyncOpen(false),
+  mOpenHandler(NULL)
 {
   mLocalUtime[0].tv_sec = mLocalUtime[1].tv_sec = 0;
   mLocalUtime[0].tv_nsec = mLocalUtime[1].tv_nsec = 0;
@@ -248,7 +249,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
 
     if (flags & SFS_O_TRUNC) {
       openflags += "tr";
-  }
+    }
   } else {
     openflags += "ro";
   }
@@ -283,7 +284,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   // Send the request for FsCtl
   u = XrdCl::URL(user_url);
   XrdCl::FileSystem fs(u);
-  status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+  status = xrdreq_retryonnullbuf(fs, arg, response);
 
   if (!status.IsOK()) {
     if ((status.errNo == kXR_FSError) && mInlineRepair &&
@@ -298,7 +299,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
         return -1;
       } else {
         // Reissue the open
-        status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+        status = xrdreq_retryonnullbuf(fs, arg, response);
 
         if (!status.IsOK()) {
           eos_static_err("failed to lazy open request %s at url %s code=%d "
@@ -527,7 +528,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   }
 
   eos_static_debug("opening file %s, lazy open is %d flags=%x inline-repair=%s async-open=%d",
-                   path.c_str(), (int)!doOpen, flags, mInlineRepair ? "true" : "false",asyncOpen?1:0);
+                   path.c_str(), (int)!doOpen, flags, mInlineRepair ? "true" : "false",
+                   asyncOpen ? 1 : 0);
 
   if (mOpen) {
     eos_static_debug("already open");
@@ -561,7 +563,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       mOpenHandler = new eos::fst::AsyncLayoutOpenHandler(plain_layout);
       mFile->Redirect(path.c_str());
 
-      if (plain_layout->OpenAsync(flags & ~(SFS_O_TRUNC | SFS_O_CREAT), mode, mOpenHandler, opaque)) {
+      if (plain_layout->OpenAsync(flags & ~(SFS_O_TRUNC | SFS_O_CREAT), mode,
+                                  mOpenHandler, opaque)) {
         delete mOpenHandler;
         mOpenHandler = NULL;
         eos_static_err("error while async opening path=%s - fall back top sync open",
@@ -582,7 +585,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
     bool retry = true;
     XrdOucString sopaque(opaque);
-      // Wait for the async open response
+
+    // Wait for the async open response
     if (mDoneAsyncOpen) {
       // Wait for the async open response
       if (!static_cast<eos::fst::PlainLayout*>(mFile)->WaitOpenAsync()) {
@@ -614,6 +618,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
                        _path.c_str(),
                        sopaque.c_str());
       mFile->Redirect(_path.c_str());
+
       // Do synchronous open
       // Do synchronous open
       if ((retc = mFile->Open(flags, mode, sopaque.c_str()))) {
@@ -646,7 +651,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         eos_static_debug("LastErrNo=%d  _lasturl=%s  LastUrl=%s  _path=%s",
                          static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
                          _lasturl.c_str(), mFile->GetLastTriedUrl().c_str(), _path.c_str());
-          // if it's the same url regardless of the username, we fail
+
+        // if it's the same url regardless of the username, we fail
         if (!username.empty() && username[0] != '*'
             && static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() ==
             kXR_NotAuthorized
@@ -663,6 +669,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
           _lasturl = mFile->GetLastTriedUrl();
           _path = mFile->GetLastTriedUrl();
           size_t p;
+
           // increment the first character of the login until we reach Z
           // it forces a new connection to be used , as the previous is most likely used by unix
           // it forces a new connection to be used , as the previous is most likely used by unix
@@ -685,7 +692,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         }
       } else {
         retry = false;
-    }
+      }
     }
 
     // We don't want to truncate the file in case we reopen it
@@ -815,7 +822,7 @@ int64_t LayoutWrapper::WriteCache(XrdSfsFileOffset offset, const char* buffer,
     if (gCacheAuthority.count(mInode))
       if ((offset + length) >  gCacheAuthority[mInode].mSize) {
         gCacheAuthority[mInode].mSize = (offset + length);
-  }
+      }
   }
 
   if ((*mCache).capacity() < (4 * 1024)) {
@@ -966,7 +973,7 @@ int LayoutWrapper::Close()
   if (((mFlags & O_RDWR) || (mFlags & O_WRONLY)) && (retc || mRestore)) {
     if (Restore()) {
       retc = 0;
-  }
+    }
   }
 
   return retc;
@@ -986,7 +993,7 @@ int LayoutWrapper::Stat(struct stat* buf)
     return -1;
   } else {
     return 0;
-}
+  }
 }
 
 

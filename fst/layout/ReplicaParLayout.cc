@@ -47,7 +47,6 @@ ReplicaParLayout::ReplicaParLayout(XrdFstOfsFile* file,
                  1; // this 1=0x0 16=0xf :-)
   ioLocal = false;
   hasWriteError = false;
-  mLocalPath = path;
 }
 
 
@@ -212,6 +211,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
         return gOFS.Emsg("ReplicaOpen", *mError, errno,
                          "open replica - local open failed ", mLocalPath.c_str());
       }
+
       mLastTriedUrl = file->GetLastTriedUrl();
       mLastUrl = file->GetLastUrl();
       //........................................................................
@@ -244,6 +244,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
                              "open stripes - remote open failed ",
                              maskUrl.c_str());
           }
+
           mLastTriedUrl = file->GetLastTriedUrl();
           mLastUrl = file->GetLastUrl();
           mReplicaFile.push_back(file);

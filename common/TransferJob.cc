@@ -21,130 +21,122 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/TransferJob.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-
 
 EOSCOMMONNAMESPACE_BEGIN
-/*----------------------------------------------------------------------------*/
-/** 
- * Constructor
- * 
- * @param description string describing a transfer
- */
-/*----------------------------------------------------------------------------*/
-TransferJob::TransferJob (const char* description)
+//------------------------------------------------------------------------------
+//! Constructor
+//!
+//! @param description string describing a transfer
+//------------------------------------------------------------------------------
+TransferJob::TransferJob(const char* description)
 {
-  if (description)
+  if (description) {
     mJob = new XrdOucEnv(description);
-  else
+  } else {
     mJob = 0;
+  }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Destructor
-
-/*----------------------------------------------------------------------------*/
-TransferJob::~TransferJob ()
+//------------------------------------------------------------------------------
+TransferJob::~TransferJob()
 {
-  if (mJob)
+  if (mJob) {
     delete mJob;
+  }
 }
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Get the env representation of a transfer job
- * 
- * 
- * @return pointer to string describing env representation
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Get the env representation of a transfer job
+//!
+//! @return pointer to string describing env representation
+//------------------------------------------------------------------------------
 const char*
-TransferJob::GetSealed ()
+TransferJob::GetSealed()
 {
-  if (!mJob)
+  if (!mJob) {
     return 0;
+  }
 
   int envlen = 0;
   mEncodedEnv = mJob->Env(envlen);
-  while (mEncodedEnv.replace("&", "#@#"))
-  {
+
+  while (mEncodedEnv.replace("&", "#@#")) {
   };
+
   return mEncodedEnv.c_str();
 }
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Factor function to create a transfer job from a string description
- * 
- * @param sealeddescription return's a job object created from a sealed description as found in shared queues
- * 
- * @return pointer to transfer job object
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Factor function to create a transfer job from a string description
+//!
+//! @param sealeddescription return's a job object created from a sealed
+//!         description as found in shared queues
+//!
+//! @return pointer to transfer job object
+//------------------------------------------------------------------------------
 TransferJob*
-TransferJob::Create (const char* sealeddescription)
+TransferJob::Create(const char* sealeddescription)
 {
-  if (!sealeddescription)
+  if (!sealeddescription) {
     return 0;
+  }
 
   XrdOucString s = sealeddescription;
-  while (s.replace("#@#", "&"))
-  {
+
+  while (s.replace("#@#", "&")) {
   };
+
   return new TransferJob(s.c_str());
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Return the env representation of a job
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 XrdOucEnv*
-TransferJob::GetEnv ()
+TransferJob::GetEnv()
 {
   return mJob;
 }
 
-/*----------------------------------------------------------------------------*/
-//! Allows to replace the XrdOucEnv description externally
-//! This is used to replace a symmetric key encoded contents with the human readable contents
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Allows to replace the XrdOucEnv description externally. This is used to
+//! replace a symmetric key encoded contents with the human readable contents.
+//------------------------------------------------------------------------------
 void
-TransferJob::Replace (const char* description)
+TransferJob::Replace(const char* description)
 {
-  if (mJob)
-  {
+  if (mJob) {
     delete mJob;
   }
 
   mJob = new XrdOucEnv(description);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Print a transfer job env description as key-val pairs
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 void
-TransferJob::PrintOut (XrdOucString &out)
+TransferJob::PrintOut(XrdOucString& out)
 {
-  std::vector<std::string>tokens;
-  std::string delimiter = "&";
   int envlen = 0;
+  std::string delimiter = "&";
+  std::vector<std::string> tokens;
   std::string description = mJob->Env(envlen);
   eos::common::StringConversion::Tokenize(description, tokens, delimiter);
-  for (size_t i = 0; i < tokens.size(); i++)
-  {
-    out += tokens[i].c_str();
-    out += " ";
+  std::vector<std::string> print_tags {"source.url", "target.url"};
+
+  for (size_t i = 0; i < tokens.size(); i++) {
+    for (auto itag = print_tags.begin(); itag != print_tags.end(); ++itag) {
+      if (tokens[i].find(*itag) == 0) {
+        out += tokens[i].c_str();
+        out += " ";
+        break;
+      }
+    }
   }
 }
-/*----------------------------------------------------------------------------*/
-EOSCOMMONNAMESPACE_END
 
+EOSCOMMONNAMESPACE_END

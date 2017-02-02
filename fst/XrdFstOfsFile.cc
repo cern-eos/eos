@@ -941,13 +941,12 @@ XrdFstOfsFile::open(const char* path,
     }
   }
 
-  //............................................................................
-  if (isRW || (opaqueCheckSum != "ignore")) {
+  // Call the checksum factory function with the selected layout
+  if ((isRW && (opaqueCheckSum != "ignore")) || (opaqueCheckSum != "ignore")) {
     checkSum = eos::fst::ChecksumPlugins::GetChecksumObject(lid);
     eos_debug("checksum requested %d %u", checkSum, lid);
   }
 
-  //............................................................................
   if (eos::common::LayoutId::GetBlockChecksum(lid) !=
       eos::common::LayoutId::kNone) {
     if (opaqueBlockCheckSum != "ignore") {
@@ -1487,7 +1486,7 @@ XrdFstOfsFile::verifychecksum()
         XrdOucString opaqueChecksum = openOpaque->Get("mgm.checksum");
         XrdOucString hexChecksum = checkSum->GetHexChecksum();
 
-        if (opaqueChecksum != hexChecksum) {
+        if ((opaqueChecksum != "disable") && (opaqueChecksum != hexChecksum)) {
           eos_err("requested checksum %s does not match checksum %s of uploaded"
                   " file", opaqueChecksum.c_str(), hexChecksum.c_str());
           delete checkSum;
@@ -2312,11 +2311,11 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset,
   }
 
   if (rc > 0) {
-    if(layOut->IsEntryServer())
-    {
+    if (layOut->IsEntryServer()) {
       XrdSysMutexHelper vecLock(vecMutex);
       rvec.push_back(rc);
     }
+
     rOffset = fileOffset + rc;
   }
 
@@ -2556,12 +2555,12 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset,
     }
   }
 
-  if (rc > 0 ) {
-    if(layOut->IsEntryServer())
-    {
+  if (rc > 0) {
+    if (layOut->IsEntryServer()) {
       XrdSysMutexHelper(vecMutex);
       wvec.push_back(rc);
     }
+
     wOffset = fileOffset + rc;
   }
 
