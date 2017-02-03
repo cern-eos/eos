@@ -1589,7 +1589,7 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
 
    if (!rinode)
    {
-     me.fs ().close (res, 0, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
+     me.fs ().close (res, 0, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid,false);
      fuse_reply_err (req, -res);
       return;
    }
