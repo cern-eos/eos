@@ -1271,6 +1271,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
         mGroupView[snapshot.mGroup] = group;
         group->insert(snapshot.mId);
         group->mIndex = snapshot.mGroupIndex;
+        group->SetConfigMember("status", "on", true, "/eos/*/mgm");
         eos_debug("creating/inserting into group view %s<=>%u",
                   snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
