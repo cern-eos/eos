@@ -61,7 +61,10 @@ FileCfgEngineChangelog::AddEntry(const char* info)
     return false;
   }
 
-  mMap.set(key, value, action);
+  if (!key.empty()) {
+    mMap.set(key, value, action);
+  }
+
   mConfigChanges += info;
   mConfigChanges += "\n";
   return true;
