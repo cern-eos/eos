@@ -469,7 +469,7 @@ XrdMgmOfs::_rename (const char *old_name,
 		    
 		    try
 		    {
-		      fmd = gOFS->eosView->getFile(fspath.c_str());
+		      fmd = gOFS->eosView->getFile(fspath.c_str(), false);
 		    }
 		    catch (eos::MDException &e)
 		    {
@@ -482,8 +482,11 @@ XrdMgmOfs::_rename (const char *old_name,
 		    {
 		      return Emsg(epname, error, errno, "rename - cannot stat file in subtree", fspath.c_str());
 		    }
-		    user_deletion_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
-		    group_deletion_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
+		    if (!fmd->isLink())
+		    {
+		      user_deletion_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
+		      group_deletion_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
+		    }
 		  }
               }
 		// -----------------------------------------------------------------
@@ -541,8 +544,19 @@ XrdMgmOfs::_rename (const char *old_name,
 		  {
 		    std::string fspath = rfoundit->first;
 		    fspath += *fileit;
-		    file = gOFS->eosView->getFile(fspath.c_str());
-		    if (file)
+
+		    try {
+		      file = gOFS->eosView->getFile(fspath.c_str(), false);
+		    }
+		    catch (eos::MDException &e)
+		    {
+		      errno = e.getErrno();
+		      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+				e.getErrno(), e.getMessage().str().c_str());
+		      eos_debug("path=%s is probably a symlink", fspath.c_str());
+		    }
+
+		    if (file && !file->isLink())
 		    {
 		      SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(fspath.c_str()); // quota node from file path
 		      SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str()); // quota node of target directory
