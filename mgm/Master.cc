@@ -1541,6 +1541,24 @@ Master::Slave2Master ()
     return false;
   }
 
+  size_t n_wait = 0;
+  // wait that the follower reaches the offset seen now                                                                                    
+  while (gOFS->eosFileService->getFollowOffset() < (uint64_t) size_local_dir_changelog)
+  {
+    XrdSysTimer sleeper;
+    sleeper.Wait(5000);
+    eos_static_info("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", 
+		    gOFS->eosFileService->getFollowOffset(), (uint64_t) size_local_dir_changelog);
+
+    if (n_wait > 12)
+    {
+      MasterLog(eos_crit("slave=>master transition aborted since we didn't reach the follow point in 60 seconds - you may retry"));
+      fRunningState = kIsRunningSlave;
+      return false;
+    }
+    n_wait++;
+  }
+
   bool syncok = false;
 
   if (HostCheck(fRemoteHost.c_str(), 1096))
