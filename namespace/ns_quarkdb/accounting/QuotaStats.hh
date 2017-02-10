@@ -40,7 +40,7 @@ class QuotaStats;
 //! corresponding container. Each such object saves two HMAPs in the Redis
 //! instance using the following convention:
 //!
-//! 1. id_t:quota_hmap_id - this is the HMAP key, where id_t is the id of the
+//! 1. id_t:quota_hmap_uid - this is the HMAP key, where id_t is the id of the
 //!    corresponding container. It contains only information about the uids
 //!    of the uses who have written to the container.
 //!
