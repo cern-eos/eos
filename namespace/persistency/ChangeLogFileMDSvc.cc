@@ -423,7 +423,8 @@ namespace eos
 	try 
 	{
 	  while( current->getId() != 1 &&
-		 (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
+		 ((current->getFlags() & QUOTA_NODE_FLAG) == 0 ) && 
+		 ((current->getParentId())) )
 	    current = pContSvc->getContainerMD( current->getParentId() );
 	}
 	catch( MDException &e )
