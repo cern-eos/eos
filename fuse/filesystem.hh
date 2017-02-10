@@ -65,6 +65,7 @@
 #include "FuseCache/LayoutWrapper.hh"
 /*----------------------------------------------------------------------------*/
 #include "AuthIdManager.hh"
+#include "Xrd/XrdScheduler.hh"
 
 #define sMaxAuthId (2^6)
 
@@ -81,6 +82,40 @@ xrootd_nullresponsebug_retrysleep; ///< sometimes, XRootd gives a NULL responses
 
 class filesystem
 {
+  static XrdSysError     gFuseEroute;
+  static XrdOucTrace     gFuseTrace;
+
+  struct delayedCloseEntry {
+    int fildes;
+    unsigned long inode;
+    uid_t uid;
+    gid_t gid;
+    pid_t pid;
+    unsigned long long expire_ns;
+  };
+
+  class DelayedCloseJob : public XrdJob
+  {
+    delayedCloseEntry* pCloseEntry;
+    filesystem* pFs;
+    virtual void DoIt()
+    {
+      pFs->close(pCloseEntry->fildes, pCloseEntry->inode, pCloseEntry->uid,
+                 pCloseEntry->gid, pCloseEntry->pid, true , true);
+    }
+  public:
+    DelayedCloseJob(filesystem* fs, delayedCloseEntry* dce) : pCloseEntry(dce),
+      pFs(fs) {};
+    virtual ~DelayedCloseJob()
+    {
+      delete pCloseEntry;
+    }
+  };
+  eos::common::ConcurrentQueue<delayedCloseEntry*> pDelayedCloseQueue;
+  pthread_t pCloserThread; ///< async thread closing files with a delay
+  static void* DelayedFileClose(void* pp);
+  XrdScheduler pCloseThreadPool;
+
 public:
 
   filesystem();
@@ -607,8 +642,8 @@ public:
 //----------------------------------------------------------------------------
 //!
 //----------------------------------------------------------------------------
-  int close(int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
-
+  int close(int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid,
+            bool delayed = true, bool doclose = false);
 
 //----------------------------------------------------------------------------
 //!
@@ -904,10 +939,7 @@ public:
     return max_inline_repair_size;
   }
 
-
-protected:
 private:
-
   uint64_t pid_max;
   uint64_t uid_max;
 
@@ -920,6 +952,8 @@ private:
   bool lazy_open_rw; ///< indicated if lazy openning of the file should be used for files open in RW
   bool async_open; ///< indicated if async open should be used (this used only in coordination with lazy_open)
   bool lazy_open_disabled; ///< indicated if lazy openning is disabled because the server does not support it
+  unsigned long long
+  delayed_close_ms; ///< if non zero, the file is kept open in the back for the specified delay (to avoid the overhead of closing it and reopenning it)
   bool inline_repair; ///< indicate if we should try to repair broken files for wrinting inlined in the open
   off_t max_inline_repair_size; ///< define maximum inline repair size
   bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
@@ -942,21 +976,22 @@ private:
   uint64_t max_wb_in_memory_size; ///< maximum size of in-memory wb cache structures
   XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
-//----------------------------------------------------------------------------
-//             ******* Implementation Translations *******
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //             ******* Implementation Translations *******
+  //----------------------------------------------------------------------------
 
-// Protecting the path/inode translation table
+  // Protecting the path/inode translation table
   eos::common::RWMutex mutex_inode_path;
 
-// Mapping path name to inode
+  // Mapping path name to inode
   google::dense_hash_map<std::string, unsigned long long> path2inode;
 
-// Mapping inode to path name
+  // Mapping inode to path name
   std::map<unsigned long long, std::string> inode2path;
 
-// Prefix (duplicated from upstream object)
+  // Prefix (duplicated from upstream object)
   std::string mPrefix;
+
 
 //------------------------------------------------------------------------------
 //      ******* Implementation of the directory listing table *******

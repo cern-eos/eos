@@ -202,7 +202,7 @@ Here is an  example for a dynamic attribute:
 .. code-block:: bash
 
    # define a workflow to echo the meta blob and the acls of the parent directory when a file is written
-   eos attr set "sys.workflow.closew.default=sys.workflow.closew.default="bash:shell:mylog echo <eos::wfe::metadata> <eos::wfe::cxattr:sys.acl>" /eos/dev/echo/
+   eos attr set "sys.workflow.closew.default=sys.workflow.closew.default="bash:shell:mylog echo <eos::wfe::base64:metadata> <eos::wfe::cxattr:sys.acl>" /eos/dev/echo/
 
 
 Configuring retry policies for  **bash:shell** workflows

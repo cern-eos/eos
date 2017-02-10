@@ -442,7 +442,7 @@ XrdMgmOfs::_rename(const char* old_name,
 
                   // Stat this file and add to the deletion maps
                   try {
-                    fmd = gOFS->eosView->getFile(fspath.c_str());
+                    fmd = gOFS->eosView->getFile(fspath.c_str(), false);
                   } catch (eos::MDException& e) {
                     errno = e.getErrno();
                     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
@@ -454,8 +454,10 @@ XrdMgmOfs::_rename(const char* old_name,
                                 fspath.c_str());
                   }
 
-                  user_del_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
-                  group_del_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
+                  if (!fmd->isLink()) {
+                    user_del_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
+                    group_del_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
+                  }
                 }
               }
 
@@ -491,9 +493,17 @@ XrdMgmOfs::_rename(const char* old_name,
                    fileit++) {
                 std::string fspath = rfoundit->first;
                 fspath += *fileit;
-                file = gOFS->eosView->getFile(fspath.c_str());
 
-                if (file) {
+                try {
+                  file = gOFS->eosView->getFile(fspath.c_str());
+                } catch (eos::MDException& e) {
+                  errno = e.getErrno();
+                  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                            e.getErrno(), e.getMessage().str().c_str());
+                  eos_debug("path=%s is probably a symlink", fspath.c_str());
+                }
+
+                if (file && !file->isLink()) {
                   // Get quota nodes from file path and target directory
                   eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir.get());
                   eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
