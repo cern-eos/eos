@@ -34,6 +34,8 @@
 
 EOSNSNAMESPACE_BEGIN
 
+using QuotaNodeMapT = std::map<std::string, eos::IQuotaNode::UsageInfo>;
+
 //------------------------------------------------------------------------------
 //! Class ConvertContainerMD
 //------------------------------------------------------------------------------
@@ -101,6 +103,11 @@ public:
   //----------------------------------------------------------------------------
   IContainerMD::id_t getFirstFreeId();
 
+  //------------------------------------------------------------------------------
+  //! Export container info to the quota view
+  //------------------------------------------------------------------------------
+  void exportToQuotaView();
+
 private:
   static std::uint64_t sNumContBuckets; ///< Numnber of buckets power of 2
 
@@ -114,12 +121,13 @@ private:
   std::string getBucketKey(IContainerMD::id_t id) const;
 
   //------------------------------------------------------------------------------
-  //! Export container info to the quota view
+  //! Build the quota view from the container info
   //!
   //! @parma cont container object
   //------------------------------------------------------------------------------
-  void exportToQuotaView(IContainerMD* cont);
+  void buildQuotaView(IContainerMD* cont);
 
+  std::set<std::string> mSetQuotaIds; ///< Set of quota ids
   IContainerMD::id_t mFirstFreeId; ///< First free container id
 };
 
@@ -150,6 +158,11 @@ public:
   //----------------------------------------------------------------------------
   IFileMD::id_t getFirstFreeId();
 
+  //------------------------------------------------------------------------------
+  //! Export to quota view
+  //------------------------------------------------------------------------------
+  void exportToQuotaView();
+
 private:
   static std::uint64_t sNumFileBuckets; ///< Numnber of buckets power of 2
 
@@ -170,13 +183,14 @@ private:
   void exportToFsView(IFileMD* file);
 
   //------------------------------------------------------------------------------
-  //! Export file info to the quota view
+  //! Build the quota view from the file info
   //!
   //! @param file file object
   //------------------------------------------------------------------------------
-  void exportToQuotaView(IFileMD* file);
+  void buildQuotaView(IFileMD* file);
 
   IFileMD::id_t mFirstFreeId; ///< First free file id
+  std::map< std::string, std::pair<QuotaNodeMapT, QuotaNodeMapT> > mQuotaMap;
 };
 
 EOSNSNAMESPACE_END

@@ -151,7 +151,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 
     if (!child) {
       parent->addContainer(container.get());
-      exportToQuotaView(container.get());
+      buildQuotaView(container.get());
     } else {
       nameConflicts.push_back(child);
       parent->addContainer(container.get());
@@ -190,14 +190,34 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 }
 
 //------------------------------------------------------------------------------
+// Build the quota view from the container info
+//------------------------------------------------------------------------------
+void
+ConvertContainerMDSvc::buildQuotaView(IContainerMD* cont)
+{
+  if ((cont->getFlags() & QUOTA_NODE_FLAG) != 0) {
+    mSetQuotaIds.insert(stringify(cont->getId()));
+  }
+}
+
+//------------------------------------------------------------------------------
 // Export container info to the quota view
 //------------------------------------------------------------------------------
 void
-ConvertContainerMDSvc::exportToQuotaView(IContainerMD* cont)
+ConvertContainerMDSvc::exportToQuotaView()
 {
-  if ((cont->getFlags() & QUOTA_NODE_FLAG) != 0) {
-    qclient::QSet set_quotaids(*sQcl, quota::sSetQuotaIds);
-    sAh.Register(set_quotaids.sadd_async(cont->getId()), set_quotaids.getClient());
+  qclient::QSet set_quotaids(*sQcl, quota::sSetQuotaIds);
+
+  for (auto& elem : mSetQuotaIds) {
+    sAh.Register(set_quotaids.sadd_async(elem), set_quotaids.getClient());
+  }
+
+  mSetQuotaIds.clear();
+
+  if (!sAh.Wait()) {
+    std::cerr << __FUNCTION__ << " Got error response from the backend "
+              << " while exporting the quota view" << std::endl;
+    exit(1);
   }
 }
 
@@ -270,7 +290,6 @@ ConvertFileMDSvc::initialize()
   pFollowStart = pChangeLog->getFirstOffset();
   FileMDScanner scanner(pIdMap, pSlaveMode);
   pFollowStart = pChangeLog->scanAllRecords(&scanner);
-  pFirstFreeId = scanner.getLargestId() + 1;
   std::uint64_t count = 0;
   std::uint64_t total = pIdMap.size();
   std::time_t start = std::time(nullptr);
@@ -343,7 +362,7 @@ ConvertFileMDSvc::initialize()
       cont->addFile(file.get());
       // Populate the FileSystemView and QuotaView
       exportToFsView(file.get());
-      exportToQuotaView(file.get());
+      buildQuotaView(file.get());
     }
   }
 }
@@ -385,11 +404,60 @@ ConvertFileMDSvc::exportToFsView(IFileMD* file)
   }
 }
 
+
 //------------------------------------------------------------------------------
-// Export file info to the quota view
+// Export to quota view
 //------------------------------------------------------------------------------
 void
-ConvertFileMDSvc::exportToQuotaView(IFileMD* file)
+ConvertFileMDSvc::exportToQuotaView()
+{
+  std::string uid_key, gid_key;
+
+  for (auto it = mQuotaMap.begin(); it != mQuotaMap.end(); ++it) {
+    uid_key = it->first + quota::sQuotaUidsSuffix;
+    gid_key = it->first + quota::sQuotaGidsSuffix;
+    QuotaNodeMapT& uid_map = it->second.first;
+    QuotaNodeMapT& gid_map = it->second.second;
+    qclient::QHash quota_map(*sQcl, uid_key);
+
+    for (auto& elem : uid_map) {
+      eos::IQuotaNode::UsageInfo& info = elem.second;
+      std::string field = elem.first + quota::sPhysicalSpaceTag;
+      sAh.Register(quota_map.hset_async(field, info.physicalSpace),
+                   quota_map.getClient());
+      field = elem.first + quota::sSpaceTag;
+      sAh.Register(quota_map.hset_async(field, info.space), quota_map.getClient());
+      field = elem.first + quota::sFilesTag;
+      sAh.Register(quota_map.hset_async(field, info.files), quota_map.getClient());
+    }
+
+    quota_map.setKey(gid_key);
+
+    for (auto& elem : gid_map) {
+      eos::IQuotaNode::UsageInfo& info = elem.second;
+      std::string field = elem.first + quota::sPhysicalSpaceTag;
+      sAh.Register(quota_map.hset_async(field, info.physicalSpace),
+                   quota_map.getClient());
+      field = elem.first + quota::sSpaceTag;
+      sAh.Register(quota_map.hset_async(field, info.space),
+                   quota_map.getClient());
+      field = elem.first + quota::sFilesTag;
+      sAh.Register(quota_map.hset_async(field, info.files), quota_map.getClient());
+    }
+  }
+
+  if (!sAh.Wait()) {
+    std::cerr << __FUNCTION__ << " Got error response from the backend "
+              << "while exporting the quota view" << std::endl;
+    exit(1);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Build quota view from the file info
+//------------------------------------------------------------------------------
+void
+ConvertFileMDSvc::buildQuotaView(IFileMD* file)
 {
   // Search for a quota node
   std::shared_ptr<IContainerMD> current =
@@ -404,33 +472,32 @@ ConvertFileMDSvc::exportToQuotaView(IFileMD* file)
     return;
   }
 
-  // Add current file to the hmap contained in the current quota node
-  std::string quota_uid_key =
-    stringify(current->getId()) + quota::sQuotaUidsSuffix;
-  std::string quota_gid_key =
-    stringify(current->getId()) + quota::sQuotaGidsSuffix;
-  const std::string suid = stringify(file->getCUid());
-  const std::string sgid = stringify(file->getCGid());
   // Compute physical size
+  std::string sid = stringify(current->getId());
   eos::IFileMD::layoutId_t lid = file->getLayoutId();
-  const int64_t size = file->getSize() * eos::common::LayoutId::GetSizeFactor(
-                         lid);
-  qclient::QHash quota_map(*sQcl, quota_uid_key);
-  std::string field = suid + quota::sPhysicalSpaceTag;
-  sAh.Register(quota_map.hincrby_async(field, size), quota_map.getClient());
-  field = suid + quota::sSpaceTag;
-  sAh.Register(quota_map.hincrby_async(field, file->getSize()),
-               quota_map.getClient());
-  field = suid + quota::sFilesTag;
-  sAh.Register(quota_map.hincrby_async(field, 1), quota_map.getClient());
-  quota_map.setKey(quota_gid_key);
-  field = sgid + quota::sPhysicalSpaceTag;
-  sAh.Register(quota_map.hincrby_async(field, size), quota_map.getClient());
-  field = sgid + quota::sSpaceTag;
-  sAh.Register(quota_map.hincrby_async(field, file->getSize()),
-               quota_map.getClient());
-  field = sgid + quota::sFilesTag;
-  sAh.Register(quota_map.hincrby_async(field, 1), quota_map.getClient());
+  const int64_t size = file->getSize() *
+                       eos::common::LayoutId::GetSizeFactor(lid);
+  // Add current file to the the quota map
+  const std::string suid = stringify(file->getCUid()) + ":uid";
+  const std::string sgid = stringify(file->getCGid()) + ":gid";
+  auto it_map = mQuotaMap.find(sid);
+
+  if (it_map == mQuotaMap.end()) {
+    auto pair = mQuotaMap.emplace(sid, std::make_pair(QuotaNodeMapT(),
+                                  QuotaNodeMapT()));
+    it_map = pair.first;
+  }
+
+  QuotaNodeMapT& map_uid = it_map->second.first;
+  QuotaNodeMapT& map_gid = it_map->second.second;
+  eos::IQuotaNode::UsageInfo& user = map_uid[suid];
+  eos::IQuotaNode::UsageInfo& group = map_gid[sgid];
+  user.physicalSpace += size;
+  group.physicalSpace += size;
+  user.space += file->getSize();
+  group.space += file->getSize();
+  user.files++;
+  group.files++;
 }
 
 //------------------------------------------------------------------------------
@@ -505,6 +572,8 @@ main(int argc, char* argv[])
   cont_svc->configure(config_cont);
   std::time_t cont_start = std::time(nullptr);
   cont_svc->initialize();
+  std::cout << "Commit info about the quota view ..." << std::endl;
+  dynamic_cast<eos::ConvertContainerMDSvc*>(cont_svc.get())->exportToQuotaView();
   std::chrono::seconds cont_duration {std::time(nullptr) - cont_start};
   std::cout << "Container init: " << cont_duration.count() << " seconds" <<
             std::endl;
@@ -514,9 +583,6 @@ main(int argc, char* argv[])
   file_svc->configure(config_file);
   std::time_t file_start = std::time(nullptr);
   file_svc->initialize();
-  std::chrono::seconds file_duration {std::time(nullptr) - file_start};
-  std::cout << "File init: " << file_duration.count() << " seconds" <<
-            std::endl;
 
   // Wait for all in-flight async requests
   if (!sAh.Wait()) {
@@ -525,7 +591,13 @@ main(int argc, char* argv[])
     exit(1);
   }
 
-  // Save the first free file and container id in the meta_hmap
+  std::cout << "Commit info about the quota view ..." << std::endl;
+  dynamic_cast<eos::ConvertFileMDSvc*>(file_svc.get())->exportToQuotaView();
+  std::chrono::seconds file_duration {std::time(nullptr) - file_start};
+  std::cout << "File init: " << file_duration.count() << " seconds" <<
+            std::endl;
+  // Save the first free file and container id in the meta_hmap - actually it is
+  // the last id since we get the first free id by doing a hincrby operation
   qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
   meta_map.hset(eos::constants::sFirstFreeFid, file_svc->getFirstFreeId() - 1);
   meta_map.hset(eos::constants::sFirstFreeCid, cont_svc->getFirstFreeId() - 1);
