@@ -585,7 +585,10 @@ ProcCommand::Access ()
     {
       if ((Access::gRedirectionRules.count(std::string("*")) && ((type.length() == 0))) ||
           (Access::gRedirectionRules.count(std::string("r:*")) && (type == "r")) ||
-          (Access::gRedirectionRules.count(std::string("w:*")) && (type == "w")))
+          (Access::gRedirectionRules.count(std::string("w:*")) && (type == "w")) || 
+          (Access::gRedirectionRules.count(std::string("ENONET:*")) && (type == "ENONET")) || 
+          (Access::gRedirectionRules.count(std::string("ENOENT:*")) && (type == "ENOENT")) )
+
       {
         stdOut = "success: removing global redirection";
         if (type.length())
