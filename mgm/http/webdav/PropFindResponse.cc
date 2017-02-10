@@ -217,7 +217,8 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
         }
         else
         {
-          return this;
+	  // we might have a failed stat in the BuildResponseNode if there are symlinks present
+	  SetResponseCode(HttpResponse::OK);
         }
       }
     }
