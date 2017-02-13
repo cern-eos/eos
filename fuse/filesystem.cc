@@ -617,6 +617,7 @@ filesystem::redirect_i2i (unsigned long long inode)
    if (path2inode.count(path))
      return path2inode[path];
  }
+ return inode;
 }
 
 //------------------------------------------------------------------------------
