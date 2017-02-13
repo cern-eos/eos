@@ -200,12 +200,6 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    on the FSTs is completely hidden. By default this option is enabled
 # export EOS_FUSE_LAZYOPENRW=1
 
-# Enable delayed close of files by giving a positive delay in ms 
-#    files are already close async by the fuse kernel module
-#    if this delay is set, the file is kept open for that duration after the close.
-#    We then avoid the burden of open/close in pattern such that open-write-close in bursts.
-# export EOS_FUSE_CLOSEDELAYMS=0
-
 # Show hidden files from atomic/versioning and backup entries
 #    By default this option is disabled
 # export EOS_FUSE_SHOW_SPECIAL_FILES=0
