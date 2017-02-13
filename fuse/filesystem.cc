@@ -611,17 +611,13 @@ filesystem::redirect_i2i (unsigned long long inode)
 {
  eos::common::RWMutexReadLock rd_lock (mutex_inode_path);
 
- return inode;
  if (inode2path.count (inode))
-{
+ {
    std::string path = inode2path[inode];
    if (path2inode.count(path))
      return path2inode[path];
-    }
- return inode;
-  }
-
-
+ }
+}
 
 //------------------------------------------------------------------------------
 //      ******* Implementation of the FUSE directory cache *******
