@@ -37,6 +37,82 @@ EOSNSNAMESPACE_BEGIN
 using QuotaNodeMapT = std::map<std::string, eos::IQuotaNode::UsageInfo>;
 
 //------------------------------------------------------------------------------
+//! Class ConvertQuotaView
+//------------------------------------------------------------------------------
+class ConvertQuotaView
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ConvertQuotaView(qclient::QClient* qcl, eos::IContainerMDSvc* csvc,
+                   eos::IFileMDSvc* fsvc):
+    mQcl(qcl), mContSvc(csvc), mFileSvc(fsvc) {}
+
+  //----------------------------------------------------------------------------
+  //!Destructor
+  //----------------------------------------------------------------------------
+  ~ConvertQuotaView() {};
+
+  //----------------------------------------------------------------------------
+  //! Add quota node for a specific container
+  //!
+  //! @param id id of the container which is also a quota node
+  //----------------------------------------------------------------------------
+  void addQuotaNode(IContainerMD::id_t id);
+
+  //----------------------------------------------------------------------------
+  //! Add quota info for a specific file object
+  //!
+  //! @param file file object
+  //----------------------------------------------------------------------------
+  void addQuotaInfo(IFileMD* file);
+
+  //----------------------------------------------------------------------------
+  //! Commit all of the quota view information to the backend
+  //----------------------------------------------------------------------------
+  void commitToBackend();
+
+private:
+  qclient::QClient* mQcl; ///< Qclient object
+  eos::IContainerMDSvc* mContSvc; ///< Container metadata service
+  eos::IFileMDSvc* mFileSvc; ///< File metadata service
+  //! Map beween quota node id and uid and gid maps holding info about the
+  //! quota accounting
+  std::set<std::string> mSetQuotaIds; ///< Set of quota ids
+  std::map< std::string, std::pair<QuotaNodeMapT, QuotaNodeMapT> > mQuotaMap;
+  std::mutex mMutexMap; ///< Mutex protecting access to the map
+};
+
+
+//------------------------------------------------------------------------------
+//! Class ConvertFsView
+//------------------------------------------------------------------------------
+class ConvertFsView
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Add file info to the file system view
+  //!
+  //! @param fsid file system id where the file can be found
+  //----------------------------------------------------------------------------
+  void addFileInfo(IFileMD* file);
+
+  //----------------------------------------------------------------------------
+  //! Commit all of the fs view information to the backend
+  //----------------------------------------------------------------------------
+  void commitToBackend();
+
+private:
+  std::set<std::string> mFileNoReplica; ///< Set of files with no replica
+  //! Map of file system ids to set of file replicas and set of unlinked file ids
+  std::map<std::string, std::pair<std::set<std::string>,
+      std::set<std::string> > > mFsView;
+  std::mutex mMutex; ///< Mutex protecting access tot he map and set
+};
+
+
+//------------------------------------------------------------------------------
 //! Class ConvertContainerMD
 //------------------------------------------------------------------------------
 class ConvertContainerMD : public eos::ContainerMD
@@ -103,10 +179,12 @@ public:
   //----------------------------------------------------------------------------
   IContainerMD::id_t getFirstFreeId();
 
-  //------------------------------------------------------------------------------
-  //! Export container info to the quota view
-  //------------------------------------------------------------------------------
-  void exportToQuotaView();
+  //----------------------------------------------------------------------------
+  //! Set quota view object reference
+  //!
+  //! @param qview quota view object
+  //----------------------------------------------------------------------------
+  void setQuotaView(ConvertQuotaView* qview);
 
 private:
   static std::uint64_t sNumContBuckets; ///< Numnber of buckets power of 2
@@ -120,15 +198,8 @@ private:
   //------------------------------------------------------------------------------
   std::string getBucketKey(IContainerMD::id_t id) const;
 
-  //------------------------------------------------------------------------------
-  //! Build the quota view from the container info
-  //!
-  //! @parma cont container object
-  //------------------------------------------------------------------------------
-  void buildQuotaView(IContainerMD* cont);
-
-  std::set<std::string> mSetQuotaIds; ///< Set of quota ids
   IContainerMD::id_t mFirstFreeId; ///< First free container id
+  ConvertQuotaView* mConvQView; ///< Quota view object
 };
 
 
@@ -158,10 +229,13 @@ public:
   //----------------------------------------------------------------------------
   IFileMD::id_t getFirstFreeId();
 
-  //------------------------------------------------------------------------------
-  //! Export to quota view
-  //------------------------------------------------------------------------------
-  void exportToQuotaView();
+  //----------------------------------------------------------------------------
+  //! Set quota and file system view object references
+  //!
+  //! @param qview quota view object
+  //! @param fsview filesystem view object
+  //----------------------------------------------------------------------------
+  void setViews(ConvertQuotaView* qview, ConvertFsView* fsview);
 
 private:
   static std::uint64_t sNumFileBuckets; ///< Numnber of buckets power of 2
@@ -175,22 +249,9 @@ private:
   //------------------------------------------------------------------------------
   std::string getBucketKey(IContainerMD::id_t id) const;
 
-  //------------------------------------------------------------------------------
-  //! Export file info to the file-system view
-  //!
-  //! @parma file file object
-  //------------------------------------------------------------------------------
-  void exportToFsView(IFileMD* file);
-
-  //------------------------------------------------------------------------------
-  //! Build the quota view from the file info
-  //!
-  //! @param file file object
-  //------------------------------------------------------------------------------
-  void buildQuotaView(IFileMD* file);
-
   IFileMD::id_t mFirstFreeId; ///< First free file id
-  std::map< std::string, std::pair<QuotaNodeMapT, QuotaNodeMapT> > mQuotaMap;
+  ConvertQuotaView* mConvQView; ///< Quota view object
+  ConvertFsView* mConvFsView; ///< Filesystem view object
 };
 
 EOSNSNAMESPACE_END
