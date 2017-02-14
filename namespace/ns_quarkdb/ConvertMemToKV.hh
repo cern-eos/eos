@@ -30,6 +30,7 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "common/RWMutex.hh"
 #include <cstdint>
 
 EOSNSNAMESPACE_BEGIN
@@ -81,7 +82,7 @@ private:
   //! quota accounting
   std::set<std::string> mSetQuotaIds; ///< Set of quota ids
   std::map< std::string, std::pair<QuotaNodeMapT, QuotaNodeMapT> > mQuotaMap;
-  std::mutex mMutexMap; ///< Mutex protecting access to the map
+  eos::common::RWMutex mRWMutex; ///< Mutex protecting access to the map
 };
 
 
@@ -139,6 +140,11 @@ public:
   void addFile(IFileMD* file) override;
 
   //----------------------------------------------------------------------------
+  //! Find file
+  //----------------------------------------------------------------------------
+  std::shared_ptr<IFileMD> findFile(const std::string& name) override;
+
+  //----------------------------------------------------------------------------
   //! Update the name of the directories and files hmap based on the id of the
   //! container. This should be called after a deserialize.
   //----------------------------------------------------------------------------
@@ -149,6 +155,7 @@ private:
   std::string pDirsKey;  ///< Key of hmap holding info about subcontainers
   qclient::QHash pFilesMap; ///< Map of files
   qclient::QHash pDirsMap; ///< Map of dirs
+  std::mutex mMutexFiles; ///< Mutex protecting access to the files map
 };
 
 
@@ -249,9 +256,11 @@ private:
   //------------------------------------------------------------------------------
   std::string getBucketKey(IContainerMD::id_t id) const;
 
+  std::mutex mMutexFreeId; ///< Mutex protecting access to first free id value
   IFileMD::id_t mFirstFreeId; ///< First free file id
   ConvertQuotaView* mConvQView; ///< Quota view object
   ConvertFsView* mConvFsView; ///< Filesystem view object
+  std::atomic<std::uint64_t> mCount; ///< Number of files proccessed
 };
 
 EOSNSNAMESPACE_END

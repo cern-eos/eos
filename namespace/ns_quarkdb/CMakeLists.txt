@@ -126,6 +126,7 @@ add_executable(
 target_link_libraries(
   convert_mem_to_kv
   qclient
+  eosCommon
   EosNsInMemory-Static)
 
 install(
