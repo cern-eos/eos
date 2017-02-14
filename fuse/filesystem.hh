@@ -65,7 +65,6 @@
 #include "FuseCache/LayoutWrapper.hh"
 /*----------------------------------------------------------------------------*/
 #include "AuthIdManager.hh"
-#include "Xrd/XrdScheduler.hh"
 
 #define sMaxAuthId (2^6)
 
@@ -82,40 +81,6 @@ xrootd_nullresponsebug_retrysleep; ///< sometimes, XRootd gives a NULL responses
 
 class filesystem
 {
-  static XrdSysError     gFuseEroute;
-  static XrdOucTrace     gFuseTrace;
-
-  struct delayedCloseEntry {
-    int fildes;
-    unsigned long inode;
-    uid_t uid;
-    gid_t gid;
-    pid_t pid;
-    unsigned long long expire_ns;
-  };
-
-  class DelayedCloseJob : public XrdJob
-  {
-    delayedCloseEntry* pCloseEntry;
-    filesystem* pFs;
-    virtual void DoIt()
-    {
-      pFs->close(pCloseEntry->fildes, pCloseEntry->inode, pCloseEntry->uid,
-                 pCloseEntry->gid, pCloseEntry->pid, true , true);
-    }
-  public:
-    DelayedCloseJob(filesystem* fs, delayedCloseEntry* dce) : pCloseEntry(dce),
-      pFs(fs) {};
-    virtual ~DelayedCloseJob()
-    {
-      delete pCloseEntry;
-    }
-  };
-  eos::common::ConcurrentQueue<delayedCloseEntry*> pDelayedCloseQueue;
-  pthread_t pCloserThread; ///< async thread closing files with a delay
-  static void* DelayedFileClose(void* pp);
-  XrdScheduler pCloseThreadPool;
-
 public:
 
   filesystem();
@@ -642,8 +607,8 @@ public:
 //----------------------------------------------------------------------------
 //!
 //----------------------------------------------------------------------------
-  int close(int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid,
-            bool delayed = true, bool doclose = false);
+  int close(int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
+
 
 //----------------------------------------------------------------------------
 //!
@@ -952,8 +917,6 @@ private:
   bool lazy_open_rw; ///< indicated if lazy openning of the file should be used for files open in RW
   bool async_open; ///< indicated if async open should be used (this used only in coordination with lazy_open)
   bool lazy_open_disabled; ///< indicated if lazy openning is disabled because the server does not support it
-  unsigned long long
-  delayed_close_ms; ///< if non zero, the file is kept open in the back for the specified delay (to avoid the overhead of closing it and reopenning it)
   bool inline_repair; ///< indicate if we should try to repair broken files for wrinting inlined in the open
   off_t max_inline_repair_size; ///< define maximum inline repair size
   bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
@@ -1011,7 +974,6 @@ private:
 //------------------------------------------------------------------------------
 // Get maximum number of directories in cache
 //------------------------------------------------------------------------------
-
   const unsigned long long
   GetMaxCacheSize()
   {

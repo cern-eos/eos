@@ -136,7 +136,6 @@ start() {
         export EOS_FUSE_LAZYOPENRO=${EOS_FUSE_LAZYOPENRO-0}
         export EOS_FUSE_LAZYOPENRW=${EOS_FUSE_LAZYOPENRW-1}
         export EOS_FUSE_ASYNC_OPEN=${EOS_FUSE_ASYNC_OPEN-0}
-        export EOS_FUSE_CLOSEDELAYMS=${EOS_FUSE_CLOSEDELAYMS-0}
         export EOS_FUSE_SHOW_SPECIAL_FILES=${EOS_FUSE_SHOW_SPECIAL_FILES-0}
         export EOS_FUSE_SHOW_EOS_ATTRIBUTES=${EOS_FUSE_SHOW_EOS_ATTRIBUTES-0}
         export EOS_FUSE_INLINE_REPAIR=${EOS_FUSE_INLINE_REPAIR-1}
@@ -261,8 +260,11 @@ start() {
             echo "EOS_FUSE_RDAHEAD_WINDOW          : ${EOS_FUSE_RDAHEAD_WINDOW}"
             echo "EOS_FUSE_LAZYOPENRO              : ${EOS_FUSE_LAZYOPENRO}"
             echo "EOS_FUSE_LAZYOPENRW              : ${EOS_FUSE_LAZYOPENRW}"
+<<<<<<< HEAD
             echo "EOS_FUSE_ASYNC_OPEN              : ${EOS_FUSE_ASYNC_OPEN}"
             echo "EOS_FUSE_CLOSEDELAYMS            : ${EOS_FUSE_CLOSEDELAYMS}"
+=======
+>>>>>>> origin/beryl_aquamarine
             echo "EOS_FUSE_SHOW_SPECIAL_FILES      : ${EOS_FUSE_SHOW_SPECIAL_FILES}"
             echo "EOS_FUSE_SHOW_EOS_ATTRIBUTES     : ${EOS_FUSE_SHOW_EOS_ATTRIBUTES}"
             echo "EOS_FUSE_INLINE_REPAIR           : ${EOS_FUSE_INLINE_REPAIR}"

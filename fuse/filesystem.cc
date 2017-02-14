@@ -58,18 +58,12 @@
 #define OSPAGESIZE 65536
 #endif
 
-XrdSysError     filesystem::gFuseEroute(0);
-XrdOucTrace     filesystem::gFuseTrace(&gFuseEroute);
-
-
 filesystem::filesystem()
-  : pCloseThreadPool(&gFuseEroute, &gFuseTrace, 8)
 {
   lazy_open_ro = false;
   lazy_open_rw = false;
   async_open = false;
   lazy_open_disabled = false;
-  delayed_close_ms = 0;
   hide_special_files = true;
   show_eos_attributes = false;
   do_rdahead = false;
@@ -184,34 +178,6 @@ filesystem::CacheCleanup(void* p)
   return 0;
 }
 
-void*
-filesystem::DelayedFileClose(void* p)
-{
-  filesystem* This = static_cast<filesystem*>(p);
-  delayedCloseEntry* dce = 0;
-  XrdSysTimer sleeper;
-
-  while (1) {
-    This->pDelayedCloseQueue.wait_pop(dce);
-
-    if (dce == 0) {
-      break;
-    } else {
-      auto now = eos::common::NowInt();
-      eos_static_info("now=%lu expires=%lu", (unsigned long)now,
-                      (unsigned long)dce->expire_ns);
-
-      if (dce->expire_ns > now) {
-        usleep((dce->expire_ns - now) / 1000);
-      }
-
-      This->pCloseThreadPool.Schedule(new DelayedCloseJob(This, dce));
-    }
-  }
-
-  return NULL;
-}
-
 void
 filesystem::log(const char* _level, const char* msg)
 {
@@ -250,13 +216,6 @@ filesystem::log_settings()
     s += lazy_open_rw ? "true" : "false";
   }
 
-  s = "delayed-close-ms           := ";
-
-  if (delayed_close_ms) {
-    s += delayed_close_ms;
-  }
-
-  s += (delayed_close_ms ? "ms" : "disabled");
   log("WARNING", s.c_str());
   s = "hide-special-files     := ";
 
@@ -589,7 +548,6 @@ unsigned long long
 filesystem::redirect_i2i(unsigned long long inode)
 {
   eos::common::RWMutexReadLock rd_lock(mutex_inode_path);
-  return inode;
 
   if (inode2path.count(inode)) {
     std::string path = inode2path[inode];
@@ -601,7 +559,6 @@ filesystem::redirect_i2i(unsigned long long inode)
 
   return inode;
 }
-
 
 //------------------------------------------------------------------------------
 //      ******* Implementation of the FUSE directory cache *******
@@ -1066,23 +1023,6 @@ filesystem::remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
 
     if (!fabst->IsInUse()) {
       eos_static_debug("fabst=%p is not in use anynmore", fabst.get());
-
-      if (XFC) {
-        utimes_from_fabst(fabst, inode, uid, gid, pid);
-        LayoutWrapper* file = fabst->GetRawFileRW();
-        error_type error;
-        fabst->mMutexRW.WriteLock();
-        XFC->ForceAllWrites(fabst.get());
-        eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
-
-        if (file && (err_queue.try_pop(error))) {
-          eos_static_warning("write error found in err queue for inode=%llu - "
-                             "enabling restore", inode);
-          file->SetRestore();
-        }
-
-        fabst->mMutexRW.UnLock();
-      }
     } else {
       eos_static_debug("fabst=%p is still in use, cannot remove", fabst.get());
 
@@ -3512,19 +3452,13 @@ filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst,
 // Release is called when FUSE is completely done with a file; at that point,
 // you can free up any temporarily allocated data structures.
 //------------------------------------------------------------------------------
-int filesystem::close(int fildes, unsigned long inode, uid_t uid, gid_t gid,
-                      pid_t pid, bool delayed, bool doclose)
+int
+filesystem::close(int fildes, unsigned long inode, uid_t uid, gid_t gid,
+                  pid_t pid)
 {
-  eos_static_info("fd=%d inode=%lu, uid=%i, gid=%i, pid=%i, delayed=%d, doclose=%d",
-                  fildes, inode, uid, gid, pid, delayed ? 1 : 0, doclose ? 1 : 0);
   int ret = -1;
-  eos::common::Timing opentiming("close");
-  COMMONTIMING("START", &opentiming);
-
-  if (delayed && delayed_close_ms == 0) {
-    delayed = false;
-  }
-
+  eos_static_info("fd=%d inode=%lu, uid=%i, gid=%i, pid=%i", fildes, inode,
+                  uid, gid, pid);
   std::shared_ptr<FileAbstraction> fabst = get_file(fildes);
 
   if (!fabst.get()) {
@@ -3532,44 +3466,38 @@ int filesystem::close(int fildes, unsigned long inode, uid_t uid, gid_t gid,
     return ret;
   }
 
-  if ((delayed && !doclose) || !delayed) {
+  if (XFC) {
+    LayoutWrapper* file = fabst->GetRawFileRW();
+    error_type error;
+    fabst->mMutexRW.WriteLock();
+    XFC->ForceAllWrites(fabst.get());
+    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
+
+    if (file && (err_queue.try_pop(error))) {
+      eos_static_warning("write error found in err queue for inode=%llu - enabling restore",
+                         inode);
+      file->SetRestore();
+    }
+
+    fabst->mMutexRW.UnLock();
+  }
+
+  {
     // update our local stat cache
     struct stat buf;
     buf.st_size = fabst->GetMaxWriteOffset();
     dir_cache_update_entry(inode, &buf);
   }
 
-  if (delayed && !doclose) {
-    unsigned long long delayns = delayed_close_ms * 1000000;
-    auto dce = new delayedCloseEntry;
-    dce->fildes = fildes;
-    dce->inode = inode;
-    dce->uid = uid;
-    dce->gid = gid;
-    dce->pid = pid;
-    dce->expire_ns = eos::common::NowInt() + delayns;
-    pDelayedCloseQueue.push(dce);
-    ret = 0;
-  }
-
-  if ((delayed && doclose) || !delayed) {
+  {
     // Commit the utime first - we cannot handle errors here
-    if (!XFC) {
-      ret = utimes_from_fabst(fabst, inode, uid, gid, pid);
-    }
-
+    ret = utimes_from_fabst(fabst, inode, uid, gid, pid);
     // Close file and remove it from all mappings
     ret = remove_fd2file(fildes, inode, uid, gid, pid);
   }
 
   if (ret) {
     errno = EIO;
-  }
-
-  COMMONTIMING(doclose ? "DOCLOSE" : "DELAY", &opentiming);
-
-  if (EOS_LOGS_DEBUG) {
-    opentiming.Print();
   }
 
   return ret;
@@ -3734,7 +3662,7 @@ filesystem::truncate2(const char* fullpath, unsigned long inode,
                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                  uid, gid, pid, &rinode)) > 0) {
     retc = truncate(fd, truncsize);
-    close(fd, rinode, uid, gid, pid, false);
+    close(fd, rinode, uid, gid, pid);
   } else {
     retc = errno;
   }
@@ -4643,11 +4571,6 @@ filesystem::init(int argc, char* argv[], void* userdata,
     async_open = true;
   }
 
-  if (getenv("EOS_FUSE_CLOSEDELAYMS") &&
-      (strcmp(getenv("EOS_FUSE_CLOSEDELAYMS"), "0"))) {
-    delayed_close_ms = strtol(getenv("EOS_FUSE_CLOSEDELAYMS"), NULL, 10);
-  }
-
   if (getenv("EOS_FUSE_SHOW_SPECIAL_FILES") &&
       (!strcmp(getenv("EOS_FUSE_SHOW_SPECIAL_FILES"), "1"))) {
     hide_special_files = false;
@@ -4943,18 +4866,6 @@ filesystem::init(int argc, char* argv[], void* userdata,
   if ((XrdSysThread::Run(&tid, filesystem::CacheCleanup, static_cast<void*>(this),
                          0, "Cache Cleanup Thread"))) {
     eos_static_crit("failed to start cache clean-up thread");
-    return false;
-  }
-
-  eos_static_notice("starting close thread pool");
-  pCloseThreadPool.Start();
-  // start a thread doing the delayed file close
-  eos_static_notice("starting file close thread");
-
-  if ((XrdSysThread::Run(&tid, filesystem::DelayedFileClose,
-                         static_cast<void*>(this), 0,
-                         "Delayed File Close Thread"))) {
-    eos_static_crit("failed to start delayed file close thread");
     return false;
   }
 
