@@ -50,17 +50,10 @@ public:
     pQuotaStats = pFileSvc->pQuotaStats;
   }
 
-  virtual void publishOffset(uint64_t offset)
-  {
-    pFileSvc->setFollowOffset(offset);
-  }
-
   // Unpack new data and put it in the queue
   virtual bool processRecord(uint64_t offset, char type,
                              const eos::Buffer& buffer)
   {
-    publishOffset(offset);
-
     // Update
     if (type == UPDATE_RECORD_MAGIC) {
       std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, pFileSvc);
@@ -546,6 +539,7 @@ extern "C"
     while (1) {
       pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, 0);
       offset = file->follow(&f, offset);
+      fileSvc->setFollowOffset(offset);
       f.commit();
       fileSvc->setFollowOffset(offset);
       pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);

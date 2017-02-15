@@ -1348,14 +1348,14 @@ Master::Slave2Master()
   // Wait that the follower reaches the offset seen now
   while (dynamic_cast<eos::IChLogFileMDSvc*>
          (gOFS->eosFileService)->getFollowOffset() <
-         (uint64_t)size_local_dir_changelog) {
+         (uint64_t)size_local_file_changelog) {
     XrdSysTimer sleeper;
     sleeper.Wait(5000);
     eos_static_info("msg=\"waiting for the namespace to reach the follow "
                     "point\" is-offset=%llu follow-offset=%llu",
                     dynamic_cast<eos::IChLogFileMDSvc*>
                     (gOFS->eosFileService)->getFollowOffset(),
-                    (uint64_t) size_local_dir_changelog);
+                    (uint64_t) size_local_file_changelog);
 
     if (n_wait > 12) {
       MasterLog(eos_crit("slave=>master transition aborted since we didn't "
