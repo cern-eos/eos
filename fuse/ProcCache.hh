@@ -50,14 +50,14 @@ class ProcReaderCmdLine
 {
   std::string pFileName;
 public:
-  ProcReaderCmdLine (const std::string &filename) :
-      pFileName (filename)
+  ProcReaderCmdLine(const std::string& filename) :
+    pFileName(filename)
   {
   }
-  ~ProcReaderCmdLine ()
+  ~ProcReaderCmdLine()
   {
   }
-  int ReadContent (std::vector<std::string> &cmdLine);
+  int ReadContent(std::vector<std::string>& cmdLine);
 };
 
 /*----------------------------------------------------------------------------*/
@@ -70,15 +70,15 @@ class ProcReaderFsUid
 {
   std::string pFileName;
 public:
-  ProcReaderFsUid (const std::string &filename) :
-      pFileName (filename)
+  ProcReaderFsUid(const std::string& filename) :
+    pFileName(filename)
   {
   }
-  ~ProcReaderFsUid ()
+  ~ProcReaderFsUid()
   {
   }
   int Read();
-  int ReadContent (uid_t &fsUid, gid_t &fsGid);
+  int ReadContent(uid_t& fsUid, gid_t& fsGid);
 };
 
 /*----------------------------------------------------------------------------*/
@@ -91,23 +91,23 @@ class ProcReaderPsStat
 {
   std::string pFileName;
   int fd;
-  FILE *file;
+  FILE* file;
 
 public:
-  ProcReaderPsStat () : fd(-1), file(NULL) {}
-  ProcReaderPsStat (const std::string &filename)
+  ProcReaderPsStat() : fd(-1), file(NULL) {}
+  ProcReaderPsStat(const std::string& filename)
   {
     fd = -1;
     file = NULL;
     SetFilename(filename);
   }
-  ~ProcReaderPsStat ()
+  ~ProcReaderPsStat()
   {
     Close();
   }
-  void SetFilename( const std::string &filename);
+  void SetFilename(const std::string& filename);
   void Close();
-  int ReadContent (long long unsigned &startTime, pid_t &ppid, pid_t &sid);
+  int ReadContent(long long unsigned& startTime, pid_t& ppid, pid_t& sid);
 };
 
 /*----------------------------------------------------------------------------*/
@@ -126,20 +126,21 @@ class ProcReaderKrb5UserName
   static bool sKcontextOk;
 
 public:
-  ProcReaderKrb5UserName (const std::string &krb5ccfile) :
-      pKrb5CcFile (krb5ccfile) //, pKcontext(), pKcontextOk(true)
+  ProcReaderKrb5UserName(const std::string& krb5ccfile) :
+    pKrb5CcFile(krb5ccfile)  //, pKcontext(), pKcontextOk(true)
   {
     eos::common::RWMutexWriteLock lock(sMutex);
-    if(!sMutexOk) {
+
+    if (!sMutexOk) {
       ProcReaderKrb5UserName::sMutex.SetBlocking(true);
       sMutexOk = true;
     }
   }
-  ~ProcReaderKrb5UserName ()
+  ~ProcReaderKrb5UserName()
   {
   }
-  bool ReadUserName (std::string &userName);
-  time_t GetModifTime ();
+  bool ReadUserName(std::string& userName);
+  time_t GetModifTime();
   static void StaticDestroy();
 };
 
@@ -154,15 +155,15 @@ class ProcReaderGsiIdentity
   std::string pGsiProxyFile;
   static bool sInitOk;
 public:
-  ProcReaderGsiIdentity (const std::string &gsiproxyfile) :
-	  pGsiProxyFile (gsiproxyfile)
+  ProcReaderGsiIdentity(const std::string& gsiproxyfile) :
+    pGsiProxyFile(gsiproxyfile)
   {
   }
-  ~ProcReaderGsiIdentity ()
+  ~ProcReaderGsiIdentity()
   {
   }
-  bool ReadIdentity (std::string &sidentity);
-  time_t GetModifTime ();
+  bool ReadIdentity(std::string& sidentity);
+  time_t GetModifTime();
   static void StaticDestroy();
 };
 
@@ -197,94 +198,98 @@ class ProcCacheEntry
 
   //! return true fs success, false if failure
   int
-  ReadContentFromFiles ();
+  ReadContentFromFiles();
   //! return true if the information is up-to-date after the call, false else
   int
-  UpdateIfPsChanged ();
+  UpdateIfPsChanged();
 
 public:
-  ProcCacheEntry (unsigned int pid, const char* procpath=0) :
-      pPid (pid), pPPid(), pSid(), pFsUid(-1), pFsGid(-1), pStartTime (0), pError (0)
+  ProcCacheEntry(unsigned int pid, const char* procpath = 0) :
+    pPid(pid), pPPid(), pSid(), pFsUid(-1), pFsGid(-1), pStartTime(0), pError(0)
   {
     std::stringstream ss;
-    ss << (procpath?procpath:"/proc/") << pPid;
-    pProcPrefix = ss.str ();
+    ss << (procpath ? procpath : "/proc/") << pPid;
+    pProcPrefix = ss.str();
     pMutex.SetBlocking(true);
   }
 
-  ~ProcCacheEntry ()
+  ~ProcCacheEntry()
   {
   }
 
   //
-  bool GetAuthMethod (std::string &value) const
+  bool GetAuthMethod(std::string& value) const
   {
-    eos::common::RWMutexReadLock lock (pMutex);
-    if (pAuthMethod.empty () || pAuthMethod=="none") return false;
+    eos::common::RWMutexReadLock lock(pMutex);
+
+    if (pAuthMethod.empty() || pAuthMethod == "none") {
+      return false;
+    }
+
     value = pAuthMethod;
     return true;
   }
 
-  bool SetAuthMethod (const std::string &value)
+  bool SetAuthMethod(const std::string& value)
   {
-    eos::common::RWMutexReadLock lock (pMutex);
+    eos::common::RWMutexReadLock lock(pMutex);
     pAuthMethod = value;
     return true;
   }
 
-  bool GetFsUidGid (uid_t &uid, gid_t &gid) const
+  bool GetFsUidGid(uid_t& uid, gid_t& gid) const
   {
-    eos::common::RWMutexReadLock lock (pMutex);
+    eos::common::RWMutexReadLock lock(pMutex);
     uid = pFsUid;
     gid = pFsGid;
     return true;
   }
 
-  bool GetSid (pid_t &sid) const
+  bool GetSid(pid_t& sid) const
   {
-    eos::common::RWMutexReadLock lock (pMutex);
+    eos::common::RWMutexReadLock lock(pMutex);
     sid = pSid;
     return true;
   }
 
-  bool GetStartupTime (time_t &sut) const
+  bool GetStartupTime(time_t& sut) const
   {
-    eos::common::RWMutexReadLock lock (pMutex);
-    sut = pStartTime/sysconf(_SC_CLK_TCK);
+    eos::common::RWMutexReadLock lock(pMutex);
+    sut = pStartTime / sysconf(_SC_CLK_TCK);
     return true;
   }
 
   const std::vector<std::string>&
-  GetArgsVec () const
+  GetArgsVec() const
   {
-    eos::common::RWMutexReadLock lock (pMutex);
+    eos::common::RWMutexReadLock lock(pMutex);
     return pCmdLineVect;
   }
 
   const std::string&
-  GetArgsStr () const
+  GetArgsStr() const
   {
-    eos::common::RWMutexReadLock lock (pMutex);
+    eos::common::RWMutexReadLock lock(pMutex);
     return pCmdLineStr;
   }
 
-  bool HasError () const
+  bool HasError() const
   {
-    eos::common::RWMutexReadLock lock (pMutex);
+    eos::common::RWMutexReadLock lock(pMutex);
     return pError;
   }
 
-  const std::string &
-  GetErrorMessage () const
+  const std::string&
+  GetErrorMessage() const
   {
-    eos::common::RWMutexReadLock lock (pMutex);
+    eos::common::RWMutexReadLock lock(pMutex);
     return pErrMessage;
   }
 
   time_t
-  GetProcessStartTime () const
+  GetProcessStartTime() const
   {
-    eos::common::RWMutexReadLock lock (pMutex);
+    eos::common::RWMutexReadLock lock(pMutex);
     return pStartTime;
   }
 
@@ -306,63 +311,66 @@ class ProcCache
   std::string pProcPath;
 
 public:
-  ProcCache ()
+  ProcCache()
   {
     pMutex.SetBlocking(true);
     pProcPath = "/proc/";
   }
-  ~ProcCache ()
+  ~ProcCache()
   {
     eos::common::RWMutexWriteLock lock(pMutex);
-    for(auto it=pCatalog.begin(); it!=pCatalog.end(); it++)
+
+    for (auto it = pCatalog.begin(); it != pCatalog.end(); it++) {
       delete it->second;
+    }
   }
 
   //! returns true if the cache has an entry for the given pid, false else
   //! regardless of the fact it's up-to-date or not
-  bool HasEntry (int pid)
+  bool HasEntry(int pid)
   {
-    eos::common::RWMutexReadLock lock (pMutex);
-    return static_cast<bool> (pCatalog.count (pid));
+    eos::common::RWMutexReadLock lock(pMutex);
+    return static_cast<bool>(pCatalog.count(pid));
   }
 
   void
-  SetProcPath (const char *procpath)
+  SetProcPath(const char* procpath)
   {
     pProcPath = procpath;
   }
 
   const std::string&
-  GetProcPath () const
+  GetProcPath() const
   {
     return pProcPath;
   }
 
   //! returns true if the cache has an up-to-date entry after the call
   int
-  InsertEntry (int pid)
+  InsertEntry(int pid)
   {
     int errCode;
 
     // if there is no such process return an error and remove the entry from the cache
-    if(getpgid(pid) < 0)
-    {
+    if (getpgid(pid) < 0) {
       RemoveEntry(pid);
       return ESRCH;
     }
-    if (!HasEntry (pid))
-    {
+
+    if (!HasEntry(pid)) {
       //eos_static_debug("There and pid is %d",pid);
-      eos::common::RWMutexWriteLock lock (pMutex);
-      pCatalog[pid] = new ProcCacheEntry (pid,pProcPath.c_str());
+      eos::common::RWMutexWriteLock lock(pMutex);
+      pCatalog[pid] = new ProcCacheEntry(pid, pProcPath.c_str());
     }
-    auto entry = GetEntry (pid);
-    if ((errCode = entry->UpdateIfPsChanged()))
-    {
-      eos_static_err("something wrong happened in reading proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
-      eos::common::RWMutexWriteLock lock (pMutex);
+
+    auto entry = GetEntry(pid);
+
+    if ((errCode = entry->UpdateIfPsChanged())) {
+      eos_static_err("something wrong happened in reading proc stuff %d : %s", pid,
+                     pCatalog[pid]->pErrMessage.c_str());
+      eos::common::RWMutexWriteLock lock(pMutex);
       delete pCatalog[pid];
-      pCatalog.erase (pid);
+      pCatalog.erase(pid);
       return errCode;
     }
 
@@ -370,47 +378,136 @@ public:
   }
 
   //! returns true if the entry is removed after the call
-  bool RemoveEntry (int pid)
+  bool RemoveEntry(int pid)
   {
-    if (!HasEntry (pid))
+    if (!HasEntry(pid)) {
       return true;
-    else
-    {
-      eos::common::RWMutexWriteLock lock (pMutex);
+    } else {
+      eos::common::RWMutexWriteLock lock(pMutex);
       delete pCatalog[pid];
-      pCatalog.erase (pid);
+      pCatalog.erase(pid);
       return true;
     }
   }
 
   //! returns true if the entry is removed after the call
-  int RemoveEntries (const std::set<pid_t>* protect)
+  int RemoveEntries(const std::set<pid_t>* protect)
   {
     int count = 0;
-    eos::common::RWMutexWriteLock lock (pMutex);
-    for (auto it = pCatalog.begin (); it != pCatalog.end ();)
-    {
-      if (protect && protect->count (it->first))
+    eos::common::RWMutexWriteLock lock(pMutex);
+
+    for (auto it = pCatalog.begin(); it != pCatalog.end();) {
+      if (protect && protect->count(it->first)) {
         ++it;
-      else
-      {
-        pCatalog.erase (it++);
+      } else {
+        pCatalog.erase(it++);
         ++count;
       }
     }
+
     return count;
   }
 
   //! get the entry associated to the pid if it exists
   //! gets NULL if the the cache does not have such an entry
-  ProcCacheEntry* GetEntry (int pid)
+  ProcCacheEntry* GetEntry(int pid)
   {
-    eos::common::RWMutexReadLock lock (pMutex);
-    auto entry = pCatalog.find (pid);
-    if (entry == pCatalog.end ())
+    eos::common::RWMutexReadLock lock(pMutex);
+    auto entry = pCatalog.find(pid);
+
+    if (entry == pCatalog.end()) {
       return NULL;
-    else
+    } else {
       return entry->second;
+    }
+  }
+
+  bool GetAuthMethod(int pid, std::string& value)
+  {
+    eos::common::RWMutexReadLock lock(pMutex);
+    auto entry = pCatalog.find(pid);
+
+    if (entry == pCatalog.end()) {
+      return false;
+    }
+
+    return entry->second->GetAuthMethod(value);
+  }
+
+  bool GetStartupTime(int pid, time_t& sut)
+  {
+    eos::common::RWMutexReadLock lock(pMutex);
+    auto entry = pCatalog.find(pid);
+
+    if (entry == pCatalog.end()) {
+      return false;
+    }
+
+    return entry->second->GetStartupTime(sut);
+  }
+
+  bool GetFsUidGid(int pid, uid_t& uid, gid_t& gid)
+  {
+    eos::common::RWMutexReadLock lock(pMutex);
+    auto entry = pCatalog.find(pid);
+
+    if (entry == pCatalog.end()) {
+      return false;
+    }
+
+    return entry->second->GetFsUidGid(uid, gid);
+  }
+
+  const std::vector<std::string>&
+  GetArgsVec(int pid)
+  {
+    static std::vector<std::string> dummy;
+    eos::common::RWMutexReadLock lock(pMutex);
+    auto entry = pCatalog.find(pid);
+
+    if (entry == pCatalog.end()) {
+      return dummy;
+    }
+
+    return entry->second->GetArgsVec();
+  }
+
+  const std::string&
+  GetArgsStr(int pid)
+  {
+    static std::string dummy;
+    eos::common::RWMutexReadLock lock(pMutex);
+    auto entry = pCatalog.find(pid);
+
+    if (entry == pCatalog.end()) {
+      return dummy;
+    }
+
+    return entry->second->GetArgsStr();
+  }
+
+  bool GetSid(int pid, pid_t& sid)
+  {
+    eos::common::RWMutexReadLock lock(pMutex);
+    auto entry = pCatalog.find(pid);
+
+    if (entry == pCatalog.end()) {
+      return false;
+    }
+
+    return entry->second->GetSid(sid);
+  }
+
+  bool SetAuthMethod(int pid, const std::string& value)
+  {
+    eos::common::RWMutexReadLock lock(pMutex);
+    auto entry = pCatalog.find(pid);
+
+    if (entry == pCatalog.end()) {
+      return false;
+    }
+
+    return entry->second->SetAuthMethod(value);
   }
 };
 
@@ -418,7 +515,10 @@ public:
 //extern ProcCache gProcCache;
 extern std::vector<ProcCache> gProcCacheV;
 extern int gProcCacheShardSize;
-inline ProcCache& gProcCache(int i) { return gProcCacheV[i%gProcCacheShardSize]; }
+inline ProcCache& gProcCache(int i)
+{
+  return gProcCacheV[i % gProcCacheShardSize];
+}
 #endif
 
 #endif

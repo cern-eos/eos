@@ -121,13 +121,13 @@ public:
   void
   lock_r_pcache(pid_t pid)
   {
-    proccachemutexes[pid%proccachenbins].LockRead();
+    proccachemutexes[pid % proccachenbins].LockRead();
   }
 
   void
   lock_w_pcache(pid_t pid)
   {
-    proccachemutexes[pid%proccachenbins].LockWrite();
+    proccachemutexes[pid % proccachenbins].LockWrite();
   }
 
 
@@ -138,13 +138,13 @@ public:
   void
   unlock_r_pcache(pid_t pid)
   {
-    proccachemutexes[pid%proccachenbins].UnLockRead();
+    proccachemutexes[pid % proccachenbins].UnLockRead();
   }
 
   void
   unlock_w_pcache(pid_t pid)
   {
-    proccachemutexes[pid%proccachenbins].UnLockWrite();
+    proccachemutexes[pid % proccachenbins].UnLockWrite();
   }
 
   AuthIdManager()
@@ -160,7 +160,7 @@ protected:
   // This sharding is made such that AuthIdManager::proccachemutexes consecutive pids don't interfere at all between each other.
   // The size of the sharding is given by AuthIdManager::proccachenbins which is copied to gProcCacheShardingSize
   // AuthIdManager::proccachemutexes vector of mutex each one protecting a bin in the sharding.
-  std::vector<std::map<pid_t,std::string> > pid2StrongLogin;
+  std::vector<std::map<pid_t, std::string> > pid2StrongLogin;
   // maps (sessionid,userid) -> ( credinfo )
   std::vector<std::map<pid_t, std::map<uid_t, CredInfo>  >> siduid2credinfo;
   static uint64_t sConIdCount;
@@ -188,13 +188,17 @@ protected:
     int sidx = 1, sn = 2;
 
     if (!use_user_krb5cc && use_user_gsiproxy) {
-      sidx = 2; sn = 1;
+      sidx = 2;
+      sn = 1;
     } else if (use_user_krb5cc && !use_user_gsiproxy) {
-      sidx = 0; sn = 2;
+      sidx = 0;
+      sn = 2;
     } else if (tryKrb5First) {
-      sidx = 0; sn = 3;
+      sidx = 0;
+      sn = 3;
     } else {
-      sidx = 2; sn = 3;
+      sidx = 2;
+      sn = 3;
     }
 
     // try all the credential types according to settings and stop as soon as a credetnial is found
@@ -210,8 +214,10 @@ protected:
         }
 
         size_t bsize = 0;
+
         //eos_static_debug("trying to stat %s", buffer);
-        if (!::lstat(buffer, &linkstat) && ((bsize = readlink(buffer, buffer2, 1023))>=0)) {
+        if (!::lstat(buffer, &linkstat) &&
+            ((bsize = readlink(buffer, buffer2, 1023)) >= 0)) {
           ret = true;
           credinfo.lname = buffer;
           credinfo.lmtime = linkstat.MTIMESPEC.tv_sec;
@@ -342,88 +348,97 @@ protected:
     //TODO: implement channel disconnection when implementend in XRootD
   }
 
-  bool populatePids ()
+  bool populatePids()
   {
-    runningPids.clear ();
+    runningPids.clear();
     // when entering this function proccachemutexes[pid] must be write locked
-
     errno = 0;
-    auto dirp = opendir (gProcCache(0).GetProcPath().c_str());
-    if(dirp==NULL)
-    {
-      eos_static_err("error openning %s to get running pids. errno=%d",gProcCache(0).GetProcPath().c_str(),errno);
+    auto dirp = opendir(gProcCache(0).GetProcPath().c_str());
+
+    if (dirp == NULL) {
+      eos_static_err("error openning %s to get running pids. errno=%d",
+                     gProcCache(0).GetProcPath().c_str(), errno);
       return false;
     }
-    // this is useful even in gateway mode because of the recursive deletion protection
-    struct dirent *dp = NULL;
-    long long int i = 0;
-    while ((dp = readdir (dirp)) != NULL)
-    {
-      errno = 0;
-      if (dp->d_type == DT_DIR && (i = strtoll (dp->d_name, NULL, 10)) && (errno == 0)) runningPids.insert (static_cast<pid_t> (i));
-    }
-    (void) closedir (dirp);
 
+    // this is useful even in gateway mode because of the recursive deletion protection
+    struct dirent* dp = NULL;
+    long long int i = 0;
+
+    while ((dp = readdir(dirp)) != NULL) {
+      errno = 0;
+
+      if (dp->d_type == DT_DIR && (i = strtoll(dp->d_name, NULL, 10)) &&
+          (errno == 0)) {
+        runningPids.insert(static_cast<pid_t>(i));
+      }
+    }
+
+    (void) closedir(dirp);
     return true;
   }
-    // check if we are using strong authentication
-  bool cleanProcCachePid (pid_t pid)
+  // check if we are using strong authentication
+  bool cleanProcCachePid(pid_t pid)
   {
     bool result = false;
-    if (!runningPids.count (pid))
-    {
-      result = gProcCache(pid).RemoveEntry (pid);
-      if (!result) eos_static_err("error removing proccache entry for pid=%d", (int )pid);
+
+    if (!runningPids.count(pid)) {
+      result = gProcCache(pid).RemoveEntry(pid);
+
+      if (!result) {
+        eos_static_err("error removing proccache entry for pid=%d", (int)pid);
+      }
     }
 
     // returns true if the entry was removed
     return result;
   }
 
-  void cleanProcCacheBin (unsigned int i, int &cleancountProcCache, int &cleancountStrongLogin, int &cleancountCredInfo)
+  void cleanProcCacheBin(unsigned int i, int& cleancountProcCache,
+                         int& cleancountStrongLogin, int& cleancountCredInfo)
   {
-    eos::common::RWMutexWriteLock lock (proccachemutexes[i]);
-
+    eos::common::RWMutexWriteLock lock(proccachemutexes[i]);
     cleancountProcCache += gProcCacheV[i].RemoveEntries(&runningPids);
 
-    for (auto it = pid2StrongLogin[i].begin (); it != pid2StrongLogin[i].end ();)
-    {
-      if (!runningPids.count(it->first))
-      {
+    for (auto it = pid2StrongLogin[i].begin(); it != pid2StrongLogin[i].end();) {
+      if (!runningPids.count(it->first)) {
         pid2StrongLogin[i].erase(it++);
         ++cleancountStrongLogin;
-      }
-      else
+      } else {
         ++it;
+      }
     }
-    for (auto it = siduid2credinfo[i].begin (); it != siduid2credinfo[i].end ();)
-    {
-      if (!runningPids.count(it->first))
-      {
+
+    for (auto it = siduid2credinfo[i].begin(); it != siduid2credinfo[i].end();) {
+      if (!runningPids.count(it->first)) {
         siduid2credinfo[i].erase(it++);
         cleancountCredInfo++;
-      }
-      else
+      } else {
         ++it;
+      }
     }
   }
 
-  int cleanProcCache ()
+  int cleanProcCache()
   {
     int cleancountProcCache = 0;
     int cleancountStrongLogin = 0;
     int cleancountCredInfo = 0;
 
-    if (populatePids ())
-    {
-      for (unsigned int i = 0; i < proccachenbins; i++)
-        cleanProcCacheBin (i,cleancountProcCache,cleancountStrongLogin,cleancountCredInfo);
-
+    if (populatePids()) {
+      for (unsigned int i = 0; i < proccachenbins; i++) {
+        cleanProcCacheBin(i, cleancountProcCache, cleancountStrongLogin,
+                          cleancountCredInfo);
+      }
     }
-    eos_static_info("ProcCache cleaning removed %d entries in gProcCache",cleancountProcCache);
-    eos_static_debug("ProcCache cleaning removed %d entries in pid2StrongLogin",cleancountStrongLogin);
-    eos_static_debug("ProcCache cleaning removed %d entries in siduid2CredInfo",cleancountCredInfo);
-      return 0;
+
+    eos_static_info("ProcCache cleaning removed %d entries in gProcCache",
+                    cleancountProcCache);
+    eos_static_debug("ProcCache cleaning removed %d entries in pid2StrongLogin",
+                     cleancountStrongLogin);
+    eos_static_debug("ProcCache cleaning removed %d entries in siduid2CredInfo",
+                     cleancountCredInfo);
+    return 0;
   }
 
   static void*
@@ -432,8 +447,8 @@ protected:
   void CleanupLoop()
   {
     XrdSysTimer sleeper;
-    while(true)
-    {
+
+    while (true) {
       sleeper.Snooze(300);
       cleanProcCache();
     }
@@ -464,40 +479,30 @@ protected:
 
     // get the startuptime of the process
     time_t processSut = 0;
-
-    if (gProcCache(pid).HasEntry(pid)) {
-      gProcCache(pid).GetEntry(pid)->GetStartupTime(processSut);
-    }
-
+    gProcCache(pid).GetStartupTime(pid, processSut);
     // get the session id
     pid_t sid = 0;
+    gProcCache(pid).GetSid(pid, sid);
 
-    if (gProcCache(pid).HasEntry(pid)) {
-      gProcCache(pid).GetEntry(pid)->GetSid(sid);
-    }
-
-
-    if (sid!=pid) {
+    if (sid != pid) {
       lock_w_pcache(sid);
 
       if ((errCode = gProcCache(sid).InsertEntry(sid))) {
         unlock_w_pcache(sid);
         eos_static_debug("updating proc cache information for session leader process %d failed. Session leader process %d does not exist",
-                       (int)pid, (int)sid);
+                         (int)pid, (int)sid);
         sid = -1;
-      }
-      else
+      } else {
         unlock_w_pcache(sid);
+      }
     }
 
     // get the startuptime of the leader of the session
     time_t sessionSut = 0;
 
-    if (gProcCache(sid).HasEntry(sid)) {
-      gProcCache(sid).GetEntry(sid)->GetStartupTime(sessionSut);
-    }
-    else
+    if (!gProcCache(sid).GetStartupTime(sid, sessionSut)) {
       sessionSut = 0;
+    }
 
     // find the credentials
     CredInfo credinfo;
@@ -508,9 +513,10 @@ protected:
         credinfo.type = nobody;
         credinfo.lmtime = credinfo.lctime = 0;
         eos_static_debug("could not find any strong credential for uid %d pid %d sid %d, falling back on 'nobody'",
-                         (int)uid,(int)pid,(int)sid);
+                         (int)uid, (int)pid, (int)sid);
       } else {
-        eos_static_notice("could not find any strong credential for uid %d pid %d sid %d", (int)uid,(int)pid,(int)sid);
+        eos_static_notice("could not find any strong credential for uid %d pid %d sid %d",
+                          (int)uid, (int)pid, (int)sid);
         return EACCES;
       }
     }
@@ -518,30 +524,36 @@ protected:
     // check if the credentials in the credential cache cache are up to date
     // TODO: should we implement a TTL , my guess is NO
     bool sessionInCache = false;
-    if(sid!=pid) lock_r_pcache(sid);
-    bool cacheEntryFound = siduid2credinfo[sid%proccachenbins].count(sid)>0 && siduid2credinfo[sid%proccachenbins][sid].count(uid)>0;
-    std::map<uid_t, CredInfo>::iterator cacheEntry;
-    if (cacheEntryFound)
-    {
-    // skip the cache if reconnecting
-      cacheEntry = siduid2credinfo[sid%proccachenbins][sid].find(uid);
 
+    if (sid != pid) {
+      lock_r_pcache(sid);
+    }
+
+    bool cacheEntryFound = siduid2credinfo[sid % proccachenbins].count(sid) > 0 &&
+                           siduid2credinfo[sid % proccachenbins][sid].count(uid) > 0;
+    std::map<uid_t, CredInfo>::iterator cacheEntry;
+
+    if (cacheEntryFound) {
+      // skip the cache if reconnecting
+      cacheEntry = siduid2credinfo[sid % proccachenbins][sid].find(uid);
       sessionInCache = !reconnect;
 
-      if (sessionInCache)
-    {
-      sessionInCache = false;
-      const CredInfo& ci = cacheEntry->second;
+      if (sessionInCache) {
+        sessionInCache = false;
+        const CredInfo& ci = cacheEntry->second;
 
-      // we also check ctime to be sure that permission/ownership has not changed
-        if (ci.type == credinfo.type && ci.lmtime == credinfo.lmtime && ci.lctime == credinfo.lctime)
-      {
-        sessionInCache = true;
-        // we don't check the credentials file for modification because it might be modified during authentication
+        // we also check ctime to be sure that permission/ownership has not changed
+        if (ci.type == credinfo.type && ci.lmtime == credinfo.lmtime &&
+            ci.lctime == credinfo.lctime) {
+          sessionInCache = true;
+          // we don't check the credentials file for modification because it might be modified during authentication
+        }
       }
     }
+
+    if (sid != pid) {
+      unlock_r_pcache(sid);
     }
-    if(sid!=pid) unlock_r_pcache(sid);
 
     if (sessionInCache) {
       // TODO: could detect from the call to ptoccahce_InsertEntry if the process was changed
@@ -549,14 +561,15 @@ protected:
       // no lock needed as only one thread per process can access this (lock is supposed to be already taken -> beginning of the function)
       eos_static_debug("uid=%d  sid=%d  pid=%d  found stronglogin in cache %s",
                        (int)uid, (int)sid, (int)pid, cacheEntry->second.cachedStrongLogin.c_str());
-      pid2StrongLogin[pid%proccachenbins][pid] = cacheEntry->second.cachedStrongLogin;
+      pid2StrongLogin[pid % proccachenbins][pid] =
+        cacheEntry->second.cachedStrongLogin;
 
       if (gProcCache(sid).HasEntry(sid)) {
         std::string authmeth;
-        gProcCache(sid).GetEntry(sid)->GetAuthMethod(authmeth);
+        gProcCache(sid).GetAuthMethod(sid, authmeth);
 
         if (gProcCache(pid).HasEntry(pid)) {
-          gProcCache(pid).GetEntry(pid)->SetAuthMethod(authmeth);
+          gProcCache(pid).SetAuthMethod(pid, authmeth);
         }
       }
 
@@ -571,15 +584,16 @@ protected:
 
       /*** using unix authentication and user nobody ***/
       if (gProcCache(pid).HasEntry(pid)) {
-        gProcCache(pid).GetEntry(pid)->SetAuthMethod(sId);
+        gProcCache(pid).SetAuthMethod(pid, sId);
       }
 
+      // refresh the credentials in the cache
       if (gProcCache(sid).HasEntry(sid)) {
-        gProcCache(sid).GetEntry(sid)->SetAuthMethod(sId);
+        gProcCache(sid).SetAuthMethod(sid, sId);
       }
 
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
-      pid2StrongLogin[pid%proccachenbins][pid] = "nobody";
+      pid2StrongLogin[pid % proccachenbins][pid] = "nobody";
     } else {
       // refresh the credentials in the cache
       // check the credential security
@@ -619,14 +633,8 @@ protected:
         return EACCES;
       }
 
-      if (gProcCache(pid).HasEntry(pid)) {
-        gProcCache(pid).GetEntry(pid)->SetAuthMethod(newauthmeth);
-      }
-
-      if (gProcCache(sid).HasEntry(sid)) {
-        gProcCache(sid).GetEntry(sid)->SetAuthMethod(newauthmeth);
-      }
-
+      gProcCache(pid).SetAuthMethod(pid, newauthmeth);
+      gProcCache(sid).SetAuthMethod(sid, newauthmeth);
       authid = getNewConId(uid, gid, pid);
 
       if (!authid) {
@@ -638,19 +646,28 @@ protected:
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       map_user xrdlogin(uid, gid, authid);
       std::string mapped = mapUser(uid, gid, 0, authid);
-      pid2StrongLogin[pid%proccachenbins][pid] = std::string(xrdlogin.base64(mapped));
+      pid2StrongLogin[pid % proccachenbins][pid] = std::string(xrdlogin.base64(
+            mapped));
     }
 
     // update uidsid2credinfo
-    credinfo.cachedStrongLogin = pid2StrongLogin[pid%proccachenbins][pid];
+    credinfo.cachedStrongLogin = pid2StrongLogin[pid % proccachenbins][pid];
     eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",
                      (int)uid, (int)sid, (int)pid, credinfo.cachedStrongLogin.c_str());
-    if(sid!=pid) lock_w_pcache(sid);
-    siduid2credinfo[sid%proccachenbins][sid][uid] = credinfo;
-    if(sid!=pid) unlock_w_pcache(sid);
+
+    if (sid != pid) {
+      lock_w_pcache(sid);
+    }
+
+    siduid2credinfo[sid % proccachenbins][sid][uid] = credinfo;
+
+    if (sid != pid) {
+      unlock_w_pcache(sid);
+    }
+
     eos_static_info("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)",
                     sId.c_str(), (int)pid,
-                    pid2StrongLogin[pid%proccachenbins][pid].c_str(), (int)uid, (int)authid);
+                    pid2StrongLogin[pid % proccachenbins][pid].c_str(), (int)uid, (int)authid);
     return errCode;
   }
 
@@ -693,8 +710,7 @@ public:
   {
     // Start worker thread
     if ((XrdSysThread::Run(&mCleanupThread, AuthIdManager::CleanupThread,
-                           static_cast<void*>(this))))
-    {
+                           static_cast<void*>(this)))) {
       eos_static_crit("can not start cleanup thread");
       return false;
     }
@@ -705,22 +721,22 @@ public:
   inline int
   updateProcCache(uid_t uid, gid_t gid, pid_t pid)
   {
-    eos::common::RWMutexWriteLock lock(proccachemutexes[pid%proccachenbins]);
+    eos::common::RWMutexWriteLock lock(proccachemutexes[pid % proccachenbins]);
     return updateProcCache(uid, gid, pid, false);
   }
 
   inline int
   reconnectProcCache(uid_t uid, gid_t gid, pid_t pid)
   {
-    eos::common::RWMutexWriteLock lock(proccachemutexes[pid%proccachenbins]);
+    eos::common::RWMutexWriteLock lock(proccachemutexes[pid % proccachenbins]);
     return updateProcCache(uid, gid, pid, true);
   }
 
   std::string
   getXrdLogin(pid_t pid)
   {
-    eos::common::RWMutexReadLock lock(proccachemutexes[pid%proccachenbins]);
-    return pid2StrongLogin[pid%proccachenbins][pid];
+    eos::common::RWMutexReadLock lock(proccachemutexes[pid % proccachenbins]);
+    return pid2StrongLogin[pid % proccachenbins][pid];
   }
 
   std::string
