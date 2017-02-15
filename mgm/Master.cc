@@ -1543,12 +1543,12 @@ Master::Slave2Master ()
 
   size_t n_wait = 0;
   // wait that the follower reaches the offset seen now                                                                                    
-  while (gOFS->eosFileService->getFollowOffset() < (uint64_t) size_local_dir_changelog)
+  while (gOFS->eosFileService->getFollowOffset() < (uint64_t) size_local_file_changelog)
   {
     XrdSysTimer sleeper;
     sleeper.Wait(5000);
     eos_static_info("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", 
-		    gOFS->eosFileService->getFollowOffset(), (uint64_t) size_local_dir_changelog);
+		    gOFS->eosFileService->getFollowOffset(), (uint64_t) size_local_file_changelog);
 
     if (n_wait > 12)
     {

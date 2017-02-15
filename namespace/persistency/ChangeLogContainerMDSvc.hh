@@ -59,6 +59,7 @@ namespace eos
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( std::numeric_limits<ContainerMD::id_t>::max() );
         pChangeLog = new ChangeLogFile;
+	pthread_mutex_init(&pFollowStartMutex,0);
       }
 
       //------------------------------------------------------------------------
@@ -253,9 +254,13 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get the following offset
       //------------------------------------------------------------------------
-      uint64_t getFollowOffset() const
+      uint64_t getFollowOffset()
       {
-        return pFollowStart;
+        uint64_t lFollowStart;
+        pthread_mutex_lock(&pFollowStartMutex);
+        lFollowStart = pFollowStart;
+        pthread_mutex_unlock(&pFollowStartMutex);
+        return lFollowStart;
       }
 
       //------------------------------------------------------------------------
@@ -263,7 +268,9 @@ namespace eos
       //------------------------------------------------------------------------
       void setFollowOffset(uint64_t offset) 
       {
+        pthread_mutex_lock(&pFollowStartMutex);
         pFollowStart = offset;
+        pthread_mutex_unlock(&pFollowStartMutex);
       }
 
       //------------------------------------------------------------------------
@@ -384,6 +391,7 @@ namespace eos
       bool               pSlaveMode;
       bool               pSlaveStarted;
       int32_t            pSlavePoll;
+      pthread_mutex_t    pFollowStartMutex;
       uint64_t           pFollowStart;
       QuotaStats        *pQuotaStats;
       bool               pAutoRepair;
