@@ -412,6 +412,77 @@ public:
     else
       return entry->second;
   }
+
+  bool GetAuthMethod (int pid, std::string &value)
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return false;
+    
+    return entry->second->GetAuthMethod(value);
+  }
+
+  bool GetStartupTime (int pid, time_t &sut)
+  {  
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return false;
+
+    return entry->second->GetStartupTime(sut);
+  }
+
+  bool GetFsUidGid (int pid, uid_t &uid, gid_t &gid)
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return false;
+
+    return entry->second->GetFsUidGid(uid, gid);
+  }
+
+  const std::vector<std::string>&
+  GetArgsVec (int pid)
+  {
+    static std::vector<std::string> dummy;
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return dummy;
+
+    return entry->second->GetArgsVec();
+  }
+
+  const std::string&
+  GetArgsStr (int pid)
+  {
+    static std::string dummy;
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return dummy;
+    return entry->second->GetArgsStr();
+  }
+
+  bool GetSid (int pid, pid_t &sid)
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return false;
+    return entry->second->GetSid(sid);
+  }
+
+  bool SetAuthMethod (int pid, const std::string &value)
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return false;
+    return entry->second->SetAuthMethod(value);
+  }
 };
 
 #ifndef __PROCCACHE__NOGPROCCACHE__

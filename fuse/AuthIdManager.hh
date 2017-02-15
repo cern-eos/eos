@@ -465,16 +465,12 @@ protected:
     // get the startuptime of the process
     time_t processSut = 0;
 
-    if (gProcCache(pid).HasEntry(pid)) {
-      gProcCache(pid).GetEntry(pid)->GetStartupTime(processSut);
-    }
+    gProcCache(pid).GetStartupTime(pid, processSut);
 
     // get the session id
     pid_t sid = 0;
 
-    if (gProcCache(pid).HasEntry(pid)) {
-      gProcCache(pid).GetEntry(pid)->GetSid(sid);
-    }
+    gProcCache(pid).GetSid(pid, sid);
 
     // update the proccache of the session leader
     if (sid!=pid) {
@@ -493,10 +489,7 @@ protected:
     // get the startuptime of the leader of the session
     time_t sessionSut = 0;
 
-    if (gProcCache(sid).HasEntry(sid)) {
-      gProcCache(sid).GetEntry(sid)->GetStartupTime(sessionSut);
-    }
-    else
+    if (!gProcCache(sid).GetStartupTime(sid, sessionSut))
       sessionSut = 0;
 
     // find the credentials
@@ -553,10 +546,10 @@ protected:
 
       if (gProcCache(sid).HasEntry(sid)) {
         std::string authmeth;
-        gProcCache(sid).GetEntry(sid)->GetAuthMethod(authmeth);
+        gProcCache(sid).GetAuthMethod(sid, authmeth);
 
         if (gProcCache(pid).HasEntry(pid)) {
-          gProcCache(pid).GetEntry(pid)->SetAuthMethod(authmeth);
+          gProcCache(pid).SetAuthMethod(pid, authmeth);
         }
       }
 
@@ -571,11 +564,11 @@ protected:
       /*** using unix authentication and user nobody ***/
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       if (gProcCache(pid).HasEntry(pid)) {
-        gProcCache(pid).GetEntry(pid)->SetAuthMethod(sId);
+        gProcCache(pid).SetAuthMethod(pid,sId);
     }
       // refresh the credentials in the cache
       if (gProcCache(sid).HasEntry(sid)) {
-        gProcCache(sid).GetEntry(sid)->SetAuthMethod(sId);
+        gProcCache(sid).SetAuthMethod(sid, sId);
       }
       // check the credential security
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
@@ -619,13 +612,8 @@ protected:
         return EACCES;
       }
 
-      if (gProcCache(pid).HasEntry(pid)) {
-        gProcCache(pid).GetEntry(pid)->SetAuthMethod(newauthmeth);
-      }
-
-      if (gProcCache(sid).HasEntry(sid)) {
-        gProcCache(sid).GetEntry(sid)->SetAuthMethod(newauthmeth);
-      }
+      gProcCache(pid).SetAuthMethod(pid, newauthmeth);
+      gProcCache(sid).SetAuthMethod(sid, newauthmeth);
 
       authid = getNewConId(uid, gid, pid);
 
