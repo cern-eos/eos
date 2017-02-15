@@ -72,8 +72,12 @@ BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
 BuildRequires: zeromq, zeromq-devel, curl-devel, curl
 %else
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
-BuildRequires: libcurl-devel libcurl, sparsehash-devel
+BuildRequires: libcurl-devel, libcurl, sparsehash-devel
+%if (0%{?fedora} >= 26)
+BuildRequires: zeromq, zeromq-devel, cppzmq-devel
+%else
 BuildRequires: zeromq3, zeromq3-devel
+%endif
 %endif
 
 %if %{use_systemd}
@@ -138,11 +142,6 @@ Requires: zeromq
 Requires: curl
 %else
 Requires: libcurl
-%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
-BuildRequires: zeromq3, zeromq3-devel
-%else
-BuildRequires: zeromq, zeromq-devel, cppzmq-devel
-%endif
 %endif
 
 %description -n eos-server
