@@ -904,10 +904,7 @@ public:
     return max_inline_repair_size;
   }
 
-
-protected:
 private:
-
   uint64_t pid_max;
   uint64_t uid_max;
 
@@ -942,21 +939,22 @@ private:
   uint64_t max_wb_in_memory_size; ///< maximum size of in-memory wb cache structures
   XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
-//----------------------------------------------------------------------------
-//             ******* Implementation Translations *******
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //             ******* Implementation Translations *******
+  //----------------------------------------------------------------------------
 
-// Protecting the path/inode translation table
+  // Protecting the path/inode translation table
   eos::common::RWMutex mutex_inode_path;
 
-// Mapping path name to inode
+  // Mapping path name to inode
   google::dense_hash_map<std::string, unsigned long long> path2inode;
 
-// Mapping inode to path name
+  // Mapping inode to path name
   std::map<unsigned long long, std::string> inode2path;
 
-// Prefix (duplicated from upstream object)
+  // Prefix (duplicated from upstream object)
   std::string mPrefix;
+
 
 //------------------------------------------------------------------------------
 //      ******* Implementation of the directory listing table *******
@@ -976,7 +974,6 @@ private:
 //------------------------------------------------------------------------------
 // Get maximum number of directories in cache
 //------------------------------------------------------------------------------
-
   const unsigned long long
   GetMaxCacheSize()
   {

@@ -361,8 +361,9 @@ private:
     const IContainerMD* current = container;
 
     try {
-      while (current->getId() != 1 &&
-             (current->getFlags() & QUOTA_NODE_FLAG) == 0) {
+      while ((current->getId() != 1) &&
+             ((current->getFlags() & QUOTA_NODE_FLAG) == 0) &&
+             current->getParentId()) {
         current = pContSvc->getContainerMD(current->getParentId()).get();
       }
     } catch (MDException& e) {

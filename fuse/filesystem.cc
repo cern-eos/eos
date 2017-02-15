@@ -548,7 +548,6 @@ unsigned long long
 filesystem::redirect_i2i(unsigned long long inode)
 {
   eos::common::RWMutexReadLock rd_lock(mutex_inode_path);
-  return inode;
 
   if (inode2path.count(inode)) {
     std::string path = inode2path[inode];
@@ -560,7 +559,6 @@ filesystem::redirect_i2i(unsigned long long inode)
 
   return inode;
 }
-
 
 //------------------------------------------------------------------------------
 //      ******* Implementation of the FUSE directory cache *******
@@ -1030,9 +1028,6 @@ filesystem::remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
 
       // Decrement number of references - so that the last process can
       // properly close the file
-      // properly close the file
-      // properly close the file
-      // properly close the file
       if (isRW) {
         fabst->DecNumRefRW();
         fabst->DecNumOpenRW();
@@ -1048,8 +1043,6 @@ filesystem::remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
 
   return retc;
 }
-
-
 
 char*
 filesystem::attach_rd_buff(pthread_t tid, size_t size)
@@ -3463,9 +3456,9 @@ int
 filesystem::close(int fildes, unsigned long inode, uid_t uid, gid_t gid,
                   pid_t pid)
 {
-  eos_static_info("fd=%d inode=%lu, uid=%i, gid=%i, pid=%i", fildes, inode, uid,
-                  gid, pid);
   int ret = -1;
+  eos_static_info("fd=%d inode=%lu, uid=%i, gid=%i, pid=%i", fildes, inode,
+                  uid, gid, pid);
   std::shared_ptr<FileAbstraction> fabst = get_file(fildes);
 
   if (!fabst.get()) {
@@ -3499,6 +3492,7 @@ filesystem::close(int fildes, unsigned long inode, uid_t uid, gid_t gid,
   {
     // Commit the utime first - we cannot handle errors here
     ret = utimes_from_fabst(fabst, inode, uid, gid, pid);
+    // Close file and remove it from all mappings
     ret = remove_fd2file(fildes, inode, uid, gid, pid);
   }
 

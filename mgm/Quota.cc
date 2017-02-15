@@ -1303,6 +1303,47 @@ Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
                           long long& max_files,
                           long long& free_files)
 {
+  // Check for sys.auth='*'
+  eos::common::Mapping::VirtualIdentity_t m_vid = vid;
+  XrdOucString xownerauth;
+  XrdOucErrInfo error;
+  struct stat buf;
+
+  if (!gOFS->_stat(path.c_str(), &buf, error, vid, "")) {
+    gOFS->_attr_get(path.c_str(), error, vid, "", "sys.owner.auth", xownerauth);
+    std::string ownerauth = xownerauth.c_str();
+
+    if (ownerauth.length()) {
+      if (ownerauth == "*") {
+        eos_static_info("msg=\"client authenticated as directory owner\" "
+                        "path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path.c_str(),
+                        vid.uid, vid.gid, buf.st_uid, buf.st_gid);
+        // The client can operate as the owner, we rewrite the virtual id
+        m_vid.uid = buf.st_uid;
+        m_vid.gid = buf.st_gid;
+      } else {
+        ownerauth += ",";
+        std::string ownerkey = vid.prot.c_str();
+        ownerkey += ":";
+
+        if (vid.prot == "gsi") {
+          ownerkey += vid.dn.c_str();
+        } else {
+          ownerkey += vid.uid_string.c_str();
+        }
+
+        if ((ownerauth.find(ownerkey)) != std::string::npos) {
+          eos_static_info("msg=\"client authenticated as directory owner\" "
+                          "path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path.c_str(),
+                          vid.uid, vid.gid, buf.st_uid, buf.st_gid);
+          // The client can operate as the owner, we rewrite the virtual id
+          m_vid.uid = buf.st_uid;
+          m_vid.gid = buf.st_gid;
+        }
+      }
+    }
+  }
+
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* space = GetResponsibleSpaceQuota(path);
@@ -1319,14 +1360,14 @@ Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
     (void) free_files_usr; // not used - avoid compile warning
     max_files_usr = max_files_grp = max_files_prj = 0;
     (void) max_files_usr; // not used -avoid compile warning
-    max_bytes_usr  = space->GetQuota(SpaceQuota::kUserBytesTarget, vid.uid);
-    max_bytes_grp = space->GetQuota(SpaceQuota::kGroupBytesTarget, vid.gid);
+    max_bytes_usr  = space->GetQuota(SpaceQuota::kUserBytesTarget, m_vid.uid);
+    max_bytes_grp = space->GetQuota(SpaceQuota::kGroupBytesTarget, m_vid.gid);
     max_bytes_prj = space->GetQuota(SpaceQuota::kGroupBytesTarget,
                                     Quota::gProjectId);
     free_bytes_usr = max_bytes_usr - space->GetQuota(
-                       SpaceQuota::kUserLogicalBytesIs, vid.uid);
+                       SpaceQuota::kUserLogicalBytesIs, m_vid.uid);
     free_bytes_grp = max_bytes_grp - space->GetQuota(
-                       SpaceQuota::kGroupLogicalBytesIs, vid.gid);
+                       SpaceQuota::kGroupLogicalBytesIs, m_vid.gid);
     free_bytes_prj = max_bytes_prj - space->GetQuota(
                        SpaceQuota::kGroupLogicalBytesIs, Quota::gProjectId);
 

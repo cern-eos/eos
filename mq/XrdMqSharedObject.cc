@@ -3168,7 +3168,6 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
           }
         }
 
-        XrdSysMutexHelper lock(sh->mTransactMutex);
         std::string sstr;
 
         for (unsigned int i = 0; i < keystart.size(); i++) {

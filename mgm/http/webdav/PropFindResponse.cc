@@ -204,7 +204,9 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
         if (responseNode) {
           multistatusNode->append_node(responseNode);
         } else {
-          return this;
+          // We might have a failed stat in the BuildResponseNode if there are
+          // symlinks present
+          SetResponseCode(HttpResponse::OK);
         }
       }
     } else {
