@@ -73,11 +73,7 @@ BuildRequires: zeromq, zeromq-devel, curl-devel, curl
 %else
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
 BuildRequires: libcurl-devel libcurl, sparsehash-devel
-%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
 BuildRequires: zeromq3, zeromq3-devel
-%else
-BuildRequires: zeromq, zeromq-devel
-%endif
 %endif
 
 %if %{use_systemd}
