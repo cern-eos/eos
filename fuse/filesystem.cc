@@ -3980,7 +3980,7 @@ filesystem::strongauth_cgi(pid_t pid)
     std::string authmet;
 
     if (gProcCache(pid).HasEntry(pid)) {
-      gProcCache(pid).GetEntry(pid)->GetAuthMethod(authmet);
+      gProcCache(pid).GetAuthMethod(pid, authmet);
     }
 
     if (authmet.compare(0, 5, "krb5:") == 0) {
@@ -4046,10 +4046,8 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
 
   time_t psstime = 0;
 
-  if (
-    !gProcCache(pid).HasEntry(pid) ||
-    !gProcCache(pid).GetEntry(pid)->GetStartupTime(psstime)
-  ) {
+  if (!gProcCache(pid).HasEntry(pid) ||
+      !gProcCache(pid).GetStartupTime(pid, psstime)) {
     eos_static_err("could not get process start time");
   }
 
@@ -4068,7 +4066,7 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
                          it_map->second.second);
 
         if (it_map->second.second) {
-          std::string cmd = gProcCache(pid).GetEntry(pid)->GetArgsStr();
+          std::string cmd = gProcCache(pid).GetArgsStr(pid);
           eos_static_notice("rejected toplevel recursive deletion command %s",
                             cmd.c_str());
         }
@@ -4085,8 +4083,8 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
   auto entry = std::make_pair(psstime, false);
   // Try to print the command triggering the unlink
   std::ostringstream oss;
-  const auto& cmdv = gProcCache(pid).GetEntry(pid)->GetArgsVec();
-  std::string cmd = gProcCache(pid).GetEntry(pid)->GetArgsStr();
+  const auto& cmdv = gProcCache(pid).GetArgsVec(pid);
+  std::string cmd = gProcCache(pid).GetArgsStr(pid);
   std::set<std::string> rm_entries;
   std::set<std::string> rm_opt; // rm command options (long and short)
   char exe[PATH_MAX];
@@ -4924,13 +4922,11 @@ filesystem::mylstat(const char* __restrict name, struct stat* __restrict __buf,
   if ((path.length() >= mount_dir.length()) &&
       (path.find(mount_dir) == 0)) {
     eos_static_debug("name=%s\n", name);
-    uid_t uid;
-    gid_t gid;
+    uid_t uid = 0;
+    gid_t gid = 0 ;
 
-    if (
-      !gProcCache(pid).HasEntry(pid) ||
-      !gProcCache(pid).GetEntry(pid)->GetFsUidGid(uid, gid)
-    ) {
+    if (!gProcCache(pid).HasEntry(pid) ||
+        !gProcCache(pid).GetFsUidGid(pid, uid, gid)) {
       return ESRCH;
     }
 

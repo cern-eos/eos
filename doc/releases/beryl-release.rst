@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.228 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix locking strategy bug in the proc cache usage where entries were not locked anymore when used
+
 ``V0.3.227 Aquamarine``
 =======================
 
