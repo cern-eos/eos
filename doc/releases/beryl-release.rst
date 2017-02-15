@@ -7,6 +7,21 @@
 Beryl Release Notes
 ===================
 
+``V0.3.227 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: fix failover procedure: slave stays forever booting until master sees a change
+- MGM: safte in failover procedure: don't failover if the slave did not follow the changelog to the end
+- MGM: show bytes left to follow in 'ns master' on slave
+- NS: avoid infinite loop in slave follower when looking for a quota node
+- FUSE: fix bug leaving files open when a file was inline repaired
+- DAV: fix webdav bug when a symbolic link is present in a directory listing leading to an error response
+- MGM: fix 'access rm' implementation to remove ENOENT and ENONET redirection
+- DAV: take into account sys.owner.auth when looking for webdav quota 
+
 ``V0.3.226 Aquamarine``
 =======================
 

@@ -128,6 +128,13 @@ public:
   //! Resize container service map
   //------------------------------------------------------------------------
   virtual void resize() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get the following offset
+  //!
+  //! @return offset value
+  //----------------------------------------------------------------------------
+  virtual uint64_t getFollowOffset() = 0;
 };
 
 EOSNSNAMESPACE_END

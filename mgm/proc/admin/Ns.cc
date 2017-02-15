@@ -26,7 +26,8 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "common/LinuxMemConsumption.hh"
-
+#include "namespace/interface/IChLogFileMDSvc.hh"
+#include "namespace/interface/IChLogContainerMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -215,10 +216,10 @@ ProcCommand::Ns()
     // current namespace ids
     XrdOucString currentfidstring;
     XrdOucString currentcidstring;
-    eos::common::StringConversion::GetReadableSizeString(currentfidstring,
-        (unsigned long long)fid_now, "");
-    eos::common::StringConversion::GetReadableSizeString(currentcidstring,
-        (unsigned long long)cid_now, "");
+    eos::common::StringConversion::GetSizeString(currentfidstring,
+        (unsigned long long)fid_now);
+    eos::common::StringConversion::GetSizeString(currentcidstring,
+        (unsigned long long)cid_now);
     // statistic for the memory usage
     eos::common::LinuxMemConsumption::linux_mem_t mem;
 
@@ -245,8 +246,13 @@ ProcCommand::Ns()
         boottime = gOFS->InitializationTime;
       }
     }
-    double avg = 0;
-    double sigma = 0;
+    char slatencyf[1024];
+    char slatencyd[1024];
+    snprintf(slatencyf, sizeof(slatencyf) - 1, "%ld", (long int)statf.st_size -
+             dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService)->getFollowOffset());
+    snprintf(slatencyd, sizeof(slatencyd) - 1, "%ld", (long int)statd.st_size -
+             dynamic_cast<eos::IChLogContainerMDSvc*>
+             (gOFS->eosDirectoryService)->getFollowOffset());
 
     if (!monitoring) {
       stdOut += "# ------------------------------------------------------------------------------------\n";
@@ -273,10 +279,11 @@ ProcCommand::Ns()
       stdOut += "\n";
 
       if (!gOFS->MgmMaster.IsMaster()) {
-        char slatency[1024];
-        snprintf(slatency, sizeof(slatency) - 1, "%.02f += %.02f ms", avg, sigma);
-        stdOut += "ALL      Namespace Latency                ";
-        stdOut += slatency;
+        stdOut += "ALL      Namespace Latency Files          ";
+        stdOut += slatencyf;
+        stdOut += "\n";
+        stdOut += "ALL      Namespace Latency Directories    ";
+        stdOut += slatencyd;
         stdOut += "\n";
       }
 
@@ -383,15 +390,11 @@ ProcCommand::Ns()
       stdOut += "uid=all gid=all ns.boot.time=";
       stdOut += (int) boottime;
       stdOut += "\n";
-      stdOut += "uid=all gid=all ns.latency.avg=";
-      char savg[1024];
-      snprintf(savg, sizeof(savg) - 1, "%.02f", avg);
-      stdOut += savg;
+      stdOut += "uid=all gid=all ns.latency.files=";
+      stdOut += slatencyf;
       stdOut += "\n";
-      stdOut += "uid=all gid=all ns.latency.sig=";
-      char ssig[1024];
-      snprintf(ssig, sizeof(ssig) - 1, "%.02f", sigma);
-      stdOut += ssig;
+      stdOut += "uid=all gid=all ns.latency.dirs=";
+      stdOut += slatencyd;
       stdOut += "\n";
       stdOut += "uid=all gid=all ";
       gOFS->MgmMaster.PrintOut(stdOut);
