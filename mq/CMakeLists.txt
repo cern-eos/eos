@@ -60,6 +60,9 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
 
+target_compile_options(
+  XrdMqClient PRIVATE "-Wno-unused-value")
+
 target_compile_definitions(
   XrdMqClient PUBLIC -DHAVE_ATOMICS=1)
 
@@ -70,6 +73,9 @@ set_target_properties(
   MACOSX_RPATH TRUE)
 
 add_library(XrdMqClient-Static STATIC ${XRDMQCLIENT_SRCS})
+
+target_compile_options(
+  XrdMqClient-Static PRIVATE "-Wno-unused-value")
 
 target_link_libraries(
   XrdMqClient-Static PRIVATE
