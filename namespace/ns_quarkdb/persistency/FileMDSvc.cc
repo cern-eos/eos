@@ -281,7 +281,7 @@ FileMDSvc::checkFiles()
   bool is_ok = true;
   std::string cursor {"0"};
   std::pair<std::string, std::vector<std::string>> reply;
-  std::vector<std::string> to_drop;
+  std::list<std::string> to_drop;
 
   do {
     reply = mDirtyFidBackend.sscan(cursor);
@@ -383,7 +383,7 @@ FileMDSvc::flushDirtySet(IFileMD::id_t id, bool force)
 
   if (force || (duration >= sFlushInterval)) {
     mFlushTimestamp = now;
-    std::vector<std::string> to_del(mFlushFidSet.begin(), mFlushFidSet.end());
+    std::list<std::string> to_del(mFlushFidSet.begin(), mFlushFidSet.end());
     mFlushFidSet.clear();
 
     try {

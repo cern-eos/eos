@@ -189,7 +189,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
   (void) ah.Wait();
   // Clean up all the fsids that don't hold any files either replicas
   // or unlinked
-  std::vector<std::string> to_remove;
+  std::list<std::string> to_remove;
 
   do {
     reply = pFsIdsSet.sscan(cursor);

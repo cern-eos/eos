@@ -548,7 +548,7 @@ ConvertFsView::commitToBackend()
 {
   std::string key, val;
   qclient::QSet fs_set(*sQcl, "");
-  std::vector<std::string> vect_elem;
+  std::list<std::string> lst_elem;
 
   for (const auto& fs_elem : mFsView) {
     key = fsview::sSetFsIds;
@@ -560,10 +560,10 @@ ConvertFsView::commitToBackend()
     fs_set.setKey(key);
 
     if (fs_elem.second.first.size()) {
-      vect_elem.resize(fs_elem.second.first.size());
-      vect_elem.assign(fs_elem.second.first.begin(), fs_elem.second.first.end());
+      lst_elem.clear();
+      lst_elem.assign(fs_elem.second.first.begin(), fs_elem.second.first.end());
 
-      if (fs_set.sadd(vect_elem) != (long long int)vect_elem.size()) {
+      if (fs_set.sadd(lst_elem) != (long long int)lst_elem.size()) {
         std::cerr << "Error whlie doing bulk sadd operations!" << std::endl;
         exit(1);
       }
@@ -573,10 +573,10 @@ ConvertFsView::commitToBackend()
     fs_set.setKey(key);
 
     if (fs_elem.second.second.size()) {
-      vect_elem.resize(fs_elem.second.second.size());
-      vect_elem.assign(fs_elem.second.second.begin(), fs_elem.second.second.end());
+      lst_elem.clear();
+      lst_elem.assign(fs_elem.second.second.begin(), fs_elem.second.second.end());
 
-      if (fs_set.sadd(vect_elem) != (long long int)vect_elem.size()) {
+      if (fs_set.sadd(lst_elem) != (long long int)lst_elem.size()) {
         std::cerr << "Error whlie doing bulk sadd operations!" << std::endl;
         exit(1);
       }
@@ -584,10 +584,10 @@ ConvertFsView::commitToBackend()
   }
 
   fs_set.setKey(fsview::sNoReplicaPrefix);
-  vect_elem.resize(mFileNoReplica.size());
-  vect_elem.assign(mFileNoReplica.begin(), mFileNoReplica.end());
+  lst_elem.clear();
+  lst_elem.assign(mFileNoReplica.begin(), mFileNoReplica.end());
 
-  if (fs_set.sadd(vect_elem) != (long long int)vect_elem.size()) {
+  if (fs_set.sadd(lst_elem) != (long long int)lst_elem.size()) {
     std::cerr << "Error whlie doing bulk sadd operations!" << std::endl;
     exit(1);
   }
