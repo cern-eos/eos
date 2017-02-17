@@ -25,16 +25,16 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-ZMQ::ZMQ (const char* URL) : eos::common::ZMQ (URL) { }
+ZMQ::ZMQ(const char* URL) : eos::common::ZMQ(URL) { }
 
 /*----------------------------------------------------------------------------*/
 void
-ZMQ::Process (zmq::socket_t &socket, zmq::message_t &request)
+ZMQ::Process(zmq::socket_t& socket, zmq::message_t& request)
 {
-  // send reply 
+  // send reply
   zmq::message_t reply(5);
   memcpy((void*) reply.data(), "World", 5);
-  socket.send(reply);
+  (void) socket.send(reply);
 }
 
 EOSMGMNAMESPACE_END

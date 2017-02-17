@@ -21,10 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-/*----------------------------------------------------------------------------*/
 #include <cppunit/extensions/HelperMacros.h>
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -35,9 +32,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <algorithm>
-/*----------------------------------------------------------------------------*/
 #include "TestEnv.hh"
-/*----------------------------------------------------------------------------*/
 
 #ifndef __EOS_FUSE_FUSEFSTEST_HH__
 #define __EOS_FUSE_FUSEFSTEST_HH__
@@ -289,6 +284,12 @@ FuseFsTest::XAttrTest()
   for (auto elem = vxattr.begin(); elem != vxattr.begin(); ++elem) {
     CPPUNIT_ASSERT((sz_val_real = getxattr(dir.c_str(), elem->c_str(), value,
                                            sz_val)) != -1);
+
+    if (sz_val_real < 0) {
+      CPPUNIT_FAIL("getxattr return is negative");
+      return;
+    }
+
     CPPUNIT_ASSERT(strncmp(value, expect_map[*elem].c_str(), sz_val_real) == 0);
   }
 
@@ -300,6 +301,12 @@ FuseFsTest::XAttrTest()
   // Check the newly set xattr
   CPPUNIT_ASSERT((sz_val_real = getxattr(dir.c_str(), new_xattr.c_str(), value,
                                          sz_val)) != -1);
+
+  if (sz_val_real < 0) {
+    CPPUNIT_FAIL("getxattr return is negative");
+    return;
+  }
+
   CPPUNIT_ASSERT(strncmp(value, new_val.c_str(), sz_val_real) == 0);
   // Remove the newly added xattr
   CPPUNIT_ASSERT(!removexattr(dir.c_str(), new_xattr.c_str()));
@@ -446,4 +453,3 @@ FuseFsTest::UtimesTest()
 }
 
 #endif // __EOS_FUSE_FUSEFSTEST_HH__
-

@@ -2013,7 +2013,6 @@ XrdMgmOfsFile::open(const char* inpath,
         replicahost += repfilesystem->GetString("host").c_str();
         replicaport = atoi(repfilesystem->GetString("port").c_str());
       } else { // we have a proxy to use
-        proxys[i].c_str();
         auto idx = proxys[i].rfind(":");
 
         if (idx != std::string::npos) {

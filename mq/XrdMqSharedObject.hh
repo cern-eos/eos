@@ -91,6 +91,11 @@ public:
   XrdMqSharedHashEntry& operator=(const XrdMqSharedHashEntry& other);
 
   //----------------------------------------------------------------------------
+  //! Move constructor
+  //----------------------------------------------------------------------------
+  XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other) noexcept;
+
+  //----------------------------------------------------------------------------
   //! Get value
   //!
   //! @return entry value
@@ -901,7 +906,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  XrdMqSharedObjectChangeNotifier() {}
+  XrdMqSharedObjectChangeNotifier():
+    SOM(0), tid(0) {}
 
   //----------------------------------------------------------------------------
   //! Destructor

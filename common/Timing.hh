@@ -187,7 +187,7 @@ public:
     Timing* n;
     cerr << std::endl;
 
-    while ((n = p->next)) {
+    while (p && (n = p->next)) {
       sprintf(msg,
               "                                        [%12s] %12s<=>%-12s : %.03f\n",
               maintag.c_str(), p->tag.c_str(), n->tag.c_str(),
@@ -217,7 +217,7 @@ public:
     Timing* p = this->next;
     Timing* n;
 
-    while ((n = p->next)) {
+    while (p && (n = p->next)) {
       p = n;
     }
 

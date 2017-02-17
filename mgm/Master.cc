@@ -1351,25 +1351,27 @@ Master::Slave2Master()
   size_t n_wait = 0;
 
   // Wait that the follower reaches the offset seen now
-  while (dynamic_cast<eos::IChLogFileMDSvc*>
-         (gOFS->eosFileService)->getFollowOffset() <
-         (uint64_t)size_local_file_changelog) {
-    XrdSysTimer sleeper;
-    sleeper.Wait(5000);
-    eos_static_info("msg=\"waiting for the namespace to reach the follow "
-                    "point\" is-offset=%llu follow-offset=%llu",
-                    dynamic_cast<eos::IChLogFileMDSvc*>
-                    (gOFS->eosFileService)->getFollowOffset(),
-                    (uint64_t) size_local_file_changelog);
+  if (dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService)) {
+    while (dynamic_cast<eos::IChLogFileMDSvc*>
+           (gOFS->eosFileService)->getFollowOffset() <
+           (uint64_t)size_local_file_changelog) {
+      XrdSysTimer sleeper;
+      sleeper.Wait(5000);
+      eos_static_info("msg=\"waiting for the namespace to reach the follow "
+                      "point\" is-offset=%llu follow-offset=%llu",
+                      dynamic_cast<eos::IChLogFileMDSvc*>
+                      (gOFS->eosFileService)->getFollowOffset(),
+                      (uint64_t) size_local_file_changelog);
 
-    if (n_wait > 12) {
-      MasterLog(eos_crit("slave=>master transition aborted since we didn't "
-                         "reach the follow point in 60 seconds - you may retry"));
-      fRunningState = Run::State::kIsRunningSlave;
-      return false;
+      if (n_wait > 12) {
+        MasterLog(eos_crit("slave=>master transition aborted since we didn't "
+                           "reach the follow point in 60 seconds - you may retry"));
+        fRunningState = Run::State::kIsRunningSlave;
+        return false;
+      }
+
+      n_wait++;
     }
-
-    n_wait++;
   }
 
   bool syncok = false;

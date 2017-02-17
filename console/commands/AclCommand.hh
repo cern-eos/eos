@@ -55,25 +55,17 @@ class AclCommand
 public:
 # endif
 
-
   RuleMap m_rules; ///< Map containing current ACL rules
-
   MgmExecute m_mgm_execute; ///< Object for executing mgm commands
-
   std::string m_id; ///< Identifier for rule. Extracted from command line.
-
   ///< ACL rule bitmasks for adding and removing
   unsigned short m_add_rule, m_rm_rule;
-
   std::string m_path; ///< Path extracted from command line
   std::string m_rule; ///< Rule extracted from command line
-
   std::string m_error_message;
-
   // Loaded strings from mgm.
   std::string m_sys_acl_string;
   std::string m_usr_acl_string;
-
   char* m_comm; ///< pointer to original command
 
   // Flags
@@ -205,6 +197,7 @@ public:
 
   AclCommand(const char* comm) :
     m_rules(),
+    m_add_rule(0), m_rm_rule(0),
     m_comm(const_cast<char*>(comm)),
     m_recursive(false),
     m_list(false),

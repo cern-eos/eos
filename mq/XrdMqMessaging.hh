@@ -24,37 +24,47 @@
 #ifndef __XRDMQ_MESSAGING_HH__
 #define __XRDMQ_MESSAGING_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "mq/XrdMqClient.hh"
 #include "mq/XrdMqSharedObject.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 
-class XrdMqMessaging {
-private:
+class XrdMqMessaging
+{
+public:
+  static XrdMqClient gMessageClient;
+  static void* Start(void* pp);
+
+  XrdMqMessaging()
+  {
+    tid = 0;
+  };
+
+  XrdMqMessaging(const char* url, const char* defaultreceiverqueue,
+                 bool advisorystatus = false, bool advisoryquery = false,
+                 XrdMqSharedObjectManager* som = 0);
+  virtual ~XrdMqMessaging();
+
+  virtual void Listen();
+
+  virtual bool StartListenerThread();
+
+  void Connect();
+
+  virtual void StopListener();
+
+  bool IsZombie()
+  {
+    return zombie;
+  }
+
+  bool BroadCastAndCollect(XrdOucString broadcastresponsequeue,
+                           XrdOucString broadcasttargetqueues,
+                           XrdOucString& msgbody, XrdOucString& responses,
+                           unsigned long waittime = 5);
 protected:
   bool zombie;
   XrdMqSharedObjectManager* SharedObjectManager;
   pthread_t tid;
-
-public:
-  static XrdMqClient gMessageClient;
-
-  static void* Start(void *pp);
-
-  virtual void Listen();
-  virtual bool StartListenerThread();
-  void Connect();
-  
-  XrdMqMessaging() {tid=0;};
-  XrdMqMessaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false, XrdMqSharedObjectManager* som=0);
-  virtual void StopListener();
-  virtual ~XrdMqMessaging();
-
-  bool IsZombie() {return zombie;}
-
-  bool BroadCastAndCollect(XrdOucString broadcastresponsequeue, XrdOucString broadcasttargetqueues, XrdOucString &msgbody, XrdOucString &responses, unsigned long waittime=5);
 };
 
 #endif

@@ -21,16 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Publish
+//------------------------------------------------------------------------------
 void
 Storage::Publish()
 {
@@ -38,12 +38,10 @@ Storage::Publish()
   struct timeval tv1, tv2;
   struct timezone tz;
   unsigned long long netspeed = 1000000000;
-  // ---------------------------------------------------------------------
-  // get our network speed
-  // ---------------------------------------------------------------------
+  // Get our network speed
   char* tmpname = tmpnam(NULL);
-  XrdOucString getnetspeed =
-    "ip route list | sed -ne '/^default/s/.*dev //p' | xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> ";
+  XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' |"
+                             " xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> ";
   getnetspeed += tmpname;
   eos::common::ShellCmd scmd1(getnetspeed.c_str());
   eos::common::cmd_status rc = scmd1.wait(5);
@@ -114,7 +112,6 @@ Storage::Publish()
     }
     time_t now = time(NULL);
     gettimeofday(&tv1, &tz);
-
     // TODO: derive this from a global variable
     int PublishInterval = 10;
     {
@@ -129,7 +126,6 @@ Storage::Publish()
 
     unsigned int lReportIntervalMilliSeconds = (PublishInterval * 500) +
         (unsigned int)((PublishInterval * 1000.0) * rand() / RAND_MAX);
-
     eos::common::LinuxStat::linux_stat_t osstat;
 
     if (!eos::common::LinuxStat::GetStat(osstat)) {
@@ -159,27 +155,26 @@ Storage::Publish()
 
           XrdOucString r_open_hotfiles;
           XrdOucString w_open_hotfiles;
-
           {
             std::map<unsigned int, std::set<unsigned long long>> Rhotfiles;
             std::map<unsigned int, std::set<unsigned long long>> Whotfiles;
-	    {
-	      XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
+            {
+              XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
 
               if (gOFS.ROpenFid.count(fsid)) {
                 for (auto it = gOFS.ROpenFid[fsid].begin(); it != gOFS.ROpenFid[fsid].end();
                      ++it) {
-		  Rhotfiles[it->second].insert(it->first);
-		}
-	      }
+                  Rhotfiles[it->second].insert(it->first);
+                }
+              }
 
               if (gOFS.WOpenFid.count(fsid)) {
                 for (auto it = gOFS.WOpenFid[fsid].begin(); it != gOFS.WOpenFid[fsid].end();
                      ++it) {
-		  Whotfiles[it->second].insert(it->first);
-		}
-	      }
-	    }
+                  Whotfiles[it->second].insert(it->first);
+                }
+              }
+            }
             size_t cnt = 0;
 
             for (auto it = Rhotfiles.rbegin(); it != Rhotfiles.rend(); ++it) {
@@ -194,8 +189,8 @@ Storage::Publish()
 
                 if (cnt == 10) {
                   break;
+                }
               }
-            }
             }
 
             cnt = 0;
@@ -212,9 +207,9 @@ Storage::Publish()
 
                 if (cnt == 10) {
                   break;
+                }
               }
             }
-          }
           }
           // Retrieve Statistics from the SQLITE DB
           std::map<std::string, size_t>::const_iterator isit;
@@ -240,7 +235,8 @@ Storage::Publish()
           }
 
           eos::common::Statfs* statfs = 0;
-            // call the update function which stores into the filesystem shared hash
+
+          // call the update function which stores into the filesystem shared hash
           if ((statfs = fileSystemsVector[i]->GetStatfs())) {
             // call the update function which stores into the filesystem shared hash
             if (!fileSystemsVector[i]->SetStatfs(statfs->GetStatfs())) {
@@ -256,31 +252,32 @@ Storage::Publish()
                      fstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
           success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib",
                      fstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
-
           // set current load stats, io-target specific implementation may override fst load implementation
-            {
+          {
             double readratemb;
             double writeratemb;
             double diskload;
             std::map<std::string, std::string> iostats;
-            if (fileSystemsVector[i]->getFileIOStats(iostats))
-            {
+
+            if (fileSystemsVector[i]->getFileIOStats(iostats)) {
               readratemb = strtod(iostats["read-mb-second"].c_str(), 0);
               writeratemb = strtod(iostats["write-mb-second"].c_str(), 0);
               diskload = strtod(iostats["load"].c_str(), 0);
+            } else {
+              readratemb = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
+                                               "readSectors") * 512.0 / 1000000.0;
+              writeratemb = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
+                                                "writeSectors") * 512.0 / 1000000.0;
+              diskload = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
+                                             "millisIO") / 1000.0;
             }
-            else
-            {
-              readratemb = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "readSectors") * 512.0 / 1000000.0;
-              writeratemb = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "writeSectors") * 512.0 / 1000000.0;
-              diskload = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "millisIO") / 1000.0;
-            }
+
             success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", readratemb);
-            success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", writeratemb);
+            success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb",
+                       writeratemb);
             success &= fileSystemsVector[i]->SetDouble("stat.disk.load", diskload);
           }
-
-          // copy out net info 
+          // copy out net info
           {
             // File system implementation may override standard implementation
             std::map<std::string, std::string> health;
@@ -290,26 +287,25 @@ Storage::Publish()
             }
 
             success &= fileSystemsVector[i]->SetString("stat.health",
-			 (health.count("summary") ? health["summary"].c_str() : "N/A"));
+                       (health.count("summary") ? health["summary"].c_str() : "N/A"));
             success &= fileSystemsVector[i]->SetLongLong("stat.health.indicator",
-			 strtoll(health["indicator"].c_str(), 0, 10));
+                       strtoll(health["indicator"].c_str(), 0, 10));
             success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_total",
-			 strtoll(health["drives_total"].c_str(), 0, 10));
+                       strtoll(health["drives_total"].c_str(), 0, 10));
             success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_failed",
-			 strtoll(health["drives_failed"].c_str(), 0, 10));
+                       strtoll(health["drives_failed"].c_str(), 0, 10));
             success &= fileSystemsVector[i]->SetLongLong("stat.health.redundancy_factor",
-			 strtoll(health["redundancy_factor"].c_str(), 0, 10));
+                       strtoll(health["redundancy_factor"].c_str(), 0, 10));
           }
-
-	  long long r_open = 0;
-	  long long w_open = 0;
-	  {
-	    XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
+          long long r_open = 0;
+          long long w_open = 0;
+          {
+            XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
             r_open = (long long) gOFS.ROpenFid[fsid].size();
             w_open = (long long) gOFS.WOpenFid[fsid].size();
-	  }
-	  success &= fileSystemsVector[i]->SetLongLong("stat.ropen", r_open);
-	  success &= fileSystemsVector[i]->SetLongLong("stat.wopen", w_open);
+          }
+          success &= fileSystemsVector[i]->SetLongLong("stat.ropen", r_open);
+          success &= fileSystemsVector[i]->SetLongLong("stat.wopen", w_open);
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.freebytes",
                      fileSystemsVector[i]->GetLongLong("stat.statfs.bfree") *
                      fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
@@ -334,7 +330,7 @@ Storage::Publish()
             success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles",
                        (long long)(gFmdDbMapHandler.dbmap.count(fsid) ?
                                    gFmdDbMapHandler.dbmap[fsid]->size() : 0));
-	    }
+          }
           success &= fileSystemsVector[i]->SetString("stat.boot",
                      fileSystemsVector[i]->GetStatusAsString(fileSystemsVector[i]->GetStatus()));
           success &= fileSystemsVector[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
@@ -346,12 +342,11 @@ Storage::Publish()
                      fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
           success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running",
                      fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());
-
           success &= fileSystemsVector[i]->SetLongLong("stat.disk.iops",
                      fileSystemsVector[i]->getIOPS());
           success &= fileSystemsVector[i]->SetDouble("stat.disk.bw",
                      fileSystemsVector[i]->getSeqBandwidth()); // in MB
-	  {
+          {
             // we have to set something which is not empty to update the value
             if (!r_open_hotfiles.length()) {
               r_open_hotfiles = " ";
@@ -359,14 +354,15 @@ Storage::Publish()
 
             if (!w_open_hotfiles.length()) {
               w_open_hotfiles = " ";
-	    }
+            }
+
             // copy out hot file list
             // copy out hot file list
             success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles",
                        r_open_hotfiles.c_str());
             success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles",
                        w_open_hotfiles.c_str());
-	  }
+          }
           {
             long long fbytes = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
             XrdSysMutexHelper(fileSystemFullMapMutex);
@@ -400,7 +396,7 @@ Storage::Publish()
         {
           // set node status values
           gOFS.ObjectManager.HashMutex.LockRead();
-          // we received a new symkey 
+          // we received a new symkey
           XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(
                                     Config::gConfig.FstNodeConfigQueue.c_str(), "hash");
 
@@ -409,23 +405,25 @@ Storage::Publish()
             hash->Set("stat.sys.vsize", osstat.vsize);
             hash->Set("stat.sys.rss", osstat.rss);
             hash->Set("stat.sys.threads", osstat.threads);
-          {
-              XrdOucString v=VERSION; v+="-"; v+=RELEASE;
+            {
+              XrdOucString v = VERSION;
+              v += "-";
+              v += RELEASE;
               hash->Set("stat.sys.eos.version", v.c_str());
             }
             hash->Set("stat.sys.keytab", eos::fst::Config::gConfig.KeyTabAdler.c_str());
             hash->Set("stat.sys.uptime", publish_uptime.c_str());
             hash->Set("stat.sys.sockets", publish_sockets.c_str());
             hash->Set("stat.sys.eos.start", eos::fst::Config::gConfig.StartDate.c_str());
-	    hash->Set("stat.geotag", lNodeGeoTag.c_str());
+            hash->Set("stat.geotag", lNodeGeoTag.c_str());
             hash->Set("debug.state",
                       eos::common::StringConversion::ToLower
-		      (eos::common::Logging::GetPriorityString
-		       (eos::common::Logging::gPriorityLevel)).c_str());
+                      (eos::common::Logging::GetPriorityString
+                       (eos::common::Logging::gPriorityLevel)).c_str());
             // copy out net info
             hash->Set("stat.net.ethratemib", netspeed / (8 * 1024 * 1024));
             hash->Set("stat.net.inratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),
-		      "rxbytes") / 1024.0 / 1024.0);
+                      "rxbytes") / 1024.0 / 1024.0);
             hash->Set("stat.net.outratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),
                       "txbytes") / 1024.0 / 1024.0);
             struct timeval tvfs;

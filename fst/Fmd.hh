@@ -23,10 +23,10 @@
 
 /**
  * @file   Fmd.hh
- * 
+ *
  * @brief  Structure holding the File Meta Data
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSFST_FMD_HH__
@@ -50,8 +50,7 @@ EOSFSTNAMESPACE_BEGIN
 //! In-memory entry struct
 // ---------------------------------------------------------------------------
 
-struct Fmd : public FmdBase
-{
+struct Fmd : public FmdBase {
 //  eos::common::FileId::fileid_t fid; //< fileid
 //  eos::common::FileId::fileid_t cid; //< container id (e.g. directory id)
 //  eos::common::FileSystem::fsid_t fsid; //< filesystem id
@@ -106,7 +105,7 @@ struct Fmd : public FmdBase
 //    return *this;
 //  }
 public:
-	virtual ~Fmd() {}
+  virtual ~Fmd() {}
 };
 
 // ---------------------------------------------------------------------------
@@ -125,7 +124,7 @@ public:
   // ---------------------------------------------------------------------------
 
   void
-  Replicate (Fmd &fmd)
+  Replicate(Fmd& fmd)
   {
     fMd = fmd;
   }
@@ -135,10 +134,10 @@ public:
   // ---------------------------------------------------------------------------
 
   static int
-  LayoutError (eos::common::FileSystem::fsid_t fsid, eos::common::LayoutId::layoutid_t lid, std::string locations)
+  LayoutError(eos::common::FileSystem::fsid_t fsid,
+              eos::common::LayoutId::layoutid_t lid, std::string locations)
   {
-    if (lid == 0)
-    {
+    if (lid == 0) {
       // an orphans has not lid at the MGM e.g. lid=0
       return eos::common::LayoutId::kOrphan;
     }
@@ -148,31 +147,29 @@ public:
     std::set<eos::common::FileSystem::fsid_t> location_set;
     eos::common::StringConversion::Tokenize(locations, location_vector, ",");
     size_t validreplicas = 0;
-    for (size_t i = 0; i < location_vector.size(); i++)
-    {
-      if (location_vector[i].length())
-      {
+
+    for (size_t i = 0; i < location_vector.size(); i++) {
+      if (location_vector[i].length()) {
         // unlinked locates have a '!' infront of the fsid
-        if (location_vector[i][0] == '!')
-        {
+        if (location_vector[i][0] == '!') {
           location_set.insert(strtoul(location_vector[i].c_str() + 1, 0, 10));
-        }
-        else
-        {
+        } else {
           location_set.insert(strtoul(location_vector[i].c_str(), 0, 10));
           validreplicas++;
         }
       }
     }
+
     size_t nstripes = eos::common::LayoutId::GetStripeNumber(lid) + 1;
-    if (nstripes != validreplicas)
-    {
+
+    if (nstripes != validreplicas) {
       lerror |= eos::common::LayoutId::kReplicaWrong;
     }
-    if (!location_set.count(fsid))
-    {
+
+    if (!location_set.count(fsid)) {
       lerror |= eos::common::LayoutId::kUnregistered;
     }
+
     return lerror;
   }
 
@@ -181,7 +178,7 @@ public:
   // ---------------------------------------------------------------------------
 
   static void
-  Reset (Fmd &fmd)
+  Reset(Fmd& fmd)
   {
     fmd.set_fid(0);
     fmd.set_cid(0);
@@ -210,44 +207,41 @@ public:
   // ---------------------------------------------------------------------------
   //! Dump Fmd
   // ---------------------------------------------------------------------------
-  static void Dump (Fmd* fmd);
+  static void Dump(Fmd* fmd);
 
   // ---------------------------------------------------------------------------
   //! Retrieve a set with all fsid locations
   // ---------------------------------------------------------------------------
-  static std::set<eos::common::FileSystem::fsid_t> GetLocations(struct Fmd &fmd)
+  static std::set<eos::common::FileSystem::fsid_t> GetLocations(struct Fmd& fmd)
   {
     std::vector<std::string> location_vector;
     std::set<eos::common::FileSystem::fsid_t> location_set;
     eos::common::StringConversion::Tokenize(fmd.locations(), location_vector, ",");
-    for (size_t i=0; i< location_vector.size(); i++)
-    {
-      if (location_vector[i].length())
-      {
-	// unlinked locates have a '!' infront of the fsid
-	if (location_vector[i][0] == '!')
-	{
-	  location_set.insert(strtoul(location_vector[i].c_str() + 1, 0, 10));
-	}
-	else
-	{
-	  location_set.insert(strtoul(location_vector[i].c_str(), 0, 10));
-	}
+
+    for (size_t i = 0; i < location_vector.size(); i++) {
+      if (location_vector[i].length()) {
+        // unlinked locates have a '!' infront of the fsid
+        if (location_vector[i][0] == '!') {
+          location_set.insert(strtoul(location_vector[i].c_str() + 1, 0, 10));
+        } else {
+          location_set.insert(strtoul(location_vector[i].c_str(), 0, 10));
+        }
       }
     }
+
     return location_set;
   }
 
   // ---------------------------------------------------------------------------
   //! Convert Fmd into env representation
   // ---------------------------------------------------------------------------
-  XrdOucEnv* FmdToEnv ();
+  XrdOucEnv* FmdToEnv();
 
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
 
-  FmdHelper (int fid = 0, int fsid = 0)
+  FmdHelper(int fid = 0, int fsid = 0)
   {
     Reset(fMd);
     LogId();
@@ -259,7 +253,7 @@ public:
   //! Destructor
   // ---------------------------------------------------------------------------
 
-  ~FmdHelper () { };
+  ~FmdHelper() { };
 };
 
 

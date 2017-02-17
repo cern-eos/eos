@@ -99,7 +99,8 @@ XrdIo::XrdIo(std::string path) :
   mDoReadahead(false),
   mBlocksize(ReadaheadBlock::sDefaultBlocksize),
   mXrdFile(NULL),
-  mMetaHandler(new AsyncMetaHandler())
+  mMetaHandler(new AsyncMetaHandler()),
+  mConnectionId(0)
 {
   // Set the TimeoutResolution to 1
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
@@ -622,13 +623,13 @@ XrdIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
   XrdCl::XRootDStatus status;
   eos_debug("read count=%i", chunkList.size());
   vhandler = mMetaHandler->Register(chunkList, NULL, false);
-  int64_t nread = vhandler->GetLength();
 
   if (!vhandler) {
     eos_err("unable to get vector handler");
     return SFS_ERROR;
   }
 
+  int64_t nread = vhandler->GetLength();
   status = mXrdFile->VectorRead(chunkList, static_cast<void*>(0),
                                 static_cast<XrdCl::ResponseHandler*>(vhandler),
                                 timeout);
@@ -715,43 +716,39 @@ XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
 }
 
 //------------------------------------------------------------------------------
-// Wait for async IO 
+// Wait for async IO
 //------------------------------------------------------------------------------
 
-int 
+int
 XrdIo::fileWaitAsyncIO()
 {
   bool async_ok = true;
 
-  if (mDoReadahead)
-  {
+  if (mDoReadahead) {
     // Wait for any requests on the fly and then close
-    while (!mMapBlocks.empty())
-    {
+    while (!mMapBlocks.empty()) {
       SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
-      if (shandler->HasRequest())
-      {
+
+      if (shandler->HasRequest()) {
         async_ok = shandler->WaitOK();
       }
+
       delete mMapBlocks.begin()->second;
       mMapBlocks.erase(mMapBlocks.begin());
     }
   }
 
   // Wait for any async requests before closing
-  if (mMetaHandler)
-  {
-    if (mMetaHandler->WaitOK() != XrdCl::errNone)
-    {
+  if (mMetaHandler) {
+    if (mMetaHandler->WaitOK() != XrdCl::errNone) {
       eos_err("error=async requests failed for file path=%s", mFilePath.c_str());
       async_ok = false;
     }
   }
-  
-  if (async_ok)
+
+  if (async_ok) {
     return 0;
-  else
-  {
+  } else {
     errno = EIO;
     return -1;
   }
@@ -873,8 +870,9 @@ XrdIo::fileClose(uint16_t timeout)
   bool async_ok = true;
   mIsOpen = false;
 
-  if (fileWaitAsyncIO())
+  if (fileWaitAsyncIO()) {
     async_ok = false;
+  }
 
   XrdCl::XRootDStatus status = mXrdFile->Close(timeout);
 
@@ -1397,6 +1395,7 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
           continue;
         }
 
+        // TODO (plensing): dit is invalidaed by the above erase command
         eos_info("adding file=%s", (*dit + *it).c_str());
         handle->found_files.push_back(*dit + *it);
       }

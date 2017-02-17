@@ -4315,6 +4315,7 @@ bool filesystem::get_features(const std::string& url,
 
     if (response) {
       delete response;
+      response = 0;
     }
 
     return false;
@@ -4366,15 +4367,13 @@ bool filesystem::get_features(const std::string& url,
 
     if (response) {
       delete response;
+      response = 0;
     }
 
     return false;
   }
 
-  if (response) {
-    delete response;
-  }
-
+  delete response;
   return true;
 }
 

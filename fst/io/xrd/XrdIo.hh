@@ -251,9 +251,9 @@ public:
 
   //--------------------------------------------------------------------------
   //! Wait for all async IO
-  //!    
-  //! @return global return code of async IO 
-  //! 
+  //!
+  //! @return global return code of async IO
+  //!
   //--------------------------------------------------------------------------
   virtual int fileWaitAsyncIO();
 
@@ -486,6 +486,15 @@ public:
   virtual int ftsClose(FileIo::FtsHandle* fts_handle);
 
 private:
+  //! Connection pool handling to avoid using the same connection between two
+  //! FSTs during the replication stage. Since then the operations on that
+  //! connection link are serialized and this can lead to long delays for any
+  //! file operations.
+  static uint32_t sConnectionPoolMaxSize; ///< Connection pool max size
+  static XrdSysMutex sConnectionPoolMutex; ///< Mutex for connection pool
+  //! Connection pool map
+  static std::map<std::string, std::map<int, size_t> > sConnectionPool;
+
   bool mDoReadahead; ///< mark if readahead is enabled
   uint32_t mBlocksize; ///< block size for rd/wr opertations
   XrdCl::File* mXrdFile; ///< handler to xrd file
@@ -498,16 +507,7 @@ private:
   std::string mOpaque; ///< opaque tags in original url
   bool mAttrLoaded; ///< mark if remote attributes have been loaded
   bool mAttrDirty; ///< mark if local attr modfied and not committed
-  bool mAttrSync; ///< makr if attributes are updated synchronous
-
-  // Connection pool handling to avoid using the same connection between two
-  // FSTs during the replication stage. Since then the operations on that
-  // connection link are serialized and this can lead to long delays for any
-  // file operations
-  static uint32_t sConnectionPoolMaxSize; ///< Connection pool max size
-  static XrdSysMutex sConnectionPoolMutex; ///< Mutex for connection pool
-  ///< Connection pool map
-  static std::map<std::string, std::map<int, size_t> > sConnectionPool;
+  bool mAttrSync; ///< mark if attributes are updated synchronously
   XrdCl::URL mTargetUrl; ///< URL used to avoid physical connection sharing
   size_t mConnectionId; ///< Connection id for current IO object
 

@@ -493,13 +493,16 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),
     eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(),
     false, false, &ObjectManager);
+
+  if (!Messaging) {
+    Eroute.Emsg("Config", "cannot allocate messaging object");
+    NoGo = 1;
+    return NoGo;
+  }
+  
   Messaging->SetLogId("FstOfsMessaging");
 
-  if ((!Messaging) || (!Messaging->StartListenerThread())) {
-    NoGo = 1;
-  }
-
-  if ((!Messaging) || (Messaging->IsZombie())) {
+  if (!Messaging->StartListenerThread() || Messaging->IsZombie()) {
     Eroute.Emsg("Config", "cannot create messaging object(thread)");
     NoGo = 1;
   }
@@ -1050,6 +1053,7 @@ XrdFstOfs::rem(const char* path,
     // No capability - go away!
     if (capOpaque) {
       delete capOpaque;
+      capOpaque = 0;
     }
 
     return gOFS.Emsg(epname, error, caprc, "remove - capability illegal", path);
@@ -1062,6 +1066,7 @@ XrdFstOfs::rem(const char* path,
              capOpaque->Env(envlen));
   } else {
     eos_info("path=%s info=%s", path, opaque);
+    return gOFS.Emsg(epname, error, caprc, "remove - empty capability", path);
   }
 
   int rc = _rem(path, error, client, capOpaque);

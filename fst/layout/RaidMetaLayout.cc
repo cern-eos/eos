@@ -63,8 +63,14 @@ RaidMetaLayout::RaidMetaLayout(XrdFstOfsFile* file,
   mFullDataBlocks(false),
   mIsStreaming(true),
   mStoreRecovery(storeRecovery),
+  mStripeHead(-1),
+  mNbTotalFiles(0),
+  mNbDataBlocks(0),
   mLastWriteOffset(0),
+  mFileSize(0),
   mTargetSize(targetSize),
+  mSizeLine(0),
+  mSizeGroup(0),
   mBookingOpaque(bookingOpaque)
 {
   mStripeWidth = eos::common::LayoutId::GetBlocksize(lid);
@@ -193,10 +199,11 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   eos_debug("open_mode=%x truncate=%d", flags, ((mStoreRecovery &&
             (mPhysicalStripeIndex == mStripeHead)) ? 1 : 0));
 
-// the local stripe is expected to be reconstructed in a recovery on the gateway server, since it might exist it is truncated
-  if (mFileIO && mFileIO->fileOpen(flags | ((mStoreRecovery &&
-                                   (mPhysicalStripeIndex == mStripeHead)) ? SFS_O_TRUNC : 0), mode,
-                                   enhanced_opaque.c_str(), mTimeout)) {
+  // The local stripe is expected to be reconstructed in a recovery on the
+  // gateway server, since it might exist it is truncated.
+  if (mFileIO->fileOpen(flags | ((mStoreRecovery &&
+                                  (mPhysicalStripeIndex == mStripeHead)) ? SFS_O_TRUNC : 0),
+                        mode, enhanced_opaque.c_str(), mTimeout)) {
     if (mFileIO->fileOpen(flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() ,
                           mTimeout)) {
       eos_err("error=failed to open local ", mFileIO->GetPath().c_str());
@@ -300,8 +307,8 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
         // Doing the actual open
         ret = file->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout);
-
         mLastTriedUrl = file->GetLastTriedUrl();
+
         if (ret == SFS_ERROR) {
           eos_warning("warning=failed to open remote stripes", stripe_urls[i].c_str());
           delete file;
@@ -417,6 +424,7 @@ RaidMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
     openOpaque += static_cast<int>(mStripeWidth);
     ret = file->fileOpen(flags, mode, openOpaque.c_str());
     mLastTriedUrl = file->GetLastTriedUrl();
+
     if (ret == SFS_ERROR) {
       eos_err("failed to open remote stripes", stripe_urls[i].c_str());
 

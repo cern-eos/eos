@@ -57,7 +57,7 @@ HeaderCRC::HeaderCRC(int sizeHeader, long long numBlocks, int sizeBlock) :
   mSizeBlock(sizeBlock),
   mSizeHeader(sizeHeader)
 {
-  strncpy(mTag, msTagName, strlen(msTagName));
+  (void) memcpy(mTag, msTagName, strlen(msTagName));
 }
 
 

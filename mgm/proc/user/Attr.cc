@@ -81,7 +81,7 @@ ProcCommand::Attr()
         }
       } else {
         // the single dir case
-        found[spath.c_str()].size();
+        (void) found[spath.c_str()].size();
       }
 
       if (!retc) {

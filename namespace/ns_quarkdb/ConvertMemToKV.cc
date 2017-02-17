@@ -122,7 +122,7 @@ ConvertContainerMD::findFile(const std::string& name)
 // Constructor
 //------------------------------------------------------------------------------
 ConvertContainerMDSvc::ConvertContainerMDSvc():
-  ChangeLogContainerMDSvc(), mFirstFreeId(0)
+  ChangeLogContainerMDSvc(), mFirstFreeId(0), mConvQView(nullptr)
 {}
 
 //------------------------------------------------------------------------------
@@ -139,10 +139,14 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
   eos::Buffer ebuff;
   pChangeLog->readRecord(it->second.logOffset, ebuff);
   std::shared_ptr<IContainerMD> container =
-    std::make_shared<ConvertContainerMD>(IContainerMD::id_t(0), pFileSvc,
-                                         this);
-  dynamic_cast<ConvertContainerMD*>(container.get())->deserialize(ebuff);
-  dynamic_cast<ConvertContainerMD*>(container.get())->updateInternal();
+    std::make_shared<ConvertContainerMD>(IContainerMD::id_t(0), pFileSvc, this);
+
+  if (ConvertContainerMD* tmp_cmd =
+        dynamic_cast<ConvertContainerMD*>(container.get())) {
+    tmp_cmd->deserialize(ebuff);
+    tmp_cmd->updateInternal();
+  }
+
   it->second.ptr = container;
 
   // For non-root containers recreate the parent
@@ -246,7 +250,8 @@ ConvertContainerMDSvc::getFirstFreeId()
 // Constructor
 //------------------------------------------------------------------------------
 ConvertFileMDSvc::ConvertFileMDSvc():
-  ChangeLogFileMDSvc(), mFirstFreeId(0), mCount(0)
+  ChangeLogFileMDSvc(), mFirstFreeId(0), mConvQView(nullptr),
+  mConvFsView(nullptr), mCount(0)
 {}
 
 //------------------------------------------------------------------------------
@@ -297,8 +302,7 @@ ConvertFileMDSvc::initialize()
         exit(1);
       }
 
-      std::time_t now = std::time(nullptr);
-      std::chrono::seconds duration(now - start);
+      std::chrono::seconds duration(std::time(nullptr) - start);
       double rate = (double)mCount / duration.count();
       std::cout << "Processed " << mCount << "/" << total << " files at "
                 << rate << " Hz" << std::endl;
@@ -306,7 +310,10 @@ ConvertFileMDSvc::initialize()
 
     // Unpack the serialized buffers
     std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
-    dynamic_cast<FileMD*>(file.get())->deserialize(*elem.second.buffer);
+
+    if (eos::FileMD* tmp_fmd = dynamic_cast<FileMD*>(file.get())) {
+      tmp_fmd->deserialize(*elem.second.buffer);
+    }
 
     // Attach to the hierarchy
     if (file->getContainerId() == 0) {
@@ -629,76 +636,99 @@ main(int argc, char* argv[])
     return 1;
   }
 
-  std::string file_chlog(argv[1]);
-  std::string dir_chlog(argv[2]);
-  sBkndHost = argv[3];
-  sBkndPort = std::stoull(argv[4]);
-  sQcl = eos::BackendClient::getInstance(sBkndHost, sBkndPort);
-  // Check file and directory changelog files
-  int ret;
-  struct stat info = {0};
-  std::list<std::string> lst_files{file_chlog, dir_chlog};
+  try {
+    std::string file_chlog(argv[1]);
+    std::string dir_chlog(argv[2]);
+    sBkndHost = argv[3];
+    sBkndPort = std::stoull(argv[4]);
+    sQcl = eos::BackendClient::getInstance(sBkndHost, sBkndPort);
+    // Check file and directory changelog files
+    int ret;
+    struct stat info = {0};
+    std::list<std::string> lst_files{file_chlog, dir_chlog};
 
-  for (auto& fn : lst_files) {
-    ret = stat(fn.c_str(), &info);
+    for (auto& fn : lst_files) {
+      ret = stat(fn.c_str(), &info);
 
-    if (ret != 0) {
-      std::cerr << "Unable to access file: " << fn << std::endl;
-      return EIO;
+      if (ret != 0) {
+        std::cerr << "Unable to access file: " << fn << std::endl;
+        return EIO;
+      }
     }
+
+    std::unique_ptr<eos::IFileMDSvc> file_svc(new eos::ConvertFileMDSvc());
+    std::unique_ptr<eos::IContainerMDSvc> cont_svc(
+      new eos::ConvertContainerMDSvc());
+    std::map<std::string, std::string> config_cont{{"changelog_path", dir_chlog},
+      {"slave_mode", "false"}};
+    std::map<std::string, std::string> config_file{{"changelog_path", file_chlog},
+      {"slave_mode", "false"}};
+    // Initialize the container meta-data service
+    std::cout << "Initialize the container meta-data service" << std::endl;
+    cont_svc->setFileMDService(file_svc.get());
+    cont_svc->configure(config_cont);
+    // Create the quota view object
+    std::unique_ptr<eos::ConvertQuotaView> quota_view
+    (new eos::ConvertQuotaView(sQcl, cont_svc.get(), file_svc.get()));
+    std::unique_ptr<eos::ConvertFsView> fs_view(new eos::ConvertFsView());
+
+    if (dynamic_cast<eos::ConvertContainerMDSvc*>(cont_svc.get()) ||
+        dynamic_cast<eos::ConvertFileMDSvc*>(file_svc.get())) {
+      std::cerr << "Not convert meta-data service type" << std::endl;
+      exit(-1);
+    }
+
+    dynamic_cast<eos::ConvertContainerMDSvc*>
+    (cont_svc.get())->setQuotaView(quota_view.get());
+
+    dynamic_cast<eos::ConvertFileMDSvc*>
+    (file_svc.get())->setViews(quota_view.get(), fs_view.get());
+
+    std::time_t cont_start = std::time(nullptr);
+
+    cont_svc->initialize();
+
+    std::chrono::seconds cont_duration {std::time(nullptr) - cont_start};
+
+    std::cout << "Container init: " << cont_duration.count() << " seconds" <<
+              std::endl;
+
+    // Initialize the file meta-data service
+    std::cout << "Initialize the file meta-data service" << std::endl;
+
+    file_svc->setContMDService(cont_svc.get());
+
+    file_svc->configure(config_file);
+
+    std::time_t file_start = std::time(nullptr);
+
+    file_svc->initialize();
+
+    // Wait for all in-flight async requests
+    if (!sAh.Wait()) {
+      std::cerr << __FUNCTION__ << " Got error response from the backend"
+                << std::endl;
+      exit(1);
+    }
+
+    std::chrono::seconds file_duration {std::time(nullptr) - file_start};
+    std::cout << "File init: " << file_duration.count() << " seconds" << std::endl;
+    std::cout << "Commit quota and file system view ..." << std::endl;
+    std::time_t views_start = std::time(nullptr);
+    quota_view->commitToBackend();
+    fs_view->commitToBackend();
+    std::chrono::seconds views_duration {std::time(nullptr) - views_start};
+    std::cout << "Quota+FsView init: " << views_duration.count() << " seconds" <<
+              std::endl;
+    // Save the first free file and container id in the meta_hmap - actually it is
+    // the last id since we get the first free id by doing a hincrby operation
+    qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
+    meta_map.hset(eos::constants::sFirstFreeFid, file_svc->getFirstFreeId() - 1);
+    meta_map.hset(eos::constants::sFirstFreeCid, cont_svc->getFirstFreeId() - 1);
+  } catch (std::runtime_error& e) {
+    std::cerr << e.what() << std::endl;
+    return 1;
   }
 
-  std::unique_ptr<eos::IFileMDSvc> file_svc(new eos::ConvertFileMDSvc());
-  std::unique_ptr<eos::IContainerMDSvc> cont_svc(
-    new eos::ConvertContainerMDSvc());
-  std::map<std::string, std::string> config_cont{{"changelog_path", dir_chlog},
-    {"slave_mode", "false"}};
-  std::map<std::string, std::string> config_file{{"changelog_path", file_chlog},
-    {"slave_mode", "false"}};
-  // Initialize the container meta-data service
-  std::cout << "Initialize the container meta-data service" << std::endl;
-  cont_svc->setFileMDService(file_svc.get());
-  cont_svc->configure(config_cont);
-  // Create the quota view object
-  std::unique_ptr<eos::ConvertQuotaView> quota_view
-  (new eos::ConvertQuotaView(sQcl, cont_svc.get(), file_svc.get()));
-  std::unique_ptr<eos::ConvertFsView> fs_view(new eos::ConvertFsView());
-  dynamic_cast<eos::ConvertContainerMDSvc*>
-  (cont_svc.get())->setQuotaView(quota_view.get());
-  dynamic_cast<eos::ConvertFileMDSvc*>
-  (file_svc.get())->setViews(quota_view.get(), fs_view.get());
-  std::time_t cont_start = std::time(nullptr);
-  cont_svc->initialize();
-  std::chrono::seconds cont_duration {std::time(nullptr) - cont_start};
-  std::cout << "Container init: " << cont_duration.count() << " seconds" <<
-            std::endl;
-  // Initialize the file meta-data service
-  std::cout << "Initialize the file meta-data service" << std::endl;
-  file_svc->setContMDService(cont_svc.get());
-  file_svc->configure(config_file);
-  std::time_t file_start = std::time(nullptr);
-  file_svc->initialize();
-
-  // Wait for all in-flight async requests
-  if (!sAh.Wait()) {
-    std::cerr << __FUNCTION__ << " Got error response from the backend"
-              << std::endl;
-    exit(1);
-  }
-
-  std::chrono::seconds file_duration {std::time(nullptr) - file_start};
-  std::cout << "File init: " << file_duration.count() << " seconds" << std::endl;
-  std::cout << "Commit quota and file system view ..." << std::endl;
-  std::time_t views_start = std::time(nullptr);
-  quota_view->commitToBackend();
-  fs_view->commitToBackend();
-  std::chrono::seconds views_duration {std::time(nullptr) - views_start};
-  std::cout << "Quota+FsView init: " << views_duration.count() << " seconds" <<
-            std::endl;
-  // Save the first free file and container id in the meta_hmap - actually it is
-  // the last id since we get the first free id by doing a hincrby operation
-  qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
-  meta_map.hset(eos::constants::sFirstFreeFid, file_svc->getFirstFreeId() - 1);
-  meta_map.hset(eos::constants::sFirstFreeCid, cont_svc->getFirstFreeId() - 1);
   return 0;
 }

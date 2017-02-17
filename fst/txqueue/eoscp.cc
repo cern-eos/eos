@@ -476,7 +476,7 @@ void
 write_progress(unsigned long long bytesread, unsigned long long size)
 {
   static double lastprogress = 0;
-  double progress = 100 * bytesread / (size ? size : 1);
+  double progress = 100 * bytesread / (double)(size ? size : 1);
 
   if (progress > 100) {
     progress = 100;
@@ -1470,8 +1470,6 @@ main(int argc, char* argv[])
           status = fs.Stat(subpath.c_str(), response);
 
           if (!status.IsOK()) {
-            stat_failed = 1;
-
             if (debug) {
               fprintf(stdout, "[eoscp]: doing XROOT mkdir on %s\n", subpath.c_str());
             }
@@ -1485,9 +1483,7 @@ main(int argc, char* argv[])
           }
 
           delete response;
-          //................................................................
           // Chown not supported by the standard xroot
-          //................................................................
         }
         break;
 

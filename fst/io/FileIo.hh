@@ -62,6 +62,8 @@ public:
     mType(ioType),
     mLastUrl(""),
     mLastErrMsg(""),
+    mLastErrCode(0),
+    mLastErrNo(0),
     mIsOpen(false),
     mExternalStorage(false)
   {}

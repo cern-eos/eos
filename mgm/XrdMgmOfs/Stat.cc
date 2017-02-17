@@ -72,6 +72,7 @@ XrdMgmOfs::stat(const char* inpath,
   const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
+  eos::common::Mapping::Nobody(vid);
   XrdSecEntity mappedclient;
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;

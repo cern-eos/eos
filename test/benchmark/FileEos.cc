@@ -21,11 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*-----------------------------------------------------------------------------*/
 #include <fstream>
 #include <iostream>
 #include <sys/stat.h>
-/*-----------------------------------------------------------------------------*/
 #include "FileEos.hh"
 #include "Result.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -36,8 +34,6 @@
 #include "fst/layout/ReedSLayout.hh"
 #include "common/Timing.hh"
 #include "common/LayoutId.hh"
-/*-----------------------------------------------------------------------------*/
-
 
 EOSBMKNAMESPACE_BEGIN
 
@@ -221,7 +217,7 @@ FileEos::ReadGw(Result*& result)
   }
 
   COMMONTIMING("CLOSE", &rd_timing);
-  retc = file->fileClose();
+  retc += file->fileClose();
   COMMONTIMING("END", &rd_timing);
   // Collect statistics for this operation in the result object at thread level
   ResultProto& pb_result = result->GetPbResult();

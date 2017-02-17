@@ -225,7 +225,7 @@ public:
                         const char* buffer,
                         XrdSfsXferSize length) = 0;
 
-  virtual int WaitAsyncIO() 
+  virtual int WaitAsyncIO()
   {
     return 0;
   }
@@ -356,7 +356,6 @@ protected:
   eos::common::LayoutId::eIoType mIoType; ///< type of access ( ofs/xrd )
   uint16_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
-
   FileIo* mFileIO; //< IO object as entry server
 };
 

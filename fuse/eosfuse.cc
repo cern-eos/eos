@@ -203,7 +203,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     *smountprefix = 0;
     smountprefix++;
     smountprefix++;
-    strcpy(mountprefix, smountprefix);
+    strncpy(mountprefix, smountprefix, std::min(strlen(smountprefix),
+            (size_t)4095));
 
     while (mountprefix[strlen(mountprefix) - 1] == '/') {
       mountprefix[strlen(mountprefix) - 1] = '\0';

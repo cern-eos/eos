@@ -128,6 +128,7 @@ add_executable(xrdmqsharedobjectbroadcastclient XrdMqSharedObjectBroadCastClient
 set(
   XRDMQ_OTHER_LINK_LIBRARIES
   XrdMqClient
+  fmt
   ${GLIBC_DL_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}

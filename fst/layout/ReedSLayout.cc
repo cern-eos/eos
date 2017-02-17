@@ -54,7 +54,8 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
                          std::string bookingOpaque) :
   RaidMetaLayout(file, lid, client, outError, path, timeout,
                  storeRecovery, targetSize, bookingOpaque),
-  mDoneInitialisation(false)
+  mDoneInitialisation(false),
+  mPacketSize(0), matrix(0), bitmatrix(0), schedule(0)
 {
   mNbDataBlocks = mNbDataFiles;
   mNbTotalBlocks = mNbDataFiles + mNbParityFiles;

@@ -21,11 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/FileSystem.hh"
-/*----------------------------------------------------------------------------*/
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -34,8 +32,6 @@
 #include <sys/stat.h>
 #include <tuple>
 #include <algorithm>
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 
 using namespace std;
 using namespace eos::common;
@@ -183,16 +179,15 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
 {
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
   FileSystem::fsid_t fsid = fs->GetId();
-  SchedTME* mapEntry;
+  SchedTME* mapEntry = 0;
+  bool is_new_entry = false;
   {
     pTreeMapMutex.LockWrite();
 
     // ==== check that fs is not already registered
     if (pFs2SchedTME.count(fsid)) {
       eos_err("error inserting fs %lu into group %s : fs is already part of a group",
-              (unsigned long)fsid,
-              group->mName.c_str()
-             );
+              (unsigned long)fsid, group->mName.c_str());
       pTreeMapMutex.UnLockWrite();
       return false;
     }
@@ -202,8 +197,9 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
       mapEntry = pGroup2SchedTME[group];
     } else {
       mapEntry = new SchedTME(group->mName.c_str());
-      updateFastStruct =
-        true; // force update to be sure that the fast structures are properly created
+      is_new_entry = true;
+      // Force update to be sure that the fast structures are properly created
+      updateFastStruct = true;
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 #ifdef EOS_INSTRUMENTED_RWMUTEX
       char buffer[64], buffer2[64];
@@ -248,9 +244,12 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
         SchedTreeBase::sGetMaxNodeCount() - 2) {
       mapEntry->slowTreeMutex.UnLockWrite();
       eos_err("error inserting fs %lu into group %s : the group-tree is full",
-              (unsigned long)fsid,
-              group->mName.c_str()
-             );
+              (unsigned long)fsid, group->mName.c_str());
+
+      if (is_new_entry) {
+        delete mapEntry;
+      }
+
       return false;
     }
   }
@@ -285,9 +284,12 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
   if (!info.fsId) {
     mapEntry->slowTreeMutex.UnLockWrite();
     eos_err("error inserting fs %lu into group %s : FsId is not set!",
-            (unsigned long)fsid,
-            group->mName.c_str()
-           );
+            (unsigned long)fsid, group->mName.c_str());
+
+    if (is_new_entry) {
+      delete mapEntry;
+    }
+
     return false;
   }
 
@@ -298,9 +300,12 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
   if (node == NULL) {
     mapEntry->slowTreeMutex.UnLockWrite();
     eos_err("error inserting fs %lu into group %s : slow tree node insertion failed",
-            (unsigned long)fsid,
-            group->mName.c_str()
-           );
+            (unsigned long)fsid, group->mName.c_str());
+
+    if (is_new_entry) {
+      delete mapEntry;
+    }
+
     return false;
   }
 
@@ -338,6 +343,11 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
       }
 
       mapEntry->slowTreeMutex.UnLockWrite();
+
+      if (is_new_entry) {
+        delete mapEntry;
+      }
+
       return false;
     }
   }
@@ -349,6 +359,11 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
     eos_err("error inserting fs %lu into group %s : slow tree node update failed",
             (unsigned long)fsid, group->mName.c_str());
     pTreeMapMutex.UnLockRead();
+
+    if (is_new_entry) {
+      delete mapEntry;
+    }
+
     return false;
   }
 
@@ -363,6 +378,11 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
       eos_err("error inserting fs %lu into group %s : fast structures update failed",
               fsid, group->mName.c_str(), pFs2SchedTME[fsid]->group->mName.c_str());
       pTreeMapMutex.UnLockRead();
+
+      if (is_new_entry) {
+        delete mapEntry;
+      }
+
       return false;
     } else {
       mapEntry->slowTreeModified = false;

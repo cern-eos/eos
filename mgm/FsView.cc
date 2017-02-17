@@ -209,9 +209,9 @@ bool GeoTree::erase(const fsid_t& fs)
 
   if (leaf->mFsIds.empty() && leaf->mSons.empty()) {
     // Compute the depth for the current father
-    int i, depth = -1;
+    int depth = -1;
 
-    for (i = (int)pLevels.size() - 1; i >= 0; i--) {
+    for (int i = (int)pLevels.size() - 1; i >= 0; i--) {
       if (pLevels[i].count(father)) {
         depth = i;
         break;
@@ -219,6 +219,10 @@ bool GeoTree::erase(const fsid_t& fs)
     }
 
     assert(depth >= 0); // consistency check
+
+    if (depth < 0) {
+      return false;
+    }
 
     // Go uproot until there is more than one branch
     while (father->mFather && father->mFather->mSons.size() == 1 &&

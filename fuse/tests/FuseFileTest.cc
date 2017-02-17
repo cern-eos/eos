@@ -210,6 +210,7 @@ FuseFileTest::MultiProcessTest()
   if (pid == -1) {
     // Error while forking
     CPPUNIT_ASSERT_MESSAGE("Error while forking", pid == -1);
+    (void) close(fd);
   } else if (pid == 0) {
     // Child
     CPPUNIT_ASSERT(write(fd, buff, sz_buff) == (ssize_t)sz_buff);
@@ -233,7 +234,6 @@ FuseFileTest::MultiProcessTest()
     CPPUNIT_ASSERT_MESSAGE("WR/RD buffer missmatch", !strncmp(buff, rbuff, nread));
     CPPUNIT_ASSERT(!close(fd));
     CPPUNIT_ASSERT(!remove(fname.c_str()));
-    close(fd);
     delete[] rbuff;
   }
 
@@ -351,5 +351,3 @@ FuseFileTest::ManyWriteFilesTest()
 }
 
 #endif // __EOS_FUSE_FUSEFILETEST_HH__
-
-

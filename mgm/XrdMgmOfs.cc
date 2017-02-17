@@ -407,7 +407,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
   optr = pargs.oinfo;
 
   while (pptr) {
-    XrdOucString prep_path = pptr ? (pptr->text ? pptr->text : "") : "";
+    XrdOucString prep_path = (pptr->text ? pptr->text : "");
     eos_info("path=\"%s\"", prep_path.c_str());
     XrdOucString prep_info = optr ? (optr->text ? optr->text : "") : "";
     XrdOucEnv prep_env(prep_info.c_str());

@@ -33,7 +33,9 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Layout::Layout(XrdFstOfsFile* file) :
-  mOfsFile(file)
+  mIsEntryServer(false), mLayoutId(0), mLastErrCode(0),
+  mLastErrNo(0), mOfsFile(file), mError(0), mSecEntity(0),
+  mIoType(eos::common::LayoutId::kLocal), mTimeout(0), mFileIO(0)
 {
   mName = "";
 }
@@ -62,7 +64,7 @@ Layout::Layout(XrdFstOfsFile* file,
   mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);
   mIsEntryServer = false;
   mLocalPath = (path ? path : "");
-  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+  mFileIO = FileIoPlugin::GetIoObject((path ? path : ""), mOfsFile, mSecEntity);
 }
 
 

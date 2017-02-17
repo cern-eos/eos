@@ -111,6 +111,15 @@ XrdMqSharedHashEntry::XrdMqSharedHashEntry(const XrdMqSharedHashEntry& other)
   *this = other;
 }
 
+//----------------------------------------------------------------------------
+//! Move constructor
+//----------------------------------------------------------------------------
+XrdMqSharedHashEntry::XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other)
+noexcept:
+  mKey(std::move(other.mKey)), mValue(std::move(other.mValue)),
+  mChangeId(other.mChangeId), mMtime(other.mMtime)
+{}
+
 //------------------------------------------------------------------------------
 // Get age in milliseconds
 //------------------------------------------------------------------------------
@@ -2264,13 +2273,18 @@ XrdMqSharedObjectChangeNotifier::SomListener()
                 SOM->HashMutex.LockRead();
                 XrdMqSharedHash* hash = SOM->GetObject(queue.c_str(), "hash");
                 SOM->HashMutex.UnLockRead();
-                newVal = hash->Get(key.c_str());
 
-                if (lvIt == LastValues.end() || lvIt->second != newVal) {
-                  isNewVal = true;
+                if (hash) {
+                  newVal = hash->Get(key.c_str());
+
+                  if (lvIt == LastValues.end() || lvIt->second != newVal) {
+                    isNewVal = true;
+                  }
+
+                  newValAsserted = true;
+                } else {
+                  continue;
                 }
-
-                newValAsserted = true;
               }
 
               if (isNewVal) {
@@ -2308,13 +2322,16 @@ XrdMqSharedObjectChangeNotifier::SomListener()
                 SOM->HashMutex.LockRead();
                 XrdMqSharedHash* hash = SOM->GetObject(queue.c_str(), "hash");
                 SOM->HashMutex.UnLockRead();
-                newVal = hash->Get(key.c_str());
 
-                if (lvIt == LastValues.end() || lvIt->second != newVal) {
-                  isNewVal = true;
+                if (hash) {
+                  newVal = hash->Get(key.c_str());
+
+                  if (lvIt == LastValues.end() || lvIt->second != newVal) {
+                    isNewVal = true;
+                  }
+
+                  newValAsserted = true;
                 }
-
-                newValAsserted = true;
               }
 
               if (isNewVal) {
@@ -2345,10 +2362,9 @@ XrdMqSharedObjectChangeNotifier::SomListener()
           }
         }
 
-        // check if there is a matching subjectXkey
+        // Check if there is a matching subjectXkey
         for (auto it = WatchSubjectsXKeys2Subscribers[type].begin();
-             it != WatchSubjectsXKeys2Subscribers[type].end();
-             it++) {
+             it != WatchSubjectsXKeys2Subscribers[type].end(); it++) {
           if (it->first.first.count(queue) && it->first.second.count(key)) {
             if (type == 4) {
               if (!newValAsserted) {
@@ -2356,13 +2372,18 @@ XrdMqSharedObjectChangeNotifier::SomListener()
                 SOM->HashMutex.LockRead();
                 XrdMqSharedHash* hash = SOM->GetObject(queue.c_str(), "hash");
                 SOM->HashMutex.UnLockRead();
-                newVal = hash->Get(key.c_str());
 
-                if (lvIt == LastValues.end() || lvIt->second != newVal) {
-                  isNewVal = true;
+                if (hash) {
+                  newVal = hash->Get(key.c_str());
+
+                  if (lvIt == LastValues.end() || lvIt->second != newVal) {
+                    isNewVal = true;
+                  }
+
+                  newValAsserted = true;
+                } else {
+                  continue;
                 }
-
-                newValAsserted = true;
               }
 
               if (isNewVal) {
@@ -2561,8 +2582,8 @@ XrdMqSharedObjectManager::CreateSharedQueue(const char* subject,
     ListMutex.UnLockWrite();
     return false;
   } else {
-    XrdMqSharedQueue queue(subject, broadcastqueue, som);
-    mQueueSubjects.insert(std::pair<std::string, XrdMqSharedQueue > (ss, queue));
+    mQueueSubjects.emplace
+    (std::make_pair(ss, XrdMqSharedQueue(subject, broadcastqueue, som)));
     ListMutex.UnLockWrite();
 
     if (mEnableQueue) {
@@ -3030,7 +3051,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
           return false;
         }
 
-        if (ftag == XRDMQSHAREDHASH_BCREPLY) {
+        if ((ftag == XRDMQSHAREDHASH_BCREPLY) && sh) {
           // we don't have to broad cast this clear => it is a broad cast reply
           sh->Clear(false);
         }

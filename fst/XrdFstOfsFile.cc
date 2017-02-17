@@ -1804,9 +1804,11 @@ XrdFstOfsFile::close()
             }
 
             // Commit local
-            if (!gFmdDbMapHandler.Commit(fMd))
-              rc = gOFS.Emsg(epname, this->error, EIO, "close - unable to commit meta data",
-                             Path.c_str());
+            if (!gFmdDbMapHandler.Commit(fMd)) {
+              eos_err("unabel to commit meta data to local database");
+              (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to commit meta data",
+                               Path.c_str());
+            }
 
             // Commit to central mgm cache
             int envlen = 0;

@@ -91,6 +91,8 @@ FuseWriteCache::~FuseWriteCache()
   CacheEntry* ptr = 0;
   mWrReqQueue->push(ptr);
   XrdSysThread::Join(mWriteThread, &ret);
+  delete mRecycleQueue;
+  delete mWrReqQueue;
 }
 
 

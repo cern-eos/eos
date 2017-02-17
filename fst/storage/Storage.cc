@@ -46,7 +46,9 @@ extern eos::fst::XrdFstOss* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 Storage::Storage(const char* metadirectory)
 {
   SetLogId("FstOfsStorage");
@@ -259,6 +261,15 @@ Storage::Storage(const char* metadirectory)
   } else {
     eos_err("unable to create transfer queue");
   }
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+Storage::~Storage()
+{
+  delete mTxGwQueue;
+  delete mGwQueue;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -663,9 +674,10 @@ Storage::CheckLabel(std::string path,
     if (fd < 0) {
       return false;
     } else {
-      char suuid[4096];
-      memset(suuid, 0, sizeof(suuid));
-      int nread = read(fd, suuid, sizeof(suuid));
+      size_t sz = 4096;
+      char suuid[sz];
+      memset(suuid, 0, sz);
+      int nread = read(fd, suuid, sz);
 
       if (nread < 0) {
         close(fd);
@@ -673,12 +685,14 @@ Storage::CheckLabel(std::string path,
       }
 
       close(fd);
-      // for protection
-      suuid[4095] = 0;
+      // For protection
+      suuid[sz - 1] = '\0';
 
-      // remove \n
-      if (suuid[strnlen(suuid, sizeof(suuid)) - 1] == '\n') {
-        suuid[strnlen(suuid, sizeof(suuid)) - 1] = 0;
+      // Remove \n
+      if (suuid[strnlen(suuid, sz) - 1] == '\n') {
+        suuid[strnlen(suuid, sz) - 1] = '\0';
+      } else {
+        suuid[sz - 1] = '\0';
       }
 
       ckuuid = suuid;
