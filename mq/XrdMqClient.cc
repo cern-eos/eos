@@ -63,15 +63,13 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
   kMessageBuffer = "";
   kRecvBuffer = 0;
   kRecvBufferAlloc = 0;
-
   // Install sigbus signal handler
   struct sigaction act;
   memset(&act, 0, sizeof(act));
   act.sa_sigaction = xrdmqclient_sigbus_hdl;
   act.sa_flags = SA_SIGINFO;
 
-  if (sigaction(SIGBUS, &act, 0))
-  {
+  if (sigaction(SIGBUS, &act, 0)) {
     fprintf(stderr, "error: [XrdMqClient] cannot install SIGBUS handler\n");
   }
 
@@ -82,55 +80,45 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
 
-  if (brokerurl && !AddBroker(brokerurl))
-  {
+  if (brokerurl && !AddBroker(brokerurl)) {
     fprintf(stderr, "error: [XrdMqClient] cannot add broker %s\n", brokerurl);
   }
 
-  if (defaultreceiverid)
-  {
+  if (defaultreceiverid) {
     kDefaultReceiverQueue = defaultreceiverid;
-  }
-  else
-  {
+  } else {
     // Default receiver is always a master
     kDefaultReceiverQueue = "/xmessage/*/master/*";
   }
 
-  if (clientid)
-  {
+  if (clientid) {
     kClientId = clientid;
 
-    if (kClientId.beginswith("root://"))
-    {
+    if (kClientId.beginswith("root://")) {
       // Truncate the URL away
       int pos = kClientId.find("//", 7);
 
-      if (pos != STR_NPOS)
-      {
+      if (pos != STR_NPOS) {
         kClientId.erase(0, pos + 1);
       }
     }
-  }
-  else
-  {
+  } else {
     // By default create the client id as /xmesssage/<domain>/<host>/
     int ppos = 0;
     char* cfull_name = XrdSysDNS::getHostName();
-    if(!cfull_name || std::string(cfull_name)=="0.0.0.0")
+
+    if (!cfull_name || std::string(cfull_name) == "0.0.0.0") {
       kInitOK = false;
+    }
 
     XrdOucString FullName = cfull_name;
     XrdOucString HostName = FullName;
     XrdOucString Domain = FullName;
 
-    if ((ppos = FullName.find(".")) != STR_NPOS)
-    {
+    if ((ppos = FullName.find(".")) != STR_NPOS) {
       HostName.assign(FullName, 0, ppos - 1);
       Domain.assign(FullName, ppos + 1);
-    }
-    else
-    {
+    } else {
       Domain = "unknown";
     }
 
@@ -158,22 +146,19 @@ XrdMqClient::~XrdMqClient()
 bool
 XrdMqClient::Subscribe(const char* queue)
 {
-  if (queue)
-  {
+  if (queue) {
     // We support subscrition to a single queue only - queue has to be 0!!!
     XrdMqMessage::Eroute.Emsg("Subscribe", EINVAL,
                               "subscribe to additional user specified queue");
     return false;
   }
 
-  for (int i = 0; i < kBrokerN; i++)
-  {
+  for (int i = 0; i < kBrokerN; i++) {
     XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
     XrdCl::File* file = GetBrokerXrdClientReceiver(i);
     XrdOucString* url = kBrokerUrls.Find(GetBrokerId(i).c_str());
 
-    if (!file || !file->Open(url->c_str(), flags_xrdcl).IsOK())
-    {
+    if (!file || !file->Open(url->c_str(), flags_xrdcl).IsOK()) {
       // Open failed
       continue;
     }
@@ -188,19 +173,16 @@ XrdMqClient::Subscribe(const char* queue)
 bool
 XrdMqClient::Unsubscribe(const char* queue)
 {
-  if (queue)
-  {
+  if (queue) {
     XrdMqMessage::Eroute.Emsg("Unubscribe", EINVAL,
                               "unsubscribe from additional user specified queue");
     return false;
   }
 
-  for (int i = 0; i < kBrokerN; i++)
-  {
+  for (int i = 0; i < kBrokerN; i++) {
     XrdCl::File* file = GetBrokerXrdClientReceiver(i);
 
-    if (file && (!file->Close().IsOK()))
-    {
+    if (file && (!file->Close().IsOK())) {
       // Close failed
       continue;
     }
@@ -215,8 +197,7 @@ XrdMqClient::Unsubscribe(const char* queue)
 void
 XrdMqClient::Disconnect()
 {
-  for (int i = 0; i < kBrokerN; i++)
-  {
+  for (int i = 0; i < kBrokerN; i++) {
     delete GetBrokerXrdClientReceiver(i);
   }
 
@@ -241,33 +222,27 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
                               msg.kMessageHeader.kSenderTime_nsec);
 
   // tag the receiver queue
-  if (!receiverid)
-  {
+  if (!receiverid) {
     msg.kMessageHeader.kReceiverQueue = kDefaultReceiverQueue;
-  }
-  else
-  {
+  } else {
     msg.kMessageHeader.kReceiverQueue = receiverid;
   }
 
-  if (encrypt)
-  {
+  if (encrypt) {
     msg.Sign(true);
-  }
-  else
-  {
-    if (sign)
+  } else {
+    if (sign) {
       msg.Sign(false);
-    else
+    } else {
       msg.Encode();
+    }
   }
 
   XrdOucString message = msg.kMessageHeader.kReceiverQueue;
   message += "?";
   message += msg.GetMessageBuffer();
 
-  if (message.length() > (2 * 1000 * 1000))
-  {
+  if (message.length() > (2 * 1000 * 1000)) {
     fprintf(stderr, "XrdMqClient::SendMessage: error => trying to send message "
             "with size %d [limit is 2M]\n", message.length());
     XrdMqMessage::Eroute.Emsg("SendMessage", E2BIG,
@@ -280,13 +255,11 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
   XrdCl::XRootDStatus status;
   XrdCl::FileSystem* fs = 0;
 
-  for (i = 0; i < kBrokerN; i++)
-  {
+  for (i = 0; i < kBrokerN; i++) {
     XrdOucString rhostport;
     XrdCl::URL url(GetBrokerUrl(i, rhostport)->c_str());
 
-    if (!url.IsValid())
-    {
+    if (!url.IsValid()) {
       fprintf(stderr, "error=URL is not valid: %s",
               GetBrokerUrl(i, rhostport)->c_str());
       XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "URL is not valid");
@@ -295,8 +268,7 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
 
     fs = new XrdCl::FileSystem(url);
 
-    if (!fs)
-    {
+    if (!fs) {
       fprintf(stderr, "error=failed to get new FS object");
       XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
       delete fs;
@@ -305,21 +277,17 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
 
     arg.FromString(message.c_str());
 
-    if (asynchronous)
-    {
+    if (asynchronous) {
       // Don't wait for responses if not required
       status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, &gDiscardResponseHandler);
-    }
-    else
-    {
+    } else {
       status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
     }
 
     rc = status.IsOK();
 
     // We continue until any of the brokers accepts the message
-    if (!rc)
-    {
+    if (!rc) {
       XrdMqMessage::Eroute.Emsg("SendMessage", status.errNo,
                                 status.GetErrorMessage().c_str());
     }
@@ -349,8 +317,7 @@ XrdMqClient::ReplyMessage(XrdMqMessage& replymsg, XrdMqMessage& inmsg,
 XrdMqMessage*
 XrdMqClient::RecvFromInternalBuffer()
 {
-  if ((kMessageBuffer.length() - kInternalBufferPosition) > 0)
-  {
+  if ((kMessageBuffer.length() - kInternalBufferPosition) > 0) {
     // fprintf( stderr,"Message Buffer %ld\n", kMessageBuffer.length());
     //          there is still a message in the buffer
     int nextmessage;
@@ -359,39 +326,33 @@ XrdMqClient::RecvFromInternalBuffer()
     //          kInternalBufferPosition, kMessageBuffer.length() );
     firstmessage = kMessageBuffer.find(XMQHEADER, kInternalBufferPosition);
 
-    if (firstmessage == STR_NPOS)
-    {
+    if (firstmessage == STR_NPOS) {
       return 0;
-    }
-    else
-    {
-      if ((firstmessage > 0) && ((size_t) firstmessage > kInternalBufferPosition))
-      {
+    } else {
+      if ((firstmessage > 0) && ((size_t) firstmessage > kInternalBufferPosition)) {
         kMessageBuffer.erase(0, firstmessage);
         kInternalBufferPosition = 0;
       }
     }
 
     if ((kMessageBuffer.length() + kInternalBufferPosition) <
-        (int) strlen(XMQHEADER))
-    {
+        (int) strlen(XMQHEADER)) {
       return 0;
     }
 
-    nextmessage = kMessageBuffer.find(XMQHEADER, kInternalBufferPosition + strlen(XMQHEADER));
+    nextmessage = kMessageBuffer.find(XMQHEADER,
+                                      kInternalBufferPosition + strlen(XMQHEADER));
     char savec = 0;
 
-    if (nextmessage != STR_NPOS)
-    {
+    if (nextmessage != STR_NPOS) {
       savec = kMessageBuffer.c_str()[nextmessage];
       ((char*) kMessageBuffer.c_str())[nextmessage] = 0;
     }
 
     XrdMqMessage* message = XrdMqMessage::Create(kMessageBuffer.c_str() +
-                                                 kInternalBufferPosition);
+                            kInternalBufferPosition);
 
-    if (!message)
-    {
+    if (!message) {
       fprintf(stderr, "couldn't get any message\n");
       return 0;
     }
@@ -399,26 +360,22 @@ XrdMqClient::RecvFromInternalBuffer()
     XrdMqMessageHeader::GetTime(message->kMessageHeader.kReceiverTime_sec,
                                 message->kMessageHeader.kReceiverTime_nsec);
 
-    if (nextmessage != STR_NPOS)
+    if (nextmessage != STR_NPOS) {
       ((char*) kMessageBuffer.c_str())[nextmessage] = savec;
+    }
 
-    if (nextmessage == STR_NPOS)
-    {
+    if (nextmessage == STR_NPOS) {
       // Last message
       kMessageBuffer = "";
       kInternalBufferPosition = 0;
-    }
-    else
-    {
+    } else {
       // Move forward
       //kMessageBuffer.erase(0,nextmessage);
       kInternalBufferPosition = nextmessage;
     }
 
     return message;
-  }
-  else
-  {
+  } else {
     kMessageBuffer = "";
     kInternalBufferPosition = 0;
   }
@@ -432,19 +389,18 @@ XrdMqClient::RecvFromInternalBuffer()
 XrdMqMessage*
 XrdMqClient::RecvMessage()
 {
-  if (kBrokerN == 1)
-  {
+  if (kBrokerN == 1) {
     // Single broker case - check if there is still a buffered message
     XrdMqMessage* message;
     message = RecvFromInternalBuffer();
 
-    if (message)
+    if (message) {
       return message;
+    }
 
     XrdCl::File* file = GetBrokerXrdClientReceiver(0);
 
-    if (!file)
-    {
+    if (!file) {
       // Fatal no client
       XrdMqMessage::Eroute.Emsg("RecvMessage", EINVAL,
                                 "receive message - no client present");
@@ -453,8 +409,7 @@ XrdMqClient::RecvMessage()
 
     XrdCl::StatInfo* stinfo = 0;
 
-    while (!file->Stat(true, stinfo).IsOK())
-    {
+    while (!file->Stat(true, stinfo).IsOK()) {
       ReNewBrokerXrdClientReceiver(0);
       file = GetBrokerXrdClientReceiver(0);
       XrdSysTimer sleeper;
@@ -462,25 +417,21 @@ XrdMqClient::RecvMessage()
       fprintf(stderr, "XrdMqClient::RecvMessage => Stat failed\n");
     }
 
-    if (!stinfo->GetSize())
-    {
+    if (!stinfo->GetSize()) {
       return 0;
     }
 
     // mantain a receiver buffer which fits the need
-    if (kRecvBufferAlloc < (int) stinfo->GetSize())
-    {
+    if (kRecvBufferAlloc < (int) stinfo->GetSize()) {
       uint64_t allocsize = 1024 * 1024;
 
-      if (stinfo->GetSize() > allocsize)
-      {
+      if (stinfo->GetSize() > allocsize) {
         allocsize = stinfo->GetSize() + 1;
       }
 
       kRecvBuffer = static_cast<char*>(realloc(kRecvBuffer, allocsize));
 
-      if (!kRecvBuffer)
-      {
+      if (!kRecvBuffer) {
         // Fatal - we exit!
         exit(-1);
       }
@@ -493,8 +444,7 @@ XrdMqClient::RecvMessage()
     XrdCl::XRootDStatus status = file->Read(0, stinfo->GetSize(), kRecvBuffer,
                                             nread);
 
-    if (status.IsOK() && (nread > 0))
-    {
+    if (status.IsOK() && (nread > 0)) {
       kRecvBuffer[nread] = 0;
       // Add to the internal message buffer
       kInternalBufferPosition = 0;
@@ -503,9 +453,7 @@ XrdMqClient::RecvMessage()
 
     delete stinfo;
     return RecvFromInternalBuffer();
-  }
-  else
-  {
+  } else {
     // Multiple broker case
     return 0;
   }
@@ -533,10 +481,11 @@ XrdMqClient::GetBrokerId(int i)
 {
   XrdOucString brokern;
 
-  if (i == 0)
+  if (i == 0) {
     brokern = "0";
-  else
+  } else {
     brokern += kBrokerN;
+  }
 
   return brokern;
 }
@@ -569,10 +518,9 @@ XrdMqClient::ReNewBrokerXrdClientReceiver(int i)
   kBrokerXrdClientReceiver.Add(GetBrokerId(i).c_str(), new XrdCl::File());
   XrdOucString rhostport;
   XrdCl::XRootDStatus status = GetBrokerXrdClientReceiver(i)->Open(
-      GetBrokerUrl(i, rhostport)->c_str(), XrdCl::OpenFlags::Read);
+                                 GetBrokerUrl(i, rhostport)->c_str(), XrdCl::OpenFlags::Read);
 
-  if (!status.IsOK())
-  {
+  if (!status.IsOK()) {
     fprintf(stderr, "XrdMqClient::Reopening of new alias failed ...\n");
   }
 }
@@ -586,14 +534,14 @@ XrdMqClient::AddBroker(const char* brokerurl,
                        bool advisoryquery,
                        bool advisoryflushbacklog)
 {
-  if (!brokerurl)
+  if (!brokerurl) {
     return false;
+  }
 
   bool exists = false;
   XrdOucString newBrokerUrl = brokerurl;
 
-  if ((newBrokerUrl.find("?")) == STR_NPOS)
-  {
+  if ((newBrokerUrl.find("?")) == STR_NPOS) {
     newBrokerUrl += "?";
   }
 
@@ -611,30 +559,28 @@ XrdMqClient::AddBroker(const char* brokerurl,
   newBrokerUrl += advisoryflushbacklog;
   printf("==> new Broker %s\n", newBrokerUrl.c_str());
 
-  for (int i = 0; i < kBrokerN; i++)
-  {
+  for (int i = 0; i < kBrokerN; i++) {
     XrdOucString rhostport;
     XrdOucString* brk = GetBrokerUrl(i, rhostport);
 
-    if (brk && ((*brk) == newBrokerUrl)) exists = true;
+    if (brk && ((*brk) == newBrokerUrl)) {
+      exists = true;
+    }
   }
 
-  if (!exists)
-  {
+  if (!exists) {
     XrdOucString brokern = GetBrokerId(kBrokerN);
     kBrokerUrls.Add(brokern.c_str(), new XrdOucString(newBrokerUrl.c_str()));
     XrdCl::URL url(newBrokerUrl.c_str());
 
-    if (!url.IsValid())
-    {
+    if (!url.IsValid()) {
       fprintf(stderr, "error=URL is not valid: %s", newBrokerUrl.c_str());
       return exists;
     }
 
     XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
 
-    if (!fs)
-    {
+    if (!fs) {
       fprintf(stderr, "cannot create FS obj to %s\n", newBrokerUrl.c_str());
       kBrokerUrls.Del(brokern.c_str());
       XrdMqMessage::Eroute.Emsg("AddBroker", EPERM, "add and connect to broker:",
@@ -642,9 +588,14 @@ XrdMqClient::AddBroker(const char* brokerurl,
       return false;
     }
 
-    kBrokerXrdClientSender.Add(GetBrokerId(kBrokerN).c_str(), fs);
-    kBrokerXrdClientReceiver.Add(GetBrokerId(kBrokerN).c_str(), new XrdCl::File());
-    kBrokerN++;
+    try {
+      kBrokerXrdClientSender.Add(GetBrokerId(kBrokerN).c_str(), fs);
+      kBrokerXrdClientReceiver.Add(GetBrokerId(kBrokerN).c_str(), new XrdCl::File());
+      kBrokerN++;
+    } catch (int& err) {
+      fprintf(stderr, "error: out of memory while inserting into hash\n");
+      return false;
+    }
   }
 
   return (!exists);

@@ -964,7 +964,16 @@ com_cp(char* argin)
     if (((arg2.find(":/") != STR_NPOS) && (!arg2.beginswith("root:")))) {
       // if the target is any other protocol than root: we download to a temporary file
       upload_target = arg2;
-      arg2 = tmpnam(NULL);
+      char tmp_name[] = "/tmp/com_cp.XXXXXX";
+      int tmp_fd = mkstemp(tmp_name);
+
+      if (tmp_fd == -1) {
+        fprintf(stderr, "error: failed to create temporary file\n");
+        exit(-1);
+      }
+
+      (void) close(tmp_fd);
+      arg2 = tmp_name;
       targetfile = arg2;
     }
 

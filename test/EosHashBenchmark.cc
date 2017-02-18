@@ -88,16 +88,13 @@ void PrintStatus(eos::common::LinuxStat::linux_stat_t& st1,
 class RThread
 {
 public:
-  RThread() {};
-  RThread(size_t a, size_t b, size_t t, size_t nt, bool lock = false)
-  {
-    i = a;
-    n_files = b;
-    type = t;
-    threads = nt;
-    dolock = lock;
-  }
+  RThread(): i(0), n_files(0), type(0), threads(0), dolock(false) {}
+
+  RThread(size_t a, size_t b, size_t t, size_t nt, bool lock = false):
+    i(a), n_files(b), type(t), threads(nt), dolock(lock) {}
+
   ~RThread() {};
+
   size_t i;
   size_t n_files;
   size_t type;
@@ -238,7 +235,12 @@ int main(int argc, char** argv)
       }
 
       // fill the hash
-      googlemap[i] = i;
+      try {
+        googlemap[i] = i;
+      } catch (std::length_error& len_excp) {
+        std::cerr << "Resize overflow exeception in google map" << std::endl;
+        exit(-1);
+      }
     }
 
     eos::common::LinuxStat::GetStat(st[1]);

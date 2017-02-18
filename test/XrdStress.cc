@@ -149,6 +149,8 @@ XrdStress::XrdStress(unsigned int nChilds,
     callback = XrdStress::WrProc;
   } else if (opType == "rdwr") {
     callback = XrdStress::RdWrProc;
+  } else {
+    callback = XrdStress::RdProc;
   }
 }
 

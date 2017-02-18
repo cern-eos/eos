@@ -34,30 +34,35 @@
 
 XrdPosixXrootd posixXrootd;
 
-int main (int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
   // create a 1k file but does not close it!
   XrdOucString urlFile = argv[1];
+
   if (!urlFile.length()) {
-    fprintf(stderr,"usage: xrdcpabort <url>\n");
+    fprintf(stderr, "usage: xrdcpabort <url>\n");
     exit(EINVAL);
   }
-  
-  
+
   int fdWrite = XrdPosixXrootd::Open(urlFile.c_str(),
-				     O_CREAT|O_TRUNC|O_RDWR,
-				     kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or );
- 
-  if (fdWrite>=0) {
+                                     O_CREAT | O_TRUNC | O_RDWR,
+                                     kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
+
+  if (fdWrite >= 0) {
     char* buffer = (char*)malloc(10000000);
-    if (!buffer)
+
+    if (!buffer) {
       exit(-1);
-    for (size_t i=0; i< sizeof(buffer); i++) {
-      buffer[i] = i%255;
     }
-      
-    XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeof(buffer),0);
+
+    for (size_t i = 0; i < sizeof(buffer); i++) {
+      buffer[i] = i % 255;
+    }
+
+    XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeof(buffer), 0);
     XrdPosixXrootd::Ftruncate(fdWrite, 2000000);
-    XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeof(buffer),1024);
+    XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeof(buffer), 1024);
+    free(buffer);
   } else {
     exit(-1);
   }

@@ -33,21 +33,18 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Messaging::Listen ()
+Messaging::Listen()
 {
-  while (1)
-  {
+  while (1) {
     XrdSysThread::SetCancelOff();
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
+
     //    if (newmessage) newmessage->Print(); -> don't print them, too much output
-    if (newmessage)
-    {
+    if (newmessage) {
       Process(newmessage);
       delete newmessage;
       XrdSysThread::SetCancelOn();
-    }
-    else
-    {
+    } else {
       XrdSysThread::SetCancelOn();
       XrdSysTimer sleeper;
       sleeper.Wait(2000);
@@ -59,45 +56,38 @@ Messaging::Listen ()
 
 /*----------------------------------------------------------------------------*/
 void
-Messaging::Process (XrdMqMessage* newmessage)
+Messaging::Process(XrdMqMessage* newmessage)
 {
   XrdOucString saction = newmessage->GetBody();
-
   XrdOucEnv action(saction.c_str());
-
   XrdOucString cmd = action.Get("mgm.cmd");
   XrdOucString subcmd = action.Get("mgm.subcmd");
 
-
   /* ********************************************************************** */
   /* shared object communaction point                                       */
-  if (SharedObjectManager)
-  {
-    // parse as shared object manager message                                                                                                                     
+  if (SharedObjectManager) {
+    // parse as shared object manager message
     XrdOucString error = "";
     bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
-    if (!result)
-    {
-      if (error != "no subject in message body")
+
+    if (!result) {
+      if (error != "no subject in message body") {
         eos_info("%s", error.c_str());
-      else
+      } else {
         eos_debug("%s", error.c_str());
-    }
-    else
-    {
+      }
+    } else {
       return;
     }
   }
+
   /* ********************************************************************** */
 
-  if (cmd == "debug")
-  {
+  if (cmd == "debug") {
     gOFS.SetDebug(action);
   }
 
-
-  if (cmd == "register")
-  {
+  if (cmd == "register") {
     eos_notice("registering filesystems");
     XrdOucString manager = action.Get("mgm.manager");
     XrdOucString path2register = action.Get("mgm.path2register");
@@ -105,17 +95,17 @@ Messaging::Process (XrdMqMessage* newmessage)
     XrdOucString forceflag = action.Get("mgm.force");
     XrdOucString rootflag = action.Get("mgm.root");
 
-    if (path2register.length() && space2register.length())
-    {
+    if (path2register.length() && space2register.length()) {
       XrdOucString sysline = "eosfstregister";
-      if (rootflag == "true")
-      {
+
+      if (rootflag == "true") {
         sysline += " -r ";
       }
-      if (forceflag == "true")
-      {
+
+      if (forceflag == "true") {
         sysline += " --force ";
       }
+
       sysline += manager;
       sysline += " ";
       sysline += path2register;
@@ -124,105 +114,92 @@ Messaging::Process (XrdMqMessage* newmessage)
       sysline += " >& /tmp/eosfstregister.out &";
       eos_notice("launched %s", sysline.c_str());
       int rc = system(sysline.c_str());
-      if (rc)
-      {
+
+      if (rc) {
         rc = 0;
       }
     }
   }
 
-  if (cmd == "rtlog")
-  {
+  if (cmd == "rtlog") {
     gOFS.SendRtLog(newmessage);
   }
 
-  if (cmd == "fsck")
-  {
+  if (cmd == "fsck") {
     gOFS.SendFsck(newmessage);
   }
 
-  if (cmd == "drop")
-  {
+  if (cmd == "drop") {
     eos_info("drop");
-
     XrdOucEnv* capOpaque = NULL;
     int caprc = 0;
-    if ((caprc = gCapabilityEngine.Extract(&action, capOpaque)))
-    {
-      // no capability - go away!                                                                                                                                 
-      if (capOpaque) delete capOpaque;
+
+    if ((caprc = gCapabilityEngine.Extract(&action, capOpaque))) {
+      // no capability - go away!
+      if (capOpaque) {
+        delete capOpaque;
+      }
+
       eos_err("Cannot extract capability for deletion - errno=%d", caprc);
-    }
-    else
-    {
+    } else {
       int envlen = 0;
       eos_debug("opaque is %s", capOpaque->Env(envlen));
       Deletion* newdeletion = Deletion::Create(capOpaque);
-      if (capOpaque) delete capOpaque;
-      if (newdeletion)
-      {
+      delete capOpaque;
+
+      if (newdeletion) {
         gOFS.Storage->deletionsMutex.Lock();
         gOFS.Storage->deletions.push_back(*newdeletion);
         delete newdeletion;
         gOFS.Storage->deletionsMutex.UnLock();
-      }
-      else
-      {
+      } else {
         eos_err("Cannot create a deletion entry - illegal opaque information");
       }
     }
   }
 
-  if (cmd == "verify")
-  {
+  if (cmd == "verify") {
     eos_info("verify");
-
     XrdOucEnv* capOpaque = &action;
     int envlen = 0;
     eos_debug("opaque is %s", capOpaque->Env(envlen));
     Verify* newverify = Verify::Create(capOpaque);
-    if (newverify)
-    {
+
+    if (newverify) {
       gOFS.Storage->verificationsMutex.Lock();
 
-      if (gOFS.Storage->verifications.size() < 1000000)
-      {
+      if (gOFS.Storage->verifications.size() < 1000000) {
         eos_info("scheduling verification %s", capOpaque->Get("mgm.fid"));
         gOFS.Storage->verifications.push(newverify);
-      }
-      else
-      {
+      } else {
         eos_err("verify list has already 1 Mio. entries - discarding verify message");
       }
+
       gOFS.Storage->verificationsMutex.UnLock();
-    }
-    else
-    {
+    } else {
       eos_err("Cannot create a verify entry - illegal opaque information");
     }
   }
 
-  if (cmd == "resync")
-  {
-    eos::common::FileSystem::fsid_t fsid = (action.Get("mgm.fsid") ? strtoul(action.Get("mgm.fsid"), 0, 10) : 0);
-    eos::common::FileId::fileid_t fid = (action.Get("mgm.fid") ? strtoull(action.Get("mgm.fid"), 0, 10) : 0);
-    if ((!fsid))
-    {
-      eos_err("dropping resync fsid=%lu fid=%llu", (unsigned long) fsid, (unsigned long long) fid);
-    }
-    else
-    {
-      if (!fid)
-      {
-        eos_warning("deleting fmd for fsid=%lu fid=%llu", (unsigned long) fsid, (unsigned long long) fid);
+  if (cmd == "resync") {
+    eos::common::FileSystem::fsid_t fsid = (action.Get("mgm.fsid") ? strtoul(
+        action.Get("mgm.fsid"), 0, 10) : 0);
+    eos::common::FileId::fileid_t fid = (action.Get("mgm.fid") ? strtoull(
+                                           action.Get("mgm.fid"), 0, 10) : 0);
+
+    if ((!fsid)) {
+      eos_err("dropping resync fsid=%lu fid=%llu", (unsigned long) fsid,
+              (unsigned long long) fid);
+    } else {
+      if (!fid) {
+        eos_warning("deleting fmd for fsid=%lu fid=%llu", (unsigned long) fsid,
+                    (unsigned long long) fid);
         gFmdDbMapHandler.DeleteFmd(fid, fsid);
-      }
-      else
-      {
+      } else {
         FmdHelper* fMd = 0;
         fMd = gFmdDbMapHandler.GetFmd(fid, fsid, 0, 0, 0, 0, true);
-        if (fMd)
-        {
+
+        if (fMd) {
           // force a resync of meta data from the MGM
           // e.g. store in the WrittenFilesQueue to have it done asynchronous
           gOFS.WrittenFilesQueueMutex.Lock();

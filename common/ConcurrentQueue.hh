@@ -48,7 +48,7 @@ public:
 
   size_t size();
   void push(Data& data);
-  bool push_size(Data &data, size_t max_size);
+  bool push_size(Data& data, size_t max_size);
 
   bool empty();
 
@@ -68,7 +68,7 @@ private:
 //------------------------------------------------------------------------------
 template <typename Data>
 ConcurrentQueue<Data>::ConcurrentQueue():
-    eos::common::LogId()
+  eos::common::LogId()
 {
   pthread_mutex_init(&mutex, NULL);
   pthread_cond_init(&cond, NULL);
@@ -105,7 +105,7 @@ ConcurrentQueue<Data>::size()
 //------------------------------------------------------------------------------
 template <typename Data>
 void
-ConcurrentQueue<Data>::push(Data &data)
+ConcurrentQueue<Data>::push(Data& data)
 {
   pthread_mutex_lock(&mutex);
   queue.push(data);
@@ -123,20 +123,19 @@ ConcurrentQueue<Data>::push(Data &data)
 //------------------------------------------------------------------------------
 template <typename Data>
 bool
-ConcurrentQueue<Data>::push_size(Data &data, size_t max_size)
+ConcurrentQueue<Data>::push_size(Data& data, size_t max_size)
 {
   bool ret_val = false;
   pthread_mutex_lock(&mutex);
-  
-  if (queue.size() <= max_size)
-  {
+
+  if (queue.size() <= max_size) {
     queue.push(data);
     ret_val = true;
     pthread_cond_broadcast(&cond);
   }
-  
+
   pthread_mutex_unlock(&mutex);
-  return ret_val;  
+  return ret_val;
 }
 
 
@@ -163,7 +162,7 @@ ConcurrentQueue<Data>::try_pop(Data& popped_value)
 {
   pthread_mutex_lock(&mutex);
 
-  if(queue.empty()) {
+  if (queue.empty()) {
     pthread_mutex_unlock(&mutex);
     return false;
   }
@@ -176,7 +175,7 @@ ConcurrentQueue<Data>::try_pop(Data& popped_value)
 
 
 //------------------------------------------------------------------------------
-//! Get data from queue, if empty queue then block until at least one element 
+//! Get data from queue, if empty queue then block until at least one element
 //! is added
 //------------------------------------------------------------------------------
 template <typename Data>
@@ -184,8 +183,10 @@ void
 ConcurrentQueue<Data>::wait_pop(Data& popped_value)
 {
   pthread_mutex_lock(&mutex);
-  while(queue.empty()) {
+
+  while (queue.empty()) {
     pthread_cond_wait(&cond, &mutex);
+    // coverity[order_reversal]
     eos_static_debug("wait on concurrent queue signalled");
   }
 

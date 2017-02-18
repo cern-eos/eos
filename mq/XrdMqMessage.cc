@@ -462,7 +462,12 @@ XrdMqMessage::Configure(const char* ConfigFN)
         }
 
         // add to the public key hash
-        PublicKeyHash.Add(ep->d_name, pkey);
+        try {
+          PublicKeyHash.Add(ep->d_name, pkey);
+        } catch (int& excp) {
+          return Eroute.Emsg("Config", EINVAL, "insert public key in map");
+        }
+
         X509_free(x509);
         x509 = 0;
       }

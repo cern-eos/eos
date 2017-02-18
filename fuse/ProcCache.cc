@@ -44,177 +44,206 @@ int gProcCacheShardSize;
 
 ProcCache gProcCache;
 
-int ProcReaderCmdLine::ReadContent (std::vector<std::string> &cmdLine)
+int ProcReaderCmdLine::ReadContent(std::vector<std::string>& cmdLine)
 {
   int ret = 1;
-  int fd = open (pFileName.c_str (), O_RDONLY & O_NONBLOCK);
+  int fd = open(pFileName.c_str(), O_RDONLY & O_NONBLOCK);
 
-  if (fd >= 0)
-  {
+  if (fd >= 0) {
     const int bufsize = 1677216;
-    char *buffer = new char[bufsize];
-    int r = read (fd, buffer, bufsize);
-    int beg=0,end=0;
-    if (r >= 0 && r < bufsize)
-    {
-      while(true)
-      {
-        while(end<r && buffer[end]!=0)
+    char* buffer = new char[bufsize];
+    int r = read(fd, buffer, bufsize);
+    int beg = 0, end = 0;
+
+    if (r >= 0 && r < bufsize) {
+      while (true) {
+        while (end < r && buffer[end] != 0) {
           end++;
-        if(end>beg)
-          cmdLine.push_back (std::string(buffer+beg,end-beg));
-        if(end>=r)
+        }
+
+        if (end > beg) {
+          cmdLine.push_back(std::string(buffer + beg, end - beg));
+        }
+
+        if (end >= r) {
           break;
+        }
+
         end++;
-        beg=end;
+        beg = end;
       }
+
       ret = 0;
-    }
-    else
-    {
+    } else {
       // read error or the buffer is too small
       ret = 2;
     }
-    close (fd);
+
+    close(fd);
     delete[] buffer;
   }
 
   return ret;
 }
 
-int ProcReaderFsUid::ReadContent (uid_t &fsUid, gid_t &fsGid)
+int ProcReaderFsUid::ReadContent(uid_t& fsUid, gid_t& fsGid)
 {
   int retval = 1;
-  int fd = open (pFileName.c_str (), O_RDONLY & O_NONBLOCK);
+  int fd = open(pFileName.c_str(), O_RDONLY & O_NONBLOCK);
 
-  if (fd >= 0)
-  {
-    FILE *file = fdopen(fd,"r");
+  if (fd >= 0) {
+    FILE* file = fdopen(fd, "r");
+
+    if (!file) {
+      return 2;
+    }
+
     std::string token, line;
     const int bufsize = 16384;
-    char *buffer = new char[bufsize];
+    char* buffer = new char[bufsize];
 
-    while (fgets (buffer, bufsize, file))
-    {
+    while (fgets(buffer, bufsize, file)) {
       line = buffer;
-      istringstream iss (line);
+      istringstream iss(line);
       iss >> token;
-      if (token == "Uid:")
-      {
-        for (int i = 0; i < 3; i++) /// fsUid is the 5th token
+
+      if (token == "Uid:") {
+        for (int i = 0; i < 3; i++) { /// fsUid is the 5th token
           iss >> token;
+        }
 
         iss >> fsUid;
-        if (iss.fail ())
-        {
+
+        if (iss.fail()) {
           retval = 2;
           break;
         }
       }
-      if (token == "Gid:")
-      {
-        for (int i = 0; i < 3; i++) /// fsGid is the 5th token
+
+      if (token == "Gid:") {
+        for (int i = 0; i < 3; i++) { /// fsGid is the 5th token
           iss >> token;
+        }
 
         iss >> fsGid;
-        if (iss.fail ())
-        {
+
+        if (iss.fail()) {
           retval = 2;
           break;
         }
+
         retval = 0;
         break;
       }
     }
-    if(file) fclose(file);
+
+    (void) fclose(file);
     delete[] buffer;
   }
 
   return retval;
 }
 
-void ProcReaderPsStat::SetFilename(const std::string &filename)
+void ProcReaderPsStat::SetFilename(const std::string& filename)
 {
   pFileName = filename;
-  fd = open (pFileName.c_str (), O_RDONLY & O_NONBLOCK);
-  if (fd >= 0)
-  {
-    file = fdopen (fd, "r");
+  fd = open(pFileName.c_str(), O_RDONLY & O_NONBLOCK);
+
+  if (fd >= 0) {
+    file = fdopen(fd, "r");
+  } else {
+    eos_static_err("could not open %s", pFileName.c_str());
   }
-  else
-    eos_static_err("could not open %s",pFileName.c_str ());
 }
 
 void ProcReaderPsStat::Close()
 {
-  if(file) fclose(file);
+  if (file) {
+    fclose(file);
+  }
+
   file = NULL;
   fd = -1;
 }
 
 
-int ProcReaderPsStat::ReadContent (long long unsigned &startTime, pid_t &ppid, pid_t &sid)
+int ProcReaderPsStat::ReadContent(long long unsigned& startTime, pid_t& ppid,
+                                  pid_t& sid)
 {
   int retval = 1;
 
-  if (fd >= 0)
-  {
-    rewind (file);
+  if (fd >= 0) {
+    rewind(file);
     std::string token, line;
     const int bufsize = 16384;
     char buffer[bufsize];
     int size = 0;
 
     // read the one line of the file
-    if (!(fgets ((char*) buffer, bufsize, file))) return 2;
-    size = strlen (buffer);
+    if (!(fgets((char*) buffer, bufsize, file))) {
+      return 2;
+    }
 
+    size = strlen(buffer);
     int tokcount = 0, tokStart = 0;
     bool inParenth = false;
     // read char by char
     retval = 2;
-    for (int i = 0; i < size - 1; i++)
-    {
-      if (buffer[i] == '(')
-      {
+
+    for (int i = 0; i < size - 1; i++) {
+      if (buffer[i] == '(') {
         inParenth = true;
         continue;
       }
 
-      if (buffer[i] == ')')
-      {
+      if (buffer[i] == ')') {
         inParenth = false;
         continue;
       }
 
-      if (!inParenth && buffer[i] == ' ')
-      {
+      if (!inParenth && buffer[i] == ' ') {
         // process token
         {
           buffer[i] = 0;
           bool over = false;
-          switch (tokcount)
-          {
-            case 3:
-              if (!sscanf (buffer + tokStart, "%u", &ppid))
+
+          switch (tokcount) {
+          case 3:
+            if (!sscanf(buffer + tokStart, "%u", &ppid))
               // error parsing parent process id
-                over = true;
-              break;
-            case 5:
-              if (!sscanf (buffer + tokStart, "%u", &sid))
-              // error parsing session id
-                over = true;
-              break;
-            case 21:
+            {
               over = true;
-              if (sscanf (buffer + tokStart, "%llu", &startTime))
+            }
+
+            break;
+
+          case 5:
+            if (!sscanf(buffer + tokStart, "%u", &sid))
+              // error parsing session id
+            {
+              over = true;
+            }
+
+            break;
+
+          case 21:
+            over = true;
+
+            if (sscanf(buffer + tokStart, "%llu", &startTime))
               // we parsed everything
-                retval = 0;
-              break;
-            default:
-              break;
+            {
+              retval = 0;
+            }
+
+            break;
+
+          default:
+            break;
           }
-          if (over) break;
+
+          if (over) {
+            break;
+          }
         }
         tokStart = i + 1;
         tokcount++;
@@ -227,7 +256,9 @@ int ProcReaderPsStat::ReadContent (long long unsigned &startTime, pid_t &ppid, p
 }
 
 krb5_context ProcReaderKrb5UserName::sKcontext;
-bool ProcReaderKrb5UserName::sKcontextOk = (!krb5_init_context (&ProcReaderKrb5UserName::sKcontext)) || (!eos_static_crit("error initializing Krb5"));;
+bool ProcReaderKrb5UserName::sKcontextOk = (!krb5_init_context(
+      &ProcReaderKrb5UserName::sKcontext)) ||
+    (!eos_static_crit("error initializing Krb5"));;
 eos::common::RWMutex ProcReaderKrb5UserName::sMutex;
 bool ProcReaderKrb5UserName::sMutexOk = false;
 
@@ -236,79 +267,93 @@ void ProcReaderKrb5UserName::StaticDestroy()
   //if(sKcontextOk) krb5_free_context(sKcontext);
 }
 
-bool ProcReaderKrb5UserName::ReadUserName (string &userName)
+bool ProcReaderKrb5UserName::ReadUserName(string& userName)
 {
   eos::common::RWMutexWriteLock lock(sMutex);
 
-  if(!sKcontextOk) return false;
+  if (!sKcontextOk) {
+    return false;
+  }
 
   eos_static_debug("starting Krb5 reading");
-
   bool result = false;
-  krb5_principal princ=NULL;
-  krb5_ccache cache=NULL;
+  krb5_principal princ = NULL;
+  krb5_ccache cache = NULL;
   int retval;
   size_t where;
-  char *ptrusername = NULL;
+  char* ptrusername = NULL;
 
   // get the credential cache
-  if( (retval=krb5_cc_resolve (sKcontext, pKrb5CcFile.c_str (), &cache)) )
-  {
-    eos_static_err("error resolving Krb5 credential cache%s, error code is %d", pKrb5CcFile.c_str (), (int )retval);
+  if ((retval = krb5_cc_resolve(sKcontext, pKrb5CcFile.c_str(), &cache))) {
+    eos_static_err("error resolving Krb5 credential cache%s, error code is %d",
+                   pKrb5CcFile.c_str(), (int)retval);
     goto cleanup;
   }
 
   // get the principal of the cache
-  if ((retval = krb5_cc_get_principal (sKcontext, cache, &princ)))
-  {
-    eos_static_err("while getting principal of krb5cc %s, error code is %d", pKrb5CcFile.c_str (), (int )retval);
+  if ((retval = krb5_cc_get_principal(sKcontext, cache, &princ))) {
+    eos_static_err("while getting principal of krb5cc %s, error code is %d",
+                   pKrb5CcFile.c_str(), (int)retval);
     goto cleanup;
   }
 
   // get the name of the principal
   // get the name of the principal
-  if ((retval = krb5_unparse_name (sKcontext, princ, &ptrusername)))
-  {
-    eos_static_err("while getting name of principal of krb5cc %s, error code is %d", pKrb5CcFile.c_str (), (int )retval);
+  if ((retval = krb5_unparse_name(sKcontext, princ, &ptrusername))) {
+    eos_static_err("while getting name of principal of krb5cc %s, error code is %d",
+                   pKrb5CcFile.c_str(), (int)retval);
     goto cleanup;
   }
-  userName.assign (ptrusername);
 
+  userName.assign(ptrusername);
   // parse the user name
-  where = userName.find ('@');
-  if (where == std::string::npos)
-  {
-    eos_static_err("while parsing username of principal name %s, could not find '@'", userName.c_str ());
+  where = userName.find('@');
+
+  if (where == std::string::npos) {
+    eos_static_err("while parsing username of principal name %s, could not find '@'",
+                   userName.c_str());
     goto cleanup;
   }
 
-  userName.resize (where);
-
-  eos_static_debug("parsed user name  %s", userName.c_str ());
-
+  userName.resize(where);
+  eos_static_debug("parsed user name  %s", userName.c_str());
   result = true;
-
 cleanup:
   eos_static_debug("finishing Krb5 reading");
-  if(cache) krb5_cc_close(sKcontext, cache);
-  if(princ) krb5_free_principal(sKcontext,princ);
-  if(ptrusername) krb5_free_unparsed_name(sKcontext,ptrusername);
+
+  if (cache) {
+    krb5_cc_close(sKcontext, cache);
+  }
+
+  if (princ) {
+    krb5_free_principal(sKcontext, princ);
+  }
+
+  if (ptrusername) {
+    krb5_free_unparsed_name(sKcontext, ptrusername);
+  }
+
   return result;
 }
 
-time_t ProcReaderKrb5UserName::GetModifTime ()
+time_t ProcReaderKrb5UserName::GetModifTime()
 {
   struct tm* clock;
   struct stat attrib;
-  if (pKrb5CcFile.substr (0, 5) != "FILE:")
-  {
-    eos_static_err("expecting a credential cache file and got %s", pKrb5CcFile.c_str ());
+
+  if (pKrb5CcFile.substr(0, 5) != "FILE:") {
+    eos_static_err("expecting a credential cache file and got %s",
+                   pKrb5CcFile.c_str());
     return 0;
   }
-  if (stat (pKrb5CcFile.c_str () + 5, &attrib)) return 0;
-  clock = gmtime (&(attrib.st_mtime));     // Get the last modified time and put it into the time structure
 
-  return mktime (clock);
+  if (stat(pKrb5CcFile.c_str() + 5, &attrib)) {
+    return 0;
+  }
+
+  clock = gmtime(&
+                 (attrib.st_mtime));      // Get the last modified time and put it into the time structure
+  return mktime(clock);
 }
 
 bool ProcReaderGsiIdentity::sInitOk = true;
@@ -316,132 +361,142 @@ bool ProcReaderGsiIdentity::sInitOk = true;
 void ProcReaderGsiIdentity::StaticDestroy() {}
 
 bool
-ProcReaderGsiIdentity::ReadIdentity (string &sidentity)
+ProcReaderGsiIdentity::ReadIdentity(string& sidentity)
 {
   bool result = false;
-  BIO          *certbio = BIO_new(BIO_s_file());
-  X509         *cert = NULL;
-  X509_NAME    *certsubject = NULL;
-  char         *subj=NULL;
+  BIO*          certbio = BIO_new(BIO_s_file());
+  X509*         cert = NULL;
+  X509_NAME*    certsubject = NULL;
+  char*         subj = NULL;
 
-  if(!certbio)
-  {
+  if (!certbio) {
     eos_static_err("error allocating BIO buffer");
     goto gsicleanup;
   }
 
-  BIO_read_filename(certbio, pGsiProxyFile.c_str ());
-  if (! (cert = PEM_read_bio_X509(certbio, NULL, 0, NULL))) {
+  BIO_read_filename(certbio, pGsiProxyFile.c_str());
+
+  if (!(cert = PEM_read_bio_X509(certbio, NULL, 0, NULL))) {
     eos_static_err("error loading cert into memory");
     goto gsicleanup;
   }
 
   certsubject = X509_NAME_new();
-  if(!certsubject)
-  {
+
+  if (!certsubject) {
     eos_static_err("error initializing certsubject");
     goto gsicleanup;
   }
 
   subj = X509_NAME_oneline(X509_get_subject_name(cert), NULL, 0);
-  if(!subj)
-  {
+
+  if (!subj) {
     eos_static_err("error reading subject name");
     goto gsicleanup;
   }
+
   sidentity = subj;
-
   result = true;
+gsicleanup:
 
-  gsicleanup:
-  if(certbio) BIO_free_all(certbio);
-  if(cert)    X509_free(cert);
-  if(subj)    OPENSSL_free(subj);
+  if (certbio) {
+    BIO_free_all(certbio);
+  }
+
+  if (cert) {
+    X509_free(cert);
+  }
+
+  if (subj) {
+    OPENSSL_free(subj);
+  }
+
   return result;
 }
 
-time_t ProcReaderGsiIdentity::GetModifTime ()
+time_t ProcReaderGsiIdentity::GetModifTime()
 {
   struct tm* clock;
   struct stat attrib;
-  if (stat (pGsiProxyFile.c_str (), &attrib)) return 0;
-  clock = gmtime (&(attrib.st_mtime));     // Get the last modified time and put it into the time structure
 
-  return mktime (clock);
+  if (stat(pGsiProxyFile.c_str(), &attrib)) {
+    return 0;
+  }
+
+  clock = gmtime(&
+                 (attrib.st_mtime));      // Get the last modified time and put it into the time structure
+  return mktime(clock);
 }
 
-int ProcCacheEntry::ReadContentFromFiles ()
+int ProcCacheEntry::ReadContentFromFiles()
 {
-  eos::common::RWMutexWriteLock lock (pMutex);
-  ProcReaderCmdLine pciCmd (pProcPrefix + "/cmdline"); // this one does NOT gets locked by the kernel when exeve is called
-  ProcReaderFsUid pciFsUid (pProcPrefix + "/status");  // this one does NOT get locked by the kernel when exeve is called
-  int retc,finalret=0;
+  eos::common::RWMutexWriteLock lock(pMutex);
+  ProcReaderCmdLine pciCmd(pProcPrefix +
+                           "/cmdline");  // this one does NOT gets locked by the kernel when exeve is called
+  ProcReaderFsUid pciFsUid(pProcPrefix +
+                           "/status");   // this one does NOT get locked by the kernel when exeve is called
+  int retc, finalret = 0;
+  pCmdLineVect.clear();
+  retc = pciCmd.ReadContent(pCmdLineVect);
 
-  pCmdLineVect.clear ();
-  retc = pciCmd.ReadContent (pCmdLineVect);
-  if ( retc>1 )
-  {
+  if (retc > 1) {
     pError = ESRCH;
     pErrMessage = "error reading content of proc file " + pProcPrefix + "/cmdline";
     return 2;
-  }
-  else if(retc==1)
-  {
+  } else if (retc == 1) {
     finalret = 1;
-    eos_static_notice("could not read command line for process %d because the proc file is locked, the cache is not updated",(int)this->pPid);
+    eos_static_notice("could not read command line for process %d because the proc file is locked, the cache is not updated",
+                      (int)this->pPid);
   }
 
-  pCmdLineStr.clear ();
-  for (auto it = pCmdLineVect.begin (); it != pCmdLineVect.end (); it++)
-  {
-    if (it != pCmdLineVect.begin ()) pCmdLineStr.append (" ");
-    pCmdLineStr.append (*it);
+  pCmdLineStr.clear();
+
+  for (auto it = pCmdLineVect.begin(); it != pCmdLineVect.end(); it++) {
+    if (it != pCmdLineVect.begin()) {
+      pCmdLineStr.append(" ");
+    }
+
+    pCmdLineStr.append(*it);
   }
 
-  retc = pciFsUid.ReadContent (pFsUid, pFsGid);
-  if ( retc>1 )
-  {
+  retc = pciFsUid.ReadContent(pFsUid, pFsGid);
+
+  if (retc > 1) {
     pError = ESRCH;
     pErrMessage = "error reading content of proc file " + pProcPrefix + "/status";
     return 2;
-  }
-  else if(retc==1)
-  {
+  } else if (retc == 1) {
     finalret = 1;
-    eos_static_notice("could not read fsuid and fsgid for process %d because the proc file is locked, the cache is not updated",(int)this->pPid);
+    eos_static_notice("could not read fsuid and fsgid for process %d because the proc file is locked, the cache is not updated",
+                      (int)this->pPid);
   }
 
   return finalret;
 }
 
-int ProcCacheEntry::UpdateIfPsChanged ()
+int ProcCacheEntry::UpdateIfPsChanged()
 {
   unsigned long long procStartTime = 0;
   // TODO: find a way not to open and close this proc file every time we call this function if possible
   pciPsStat.SetFilename(pProcPrefix + "/stat");
-  pciPsStat.ReadContent(procStartTime,pPPid,pSid);
+  pciPsStat.ReadContent(procStartTime, pPPid, pSid);
   pciPsStat.Close();
-  if (procStartTime > pStartTime)
-  {
-    int retc = ReadContentFromFiles ();
-    if (retc == 0)
-    {
+
+  if (procStartTime > pStartTime) {
+    int retc = ReadContentFromFiles();
+
+    if (retc == 0) {
       pStartTime = procStartTime;
       return 0;
-    }
-    else if (retc ==1)
-    {
+    } else if (retc == 1) {
       pStartTime = 0; // to retry to get the environment on the next call
       return 0;
     }
 
     return ESRCH;
-  }
-  else
-  {
+  } else {
     // it means that the proc start time could not be read : most likely the pid does not exist (anymore)
-    if (procStartTime == 0)
-    {
+    if (procStartTime == 0) {
       return ESRCH;
     }
 

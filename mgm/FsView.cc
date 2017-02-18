@@ -2089,6 +2089,8 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create,
         // we have to register this queue into the gw set for fast lookups
         FsView::gFsView.mGwNodes.insert(broadcastqueue);
         // clear the queue if a machine is enabled
+        // TODO (esindril): Clear also takes the HashMutex lock again - this
+        // is undefined behaviour !!!
         FsView::gFsView.mNodeView[broadcastqueue]->mGwQueue->Clear();
       } else {
         FsView::gFsView.mGwNodes.erase(broadcastqueue);
@@ -2565,8 +2567,8 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
         }
 
         broadcast += "/fst";
-        FsView::gFsView.RegisterNode(
-          broadcast.c_str()); // the node might not yet exist!
+        // The node might not yet exist!
+        FsView::gFsView.RegisterNode(broadcast.c_str());
         eos::common::RWMutexWriteLock gwlock(GwMutex);
 
         if (val == "on") {

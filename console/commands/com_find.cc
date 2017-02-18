@@ -508,13 +508,17 @@ com_find(char* arg1)
       setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"), 1);
     }
 
-    // apply the ROOT compatability environment variables
-    if (getenv("S3_ACCESS_KEY")) {
-      setenv("S3_SECRET_ACCESS_KEY", getenv("S3_ACCESS_KEY"), 1);
+    // Apply the ROOT compatability environment variables
+    const char* cstr = getenv("S3_ACCESS_KEY");
+
+    if (cstr) {
+      setenv("S3_SECRET_ACCESS_KEY", cstr, 1);
     }
 
-    if (getenv("S3_ACESSS_ID")) {
-      setenv("S3_ACCESS_KEY_ID", getenv("S3_ACCESS_ID"), 1);
+    cstr = getenv("S3_ACESSS_ID");
+    
+    if (cstr) {
+      setenv("S3_ACCESS_KEY_ID", cstr, 1);
     }
 
     // check that the environment is set

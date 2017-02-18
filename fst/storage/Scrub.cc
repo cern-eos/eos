@@ -65,8 +65,8 @@ Storage::Scrub()
         std::string path = fileSystemsVector[i]->GetPath();
 
         if (!fileSystemsVector[i]->GetStatfs()) {
-          eos_static_info("GetStatfs failed");
           fsMutex.UnLockRead();
+          eos_static_info("GetStatfs failed");
           continue;
         }
 

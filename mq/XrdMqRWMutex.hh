@@ -48,6 +48,7 @@ public:
 
     if (pthread_rwlockattr_setkind_np
         (&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) {
+      // TODO: throw a standard exception to make coverity happy
       throw "pthread_rwlockattr_setkind_np failed";
     }
 

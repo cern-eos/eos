@@ -81,9 +81,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
   eos_static_debug("View Locked");
 
   if (!FsView::gFsView.mNodeView.count(nodequeue)) {
-    // -----------------------------------------------------
-    // rare case where a node is not yet known
-    // -----------------------------------------------------
+    // Rare case where a node is not yet known
     FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead
     // register the node to the global view and config
     {

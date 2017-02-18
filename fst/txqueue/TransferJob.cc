@@ -320,13 +320,16 @@ TransferJob::DoIt()
   std::string downloadcmd = "";
   std::string uploadcmd = "";
   std::string stagefile = "";
-  static XrdSysMutex
-  eoscpLogMutex; // avoids that several transfers write interleaved into the log file;
+// Avoids that several transfers write interleaved into the log file;
+  static XrdSysMutex eoscpLogMutex;
   XrdOucString mSource = GetSourceUrl();
   XrdOucString mDestination = GetTargetUrl();
   bool iskrb5 = false;
   bool isgsi = false;
   bool noauth = false;
+  std::string cattolog;
+  std::ofstream file;
+  int rc = 0;
 
   if ((mJob) && (mJob->GetEnv())) {
     // retrieve the auth method
@@ -455,7 +458,8 @@ TransferJob::DoIt()
         (mSource.beginswith("http://")) ||
         (mSource.beginswith("https://")) ||
         (mSource.beginswith("gsiftp://"))) {
-      // this is a download using an external protocol into XRootD protocol, we can use a pipe with STDIN/OUT
+      // This is a download using an external protocol into XRootD protocol,
+      // we can use a pipe with STDIN/OUT.
       if (mSource.beginswith("as3://")) {
         // setup the s3 hostname
         int spos = mSource.find("/", 6);
@@ -525,9 +529,16 @@ TransferJob::DoIt()
     // we need to do a staged transfer with a temporary copy on a local disk
     unsetenv("TMPDIR");
     // we create a unique name here (it is the target name + some random tmp name)
-    char* tmp = tempnam("/var/eos/stage/", "txj");
-    stagefile = tmp;
-    free(tmp);
+    char tmp_name[] = "/var/eos/stage/txjob.XXXXXX";
+    int tmp_fd = mkstemp(tmp_name);
+
+    if (tmp_fd == -1) {
+      eos_static_err("failed to generate temporary file %s", tmp_name);
+      goto cleanup;
+    }
+
+    (void) close(tmp_fd);
+    stagefile = tmp_name;
     stagefile += stagesuffix.c_str();
 
     if (mDestination.beginswith("as3://")) {
@@ -657,7 +668,6 @@ TransferJob::DoIt()
   ss << "fi" << std::endl;
   // store the script
   fileName = fileName + uuid + ".sh";
-  std::ofstream file;
   file.open(fileName.c_str());
   file << ss.str();
   file.close();
@@ -794,8 +804,6 @@ TransferJob::DoIt()
                       "Progress Report Thread");
   }
 
-  std::string cattolog;
-  int rc = 0;
   static XrdSysMutex forkMutex;
 
   if (mId) {
@@ -1000,55 +1008,17 @@ TransferJob::DoIt()
   // ---- release the static log lock mutex ----
   eoscpLogMutex.UnLock();
 cleanup:
-  // remove the result files
-  rc = unlink(fileOutput.c_str());
-
-  if (rc) {
-    rc = 0;  // for compiler happyness
-  }
-
-  rc = unlink(fileStageOutput.c_str());
-
-  if (rc) {
-    rc = 0;  // for compiler happyness
-  }
-
-  rc = unlink(fileResult.c_str());
-
-  if (rc) {
-    rc = 0;  // for compiler happyness
-  }
-
-  rc = unlink(fileCredential.c_str());
-
-  if (rc) {
-    rc = 0;  // for compiler happyness
-  }
-
-  rc = unlink(fileName.c_str());
-
-  if (rc) {
-    rc = 0;  // for compiler happyness
-  }
-
-  rc = unlink(fileStageName.c_str());
-
-  if (rc) {
-    rc = 0;  // for compiler happyness
-  }
-
-  rc = unlink(progressFileName.c_str());
-
-  if (rc) {
-    rc = 0;  // for compiler happyness
-  }
+  // Remove the result files
+  (void) unlink(fileOutput.c_str());
+  (void) unlink(fileStageOutput.c_str());
+  (void) unlink(fileResult.c_str());
+  (void) unlink(fileCredential.c_str());
+  (void) unlink(fileName.c_str());
+  (void) unlink(fileStageName.c_str());
+  (void) unlink(progressFileName.c_str());
 
   if (stagefile.length()) {
-    rc = unlink(stagefile.c_str());
-
-    if (rc) {
-      rc = 0;  // for compiler happyness
-    }
+    (void) unlink(stagefile.c_str());
   }
 
   // we are over running

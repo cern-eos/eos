@@ -24,14 +24,26 @@
 #include "namespace/utils/TestHelpers.hh"
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <unistd.h>
 
 //------------------------------------------------------------------------------
 // Create a temporary file name
 //------------------------------------------------------------------------------
-std::string getTempName( std::string dir, std::string prefix )
+std::string getTempName(std::string dir, std::string prefix)
 {
-  char *name = tempnam( dir.c_str(), prefix.c_str() );
-  std::string strName = name;
-  free( name );
-  return strName;
+  dir += prefix;
+  dir += "XXXXXX";
+  size_t sz = 4 * 1024;
+  char tmp_name[sz];
+  strncpy(tmp_name, dir.c_str(), std::min(dir.length(), sz));
+  tmp_name[std::min(dir.length(), sz)] = '\0';
+  int tmp_fd = mkstemp(tmp_name);
+
+  if (tmp_fd == -1) {
+    return "";
+  }
+
+  (void) close(tmp_fd);
+  return std::string(tmp_name);
 }

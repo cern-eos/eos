@@ -1392,11 +1392,8 @@ Master::Slave2Master()
     // Stat the two remote changelog files
     if (FsSync.Stat(rfclf.c_str(), sinfo, 5).IsOK()) {
       size_remote_file_changelog = sinfo->GetSize();
-
-      if (sinfo) {
-        delete sinfo;
-        sinfo = 0;
-      }
+      delete sinfo;
+      sinfo = 0;
     } else {
       if (sinfo) {
         delete sinfo;
@@ -1406,11 +1403,8 @@ Master::Slave2Master()
 
     if (FsSync.Stat(rdclf.c_str(), sinfo, 5).IsOK()) {
       size_remote_dir_changelog = sinfo->GetSize();
-
-      if (sinfo) {
-        delete sinfo;
-        sinfo = 0;
-      }
+      delete sinfo;
+      sinfo = 0;
     } else {
       if (sinfo) {
         delete sinfo;

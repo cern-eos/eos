@@ -141,7 +141,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  LogId ()
+  LogId()
   {
     uuid_t uuid;
     uuid_generate_time(uuid);
@@ -157,17 +157,17 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~LogId () {}
+  virtual ~LogId() {}
 
   // ---------------------------------------------------------------------------
   //! For calls which are not client initiated this function set's a unique dummy log id
   // ---------------------------------------------------------------------------
 
   void
-  SetSingleShotLogId (const char* td = "<single-exec>")
+  SetSingleShotLogId(const char* td = "<single-exec>")
   {
-    snprintf(logId, sizeof (logId) - 1, "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
-    snprintf(cident, sizeof (cident) - 1, "%s", td);
+    snprintf(logId, sizeof(logId) - 1, "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
+    snprintf(cident, sizeof(cident) - 1, "%s", td);
   }
 
   // ---------------------------------------------------------------------------
@@ -175,11 +175,13 @@ public:
   // ---------------------------------------------------------------------------
 
   void
-  SetLogId (const char* newlogid, const char* td = "<service>")
+  SetLogId(const char* newlogid, const char* td = "<service>")
   {
-    if (newlogid != logId)
-      snprintf(logId, sizeof (logId) - 1, "%s", newlogid);
-    snprintf(cident, sizeof (cident) - 1, "%s", td);
+    if (newlogid != logId) {
+      snprintf(logId, sizeof(logId) - 1, "%s", newlogid);
+    }
+
+    snprintf(cident, sizeof(cident) - 1, "%s", td);
   }
 
   // ---------------------------------------------------------------------------
@@ -187,16 +189,17 @@ public:
   // ---------------------------------------------------------------------------
 
   void
-  SetLogId (const char* newlogid,
-	    const XrdSecEntity* client,
-	    const char* td = "<service>")
+  SetLogId(const char* newlogid,
+           const XrdSecEntity* client,
+           const char* td = "<service>")
   {
-    if (newlogid)
+    if (newlogid) {
       SetLogId(newlogid, td);
-    if (client)
-    {
+    }
+
+    if (client) {
       vid.name = client->name;
-      vid.host = (client->host)?client->host:"?";
+      vid.host = (client->host) ? client->host : "?";
       vid.prot = client->prot;
     }
   }
@@ -207,12 +210,15 @@ public:
   // ---------------------------------------------------------------------------
 
   void
-  SetLogId (const char* newlogid, Mapping::VirtualIdentity &vid_in, const char* td = "")
+  SetLogId(const char* newlogid, Mapping::VirtualIdentity& vid_in,
+           const char* td = "")
   {
     Mapping::Copy(vid_in, vid);
-    snprintf(cident, sizeof (cident) - 1, "%s", td);
-    if (newlogid != logId)
-      snprintf(logId, sizeof (logId) - 1, "%s", newlogid);
+    snprintf(cident, sizeof(cident) - 1, "%s", td);
+
+    if (newlogid != logId) {
+      snprintf(logId, sizeof(logId) - 1, "%s", newlogid);
+    }
   }
 
 
@@ -227,8 +233,8 @@ public:
 
 class Logging
 {
- private:
- public:
+private:
+public:
 
   //! Typedef for circular index pointing to the next message position int he log array
   typedef std::vector< unsigned long > LogCircularIndex;
@@ -245,8 +251,10 @@ class Logging
   static bool gToSysLog; //< duplicate into syslog
   static XrdSysMutex gMutex; //< global mutex
   static XrdOucString gUnit; //< global unit name
-  static XrdOucHash<const char*> gAllowFilter; ///< global list of function names allowed to log
-  static XrdOucHash<const char*> gDenyFilter; ///< global list of function names denied to log
+  static XrdOucHash<const char*>
+  gAllowFilter; ///< global list of function names allowed to log
+  static XrdOucHash<const char*>
+  gDenyFilter; ///< global list of function names denied to log
   static int gShortFormat; //< indiciating if the log-output is in short format
 
   //< Here one can define log fan-out to different file descriptors than stderr
@@ -257,7 +265,7 @@ class Logging
   // ---------------------------------------------------------------------------
 
   static void
-  SetLogPriority (int pri)
+  SetLogPriority(int pri)
   {
     gLogMask = LOG_UPTO(pri);
     gPriorityLevel = pri;
@@ -268,13 +276,13 @@ class Logging
   // ---------------------------------------------------------------------------
 
   static void
-  SetUnit (const char* unit)
+  SetUnit(const char* unit)
   {
     gUnit = unit;
   }
 
   static void
-  SetSysLog (bool onoff)
+  SetSysLog(bool onoff)
   {
     gToSysLog = onoff;
   }
@@ -284,37 +292,33 @@ class Logging
   // ---------------------------------------------------------------------------
 
   static void
-  SetFilter (const char* filter)
+  SetFilter(const char* filter)
   {
     int pos = 0;
     char del = ',';
     XrdOucString token;
     XrdOucString pass_tag = "PASS:";
     XrdOucString sfilter = filter;
-
     // Clear both maps
     gDenyFilter.Purge();
     gAllowFilter.Purge();
 
-    if ((pos = sfilter.find(pass_tag)) != STR_NPOS)
-    {
+    if ((pos = sfilter.find(pass_tag)) != STR_NPOS) {
       // Extract the function names which are allowed to log
       pos += pass_tag.length();
 
-      while ((pos = sfilter.tokenize(token, pos, del)) != -1)
-      {
-	gAllowFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
+      while ((pos = sfilter.tokenize(token, pos, del)) != -1) {
+        gAllowFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
       }
-    }
-    else
-    {
+    } else {
       // Extract the function names which are denied to log
       pos = 0;
 
-      while ((pos = sfilter.tokenize(token, pos, del)) != -1)
-      {
-	gDenyFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
-      }
+      try {
+        while ((pos = sfilter.tokenize(token, pos, del)) != -1) {
+          gDenyFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
+        }
+      } catch (int& err) {}
     }
   }
 
@@ -323,16 +327,39 @@ class Logging
   // ---------------------------------------------------------------------------
 
   static const char*
-  GetPriorityString (int pri)
+  GetPriorityString(int pri)
   {
-    if (pri == (LOG_INFO)) return "INFO ";
-    if (pri == (LOG_DEBUG)) return "DEBUG";
-    if (pri == (LOG_ERR)) return "ERROR";
-    if (pri == (LOG_EMERG)) return "EMERG";
-    if (pri == (LOG_ALERT)) return "ALERT";
-    if (pri == (LOG_CRIT)) return "CRIT ";
-    if (pri == (LOG_WARNING)) return "WARN ";
-    if (pri == (LOG_NOTICE)) return "NOTE ";
+    if (pri == (LOG_INFO)) {
+      return "INFO ";
+    }
+
+    if (pri == (LOG_DEBUG)) {
+      return "DEBUG";
+    }
+
+    if (pri == (LOG_ERR)) {
+      return "ERROR";
+    }
+
+    if (pri == (LOG_EMERG)) {
+      return "EMERG";
+    }
+
+    if (pri == (LOG_ALERT)) {
+      return "ALERT";
+    }
+
+    if (pri == (LOG_CRIT)) {
+      return "CRIT ";
+    }
+
+    if (pri == (LOG_WARNING)) {
+      return "WARN ";
+    }
+
+    if (pri == (LOG_NOTICE)) {
+      return "NOTE ";
+    }
 
     return "NONE ";
   }
@@ -342,30 +369,54 @@ class Logging
   // ---------------------------------------------------------------------------
 
   static int
-  GetPriorityByString (const char* pri)
+  GetPriorityByString(const char* pri)
   {
-    if (!strcmp(pri, "info")) return LOG_INFO;
-    if (!strcmp(pri, "debug")) return LOG_DEBUG;
-    if (!strcmp(pri, "err")) return LOG_ERR;
-    if (!strcmp(pri, "emerg")) return LOG_EMERG;
-    if (!strcmp(pri, "alert")) return LOG_ALERT;
-    if (!strcmp(pri, "crit")) return LOG_CRIT;
-    if (!strcmp(pri, "warning")) return LOG_WARNING;
-    if (!strcmp(pri, "notice")) return LOG_NOTICE;
+    if (!strcmp(pri, "info")) {
+      return LOG_INFO;
+    }
+
+    if (!strcmp(pri, "debug")) {
+      return LOG_DEBUG;
+    }
+
+    if (!strcmp(pri, "err")) {
+      return LOG_ERR;
+    }
+
+    if (!strcmp(pri, "emerg")) {
+      return LOG_EMERG;
+    }
+
+    if (!strcmp(pri, "alert")) {
+      return LOG_ALERT;
+    }
+
+    if (!strcmp(pri, "crit")) {
+      return LOG_CRIT;
+    }
+
+    if (!strcmp(pri, "warning")) {
+      return LOG_WARNING;
+    }
+
+    if (!strcmp(pri, "notice")) {
+      return LOG_NOTICE;
+    }
+
     return -1;
   }
 
   // ---------------------------------------------------------------------------
   //! Initialize Logger
   // ---------------------------------------------------------------------------
-  static void Init ();
+  static void Init();
 
   // ---------------------------------------------------------------------------
   //! Add a tag fanout filedescriptor to the logging module
   // ---------------------------------------------------------------------------
 
   static void
-  AddFanOut (const char* tag, FILE* fd)
+  AddFanOut(const char* tag, FILE* fd)
   {
     gLogFanOut[tag] = fd;
   }
@@ -375,10 +426,9 @@ class Logging
   // ---------------------------------------------------------------------------
 
   static void
-  AddFanOutAlias (const char* alias, const char* tag)
+  AddFanOutAlias(const char* alias, const char* tag)
   {
-    if (gLogFanOut.count(tag))
-    {
+    if (gLogFanOut.count(tag)) {
       gLogFanOut[alias] = gLogFanOut[tag];
     }
   }
@@ -388,28 +438,54 @@ class Logging
   // ---------------------------------------------------------------------------
 
   static const char*
-  GetLogColour (const char* loglevel)
+  GetLogColour(const char* loglevel)
   {
-    if (!strcmp(loglevel, "INFO ")) return EOS_TEXTGREEN;
-    if (!strcmp(loglevel, "ERROR")) return EOS_TEXTRED;
-    if (!strcmp(loglevel, "WARN ")) return EOS_TEXTYELLOW;
-    if (!strcmp(loglevel, "NOTE ")) return EOS_TEXTBLUE;
-    if (!strcmp(loglevel, "CRIT ")) return EOS_TEXTREDERROR;
-    if (!strcmp(loglevel, "EMERG")) return EOS_TEXTBLUEERROR;
-    if (!strcmp(loglevel, "ALERT")) return EOS_TEXTREDERROR;
-    if (!strcmp(loglevel, "DEBUG")) return "";
+    if (!strcmp(loglevel, "INFO ")) {
+      return EOS_TEXTGREEN;
+    }
+
+    if (!strcmp(loglevel, "ERROR")) {
+      return EOS_TEXTRED;
+    }
+
+    if (!strcmp(loglevel, "WARN ")) {
+      return EOS_TEXTYELLOW;
+    }
+
+    if (!strcmp(loglevel, "NOTE ")) {
+      return EOS_TEXTBLUE;
+    }
+
+    if (!strcmp(loglevel, "CRIT ")) {
+      return EOS_TEXTREDERROR;
+    }
+
+    if (!strcmp(loglevel, "EMERG")) {
+      return EOS_TEXTBLUEERROR;
+    }
+
+    if (!strcmp(loglevel, "ALERT")) {
+      return EOS_TEXTREDERROR;
+    }
+
+    if (!strcmp(loglevel, "DEBUG")) {
+      return "";
+    }
+
     return "";
   }
 
   // ---------------------------------------------------------------------------
   //! Check if we should log in the defined level/filter
   // ---------------------------------------------------------------------------
-  static bool shouldlog (const char* func, int priority);
+  static bool shouldlog(const char* func, int priority);
 
   // ---------------------------------------------------------------------------
   //! Log a message into the global buffer
   // ---------------------------------------------------------------------------
-  static const char* log (const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid, const char* cident, int priority, const char *msg, ...);
+  static const char* log(const char* func, const char* file, int line,
+                         const char* logid, const Mapping::VirtualIdentity& vid, const char* cident,
+                         int priority, const char* msg, ...);
 
 };
 

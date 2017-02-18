@@ -1172,6 +1172,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
             eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx",
                              bituser, n_tohll(bituser));
           } else {
+            gPhysicalIdMutex.UnLock();
             eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d", outlen);
             delete id;
             return;
@@ -1189,6 +1190,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
         } else {
           eos_static_err("msg=\"failed to decoded base-64 uid/gid/sid\" id=%s",
                          sname.c_str());
+          gPhysicalIdMutex.UnLock();
           delete id;
           return;
         }

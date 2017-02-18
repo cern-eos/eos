@@ -162,6 +162,7 @@ AsyncMetaHandler::HandleResponse(XrdCl::XRootDStatus* pStatus,
   }
 
   if (pStatus->status != XrdCl::stOK) {
+    // coverity[order_reversal]
     eos_debug("Got error message with status:%u, code:%u, errNo:%lu",
               pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
     mErrors.push_back(XrdCl::ChunkInfo(chunk->GetOffset(),
@@ -173,6 +174,7 @@ AsyncMetaHandler::HandleResponse(XrdCl::XRootDStatus* pStatus,
       mErrorType = pStatus->code;
 
       if (mErrorType == XrdCl::errOperationExpired) {
+        // coverity[order_reversal]
         eos_debug("Got a timeout error for request off=%zu, len=%lu",
                   chunk->GetOffset(), (unsigned long)chunk->GetLength());
       }
@@ -209,6 +211,7 @@ AsyncMetaHandler::HandleResponse(XrdCl::XRootDStatus* pStatus,
   }
 
   if (pStatus->status != XrdCl::stOK) {
+    // coverity[order_reversal]
     eos_debug("Got error message with status:%u, code:%u, errNo:%lu",
               pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
     // Add all the chunks of the current failed vector read to the list of
@@ -221,6 +224,7 @@ AsyncMetaHandler::HandleResponse(XrdCl::XRootDStatus* pStatus,
       mErrorType = pStatus->code;
 
       if (mErrorType == XrdCl::errOperationExpired) {
+        // coverity[order_reversal]
         eos_debug("Got a timeout error for vector request");
       }
     }

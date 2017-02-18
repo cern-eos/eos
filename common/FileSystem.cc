@@ -21,15 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/FileSystem.hh"
 #include "common/Logging.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-
 
 EOSCOMMONNAMESPACE_BEGIN;
 
@@ -605,12 +599,19 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mPath = mPath;
     fs.mErrMsg = mHash->Get("stat.errmsg");
     fs.mGeoTag.clear();
-    if (mHash->Get("forcegeotag").size())
+
+    if (mHash->Get("forcegeotag").size()) {
       fs.mGeoTag = mHash->Get("forcegeotag");
-    if(fs.mGeoTag=="<none>")
+    }
+
+    if (fs.mGeoTag == "<none>") {
       fs.mGeoTag.clear();
-    if(fs.mGeoTag.empty())
+    }
+
+    if (fs.mGeoTag.empty()) {
       fs.mGeoTag = mHash->Get("stat.geotag");
+    }
+
     fs.mPublishTimestamp = (size_t)mHash->GetLongLong("stat.publishtimestamp");
     fs.mStatus = GetStatusFromString(mHash->Get("stat.boot").c_str());
     fs.mConfigStatus = GetConfigStatusFromString(

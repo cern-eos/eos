@@ -600,7 +600,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   // build the adler checksum of the default keytab file
   int fd = ::open("/etc/eos.keytab", O_RDONLY);
 
-  if (fd > 0) {
+  if (fd >= 0) {
     char buffer[65535];
     size_t nread = ::read(fd, buffer, sizeof(buffer));
 

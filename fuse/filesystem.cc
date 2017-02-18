@@ -4510,14 +4510,21 @@ filesystem::init(int argc, char* argv[], void* userdata,
                  std::map<std::string, std::string>* features)
 {
   initlogging();
-  path2inode.set_empty_key("");
-  path2inode.set_deleted_key("#__deleted__#");
-  inodexrdlogin2fds.set_empty_key("");
-  inodexrdlogin2fds.set_deleted_key("#__deleted__#");
-  fd2fabst.set_empty_key(-1);
-  fd2fabst.set_deleted_key(-2);
-  fd2count.set_empty_key(-1);
-  fd2count.set_deleted_key(-2);
+
+  try {
+    path2inode.set_empty_key("");
+    path2inode.set_deleted_key("#__deleted__#");
+    inodexrdlogin2fds.set_empty_key("");
+    inodexrdlogin2fds.set_deleted_key("#__deleted__#");
+    fd2fabst.set_empty_key(-1);
+    fd2fabst.set_deleted_key(-2);
+    fd2count.set_empty_key(-1);
+    fd2count.set_deleted_key(-2);
+  } catch (std::length_error& len_excp) {
+    eos_static_err("error: failed to insert into google map");
+    return false;
+  }
+
   eos::common::StringConversion::InitLookupTables();
 // Create the root entry
   path2inode["/"] = 1;
@@ -4695,7 +4702,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
       eos_static_notice("rm command to watch is %s", rm_cmd);
       rm_command = rm_cmd;
       char cmd[PATH_MAX + 16];
-      sprintf(cmd, "%s --version", rm_cmd);
+      sprintf(cmd, "%s --version", (const char*)rm_cmd);
       f = popen(cmd, "r");
 
       if (!f) {

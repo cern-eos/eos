@@ -52,7 +52,6 @@ static uint64_t mapSize(const eos::IFileMD* file)
 //------------------------------------------------------------------------------
 eos::IView* bootNamespace(const std::string& dirLog,
                           const std::string& fileLog)
-throw(eos::MDException)
 {
   eos::IContainerMDSvc* contSvc = new eos::ChangeLogContainerMDSvc();
   eos::IFileMDSvc*      fileSvc = new eos::ChangeLogFileMDSvc();
@@ -267,17 +266,29 @@ int main(int argc, char** argv)
   };
 
   // remove ns
-  unlink(argv[1]);
+  const char* dir_log = argv[1];
 
-  unlink(argv[2]);
+  const char* file_log = argv[2];
+
+  unlink(dir_log);
+
+  unlink(file_log);
 
   size_t n_i = atoi(argv[3]);
 
+  if (n_i <= 0) {
+    std::cerr << "error: level1-dirs needs to be >= 1" << std::endl;
+    return 1;
+  }
+
   size_t n_j = 256;
-
   size_t n_k = 256;
-
   size_t n_files = atoi(argv[4]);
+
+  if (n_files <= 0) {
+    std::cerr << "error: level3-files needs to be >= 1" << std::endl;
+    return 1;
+  }
 
   //----------------------------------------------------------------------------
   // Create Namespace and populate dirs

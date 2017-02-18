@@ -39,10 +39,18 @@ Storage::Publish()
   struct timezone tz;
   unsigned long long netspeed = 1000000000;
   // Get our network speed
-  char* tmpname = tmpnam(NULL);
+  char tmp_name[] = "/tmp/fst.publish.XXXXXX";
+  int tmp_fd = mkstemp(tmp_name);
+
+  if (tmp_fd == -1) {
+    eos_static_err("failed to create temporary file for ip route command");
+    return;
+  }
+
+  (void) close(tmp_fd);
   XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' |"
                              " xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> ";
-  getnetspeed += tmpname;
+  getnetspeed += tmp_name;
   eos::common::ShellCmd scmd1(getnetspeed.c_str());
   eos::common::cmd_status rc = scmd1.wait(5);
 
@@ -53,7 +61,7 @@ Storage::Publish()
   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ? getenv("EOS_GEOTAG") : "");
   XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ?
                                getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
-  FILE* fnetspeed = fopen(tmpname, "r");
+  FILE* fnetspeed = fopen(tmp_name, "r");
 
   if (fnetspeed) {
     if ((fscanf(fnetspeed, "%llu", &netspeed)) == 1) {
@@ -68,9 +76,7 @@ Storage::Publish()
 
   eos_static_info("publishing:networkspeed=%.02f GB/s",
                   1.0 * netspeed / 1000000000.0);
-  // ---------------------------------------------------------------------
-  // give some time before publishing
-  // ---------------------------------------------------------------------
+  // Wait before publishing
   XrdSysTimer sleeper;
   sleeper.Snooze(3);
 
@@ -86,11 +92,9 @@ Storage::Publish()
 
   while (1) {
     {
-      // ---------------------------------------------------------------------
-      // retrieve uptime information
-      // ---------------------------------------------------------------------
+      // Retrieve uptime information
       XrdOucString uptime = "uptime | tr -d \"\n\" > ";
-      uptime += tmpname;
+      uptime += tmp_name;
       eos::common::ShellCmd scmd2(uptime.c_str());
       rc = scmd2.wait(5);
 
@@ -98,9 +102,9 @@ Storage::Publish()
         eos_static_err("retrieve uptime call failed");
       }
 
-      eos::common::StringConversion::LoadFileIntoString(tmpname, publish_uptime);
+      eos::common::StringConversion::LoadFileIntoString(tmp_name, publish_uptime);
       XrdOucString sockets = "cat /proc/net/tcp | wc -l | tr -d \"\n\" >";
-      sockets += tmpname;
+      sockets += tmp_name;
       eos::common::ShellCmd scmd3(sockets.c_str());
       rc = scmd3.wait(5);
 
@@ -108,7 +112,7 @@ Storage::Publish()
         eos_static_err("retrieve #socket call failed");
       }
 
-      eos::common::StringConversion::LoadFileIntoString(tmpname, publish_sockets);
+      eos::common::StringConversion::LoadFileIntoString(tmp_name, publish_sockets);
     }
     time_t now = time(NULL);
     gettimeofday(&tv1, &tz);
@@ -245,14 +249,15 @@ Storage::Publish()
             }
           }
 
-          // copy out net info
+          // Copy out net info
           success &= fileSystemsVector[i]->SetDouble("stat.net.ethratemib",
                      netspeed / (8 * 1024 * 1024));
           success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib",
                      fstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
           success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib",
                      fstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
-          // set current load stats, io-target specific implementation may override fst load implementation
+          // Set current load stats, io-target specific implementation may override
+          // fst load implementation
           {
             double readratemb;
             double writeratemb;
@@ -356,8 +361,7 @@ Storage::Publish()
               w_open_hotfiles = " ";
             }
 
-            // copy out hot file list
-            // copy out hot file list
+            // Copy out hot file list
             success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles",
                        r_open_hotfiles.c_str());
             success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles",
@@ -456,8 +460,8 @@ Storage::Publish()
       sleeper.Snooze(lSleepTime / 1000);
     }
   }
+
+  (void) unlink(tmp_name);
 }
 
 EOSFSTNAMESPACE_END
-
-

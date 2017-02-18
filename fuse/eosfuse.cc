@@ -140,9 +140,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   char rdr[4096];
   char url[4096];
   rdr[0] = 0;
-
-  if (getenv("EOS_RDRURL")) {
-    snprintf(rdr, 4096, "%s", getenv("EOS_RDRURL"));
+  char* cstr = getenv("EOS_RDURL");
+  
+  if (cstr && (strlen(cstr) < 4096)) {
+    snprintf(rdr, 4096, "%s", cstr);
   }
 
   for (i = 0; i < argc; i++) {
@@ -907,7 +908,8 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char* name, mode_t mode)
     const char* ptr = strrchr(parentpath.c_str(), (int)('/'));
 
     if (ptr) {
-      char gparent[16384];
+      size_t sz = 16384;
+      char gparent[sz];
       int num = (int)(ptr - parentpath.c_str());
 
       if (num) {
@@ -919,7 +921,8 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char* name, mode_t mode)
           num = (int)(ptr - gparent);
           strncpy(gparent, parentpath.c_str(), num);
           parentpath[num] = '\0';
-          strcpy(gparent, parentpath.c_str());
+          size_t len = std::min(sz, parentpath.length());
+          strncpy(gparent, parentpath.c_str(), len);
         }
       } else {
         strcpy(gparent, "/\0");

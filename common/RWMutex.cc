@@ -47,13 +47,13 @@ int RWMutex::samplingModulo_static = (int)(0.01 * RAND_MAX);
 bool RWMutex::staticInitialized = false;
 bool RWMutex::enabletimingglobal = false;
 bool RWMutex::enableordercheckglobal = false;
-RWMutex::rules_t *RWMutex::rules_static=NULL;
-std::map<unsigned char, std::string> *RWMutex::ruleIndex2Name_static=NULL;
-std::map<std::string, unsigned char> *RWMutex::ruleName2Index_static=NULL;
+RWMutex::rules_t* RWMutex::rules_static = NULL;
+std::map<unsigned char, std::string>* RWMutex::ruleIndex2Name_static = NULL;
+std::map<std::string, unsigned char>* RWMutex::ruleName2Index_static = NULL;
 __thread bool* RWMutex::orderCheckReset_staticthread = NULL;
 __thread unsigned long
 RWMutex::ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
-std::map<pthread_t, bool> *RWMutex::threadOrderCheckResetFlags_static=NULL;
+std::map<pthread_t, bool>* RWMutex::threadOrderCheckResetFlags_static = NULL;
 pthread_rwlock_t RWMutex::orderChkMgmLock;
 
 #define EOS_RWMUTEX_CHECKORDER_LOCK if(enableordercheckglobal) CheckAndLockOrder();
@@ -799,11 +799,11 @@ RWMutex::EstimateOrderCheckingAddedLatency(size_t nmutexes, size_t loopsize)
   size_t t = NowInt();
 
   for (size_t k = 0; k < loopsize; k++) {
-    for (it = mutexes.begin(); it != mutexes.end(); it++) {
+    for (it = mutexes.begin(); it != mutexes.end(); ++it) {
       it->LockWrite();
     }
 
-    for (rit = mutexes.rbegin(); rit != mutexes.rend(); rit++) {
+    for (rit = mutexes.rbegin(); rit != mutexes.rend(); ++rit) {
       rit->UnLockWrite();
     }
   }
@@ -813,11 +813,11 @@ RWMutex::EstimateOrderCheckingAddedLatency(size_t nmutexes, size_t loopsize)
   t = NowInt();
 
   for (size_t k = 0; k < loopsize; k++) {
-    for (it = mutexes.begin(); it != mutexes.end(); it++) {
+    for (it = mutexes.begin(); it != mutexes.end(); ++it) {
       it->LockWrite();
     }
 
-    for (rit = mutexes.rbegin(); rit != mutexes.rend(); rit++) {
+    for (rit = mutexes.rbegin(); rit != mutexes.rend(); ++rit) {
       rit->UnLockWrite();
     }
   }
@@ -835,16 +835,14 @@ RWMutex::InitializeClass()
   // ---------------------------------------------------------------------------
   //! Performs the initialization of the class
   // ---------------------------------------------------------------------------
-
-  if (pthread_rwlock_init(&orderChkMgmLock, NULL))
-  {
+  if (pthread_rwlock_init(&orderChkMgmLock, NULL)) {
     throw "pthread_orderChkMgmLock_init failed";
   }
 
-  rules_static=new RWMutex::rules_t();
-  RWMutex::ruleIndex2Name_static=new std::map<unsigned char, std::string>;
-  RWMutex::ruleName2Index_static=new std::map<std::string, unsigned char>;
-  RWMutex::threadOrderCheckResetFlags_static=new std::map<pthread_t, bool>;
+  rules_static = new RWMutex::rules_t();
+  RWMutex::ruleIndex2Name_static = new std::map<unsigned char, std::string>;
+  RWMutex::ruleName2Index_static = new std::map<std::string, unsigned char>;
+  RWMutex::threadOrderCheckResetFlags_static = new std::map<pthread_t, bool>;
 }
 
 void
