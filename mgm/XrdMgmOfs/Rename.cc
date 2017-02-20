@@ -56,7 +56,6 @@ XrdMgmOfs::rename(const char* old_name,
   const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-  XrdSecEntity mappedclient;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, infoO, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -93,7 +92,6 @@ XrdMgmOfs::rename(const char* old_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     oldn = path;
-    info = 0;
   }
   {
     inpath = newn.c_str();
@@ -102,7 +100,6 @@ XrdMgmOfs::rename(const char* old_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     newn = path;
-    info = 0;
   }
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -152,7 +149,6 @@ XrdMgmOfs::rename(const char* old_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     oldn = path;
-    info = 0;
   }
   {
     inpath = new_name;
@@ -160,7 +156,6 @@ XrdMgmOfs::rename(const char* old_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     newn = path;
-    info = 0;
   }
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;

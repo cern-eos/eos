@@ -155,79 +155,82 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //! - checks for prefixing and rewrites path name
 //! - remap's path names according to the configured path map
 // -----------------------------------------------------------------------------
-#define NAMESPACEMAP              \
-  const char*path = inpath;           \
-  const char*info = ininfo;           \
-  (void) info; /* avoid compiler warning */       \
-  XrdOucString store_path=path;           \
-  if(inpath && ininfo && strstr(ininfo,"eos.encodepath"))               \
+#define NAMESPACEMAP                                                    \
+  const char* path = inpath;                                            \
+  XrdOucString store_path=path;                                         \
+  if(inpath && ininfo && strstr(ininfo,"eos.encodepath")) {             \
     store_path = eos::common::StringConversion::curl_unescaped(inpath).c_str(); \
-  else                                                                  \
+  } else {                                                              \
     while(store_path.replace("#AND#","&")){}                            \
-  if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
-    XrdOucString iinpath=store_path;          \
-    gOFS->PathRemap(iinpath.c_str(),store_path);      \
   }                                                                     \
-  size_t __i=0;               \
-  size_t __n = store_path.length();         \
-  if (gOFS->UTF8) {             \
-    for (__i=0;__i<__n;__i++) {           \
+  if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
+    XrdOucString iinpath=store_path;                                    \
+    gOFS->PathRemap(iinpath.c_str(),store_path);                        \
+  }                                                                     \
+  size_t __i=0;                                                         \
+  size_t __n = store_path.length();                                     \
+  if (gOFS->UTF8) {                                                     \
+    for (__i=0;__i<__n;__i++) {                                         \
       if (((store_path[__i] != 0xa) && (store_path[__i] != 0xd )) /* CR,LF*/) { \
-  continue;             \
-      } else {                \
-  break;                \
-      }                 \
-    }                 \
+        continue;                                                       \
+      } else {                                                          \
+        break;                                                          \
+      }                                                                 \
+    }                                                                   \
   }                                                                     \
   else                                                                  \
-  {                 \
-    for (__i=0;__i<__n;__i++) {           \
-      if ( ((store_path[__i] >= 97) && (store_path[__i] <= 122 )) || /* a-z   */ \
-     ((store_path[__i] >= 64) && (store_path[__i] <= 90 ))  || /* @,A-Z */ \
-     ((store_path[__i] >= 48) && (store_path[__i] <= 57 ))  || /* 0-9   */ \
-     (store_path[__i] == 47) || /* / */       \
-     (store_path[__i] == 46) || /* . */       \
-     (store_path[__i] == 32) || /* SPACE */     \
-     (store_path[__i] == 45) || /* - */       \
-     (store_path[__i] == 95) || /* _ */       \
-     (store_path[__i] == 126)|| /* ~ */       \
-     (store_path[__i] == 35) || /* # */       \
-     (store_path[__i] == 58) || /* : */       \
-     (store_path[__i] == 43) || /* + */       \
-     (store_path[__i] == 94)    /* ^ */       \
-     ) {                \
-  continue;             \
-      } else {                \
-  break;                \
-      }                 \
-    }                 \
-  }                                                                     \
-  if ( (vid.uid != 0) && (__i != (__n) ) ) { /* root can use all letters */ \
-    path = 0;               \
-  } else {                \
-    const char* pf=0;             \
-    if ( ininfo && (pf=strstr(ininfo,"eos.prefix=")) ) {    /* check for redirection with prefixes */ \
-      if (!store_path.beginswith("/proc")) {        \
-  XrdOucEnv env(pf);            \
-  store_path.insert(env.Get("eos.prefix"),0);     /* check for redirection with LFN rewrite */ \
-      }                 \
-    }                 \
-    if ( ininfo && (pf=strstr(ininfo,"eos.lfn=")) ) {     \
-      if ((!store_path.beginswith("/proc"))) {        \
-  XrdOucEnv env(pf);            \
-  store_path = env.Get("eos.lfn");        \
-      }                 \
-    }                 \
-    path = store_path.c_str();            \
+    {                                                                   \
+      for (__i=0;__i<__n;__i++) {                                       \
+        if ( ((store_path[__i] >= 97) && (store_path[__i] <= 122 )) || /* a-z */ \
+             ((store_path[__i] >= 64) && (store_path[__i] <= 90 ))  || /* @,A-Z */ \
+             ((store_path[__i] >= 48) && (store_path[__i] <= 57 ))  || /* 0-9   */ \
+             (store_path[__i] == 47) || /* / */                         \
+             (store_path[__i] == 46) || /* . */                         \
+             (store_path[__i] == 32) || /* SPACE */                     \
+             (store_path[__i] == 45) || /* - */                         \
+             (store_path[__i] == 95) || /* _ */                         \
+             (store_path[__i] == 126)|| /* ~ */                         \
+             (store_path[__i] == 35) || /* # */                         \
+             (store_path[__i] == 58) || /* : */                         \
+             (store_path[__i] == 43) || /* + */                         \
+             (store_path[__i] == 94)    /* ^ */                         \
+             ) {                                                        \
+          continue;                                                     \
+        } else {                                                        \
+          break;                                                        \
+        }                                                               \
+      }                                                                 \
+    }                                                                   \
+  /* root can use all letters */                                        \
+  if ( (vid.uid != 0) && (__i != (__n) ) ) {                            \
+    path = 0;                                                           \
+  } else {                                                              \
+    const char* pf=0;                                                   \
+    /* check for redirection with prefixes */                           \
+    if ( ininfo && (pf=strstr(ininfo,"eos.prefix=")) ) {                \
+      if (!store_path.beginswith("/proc")) {                            \
+        XrdOucEnv env(pf);                                              \
+        /* check for redirection with LFN rewrite */                    \
+        store_path.insert(env.Get("eos.prefix"),0);                     \
+      }                                                                 \
+    }                                                                   \
+    if ( ininfo && (pf=strstr(ininfo,"eos.lfn=")) ) {                   \
+      if ((!store_path.beginswith("/proc"))) {                          \
+        XrdOucEnv env(pf);                                              \
+        store_path = env.Get("eos.lfn");                                \
+      }                                                                 \
+    }                                                                   \
+    path = store_path.c_str();                                          \
   }
 
 // -----------------------------------------------------------------------------
 //! Bounce Illegal Name Macro
 // -----------------------------------------------------------------------------
-#define BOUNCE_ILLEGAL_NAMES            \
-  if (!path) {                \
-    eos_err("illegal character in %s", store_path.c_str());   \
-    return Emsg(epname, error, EILSEQ,"accept path name - illegal characters - use only A-Z a-z 0-9 / SPACE .-_~#:^", store_path.c_str()); \
+#define BOUNCE_ILLEGAL_NAMES  \
+  if (!path) {                                                          \
+    eos_err("illegal character in %s", store_path.c_str());             \
+    return Emsg(epname, error, EILSEQ,"accept path name - illegal characters " \
+                "- use only A-Z a-z 0-9 / SPACE .-_~#:^", store_path.c_str()); \
   }
 
 // -----------------------------------------------------------------------------

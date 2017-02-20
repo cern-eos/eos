@@ -29,11 +29,11 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::utimes (const char *inpath,
-                   struct timespec *tvp,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *ininfo)
+XrdMgmOfs::utimes(const char* inpath,
+                  struct timespec* tvp,
+                  XrdOucErrInfo& error,
+                  const XrdSecEntity* client,
+                  const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set change time for a given file/directory
@@ -48,41 +48,32 @@ XrdMgmOfs::utimes (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-
-  static const char *epname = "utimes";
-  const char *tident = error.getErrUser();
-
+  static const char* epname = "utimes";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
-  XrdOucEnv utimes_Env(info);
-
+  XrdOucEnv utimes_Env(ininfo);
   AUTHORIZE(client, &utimes_Env, AOP_Update, "set utimes", inpath, error);
-
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, info, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
-  return _utimes(path, tvp, error, vid, info);
+  return _utimes(path, tvp, error, vid, ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_utimes (const char *path,
-                    struct timespec *tvp,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    const char *info)
+XrdMgmOfs::_utimes(const char* path,
+                   struct timespec* tvp,
+                   XrdOucErrInfo& error,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const char* info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set change time for a given file/directory
@@ -104,42 +95,34 @@ XrdMgmOfs::_utimes (const char *path,
   std::shared_ptr<eos::IContainerMD> cmd;
   EXEC_TIMING_BEGIN("Utimes");
   gOFS->MgmStats.Add("Utimes", vid.uid, vid.gid, 1);
-
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  try
-  {
+
+  try {
     cmd = gOFS->eosView->getContainer(path, false);
     cmd->setMTime(tvp[1]);
-    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+    cmd->notifyMTimeChange(gOFS->eosDirectoryService);
     eosView->updateContainerStore(cmd.get());
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  if (!cmd)
-  {
+  if (!cmd) {
     std::shared_ptr<eos::IFileMD> fmd;
 
-    try
-    {
+    try {
       fmd = gOFS->eosView->getFile(path, false);
 
       // Set the ctime only if different from 0.0
-      if (tvp[0].tv_sec != 0 || tvp[0].tv_nsec != 0)
-      {
+      if (tvp[0].tv_sec != 0 || tvp[0].tv_nsec != 0) {
         fmd->setCTime(tvp[0]);
       }
 
       fmd->setMTime(tvp[1]);
       eosView->updateFileStore(fmd.get());
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());

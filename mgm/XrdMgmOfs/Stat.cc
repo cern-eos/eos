@@ -73,13 +73,12 @@ XrdMgmOfs::stat(const char* inpath,
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Nobody(vid);
-  XrdSecEntity mappedclient;
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-  XrdOucEnv Open_Env(info);
+  XrdOucEnv Open_Env(ininfo);
   AUTHORIZE(client, &Open_Env, AOP_Stat, "stat", inpath, error);
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, info, tident, vid, false);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, false);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
@@ -93,7 +92,7 @@ XrdMgmOfs::stat(const char* inpath,
   }
 
   errno = 0;
-  int rc = _stat(path, buf, error, vid, info, etag, follow, uri);
+  int rc = _stat(path, buf, error, vid, ininfo, etag, follow, uri);
 
   if (rc && (errno == ENOENT)) {
     MAYREDIRECT_ENOENT;

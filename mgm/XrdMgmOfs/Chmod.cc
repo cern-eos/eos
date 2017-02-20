@@ -29,11 +29,11 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::chmod (const char *inpath,
-                  XrdSfsMode Mode,
-                  XrdOucErrInfo &error,
-                  const XrdSecEntity *client,
-                  const char *ininfo)
+XrdMgmOfs::chmod(const char* inpath,
+                 XrdSfsMode Mode,
+                 XrdOucErrInfo& error,
+                 const XrdSecEntity* client,
+                 const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change the mode of a directory
@@ -48,43 +48,33 @@ XrdMgmOfs::chmod (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-
-  static const char *epname = "chmod";
-  const char *tident = error.getErrUser();
+  static const char* epname = "chmod";
+  const char* tident = error.getErrUser();
   //  mode_t acc_mode = Mode & S_IAMB;
-
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
-
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
-  XrdOucEnv chmod_Env(info);
-
+  XrdOucEnv chmod_Env(ininfo);
   AUTHORIZE(client, &chmod_Env, AOP_Chmod, "chmod", inpath, error);
-
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, info, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
-  
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
-  return _chmod(path, Mode, error, vid, info);
+  return _chmod(path, Mode, error, vid, ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_chmod (const char *path,
-                   XrdSfsMode& Mode,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   const char *ininfo)
+XrdMgmOfs::_chmod(const char* path,
+                  XrdSfsMode& Mode,
+                  XrdOucErrInfo& error,
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change mode of a directory or file
@@ -102,10 +92,8 @@ XrdMgmOfs::_chmod (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "chmod";
-
+  static const char* epname = "chmod";
   EXEC_TIMING_BEGIN("Chmod");
-
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -117,129 +105,103 @@ XrdMgmOfs::_chmod (const char *path,
   eos_info("path=%s mode=%o", path, Mode);
   eos::common::Path cPath(path);
 
-  try
-  {
+  try {
     cmd = gOFS->eosView->getContainer(path);
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
   }
 
-  if (!cmd)
-  {
+  if (!cmd) {
     errno = 0;
-    // Check if this is a file
-    try
-    {
-      fmd = gOFS->eosView->getFile(path);
 
-    }
-    catch (eos::MDException &e)
-    {
+    // Check if this is a file
+    try {
+      fmd = gOFS->eosView->getFile(path);
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
     }
   }
 
   if (cmd || fmd)
-    try
-    {
+    try {
       std::string uri;
 
-      if (cmd)
-      {
-	uri = gOFS->eosView->getUri(cmd.get());
-      }
-      else
-      {
-	uri = gOFS->eosView->getUri(fmd.get());
+      if (cmd) {
+        uri = gOFS->eosView->getUri(cmd.get());
+      } else {
+        uri = gOFS->eosView->getUri(fmd.get());
       }
 
       eos::common::Path pPath(uri.c_str());
-      pcmd =gOFS->eosView->getContainer(pPath.GetParentPath());
-
+      pcmd = gOFS->eosView->getContainer(pPath.GetParentPath());
       // ACL and permission check
       Acl acl(pPath.GetParentPath(), error, vid, attrmap, false);
 
-      if (vid.uid && !acl.IsMutable())
-      {
+      if (vid.uid && !acl.IsMutable()) {
         // immutable directory
         errno = EPERM;
-      }
-      else
-      {
+      } else {
         // If owner without revoked chmod permissions
-        if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || 
-            ((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || 
+        if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) ||
+            ((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) ||
             (!vid.uid) || // the root user
             (vid.uid == 3) || // the admin user
             (vid.gid == 4) || // the admin group
             (acl.CanChmod()) ||
-	    (attrmap.count("sys.mask"))) // a pre-defined mask to apply to the desired modbits
-        { // the chmod ACL entry
+            (attrmap.count("sys.mask"))) { // a pre-defined mask to apply to the desired modbits
+          // the chmod ACL entry
           // change the permission mask, but make sure it is set to a directory
-	  long mask=07777777;
+          long mask = 07777777;
 
-          if (Mode & S_IFREG)
+          if (Mode & S_IFREG) {
             Mode ^= S_IFREG;
-          if ((Mode & S_ISUID))
-          {
-            Mode ^= S_ISUID;
           }
-          else
-          {
-            if (!(Mode & S_ISGID))
-            {
+
+          if ((Mode & S_ISUID)) {
+            Mode ^= S_ISUID;
+          } else {
+            if (!(Mode & S_ISGID)) {
               Mode |= S_ISGID;
             }
           }
 
-	  if (attrmap.count("sys.mask"))
-	  {
-	    mask &= strtol(attrmap["sys.mask"].c_str(),0,8);
-	    mask |= 0777000;
-	  }
+          if (attrmap.count("sys.mask")) {
+            mask &= strtol(attrmap["sys.mask"].c_str(), 0, 8);
+            mask |= 0777000;
+          }
 
-	  eosView->updateContainerStore(pcmd.get());
+          eosView->updateContainerStore(pcmd.get());
 
-          if (cmd)
-          {
-	    Mode &= mask;
+          if (cmd) {
+            Mode &= mask;
             cmd->setMode(Mode | S_IFDIR);
-	    cmd->setCTimeNow();
+            cmd->setCTimeNow();
             // store the in-memory modification time for this directory
             eosView->updateContainerStore(cmd.get());
           }
-          if (fmd)
-          {
+
+          if (fmd) {
             // we just store 9 bits in flags
             Mode &= (S_IRWXU | S_IRWXG | S_IRWXO);
             fmd->setFlags(Mode);
             eosView->updateFileStore(fmd.get());
           }
+
           errno = 0;
-        }
-        else
-        {
+        } else {
           errno = EPERM;
         }
       }
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
     }
 
-  if (cmd && (!errno))
-  {
-
+  if (cmd && (!errno)) {
     EXEC_TIMING_END("Chmod");
     return SFS_OK;
   }
 
-  if (fmd && (!errno))
-  {
-
+  if (fmd && (!errno)) {
     EXEC_TIMING_END("Chmod");
     return SFS_OK;
   }

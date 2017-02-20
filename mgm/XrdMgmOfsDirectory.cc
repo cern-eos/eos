@@ -55,21 +55,21 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-XrdMgmOfsDirectory::XrdMgmOfsDirectory (char *user, int MonID):
-    XrdSfsDirectory (user, MonID)
+XrdMgmOfsDirectory::XrdMgmOfsDirectory(char* user, int MonID):
+  XrdSfsDirectory(user, MonID)
 {
   dirName = "";
   dh.reset();
   d_pnt = &dirent_full.d_entry;
-  eos::common::Mapping::Nobody (vid);
-  eos::common::LogId ();
+  eos::common::Mapping::Nobody(vid);
+  eos::common::LogId();
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfsDirectory::open (const char *inpath,
-                          const XrdSecEntity *client,
-                          const char *ininfo)
+XrdMgmOfsDirectory::open(const char* inpath,
+                         const XrdSecEntity* client,
+                         const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief open a directory object with bouncing/mapping & namespace mapping
@@ -82,35 +82,28 @@ XrdMgmOfsDirectory::open (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "opendir";
-  const char *tident = error.getErrUser();
-
+  static const char* epname = "opendir";
+  const char* tident = error.getErrUser();
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
-  XrdOucEnv Open_Env(info);
-
+  XrdOucEnv Open_Env(ininfo);
   AUTHORIZE(client, &Open_Env, AOP_Readdir, "open directory", inpath, error);
-
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, info, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
-  return _open(path, vid, info);
+  return _open(path, vid, ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfsDirectory::open (const char *inpath,
-                          eos::common::Mapping::VirtualIdentity &vid,
-                          const char *ininfo)
+XrdMgmOfsDirectory::open(const char* inpath,
+                         eos::common::Mapping::VirtualIdentity& vid,
+                         const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief open a directory object with bouncing & namespace mapping
@@ -126,26 +119,22 @@ XrdMgmOfsDirectory::open (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "opendir";
-
+  static const char* epname = "opendir";
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
-  XrdOucEnv Open_Env(info);
-
+  XrdOucEnv Open_Env(ininfo);
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
-  return _open(path, vid, info);
+  return _open(path, vid, ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfsDirectory::_open (const char *dir_path,
-                           eos::common::Mapping::VirtualIdentity &vid,
-                           const char *info)
+XrdMgmOfsDirectory::_open(const char* dir_path,
+                          eos::common::Mapping::VirtualIdentity& vid,
+                          const char* info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief open a directory object (without bouncing/mapping)
@@ -161,57 +150,45 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "opendir";
+  static const char* epname = "opendir";
   XrdOucEnv Open_Env(info);
   errno = 0;
-
   EXEC_TIMING_BEGIN("OpenDir");
-
   eos::common::Path cPath(dir_path);
-
   eos_info("name=opendir path=%s", cPath.GetPath());
-
   gOFS->MgmStats.Add("OpenDir", vid.uid, vid.gid, 1);
-
   // Open the directory
   bool permok = false;
-
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  try
-  {
+
+  try {
     eos::IContainerMD::XAttrMap attrmap;
     dh = gOFS->eosView->getContainer(cPath.GetPath());
     permok = dh->access(vid.uid, vid.gid, R_OK | X_OK);
 
-    if (!permok)
-    {
+    if (!permok) {
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
-
       // ACL and permission check
       Acl acl(cPath.GetPath(),
-	      error, 
-	      vid,
-	      attrmap,
-	      false);
-
+              error,
+              vid,
+              attrmap,
+              false);
       eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
                acl.CanBrowse(), acl.HasEgroup());
 
       // browse permission by ACL
-      if (acl.HasAcl())
-      {
-        if (acl.CanBrowse())
-        {
+      if (acl.HasAcl()) {
+        if (acl.CanBrowse()) {
           permok = true;
         }
       }
     }
 
-    if (permok)
-    {
+    if (permok) {
       // Add all the files and subdirectories
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
@@ -221,21 +198,20 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
       dh_list.insert(".");
 
       // The root dir has no .. entry
-      if (strcmp(dir_path, "/"))
+      if (strcmp(dir_path, "/")) {
         dh_list.insert("..");
+      }
     }
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
+
   // check permissions
 
-  if (dh)
-  {
+  if (dh) {
     eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
               vid.uid, vid.gid, (dh->access(vid.uid, vid.gid, R_OK | X_OK)),
               dh->getMode());
@@ -247,26 +223,23 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
     return Emsg(epname, error, errno,
                 "open directory", cPath.GetPath());
 
-  if (!permok)
-  {
+  if (!permok) {
     errno = EPERM;
     return Emsg(epname, error, errno,
                 "open directory", cPath.GetPath());
   }
 
   dirName = dir_path;
-
   // Set up values for this directory object
   //
   dh_it = dh_list.begin();
-
   EXEC_TIMING_END("OpenDir");
   return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
-const char *
-XrdMgmOfsDirectory::nextEntry ()
+const char*
+XrdMgmOfsDirectory::nextEntry()
 /*----------------------------------------------------------------------------*/
 /*
  * @brief read the next directory entry
@@ -280,10 +253,9 @@ XrdMgmOfsDirectory::nextEntry ()
  */
 /*----------------------------------------------------------------------------*/
 {
-  if (dh_it == dh_list.end())
-  {
+  if (dh_it == dh_list.end()) {
     // no more entry
-    return (const char *) 0;
+    return (const char*) 0;
   }
 
   std::set<std::string>::iterator tmp_it = dh_it;
@@ -293,7 +265,7 @@ XrdMgmOfsDirectory::nextEntry ()
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfsDirectory::close ()
+XrdMgmOfsDirectory::close()
 /*----------------------------------------------------------------------------*/
 /*
  * @brief close a directory object
@@ -304,18 +276,17 @@ XrdMgmOfsDirectory::close ()
 {
   //  static const char *epname = "closedir";
   dh_list.clear();
-
   return SFS_OK;
 }
 
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfsDirectory::Emsg (const char *pfx,
-                          XrdOucErrInfo &einfo,
-                          int ecode,
-                          const char *op,
-                          const char *target)
+XrdMgmOfsDirectory::Emsg(const char* pfx,
+                         XrdOucErrInfo& einfo,
+                         int ecode,
+                         const char* op,
+                         const char* target)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create an error message for a directory object
@@ -332,15 +303,16 @@ XrdMgmOfsDirectory::Emsg (const char *pfx,
  */
 /*----------------------------------------------------------------------------*/
 {
-  char *etext, buffer[4096], unkbuff[64];
+  char* etext, buffer[4096], unkbuff[64];
 
   // ---------------------------------------------------------------------------
   // Get the reason for the error
   // ---------------------------------------------------------------------------
-  if (ecode < 0) ecode = -ecode;
-  if (!(etext = strerror(ecode)))
-  {
+  if (ecode < 0) {
+    ecode = -ecode;
+  }
 
+  if (!(etext = strerror(ecode))) {
     sprintf(unkbuff, "reason unknown (%d)", ecode);
     etext = unkbuff;
   }
@@ -348,23 +320,23 @@ XrdMgmOfsDirectory::Emsg (const char *pfx,
   // ---------------------------------------------------------------------------
   // Format the error message
   // ---------------------------------------------------------------------------
-  snprintf(buffer, sizeof (buffer), "Unable to %s %s; %s", op, target, etext);
+  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
 
-  if (ecode == ENOENT)
+  if (ecode == ENOENT) {
     eos_debug("Unable to %s %s; %s", op, target, etext);
-  else
+  } else {
     eos_err("Unable to %s %s; %s", op, target, etext);
+  }
+
   // ---------------------------------------------------------------------------
   // Print it out if debugging is enabled
   // ---------------------------------------------------------------------------
 #ifndef NODEBUG
   //   XrdMgmOfs::eDest->Emsg(pfx, buffer);
 #endif
-
   // ---------------------------------------------------------------------------
   // Place the error message in the error object and return
   // ---------------------------------------------------------------------------
   einfo.setErrInfo(ecode, buffer);
-
   return SFS_ERROR;
 }

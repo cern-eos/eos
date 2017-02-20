@@ -31,39 +31,32 @@
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Mkdir ()
+ProcCommand::Mkdir()
 {
   XrdOucString spath = pOpaque->Get("mgm.path");
   XrdOucString option = pOpaque->Get("mgm.option");
-
   const char* inpath = spath.c_str();
-
   NAMESPACEMAP;
-  info = 0;
-  if (info)info = 0; // for compiler happyness
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
-
   spath = path;
 
-  if (!spath.length())
-  {
+  if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'mkdir'";
     retc = EINVAL;
-  }
-  else
-  {
+  } else {
     XrdSfsMode mode = 0;
-    if (option == "p")
-    {
+
+    if (option == "p") {
       mode |= SFS_O_MKPTH;
     }
-    if (gOFS->_mkdir(spath.c_str(), mode, *mError, *pVid, (const char*) 0))
-    {
+
+    if (gOFS->_mkdir(spath.c_str(), mode, *mError, *pVid, (const char*) 0)) {
       stdErr += "error: unable to create directory";
       retc = errno;
     }
   }
+
   return SFS_OK;
 }
 

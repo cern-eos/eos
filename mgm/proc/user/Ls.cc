@@ -33,38 +33,29 @@
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Ls ()
+ProcCommand::Ls()
 {
   gOFS->MgmStats.Add("Ls", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
   eos::common::Path cPath(spath.c_str());
   const char* inpath = cPath.GetPath();
-
   NAMESPACEMAP;
-  info = 0;
-  if (info)info = 0; // for compiler happyness
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
-
   eos_info("mapped to %s", path);
-
   spath = path;
-
   XrdOucString option = pOpaque->Get("mgm.option");
-  if (!spath.length())
-  {
+
+  if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'ls'";
     retc = EINVAL;
-  }
-  else
-  {
+  } else {
     XrdMgmOfsDirectory dir;
     struct stat buf;
     int listrc = 0;
     XrdOucString filter = "";
 
-    if (spath.find("*") != STR_NPOS)
-    {
+    if (spath.find("*") != STR_NPOS) {
       eos::common::Path cPath(spath.c_str());
       spath = cPath.GetParentPath();
       filter = cPath.GetName();
@@ -73,36 +64,29 @@ ProcCommand::Ls ()
     XrdOucString ls_file;
     std::string uri;
 
-    if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0, true, &uri))
-    {
+    if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0, true,
+                    &uri)) {
       stdErr = mError->getErrText();
       retc = errno;
-    }
-    else
-    {
+    } else {
       // put the resolved uri path
       spath = uri.c_str();
 
       // if this is a directory open it and list
-      if (S_ISDIR(buf.st_mode) && ((option.find("d")) == STR_NPOS))
-      {
+      if (S_ISDIR(buf.st_mode) && ((option.find("d")) == STR_NPOS)) {
         listrc = dir.open(spath.c_str(), *pVid, (const char*) 0);
-      }
-      else
-      {
+      } else {
         // if this is a file, open the parent and set the filter
-        if (spath.endswith("/"))
-        {
+        if (spath.endswith("/")) {
           spath.erase(spath.length() - 1);
         }
+
         int rpos = spath.rfind("/");
-        if (rpos == STR_NPOS)
-        {
+
+        if (rpos == STR_NPOS) {
           listrc = SFS_ERROR;
           retc = ENOENT;
-        }
-        else
-        {
+        } else {
           // this is an 'ls <file>' command which has to return only one entry!
           ls_file.assign(spath, rpos + 1);
           spath.erase(rpos);
@@ -111,44 +95,43 @@ ProcCommand::Ls ()
       }
 
       bool translateids = true;
-      if ((option.find("n")) != STR_NPOS)
-      {
+
+      if ((option.find("n")) != STR_NPOS) {
         translateids = false;
       }
 
-      if ((option.find("s")) != STR_NPOS)
-      {
+      if ((option.find("s")) != STR_NPOS) {
         // just return '0' if this is a directory
         return SFS_OK;
       }
 
-      if (!listrc)
-      {
+      if (!listrc) {
         const char* val;
-        while ((ls_file.length() && (val = ls_file.c_str())) || (val = dir.nextEntry()))
-        {
+
+        while ((ls_file.length() && (val = ls_file.c_str())) ||
+               (val = dir.nextEntry())) {
           // this return's a single file or a (filtered) directory list
           XrdOucString entryname = val;
-          if (((option.find("a")) == STR_NPOS) && entryname.beginswith("."))
-          {
+
+          if (((option.find("a")) == STR_NPOS) && entryname.beginswith(".")) {
             // quit if we list a hidden file without 'a' flag
-            if (ls_file.length())
+            if (ls_file.length()) {
               break;
+            }
+
             // skip over . .. and hidden files
             continue;
           }
-          if ((filter.length()) && (!entryname.matches(filter.c_str())))
-          {
+
+          if ((filter.length()) && (!entryname.matches(filter.c_str()))) {
             // apply filter
             continue;
           }
-          if ((((option.find("l")) == STR_NPOS)) && ((option.find("F")) == STR_NPOS))
-          {
+
+          if ((((option.find("l")) == STR_NPOS)) && ((option.find("F")) == STR_NPOS)) {
             stdOut += val;
             stdOut += "\n";
-          }
-          else
-          {
+          } else {
             // yeah ... that is actually castor code ;-)
             char t_creat[14];
             char ftype[8];
@@ -178,19 +161,19 @@ ProcCommand::Ls ()
             XrdOucString statpath = spath;
             statpath += "/";
             statpath += val;
-            while (statpath.replace("//", "/"))
-            {
+
+            while (statpath.replace("//", "/")) {
             }
+
             struct stat buf;
-            if (gOFS->_stat(statpath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0, false))
-            {
+
+            if (gOFS->_stat(statpath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0,
+                            false)) {
               stdErr += "error: unable to stat path ";
               stdErr += statpath;
               stdErr += "\n";
               retc = errno;
-            }
-            else
-            {
+            } else {
               int i = 0;
               // TODO: convert virtual IDs back
               XrdOucString suid = "";
@@ -198,39 +181,53 @@ ProcCommand::Ls ()
               XrdOucString sgid = "";
               sgid += (int) buf.st_gid;
               XrdOucString sizestring = "";
-              struct tm *t_tm;
+              struct tm* t_tm;
               struct tm t_tm_local;
               t_tm = localtime_r(&buf.st_ctime, &t_tm_local);
-
               strcpy(modestr, "----------");
-              for (i = 0; i < 6; i++) if (ftype_v[i] == (S_IFMT & buf.st_mode)) break;
+
+              for (i = 0; i < 6; i++) if (ftype_v[i] == (S_IFMT & buf.st_mode)) {
+                  break;
+                }
+
               modestr[0] = ftype[i];
-              for (i = 0; i < 9; i++) if (fmode_v[i] & buf.st_mode) modestr[i + 1] = fmode[i];
-              if (S_ISUID & buf.st_mode) modestr[3] = 's';
-              if (S_ISGID & buf.st_mode) modestr[6] = 's';
-              if (S_ISVTX & buf.st_mode) modestr[9] = '+';
-              if (translateids)
-              {
+
+              for (i = 0; i < 9; i++) if (fmode_v[i] & buf.st_mode) {
+                  modestr[i + 1] = fmode[i];
+                }
+
+              if (S_ISUID & buf.st_mode) {
+                modestr[3] = 's';
+              }
+
+              if (S_ISGID & buf.st_mode) {
+                modestr[6] = 's';
+              }
+
+              if (S_ISVTX & buf.st_mode) {
+                modestr[9] = '+';
+              }
+
+              if (translateids) {
                 {
                   // try to translate with password database
                   int terrc = 0;
                   std::string username = "";
                   username = eos::common::Mapping::UidToUserName(buf.st_uid, terrc);
-                  if (!terrc)
-                  {
+
+                  if (!terrc) {
                     char uidlimit[16];
                     snprintf(uidlimit, 12, "%s", username.c_str());
                     suid = uidlimit;
                   }
                 }
-
                 {
                   // try to translate with password database
                   std::string groupname = "";
                   int terrc = 0;
                   groupname = eos::common::Mapping::GidToGroupName(buf.st_gid, terrc);
-                  if (!terrc)
-                  {
+
+                  if (!terrc) {
                     char gidlimit[16];
                     snprintf(gidlimit, 12, "%s", groupname.c_str());
                     sgid = gidlimit;
@@ -241,65 +238,71 @@ ProcCommand::Ls ()
               strftime(t_creat, 13, "%b %d %H:%M", t_tm);
               char lsline[4096];
               XrdOucString dirmarker = "";
-              if ((option.find("F")) != STR_NPOS)
-                dirmarker = "/";
-              if (modestr[0] != 'd')
-                dirmarker = "";
 
-              if ((option.find("i")) != STR_NPOS)
-              {
+              if ((option.find("F")) != STR_NPOS) {
+                dirmarker = "/";
+              }
+
+              if (modestr[0] != 'd') {
+                dirmarker = "";
+              }
+
+              if ((option.find("i")) != STR_NPOS) {
                 // add inode information
                 char sinode[16];
                 bool isfile = (modestr[0] != 'd');
-                snprintf(sinode, 16, "%llu", (unsigned long long) (isfile ? (buf.st_ino >> 28) : buf.st_ino));
+                snprintf(sinode, 16, "%llu",
+                         (unsigned long long)(isfile ? (buf.st_ino >> 28) : buf.st_ino));
                 sprintf(lsline, "%-16s", sinode);
                 stdOut += lsline;
               }
 
-	      if ((option.find("h")) == STR_NPOS)
-		sprintf(lsline, "%s %3d %-8.8s %-8.8s %12s %s %s%s", modestr, (int) buf.st_nlink,
-			suid.c_str(), sgid.c_str(), eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) buf.st_size), t_creat, val, dirmarker.c_str());
-	      else
-		sprintf(lsline, "%s %3d %-8.8s %-8.8s %12s %s %s%s", modestr, (int) buf.st_nlink,
-			suid.c_str(), sgid.c_str(), eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) buf.st_size, ""), t_creat, val, dirmarker.c_str());
-              if ((option.find("l")) != STR_NPOS)
-	      {
-                stdOut += lsline;
-		if (S_ISLNK(buf.st_mode)) 
-		{
-		  stdOut += " -> ";
-		  XrdOucString link;
-		  if (!gOFS->_readlink(statpath.c_str(), *mError, *pVid, link)) {
-		    stdOut += link.c_str();
-		  } 
-		  else 
-		  {
-		    stdOut += "( error )\n";
-		  }
-		}
-		stdOut += "\n";
-	      }
+              if ((option.find("h")) == STR_NPOS)
+                sprintf(lsline, "%s %3d %-8.8s %-8.8s %12s %s %s%s", modestr,
+                        (int) buf.st_nlink,
+                        suid.c_str(), sgid.c_str(),
+                        eos::common::StringConversion::GetSizeString(sizestring,
+                            (unsigned long long) buf.st_size), t_creat, val, dirmarker.c_str());
               else
-              {
+                sprintf(lsline, "%s %3d %-8.8s %-8.8s %12s %s %s%s", modestr,
+                        (int) buf.st_nlink,
+                        suid.c_str(), sgid.c_str(),
+                        eos::common::StringConversion::GetReadableSizeString(sizestring,
+                            (unsigned long long) buf.st_size, ""), t_creat, val, dirmarker.c_str());
+
+              if ((option.find("l")) != STR_NPOS) {
+                stdOut += lsline;
+
+                if (S_ISLNK(buf.st_mode)) {
+                  stdOut += " -> ";
+                  XrdOucString link;
+
+                  if (!gOFS->_readlink(statpath.c_str(), *mError, *pVid, link)) {
+                    stdOut += link.c_str();
+                  } else {
+                    stdOut += "( error )\n";
+                  }
+                }
+
+                stdOut += "\n";
+              } else {
                 stdOut += val;
                 stdOut += dirmarker;
                 stdOut += "\n";
               }
             }
           }
-          if (ls_file.length())
-          {
+
+          if (ls_file.length()) {
             // this was a single file to be listed
             break;
           }
         }
-        if (!ls_file.length())
-        {
+
+        if (!ls_file.length()) {
           dir.close();
         }
-      }
-      else
-      {
+      } else {
         stdErr += "error: unable to open directory";
         retc = errno;
       }

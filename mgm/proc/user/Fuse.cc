@@ -32,43 +32,36 @@
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Fuse ()
+ProcCommand::Fuse()
 {
   gOFS->MgmStats.Add("Fuse-Dirlist", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
-  bool statentries = pOpaque->GetInt("mgm.statentries")==-999999999?false:(bool)pOpaque->GetInt("mgm.statentries");
+  bool statentries = pOpaque->GetInt("mgm.statentries") == -999999999 ? false :
+                     (bool)pOpaque->GetInt("mgm.statentries");
   bool encodepath  = pOpaque->Get("eos.encodepath");
-
   const char* inpath = spath.c_str();
-
   NAMESPACEMAP;
-  info = 0;
-  if (info)info = 0; // for compiler happyness
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
-
   spath = path;
-  
-  if(encodepath)
-    mResultStream = "inodirlist_pathencode: retc=";
-  else
-    mResultStream = "inodirlist: retc=";
 
-  if (!spath.length())
-  {
-    mResultStream += EINVAL;
+  if (encodepath) {
+    mResultStream = "inodirlist_pathencode: retc=";
+  } else {
+    mResultStream = "inodirlist: retc=";
   }
-  else
-  {
+
+  if (!spath.length()) {
+    mResultStream += EINVAL;
+  } else {
     XrdMgmOfsDirectory* inodir = (XrdMgmOfsDirectory*) gOFS->newDir((char*) "");
-    if (!inodir)
-    {
+
+    if (!inodir) {
       mResultStream += ENOMEM;
       return SFS_ERROR;
     }
 
-    if ((retc = inodir->_open(path, *pVid, 0)) != SFS_OK)
-    {
+    if ((retc = inodir->_open(path, *pVid, 0)) != SFS_OK) {
       delete inodir;
       retc = -retc;
       mResultStream += retc;
@@ -78,169 +71,154 @@ ProcCommand::Fuse ()
     }
 
     const char* entry;
-
     mResultStream += 0;
     mResultStream += " ";
-
     unsigned long long inode = 0;
-
     char inodestr[256];
     size_t dotend = 0;
     size_t dotstart = mResultStream.length();
 
-    while ((entry = inodir->nextEntry()))
-    {
+    while ((entry = inodir->nextEntry())) {
       bool isdot = false;
       bool isdotdot = false;
-
       XrdOucString whitespaceentry = entry;
 
-      if (whitespaceentry == ".")
-      {
+      if (whitespaceentry == ".") {
         isdot = true;
       }
-      if (whitespaceentry == "..")
-      {
+
+      if (whitespaceentry == "..") {
         isdotdot = true;
       }
 
-      if(encodepath)
-      {
-        whitespaceentry = eos::common::StringConversion::curl_escaped(whitespaceentry.c_str()).c_str();
-      }
-      else
-      {
+      if (encodepath) {
+        whitespaceentry = eos::common::StringConversion::curl_escaped(
+                            whitespaceentry.c_str()).c_str();
+      } else {
         // encode spaces
         whitespaceentry.replace(" ", "%20");
-
         // encode \n
         whitespaceentry.replace("\n", "%0A");
       }
 
-      if ((!isdot) && (!isdotdot))
-      {
+      if ((!isdot) && (!isdotdot)) {
         mResultStream += whitespaceentry;
         mResultStream += " ";
       }
-      if (isdot)
-      {
+
+      if (isdot) {
         // the . and .. has to be streamed as first entries
         mResultStream.insert(". ", dotstart);
       }
-      if (isdotdot)
-      {
+
+      if (isdotdot) {
         mResultStream.insert(".. ", dotend);
       }
 
       XrdOucString statpath = path;
       statpath += "/";
       statpath += entry;
-
       eos::common::Path cPath(statpath.c_str());
-
       // attach MD to get inode number
       std::shared_ptr<eos::IFileMD> fmd;
       std::shared_ptr<eos::IContainerMD> dir;
       inode = 0;
-
       //-------------------------------------------
       {
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-        try
-        {
+
+        try {
           fmd = gOFS->eosView->getFile(cPath.GetPath(), false);
           inode = fmd->getId() << 28;
-        }
-        catch (eos::MDException &e)
-        {
+        } catch (eos::MDException& e) {
           errno = e.getErrno();
-          eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+          eos_debug("caught exception %d %s\n", e.getErrno(),
+                    e.getMessage().str().c_str());
         }
       }
       //-------------------------------------------
 
       // check if that is a directory in case
-      if (!fmd)
-      {
+      if (!fmd) {
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-        try
-        {
+
+        try {
           dir = gOFS->eosView->getContainer(cPath.GetPath(), false);
           inode = dir->getId();
-        }
-        catch (eos::MDException &e)
-        {
+        } catch (eos::MDException& e) {
           dir = std::shared_ptr<IContainerMD>((IContainerMD*)0);
-          eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+          eos_debug("caught exception %d %s\n", e.getErrno(),
+                    e.getMessage().str().c_str());
         }
       }
+
       sprintf(inodestr, "%lld", inode);
-      if ((!isdot) && (!isdotdot) && inode)
-      {
+
+      if ((!isdot) && (!isdotdot) && inode) {
         mResultStream += inodestr;
         mResultStream += " ";
-        if(statentries && (fmd || dir))
-        {
+
+        if (statentries && (fmd || dir)) {
           struct stat buf;
           std::string uri;
-          if(!gOFS->_stat(cPath.GetPath(), &buf, *mError, *pVid, (const char*) 0, 0, false, &uri))
-          {
+
+          if (!gOFS->_stat(cPath.GetPath(), &buf, *mError, *pVid, (const char*) 0, 0,
+                           false, &uri)) {
             char cbuf[1024];
-            char* ss=cbuf;
-            (*(ss++))='{';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_atim.tv_nsec,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_atim.tv_sec,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_blksize,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_blocks,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_ctim.tv_nsec,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_ctim.tv_sec,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_dev,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_gid,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_ino,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_mode,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_mtim.tv_nsec,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_mtim.tv_sec,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_nlink,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_rdev,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_size,ss);
-            (*(ss++))=',';
-            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_uid,ss);
-            (*ss++)='}';
-            (*ss++)=' ';
-            (*ss++)=0;
-            mResultStream+=cbuf;
+            char* ss = cbuf;
+            (*(ss++)) = '{';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_atim.tv_nsec,
+                 ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_atim.tv_sec,
+                 ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_blksize, ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_blocks, ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_ctim.tv_nsec,
+                 ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_ctim.tv_sec,
+                 ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_dev, ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_gid, ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_ino, ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_mode, ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_mtim.tv_nsec,
+                 ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_mtim.tv_sec,
+                 ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_nlink, ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_rdev, ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_size, ss);
+            (*(ss++)) = ',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_uid, ss);
+            (*ss++) = '}';
+            (*ss++) = ' ';
+            (*ss++) = 0;
+            mResultStream += cbuf;
           }
         }
-      }
-      else
-      {
-        if (isdot)
-        {
+      } else {
+        if (isdot) {
           mResultStream.insert(inodestr, dotstart + 2);
           mResultStream.insert(" ", dotstart + 2 + strlen(inodestr));
           dotend = dotstart + 2 + strlen(inodestr) + 1;
-        }
-        else if(isdotdot)
-        {
+        } else if (isdotdot) {
           mResultStream.insert(inodestr, dotend + 3);
           mResultStream.insert(" ", dotend + strlen(inodestr) + 3);
-        }
-        else
-        {
+        } else {
           eos_debug("null inode and not . or ..");
         }
       }
@@ -252,6 +230,7 @@ ProcCommand::Fuse ()
     mLen = mResultStream.length();
     mOffset = 0;
   }
+
   return SFS_OK;
 }
 

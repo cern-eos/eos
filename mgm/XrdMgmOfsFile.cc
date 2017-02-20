@@ -188,7 +188,7 @@ XrdMgmOfsFile::open(const char* inpath,
     break;
   }
 
-  XrdOucString pinfo = info ? info : "";
+  XrdOucString pinfo = (ininfo ? ininfo : "");
   eos::common::StringConversion::MaskTag(pinfo, "cap.msg");
   eos::common::StringConversion::MaskTag(pinfo, "cap.sym");
   eos::common::StringConversion::MaskTag(pinfo, "authz");
@@ -247,7 +247,8 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  openOpaque = new XrdOucEnv(info);
+  openOpaque = new XrdOucEnv(ininfo);
+
   {
     // figure out if this is FUSE access
     const char* val = 0;
@@ -396,13 +397,13 @@ XrdMgmOfsFile::open(const char* inpath,
 
     gOFS->MgmStats.Add("OpenProc", vid.uid, vid.gid, 1);
 
-    if (!ProcInterface::Authorize(path, info, vid, client)) {
+    if (!ProcInterface::Authorize(path, ininfo, vid, client)) {
       return Emsg(epname, error, EPERM, "execute proc command - you don't have "
                   "the requested permissions for that operation (2)", path);
     } else {
       procCmd = new ProcCommand();
       procCmd->SetLogId(logId, vid, tident);
-      return procCmd->open(path, info, vid, &error);
+      return procCmd->open(path, ininfo, vid, &error);
     }
   }
 
@@ -443,7 +444,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
     // if it does not exist try to create the path!
     if ((!ec) && (file_exists == XrdSfsFileExistNo)) {
-      ec = gOFS->_mkdir(cPath.GetParentPath(), Mode, error, vid, info);
+      ec = gOFS->_mkdir(cPath.GetParentPath(), Mode, error, vid, ininfo);
 
       if (ec) {
         gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
@@ -746,7 +747,7 @@ XrdMgmOfsFile::open(const char* inpath,
         }
       } else {
         // drop the old file (for non atomic uploads) and create a new truncated one
-        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, info, false, false)) {
+        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, ininfo, false, false)) {
           return Emsg(epname, error, errno, "remove file for truncation", path);
         }
       }

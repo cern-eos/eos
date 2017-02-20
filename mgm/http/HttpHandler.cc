@@ -772,6 +772,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
                     url.c_str(), etag.c_str(), request->GetHeaders()["if-not-match"].c_str());
     response = HttpServer::HttpError("ETag is not modified",
                                      response->NOT_MODIFIED);
+    return response;
   }
 
   if (isfile) {

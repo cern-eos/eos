@@ -86,11 +86,6 @@ ProcCommand::Archive()
     XrdOucString spath = pOpaque->Get("mgm.archive.path");
     const char* inpath = spath.c_str();
     NAMESPACEMAP;
-
-    if (info) {
-      info = 0;
-    }
-
     PROC_BOUNCE_ILLEGAL_NAMES;
     PROC_BOUNCE_NOT_ALLOWED;
     eos::common::Path cPath(path);
@@ -112,11 +107,6 @@ ProcCommand::Archive()
     XrdOucString spath = pOpaque->Get("mgm.archive.path");
     const char* inpath = spath.c_str();
     NAMESPACEMAP;
-
-    if (info) {
-      info = 0;
-    }
-
     PROC_BOUNCE_ILLEGAL_NAMES;
     PROC_BOUNCE_NOT_ALLOWED;
     eos::common::Path cPath(path);

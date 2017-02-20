@@ -29,11 +29,11 @@
 
 /*----------------------------------------------------------------------------*/
 std::string
-XrdMgmOfs::CreateSharePath (const char* inpath,
-                            const char* ininfo,
-                            time_t expires,
-                            XrdOucErrInfo &error,
-                            eos::common::Mapping::VirtualIdentity & vid)
+XrdMgmOfs::CreateSharePath(const char* inpath,
+                           const char* ininfo,
+                           time_t expires,
+                           XrdOucErrInfo& error,
+                           eos::common::Mapping::VirtualIdentity& vid)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a file sharing path with given liftime
@@ -50,54 +50,47 @@ XrdMgmOfs::CreateSharePath (const char* inpath,
   NAMESPACEMAP;
   errno = 0;
 
-  if (info)
-  {
-  }
-
-  if (_access(path, R_OK, error, vid, ""))
-  {
+  if (_access(path, R_OK, error, vid, "")) {
     errno = EPERM;
     return std::string("");
   }
 
   XrdSfsFileExistence file_exists;
-  if ((_exists(path, file_exists, error, vid, 0)))
-  {
+
+  if ((_exists(path, file_exists, error, vid, 0))) {
     errno = ENOENT;
     return std::string("");
   }
 
-  if (file_exists != XrdSfsFileExistIsFile)
-  {
+  if (file_exists != XrdSfsFileExistIsFile) {
     errno = EISDIR;
     return std::string("");
   }
 
   struct stat buf;
+
   eos::common::Mapping::VirtualIdentity rootvid;
+
   eos::common::Mapping::Root(rootvid);
-  if (_stat(path, &buf, error, rootvid))
-  {
+
+  if (_stat(path, &buf, error, rootvid)) {
     return std::string("");
   }
 
   std::string signit = path;
   signit += "?";
-
   char sexpires[256];
-  snprintf(sexpires, sizeof (sexpires) - 1, "%u", (unsigned int) expires);
+  snprintf(sexpires, sizeof(sexpires) - 1, "%u", (unsigned int) expires);
   signit += "eos.share.expires=";
   signit += sexpires;
   signit += "&eos.share.fxid=";
   XrdOucString hexstring = "";
   eos::common::FileId::Fid2Hex(buf.st_ino, hexstring);
   signit += hexstring.c_str();
-
   signit += "&eos.share.signature=";
-
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-  if (!symkey)
-  {
+
+  if (!symkey) {
     errno = ENOKEY;
     return std::string("");
   }
@@ -110,15 +103,13 @@ XrdMgmOfs::CreateSharePath (const char* inpath,
   XrdOucString ouc_signed;
 
   if (!XrdMqMessage::SymmetricStringEncrypt(ouc_sign,
-                                            ouc_signed,
-                                            (char*) symkey->GetKey()))
-  {
+      ouc_signed,
+      (char*) symkey->GetKey())) {
     errno = EKEYREJECTED;
     return std::string("");
   }
 
-  while (ouc_signed.replace("\n", ""))
-  {
+  while (ouc_signed.replace("\n", "")) {
   }
 
   signit += ouc_signed.c_str();
@@ -127,8 +118,8 @@ XrdMgmOfs::CreateSharePath (const char* inpath,
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmOfs::VerifySharePath (const char* path,
-                            XrdOucEnv * opaque)
+XrdMgmOfs::VerifySharePath(const char* path,
+                           XrdOucEnv* opaque)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief verify a file sharing path
@@ -140,34 +131,38 @@ XrdMgmOfs::VerifySharePath (const char* path,
  */
 {
   // check if this is a signed path
-  if (!opaque->Get("eos.share.signature"))
+  if (!opaque->Get("eos.share.signature")) {
     return false;
+  }
 
   // check if this has a valid expiration date
   XrdOucString expires = opaque->Get("eos.share.expires");
-  if (!expires.length() || expires == "0")
+
+  if (!expires.length() || expires == "0") {
     return false;
+  }
 
   // check if this has fid
   XrdOucString fxid = opaque->Get("eos.share.fxid");
-  if (!fxid.length())
+
+  if (!fxid.length()) {
     return false;
+  }
 
   // get the fid
   struct stat buf;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
-  if (_stat(path, &buf, error, rootvid))
-  {
+
+  if (_stat(path, &buf, error, rootvid)) {
     return false;
   }
 
   XrdOucString hexstring = "";
   eos::common::FileId::Fid2Hex(buf.st_ino, hexstring);
 
-  if (fxid != hexstring)
-  {
+  if (fxid != hexstring) {
     eos_warning("msg=\"shared file has changed file id - share URL not valid anymore\"");
     return false;
   }
@@ -175,20 +170,20 @@ XrdMgmOfs::VerifySharePath (const char* path,
   // check that it is not yet expired
   time_t expired = strtoul(expires.c_str(), 0, 10);
   time_t now = time(NULL);
-  if (!expired || (expired < now))
-  {
+
+  if (!expired || (expired < now)) {
     int envlen;
-    eos_static_err("msg=\"shared link expired\" path=%s info=%s\n", path, opaque->Env(envlen));
+    eos_static_err("msg=\"shared link expired\" path=%s info=%s\n", path,
+                   opaque->Env(envlen));
     return false;
   }
 
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-  if (!symkey)
-  {
+
+  if (!symkey) {
     eos_static_err("msg=\"failed to retrieve symmetric key to verify shared link");
     return false;
   }
-
 
   // verify the signature
   XrdOucString ouc_sign = expires;
@@ -199,27 +194,23 @@ XrdMgmOfs::VerifySharePath (const char* path,
   XrdOucString ouc_signed;
 
   if (!XrdMqMessage::SymmetricStringEncrypt(ouc_sign,
-                                            ouc_signed,
-                                            (char*) symkey->GetKey()))
-  {
+      ouc_signed,
+      (char*) symkey->GetKey())) {
     eos_static_err("msg=\"failed to encrypt to verify shared link");
     return false;
   }
 
-  while (ouc_signed.replace("\n", ""))
-  {
+  while (ouc_signed.replace("\n", "")) {
   }
 
   XrdOucString ouc_signature = opaque->Get("eos.share.signature");
-  if (ouc_signature == ouc_signed)
-  {
-    return true;
-  }
-  else
-  {
 
+  if (ouc_signature == ouc_signed) {
+    return true;
+  } else {
     int envlen;
-    eos_static_err("msg=\"shared link with invalid signature\" path=%s info=%s len=%d len=%d\n", path, opaque->Env(envlen), ouc_signature.length(), ouc_signed.length());
+    eos_static_err("msg=\"shared link with invalid signature\" path=%s info=%s len=%d len=%d\n",
+                   path, opaque->Env(envlen), ouc_signature.length(), ouc_signed.length());
     return false;
   }
 }

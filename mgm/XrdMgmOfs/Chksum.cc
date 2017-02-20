@@ -29,12 +29,12 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
-                   const char *csName,
-                   const char *inpath,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *ininfo)
+XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
+                  const char* csName,
+                  const char* inpath,
+                  XrdOucErrInfo& error,
+                  const XrdSecEntity* client,
+                  const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief retrieve a checksum
@@ -53,37 +53,28 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "chksum";
-  const char *tident = error.getErrUser();
-
+  static const char* epname = "chksum";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Nobody(vid);
-
   char buff[MAXPATHLEN + 8];
   int rc;
-
   XrdOucString CheckSumName = csName;
-
   // ---------------------------------------------------------------------------
   // retrieve meta data for <path>
   // ---------------------------------------------------------------------------
   // A csSize request is issued usually once to verify everything is working. We
   // take this opportunity to also verify the checksum name.
   // ---------------------------------------------------------------------------
-
   rc = 0;
 
-  if (Func == XrdSfsFileSystem::csSize)
-  {
-    if (1)
-    {
+  if (Func == XrdSfsFileSystem::csSize) {
+    if (1) {
       // just return the length
       error.setErrCode(20);
       return SFS_OK;
-    }
-    else
-    {
+    } else {
       eos_static_info("not supported");
       strcpy(buff, csName);
       strcat(buff, " checksum not supported.");
@@ -93,28 +84,19 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
   }
 
   NAMESPACEMAP;
-
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, info, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   gOFS->MgmStats.Add("Checksum", vid.uid, vid.gid, 1);
-
-  XrdOucEnv Open_Env(info);
-
+  XrdOucEnv Open_Env(ininfo);
   AUTHORIZE(client, &Open_Env, AOP_Stat, "stat", inpath, error);
-
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
-
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   eos_info("path=%s", inpath);
-
   // ---------------------------------------------------------------------------
   errno = 0;
   std::shared_ptr<eos::IFileMD> fmd;
@@ -124,8 +106,7 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
   // Everything else requires a path
   // ---------------------------------------------------------------------------
 
-  if (!path)
-  {
+  if (!path) {
     strcpy(buff, csName);
     strcat(buff, " checksum path not specified.");
     error.setErrInfo(EINVAL, buff);
@@ -134,37 +115,29 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  bool enonet=false;
+  bool enonet = false;
 
-  try
-  {
+  try {
     fmd = gOFS->eosView->getFile(cPath.GetPath());
     enonet = !fmd->getNumLocation();
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
   }
 
-  if (!fmd)
-  {
+  if (!fmd) {
     // file does not exist
     *buff = 0;
     rc = ENOENT;
-
     MAYREDIRECT_ENOENT;
     MAYSTALL_ENOENT;
-
     error.setErrInfo(rc, "no such file or directory");
     return SFS_ERROR;
   }
 
-  if (enonet)
-  {
+  if (enonet) {
     // this file has no committed replicas, we might bounce to an alive remote master
-    if ( !gOFS->MgmMaster.IsMaster() && gOFS->MgmMaster.IsRemoteMasterOk())
-    {
-      // redirect ENONET to an alive remote master                                                                             
+    if (!gOFS->MgmMaster.IsMaster() && gOFS->MgmMaster.IsRemoteMasterOk()) {
+      // redirect ENONET to an alive remote master
       error.setErrInfo(1094, gOFS->MgmMaster.GetMasterHost());
       gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
       return SFS_REDIRECT;
@@ -175,36 +148,32 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
   // Now determine what to do
   // ---------------------------------------------------------------------------
   if ((Func == XrdSfsFileSystem::csCalc) ||
-      (Func == XrdSfsFileSystem::csGet))
-  {
-  }
-  else
-  {
+      (Func == XrdSfsFileSystem::csGet)) {
+  } else {
     error.setErrInfo(EINVAL, "Invalid checksum function.");
     return SFS_ERROR;
   }
 
   // Set the checksum type
-  std::string cksum_type = eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+  std::string cksum_type = eos::common::LayoutId::GetChecksumString(
+                             fmd->getLayoutId());
   sprintf(buff, "!%s ", cksum_type.c_str());
-
   // copy the checksum buffer
-  const char *hv = "0123456789abcdef";
+  const char* hv = "0123456789abcdef";
   size_t j = strlen(buff);
-  for (size_t i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
-  {
 
+  for (size_t i = 0;
+       i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
     buff[j++] = hv[(fmd->getChecksum().getDataPadded(i) >> 4) & 0x0f];
     buff[j++] = hv[ fmd->getChecksum().getDataPadded(i) & 0x0f];
   }
-  if (j == 0)
-  {
+
+  if (j == 0) {
     sprintf(buff, "NONE");
-  }
-  else
-  {
+  } else {
     buff[j] = '\0';
   }
+
   eos_info("checksum=\"%s\"", buff);
   error.setErrInfo(0, buff);
   return SFS_OK;

@@ -54,7 +54,6 @@ XrdMgmOfs::symlink(const char* source_name,
   const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-  XrdSecEntity mappedclient;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, infoO, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -84,7 +83,6 @@ XrdMgmOfs::symlink(const char* source_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     sourcen = path;
-    info = 0;
   }
   {
     inpath = targetn.c_str();
@@ -92,7 +90,6 @@ XrdMgmOfs::symlink(const char* source_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     targetn = path;
-    info = 0;
   }
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -142,7 +139,6 @@ XrdMgmOfs::symlink(const char* source_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     sourcen = path;
-    info = 0;
   }
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -264,7 +260,6 @@ XrdMgmOfs::readlink(const char* inpath,
   const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-  XrdSecEntity mappedclient;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -279,11 +274,6 @@ XrdMgmOfs::readlink(const char* inpath,
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
-  if (info) {
-    info = 0;
-  }
-
   return _readlink(path, error, vid, link);
 }
 

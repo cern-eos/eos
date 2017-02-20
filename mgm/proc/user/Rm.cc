@@ -46,12 +46,6 @@ ProcCommand::Rm()
   XrdOucString filter = "";
   std::set<std::string> rmList;
   NAMESPACEMAP;
-  info = 0;
-
-  if (info) {
-    info = 0;  // for compiler happyness
-  }
-
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;

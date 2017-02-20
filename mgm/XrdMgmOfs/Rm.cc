@@ -54,17 +54,17 @@ XrdMgmOfs::rem(const char* inpath,
   eos::common::Mapping::VirtualIdentity vid;
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-  XrdOucEnv env(info);
+  XrdOucEnv env(ininfo);
   AUTHORIZE(client, &env, AOP_Delete, "remove", inpath, error);
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, info, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-  return _rem(path, error, vid, info);
+  return _rem(path, error, vid, ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
