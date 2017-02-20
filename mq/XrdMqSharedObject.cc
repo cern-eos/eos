@@ -114,8 +114,8 @@ XrdMqSharedHashEntry::XrdMqSharedHashEntry(const XrdMqSharedHashEntry& other)
 //----------------------------------------------------------------------------
 //! Move constructor
 //----------------------------------------------------------------------------
-XrdMqSharedHashEntry::XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other)
-noexcept:
+XrdMqSharedHashEntry::XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other):
+// noexcept:
   mKey(std::move(other.mKey)), mValue(std::move(other.mValue)),
   mChangeId(other.mChangeId), mMtime(other.mMtime)
 {}

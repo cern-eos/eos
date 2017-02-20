@@ -93,7 +93,7 @@ public:
   //----------------------------------------------------------------------------
   //! Move constructor
   //----------------------------------------------------------------------------
-  XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other) noexcept;
+  XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other);// noexcept;
 
   //----------------------------------------------------------------------------
   //! Get value
