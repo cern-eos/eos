@@ -1373,7 +1373,8 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
 
       eos_info("searching at deepness=%d directory=%s", handle->deepness,
                dit->c_str());
-      XrdCl::URL url(*dit);
+      std::string surl_dir = *dit;
+      XrdCl::URL url(surl_dir);
       XrdCl::FileSystem fs(url);
       status = XrdIo::GetDirList(&fs, url, &files, &directories);
 
@@ -1388,6 +1389,9 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
         handle->found_dirs[handle->deepness].erase(dit);
       }
 
+      std::string new_file{""};
+      std::string new_dir{""};
+
       for (auto it = files.begin(); it != files.end(); ++it) {
         XrdOucString fname = it->c_str();
 
@@ -1395,15 +1399,16 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
           continue;
         }
 
-        // TODO (plensing): dit is invalidaed by the above erase command
-        eos_info("adding file=%s", (*dit + *it).c_str());
-        handle->found_files.push_back(*dit + *it);
+        new_file = surl_dir + *it;
+        eos_info("adding file=%s", new_file.c_str());
+        handle->found_files.push_back(new_file);
       }
 
       for (auto it = directories.begin(); it != directories.end(); ++it) {
-        eos_info("adding dir=%s deepness=%d", (*dit + *it + "/").c_str(),
+        new_dir = surl_dir + *it + "/";
+        eos_info("adding dir=%s deepness=%d", new_dir.c_str(),
                  handle->deepness + 1);
-        handle->found_dirs[handle->deepness + 1].push_back(*dit + *it + "/");
+        handle->found_dirs[handle->deepness + 1].push_back(new_dir);
       }
     } while (!handle->found_files.size());
   }

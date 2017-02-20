@@ -128,6 +128,10 @@ int main(int argc, char** argv)
     std::cerr << std::endl;
     std::cerr << "Error: " << e.what() << std::endl;
     return 2;
+  } catch (const std::length_error& e) {
+    std::cerr << std::endl
+              << "Error: failed to insert into google map" << std::endl;
+    return 3;
   }
 
   //----------------------------------------------------------------------------

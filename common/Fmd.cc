@@ -911,7 +911,6 @@ FmdHandler::Commit(Fmd* fmd)
  *
  * @return true if successful otherwise false
  */
-
 /*----------------------------------------------------------------------------*/
 bool
 FmdHandler::TrimLogFile(int fsid, XrdOucString option)
@@ -1003,7 +1002,8 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
   eos_static_info("trimming step 5");
 
   if (rc) {
-    // now we take a lock, copy the latest changes since the trimming to the new file and exchange the current filedescriptor
+    // Take a lock, copy the latest changes since the trimming to the new
+    // file and exchange the current filedescriptor.
     off_t oldtailoffset = lseek(fdChangeLogWrite[fsid], 0, SEEK_CUR);
     off_t newtailoffset = lseek(newfd, 0, SEEK_CUR);
     off_t offset = oldtailoffset;
@@ -1032,9 +1032,8 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
     // clean up erased
     FmdMap[fsid].resize(0);
     FmdSize.resize(0);
-    google::dense_hash_map<unsigned long long, unsigned long long>::iterator it;
 
-    for (it = FmdMap[fsid].begin(); it != FmdMap[fsid].end(); it++) {
+    for (auto it = FmdMap[fsid].begin(); it != FmdMap[fsid].end(); ++it) {
       if ((long long) it->second >= oldtailoffset) {
         // this has just to be adjusted by the trim length
         it->second -= tailchange;
@@ -1044,14 +1043,15 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
           it->second = offsetmapping[it->second];
         } else {
           // that should never happen!
-          eos_static_crit("fatal error found not mapped offset position during trim procedure!");
+          eos_static_crit("fatal error found not mapped offset position during "
+                          "trim procedure!");
           rc = false;
         }
       }
     }
 
     if (!rename(NewChangeLogFileNameTmp.c_str(), NewChangeLogFileName.c_str())) {
-      // now high-jack the old write and read filedescriptor;
+      // High-jack the old write and read filedescriptor
       close(fdChangeLogWrite[fsid]);
       close(fdChangeLogRead[fsid]);
       fdChangeLogWrite[fsid] = newfd;
@@ -1074,7 +1074,7 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
     (void) close(newrfd);
   }
 
-  // stat after trim
+  // Stat after trim
   (void) fstat(fdChangeLogRead[fsid], &statafter);
 
   if ((option.find("c")) != STR_NPOS) {
