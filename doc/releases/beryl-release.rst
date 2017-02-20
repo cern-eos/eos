@@ -15,6 +15,7 @@ Bug Fix
 
 - FUSE: fix bug introduced with retry 'query' mechanism doing double deletes
 - FUSE: fix bug in AuthId manager doing a double lock when session id != process id
+- MGM: fix subtree accounting in the slave follower
  
 ``V0.3.228 Aquamarine``
 =======================
