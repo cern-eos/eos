@@ -15,6 +15,7 @@ Bug Fix
 
 - FUSE: fix bug introduced with retry 'query' mechanism doing double deletes
 - FUSE: fix bug in AuthId manager doing a double lock when session id != process id
+- FUSE: set the link count for files/links to 1 to make applications like gzip work
 - MGM: fix subtree accounting in the slave follower
  
 ``V0.3.228 Aquamarine``
