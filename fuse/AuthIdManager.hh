@@ -119,15 +119,17 @@ public:
   //------------------------------------------------------------------------------
 
   void
-  lock_r_pcache(pid_t pid)
+  lock_r_pcache(pid_t pid, pid_t pid_locked)
   {
-    proccachemutexes[pid%proccachenbins].LockRead();
+    if ( (pid % proccachenbins) != (pid_locked % proccachenbins) )
+      proccachemutexes[pid%proccachenbins].LockRead();
   }
 
   void
-  lock_w_pcache(pid_t pid)
+  lock_w_pcache(pid_t pid, pid_t pid_locked)
   {
-    proccachemutexes[pid%proccachenbins].LockWrite();
+    if ( (pid % proccachenbins) != (pid_locked % proccachenbins) )
+      proccachemutexes[pid%proccachenbins].LockWrite();
   }
 
 
@@ -136,15 +138,17 @@ public:
   //------------------------------------------------------------------------------
 
   void
-  unlock_r_pcache(pid_t pid)
+  unlock_r_pcache(pid_t pid, pid_t pid_locked)
   {
-    proccachemutexes[pid%proccachenbins].UnLockRead();
+    if ( (pid % proccachenbins) != (pid_locked % proccachenbins) )
+      proccachemutexes[pid%proccachenbins].UnLockRead();
   }
 
   void
-  unlock_w_pcache(pid_t pid)
+  unlock_w_pcache(pid_t pid, pid_t pid_locked)
   {
-    proccachemutexes[pid%proccachenbins].UnLockWrite();
+    if ( (pid % proccachenbins) != (pid_locked % proccachenbins) )
+      proccachemutexes[pid%proccachenbins].UnLockWrite();
   }
 
   AuthIdManager()
@@ -474,16 +478,16 @@ protected:
 
     // update the proccache of the session leader
     if (sid!=pid) {
-      lock_w_pcache(sid);
+      lock_w_pcache(sid, pid);
 
       if ((errCode = gProcCache(sid).InsertEntry(sid))) {
-        unlock_w_pcache(sid);
+        unlock_w_pcache(sid, pid);
         eos_static_debug("updating proc cache information for session leader process %d failed. Session leader process %d does not exist",
                        (int)pid, (int)sid);
         sid = -1;
       }
       else
-        unlock_w_pcache(sid);
+        unlock_w_pcache(sid, pid);
     }
 
     // get the startuptime of the leader of the session
@@ -511,7 +515,7 @@ protected:
     // check if the credentials in the credential cache cache are up to date
     // TODO: should we implement a TTL , my guess is NO
     bool sessionInCache = false;
-    if(sid!=pid) lock_r_pcache(sid);
+    if(sid!=pid) lock_r_pcache(sid,pid);
     bool cacheEntryFound = siduid2credinfo[sid%proccachenbins].count(sid)>0 && siduid2credinfo[sid%proccachenbins][sid].count(uid)>0;
     std::map<uid_t, CredInfo>::iterator cacheEntry;
     if (cacheEntryFound)
@@ -534,7 +538,7 @@ protected:
       }
     }
     }
-    if(sid!=pid) unlock_r_pcache(sid);
+    if(sid!=pid) unlock_r_pcache(sid, pid);
 
     if (sessionInCache) {
       // TODO: could detect from the call to ptoccahce_InsertEntry if the process was changed
@@ -633,9 +637,9 @@ protected:
     credinfo.cachedStrongLogin = pid2StrongLogin[pid%proccachenbins][pid];
     eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",
                      (int)uid, (int)sid, (int)pid, credinfo.cachedStrongLogin.c_str());
-    if(sid!=pid) lock_w_pcache(sid);
+    if(sid!=pid) lock_w_pcache(sid, pid);
     siduid2credinfo[sid%proccachenbins][sid][uid] = credinfo;
-    if(sid!=pid) unlock_w_pcache(sid);
+    if(sid!=pid) unlock_w_pcache(sid,pid);
     eos_static_info("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)",
                     sId.c_str(), (int)pid,
                     pid2StrongLogin[pid%proccachenbins][pid].c_str(), (int)uid, (int)authid);
