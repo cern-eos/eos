@@ -55,6 +55,17 @@ XrdCl::XRootDStatus xrdreq_retryonnullbuf(XrdCl::FileSystem &fs,
       if (response && response->GetBuffer ()) // we get a well-formatted response
       {
         if(retrycount) eos_static_warning("%d retries were needed to get a non null response to %s",retrycount,arg.GetBuffer());
+
+	{
+	  // WARNING!
+	  // be careful not to merge these lines into CITRINE!
+	  // we need this because the SyncResponseHandler destroys the response when leaving
+	  // the scope!
+ 	  XrdCl::Buffer *oldbuffer = response;
+	  response = new XrdCl::Buffer(oldbuffer->GetSize());
+	  memcpy(response->GetBuffer(), oldbuffer->GetBuffer(), oldbuffer->GetSize());
+	}
+	
         break;
       }
       else // we get a wrongly formatted response
@@ -63,7 +74,11 @@ XrdCl::XRootDStatus xrdreq_retryonnullbuf(XrdCl::FileSystem &fs,
         {
           if (response)
           { // we are going to retry so delete the previous reponse if any not to leak memory
-            delete response;
+	    {
+	      // WARNING!
+	      // be careful to uncomment this line in CITRINE!
+	      // delete response;
+	    }
             response = 0;
           }
           XrdSysTimer sleeper;
