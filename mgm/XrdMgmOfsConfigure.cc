@@ -38,9 +38,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/FileConfigEngine.hh"
-#ifdef REDOX_FOUND
 #include "mgm/RedisConfigEngine.hh"
-#endif
 #include "common/plugin_manager/PluginManager.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
@@ -1342,14 +1340,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     ConfEngine = new FileConfigEngine(MgmConfigDir.c_str());
   }
 
-#ifdef REDOX_FOUND
   else if (MgmOfsConfigEngineType == "redis") {
     ConfEngine = new RedisConfigEngine(MgmConfigDir.c_str(),
                                        MgmOfsConfigEngineRedisHost.c_str(),
                                        MgmOfsConfigEngineRedisPort);
   }
 
-#endif
   else {
     Eroute.Emsg("Config", "Invalid Config Engine Type!",
                 MgmOfsConfigEngineType.c_str());
