@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.229 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix bug introduced with retry 'query' mechanism doing double deletes
+- FUSE: fix bug in AuthId manager doing a double lock when session id != process id
+ 
 ``V0.3.228 Aquamarine``
 =======================
 
