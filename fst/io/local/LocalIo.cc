@@ -67,7 +67,7 @@ LocalIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
   }
 
   errno = 0;
-  eos_info("flags=%x", flags);
+  eos_info("flags=%x, path=%s", flags, mFilePath.c_str());
   int retc = mLogicalFile->openofs(mFilePath.c_str(), flags, mode, mSecEntity,
                                    opaque.c_str());
 

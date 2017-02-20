@@ -133,13 +133,9 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
   XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
   XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
 
-  //............................................................................
   // Only a gateway or head server needs to contact others
-  //............................................................................
   if (is_gateway || is_head_server) {
-    //..........................................................................
     // Assign stripe URLs
-    //..........................................................................
     std::string replica_url;
 
     for (int i = 0; i < mNumReplicas; i++) {
@@ -155,15 +151,11 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
                          reptag.c_str());
       }
 
-      //........................................................................
       // Check if the first replica is remote
-      //........................................................................
       replica_url = rep;
       replica_url += remoteOpenPath.c_str();
       replica_url += "?";
-      //........................................................................
       // Prepare the index for the next target
-      //........................................................................
       remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
 
       if (index) {
@@ -173,9 +165,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
         newindex += i;
         remoteOpenOpaque.replace(oldindex.c_str(), newindex.c_str());
       } else {
-        //......................................................................
         // This points now to the head
-        //......................................................................
         remoteOpenOpaque += "&mgm.replicaindex=";
         remoteOpenOpaque += head;
       }
@@ -186,17 +176,12 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
     }
   }
 
-  //............................................................................
   // Open all the replicas needed
-  //............................................................................
   for (int i = 0; i < mNumReplicas; i++) {
     if ((ioLocal) && (i == replica_index)) {
-      //........................................................................
       // Only the referenced entry URL does local IO
-      //........................................................................
       mReplicaUrl.push_back(mLocalPath);
-      FileIo* file = FileIoPlugin::GetIoObject(mLocalPath.c_str(),
-                     mOfsFile,
+      FileIo* file = FileIoPlugin::GetIoObject(mLocalPath.c_str(), mOfsFile,
                      mSecEntity);
 
       // evt. mark an IO module as talking to external storage

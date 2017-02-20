@@ -163,10 +163,10 @@ XrdFstOfsFile::openofs(const char* path,
 {
   int retc = 0;
 
-  while ((retc =  XrdOfsFile::open(path, open_mode, create_mode, client,
-                                   opaque)) > 0) {
-    eos_static_notice("msg\"xrootd-lock-table busy - snoozing & retry\" delay=%d errno=%d",
-                      retc, errno);
+  while ((retc = XrdOfsFile::open(path, open_mode, create_mode, client,
+                                  opaque)) > 0) {
+    eos_static_notice("msg\"xrootd-lock-table busy - snoozing & retry\" "
+                      "delay=%d errno=%d", retc, errno);
     XrdSysTimer sleeper;
     sleeper.Snooze(retc);
   }
@@ -728,12 +728,10 @@ XrdFstOfsFile::open(const char* path,
 
   SetLogId(logId, vid, tident);
   eos_info("fstpath=%s", fstPath.c_str());
-  //............................................................................
   // Get the layout object
-  //............................................................................
-  layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
-           fstPath.c_str(),
-           msDefaultTimeout, store_recovery);
+  layOut = eos::fst::LayoutPlugin::GetLayoutObject
+           (this, lid, client, &error, fstPath.c_str(), msDefaultTimeout
+            , store_recovery);
 
   if (!layOut) {
     int envlen;
@@ -774,8 +772,7 @@ XrdFstOfsFile::open(const char* path,
   } else {
     eos_debug("removing creation flag because of %d %d", retc, errno);
 
-    // remove the creat flag
-    // remove the creat flag
+    // Remove the creat flag
     if (open_mode & SFS_O_CREAT) {
       open_mode -= SFS_O_CREAT;
     }
