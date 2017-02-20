@@ -92,7 +92,9 @@ namespace eos
     pACLId    = other.pACLId;
     pXAttrs   = other.pXAttrs;
     pFlags    = other.pFlags;
-    pTreeSize = other.pTreeSize;
+
+
+    // pTreeSize is not copied here
 
     // pFiles & pSubContainers are not copied here!!!
 

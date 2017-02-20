@@ -212,6 +212,7 @@ namespace eos
 
               IFileMDChangeListener::Event e( currentFile,
                                               IFileMDChangeListener::Created );
+
               pFileSvc->notifyListeners( &e );
               handleReplicas( 0, currentFile );
 
@@ -246,6 +247,7 @@ namespace eos
             if( itP != contIdMap->end() )
               originalContainer = itP->second.ptr;
 
+	    bool readd=false;
             //------------------------------------------------------------------
             // The parent container did not change
             //------------------------------------------------------------------
@@ -255,6 +257,7 @@ namespace eos
               {
                 FileMD *existingFile =
                   originalContainer->findFile( originalFile->getName() );
+
                 if( existingFile &&
                     existingFile->getId() == originalFile->getId() )
                 {
@@ -272,15 +275,23 @@ namespace eos
                   //------------------------------------------------------------
                   // Rename
                   //------------------------------------------------------------
-                  originalContainer->removeFile( existingFile->getName() );
+		  originalContainer->removeFile(originalFile->getName());
                   existingFile->setName( currentFile->getName() );
-                  originalContainer->addFile( existingFile );
+		  readd = true;
                 }
-              }
+	      }
 
               handleReplicas( originalFile, currentFile );
+
               *originalFile = *currentFile;
+
               originalFile->setFileMDSvc( pFileSvc );
+
+	      if (originalContainer && readd)
+	      {
+		originalContainer->addFile(originalFile);
+	      }
+
               it->second.logOffset = currentOffset;
               processed.push_back( currentFile->getId() );
               delete currentFile;
