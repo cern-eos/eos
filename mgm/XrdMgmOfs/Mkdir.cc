@@ -53,12 +53,12 @@ XrdMgmOfs::mkdir(const char* inpath,
   const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-  NAMESPACEMAP;
-  BOUNCE_ILLEGAL_NAMES;
-  XrdOucEnv mkdir_Env(ininfo);
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
+  NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
+  XrdOucEnv mkdir_Env(ininfo);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   eos_info("path=%s ininfo=%s", path, ininfo);
   BOUNCE_NOT_ALLOWED;

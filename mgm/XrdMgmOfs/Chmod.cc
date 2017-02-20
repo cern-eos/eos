@@ -53,13 +53,13 @@ XrdMgmOfs::chmod(const char* inpath,
   //  mode_t acc_mode = Mode & S_IAMB;
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
   XrdOucEnv chmod_Env(ininfo);
   AUTHORIZE(client, &chmod_Env, AOP_Chmod, "chmod", inpath, error);
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
-  EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
