@@ -2582,8 +2582,10 @@ XrdMqSharedObjectManager::CreateSharedQueue(const char* subject,
     ListMutex.UnLockWrite();
     return false;
   } else {
-    mQueueSubjects.emplace
-    (std::make_pair(ss, XrdMqSharedQueue(subject, broadcastqueue, som)));
+    // TODO (esindril): Review the use of copy constructor
+    //mQueueSubjects.emplace
+    //(std::make_pair(ss, XrdMqSharedQueue(subject, broadcastqueue, som)));
+    mQueueSubjects[ss] = XrdMqSharedQueue(subject, broadcastqueue, som);
     ListMutex.UnLockWrite();
 
     if (mEnableQueue) {
