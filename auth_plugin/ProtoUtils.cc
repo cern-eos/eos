@@ -219,8 +219,8 @@ utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
                    proto_obj.notify().c_str()));
   obj->opts = proto_obj.opts();
   obj->paths = obj->oinfo = 0;
-  XrdOucTList* next_paths = obj->paths;
-  XrdOucTList* next_oinfo = obj->oinfo;
+  XrdOucTList*& next_paths = obj->paths;
+  XrdOucTList*& next_oinfo = obj->oinfo;
 
   for (int i = 0; i < proto_obj.paths_size(); i++) {
     auto tmp_path = new XrdOucTList(proto_obj.paths(i).c_str());

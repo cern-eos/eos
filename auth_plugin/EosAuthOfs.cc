@@ -288,7 +288,7 @@ EosAuthOfs::Configure(XrdSysError& error)
   int fd = ::open("/etc/eos.keytab", O_RDONLY);
   XrdOucString symkey = "";
 
-  if (fd > 0) {
+  if (fd >= 0) {
     char buffer[65535];
     char keydigest[SHA_DIGEST_LENGTH + 1];
     SHA_CTX sha1;

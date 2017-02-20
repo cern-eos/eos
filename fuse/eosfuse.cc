@@ -752,6 +752,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     fh_buf->size = tmp_buf->size;
     fh_buf->alloc_size = tmp_buf->size;
     fi->fh = (uint64_t) fh_buf;
+    free(tmp_buf);
   }
 
   free(name);

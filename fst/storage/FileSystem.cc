@@ -341,7 +341,7 @@ FileSystem::OpenTransaction(unsigned long long fid)
   int fd = open(tagfile.c_str(),
                 O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IROTH | S_IRGRP);
 
-  if (fd > 0) {
+  if (fd >= 0) {
     close(fd);
     return true;
   }

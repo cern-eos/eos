@@ -588,7 +588,7 @@ TransferEngine::Scheduler()
                 transferjob += symkey->GetDigest64();
               }
 
-              // do one full loop over the nodes and take the first one which does not exceed the queue limit of 20 transfers
+              // Do one full loop over the nodes and take the first one which does not exceed the queue limit of 20 transfers
               eos::common::TransferJob* txjob = 0;
 
               for (size_t n = 0; n < FsView::gFsView.mGwNodes.size(); n++) {
@@ -599,6 +599,10 @@ TransferEngine::Scheduler()
                   if ((FsView::gFsView.mNodeView[*it]->mGwQueue->Size() < 20) &&
                       ((time(NULL) - FsView::gFsView.mNodeView[*it]->GetHeartBeat()) < 10) &&
                       (status == "online")) {
+                    if (txjob) {
+                      delete txjob;
+                    }
+
                     txjob = new eos::common::TransferJob(transferjob.c_str());
 
                     if (txjob && FsView::gFsView.mNodeView[*it]->mGwQueue->Add(txjob)) {

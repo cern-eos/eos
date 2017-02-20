@@ -1713,7 +1713,7 @@ Iostat::AddUdpTarget(const char* target, bool storeitandlock)
     int udpsocket = -1;
     udpsocket = socket(AF_INET, SOCK_DGRAM, 0);
 
-    if (udpsocket > 0) {
+    if (udpsocket >= 0) {
       XrdOucString a_host, a_port, hp;
       int port = 0;
       hp = starget.c_str();

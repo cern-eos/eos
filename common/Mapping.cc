@@ -1183,7 +1183,11 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
           if (out) {
             free(out);
           }
-
+          
+          if (id) {
+            delete id;
+          }
+          
           id  = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
           eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid,
                            id->gid);
