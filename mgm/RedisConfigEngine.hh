@@ -43,9 +43,9 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param client Redox client
+  //! @param client qclient client
   //----------------------------------------------------------------------------
-  RedisCfgEngineChangelog(qclient::QClient *client);
+  RedisCfgEngineChangelog(qclient::QClient* client);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -84,8 +84,8 @@ class RedisConfigEngine : public IConfigEngine
 {
 public:
   //----------------------------------------------------------------------------
-  //! XrdOucHash callback function to add to the Redox hash all the
-  //! configuration values.
+  //! XrdOucHash callback function to add to the hash all the configuration
+  //! values.
   //!
   //! @param key configuration key
   //! @param val configuration value
@@ -218,7 +218,7 @@ public:
 
 private:
 
-  qclient::QClient *client;
+  qclient::QClient* client;
   std::string REDIS_HOST;
   int REDIS_PORT;
   std::string conf_set_key = "EOSConfig:list";
