@@ -400,8 +400,21 @@ ScanDir::CheckFile (const char* filepath)
 							  fsId,
 							  0,0,0,false, true );
 
-	      bool orphaned = fmd?(fmd->fMd.layouterror == eos::common::LayoutId::kOrphan):false;
+	      bool orphaned = false;
 
+	      if (fmd) 
+	      {
+		// real orphanes get rechecked
+		if ( fmd->fMd.layouterror & eos::common::LayoutId::kOrphan )
+		  orphaned = true;
+		
+		// unregistered replicas get rechecked
+		if ( fmd->fMd.layouterror & eos::common::LayoutId::kUnregistered )
+		  orphaned = true;
+	      }
+
+
+	      
 	      if (fmd)
 		delete fmd;
 
@@ -421,7 +434,10 @@ ScanDir::CheckFile (const char* filepath)
 						 0,0,0,false, true );
 		if (resynced && fmd)
 		{
-		  if (fmd->fMd.layouterror ==  eos::common::LayoutId::kOrphan)
+		  if ( (fmd->fMd.layouterror ==  eos::common::LayoutId::kOrphan) ||
+		       ( (!(fmd->fMd.layouterror & eos::common::LayoutId::kReplicaWrong))
+			 && (fmd->fMd.layouterror & eos::common::LayoutId::kUnregistered) ) 
+		       )
 		  {
 		    char oname[4096];
 		    snprintf(oname, sizeof(oname), "%s/.eosorphans/%08x", dirPath.c_str(), (unsigned int) fid);
@@ -432,11 +448,11 @@ ScanDir::CheckFile (const char* filepath)
 		    // if this is an orphaned file - we move it into the orphaned directory
 		    if (!rename(filePath.c_str(), oname))
 		    {
-		      eos_warning("msg=\"orphaned quarantened\" fst-path=%s orphan-path=%s", filePath.c_str(), oname);
+		      eos_warning("msg=\"orphaned/unregistered quarantined\" fst-path=%s orphan-path=%s", filePath.c_str(), oname);
 		    }
 		    else
 		    {
-		      eos_err("msg=\"failed to quarantene orphaned\" fst-path=%s orphan-path=%s", filePath.c_str(), oname);
+		      eos_err("msg=\"failed to quarantine orphaned/unregistered\" fst-path=%s orphan-path=%s", filePath.c_str(), oname);
 		    }
 		    
 		    // remove the entry from the FMD database
