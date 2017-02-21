@@ -388,14 +388,14 @@ public:
   //!
   //! @return set of file names
   //----------------------------------------------------------------------------
-  virtual std::set<std::string> getNameFiles() const;
+  std::set<std::string> getNameFiles() const;
 
   //----------------------------------------------------------------------------
   //! Get set of subcontainer names contained in the current object
   //!
   //! @return set of subcontainer names
   //----------------------------------------------------------------------------
-  virtual std::set<std::string> getNameContainers() const;
+  std::set<std::string> getNameContainers() const;
 
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer

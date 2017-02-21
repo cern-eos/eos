@@ -41,9 +41,15 @@ const std::string QuotaNode::sFilesTag = ":files";
 // Constructor
 //------------------------------------------------------------------------------
 QuotaNode::QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t node_id)
-  : IQuotaNode(quotaStats),
-    pQcl(dynamic_cast<QuotaStats*>(quotaStats)->pQcl)
+  : IQuotaNode(quotaStats)
 {
+  if (!dynamic_cast<QuotaStats*>(quotaStats)->pQcl) {
+    MDException e;
+    e.getMessage() << "QuotaStats dynamic cast failed ";
+    throw e;
+  }
+
+  pQcl = dynamic_cast<QuotaStats*>(quotaStats)->pQcl;
   pQuotaUidKey = std::to_string(node_id) + QuotaStats::sQuotaUidsSuffix;
   pUidMap = qclient::QHash(*pQcl, pQuotaUidKey);
   pQuotaGidKey = std::to_string(node_id) + QuotaStats::sQuotaGidsSuffix;
@@ -141,8 +147,14 @@ QuotaNode::removeFile(const IFileMD* file)
 void
 QuotaNode::meld(const IQuotaNode* node)
 {
+  const QuotaNode* impl_node = dynamic_cast<const QuotaNode*>(node);
+
+  if (!impl_node) {
+    throw std::runtime_error("QuotaNode dynamic cast failed");
+  }
+
   std::string field;
-  qclient::QHash hmap(*pQcl, dynamic_cast<const QuotaNode*>(node)->getUidKey());
+  qclient::QHash hmap(*pQcl, impl_node->getUidKey());
   std::vector<std::string> elems = hmap.hgetall();
 
   for (auto it = elems.begin(); it != elems.end(); ++it) {
@@ -151,7 +163,7 @@ QuotaNode::meld(const IQuotaNode* node)
     (void)pUidMap.hincrby(field, *it);
   }
 
-  hmap.setKey(dynamic_cast<const QuotaNode*>(node)->getGidKey());
+  hmap.setKey(impl_node->getGidKey());
   elems = hmap.hgetall();
 
   for (auto it = elems.begin(); it != elems.end(); ++it) {
@@ -373,7 +385,7 @@ QuotaStats::registerNewNode(IContainerMD::id_t node_id)
     throw e;
   }
 
-  IQuotaNode* ptr{new QuotaNode(this, node_id)};
+  IQuotaNode* ptr = new QuotaNode(this, node_id);
   pNodeMap[node_id] = ptr;
   return ptr;
 }

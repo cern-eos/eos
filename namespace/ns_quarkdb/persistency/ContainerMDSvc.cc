@@ -111,7 +111,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
                                        static_cast<IContainerMDSvc*>(this));
   eos::Buffer ebuff;
   ebuff.putData(blob.c_str(), blob.length());
-  dynamic_cast<ContainerMD*>(cont.get())->deserialize(ebuff);
+  cont->deserialize(ebuff);
   return mContainerCache.put(cont->getId(), cont);
 }
 
@@ -141,7 +141,7 @@ void
 ContainerMDSvc::updateStore(IContainerMD* obj)
 {
   eos::Buffer ebuff;
-  dynamic_cast<ContainerMD*>(obj)->serialize(ebuff);
+  obj->serialize(ebuff);
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
 
   try {

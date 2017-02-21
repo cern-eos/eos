@@ -793,7 +793,13 @@ HierarchicalView::removeQuotaNode(IContainerMD* container)
   updateContainerStore(container);
 
   if (parent != nullptr) {
-    parent->meld(node);
+    try {
+      parent->meld(node);
+    } catch (const std::runtime_error& e) {
+      MDException ex;
+      ex.getMessage() << "Failed quota node meld: " << e.what();
+      throw ex;
+    }
   }
 
   pQuotaStats->removeNode(container->getId());

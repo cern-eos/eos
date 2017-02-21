@@ -113,7 +113,7 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
   file = std::make_shared<FileMD>(0, this);
   eos::Buffer ebuff;
   ebuff.putData(blob.c_str(), blob.length());
-  file.get()->deserialize(ebuff);
+  file->deserialize(ebuff);
   return mFileCache.put(file->getId(), file);
 }
 
@@ -180,7 +180,15 @@ FileMDSvc::removeFile(IFileMD* obj)
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
   // Wait for any async notification before deleting the object
-  (void) dynamic_cast<FileMD*>(obj)->waitAsyncReplies();
+  FileMD* impl_obj = dynamic_cast<FileMD*>(obj);
+
+  if (!impl_obj) {
+    MDException e(EFAULT);
+    e.getMessage() << "FileMD dynamic cast failed";
+    throw e;
+  }
+
+  (void) impl_obj->waitAsyncReplies();
   mFileCache.remove(obj->getId());
   flushDirtySet(obj->getId(), true);
 }
@@ -260,7 +268,15 @@ FileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 void
 FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 {
-  pContSvc = dynamic_cast<eos::ContainerMDSvc*>(cont_svc);
+  ContainerMDSvc* impl_cont_svc = dynamic_cast<eos::ContainerMDSvc*>(cont_svc);
+
+  if (impl_cont_svc) {
+    MDException e(EFAULT);
+    e.getMessage() << "FileMD dynamic cast failed";
+    throw e;
+  }
+
+  pContSvc = impl_cont_svc;
 }
 
 //------------------------------------------------------------------------------

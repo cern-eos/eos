@@ -57,7 +57,7 @@ public:
     // Update
     if (type == UPDATE_RECORD_MAGIC) {
       std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, pFileSvc);
-      static_cast<FileMD*>(file.get())->deserialize((Buffer&)buffer);
+      file->deserialize((Buffer&)buffer);
       FileMap::iterator it = pUpdated.find(file->getId());
 
       if (file->getId() >= pFileSvc->pFirstFreeId) {
@@ -285,9 +285,17 @@ public:
 
           // Update the file and handle the replicas
           handleReplicas(originalFile.get(), currentFile.get());
+
           // Cast to derived class implementation to avoid "slicing" of info
-          *dynamic_cast<eos::FileMD*>(originalFile.get()) =
-            *dynamic_cast<eos::FileMD*>(currentFile.get());
+          if (dynamic_cast<eos::FileMD*>(originalFile.get()) &&
+              dynamic_cast<eos::FileMD*>(currentFile.get())) {
+            *dynamic_cast<eos::FileMD*>(originalFile.get()) =
+              *dynamic_cast<eos::FileMD*>(currentFile.get());
+          } else {
+            fprintf(stderr, "error: FileMD dynamic cast failed\n");
+            exit(1);
+          }
+
           originalFile->setFileMDSvc(pFileSvc);
           it->second.logOffset = currentOffset;
 
@@ -704,7 +712,7 @@ void ChangeLogFileMDSvc::initialize()
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
       // Unpack the serialized buffers
       std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
-      file.get()->deserialize(*it->second.buffer);
+      file->deserialize(*it->second.buffer);
       it->second.ptr = file;
       delete it->second.buffer;
       it->second.buffer = 0;

@@ -62,7 +62,7 @@ public:
     if (type == UPDATE_RECORD_MAGIC) {
       std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>
           (IContainerMD::id_t(0), pFileSvc, pContSvc);
-      static_cast<ContainerMD*>(container.get())->deserialize((Buffer&)buffer);
+      container->deserialize((Buffer&)buffer);
       ContMap::iterator it = pUpdated.find(container->getId());
 
       if (it != pUpdated.end()) {
@@ -170,15 +170,23 @@ public:
                                     IContainerMDChangeListener::MTimeChange);
         }
       } else {
+        eos::ContainerMD* mem_current_cont =
+          dynamic_cast<eos::ContainerMD*>(currentCont.get());
+        eos::ContainerMD* mem_found_cont =
+          dynamic_cast<eos::ContainerMD*>(it->second.ptr.get());
+
+        if (!mem_current_cont || !mem_found_cont) {
+          fprintf(stderr, "error: ContainerMD dynamic cast failed\n");
+          exit(1);
+        }
+
         if (it->second.ptr->getParentId() == currentCont->getParentId()) {
           // ---------------------------------------------------------------
           // update within the same parent directory
           // ---------------------------------------------------------------
           if (currentCont->getName() == it->second.ptr->getName()) {
             // meta data change - keeping directory name
-            // TODO: maybe do a shared_ptr swap
-            *dynamic_cast<eos::ContainerMD*>(it->second.ptr.get()) =
-              *dynamic_cast<eos::ContainerMD*>(currentCont.get());
+            mem_found_cont = mem_current_cont;
             pContSvc->notifyListeners(it->second.ptr.get() ,
                                       IContainerMDChangeListener::MTimeChange);
           } else {
@@ -190,9 +198,7 @@ public:
             if (itP != idMap->end()) {
               // remove container with old name
               itP->second.ptr->removeContainer(it->second.ptr->getName());
-              dynamic_cast<eos::ContainerMD*>
-              (currentCont.get())->InheritChildren
-              (*dynamic_cast<eos::ContainerMD*>(it->second.ptr.get()));
+              mem_current_cont->InheritChildren(*mem_found_cont);
               // add container with new name
               itP->second.ptr->addContainer(currentCont.get());
               pContSvc->notifyListeners(itP->second.ptr.get(),
@@ -267,9 +273,7 @@ public:
             // -------------------------------------------------------------
             itP->second.ptr->removeContainer(it->second.ptr->getName());
             // copy the meta data
-            // TODO: maybe do a shared_ptr swap
-            *dynamic_cast<eos::ContainerMD*>(it->second.ptr.get()) =
-              *dynamic_cast<eos::ContainerMD*>(currentCont.get());
+            mem_found_cont = mem_current_cont;
             // -------------------------------------------------------------
             // add to the new parent container
             // -------------------------------------------------------------
@@ -786,7 +790,7 @@ void ChangeLogContainerMDSvc::updateStore(IContainerMD* obj)
 
   // Store the file in the changelog and notify the listener
   eos::Buffer buffer;
-  dynamic_cast<ContainerMD*>(obj)->serialize(buffer);
+  obj->serialize(buffer);
   it->second.logOffset = pChangeLog->storeRecord(eos::UPDATE_RECORD_MAGIC,
                          buffer);
   notifyListeners(obj, IContainerMDChangeListener::Updated);
@@ -1048,7 +1052,7 @@ void ChangeLogContainerMDSvc::recreateContainer(IdMap::iterator& it,
   pChangeLog->readRecord(it->second.logOffset, buffer);
   std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>
       (IContainerMD::id_t(0), pFileSvc, this);
-  static_cast<ContainerMD*>(container.get())->deserialize(buffer);
+  container->deserialize(buffer);
   it->second.ptr = container;
 
   // For non-root containers recreate the parent

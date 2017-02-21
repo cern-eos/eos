@@ -135,7 +135,11 @@ FileMDSvcTest::checkFileTest()
   view->setFileMDSvc(fileSvc.get());
   view->configure(config);
   view->initialize();
-  dynamic_cast<eos::FileSystemView*>(fsView.get())->initialize(config);
+
+  if (dynamic_cast<eos::FileSystemView*>(fsView.get())) {
+    dynamic_cast<eos::FileSystemView*>(fsView.get())->initialize(config);
+  }
+
   fileSvc->addChangeListener(fsView.get());
   // Create test container and file
   std::shared_ptr<eos::IContainerMD> cont =
