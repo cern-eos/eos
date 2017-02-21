@@ -29,7 +29,10 @@ else()
   include (FindPackageHandleStandardArgs)
   find_package_handle_standard_args(
     hiredis DEFAULT_MSG HIREDIS_LIBRARY HIREDIS_INCLUDE_DIR)
-  
-  add_definitions(-DHAVE_HIREDIS)
+
   mark_as_advanced(HIREDIS_LIBRARY HIREDIS_INCLUDE_DIR)
+
+  if (HIREDIS_FOUND)
+    add_definitions(-DHAVE_HIREDIS)
+  endif()
 endif()
