@@ -31,7 +31,9 @@
 #include <cppunit/extensions/HelperMacros.h>
 #include "mgm/IConfigEngine.hh"
 #include "mgm/FileConfigEngine.hh"
+#ifdef HIREDIS_FOUND
 #include "mgm/RedisConfigEngine.hh"
+#endif 
 
 class ConfigEngineTest: public CppUnit::TestCase
 {

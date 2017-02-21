@@ -128,8 +128,11 @@ set(XRDEOSMGM_SRCS
   Features.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
-  geotree/SchedulingTreeCommon.cc
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
+  geotree/SchedulingTreeCommon.cc)
+  
+if (HIREDIS_FOUND)
+  list(APPEND XRDEOSMGM_SRCS ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
+endif()
 
 add_library(XrdEosMgm MODULE ${XRDEOSMGM_SRCS})
 
@@ -211,7 +214,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------
-if(CPPUNIT_FOUND  AND HIREDIS_FOUND AND Linux)
+if(CPPUNIT_FOUND AND HIREDIS_FOUND AND Linux)
   add_library(XrdEosMgm-Static STATIC ${XRDEOSMGM_SRCS})
 
   target_compile_definitions(

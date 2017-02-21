@@ -1,5 +1,7 @@
+#ifdef HIREDIS_FOUND
 
 #include "ConfigEngineTest.hh"
+
 
 using namespace std;
 
@@ -42,3 +44,5 @@ int main(int argc, char** argv)
   runner.run();
   return 0;
 }
+
+#endif
