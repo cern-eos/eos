@@ -140,11 +140,15 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
   pChangeLog->readRecord(it->second.logOffset, ebuff);
   std::shared_ptr<IContainerMD> container =
     std::make_shared<ConvertContainerMD>(IContainerMD::id_t(0), pFileSvc, this);
+  ConvertContainerMD* tmp_cmd =
+    dynamic_cast<ConvertContainerMD*>(container.get());
 
-  if (ConvertContainerMD* tmp_cmd =
-        dynamic_cast<ConvertContainerMD*>(container.get())) {
+  if (tmp_cmd) {
     tmp_cmd->deserialize(ebuff);
     tmp_cmd->updateInternal();
+  } else {
+    std::cerr << __FUNCTION__ << "Error: failed dynamic cast" << std::endl;
+    exit(1);
   }
 
   it->second.ptr = container;
@@ -671,37 +675,28 @@ main(int argc, char* argv[])
     std::unique_ptr<eos::ConvertQuotaView> quota_view
     (new eos::ConvertQuotaView(sQcl, cont_svc.get(), file_svc.get()));
     std::unique_ptr<eos::ConvertFsView> fs_view(new eos::ConvertFsView());
+    eos::ConvertContainerMDSvc* conv_cont_svc =
+      dynamic_cast<eos::ConvertContainerMDSvc*>(cont_svc.get());
+    eos::ConvertFileMDSvc* conv_file_svc =
+      dynamic_cast<eos::ConvertFileMDSvc*>(file_svc.get());
 
-    if (dynamic_cast<eos::ConvertContainerMDSvc*>(cont_svc.get()) ||
-        dynamic_cast<eos::ConvertFileMDSvc*>(file_svc.get())) {
+    if (!conv_cont_svc || !conv_file_svc) {
       std::cerr << "Not convert meta-data service type" << std::endl;
       exit(-1);
     }
 
-    dynamic_cast<eos::ConvertContainerMDSvc*>
-    (cont_svc.get())->setQuotaView(quota_view.get());
-
-    dynamic_cast<eos::ConvertFileMDSvc*>
-    (file_svc.get())->setViews(quota_view.get(), fs_view.get());
-
+    conv_cont_svc->setQuotaView(quota_view.get());
+    conv_file_svc->setViews(quota_view.get(), fs_view.get());
     std::time_t cont_start = std::time(nullptr);
-
     cont_svc->initialize();
-
     std::chrono::seconds cont_duration {std::time(nullptr) - cont_start};
-
     std::cout << "Container init: " << cont_duration.count() << " seconds" <<
               std::endl;
-
     // Initialize the file meta-data service
     std::cout << "Initialize the file meta-data service" << std::endl;
-
     file_svc->setContMDService(cont_svc.get());
-
     file_svc->configure(config_file);
-
     std::time_t file_start = std::time(nullptr);
-
     file_svc->initialize();
 
     // Wait for all in-flight async requests

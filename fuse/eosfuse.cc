@@ -251,7 +251,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     me.fs().setPrefix(me.config.mountprefix);
     std::map<std::string, std::string> features;
 
-    if (!me.fs().init(argc, argv, userdata, &features)) {
+    try {
+      if (!me.fs().init(argc, argv, userdata, &features)) {
+        return 1;
+      }
+    } catch (const std::length_error& e) {
+      fprintf(stderr, "error: failed to insert into google map\n");
       return 1;
     }
 

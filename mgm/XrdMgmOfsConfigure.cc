@@ -209,7 +209,13 @@ XrdMgmOfs::InitializeFileView()
       eos_static_info("msg=\"starting slave listener\"");
       struct stat buf;
       buf.st_size = 0;
-      ::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf);
+
+      if (::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf) == -1) {
+        eos_static_alert("msg=\"failed to stat the file changlog\"");
+        Initialized = kFailed;
+        return 0;
+      }
+
       eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
         dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
       eos::IChLogFileMDSvc* eos_chlog_filesvc =
@@ -279,8 +285,7 @@ XrdMgmOfs::InitializeFileView()
     }
   }
 
-  // fill the current accounting
-  // load all the quota nodes from the namespace
+  // Load all the quota nodes from the namespace
   Quota::LoadNodes();
   return 0;
 }
@@ -1021,7 +1026,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "trace option not specified");
-	    close(cfgFD);
+            close(cfgFD);
             return 1;
           }
 
@@ -1341,13 +1346,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (MgmOfsConfigEngineType == "file") {
     ConfEngine = new FileConfigEngine(MgmConfigDir.c_str());
   }
-  #ifdef HAVE_HIREDIS
+
+#ifdef HAVE_HIREDIS
   else if (MgmOfsConfigEngineType == "redis") {
     ConfEngine = new RedisConfigEngine(MgmConfigDir.c_str(),
                                        MgmOfsConfigEngineRedisHost.c_str(),
                                        MgmOfsConfigEngineRedisPort);
   }
-  #endif
+
+#endif
   else {
     Eroute.Emsg("Config", "Invalid Config Engine Type!",
                 MgmOfsConfigEngineType.c_str());

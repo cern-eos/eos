@@ -510,7 +510,6 @@ public:
 private:
   std::map<eos::IContainerMD::id_t, ContainerRecordData>& pUpdates;
   eos::ChangeLogFile* pNewLog;
-  uint64_t pCounter;
 };
 }
 

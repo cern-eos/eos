@@ -21,11 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/FileSystem.hh"
 #include "fst/XrdFstOfs.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
 #define O_DIRECT 0
@@ -100,9 +97,9 @@ FileSystem::BroadcastError(const char* msg)
 {
   bool shutdown = false;
   {
-    XrdSysMutexHelper sLock(gOFS.ShutdownMutex);
+    XrdSysMutexHelper sLock(gOFS.sShutdownMutex);
 
-    if (gOFS.Shutdown) {
+    if (gOFS.sShutdown) {
       shutdown = true;
     }
   }
@@ -119,9 +116,9 @@ FileSystem::BroadcastError(int errc, const char* errmsg)
 {
   bool shutdown = false;
   {
-    XrdSysMutexHelper sLock(gOFS.ShutdownMutex);
+    XrdSysMutexHelper sLock(gOFS.sShutdownMutex);
 
-    if (gOFS.Shutdown) {
+    if (gOFS.sShutdown) {
       shutdown = true;
     }
   }

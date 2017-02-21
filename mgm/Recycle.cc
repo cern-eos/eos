@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
@@ -30,19 +29,17 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
-/*----------------------------------------------------------------------------*/
-std::string Recycle::gRecyclingPrefix =
-  "/recycle/"; // MgmOfsConfigure prepends the proc directory path e.g. the bin is /eos/<instance/proc/recycle/
+
+// MgmOfsConfigure prepends the proc directory path e.g. the bin is
+// /eos/<instance/proc/recycle/
+std::string Recycle::gRecyclingPrefix = "/recycle/";
 std::string Recycle::gRecyclingAttribute = "sys.recycle";
 std::string Recycle::gRecyclingTimeAttribute = "sys.recycle.keeptime";
 std::string Recycle::gRecyclingKeepRatio = "sys.recycle.keepratio";
 std::string Recycle::gRecyclingVersionKey = "sys.recycle.version.key";
 std::string Recycle::gRecyclingPostFix = ".d";
 int Recycle::gRecyclingPollTime = 30;
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 

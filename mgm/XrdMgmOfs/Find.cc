@@ -222,7 +222,8 @@ XrdMgmOfs::_find(const char* path,
                   XrdOucString akey = it->first.c_str();
 
                   if (akey.matches(wkey.c_str())) {
-                    found[fpath].size();
+                    // Trick to add element
+                    (void)found[fpath].size();
                   }
                 }
               }
@@ -238,7 +239,7 @@ XrdMgmOfs::_find(const char* path,
                 found_dirs[deepness + 1].push_back(fpath.c_str());
 
                 if ((val == std::string("*")) || (attr == val)) {
-                  found[fpath].size();
+                  (void)found[fpath].size();
                 }
               }
             }
@@ -255,7 +256,7 @@ XrdMgmOfs::_find(const char* path,
             }
 
             found_dirs[deepness + 1].push_back(fpath.c_str());
-            found[fpath].size();
+            (void)found[fpath].size();
             dirsfound++;
           }
         }

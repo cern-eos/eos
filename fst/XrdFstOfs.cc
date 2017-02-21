@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -32,7 +31,6 @@
 #include "common/Statfs.hh"
 #include "common/SyncAll.hh"
 #include "common/StackTrace.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -44,13 +42,11 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
-//#include <sys/fsuid.h>
 #include <sys/wait.h>
 #include <math.h>
 #include <stdio.h>
@@ -59,14 +55,11 @@
 #include <stdlib.h>
 #include <sstream>
 #include <attr/xattr.h>
-/*----------------------------------------------------------------------------*/
-
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
-XrdSysMutex eos::fst::XrdFstOfs::ShutdownMutex;
-
-bool eos::fst::XrdFstOfs::Shutdown = false;
+XrdSysMutex eos::fst::XrdFstOfs::sShutdownMutex;
+bool eos::fst::XrdFstOfs::sShutdown = false;
 
 extern XrdSysError OfsEroute;
 extern XrdOss* XrdOfsOss;
@@ -77,7 +70,7 @@ extern XrdOucTrace OfsTrace;
 XrdVERSIONINFO(XrdSfsGetFileSystem2, FstOfs);
 
 //------------------------------------------------------------------------------
-//
+// XRootD OFS interface implementation
 //------------------------------------------------------------------------------
 extern "C"
 {
@@ -108,13 +101,14 @@ extern "C"
 
 EOSFSTNAMESPACE_BEGIN
 
-
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
-  eos::common::LogId(),
-  mHostName(NULL)
+  eos::common::LogId(), mHostName(NULL), mHttpd(0),
+  Simulate_IO_read_error(false), Simulate_IO_write_error(false),
+  Simulate_XS_read_error(false), Simulate_XS_write_error(false),
+  Simulate_FMD_open_error(false)
 {
   Eroute = 0;
   Messaging = 0;
@@ -122,15 +116,11 @@ XrdFstOfs::XrdFstOfs() :
   TransferScheduler = 0;
 
   if (!getenv("EOS_NO_SHUTDOWN")) {
-    //-------------------------------------------
-    // add Shutdown handler
-    //-------------------------------------------
+    // Add Shutdown handler
     (void) signal(SIGINT, xrdfstofs_shutdown);
     (void) signal(SIGTERM, xrdfstofs_shutdown);
     (void) signal(SIGQUIT, xrdfstofs_shutdown);
-    //-------------------------------------------
-    // add SEGV handler
-    //-------------------------------------------
+    // Add SEGV handler
     (void) signal(SIGSEGV, xrdfstofs_stacktrace);
     (void) signal(SIGABRT, xrdfstofs_stacktrace);
     (void) signal(SIGBUS, xrdfstofs_stacktrace);
@@ -141,13 +131,14 @@ XrdFstOfs::XrdFstOfs() :
   TpcMap[1].set_deleted_key(""); // writers
 }
 
-
 //------------------------------------------------------------------------------
 // Destructor
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 XrdFstOfs::~XrdFstOfs()
 {
-  // empty
+  if (mHttpd) {
+    delete mHttpd;
+  }
 }
 
 
@@ -160,7 +151,6 @@ XrdFstOfs::newDir(char* user, int MonID)
   return (XrdSfsDirectory*)(0);
 }
 
-
 //------------------------------------------------------------------------------
 // Get a new OFS file object
 //-----------------------------------------------------------------------------
@@ -169,7 +159,6 @@ XrdFstOfs::newFile(char* user, int MonID)
 {
   return static_cast<XrdSfsFile*>(new XrdFstOfsFile(user, MonID));
 }
-
 
 //------------------------------------------------------------------------------
 // Get stacktrace from crashing process
@@ -200,7 +189,6 @@ XrdFstOfs::xrdfstofs_stacktrace(int sig)
   wait(&wstatus);
 }
 
-
 //------------------------------------------------------------------------------
 // OFS shutdown procedure
 //------------------------------------------------------------------------------
@@ -210,8 +198,8 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   static XrdSysMutex ShutDownMutex;
   ShutDownMutex.Lock(); // this handler goes only one-shot .. sorry !
   {
-    XrdSysMutexHelper sLock(ShutdownMutex);
-    Shutdown = true;
+    XrdSysMutexHelper sLock(sShutdownMutex);
+    sShutdown = true;
   }
   pid_t watchdog;
 
@@ -227,19 +215,18 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   }
 
   // Handler to shutdown the daemon for valgrinding and clean server stop
-  // (e.g. let's time to finish write operations
+  // (e.g. let time to finish write operations)
   if (gOFS.Messaging) {
     gOFS.Messaging->StopListener();  // stop any communication
   }
 
   XrdSysTimer sleeper;
   sleeper.Wait(1000);
-  std::set<pthread_t>::const_iterator it;
   {
     XrdSysMutexHelper(gOFS.Storage->ThreadSetMutex);
 
-    for (it = gOFS.Storage->ThreadSet.begin(); it != gOFS.Storage->ThreadSet.end();
-         it++) {
+    for (auto it = gOFS.Storage->ThreadSet.begin();
+         it != gOFS.Storage->ThreadSet.end(); it++) {
       eos_static_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
       XrdSysThread::Cancel(*it);
       // XrdSysThread::Join( *it, 0 );
@@ -252,7 +239,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   int wstatus = 0;
   wait(&wstatus);
   eos_static_warning("%s", "op=shutdown status=dbmapclosed");
-  // sync & close all file descriptors
+  // Sync & close all file descriptors
   eos::common::SyncAll::AllandClose();
   eos_static_warning("%s", "op=shutdown status=completed");
   // harakiri - yes!
@@ -262,7 +249,6 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   (void) signal(SIGQUIT, SIG_IGN);
   kill(getpid(), 9);
 }
-
 
 //------------------------------------------------------------------------------
 // OFS layer configuration
@@ -326,8 +312,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 5);
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
-  //////////////////////////////////////////////////////////////////////////////
-  // extract the manager from the config file
+  // Extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
   if (!ConfigFN || !*ConfigFN) {
@@ -421,8 +406,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     eos::common::StringConversion::StringFromShellCmd("uname -r | tr -d \"\n\"").c_str();
   Eroute.Say("=====> fstofs.broker : ",
              eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(), "");
-  //////////////////////////////////////////////////////////////////////////////
-  // extract our queue name
+  // Extract our queue name
   eos::fst::Config::gConfig.FstQueue = eos::fst::Config::gConfig.FstOfsBrokerUrl;
   {
     int pos1 = eos::fst::Config::gConfig.FstQueue.find("//");
@@ -469,7 +453,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   Eroute.Say("=====> eoscp-log : ", eoscpTransferLog.c_str());
-  //////////////////////////////////////////////////////////////////////////////
   // Create the messaging object(recv thread)
   eos::fst::Config::gConfig.FstDefaultReceiverQueue += "*/mgm";
   int pos1 = eos::fst::Config::gConfig.FstDefaultReceiverQueue.find("//");
@@ -499,7 +482,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     NoGo = 1;
     return NoGo;
   }
-  
+
   Messaging->SetLogId("FstOfsMessaging");
 
   if (!Messaging->StartListenerThread() || Messaging->IsZombie()) {
@@ -511,7 +494,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     return NoGo;
   }
 
-  //////////////////////////////////////////////////////////////////////////////
   // Attach Storage to the meta log dir
   Storage = eos::fst::Storage::Create(
               eos::fst::Config::gConfig.FstMetaLogDir.c_str());
@@ -533,7 +515,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   eos_notice("sending broadcast's ...");
-  //////////////////////////////////////////////////////////////////////////////
   // Create a wildcard broadcast
   XrdMqSharedHash* hash = 0;
   XrdMqSharedQueue* queue = 0;
@@ -582,22 +563,19 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   ObjectManager.HashMutex.UnLockRead();
-  //////////////////////////////////////////////////////////////////////////////
   // Start dumper thread
   XrdOucString dumperfile = eos::fst::Config::gConfig.FstMetaLogDir;
   dumperfile += "so.fst.dump";
   ObjectManager.StartDumper(dumperfile.c_str());
   XrdOucString keytabcks = "unaccessible";
-  //////////////////////////////////////////////////////////////////////////////
   // Start the embedded HTTP server
-  httpd = new HttpServer(8001);
+  mHttpd = new HttpServer(8001);
 
-  if (httpd) {
-    httpd->Start();
+  if (mHttpd) {
+    mHttpd->Start();
   }
 
-  //////////////////////////////////////////////////////////////////////////////
-  // build the adler checksum of the default keytab file
+  // Build the adler checksum of the default keytab file
   int fd = ::open("/etc/eos.keytab", O_RDONLY);
 
   if (fd >= 0) {
@@ -624,7 +602,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   return 0;
 }
 
-
 //------------------------------------------------------------------------------
 // Define error bool variables to en-/disable error simulation in the OFS layer
 //------------------------------------------------------------------------------
@@ -632,31 +609,22 @@ void
 XrdFstOfs::SetSimulationError(const char* tag)
 {
   XrdOucString stag = tag;
-  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error =
-                                  gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error =
-                                        gOFS.Simulate_FMD_open_error = false;
+  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error = false;
+  gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = false;
+  gOFS.Simulate_FMD_open_error = false;
 
   if (stag == "io_read") {
     gOFS.Simulate_IO_read_error = true;
-  }
-
-  if (stag == "io_write") {
+  } else if (stag == "io_write") {
     gOFS.Simulate_IO_write_error = true;
-  }
-
-  if (stag == "xs_read") {
+  } else if (stag == "xs_read") {
     gOFS.Simulate_XS_read_error = true;
-  }
-
-  if (stag == "xs_write") {
+  } else if (stag == "xs_write") {
     gOFS.Simulate_XS_write_error = true;
-  }
-
-  if (stag == "fmd_open") {
+  } else if (stag == "fmd_open") {
     gOFS.Simulate_FMD_open_error = true;
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Stat path
@@ -711,17 +679,13 @@ XrdFstOfs::stat(const char* path,
   }
 }
 
-
 //------------------------------------------------------------------------------
 // CallManager function
 //------------------------------------------------------------------------------
 int
-XrdFstOfs::CallManager(XrdOucErrInfo* error,
-                       const char* path,
-                       const char* manager,
-                       XrdOucString& capOpaqueFile,
-                       XrdOucString* return_result,
-                       unsigned short timeout)
+XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
+                       const char* manager, XrdOucString& capOpaqueFile,
+                       XrdOucString* return_result, unsigned short timeout)
 {
   EPNAME("CallManager");
   int rc = SFS_OK;
@@ -830,7 +794,6 @@ again:
   return rc;
 }
 
-
 //------------------------------------------------------------------------------
 // Set debug level based on the env info
 //------------------------------------------------------------------------------
@@ -863,7 +826,6 @@ XrdFstOfs::SetDebug(XrdOucEnv& env)
 
   fprintf(stderr, "Setting debug to %s\n", debuglevel.c_str());
 }
-
 
 //------------------------------------------------------------------------------
 // Set real time log level
@@ -935,7 +897,6 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
     }
   }
 }
-
 
 //------------------------------------------------------------------------------
 //
@@ -1031,7 +992,6 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Remove entry - interface function
 //------------------------------------------------------------------------------
@@ -1079,19 +1039,14 @@ XrdFstOfs::rem(const char* path,
   return rc;
 }
 
-
 //------------------------------------------------------------------------------
 // Remove entry - low level function
 //------------------------------------------------------------------------------
 int
-XrdFstOfs::_rem(const char* path,
-                XrdOucErrInfo& error,
-                const XrdSecEntity* client,
-                XrdOucEnv* capOpaque,
-                const char* fstpath,
-                unsigned long long fid,
-                unsigned long fsid,
-                bool ignoreifnotexist)
+XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
+                const XrdSecEntity* client, XrdOucEnv* capOpaque,
+                const char* fstpath, unsigned long long fid,
+                unsigned long fsid, bool ignoreifnotexist)
 {
   EPNAME("rem");
   XrdOucString fstPath = "";
@@ -1178,14 +1133,11 @@ XrdFstOfs::_rem(const char* path,
   return SFS_OK;
 }
 
-
 //------------------------------------------------------------------------------
 // Query file system information
 //------------------------------------------------------------------------------
 int
-XrdFstOfs::fsctl(const int cmd,
-                 const char* args,
-                 XrdOucErrInfo& error,
+XrdFstOfs::fsctl(const int cmd, const char* args, XrdOucErrInfo& error,
                  const XrdSecEntity* client)
 {
   static const char* epname = "fsctl";
@@ -1206,14 +1158,11 @@ XrdFstOfs::fsctl(const int cmd,
   return gOFS.Emsg(epname, error, EPERM, "execute fsctl function", "");
 }
 
-
 //------------------------------------------------------------------------------
 // Function dealing with plugin calls
 //------------------------------------------------------------------------------
 int
-XrdFstOfs::FSctl(const int cmd,
-                 XrdSfsFSctl& args,
-                 XrdOucErrInfo& error,
+XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
                  const XrdSecEntity* client)
 {
   char ipath[16384];
@@ -1262,17 +1211,12 @@ XrdFstOfs::FSctl(const int cmd,
     iopaque[0] = 0;
   }
 
-  // from here on we can deal with XrdOucString which is more 'comfortable'
+  // From here on we can deal with XrdOucString which is more 'comfortable'
   XrdOucString path = ipath;
   XrdOucString opaque = iopaque;
   XrdOucString result = "";
   XrdOucEnv env(opaque.c_str());
   eos_debug("tident=%s path=%s opaque=%s", tident, path.c_str(), opaque.c_str());
-
-  if (cmd != SFS_FSCTL_PLUGIN) {
-    return SFS_ERROR;
-  }
-
   const char* scmd;
 
   if ((scmd = env.Get("fst.pcmd"))) {
@@ -1370,40 +1314,6 @@ XrdFstOfs::FSctl(const int cmd,
   return Emsg(epname, error, EINVAL, "execute FSctl command", path.c_str());
 }
 
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-void
-XrdFstOfs::OpenFidString(unsigned long fsid, XrdOucString& outstring)
-{
-  outstring = "";
-  OpenFidMutex.Lock();
-  google::sparse_hash_map<unsigned long long, unsigned int>::const_iterator idit;
-  int nopen = 0;
-
-  for (idit = ROpenFid[fsid].begin(); idit != ROpenFid[fsid].end(); ++idit) {
-    if (idit->second > 0) {
-      nopen += idit->second;
-    }
-  }
-
-  outstring += "&statfs.ropen=";
-  outstring += nopen;
-  nopen = 0;
-
-  for (idit = WOpenFid[fsid].begin(); idit != WOpenFid[fsid].end(); ++idit) {
-    if (idit->second > 0) {
-      nopen += idit->second;
-    }
-  }
-
-  outstring += "&statfs.wopen=";
-  outstring += nopen;
-  OpenFidMutex.UnLock();
-}
-
-
 //------------------------------------------------------------------------------
 // Stall message for the client
 //------------------------------------------------------------------------------
@@ -1425,7 +1335,6 @@ XrdFstOfs::Stall(XrdOucErrInfo& error,  // Error text & code
   return stime;
 }
 
-
 //------------------------------------------------------------------------------
 // Redirect message for the client
 //------------------------------------------------------------------------------
@@ -1443,31 +1352,13 @@ XrdFstOfs::Redirect(XrdOucErrInfo& error,  // Error text & code
   return SFS_REDIRECT;
 }
 
-
 //------------------------------------------------------------------------------
 // When getting queried for checksum at the diskserver redirect to the MGM
 //------------------------------------------------------------------------------
 int
-XrdFstOfs::chksum(XrdSfsFileSystem::csFunc Func,
-                  const char* csName,
-                  const char* inpath,
-                  XrdOucErrInfo& error,
-                  const XrdSecEntity* client,
-                  const char* ininfo)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief retrieve a checksum
- *
- * @param func function to be performed 'csCalc','csGet' or 'csSize'
- * @param csName name of the checksum
- * @param error error object
- * @param client XRootD authentication object
- * @param ininfo CGI
- * @return SFS_OK on success otherwise SFS_ERROR
- *
- * We publish checksums on the MGM
- */
-/*----------------------------------------------------------------------------*/
+XrdFstOfs::chksum(XrdSfsFileSystem::csFunc Func, const char* csName,
+                  const char* inpath, XrdOucErrInfo& error,
+                  const XrdSecEntity* client, const char* ininfo)
 {
   int ecode = 1094;
   XrdOucString RedirectManager;

@@ -53,9 +53,10 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   ChangeLogFileMDSvc():
-    pFirstFreeId(1), pChangeLog(0), pSlaveLock(0),
+    pFirstFreeId(1), pChangeLog(0), pFollowerThread(0), pSlaveLock(0),
     pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
-    pFollowStart(0), pContSvc(0), pQuotaStats(0), pAutoRepair(0), pResSize(1000000)
+    pFollowStart(0), pContSvc(0), pQuotaStats(0), pAutoRepair(0),
+    pResSize(1000000)
   {
     pIdMap.set_deleted_key(0);
     pIdMap.set_empty_key(std::numeric_limits<IFileMD::id_t>::max());

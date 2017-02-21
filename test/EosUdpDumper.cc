@@ -32,42 +32,56 @@
 
 // a UDP server listening by default on port 32.000 dumping UDP packets of max. 64k
 
-int main(int argc, char**argv)
+int main(int argc, char** argv)
 {
-  int sockfd,n;
-  struct sockaddr_in servaddr,cliaddr;
+  int sockfd, n;
+  struct sockaddr_in servaddr, cliaddr;
   socklen_t len;
   char mesg[65536];
-
   int port = 32000;
 
   if (argc > 1) {
-    if (atoi(argv[1]) && (argc==2)) {
+    if (atoi(argv[1]) && (argc == 2)) {
       port = atoi(argv[1]);
     } else {
-      fprintf(stderr,"usage: eos-udp-dumper [port]\n");
+      fprintf(stderr, "usage: eos-udp-dumper [port]\n");
       exit(-1);
     }
   }
 
-  fprintf(stdout,"[eos-udp-dumper]: listening on port %d (max_message_size=64k)\n", port);
+  fprintf(stdout, "[eos-udp-dumper]: listening on port %d (max_message_size"
+          "=64k)\n", port);
+  sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
-  sockfd=socket(AF_INET,SOCK_DGRAM,0);
+  if (sockfd == -1) {
+    fprintf(stderr, "error: failed while calling socket\n");
+    return 1;
+  }
 
-  bzero(&servaddr,sizeof(servaddr));
+  bzero(&servaddr, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr=htonl(INADDR_ANY);
-  servaddr.sin_port=htons(port);
-  bind(sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr));
+  servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  servaddr.sin_port = htons(port);
+  bind(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr));
 
-  for (;;)
-    {
-      len = sizeof(cliaddr);
-      n = recvfrom(sockfd,mesg,65536,0,(struct sockaddr *)&cliaddr,&len);
-      sendto(sockfd,mesg,n,0,(struct sockaddr *)&cliaddr,sizeof(cliaddr));
-      printf("-------------------------------------------------------\n");
-      mesg[n] = 0;
-      printf("%s",mesg);
-      printf("-------------------------------------------------------\n");
+  for (;;) {
+    len = sizeof(cliaddr);
+    n = recvfrom(sockfd, mesg, 65536, 0, (struct sockaddr*)&cliaddr, &len);
+
+    if (n == -1) {
+      fprintf(stderr, "error: failed while calling recvfrom\n");
+      return 1;
     }
+
+    if (sendto(sockfd, mesg, n, 0, (struct sockaddr*)&cliaddr,
+               sizeof(cliaddr)) == -1) {
+      fprintf(stderr, "error: failed while calling sendto\n");
+      return 1;
+    }
+
+    printf("-------------------------------------------------------\n");
+    mesg[n] = 0;
+    printf("%s", mesg);
+    printf("-------------------------------------------------------\n");
+  }
 }

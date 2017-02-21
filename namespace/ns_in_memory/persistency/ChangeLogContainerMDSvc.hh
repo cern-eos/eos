@@ -60,10 +60,10 @@ public:
   //--------------------------------------------------------------------------
   //! Constructor
   //--------------------------------------------------------------------------
-  ChangeLogContainerMDSvc(): pFirstFreeId(0), pSlaveLock(0),
-    pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
-    pFollowStart(0), pQuotaStats(0), pFileSvc(NULL),
-    pAutoRepair(0), pResSize(1000000), pContainerAccounting(0)
+  ChangeLogContainerMDSvc():
+    pFirstFreeId(0), pFollowerThread(0), pSlaveLock(0), pSlaveMode(false),
+    pSlaveStarted(false), pSlavePoll(1000), pFollowStart(0), pQuotaStats(0),
+    pFileSvc(NULL), pAutoRepair(0), pResSize(1000000), pContainerAccounting(0)
   {
     try {
       pIdMap.set_deleted_key(0);

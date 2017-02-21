@@ -290,12 +290,11 @@ Storage::Create(const char* metadirectory)
 void
 Storage::Boot(FileSystem* fs)
 {
-  fs->SetStatus(eos::common::FileSystem::kBooting);
-
   if (!fs) {
     return;
   }
 
+  fs->SetStatus(eos::common::FileSystem::kBooting);
   // we have to wait that we know who is our manager
   std::string manager = "";
   size_t cnt = 0;
@@ -605,19 +604,15 @@ Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Checks that the label on the filesystem is the same as the configuration
+//------------------------------------------------------------------------------
 bool
 Storage::CheckLabel(std::string path,
                     eos::common::FileSystem::fsid_t fsid,
                     std::string uuid, bool failenoid, bool failenouuid)
 {
-  //----------------------------------------------------------------------------
-  //! checks that the label on the filesystem is the same as the configuration
-  //----------------------------------------------------------------------------
-
-  // --------------------
   // exclude remote disks
-  // --------------------
   if (path[0] != '/') {
     return true;
   }
@@ -631,29 +626,24 @@ Storage::CheckLabel(std::string path,
   if (!stat(fsidfile.c_str(), &buf)) {
     int fd = open(fsidfile.c_str(), O_RDONLY);
 
-    if (fd < 0) {
+    if (fd == -1) {
       return false;
     } else {
-      char ssfid[32];
+      ssize_t len = 32;
+      char ssfid[len];
       memset(ssfid, 0, sizeof(ssfid));
-      int nread = read(fd, ssfid, sizeof(ssfid) - 1);
+      ssize_t nread = read(fd, ssfid, sizeof(ssfid) - 1);
 
-      if (nread < 0) {
+      if (nread == -1) {
         close(fd);
         return false;
       }
 
       close(fd);
+      ssfid[std::min(nread, len - 1)] = '\0';
 
-      // for safety
-      if (nread < (int)(sizeof(ssfid) - 1)) {
-        ssfid[nread] = 0;
-      } else {
-        ssfid[31] = 0;
-      }
-
-      if (ssfid[strnlen(ssfid, sizeof(ssfid)) - 1] == '\n') {
-        ssfid[strnlen(ssfid, sizeof(ssfid)) - 1] = 0;
+      if (ssfid[strlen(ssfid) - 1] == '\n') {
+        ssfid[strlen(ssfid) - 1] = '\0';
       }
 
       ckfsid = atoi(ssfid);
@@ -674,25 +664,21 @@ Storage::CheckLabel(std::string path,
     if (fd < 0) {
       return false;
     } else {
-      size_t sz = 4096;
+      ssize_t sz = 4096;
       char suuid[sz];
-      memset(suuid, 0, sz);
-      int nread = read(fd, suuid, sz);
+      (void)memset(suuid, 0, sz);
+      ssize_t nread = read(fd, suuid, sz);
 
-      if (nread < 0) {
+      if (nread == -1) {
         close(fd);
         return false;
       }
 
       close(fd);
-      // For protection
-      suuid[sz - 1] = '\0';
+      suuid[std::min(nread, sz - 1)] = '\0';
 
-      // Remove \n
-      if (suuid[strnlen(suuid, sz) - 1] == '\n') {
-        suuid[strnlen(suuid, sz) - 1] = '\0';
-      } else {
-        suuid[sz - 1] = '\0';
+      if (suuid[strlen(suuid) - 1] == '\n') {
+        suuid[strlen(suuid) - 1] = '\0';
       }
 
       ckuuid = suuid;
@@ -703,7 +689,8 @@ Storage::CheckLabel(std::string path,
     }
   }
 
-  //  fprintf(stderr,"%d <=> %d %s <=> %s\n", fsid, ckfsid, ckuuid.c_str(), uuid.c_str());
+  // fprintf(stderr,"%d <=> %d %s <=> %s\n", fsid, ckfsid, ckuuid.c_str(),
+  // uuid.c_str());
   if ((fsid != ckfsid) || (ckuuid != uuid)) {
     return false;
   }

@@ -190,6 +190,7 @@ Storage::Publish()
                 r_open_hotfiles += ":";
                 r_open_hotfiles += hexfid.c_str();
                 r_open_hotfiles += " ";
+                ++cnt;
 
                 if (cnt == 10) {
                   break;
@@ -208,6 +209,7 @@ Storage::Publish()
                 w_open_hotfiles += ":";
                 w_open_hotfiles += hexfid.c_str();
                 w_open_hotfiles += " ";
+                ++cnt;
 
                 if (cnt == 10) {
                   break;

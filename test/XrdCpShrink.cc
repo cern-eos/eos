@@ -21,41 +21,42 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*-----------------------------------------------------------------------------*/
-/*-----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-/*-----------------------------------------------------------------------------*/
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <XrdClient/XrdClient.hh>
 #include <XrdOuc/XrdOucString.hh>
-/*-----------------------------------------------------------------------------*/
 
 XrdPosixXrootd posixXrootd;
 
-int main (int argc, char* argv[]) {
-  // create a 1k file but does not close it!
+int main(int argc, char* argv[])
+{
+  // Create a 1k file but does not close it!
   XrdOucString urlFile = argv[1];
+
   if (!urlFile.length()) {
-    fprintf(stderr,"usage: xrdcpabort <url>\n");
+    fprintf(stderr, "usage: xrdcpabort <url>\n");
     exit(EINVAL);
   }
-  
-  
+
   int fdWrite = XrdPosixXrootd::Open(urlFile.c_str(),
-				     O_CREAT|O_TRUNC|O_RDWR,
-				     kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or );
- 
-  if (fdWrite>=0) {
-    char* buffer = (char*)malloc(10000000);
-    if (!buffer)
+                                     O_CREAT | O_TRUNC | O_RDWR,
+                                     kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
+
+  if (fdWrite >= 0) {
+    size_t len = 10000000;
+    char* buffer = (char*)malloc(len);
+
+    if (!buffer) {
       exit(-1);
-    for (size_t i=0; i< sizeof(buffer); i++) {
-      buffer[i] = i%255;
     }
-      
-    XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeof(buffer),0);
+
+    for (size_t i = 0; i < len; ++i) {
+      buffer[i] = i % 255;
+    }
+
+    XrdPosixXrootd::Pwrite(fdWrite, buffer, len - 1, 0);
     XrdPosixXrootd::Ftruncate(fdWrite, 65536);
   } else {
     exit(-1);

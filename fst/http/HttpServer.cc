@@ -188,6 +188,12 @@ HttpServer::FileReaderCallback(void* cls, uint64_t pos, char* buf, size_t max)
     static_cast<eos::common::ProtocolHandler*>(cls);
   eos::fst::HttpHandler* httpHandle = dynamic_cast<eos::fst::HttpHandler*>
                                       (handler);
+
+  if (!httpHandle) {
+    eos_static_err("error: dynamic cast to eos::fst::HttpHandler failed");
+    return -1;
+  }
+
   eos_static_debug("pos=%llu max=%llu current-index=%d current-offset=%llu",
                    (unsigned long long) pos,
                    (unsigned long long) max,

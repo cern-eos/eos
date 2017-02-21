@@ -75,8 +75,10 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  std::string lib_path = argv[1];
-  void* libHandle = dlopen(lib_path.c_str(), RTLD_LAZY);
+  char* ptr = argv[1];
+  char lib_path[ptr ? strlen(ptr) + 1 : 1];
+  (void) strcpy(lib_path, ptr ? ptr : "");
+  void* libHandle = dlopen(lib_path, RTLD_LAZY);
 
   if (libHandle == 0) {
     std::cerr << "Unable to load the test library: " << dlerror() << std::endl;

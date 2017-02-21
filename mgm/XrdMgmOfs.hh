@@ -617,7 +617,7 @@ public:
                const char* opaque,
                const char* key,
                XrdOucString& value);
-  
+
   // ---------------------------------------------------------------------------
   // remove extended attribute of a directory
   // ---------------------------------------------------------------------------
@@ -664,8 +664,8 @@ public:
   // ---------------------------------------------------------------------------
   bool
   _attr_get(uint64_t id,
-		       std::string key,
-		       std::string &rvalue);
+            std::string key,
+            std::string& rvalue);
 
 
   // ---------------------------------------------------------------------------
@@ -998,17 +998,17 @@ public:
   // ---------------------------------------------------------------------------
   // Signal handler for signal 40 to start profiling the heap
   // ---------------------------------------------------------------------------
-  static void StartHeapProfiling (int);
+  static void StartHeapProfiling(int);
 
   // ---------------------------------------------------------------------------
   // Signal handler for signal 41 to stop profiling the heap
   // ---------------------------------------------------------------------------
-  static void StopHeapProfiling (int);
+  static void StopHeapProfiling(int);
 
   // ---------------------------------------------------------------------------
   // Signal handler for signal 42 to dump the heap profile
   // ---------------------------------------------------------------------------
-  static void DumpHeapProfile (int);
+  static void DumpHeapProfile(int);
 
   // ---------------------------------------------------------------------------
   // Filesystem error and configuration change listener thread function
@@ -1035,69 +1035,68 @@ public:
   std::vector<ProcCommand::ArchDirStatus>
   GetPendingBkps();
 
-  // ---------------------------------------------------------------------------
-  // configuration variables
-  // ---------------------------------------------------------------------------
-  char* ConfigFN; //< name of the configuration file
-
-  IConfigEngine* ConfEngine; //< storing/restoring configuration
-
-  XrdCapability*
-  CapabilityEngine; //< authorization module for token encryption/decryption
-  uint64_t mCapabilityValidity; ///< Time in seconds the capability is valid
-  XrdOucString MgmOfsBroker; //< Url of the message broker without MGM subject
-  XrdOucString MgmOfsBrokerUrl; //< Url of the message broker with MGM subject
-  XrdOucString MgmOfsVstBrokerUrl; //< Url of the message broker
-  XrdOucString MgmArchiveDstUrl; ///< URL where all archives are saved
-  XrdOucString MgmArchiveSvcClass; ///< CASTOR svcClass for archive transfers
-  Messaging* MgmOfsMessaging; //< messaging interface class
-  VstMessaging* MgmOfsVstMessaging; //< admin messaging interface class
+  //----------------------------------------------------------------------------
+  // Configuration variables
+  //----------------------------------------------------------------------------
+  char* ConfigFN; ///< name of the configuration file
+  IConfigEngine* ConfEngine; ///< storing/restoring configuration
+  //! Authorization module for token encryption/decryption
+  XrdCapability* CapabilityEngine;
+  uint64_t mCapabilityValidity; ////< Time in seconds the capability is valid
+  XrdOucString MgmOfsBroker; ///< Url of the message broker without MGM subject
+  XrdOucString MgmOfsBrokerUrl; ///< Url of the message broker with MGM subject
+  XrdOucString MgmOfsVstBrokerUrl; ///< Url of the message broker
+  XrdOucString MgmArchiveDstUrl; ////< URL where all archives are saved
+  XrdOucString MgmArchiveSvcClass; ////< CASTOR svcClass for archive transfers
+  Messaging* MgmOfsMessaging; ///< messaging interface class
+  VstMessaging* MgmOfsVstMessaging; ///< admin messaging interface class
   XrdOucString
-  MgmDefaultReceiverQueue; //< Queue where we are sending to by default
-  XrdOucString MgmOfsName; //< mount point of the filesystem
-  XrdOucString MgmOfsAlias; //< alias of this MGM instance
+  MgmDefaultReceiverQueue; ///< Queue where we are sending to by default
+  XrdOucString MgmOfsName; ///< mount point of the filesystem
+  XrdOucString MgmOfsAlias; ///< alias of this MGM instance
   XrdOucString
-  MgmOfsTargetPort; //< xrootd port where redirections go on the OSTs -default is 1094
-  XrdOucString MgmOfsQueue; //< our mgm queue name
-  XrdOucString MgmOfsInstanceName; //< name of the EOS instance
-  XrdOucString MgmConfigDir; //< Directory where config files are stored
+  MgmOfsTargetPort; ///< xrootd port where redirections go on the OSTs -default is 1094
+  XrdOucString MgmOfsQueue; ///< our mgm queue name
+  XrdOucString MgmOfsInstanceName; ///< name of the EOS instance
+  XrdOucString MgmConfigDir; ///< Directory where config files are stored
   XrdOucString
-  MgmConfigAutoLoad; //< Name of the automatically loaded configuration file
+  MgmConfigAutoLoad; ///< Name of the automatically loaded configuration file
   //! Directory where tmp. archive transfer files are saved
   XrdOucString MgmArchiveDir;
-  XrdOucString MgmProcPath; //< Directory with proc files
+  XrdOucString MgmProcPath; ///< Directory with proc files
   XrdOucString
-  MgmProcConversionPath; //< Directory with conversion files (used as temporary files when a layout is changed using third party copy)
-  XrdOucString MgmProcWorkflowPath; //< Directory with worflows
-  XrdOucString MgmProcLockPath; //< Directory with client locks
-  XrdOucString MgmProcDelegationPath; //< Directory with client delegations
-  XrdOucString MgmProcMasterPath; //< Full path to the master indication proc file
+  MgmProcConversionPath; ///< Directory with conversion files (used as temporary files when a layout is changed using third party copy)
+  XrdOucString MgmProcWorkflowPath; ///< Directory with worflows
+  XrdOucString MgmProcLockPath; ///< Directory with client locks
+  XrdOucString MgmProcDelegationPath; ///< Directory with client delegations
+  XrdOucString
+  MgmProcMasterPath; ///< Full path to the master indication proc file
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
   ///< are saved for fast find functionality
-  XrdOucString AuthLib; //< path to a possible authorizationn library
+  XrdOucString AuthLib; ///< path to a possible authorizationn library
   XrdOucString
-  MgmNsFileChangeLogFile; //< path to namespace changelog file for files
+  MgmNsFileChangeLogFile; ///< path to namespace changelog file for files
   XrdOucString
-  MgmNsDirChangeLogFile; //< path to namespace changelog file for directories
-  XrdOucString MgmConfigQueue; //< name of the mgm-wide broadcasted shared hash
+  MgmNsDirChangeLogFile; ///< path to namespace changelog file for directories
+  XrdOucString MgmConfigQueue; ///< name of the mgm-wide broadcasted shared hash
   XrdOucString
-  AllConfigQueue; //< name of the cluster-wide broadcasted shared hash
-  XrdOucString FstConfigQueue; //< name of the fst-wide broadcasted shared hash
+  AllConfigQueue; ///< name of the cluster-wide broadcasted shared hash
+  XrdOucString FstConfigQueue; ///< name of the fst-wide broadcasted shared hash
 
   XrdOucString
-  SpaceConfigQueuePrefix; //< name of the prefix for space configuration
+  SpaceConfigQueuePrefix; ///< name of the prefix for space configuration
   XrdOucString
-  NodeConfigQueuePrefix; //< name of the prefix for node configuration
+  NodeConfigQueuePrefix; ///< name of the prefix for node configuration
   XrdOucString
-  GroupConfigQueuePrefix; //< name of the prefix for group configuration
+  GroupConfigQueuePrefix; ///< name of the prefix for group configuration
 
   XrdOucString
-  MgmTxDir; //<  Directory containing the transfer database and archive
-  XrdOucString MgmAuthDir; //< Directory containing exported authentication token
+  MgmTxDir; ///<  Directory containing the transfer database and archive
+  XrdOucString MgmAuthDir; ///< Directory containing exported authentication token
 
-  XrdOucString ManagerId; //< manager id in <host>:<port> format
-  XrdOucString ManagerIp; //< manager ip in <xxx.yyy.zzz.vvv> format
-  int ManagerPort; //< manager port as number e.g. 1094
+  XrdOucString ManagerId; ///< manager id in <host>:<port> format
+  XrdOucString ManagerIp; ///< manager ip in <xxx.yyy.zzz.vvv> format
+  int ManagerPort; ///< manager port as number e.g. 1094
 
   XrdOucString MgmOfsConfigEngineType; //type of ConfigEngine ( file or redis)
   XrdOucString MgmOfsConfigEngineRedisHost; //Redis host
@@ -1109,17 +1108,17 @@ public:
 
   std::map<eos::common::FileSystem::fsid_t, time_t>
   ScheduledToDrainFid; // map with scheduled fids for draining
-  XrdSysMutex ScheduledToDrainFidMutex; //< mutex protecting ScheduledToDrainFid
+  XrdSysMutex ScheduledToDrainFidMutex; ///< mutex protecting ScheduledToDrainFid
   std::map<eos::common::FileSystem::fsid_t, time_t>
   ScheduledToBalanceFid; // map with scheduled fids for balancing
   XrdSysMutex
-  ScheduledToBalanceFidMutex; //< mutex protecting ScheduledToBalanceFid
+  ScheduledToBalanceFidMutex; ///< mutex protecting ScheduledToBalanceFid
 
-  time_t StartTime; //< out starttime
-  char* HostName; //< our hostname as derived in XrdOfs
-  char* HostPref; //< our hostname as derived in XrdOfs without domain
+  time_t StartTime; ///< out starttime
+  char* HostName; ///< our hostname as derived in XrdOfs
+  char* HostPref; ///< our hostname as derived in XrdOfs without domain
 
-  static XrdSysError* eDest; //< error routing object
+  static XrdSysError* eDest; ///< error routing object
 
   //----------------------------------------------------------------------------
   // Namespace specific variables
@@ -1128,11 +1127,11 @@ public:
     kDown = 0, kBooting = 1, kBooted = 2, kFailed = 3, kCompacting = 4
   };
 
-  int Initialized; //< indicating the initialization state of the namespace with the above enum
-  time_t InitializationTime; //< time of the initialization
-  XrdSysMutex InitializationMutex; //< mutex protecting above variables
-  bool Shutdown; //< true if the shutdown function was called => avoid to join some threads
-  bool RemoveStallRuleAfterBoot; //< indicates that after a boot there shouldn't be a stall rule for all alias '*'
+  int Initialized; ///< indicating the initialization state of the namespace with the above enum
+  time_t InitializationTime; ///< time of the initialization
+  XrdSysMutex InitializationMutex; ///< mutex protecting above variables
+  bool Shutdown; ///< true if the shutdown function was called => avoid to join some threads
+  bool RemoveStallRuleAfterBoot; ///< indicates that after a boot there shouldn't be a stall rule for all alias '*'
   //! const strings to print the namespace boot state as in eNamespace
   static const char* gNameSpaceState[];
 
@@ -1140,39 +1139,39 @@ public:
   // State variables
   //----------------------------------------------------------------------------
   eos::common::FileId::fileid_t
-  BootFileId; //< next free file id after namespace boot
+  BootFileId; ///< next free file id after namespace boot
   eos::common::FileId::fileid_t
-  BootContainerId; //< next free container id after namespace boot
-  bool IsReadOnly; //< true if this is a read-only redirector
-  bool IsRedirect; //< true if the Redirect function should be called to redirect
-  bool IsStall; //< true if the Stall function should be called to send a wait
-  bool IsWriteStall; //< true if the Stall function should be called to send a wait to everything doing 'writes'
-  bool authorize; //< determins if the autorization should be applied or not
-  bool IssueCapability; //< defines if the Mgm issues capabilities
-  bool MgmRedirector; //<  Act's only as a redirector, disables many components in the MGM
-  bool ErrorLog; //<  Mgm writes error log with cluster collected file into /var/log/eos/error.log if <true>
+  BootContainerId; ///< next free container id after namespace boot
+  bool IsReadOnly; ///< true if this is a read-only redirector
+  bool IsRedirect; ///< true if the Redirect function should be called to redirect
+  bool IsStall; ///< true if the Stall function should be called to send a wait
+  bool IsWriteStall; ///< true if the Stall function should be called to send a wait to everything doing 'writes'
+  bool authorize; ///< determins if the autorization should be applied or not
+  bool IssueCapability; ///< defines if the Mgm issues capabilities
+  bool MgmRedirector; ///<  Act's only as a redirector, disables many components in the MGM
+  bool ErrorLog; ///<  Mgm writes error log with cluster collected file into /var/log/eos/error.log if <true>
 
   //----------------------------------------------------------------------------
   // Namespace variables
   //----------------------------------------------------------------------------
-  eos::IContainerMDSvc* eosDirectoryService; //< changelog for directories
-  eos::IFileMDSvc* eosFileService; //< changelog for files
-  eos::IView* eosView; //< hierarchical view of the namespace
-  eos::IFsView* eosFsView; //< filesystem view of the namespace
-  eos::IFileMDChangeListener* eosContainerAccounting; //< subtree accoutning
+  eos::IContainerMDSvc* eosDirectoryService; ///< changelog for directories
+  eos::IFileMDSvc* eosFileService; ///< changelog for files
+  eos::IView* eosView; ///< hierarchical view of the namespace
+  eos::IFsView* eosFsView; ///< filesystem view of the namespace
+  eos::IFileMDChangeListener* eosContainerAccounting; ///< subtree accoutning
   eos::IContainerMDChangeListener*
-  eosSyncTimeAccounting; //< subtree mtime propagation
-  XrdSysMutex eosViewMutex; //< mutex making the namespace single threaded
-  eos::common::RWMutex eosViewRWMutex; //< rw namespace mutex
+  eosSyncTimeAccounting; ///< subtree mtime propagation
+  XrdSysMutex eosViewMutex; ///< mutex making the namespace single threaded
+  eos::common::RWMutex eosViewRWMutex; ///< rw namespace mutex
   XrdOucString
   MgmMetaLogDir; //  Directory containing the meta data (change) log files
 
   // ---------------------------------------------------------------------------
   // thread variables
   // ---------------------------------------------------------------------------
-  pthread_t deletion_tid; //< Thead Id of the deletion thread
-  pthread_t stats_tid; //< Thread Id of the stats thread
-  pthread_t fsconfiglistener_tid; //< Thread ID of the fs listener/config change thread
+  pthread_t deletion_tid; ///< Thead Id of the deletion thread
+  pthread_t stats_tid; ///< Thread Id of the stats thread
+  pthread_t fsconfiglistener_tid; ///< Thread ID of the fs listener/config change thread
   pthread_t auth_tid; ///< Thread Id of the authentication thread
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
@@ -1186,53 +1185,54 @@ public:
 
   XrdAccAuthorize* Authorization; ///< Authorization service
   Stat MgmStats; ///<  Mgm Namespace Statistics
-  Iostat IoStats; //<  Mgm IO Statistics
+  Iostat IoStats; ///<  Mgm IO Statistics
 
   XrdOucString
-  IoReportStorePath; //<  Mgm IO Report store path by default is /var/tmp/eos/report
+  IoReportStorePath; ///<  Mgm IO Report store path by default is /var/tmp/eos/report
 
   eos::common::CommentLog*
-  commentLog; //<  Class implementing comment log: mgm writes all proc commands with a comment into /var/log/eos/comments.log
+  commentLog; ///<  Class implementing comment log: mgm writes all proc commands with a comment into /var/log/eos/comments.log
 
-  Fsck FsCheck; //<  Class checking the filesystem
+  Fsck FsCheck; ///<  Class checking the filesystem
   google::sparse_hash_map<unsigned long long, time_t>
-  MgmHealMap; //< map remembering 'healing' inodes
+  MgmHealMap; ///< map remembering 'healing' inodes
 
-  XrdSysMutex MgmHealMapMutex; //< mutex protecting the help map
+  XrdSysMutex MgmHealMapMutex; ///< mutex protecting the help map
 
-  Master MgmMaster; //<  Master/Slave configuration/failover class
+  Master MgmMaster; ///<  Master/Slave configuration/failover class
 
   std::map<eos::common::FileSystem::fsid_t, time_t>
-  DumpmdTimeMap; //< this map stores the last time of a filesystem dump, this information is used to track filesystems which have not been checked decentral by an FST. It is filled in the 'dumpmd' function definde in Procinterface
+  DumpmdTimeMap; ///< this map stores the last time of a filesystem dump, this information is used to track filesystems which have not been checked decentral by an FST. It is filled in the 'dumpmd' function definde in Procinterface
 
-  XrdSysMutex DumpmdTimeMapMutex; //< mutex protecting the 'dumpmd' time
+  XrdSysMutex DumpmdTimeMapMutex; ///< mutex protecting the 'dumpmd' time
 
-  eos::common::RWMutex PathMapMutex; //< mutex protecting the path map
+  eos::common::RWMutex PathMapMutex; ///< mutex protecting the path map
 
-  std::map<std::string, std::string> PathMap; //< containing global path remapping
+  std::map<std::string, std::string>
+  PathMap; ///< containing global path remapping
 
-  XrdMqSharedObjectManager ObjectManager; //< Shared Hash/Queue ObjectManager
+  XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   XrdMqSharedObjectChangeNotifier
-  ObjectNotifier; //< Shared Hash/Queue Object Change Notifier
+  ObjectNotifier; ///< Shared Hash/Queue Object Change Notifier
 
-  GeoTreeEngine GeotreeEngine; //< Placement / Access Engine
+  GeoTreeEngine GeotreeEngine; ///< Placement / Access Engine
 
   // map keeping the modification times of directories, they are either directly inserted from directory/file creation or they are set from a directory listing
   XrdSysMutex
-  MgmDirectoryModificationTimeMutex; //<  mutex protecting Directory Modificatino Time map MgmDirectoryModificationTime
+  MgmDirectoryModificationTimeMutex; ///<  mutex protecting Directory Modificatino Time map MgmDirectoryModificationTime
 
   google::sparse_hash_map<unsigned long long, struct timespec>
     MgmDirectoryModificationTime;
 
-  HttpServer Httpd; //<  Http daemon if available
+  HttpServer Httpd; ///<  Http daemon if available
 
-  LRU LRUd; //< LRU object running the LRU policy engine
-  WFE WFEd; //< WFE object running the WFE engine
-  Egroup EgroupRefresh; //<  Egroup refresh object running asynchronous Egroup fetch thread
+  LRU LRUd; ///< LRU object running the LRU policy engine
+  WFE WFEd; ///< WFE object running the WFE engine
+  Egroup EgroupRefresh; ///<  Egroup refresh object running asynchronous Egroup fetch thread
 
-  Recycle Recycler; //<  Recycle object running the recycle bin deletion thread
+  Recycle Recycler; ///<  Recycle object running the recycle bin deletion thread
 
-  bool UTF8; //< true if running in less restrictive character set mode
+  bool UTF8; ///< true if running in less restrictive character set mode
 
   std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint
   std::string mFstGwHost; ///< FST gateway redirect fqdn host

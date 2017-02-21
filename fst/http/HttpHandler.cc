@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/http/HttpHandler.hh"
 #include "fst/http/HttpServer.hh"
 #include "fst/checksum/Adler.hh"
@@ -30,23 +29,17 @@
 #include "common/http/OwnCloud.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/MimeTypes.hh"
-
 #include "fst/XrdFstOfs.hh"
-//#include "common/S3.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-/*----------------------------------------------------------------------------*/
-
 
 EOSFSTNAMESPACE_BEGIN
-/*----------------------------------------------------------------------------*/
+
 XrdSysMutex HttpHandler::mOpenMutexMapMutex;
 std::map<unsigned int, XrdSysMutex*> HttpHandler::mOpenMutexMap;
 eos::common::MimeTypes HttpHandler::gMime;
 
 /*----------------------------------------------------------------------------*/
-
 bool
 HttpHandler::Matches(const std::string& meth, HeaderMap& headers)
 {
@@ -272,7 +265,7 @@ HttpHandler::Get(eos::common::HttpRequest* request)
         response->AddHeader("Content-Length", clength);
 
         // retrieve a checksum when file is still open
-        if (mFile && mFile->GetChecksum()) {
+        if (mFile->GetChecksum()) {
           std::string checksum_name = mFile->GetChecksum()->GetName();
           std::string checksum_val = mFile->GetFmdChecksum();
 

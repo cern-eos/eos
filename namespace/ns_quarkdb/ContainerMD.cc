@@ -85,6 +85,8 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pXAttrs   = other.pXAttrs;
   pFlags    = other.pFlags;
   pTreeSize = other.pTreeSize;
+  pContSvc  = other.pContSvc;
+  pFileSvc  = other.pFileSvc;
   // Note: pFiles and pSubContainers are not copied here
   return *this;
 }

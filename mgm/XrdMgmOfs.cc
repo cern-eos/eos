@@ -365,15 +365,12 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
 
   // check that all files exist
   while (pptr) {
-    XrdOucString prep_path = pptr ? (pptr->text ? pptr->text : "") : "";
+    XrdOucString prep_path = (pptr->text ? pptr->text : "");
     eos_info("path=\"%s\"", prep_path.c_str());
     XrdSfsFileExistence check;
 
-    if (_exists(prep_path.c_str(),
-                check,
-                error,
-                client,
-                "") || (check != XrdSfsFileExistIsFile)) {
+    if (_exists(prep_path.c_str(), check, error, client, "") ||
+        (check != XrdSfsFileExistIsFile)) {
       if (check != XrdSfsFileExistIsFile) {
         Emsg(epname, error, ENOENT,
              "prepare - file does not exist or is not accessible to you",
@@ -384,19 +381,13 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
     }
 
     // check that we have write permission on path
-    if (gOFS->_access(prep_path.c_str(),
-                      W_OK,
-                      error,
-                      vid,
-                      "")) {
+    if (gOFS->_access(prep_path.c_str(), W_OK, error, vid, "")) {
       Emsg(epname, error, EPERM, "prepare - you don't have write permission",
            prep_path.c_str());
       return SFS_ERROR;
     }
 
-    if (pptr) {
-      pptr = pptr->next;
-    }
+    pptr = pptr->next;
 
     if (optr) {
       optr = optr->next;

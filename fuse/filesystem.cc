@@ -4616,12 +4616,12 @@ filesystem::init(int argc, char* argv[], void* userdata,
                                  0, 10);
   }
 
-// Check if we should set files executable
+  // Check if we should set files executable
   if (getenv("EOS_FUSE_EXEC") && (!strcmp(getenv("EOS_FUSE_EXEC"), "1"))) {
     fuse_exec = true;
   }
 
-// Initialise the XrdFileCache
+  // Initialise the XrdFileCache
   fuse_cache_write = false;
 
   if ((!(getenv("EOS_FUSE_CACHE"))) ||
@@ -4694,7 +4694,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
 
     if (!f) {
       eos_static_err("could not run the system wide rm command procedure");
-    } else if (!fscanf(f, "%s", rm_cmd)) {
+    } else if (fscanf(f, "%s", rm_cmd) != 1) {
       pclose(f);
       eos_static_err("cannot get rm command to watch");
     } else {
@@ -4707,40 +4707,37 @@ filesystem::init(int argc, char* argv[], void* userdata,
 
       if (!f) {
         eos_static_err("could not run the rm command to watch");
-      }
+      } else {
+        char* line = NULL;
+        size_t len = 0;
 
-      char* line = NULL;
-      size_t len = 0;
-
-      if (f && getline(&line, &len, f) == -1) {
-        pclose(f);
-
-        if (f) {
+        if (getline(&line, &len, f) == -1) {
+          pclose(f);
           eos_static_err("could not read rm command version to watch");
-        }
-      } else if (line) {
-        pclose(f);
-        char* lasttoken = strrchr(line, ' ');
+        } else if (line) {
+          pclose(f);
+          char* lasttoken = strrchr(line, ' ');
 
-        if (lasttoken) {
-          float rmver;
+          if (lasttoken) {
+            float rmver;
 
-          if (!sscanf(lasttoken, "%f", &rmver)) {
-            eos_static_err("could not interpret rm command version to watch %s",
-                           lasttoken);
-          } else {
-            int rmmajv = floor(rmver);
-            eos_static_notice("top level recursive deletion command to watch "
-                              "is %s, version is %f, major version is %d",
-                              rm_cmd, rmver, rmmajv);
-
-            if (rmmajv >= 8) {
-              rm_watch_relpath = true;
-              eos_static_notice("top level recursive deletion CAN watch "
-                                "relative path removals");
+            if (!sscanf(lasttoken, "%f", &rmver)) {
+              eos_static_err("could not interpret rm command version to watch %s",
+                             lasttoken);
             } else {
-              eos_static_warning("top level recursive deletion CANNOT watch "
-                                 "relative path removals");
+              int rmmajv = floor(rmver);
+              eos_static_notice("top level recursive deletion command to watch "
+                                "is %s, version is %f, major version is %d",
+                                rm_cmd, rmver, rmmajv);
+
+              if (rmmajv >= 8) {
+                rm_watch_relpath = true;
+                eos_static_notice("top level recursive deletion CAN watch "
+                                  "relative path removals");
+              } else {
+                eos_static_warning("top level recursive deletion CANNOT watch "
+                                   "relative path removals");
+              }
             }
           }
         }

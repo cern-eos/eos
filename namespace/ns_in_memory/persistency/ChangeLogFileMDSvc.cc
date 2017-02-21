@@ -652,7 +652,6 @@ public:
 private:
   std::map<eos::IFileMD::id_t, RecordData>& pUpdates;
   eos::ChangeLogFile*                      pNewLog;
-  uint64_t                                 pCounter;
 };
 }
 

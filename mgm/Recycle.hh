@@ -24,31 +24,28 @@
 #ifndef __EOSMGM_RECYCLE__HH__
 #define __EOSMGM_RECYCLE__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 /**
  * @file   Recycle.hh
  *
- * @brief  This class implements the thread cleaning up a recycling bin and the movement of a file or bulk directory to the recycling bin
- * 
+ * @brief  This class implements the thread cleaning up a recycling bin and the
+ * movement of a file or bulk directory to the recycling bin
+ *
  * If the class is called with an empty constructor the Start function starts a
- * which is cleaning up under gRecyclingPrefix according to the attribute 
+ * which is cleaning up under gRecyclingPrefix according to the attribute
  * "sys.recycle.keep" which defines the time in second how long files are kept
  * in the recycling bin.
  * If the class is called with the complex constructor it is used with the ToGarbage
  * method to move a deleted file or a bulk deletion into the recycling bin.
- * The Recycling bin has the substructure <instance-proc>/recycle/<gid>/<uid>/<constracted-path>.<08x:inode>
+ * The Recycling bin has the substructure <instance-proc>/recycle/<gid>/<uid>/
+ * <constracted-path>.<08x:inode>
  * The constrcated path is the full path of the file where all '/' are replaced
  * with a '#:#'
  */
@@ -56,16 +53,9 @@ EOSMGMNAMESPACE_BEGIN
 class Recycle
 {
 private:
-  //............................................................................
-  // variables for the recyling thread
-  //............................................................................
   pthread_t mThread; //< thread id of the recyling thread
-
-  //............................................................................
-  // variables for an recyling action (e.g. deletion movement into bin)
-  //............................................................................
-
-  eos::common::Mapping::VirtualIdentity_t *pVid;
+  // Variables for an recyling action (e.g. deletion movement into bin)
+  eos::common::Mapping::VirtualIdentity_t* pVid;
   std::string mPath;
   std::string mRecycleDir;
   std::string mRecyclePath;
@@ -76,55 +66,54 @@ private:
   XrdSysMutex mWakeUpMutex;
 
 public:
+  //----------------------------------------------------------------------------
+  //! Default Constructor - use it to run the Recycle thread by callign Start
+  //! afterwards.
+  //----------------------------------------------------------------------------
+  Recycle():
+    mThread(0), pVid(0), mPath(""), mRecycleDir(""), mRecyclePath(""),
+    mOwnerUid(99), mOwnerGid(99), mId(0), mWakeUp(false)
+  {}
 
-  /* Default Constructor - use it to run the Recycle thread by callign Start afterwards
-   */
-  Recycle ()
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //! @param path path to recycle
+  //! @param recycle bin directory
+  //! @param uid user id
+  //! @param gid group id
+  //! @param id of the container or file
+  //----------------------------------------------------------------------------
+  Recycle(const char* path, const char* recycledir,
+          eos::common::Mapping::VirtualIdentity_t* vid, uid_t ownerUid,
+          gid_t ownerGid, unsigned long long id):
+    mThread(0), pVid(vid), mPath(path), mRecycleDir(recycledir),
+    mRecyclePath(""), mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id),
+    mWakeUp(false)
+  {}
+
+  ~Recycle()
   {
-    mThread = 0;
+    if (mThread) {
+      Stop();
+    }
   }
+
 
   /* Start the recycle thread cleaning up the recycle bin
    */
-  bool Start ();
+  bool Start();
 
   /* Stop the recycle thread
    */
-  void Stop ();
+  void Stop();
 
   /* Thread start function for recycle thread
    */
-  static void* StartRecycleThread (void*);
+  static void* StartRecycleThread(void*);
 
   /* Recycle method doing the actual clean-up
    */
-  void* Recycler ();
-
-  /**
-   * Constructor
-   * @param path path to recycle
-   * @param recycle bin directory
-   * @param uid user id 
-   * @param gid group id
-   * @param id of the container or file
-   */
-
-  Recycle (const char* path, const char* recycledir, eos::common::Mapping::VirtualIdentity_t* vid, uid_t ownerUid, gid_t ownerGid, unsigned long long id)
-  {
-    mPath = path;
-    mRecycleDir = recycledir;
-    pVid = vid;
-    mOwnerUid = ownerUid;
-    mOwnerGid = ownerGid;
-    mId = id;
-    mThread = 0;
-    mWakeUp = false;
-  }
-
-  ~Recycle ()
-  {
-    if (mThread) Stop ();
-  };
+  void* Recycler();
 
   /**
    * do the recycling of the recycle object (file or subtree)
@@ -132,8 +121,7 @@ public:
    * @param error object
    * @return SFS_OK if ok, otherwise SFS_ERR + errno + error object set
    */
-
-  int ToGarbage (const char* epname, XrdOucErrInfo & error);
+  int ToGarbage(const char* epname, XrdOucErrInfo& error);
 
   /**
    * return the path from where the action can be recycled ( this is filled after ToGarbage has been called
@@ -141,7 +129,7 @@ public:
    */
 
   std::string
-  getRecyclePath ()
+  getRecyclePath()
   {
     return mRecyclePath;
   }
@@ -154,7 +142,9 @@ public:
    * @param monitoring selects monitoring key-value output format
    * @param translateids selects to display uid/gid as number or string
    */
-  static void Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t &vid, bool monitoring, bool transalteids, bool details);
+  static void Print(XrdOucString& stdOut, XrdOucString& stdErr,
+                    eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
+                    bool transalteids, bool details);
 
   /**
    * undo a deletion
@@ -165,7 +155,9 @@ public:
    * @param option can be --force-original-name or -f
    * @return 0 if done, otherwise errno
    */
-  static int Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t &vid, const char* key, XrdOucString & options);
+  static int Restore(XrdOucString& stdOut, XrdOucString& stdErr,
+                     eos::common::Mapping::VirtualIdentity_t& vid, const char* key,
+                     XrdOucString& options);
 
   /**
    * purge all files in the recycle bin
@@ -174,7 +166,8 @@ public:
    * @param vid of the client
    * @return 0 if done, otherwise errno
    */
-  static int Purge (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t & vid);
+  static int Purge(XrdOucString& stdOut, XrdOucString& stdErr,
+                   eos::common::Mapping::VirtualIdentity_t& vid);
 
   /**
    * configure the recycle bin
@@ -185,21 +178,32 @@ public:
    * @option configuration type
    * @return 0 if done, otherwise errno
    */
-  static int Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t &vid, const char* arg, XrdOucString & options);
+  static int Config(XrdOucString& stdOut, XrdOucString& stdErr,
+                    eos::common::Mapping::VirtualIdentity_t& vid, const char* arg,
+                    XrdOucString& options);
 
 
   /**
    * set the wake-up flag in the recycle thread to look at modified recycle bin settings
    */
-  void WakeUp() {XrdSysMutexHelper lock(mWakeUpMutex); mWakeUp = true;}
+  void WakeUp()
+  {
+    XrdSysMutexHelper lock(mWakeUpMutex);
+    mWakeUp = true;
+  }
 
 
   static std::string gRecyclingPrefix; //< prefix for all recycle bins
-  static std::string gRecyclingAttribute; //< attribute key defining a recycling location
-  static std::string gRecyclingTimeAttribute; //< attribute key defining the max. time a file stays in the garbage directory
-  static std::string gRecyclingKeepRatio; //<  ratio from 0 ..1.0 defining a threshold when the recycle bin is not yet cleaned even if files have expired their lifetime attribute 
-  static std::string gRecyclingPostFix; //<  postfix which identifies a name in the garbage bin as a bulk deletion of a directory
-  static std::string gRecyclingVersionKey; //<  attribute key storing the recycling key of the version directory belonging to a given file
+  static std::string
+  gRecyclingAttribute; //< attribute key defining a recycling location
+  static std::string
+  gRecyclingTimeAttribute; //< attribute key defining the max. time a file stays in the garbage directory
+  static std::string
+  gRecyclingKeepRatio; //<  ratio from 0 ..1.0 defining a threshold when the recycle bin is not yet cleaned even if files have expired their lifetime attribute
+  static std::string
+  gRecyclingPostFix; //<  postfix which identifies a name in the garbage bin as a bulk deletion of a directory
+  static std::string
+  gRecyclingVersionKey; //<  attribute key storing the recycling key of the version directory belonging to a given file
   static int gRecyclingPollTime; //< poll interval inside the garbage bin
 };
 
