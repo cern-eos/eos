@@ -159,7 +159,6 @@ target_link_libraries(
   eosCapability-Static
   XrdMqClient-Static
   EosAuthProto
-  qclient
   ${Z_LIBRARY}
   ${ZMQ_LIBRARIES}
   ${LDAP_LIBRARIES}
@@ -173,6 +172,12 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT}
   ${JSONCPP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
+
+if (HIREDIS_FOUND)
+target_link_libraries(
+  XrdEosMgm PUBLIC
+  qclient)
+endif()
 
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part
