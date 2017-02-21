@@ -337,8 +337,6 @@ ScanDir::CheckFile(const char* filepath)
       if (bgThread) {
         if (filecxerror || blockcxerror) {
           XrdOucString manager = "";
-          // ask the meta data handling class to update the error flags for this file
-          gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
           {
             XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
             manager = eos::fst::Config::gConfig.Manager.c_str();
@@ -350,9 +348,69 @@ ScanDir::CheckFile(const char* filepath)
             eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
 
             if (fid && !errno) {
-              // call the autorepair method on the MGM
-              // if the MGM has autorepair disabled it won't do anything
-              gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
+              // check if we have this file in the local DB, if not, we
+              // resync first the disk and then the mgm meta data
+              FmdHelper* fmd = gFmdDbMapHandler.GetFmd(fid, fsId, 0, 0, false,
+                               true);
+              bool orphaned = false;
+
+              if (fmd) {
+                // real orphanes get rechecked
+                if (fmd->fMd.layouterror() & eos::common::LayoutId::kOrphan) {
+                  orphaned = true;
+                }
+
+                // unregistered replicas get rechecked
+                if (fmd->fMd.layouterror() & eos::common::LayoutId::kUnregistered) {
+                  orphaned = true;
+                }
+              }
+
+              if (fmd) {
+                delete fmd;
+              }
+
+              if (filecxerror || blockcxerror || !fmd || orphaned) {
+                eos_notice("msg=\"resyncing from disk\" fsid=%d fid=%lx", fsId, fid);
+                // ask the meta data handling class to update the error flags for this file
+                gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
+                eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%lx", fsId, fid);
+                bool resynced = false;
+                resynced = gFmdDbMapHandler.ResyncMgm(fsId, fid, manager.c_str());
+                fmd = gFmdDbMapHandler.GetFmd(fid, fsId, 0, 0, 0, false, true);
+
+                if (resynced && fmd) {
+                  if ((fmd->fMd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
+                      ((!(fmd->fMd.layouterror() & eos::common::LayoutId::kReplicaWrong))
+                       && (fmd->fMd.layouterror() & eos::common::LayoutId::kUnregistered))) {
+                    char oname[4096];
+                    snprintf(oname, sizeof(oname), "%s/.eosorphans/%08x",
+                             dirPath.c_str(), (unsigned int) fid);
+                    // store the original path name as an extended attribute in case ...
+                    io->attrSet("user.eos.orphaned", filePath.c_str());
+
+                    // if this is an orphaned file - we move it into the orphaned directory
+                    if (!rename(filePath.c_str(), oname)) {
+                      eos_warning("msg=\"orphaned/unregistered quarantined\" "
+                                  "fst-path=%s orphan-path=%s", filePath.c_str(),
+                                  oname);
+                    } else {
+                      eos_err("msg=\"failed to quarantine orphaned/unregistered"
+                              "\" fst-path=%s orphan-path=%s", filePath.c_str(),
+                              oname);
+                    }
+
+                    // remove the entry from the FMD database
+                    gFmdDbMapHandler.DeleteFmd(fid, fsId);
+                  }
+
+                  delete fmd;
+                }
+
+                // call the autorepair method on the MGM
+                // if the MGM has autorepair disabled it won't do anything
+                gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
+              }
             }
           }
         }
@@ -393,7 +451,8 @@ ScanDir::GetBlockXS(const char* filepath, unsigned long long maxfilesize)
       int blockSize = atoi(checksumSize.c_str());
       int blockSizeSymbol = eos::common::LayoutId::BlockSizeEnum(blockSize);
       layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
-                                              eos::common::LayoutId::kNone, 0, blockSizeSymbol, checksumtype);
+                                              eos::common::LayoutId::kNone, 0,
+                                              blockSizeSymbol, checksumtype);
       eos::fst::CheckSum* checksum = eos::fst::ChecksumPlugins::GetChecksumObject(
                                        layoutid, true);
 
