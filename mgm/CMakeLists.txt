@@ -211,7 +211,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------
-if(CPPUNIT_FOUND  AND Linux)
+if(CPPUNIT_FOUND  AND HIREDIS_FOUND AND Linux)
   add_library(XrdEosMgm-Static STATIC ${XRDEOSMGM_SRCS})
 
   target_compile_definitions(
