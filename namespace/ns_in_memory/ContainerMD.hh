@@ -48,7 +48,7 @@ class IFileMDSvc;
 //------------------------------------------------------------------------------
 class ContainerMD: public IContainerMD
 {
- public:
+public:
   //----------------------------------------------------------------------------
   // Type definitions
   //----------------------------------------------------------------------------
@@ -85,6 +85,13 @@ class ContainerMD: public IContainerMD
   //! Assignment operator
   //----------------------------------------------------------------------------
   ContainerMD& operator= (const ContainerMD& other);
+
+  //----------------------------------------------------------------------------
+  //! Children inheritance
+  //!
+  // @param other container from which to inherit children
+  //----------------------------------------------------------------------------
+  void InheritChildren(const ContainerMD& other);
 
   //----------------------------------------------------------------------------
   //! Add container
@@ -218,12 +225,12 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Trigger an mtime change event
   //----------------------------------------------------------------------------
-  void notifyMTimeChange(IContainerMDSvc *containerMDSvc);
+  void notifyMTimeChange(IContainerMDSvc* containerMDSvc);
 
   //----------------------------------------------------------------------------
   //! Get modification time
   //----------------------------------------------------------------------------
-  void getMTime(mtime_t &mtime) const
+  void getMTime(mtime_t& mtime) const
   {
     mtime.tv_sec = pMTime.tv_sec;
     mtime.tv_nsec = pMTime.tv_nsec;
@@ -234,14 +241,14 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   bool setTMTime(tmtime_t tmtime)
   {
-    if ( (tmtime.tv_sec > pTMTime.tv_sec ) || 
-       ( (tmtime.tv_sec == pTMTime.tv_sec) && 
-       (tmtime.tv_nsec > pTMTime.tv_nsec) ) )
-    {
+    if ((tmtime.tv_sec > pTMTime.tv_sec) ||
+        ((tmtime.tv_sec == pTMTime.tv_sec) &&
+         (tmtime.tv_nsec > pTMTime.tv_nsec))) {
       pTMTime.tv_sec = tmtime.tv_sec;
       pTMTime.tv_nsec = tmtime.tv_nsec;
       return true;
     }
+
     return false;
   }
 
@@ -266,7 +273,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
-  void getTMTime(tmtime_t &tmtime) const
+  void getTMTime(tmtime_t& tmtime) const
   {
     tmtime.tv_sec = pTMTime.tv_sec;
     tmtime.tv_nsec = pTMTime.tv_nsec;
@@ -401,8 +408,9 @@ class ContainerMD: public IContainerMD
   {
     XAttrMap::iterator it = pXAttrs.find(name);
 
-    if (it != pXAttrs.end())
+    if (it != pXAttrs.end()) {
       pXAttrs.erase(it);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -428,8 +436,7 @@ class ContainerMD: public IContainerMD
   {
     XAttrMap::const_iterator it = pXAttrs.find(name);
 
-    if (it == pXAttrs.end())
-    {
+    if (it == pXAttrs.end()) {
       MDException e(ENOENT);
       e.getMessage() << "Attribute: " << name << " not found";
       throw e;
@@ -491,7 +498,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   void deserialize(Buffer& buffer);
 
- protected:
+protected:
   id_t         pId;
   id_t         pParentId;
   uint16_t     pFlags;
@@ -505,7 +512,7 @@ class ContainerMD: public IContainerMD
   ContainerMap pSubContainers;
   FileMap      pFiles;
 
- private:
+private:
   // Non-presistent data members
   mtime_t      pMTime;
   tmtime_t     pTMTime;

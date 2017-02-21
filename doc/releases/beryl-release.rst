@@ -7,6 +7,18 @@
 Beryl Release Notes
 ===================
 
+``V0.3.229 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix bug introduced with retry 'query' mechanism doing double deletes
+- FUSE: fix bug in AuthId manager doing a double lock when session id != process id
+- FUSE: set the link count for files/links to 1 to make applications like gzip work
+- MGM: fix subtree accounting in the slave follower
+- FST: add an .eosorphans directory to each FST mount point and allow to isolate orphans into this directory by creating a tag file  <mnt>/.eosscan. The .eosscan file removes any smearing and sleep time between scans. The original location is tagged as an exteneded attribute after during the move
+ 
 ``V0.3.228 Aquamarine``
 =======================
 

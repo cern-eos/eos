@@ -237,9 +237,10 @@ ScanDir::CheckFile(const char* filepath)
 
   io->attrGet("user.eos.timestamp", checksumStamp);
   io->attrGet("user.eos.lfn", logicalFileName);
+  bool rescan = RescanFile(checksumStamp);
 
-  if (RescanFile(checksumStamp)) {
-    //     if (checksumType.compare(""))
+  if (rescan || forcedScan) {
+    // if (checksumType.compare(""))
     if (1) {
       bool blockcxerror = false;
       bool filecxerror = false;
@@ -251,8 +252,8 @@ ScanDir::CheckFile(const char* filepath)
       layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
                                               checksumtype);
 
-      if (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid,
-                             logicalFileName.c_str(), filecxerror, blockcxerror)) {
+      if (rescan && (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid,
+                                        logicalFileName.c_str(), filecxerror, blockcxerror))) {
         bool reopened = false;
 #ifndef _NOOFS
 
@@ -301,28 +302,33 @@ ScanDir::CheckFile(const char* filepath)
         }
       }
 
-      //collect statistics
-      durationScan += scantime;
-      totalScanSize += scansize;
+      // Collect statistics
+      if (rescan) {
+        durationScan += scantime;
+        totalScanSize += scansize;
+      }
+
       bool failedtoset = false;
 
-      if (!skiptosettime) {
-        if (io->attrSet("user.eos.timestamp", GetTimestampSmeared())) {
+      if (rescan) {
+        if (!skiptosettime) {
+          if (io->attrSet("user.eos.timestamp", GetTimestampSmeared())) {
+            failedtoset |= true;
+          }
+        }
+
+        if ((io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
+            (io->attrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0"))) {
           failedtoset |= true;
         }
-      }
 
-      if ((io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
-          (io->attrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0"))) {
-        failedtoset |= true;
-      }
-
-      if (failedtoset) {
-        if (bgThread) {
-          eos_err("Can not set extended attributes to file %s", filePath.c_str());
-        } else {
-          fprintf(stderr,
-                  "error: [CheckFile] Can not set extended attributes to file. \n");
+        if (failedtoset) {
+          if (bgThread) {
+            eos_err("Can not set extended attributes to file %s", filePath.c_str());
+          } else {
+            fprintf(stderr, "error: [CheckFile] Can not set extended "
+                    "attributes to file. \n");
+          }
         }
       }
 
@@ -371,9 +377,9 @@ ScanDir::GetBlockXS(const char* filepath, unsigned long long maxfilesize)
   std::string checksumType, checksumSize, logicalFileName;
   XrdOucString fileXSPath = filepath;
   std::unique_ptr<eos::fst::FileIo> io(FileIoPluginHelper::GetIoObject(filepath));
-
   struct stat s;
-  if (!io->fileStat(&s,0)) {
+
+  if (!io->fileStat(&s, 0)) {
     io->attrGet("user.eos.blockchecksum", checksumType);
     io->attrGet("user.eos.blocksize", checksumSize);
     io->attrGet("user.eos.lfn", logicalFileName);
@@ -503,8 +509,23 @@ ScanDir::ThreadProc(void)
     XrdSysThread::SetCancelOn();
   }
 
-  if (bgThread) {
-    // get a random smearing and avoid that all start at the same time!
+  forcedScan = false;
+  struct stat buf;
+  std::string forcedrun = dirPath.c_str();
+  forcedrun += "/.eosscan";
+
+  if (!stat(forcedrun.c_str(), &buf)) {
+    forcedScan = true;
+    eos_notice("msg=\"scanner is in forced mode\"");
+  } else {
+    if (forcedScan) {
+      forcedScan = false;
+      eos_notice("msg=\"scanner is back to non-forced mode\"");
+    }
+  }
+
+  if (bgThread && !forcedScan) {
+    // Get a random smearing and avoid that all start at the same time!
     // start in the range of 0 to 4 hours
     size_t sleeper = (4 * 3600.0 * random() / RAND_MAX);
 
@@ -521,6 +542,21 @@ ScanDir::ThreadProc(void)
   do {
     struct timezone tz;
     struct timeval tv_start, tv_end;
+    {
+      struct stat buf;
+
+      if (!stat(forcedrun.c_str(), &buf)) {
+        if (!forcedScan) {
+          forcedScan = true;
+          eos_notice("msg=\"scanner is in forced mode\"");
+        }
+      } else {
+        if (forcedScan) {
+          forcedScan = false;
+          eos_notice("msg=\"scanner is back to non-forced mode\"");
+        }
+      }
+    }
     noScanFiles = 0;
     totalScanSize = 0;
     noCorruptFiles = 0;
@@ -554,14 +590,16 @@ ScanDir::ThreadProc(void)
     if (!bgThread) {
       break;
     } else {
-      // run again after 4 hours
-      for (size_t s = 0; s < (4 * 3600); s++) {
-        if (bgThread) {
-          XrdSysThread::CancelPoint();
-        }
+      if (!forcedScan) {
+        // run again after 4 hours
+        for (size_t s = 0; s < (4 * 3600); s++) {
+          if (bgThread) {
+            XrdSysThread::CancelPoint();
+          }
 
-        XrdSysTimer sleeper;
-        sleeper.Wait(1000);
+          XrdSysTimer sleeper;
+          sleeper.Wait(1000);
+        }
       }
     }
 
