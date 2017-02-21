@@ -13,6 +13,14 @@ Beryl Release Notes
 Bug Fix
 +++++++
 
+- FST: deal with unregistered files with the correct replica count in the same way as with orphans when .eosscan is enabled on an FST mount
+
+``V0.3.229 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
 - FUSE: fix bug introduced with retry 'query' mechanism doing double deletes
 - FUSE: fix bug in AuthId manager doing a double lock when session id != process id
 - FUSE: set the link count for files/links to 1 to make applications like gzip work
