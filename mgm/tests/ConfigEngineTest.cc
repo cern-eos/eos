@@ -1,4 +1,4 @@
-#ifdef HIREDIS_FOUND
+#ifdef HAVE_HIREDIS
 
 #include "ConfigEngineTest.hh"
 

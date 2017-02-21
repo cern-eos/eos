@@ -9,6 +9,7 @@
 
 if(HIREDIS_INCLUDE_DIRS AND HIREDIS_LIBRARIES)
   set(HIREDIS_FIND_QUIETLY TRUE)
+  add_definitions(-DHAVE_HIREDIS)
 else()
   find_path(
     HIREDIS_INCLUDE_DIR
@@ -28,6 +29,7 @@ else()
   include (FindPackageHandleStandardArgs)
   find_package_handle_standard_args(
     hiredis DEFAULT_MSG HIREDIS_LIBRARY HIREDIS_INCLUDE_DIR)
-
+  
+  add_definitions(-DHAVE_HIREDIS)
   mark_as_advanced(HIREDIS_LIBRARY HIREDIS_INCLUDE_DIR)
 endif()

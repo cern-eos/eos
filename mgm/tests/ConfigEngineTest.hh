@@ -31,7 +31,7 @@
 #include <cppunit/extensions/HelperMacros.h>
 #include "mgm/IConfigEngine.hh"
 #include "mgm/FileConfigEngine.hh"
-#ifdef HIREDIS_FOUND
+#ifdef HAVE_HIREDIS
 #include "mgm/RedisConfigEngine.hh"
 #endif 
 

@@ -38,7 +38,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/FileConfigEngine.hh"
-#ifdef HIREDIS_FOUND
+#ifdef HAVE_HIREDIS
 #include "mgm/RedisConfigEngine.hh"
 #endif
 #include "common/plugin_manager/PluginManager.hh"
@@ -1341,7 +1341,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (MgmOfsConfigEngineType == "file") {
     ConfEngine = new FileConfigEngine(MgmConfigDir.c_str());
   }
-  #ifdef HIREDIS_FOUND
+  #ifdef HAVE_HIREDIS
   else if (MgmOfsConfigEngineType == "redis") {
     ConfEngine = new RedisConfigEngine(MgmConfigDir.c_str(),
                                        MgmOfsConfigEngineRedisHost.c_str(),

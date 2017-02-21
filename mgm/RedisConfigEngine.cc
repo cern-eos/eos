@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifdef HIREDIS_FOUND
+#ifdef HAVE_HIREDIS
 
 #include "mgm/RedisConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -786,4 +786,4 @@ RedisConfigEngine::getTimeStamp(XrdOucString& out)
 
 EOSMGMNAMESPACE_END
 
-#endif // HIREDIS_FOUND
+#endif // HAVE_HIREDIS
