@@ -1034,7 +1034,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
   }
 
   (void) close(tmp_fd);
-  XrdOucString cmd = "env XrdSecPROTOCOL=sss xrdcp -s \"";
+  XrdOucString cmd = "env XrdSecPROTOCOL=sss xrdcp -f -s \"";
   cmd += url;
   cmd += "\" ";
   cmd += tmpfile;
