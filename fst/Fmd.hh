@@ -26,14 +26,11 @@
  *
  * @brief  Structure holding the File Meta Data
  *
- *
  */
 
 #ifndef __EOSFST_FMD_HH__
 #define __EOSFST_FMD_HH__
 
-
-/*----------------------------------------------------------------------------*/
 #include "common/SymKeys.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -41,10 +38,7 @@
 #include "common/StringConversion.hh"
 #include "fst/FmdBase.pb.h"
 
-/*----------------------------------------------------------------------------*/
 EOSFSTNAMESPACE_BEGIN
-
-
 
 // ---------------------------------------------------------------------------
 //! In-memory entry struct

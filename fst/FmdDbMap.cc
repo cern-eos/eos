@@ -818,7 +818,6 @@ FmdDbMapHandler::ResyncDisk(const char* path,
  *
  * @return true if successfull
  */
-
 /*----------------------------------------------------------------------------*/
 bool
 FmdDbMapHandler::ResyncAllDisk(const char* path,
@@ -826,12 +825,14 @@ FmdDbMapHandler::ResyncAllDisk(const char* path,
                                bool flaglayouterror)
 {
   char** paths = (char**) calloc(2, sizeof(char*));
-  paths[0] = (char*) path;
-  paths[1] = 0;
 
-  if (!paths) {
+  if (!path) {
+    eos_err("error: failed to allocate memory");
     return false;
   }
+
+  paths[0] = (char*) path;
+  paths[1] = 0;
 
   if (flaglayouterror) {
     isSyncing[fsid] = true;
@@ -938,7 +939,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
         }
       }
     } else {
-      if (fMd.layouterror() && eos::common::LayoutId::kUnregistered) {
+      if (fMd.layouterror() & eos::common::LayoutId::kUnregistered) {
         // this entry is deleted and we are not supposed to have it
         return true;
       }

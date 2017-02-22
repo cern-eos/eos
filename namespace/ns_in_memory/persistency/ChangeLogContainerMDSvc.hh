@@ -67,7 +67,11 @@ public:
   {
     try {
       pIdMap.set_deleted_key(0);
-    } catch (const std::length_error& e) {}
+    } catch (const std::length_error& e) {
+      fprintf(stderr, "error: %s can not insert into google map",
+              __FUNCTION__);
+      exit(1);
+    }
 
     pIdMap.set_empty_key(std::numeric_limits<IContainerMD::id_t>::max());
     pChangeLog = new ChangeLogFile();

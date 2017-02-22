@@ -58,7 +58,14 @@ public:
     pFollowStart(0), pContSvc(0), pQuotaStats(0), pAutoRepair(0),
     pResSize(1000000)
   {
-    pIdMap.set_deleted_key(0);
+    try {
+      pIdMap.set_deleted_key(0);
+    } catch (const std::length_error& e) {
+      fprintf(stderr, "error: %s can not insert into google map",
+              __FUNCTION__);
+      exit(1);
+    }
+
     pIdMap.set_empty_key(std::numeric_limits<IFileMD::id_t>::max());
     pChangeLog = new ChangeLogFile;
     pthread_mutex_init(&pFollowStartMutex, 0);

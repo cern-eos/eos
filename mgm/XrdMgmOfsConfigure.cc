@@ -1803,7 +1803,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
     MgmOfsMessaging->SetLogId("MgmOfsMessaging");
 
-    if ((!MgmOfsMessaging) || (MgmOfsMessaging->IsZombie())) {
+    if (MgmOfsMessaging->IsZombie()) {
       Eroute.Emsg("Config", "cannot create messaging object(thread)");
       return NoGo;
     }
@@ -1820,7 +1820,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
       MgmOfsMessaging->SetLogId("MgmOfsVstMessaging");
 
-      if ((!MgmOfsVstMessaging) || (MgmOfsVstMessaging->IsZombie())) {
+      if (MgmOfsVstMessaging->IsZombie()) {
         Eroute.Emsg("Config", "cannot create vst messaging object(thread)");
         return NoGo;
       }

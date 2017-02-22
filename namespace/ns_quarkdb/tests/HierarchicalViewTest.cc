@@ -240,9 +240,13 @@ createFiles(const std::string& path, eos::IView* view,
     std::ostringstream p;
     p << path << "file" << i;
     std::shared_ptr<eos::IFileMD> file{view->createFile(p.str())};
+    // coverity[DC.WEAK_CRYPTO]
     file->setCUid(random() % 10 + 1);
+    // coverity[DC.WEAK_CRYPTO]
     file->setCGid(random() % 3 + 1);
+    // coverity[DC.WEAK_CRYPTO]
     file->setSize(random() % 1000000 + 1);
+    // coverity[DC.WEAK_CRYPTO]
     file->setLayoutId(random() % 3 + 1);
     view->updateFileStore(file.get());
     node->addFile(file.get());

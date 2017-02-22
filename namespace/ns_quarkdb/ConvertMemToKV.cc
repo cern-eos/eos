@@ -306,10 +306,18 @@ ConvertFileMDSvc::initialize()
         exit(1);
       }
 
-      std::chrono::seconds duration(std::time(nullptr) - start);
-      double rate = (double)mCount / duration.count();
-      std::cout << "Processed " << mCount << "/" << total << " files at "
-                << rate << " Hz" << std::endl;
+      // Get the rate
+      auto now = std::time(nullptr);
+
+      if (now != (std::time_t)(-1)) {
+        std::chrono::seconds duration(now - start);
+
+        if (duration.count()) {
+          double rate = (double)mCount / duration.count();
+          std::cout << "Processed " << mCount << "/" << total << " files at "
+                    << rate << " Hz" << std::endl;
+        }
+      }
     }
 
     // Unpack the serialized buffers

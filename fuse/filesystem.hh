@@ -772,7 +772,7 @@ public:
 //----------------------------------------------------------------------------
 //! Initialisation function
 //----------------------------------------------------------------------------
-  void initlogging();
+  bool initlogging();
   bool init(int argc, char* argv[], void* userdata,
             std::map<std::string, std::string>* features);
   bool check_mgm(std::map<std::string, std::string>* features);

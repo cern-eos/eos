@@ -110,11 +110,21 @@ FileSystemViewTest::fileSystemViewTest()
     view->setFileMDSvc(fileSvc.get());
     view->configure(config);
     view->initialize();
+
+    if (!dynamic_cast<eos::FileSystemView*>(fsView.get())) {
+      fprintf(stderr, "FileSystemView dynamic cast failed\n");
+      exit(1);
+    }
+
     dynamic_cast<eos::FileSystemView*>(fsView.get())->initialize(config);
+
     fileSvc->addChangeListener(fsView.get());
+
     view->createContainer("/test/embed/embed1", true);
+
     std::shared_ptr<eos::IContainerMD> c =
       view->createContainer("/test/embed/embed2", true);
+
     view->createContainer("/test/embed/embed3", true);
 
     // Create some files

@@ -141,7 +141,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   char url[4096];
   rdr[0] = 0;
   char* cstr = getenv("EOS_RDURL");
-  
+
   if (cstr && (strlen(cstr) < 4096)) {
     snprintf(rdr, 4096, "%s", cstr);
   }
@@ -381,7 +381,6 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   const char* name = me.fs().path((unsigned long long) ino);
 
   if (!name || !checkpathname(name)) {
-    eos_static_err("name=%s checkpathname=%d", name, checkpathname(name));
     fuse_reply_err(req, ENOENT);
     me.fs().unlock_r_p2i();   // <=
     return;
@@ -725,9 +724,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       }
     }
 
-    //........................................................................
     // Add directory to cache or update it
-    //........................................................................
     me.fs().dir_cache_sync(ino, cnt, attr.MTIMESPEC, attr.CTIMESPEC, &b);
     // duplicate the dirbuf response and store in the file handle
     fh_buf = (struct dirbuf*) malloc(sizeof(dirbuf));
@@ -737,18 +734,18 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     fh_buf->alloc_size = b.size;
     fi->fh = (uint64_t) fh_buf;
 
-    //........................................................................
-    // Add the stat to the cache
-    //........................................................................
-    for (size_t i = 2; i < nstats; i++) { // the two first ones are . and ..
-      entriesstats[i].attr_timeout = me.config.attrcachetime;
-      entriesstats[i].entry_timeout = me.config.entrycachetime;
-      me.fs().dir_cache_add_entry(ino, entriesstats[i].attr.st_ino, entriesstats + i);
-      eos_static_debug("add_entry  %lu  %lu", entriesstats[i].ino,
-                       entriesstats[i].attr.st_ino);
-    }
+    if (entriesstats) {
+      // Add the stat to the cache
+      for (size_t i = 2; i < nstats; i++) { // the two first ones are . and ..
+        entriesstats[i].attr_timeout = me.config.attrcachetime;
+        entriesstats[i].entry_timeout = me.config.entrycachetime;
+        me.fs().dir_cache_add_entry(ino, entriesstats[i].attr.st_ino, entriesstats + i);
+        eos_static_debug("add_entry  %lu  %lu", entriesstats[i].ino,
+                         entriesstats[i].attr.st_ino);
+      }
 
-    free(entriesstats);
+      free(entriesstats);
+    }
   } else {
     // duplicate the dirbuf from cache and store in the file handle
     fh_buf = (struct dirbuf*) malloc(sizeof(dirbuf));

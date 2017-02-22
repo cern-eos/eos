@@ -4343,11 +4343,7 @@ bool filesystem::get_features(const std::string& url,
 
       if (pos == std::string::npos) {
         eos_static_crit("error parsing instance features");
-
-        if (response) {
-          delete response;
-        }
-
+        delete response;
         return false; // there is something wrong here
       }
 
@@ -4364,12 +4360,8 @@ bool filesystem::get_features(const std::string& url,
 
   if (!infeatures) {
     eos_static_warning("retrieving features is not supported on this eos instance");
-
-    if (response) {
-      delete response;
-      response = 0;
-    }
-
+    delete response;
+    response = 0;
     return false;
   }
 
@@ -4441,8 +4433,7 @@ filesystem::check_mgm(std::map<std::string, std::string>* features)
 //------------------------------------------------------------------------------
 // Init function
 //------------------------------------------------------------------------------
-
-void
+bool
 filesystem::initlogging()
 {
   FILE* fstderr;
@@ -4461,8 +4452,9 @@ filesystem::initlogging()
     // Running as a user ... we log into /tmp/eos-fuse.$UID.log
     if (!(fstderr = freopen(logfile, "a+", stderr))) {
       fprintf(stdout, "error: cannot open log file %s\n", logfile);
+      return false;
     } else {
-      ::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      (void) ::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     }
   } else {
     fuse_shared = true; //eosfsd
@@ -4481,8 +4473,9 @@ filesystem::initlogging()
 
     if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr))) {
       fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
+      return false;
     } else {
-      ::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR);
+      (void) ::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR);
     }
   }
 
@@ -4503,13 +4496,17 @@ filesystem::initlogging()
       eos::common::Logging::SetLogPriority(LOG_INFO);
     }
   }
+
+  return true;
 }
 
 bool
 filesystem::init(int argc, char* argv[], void* userdata,
                  std::map<std::string, std::string>* features)
 {
-  initlogging();
+  if (!initlogging()) {
+    return false;
+  }
 
   try {
     path2inode.set_empty_key("");
@@ -4690,6 +4687,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
   if (rm_level_protect) {
     rm_watch_relpath = false;
     char rm_cmd[PATH_MAX];
+    (void) memset(rm_cmd, '\0', sizeof(rm_cmd));
     FILE* f = popen("exec bash -c 'type -P rm'", "r");
 
     if (!f) {
@@ -4699,53 +4697,59 @@ filesystem::init(int argc, char* argv[], void* userdata,
       eos_static_err("cannot get rm command to watch");
     } else {
       pclose(f);
-      eos_static_notice("rm command to watch is %s", rm_cmd);
-      rm_command = rm_cmd;
-      char cmd[PATH_MAX + 16];
-      sprintf(cmd, "%s --version", (const char*)rm_cmd);
-      f = popen(cmd, "r");
 
-      if (!f) {
-        eos_static_err("could not run the rm command to watch");
+      if (strlen(rm_cmd) >= PATH_MAX) {
+        eos_static_err("buffer overflow while reading rm command");
       } else {
-        char* line = NULL;
-        size_t len = 0;
+        eos_static_notice("rm command to watch is %s", rm_cmd);
+        rm_command = rm_cmd;
+        char cmd[PATH_MAX + 16];
+        sprintf(cmd, "%s --version", (const char*)rm_cmd);
+        f = popen(cmd, "r");
 
-        if (getline(&line, &len, f) == -1) {
-          pclose(f);
-          eos_static_err("could not read rm command version to watch");
-        } else if (line) {
-          pclose(f);
-          char* lasttoken = strrchr(line, ' ');
+        if (!f) {
+          eos_static_err("could not run the rm command to watch");
+        } else {
+          char* line = NULL;
+          size_t len = 0;
 
-          if (lasttoken) {
-            float rmver;
+          if (getline(&line, &len, f) == -1) {
+            pclose(f);
+            eos_static_err("could not read rm command version to watch");
+          } else if (line) {
+            pclose(f);
+            char* lasttoken = strrchr(line, ' ');
 
-            if (!sscanf(lasttoken, "%f", &rmver)) {
-              eos_static_err("could not interpret rm command version to watch %s",
-                             lasttoken);
-            } else {
-              int rmmajv = floor(rmver);
-              eos_static_notice("top level recursive deletion command to watch "
-                                "is %s, version is %f, major version is %d",
-                                rm_cmd, rmver, rmmajv);
+            if (lasttoken) {
+              float rmver;
 
-              if (rmmajv >= 8) {
-                rm_watch_relpath = true;
-                eos_static_notice("top level recursive deletion CAN watch "
-                                  "relative path removals");
+              if (!sscanf(lasttoken, "%f", &rmver)) {
+                eos_static_err("could not interpret rm command version to watch %s",
+                               lasttoken);
               } else {
-                eos_static_warning("top level recursive deletion CANNOT watch "
-                                   "relative path removals");
+                int rmmajv = floor(rmver);
+                eos_static_notice("top level recursive deletion command to watch "
+                                  "is %s, version is %f, major version is %d",
+                                  rm_cmd, rmver, rmmajv);
+
+                if (rmmajv >= 8) {
+                  rm_watch_relpath = true;
+                  eos_static_notice("top level recursive deletion CAN watch "
+                                    "relative path removals");
+                } else {
+                  eos_static_warning("top level recursive deletion CANNOT watch "
+                                     "relative path removals");
+                }
               }
             }
           }
-        }
 
-        free(line);
+          free(line);
+        }
       }
     }
   }
+
 
   // Get parameters about strong authentication
   if (getenv("EOS_FUSE_USER_KRB5CC") &&
@@ -4863,7 +4867,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
   }
 #endif
 
-// Get parameters about strong authentication
+  // Get parameters about strong authentication
   if (getenv("EOS_FUSE_PIDMAP") && (atoi(getenv("EOS_FUSE_PIDMAP")) == 1)) {
     link_pidmap = true;
   } else {

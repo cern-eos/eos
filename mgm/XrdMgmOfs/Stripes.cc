@@ -633,30 +633,31 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
     fullcapability += target_cap;
     eos::common::TransferJob* txjob = new eos::common::TransferJob(
       fullcapability.c_str());
-    bool sub = targetfilesystem->GetExternQueue()->Add(txjob);
-    eos_info("info=\"submitted transfer job\" subretc=%d fxid=%s fid=%llu cap=%s\n",
-             sub, hexfid.c_str(), fid, fullcapability.c_str());
 
-    if (!sub) {
-      errno = ENXIO;
-    } else {
-      errno = 0;
-    }
-
-    if (txjob) {
-      delete txjob;
-    } else {
+    if (!txjob) {
       eos_err("Couldn't create transfer job to replicate stripe of %s", path);
       errno = ENOMEM;
-    }
+    } else {
+      bool sub = targetfilesystem->GetExternQueue()->Add(txjob);
+      eos_info("info=\"submitted transfer job\" subretc=%d fxid=%s fid=%llu cap=%s\n",
+               sub, hexfid.c_str(), fid, fullcapability.c_str());
 
-    if (source_capabilityenv) {
-      delete source_capabilityenv;
-    }
+      if (!sub) {
+        errno = ENXIO;
+      } else {
+        errno = 0;
+      }
 
-    if (target_capabilityenv) {
-      delete target_capabilityenv;
+      delete txjob;
     }
+  }
+
+  if (source_capabilityenv) {
+    delete source_capabilityenv;
+  }
+
+  if (target_capabilityenv) {
+    delete target_capabilityenv;
   }
 
   if (errno) {
@@ -665,4 +666,3 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
 
   return SFS_OK;
 }
-
