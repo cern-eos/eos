@@ -251,8 +251,10 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
       }
     }
 
-    // Remove also the version dir itself
-    success |= gOFS->_remdir(versiondir, error, vid, (const char*) 0, false);
+    if (max_versions == 0) {
+      // Remove also the version dir itself
+      success |= gOFS->_remdir(versiondir, error, vid, (const char*) 0, false);
+    }
 
     if (success == SFS_OK) {
       eos_info("dir=\"%s\" msg=\"purging ok\" old-versions=%d new-versions=%d",
