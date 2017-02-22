@@ -35,10 +35,8 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   : IContainerMD(), pId(id), pParentId(0), pFlags(0), pCTime{0}, pName(""),
     pCUid(0), pCGid(0), pMode(040755), pACLId(0), pMTime{0}, pTMTime{0},
     pTreeSize(0), pContSvc(cont_svc), pFileSvc(file_svc),
-
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
     pDirsKey(stringify(id) + constants::sMapDirsSuffix),
-    pFilesMap(*pQcl, pFilesKey), pDirsMap(*pQcl, pDirsKey),
     mDirsMap(), mFilesMap()
 {
   ContainerMDSvc* impl_cont_svc = dynamic_cast<ContainerMDSvc*>(cont_svc);
@@ -50,6 +48,8 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   }
 
   pQcl = impl_cont_svc->pQcl;
+  pFilesMap = qclient::QHash(*pQcl, pFilesKey);
+  pDirsMap = qclient::QHash(*pQcl, pDirsKey);
 }
 
 //------------------------------------------------------------------------------

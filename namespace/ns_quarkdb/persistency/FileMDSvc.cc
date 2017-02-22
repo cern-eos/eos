@@ -270,9 +270,9 @@ FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 {
   ContainerMDSvc* impl_cont_svc = dynamic_cast<eos::ContainerMDSvc*>(cont_svc);
 
-  if (impl_cont_svc) {
+  if (!impl_cont_svc) {
     MDException e(EFAULT);
-    e.getMessage() << "FileMD dynamic cast failed";
+    e.getMessage() << "ContainerMDSvc dynamic cast failed";
     throw e;
   }
 
