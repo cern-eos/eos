@@ -1360,15 +1360,23 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
       std::vector<std::string> files;
       std::vector<std::string> directories;
       auto dit = handle->found_dirs[handle->deepness].begin();
+      bool found = true;
 
-      if (dit == handle->found_dirs[handle->deepness].end()) {
+      while (dit == handle->found_dirs[handle->deepness].end()) {
         // move to next level
         handle->deepness++;
         handle->found_dirs.resize(handle->deepness + 1);
 
         if (!handle->found_dirs[handle->deepness].size()) {
+          found = false;
           break;
+        } else {
+          dit = handle->found_dirs[handle->deepness].begin();
         }
+      }
+
+      if (!found) {
+        break;
       }
 
       eos_info("searching at deepness=%d directory=%s", handle->deepness,

@@ -31,16 +31,13 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Storage::Trim ()
+Storage::Trim()
 {
   // this thread trim's the SQLITE DB every 30 days
-  while (1)
-  {
+  while (1) {
     // sleep for a month
     XrdSysTimer sleeper;
     sleeper.Snooze(30 * 86400);
-    std::map<eos::common::FileSystem::fsid_t, sqlite3*>::iterator it;
-
     gFmdDbMapHandler.TrimDB();
   }
 }

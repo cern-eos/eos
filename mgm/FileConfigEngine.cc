@@ -39,7 +39,7 @@ EOSMGMNAMESPACE_BEGIN
 FileCfgEngineChangelog::FileCfgEngineChangelog(const char* chlog_fn):
   mChLogFile(chlog_fn)
 {
-  if (!mMap.attachLog(mChLogFile, eos::common::SqliteDbLogInterface::daily,
+  if (!mMap.attachLog(mChLogFile, eos::common::LvDbDbLogInterface::daily,
                       0644)) {
     eos_emerg("failed to open %s config changelog file %s",
               eos::common::DbMap::getDbType().c_str(), mChLogFile.c_str());
