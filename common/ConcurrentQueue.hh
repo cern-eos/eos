@@ -186,7 +186,6 @@ ConcurrentQueue<Data>::wait_pop(Data& popped_value)
 
   while (queue.empty()) {
     pthread_cond_wait(&cond, &mutex);
-    // coverity[order_reversal]
     eos_static_debug("wait on concurrent queue signalled");
   }
 

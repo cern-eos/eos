@@ -32,17 +32,15 @@
  *
  */
 /*----------------------------------------------------------------------------*/
+
 #include "common/DbMapCommon.hh"
 #include "common/DbMapLevelDb.hh"
-#include "common/DbMapSqlite.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+
 #ifdef __APPLE__
 #include <regex>
 #else
 #include <regex.h>
 #endif
-/*----------------------------------------------------------------------------*/
 
 #ifndef __EOSCOMMON_DBMAP_HH__
 #define __EOSCOMMON_DBMAP_HH__
@@ -853,13 +851,14 @@ public:
         pMap.clear();
         pUseMap = false;
         return true;
-      } else { // leaving out of core
-        const DbMapTypes::Tkey *key;
-        const DbMapTypes::Tval *val;
+      } else {
+        // leaving out of core
+        const DbMapTypes::Tkey* key;
+        const DbMapTypes::Tval* val;
 
-        for (beginIter(false); iterate(&key, &val,false);) {
-          pMap[*key]=*val;
-          pUseMap=true;
+        for (beginIter(false); iterate(&key, &val, false);) {
+          pMap[*key] = *val;
+          pUseMap = true;
         }
 
         return true;
@@ -1590,13 +1589,8 @@ public:
 /*----------------------------------------------------------------------------*/
 
 /*-------------    DEFAULT DbMap and DbLog IMPLEMENTATIONS     ---------------*/
-#ifdef EOS_SQLITE_DBMAP
-typedef DbMapT<SqliteDbMapInterface, SqliteDbLogInterface> DbMap;
-typedef DbLogT<SqliteDbMapInterface, SqliteDbLogInterface> DbLog;
-#else
 typedef DbMapT<LvDbDbMapInterface, LvDbDbLogInterface> DbMap;
 typedef DbLogT<LvDbDbMapInterface, LvDbDbLogInterface> DbLog;
-#endif
 /*----------------------------------------------------------------------------*/
 
 /*------------------------    DISPLAY HELPERS     ----------------------------*/
@@ -1613,21 +1607,6 @@ template<class DbMapInterface, class DbLogInterface> std::ostream& operator <<
 
   return os;
 }
-
-/*----------------------------------------------------------------------------*/
-
-#ifndef EOS_SQLITE_DBMAP
-/*-----------------------    CONVERSION HELPERS     --------------------------*/
-DbMapT<SqliteDbMapInterface, SqliteDbLogInterface> DbMapLevelDb2Sqlite(
-  const DbMapT<LvDbDbMapInterface, LvDbDbLogInterface>&);
-DbMapT<LvDbDbMapInterface, LvDbDbLogInterface> DbMapSqlite2LevelDb(
-  const DbMapT<SqliteDbMapInterface, SqliteDbLogInterface>&);
-bool ConvertSqlite2LevelDb(const std::string& sqlpath,
-                           const std::string& lvdbpath, const std::string& sqlrename = "");
-bool ConvertLevelDb2Sqlite(const std::string& lvdbpath,
-                           const std::string& sqlpath, const std::string& lvdbrename = "");
-/*----------------------------------------------------------------------------*/
-#endif
 
 EOSCOMMONNAMESPACE_END
 

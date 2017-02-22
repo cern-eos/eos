@@ -160,7 +160,6 @@ if (Linux)
     ZMQ.cc
     sqlite/sqlite3.c
     DbMap.cc
-    DbMapSqlite.cc
     DbMapLevelDb.cc
     DbMapCommon.cc
     http/HttpServer.cc
