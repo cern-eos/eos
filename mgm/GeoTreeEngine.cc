@@ -689,7 +689,7 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
       }
     }
 
-    avAge /= count;
+    avAge /= (count ? count : 1);
     ostr << "globalLatency  = " << setw(5) << (int)
          pLatencySched.pGlobalLatencyStats.minlatency << "ms.(min)" << " | "
          << setw(5) << (int)pLatencySched.pGlobalLatencyStats.averagelatency <<
@@ -1614,10 +1614,7 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group,
 cleanup:
   entry->doubleBufferMutex.UnLockRead();
   AtomicDec(entry->fastStructLockWaitersCount);
-
-  if (existingReplicasIdx) {
-    delete existingReplicasIdx;
-  }
+  delete existingReplicasIdx;
 
   if (excludeFsIdx) {
     delete excludeFsIdx;
@@ -3680,7 +3677,7 @@ bool GeoTreeEngine::setParameter(std::string param, const std::string& value,
 {
   std::transform(param.begin(), param.end(), param.begin(), ::tolower);
   double dval = 0.0;
-  sscanf(value.c_str(), "%lf", &dval);
+  (void) sscanf(value.c_str(), "%lf", &dval);
   int ival = (int)dval;
   bool ok = false;
 #define readParamVFromString(PARAM,VALUE) {                                    \

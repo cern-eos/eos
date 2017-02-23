@@ -32,96 +32,91 @@
 EOSMGMNAMESPACE_BEGIN
 
 void*
-VstMessaging::Start (void *pp)
+VstMessaging::Start(void* pp)
 {
   ((VstMessaging*) pp)->Listen();
   return 0;
 }
 
 /*----------------------------------------------------------------------------*/
-VstMessaging::VstMessaging (const char* url, const char* defaultreceiverqueue, bool advisorystatus, bool advisoryquery, XrdMqSharedObjectManager* som)
+VstMessaging::VstMessaging(const char* url, const char* defaultreceiverqueue,
+                           bool advisorystatus, bool advisoryquery,
+                           XrdMqSharedObjectManager* som):
+  InfluxUdpSocketAddr{0}
 {
-  // we add to a broker with the flushbacklog flag since we don't want to block message flow in case of a master/slave MGM where one got stuck or too slow
+  // We add to a broker with the flushbacklog flag since we don't want to
+  // block message flow in case of a master/slave MGM where one got stuck or too slow
   eos_info("vst-broker-url=%s default-receiver=%s", url, defaultreceiverqueue);
-  if (mMessageClient.AddBroker(url, advisorystatus, advisoryquery, true))
-  {
+
+  if (mMessageClient.AddBroker(url, advisorystatus, advisoryquery, true)) {
     zombie = false;
-  }
-  else
-  {
+  } else {
     zombie = true;
   }
 
   XrdOucString clientid = url;
   int spos;
   spos = clientid.find("//");
-  if (spos != STR_NPOS)
-  {
+
+  if (spos != STR_NPOS) {
     spos = clientid.find("//", spos + 1);
     clientid.erase(0, spos + 1);
     mMessageClient.SetClientId(clientid.c_str());
   }
 
-
   mMessageClient.Subscribe();
   mMessageClient.SetDefaultReceiverQueue(defaultreceiverqueue);
-
   InfluxUdpPort = 0;
   InfluxUdpSocket = 0;
-
   PublishOnlySelf = false;
   eos::common::LogId();
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-VstMessaging::Update (XrdAdvisoryMqMessage* advmsg)
+VstMessaging::Update(XrdAdvisoryMqMessage* advmsg)
 {
-  if (!advmsg)
+  if (!advmsg) {
     return false;
+  }
 
   std::string nodequeue = advmsg->kQueue.c_str();
-  if (advmsg->kOnline)
-  {
+
+  if (advmsg->kOnline) {
     // online
-  }
-  else
-  {
+  } else {
     // offline
   }
+
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 void
-VstMessaging::Listen ()
+VstMessaging::Listen()
 {
   static int lPublishTime = 0;
-
   {
     XrdSysThread::SetCancelOn();
+
     // we give some time for startup
-    for (size_t i = 0; i< 30; ++i) 
-    {
+    for (size_t i = 0; i < 30; ++i) {
       XrdSysTimer sleeper;
       sleeper.Wait(1000);
       XrdSysThread::CancelPoint();
     }
   }
-  while (1)
-  {
+
+  while (1) {
     bool booted = false;
     XrdSysThread::SetCancelOff();
     //eos_static_debug("RecvMessage");
     XrdMqMessage* newmessage = mMessageClient.RecvMessage();
 
-    if (newmessage)
-    {
+    if (newmessage) {
       Process(newmessage);
       delete newmessage;
-    }
-    else
-    {
+    } else {
       XrdSysThread::SetCancelOn();
       XrdSysTimer sleeper;
       sleeper.Wait(1000);
@@ -131,14 +126,14 @@ VstMessaging::Listen ()
 
     {
       XrdSysMutexHelper(gOFS->InitializationMutex);
-      if (gOFS->Initialized == gOFS->kBooted)
+
+      if (gOFS->Initialized == gOFS->kBooted) {
         booted = true;
+      }
     }
 
-    if (booted)
-    {
-      if ((!lPublishTime) || ((time(NULL) - lPublishTime) > 15))
-      {
+    if (booted) {
+      if ((!lPublishTime) || ((time(NULL) - lPublishTime) > 15)) {
         XrdMqMessage message("VST-Info");
         message.SetBody(PublishVst().c_str());
         message.MarkAsMonitor();
@@ -149,6 +144,7 @@ VstMessaging::Listen ()
         PublishInfluxDbUdp();
       }
     }
+
     XrdSysThread::SetCancelOn();
     XrdSysThread::CancelPoint();
   }
@@ -156,79 +152,68 @@ VstMessaging::Listen ()
 
 /*----------------------------------------------------------------------------*/
 void
-VstMessaging::Process (XrdMqMessage* newmessage)
+VstMessaging::Process(XrdMqMessage* newmessage)
 {
   static bool discardmode = false;
+
   if ((newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage)
-      || (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage))
-  {
-    if (discardmode)
-    {
+      || (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage)) {
+    if (discardmode) {
       return;
     }
 
     XrdAdvisoryMqMessage* advisorymessage =
-            XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
+      XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
 
-    if (advisorymessage)
-    {
+    if (advisorymessage) {
       eos_debug("queue=%s online=%d", advisorymessage->kQueue.c_str(),
                 advisorymessage->kOnline);
 
-      if (advisorymessage->kQueue.endswith("/vst"))
-      {
-        if (!Update(advisorymessage))
-        {
+      if (advisorymessage->kQueue.endswith("/vst")) {
+        if (!Update(advisorymessage)) {
           eos_err("cannot update node status for %s",
                   advisorymessage->GetBody());
         }
       }
+
       delete advisorymessage;
     }
-  }
-  else
-  {
-    if (EOS_LOGS_DEBUG)
+  } else {
+    if (EOS_LOGS_DEBUG) {
       newmessage->Print();
+    }
 
     if ((!discardmode) &&
         ((newmessage->kMessageHeader.kReceiverTime_sec -
-          newmessage->kMessageHeader.kBrokerTime_sec) > 120))
-    {
+          newmessage->kMessageHeader.kBrokerTime_sec) > 120)) {
       eos_crit("dropping vst message because of message delays of %d seconds",
                (newmessage->kMessageHeader.kReceiverTime_sec -
                 newmessage->kMessageHeader.kBrokerTime_sec));
       discardmode = true;
       return;
-    }
-    else
-    {
+    } else {
       // we accept when we catched up
       if ((newmessage->kMessageHeader.kReceiverTime_sec -
-           newmessage->kMessageHeader.kBrokerTime_sec) <= 30)
-      {
+           newmessage->kMessageHeader.kBrokerTime_sec) <= 30) {
         discardmode = false;
         XrdSysMutexHelper vLock(VstView::gVstView.ViewMutex);
+
         // extract the map
         if (!eos::common::StringConversion::GetKeyValueMap(newmessage->GetBody(),
-                                                           VstView::gVstView.mView[newmessage->kMessageHeader.kSenderId.c_str()], "=", ","))
-        {
+            VstView::gVstView.mView[newmessage->kMessageHeader.kSenderId.c_str()], "=",
+            ",")) {
           eos_static_err("msg=\"illegal format in vst message\" body=\"%s\"",
                          newmessage->GetBody());
-        }
-        else
-        {
+        } else {
           XrdOucString rt;
-          VstView::gVstView.mView[newmessage->kMessageHeader.kSenderId.c_str()]["timestamp"] =
+          VstView::gVstView.mView[newmessage->kMessageHeader.kSenderId.c_str()]["timestamp"]
+            =
               std::to_string((long long int) newmessage->kMessageHeader.kReceiverTime_sec);
           eos_static_info("msg=\"received new VST report\" sender=\"%s\"",
                           newmessage->kMessageHeader.kSenderId.c_str());
         }
-      }
-      else
-      {
-        if (discardmode)
-        {
+      } else {
+        if (discardmode) {
           eos_crit("dropping vst message because of message delays of %d seconds",
                    (newmessage->kMessageHeader.kReceiverTime_sec
                     - newmessage->kMessageHeader.kBrokerTime_sec));
@@ -237,26 +222,48 @@ VstMessaging::Process (XrdMqMessage* newmessage)
       }
     }
   }
+
   return;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-VstMessaging::KeyIsString (std::string key)
+VstMessaging::KeyIsString(std::string key)
 {
-  if (key == "instance") return true;
-  if (key == "host") return true;
-  if (key == "version") return true;
-  if (key == "mode") return true;
-  if (key == "url") return true;
-  if (key == "ip") return true;
-  if (key == "manager") return true;
+  if (key == "instance") {
+    return true;
+  }
+
+  if (key == "host") {
+    return true;
+  }
+
+  if (key == "version") {
+    return true;
+  }
+
+  if (key == "mode") {
+    return true;
+  }
+
+  if (key == "url") {
+    return true;
+  }
+
+  if (key == "ip") {
+    return true;
+  }
+
+  if (key == "manager") {
+    return true;
+  }
+
   return false;
 }
 
 /*----------------------------------------------------------------------------*/
 std::string&
-VstMessaging::PublishVst ()
+VstMessaging::PublishVst()
 {
   mVstMessage = "instance=";
   mVstMessage += gOFS->MgmOfsInstanceName.c_str();
@@ -264,46 +271,54 @@ VstMessaging::PublishVst ()
   mVstMessage += gOFS->HostName;
   mVstMessage += ",version=";
   mVstMessage += VERSION;
-  if (gOFS->MgmMaster.IsMaster())
-  {
+
+  if (gOFS->MgmMaster.IsMaster()) {
     mVstMessage += ",mode=master";
-  }
-  else
-  {
+  } else {
     mVstMessage += ",mode=slave";
   }
+
   XrdOucString uptime;
   uptime += (int) gOFS->StartTime;
   mVstMessage += ",uptime=";
   mVstMessage += uptime.c_str();
-
   unsigned long long freebytes, freefiles, maxbytes, maxfiles, ethin,
-          ethout, diskin, diskout, ropen, wopen, clients, lock_r, lock_w, nfsrw, iops, bw;
+           ethout, diskin, diskout, ropen, wopen, clients, lock_r, lock_w, nfsrw, iops, bw;
   freebytes = freefiles = maxbytes = maxfiles = clients =
-          ethin = ethout = diskin = diskout = ropen = wopen = nfsrw = iops = bw = 0;
+                                       ethin = ethout = diskin = diskout = ropen = wopen = nfsrw = iops = bw = 0;
   {
     // take the sum's from all file systems in 'default'
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-    if (FsView::gFsView.mSpaceView.count("default"))
-    {
-      freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes?configstatus@rw",false);
-      freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree?configstatus@rw",false);
 
-      maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity?configstatus@rw",false);
-      maxfiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files?configstatus@rw",false);
-
-      ethin = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.net.inratemib",false);
-      ethout = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.net.outratemib",false);
-
-      diskin = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.readratemb",false);
-      diskout = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.writeratemb",false);
-
-      ropen = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.ropen",false);
-      wopen = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.wopen",false);
-
-      nfsrw = FsView::gFsView.mSpaceView["default"]->SumLongLong("<n>?configstatus@rw",false);
-      iops = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.iops?configstatus@rw",false);
-      bw = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.bw?configstatus@rw",false);
+    if (FsView::gFsView.mSpaceView.count("default")) {
+      freebytes =
+        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes?configstatus@rw",
+            false);
+      freefiles =
+        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree?configstatus@rw",
+            false);
+      maxbytes =
+        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity?configstatus@rw",
+            false);
+      maxfiles =
+        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files?configstatus@rw",
+            false);
+      ethin = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.net.inratemib",
+              false);
+      ethout = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.net.outratemib",
+               false);
+      diskin = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.readratemb",
+               false);
+      diskout = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.writeratemb",
+                false);
+      ropen = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.ropen", false);
+      wopen = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.wopen", false);
+      nfsrw = FsView::gFsView.mSpaceView["default"]->SumLongLong("<n>?configstatus@rw",
+              false);
+      iops = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.iops?configstatus@rw",
+             false);
+      bw = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.bw?configstatus@rw",
+           false);
     }
   }
   {
@@ -311,24 +326,21 @@ VstMessaging::PublishVst ()
     eos::common::Mapping::ActiveExpire(300, true);
     clients = eos::common::Mapping::ActiveTidents.size();
   }
-
   {
     XrdSysMutexHelper sLock(gOFS->MgmStats.Mutex);
     lock_r = (unsigned long long) gOFS->MgmStats.GetTotalAvg300("NsLockR");
     lock_w = (unsigned long long) gOFS->MgmStats.GetTotalAvg300("NsLockW");
   }
-
   unsigned long long files = 0;
   unsigned long long container = 0;
-
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     files = (unsigned long long) gOFS->eosFileService->getNumFiles();
     container = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
   }
-
   char info[65536];
-  snprintf(info, sizeof (info) - 1, ",freebytes=%llu,freefiles=%llu,maxbytes=%llu,maxfiles=%llu,nfsrw=%llu,iops=%llu,bw=%llu,ethin=%llu,ethout=%llu"
+  snprintf(info, sizeof(info) - 1,
+           ",freebytes=%llu,freefiles=%llu,maxbytes=%llu,maxfiles=%llu,nfsrw=%llu,iops=%llu,bw=%llu,ethin=%llu,ethout=%llu"
            ",diskin=%llu,diskout=%llu,ropen=%llu,wopen=%llu,clients=%llu,url=root://%s,manager=%s,ip=%s,ns_files=%llu,ns_container=%llu,rlock=%llu,wlock=%llu",
            freebytes,
            freefiles,
@@ -351,24 +363,28 @@ VstMessaging::PublishVst ()
            container,
            lock_r,
            lock_w);
-
   {
     // publish our state also in our own map
     XrdSysMutexHelper vLock(VstView::gVstView.ViewMutex);
     XrdOucString rt;
-    std::map<std::string, std::string>& mymap = VstView::gVstView.mView[mMessageClient.GetDefaultReceiverQueue().c_str()];
+    std::map<std::string, std::string>& mymap =
+      VstView::gVstView.mView[mMessageClient.GetDefaultReceiverQueue().c_str()];
     mymap["timestamp"] = std::to_string((long long int) time(NULL)).c_str();
     mymap["instance"] = gOFS->MgmOfsInstanceName.c_str();
     mymap["host"] = gOFS->HostName;
     mymap["version"] = VERSION;
     mymap["uptime"] = uptime.c_str();
-    if (gOFS->MgmMaster.IsMaster())
-      mymap["mode"] = "master";
-    else
-      mymap["mode"] = "slave";
 
-    mymap["freebytes"] = eos::common::StringConversion::GetSizeString(rt, freebytes);
-    mymap["freefiles"] = eos::common::StringConversion::GetSizeString(rt, freefiles);
+    if (gOFS->MgmMaster.IsMaster()) {
+      mymap["mode"] = "master";
+    } else {
+      mymap["mode"] = "slave";
+    }
+
+    mymap["freebytes"] = eos::common::StringConversion::GetSizeString(rt,
+                         freebytes);
+    mymap["freefiles"] = eos::common::StringConversion::GetSizeString(rt,
+                         freefiles);
     mymap["maxbytes"] = eos::common::StringConversion::GetSizeString(rt, maxbytes);
     mymap["maxfiles"] = eos::common::StringConversion::GetSizeString(rt, maxfiles);
     mymap["ethin"] = eos::common::StringConversion::GetSizeString(rt, ethin);
@@ -382,7 +398,8 @@ VstMessaging::PublishVst ()
     mymap["manager"] = gOFS->ManagerId.c_str();
     mymap["ip"] = gOFS->ManagerIp.c_str();
     mymap["ns_files"] = eos::common::StringConversion::GetSizeString(rt, files);
-    mymap["ns_container"] = eos::common::StringConversion::GetSizeString(rt, container);
+    mymap["ns_container"] = eos::common::StringConversion::GetSizeString(rt,
+                            container);
     mymap["rlock"] = eos::common::StringConversion::GetSizeString(rt, lock_r);
     mymap["wlock"] = eos::common::StringConversion::GetSizeString(rt, lock_w);
     mymap["nfsrw"] = eos::common::StringConversion::GetSizeString(rt, nfsrw);
@@ -395,66 +412,64 @@ VstMessaging::PublishVst ()
 
 /*----------------------------------------------------------------------------*/
 bool
-VstMessaging::SetInfluxUdpEndpoint (const char* hostport, bool onlyme)
+VstMessaging::SetInfluxUdpEndpoint(const char* hostport, bool onlyme)
 {
   // create an UDP socket for the specified target
   int udpsocket = -1;
   udpsocket = socket(AF_INET, SOCK_DGRAM, 0);
-
   PublishOnlySelf = onlyme;
 
-  if (udpsocket >= 0)
-  {
+  if (udpsocket >= 0) {
     // close previously defined UDP socket
-    if (InfluxUdpSocket)
+    if (InfluxUdpSocket) {
       close(InfluxUdpSocket);
+    }
 
     XrdOucString a_host, a_port, hp;
     int port = 0;
     hp = hostport;
-    if (!eos::common::StringConversion::SplitKeyValue(hp, a_host, a_port))
-    {
+
+    if (!eos::common::StringConversion::SplitKeyValue(hp, a_host, a_port)) {
       a_host = hp;
       a_port = "4444";
     }
+
     port = atoi(a_port.c_str());
 
-    if (!port)
+    if (!port) {
       return false;
+    }
 
     InfluxUdpSocket = udpsocket;
     InfluxUdpPort = port;
     InfluxUdpHost = a_host.c_str();
     {
       char is[256];
-      snprintf(is, sizeof (is) - 1, "%s:%d", InfluxUdpHost.c_str(), InfluxUdpPort);
+      snprintf(is, sizeof(is) - 1, "%s:%d", InfluxUdpHost.c_str(), InfluxUdpPort);
       InfluxUdpEndpoint = is;
     }
-
     XrdSysDNS::getHostAddr(a_host.c_str(), (struct sockaddr*) &InfluxUdpSocketAddr);
     InfluxUdpSocketAddr.sin_family = AF_INET;
     InfluxUdpSocketAddr.sin_port = htons(port);
     return true;
-  }
-  else
-  {
+  } else {
     return false;
   }
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-VstMessaging::PublishInfluxDbUdp ()
+VstMessaging::PublishInfluxDbUdp()
 {
-  if (InfluxUdpSocket)
-  {
+  if (InfluxUdpSocket) {
     // build a beautiful JSON document for the InfluxUdp receiver
-
-    for (auto it = VstView::gVstView.mView.begin(); it != VstView::gVstView.mView.end(); ++it)
-    {
+    for (auto it = VstView::gVstView.mView.begin();
+         it != VstView::gVstView.mView.end(); ++it) {
       if (PublishOnlySelf)
-        if (it->first != mMessageClient.GetDefaultReceiverQueue().c_str())
+        if (it->first != mMessageClient.GetDefaultReceiverQueue().c_str()) {
           continue;
+        }
+
       std::string json_doc;
       XrdSysMutexHelper vLock(VstView::gVstView.ViewMutex);
       json_doc += "[\n";
@@ -464,49 +479,51 @@ VstMessaging::PublishInfluxDbUdp ()
       json_doc += "\",\n";
       json_doc += "    \"columns\" : [";
 
-      for (auto sit = it->second.begin(); sit != it->second.end(); ++sit)
-      {
-        if (sit != it->second.begin())
+      for (auto sit = it->second.begin(); sit != it->second.end(); ++sit) {
+        if (sit != it->second.begin()) {
           json_doc += ",";
+        }
+
         json_doc += "\"";
         json_doc += sit->first;
         json_doc += "\"";
       }
+
       json_doc += "],\n";
       json_doc += "    \"points\" : [\n"
-              "                   [";
+                  "                   [";
 
-      for (auto sit = it->second.begin(); sit != it->second.end(); ++sit)
-      {
-        if (sit != it->second.begin())
+      for (auto sit = it->second.begin(); sit != it->second.end(); ++sit) {
+        if (sit != it->second.begin()) {
           json_doc += ",";
+        }
 
-        if (KeyIsString(sit->first))
-        {
+        if (KeyIsString(sit->first)) {
           json_doc += "\"";
         }
+
         json_doc += sit->second;
-        if (KeyIsString(sit->first))
-        {
+
+        if (KeyIsString(sit->first)) {
           json_doc += "\"";
         }
       }
+
       json_doc += "]\n";
       json_doc += "               ]\n";
       json_doc += "  }\n";
       json_doc += "]\n";
-
       eos_static_debug("json=\n%s\n", json_doc.c_str());
-      int sendretc = sendto(InfluxUdpSocket, json_doc.c_str(), json_doc.length(), 0, (struct sockaddr *) &InfluxUdpSocketAddr, sizeof (struct sockaddr_in));
-      if (sendretc < 0)
-      {
+      int sendretc = sendto(InfluxUdpSocket, json_doc.c_str(), json_doc.length(), 0,
+                            (struct sockaddr*) &InfluxUdpSocketAddr, sizeof(struct sockaddr_in));
+
+      if (sendretc < 0) {
         eos_static_err("failed to send udp message to %s\n", InfluxUdpEndpoint.c_str());
       }
     }
+
     return true;
-  }
-  else
-  {
+  } else {
     return true;
   }
 }

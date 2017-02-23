@@ -118,7 +118,7 @@ Scheduler::FilePlacement(PlacementArguments* args)
 
   if (args->forced_scheduling_group_index >= 0) {
     for (git = FsView::gFsView.mSpaceGroupView[*args->spacename].begin();
-         git != FsView::gFsView.mSpaceGroupView[*args->spacename].end(); git++) {
+         git != FsView::gFsView.mSpaceGroupView[*args->spacename].end(); ++git) {
       if ((*git)->GetIndex() == (unsigned int) args->forced_scheduling_group_index) {
         break;
       }
@@ -126,6 +126,11 @@ Scheduler::FilePlacement(PlacementArguments* args)
 
     if ((git != FsView::gFsView.mSpaceGroupView[*args->spacename].end()) &&
         ((*git)->GetIndex() != (unsigned int) args->forced_scheduling_group_index)) {
+      args->selected_filesystems->clear();
+      return ENOSPC;
+    }
+    
+    if (git == FsView::gFsView.mSpaceGroupView[*args->spacename].end()) {
       args->selected_filesystems->clear();
       return ENOSPC;
     }
@@ -152,8 +157,7 @@ Scheduler::FilePlacement(PlacementArguments* args)
   for (unsigned int groupindex = 0;
        groupindex < FsView::gFsView.mSpaceGroupView[*args->spacename].size() +
        groupsToTry.size(); groupindex++) {
-    // rotate scheduling view ptr
-    // we select a random one
+    // Rotate scheduling view ptr -  we select a random one
     FsGroup* group = (groupindex < groupsToTry.size() ? groupsToTry[groupindex] :
                       *git);
     bool placeRes = gGeoTreeEngine.placeNewReplicasOneGroup(

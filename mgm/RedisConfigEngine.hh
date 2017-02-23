@@ -219,8 +219,6 @@ public:
 private:
 
   qclient::QClient* client;
-  std::string REDIS_HOST;
-  int REDIS_PORT;
   std::string conf_set_key = "EOSConfig:list";
   std::string conf_hash_key_prefix = "EOSConfig";
   std::string conf_backup_hash_key_prefix = "EOSConfig:backup";

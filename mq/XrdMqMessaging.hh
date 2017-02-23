@@ -34,14 +34,14 @@ public:
   static XrdMqClient gMessageClient;
   static void* Start(void* pp);
 
-  XrdMqMessaging()
-  {
-    tid = 0;
-  };
+  XrdMqMessaging():
+    zombie(false), SharedObjectManager(0), tid(0)
+  { }
 
   XrdMqMessaging(const char* url, const char* defaultreceiverqueue,
                  bool advisorystatus = false, bool advisoryquery = false,
                  XrdMqSharedObjectManager* som = 0);
+
   virtual ~XrdMqMessaging();
 
   virtual void Listen();

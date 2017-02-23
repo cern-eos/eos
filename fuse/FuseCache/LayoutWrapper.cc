@@ -83,8 +83,8 @@ bool LayoutWrapper::ToCGI(const std::map<std::string, std::string>& m ,
 // Constructor
 //------------------------------------------------------------------------------
 LayoutWrapper::LayoutWrapper(eos::fst::Layout* file) :
-  mFile(file), mOpen(false), mClose(false), mFabs(NULL), mDoneAsyncOpen(false),
-  mOpenHandler(NULL)
+  mFile(file), mOpen(false), mClose(false), mFlags(0), mMode(0), mFabs(NULL),
+  mDoneAsyncOpen(false), mOpenHandler(NULL)
 {
   mLocalUtime[0].tv_sec = mLocalUtime[1].tv_sec = 0;
   mLocalUtime[0].tv_nsec = mLocalUtime[1].tv_nsec = 0;
@@ -569,6 +569,12 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       // Do the async open on the FST and return
       eos::fst::PlainLayout* plain_layout =
         dynamic_cast<eos::fst::PlainLayout*>(mFile);
+
+      if (!plain_layout) {
+        eos_static_err("failed dynamic cast to PlainLayout");
+        return -1;
+      }
+
       mOpenHandler = new eos::fst::AsyncLayoutOpenHandler(plain_layout);
       mFile->Redirect(path.c_str());
 
@@ -602,10 +608,12 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         XrdCl::URL url(mFile->GetLastTriedUrl());
         const std::string& username = url.GetUserName();
 
-        if (!username.empty() && username[0] != '*'
-            && static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() ==
+        if ((!username.empty() && username[0] != '*') &&
+            static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() ==
             kXR_NotAuthorized) {
-          eos_static_notice("async open failed for path=%s because of authentication, credentials might have been lost on redirect. Trying to fix with a sync open",
+          eos_static_notice("async open failed for path=%s because of "
+                            "authentication, credentials might have been lost "
+                            "on redirect. Trying to fix with a sync open",
                             path.c_str());
         } else {
           eos_static_err("async open failed for path=%s", path.c_str());
@@ -623,12 +631,10 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
     size_t pos, _pos(0);
 
     while (retry) {
-      eos_static_debug("Sync-open path=%s opaque=%s",
-                       _path.c_str(),
+      eos_static_debug("Sync-open path=%s opaque=%s", _path.c_str(),
                        sopaque.c_str());
       mFile->Redirect(_path.c_str());
 
-      // Do synchronous open
       // Do synchronous open
       if ((retc = mFile->Open(flags, mode, sopaque.c_str()))) {
         eos_static_debug("Sync-open got errNo=%d errCode=%d",

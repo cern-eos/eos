@@ -287,6 +287,7 @@ main()
     overwrite = true;
     RunThreads();
     elapsed = (int)time(NULL) - (int)seconds;
+    elapsed = (elapsed ? elapsed : 1);
     printf("\t     overwrite test took %d sec (%lf writes/sec)\n", elapsed,
            float(n * NUM_THREADS) / elapsed);
     printf("\t==>> %d blocks of size %d writing from 1 maps\n", n / transacsize[k],
@@ -311,6 +312,7 @@ main()
     writecount = 0;
     RunThreadsGlob();
     elapsed = (int)time(NULL) - (int)seconds;
+    elapsed = (elapsed ? elapsed : 1);
     printf("\t     write test took %d sec (%lf writes/sec)\n", elapsed,
            float(n * NUM_THREADS) / elapsed);
     delete globmap;
@@ -334,6 +336,7 @@ main()
     writecount = 0;
     RunThreadsGlob();
     elapsed = (int)time(NULL) - (int)seconds;
+    elapsed = (elapsed ? elapsed : 1);
     printf("\t     overwrite test took %d sec (%lf writes/sec)\n", elapsed,
            float(n * NUM_THREADS) / elapsed);
     delete globmap;
@@ -355,6 +358,7 @@ main()
     overwrite = false;
     RunThreads();
     elapsed = (int)time(NULL) - (int)seconds;
+    elapsed = (elapsed ? elapsed : 1);
     printf("\t     write test took %d sec (%lf writes/sec)\n", elapsed,
            float(n) / elapsed);
     system(rm_cmd.c_str());
@@ -364,6 +368,7 @@ main()
     overwrite = true;
     RunThreads();
     elapsed = (int)time(NULL) - (int)seconds;
+    elapsed = (elapsed ? elapsed : 1);
     printf("\t     overwrite test took %d sec (%lf writes/sec)\n", elapsed,
            float(n) / elapsed);
     printf("\n");
@@ -403,9 +408,11 @@ main()
 
         if (r < thresh) {
           // we call just a hundredth of the data
+          // coverity[DC.WEAK_CRYPTO]
           kk = rand() * nfill / RAND_MAX;
           kk -= kk % 100;
         } else {
+          // coverity[DC.WEAK_CRYPTO]
           kk = rand() * nfill / RAND_MAX;
         }
 
@@ -419,6 +426,7 @@ main()
       }
 
       elapsed = (int) time(NULL) - (int) seconds;
+      elapsed = (elapsed ? elapsed : 1);
       printf("\t     random read test took %d sec (%lf read/sec)\n", elapsed,
              float(10 * nfill) / elapsed);
     }
@@ -429,6 +437,7 @@ main()
     overwrite = false;
     RunThreads();
     elapsed = (int)time(NULL) - (int)seconds;
+    elapsed = (elapsed ? elapsed : 1);
     printf("\t     write test took %d sec (%lf writes/sec)\n", elapsed,
            float(n) / elapsed);
     printf("\n");

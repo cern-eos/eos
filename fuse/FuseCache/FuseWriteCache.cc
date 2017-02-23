@@ -55,9 +55,8 @@ FuseWriteCache::GetInstance(size_t sizeMax)
 // Constructor
 //------------------------------------------------------------------------------
 FuseWriteCache::FuseWriteCache(size_t sizeMax) :
-  eos::common::LogId(),
-  mCacheSizeMax(sizeMax),
-  mAllocSize(0)
+  eos::common::LogId(), mCacheSizeMax(sizeMax), mAllocSize(0),
+  mWriteThread(0)
 {
   mRecycleQueue = new eos::common::ConcurrentQueue<CacheEntry*>();
   mWrReqQueue = new eos::common::ConcurrentQueue<CacheEntry*>();

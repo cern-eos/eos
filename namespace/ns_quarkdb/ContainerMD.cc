@@ -98,6 +98,7 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pContSvc  = other.pContSvc;
   pFileSvc  = other.pFileSvc;
   // Note: pFiles and pSubContainers are not copied here
+  pQcl      = other.pQcl;
   return *this;
 }
 

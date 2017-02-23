@@ -614,6 +614,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
       int rc = file->open(url.c_str(), open_mode, create_mode, &client,
                           query.c_str());
 
+      // TODO (apeters): review this part - dead code open_mode = 0
       if ((rc != SFS_REDIRECT) && open_mode) {
         // retry as a file creation
         open_mode |= SFS_O_CREAT;
@@ -878,10 +879,6 @@ HttpHandler::Put(eos::common::HttpRequest* request)
                                            EOPNOTSUPP);
         }
       } else {
-        if (response) {
-          delete response;
-        }
-
         response = new eos::common::PlainHttpResponse();
         response->SetResponseCode(response->CREATED);
       }

@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <cppunit/extensions/HelperMacros.h>
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -31,14 +29,11 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
-/*----------------------------------------------------------------------------*/
 #include "TestEnv.hh"
 #include "fuse/FuseCache/CacheEntry.hh"
-/*----------------------------------------------------------------------------*/
 
 #ifndef __EOS_FUSE_FUSEFILETEST_HH__
 #define __EOS_FUSE_FUSEFILETEST_HH__
-
 
 //------------------------------------------------------------------------------
 //! FuseFileTest class
@@ -152,7 +147,7 @@ FuseFileTest::WriteStatTest()
   mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
   std::string fname = mEnv->GetMapping("file_dummy");
   fname += "_wst";
-  CPPUNIT_ASSERT((fd = creat(fname.c_str(), mode)) != -1);
+  CPPUNIT_ASSERT((fd = creat(fname.c_str(), mode)) >= 0);
   // Write-(sync)-stat the file
   int count = 0;
   off_t offset = 0;
@@ -221,7 +216,7 @@ FuseFileTest::MultiProcessTest()
     CPPUNIT_ASSERT(wait(&status) == pid);
     CPPUNIT_ASSERT(WIFEXITED(status));
     close(fd);
-    CPPUNIT_ASSERT((fd = open(fname.c_str(), O_RDONLY, 0)) != -1);
+    CPPUNIT_ASSERT((fd = open(fname.c_str(), O_RDONLY, 0)) >= 0);
     char* rbuff = new char[sz_buff];
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // *** TODO ***
@@ -231,6 +226,7 @@ FuseFileTest::MultiProcessTest()
     ssize_t nread = pread(fd, rbuff, sz_buff, 0);
     //std::cout << "Rd_sz= " << nread << " expected size=" << sz_buff << std::endl;
     // TODO: also replace below nread with sz_buff
+    CPPUNIT_ASSERT(nread >= 0);
     CPPUNIT_ASSERT_MESSAGE("WR/RD buffer missmatch", !strncmp(buff, rbuff, nread));
     CPPUNIT_ASSERT(!close(fd));
     CPPUNIT_ASSERT(!remove(fname.c_str()));
@@ -253,7 +249,7 @@ FuseFileTest::WriteReadTest()
   memset(buf, 7, buff_sz);
   std::string fname = mEnv->GetMapping("file_dummy");
   fname += "_wrt";
-  CPPUNIT_ASSERT((fd = open(fname.c_str(), O_CREAT | O_RDWR, S_IRWXU)) != -1);
+  CPPUNIT_ASSERT((fd = open(fname.c_str(), O_CREAT | O_RDWR, S_IRWXU)) >= 0);
   CPPUNIT_ASSERT(write(fd, buf, buff_sz) == (ssize_t)buff_sz);
   ssize_t nread = pread(fd, buf, 30, 10200);
   CPPUNIT_ASSERT(nread == 30);
@@ -279,7 +275,7 @@ FuseFileTest::SparseWriteTest()
   int sz_cache = atoi(mEnv->GetMapping("fuse_cache_size").c_str());
   std::string fname = mEnv->GetMapping("file_dummy");
   fname += "_swt";
-  CPPUNIT_ASSERT((fd = creat(fname.c_str(), S_IRWXU)) != -1);
+  CPPUNIT_ASSERT((fd = creat(fname.c_str(), S_IRWXU)) >= 0);
   off_t sz_gap = 4 * 1024 * 1024;
   off_t sz_final = 1.5 * sz_cache; // fill all cache and beyond
 
@@ -326,7 +322,7 @@ FuseFileTest::ManyWriteFilesTest()
   for (int findx = 0; findx < num_files; ++findx) {
     oss.str("");
     oss << base_fname << findx;
-    CPPUNIT_ASSERT((fd = creat(oss.str().c_str(), S_IRWXU)) != -1);
+    CPPUNIT_ASSERT((fd = creat(oss.str().c_str(), S_IRWXU)) >= 0);
     CPPUNIT_ASSERT(pwrite(fd, buff, sz_buff, 0) == sz_buff);
     vfd.push_back(fd);
     vfname.push_back(oss.str());

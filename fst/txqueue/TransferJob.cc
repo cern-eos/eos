@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/* ------------------------------------------------------------------------- */
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
 #include "common/StringConversion.hh"
@@ -30,7 +29,6 @@
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "mgm/txengine/TransferEngine.hh"
-/* ------------------------------------------------------------------------- */
 #include <fstream>
 #include <sstream>
 #include <cstdio>
@@ -39,8 +37,6 @@
 #include <sys/wait.h>
 #include <uuid/uuid.h>
 #include <math.h>
-
-/* ------------------------------------------------------------------------- */
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -530,6 +526,7 @@ TransferJob::DoIt()
     unsetenv("TMPDIR");
     // we create a unique name here (it is the target name + some random tmp name)
     char tmp_name[] = "/var/eos/stage/txjob.XXXXXX";
+    // coverity[SECURE_TEMP]
     int tmp_fd = mkstemp(tmp_name);
 
     if (tmp_fd == -1) {

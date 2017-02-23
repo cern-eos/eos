@@ -21,131 +21,140 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::GeoSched ()
+ProcCommand::GeoSched()
 {
-  if (pVid->uid == 0)
-  {
+  if (pVid->uid == 0) {
     retc = SFS_ERROR;
-    if(mSubCmd == "showtree" || mSubCmd=="showsnapshot" || mSubCmd=="showstate" || mSubCmd=="showparam")
-    {
+
+    if (mSubCmd == "showtree" || mSubCmd == "showsnapshot" ||
+        mSubCmd == "showstate" || mSubCmd == "showparam") {
       XrdOucString schedgroup = "";
       XrdOucString optype = "";
       schedgroup = pOpaque->Get("mgm.schedgroup");
       optype = pOpaque->Get("mgm.optype");
       bool btree = (mSubCmd == "showtree");
       bool bsnapsh = (mSubCmd == "showsnapshot");
-      bool bprm =  (mSubCmd == "showparam");
-      bool bst =  (mSubCmd == "showstate");
+      bool bprm = (mSubCmd == "showparam");
+      bool bst = (mSubCmd == "showstate");
       bool useColors = false;
-      if(pOpaque->Get("mgm.usecolors"))
-      useColors=(bool)XrdOucString(pOpaque->Get("mgm.usecolors")).atoi();
+
+      if (pOpaque->Get("mgm.usecolors")) {
+        useColors = (bool)XrdOucString(pOpaque->Get("mgm.usecolors")).atoi();
+      }
+
       std::string info;
-      gGeoTreeEngine.printInfo(info,btree,bsnapsh,bprm,bst,schedgroup.c_str(),optype.c_str(),useColors);
+      gGeoTreeEngine.printInfo(info, btree, bsnapsh, bprm, bst, schedgroup.c_str(),
+                               optype.c_str(), useColors);
       stdOut += info.c_str();
       retc = SFS_OK;
     }
-    if(mSubCmd == "set")
-    {
+
+    if (mSubCmd == "set") {
       XrdOucString param = pOpaque->Get("mgm.param");
       XrdOucString paramidx = pOpaque->Get("mgm.paramidx");
       XrdOucString value = pOpaque->Get("mgm.value");
-      double dval = 0.0;
-      sscanf(value.c_str(),"%lf",&dval);
       int iparamidx = paramidx.atoi();
       bool ok = false;
-      ok = gGeoTreeEngine.setParameter(param.c_str(),value.c_str(),iparamidx,true); // -> save it to the config
-      retc = ok?SFS_OK:SFS_ERROR;
+      // -> save it to the config
+      ok = gGeoTreeEngine.setParameter(param.c_str(), value.c_str(), iparamidx, true);
+      retc = ok ? SFS_OK : SFS_ERROR;
     }
-    if(mSubCmd == "updtpause")
-    {
-      if(gGeoTreeEngine.PauseUpdater())
+
+    if (mSubCmd == "updtpause") {
+      if (gGeoTreeEngine.PauseUpdater()) {
         stdOut += "GeoTreeEngine has been paused\n";
-      else
+      } else {
         stdOut += "GeoTreeEngine could not be paused at the moment\n";
+      }
+
       retc = SFS_OK;
     }
-    if(mSubCmd == "updtresume")
-    {
+
+    if (mSubCmd == "updtresume") {
       gGeoTreeEngine.ResumeUpdater();
       stdOut += "GeoTreeEngine has been resumed\n";
       retc = SFS_OK;
     }
-    if(mSubCmd == "forcerefresh")
-    {
+
+    if (mSubCmd == "forcerefresh") {
       gGeoTreeEngine.forceRefresh();
       stdOut += "GeoTreeEngine has been refreshed\n";
       retc = SFS_OK;
     }
-    if(mSubCmd.beginswith("disabled"))
-    {
+
+    if (mSubCmd.beginswith("disabled")) {
       XrdOucString geotag = pOpaque->Get("mgm.geotag");
       XrdOucString group = pOpaque->Get("mgm.schedgroup");
       XrdOucString optype = pOpaque->Get("mgm.optype");
-      if(mSubCmd == "disabledadd")
-      {
-        gGeoTreeEngine.addDisabledBranch(group.c_str(),optype.c_str(),geotag.c_str(),&stdOut,true); // -> save it to the config
+
+      if (mSubCmd == "disabledadd") {
+        gGeoTreeEngine.addDisabledBranch(group.c_str(), optype.c_str(), geotag.c_str(),
+                                         &stdOut, true); // -> save it to the config
         retc = SFS_OK;
       }
-      if(mSubCmd == "disabledrm")
-      {
-        gGeoTreeEngine.rmDisabledBranch(group.c_str(),optype.c_str(),geotag.c_str(),&stdOut,true); // -> save it to the config
+
+      if (mSubCmd == "disabledrm") {
+        gGeoTreeEngine.rmDisabledBranch(group.c_str(), optype.c_str(), geotag.c_str(),
+                                        &stdOut, true); // -> save it to the config
         retc = SFS_OK;
       }
-      if(mSubCmd == "disabledshow")
-      {
-        gGeoTreeEngine.showDisabledBranches(group.c_str(),optype.c_str(),geotag.c_str(),&stdOut);
+
+      if (mSubCmd == "disabledshow") {
+        gGeoTreeEngine.showDisabledBranches(group.c_str(), optype.c_str(),
+                                            geotag.c_str(), &stdOut);
         retc = SFS_OK;
       }
     }
-    if(mSubCmd.beginswith("access"))
-    {
+
+    if (mSubCmd.beginswith("access")) {
       XrdOucString geotag = pOpaque->Get("mgm.geotag");
       XrdOucString geotag_list = pOpaque->Get("mgm.geotaglist");
-      if(mSubCmd == "accesssetdirect")
-      {
-        gGeoTreeEngine.setAccessGeotagMapping(&stdOut, geotag.c_str(),geotag_list.c_str(),true);
+
+      if (mSubCmd == "accesssetdirect") {
+        gGeoTreeEngine.setAccessGeotagMapping(&stdOut, geotag.c_str(),
+                                              geotag_list.c_str(), true);
         retc = SFS_OK;
       }
-      if(mSubCmd == "accesscleardirect")
-      {
-        gGeoTreeEngine.clearAccessGeotagMapping(&stdOut,geotag=="all"?"":geotag.c_str(),true);
+
+      if (mSubCmd == "accesscleardirect") {
+        gGeoTreeEngine.clearAccessGeotagMapping(&stdOut,
+                                                geotag == "all" ? "" : geotag.c_str(), true);
         retc = SFS_OK;
       }
-      if(mSubCmd == "accessshowdirect")
-      {
+
+      if (mSubCmd == "accessshowdirect") {
         gGeoTreeEngine.showAccessGeotagMapping(&stdOut);
         retc = SFS_OK;
       }
-      if(mSubCmd == "accesssetproxygroup")
-      {
-        gGeoTreeEngine.setAccessProxygroup(&stdOut,geotag.c_str(),geotag_list.c_str(),true);
+
+      if (mSubCmd == "accesssetproxygroup") {
+        gGeoTreeEngine.setAccessProxygroup(&stdOut, geotag.c_str(), geotag_list.c_str(),
+                                           true);
         retc = SFS_OK;
       }
-      if(mSubCmd == "accessclearproxygroup")
-      {
-        gGeoTreeEngine.clearAccessProxygroup(&stdOut,geotag=="all"?"":geotag.c_str(),true);
+
+      if (mSubCmd == "accessclearproxygroup") {
+        gGeoTreeEngine.clearAccessProxygroup(&stdOut,
+                                             geotag == "all" ? "" : geotag.c_str(), true);
         retc = SFS_OK;
       }
-      if(mSubCmd == "accessshowproxygroup")
-      {
+
+      if (mSubCmd == "accessshowproxygroup") {
         gGeoTreeEngine.showAccessProxygroup(&stdOut);
         retc = SFS_OK;
       }
     }
-  }
-  else
-  {
+  } else {
     retc = EPERM;
     stdErr = "error: you have to take role 'root' to execute this command";
   }
+
   return retc;
 }
 

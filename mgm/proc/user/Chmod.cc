@@ -58,7 +58,7 @@ ProcCommand::Chmod()
       }
     } else {
       // the single dir case
-      found[spath.c_str()].size();
+      (void)found[spath.c_str()].size();
     }
 
     char modecheck[1024];

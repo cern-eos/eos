@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
@@ -31,9 +30,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
-/*----------------------------------------------------------------------------*/
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
@@ -41,13 +38,10 @@ XrdSysMutex eos::mgm::WFE::gSchedulerMutex;
 XrdScheduler* eos::mgm::WFE::gScheduler;
 XrdSysMutex eos::mgm::WFE::gQueueChangeMutex;
 
-/*----------------------------------------------------------------------------*/
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
-/*-----------------sEAGAIN-----------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
-;
 
 using namespace eos::common;
 
@@ -61,6 +55,7 @@ WFE::WFE()
 {
   mThread = 0;
   mMs = 0;
+  mActiveJobs = 0;
   eos::common::Mapping::Root(mRootVid);
   XrdSysMutexHelper sLock(gSchedulerMutex);
   gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, 128, 64);
@@ -339,7 +334,8 @@ WFE::WFEr()
       time_t now = time(NULL);
       eos_static_info("msg=\"clean old workflows\"");
       XrdMgmOfsDirectory dir;
-      dir.open(gOFS->MgmProcWorkflowPath.c_str(), mRootVid, "");
+      // TODO: maybe check the return value ?!
+      (void)dir.open(gOFS->MgmProcWorkflowPath.c_str(), mRootVid, "");
       const char* entry;
 
       while ((entry = dir.nextEntry())) {
@@ -517,7 +513,6 @@ WFE::Job::Load(std::string path2entry)
 /*----------------------------------------------------------------------------*/
 {
   XrdSysMutexHelper lLock(&gQueueChangeMutex);
-
   XrdOucErrInfo lError;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
@@ -760,7 +755,6 @@ WFE::Job::DoIt()
             eos_static_debug("caught exception %d %s\n", e.getErrno(),
                              e.getMessage().str().c_str());
           }
-
 
           if (fmd.get() && cmd.get()) {
             std::shared_ptr<eos::IFileMD> cfmd  = fmd;
@@ -1077,18 +1071,18 @@ WFE::Job::DoIt()
               }
             }
 
-	    std::string turl="root://";
-	    turl += gOFS->MgmOfsAlias.c_str();
-	    turl += "/";
-	    turl += fullpath.c_str();
-	    turl += "?eos.lfn=fxid:";
-	    turl += hexfid.c_str();
-	    
+            std::string turl = "root://";
+            turl += gOFS->MgmOfsAlias.c_str();
+            turl += "/";
+            turl += fullpath.c_str();
+            turl += "?eos.lfn=fxid:";
+            turl += hexfid.c_str();
+
             while (execargs.replace("<eos::wfe::turl>",
                                     turl.c_str())) {
               int cnt = 0;
               cnt++;
-	      
+
               if (cnt > 16) {
                 break;
               }
@@ -1222,7 +1216,7 @@ WFE::Job::DoIt()
               } else {
                 bool b64encode = false;
                 std::string key;
-		std::string value;
+                std::string value;
                 key.assign(execargs.c_str() + xstart + 18, xend - xstart - 18);
                 execargs.erase(xstart, xend + 1 - xstart);
                 XrdOucString skey = key.c_str();
@@ -1232,23 +1226,19 @@ WFE::Job::DoIt()
                   b64encode = true;
                 }
 
-		if (gOFS->_attr_get(cfmd->getId(), key, value))
-		{
-		  if (b64encode) 
-		  {
-		    unbase64 = value.c_str();
-		    eos::common::SymKey::Base64(unbase64, base64);
-		    value = base64.c_str();
-		  }
+                if (gOFS->_attr_get(cfmd->getId(), key, value)) {
+                  if (b64encode) {
+                    unbase64 = value.c_str();
+                    eos::common::SymKey::Base64(unbase64, base64);
+                    value = base64.c_str();
+                  }
 
                   if (xstart == execargs.length()) {
                     execargs += value.c_str();
                   } else {
                     execargs.insert(value.c_str(), xstart);
                   }
-                } 
-		else
-		{
+                } else {
                   execargs.insert("UNDEF", xstart);
                 }
               }
@@ -1272,32 +1262,29 @@ WFE::Job::DoIt()
               } else {
                 bool b64encode = false;
                 std::string key;
-		std::string value;
+                std::string value;
                 key.assign(execargs.c_str() + xstart + 18, xend - xstart - 18);
                 execargs.erase(xstart, xend + 1 - xstart);
                 XrdOucString skey = key.c_str();
-		
+
                 if (skey.beginswith("base64:")) {
                   key.erase(0, 7);
                   b64encode = true;
                 }
 
-		if (gOFS->_attr_get(ccmd->getId(), key, value))
-		{
-		  if (b64encode) 
-		  {
-		    unbase64 = value.c_str();
-		    eos::common::SymKey::Base64(unbase64, base64);
-		    value = base64.c_str();
-		  }
+                if (gOFS->_attr_get(ccmd->getId(), key, value)) {
+                  if (b64encode) {
+                    unbase64 = value.c_str();
+                    eos::common::SymKey::Base64(unbase64, base64);
+                    value = base64.c_str();
+                  }
+
                   if (xstart == execargs.length()) {
                     execargs += value.c_str();
                   } else {
                     execargs.insert(value.c_str(), xstart);
                   }
-                } 
-		else
-		{
+                } else {
                   execargs.insert("UNDEF", xstart);
                 }
               }
@@ -1383,10 +1370,11 @@ WFE::Job::DoIt()
               XrdOucString outerr;
               char buff[65536];
               int end;
-	      memset (buff, 0, sizeof(buff));
+              memset(buff, 0, sizeof(buff));
+
               while ((end = ::read(cmd.errfd, buff, sizeof(buff))) > 0) {
                 outerr += buff;
-		memset (buff, 0, sizeof(buff));
+                memset(buff, 0, sizeof(buff));
               }
 
               eos_static_info("shell-cmd-stderr=%s", outerr.c_str());
@@ -1418,11 +1406,10 @@ WFE::Job::DoIt()
                     value.assign(outerr.c_str(), xend + 1, string::npos);
                   }
 
-		  // remove a possible line feed from the value
-		  while (value.length() && (value[value.length()-1] == '\n')) 
-		  {
-		    value.erase(value.length()-1);
-		  }
+                  // remove a possible line feed from the value
+                  while (value.length() && (value[value.length() - 1] == '\n')) {
+                    value.erase(value.length() - 1);
+                  }
 
                   eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
 
@@ -1536,7 +1523,7 @@ WFE::Job::DoIt()
               // cannot retry
               Move(mActions[0].mQueue, "f");
             }
-	  } else {
+          } else {
             gOFS->eosViewRWMutex.UnLockRead();
             eos_static_err("msg=\"failed to run bash workflow - file gone\" job=\"%s\"",
                            mDescription.c_str());

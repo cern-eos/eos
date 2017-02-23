@@ -128,7 +128,7 @@ FileEos::Write(Result*& result)
   }
 
   COMMONTIMING("CLOSE", &wr_timing);
-  retc = file->fileClose();
+  retc += file->fileClose();
   COMMONTIMING("END", &wr_timing);
   // Collect statistics for this operation in the result object at job level
   ResultProto& pb_result = result->GetPbResult();

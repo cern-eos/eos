@@ -1733,6 +1733,7 @@ filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid ,
   statmutex.Lock();
   errno = 0;
 
+  // coverity[DC.WEAK_CRYPTO]
   if ((time(NULL) - laststat) < ((15 + (int) 5.0 * rand() / RAND_MAX))) {
     stbuf->f_bsize = 4096;
     stbuf->f_frsize = 4096;
@@ -3253,6 +3254,7 @@ filesystem::open(const char* path,
     delete file;
     return eos::common::error_retc_map(errno);
   } else {
+    // TODO: return_inode already dereferenced before
     if (return_inode) {
       // Try to extract the inode from the opaque redirection
       std::string url = file->GetLastUrl().c_str();
@@ -4692,6 +4694,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
 
     if (!f) {
       eos_static_err("could not run the system wide rm command procedure");
+      // coverity[DC.STREAM_BUFFER]
     } else if (fscanf(f, "%s", rm_cmd) != 1) {
       pclose(f);
       eos_static_err("cannot get rm command to watch");
@@ -4749,7 +4752,6 @@ filesystem::init(int argc, char* argv[], void* userdata,
       }
     }
   }
-
 
   // Get parameters about strong authentication
   if (getenv("EOS_FUSE_USER_KRB5CC") &&

@@ -479,7 +479,14 @@ main()
   {
     DbMap dbm2;
     cout << "==== Persistency ===" << endl;
-    dbm.clear();
+
+    try {
+      dbm.clear();
+    } catch (const std::length_error& e) {
+      std::cerr << "error: failed to clear dbmap" << std::endl;
+      exit(1);
+    }
+
     dbm.attachDb("/tmp/testlog_presist.db");
     dbm.set("k1", "v1", "c1");
     dbm.set("k2", "v2", "c2");
@@ -518,7 +525,14 @@ main()
 
     dbm2.endIter();
     dbm.endIter();
-    dbm.clear();
+
+    try {
+      dbm.clear();
+    } catch (const std::length_error& e) {
+      std::cerr << "error: failed to clear dbmap" << std::endl;
+      exit(1);
+    }
+
     assert(dbm.size() == 0);
 
     if (ok) {

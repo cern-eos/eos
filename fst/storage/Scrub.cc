@@ -21,10 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-/*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
 #define O_DIRECT 0
@@ -188,6 +186,7 @@ Storage::ScrubFs(const char* path, unsigned long long free,
         }
 
         // select the pattern randomly
+        // coverity[DC.WEAK_CRYPTO]
         int rshift = (int)((1.0 * rand() / RAND_MAX) + 0.5);
         eos_static_debug("rshift is %d", rshift);
 

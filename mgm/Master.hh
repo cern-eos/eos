@@ -24,28 +24,23 @@
 #ifndef __EOSMGM_MASTER__HH__
 #define __EOSMGM_MASTER__HH__
 
-/*----------------------------------------------------------------------------*/
 #include <sys/stat.h>
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/utils/Locking.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 class Master : public eos::common::LogId
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Transition types
   //----------------------------------------------------------------------------
-  struct Transition
-  {
-    enum Type
-    {
+  struct Transition {
+    enum Type {
       kMasterToMaster               = 0,
       kSlaveToMaster                = 1,
       kMasterToMasterRO             = 2,
@@ -57,10 +52,8 @@ class Master : public eos::common::LogId
   //----------------------------------------------------------------------------
   //! Running states
   //----------------------------------------------------------------------------
-  struct Run
-  {
-    enum State
-    {
+  struct Run {
+    enum State {
       kIsNothing        = 0,
       kIsRunningMaster  = 1,
       kIsRunningSlave   = 2,
@@ -73,10 +66,8 @@ class Master : public eos::common::LogId
   //----------------------------------------------------------------------------
   //! Compact states
   //----------------------------------------------------------------------------
-  struct Compact
-  {
-    enum State
-    {
+  struct Compact {
+    enum State {
       kIsNotCompacting     = 0,
       kIsCompacting        = 1,
       kIsCompactingBlocked = 2
@@ -149,8 +140,8 @@ class Master : public eos::common::LogId
   //! Apply Configuration settings to the master class
   //----------------------------------------------------------------------------
   bool ApplyMasterConfig(XrdOucString& stdOut,
-			 XrdOucString& stdErr,
-			 Transition::Type transitiontype);
+                         XrdOucString& stdErr,
+                         Transition::Type transitiontype);
 
   //----------------------------------------------------------------------------
   //! Activate the current master/slave settings = configure configuration
@@ -162,7 +153,7 @@ class Master : public eos::common::LogId
   //! Set the new master host
   //----------------------------------------------------------------------------
   bool Set(XrdOucString& mastername, XrdOucString& stdout,
-	   XrdOucString& stdErr);
+           XrdOucString& stdErr);
 
   //----------------------------------------------------------------------------
   //! Show the current master/slave run configuration (used by ns stat)
@@ -198,10 +189,11 @@ class Master : public eos::common::LogId
     XrdSysMutexHelper lock(&f2MasterTransitionTimeMutex);
     time_t delay = 0;
 
-    if (now > (f2MasterTransitionTime + 3600))
+    if (now > (f2MasterTransitionTime + 3600)) {
       delay = 0;
-    else
+    } else {
       delay = 3600 - (now - f2MasterTransitionTime);
+    }
 
     return delay;
   }
@@ -212,7 +204,7 @@ class Master : public eos::common::LogId
   //! @return true if OK, otherwise false
   //----------------------------------------------------------------------------
   bool
-  IsRemoteMasterOk ()
+  IsRemoteMasterOk()
   {
     return fRemoteMasterOk;
   }
@@ -230,7 +222,7 @@ class Master : public eos::common::LogId
   //! Get master Log
   //----------------------------------------------------------------------------
   void
-  GetLog (XrdOucString &stdOut);
+  GetLog(XrdOucString& stdOut);
 
   //----------------------------------------------------------------------------
   //! Add to master Log
@@ -238,8 +230,7 @@ class Master : public eos::common::LogId
   void
   MasterLog(const char* log)
   {
-    if (log && strlen(log))
-    {
+    if (log && strlen(log)) {
       fMasterLog += log;
       fMasterLog += "\n";
     }
@@ -248,7 +239,8 @@ class Master : public eos::common::LogId
   //----------------------------------------------------------------------------
   //! Wait that local/remote namespace files are synced (called by slave)
   //----------------------------------------------------------------------------
-  bool WaitNamespaceFilesInSync (bool wait_files, bool wait_directories, unsigned int timeout=900);
+  bool WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
+                                unsigned int timeout = 900);
 
   //----------------------------------------------------------------------------
   //! Store the file inodes of the namespace file to see when a file has
@@ -266,7 +258,7 @@ class Master : public eos::common::LogId
   //----------------------------------------------------------------------------
   bool RebootSlaveNamespace();
 
- private:
+private:
 
   int fDevNull; ///< /dev/null filedescriptor
   Run::State fRunningState; ///< running state
@@ -298,8 +290,11 @@ class Master : public eos::common::LogId
   double fDirCompactingRatio;
   XrdSysLogger* fDevNullLogger; ///< /dev/null logger
   XrdSysError* fDevNullErr; ///< /dev/null error
-  unsigned long long fFileNamespaceInode; ///< inode number of the file namespace file
-  unsigned long long fDirNamespaceInode; ///< inode number of the dir  namespace file
+  unsigned long long
+  fFileNamespaceInode; ///< inode number of the file namespace file
+  unsigned long long
+  fDirNamespaceInode; ///< inode number of the dir  namespace file
+  // TODO: this variable is not used - could be removed
   bool fAutoRepair; ///< enable auto-repair to skip over broken records during compaction
   bool fHasSystemd; ///< machine has systemd (as opposed to sysv init)
 
@@ -308,7 +303,7 @@ class Master : public eos::common::LogId
   //----------------------------------------------------------------------------
   class RWLock : public eos::LockHandler
   {
-   public:
+  public:
     //--------------------------------------------------------------------------
     // Constructor
     //--------------------------------------------------------------------------
@@ -342,7 +337,9 @@ class Master : public eos::common::LogId
     virtual void
     readLock()
     {
-      if (pLock)pLock->LockRead();
+      if (pLock) {
+        pLock->LockRead();
+      }
     }
 
     //------------------------------------------------------------------------
@@ -351,7 +348,9 @@ class Master : public eos::common::LogId
     virtual void
     writeLock()
     {
-      if (pLock)pLock->LockWrite();
+      if (pLock) {
+        pLock->LockWrite();
+      }
     }
 
     //------------------------------------------------------------------------
@@ -361,11 +360,12 @@ class Master : public eos::common::LogId
     unLock()
     {
       // Does not matter if UnLockRead or Write is called
-      if (pLock)
-	pLock->UnLockRead();
+      if (pLock) {
+        pLock->UnLockRead();
+      }
     }
 
-   private:
+  private:
     eos::common::RWMutex* pLock;
   };
 
@@ -374,7 +374,7 @@ class Master : public eos::common::LogId
   //----------------------------------------------------------------------------
   //! Signal the remote master to reload its namespace (issued by master)
   //----------------------------------------------------------------------------
-  void SignalRemoteReload (bool wait_files, bool wait_directories);
+  void SignalRemoteReload(bool wait_files, bool wait_directories);
 
   //----------------------------------------------------------------------------
   //! Signal the remote master to bounce all requests to us (issued by master)

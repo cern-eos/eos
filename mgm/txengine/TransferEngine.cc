@@ -510,25 +510,23 @@ TransferEngine::Scheduler()
             }
           }
 
-          // ------------------------------------------------------------
-          // select round-robin a gw to deal with it
-          // ------------------------------------------------------------
-          std::set<std::string>::const_iterator it;
+          // Select round-robin a gw to deal with it
           eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
           eos::common::RWMutexReadLock gwlock(FsView::gFsView.GwMutex);
           gwpos++;
           size_t gwnpos = gwpos % (FsView::gFsView.mGwNodes.size() ?
                                    FsView::gFsView.mGwNodes.size() : 1);
-          it = FsView::gFsView.mGwNodes.begin();
+          std::set<std::string>::const_iterator it =
+            FsView::gFsView.mGwNodes.begin();
           std::advance(it, gwnpos);
 
           if (it != FsView::gFsView.mGwNodes.end()) {
             eos_static_info("selected gw: %s", it->c_str());
+          } else {
+            continue;
           }
 
-          // ------------------------------------------------------------------------
-          // assemble a transfer job
-          // ------------------------------------------------------------------------
+          // Assemble a transfer job
           XrdOucString transferjob = "";
           TransferDB::transfer_t transfer = GetTransfer(id);
 
@@ -588,7 +586,8 @@ TransferEngine::Scheduler()
                 transferjob += symkey->GetDigest64();
               }
 
-              // Do one full loop over the nodes and take the first one which does not exceed the queue limit of 20 transfers
+              // Do one full loop over the nodes and take the first one which
+              // does not exceed the queue limit of 20 transfers
               eos::common::TransferJob* txjob = 0;
 
               for (size_t n = 0; n < FsView::gFsView.mGwNodes.size(); n++) {

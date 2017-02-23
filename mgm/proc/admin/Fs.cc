@@ -21,12 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/LayoutId.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -230,7 +227,8 @@ ProcCommand::Fs()
                   fs->SetLongLong("bootcheck", eos::common::FileSystem::kBootForced);
                 }
 
-                fs->SetLongLong("bootsenttime", time(NULL));
+                auto now = time(NULL);
+                fs->SetLongLong("bootsenttime", ((now > 0) ? now : 0));
                 stdOut += " ";
                 stdOut += fs->GetString("host").c_str();
                 stdOut += ":";

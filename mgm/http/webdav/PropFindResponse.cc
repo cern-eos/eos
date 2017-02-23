@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/http/webdav/PropFindResponse.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
@@ -30,11 +29,7 @@
 #include "common/Timing.hh"
 #include "common/Path.hh"
 #include "common/http/OwnCloud.hh"
-
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucErrInfo.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -142,8 +137,10 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
   struct stat statInfo;
   std::string etag;
   memset(&statInfo, 0, sizeof(struct stat));
-  gOFS->_stat(request->GetUrl().c_str(), &statInfo, error, *mVirtualIdentity,
-              (const char*) 0, &etag);
+  // TODO: the status should be chcked ?!
+  (void) gOFS->_stat(request->GetUrl().c_str(), &statInfo, error,
+                     *mVirtualIdentity,
+                     (const char*) 0, &etag);
   // Figure out what we actually need to do
   std::string depth = request->GetHeaders()["depth"];
   // -----------------------------------------------------------------------------

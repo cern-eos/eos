@@ -174,6 +174,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     exit(-1);
   }
 
+  // coverity[TAINTED_STRING]
   setenv("EOS_RDRURL", rdr, 1);
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 // Move the mounthostport starting with the host name

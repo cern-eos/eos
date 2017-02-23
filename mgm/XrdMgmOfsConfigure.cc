@@ -755,10 +755,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             }
           }
 
-          if (ErrorLog) {
-            Eroute.Say("=====> mgmofs.errorlog   : true");
+          if (MgmRedirector) {
+            Eroute.Say("=====> mgmofs.redirector : true");
           } else {
-            Eroute.Say("=====> mgmofs.errorlog   : false");
+            Eroute.Say("=====> mgmofs.redirector : false");
           }
         }
 

@@ -63,25 +63,38 @@ main(int argc, const char* argv[])
 
   if (io->attrGet("user.eos.blockchecksum", checksumtype) ||
       io->attrGet("user.eos.blocksize", blocksize)) {
-    fprintf(stderr,
-            "error: the extended attributes are missing on the block checksum file!\n");
+    fprintf(stderr, "error: the extended attributes are missing on the block "
+            "checksum file!\n");
     exit(-1);
   }
 
   XrdOucString envstring = "eos.layout.blockchecksum=";
   envstring += checksumtype.c_str();
   XrdOucEnv env(envstring.c_str());
-  unsigned long checksumType = eos::common::LayoutId::GetBlockChecksumFromEnv(
-                                 env);
+  unsigned long checksumType =
+    eos::common::LayoutId::GetBlockChecksumFromEnv(env);
   int blockSize = atoi(blocksize.c_str());
   int blockSizeSymbol = eos::common::LayoutId::BlockSizeEnum(blockSize);
-  unsigned int layoutid = eos::common::LayoutId::GetId(
-                            eos::common::LayoutId::kPlain, eos::common::LayoutId::kNone, 0, blockSizeSymbol,
-                            checksumType);
+  unsigned int layoutid =
+    eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
+                                 eos::common::LayoutId::kNone, 0,
+                                 blockSizeSymbol, checksumType);
   eos::fst::CheckSum* checksum = eos::fst::ChecksumPlugins::GetChecksumObject(
                                    layoutid, true);
+  
+  if (!checksum) {
+    fprintf(stderr, "error: failed to get checksum object for file %s",
+            path.c_str());
+    exit(-1);
+  }
+
   struct stat info;
-  fstat(fd, &info);
+
+  if (fstat(fd, &info)) {
+    fprintf(stderr, "error: failed to stat file %s\n", path.c_str());
+    exit(-1);
+  }
+
   off_t maxfilesize = info.st_size;
   off_t offset = 0;
   char* buffer = (char*) malloc(blockSize);
@@ -92,14 +105,14 @@ main(int argc, const char* argv[])
     exit(-1);
   }
 
-  if (checksum &&
-      checksum->OpenMap(pathXS.c_str(), maxfilesize, blockSize, false)) {
+  if (checksum->OpenMap(pathXS.c_str(), maxfilesize, blockSize, false)) {
     do {
       int nread = read(fd, buffer, blockSize);
 
       if (nread < 0) {
         fprintf(stderr, "error: failed to read block at offset %llu\n",
                 (unsigned long long) offset);
+        free(buffer);
         exit(-1);
       }
 

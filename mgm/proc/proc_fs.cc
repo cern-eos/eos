@@ -446,6 +446,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 
               if (splitgroup == "random") {
                 dorandom = true;
+                // coverity[DC.WEAK_CRYPTO]
                 subgroup = (int)((random() * 1.0 / RAND_MAX) * groupmod);
               }
 
@@ -609,6 +610,7 @@ proc_fs_target(std::string target_group)
     return target_group;
   }
 
+  // coverity[DC.WEAK_CRYPTO]
   int randomgroup = ((1.0 * random()) / RAND_MAX) * mingroups.size();
   return mingroups[randomgroup];
 }

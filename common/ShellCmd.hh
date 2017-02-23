@@ -24,10 +24,8 @@
 #ifndef __EOSCOMMON_SHELLCMD__HH__
 #define __EOSCOMMON_SHELLCMD__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/ShellExecutor.hh"
-/*----------------------------------------------------------------------------*/
 #include <signal.h>
 #include <string>
 #include <pthread.h>
@@ -37,12 +35,12 @@ EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
-
 struct cmd_status {
 
-  cmd_status () : exited (false), signaled (false), timed_out (false)
-  {
-  }
+  cmd_status() :
+    exited(false), exit_code(0), signaled(false), signo(0),
+    status(0), timed_out(false)
+  { }
 
   bool exited;
   int exit_code;
@@ -52,43 +50,44 @@ struct cmd_status {
   bool timed_out;
 };
 
-class ShellCmd {
+class ShellCmd
+{
 public:
   //----------------------------------------------------------------------------
   // constructor
   //----------------------------------------------------------------------------
-  ShellCmd (std::string const & cmd);
+  ShellCmd(std::string const& cmd);
   //----------------------------------------------------------------------------
   // destructor
   //----------------------------------------------------------------------------
-  ~ShellCmd ();
+  ~ShellCmd();
 
   //----------------------------------------------------------------------------
   // waits until the 'command' process terminates
   //----------------------------------------------------------------------------
-  cmd_status wait ();
+  cmd_status wait();
 
   //----------------------------------------------------------------------------
   // waits until the 'command' process terminates or the timeout has passed
   //----------------------------------------------------------------------------
-  cmd_status wait (size_t timeout);
+  cmd_status wait(size_t timeout);
 
 
   //----------------------------------------------------------------------------
   // kills the 'command' process
   //----------------------------------------------------------------------------
-  void kill (int sig = SIGKILL) const;
+  void kill(int sig = SIGKILL) const;
 
   //----------------------------------------------------------------------------
   // checks if the 'command' process is active
   //----------------------------------------------------------------------------
-  bool is_active () const;
+  bool is_active() const;
 
   //----------------------------------------------------------------------------
   // the pid of the 'command' process
   //----------------------------------------------------------------------------
 
-  pid_t get_pid ()
+  pid_t get_pid()
   {
     return pid;
   }
@@ -102,9 +101,9 @@ public:
 
 private:
 
-  static void* run_monitor (void *);
+  static void* run_monitor(void*);
 
-  void monitor ();
+  void monitor();
 
   std::string cmd;
   ShellExecutor::fifo_uuid_t uuid;
@@ -114,12 +113,12 @@ private:
   std::string stdin_name;
 
   pthread_t monitor_thread;
-  bool monitor_active;  
+  bool monitor_active;
   bool monitor_joined;
   cmd_status cmd_stat;
 };
 
 EOSCOMMONNAMESPACE_END
 
-#endif	/* SHELL_CMD_H */
+#endif  /* SHELL_CMD_H */
 

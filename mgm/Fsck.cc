@@ -42,7 +42,7 @@ const char* Fsck::gFsckInterval = "fsckinterval";
 // Constructor
 //------------------------------------------------------------------------------
 Fsck::Fsck():
-  mEnabled(false), mInterval(30), mThread(0), mRunning(false)
+  mEnabled(false), mInterval(30), mThread(0), mRunning(false), eTimeStamp(0)
 {}
 
 /*----------------------------------------------------------------------------*/
@@ -407,22 +407,21 @@ Fsck::Check(void)
     }
 
     {
-      // -----------------------------------------------------------------------
-      // loop over all replica_offline and layout error files to assemble a
+      // Loop over all replica_offline and layout error files to assemble a
       // file offline list
-      // -----------------------------------------------------------------------
-      std::set <eos::common::FileId::fileid_t>::const_iterator it;
       std::set <eos::common::FileId::fileid_t> fid2check;
 
-      for (it = eMap["rep_offline"].begin(); it != eMap["rep_offline"].end(); it++) {
+      for (auto it = eMap["rep_offline"].cbegin();
+           it != eMap["rep_offline"].cend(); ++it) {
         fid2check.insert(*it);
       }
 
-      for (it = eMap["rep_diff_n"].begin(); it != eMap["rep_diff_n"].end(); it++) {
+      for (auto it = eMap["rep_diff_n"].cbegin();
+           it != eMap["rep_diff_n"].cend(); ++it) {
         fid2check.insert(*it);
       }
 
-      for (it = fid2check.begin(); it != fid2check.end(); it++) {
+      for (auto it = fid2check.begin(); it != fid2check.end(); ++it) {
         std::shared_ptr<eos::IFileMD> fmd;
 
         // Check if locations are online
@@ -460,9 +459,7 @@ Fsck::Check(void)
           }
         }
 
-        // ---------------------------------------------------------------------
         // TODO: this condition has to be adjusted for RAIN layouts
-        // ---------------------------------------------------------------------
         if (offlinelocations == nlocations) {
           XrdSysMutexHelper lock(eMutex);
           eMap["file_offline"].insert(*it);
@@ -1570,19 +1567,12 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
 
   if (option == "unlink-zero-replicas") {
     out += "# unlink zero replicas --------------------------------------------------------------------\n";
-    // -------------------------------------------------------------------------
-    // drop all namespace entries which are older than 48 hours and have no
-    // files attached
-    // -------------------------------------------------------------------------
-    std::set <eos::common::FileId::fileid_t>::const_iterator it;
 
     // -------------------------------------------------------------------------
-    // loop over all fids
-    // -------------------------------------------------------------------------
-
-    for (it = eMap["zero_replica"].begin();
-         it != eMap["zero_replica"].end();
-         it++) {
+    // Drop all namespace entries which are older than 48 hours and have no
+    // files attached. Loop over all fids ...
+    for (auto it = eMap["zero_replica"].cbegin();
+         it != eMap["zero_replica"].cend(); ++it) {
       std::shared_ptr<eos::IFileMD> fmd;
       std::string path = "";
       time_t now = time(NULL);

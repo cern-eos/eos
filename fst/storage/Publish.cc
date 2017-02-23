@@ -40,6 +40,7 @@ Storage::Publish()
   unsigned long long netspeed = 1000000000;
   // Get our network speed
   char tmp_name[] = "/tmp/fst.publish.XXXXXX";
+  // coverity[SECURE_TEMP]
   int tmp_fd = mkstemp(tmp_name);
 
   if (tmp_fd == -1) {
@@ -128,6 +129,7 @@ Storage::Publish()
       PublishInterval = 10;
     }
 
+    // coverity[DC.WEAK_CRYPTO]
     unsigned int lReportIntervalMilliSeconds = (PublishInterval * 500) +
         (unsigned int)((PublishInterval * 1000.0) * rand() / RAND_MAX);
     eos::common::LinuxStat::linux_stat_t osstat;

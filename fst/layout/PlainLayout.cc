@@ -159,6 +159,12 @@ PlainLayout::OpenAsync(XrdSfsFileOpenMode flags,
 {
   mFlags = flags;
   eos::fst::XrdIo* io_file = dynamic_cast<eos::fst::XrdIo*>(mFileIO);
+
+  if (!io_file) {
+    eos_err("failed dynamic cast to XrdIo object");
+    return SFS_ERROR;
+  }
+
   mIoOpenHandler = new eos::fst::AsyncIoOpenHandler(io_file, layout_handler);
 
   if (io_file->fileOpenAsync(mIoOpenHandler, flags, mode, opaque, mTimeout)) {
@@ -183,9 +189,10 @@ PlainLayout::WaitOpenAsync()
     pthread_cond_wait(&mCondVar, &mMutex);
   }
 
+  bool open_resp = mAsyncResponse;
   pthread_mutex_unlock(&mMutex);
 
-  if (mAsyncResponse) {
+  if (open_resp) {
     // Get initial file size if not new file or truncated
     if (!(mFlags & (SFS_O_CREAT | SFS_O_TRUNC))) {
       struct stat st_info;
@@ -193,14 +200,14 @@ PlainLayout::WaitOpenAsync()
 
       if (retc_stat) {
         eos_err("failed stat");
-        mAsyncResponse = false;
+        open_resp = false;
       } else {
         mFileSize = st_info.st_size;
       }
     }
   }
 
-  return mAsyncResponse;
+  return open_resp;
 }
 
 //------------------------------------------------------------------------------

@@ -183,6 +183,7 @@ void functionalTestFastTree(FastTree<T1, T2>* fptree, FastTree<T3, T4>* fatree,
   // do verification regarding the placement, the access and the geolocation
   for (size_t loop = 0; loop < 1000; loop++) {
     // select a random number of replicas
+    // coverity[DC.WEAK_CRYPTO]
     size_t nreplica = 1 + rand() % (nMaxReplicas);
     // copy a blank copy of the FastTree
     char buffer[bufferSize];

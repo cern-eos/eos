@@ -116,7 +116,7 @@ public:
       return false;
     }
 
-    // coverity [DC.STREAM_BUFFER]
+    // coverity[DC.STREAM_BUFFER]
     if (41 != fscanf(f,
                      "%lld %s %c %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld\n",
                      &result.pid, result.tcomm, &result.state, &result.ppid, &result.pgid,

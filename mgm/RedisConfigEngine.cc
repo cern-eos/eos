@@ -40,7 +40,7 @@ std::string RedisCfgEngineChangelog::sChLogHashKey = "EOSConfig:changeLogHash";
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RedisCfgEngineChangelog::RedisCfgEngineChangelog(qclient::QClient *client)
+RedisCfgEngineChangelog::RedisCfgEngineChangelog(qclient::QClient* client)
   : mChLogHash(*client, sChLogHashKey) {}
 
 //------------------------------------------------------------------------------
@@ -57,6 +57,7 @@ bool RedisCfgEngineChangelog::AddEntry(const char* info)
   }
 
   // Add entry to the set
+  // coverity[TAINED_SCALAR]
   std::ostringstream oss(action.c_str());
 
   if (key != "") {
@@ -123,8 +124,6 @@ RedisConfigEngine::RedisConfigEngine(const char* configdir,
                                      const char* redisHost, int redisPort)
 {
   SetConfigDir(configdir);
-  redisHost = redisHost;
-  redisPort = redisPort;
   client = BackendClient::getInstance(redisHost, redisPort);
   mChangelog.reset(new RedisCfgEngineChangelog(client));
 }

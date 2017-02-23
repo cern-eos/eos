@@ -242,18 +242,13 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
     }
 
     if ((int) versions.size() > max_versions) {
-      for (size_t i = 0; i < (versions.size() - max_versions); i++) {
+      for (size_t i = 0; i < (versions.size() - max_versions); ++i) {
         std::string deletionpath = path;
         deletionpath += "/";
         deletionpath += versions[i];
         success |= gOFS->_rem(deletionpath.c_str(), error, rootvid, (const char*) 0,
                               false, false);
       }
-    }
-
-    if (max_versions == 0) {
-      // Remove also the version dir itself
-      success |= gOFS->_remdir(versiondir, error, vid, (const char*) 0, false);
     }
 
     if (success == SFS_OK) {

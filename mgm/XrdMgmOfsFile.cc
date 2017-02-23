@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -43,7 +42,6 @@
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -55,12 +53,10 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-/*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
-/*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -70,8 +66,6 @@
 #define S_IAMB  0x1FF
 #endif
 
-
-/*----------------------------------------------------------------------------*/
 
 /******************************************************************************/
 /******************************************************************************/
@@ -1973,7 +1967,7 @@ XrdMgmOfsFile::open(const char* inpath,
               targethost  = filesystem->GetString("host").c_str();
               targetport  = atoi(filesystem->GetString("port").c_str());
             } else { // we have a proxy to use
-              proxys[fsIndex].c_str();
+              (void) proxys[fsIndex].c_str();
               auto idx = proxys[fsIndex].rfind(":");
 
               if (idx != std::string::npos) {

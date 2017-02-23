@@ -691,6 +691,7 @@ Storage::CheckLabel(std::string path,
 
   // fprintf(stderr,"%d <=> %d %s <=> %s\n", fsid, ckfsid, ckuuid.c_str(),
   // uuid.c_str());
+  // coverity[TAINTED_SCALAR]
   if ((fsid != ckfsid) || (ckuuid != uuid)) {
     return false;
   }

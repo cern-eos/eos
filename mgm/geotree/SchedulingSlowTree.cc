@@ -498,9 +498,11 @@ bool SlowTree::buildFastStrcturesSched(
     // iterate through the nodes of the last level
     godeeper = false;
 
-    for(auto it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end(); ++it) {
+    for (auto it = (nodesByDepth.end() - 2)->begin();
+         it != (nodesByDepth.end() - 2)->end(); ++it) {
       // iterate through the children of each of those nodes
-      for(auto cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end(); ++cit) {
+      for (auto cit = (*it)->pChildren.begin(); cit != (*it)->pChildren.end();
+           ++cit) {
         nodesByDepth.back().push_back(cit->second);
         nodes2idxChildren[cit->second] = count++;
 
@@ -511,13 +513,14 @@ bool SlowTree::buildFastStrcturesSched(
     }
   }
 
-  // copy the vector layout of the node to the FastTree
+  // Copy the vector layout of the node to the FastTree
   size_t nodecount = 0;
   size_t linkcount = 0;
   std::map<unsigned long, tFastTreeIdx> fs2idxMap;
   fastinfo->clear();
   fastinfo->resize(pNodeCount);
-  // it's not necessary to clear the fs2idx map because a given fs should appear only in one placement group
+  // It's not necessary to clear the fs2idx map because a given fs should
+  // appear only in one placement group
   bool firstnode = true;
 
   for (vector<vector<const SlowTreeNode*> >::const_iterator dit =
@@ -525,9 +528,9 @@ bool SlowTree::buildFastStrcturesSched(
     for (vector<const SlowTreeNode*>::const_iterator it = dit->begin();
          it != dit->end(); it++) {
       // write the content of the node
-      if (
-        !(*it)->writeFastTreeNodeTemplate<PlacementPriorityRandWeightEvaluator, PlacementPriorityComparator, eos::common::FileSystem::fsid_t>
-        (fpt->pNodes + nodecount)) {
+      if (!(*it)->writeFastTreeNodeTemplate<PlacementPriorityRandWeightEvaluator,
+          PlacementPriorityComparator, eos::common::FileSystem::fsid_t>
+          (fpt->pNodes + nodecount)) {
         assert(false);
         return false;
       }
@@ -661,8 +664,8 @@ bool SlowTree::buildFastStrcturesSched(
     // iterate through the nodes of the last level
     godeeper = false;
 
-    for(auto it=(nodesByDepth.end()-2)->begin(); 
-        it!=(nodesByDepth.end()-2)->end(); ++it) {
+    for (auto it = (nodesByDepth.end() - 2)->begin();
+         it != (nodesByDepth.end() - 2)->end(); ++it) {
       // iterate through the children of each of those nodes
       for (auto cit = (*it)->pChildren.begin();
            cit != (*it)->pChildren.end(); ++cit) {
@@ -727,8 +730,8 @@ bool SlowTree::buildFastStrcturesSched(
   }
 
   fs2idx->pSize = fs2idxMap.size();
-  froat->pFs2Idx = frwat->pFs2Idx = fpt->pFs2Idx = fdat->pFs2Idx = fdpt->pFs2Idx =
-                                      fbat->pFs2Idx = fbpt->pFs2Idx = fs2idx;
+  froat->pFs2Idx = frwat->pFs2Idx = fpt->pFs2Idx = fdat->pFs2Idx =
+                                      fdpt->pFs2Idx = fbat->pFs2Idx = fbpt->pFs2Idx = fs2idx;
   froat->pTreeInfo = frwat->pTreeInfo = fpt->pTreeInfo = fdat->pTreeInfo =
                                           fdpt->pTreeInfo = fbat->pTreeInfo = fbpt->pTreeInfo = fastinfo;
   __EOSMGM_TREECOMMON_CHK2__
@@ -814,19 +817,20 @@ bool SlowTree::buildFastStructuresGW(
   bool godeeper = (bool)pRootNode.pChildren.size();
 
   while (godeeper) {
-    // create a new level
+    // Create a new level
     nodesByDepth.resize(nodesByDepth.size() + 1);
-    // iterate through the nodes of the last level
+    // Iterate through the nodes of the last level
     godeeper = false;
+    auto it_last_lvl = nodesByDepth.begin();
+    std::advance(it_last_lvl, nodesByDepth.size() - 2);
 
-    for(auto it=(nodesByDepth.end()-2)->begin();
-        it!=(nodesByDepth.end()-2)->end(); ++it) {
-      // iterate through the children of each of those nodes
-      for(auto cit=(*it)->pChildren.begin();
-          cit!=(*it)->pChildren.end(); ++cit) {
+    for (auto it = it_last_lvl->begin(); it != it_last_lvl->end(); ++it) {
+      // Iterate through the children of each of those nodes
+      for (auto cit = (*it)->pChildren.begin();
+           cit != (*it)->pChildren.end(); ++cit) {
         nodesByDepth.back().push_back(cit->second);
         nodes2idxChildren[cit->second] = count++;
-        
+
         if (!godeeper && !(*cit).second->pChildren.empty()) {
           godeeper = true;
         }
@@ -837,21 +841,20 @@ bool SlowTree::buildFastStructuresGW(
   // copy the vector layout of the node to the FastTree
   size_t nodecount = 0;
   size_t linkcount = 0;
-  //std::map<unsigned long,tFastTreeIdx> fs2idxMap;
   std::map<std::string, tFastTreeIdx> host2idxMap;
   fastinfo->clear();
   fastinfo->resize(pNodeCount);
-  // it's not necessary to clear the fs2idx map because a given fs should appear only in one placement group
+  // It's not necessary to clear the fs2idx map because a given fs should
+  // appear only in one placement group
   bool firstnode = true;
 
   for (vector<vector<const SlowTreeNode*> >::const_iterator dit =
-         nodesByDepth.begin(); dit != nodesByDepth.end(); dit++) {
+         nodesByDepth.begin(); dit != nodesByDepth.end(); ++dit) {
     for (vector<const SlowTreeNode*>::const_iterator it = dit->begin();
-         it != dit->end(); it++) {
+         it != dit->end(); ++it) {
       // write the content of the node
-      if (
-        !(*it)->writeFastTreeNodeTemplate<GatewayPriorityRandWeightEvaluator, GatewayPriorityComparator, char*>
-        (fgat->pNodes + nodecount)) {
+      if (!(*it)->writeFastTreeNodeTemplate<GatewayPriorityRandWeightEvaluator,
+          GatewayPriorityComparator, char*> (fgat->pNodes + nodecount)) {
         assert(false);
         return false;
       }
@@ -925,14 +928,15 @@ bool SlowTree::buildFastStructuresGW(
   godeeper = (bool)pRootNode.pChildren.size();
 
   while (godeeper) {
-    // create a new level
+    // Create a new level
     nodesByDepth.resize(nodesByDepth.size() + 1);
-    // iterate through the nodes of the last level
     godeeper = false;
+    // Iterate through the nodes of the last level
+    auto it_last_lvl = nodesByDepth.begin();
+    std::advance(it_last_lvl, nodesByDepth.size() - 2);
 
-    for(auto it = (nodesByDepth.end()-2)->begin();
-        it!=(nodesByDepth.end()-2)->end(); ++it) {
-      // iterate through the children of each of those nodes
+    for (auto it = it_last_lvl->begin(); it != it_last_lvl->end(); ++it) {
+      // Iterate through the children of each of those nodes
       for (auto cit = (*it)->pChildren.begin();
            cit != (*it)->pChildren.end(); ++cit) {
         nodesByDepth.back().push_back(cit->second);

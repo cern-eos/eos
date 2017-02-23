@@ -1389,6 +1389,7 @@ Iostat::Restore()
   int item = 0;
   char line[16384];
 
+  // coverity[DC.STREAM_BUFFER]
   while ((item = fscanf(fin, "%s\n", line)) == 1) {
     XrdOucEnv env(line);
 

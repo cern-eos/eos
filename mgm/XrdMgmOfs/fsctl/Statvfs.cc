@@ -76,6 +76,7 @@
       statvfsmutex.Lock();
 
       // here we put some cache to avoid too heavy space recomputations
+      // coverity[DC.WEAK_CRYPTO]
       if ((time(NULL) - laststat) > (10 + (int) rand() / RAND_MAX)) {
         // take the sum's from all file systems in 'default'
         if (FsView::gFsView.mSpaceView.count("default")) {

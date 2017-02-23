@@ -21,12 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <set>
 #include <string>
 #include <algorithm>
 #include <math.h>
-/*----------------------------------------------------------------------------*/
 #include <unistd.h>
 #include <errno.h>
 #include <pwd.h>
@@ -38,7 +36,6 @@
 #include <stdarg.h>
 #include <iostream>
 #include <openssl/md5.h>
-/*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -51,7 +48,6 @@
 #include "fst/io/FileIo.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-/*----------------------------------------------------------------------------*/
 
 #define PROGRAM "eoscp"
 #define DEFAULTBUFFERSIZE 4*1024*1024
@@ -362,7 +358,7 @@ print_summary(VectLocationType& src,
     xdst[i] += dst[i].second.c_str();
     xdst[i].erase(xdst[i].rfind('?'));
 
-    if (xsrc[i].find("//replicate:") != STR_NPOS) {
+    if (xdst[i].find("//replicate:") != STR_NPOS) {
       // disable client redirection eoscp
       XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
     }
@@ -754,9 +750,9 @@ main(int argc, char* argv[])
       char* colon;
       colon = strchr(optarg, ':');
 
-      if (colon < 0) {
-        fprintf(stderr,
-                "error: range has to be given in the format <startbyte>:<stopbyte> e.g. 0:100000\n");
+      if (colon == NULL) {
+        fprintf(stderr, "error: range has to be given in the format "
+                "<startbyte>:<stopbyte> e.g. 0:100000\n");
         exit(-1);
       }
 
@@ -2126,7 +2122,7 @@ main(int argc, char* argv[])
       break;
     }
 
-    if (computeXS) {
+    if (computeXS && xsObj) {
       xsObj->Add(static_cast<const char*>(ptr_buffer), nread, offsetXS);
       offsetXS += nread;
     }

@@ -278,9 +278,9 @@ class FsId2NodeIdxMap : public SchedTreeBase
 
 public:
   // creation, allocation, destruction
-  FsId2NodeIdxMap(): pMaxSize(0), pSize(0), pSelfAllocated(false)
-  {
-  }
+  FsId2NodeIdxMap():
+    pMaxSize(0), pSize(0), pSelfAllocated(false), pFsIds(0), pNodeIdxs(0)
+  {}
 
   ~ FsId2NodeIdxMap()
   {
@@ -1697,10 +1697,13 @@ public:
         _mFillRatio += pNodes[childNode].fsData.fillRatio *
                        pNodes[childNode].fsData.totalSpace;
         count++;
-        /// not a good idea to propagate the availability as we want to be able to make a branch as unavailable regardless of the status of the leaves
-        pNodes[node].fsData.mStatus = (SchedTreeBase::tStatus)(
-                                        pNodes[node].fsData.mStatus | (pNodes[childNode].fsData.mStatus & ~Available &
-                                            ~Disabled)); // an intermediate node tell if a leave having is given status in under it or not
+        // Not a good idea to propagate the availability as we want to be able
+        // to make a branch as unavailable regardless of the status of the leaves
+        // An intermediate node tell if a leave having is given status in under it or not
+        pNodes[node].fsData.mStatus =
+          (SchedTreeBase::tStatus)(pNodes[node].fsData.mStatus |
+                                   (pNodes[childNode].fsData.mStatus &
+                                    ~Available &  ~Disabled));
       }
     }
 
@@ -1708,12 +1711,14 @@ public:
       _mFillRatio /= _mTotalSpace;
     }
 
-    if (_mTotalSpace)
-    _mFillRatio /= _mTotalSpace;
+    if (_mTotalSpace) {
+      _mFillRatio /= _mTotalSpace;
+    }
+
     // testing the count is irrelevant but makes coverity happy
-    pNodes[node].fsData.dlScore = (char)(count?_mDlScore/count:0);
+    pNodes[node].fsData.dlScore = (char)(count ? _mDlScore / count : 0);
     // testing the count is irrelevant but makes coverity happy
-    pNodes[node].fsData.ulScore = (char)(count?_mUlScore/count:0);
+    pNodes[node].fsData.ulScore = (char)(count ? _mUlScore / count : 0);
     pNodes[node].fsData.fillRatio = (char)_mFillRatio;
     pNodes[node].fsData.totalSpace = (float)_mTotalSpace;
     return true;
@@ -1984,6 +1989,10 @@ public:
   {
     pMaxNodeCount = 0;
     pNodeCount = 0;
+    pNodes = 0;
+    pBranches = 0;
+    pFs2Idx = 0;
+    pTreeInfo = 0;
     pSelfAllocated = false;
   }
 

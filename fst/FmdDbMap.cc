@@ -826,7 +826,7 @@ FmdDbMapHandler::ResyncAllDisk(const char* path,
 {
   char** paths = (char**) calloc(2, sizeof(char*));
 
-  if (!path) {
+  if (!paths) {
     eos_err("error: failed to allocate memory");
     return false;
   }
@@ -928,14 +928,15 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
     if (fmd) {
       // check if there was a disk replica
       if (fmd->fMd.disksize() == 0xfffffffffff1ULL) {
-        if (fMd.layouterror() && eos::common::LayoutId::kUnregistered) {
-          // there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
+        if (fMd.layouterror() & eos::common::LayoutId::kUnregistered) {
+          // There is no replica supposed to be here and there is nothing on
+          // disk, so remove it from the database
           eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fid,
                       (unsigned long) fsid);
           delete fmd;
           return DeleteFmd(fMd.fid(), fsid);
         } else {
-          // we proceed
+          // We proceed
         }
       }
     } else {
@@ -1026,6 +1027,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
   url += consolestring;
   // we run an external command and parse the output
   char tmpfile[] = "/tmp/efstd.XXXXXX";
+  // coverity[SECURE_TEMP]
   int tmp_fd = mkstemp(tmpfile);
 
   if (tmp_fd == -1) {

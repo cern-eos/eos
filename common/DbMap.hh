@@ -602,8 +602,7 @@ protected:
     const char* tstr;
     nowStr(&tstr);
     Slice tstrslice(tstr, strlen(tstr));
-    TvalSlice val =
-    { tstrslice, 1, pName, value, comment};
+    TvalSlice val = {tstrslice, 1, pName, value, comment};
     return doSet(key, val);
   }
 
@@ -613,8 +612,7 @@ protected:
   bool doSet(const Slice& timestr, const Slice& key, const Slice& value,
              const Slice& comment)
   {
-    TvalSlice val =
-    { timestr, 1, pName, value, comment};
+    TvalSlice val = {timestr, 1, pName, value, comment};
     return doSet(key, val);
   }
 
@@ -626,8 +624,12 @@ protected:
     Tmap::iterator it;
 
     if (pUseMap) {
-      // using memory map and updating the db
-      pMap[key.ToString()] = (Tval)val;
+      // Using memory map and updating the db
+      try {
+        pMap[key.ToString()] = (Tval)val;
+      } catch (const std::length_error& e) {
+        return false;
+      }
     }
 
     if (pDb->setEntry(key, val)) {
