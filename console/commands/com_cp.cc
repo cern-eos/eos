@@ -1204,11 +1204,10 @@ com_cp(char* argin)
           if (preserve && (source_size.size() == source_utime.size())) {
             char value[4096];
             value[0] = 0;
-            ;
             XrdOucString request;
             request = url.c_str();
 
-            if ((url.find("?") == STR_NPOS)) {
+            if ((request.find("?") == STR_NPOS)) {
               request += "?";
             } else {
               request += "&";

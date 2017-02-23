@@ -24,24 +24,20 @@
 #ifndef __EOSCOMMON_JEMALLOCHANDLER__HH__
 #define __EOSCOMMON_JEMALLOCHANDLER__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
 #include <cstddef>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/*                                                                            */
-/*----------------------------------------------------------------------------*/
-
+//----------------------------------------------------------------------------
+//! Class JeMallocHandler
+//----------------------------------------------------------------------------
 class JeMallocHandler
 {
   bool pJeMallocLoaded;
   bool pCanProfile;
   bool pProfRunning;
-  int  (*mallctl)(const char *, void *, size_t *, void *, size_t );
+  int (*mallctl)(const char*, void*, size_t*, void*, size_t);
 
   bool IsJemallocLoader();
 
@@ -52,9 +48,18 @@ class JeMallocHandler
 public:
   JeMallocHandler();
   ~JeMallocHandler();
-  inline bool JeMallocLoaded() { return pJeMallocLoaded; }
-  inline bool CanProfile() { return pCanProfile; }
-  inline bool ProfRunning() { return IsProfgRunning(); }
+  inline bool JeMallocLoaded()
+  {
+    return pJeMallocLoaded;
+  }
+  inline bool CanProfile()
+  {
+    return pCanProfile;
+  }
+  inline bool ProfRunning()
+  {
+    return IsProfgRunning();
+  }
   bool StartProfiling();
   bool StopProfiling();
   bool DumpProfile();
@@ -62,5 +67,5 @@ public:
 
 EOSCOMMONNAMESPACE_END
 
-#endif	/* __EOSCOMMON_JEMALLOCHANDLER__HH__ */
+#endif  /* __EOSCOMMON_JEMALLOCHANDLER__HH__ */
 

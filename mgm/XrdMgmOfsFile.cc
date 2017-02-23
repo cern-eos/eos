@@ -1614,7 +1614,7 @@ XrdMgmOfsFile::open(const char* inpath,
       targethost  = filesystem->GetString("host").c_str();
       targetport  = atoi(filesystem->GetString("port").c_str());
     } else { // we have a proxy to use
-      proxys[fsIndex].c_str();
+      (void) proxys[fsIndex].c_str();
       auto idx = proxys[fsIndex].rfind(":");
 
       if (idx != std::string::npos) {

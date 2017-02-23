@@ -186,7 +186,12 @@ Iostat::Start()
     queue += gOFS->HostName;
     queue += "/report";
     queue.replace("root://", "root://daemon@");
-    mClient.AddBroker(queue.c_str());
+
+    if (!mClient.AddBroker(queue.c_str())) {
+      eos_static_err("failed to add broker %s", queue.c_str());
+      return false;
+    }
+
     mInit = true;
   }
 
@@ -1749,6 +1754,7 @@ Iostat::AddUdpTarget(const char* target, bool storeitandlock)
 
   // store the configuration
   if ((storeitandlock) && (!StoreIostatConfig())) {
+    BroadcastMutex.UnLock();
     return false;
   }
 

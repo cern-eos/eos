@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*-----------------------------------------------------------------------------*/
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -31,7 +30,6 @@
 #include <vector>
 #include <sys/types.h>
 #include <sys/wait.h>
-/*-----------------------------------------------------------------------------*/
 #include "eosbenchmark.hh"
 #include "ProtoIo.hh"
 #include "FileEos.hh"
@@ -40,9 +38,7 @@
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
-/*-----------------------------------------------------------------------------*/
 #include <getopt.h>
-/*-----------------------------------------------------------------------------*/
 
 using namespace std;
 
@@ -281,6 +277,12 @@ RunProcessConfig(Configuration& config, const string& outputFile)
 
     read_buff.resize(buff_size);
     nread = read(pipefd[i][0], &read_buff[0], buff_size);
+
+    if (nread == -1) {
+      eos_static_err("error: failed to read from pipe");
+      exit(-1);
+    }
+
     Result* proc_result = new Result();
     ResultProto& ll_result = proc_result->GetPbResult();
     ll_result.ParseFromString(read_buff);
@@ -598,7 +600,9 @@ int main(int argc, char* argv[])
     }
   }
 
-  fclose(fstderr);
+  if (fstderr) {
+    fclose(fstderr);
+  }
+
   return 0;
 }
-

@@ -1131,25 +1131,27 @@ public:
   time_t InitializationTime; ///< time of the initialization
   XrdSysMutex InitializationMutex; ///< mutex protecting above variables
   bool Shutdown; ///< true if the shutdown function was called => avoid to join some threads
-  bool RemoveStallRuleAfterBoot; ///< indicates that after a boot there shouldn't be a stall rule for all alias '*'
-  //! const strings to print the namespace boot state as in eNamespace
+  //! Indicates that after a boot there shouldn't be a stall rule for all alias '*'
+  bool RemoveStallRuleAfterBoot;
+  //! Const strings to print the namespace boot state as in eNamespace
   static const char* gNameSpaceState[];
 
   //----------------------------------------------------------------------------
   // State variables
   //----------------------------------------------------------------------------
-  eos::common::FileId::fileid_t
-  BootFileId; ///< next free file id after namespace boot
-  eos::common::FileId::fileid_t
-  BootContainerId; ///< next free container id after namespace boot
-  bool IsReadOnly; ///< true if this is a read-only redirector
+  //! Next free file id after namespace boot
+  eos::common::FileId::fileid_t BootFileId;
+  ///< Next free container id after namespace boot
+  eos::common::FileId::fileid_t BootContainerId;
   bool IsRedirect; ///< true if the Redirect function should be called to redirect
   bool IsStall; ///< true if the Stall function should be called to send a wait
-  bool IsWriteStall; ///< true if the Stall function should be called to send a wait to everything doing 'writes'
   bool authorize; ///< determins if the autorization should be applied or not
   bool IssueCapability; ///< defines if the Mgm issues capabilities
-  bool MgmRedirector; ///<  Act's only as a redirector, disables many components in the MGM
-  bool ErrorLog; ///<  Mgm writes error log with cluster collected file into /var/log/eos/error.log if <true>
+  //!  Acts only as a redirector, disables many components in the MGM
+  bool MgmRedirector;
+  //! Mgm writes error log with cluster collected file into
+  //! /var/log/eos/error.log if <true>
+  bool ErrorLog;
 
   //----------------------------------------------------------------------------
   // Namespace variables
@@ -1159,8 +1161,8 @@ public:
   eos::IView* eosView; ///< hierarchical view of the namespace
   eos::IFsView* eosFsView; ///< filesystem view of the namespace
   eos::IFileMDChangeListener* eosContainerAccounting; ///< subtree accoutning
-  eos::IContainerMDChangeListener*
-  eosSyncTimeAccounting; ///< subtree mtime propagation
+  //! Subtree mtime propagation
+  eos::IContainerMDChangeListener* eosSyncTimeAccounting;
   XrdSysMutex eosViewMutex; ///< mutex making the namespace single threaded
   eos::common::RWMutex eosViewRWMutex; ///< rw namespace mutex
   XrdOucString
@@ -1187,29 +1189,29 @@ public:
   Stat MgmStats; ///<  Mgm Namespace Statistics
   Iostat IoStats; ///<  Mgm IO Statistics
 
-  XrdOucString
-  IoReportStorePath; ///<  Mgm IO Report store path by default is /var/tmp/eos/report
+  //! Mgm IO Report store path by default is /var/tmp/eos/report
+  XrdOucString IoReportStorePath;
 
-  eos::common::CommentLog*
-  commentLog; ///<  Class implementing comment log: mgm writes all proc commands with a comment into /var/log/eos/comments.log
+  //! Class implementing comment log: mgm writes all proc commands with a
+  //! comment into /var/log/eos/comments.log
+  eos::common::CommentLog* commentLog;
 
   Fsck FsCheck; ///<  Class checking the filesystem
-  google::sparse_hash_map<unsigned long long, time_t>
-  MgmHealMap; ///< map remembering 'healing' inodes
-
+  //! Map remembering 'healing' inodes
+  google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
   XrdSysMutex MgmHealMapMutex; ///< mutex protecting the help map
 
   Master MgmMaster; ///<  Master/Slave configuration/failover class
 
-  std::map<eos::common::FileSystem::fsid_t, time_t>
-  DumpmdTimeMap; ///< this map stores the last time of a filesystem dump, this information is used to track filesystems which have not been checked decentral by an FST. It is filled in the 'dumpmd' function definde in Procinterface
-
+  //! Map storing the last time of a filesystem dump, this information is used
+  //! to track filesystems which have not been checked decentral by an FST.
+  //! It is filled in the 'dumpmd' function definde in Procinterface
+  std::map<eos::common::FileSystem::fsid_t, time_t> DumpmdTimeMap;
   XrdSysMutex DumpmdTimeMapMutex; ///< mutex protecting the 'dumpmd' time
 
+  ///< Global path remapping
+  std::map<std::string, std::string> PathMap;
   eos::common::RWMutex PathMapMutex; ///< mutex protecting the path map
-
-  std::map<std::string, std::string>
-  PathMap; ///< containing global path remapping
 
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   XrdMqSharedObjectChangeNotifier
@@ -1217,21 +1219,18 @@ public:
 
   GeoTreeEngine GeotreeEngine; ///< Placement / Access Engine
 
-  // map keeping the modification times of directories, they are either directly inserted from directory/file creation or they are set from a directory listing
-  XrdSysMutex
-  MgmDirectoryModificationTimeMutex; ///<  mutex protecting Directory Modificatino Time map MgmDirectoryModificationTime
-
+  //! Map storing the modification times of directories, they are either
+  //! directly inserted from directory/file creation or they are set from
+  //! a directory listing.
+  XrdSysMutex MgmDirectoryModificationTimeMutex;
   google::sparse_hash_map<unsigned long long, struct timespec>
     MgmDirectoryModificationTime;
-
   HttpServer Httpd; ///<  Http daemon if available
-
   LRU LRUd; ///< LRU object running the LRU policy engine
   WFE WFEd; ///< WFE object running the WFE engine
-  Egroup EgroupRefresh; ///<  Egroup refresh object running asynchronous Egroup fetch thread
-
+  //!  Egroup refresh object running asynchronous Egroup fetch thread
+  Egroup EgroupRefresh;
   Recycle Recycler; ///<  Recycle object running the recycle bin deletion thread
-
   bool UTF8; ///< true if running in less restrictive character set mode
 
   std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint

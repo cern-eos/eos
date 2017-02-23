@@ -719,10 +719,6 @@ protected:
 
 public:
   // ------------------------------------------------------------------------
-  /// capacity
-  // ------------------------------------------------------------------------
-
-  // ------------------------------------------------------------------------
   //! Get the number of entries in the DbMap
   //! @return the number of entries in the DbMap
   // ------------------------------------------------------------------------
@@ -964,10 +960,14 @@ public:
     }
 
 #ifndef EOS_STDMAP_DBMAP
-    pMap.set_empty_key("\x01");
-    pMap.set_deleted_key("\x02");
-    pSetSeqMap.set_empty_key("\x01");
-    pSetSeqMap.set_deleted_key("\x02");
+
+    try {
+      pMap.set_empty_key("\x01");
+      pMap.set_deleted_key("\x02");
+      pSetSeqMap.set_empty_key("\x01");
+      pSetSeqMap.set_deleted_key("\x02");
+    } catch (const std::length_error& e) {}
+
 #endif
   }
   ~DbMapT()
@@ -1137,9 +1137,14 @@ public:
     }
 
     if (pSetSequence) {
-      pSetSeqList.push_back(Tkeyval(key.ToString(), val));
-      pSetSeqMap[key.ToString()] = val;
-      return pSetSeqList.size();
+      try {
+        pSetSeqList.push_back(Tkeyval(key.ToString(), val));
+        pSetSeqMap[key.ToString()] = val;
+        return pSetSeqList.size();
+      } catch (const std::length_error& e) {
+        pSetSeqList.pop_back();
+        return -1;
+      }
     } else {
       if (doSet(key, val)) {
         return 0;
@@ -1261,21 +1266,26 @@ public:
     }
   }
 
-  // ------------------------------------------------------------------------
-  //! Terminate a set sequence
-  //! when a write sequence ends. All the pending 'set' and 'remove' are committed atomically.
+  //----------------------------------------------------------------------------
+  //! Terminate a set sequence. When a write sequence ends all the pending
+  //! 'set' and 'remove' are committed atomically.
+  //!
   //! @return the number of committed changes.
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   unsigned long endSetSequence()
   {
     RWMutexWriteLock lock(pMutex);
-    //assert(setsequence);
     AtomicDec(pNestedSetSeq);
 
     if (pSetSequence && pNestedSetSeq == 0) {
+      try {
+        pSetSeqMap.clear();
+      } catch (std::length_error& e) {
+        return 0;
+      }
+
       unsigned long ret = processSetSeqList();
       pSetSeqList.clear();
-      pSetSeqMap.clear();
       pSetSequence = false;
       return ret;
     }

@@ -110,21 +110,18 @@ FileSystemViewTest::fileSystemViewTest()
     view->setFileMDSvc(fileSvc.get());
     view->configure(config);
     view->initialize();
+    auto qdb_fsview = dynamic_cast<eos::FileSystemView*>(fsView.get());
 
-    if (!dynamic_cast<eos::FileSystemView*>(fsView.get())) {
+    if (!qdb_fsview) {
       fprintf(stderr, "FileSystemView dynamic cast failed\n");
       exit(1);
     }
 
-    dynamic_cast<eos::FileSystemView*>(fsView.get())->initialize(config);
-
+    qdb_fsview->initialize(config);
     fileSvc->addChangeListener(fsView.get());
-
     view->createContainer("/test/embed/embed1", true);
-
     std::shared_ptr<eos::IContainerMD> c =
       view->createContainer("/test/embed/embed2", true);
-
     view->createContainer("/test/embed/embed3", true);
 
     // Create some files

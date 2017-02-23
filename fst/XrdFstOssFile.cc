@@ -21,15 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <fcntl.h>
 #include <algorithm>
 #include "XrdSys/XrdSysAtomics.hh"
-/*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOss.hh"
 #include "fst/XrdFstOssFile.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -168,7 +165,7 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
       }
     }
 
-    fcntl(fd, F_SETFD, FD_CLOEXEC);
+    (void) fcntl(fd, F_SETFD, FD_CLOEXEC);
   }
 
   eos_info("fd=%d flags=%x", fd, flags);
@@ -344,7 +341,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec* readV, int n)
         rdsz = endOff - begOff + 1;
 
         if ((begOff > endLst || endOff < begLst) && (rdsz < XrdFstSS->mPrBytes)) {
-          posix_fadvise(fd, begOff, rdsz, POSIX_FADV_WILLNEED);
+          (void) posix_fadvise(fd, begOff, rdsz, POSIX_FADV_WILLNEED);
           eos_debug("fadvise fd=%i off=%lli len=%ji", fd, begOff, rdsz);
           faBytes += rdsz;
         }

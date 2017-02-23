@@ -278,6 +278,7 @@ main()
     overwrite = false;
     RunThreads();
     elapsed = (int)time(NULL) - (int)seconds;
+    elapsed = (elapsed ? elapsed : 1);
     printf("\t     write test took %d sec (%lf writes/sec)\n", elapsed,
            float(n * NUM_THREADS) / elapsed);
     system(rm_cmd.c_str());
@@ -450,6 +451,7 @@ main()
     seconds = time(NULL);
     log.getTail(1000000, &entries);
     elapsed = (int)time(NULL) - (int)seconds;
+    elapsed = (elapsed ? elapsed : 1);
     printf("\t     read test took %d sec (%f reads/sec)\n", elapsed,
            float(1000000) / elapsed);
   }

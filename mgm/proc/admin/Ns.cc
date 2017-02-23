@@ -254,11 +254,9 @@ ProcCommand::Ns()
 
     if (chlog_file_svc && chlog_dir_svc) {
       snprintf(slatencyf, sizeof(slatencyf) - 1, "%ld", (long int)statf.st_size -
-               dynamic_cast<eos::IChLogFileMDSvc*>
-               (gOFS->eosFileService)->getFollowOffset());
+               chlog_file_svc->getFollowOffset());
       snprintf(slatencyd, sizeof(slatencyd) - 1, "%ld", (long int)statd.st_size -
-               dynamic_cast<eos::IChLogContainerMDSvc*>
-               (gOFS->eosDirectoryService)->getFollowOffset());
+               chlog_dir_svc->getFollowOffset());
     }
 
     if (!monitoring) {

@@ -1284,8 +1284,8 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
 
       if (!gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[group], false)) {
         if (fs->SetString("schedgroup", group.c_str()) && UnRegister(fs, false)) {
-          if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str())
-              && Register(fs)) {
+          if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str()) &&
+              Register(fs)) {
             eos_err("while moving fs, could not insert fs %u in group %s. fs "
                     "was registered back to group %s and consistency is KEPT "
                     "between FsView and GeoTreeEngine",

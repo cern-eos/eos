@@ -293,7 +293,6 @@ ReadPattern(XrdCl::URL& url,
 
   if (ext_fd < 0) {
     eos_static_err("Failed to open ext file:%s in wr mode: ", ext_file.c_str());
-    close(ext_fd);
     delete eosf;
     delete[] buffer;
     return false;
@@ -409,9 +408,8 @@ WriteSequentially(XrdCl::URL& url,
   // Open file outside EOS, from where the data is read
   int ext_fd = open(ext_file.c_str(), O_RDONLY | O_LARGEFILE);
 
-  if (ext_fd <= 0) {
+  if (ext_fd < 0) {
     eos_static_err("Failed to open ext file:%s in rd mode", ext_file.c_str());
-    close(ext_fd);
     delete eosf;
     delete[] buffer;
     return false;
@@ -537,7 +535,6 @@ WritePattern(XrdCl::URL& url,
 
   if (ext_fd < 0) {
     eos_static_err("Failed to open ext file:%s in rd mode: ", ext_file.c_str());
-    close(ext_fd);
     delete eosf;
     delete[] buffer;
     return false;

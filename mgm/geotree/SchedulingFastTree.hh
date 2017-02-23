@@ -460,9 +460,9 @@ class FsId2NodeIdxMap<char*> : public SchedTreeBase
 
 public:
   // creation, allocation, destruction
-  FsId2NodeIdxMap(): pMaxSize(0), pSize(0), pSelfAllocated(false), pBuffer(NULL)
-  {
-  }
+  FsId2NodeIdxMap():
+    pMaxSize(0), pSize(0), pSelfAllocated(false), pBuffer(NULL), pNodeIdxs(0)
+  { }
 
   ~ FsId2NodeIdxMap()
   {

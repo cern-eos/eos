@@ -94,7 +94,7 @@ public:
         mbins = 1;
       }
 
-      unsigned long norm_val = mbins ? (1.0 * val / mbins) : val;
+      unsigned long norm_val = 1.0 * val / mbins;
 
       for (size_t bins = 0; bins < mbins; bins++) {
         unsigned int bin3600 = (((stoptime - (bins * 60)) / 60) % 60);
@@ -110,7 +110,7 @@ public:
         mbins = 1;
       }
 
-      unsigned long norm_val = mbins ? (1.0 * val / mbins) : val;
+      unsigned long norm_val = 1.0 * val / mbins;
 
       for (size_t bins = 0; bins < mbins; bins++) {
         unsigned int bin300 = (((stoptime - (bins * 5)) / 5) % 60);

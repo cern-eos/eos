@@ -1494,7 +1494,7 @@ Mapping::GroupNameToGid(const std::string& groupname, int& errc)
   struct group* grbufp = 0;
   gid_t gid = 99;
   errc = 0;
-  getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
+  (void) getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
 
   if (!grbufp) {
     bool is_number = true;

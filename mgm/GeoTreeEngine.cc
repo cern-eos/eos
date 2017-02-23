@@ -646,7 +646,7 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
       }
     }
 
-    avAge /= count;
+    avAge /= (count ? count : 1);
     ostr << "globalLatency  = " << setw(5) << (int)
          pLatencySched.pGlobalLatencyStats.minlatency << "ms.(min)" << " | "
          << setw(5) << (int)pLatencySched.pGlobalLatencyStats.averagelatency <<
@@ -4181,6 +4181,7 @@ GeoTreeEngine::insertHostIntoPxyGr(FsNode* host , const std::string& proxygroup,
 
   // Update all the information about this new node
   if (!updateTreeInfo(mapEntry, &hsn, ~sfgGeotag & ~sfgId & ~sfgHost, 0, node)) {
+    mapEntry->slowTreeMutex.UnLockWrite();
     eos_err("error inserting host %s into proxygroup %s : slow tree node update failed",
             url.c_str(), proxygroup.c_str());
 
@@ -4370,6 +4371,7 @@ GeoTreeEngine::removeHostFromPxyGr(FsNode* host , const std::string& proxygroup,
 
   if (updateFastStruct && mapEntry->slowTreeModified)
     if (!updateFastStructures(mapEntry)) {
+      mapEntry->slowTreeMutex.UnLockWrite();
       eos_err("error inserting host %s into proxygroup %s : fast structures "
               "update failed", url.c_str(), proxygroup.c_str());
       return false;

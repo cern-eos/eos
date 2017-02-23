@@ -55,8 +55,10 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 //------------------------------------------------------------------------------
 ContainerMD::~ContainerMD()
 {
-  pFiles.clear();
-  pSubContainers.clear();
+  try {
+    pFiles.clear();
+    pSubContainers.clear();
+  } catch (const std::length_error& e) {}
 }
 
 //------------------------------------------------------------------------------
@@ -94,7 +96,10 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pACLId    = other.pACLId;
   pXAttrs   = other.pXAttrs;
   pFlags    = other.pFlags;
-  // Note: pFiles, pSubContainers and pTreeSizeare not copied here
+  pFileSvc  = other.pFileSvc;
+  pContSvc  = other.pContSvc;
+  pTreeSize = 0;
+  // Note: pFiles, pSubContainers are not copied here
   return *this;
 }
 

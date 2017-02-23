@@ -43,13 +43,15 @@ const std::string QuotaNode::sFilesTag = ":files";
 QuotaNode::QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t node_id)
   : IQuotaNode(quotaStats)
 {
-  if (!dynamic_cast<QuotaStats*>(quotaStats)->pQcl) {
+  auto tmp_qstats = dynamic_cast<QuotaStats*>(quotaStats);
+
+  if (!tmp_qstats) {
     MDException e;
     e.getMessage() << "QuotaStats dynamic cast failed ";
     throw e;
   }
 
-  pQcl = dynamic_cast<QuotaStats*>(quotaStats)->pQcl;
+  pQcl = tmp_qstats->pQcl;
   pQuotaUidKey = std::to_string(node_id) + QuotaStats::sQuotaUidsSuffix;
   pUidMap = qclient::QHash(*pQcl, pQuotaUidKey);
   pQuotaGidKey = std::to_string(node_id) + QuotaStats::sQuotaGidsSuffix;

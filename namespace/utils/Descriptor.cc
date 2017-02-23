@@ -188,7 +188,7 @@ throw(DescriptorException)
   //--------------------------------------------------------------------------
   if ((pFD < 0) || (::bind(pFD, (sockaddr*)&localAddr,
                            sizeof(sockaddr_in)) == -1)) {
-    if (pFD) {
+    if (pFD >= 0) {
       ::close(pFD);
     }
 

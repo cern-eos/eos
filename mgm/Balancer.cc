@@ -133,10 +133,10 @@ Balancer::Balance(void)
 
       if (IsMaster && IsSpaceBalancing) {
         size_t total_files; // number of files currently in transfer
+        auto set_fsgrps = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()];
 
         // Loop over all groups
-        for (auto git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin();
-             git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); ++git) {
+        for (auto git = set_fsgrps.begin(); git != set_fsgrps.end(); ++git) {
           // Need to make sure, nobody is drainig here, otherwise we can get
           // a scheduling interference between drain and balancing!
           bool has_drainjob = false;
@@ -259,8 +259,9 @@ Balancer::Balance(void)
         }
       } else {
         if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
-          for (auto git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin();
-               git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); ++git) {
+          auto set_fsgrps = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()];
+
+          for (auto git = set_fsgrps.begin(); git != set_fsgrps.end(); ++git) {
             if ((*git)->GetConfigMember("stat.balancing.running") != "0") {
               (*git)->SetConfigMember("stat.balancing.running", "0", false,
                                       "", true);

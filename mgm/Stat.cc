@@ -1190,7 +1190,7 @@ Stat::Circulate()
   unsigned long long ns2 = 0;
   unsigned long long view1 = 0;
   unsigned long long view2 = 0;
-  eos::common::RWMutexTimingStats qu12stmp, ns12stmp, view12stmp;
+  eos::common::RWMutex::TimingStats qu12stmp, ns12stmp, view12stmp;
   unsigned long long ns1tmp, ns2tmp, view1tmp, view2tmp, qu1tmp, qu2tmp;
 #endif
 

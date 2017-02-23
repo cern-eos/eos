@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/GroupBalancer.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
@@ -29,63 +28,55 @@
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "Xrd/XrdScheduler.hh"
-/*----------------------------------------------------------------------------*/
 #include <random>
 #include <cmath>
-/*----------------------------------------------------------------------------*/
+
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
 
 #define CACHE_LIFE_TIME 60 // seconds
 
-/*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Constructor by space name
+ *
+ * @param spacename name of the associated space
+ */
 /*----------------------------------------------------------------------------*/
 GroupBalancer::GroupBalancer(const char* spacename)
   : mThreshold(.5),
     mAvgUsedSize(0)
-    /*----------------------------------------------------------------------------*/
-    /**
-     * @brief Constructor by space name
-     *
-     * @param spacename name of the associated space
-     */
-    /*----------------------------------------------------------------------------*/
 {
   mSpaceName = spacename;
   mLastCheck = 0;
-  XrdSysThread::Run(&mThread,
-                    GroupBalancer::StaticGroupBalancer,
-                    static_cast<void*>(this),
-                    XRDSYSTHREAD_HOLD,
+  XrdSysThread::Run(&mThread, GroupBalancer::StaticGroupBalancer,
+                    static_cast<void*>(this), XRDSYSTHREAD_HOLD,
                     "GroupBalancer Thread");
 }
 
-/*----------------------------------------------------------------------------*/
-void
-GroupBalancer::Stop()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief thread stop function
  */
 /*----------------------------------------------------------------------------*/
+void
+GroupBalancer::Stop()
 {
   XrdSysThread::Cancel(mThread);
 }
 
 /*----------------------------------------------------------------------------*/
-GroupBalancer::~GroupBalancer()
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Destructor
  */
 /*----------------------------------------------------------------------------*/
+GroupBalancer::~GroupBalancer()
 {
   Stop();
 
@@ -97,33 +88,30 @@ GroupBalancer::~GroupBalancer()
 }
 
 /*----------------------------------------------------------------------------*/
-void*
-GroupBalancer::StaticGroupBalancer(void* arg)
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Static thread startup function calling Convert
  */
 /*----------------------------------------------------------------------------*/
+void*
+GroupBalancer::StaticGroupBalancer(void* arg)
+
 {
   return reinterpret_cast<GroupBalancer*>(arg)->GroupBalance();
 }
 
 /*----------------------------------------------------------------------------*/
+/**
+ * @brief GroupSize constructor (capacity must be > 0)
+     */
+/*----------------------------------------------------------------------------*/
 GroupSize::GroupSize(uint64_t usedBytes, uint64_t capacity)
   : mSize(usedBytes),
     mCapacity(capacity)
-    /*----------------------------------------------------------------------------*/
-    /**
-     * @brief GroupSize constructor (capacity must be > 0)
-     */
-    /*----------------------------------------------------------------------------*/
+
 {
   assert(capacity > 0);
 }
 
-/*----------------------------------------------------------------------------*/
-void
-GroupSize::swapFile(GroupSize* toGroup, uint64_t size)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Subtracts the given size from this group and adds it to the given
@@ -132,14 +120,13 @@ GroupSize::swapFile(GroupSize* toGroup, uint64_t size)
  * @param size the file size that should be swapped
  */
 /*----------------------------------------------------------------------------*/
+void
+GroupSize::swapFile(GroupSize* toGroup, uint64_t size)
 {
   toGroup->mSize += size;
   mSize -= size;
 }
 
-/*----------------------------------------------------------------------------*/
-int
-GroupBalancer::getRandom(int max)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Gets a random int between 0 and a given maximum
@@ -147,19 +134,20 @@ GroupBalancer::getRandom(int max)
  *        generated
  */
 /*----------------------------------------------------------------------------*/
+int
+GroupBalancer::getRandom(int max)
 {
   // coverity[DC.WEAK_CRYPTO]
   return (int) round(max * random() / (double) RAND_MAX);
 }
 
 /*----------------------------------------------------------------------------*/
-void
-GroupBalancer::recalculateAvg()
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Recalculates the sizes average from the mGroupSizes
  */
 /*----------------------------------------------------------------------------*/
+void
+GroupBalancer::recalculateAvg()
 {
   mAvgUsedSize = 0;
   std::map<std::string, GroupSize*>::const_iterator size_it;
@@ -255,22 +243,21 @@ GroupBalancer::fillGroupsByAvg()
 }
 
 /*----------------------------------------------------------------------------*/
-void
-GroupBalancer::populateGroupsInfo()
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Fills mGroupSizes, calculates the mAvgUsedSize and fills
  *        mGroupsUnderAvg and mGroupsOverAvg
  */
 /*----------------------------------------------------------------------------*/
+void
+GroupBalancer::populateGroupsInfo()
 {
   const char* spaceName = mSpaceName.c_str();
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   mAvgUsedSize = 0;
   clearCachedSizes();
+  auto set_fsgrp = FsView::gFsView.mSpaceGroupView[spaceName];
 
-  for (auto it = FsView::gFsView.mSpaceGroupView[spaceName].cbegin();
-       it != FsView::gFsView.mSpaceGroupView[spaceName].cend(); it++) {
+  for (auto it = set_fsgrp.cbegin(); it != set_fsgrp.cend(); it++) {
     if ((*it)->GetConfigMember("status") != "on") {
       continue;
     }

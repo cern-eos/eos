@@ -409,7 +409,10 @@ bool SlowTree::remove(const TreeNodeInfo* info, bool addFsIdLevel)
     node = node->pFather;
   }
 
-  node->pFather->pChildren.erase(node->pNodeInfo.geotag);
+  if (node->pFather) {
+    node->pFather->pChildren.erase(node->pNodeInfo.geotag);
+  }
+
   size_t lcount = node->pLeavesCount;
   size_t ncount = node->pNodeCount;
 
@@ -497,9 +500,10 @@ bool SlowTree::buildFastStrcturesSched(
     nodesByDepth.resize(nodesByDepth.size() + 1);
     // iterate through the nodes of the last level
     godeeper = false;
+    auto it_last_lvl = nodesByDepth.begin();
+    std::advance(it_last_lvl, nodesByDepth.size() - 2);
 
-    for (auto it = (nodesByDepth.end() - 2)->begin();
-         it != (nodesByDepth.end() - 2)->end(); ++it) {
+    for (auto it = it_last_lvl->begin(); it != it_last_lvl->end(); ++it) {
       // iterate through the children of each of those nodes
       for (auto cit = (*it)->pChildren.begin(); cit != (*it)->pChildren.end();
            ++cit) {
@@ -663,9 +667,10 @@ bool SlowTree::buildFastStrcturesSched(
     nodesByDepth.resize(nodesByDepth.size() + 1);
     // iterate through the nodes of the last level
     godeeper = false;
+    auto it_last_lvl = nodesByDepth.begin();
+    std::advance(it_last_lvl, nodesByDepth.size() - 2);
 
-    for (auto it = (nodesByDepth.end() - 2)->begin();
-         it != (nodesByDepth.end() - 2)->end(); ++it) {
+    for (auto it = it_last_lvl->begin(); it != it_last_lvl->end(); ++it) {
       // iterate through the children of each of those nodes
       for (auto cit = (*it)->pChildren.begin();
            cit != (*it)->pChildren.end(); ++cit) {

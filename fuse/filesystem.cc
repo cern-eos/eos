@@ -58,15 +58,17 @@
 #define OSPAGESIZE 65536
 #endif
 
-filesystem::filesystem()
+filesystem::filesystem():
+  pid_max(32767), uid_max(0), link_pidmap(false), use_user_krb5cc(false),
+  use_user_gsiproxy(false), use_unsafe_krk5(false), fallback2nobody(false),
+  lazy_open_ro(false), lazy_open_rw(false), async_open(false),
+  lazy_open_disabled(false), inline_repair(false),
+  max_inline_repair_size(268435456), tryKrb5First(false), do_rdahead(false),
+  rm_level_protect(1), rm_watch_relpath(false), fuse_cache_write(false),
+  encode_pathname(false), mode_overlay(0)
 {
-  lazy_open_ro = false;
-  lazy_open_rw = false;
-  async_open = false;
-  lazy_open_disabled = false;
   hide_special_files = true;
   show_eos_attributes = false;
-  do_rdahead = false;
   rdahead_window = "131072";
   fuse_exec = false;
   fuse_shared = false;

@@ -1600,7 +1600,10 @@ XrdFstOfsFile::close()
       if (gOFS.TpcMap[isRW].count(TpcKey.c_str())) {
         eos_info("msg=\"remove tpc key\" key=%s", TpcKey.c_str());
         gOFS.TpcMap[isRW].erase(TpcKey.c_str());
-        gOFS.TpcMap[isRW].resize(0);
+
+        try {
+          gOFS.TpcMap[isRW].resize(0);
+        } catch (const std::length_error& e) {}
       }
     }
 
@@ -1801,11 +1804,13 @@ XrdFstOfsFile::close()
             }
 
             // Commit local
-            if (!gFmdDbMapHandler.Commit(fMd)) {
-              eos_err("unabel to commit meta data to local database");
-              (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to commit meta data",
-                               Path.c_str());
-            }
+            try {
+              if (!gFmdDbMapHandler.Commit(fMd)) {
+                eos_err("unabel to commit meta data to local database");
+                (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "
+                                 "commit meta data", Path.c_str());
+              }
+            } catch (const std::length_error& e) {}
 
             // Commit to central mgm cache
             int envlen = 0;

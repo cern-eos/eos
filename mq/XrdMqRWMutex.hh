@@ -190,7 +190,11 @@ public:
   //----------------------------------------------------------------------------
   ~XrdMqRWMutexWriteLock()
   {
-    mMutex->UnLockWrite();
+    try {
+      mMutex->UnLockWrite();
+    } catch (const char* e) {
+      // ignore exception
+    }
   }
 
 private:
@@ -218,7 +222,11 @@ public:
   //----------------------------------------------------------------------------
   ~XrdMqRWMutexReadLock()
   {
-    mMutex->UnLockRead();
+    try {
+      mMutex->UnLockRead();
+    } catch (const char* e) {
+      // ignore exception
+    }
   }
 
 private:

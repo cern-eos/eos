@@ -1350,7 +1350,7 @@ Master::Slave2Master()
   // Wait that the follower reaches the offset seen now
   auto chlog_file_svc = dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
-  if (!chlog_file_svc) {
+  if (chlog_file_svc) {
     while (chlog_file_svc->getFollowOffset() <
            (uint64_t)size_local_file_changelog) {
       XrdSysTimer sleeper;

@@ -135,27 +135,22 @@ FileMDSvcTest::checkFileTest()
   view->setFileMDSvc(fileSvc.get());
   view->configure(config);
   view->initialize();
+  auto kv_fsview = dynamic_cast<eos::FileSystemView*>(fsView.get());
 
-  if (!dynamic_cast<eos::FileSystemView*>(fsView.get())) {
+  if (!kv_fsview) {
     fprintf(stderr, "FileSystemView dynamic cast failed\n");
     exit(1);
   }
 
-  dynamic_cast<eos::FileSystemView*>(fsView.get())->initialize(config);
-
+  kv_fsview->initialize(config);
   fileSvc->addChangeListener(fsView.get());
-
   // Create test container and file
   std::shared_ptr<eos::IContainerMD> cont =
     view->createContainer("/test_dir", true);
-
   std::shared_ptr<eos::IFileMD> file =
     view->createFile("/test_dir/test_file1.dat");
-
   eos::IFileMD::id_t fid = file->getId();
-
   std::string sfid = std::to_string(fid);
-
   CPPUNIT_ASSERT(file != nullptr);
 
   // Add some replica and unlink locations

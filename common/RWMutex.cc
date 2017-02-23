@@ -94,18 +94,19 @@ pthread_rwlock_t RWMutex::orderChkMgmLock;
 #endif
 
 
-
-RWMutex::RWMutex()
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+RWMutex::RWMutex():
+  samplingModulo(300)
 {
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
   // by default we are not a blocking write mutex
   blocking = false;
   // try to get write lock in 5 seconds, then release quickly and retry
   wlocktime.tv_sec = 5;
   wlocktime.tv_nsec = 0;
-  // try to get read lock in 100ms, otherwise allow this thread to be canceled - used by LockReadCancel
+  // try to get read lock in 100ms, otherwise allow this thread to be canceled
+  // - used by LockReadCancel
   rlocktime.tv_sec = 0;
   rlocktime.tv_nsec = 1000000;
   readLockCounter = writeLockCounter = 0;

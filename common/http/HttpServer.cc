@@ -206,7 +206,7 @@ HttpServer::Run()
         }
       }
 
-      select(max + 1, &rs, &ws, &es, &tv);
+      (void) select(max + 1, &rs, &ws, &es, &tv);
       MHD_run(mDaemon);
     }
   }
@@ -287,7 +287,7 @@ HttpServer::BuildHeaderMap(void* cls,
 
   if (key && value && hMap)  {
     std::string low_key = LC_STRING(key);
-    (*hMap)[low_key] = (value ? value : "");
+    (*hMap)[low_key] = value;
   }
 
   return MHD_YES;

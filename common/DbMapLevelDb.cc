@@ -32,8 +32,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-LvDbInterfaceBase::Option LvDbInterfaceBase::gDefaultOption =
-{ 10, 100};
+LvDbInterfaceBase::Option LvDbInterfaceBase::gDefaultOption = { 10, 100};
 unsigned LvDbInterfaceBase::pNInstances = 0;
 bool LvDbInterfaceBase::pDebugMode = false;
 bool LvDbInterfaceBase::pAbortOnLvDbError = true;
@@ -416,12 +415,14 @@ LvDbDbLogInterface::setDbFile(const string& dbname, int volumeduration,
 {
   Option* opt = option ? (Option*)option : &gDefaultOption;
   _unused(opt); // to get rid of the unused vairable warning
-  // check if the file can be opened, it creates it with the required permissions if it does not exist.
+  // Check if the file can be opened, it creates it with the required
+  // permissions if it does not exist.
   leveldb::DB* testdb = NULL;
   leveldb::Options options;
   options.max_open_files = 2000;
-  // try to create the directory if it doesn't exist (don't forget to add the x mode to all users to make the directory browsable)
-  mkdir(dbname.c_str(), createperm ? createperm | 0111 : 0644 | 0111);
+  // Try to create the directory if it doesn't exist (don't forget to add the
+  // x mode to all users to make the directory browsable)
+  (void) mkdir(dbname.c_str(), createperm ? createperm | 0111 : 0644 | 0111);
   gUniqMutex.Lock();
   gArchmutex.Lock();
 
@@ -663,7 +664,8 @@ bool LvDbDbLogInterface::clear()
   return s.ok();
 }
 
-LvDbDbMapInterface::LvDbDbMapInterface() : pNDbEntries(0) , pBatched(false)
+LvDbDbMapInterface::LvDbDbMapInterface() :
+  pNDbEntries(0) , pBatched(false), AttachedDb(0)
 {
   pBatchMutex.SetBlocking(true);
 }
@@ -1008,8 +1010,9 @@ bool LvDbDbMapInterface::attachDb(const std::string& dbname, bool repair,
   Option* opt = option ? (Option*)option : &gDefaultOption;
 
   if (pAttachedDbname.empty()) {
-    // try to create the directory if it doesn't exist (don't forget to add the x mode to all users to make the directory browsable)
-    mkdir(dbname.c_str(), createperm ? createperm | 0111 : 0644 | 0111);
+    // Try to create the directory if it doesn't exist (don't forget to add the
+    // x mode to all users to make the directory browsable)
+    (void) mkdir(dbname.c_str(), createperm ? createperm | 0111 : 0644 | 0111);
     pOptions.create_if_missing = true;
     pOptions.error_if_exists = false;
     leveldb::Status status = dbOpen(pOptions, dbname, &AttachedDb, opt->CacheSizeMb,

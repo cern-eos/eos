@@ -46,7 +46,7 @@ EOSFUSETEST_NAMESPACE_BEGIN
 // sys.forced.layout="replica"
 // sys.forced.nstripes="2"
 // sys.forced.space="default"
-// 
+//
 // The directory should contain just one file.
 //
 //------------------------------------------------------------------------------
@@ -55,13 +55,15 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("file_path", "/eos/dev/test/fuse/file1MB.dat"));
   mMapParam.insert(std::make_pair("file_size", "1048576")); // 1MB
   mMapParam.insert(std::make_pair("file_chksum", "eos 71e800f1"));
-  mMapParam.insert(std::make_pair("file_missing", "/eos/dev/test/fuse/file_unknown.dat"));
-  mMapParam.insert(std::make_pair("file_rename", "/eos/dev/test/fuse/file1MB.dat_rename"));
+  mMapParam.insert(std::make_pair("file_missing",
+                                  "/eos/dev/test/fuse/file_unknown.dat"));
+  mMapParam.insert(std::make_pair("file_rename",
+                                  "/eos/dev/test/fuse/file1MB.dat_rename"));
   mMapParam.insert(std::make_pair("dir_path", "/eos/dev/test/fuse/"));
   mMapParam.insert(std::make_pair("dir_dummy", "/eos/dev/test/fuse/dummy"));
   mMapParam.insert(std::make_pair("file_dummy", "/eos/dev/test/fuse/dummy.dat"));
-  mMapParam.insert(std::make_pair("file_rename", "/eos/dev/test/fuse/file_rename.dat"));
-
+  mMapParam.insert(std::make_pair("file_rename",
+                                  "/eos/dev/test/fuse/file_rename.dat"));
   // Get fuse write cache size from eosd process environment
   off_t sz_buff = 4096 * 4;
   char buff[sz_buff];
@@ -69,43 +71,38 @@ TestEnv::TestEnv()
   std::string cmd = "ps aux | grep \"[e]osd \" | awk \'{print $2}\'";
   FILE* eosd_pipe = popen(cmd.c_str(), "r");
 
-  if (!eosd_pipe)
-  {
+  if (!eosd_pipe) {
     std::cerr << "Error getting fuse cache size" << std::endl;
-    pclose(eosd_pipe);
     exit(1);
   }
 
-  while (!feof(eosd_pipe))
-  {
-    if (fgets(buff, sz_buff, eosd_pipe) != NULL)
+  while (!feof(eosd_pipe)) {
+    if (fgets(buff, sz_buff, eosd_pipe) != NULL) {
       result += buff;
+    }
   }
 
   pclose(eosd_pipe);
 
-  if (result.empty())
-  {
+  if (result.empty()) {
     // eosd is not running, try eosdfs
     cmd = "ps aux | grep \"[e]osfsd \" | awk \'{print $2}\'";
     FILE* eosdfs_pipe = popen(cmd.c_str(), "r");
-    
-    if (!eosdfs_pipe)
-    {
+
+    if (!eosdfs_pipe) {
       std::cerr << "Error getting fuse cache size" << std::endl;
       exit(2);
     }
-    
-    while (!feof(eosdfs_pipe))
-    {
-      if (fgets(buff, sz_buff, eosdfs_pipe) != NULL)
+
+    while (!feof(eosdfs_pipe)) {
+      if (fgets(buff, sz_buff, eosdfs_pipe) != NULL) {
         result += buff;
+      }
     }
-    
+
     pclose(eosdfs_pipe);
 
-    if (result.empty())
-    {
+    if (result.empty()) {
       std::cerr << "No eosd or eosfs process running" << std::endl;
       exit(3);
     }
@@ -113,7 +110,6 @@ TestEnv::TestEnv()
 
   int pid = atoi(result.c_str());
   //std::cout << "Pid: " << pid << std::endl;
-
   // Read fuse cache size value from environ file
   std::string sz_cache;
   std::string key = "EOS_FUSE_CACHE_SIZE=";
@@ -121,20 +117,19 @@ TestEnv::TestEnv()
   oss << "/proc/" << pid << "/environ";
   std::ifstream f(oss.str().c_str(), std::ios::in | std::ios::binary);
 
-  if (!f.is_open())
-  {
+  if (!f.is_open()) {
     std::cerr << "Error opening environ file of fuse proceess"
               << " - try running with root privileges" << std::endl;
     exit(1);
   }
 
-  while (f.good())
-  {
+  while (f.good()) {
     f.getline(buff, sz_buff, '\0');
     result = buff;
-    
-    if (result.find(key) == 0)
+
+    if (result.find(key) == 0) {
       sz_cache = result.substr(key.length()).c_str();
+    }
   }
 
   f.close();
@@ -160,8 +155,7 @@ TestEnv::SetMapping(const std::string& key, const std::string& value)
 {
   auto pair_res = mMapParam.insert(std::make_pair(key, value));
 
-  if (!pair_res.second)
-  {
+  if (!pair_res.second) {
     std::cerr << "Mapping already exists, key=" << key
               << " value=" << value << std::endl;
   }
@@ -176,10 +170,11 @@ TestEnv::GetMapping(const std::string& key) const
 {
   auto iter = mMapParam.find(key);
 
-  if (iter != mMapParam.end())
+  if (iter != mMapParam.end()) {
     return iter->second;
-  else
+  } else {
     return std::string("");
+  }
 }
 
 EOSFUSETEST_NAMESPACE_END

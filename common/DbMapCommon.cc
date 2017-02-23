@@ -20,12 +20,8 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-/*----------------------------------------------------------------------------*/
 #include "common/DbMapCommon.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 #include <iomanip>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -74,7 +70,7 @@ istream& operator >> (istream& is, DbMapTypes::Tval& val)
   //is >> val.timestamp;
   getline(is, val.timestampstr, '\t');
   getline(is, buffer, '\t');
-  sscanf(buffer.c_str(), "%lu", &val.seqid);
+  (void) sscanf(buffer.c_str(), "%lu", &val.seqid);
   getline(is, val.value, '\t');
   getline(is, val.comment, '\t');
   return is;

@@ -187,7 +187,13 @@ ProcCommand::Fs()
                 it->second->SetLongLong("bootcheck", eos::common::FileSystem::kBootForced);
               }
 
-              it->second->SetLongLong("bootsenttime", (unsigned long long) time(NULL));
+              auto now = time(NULL);
+
+              if (now < 0) {
+                now = 0;
+              }
+
+              it->second->SetLongLong("bootsenttime", (unsigned long long) now);
               stdOut += " ";
               stdOut += it->second->GetString("host").c_str();
               stdOut += ":";
