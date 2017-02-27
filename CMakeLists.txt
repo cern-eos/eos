@@ -140,6 +140,7 @@ set(CPACK_SOURCE_IGNORE_FILES
 "xrootd-dsi/;/nginx/;/dsi/;/microhttpd/;/build/;/.deps/;/.bzr/;~$;'.'o$;\
 /CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;\
 ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
+message("CPACK_SOURCE_IGNORE_FILES=${CPACK_SOURCE_IGNORE_FILES}")
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"

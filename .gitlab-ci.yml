@@ -12,14 +12,16 @@ eos_srpm:
   stage: build:srpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install -y gcc-c++ cmake3 make rpm-build which
+    - yum install -y gcc-c++ cmake3 make rpm-build which git
+    - git submodule update --init --recursive
+    - ls -la common/fmt
     - mkdir build_srpm
     - cd build_srpm
     - cmake3 .. -DPACKAGEONLY=1
-    - make srpm
+    - make dist
   artifacts:
     paths:
-    - build_srpm/SRPMS/
+    - build_srpm/
   tags:
     - docker
 
