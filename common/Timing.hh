@@ -118,19 +118,14 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Return the age of a timespec
+  //! Get current time in nanoseconds
   //----------------------------------------------------------------------------
   static long long
-  GetAgeInNs(const struct timespec* ts , const struct timespec* now = NULL)
+  GetNowInNs()
   {
-    struct timespec tsn;
-
-    if (!now) {
-      GetTimeSpec(tsn);
-      now = &tsn;
-    }
-
-    return (now->tv_sec - ts->tv_sec) * 1000000000 + (now->tv_nsec - ts->tv_nsec);
+    struct timespec ts;
+    GetTimeSpec(ts);
+    return (1000000000 * ts.tv_sec + ts.tv_nsec);
   }
 
   //----------------------------------------------------------------------------
@@ -273,14 +268,13 @@ public:
     ts.tv_nsec = tv.tv_usec * 1000;
 #else
 
-    if (coarse)
+    if (coarse) {
 #ifdef CLOCK_REALTIME_COARSE
       clock_gettime(CLOCK_REALTIME_COARSE, &ts);
-
 #else
       clock_gettime(CLOCK_REALTIME, &ts);
 #endif
-    else {
+    } else {
       clock_gettime(CLOCK_REALTIME, &ts);
     }
 
