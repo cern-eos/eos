@@ -14,11 +14,10 @@ eos_srpm:
   script:
     - yum install -y gcc-c++ cmake3 make rpm-build which git
     - git submodule update --init --recursive
-    - ls -la common/fmt
     - mkdir build_srpm
     - cd build_srpm
     - cmake3 .. -DPACKAGEONLY=1
-    - make dist
+    - make srpm
   artifacts:
     paths:
     - build_srpm/
