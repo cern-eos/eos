@@ -133,44 +133,6 @@ XrdMgmOfsFile::open (const char *inpath,
 
   XrdOucString spath = path;
 
-  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
-  {
-    //-------------------------------------------
-    // reference by fid+fsid                                                                                                                                                                                           
-    //-------------------------------------------
-    unsigned long long fid = 0;
-    if (spath.beginswith("fid:"))
-    {
-      spath.replace("fid:", "");
-      fid = strtoull(spath.c_str(), 0, 10);
-    }
-    if (spath.beginswith("fxid:"))
-    {
-      spath.replace("fxid:", "");
-      fid = strtoull(spath.c_str(), 0, 16);
-    }
-
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    try
-    {
-      fmd = gOFS->eosFileService->getFileMD(fid);
-      spath = gOFS->eosView->getUri(fmd).c_str();
-      eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
-      path = spath.c_str();
-    }
-    catch (eos::MDException &e)
-    {
-      eos_debug("caught exception %d %s\n",
-		e.getErrno(),
-		e.getMessage().str().c_str());
-
-      MAYREDIRECT_ENOENT;
-      MAYSTALL_ENOENT;
-
-      return Emsg(epname, error, ENOENT, "open - you specified a not existing inode number", path);
-    }
-  }
-
   int open_flag = 0;
   int isRW = 0;
   int isRewrite = 0;
@@ -273,6 +235,44 @@ XrdMgmOfsFile::open (const char *inpath,
 
   MAYSTALL;
   MAYREDIRECT;
+
+  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
+  {
+    //-------------------------------------------
+    // reference by fid+fsid                                                                                                                                                                                           
+    //-------------------------------------------
+    unsigned long long fid = 0;
+    if (spath.beginswith("fid:"))
+    {
+      spath.replace("fid:", "");
+      fid = strtoull(spath.c_str(), 0, 10);
+    }
+    if (spath.beginswith("fxid:"))
+    {
+      spath.replace("fxid:", "");
+      fid = strtoull(spath.c_str(), 0, 16);
+    }
+
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    try
+    {
+      fmd = gOFS->eosFileService->getFileMD(fid);
+      spath = gOFS->eosView->getUri(fmd).c_str();
+      eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
+      path = spath.c_str();
+    }
+    catch (eos::MDException &e)
+    {
+      eos_debug("caught exception %d %s\n",
+		e.getErrno(),
+		e.getMessage().str().c_str());
+
+      MAYREDIRECT_ENOENT;
+      MAYSTALL_ENOENT;
+
+      return Emsg(epname, error, ENOENT, "open - you specified a not existing inode number", path);
+    }
+  }
 
   openOpaque = new XrdOucEnv(info);
 
