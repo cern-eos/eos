@@ -325,6 +325,15 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   XrdOucString origResponse = response->GetBuffer();
   origResponse += "&eos.app=fuse";
   auto qmidx = origResponse.find("?");
+
+  // This is a work-around for a possible race-condition giving us 'wrong' responses when a recovery is triggered
+  if ((qmidx == STR_NPOS) ||
+      (qmidx > 1024 * 1024)) {
+    eos_static_err("failed to get a valid response to open request %s at url %s qmidx=%u"
+                   "errno=%d", request.c_str(), user_url.c_str(), qmidx);
+    return -1;
+  }
+
   // insert back the cgi params that are not given back by the mgm
   std::map<std::string, std::string> m;
   ImportCGI(m, opaque);
