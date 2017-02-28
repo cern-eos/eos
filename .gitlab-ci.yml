@@ -27,6 +27,7 @@ eos_rpm:
   artifacts:
     paths:
     - build_rpm/RPMS/
+    - build_srpm/SRPMS/
   tags:
     - docker
 
@@ -36,6 +37,7 @@ download_eosdocker:
   script:
     - yum install -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
+    - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
   artifacts:
     paths:
     - eos-docker/
