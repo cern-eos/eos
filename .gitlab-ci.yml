@@ -18,6 +18,7 @@ eos_rpm:
     - cd build_srpm
     - cmake3 .. -DPACKAGEONLY=1
     - make srpm
+    - cd ..
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-7-x86_64\nenabled=1 \n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck -y build_srpm/SRPMS/*
