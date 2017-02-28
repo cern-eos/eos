@@ -41,13 +41,24 @@ eos_rpm:
   tags:
     - docker
 
+download_eosdocker:
+  stage: build:dockerimage
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install -y git
+    - git clone https://gitlab.cern.ch/eos/eos-docker.git
+  artifacts:
+    paths:
+    - eos-docker/
+  tags:
+    - docker
+
 eos_docker:
   stage: build:dockerimage
   tags:
     - docker-image-build
   script:
-    - yum install -y git
-    - git clone https://gitlab.cern.ch/eos/eos-docker.git
+    - ""
   variables:
     TO: gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     DOCKER_FILE: eos-docker/Dockerfile
