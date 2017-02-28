@@ -189,7 +189,7 @@
     eos::IFsView::FileList target_filelist;
 
     try {
-      source_filelist = = gOFS->eosFsView->getFileList(source_fsid);
+      source_filelist = gOFS->eosFsView->getFileList(source_fsid);
     } catch (const eos::MDException& e) {
       source_filelist.set_deleted_key(0);
       source_filelist.set_empty_key(0xffffffffffffffff);
