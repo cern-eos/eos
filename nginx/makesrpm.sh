@@ -71,6 +71,7 @@ cp $SOURCEPATH/etc/init.d/*      $RPMSOURCES
 cp $SOURCEPATH/etc/logrotate.d/* $RPMSOURCES
 cp $SOURCEPATH/etc/nginx/*       $RPMSOURCES
 cp $SOURCEPATH/etc/sysconfig/*   $RPMSOURCES
+cp $SOURCEPATH/etc/systemd/*     $RPMSOURCES
 cp $SOURCEPATH/*.patch           $RPMSOURCES
 cp $SOURCEPATH/nginx.spec        $TEMPDIR
 

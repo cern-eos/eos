@@ -1,4 +1,6 @@
 %define _unpackaged_files_terminate_build 0
+# distribution specific definitions
+%define use_systemd (0%{?fedora} && 0%{?fedora} >= 18) || (0%{?rhel} && 0%{?rhel} >= 7)
 
 %define nginx_user      daemon
 %define nginx_group     %{nginx_user}
@@ -22,22 +24,29 @@ License:            BSD
 URL:                http://nginx.net/ 
 BuildRoot:          %{_tmppath}/%{name}-%{version}-%{release}-%(%{__id_u} -n)
 
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
-BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap-devel
-Requires:           pcre,zlib,openssl,openldap
-%else
-BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap24-libs-devel
-Requires:           pcre,zlib,openssl,openldap24-libs
+%if %{use_systemd}
+BuildRequires:      systemd,pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap-devel
+Requires:           systemd,zlib,openssl,openldap 
 %endif
 
-
-# for /user/sbin/useradd
-Requires(pre):      shadow-utils
+%if 0%{?rhel} == 6 
+BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap-devel
+Requires:           pcre,zlib,openssl,openldap
 Requires(post):     chkconfig
-# for /sbin/service
 Requires(preun):    chkconfig, initscripts
 Requires(postun):   initscripts
-# don't allow this on top of vanilla nginx
+%endif
+
+%if 0%{?rhel} == 5
+BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap24-libs-devel
+Requires:           pcre,zlib,openssl,openldap24-libs
+Requires(post):     chkconfig
+Requires(preun):    chkconfig, initscripts
+Requires(postun):   initscripts
+%endif
+
+Requires(pre):      shadow-utils
+
 Conflicts:          nginx
 
 #Source0:    %{name}-%{version}.tar.gz
@@ -46,6 +55,7 @@ Source2:    nginx.init
 Source3:    nginx.logrotate
 Source4:    nginx.sysconfig
 Source5:    nginx.eos.conf.template
+Source6:    nginx.service
 
 # removes -Werror in upstream build scripts.  -Werror conflicts with
 # -D_FORTIFY_SOURCE=2 causing warnings to turn into errors.
@@ -130,6 +140,7 @@ export DESTDIR=%{buildroot}
     --with-http_gzip_static_module      \
     --with-http_stub_status_module      \
     --with-debug                        \
+    --with-ipv6                         \
     --without-select_module             \
     --without-poll_module               \
     --without-http_autoindex_module     \
@@ -160,7 +171,13 @@ find %{buildroot} -type f -exec chmod 0644 {} \;
 find %{buildroot} -type f -name '*.so' -exec chmod 0755 {} \;
 chmod 0755 %{buildroot}%{_sbindir}/nginx
 mkdir %{buildroot}%{nginx_confdir}/conf.d
+%if %{use_systemd}
+# install systemd-specific files
+%{__install} -p -D -m 0755 %{SOURCE6} %{buildroot}%{_unitdir}/nginx.service
+%else
+# install SYSV init stuff
 %{__install} -p -D -m 0755 %{SOURCE2} %{buildroot}%{_initrddir}/nginx
+%endif
 %{__install} -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/logrotate.d/nginx
 %{__install} -p -D -m 0644 %{SOURCE4} %{buildroot}%{_sysconfdir}/sysconfig/nginx
 %{__install} -p -D -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/nginx/nginx.eos.conf.template
@@ -188,17 +205,33 @@ rm -rf %{_builddir}/nginx-auth-pam-module
 %{_sbindir}/useradd -c "Nginx user" -s /bin/false -r -d %{nginx_home} %{nginx_user} 2>/dev/null || :
 
 %post
-/sbin/chkconfig --add nginx
+# Register the nginx service
+if [ $1 -eq 1 ]; then
+%if %{use_systemd}
+    /usr/bin/systemctl preset nginx.service >/dev/null 2>&1 ||:
+%else
+    /sbin/chkconfig --add nginx
+%endif
 
 %preun
-if [ $1 = 0 ]; then
-    /sbin/service nginx stop >/dev/null 2>&1
+if [ $1 -eq 0 ]; then
+%if %use_systemd
+    /usr/bin/systemctl --no-reload disable nginx.service >/dev/null 2>&1 ||:
+    /usr/bin/systemctl stop nginx.service >/dev/null 2>&1 ||:
+%else
+    /sbin/service nginx stop > /dev/null 2>&1
     /sbin/chkconfig --del nginx
+%endif
 fi
 
 %postun
+%if %use_systemd
+/usr/bin/systemctl daemon-reload >/dev/null 2>&1 ||:
+%endif
 if [ $1 -ge 1 ]; then
-    /sbin/service nginx condrestart > /dev/null 2>&1 || :
+    /sbin/service nginx status  >/dev/null 2>&1 || exit 0
+    /sbin/service nginx upgrade >/dev/null 2>&1 || echo \
+        "Binary upgrade failed, please check nginx's error.log"
 fi
 
 %files
@@ -208,7 +241,11 @@ fi
 %{_datadir}/nginx/*/*
 %{_sbindir}/nginx
 #%{_mandir}/man3/nginx.3pm.gz
+%if %{use_systemd}
+%{_unitdir}/nginx.service
+%else
 %{_initrddir}/nginx
+%endif
 %dir %{nginx_confdir}
 %dir %{nginx_confdir}/conf.d
 %config(noreplace) %{nginx_confdir}/win-utf
@@ -236,8 +273,10 @@ fi
 %attr(-,%{nginx_user},%{nginx_group}) %dir %{nginx_home_tmp}
 %attr(-,%{nginx_user},%{nginx_group}) %dir %{nginx_logdir}
 
-
 %changelog
+* Tue Feb 28 2017 Andrea Manzi <amanzi@cern.h>
+- added systemd support
+- fix deps on el7
 * Thu Aug 28 2013 Justin Salmon <jsalmon@cern.ch>
 - Bump release version
 * Thu Jul 25 2013 Justin Salmon <jsalmon@cern.ch>
