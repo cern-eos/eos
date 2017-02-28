@@ -1,0 +1,62 @@
+# Configuration file for the nginx service
+
+NGINX_CONF_FILE=/etc/nginx/nginx.eos.conf
+
+# User to run nginx under
+EOS_NGINX_USER=daemon
+
+# Hostname to use for nginx vhosts
+EOS_NGINX_HOSTNAME=`hostname -f`
+
+# Proxy Forwarding Target e.g. MGM URL to proxy, don't end the URL with a '/' !
+EOS_NGINX_MGM_URL=http://localhost:8000
+
+# nginx SSL configuration
+EOS_NGINX_SSL_CERTIFICATE=/etc/grid-security/hostcert.pem
+EOS_NGINX_SSL_KEY=/etc/grid-security/hostkey.pem
+# nginx-bundle should contain CERN CA plus all default CAs (Verisign, etc)
+EOS_NGINX_SSL_CLIENT_CERTIFICATE=/etc/grid-security/certificates/nginx-bundle.pem
+
+# Port to enable client certificate authentication on
+EOS_NGINX_CLIENT_SSL_PORT=443
+# Enable openssl to use proxy certificates
+OPENSSL_ALLOW_PROXY_CERTS=1
+
+# Port to enable kerberos authentication on
+EOS_NGINX_GSS_PORT=8443
+# nginx kerberos configuration
+EOS_NGINX_GSS_KEYTAB=/etc/krb5.keytab
+EOS_NGINX_GSS_REALM=CERN.CH
+EOS_NGINX_GSS_SERVICE_NAME=host/$EOS_NGINX_HOSTNAME
+
+# nginx LDAP basic auth configuration
+EOS_NGINX_LDAP_URL="ldaps://cerndc.cern.ch/OU=Users,OU=Organic Units,DC=cern,DC=ch?samaccountname?sub?(objectClass=user)"
+EOS_NGINX_LDAP_BINDDN_USER="TEST"
+EOS_NGINX_LDAP_BINDDN_PASSWORD="TESTPWD"
+EOS_NGINX_LDAP_SSL_PORT=4443
+
+# Set this to 0 to allow nginx to resolve redirects from the mgm internally,
+# i.e. not sending the 3xx response back to the client. This allows PUT and GET
+# to work with WebDAV clients who do not know how to handle the redirect.
+EOS_NGINX_REDIRECT_EXTERNALLY=0
+
+# Make a copy of the template config file
+cp /etc/nginx/nginx.eos.conf.template /etc/nginx/nginx.eos.conf
+
+# Replace all the thing
+perl -pi -e 's/EOS_NGINX_MGM_URL/$ENV{EOS_NGINX_MGM_URL}/g'                               /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_USER/$ENV{EOS_NGINX_USER}/g'                                     /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_HOSTNAME/$ENV{EOS_NGINX_HOSTNAME}/g'                             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_CLIENT_SSL_PORT/$ENV{EOS_NGINX_CLIENT_SSL_PORT}/g'               /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_SSL_CERTIFICATE/$ENV{EOS_NGINX_SSL_CERTIFICATE}/g'               /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_SSL_KEY/$ENV{EOS_NGINX_SSL_KEY}/g'                               /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_SSL_CLIENT_CERTIFICATE/$ENV{EOS_NGINX_SSL_CLIENT_CERTIFICATE}/g' /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_PORT/$ENV{EOS_NGINX_GSS_PORT}/g'                             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_KEYTAB/$ENV{EOS_NGINX_GSS_KEYTAB}/g'                         /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_REALM/$ENV{EOS_NGINX_GSS_REALM}/g'                           /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_SERVICE_NAME/$ENV{EOS_NGINX_GSS_SERVICE_NAME}/g'             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_REDIRECT_EXTERNALLY/$ENV{EOS_NGINX_REDIRECT_EXTERNALLY}/g'       /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_LDAP_SSL_PORT/$ENV{EOS_NGINX_LDAP_SSL_PORT}/g'                   /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_LDAP_URL/$ENV{EOS_NGINX_LDAP_URL}/g'                             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_LDAP_BINDDN_USER/$ENV{EOS_NGINX_LDAP_BINDDN_USER}/g'             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_LDAP_BINDDN_PASSWORD/$ENV{EOS_NGINX_LDAP_BINDDN_PASSWORD}/g'     /etc/nginx/nginx.eos.conf

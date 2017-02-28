@@ -56,6 +56,7 @@ Source3:    nginx.logrotate
 Source4:    nginx.sysconfig
 Source5:    nginx.eos.conf.template
 Source6:    nginx.service
+Source7:    nginx.sysconfig.systemd
 
 # removes -Werror in upstream build scripts.  -Werror conflicts with
 # -D_FORTIFY_SOURCE=2 causing warnings to turn into errors.
@@ -179,7 +180,11 @@ mkdir %{buildroot}%{nginx_confdir}/conf.d
 %{__install} -p -D -m 0755 %{SOURCE2} %{buildroot}%{_initrddir}/nginx
 %endif
 %{__install} -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/logrotate.d/nginx
-%{__install} -p -D -m 0644 %{SOURCE4} %{buildroot}%{_sysconfdir}/sysconfig/nginx
+%if %{use_systemd}
+%{__install} -p -D -m 0644 %{SOURCE7} %{buildroot}%{_sysconfdir}/sysconfig/nginx
+%else
+%{__install} -p -D -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/sysconfig/nginx
+%endif
 %{__install} -p -D -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/nginx/nginx.eos.conf.template
 %{__install} -p -d -m 0755 %{buildroot}%{nginx_confdir}/vhosts
 %{__install} -p -d -m 0755 %{buildroot}%{nginx_home}
