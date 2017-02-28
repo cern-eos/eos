@@ -1,5 +1,4 @@
 stages:
-  - build:srpm
   - build:rpm
   - build:eosdocker
   - build:dockerimage
@@ -9,30 +8,18 @@ before_script:
   - source gitlab-ci/export_branch.sh
   - echo "Exporting BRANCH=${BRANCH}"
 
-eos_srpm:
-  stage: build:srpm
+eos_rpm:
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install -y gcc-c++ cmake3 make rpm-build which git
+    - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities
     - git submodule update --init --recursive
     - mkdir build_srpm
     - cd build_srpm
     - cmake3 .. -DPACKAGEONLY=1
     - make srpm
-  artifacts:
-    paths:
-    - build_srpm/
-  tags:
-    - docker
-
-eos_rpm:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install -y rpm-build
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-7-x86_64\nenabled=1 \n' >> /etc/yum.repos.d/eos-depend.repo
-    - yum -y install yum-plugin-priorities
     - yum-builddep --nogpgcheck -y build_srpm/SRPMS/*
     - mkdir build_rpm
     - rpmbuild --rebuild --with=server --define "_rpmdir build_rpm/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build_srpm/SRPMS/*
