@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.231 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: stall/redirect access by fid:fxid before trying to translate to a real path (can crash boot procedure)
+
 ``V0.3.230 Aquamarine``
 =======================
 
