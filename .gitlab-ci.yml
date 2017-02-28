@@ -1,6 +1,7 @@
 stages:
   - build:srpm
   - build:rpm
+  - build:eosdocker
   - build:dockerimage
   - test
 
@@ -42,7 +43,7 @@ eos_rpm:
     - docker
 
 download_eosdocker:
-  stage: build:dockerimage
+  stage: build:eosdocker
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install -y git
