@@ -276,7 +276,12 @@ int main(int argc, char** argv)
       }
 
       // fill the hash
-      ulibmap[i] = i;
+      try {
+        ulibmap[i] = i;
+      } catch (const ulib::ulib_except& e) {
+        std::cerr << "Exception while inserting into ulib map" << std::endl;
+        exit(-1);
+      }
     }
 
     eos::common::LinuxStat::GetStat(st[1]);

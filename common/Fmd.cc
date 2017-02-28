@@ -21,22 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <sys/mman.h>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
 FmdHandler gFmdHandler; //< static
-/*----------------------------------------------------------------------------*/
-
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -48,7 +41,6 @@ FmdHandler gFmdHandler; //< static
  * @return true if successful otherwise false
  *
  */
-
 /*----------------------------------------------------------------------------*/
 bool
 FmdHeader::Read(int fd, bool ignoreversion)
@@ -925,8 +917,13 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
   NewChangeLogFileNameTmp += ".tmp";
   struct stat statbefore;
   struct stat statafter;
+
   // stat before trim
-  fstat(fdChangeLogRead[fsid], &statbefore);
+  if (fstat(fdChangeLogRead[fsid], &statbefore)) {
+    eos_static_err("failed to stat the changelog file");
+    return false;
+  }
+
   int newfd = open(NewChangeLogFileNameTmp.c_str(), O_CREAT | O_TRUNC | O_RDWR,
                    0600);
   eos_static_info("trimming opening new changelog file %s\n",
@@ -954,8 +951,8 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
   google::dense_hash_map <unsigned long long, unsigned long long> offsetmapping;
   offsetmapping.set_empty_key(0xffffffffLL);
   eos_static_info("trimming step 1");
-  google::dense_hash_map<unsigned long long, unsigned long long>::const_iterator
-  it;
+  google::dense_hash_map<unsigned long long,
+         unsigned long long>::const_iterator it;
 
   for (it = FmdMap[fsid].begin(); it != FmdMap[fsid].end(); ++it) {
     eos_static_info("adding offset %llu to fsid %u", it->second, fsid);
@@ -1007,6 +1004,19 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
     off_t oldtailoffset = lseek(fdChangeLogWrite[fsid], 0, SEEK_CUR);
     off_t newtailoffset = lseek(newfd, 0, SEEK_CUR);
     off_t offset = oldtailoffset;
+
+    if (offset < 0) {
+      eos_static_err("lssek failed");
+
+      if (rfd != -1) {
+        (void) close(rfd);
+      }
+
+      (void) close(newfd);
+      (void) close(newrfd);
+      return false;
+    }
+
     ssize_t tailchange = oldtailoffset - newtailoffset;
     eos_static_info("tail length is %llu [ %llu %llu %llu ] ", tailchange,
                     oldtailoffset, newtailoffset, offset);
@@ -1028,8 +1038,7 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
       }
     } while (nread > 0);
 
-    // now adjust the in-memory map
-    // clean up erased
+    // Now adjust the in-memory map and clean up the deleted ones
     FmdMap[fsid].resize(0);
     FmdSize.resize(0);
 
@@ -1039,10 +1048,10 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
         it->second -= tailchange;
       } else {
         if (offsetmapping.count(it->second)) {
-          // that is what we expect
+          // This is what we expect
           it->second = offsetmapping[it->second];
         } else {
-          // that should never happen!
+          // This should never happen!
           eos_static_crit("fatal error found not mapped offset position during "
                           "trim procedure!");
           rc = false;
@@ -1050,7 +1059,8 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
       }
     }
 
-    if (!rename(NewChangeLogFileNameTmp.c_str(), NewChangeLogFileName.c_str())) {
+    if (rc && !rename(NewChangeLogFileNameTmp.c_str(),
+                      NewChangeLogFileName.c_str())) {
       // High-jack the old write and read filedescriptor
       close(fdChangeLogWrite[fsid]);
       close(fdChangeLogRead[fsid]);
@@ -1064,16 +1074,6 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
   }
 
   eos_static_info("trimming step 6");
-
-  if (rfd != -1) {
-    (void) close(rfd);
-  }
-
-  if (!rc) {
-    (void) close(newfd);
-    (void) close(newrfd);
-  }
-
   // Stat after trim
   (void) fstat(fdChangeLogRead[fsid], &statafter);
 
@@ -1091,6 +1091,12 @@ FmdHandler::TrimLogFile(int fsid, XrdOucString option)
     }
   }
 
+  if (rfd != -1) {
+    (void) close(rfd);
+  }
+
+  (void) close(newfd);
+  (void) close(newrfd);
   return rc;
 }
 
@@ -1201,5 +1207,3 @@ Fmd::EnvToFmd(XrdOucEnv& env, struct Fmd::FMD& fmd)
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_END
-
-

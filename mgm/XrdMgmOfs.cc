@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -47,7 +46,6 @@
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/GeoTreeEngine.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucBuffer.hh"
@@ -60,15 +58,12 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-/*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <memory>
-/*----------------------------------------------------------------------------*/
 #include "google/protobuf/io/zero_copy_stream_impl.h"
-/*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -77,7 +72,6 @@
 #ifndef S_IAMB
 #define S_IAMB  0x1FF
 #endif
-
 
 /*----------------------------------------------------------------------------*/
 XrdSysError gMgmOfsEroute(0);
@@ -148,7 +142,10 @@ XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
-  ConfigFN(0), mCapabilityValidity(3600), Initialized(kDown),
+  ConfigFN(0), ConfEngine(0), CapabilityEngine(0), mCapabilityValidity(3600),
+  MgmOfsMessaging(0), MgmOfsVstMessaging(0),  ManagerPort(1094),
+  MgmOfsConfigEngineRedisPort(0), LinuxStatsStartup{0},
+  StartTime(0), HostName(0), HostPref(0), Initialized(kDown),
   InitializationTime(0), Shutdown(false), RemoveStallRuleAfterBoot(false),
   BootFileId(0), BootContainerId(0), IsRedirect(true), IsStall(true),
   authorize(false), IssueCapability(false), MgmRedirector(false),

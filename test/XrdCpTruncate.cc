@@ -49,7 +49,8 @@ int main(int argc, char* argv[])
                                      kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
 
   if (fdWrite >= 0) {
-    char* buffer = (char*)malloc(10000000);
+    size_t sz = 10000000;
+    char* buffer = (char*)malloc(sz);
 
     if (!buffer) {
       exit(-1);
@@ -59,9 +60,9 @@ int main(int argc, char* argv[])
       buffer[i] = i % 255;
     }
 
-    XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeof(buffer), 0);
+    XrdPosixXrootd::Pwrite(fdWrite, buffer, sz, 0);
     XrdPosixXrootd::Ftruncate(fdWrite, 2000000);
-    XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeof(buffer), 1024);
+    XrdPosixXrootd::Pwrite(fdWrite, buffer, sz, 1024);
     free(buffer);
   } else {
     exit(-1);

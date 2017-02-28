@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//         $Id: XrdMqOfs.hh,v 1.00 2007/10/04 01:34:19 abh Exp $
 #ifndef __XFTSOFS_NS_H__
 #define __XFTSOFS_NS_H__
 
@@ -144,7 +143,6 @@ public:
   bool AdvisoryFlushBackLog;
   bool BrokenByFlush;
   int  nQueued;
-  int  WaitOnStat;
   XrdOucString QueueName;
   XrdSysSemWait DeletionSem;
   XrdSysSemWait MessageSem;

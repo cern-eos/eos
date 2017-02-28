@@ -1735,7 +1735,6 @@ filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid ,
   statmutex.Lock();
   errno = 0;
 
-  // coverity[DC.WEAK_CRYPTO]
   if ((time(NULL) - laststat) < ((15 + (int) 5.0 * rand() / RAND_MAX))) {
     stbuf->f_bsize = 4096;
     stbuf->f_frsize = 4096;
@@ -4696,7 +4695,6 @@ filesystem::init(int argc, char* argv[], void* userdata,
 
     if (!f) {
       eos_static_err("could not run the system wide rm command procedure");
-      // coverity[DC.STREAM_BUFFER]
     } else if (fscanf(f, "%s", rm_cmd) != 1) {
       pclose(f);
       eos_static_err("cannot get rm command to watch");

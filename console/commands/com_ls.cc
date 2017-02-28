@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-/*----------------------------------------------------------------------------*/
 
 /* List a directory */
 int
@@ -204,7 +202,7 @@ com_ls(char* arg1)
             cpath.c_str(), curl);
 
         if ((option.find("a")) == STR_NPOS) {
-          if (entry->d_name && (entry->d_name[0] == '.')) {
+          if (entry->d_name[0] == '.') {
             // skip hidden files
             continue;
           }

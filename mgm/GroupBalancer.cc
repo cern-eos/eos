@@ -137,7 +137,6 @@ GroupSize::swapFile(GroupSize* toGroup, uint64_t size)
 int
 GroupBalancer::getRandom(int max)
 {
-  // coverity[DC.WEAK_CRYPTO]
   return (int) round(max * random() / (double) RAND_MAX);
 }
 

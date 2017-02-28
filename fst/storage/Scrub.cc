@@ -186,7 +186,6 @@ Storage::ScrubFs(const char* path, unsigned long long free,
         }
 
         // select the pattern randomly
-        // coverity[DC.WEAK_CRYPTO]
         int rshift = (int)((1.0 * rand() / RAND_MAX) + 0.5);
         eos_static_debug("rshift is %d", rshift);
 

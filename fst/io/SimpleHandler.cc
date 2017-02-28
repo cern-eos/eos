@@ -58,6 +58,7 @@ SimpleHandler::Update(uint64_t offset, uint32_t length, bool isWrite)
   mLength = length;
   mRespLength = 0;
   mIsWrite = isWrite;
+  XrdSysCondVarHelper scope_lock(&mCond);
   mRespOK = false;
   mReqDone = false;
   mHasReq = true;

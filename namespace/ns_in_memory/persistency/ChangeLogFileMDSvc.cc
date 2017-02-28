@@ -240,8 +240,16 @@ public:
 
           handleReplicas(originalFile.get(), currentFile.get());
           // Cast to derived class implementation to avoid "slicing" of info
-          *dynamic_cast<eos::FileMD*>(originalFile.get()) =
-            *dynamic_cast<eos::FileMD*>(currentFile.get());
+          auto tmp_orig = dynamic_cast<eos::FileMD*>(originalFile.get());
+          auto tmp_curr = dynamic_cast<eos::FileMD*>(currentFile.get());
+
+          if (tmp_orig && tmp_curr) {
+            *tmp_orig = *tmp_curr;
+          } else {
+            fprintf(stderr, "error: FileMD dynamic cast failed\n");
+            exit(1);
+          }
+
           originalFile->setFileMDSvc(pFileSvc);
 
           if (originalContainer && readd) {
@@ -285,12 +293,12 @@ public:
 
           // Update the file and handle the replicas
           handleReplicas(originalFile.get(), currentFile.get());
-
           // Cast to derived class implementation to avoid "slicing" of info
-          if (dynamic_cast<eos::FileMD*>(originalFile.get()) &&
-              dynamic_cast<eos::FileMD*>(currentFile.get())) {
-            *dynamic_cast<eos::FileMD*>(originalFile.get()) =
-              *dynamic_cast<eos::FileMD*>(currentFile.get());
+          auto tmp_orig = dynamic_cast<eos::FileMD*>(originalFile.get());
+          auto tmp_curr = dynamic_cast<eos::FileMD*>(currentFile.get());
+
+          if (tmp_orig && tmp_curr) {
+            *tmp_orig = *tmp_curr;
           } else {
             fprintf(stderr, "error: FileMD dynamic cast failed\n");
             exit(1);
@@ -1330,7 +1338,11 @@ ChangeLogFileMDSvc::clearWarningMessages()
 void
 ChangeLogFileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 {
-  pContSvc = dynamic_cast<eos::ChangeLogContainerMDSvc*>(cont_svc);
+  auto tmp_cont_svc = dynamic_cast<eos::ChangeLogContainerMDSvc*>(cont_svc);
+
+  if (tmp_cont_svc) {
+    pContSvc = tmp_cont_svc;
+  }
 }
 
 //------------------------------------------------------------------------------

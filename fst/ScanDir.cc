@@ -512,7 +512,6 @@ ScanDir::GetTimestampSmeared()
   gettimeofday(&tv, NULL);
   timestamp = tv.tv_sec * 1000000 + tv.tv_usec;
   // smear +- 20% of testInterval around the value
-  // coverity[DC.WEAK_CRYPTO]
   long int smearing = (long int)((0.2 * 2 * testInterval * random() / RAND_MAX))
                       - ((long int)(0.2 * testInterval));
   snprintf(buffer, size, "%lli", timestamp + smearing);
@@ -584,7 +583,6 @@ ScanDir::ThreadProc(void)
   if (bgThread && !forcedScan) {
     // Get a random smearing and avoid that all start at the same time!
     // start in the range of 0 to 4 hours
-    // coverity[DC.WEAK_CRYPTO]
     size_t sleeper = (4 * 3600.0 * random() / RAND_MAX);
 
     for (size_t s = 0; s < (sleeper); s++) {

@@ -1050,50 +1050,48 @@ public:
   XrdOucString MgmArchiveSvcClass; ////< CASTOR svcClass for archive transfers
   Messaging* MgmOfsMessaging; ///< messaging interface class
   VstMessaging* MgmOfsVstMessaging; ///< admin messaging interface class
-  XrdOucString
-  MgmDefaultReceiverQueue; ///< Queue where we are sending to by default
+  //! Queue where we are sending to by default
+  XrdOucString MgmDefaultReceiverQueue;
   XrdOucString MgmOfsName; ///< mount point of the filesystem
   XrdOucString MgmOfsAlias; ///< alias of this MGM instance
-  XrdOucString
-  MgmOfsTargetPort; ///< xrootd port where redirections go on the OSTs -default is 1094
+  //! Xrootd port where redirections go on the OSTs -default is 1094
+  XrdOucString MgmOfsTargetPort;
   XrdOucString MgmOfsQueue; ///< our mgm queue name
   XrdOucString MgmOfsInstanceName; ///< name of the EOS instance
   XrdOucString MgmConfigDir; ///< Directory where config files are stored
-  XrdOucString
-  MgmConfigAutoLoad; ///< Name of the automatically loaded configuration file
+  ///< Name of the automatically loaded configuration file
+  XrdOucString MgmConfigAutoLoad;
   //! Directory where tmp. archive transfer files are saved
   XrdOucString MgmArchiveDir;
   XrdOucString MgmProcPath; ///< Directory with proc files
-  XrdOucString
-  MgmProcConversionPath; ///< Directory with conversion files (used as temporary files when a layout is changed using third party copy)
+  //! Directory with conversion files (used as temporary files when a layout
+  //! is changed using third party copy)
+  XrdOucString MgmProcConversionPath;
   XrdOucString MgmProcWorkflowPath; ///< Directory with worflows
   XrdOucString MgmProcLockPath; ///< Directory with client locks
   XrdOucString MgmProcDelegationPath; ///< Directory with client delegations
-  XrdOucString
-  MgmProcMasterPath; ///< Full path to the master indication proc file
+  //! Full path to the master indication proc file
+  XrdOucString MgmProcMasterPath;
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
   ///< are saved for fast find functionality
   XrdOucString AuthLib; ///< path to a possible authorizationn library
-  XrdOucString
-  MgmNsFileChangeLogFile; ///< path to namespace changelog file for files
-  XrdOucString
-  MgmNsDirChangeLogFile; ///< path to namespace changelog file for directories
+  //! Path to namespace changelog file for files
+  XrdOucString MgmNsFileChangeLogFile;
+  ///< Path to namespace changelog file for directories
+  XrdOucString MgmNsDirChangeLogFile;
   XrdOucString MgmConfigQueue; ///< name of the mgm-wide broadcasted shared hash
-  XrdOucString
-  AllConfigQueue; ///< name of the cluster-wide broadcasted shared hash
+  ///< Name of the cluster-wide broadcasted shared hash
+  XrdOucString AllConfigQueue;
   XrdOucString FstConfigQueue; ///< name of the fst-wide broadcasted shared hash
-
-  XrdOucString
-  SpaceConfigQueuePrefix; ///< name of the prefix for space configuration
-  XrdOucString
-  NodeConfigQueuePrefix; ///< name of the prefix for node configuration
-  XrdOucString
-  GroupConfigQueuePrefix; ///< name of the prefix for group configuration
-
-  XrdOucString
-  MgmTxDir; ///<  Directory containing the transfer database and archive
+  //! Name of the prefix for space configuration
+  XrdOucString SpaceConfigQueuePrefix;
+  //! Name of the prefix for node configuration
+  XrdOucString NodeConfigQueuePrefix;
+  ///< Name of the prefix for group configuration
+  XrdOucString GroupConfigQueuePrefix;
+  //!  Directory containing the transfer database and archive
+  XrdOucString MgmTxDir;
   XrdOucString MgmAuthDir; ///< Directory containing exported authentication token
-
   XrdOucString ManagerId; ///< manager id in <host>:<port> format
   XrdOucString ManagerIp; ///< manager ip in <xxx.yyy.zzz.vvv> format
   int ManagerPort; ///< manager port as number e.g. 1094
@@ -1102,12 +1100,10 @@ public:
   XrdOucString MgmOfsConfigEngineRedisHost; //Redis host
   int MgmOfsConfigEngineRedisPort; //Redis port
 
-
-  eos::common::LinuxStat::linux_stat_t
-  LinuxStatsStartup; // => process state after namespace load time
-
-  std::map<eos::common::FileSystem::fsid_t, time_t>
-  ScheduledToDrainFid; // map with scheduled fids for draining
+  //! Process state after namespace load time
+  eos::common::LinuxStat::linux_stat_t LinuxStatsStartup;
+  //! Map with scheduled fids for draining
+  std::map<eos::common::FileSystem::fsid_t, time_t> ScheduledToDrainFid;
   XrdSysMutex ScheduledToDrainFidMutex; ///< mutex protecting ScheduledToDrainFid
   std::map<eos::common::FileSystem::fsid_t, time_t>
   ScheduledToBalanceFid; // map with scheduled fids for balancing

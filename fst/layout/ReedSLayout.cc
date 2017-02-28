@@ -117,15 +117,15 @@ ReedSLayout::ComputeParity()
     mDoneInitialisation = true;
   }
 
-  // Get pointers to data and parity information
-  char* coding[mNbParityFiles];
+  // Get pointers to data and parity informatio
   char* data[mNbDataFiles];
+  char* coding[mNbParityFiles];
 
-  for (unsigned int i = 0; i < mNbDataFiles; i++) {
+  for (unsigned int i = 0; i < mNbDataFiles; ++i) {
     data[i] = (char*) mDataBlocks[i];
   }
 
-  for (unsigned int i = 0; i < mNbParityFiles; i++) {
+  for (unsigned int i = 0; i < mNbParityFiles; ++i) {
     coding[i] = (char*) mDataBlocks[mNbDataFiles + i];
   }
 

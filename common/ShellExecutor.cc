@@ -21,26 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/ShellExecutor.hh"
 #include "XrdSys/XrdSysPthread.hh"
-
-/*----------------------------------------------------------------------------*/
 #include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sstream>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
-;
 
-/*----------------------------------------------------------------------------*/
 const std::string ShellExecutor::stdout = "stdout";
 const std::string ShellExecutor::stderr = "stderr";
 const std::string ShellExecutor::stdin = "stdin";
-/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 ShellExecutor::ShellExecutor()
@@ -219,6 +212,10 @@ ShellExecutor::system(char const* cmd, fifo_uuid_t uuid) const
       std::string stdout_name = fifo_name(uuid, stdout);
       stdout_fd = open(stdout_name.c_str(), O_WRONLY);
 
+      if (stdout_fd < 0) {
+        throw ShellException("Unable to open stdout file");
+      }
+
       if (dup2(stdout_fd, STDOUT_FILENO) != STDOUT_FILENO) {
         throw ShellException("Not able to redirect the 'sdtout' to FIFO!");
       }
@@ -228,7 +225,7 @@ ShellExecutor::system(char const* cmd, fifo_uuid_t uuid) const
       stdin_fd = open(stdin_name.c_str(), O_RDONLY);
 
       if (stdin_fd < 0) {
-        throw ShellException("Unalbe to open stdin file");
+        throw ShellException("Unable to open stdin file");
       }
 
       if (dup2(stdin_fd, STDIN_FILENO) != STDIN_FILENO) {
