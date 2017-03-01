@@ -231,7 +231,7 @@ fi
 
 %postun
 %if %use_systemd
-/usr/bin/systemctl daemon-reload >/dev/null 2>&1 ||:
+    /usr/bin/systemctl daemon-reload >/dev/null 2>&1 ||:
 %endif
 if [ $1 -ge 1 ]; then
     /sbin/service nginx status  >/dev/null 2>&1 || exit 0
