@@ -1,6 +1,5 @@
 stages:
   - build:rpm
-  - build:eosdocker
   - build:dockerimage
   - test
 
@@ -24,22 +23,12 @@ eos_rpm:
     - yum-builddep --nogpgcheck -y build_srpm/SRPMS/*
     - mkdir build_rpm
     - rpmbuild --rebuild --with=server --define "_rpmdir build_rpm/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build_srpm/SRPMS/*
-  artifacts:
-    paths:
-    - build_rpm/RPMS/
-    - build_srpm/SRPMS/
-  tags:
-    - docker
-
-download_eosdocker:
-  stage: build:eosdocker
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
   artifacts:
     paths:
+    - build_rpm/RPMS/
+    - build_srpm/SRPMS/
     - eos-docker/
   tags:
     - docker
