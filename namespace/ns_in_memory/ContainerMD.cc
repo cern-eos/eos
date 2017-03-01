@@ -94,9 +94,19 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pACLId    = other.pACLId;
   pXAttrs   = other.pXAttrs;
   pFlags    = other.pFlags;
-  pTreeSize = other.pTreeSize;
-  // Note: pFiles and pSubContainers are not copied here
+  // Note: pFiles, pSubContainers and pTreeSizeare not copied here
   return *this;
+}
+
+//------------------------------------------------------------------------------
+// Children inheritance
+//------------------------------------------------------------------------------
+void
+ContainerMD::InheritChildren(const ContainerMD& other)
+{
+  pFiles = other.pFiles;
+  pSubContainers = other.pSubContainers;
+  pTreeSize = other.pTreeSize;
 }
 
 //------------------------------------------------------------------------------

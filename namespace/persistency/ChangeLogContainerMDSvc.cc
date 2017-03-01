@@ -21,16 +21,14 @@
 // desc:   Change log based ContainerMD service
 //------------------------------------------------------------------------------
 
-#include "common/ShellCmd.hh"
-#include "namespace/Constants.hh"
-#include "namespace/interface/IFileMD.hh"
+#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/persistency/ChangeLogConstants.hh"
+#include "namespace/accounting/ContainerAccounting.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
-#include "namespace/ns_in_memory/FileMD.hh"
-#include "namespace/ns_in_memory/ContainerMD.hh"
-#include "namespace/ns_in_memory/accounting/ContainerAccounting.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
+#include "namespace/Constants.hh"
+#include "common/ShellCmd.hh"
+
 #include <set>
 #include <memory>
 
@@ -45,7 +43,6 @@ public:
   ContainerMDFollower(eos::ChangeLogContainerMDSvc* contSvc):
     pContSvc(contSvc)
   {
-    pFileSvc = pContSvc->pFileSvc;
     pQuotaStats = pContSvc->pQuotaStats;
     pContainerAccounting = pContSvc->pContainerAccounting;
   }
@@ -60,12 +57,12 @@ public:
     // Update
     //----------------------------------------------------------------------
     if (type == UPDATE_RECORD_MAGIC) {
-      std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>
-          (IContainerMD::id_t(0), pFileSvc, pContSvc);
-      static_cast<ContainerMD*>(container.get())->deserialize((Buffer&)buffer);
+      ContainerMD* container = new ContainerMD(0);
+      container->deserialize((Buffer&)buffer);
       ContMap::iterator it = pUpdated.find(container->getId());
 
       if (it != pUpdated.end()) {
+        delete it->second;
         it->second = container;
       } else {
         pUpdated[container->getId()] = container;
@@ -84,11 +81,12 @@ public:
     // Deletion
     //----------------------------------------------------------------------
     else if (type == DELETE_RECORD_MAGIC) {
-      IContainerMD::id_t id;
-      buffer.grabData(0, &id, sizeof(IContainerMD::id_t));
+      ContainerMD::id_t id;
+      buffer.grabData(0, &id, sizeof(ContainerMD::id_t));
       ContMap::iterator it = pUpdated.find(id);
 
       if (it != pUpdated.end()) {
+        delete it->second;
         pUpdated.erase(it);
       }
 
@@ -108,8 +106,8 @@ public:
     //----------------------------------------------------------------------
     // Handle deletions
     //----------------------------------------------------------------------
-    std::set<eos::IContainerMD::id_t>::iterator itD;
-    std::list<IContainerMD::id_t> processed;
+    std::set<eos::ContainerMD::id_t>::iterator itD;
+    std::list<ContainerMD::id_t> processed;
 
     for (itD = pDeleted.begin(); itD != pDeleted.end(); ++itD) {
       ChangeLogContainerMDSvc::IdMap::iterator it;
@@ -130,19 +128,19 @@ public:
 
       if (itP != idMap->end()) {
         // make sure it's the same pointer - cover name conflicts
-        std::shared_ptr<IContainerMD> cont =
-          itP->second.ptr->findContainer(it->second.ptr->getName());
+        ContainerMD* cont = itP->second.ptr->findContainer(it->second.ptr->getName());
 
         if (cont == it->second.ptr) {
           itP->second.ptr->removeContainer(it->second.ptr->getName());
         }
       }
 
+      delete it->second.ptr;
       idMap->erase(it);
       processed.push_back(*itD);
     }
 
-    std::list<IContainerMD::id_t>::iterator itPro;
+    std::list<ContainerMD::id_t>::iterator itPro;
 
     for (itPro = processed.begin(); itPro != processed.end(); ++itPro) {
       pDeleted.erase(*itPro);
@@ -156,7 +154,7 @@ public:
     for (itU = pUpdated.begin(); itU != pUpdated.end(); ++itU) {
       ChangeLogContainerMDSvc::IdMap::iterator it;
       ChangeLogContainerMDSvc::IdMap::iterator itP;
-      std::shared_ptr<IContainerMD> currentCont = itU->second;
+      ContainerMD* currentCont = itU->second;
       it = idMap->find(currentCont->getId());
 
       if (it == idMap->end()) {
@@ -165,8 +163,8 @@ public:
         itP = idMap->find(currentCont->getParentId());
 
         if (itP != idMap->end()) {
-          itP->second.ptr->addContainer(currentCont.get());
-          pContSvc->notifyListeners(currentCont.get() ,
+          itP->second.ptr->addContainer(currentCont);
+          pContSvc->notifyListeners(currentCont ,
                                     IContainerMDChangeListener::MTimeChange);
         }
       } else {
@@ -175,12 +173,13 @@ public:
           // update within the same parent directory
           // ---------------------------------------------------------------
           if (currentCont->getName() == it->second.ptr->getName()) {
+            // -------------------------------------------------------------
             // meta data change - keeping directory name
-            // TODO: maybe do a shared_ptr swap
-            *dynamic_cast<eos::ContainerMD*>(it->second.ptr.get()) =
-              *dynamic_cast<eos::ContainerMD*>(currentCont.get());
-            pContSvc->notifyListeners(it->second.ptr.get() ,
+            // -------------------------------------------------------------
+            (*it->second.ptr) = *currentCont;
+            pContSvc->notifyListeners(it->second.ptr ,
                                       IContainerMDChangeListener::MTimeChange);
+            delete currentCont;
           } else {
             // -------------------------------------------------------------
             // directory rename
@@ -188,16 +187,21 @@ public:
             itP = idMap->find(currentCont->getParentId());
 
             if (itP != idMap->end()) {
+              // -----------------------------------------------------------
               // remove container with old name
+              // -----------------------------------------------------------
               itP->second.ptr->removeContainer(it->second.ptr->getName());
-              dynamic_cast<eos::ContainerMD*>
-              (currentCont.get())->InheritChildren
-              (*dynamic_cast<eos::ContainerMD*>(it->second.ptr.get()));
+              currentCont->InheritChildren(*(it->second.ptr));
+              delete it->second.ptr;
+              // -----------------------------------------------------------
               // add container with new name
-              itP->second.ptr->addContainer(currentCont.get());
-              pContSvc->notifyListeners(itP->second.ptr.get(),
+              // -----------------------------------------------------------
+              itP->second.ptr->addContainer(currentCont);
+              pContSvc->notifyListeners(itP->second.ptr ,
                                         IContainerMDChangeListener::MTimeChange);
+              // -----------------------------------------------------------
               // update idmap pointer to the container
+              // -----------------------------------------------------------
               (*idMap)[currentCont->getId()] = ChangeLogContainerMDSvc::DataInfo(0,
                                                currentCont);
             }
@@ -218,7 +222,9 @@ public:
             // substract all the files in the old tree from their quota node
             // -------------------------------------------------------------
             size_t deepness = 0;
-            std::vector<std::set<std::shared_ptr<IContainerMD> > > dirTree;
+            ContainerMD::ContainerMap::iterator cIt;
+            ContainerMD::FileMap::iterator fIt;
+            std::vector<std::set<ContainerMD*> > dirTree;
             dirTree.resize(1);
             dirTree[0].insert(it->second.ptr);
 
@@ -228,30 +234,33 @@ public:
               // until there are no more subcontainer found
               // -----------------------------------------------------------
               dirTree.resize(deepness + 2);
-              std::shared_ptr<IFileMD> fmd;
-              std::shared_ptr<IContainerMD> dmd;
-              std::set<std::string> dnames, fnames;
+              std::set<ContainerMD*>::const_iterator dIt;
 
-              // Loop over all attached directories in that deepness
-              for (auto dIt = dirTree[deepness].begin();
-                   dIt != dirTree[deepness].end(); dIt++) {
-                // Attach the sub-container at the next deepness level
-                dnames = (*dIt)->getNameContainers();
-
-                for (auto it = dnames.begin(); it != dnames.begin(); ++it) {
-                  dmd = (*dIt)->findContainer(*it);
-                  dirTree[deepness + 1].insert(dmd);
+              // -----------------------------------------------------------
+              // loop over all attached directories in that deepness
+              // -----------------------------------------------------------
+              for (dIt = dirTree[deepness].begin();
+                   dIt != dirTree[deepness].end();
+                   dIt++) {
+                // ---------------------------------------------------------
+                // attach the sub-container at the next deepness level
+                // ---------------------------------------------------------
+                for (cIt = (*dIt)->containersBegin();
+                     cIt != (*dIt)->containersEnd();
+                     cIt++) {
+                  dirTree[deepness + 1].insert(cIt->second);
                 }
 
-                // Remove every file from it's quota node
-                fnames = (*dIt)->getNameFiles();
-
-                for (auto it = fnames.begin(); it != fnames.end(); ++it) {
-                  IQuotaNode* node = getQuotaNode((*dIt).get());
+                // ---------------------------------------------------------
+                // remove every file from it's quota node
+                // ---------------------------------------------------------
+                for (fIt = (*dIt)->filesBegin();
+                     fIt != (*dIt)->filesEnd();
+                     fIt++) {
+                  QuotaNode* node = getQuotaNode(*dIt);
 
                   if (node) {
-                    fmd = (*dIt)->findFile(*it);
-                    node->removeFile(fmd.get());
+                    node->removeFile(fIt->second);
                   }
                 }
               }
@@ -266,14 +275,29 @@ public:
             // first remove from the old parent container
             // -------------------------------------------------------------
             itP->second.ptr->removeContainer(it->second.ptr->getName());
+            // -------------------------------------------------------------
             // copy the meta data
-            // TODO: maybe do a shared_ptr swap
-            *dynamic_cast<eos::ContainerMD*>(it->second.ptr.get()) =
-              *dynamic_cast<eos::ContainerMD*>(currentCont.get());
+            // -------------------------------------------------------------
+            (*it->second.ptr) = *currentCont;
+            {
+              // the file and container lists are not copied in the copy constructor
+              for (fIt = currentCont->filesBegin();
+                   fIt != currentCont->filesEnd();
+                   fIt++) {
+                it->second.ptr->addFile(fIt->second);
+              }
+
+              for (cIt = currentCont->containersBegin();
+                   cIt != currentCont->containersEnd();
+                   cIt++) {
+                it->second.ptr->addContainer(cIt->second);
+              }
+            }
             // -------------------------------------------------------------
             // add to the new parent container
             // -------------------------------------------------------------
-            itNP->second.ptr->addContainer(it->second.ptr.get());
+            itNP->second.ptr->addContainer(it->second.ptr);
+            delete currentCont;
             // -------------------------------------------------------------
             // STEP 3 add all the files in the new tree to new quota node
             // -------------------------------------------------------------
@@ -283,21 +307,24 @@ public:
             // we still have the full hierarchy stored and start at deepn. 0
             // -------------------------------------------------------------
             while (dirTree[deepness].size()) {
-              std::shared_ptr<IFileMD> fmd;
-              std::set<std::string> fnames;
+              std::set<ContainerMD*>::const_iterator dIt;
 
-              // Loop over all attached directories in that deepness
-              for (auto dIt = dirTree[deepness].begin();
-                   dIt != dirTree[deepness].end(); dIt++) {
-                // Remove every file from it's quota node
-                fnames = (*dIt)->getNameFiles();
-
-                for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-                  IQuotaNode* node = getQuotaNode((*dIt).get());
+              // -----------------------------------------------------------
+              // loop over all attached directories in that deepness
+              // -----------------------------------------------------------
+              for (dIt = dirTree[deepness].begin();
+                   dIt != dirTree[deepness].end();
+                   dIt++) {
+                // ---------------------------------------------------------
+                // remove every file from it's quota node
+                // ---------------------------------------------------------
+                for (fIt = (*dIt)->filesBegin();
+                     fIt != (*dIt)->filesEnd();
+                     fIt++) {
+                  QuotaNode* node = getQuotaNode(*dIt);
 
                   if (node) {
-                    fmd = (*dIt)->findFile(*fit);
-                    node->addFile(fmd.get());
+                    node->addFile(fIt->second);
                   }
                 }
               }
@@ -309,14 +336,14 @@ public:
             // all done - clean up
             // -------------------------------------------------------------
             dirTree.clear();
-          }
 
-          if (pContainerAccounting) {
-            // move subtree accouting from source to destination
-            ((ContainerAccounting*)pContainerAccounting)->AddTree(itNP->second.ptr.get(),
-                currentCont->getTreeSize());
-            ((ContainerAccounting*)pContainerAccounting)->RemoveTree(itP->second.ptr.get(),
-                currentCont->getTreeSize());
+            if (pContainerAccounting) {
+              // move subtree accouting from source to destination
+              ((ContainerAccounting*)pContainerAccounting)->AddTree(itNP->second.ptr,
+                  currentCont->getTreeSize());
+              ((ContainerAccounting*)pContainerAccounting)->RemoveTree(itP->second.ptr,
+                  currentCont->getTreeSize());
+            }
           }
         }
       }
@@ -331,10 +358,14 @@ private:
   //------------------------------------------------------------------------
   // Get quota node id concerning given container
   //------------------------------------------------------------------------
-  IQuotaNode*
-  getQuotaNode(const IContainerMD* container)
+
+  QuotaNode*
+  getQuotaNode(const ContainerMD* container)
+  throw (MDException)
   {
+    //----------------------------------------------------------------------
     // Initial sanity check
+    //----------------------------------------------------------------------
     if (!container) {
       return 0;
     }
@@ -343,21 +374,14 @@ private:
       return 0;
     }
 
+    //----------------------------------------------------------------------
     // Search for the node
-    const IContainerMD* current = container;
+    //----------------------------------------------------------------------
+    const ContainerMD* current = container;
 
-    try {
-      while ((current->getId() != 1) &&
-             ((current->getFlags() & QUOTA_NODE_FLAG) == 0)) {
-        current = pContSvc->getContainerMD(current->getParentId()).get();
-      }
-    } catch (MDException& e) {}
-
-    {
-      // The corresponding container is not there (yet).
-      // We catch this exception and accept this extremely rare condition and resulting miscounting
-      // since the logic to wait for the container to arrive is difficult to implement at this stage.
-      return 0;
+    while ((current->getId() != 1) &&
+           ((current->getFlags() & QUOTA_NODE_FLAG) == 0)) {
+      current = pContSvc->getContainerMD(current->getParentId());
     }
 
     //----------------------------------------------------------------------
@@ -369,7 +393,7 @@ private:
       return 0;
     }
 
-    IQuotaNode* node = pQuotaStats->getQuotaNode(current->getId());
+    QuotaNode* node = pQuotaStats->getQuotaNode(current->getId());
 
     if (node) {
       return node;
@@ -378,13 +402,11 @@ private:
     return pQuotaStats->registerNewNode(current->getId());
   }
 
-  typedef std::map< IContainerMD::id_t, std::shared_ptr<eos::IContainerMD> >
-  ContMap;
+  typedef std::map<eos::ContainerMD::id_t, eos::ContainerMD*> ContMap;
   ContMap                           pUpdated;
-  std::set<eos::IContainerMD::id_t> pDeleted;
+  std::set<eos::ContainerMD::id_t>  pDeleted;
   eos::ChangeLogContainerMDSvc*     pContSvc;
-  eos::IFileMDSvc*                  pFileSvc;
-  IQuotaStats*                      pQuotaStats;
+  QuotaStats*                       pQuotaStats;
   IFileMDChangeListener*            pContainerAccounting;
 };
 }
@@ -426,19 +448,22 @@ namespace
 //----------------------------------------------------------------------------
 // Store info about old and new offset for a given file id
 //----------------------------------------------------------------------------
+
 struct ContainerRecordData {
+
   ContainerRecordData() : offset(0), newOffset(0), containerId(0) { }
 
-  ContainerRecordData(uint64_t o, eos::IContainerMD::id_t i, uint64_t no = 0) :
+  ContainerRecordData(uint64_t o, eos::ContainerMD::id_t i, uint64_t no = 0) :
     offset(o), newOffset(no), containerId(i) { }
   uint64_t offset;
   uint64_t newOffset;
-  eos::IContainerMD::id_t containerId;
+  eos::ContainerMD::id_t containerId;
 };
 
 //----------------------------------------------------------------------------
 // Carry the data between compacting stages
 //----------------------------------------------------------------------------
+
 struct ContainerCompactingData {
 
   ContainerCompactingData() :
@@ -460,6 +485,7 @@ struct ContainerCompactingData {
 //----------------------------------------------------------------------------
 // Compare record data objects in order to sort them
 //----------------------------------------------------------------------------
+
 struct ContainerOffsetComparator {
 
   bool operator()(const ContainerRecordData& a, const ContainerRecordData& b)
@@ -471,6 +497,7 @@ struct ContainerOffsetComparator {
 //----------------------------------------------------------------------------
 // Process the records being scanned and copy them to the new log
 //----------------------------------------------------------------------------
+
 class ContainerUpdateHandler : public eos::ILogRecordScanner
 {
 public:
@@ -478,25 +505,31 @@ public:
   //------------------------------------------------------------------------
   // Constructor
   //------------------------------------------------------------------------
-  ContainerUpdateHandler(std::map<eos::IContainerMD::id_t,
-                         ContainerRecordData>& updates,
+
+  ContainerUpdateHandler(std::map<eos::ContainerMD::id_t, ContainerRecordData>&
+                         updates,
                          eos::ChangeLogFile* newLog) :
     pUpdates(updates), pNewLog(newLog) { }
 
   //------------------------------------------------------------------------
   // Process the records
   //------------------------------------------------------------------------
+
   virtual bool
   processRecord(uint64_t offset,
                 char type,
                 const eos::Buffer& buffer)
   {
+    //----------------------------------------------------------------------
     // Write to the new change log - we need to cast - nasty, but safe in
     // this case
+    //----------------------------------------------------------------------
     uint64_t newOffset = pNewLog->storeRecord(type, (eos::Buffer&)buffer);
+    //----------------------------------------------------------------------
     // Put the right stuff in the updates map
-    eos::IContainerMD::id_t id;
-    buffer.grabData(0, &id, sizeof(eos::IFileMD::id_t));
+    //----------------------------------------------------------------------
+    eos::ContainerMD::id_t id;
+    buffer.grabData(0, &id, sizeof(eos::FileMD::id_t));
 
     if (type == eos::UPDATE_RECORD_MAGIC) {
       pUpdates[id] = ContainerRecordData(offset, id, newOffset);
@@ -507,8 +540,11 @@ public:
     return true;
   }
 
+  //------------------------------------------------------------------------
+  // Private
+  //------------------------------------------------------------------------
 private:
-  std::map<eos::IContainerMD::id_t, ContainerRecordData>& pUpdates;
+  std::map<eos::ContainerMD::id_t, ContainerRecordData>& pUpdates;
   eos::ChangeLogFile* pNewLog;
   uint64_t pCounter;
 };
@@ -519,15 +555,11 @@ namespace eos
 //----------------------------------------------------------------------------
 // Initizlize the container service
 //----------------------------------------------------------------------------
-void ChangeLogContainerMDSvc::initialize()
+void ChangeLogContainerMDSvc::initialize() throw(MDException)
 {
-  if (!pFileSvc) {
-    MDException e(EINVAL);
-    e.getMessage() << "ContainerMDSvc: No FileMDSvc set!";
-    throw e;
-  }
-
+  //--------------------------------------------------------------------------
   // Decide on how to open the change log
+  //--------------------------------------------------------------------------
   pIdMap.resize(pResSize);
   int logOpenFlags = 0;
 
@@ -543,11 +575,13 @@ void ChangeLogContainerMDSvc::initialize()
     logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
   }
 
+  //--------------------------------------------------------------------------
   // Rescan the change log if needed
   //
   // In the master mode we go throug the entire file
-  // In the slave mode up until the compaction mark or not at all
+  // In the slave mode up untill the compaction mark or not at all
   // if the compaction mark is not present
+  //--------------------------------------------------------------------------
   pChangeLog->open(pChangeLogPath, logOpenFlags, CONTAINER_LOG_MAGIC);
   bool logIsCompacted = (pChangeLog->getUserFlags() & LOG_FLAG_COMPACTED);
   pFollowStart = pChangeLog->getFirstOffset();
@@ -556,7 +590,9 @@ void ChangeLogContainerMDSvc::initialize()
     ContainerMDScanner scanner(pIdMap, pSlaveMode);
     pFollowStart = pChangeLog->scanAllRecords(&scanner , pAutoRepair);
     pFirstFreeId = scanner.getLargestId() + 1;
+    //------------------------------------------------------------------------
     // Recreate the container structure
+    //------------------------------------------------------------------------
     IdMap::iterator it;
     ContainerList   orphans;
     ContainerList   nameConflicts;
@@ -567,12 +603,14 @@ void ChangeLogContainerMDSvc::initialize()
     uint64_t cnt = 0;
 
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+      cnt++;
+
       if (it->second.ptr) {
         continue;
       }
 
       recreateContainer(it, orphans, nameConflicts);
-      notifyListeners(it->second.ptr.get() , IContainerMDChangeListener::MTimeChange);
+      notifyListeners(it->second.ptr , IContainerMDChangeListener::MTimeChange);
 
       if ((100.0 * cnt / end) > progress) {
         now = time(0);
@@ -594,21 +632,26 @@ void ChangeLogContainerMDSvc::initialize()
     fprintf(stderr, "ALERT    [ %-64s ] finished in %ds\n", "container-attach",
             (int)(now - start_time));
 
+    //------------------------------------------------------------------------
     // Deal with broken containers if we're not in the slave mode
+    //------------------------------------------------------------------------
     if (!pSlaveMode) {
-      attachBroken(getLostFoundContainer("orphans").get(), orphans);
-      attachBroken(getLostFoundContainer("name_conflicts").get(), nameConflicts);
+      attachBroken(getLostFoundContainer("orphans"), orphans);
+      attachBroken(getLostFoundContainer("name_conflicts"), nameConflicts);
     }
   }
 }
 
 //----------------------------------------------------------------------------
-// Make a transition from slave to master
+//! Make a transition from slave to master
 //----------------------------------------------------------------------------
 void ChangeLogContainerMDSvc::slave2Master(
   std::map<std::string, std::string>& config)
+throw(MDException)
 {
+  //--------------------------------------------------------------------------
   // Find the new changelog path
+  //--------------------------------------------------------------------------
   std::map<std::string, std::string>::iterator it;
   it = config.find("changelog_path");
 
@@ -625,7 +668,9 @@ void ChangeLogContainerMDSvc::slave2Master(
     throw e;
   }
 
+  //--------------------------------------------------------------------------
   // Copy the current changelog file to the previous name
+  //--------------------------------------------------------------------------
   std::string tmpChangeLogPath     = pChangeLogPath;
   tmpChangeLogPath += ".tmp";
   std::string currentChangeLogPath = pChangeLogPath;
@@ -635,7 +680,7 @@ void ChangeLogContainerMDSvc::slave2Master(
   copyCmd += tmpChangeLogPath.c_str();
 
   if (getenv("EOS_MGM_CP_ON_FAILOVER")) {
-    eos::common::ShellCmd scmd(copyCmd);
+    eos::common::ShellCmd scmd(copyCmd.c_str());
     eos::common::cmd_status rc = scmd.wait(1800);
 
     if (rc.exit_code) {
@@ -645,10 +690,14 @@ void ChangeLogContainerMDSvc::slave2Master(
     }
   }
 
-  // Redefine the valid changelog path
+  //--------------------------------------------------------------------------
+  // redefine the valid changelog path
+  //--------------------------------------------------------------------------
   pChangeLogPath = it->second;
 
+  //--------------------------------------------------------------------------
   // Rename the current changelog file to the new file name
+  //--------------------------------------------------------------------------
   if (rename(currentChangeLogPath.c_str(), pChangeLogPath.c_str())) {
     MDException e(EINVAL);
     e.getMessage() << "Failed to rename changelog file from <";
@@ -657,7 +706,9 @@ void ChangeLogContainerMDSvc::slave2Master(
   }
 
   if (getenv("EOS_MGM_CP_ON_FAILOVER")) {
-    // Rename the temp changelog file to the new file name
+    //--------------------------------------------------------------------------
+    // Rename the temp changelog file to the old file name
+    //--------------------------------------------------------------------------
     if (rename(tmpChangeLogPath.c_str(), currentChangeLogPath.c_str())) {
       MDException e(EINVAL);
       e.getMessage() << "Failed to rename changelog file from <";
@@ -666,9 +717,13 @@ void ChangeLogContainerMDSvc::slave2Master(
     }
   }
 
+  //--------------------------------------------------------------------------
   // Stop the follower thread
+  //--------------------------------------------------------------------------
   stopSlave();
+  //--------------------------------------------------------------------------
   // Reopen changelog file in writable mode = close + open (append)
+  //--------------------------------------------------------------------------
   pChangeLog->close() ;
   int logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
   pChangeLog->open(pChangeLogPath, logOpenFlags, CONTAINER_LOG_MAGIC);
@@ -678,6 +733,7 @@ void ChangeLogContainerMDSvc::slave2Master(
 //! Switch the namespace to read-only mode
 //----------------------------------------------------------------------------
 void ChangeLogContainerMDSvc::makeReadOnly()
+throw(MDException)
 {
   pChangeLog->close() ;
   int logOpenFlags = ChangeLogFile::ReadOnly;
@@ -688,10 +744,13 @@ void ChangeLogContainerMDSvc::makeReadOnly()
 // Configure the container service
 //----------------------------------------------------------------------------
 void ChangeLogContainerMDSvc::configure(
-  const std::map<std::string, std::string>& config)
+  std::map<std::string, std::string>& config)
+throw(MDException)
 {
+  //--------------------------------------------------------------------------
   // Configure the changelog
-  std::map<std::string, std::string>::const_iterator it;
+  //--------------------------------------------------------------------------
+  std::map<std::string, std::string>::iterator it;
   it = config.find("changelog_path");
 
   if (it == config.end()) {
@@ -701,7 +760,9 @@ void ChangeLogContainerMDSvc::configure(
   }
 
   pChangeLogPath = it->second;
+  //--------------------------------------------------------------------------
   // Check whether we should run in the slave mode
+  //--------------------------------------------------------------------------
   it = config.find("slave_mode");
 
   if (it != config.end() && it->second == "true") {
@@ -735,17 +796,23 @@ void ChangeLogContainerMDSvc::configure(
 //----------------------------------------------------------------------------
 // Finalize the container service
 //----------------------------------------------------------------------------
-void ChangeLogContainerMDSvc::finalize()
+void ChangeLogContainerMDSvc::finalize() throw(MDException)
 {
   pChangeLog->close();
+  IdMap::iterator it;
+
+  for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+    delete it->second.ptr;
+  }
+
   pIdMap.clear();
 }
 
 //----------------------------------------------------------------------------
 // Get the container metadata information
 //----------------------------------------------------------------------------
-std::shared_ptr<IContainerMD>
-ChangeLogContainerMDSvc::getContainerMD(IContainerMD::id_t id)
+ContainerMD* ChangeLogContainerMDSvc::getContainerMD(ContainerMD::id_t id)
+throw(MDException)
 {
   IdMap::iterator it = pIdMap.find(id);
 
@@ -761,10 +828,9 @@ ChangeLogContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 //----------------------------------------------------------------------------
 // Create a new container metadata object
 //----------------------------------------------------------------------------
-std::shared_ptr<IContainerMD> ChangeLogContainerMDSvc::createContainer()
+ContainerMD* ChangeLogContainerMDSvc::createContainer() throw(MDException)
 {
-  std::shared_ptr<IContainerMD> cont = std::make_shared<ContainerMD>
-                                       (pFirstFreeId++, pFileSvc, this);
+  ContainerMD* cont = new ContainerMD(pFirstFreeId++);
   pIdMap.insert(std::make_pair(cont->getId(), DataInfo(0, cont)));
   return cont;
 }
@@ -772,9 +838,12 @@ std::shared_ptr<IContainerMD> ChangeLogContainerMDSvc::createContainer()
 //----------------------------------------------------------------------------
 // Update the contaienr metadata in the backing store
 //----------------------------------------------------------------------------
-void ChangeLogContainerMDSvc::updateStore(IContainerMD* obj)
+void ChangeLogContainerMDSvc::updateStore(ContainerMD* obj)
+throw(MDException)
 {
+  //--------------------------------------------------------------------------
   // Find the object in the map
+  //--------------------------------------------------------------------------
   IdMap::iterator it = pIdMap.find(obj->getId());
 
   if (it == pIdMap.end()) {
@@ -784,9 +853,11 @@ void ChangeLogContainerMDSvc::updateStore(IContainerMD* obj)
     throw e;
   }
 
+  //--------------------------------------------------------------------------
   // Store the file in the changelog and notify the listener
+  //--------------------------------------------------------------------------
   eos::Buffer buffer;
-  dynamic_cast<ContainerMD*>(obj)->serialize(buffer);
+  obj->serialize(buffer);
   it->second.logOffset = pChangeLog->storeRecord(eos::UPDATE_RECORD_MAGIC,
                          buffer);
   notifyListeners(obj, IContainerMDChangeListener::Updated);
@@ -795,7 +866,8 @@ void ChangeLogContainerMDSvc::updateStore(IContainerMD* obj)
 //----------------------------------------------------------------------------
 // Remove object from the store
 //----------------------------------------------------------------------------
-void ChangeLogContainerMDSvc::removeContainer(IContainerMD* obj)
+void ChangeLogContainerMDSvc::removeContainer(ContainerMD* obj)
+throw(MDException)
 {
   removeContainer(obj->getId());
 }
@@ -803,9 +875,12 @@ void ChangeLogContainerMDSvc::removeContainer(IContainerMD* obj)
 //----------------------------------------------------------------------------
 // Remove object from the store
 //----------------------------------------------------------------------------
-void ChangeLogContainerMDSvc::removeContainer(IContainerMD::id_t containerId)
+void ChangeLogContainerMDSvc::removeContainer(ContainerMD::id_t containerId)
+throw(MDException)
 {
+  //--------------------------------------------------------------------------
   // Find the object in the map
+  //--------------------------------------------------------------------------
   IdMap::iterator it = pIdMap.find(containerId);
 
   if (it == pIdMap.end()) {
@@ -815,19 +890,22 @@ void ChangeLogContainerMDSvc::removeContainer(IContainerMD::id_t containerId)
     throw e;
   }
 
+  //--------------------------------------------------------------------------
   // Store the file in the changelog and notify the listener
+  //--------------------------------------------------------------------------
   eos::Buffer buffer;
-  buffer.putData(&containerId, sizeof(IContainerMD::id_t));
+  buffer.putData(&containerId, sizeof(ContainerMD::id_t));
   pChangeLog->storeRecord(eos::DELETE_RECORD_MAGIC, buffer);
-  notifyListeners(it->second.ptr.get(), IContainerMDChangeListener::Deleted);
+  notifyListeners(it->second.ptr, IContainerMDChangeListener::Deleted);
+  delete it->second.ptr;
   pIdMap.erase(it);
 }
 
 //----------------------------------------------------------------------------
 // Add change listener
 //----------------------------------------------------------------------------
-void
-ChangeLogContainerMDSvc::addChangeListener(IContainerMDChangeListener* listener)
+void ChangeLogContainerMDSvc::addChangeListener(
+  IContainerMDChangeListener* listener)
 {
   pListeners.push_back(listener);
 }
@@ -835,10 +913,14 @@ ChangeLogContainerMDSvc::addChangeListener(IContainerMDChangeListener* listener)
 //----------------------------------------------------------------------------
 // Prepare for online compacting.
 //----------------------------------------------------------------------------
+
 void*
 ChangeLogContainerMDSvc::compactPrepare(const std::string& newLogFileName) const
+throw (MDException)
 {
+  //--------------------------------------------------------------------------
   // Try to open a new log file for writing
+  //--------------------------------------------------------------------------
   ::ContainerCompactingData* data = new ::ContainerCompactingData();
 
   try {
@@ -852,13 +934,15 @@ ChangeLogContainerMDSvc::compactPrepare(const std::string& newLogFileName) const
     throw;
   }
 
+  //--------------------------------------------------------------------------
   // Get the list of records
+  //--------------------------------------------------------------------------
   IdMap::const_iterator it;
 
   for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
-    // Slaves have a non-persisted '/' record at offset 0
-    if (it->second.logOffset) {
-      data->records.push_back(::ContainerRecordData(it->second.logOffset, it->first));
+    if (it->second.logOffset) { // slaves have a non-persisted '/' record at offset 0
+      data->records.push_back(::ContainerRecordData(it->second.logOffset,
+                              it->first));
     }
   }
 
@@ -868,10 +952,13 @@ ChangeLogContainerMDSvc::compactPrepare(const std::string& newLogFileName) const
 //----------------------------------------------------------------------------
 // Do the compacting.
 //----------------------------------------------------------------------------
+
 void
-ChangeLogContainerMDSvc::compact(void*& compactingData)
+ChangeLogContainerMDSvc::compact(void*& compactingData) throw (MDException)
 {
+  //--------------------------------------------------------------------------
   // Sort the records to avoid random seeks
+  //--------------------------------------------------------------------------
   ::ContainerCompactingData* data = (::ContainerCompactingData*)compactingData;
 
   if (!data) {
@@ -883,7 +970,9 @@ ChangeLogContainerMDSvc::compact(void*& compactingData)
   std::sort(data->records.begin(), data->records.end(),
             ::ContainerOffsetComparator());
 
+  //--------------------------------------------------------------------------
   // Copy the records to the new container
+  //--------------------------------------------------------------------------
   try {
     std::vector<ContainerRecordData>::iterator it;
 
@@ -904,8 +993,10 @@ ChangeLogContainerMDSvc::compact(void*& compactingData)
 //----------------------------------------------------------------------------
 // Commit the compacting information.
 //----------------------------------------------------------------------------
+
 void
 ChangeLogContainerMDSvc::compactCommit(void* compactingData, bool autorepair)
+throw (MDException)
 {
   ::ContainerCompactingData* data = (::ContainerCompactingData*)compactingData;
 
@@ -915,9 +1006,11 @@ ChangeLogContainerMDSvc::compactCommit(void* compactingData, bool autorepair)
     throw e;
   }
 
+  //--------------------------------------------------------------------------
   // Copy the part of the old log that has been appended after we
   // prepared
-  std::map<eos::IContainerMD::id_t, ContainerRecordData> updates;
+  //--------------------------------------------------------------------------
+  std::map<eos::ContainerMD::id_t, ContainerRecordData> updates;
 
   try {
     ::ContainerUpdateHandler updateHandler(updates, data->newLog);
@@ -930,26 +1023,32 @@ ChangeLogContainerMDSvc::compactCommit(void* compactingData, bool autorepair)
     throw;
   }
 
+  //--------------------------------------------------------------------------
   // Looks like we're all good and we won't be throwing any exceptions any
   // more so we may get to updating the in-memory structures.
   //
   // We start with the originally copied records
+  //--------------------------------------------------------------------------
   uint64_t containerCounter = 0;
   IdMap::iterator it;
   std::vector<ContainerRecordData>::iterator itO;
 
   for (itO = data->records.begin(); itO != data->records.end(); ++itO) {
+    //------------------------------------------------------------------------
     // Check if we still have the container, if not, it must have been deleted
     // so we don't care
+    //------------------------------------------------------------------------
     it = pIdMap.find(itO->containerId);
 
     if (it == pIdMap.end()) {
       continue;
     }
 
+    //------------------------------------------------------------------------
     // If the original offset does not match it means that we must have
     // be updated later, if not we've messed up so we die in order not
     // to lose data
+    //------------------------------------------------------------------------
     assert(it->second.logOffset >= itO->offset);
 
     if (it->second.logOffset == itO->offset) {
@@ -958,9 +1057,11 @@ ChangeLogContainerMDSvc::compactCommit(void* compactingData, bool autorepair)
     }
   }
 
+  //--------------------------------------------------------------------------
   // Now we handle updates, if we don't have the container, we're messed up,
   // if the original offsets don't match we're messed up too
-  std::map<IContainerMD::id_t, ContainerRecordData>::iterator itU;
+  //--------------------------------------------------------------------------
+  std::map<ContainerMD::id_t, ContainerRecordData>::iterator itU;
 
   for (itU = updates.begin(); itU != updates.end(); ++itU) {
     it = pIdMap.find(itU->second.containerId);
@@ -971,7 +1072,9 @@ ChangeLogContainerMDSvc::compactCommit(void* compactingData, bool autorepair)
   }
 
   assert(containerCounter == pIdMap.size());
+  //--------------------------------------------------------------------------
   // Replace the logs
+  //--------------------------------------------------------------------------
   pChangeLog = data->newLog;
   pChangeLog->addCompactionMark();
   pChangeLogPath = data->logFileName;
@@ -983,7 +1086,7 @@ ChangeLogContainerMDSvc::compactCommit(void* compactingData, bool autorepair)
 //----------------------------------------------------------------------------
 // Start the slave
 //----------------------------------------------------------------------------
-void ChangeLogContainerMDSvc::startSlave()
+void ChangeLogContainerMDSvc::startSlave() throw(MDException)
 {
   if (!pSlaveMode) {
     MDException e(errno);
@@ -1004,7 +1107,7 @@ void ChangeLogContainerMDSvc::startSlave()
 //----------------------------------------------------------------------------
 // Stop the slave mode
 //----------------------------------------------------------------------------
-void ChangeLogContainerMDSvc::stopSlave()
+void ChangeLogContainerMDSvc::stopSlave() throw(MDException)
 {
   if (!pSlaveMode) {
     MDException e(errno);
@@ -1041,17 +1144,18 @@ void ChangeLogContainerMDSvc::stopSlave()
 // Recreate the container
 //----------------------------------------------------------------------------
 void ChangeLogContainerMDSvc::recreateContainer(IdMap::iterator& it,
-    ContainerList& orphans,
-    ContainerList& nameConflicts)
+    ContainerList&   orphans,
+    ContainerList&   nameConflicts)
 {
   Buffer buffer;
   pChangeLog->readRecord(it->second.logOffset, buffer);
-  std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>
-      (IContainerMD::id_t(0), pFileSvc, this);
-  static_cast<ContainerMD*>(container.get())->deserialize(buffer);
+  ContainerMD* container = new ContainerMD(0);
+  container->deserialize(buffer);
   it->second.ptr = container;
 
+  //--------------------------------------------------------------------------
   // For non-root containers recreate the parent
+  //--------------------------------------------------------------------------
   if (container->getId() != container->getParentId()) {
     IdMap::iterator parentIt = pIdMap.find(container->getParentId());
 
@@ -1064,15 +1168,14 @@ void ChangeLogContainerMDSvc::recreateContainer(IdMap::iterator& it,
       recreateContainer(parentIt, orphans, nameConflicts);
     }
 
-    std::shared_ptr<IContainerMD> parent = parentIt->second.ptr;
-    std::shared_ptr<IContainerMD> child  = parent->findContainer(
-        container->getName());
+    ContainerMD* parent = parentIt->second.ptr;
+    ContainerMD* child  = parent->findContainer(container->getName());
 
     if (!child) {
-      parent->addContainer(container.get());
+      parent->addContainer(container);
     } else {
       nameConflicts.push_back(child);
-      parent->addContainer(container.get());
+      parent->addContainer(container);
     }
   }
 }
@@ -1080,68 +1183,73 @@ void ChangeLogContainerMDSvc::recreateContainer(IdMap::iterator& it,
 //------------------------------------------------------------------------
 // Create container in parent
 //------------------------------------------------------------------------
-std::shared_ptr<IContainerMD> ChangeLogContainerMDSvc::createInParent(
-  const std::string& name, IContainerMD* parent)
-
+ContainerMD* ChangeLogContainerMDSvc::createInParent(
+  const std::string& name,
+  ContainerMD*       parent)
+throw(MDException)
 {
-  std::shared_ptr<IContainerMD> container = createContainer();
+  ContainerMD* container = createContainer();
   container->setName(name);
-  parent->addContainer(container.get());
-  updateStore(container.get());
+  parent->addContainer(container);
+  updateStore(container);
   return container;
 }
 
 //----------------------------------------------------------------------------
 // Get the lost+found container, create if necessary
 //----------------------------------------------------------------------------
-std::shared_ptr<IContainerMD> ChangeLogContainerMDSvc::getLostFound()
+ContainerMD* ChangeLogContainerMDSvc::getLostFound() throw(MDException)
 {
+  //--------------------------------------------------------------------------
   // Get root
-  std::shared_ptr<IContainerMD> root;
+  //--------------------------------------------------------------------------
+  ContainerMD* root = 0;
 
   try {
     root = getContainerMD(1);
   } catch (MDException& e) {
     root = createContainer();
     root->setParentId(root->getId());
-    updateStore(root.get());
+    updateStore(root);
   }
 
+  //--------------------------------------------------------------------------
   // Get or create lost+found if necessary
-  std::shared_ptr<IContainerMD> lostFound = root->findContainer("lost+found");
+  //--------------------------------------------------------------------------
+  ContainerMD* lostFound = root->findContainer("lost+found");
 
   if (lostFound) {
     return lostFound;
   }
 
-  return createInParent("lost+found", root.get());
+  return createInParent("lost+found", root);
 }
 
 //----------------------------------------------------------------------------
 // Get the orphans container
 //----------------------------------------------------------------------------
-std::shared_ptr<IContainerMD>
-ChangeLogContainerMDSvc::getLostFoundContainer(const std::string& name)
+ContainerMD* ChangeLogContainerMDSvc::getLostFoundContainer(
+  const std::string& name) throw(MDException)
 {
-  std::shared_ptr<IContainerMD> lostFound = getLostFound();
+  ContainerMD* lostFound = getLostFound();
 
   if (name.empty()) {
     return lostFound;
   }
 
-  std::shared_ptr<IContainerMD> cont = lostFound->findContainer(name);
+  ContainerMD* cont = lostFound->findContainer(name);
 
   if (cont) {
     return cont;
   }
 
-  return createInParent(name, lostFound.get());
+  return createInParent(name, lostFound);
 }
 
 //----------------------------------------------------------------------------
 // Attach broken containers to lost+found
 //----------------------------------------------------------------------------
-void ChangeLogContainerMDSvc::attachBroken(IContainerMD*   parent,
+void ChangeLogContainerMDSvc::attachBroken(ContainerMD*   parent,
     ContainerList& broken)
 {
   ContainerList::iterator it;
@@ -1149,7 +1257,7 @@ void ChangeLogContainerMDSvc::attachBroken(IContainerMD*   parent,
   for (it = broken.begin(); it != broken.end(); ++it) {
     std::ostringstream s1, s2;
     s1 << (*it)->getParentId();
-    std::shared_ptr<IContainerMD> cont = parent->findContainer(s1.str());
+    ContainerMD* cont = parent->findContainer(s1.str());
 
     if (!cont) {
       cont = createInParent(s1.str(), parent);
@@ -1157,7 +1265,7 @@ void ChangeLogContainerMDSvc::attachBroken(IContainerMD*   parent,
 
     s2 << (*it)->getName() << "." << (*it)->getId();
     (*it)->setName(s2.str());
-    cont->addContainer((*it).get());
+    cont->addContainer(*it);
   }
 }
 
@@ -1167,21 +1275,24 @@ void ChangeLogContainerMDSvc::attachBroken(IContainerMD*   parent,
 bool ChangeLogContainerMDSvc::ContainerMDScanner::processRecord(
   uint64_t offset, char type, const Buffer& buffer)
 {
+  //--------------------------------------------------------------------------
   // Update
+  //--------------------------------------------------------------------------
   if (type == UPDATE_RECORD_MAGIC) {
-    IContainerMD::id_t id;
-    buffer.grabData(0, &id, sizeof(IContainerMD::id_t));
-    pIdMap[id] = DataInfo(offset,
-                          std::shared_ptr<eos::IContainerMD>((IContainerMD*)0));
+    ContainerMD::id_t id;
+    buffer.grabData(0, &id, sizeof(ContainerMD::id_t));
+    pIdMap[id] = DataInfo(offset, 0);
 
     if (pLargestId < id) {
       pLargestId = id;
     }
   }
+  //--------------------------------------------------------------------------
   // Deletion
+  //--------------------------------------------------------------------------
   else if (type == DELETE_RECORD_MAGIC) {
-    IContainerMD::id_t id;
-    buffer.grabData(0, &id, sizeof(IContainerMD::id_t));
+    ContainerMD::id_t id;
+    buffer.grabData(0, &id, sizeof(ContainerMD::id_t));
     IdMap::iterator it = pIdMap.find(id);
 
     if (it != pIdMap.end()) {
@@ -1192,7 +1303,9 @@ bool ChangeLogContainerMDSvc::ContainerMDScanner::processRecord(
       pLargestId = id;
     }
   }
+  //--------------------------------------------------------------------------
   // Compaction mark - we stop scanning here
+  //--------------------------------------------------------------------------
   else if (type == COMPACT_STAMP_RECORD_MAGIC) {
     if (pSlaveMode) {
       return false;
@@ -1200,38 +1313,5 @@ bool ChangeLogContainerMDSvc::ContainerMDScanner::processRecord(
   }
 
   return true;
-}
-
-
-//----------------------------------------------------------------------------
-// Get changelog warning messages
-//----------------------------------------------------------------------------
-std::vector<std::string>
-ChangeLogContainerMDSvc::getWarningMessages()
-{
-  return pChangeLog->getWarningMessages();
-}
-
-//----------------------------------------------------------------------------
-// Clear changelog warning messages
-//----------------------------------------------------------------------------
-void
-ChangeLogContainerMDSvc::clearWarningMessages()
-{
-  pChangeLog->clearWarningMessages();
-}
-
-//----------------------------------------------------------------------------
-// Notify the listeners about the change
-//----------------------------------------------------------------------------
-void
-ChangeLogContainerMDSvc::notifyListeners(IContainerMD* obj,
-    IContainerMDChangeListener::Action a)
-{
-  ListenerList::iterator it;
-
-  for (it = pListeners.begin(); it != pListeners.end(); ++it) {
-    (*it)->containerMDChanged(obj, a);
-  }
 }
 }

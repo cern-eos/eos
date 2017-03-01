@@ -237,9 +237,10 @@ ScanDir::CheckFile(const char* filepath)
 
   io->attrGet("user.eos.timestamp", checksumStamp);
   io->attrGet("user.eos.lfn", logicalFileName);
+  bool rescan = RescanFile(checksumStamp);
 
-  if (RescanFile(checksumStamp)) {
-    //     if (checksumType.compare(""))
+  if (rescan || forcedScan) {
+    // if (checksumType.compare(""))
     if (1) {
       bool blockcxerror = false;
       bool filecxerror = false;
@@ -251,8 +252,8 @@ ScanDir::CheckFile(const char* filepath)
       layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
                                               checksumtype);
 
-      if (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid,
-                             logicalFileName.c_str(), filecxerror, blockcxerror)) {
+      if (rescan && (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid,
+                                        logicalFileName.c_str(), filecxerror, blockcxerror))) {
         bool reopened = false;
 #ifndef _NOOFS
 
@@ -301,28 +302,33 @@ ScanDir::CheckFile(const char* filepath)
         }
       }
 
-      //collect statistics
-      durationScan += scantime;
-      totalScanSize += scansize;
+      // Collect statistics
+      if (rescan) {
+        durationScan += scantime;
+        totalScanSize += scansize;
+      }
+
       bool failedtoset = false;
 
-      if (!skiptosettime) {
-        if (io->attrSet("user.eos.timestamp", GetTimestampSmeared())) {
+      if (rescan) {
+        if (!skiptosettime) {
+          if (io->attrSet("user.eos.timestamp", GetTimestampSmeared())) {
+            failedtoset |= true;
+          }
+        }
+
+        if ((io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
+            (io->attrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0"))) {
           failedtoset |= true;
         }
-      }
 
-      if ((io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
-          (io->attrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0"))) {
-        failedtoset |= true;
-      }
-
-      if (failedtoset) {
-        if (bgThread) {
-          eos_err("Can not set extended attributes to file %s", filePath.c_str());
-        } else {
-          fprintf(stderr,
-                  "error: [CheckFile] Can not set extended attributes to file. \n");
+        if (failedtoset) {
+          if (bgThread) {
+            eos_err("Can not set extended attributes to file %s", filePath.c_str());
+          } else {
+            fprintf(stderr, "error: [CheckFile] Can not set extended "
+                    "attributes to file. \n");
+          }
         }
       }
 
@@ -331,8 +337,6 @@ ScanDir::CheckFile(const char* filepath)
       if (bgThread) {
         if (filecxerror || blockcxerror) {
           XrdOucString manager = "";
-          // ask the meta data handling class to update the error flags for this file
-          gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
           {
             XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
             manager = eos::fst::Config::gConfig.Manager.c_str();
@@ -344,9 +348,69 @@ ScanDir::CheckFile(const char* filepath)
             eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
 
             if (fid && !errno) {
-              // call the autorepair method on the MGM
-              // if the MGM has autorepair disabled it won't do anything
-              gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
+              // check if we have this file in the local DB, if not, we
+              // resync first the disk and then the mgm meta data
+              FmdHelper* fmd = gFmdDbMapHandler.GetFmd(fid, fsId, 0, 0, false,
+                               true);
+              bool orphaned = false;
+
+              if (fmd) {
+                // real orphanes get rechecked
+                if (fmd->fMd.layouterror() & eos::common::LayoutId::kOrphan) {
+                  orphaned = true;
+                }
+
+                // unregistered replicas get rechecked
+                if (fmd->fMd.layouterror() & eos::common::LayoutId::kUnregistered) {
+                  orphaned = true;
+                }
+              }
+
+              if (fmd) {
+                delete fmd;
+              }
+
+              if (filecxerror || blockcxerror || !fmd || orphaned) {
+                eos_notice("msg=\"resyncing from disk\" fsid=%d fid=%lx", fsId, fid);
+                // ask the meta data handling class to update the error flags for this file
+                gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
+                eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%lx", fsId, fid);
+                bool resynced = false;
+                resynced = gFmdDbMapHandler.ResyncMgm(fsId, fid, manager.c_str());
+                fmd = gFmdDbMapHandler.GetFmd(fid, fsId, 0, 0, 0, false, true);
+
+                if (resynced && fmd) {
+                  if ((fmd->fMd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
+                      ((!(fmd->fMd.layouterror() & eos::common::LayoutId::kReplicaWrong))
+                       && (fmd->fMd.layouterror() & eos::common::LayoutId::kUnregistered))) {
+                    char oname[4096];
+                    snprintf(oname, sizeof(oname), "%s/.eosorphans/%08x",
+                             dirPath.c_str(), (unsigned int) fid);
+                    // store the original path name as an extended attribute in case ...
+                    io->attrSet("user.eos.orphaned", filePath.c_str());
+
+                    // if this is an orphaned file - we move it into the orphaned directory
+                    if (!rename(filePath.c_str(), oname)) {
+                      eos_warning("msg=\"orphaned/unregistered quarantined\" "
+                                  "fst-path=%s orphan-path=%s", filePath.c_str(),
+                                  oname);
+                    } else {
+                      eos_err("msg=\"failed to quarantine orphaned/unregistered"
+                              "\" fst-path=%s orphan-path=%s", filePath.c_str(),
+                              oname);
+                    }
+
+                    // remove the entry from the FMD database
+                    gFmdDbMapHandler.DeleteFmd(fid, fsId);
+                  }
+
+                  delete fmd;
+                }
+
+                // call the autorepair method on the MGM
+                // if the MGM has autorepair disabled it won't do anything
+                gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
+              }
             }
           }
         }
@@ -371,9 +435,9 @@ ScanDir::GetBlockXS(const char* filepath, unsigned long long maxfilesize)
   std::string checksumType, checksumSize, logicalFileName;
   XrdOucString fileXSPath = filepath;
   std::unique_ptr<eos::fst::FileIo> io(FileIoPluginHelper::GetIoObject(filepath));
-
   struct stat s;
-  if (!io->fileStat(&s,0)) {
+
+  if (!io->fileStat(&s, 0)) {
     io->attrGet("user.eos.blockchecksum", checksumType);
     io->attrGet("user.eos.blocksize", checksumSize);
     io->attrGet("user.eos.lfn", logicalFileName);
@@ -387,7 +451,8 @@ ScanDir::GetBlockXS(const char* filepath, unsigned long long maxfilesize)
       int blockSize = atoi(checksumSize.c_str());
       int blockSizeSymbol = eos::common::LayoutId::BlockSizeEnum(blockSize);
       layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
-                                              eos::common::LayoutId::kNone, 0, blockSizeSymbol, checksumtype);
+                                              eos::common::LayoutId::kNone, 0,
+                                              blockSizeSymbol, checksumtype);
       eos::fst::CheckSum* checksum = eos::fst::ChecksumPlugins::GetChecksumObject(
                                        layoutid, true);
 
@@ -503,8 +568,23 @@ ScanDir::ThreadProc(void)
     XrdSysThread::SetCancelOn();
   }
 
-  if (bgThread) {
-    // get a random smearing and avoid that all start at the same time!
+  forcedScan = false;
+  struct stat buf;
+  std::string forcedrun = dirPath.c_str();
+  forcedrun += "/.eosscan";
+
+  if (!stat(forcedrun.c_str(), &buf)) {
+    forcedScan = true;
+    eos_notice("msg=\"scanner is in forced mode\"");
+  } else {
+    if (forcedScan) {
+      forcedScan = false;
+      eos_notice("msg=\"scanner is back to non-forced mode\"");
+    }
+  }
+
+  if (bgThread && !forcedScan) {
+    // Get a random smearing and avoid that all start at the same time!
     // start in the range of 0 to 4 hours
     size_t sleeper = (4 * 3600.0 * random() / RAND_MAX);
 
@@ -521,6 +601,21 @@ ScanDir::ThreadProc(void)
   do {
     struct timezone tz;
     struct timeval tv_start, tv_end;
+    {
+      struct stat buf;
+
+      if (!stat(forcedrun.c_str(), &buf)) {
+        if (!forcedScan) {
+          forcedScan = true;
+          eos_notice("msg=\"scanner is in forced mode\"");
+        }
+      } else {
+        if (forcedScan) {
+          forcedScan = false;
+          eos_notice("msg=\"scanner is back to non-forced mode\"");
+        }
+      }
+    }
     noScanFiles = 0;
     totalScanSize = 0;
     noCorruptFiles = 0;
@@ -554,14 +649,16 @@ ScanDir::ThreadProc(void)
     if (!bgThread) {
       break;
     } else {
-      // run again after 4 hours
-      for (size_t s = 0; s < (4 * 3600); s++) {
-        if (bgThread) {
-          XrdSysThread::CancelPoint();
-        }
+      if (!forcedScan) {
+        // run again after 4 hours
+        for (size_t s = 0; s < (4 * 3600); s++) {
+          if (bgThread) {
+            XrdSysThread::CancelPoint();
+          }
 
-        XrdSysTimer sleeper;
-        sleeper.Wait(1000);
+          XrdSysTimer sleeper;
+          sleeper.Wait(1000);
+        }
       }
     }
 

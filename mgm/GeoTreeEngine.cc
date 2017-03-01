@@ -876,7 +876,6 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
   if(forceGeoTags)
   {
     forceBrIdx = new vector<SchedTreeBase::tFastTreeIdx>(forceGeoTags->size());
-    excludeFsIdx->resize(0);
     for(auto it = forceGeoTags->begin(); it != forceGeoTags->end(); ++it)
     {
       SchedTreeBase::tFastTreeIdx idx;
@@ -920,7 +919,12 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
   {
     const SchedTreeBase::tFastTreeIdx *idx=NULL;
     const unsigned int fsid = (*entry->foregroundFastStruct->treeInfo)[*it].fsId;
-    entry->foregroundFastStruct->fs2TreeIdx->get(fsid,idx);
+    if(!entry->foregroundFastStruct->fs2TreeIdx->get(fsid,idx))
+    {
+      eos_crit("inconsistency : cannot retrieve index of selected fs though it should be in the tree");
+      success = false;
+      goto cleanup;
+    }
     const char netSpeedClass = (*entry->foregroundFastStruct->treeInfo)[*idx].netSpeedClass;
     newReplicas->push_back(fsid);
     // apply the penalties
@@ -1268,7 +1272,7 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
   assert(accessedReplicas);
   assert(existingReplicas);
   // check that enough replicas exist already
-  if(nAccessReplicas > existingReplicas->size())
+  if(!existingReplicas || nAccessReplicas > existingReplicas->size())
   return false;
   // if there is no choice, return all replicas
   if(nAccessReplicas == existingReplicas->size())
@@ -1298,21 +1302,20 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
   // locate the existing replicas and the excluded fs in the tree
   vector<SchedTreeBase::tFastTreeIdx> accessedReplicasIdx(nAccessReplicas),*existingReplicasIdx=NULL,*excludeFsIdx=NULL,*forceBrIdx=NULL;
   accessedReplicasIdx.resize(0);
-  if(existingReplicas)
+
+  existingReplicasIdx = new vector<SchedTreeBase::tFastTreeIdx>(existingReplicas->size());
+  existingReplicasIdx->resize(0);
+  for(auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it)
   {
-    existingReplicasIdx = new vector<SchedTreeBase::tFastTreeIdx>(existingReplicas->size());
-    existingReplicasIdx->resize(0);
-    for(auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it)
+    const SchedTreeBase::tFastTreeIdx *idx;
+    if(!entry->foregroundFastStruct->fs2TreeIdx->get(*it,idx))
     {
-      const SchedTreeBase::tFastTreeIdx *idx;
-      if(!entry->foregroundFastStruct->fs2TreeIdx->get(*it,idx))
-      {
-	eos_warning("could not place preexisting replica on the fast tree");
-	continue;
-      }
-      existingReplicasIdx->push_back(*idx);
+      eos_warning("could not place preexisting replica on the fast tree");
+      continue;
     }
+    existingReplicasIdx->push_back(*idx);
   }
+
   if(excludeFs)
   {
     excludeFsIdx = new vector<SchedTreeBase::tFastTreeIdx>(excludeFs->size());
@@ -1345,7 +1348,6 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
   if(forceGeoTags)
   {
     forceBrIdx = new vector<SchedTreeBase::tFastTreeIdx>(forceGeoTags->size());
-    excludeFsIdx->resize(0);
     for(auto it = forceGeoTags->begin(); it != forceGeoTags->end(); ++it)
     {
       SchedTreeBase::tFastTreeIdx idx;
@@ -1671,7 +1673,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       buf += sprintf(buf,"%lu  ",(unsigned long)(*it));
 
       eos_debug("existing replicas fs id's -> %s", buffer);
-      eos_debug("accesser closest node to %s index -> %d  /  %s",accesserGeotag.c_str(), (int)accesserNode,(*entry->foregroundFastStruct->treeInfo)[accesserNode].fullGeotag.c_str());
+      if(entry) eos_debug("accesser closest node to %s index -> %d  /  %s",accesserGeotag.c_str(), (int)accesserNode,(*entry->foregroundFastStruct->treeInfo)[accesserNode].fullGeotag.c_str());
       eos_debug("selected FsId -> %d / idx %d", (int)selectedFsId,(int)fsIndex);
     }
   }

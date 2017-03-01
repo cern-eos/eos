@@ -1545,8 +1545,10 @@ public:
     }
     if (_mTotalSpace)
     _mFillRatio /= _mTotalSpace;
-    pNodes[node].fsData.dlScore = (char)(_mDlScore/count);
-    pNodes[node].fsData.ulScore = (char)(_mUlScore/count);
+    // testing the count is irrelevant but makes coverity happy
+    pNodes[node].fsData.dlScore = (char)(count?_mDlScore/count:0);
+    // testing the count is irrelevant but makes coverity happy
+    pNodes[node].fsData.ulScore = (char)(count?_mUlScore/count:0);
     pNodes[node].fsData.fillRatio = (char)_mFillRatio;
     pNodes[node].fsData.totalSpace = (float)_mTotalSpace;
     return true;

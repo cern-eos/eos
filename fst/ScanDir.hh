@@ -77,6 +77,7 @@ private:
   pthread_t thread;
 
   bool bgThread;
+  bool forcedScan;
 
 public:
 

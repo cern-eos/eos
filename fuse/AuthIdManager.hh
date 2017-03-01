@@ -119,32 +119,38 @@ public:
   //------------------------------------------------------------------------------
 
   void
-  lock_r_pcache(pid_t pid)
+  lock_r_pcache(pid_t pid, pid_t pid_locked)
   {
-    proccachemutexes[pid % proccachenbins].LockRead();
+    if ((pid % proccachenbins) != (pid_locked % proccachenbins)) {
+      proccachemutexes[pid % proccachenbins].LockRead();
+    }
   }
 
   void
-  lock_w_pcache(pid_t pid)
+  lock_w_pcache(pid_t pid, pid_t pid_locked)
   {
-    proccachemutexes[pid % proccachenbins].LockWrite();
+    if ((pid % proccachenbins) != (pid_locked % proccachenbins)) {
+      proccachemutexes[pid % proccachenbins].LockWrite();
+    }
   }
-
 
   //------------------------------------------------------------------------------
   // Unlock
   //------------------------------------------------------------------------------
-
   void
-  unlock_r_pcache(pid_t pid)
+  unlock_r_pcache(pid_t pid, pid_t pid_locked)
   {
-    proccachemutexes[pid % proccachenbins].UnLockRead();
+    if ((pid % proccachenbins) != (pid_locked % proccachenbins)) {
+      proccachemutexes[pid % proccachenbins].UnLockRead();
+    }
   }
 
   void
-  unlock_w_pcache(pid_t pid)
+  unlock_w_pcache(pid_t pid, pid_t pid_locked)
   {
-    proccachemutexes[pid % proccachenbins].UnLockWrite();
+    if ((pid % proccachenbins) != (pid_locked % proccachenbins)) {
+      proccachemutexes[pid % proccachenbins].UnLockWrite();
+    }
   }
 
   AuthIdManager()
@@ -484,16 +490,17 @@ protected:
     pid_t sid = 0;
     gProcCache(pid).GetSid(pid, sid);
 
+    // Update the proccache of the session leader
     if (sid != pid) {
-      lock_w_pcache(sid);
+      lock_w_pcache(sid, pid);
 
       if ((errCode = gProcCache(sid).InsertEntry(sid))) {
-        unlock_w_pcache(sid);
+        unlock_w_pcache(sid, pid);
         eos_static_debug("updating proc cache information for session leader process %d failed. Session leader process %d does not exist",
                          (int)pid, (int)sid);
         sid = -1;
       } else {
-        unlock_w_pcache(sid);
+        unlock_w_pcache(sid, pid);
       }
     }
 
@@ -526,7 +533,7 @@ protected:
     bool sessionInCache = false;
 
     if (sid != pid) {
-      lock_r_pcache(sid);
+      lock_r_pcache(sid, pid);
     }
 
     bool cacheEntryFound = siduid2credinfo[sid % proccachenbins].count(sid) > 0 &&
@@ -552,7 +559,7 @@ protected:
     }
 
     if (sid != pid) {
-      unlock_r_pcache(sid);
+      unlock_r_pcache(sid, pid);
     }
 
     if (sessionInCache) {
@@ -656,13 +663,13 @@ protected:
                      (int)uid, (int)sid, (int)pid, credinfo.cachedStrongLogin.c_str());
 
     if (sid != pid) {
-      lock_w_pcache(sid);
+      lock_w_pcache(sid, pid);
     }
 
     siduid2credinfo[sid % proccachenbins][sid][uid] = credinfo;
 
     if (sid != pid) {
-      unlock_w_pcache(sid);
+      unlock_w_pcache(sid, pid);
     }
 
     eos_static_info("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)",

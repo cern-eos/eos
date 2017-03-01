@@ -439,10 +439,10 @@ bool SlowTree::buildFastStrcturesSched(
     nodesByDepth.resize(nodesByDepth.size()+1);
     // iterate through the nodes of the last level
     godeeper = false;
-    for(vector<const SlowTreeNode*>::const_iterator it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
+    for(auto it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
     {
       // iterate through the children of each of those nodes
-      for(SlowTreeNode::tNodeMap::const_iterator cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
+      for(auto cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
       {
         nodesByDepth.back().push_back(cit->second);
         nodes2idxChildren[cit->second]=count++;
@@ -562,7 +562,7 @@ bool SlowTree::buildFastStrcturesSched(
     nodesByDepth.resize(nodesByDepth.size()+1);
     // iterate through the nodes of the last level
     godeeper = false;
-    for(vector<const SlowTreeNode*>::const_iterator it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
+    for(auto it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
     {
       // iterate through the children of each of those nodes
       for(auto cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
@@ -704,10 +704,10 @@ bool SlowTree::buildFastStructuresGW(
     nodesByDepth.resize(nodesByDepth.size()+1);
     // iterate through the nodes of the last level
     godeeper = false;
-    for(vector<const SlowTreeNode*>::const_iterator it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
+    for(auto it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
     {
       // iterate through the children of each of those nodes
-      for(SlowTreeNode::tNodeMap::const_iterator cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
+      for(auto cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
       {
         nodesByDepth.back().push_back(cit->second);
         nodes2idxChildren[cit->second]=count++;
@@ -800,7 +800,7 @@ bool SlowTree::buildFastStructuresGW(
     nodesByDepth.resize(nodesByDepth.size()+1);
     // iterate through the nodes of the last level
     godeeper = false;
-    for(vector<const SlowTreeNode*>::const_iterator it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
+    for(auto it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
     {
       // iterate through the children of each of those nodes
       for(auto cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)

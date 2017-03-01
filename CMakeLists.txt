@@ -137,26 +137,25 @@ set(CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
 set(CPACK_PACKAGE_RELEASE "${RELEASE}")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}")
 set(CPACK_SOURCE_IGNORE_FILES
-"xrootd-dsi/;/nginx/;/dsi/;/microhttpd/;/build/;/.deps/;/.bzr/;~$;'.'o$;\
-/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;\
-ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
+"${CMAKE_CURRENT_BINARY_DIR};/ApMon/;/git/;/gitlab-ci/;/xrootd-dsi/;/nginx/;/dsi/;\
+/microhttpd/;/.deps/;~$;'.'o$;/lib/;/.git/;kineticio-dist.tgz;eos.spec.in;.tar.gz$;\
+.tar.bz2$;${CPACK_SOURCE_IGNORE_FILES};")
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
-	       "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
+  "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
 
 add_custom_command(
   OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
-		   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
-		   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
-			   "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
+  COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+  "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
 
 # we get a local version of the kineticio dist so that it is embedded in the srpm because 
 # it is not always possible to download it from the machine doing the build 
 file(DOWNLOAD ${KINETICIO_URL} "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" 
   SHOW_PROGRESS
-  EXPECTED_MD5 "${KINETICIO_URL_MD5}"
-  )
+  EXPECTED_MD5 "${KINETICIO_URL_MD5}")
 
 add_custom_target(
   dist
@@ -166,7 +165,7 @@ add_custom_target(
 
 add_custom_command(
   TARGET dist POST_BUILD
-		   COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
+  COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
   COMMENT "Clean generated spec file")
 
 include(CPack)

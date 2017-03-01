@@ -1640,7 +1640,13 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
       buf->st_dev = (dev_t) sval[0];
       buf->st_ino = (ino_t) sval[1];
       buf->st_mode = (mode_t) sval[2];
-      buf->st_nlink = (nlink_t) sval[3];
+
+      if (S_ISREG(buf->st_mode) || S_ISLNK(buf->st_mode)) {
+        buf->st_nlink = 1;
+      } else {
+        buf->st_nlink = (nlink_t) sval[3];
+      }
+
       buf->st_uid = (uid_t) sval[4];
       buf->st_gid = (gid_t) sval[5];
       buf->st_rdev = (dev_t) sval[6];
@@ -2562,6 +2568,10 @@ filesystem::inodirlist(unsigned long long dirinode,
 
           if (S_ISREG(buf.st_mode) && fuse_exec) {
             buf.st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
+          }
+
+          if (S_ISREG(buf.st_mode) || S_ISLNK(buf.st_mode)) {
+            buf.st_nlink = 1;
           }
 
           buf.st_mode &= (~S_ISVTX); // clear the vxt bit

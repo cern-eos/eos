@@ -99,8 +99,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting scrubbing thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsScrub,
-			      static_cast<void*>(this),
-			      0, "Scrubber"))) {
+                              static_cast<void*>(this),
+                              0, "Scrubber"))) {
     eos_crit("cannot start scrubber thread");
     zombie = true;
   }
@@ -110,8 +110,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting trim thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsTrim,
-			      static_cast<void*>(this),
-			      0, "Meta Store Trim"))) {
+                              static_cast<void*>(this),
+                              0, "Meta Store Trim"))) {
     eos_crit("cannot start trimming theread");
     zombie = true;
   }
@@ -120,8 +120,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting deletion thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsRemover,
-			      static_cast<void*>(this),
-			      0, "Data Store Remover"))) {
+                              static_cast<void*>(this),
+                              0, "Data Store Remover"))) {
     eos_crit("cannot start deletion theread");
     zombie = true;
   }
@@ -130,8 +130,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting report thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsReport,
-			      static_cast<void*>(this),
-			      0, "Report Thread"))) {
+                              static_cast<void*>(this),
+                              0, "Report Thread"))) {
     eos_crit("cannot start report thread");
     zombie = true;
   }
@@ -140,8 +140,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting error report thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsErrorReport,
-			      static_cast<void*>(this),
-			      0, "Error Report Thread"))) {
+                              static_cast<void*>(this),
+                              0, "Error Report Thread"))) {
     eos_crit("cannot start error report thread");
     zombie = true;
   }
@@ -150,8 +150,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting verification thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsVerify,
-			      static_cast<void*>(this),
-			      0, "Verify Thread"))) {
+                              static_cast<void*>(this),
+                              0, "Verify Thread"))) {
     eos_crit("cannot start verify thread");
     zombie = true;
   }
@@ -160,8 +160,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting filesystem communication thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsCommunicator,
-			      static_cast<void*>(this),
-			      0, "Communicator Thread"))) {
+                              static_cast<void*>(this),
+                              0, "Communicator Thread"))) {
     eos_crit("cannot start communicator thread");
     zombie = true;
   }
@@ -170,8 +170,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting daemon supervisor thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartDaemonSupervisor,
-			      static_cast<void*>(this),
-			      0, "Supervisor Thread"))) {
+                              static_cast<void*>(this),
+                              0, "Supervisor Thread"))) {
     eos_crit("cannot start supervisor thread");
     zombie = true;
   }
@@ -180,8 +180,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting filesystem publishing thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsPublisher,
-			      static_cast<void*>(this),
-			      0, "Publisher Thread"))) {
+                              static_cast<void*>(this),
+                              0, "Publisher Thread"))) {
     eos_crit("cannot start publisher thread");
     zombie = true;
   }
@@ -190,8 +190,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting filesystem balancer thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsBalancer,
-			      static_cast<void*>(this),
-			      0, "Balancer Thread"))) {
+                              static_cast<void*>(this),
+                              0, "Balancer Thread"))) {
     eos_crit("cannot start balancer thread");
     zombie = true;
   }
@@ -200,8 +200,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting filesystem drainer thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsDrainer,
-			      static_cast<void*>(this),
-			      0, "Drainer Thread"))) {
+                              static_cast<void*>(this),
+                              0, "Drainer Thread"))) {
     eos_crit("cannot start drainer thread");
     zombie = true;
   }
@@ -210,8 +210,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting filesystem transaction cleaner thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsCleaner,
-			      static_cast<void*>(this),
-			      0, "Cleaner Thread"))) {
+                              static_cast<void*>(this),
+                              0, "Cleaner Thread"))) {
     eos_crit("cannot start cleaner thread");
     zombie = true;
   }
@@ -220,8 +220,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("starting mgm synchronization thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
-			      static_cast<void*>(this),
-			      0, "MgmSyncer Thread"))) {
+                              static_cast<void*>(this),
+                              0, "MgmSyncer Thread"))) {
     eos_crit("cannot start mgm syncer thread");
     zombie = true;
   }
@@ -231,8 +231,8 @@ Storage::Storage(const char* metadirectory)
   eos_info("Starting /var partition monitor thread ...");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartVarPartitionMonitor,
-			      static_cast<void*>(this),
-			      0, "Var Partition Monitor"))) {
+                              static_cast<void*>(this),
+                              0, "Var Partition Monitor"))) {
     eos_crit("Cannot start Var Partition Monitor thread");
     zombie = true;
   }
@@ -316,7 +316,7 @@ Storage::Boot(FileSystem* fs)
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
   std::string uuid = fs->GetString("uuid");
   eos_info("booting filesystem %s id=%u uuid=%s", fs->GetQueuePath().c_str(),
-	   (unsigned int) fsid, uuid.c_str());
+           (unsigned int) fsid, uuid.c_str());
 
   if (!fsid) {
     return;
@@ -339,14 +339,14 @@ Storage::Boot(FileSystem* fs)
     struct stat buf;
 
     if (::stat(fs->GetPath().c_str(), &buf) ||
-	(buf.st_uid != DAEMONUID) ||
-	((buf.st_mode & S_IRWXU) != S_IRWXU)) {
+        (buf.st_uid != DAEMONUID) ||
+        ((buf.st_mode & S_IRWXU) != S_IRWXU)) {
       if (buf.st_uid != DAEMONUID) {
-	errno = ENOTCONN;
+        errno = ENOTCONN;
       }
 
       if ((buf.st_mode & S_IRWXU) != S_IRWXU) {
-	errno = EPERM;
+        errno = EPERM;
       }
 
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -366,10 +366,10 @@ Storage::Boot(FileSystem* fs)
     if (root_buf.st_dev == buf.st_dev) {
       // this filesystem is on the ROOT partition
       if (!CheckLabel(fs->GetPath(), fsid, uuid, false, true)) {
-	fs->SetStatus(eos::common::FileSystem::kBootFailure);
-	fs->SetError(EIO, "filesystem is on the root partition without or "
-		     "wrong <uuid> label file .eosfsuuid");
-	return;
+        fs->SetStatus(eos::common::FileSystem::kBootFailure);
+        fs->SetError(EIO, "filesystem is on the root partition without or "
+                     "wrong <uuid> label file .eosfsuuid");
+        return;
       }
     }
   }
@@ -389,17 +389,17 @@ Storage::Boot(FileSystem* fs)
   if (!gFmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
-		 "for details");
+                 "for details");
     return;
   }
 
   bool is_dirty = gFmdDbMapHandler.IsDirty(fsid);
   bool fast_boot = (!getenv("EOS_FST_NO_FAST_BOOT")) ||
-		   (strcmp(getenv("EOS_FST_NO_FAST_BOOT"), "1"));
+                   (strcmp(getenv("EOS_FST_NO_FAST_BOOT"), "1"));
   bool resyncmgm = ((is_dirty) ||
-		    (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
+                    (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
   bool resyncdisk = ((is_dirty) ||
-		     (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
+                     (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
   eos_info("msg=\"start disk synchronisation\"");
   // Resync the DB - indicate the flag to keep the DP dirty
   gFmdDbMapHandler.StayDirty(fsid, true);
@@ -409,9 +409,9 @@ Storage::Boot(FileSystem* fs)
     if (resyncmgm) {
       // clean-up the DB
       if (!gFmdDbMapHandler.ResetDB(fsid)) {
-	fs->SetStatus(eos::common::FileSystem::kBootFailure);
-	fs->SetError(EFAULT, "cannot clean SQLITE DB on local disk");
-	return;
+        fs->SetStatus(eos::common::FileSystem::kBootFailure);
+        fs->SetError(EFAULT, "cannot clean SQLITE DB on local disk");
+        return;
       }
     }
 
@@ -422,10 +422,10 @@ Storage::Boot(FileSystem* fs)
     }
 
     eos_info("msg=\"finished disk synchronisation\" fsid=%lu",
-	     (unsigned long) fsid);
+             (unsigned long) fsid);
   } else {
     eos_info("msg=\"skipped disk synchronisization\" fsid=%lu",
-	     (unsigned long) fsid);
+             (unsigned long) fsid);
   }
 
   // if we detect an unclean shutdown, we resync with the MGM
@@ -446,7 +446,7 @@ Storage::Boot(FileSystem* fs)
     eos_info("msg=\"finished mgm synchronization\" fsid=%lu", (unsigned long) fsid);
   } else {
     eos_info("msg=\"skip mgm resynchronization - had clean shutdown\" fsid=%lu",
-	     (unsigned long) fsid);
+             (unsigned long) fsid);
   }
 
   // indicate the flag to unset the DB dirty flag at shutdown
@@ -462,14 +462,14 @@ Storage::Boot(FileSystem* fs)
   if (!CheckLabel(fs->GetPath(), fsid, uuid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(EFAULT, "the filesystem has a different label (fsid+uuid) "
-		 "than the configuration");
+                 "than the configuration");
     return;
   }
 
   if (!FsLabel(fs->GetPath(), fsid, uuid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(EFAULT, "cannot write the filesystem label (fsid+uuid) - "
-		 "please check filesystem state/permissions");
+                 "please check filesystem state/permissions");
     return;
   }
 
@@ -486,7 +486,7 @@ Storage::Boot(FileSystem* fs)
   }
 
   if (mkdir(transactionDirectory.c_str(),
-	    S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+            S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
     if (errno != EEXIST) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(errno ? errno : EIO, "cannot create transactiondirectory");
@@ -497,7 +497,7 @@ Storage::Boot(FileSystem* fs)
   if (chown(transactionDirectory.c_str(), 2, 2)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(errno ? errno : EIO,
-		 "cannot change ownership of transactiondirectory");
+                 "cannot change ownership of transactiondirectory");
     return;
   }
 
@@ -511,6 +511,25 @@ Storage::Boot(FileSystem* fs)
   fs->IoPing();
   fs->SetStatus(eos::common::FileSystem::kBooted);
   fs->SetError(0, "");
+  // create FS orphan directory
+  std::string orphanDirectory = fs->GetPath();
+  orphanDirectory += "/.eosorphans";
+
+  if (mkdir(orphanDirectory.c_str(),
+            S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+    if (errno != EEXIST) {
+      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetError(errno ? errno : EIO, "cannot create orphandirectory");
+      return;
+    }
+  }
+
+  if (chown(orphanDirectory.c_str(), 2, 2)) {
+    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetError(errno ? errno : EIO, "cannot change ownership of orphandirectory");
+    return;
+  }
+
   eos_info("msg=\"finished boot procedure\" fsid=%lu", (unsigned long) fsid);
   return;
 }
@@ -522,7 +541,7 @@ Storage::Boot(FileSystem* fs)
 //------------------------------------------------------------------------------
 bool
 Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
-		 std::string uuid)
+                 std::string uuid)
 {
   // exclude remote disks
   if (path[0] != '/') {
@@ -535,7 +554,7 @@ Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
 
   if (stat(fsidfile.c_str(), &buf)) {
     int fd = open(fsidfile.c_str(),
-		  O_TRUNC | O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+                  O_TRUNC | O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
 
     if (fd < 0) {
       return false;
@@ -544,8 +563,8 @@ Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
       snprintf(ssfid, 32, "%u", fsid);
 
       if ((write(fd, ssfid, strlen(ssfid))) != (int) strlen(ssfid)) {
-	close(fd);
-	return false;
+        close(fd);
+        return false;
       }
     }
 
@@ -557,15 +576,15 @@ Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
 
   if (stat(uuidfile.c_str(), &buf)) {
     int fd = open(uuidfile.c_str(),
-		  O_TRUNC | O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+                  O_TRUNC | O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
 
     if (fd < 0) {
       return false;
     } else {
       if ((write(fd, uuid.c_str(), strlen(uuid.c_str()) + 1))
-	  != (int)(strlen(uuid.c_str()) + 1)) {
-	close(fd);
-	return false;
+          != (int)(strlen(uuid.c_str()) + 1)) {
+        close(fd);
+        return false;
       }
     }
 
@@ -578,8 +597,8 @@ Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
 /*----------------------------------------------------------------------------*/
 bool
 Storage::CheckLabel(std::string path,
-		    eos::common::FileSystem::fsid_t fsid,
-		    std::string uuid, bool failenoid, bool failenouuid)
+                    eos::common::FileSystem::fsid_t fsid,
+                    std::string uuid, bool failenoid, bool failenouuid)
 {
   //----------------------------------------------------------------------------
   //! checks that the label on the filesystem is the same as the configuration
@@ -609,21 +628,21 @@ Storage::CheckLabel(std::string path,
       int nread = read(fd, ssfid, sizeof(ssfid) - 1);
 
       if (nread < 0) {
-	close(fd);
-	return false;
+        close(fd);
+        return false;
       }
 
       close(fd);
 
       // for safety
       if (nread < (int)(sizeof(ssfid) - 1)) {
-	ssfid[nread] = 0;
+        ssfid[nread] = 0;
       } else {
-	ssfid[31] = 0;
+        ssfid[31] = 0;
       }
 
       if (ssfid[strnlen(ssfid, sizeof(ssfid)) - 1] == '\n') {
-	ssfid[strnlen(ssfid, sizeof(ssfid)) - 1] = 0;
+        ssfid[strnlen(ssfid, sizeof(ssfid)) - 1] = 0;
       }
 
       ckfsid = atoi(ssfid);
@@ -649,8 +668,8 @@ Storage::CheckLabel(std::string path,
       int nread = read(fd, suuid, sizeof(suuid));
 
       if (nread < 0) {
-	close(fd);
-	return false;
+        close(fd);
+        return false;
       }
 
       close(fd);
@@ -659,7 +678,7 @@ Storage::CheckLabel(std::string path,
 
       // remove \n
       if (suuid[strnlen(suuid, sizeof(suuid)) - 1] == '\n') {
-	suuid[strnlen(suuid, sizeof(suuid)) - 1] = 0;
+        suuid[strnlen(suuid, sizeof(suuid)) - 1] = 0;
       }
 
       ckuuid = suuid;
@@ -681,7 +700,7 @@ Storage::CheckLabel(std::string path,
 /*----------------------------------------------------------------------------*/
 bool
 Storage::GetFsidFromLabel(std::string path,
-			  eos::common::FileSystem::fsid_t& fsid)
+                          eos::common::FileSystem::fsid_t& fsid)
 {
   //----------------------------------------------------------------
   //! return the file system id from the filesystem fsid label file
@@ -702,21 +721,21 @@ Storage::GetFsidFromLabel(std::string path,
       int nread = read(fd, ssfid, sizeof(ssfid) - 1);
 
       if (nread < 0) {
-	close(fd);
-	return false;
+        close(fd);
+        return false;
       }
 
       close(fd);
 
       // for safety
       if (nread < (int)(sizeof(ssfid) - 1)) {
-	ssfid[nread] = 0;
+        ssfid[nread] = 0;
       } else {
-	ssfid[31] = 0;
+        ssfid[31] = 0;
       }
 
       if (ssfid[strnlen(ssfid, sizeof(ssfid)) - 1] == '\n') {
-	ssfid[strnlen(ssfid, sizeof(ssfid)) - 1] = 0;
+        ssfid[strnlen(ssfid, sizeof(ssfid)) - 1] = 0;
       }
 
       fsid = atoi(ssfid);
@@ -733,7 +752,7 @@ Storage::GetFsidFromLabel(std::string path,
 /*----------------------------------------------------------------------------*/
 bool
 Storage::GetFsidFromPath(std::string path,
-			 eos::common::FileSystem::fsid_t& fsid)
+                         eos::common::FileSystem::fsid_t& fsid)
 {
   //----------------------------------------------------------------
   //! return the file system id from the configured filesystem vector
@@ -911,7 +930,7 @@ Storage::RunBootThread(FileSystem* fs)
     // check if this filesystem is currently already booting
     if (BootSet.count(fs->GetId())) {
       eos_warning("discard boot request: filesytem fsid=%lu is currently booting",
-		  (unsigned long) fs->GetId());
+                  (unsigned long) fs->GetId());
       return false;
     } else {
       // insert into the set of booting filesystems
@@ -926,16 +945,16 @@ Storage::RunBootThread(FileSystem* fs)
       pthread_t tid;
 
       if ((XrdSysThread::Run(&tid, Storage::StartBoot, static_cast<void*>(info),
-			     0, "Booter"))) {
-	eos_crit("cannot start boot thread");
-	retc = false;
-	BootSet.erase(fs->GetId());
+                             0, "Booter"))) {
+        eos_crit("cannot start boot thread");
+        retc = false;
+        BootSet.erase(fs->GetId());
       } else {
-	retc = true;
-	XrdSysMutexHelper tsLock(ThreadSetMutex);
-	ThreadSet.insert(tid);
-	eos_notice("msg=\"started boot thread\" fsid=%ld",
-		   (unsigned long) info->filesystem->GetId());
+        retc = true;
+        XrdSysMutexHelper tsLock(ThreadSetMutex);
+        ThreadSet.insert(tid);
+        eos_notice("msg=\"started boot thread\" fsid=%ld",
+                   (unsigned long) info->filesystem->GetId());
       }
     }
   }

@@ -24,13 +24,10 @@
 #include "ChangeLogFileMDSvc.hh"
 #include "ChangeLogContainerMDSvc.hh"
 #include "ChangeLogConstants.hh"
-#include "common/ShellCmd.hh"
 #include "namespace/Constants.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
-#include "namespace/ns_in_memory/FileMD.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
-
+#include "common/ShellCmd.hh"
 #include <algorithm>
 #include <utility>
 #include <set>
@@ -50,14 +47,18 @@ public:
     pQuotaStats = pFileSvc->pQuotaStats;
   }
 
+  //------------------------------------------------------------------------
   // Unpack new data and put it in the queue
+  //------------------------------------------------------------------------
   virtual bool processRecord(uint64_t offset, char type,
                              const eos::Buffer& buffer)
   {
+    //----------------------------------------------------------------------
     // Update
+    //----------------------------------------------------------------------
     if (type == UPDATE_RECORD_MAGIC) {
-      std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, pFileSvc);
-      static_cast<FileMD*>(file.get())->deserialize((Buffer&)buffer);
+      FileMD* file = new FileMD(0, pFileSvc);
+      file->deserialize((Buffer&)buffer);
       FileMap::iterator it = pUpdated.find(file->getId());
 
       if (file->getId() >= pFileSvc->pFirstFreeId) {
@@ -65,19 +66,23 @@ public:
       }
 
       if (it != pUpdated.end()) {
+        delete it->second.file;
         it->second.file   = file;
         it->second.offset = offset;
       } else {
         pUpdated[file->getId()] = FileHelper(offset, file);
       }
     }
+    //----------------------------------------------------------------------
     // Deletion
+    //----------------------------------------------------------------------
     else if (type == DELETE_RECORD_MAGIC) {
-      IFileMD::id_t id;
-      buffer.grabData(0, &id, sizeof(IFileMD::id_t));
+      FileMD::id_t id;
+      buffer.grabData(0, &id, sizeof(FileMD::id_t));
       FileMap::iterator it = pUpdated.find(id);
 
       if (it != pUpdated.end()) {
+        delete it->second.file;
         pUpdated.erase(it);
       }
 
@@ -87,17 +92,23 @@ public:
     return true;
   }
 
+  //------------------------------------------------------------------------
   // Try to commit the data in the queue to the service
+  //------------------------------------------------------------------------
   void commit()
   {
     pFileSvc->getSlaveLock()->writeLock();
     ChangeLogFileMDSvc::IdMap*      fileIdMap = &pFileSvc->pIdMap;
     ChangeLogContainerMDSvc::IdMap* contIdMap = &pContSvc->pIdMap;
+    //----------------------------------------------------------------------
     // Handle deletions
-    std::set<IFileMD::id_t>::iterator itD;
+    //----------------------------------------------------------------------
+    std::set<FileMD::id_t>::iterator itD;
 
     for (itD = pDeleted.begin(); itD != pDeleted.end(); ++itD) {
+      //--------------------------------------------------------------------
       // We don't have the file, nothing to delete
+      //--------------------------------------------------------------------
       ChangeLogFileMDSvc::IdMap::iterator it;
       it = fileIdMap->find(*itD);
 
@@ -105,13 +116,16 @@ public:
         continue;
       }
 
+      //--------------------------------------------------------------------
       // We have the file but we need to check if we have a corresponding
       // container
-      std::shared_ptr<IFileMD> currentFile = it->second.ptr;
+      //--------------------------------------------------------------------
+      FileMD* currentFile = it->second.ptr;
       ChangeLogContainerMDSvc::IdMap::iterator itP;
       itP = contIdMap->find(currentFile->getContainerId());
 
       if ((itP != contIdMap->end()) || (!currentFile->getContainerId())) {
+        //------------------------------------------------------------------
         // We need to check whether the pointer of the file we're trying
         // to delete is actually the same as the pointer of the file
         // attached to the parent container under the same file name.
@@ -119,145 +133,170 @@ public:
         // conflict
         // Additionally we have to deal with detached files e.g.
         // containerId=0.
+        //------------------------------------------------------------------
         if (currentFile->getContainerId()) {
-          std::shared_ptr<IContainerMD> container = itP->second.ptr;
-          std::shared_ptr<IFileMD> existingFile = container->findFile(
-              currentFile->getName());
+          ContainerMD* container    = itP->second.ptr;
+          FileMD*      existingFile = container->findFile(currentFile->getName());
 
-          if (existingFile.get() == currentFile.get()) {
+          if (existingFile == currentFile) {
             container->removeFile(currentFile->getName());
-            IQuotaNode* node = getQuotaNode(container.get());
+            QuotaNode* node = getQuotaNode(container);
 
             if (node) {
-              node->removeFile(currentFile.get());
+              node->removeFile(currentFile);
             }
           }
         }
 
+        //------------------------------------------------------------------
         // If the file was not attached to the container it's safe to
         // remove it, if it had been attached it has been detached by
         // the code above.
-        handleReplicas(currentFile.get(), 0);
+        //------------------------------------------------------------------
+        handleReplicas(currentFile, 0);
+        delete currentFile;
         fileIdMap->erase(it);
-        IFileMDChangeListener::Event e(currentFile.get(),
+        IFileMDChangeListener::Event e(*itD,
                                        IFileMDChangeListener::Deleted);
         pFileSvc->notifyListeners(&e);
       }
     }
 
     pDeleted.clear();
+    //----------------------------------------------------------------------
     // Handle updates
+    //----------------------------------------------------------------------
     FileMap::iterator itU;
-    std::list<IFileMD::id_t> processed;
+    std::list<FileMD::id_t> processed;
 
     for (itU = pUpdated.begin(); itU != pUpdated.end(); ++itU) {
       ChangeLogFileMDSvc::IdMap::iterator it;
       ChangeLogContainerMDSvc::IdMap::iterator itP;
-      std::shared_ptr<IFileMD> currentFile = itU->second.file;
+      FileMD*   currentFile   = itU->second.file;
       uint64_t  currentOffset = itU->second.offset;
       it = fileIdMap->find(currentFile->getId());
 
+      //--------------------------------------------------------------------
       // It's a new file
+      //--------------------------------------------------------------------
       if (it == fileIdMap->end()) {
+        //------------------------------------------------------------------
         // We register it only if we have a corresponding container,
         // otherwise it will need to wait for the next commit and hope that
         // the container has been inserted
+        //------------------------------------------------------------------
         itP = contIdMap->find(currentFile->getContainerId());
 
         if (itP != contIdMap->end()) {
+          //----------------------------------------------------------------
           // We check if the file with the given name already exists in
           // the container, if it does, we have a name conflict in which
           // case we attach the new file and remove the old one
-          std::shared_ptr<IContainerMD> container = itP->second.ptr;
-          std::shared_ptr<IFileMD> existingFile   = container->findFile(
-                currentFile->getName());
-          IQuotaNode* node = getQuotaNode(container.get());
+          //----------------------------------------------------------------
+          ContainerMD* container = itP->second.ptr;
+          FileMD* existingFile   = container->findFile(currentFile->getName());
+          QuotaNode* node        = getQuotaNode(container);
 
           if (existingFile) {
             if (node) {
-              node->removeFile(existingFile.get());
+              node->removeFile(existingFile);
             }
 
             container->removeFile(existingFile->getName());
           }
 
-          container->addFile(currentFile.get());
+          container->addFile(currentFile);
           (*fileIdMap)[currentFile->getId()] =
             ChangeLogFileMDSvc::DataInfo(currentOffset, currentFile);
-          IFileMDChangeListener::Event e(currentFile.get(),
+          IFileMDChangeListener::Event e(currentFile,
                                          IFileMDChangeListener::Created);
           pFileSvc->notifyListeners(&e);
-          handleReplicas(0, currentFile.get());
+          handleReplicas(0, currentFile);
 
           if (node) {
-            node->addFile(currentFile.get());
+            node->addFile(currentFile);
           }
 
           processed.push_back(currentFile->getId());
         }
       }
+      //--------------------------------------------------------------------
       // It's an update
+      //--------------------------------------------------------------------
       else {
+        //------------------------------------------------------------------
         // We have the file already but it might have changed the parent
         // container or might have been unlinked, so we need to check it up
         // in its original container
-        std::shared_ptr<IFileMD>  originalFile = it->second.ptr;
-        std::shared_ptr<IContainerMD> originalContainer;
+        //------------------------------------------------------------------
+        FileMD*      originalFile      = it->second.ptr;
+        ContainerMD* originalContainer = 0;
         ChangeLogContainerMDSvc::IdMap::iterator itP;
         itP = contIdMap->find(originalFile->getContainerId());
 
+        //------------------------------------------------------------------
         // If the container does not exist it means that the file was
         // either an orphan or was detached due to a conflict and it's
         // container has been removed
+        //------------------------------------------------------------------
         if (itP != contIdMap->end()) {
           originalContainer = itP->second.ptr;
         }
 
-        // The parent container did not change
         bool readd = false;
 
+        //------------------------------------------------------------------
+        // The parent container did not change
+        //------------------------------------------------------------------
         if (originalFile->getContainerId() == currentFile->getContainerId()) {
           if (originalContainer) {
-            std::shared_ptr<IFileMD> existingFile =
+            FileMD* existingFile =
               originalContainer->findFile(originalFile->getName());
 
             if (existingFile &&
                 existingFile->getId() == originalFile->getId()) {
+              //------------------------------------------------------------
               // Update quota
-              IQuotaNode* node = getQuotaNode(originalContainer.get());
+              //------------------------------------------------------------
+              QuotaNode* node = getQuotaNode(originalContainer);
 
               if (node) {
-                node->removeFile(existingFile.get());
-                node->addFile(currentFile.get());
+                node->removeFile(existingFile);
+                node->addFile(currentFile);
               }
 
+              //------------------------------------------------------------
               // Rename
+              //------------------------------------------------------------
               originalContainer->removeFile(originalFile->getName());
               existingFile->setName(currentFile->getName());
               readd = true;
             }
           }
 
-          handleReplicas(originalFile.get(), currentFile.get());
-          // Cast to derived class implementation to avoid "slicing" of info
-          *dynamic_cast<eos::FileMD*>(originalFile.get()) =
-            *dynamic_cast<eos::FileMD*>(currentFile.get());
+          handleReplicas(originalFile, currentFile);
+          *originalFile = *currentFile;
           originalFile->setFileMDSvc(pFileSvc);
 
           if (originalContainer && readd) {
-            originalContainer->addFile(originalFile.get());
+            originalContainer->addFile(originalFile);
           }
 
           it->second.logOffset = currentOffset;
           processed.push_back(currentFile->getId());
-          IFileMDChangeListener::Event e(originalFile.get(),
+          delete currentFile;
+          IFileMDChangeListener::Event e(originalFile,
                                          IFileMDChangeListener::Updated);
           pFileSvc->notifyListeners(&e);
         }
+        //------------------------------------------------------------------
         // The parent container changed
+        //------------------------------------------------------------------
         else {
+          //----------------------------------------------------------------
           // Check if the new container exists, if it doesn't we need
           // to wait for it, so we do nothing for the time being
+          //----------------------------------------------------------------
           ChangeLogContainerMDSvc::IdMap::iterator itPN;
           itPN = contIdMap->find(currentFile->getContainerId());
 
@@ -265,65 +304,74 @@ public:
             continue;
           }
 
+          //----------------------------------------------------------------
           // If the file is present in the original container, we remove
           // it from there and update the quota
+          //----------------------------------------------------------------
           if (originalContainer) {
-            std::shared_ptr<IFileMD> existingFile =
+            FileMD* existingFile =
               originalContainer->findFile(originalFile->getName());
 
             if (existingFile &&
                 existingFile->getId() == originalFile->getId()) {
-              IQuotaNode* node = getQuotaNode(originalContainer.get());
+              QuotaNode* node = getQuotaNode(originalContainer);
 
               if (node) {
-                node->removeFile(existingFile.get());
+                node->removeFile(existingFile);
               }
 
               originalContainer->removeFile(existingFile->getName());
             }
           }
 
+          //----------------------------------------------------------------
           // Update the file and handle the replicas
-          handleReplicas(originalFile.get(), currentFile.get());
-          // Cast to derived class implementation to avoid "slicing" of info
-          *dynamic_cast<eos::FileMD*>(originalFile.get()) =
-            *dynamic_cast<eos::FileMD*>(currentFile.get());
+          //----------------------------------------------------------------
+          handleReplicas(originalFile, currentFile);
+          *originalFile = *currentFile;
           originalFile->setFileMDSvc(pFileSvc);
           it->second.logOffset = currentOffset;
+          delete currentFile;
 
+          //----------------------------------------------------------------
           // The file was unlinked so our job is done
+          //----------------------------------------------------------------
           if (originalFile->getContainerId() == 0) {
             processed.push_back(originalFile->getId());
-            IFileMDChangeListener::Event e(originalFile.get(),
+            IFileMDChangeListener::Event e(originalFile,
                                            IFileMDChangeListener::Updated);
             pFileSvc->notifyListeners(&e);
           }
+          //----------------------------------------------------------------
           // The file has moved
+          //----------------------------------------------------------------
           else {
+            //--------------------------------------------------------------
             // We check if the file with the given name already exists in
             // the container, if it does, we have a name conflict in which
             // case we attach the new file and remove the old one
-            std::shared_ptr<IContainerMD> newContainer = itPN->second.ptr;
-            IQuotaNode* node           = getQuotaNode(newContainer.get());
-            std::shared_ptr<IFileMD> existingFile = newContainer->findFile(
-                originalFile->getName());
+            //--------------------------------------------------------------
+            ContainerMD* newContainer = itPN->second.ptr;
+            QuotaNode*   node         = getQuotaNode(newContainer);
+            FileMD*      existingFile =
+              newContainer->findFile(originalFile->getName());
 
             if (existingFile) {
               if (node) {
-                node->removeFile(existingFile.get());
+                node->removeFile(existingFile);
               }
 
               newContainer->removeFile(existingFile->getName());
             }
 
-            newContainer->addFile(originalFile.get());
+            newContainer->addFile(originalFile);
 
             if (node) {
-              node->addFile(originalFile.get());
+              node->addFile(originalFile);
             }
 
             processed.push_back(originalFile->getId());
-            IFileMDChangeListener::Event e(originalFile.get(),
+            IFileMDChangeListener::Event e(originalFile,
                                            IFileMDChangeListener::Updated);
             pFileSvc->notifyListeners(&e);
           }
@@ -331,7 +379,10 @@ public:
       }
     }
 
-    // Clear processed updates and leave the remaining ones for the next cycle
+    //----------------------------------------------------------------------
+    // Clear processed updates and leave the remaining ones for the next
+    // cycle
+    //----------------------------------------------------------------------
     std::list<FileMD::id_t>::iterator itPro;
 
     for (itPro = processed.begin(); itPro != processed.end(); ++itPro) {
@@ -346,9 +397,12 @@ private:
   //------------------------------------------------------------------------
   // Get quota node id concerning given container
   //------------------------------------------------------------------------
-  IQuotaNode* getQuotaNode(const IContainerMD* container)
+  QuotaNode* getQuotaNode(const ContainerMD* container)
+  throw(MDException)
   {
+    //----------------------------------------------------------------------
     // Initial sanity check
+    //----------------------------------------------------------------------
     if (!container) {
       return 0;
     }
@@ -357,14 +411,16 @@ private:
       return 0;
     }
 
+    //----------------------------------------------------------------------
     // Search for the node
-    const IContainerMD* current = container;
+    //----------------------------------------------------------------------
+    const ContainerMD* current = container;
 
     try {
-      while ((current->getId() != 1) &&
+      while (current->getId() != 1 &&
              ((current->getFlags() & QUOTA_NODE_FLAG) == 0) &&
-             current->getParentId()) {
-        current = pContSvc->getContainerMD(current->getParentId()).get();
+             ((current->getParentId()))) {
+        current = pContSvc->getContainerMD(current->getParentId());
       }
     } catch (MDException& e) {
       // The corresponding container is not there (yet).
@@ -373,14 +429,16 @@ private:
       return 0;
     }
 
+    //----------------------------------------------------------------------
     // We have either found a quota node or reached root without finding one
     // so we need to double check whether the current container has an
     // associated quota node
+    //----------------------------------------------------------------------
     if ((current->getFlags() & QUOTA_NODE_FLAG) == 0) {
       return 0;
     }
 
-    IQuotaNode* node = pQuotaStats->getQuotaNode(current->getId());
+    QuotaNode* node = pQuotaStats->getQuotaNode(current->getId());
 
     if (node) {
       return node;
@@ -392,9 +450,11 @@ private:
   //------------------------------------------------------------------------
   // Generate the replica handling events
   //------------------------------------------------------------------------
-  void handleReplicas(eos::IFileMD* file1, eos::IFileMD* file2)
+  void handleReplicas(eos::FileMD* file1, eos::FileMD* file2)
   {
+    //----------------------------------------------------------------------
     // Prepare
+    //----------------------------------------------------------------------
     if (file1 == file2) {
       return;
     }
@@ -403,7 +463,7 @@ private:
       return;
     }
 
-    IFileMD* file = 0;
+    FileMD* file = 0;
 
     if (file1) {
       file = file1;
@@ -424,37 +484,38 @@ private:
     std::set<FileMD::location_t> toBeUnlinked;
     std::set<FileMD::location_t> toBeRemoved;
     std::set<FileMD::location_t> toBeAdded;
+    //----------------------------------------------------------------------
     // Check if there is any replicas to be added
-    IFileMD::LocationVector::const_iterator it;
-    IFileMD::LocationVector loc_vect2 = file2->getLocations();
+    //----------------------------------------------------------------------
+    FileMD::LocationVector::const_iterator it;
 
-    for (it = loc_vect2.begin(); it != loc_vect2.end(); ++it) {
+    for (it = file2->locationsBegin(); it != file2->locationsEnd(); ++it) {
       if (!file1->hasLocation(*it)) {
         toBeAdded.insert(*it);
       }
     }
 
+    //----------------------------------------------------------------------
     // Check if there is any replicas to be unlinked
-    IFileMD::LocationVector loc_vect1 = file1->getLocations();
-
-    for (it = loc_vect1.begin(); it != loc_vect1.end(); ++it) {
+    //----------------------------------------------------------------------
+    for (it = file1->locationsBegin(); it != file1->locationsEnd(); ++it) {
       if (!file2->hasLocation(*it)) {
         toBeUnlinked.insert(*it);
       }
     }
 
-    IFileMD::LocationVector unlink_vect2 = file2->getUnlinkedLocations();
-
-    for (it = unlink_vect2.begin();  it != unlink_vect2.end(); ++it) {
+    for (it = file2->unlinkedLocationsBegin();
+         it != file2->unlinkedLocationsEnd(); ++it) {
       if (!file1->hasUnlinkedLocation(*it)) {
         toBeUnlinked.insert(*it);
       }
     }
 
+    //----------------------------------------------------------------------
     // Check if there is any replicas to be removed
-    IFileMD::LocationVector unlink_vect1 = file1->getUnlinkedLocations();
-
-    for (it = unlink_vect1.begin(); it != unlink_vect1.end(); ++it) {
+    //----------------------------------------------------------------------
+    for (it = file1->unlinkedLocationsBegin();
+         it != file1->unlinkedLocationsEnd(); ++it) {
       if (!file2->hasUnlinkedLocation(*it)) {
         toBeRemoved.insert(*it);
       }
@@ -468,7 +529,9 @@ private:
       }
     }
 
+    //----------------------------------------------------------------------
     // Commit additions
+    //----------------------------------------------------------------------
     if (file2->getId() == 0) {
       file->clearLocations();
       file->clearUnlinkedLocations();
@@ -481,7 +544,9 @@ private:
       pFileSvc->notifyListeners(&e);
     }
 
+    //----------------------------------------------------------------------
     // Commit unlinks
+    //----------------------------------------------------------------------
     for (itS = toBeUnlinked.begin(); itS != toBeUnlinked.end(); ++itS) {
       IFileMDChangeListener::Event e(file,
                                      IFileMDChangeListener::LocationUnlinked,
@@ -489,7 +554,9 @@ private:
       pFileSvc->notifyListeners(&e);
     }
 
+    //----------------------------------------------------------------------
     // Commit removals
+    //----------------------------------------------------------------------
     for (itS = toBeRemoved.begin(); itS != toBeRemoved.end(); ++itS) {
       IFileMDChangeListener::Event e(file,
                                      IFileMDChangeListener::LocationRemoved,
@@ -497,7 +564,9 @@ private:
       pFileSvc->notifyListeners(&e);
     }
 
+    //----------------------------------------------------------------------
     // Cleanup
+    //----------------------------------------------------------------------
     if (file1->getId() == 0) {
       delete file1;
     }
@@ -507,23 +576,19 @@ private:
     }
   }
 
-  //--------------------------------------------------------------------------
-  // File Helper
-  //--------------------------------------------------------------------------
   struct FileHelper {
-    FileHelper(): offset(0), file((IFileMD*)0) {}
-    FileHelper(uint64_t _offset, std::shared_ptr<eos::IFileMD> _file):
+    FileHelper(): offset(0), file(0) {}
+    FileHelper(uint64_t _offset, eos::FileMD* _file):
       offset(_offset), file(_file) {}
     uint64_t      offset;
-    std::shared_ptr<eos::IFileMD> file;
+    eos::FileMD*  file;
   };
-
-  typedef std::map<eos::IFileMD::id_t, FileHelper> FileMap;
+  typedef std::map<eos::FileMD::id_t, FileHelper> FileMap;
   FileMap                       pUpdated;
-  std::set<eos::IFileMD::id_t>  pDeleted;
+  std::set<eos::FileMD::id_t>   pDeleted;
   eos::ChangeLogFileMDSvc*      pFileSvc;
   eos::ChangeLogContainerMDSvc* pContSvc;
-  eos::IQuotaStats*             pQuotaStats;
+  eos::QuotaStats*              pQuotaStats;
 };
 }
 
@@ -548,7 +613,6 @@ extern "C"
       offset = file->follow(&f, offset);
       fileSvc->setFollowOffset(offset);
       f.commit();
-      fileSvc->setFollowOffset(offset);
       pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
       file->wait(pollInt);
     }
@@ -562,39 +626,31 @@ extern "C"
 //------------------------------------------------------------------------------
 namespace
 {
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Store info about old and new offset for a given file id
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 struct RecordData {
   RecordData(): offset(0), newOffset(0), fileId(0) {}
-  RecordData(uint64_t o, eos::IFileMD::id_t i, uint64_t no = 0):
+  RecordData(uint64_t o, eos::FileMD::id_t i, uint64_t no = 0):
     offset(o), newOffset(no), fileId(i) {}
   uint64_t          offset;
   uint64_t          newOffset;
-  eos::IFileMD::id_t fileId;
+  eos::FileMD::id_t fileId;
 };
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Carry the data between compacting stages
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 struct CompactingData {
-  //---------------------------------------------------------------------------
-  // Constructor
-  //---------------------------------------------------------------------------
   CompactingData():
     newLog(new eos::ChangeLogFile()),
     originalLog(0),
     newRecord(0)
   {}
-
-  //---------------------------------------------------------------------------
-  // Destructor
-  //---------------------------------------------------------------------------
   ~CompactingData()
   {
     delete newLog;
   }
-
   std::string              logFileName;
   eos::ChangeLogFile*      newLog;
   eos::ChangeLogFile*      originalLog;
@@ -602,9 +658,9 @@ struct CompactingData {
   uint64_t                 newRecord;
 };
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Compare record data objects in order to sort them
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 struct OffsetComparator {
   bool operator()(const RecordData& a, const RecordData& b)
   {
@@ -612,9 +668,9 @@ struct OffsetComparator {
   }
 };
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Process the records being scanned and copy them to the new log
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 class UpdateHandler: public eos::ILogRecordScanner
 {
 public:
@@ -622,7 +678,7 @@ public:
   //------------------------------------------------------------------------
   // Constructor
   //------------------------------------------------------------------------
-  UpdateHandler(std::map<eos::IFileMD::id_t, RecordData>& updates,
+  UpdateHandler(std::map<eos::FileMD::id_t, RecordData>& updates,
                 eos::ChangeLogFile*                      newLog):
     pUpdates(updates), pNewLog(newLog) {}
 
@@ -633,12 +689,16 @@ public:
                              char               type,
                              const eos::Buffer& buffer)
   {
+    //----------------------------------------------------------------------
     // Write to the new change log - we need to cast - nasty, but safe in
     // this case
+    //----------------------------------------------------------------------
     uint64_t newOffset = pNewLog->storeRecord(type, (eos::Buffer&)buffer);
+    //----------------------------------------------------------------------
     // Put the right stuff in the updates map
-    eos::IFileMD::id_t id;
-    buffer.grabData(0, &id, sizeof(eos::IFileMD::id_t));
+    //----------------------------------------------------------------------
+    eos::FileMD::id_t id;
+    buffer.grabData(0, &id, sizeof(eos::FileMD::id_t));
 
     if (type == eos::UPDATE_RECORD_MAGIC) {
       pUpdates[id] = RecordData(offset, id, newOffset);
@@ -649,8 +709,11 @@ public:
     return true;
   }
 
+  //------------------------------------------------------------------------
+  // Private
+  //------------------------------------------------------------------------
 private:
-  std::map<eos::IFileMD::id_t, RecordData>& pUpdates;
+  std::map<eos::FileMD::id_t, RecordData>& pUpdates;
   eos::ChangeLogFile*                      pNewLog;
   uint64_t                                 pCounter;
 };
@@ -661,7 +724,7 @@ namespace eos
 //------------------------------------------------------------------------
 // Initizlize the file service
 //------------------------------------------------------------------------
-void ChangeLogFileMDSvc::initialize()
+void ChangeLogFileMDSvc::initialize() throw(MDException)
 {
   pIdMap.resize(pResSize);
 
@@ -671,7 +734,9 @@ void ChangeLogFileMDSvc::initialize()
     throw e;
   }
 
+  //--------------------------------------------------------------------------
   // Decide on how to open the change log
+  //--------------------------------------------------------------------------
   int logOpenFlags = 0;
 
   if (pSlaveMode) {
@@ -686,41 +751,49 @@ void ChangeLogFileMDSvc::initialize()
     logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
   }
 
+  //--------------------------------------------------------------------------
   // Rescan the change log if needed
   //
-  // In the master mode we go through the entire file
-  // In the slave mode up until the compaction mark or not at all
+  // In the master mode we go throug the entire file
+  // In the slave mode up untill the compaction mark or not at all
   // if the compaction mark is not present
+  //--------------------------------------------------------------------------
   pChangeLog->open(pChangeLogPath, logOpenFlags, FILE_LOG_MAGIC);
   bool logIsCompacted = (pChangeLog->getUserFlags() & LOG_FLAG_COMPACTED);
   pFollowStart = pChangeLog->getFirstOffset();
 
   if (!pSlaveMode || logIsCompacted) {
     FileMDScanner scanner(pIdMap, pSlaveMode);
-    pFollowStart = pChangeLog->scanAllRecords(&scanner);
+    pFollowStart = pChangeLog->scanAllRecords(&scanner , pAutoRepair);
     pFirstFreeId = scanner.getLargestId() + 1;
+    //------------------------------------------------------------------------
     // Recreate the files
+    //------------------------------------------------------------------------
     IdMap::iterator it;
 
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+      //----------------------------------------------------------------------
       // Unpack the serialized buffers
-      std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
-      file.get()->deserialize(*it->second.buffer);
+      //----------------------------------------------------------------------
+      FileMD* file = new FileMD(0, this);
+      file->deserialize(*it->second.buffer);
       it->second.ptr = file;
       delete it->second.buffer;
       it->second.buffer = 0;
       ListenerList::iterator it;
 
       for (it = pListeners.begin(); it != pListeners.end(); ++it) {
-        (*it)->fileMDRead(file.get());
+        (*it)->fileMDRead(file);
       }
 
+      //----------------------------------------------------------------------
       // Attach to the hierarchy
+      //----------------------------------------------------------------------
       if (file->getContainerId() == 0) {
         continue;
       }
 
-      std::shared_ptr<IContainerMD> cont;
+      ContainerMD* cont = 0;
 
       try {
         cont = pContSvc->getContainerMD(file->getContainerId());
@@ -728,7 +801,7 @@ void ChangeLogFileMDSvc::initialize()
 
       if (!cont) {
         if (!pSlaveMode) {
-          attachBroken("orphans", file.get());
+          attachBroken("orphans", file);
         }
 
         continue;
@@ -736,29 +809,34 @@ void ChangeLogFileMDSvc::initialize()
 
       if (cont->findFile(file->getName())) {
         if (!pSlaveMode) {
-          attachBroken("name_conflicts", file.get());
+          attachBroken("name_conflicts", file);
         }
 
         continue;
       } else {
-        cont->addFile(file.get());
+        cont->addFile(file);
       }
     }
   }
 
   if (!pSlaveMode && !logIsCompacted) {
+    //--------------------------------------------------------------------------
     // If we have a new changelog file in master mode we add the compaction mark
+    //--------------------------------------------------------------------------
     pChangeLog->addCompactionMark();
   }
 }
 
-//------------------------------------------------------------------------------
-// Make a transition from slave to master
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Make a transition from slave to master
+//----------------------------------------------------------------------------
 void ChangeLogFileMDSvc::slave2Master(
   std::map<std::string, std::string>& config)
+throw(MDException)
 {
+  //--------------------------------------------------------------------------
   // Find the new changelog path
+  //--------------------------------------------------------------------------
   std::map<std::string, std::string>::iterator it;
   it = config.find("changelog_path");
 
@@ -775,7 +853,9 @@ void ChangeLogFileMDSvc::slave2Master(
     throw e;
   }
 
+  //--------------------------------------------------------------------------
   // Copy the current changelog file to the previous name
+  //--------------------------------------------------------------------------
   std::string tmpChangeLogPath     = pChangeLogPath;
   tmpChangeLogPath += ".tmp";
   std::string currentChangeLogPath = pChangeLogPath;
@@ -785,8 +865,8 @@ void ChangeLogFileMDSvc::slave2Master(
   copyCmd += tmpChangeLogPath.c_str();
 
   if (getenv("EOS_MGM_CP_ON_FAILOVER")) {
-    eos::common::ShellCmd scmd(copyCmd);
-    eos::common::cmd_status rc = scmd.wait(60);
+    eos::common::ShellCmd scmd(copyCmd.c_str());
+    eos::common::cmd_status rc = scmd.wait(1800);
 
     if (rc.exit_code) {
       MDException e(EIO) ;
@@ -795,10 +875,14 @@ void ChangeLogFileMDSvc::slave2Master(
     }
   }
 
-  // Redefine the valid changelog path
+  //--------------------------------------------------------------------------
+  // redefine the valid changelog path
+  //--------------------------------------------------------------------------
   pChangeLogPath = it->second;
 
+  //--------------------------------------------------------------------------
   // Rename the current changelog file to the new file name
+  //--------------------------------------------------------------------------
   if (rename(currentChangeLogPath.c_str(), pChangeLogPath.c_str())) {
     MDException e(EINVAL);
     e.getMessage() << "Failed to rename changelog file from <";
@@ -807,7 +891,9 @@ void ChangeLogFileMDSvc::slave2Master(
   }
 
   if (getenv("EOS_MGM_CP_ON_FAILOVER")) {
-    // Rename the temp changelog file to the new file name
+    //--------------------------------------------------------------------------
+    // Rename the temp changelog file to the old file name
+    //--------------------------------------------------------------------------
     if (rename(tmpChangeLogPath.c_str(), currentChangeLogPath.c_str())) {
       MDException e(EINVAL);
       e.getMessage() << "Failed to rename changelog file from <";
@@ -816,32 +902,40 @@ void ChangeLogFileMDSvc::slave2Master(
     }
   }
 
+  //--------------------------------------------------------------------------
   // Stop the follower thread
+  //--------------------------------------------------------------------------
   stopSlave();
+  //--------------------------------------------------------------------------
   // Reopen changelog file in writable mode = close + open (append)
+  //--------------------------------------------------------------------------
   pChangeLog->close() ;
   int logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
   pChangeLog->open(pChangeLogPath, logOpenFlags, FILE_LOG_MAGIC);
 }
 
-//------------------------------------------------------------------------------
-// Switch the namespace to read-only mode
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------
+//! Switch the namespace to read-only mode
+//------------------------------------------------------------------------
 void ChangeLogFileMDSvc::makeReadOnly()
+throw(MDException)
 {
   pChangeLog->close() ;
   int logOpenFlags = ChangeLogFile::ReadOnly;
   pChangeLog->open(pChangeLogPath, logOpenFlags, FILE_LOG_MAGIC);
 }
 
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // Configure the file service
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------
 void ChangeLogFileMDSvc::configure(
-  const std::map<std::string, std::string>& config)
+  std::map<std::string, std::string>& config)
+throw(MDException)
 {
+  //--------------------------------------------------------------------------
   // Configure the changelog
-  std::map<std::string, std::string>::const_iterator it;
+  //--------------------------------------------------------------------------
+  std::map<std::string, std::string>::iterator it;
   it = config.find("changelog_path");
 
   if (it == config.end()) {
@@ -851,7 +945,9 @@ void ChangeLogFileMDSvc::configure(
   }
 
   pChangeLogPath = it->second;
+  //--------------------------------------------------------------------------
   // Check whether we should run in the slave mode
+  //--------------------------------------------------------------------------
   it = config.find("slave_mode");
 
   if (it != config.end() && it->second == "true") {
@@ -873,22 +969,34 @@ void ChangeLogFileMDSvc::configure(
   if (it != config.end()) {
     pResSize = strtoull(it->second.c_str(), 0, 10);
   }
+
+  pAutoRepair = false;
+  it = config.find("auto_repair");
+
+  if (it != config.end() && it->second == "true") {
+    pAutoRepair = true;
+  }
 }
 
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // Finalize the file service
-//------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::finalize()
+//------------------------------------------------------------------------
+void ChangeLogFileMDSvc::finalize() throw(MDException)
 {
   pChangeLog->close();
+  IdMap::iterator it;
+
+  for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+    delete it->second.ptr;
+  }
+
   pIdMap.clear();
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Get the file metadata information for the given file ID
-//------------------------------------------------------------------------------
-std::shared_ptr<IFileMD>
-ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id)
+//----------------------------------------------------------------------------
+FileMD* ChangeLogFileMDSvc::getFileMD(FileMD::id_t id) throw(MDException)
 {
   IdMap::iterator it = pIdMap.find(id);
 
@@ -898,34 +1006,30 @@ ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id)
     throw e;
   }
 
-  if (it->second.ptr == NULL) {
-    MDException e(ENOENT);
-    e.getMessage() << "File #" << id << " not found in map";
-    throw e;
-  }
-
   it->second.ptr->setFileMDSvc(this);
   return it->second.ptr;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Create new file metadata object
-//------------------------------------------------------------------------------
-std::shared_ptr<IFileMD> ChangeLogFileMDSvc::createFile()
+//----------------------------------------------------------------------------
+FileMD* ChangeLogFileMDSvc::createFile() throw(MDException)
 {
-  std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(pFirstFreeId++, this);
+  FileMD* file = new FileMD(pFirstFreeId++, this);
   pIdMap.insert(std::make_pair(file->getId(), DataInfo(0, file)));
-  IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
+  IFileMDChangeListener::Event e(file, IFileMDChangeListener::Created);
   notifyListeners(&e);
   return file;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Update the file metadata
-//------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::updateStore(IFileMD* obj)
+//----------------------------------------------------------------------------
+void ChangeLogFileMDSvc::updateStore(FileMD* obj) throw(MDException)
 {
+  //--------------------------------------------------------------------------
   // Find the object in the map
+  //--------------------------------------------------------------------------
   IdMap::iterator it = pIdMap.find(obj->getId());
 
   if (it == pIdMap.end()) {
@@ -935,7 +1039,9 @@ void ChangeLogFileMDSvc::updateStore(IFileMD* obj)
     throw e;
   }
 
+  //--------------------------------------------------------------------------
   // Store the file in the changelog and notify the listener
+  //--------------------------------------------------------------------------
   eos::Buffer buffer;
   obj->serialize(buffer);
   it->second.logOffset = pChangeLog->storeRecord(eos::UPDATE_RECORD_MAGIC,
@@ -944,13 +1050,23 @@ void ChangeLogFileMDSvc::updateStore(IFileMD* obj)
   notifyListeners(&e);
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Remove object from the store
-//------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::removeFile(IFileMD* obj)
+//----------------------------------------------------------------------------
+void ChangeLogFileMDSvc::removeFile(FileMD* obj) throw(MDException)
 {
+  removeFile(obj->getId());
+}
+
+//----------------------------------------------------------------------------
+// Remove object from the store
+//----------------------------------------------------------------------------
+void ChangeLogFileMDSvc::removeFile(FileMD::id_t fileId)
+throw(MDException)
+{
+  //--------------------------------------------------------------------------
   // Find the object in the map
-  IFileMD::id_t fileId = obj->getId();
+  //--------------------------------------------------------------------------
   IdMap::iterator it = pIdMap.find(fileId);
 
   if (it == pIdMap.end()) {
@@ -960,33 +1076,29 @@ void ChangeLogFileMDSvc::removeFile(IFileMD* obj)
     throw e;
   }
 
+  //--------------------------------------------------------------------------
   // Store the file in the changelog and notify the listener
+  //--------------------------------------------------------------------------
   eos::Buffer buffer;
   buffer.putData(&fileId, sizeof(FileMD::id_t));
   pChangeLog->storeRecord(eos::DELETE_RECORD_MAGIC, buffer);
-  IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
+  IFileMDChangeListener::Event e(fileId, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
+  delete it->second.ptr;
   pIdMap.erase(it);
 }
 
-//------------------------------------------------------------------------------
-// Remove object from the store
-//------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::removeFile(FileMD::id_t fileId)
-{
-}
-
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Add file listener
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 void ChangeLogFileMDSvc::addChangeListener(IFileMDChangeListener* listener)
 {
   pListeners.push_back(listener);
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Visit all the files
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 void ChangeLogFileMDSvc::visit(IFileVisitor* visitor)
 {
   IdMap::iterator it;
@@ -998,7 +1110,7 @@ void ChangeLogFileMDSvc::visit(IFileVisitor* visitor)
 
   for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
     cnt++;
-    visitor->visitFile(it->second.ptr.get());
+    visitor->visitFile(it->second.ptr);
 
     if ((100.0 * cnt / end) > progress) {
       now = time(NULL);
@@ -1021,17 +1133,19 @@ void ChangeLogFileMDSvc::visit(IFileVisitor* visitor)
           (int)(now - start_time));
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Scan the changelog and put the appropriate data in the lookup table
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
     char          type,
     const Buffer& buffer)
 {
+  //--------------------------------------------------------------------------
   // Update
+  //--------------------------------------------------------------------------
   if (type == UPDATE_RECORD_MAGIC) {
-    IFileMD::id_t id;
-    buffer.grabData(0, &id, sizeof(IFileMD::id_t));
+    FileMD::id_t id;
+    buffer.grabData(0, &id, sizeof(FileMD::id_t));
     DataInfo& d = pIdMap[id];
     d.logOffset = offset;
 
@@ -1045,10 +1159,12 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
       pLargestId = id;
     }
   }
+  //--------------------------------------------------------------------------
   // Deletion
+  //--------------------------------------------------------------------------
   else if (type == DELETE_RECORD_MAGIC) {
-    IFileMD::id_t id;
-    buffer.grabData(0, &id, sizeof(IFileMD::id_t));
+    FileMD::id_t id;
+    buffer.grabData(0, &id, sizeof(FileMD::id_t));
     IdMap::iterator it = pIdMap.find(id);
 
     if (it != pIdMap.end()) {
@@ -1060,7 +1176,9 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
       pLargestId = id;
     }
   }
+  //--------------------------------------------------------------------------
   // Compaction mark - we stop scanning here
+  //--------------------------------------------------------------------------
   else if (type == COMPACT_STAMP_RECORD_MAGIC) {
     if (pSlaveMode) {
       return false;
@@ -1070,13 +1188,16 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
   return true;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Prepare for online compacting.
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 void* ChangeLogFileMDSvc::compactPrepare(const std::string& newLogFileName)
 const
+throw(MDException)
 {
+  //--------------------------------------------------------------------------
   // Try to open a new log file for writing
+  //--------------------------------------------------------------------------
   ::CompactingData* data = new ::CompactingData();
 
   try {
@@ -1090,7 +1211,9 @@ const
     throw;
   }
 
+  //--------------------------------------------------------------------------
   // Get the list of records
+  //--------------------------------------------------------------------------
   IdMap::const_iterator it;
 
   for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
@@ -1102,12 +1225,14 @@ const
   return data;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Do the compacting.
-//------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::compact(void*& compactingData)
+//----------------------------------------------------------------------------
+void ChangeLogFileMDSvc::compact(void*& compactingData) throw(MDException)
 {
+  //--------------------------------------------------------------------------
   // Sort the records to avoid random seeks
+  //--------------------------------------------------------------------------
   ::CompactingData* data = (::CompactingData*)compactingData;
 
   if (!data) {
@@ -1139,10 +1264,11 @@ void ChangeLogFileMDSvc::compact(void*& compactingData)
   }
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Commit the compacting information.
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
+throw(MDException)
 {
   ::CompactingData* data = (::CompactingData*)compactingData;
 
@@ -1156,7 +1282,7 @@ void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
   // Copy the part of the old log that has been appended after we
   // prepared
   //--------------------------------------------------------------------------
-  std::map<eos::IFileMD::id_t, RecordData> updates;
+  std::map<eos::FileMD::id_t, RecordData> updates;
 
   try {
     ::UpdateHandler updateHandler(updates, data->newLog);
@@ -1180,17 +1306,21 @@ void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
   std::vector<RecordData>::iterator itO;
 
   for (itO = data->records.begin(); itO != data->records.end(); ++itO) {
+    //------------------------------------------------------------------------
     // Check if we still have the file, if not, it must have been deleted
     // so we don't care
+    //------------------------------------------------------------------------
     it = pIdMap.find(itO->fileId);
 
     if (it == pIdMap.end()) {
       continue;
     }
 
+    //------------------------------------------------------------------------
     // If the original offset does not match it means that we must have
     // be updated later, if not we've messed up so we die in order not
     // to lose data
+    //------------------------------------------------------------------------
     assert(it->second.logOffset >= itO->offset);
 
     if (it->second.logOffset == itO->offset) {
@@ -1199,9 +1329,11 @@ void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
     }
   }
 
+  //--------------------------------------------------------------------------
   // Now we handle updates, if we don't have the file, we're messed up,
   // if the original offsets don't match we're messed up too
-  std::map<IFileMD::id_t, RecordData>::iterator itU;
+  //--------------------------------------------------------------------------
+  std::map<FileMD::id_t, RecordData>::iterator itU;
 
   for (itU = updates.begin(); itU != updates.end(); ++itU) {
     it = pIdMap.find(itU->second.fileId);
@@ -1212,7 +1344,9 @@ void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
   }
 
   assert(fileCounter == pIdMap.size());
+  //--------------------------------------------------------------------------
   // Replace the logs
+  //--------------------------------------------------------------------------
   pChangeLog = data->newLog;
   pChangeLog->addCompactionMark();
   pChangeLogPath = data->logFileName;
@@ -1221,10 +1355,10 @@ void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
   delete data;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Start the slave
-//------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::startSlave()
+//----------------------------------------------------------------------------
+void ChangeLogFileMDSvc::startSlave() throw(MDException)
 {
   if (!pSlaveMode) {
     MDException e(errno);
@@ -1242,10 +1376,10 @@ void ChangeLogFileMDSvc::startSlave()
   pSlaveStarted = true;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Stop the slave mode
-//------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::stopSlave()
+//----------------------------------------------------------------------------
+void ChangeLogFileMDSvc::stopSlave() throw(MDException)
 {
   if (!pSlaveMode) {
     MDException e(errno);
@@ -1278,61 +1412,24 @@ void ChangeLogFileMDSvc::stopSlave()
   pFollowerThread = 0;
 }
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Attach a broken file to lost+found
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 void ChangeLogFileMDSvc::attachBroken(const std::string& parent,
-                                      IFileMD*            file)
+                                      FileMD*            file)
 {
   std::ostringstream s1, s2;
-  std::shared_ptr<IContainerMD> parentCont = pContSvc->getLostFoundContainer(
-        parent);
+  ContainerMD* parentCont = pContSvc->getLostFoundContainer(parent);
   s1 << file->getContainerId();
-  std::shared_ptr<IContainerMD> cont = parentCont->findContainer(s1.str());
+  ContainerMD* cont = parentCont->findContainer(s1.str());
 
   if (!cont) {
-    cont = pContSvc->createInParent(s1.str(), parentCont.get());
+    cont = pContSvc->createInParent(s1.str(), parentCont);
   }
 
   s2 << file->getName() << "." << file->getId();
   file->setName(s2.str());
   cont->addFile(file);
 }
-
-//------------------------------------------------------------------------------
-// Get changelog warning messages
-//------------------------------------------------------------------------------
-std::vector<std::string>
-ChangeLogFileMDSvc::getWarningMessages()
-{
-  return pChangeLog->getWarningMessages();
 }
 
-//------------------------------------------------------------------------------
-// Clear changelog warning messages
-//------------------------------------------------------------------------------
-void
-ChangeLogFileMDSvc::clearWarningMessages()
-{
-  pChangeLog->clearWarningMessages();
-}
-
-//------------------------------------------------------------------------------
-// Set container service
-//------------------------------------------------------------------------------
-void
-ChangeLogFileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
-{
-  pContSvc = dynamic_cast<eos::ChangeLogContainerMDSvc*>(cont_svc);
-}
-
-//------------------------------------------------------------------------------
-// Set the QuotaStats object for the follower
-//------------------------------------------------------------------------------
-void
-ChangeLogFileMDSvc::setQuotaStats(IQuotaStats* quota_stats)
-{
-  pQuotaStats = quota_stats;
-}
-
-}

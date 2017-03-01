@@ -782,8 +782,8 @@ public:
         {
           pMap[*key]=*val;
           pUseMap=true;
-          return true;
         }
+        return true;
       }
     }
     return true; // nothing to do, so the change is ok
