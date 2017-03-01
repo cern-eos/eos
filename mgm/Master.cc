@@ -651,6 +651,11 @@ Master::Compacting()
       }
     } while (!go);
 
+    if (!gOFS->eosFileService || !gOFS->eosDirectoryService) {
+      eos_notice("file/directory metadata service is not available");
+      return 0;
+    }
+
     eos::IChLogFileMDSvc* eos_chlog_filesvc =
       dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
     eos::IChLogContainerMDSvc* eos_chlog_dirsvc =

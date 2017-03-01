@@ -149,6 +149,7 @@ XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mCapabilityValidity(3600),
+  eosDirectoryService(0), eosFileService(0), eosView(0), eosFsView(0),
   deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0),
   mFstGwHost(""),
   mFstGwPort(0),
@@ -344,10 +345,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
   const char* tident = error.getErrUser();
   eos::common::Mapping::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-
   std::string info;
-  info = pargs.oinfo->text?pargs.oinfo->text:"";
-
+  info = pargs.oinfo->text ? pargs.oinfo->text : "";
   eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
@@ -384,14 +383,14 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
       return SFS_ERROR;
     }
 
-    // check that we have write permission on path                                                                             
+    // check that we have write permission on path
     if (gOFS->_access(prep_path.c_str(),
-		      W_OK,
-		      error,
-		      vid,
-		      "")) {
+                      W_OK,
+                      error,
+                      vid,
+                      "")) {
       Emsg(epname, error, EPERM, "prepare - you don't have write permission",
-	   prep_path.c_str());
+           prep_path.c_str());
       return SFS_ERROR;
     }
 
@@ -431,23 +430,19 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
     prep_info += (int)vid.uid;
     prep_info += "&mgm.rgid=";
     prep_info += (int)vid.gid;
-
     XrdSecEntity lClient(vid.prot.c_str());
     lClient.name = (char*) vid.name.c_str();
     lClient.tident = (char*) vid.tident.c_str();
     lClient.host = (char*) vid.host.c_str();
     XrdOucString lSec = "&mgm.sec=";
     lSec += eos::common::SecEntity::ToKey(&lClient,
-					  "eos").c_str();
-
+                                          "eos").c_str();
     prep_info += lSec;
-
     XrdSfsFSctl args;
     args.Arg1 = prep_path.c_str();
     args.Arg1Len = prep_path.length();
     args.Arg2 = prep_info.c_str();
     args.Arg2Len = prep_info.length();
-
     eos_static_info("prep-info=%s", prep_info.c_str());
 
     if (XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN,
