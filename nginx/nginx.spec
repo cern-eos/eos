@@ -210,13 +210,13 @@ rm -rf %{_builddir}/nginx-auth-pam-module
 %{_sbindir}/useradd -c "Nginx user" -s /bin/false -r -d %{nginx_home} %{nginx_user} 2>/dev/null || :
 
 %post
-# Register the nginx service
 if [ $1 -eq 1 ]; then
 %if %{use_systemd}
     /usr/bin/systemctl preset nginx.service >/dev/null 2>&1 ||:
 %else
     /sbin/chkconfig --add nginx
 %endif
+fi
 
 %preun
 if [ $1 -eq 0 ]; then
