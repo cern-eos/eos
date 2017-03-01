@@ -1,0 +1,50 @@
+# ----------------------------------------------------------------------
+# File: eosd@.service
+# Author: Ivan Arizanovic - ComTrade Solutions Engineering
+# ----------------------------------------------------------------------
+#
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2016 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+[Unit]
+Description=EOSd %i
+
+[Service]
+Environment=EOS_FUSE_LOG_PREFIX=%i
+Environment=EOS_FUSE_MOUNTDIR=/eos/%i
+Environment=EOS_FUSE_REMOTEDIR=/eos/%i
+EnvironmentFile=/etc/sysconfig/eosd_env
+EnvironmentFile=-/etc/sysconfig/eos_env
+EnvironmentFile=-/etc/sysconfig/eos_env.%i
+
+ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eosd-start %i"
+
+ExecStart=/usr/bin/eosd ${EOS_FUSE_MOUNTDIR} -o${EOS_FUSE_BIGWRITES}${EOSD}max_readahead=${EOS_FUSE_RDAHEAD_WINDOW},max_write=4194304,fsname=eos%i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS}/${EOS_FUSE_REMOTEDIR}
+
+ExecStop=/bin/sh -c "/usr/sbin/eos_start_pre.sh eosd-stop %i"
+
+Type=forking
+User=root
+Group=root
+Restart=on-abort
+RestartSec=0
+LimitNOFILE=65000
+LimitCORE=0
+KillMode=mixed
+
+[Install]
+RequiredBy=multi-user.target

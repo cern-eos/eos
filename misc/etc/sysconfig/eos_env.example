@@ -1,0 +1,364 @@
+#-------------------------------------------------------------------------------
+# File: eos_env.example
+# Authors: Ivan Arizanovic - ComTrade Solutions Engineering
+#-------------------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2016 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# Should we run with another limit on the core file size other than the default?
+DAEMON_COREFILE_LIMIT=unlimited
+
+# Disable the KRB5 replay cache
+KRB5RCACHETYPE=none
+
+# What roles should the xroot daemon run for. For each role you can overwrite
+# the default options using a dedicate sysconfig file
+# e.g. /etc/sysconfig/xrd.<role>. The role based mechanism allows for
+# multiple xrd's running with different options to be controlled via
+# the same systemd script
+
+#-------------------------------------------------------------------------------
+# EOS roles - Systemd Services
+#-------------------------------------------------------------------------------
+XRD_ROLES="mq mgm fed sync fst"
+
+#-------------------------------------------------------------------------------
+# EOS Configuration
+#-------------------------------------------------------------------------------
+
+# The fully qualified hostname of current MGM
+EOS_MGM_HOST=mgm-master.localdomain
+
+# The fully qualified hostname of target MGM
+EOS_MGM_HOST_TARGET=mgm-slave.localdomain
+
+# The EOS instance name
+EOS_INSTANCE_NAME=eosdev
+
+# The EOS configuration to load after daemon start
+EOS_AUTOLOAD_CONFIG=default
+
+# The EOS broker URL
+EOS_BROKER_URL=root://localhost:1097//eos/
+
+# The EOS host geo location tag used to sort hosts into geographical (rack) locations
+EOS_GEOTAG=""
+
+# The fully qualified hostname of MGM master1
+EOS_MGM_MASTER1=eosdevsrv1.cern.ch
+
+# The fully qualified hostname of MGM master2
+EOS_MGM_MASTER2=eosdevsrv2.cern.ch
+
+# The alias which selects master 1 or 2
+EOS_MGM_ALIAS=eosdev.cern.ch
+
+# The mail notification in case of fail-over
+EOS_MAIL_CC="apeters@mail.cern.ch"
+EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
+
+# Enable core dumps initiated internally
+#EOS_CORE_DUMP
+
+# Disable shutdown/signal handlers for debugging
+#EOS_NO_SHUTDOWN
+
+# Allow UTF-8 path names excluding only CR,LF
+#EOS_UTF8=""
+
+# Add secondary group information from database/LDAP (set to 1 to enable)
+#EOS_SECONDARY_GROUPS=0
+
+# Do subtree accounting on directories (set to 1 to enable)
+#EOS_NS_ACCOUNTING=0
+
+# Do sync time propagation (set to 1 to enable)
+#EOS_SYNCTIME_ACCOUNTING=0
+
+#-------------------------------------------------------------------------------
+# FST Configuration
+#-------------------------------------------------------------------------------
+
+# Disable 'sss' enforcement to allow generic TPC
+#EOS_FST_NO_SSS_ENFORCEMENT=1
+
+# Network interface to monitor (default eth0)
+#EOS_FST_NETWORK_INTERFACE="eth0"
+
+# Stream timeout for operations
+#EOS_FST_STREAM_TIMEOUT=300
+
+# Disable fast boot and always do a full resync when a fs is booting
+# EOS_FST_NO_FAST_BOOT=0 (default off)
+
+#-------------------------------------------------------------------------------
+# FUSE Configuration
+#-------------------------------------------------------------------------------
+
+# The local mount directory for 'eosd'
+EOS_FUSE_MOUNTDIR=/eos/
+
+# The optional remote directory visiable unter the mount dir
+EOS_FUSE_REMOTEDIR=/eos/
+
+# The MGM host from where to do the inital mount
+EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
+
+# Enable FUSE debugging mode (default off)
+# EOS_FUSE_DEBUG=1
+
+# Enable FUSE low-level debugging mode (default off)
+# EOS_FUSE_LOWLEVEL_DEBUG=1
+
+# Specify the FUSE logging level (default=4 is LOG_WARNING ... see
+# /usr/include/sys/syslog.h LOG_XXX definitions)
+# EOS_FUSE_DEBUG=1 overwrites these settings
+# EOS_FUSE_LOGLEVEL=4
+
+# Disable parallel IO mode (default on)
+# EOS_FUSE_NOPIO=1
+
+# Disable multithreading in FUSE (default on)
+# EOS_FUSE_NO_MT=1
+
+# Enable FUSE read-ahead (default off)
+# EOS_FUSE_RDAHEAD=0
+
+# Configure FUSE read-ahead window (default 128k)
+# EOS_FUSE_RDAHEAD_WINDOW=131072
+
+# Disable using access for access permission check (default on)
+# EOS_FUSE_NOACCESS=0
+
+# Disable to use the kernel cache (default on)
+# EOS_FUSE_KERNELCACHE=0
+
+# Enable a synchronous mount with synchrnous fsync (default off)
+# EOS_FUSE_SYNC=0
+
+# Bypass the buffercache for write - avoids 4k chopping of IO (default off)
+# (this is not what people understand under O_DIRECT !!!!
+# EOS_FUSE_DIRECTIO=1
+
+# Disable the write-back cache (default on)
+# EOS_FUSE_CACHE=0
+
+# Set the write-back cache size (default 300M)
+# EOS_FUSE_CACHE_SIZE=0
+
+# Set the write-back cache pagesize (default 256k)
+# EOS_FUSE_CACHE_PAGE_SIZE=262144
+
+# Use the FUSE big write feature ( FUSE >=2.8 ) (default on)
+# EOS_FUSE_BIGWRITES=1
+
+# Mount all files with 'x' bit to be able to run as an executable (default off)
+# EOS_FUSE_EXEC=1
+
+# Enable protection against recursive deletion (rm -r command) starting from
+# the root of the mount (if 1) or from any of its sub directories at a maximum
+# depth (if >1) (default 1).
+# EOS_FUSE_RMLVL_PROTECT=1
+
+# Enable lazy-open of files for reading e.g. files are only opened on an FST if
+# a read is done by default this option is disabled because most ro files want
+# to read and  there is a penalty in the two-step process.
+# EOS_FUSE_LAZYOPENRO=0
+
+# Enable lazy-open of files. Applications get a visible performance boost by
+# using this option and the latency in synchronous replication on the FSTs is
+# completely hidden. By default this option is enabled.
+# EOS_FUSE_LAZYOPENRW=1
+
+# Show hidden files from atomic/versioning and backup entries. By default this
+# option is disabled.
+# EOS_FUSE_SHOW_SPECIAL_FILES=0
+
+# Show extended attributes related to EOS itself - this are sys.* and emulated
+# user.eos.* attributes for files. By default this option is diabled.
+# EOS_FUSE_SHOW_EOS_ATTRIBUTES=0
+
+# Add(OR) an additional mode mask to the mode shown. By default this option is
+# disabled.
+# EOS_FUSE_MODE_OVERLAY=000     (use 007 to show things are rwx for w)
+
+# Enable inline-repair mode for file updates of files with offline
+# replica/stripe. By default this option is enabled.
+# EOS_FUSE_INLINE_REPAIR=1
+
+# Definae maximum inline-repair size for the previous flag. By default the
+# maximum size is 256M.
+# EOS_FUSE_MAX_INLINE_REPAIR_SIZE=268435456
+
+# Set FUSE kernel cache time for directory entries (readdir cache) - default 10 seconds
+# EOS_FUSE_ENTRY_CACHE_TIME=10
+
+# Set FUSE kernel attribute cache time (stat cache) - default 10 seconds
+# EOS_FUSE_ATTR_CACHE_TIME=10
+
+# Set FUSE kernel negative stat cache time - default 30 seconds
+# EOS_FUSE_NEG_ENTRY_CACHE_TIME=30
+
+# Set FUSE client creator CAP liftime. During this time window all reads done
+# on the client where a file has been created can be served from a local file
+# write-back cache. This improves significantly compilation. Remote changes are
+# not visible inside files after creation during the specified time period.
+# Default is 30 seconds.
+# EOS_FUSE_CREATOR_CAP_LIFETIME=30
+
+# Set FUSE client max. write-back cache size per file. This is required until
+# kernel 3.15. where the write-back cache of the kernel can be used via a mount
+# option. The default is 64 MB.
+# EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
+
+#-------------------------------------------------------------------------------
+# These options are not available since AQUAMARINE is compiled with XROOTD3
+#-------------------------------------------------------------------------------
+# Enable Kerberos authentication. This avoid need to set gateways on the mgm.
+# File cache credential should be used. (default 0)
+# EOS_FUSE_USER_KRB5CC=0
+
+# Enable X509 GSI authentication. This avoid need to set gateways on the mgm.
+# File user proxy should be used. (default 0)
+# EOS_FUSE_USER_GSIPROXY=0
+
+# If both KRB5 and X509 are enabled, specify if KRB5 should be tried first.
+# (default 0)
+# EOS_FUSE_USER_KRB5FIRST=0
+
+# If a connection fails using strong authentication, this is the timeout before
+# actually retrying in the meantime, all access by the concerned user will be
+# rejected (indicating authentication failure)
+#
+# !! WARNING: If a low value is used on a batch machine, it could have an impact
+$ on the authentication burden on the server side. On interactive servers, it will
+# be the longest time taken between refreshing the credentials and this taking
+#  effect on the fuse mount (default is XRD_STREAMERRORWINDOW default value)
+# EOS_FUSE_STREAMERRORWINDOW=1
+# ---------------------------------------------------------------------------------
+# If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication
+# should be kept as symlinks under /var/run/eosd/credentials/pidXXXX  (default 0)
+# EOS_FUSE_PIDMAP=
+
+# Configure a log-file prefix - useful for several FUSE instances. This will
+# create /var/log/eos/fuse.dev.log
+# EOS_FUSE_LOG_PREFIX=dev
+
+# Configure multiple FUSE mounts a,b configured in /etc/sysconfig/eos.a
+# /etc/sysconfig/eos.b
+# EOS_FUSE_MOUNTS="a b"
+
+#-------------------------------------------------------------------------------
+# HTTPD Configuration
+#-------------------------------------------------------------------------------
+
+# HTTP uses by default one thread per connection
+# EOS_HTTP_THREADPOOL="threads"
+
+# Use EPOLL and 16 threads
+EOS_HTTP_THREADPOOL="epoll"
+EOS_HTTP_THREADPOOL_SIZE=16
+
+# Memory buffer size per connection
+# EOS_HTTP_CONNECTION_MEMORY_LIMIT=134217728 (default 128M)
+EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
+# Timeout after which an idel connection is considered to be closed (default 2 min)
+# EOS_HTTP_CONNETION_TIMEOUT=120
+
+#-------------------------------------------------------------------------------
+# Federation Configuration
+#-------------------------------------------------------------------------------
+
+# The host[:port] name of the meta manager (global redirector)
+EOS_FED_MANAGER=eos.cern.ch:1094
+
+# The port of the PSS xrootd server
+EOS_PSS_PORT=1098
+
+# The hostname[:port] of the EOS MGM service
+EOS_PSS_MGM=$EOS_MGM_ALIAS:1094
+
+# The path which should be proxied (/ for all)
+EOS_PSS_PATH=/
+
+#-------------------------------------------------------------------------------
+# Test Configuration
+#-------------------------------------------------------------------------------
+
+# Mail notification for failed tests
+#EOS_TEST_MAILNOTIFY=apeters@mail.cern.ch
+
+# SMS notification for failed tests
+#EOS_TEST_GSMNOTIFY="0041764875002@mail2sms.cern.ch"
+
+# Instance name = name of directory at deepness 2 /eos/<instance>/
+#EOS_TEST_INSTANCE="dev"
+
+# MGM host redirector
+EOS_TEST_REDIRECTOR=localhost
+
+# Local test output directory
+EOS_TEST_TESTSYS=/tmp/eos-instance-test/
+
+# Time to lock re-sending of SMS for consecutively failing tests
+EOS_TEST_GSMLOCKTIME=3600
+
+# Max. time given to the test to finish
+EOS_TEST_TESTTIMESLICE=300;
+
+#-------------------------------------------------------------------------------
+# Global Vstl Configuration
+#-------------------------------------------------------------------------------
+
+# Define the global broker for subscription
+# EOS_VST_BROKER_URL=root://eos.cern.ch:1099//eos/
+
+# Disable subscription to the global broker if desired
+# EOS_VST_BROKER_DISABLE=0
+
+# Define which client we trust for querying this MGM
+# EOS_VST_TRUSTED_HOST=eos.cern.ch
+
+#-------------------------------------------------------------------------------
+# Archive configuration
+#-------------------------------------------------------------------------------
+
+# Set the root destination for all archives beloging to this instance
+# EOS_ARCHIVE_URL=root://castorpps.cern.ch//user/cern.ch/c3/archive/
+
+# Set the CASTOR service class (svcClass) for all file transfers to CASTOR
+# EOS_ARCHIVE_SVCCLASS=default
+
+#-------------------------------------------------------------------------------
+# MGM TTY Console Broadcast Configuration
+#-------------------------------------------------------------------------------
+
+# define the log file where you want to grep
+EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
+
+# define the log file regex you want to broad cast to all consoles
+EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
+
+#-------------------------------------------------------------------------------
+# MGM Namespace Preset Size - this can safe memory for large namespaces if you
+# know an upper limit for the namespace size
+#-------------------------------------------------------------------------------
+
+# EOS_NS_DIR_SIZE=1000000
+# EOS_NS_FILE_SIZE=1000000

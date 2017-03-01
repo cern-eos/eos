@@ -203,17 +203,17 @@ The EOS server installation containing MGM, FST & MQ service.
 %config(noreplace) %{_sysconfdir}/xrd.cf.prefix
 %if %{use_systemd}
     %config(noreplace) %{_sysconfdir}/sysconfig/eos_env.example
-    %{_sysconfdir}/systemd/system/eos.service
-    %{_sysconfdir}/systemd/system/eos@.service
-    %{_sysconfdir}/systemd/system/eos@fed.service
-    %{_sysconfdir}/systemd/system/eos@master.service
-    %{_sysconfdir}/systemd/system/eos@slave.service
-    %{_sysconfdir}/systemd/system/eosfstdb@.service
-    %{_sysconfdir}/systemd/system/eosha.service
-    %{_sysconfdir}/systemd/system/eosslave.service
-    %{_sysconfdir}/systemd/system/eossync.service
-    %{_sysconfdir}/systemd/system/eossync@.service
-    %{_sysconfdir}/systemd/system/eossync@config.service
+    %{_prefix}/lib/systemd/system/eos.service
+    %{_prefix}/lib/systemd/system/eos@.service
+    %{_prefix}/lib/systemd/system/eos@master.service
+    %{_prefix}/lib/systemd/system/eos@slave.service
+
+    %{_prefix}/lib/systemd/system/eosfstdb@.service
+    %{_prefix}/lib/systemd/system/eosha.service
+    %{_prefix}/lib/systemd/system/eosslave.service
+    %{_prefix}/lib/systemd/system/eossync.service
+    %{_prefix}/lib/systemd/system/eossync@.service
+    %{_prefix}/lib/systemd/system/eossync@config.service
 %else
     %config(noreplace) %{_sysconfdir}/sysconfig/eos.example
     %{_sysconfdir}/rc.d/init.d/eos
@@ -386,11 +386,11 @@ The EOS fuse SYSV init scripts and SystemD scripts.
 %files -n eos-fuse-sys
 %defattr(-, root, root, -)
 %if %{use_systemd}
-    %{_sysconfdir}/systemd/system/eosd.service
-    %{_sysconfdir}/systemd/system/eosd@.service
+    %{_prefix}/lib/systemd/system/eosd@.service
 %else
     %{_sysconfdir}/rc.d/init.d/eosd
 %endif
+
 %post -n eos-fuse-sys
 %if %{use_systemd}
     /sbin/systemctl daemon-reload > /dev/null 2>&1 || :
