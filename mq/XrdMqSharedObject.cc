@@ -2410,7 +2410,7 @@ XrdMqSharedObjectChangeNotifier::SomListener()
 
     WatchMutex.UnLock();
     SOM->mSubjectsMutex.UnLock();
-    XrdSysThread::SetCancelOff();
+    XrdSysThread::SetCancelOn();
   } while (true);
 }
 
