@@ -138,7 +138,7 @@ set(CPACK_PACKAGE_RELEASE "${RELEASE}")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}")
 set(CPACK_SOURCE_IGNORE_FILES
 "${CMAKE_CURRENT_BINARY_DIR};/ApMon/;/git/;/gitlab-ci/;/xrootd-dsi/;/nginx/;/dsi/;\
-/microhttpd/;/.deps/;~$;'.'o$;/lib/;/.git/;kineticio-dist.tgz;eos.spec.in;.tar.gz$;\
+/microhttpd/;/.deps/;~$;'.'o$;/lib/;/.git/;eos.spec.in;.tar.gz$;\
 .tar.bz2$;${CPACK_SOURCE_IGNORE_FILES};")
 
 configure_file(
