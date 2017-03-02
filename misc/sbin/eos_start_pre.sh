@@ -24,14 +24,32 @@
 
 . /etc/sysconfig/eos_env
 
-#Start All EOS daemons (all required daemons from config file)
+# Start All EOS daemons (all required daemons from config file)
 if [ "$1" = "eos-all" ]; then
+  if [[ -z "$XRD_ROLES" ]]; then
+    echo "<3>Error: No XRD_ROLES variable declared in \"/etc/sysconf/eos_env\""
+    exit 1
+  fi
+
   for i in ${XRD_ROLES}; do
     systemctl start eos@${i} &
   done
+
+  # Wait for all the daemons to start
+  FAIL=0
+  for job in `jobs -p`;do
+    echo "<5>Waiting for $job ..."
+    wait $job || let "FAIL+=1"
+  done
+
+  if [ "$FAIL" == "0" ]; then
+    exit 0
+  else
+    exit 1
+  fi
 fi
 
-#StartPre EOS daemons
+# StartPre EOS daemons
 if [ "$1" = "eos-start-pre" ]; then
   if [[ "$XRD_ROLES" == *"$2"* ]]; then
     if [ -e /etc/eos.keytab ]; then
@@ -50,32 +68,24 @@ if [ "$1" = "eos-start-pre" ]; then
     chown daemon /var/eos/auth /var/eos/stage
     setfacl -m default:u:daemon:r /var/eos/auth/
 
-    #If we want to start daemons fst1, fst2, fst3... we have to change the port.
-    if [[ "$2" == "fst"* ]] && [ "$2" != "fst" ] && [ ! -f /etc/xrd.cf.${2} ]; then
-      cp /etc/xrd.cf.fst /etc/xrd.cf.${2}
-      port=$((2000+${2/fst}))
-      sed -i "s/xrd.port.*/xrd.port ${port}/" /etc/xrd.cf.${2}
-    fi
-
     #We requires cmsd for fed daemon
     if [ "$2" = "fed" ]; then
       systemctl start cmsd@clustered
     fi
   else
-    echo "Error: You need to declared a daemon in the config file\
- \"/etc/sysconfig/eos_env\" with \"${2}\=${2}\" before start."
+    echo "<3>Error: Service $2 not in the XRD_ROLESin \"/etc/sysconf/eos_env\""
     exit 1
   fi
 fi
 
-#Stop EOS daemons
+# Stop EOS daemons
 if [ "$1" = "eos-stop" ]; then
   if [ "$2" = "fed" ]; then
     systemctl stop cmsd@clustered
   fi
 fi
 
-#Start EOS Master
+# Start EOS Master
 if [ "$1" = "eos-master" ]; then
   if [[ "$XRD_ROLES" == *"mq"* ]]; then
     touch /var/eos/eos.mq.master
@@ -86,7 +96,7 @@ if [ "$1" = "eos-master" ]; then
   fi
 fi
 
-#Start EOS Slave
+# Start EOS Slave
 if [ "$1" = "eos-slave" ]; then
   if [[ "$XRD_ROLES" == *"mq"* ]]; then
     unlink /var/eos/eos.mq.master
@@ -97,7 +107,7 @@ if [ "$1" = "eos-slave" ]; then
   fi
 fi
 
-#Start EOS-Fuse daemons
+# Start EOS-Fuse daemons
 if [ "$1" = "eosd-start" ]; then
   EOS_FUSE_MOUNTDIR=/eos/${2}
   if [ "$2" = "main" ]; then
@@ -105,13 +115,13 @@ if [ "$1" = "eosd-start" ]; then
   else
     . /etc/sysconfig/eos_env.${2}
   fi
-  
+
   mkdir -p /var/run/eosd/ /var/run/eosd/credentials/store ${EOS_FUSE_MOUNTDIR}
   chmod 1777 /var/run/eosd/credentials /var/run/eosd/credentials/store
   chmod 700 ${EOS_FUSE_MOUNTDIR}
 fi
 
-#Stop EOS-Fuse daemons
+# Stop EOS-Fuse daemons
 if [ "$1" = "eosd-stop" ]; then
   EOS_FUSE_MOUNTDIR=/eos/${2}
   if [ "$2" = "main" ]; then
@@ -123,14 +133,14 @@ if [ "$1" = "eosd-stop" ]; then
   umount -f ${EOS_FUSE_MOUNTDIR}
 fi
 
-#Start EOS High Availability
+# Start EOS High Availability
 if [ "$1" = "eosha-start" ]; then
   systemctl start eossync
   mkdir -p /var/log/eos/eosha
   chown daemon:daemon /var/log/eos/eosha
 fi
 
-#Stop EOS High Availability
+# Stop EOS High Availability
 if [ "$1" = "eosha-stop" ]; then
   systemctl stop eossync@*
 fi
