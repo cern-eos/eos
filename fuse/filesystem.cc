@@ -3701,7 +3701,7 @@ filesystem::flush (int fd, uid_t uid, gid_t gid, pid_t pid)
    }
    else
    {
-     eos_static_info("No flush error");
+     eos_static_debug("No flush error");
     }
 
    fabst->mMutexRW.UnLock ();
