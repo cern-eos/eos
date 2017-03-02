@@ -73,10 +73,13 @@ eos_docker:
 eos_system_test:
   stage: test
   script:
+    - sudo ./eos-docker/scripts/shutdown_services.sh
+    - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     - docker ps -a
     - sudo ./eos-docker/scripts/shutdown_services.sh
-    - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
+    - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID} 
   tags:
     - shell-with-docker
+
