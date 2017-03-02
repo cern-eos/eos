@@ -1,4 +1,4 @@
-EOSD=writeback_cache,
+#EOSD=writeback_cache,
 EOS_FUSE_DEBUG=0
 EOS_FUSE_LOWLEVEL_DEBUG=0
 EOS_FUSE_NOACCESS=1
@@ -32,3 +32,5 @@ EOS_FUSE_NEG_ENTRY_CACHE_TIME=30
 EOS_FUSE_CREATOR_CAP_LIFETIME=30
 EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
 EOS_FUSE_MGM_ALIAS=localhost
+# This is crucial to have the eosd running properly otherwise it ** hangs **
+XRD_RUNFORKHANDLERS=1
