@@ -2204,7 +2204,6 @@ void GeoTreeEngine::listenFsChange()
       gNotificationsBufferFs.clear();
       gNotificationsBufferProxy.clear();
     }
-
     XrdSysThread::SetCancelOn();
     size_t elapsedMs = (curtime.tv_sec - prevtime.tv_sec) * 1000 +
                        (curtime.tv_usec - prevtime.tv_usec) / 1000;
@@ -4022,7 +4021,6 @@ GeoTreeEngine::insertHostIntoPxyGr(FsNode* host , const std::string& proxygroup,
 {
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex, lockAddRm);
   eos::common::FileSystem::host_snapshot_t hsn;
-  DataProxyTME* mapEntry = NULL;
   bool is_new_entry = false;
 
   if (lockFsView) {
@@ -4036,7 +4034,7 @@ GeoTreeEngine::insertHostIntoPxyGr(FsNode* host , const std::string& proxygroup,
     FsView::gFsView.ViewMutex.UnLockRead();
   }
 
-  DataProxyTME* mapEntry;
+  DataProxyTME* mapEntry = NULL;
   {
     pPxyTreeMapMutex.LockWrite();
 
@@ -4066,7 +4064,6 @@ GeoTreeEngine::insertHostIntoPxyGr(FsNode* host , const std::string& proxygroup,
     mapEntry->slowTreeMutex.LockWrite();
     pPxyTreeMapMutex.UnLockWrite();
   }
-
   // Fill the entry
   // Create new TreeNodeInfo/TreeNodeState pair and update its data
   // check if there is still some space for a new host
