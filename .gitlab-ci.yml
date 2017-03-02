@@ -44,16 +44,18 @@ eos_rpm_slc6:
     - mkdir build_srpm
     - cd build_srpm
     - cmake3 .. -DPACKAGEONLY=1
-    - make srpm
+    - make dist
+#    - make srpm
     - cd ..
-    - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-6-x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-6-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
-    - yum-builddep --nogpgcheck -y build_srpm/SRPMS/*
-    - mkdir build_rpm
-    - rpmbuild --rebuild --with server --define "_rpmdir build_rpm/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build_srpm/SRPMS/*
+#    - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-6-x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+#    - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-6-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
+#    - yum-builddep --nogpgcheck -y build_srpm/SRPMS/*
+#    - mkdir build_rpm
+#    - rpmbuild --rebuild --with server --define "_rpmdir build_rpm/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build_srpm/SRPMS/*
     - mkdir slc6
-    - cp -R build_srpm/SRPMS slc6
-    - cp -R build_rpm/RPMS slc6
+#    - cp -R build_srpm/SRPMS slc6
+#    - cp -R build_rpm/RPMS slc6
+    - cp -R build_srpm slc6
   artifacts:
     paths:
     - slc6/
