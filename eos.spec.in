@@ -247,9 +247,8 @@ The EOS server installation containing MGM, FST & MQ service.
 echo "Starting conditional EOS services"
 sleep 2
 %if %{use_systemd}
-    /sbin/systemctl daemon-reload > /dev/null 2>&1 || :
-    /sbin/systemctl restart eos@* > /dev/null 2>&1 || :
-    /sbin/systemctl restart eosd@* > /dev/null 2>&1 || :
+    systemctl daemon-reload > /dev/null 2>&1 || :
+    systemctl restart eos@* > /dev/null 2>&1 || :
 %else
     /sbin/chkconfig --add eos
     /sbin/chkconfig --add eosslave
@@ -261,11 +260,11 @@ sleep 2
 if [ $1 = 0 ]; then
   echo "Stopping EOS services"
   %if %{use_systemd}
-    /sbin/systemctl stop eosha > /dev/null 2>&1
-    /sbin/systemctl stop eosd@* > /dev/null 2>&1
-    /sbin/systemctl stop eos@* > /dev/null 2>&1 || :
-    /sbin/systemctl stop eossync@* > /dev/null 2>&1
-    /sbin/systemctl stop eosslave > /dev/null 2>&1
+    systemctl stop eosha > /dev/null 2>&1
+    systemctl stop eosd@* > /dev/null 2>&1
+    systemctl stop eos@* > /dev/null 2>&1 || :
+    systemctl stop eossync@* > /dev/null 2>&1
+    systemctl stop eosslave > /dev/null 2>&1
   %else
     /sbin/service eosha stop > /dev/null 2>&1
     /sbin/service eosd stop > /dev/null 2>&1
@@ -407,7 +406,7 @@ The EOS fuse SYSV init scripts and SystemD scripts.
 
 %post -n eos-fuse-sys
 %if %{use_systemd}
-  /sbin/systemctl daemon-reload > /dev/null 2>&1 || :
+  systemctl daemon-reload > /dev/null 2>&1 || :
 %endif
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
   echo "Skipping chkconfig for eosd"
@@ -422,7 +421,7 @@ The EOS fuse SYSV init scripts and SystemD scripts.
   if [ $1 = 0 ]; then
     echo "Stopping EOS FUSE services"
     %if %{use_systemd}
-      /sbin/systemctl stop eosd@* > /dev/null 2>&1 || :
+      systemctl stop eosd@* > /dev/null 2>&1 || :
     %else
       /sbin/service eosd stop > /dev/null 2>&1 || :
     %endif
