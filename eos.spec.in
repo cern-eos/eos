@@ -214,7 +214,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %config(noreplace) %{_sysconfdir}/xrd.cf.fed
 %config(noreplace) %{_sysconfdir}/xrd.cf.prefix
 %if %{use_systemd}
-    %config(noreplace) %{_sysconfdir}/sysconfig/eos_env.example
+    %config %{_sysconfdir}/sysconfig/eos_env.example
     %{_prefix}/lib/systemd/system/eos.service
     %{_prefix}/lib/systemd/system/eos@.service
     %{_prefix}/lib/systemd/system/eos@master.service
@@ -227,7 +227,7 @@ The EOS server installation containing MGM, FST & MQ service.
     %{_prefix}/lib/systemd/system/eossync@.service
     %{_prefix}/lib/systemd/system/eossync@config.service
 %else
-    %config(noreplace) %{_sysconfdir}/sysconfig/eos.example
+    %config %{_sysconfdir}/sysconfig/eos.example
     %{_sysconfdir}/rc.d/init.d/eos
     %{_sysconfdir}/rc.d/init.d/eosha
     %{_sysconfdir}/rc.d/init.d/eossync
@@ -398,6 +398,7 @@ The EOS fuse SYSV init scripts and SystemD scripts.
 %files -n eos-fuse-sys
 %defattr(-, root, root, -)
 %if %{use_systemd}
+  %config %{_sysconfdir}/sysconfig/eosd_env.example
   %{_prefix}/lib/systemd/system/eosd@.service
   %{_sbindir}/eos_start_pre.sh
 %else
