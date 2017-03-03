@@ -109,10 +109,6 @@ fi
 
 # Start EOS-Fuse daemons
 if [ "$1" = "eosd-start" ]; then
-  if [ -f /etc/sysconfig/eosd_env.${2} ]; then
-    . /etc/sysconfig/eosd_env.${2}
-  fi
-
   mkdir -p /var/run/eosd/ /var/run/eosd/credentials/store ${EOS_FUSE_MOUNTDIR}
   chmod 1777 /var/run/eosd/credentials /var/run/eosd/credentials/store
   chmod 755 ${EOS_FUSE_MOUNTDIR}
@@ -120,10 +116,6 @@ fi
 
 # Stop EOS-Fuse daemons
 if [ "$1" = "eosd-stop" ]; then
-  if [ -f /etc/sysconfig/eosd_env.${2} ]; then
-    . /etc/sysconfig/eosd_env.${2}
-  fi
-
   umount -f ${EOS_FUSE_MOUNTDIR}
 fi
 
