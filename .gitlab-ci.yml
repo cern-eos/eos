@@ -74,8 +74,9 @@ eos_system_test:
   stage: test
   script:
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
-    - ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
+    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     - docker ps -a
-    - ./eos-docker/scripts/shutdown_services.sh
+    - sudo ./eos-docker/scripts/shutdown_services.sh
+    - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
   tags:
     - shell-with-docker
