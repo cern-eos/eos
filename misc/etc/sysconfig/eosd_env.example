@@ -31,7 +31,7 @@ EOS_FUSE_MOUNTDIR=/eos/
 EOS_FUSE_REMOTEDIR=/eos/
 
 # MGM host from where to do the inital mount.
-EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
+EOS_FUSE_MGM_ALIAS=localhost
 
 # FUSE debugging mode. (default off)
 # EOS_FUSE_DEBUG=0
