@@ -398,14 +398,15 @@ The EOS fuse SYSV init scripts and SystemD scripts.
 %files -n eos-fuse-sys
 %defattr(-, root, root, -)
 %if %{use_systemd}
-    %{_prefix}/lib/systemd/system/eosd@.service
+  %{_prefix}/lib/systemd/system/eosd@.service
+  %{_sbindir}/eos_start_pre.sh
 %else
-    %{_sysconfdir}/rc.d/init.d/eosd
+  %{_sysconfdir}/rc.d/init.d/eosd
 %endif
 
 %post -n eos-fuse-sys
 %if %{use_systemd}
-    /sbin/systemctl daemon-reload > /dev/null 2>&1 || :
+  /sbin/systemctl daemon-reload > /dev/null 2>&1 || :
 %endif
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
   echo "Skipping chkconfig for eosd"
@@ -420,9 +421,9 @@ The EOS fuse SYSV init scripts and SystemD scripts.
   if [ $1 = 0 ]; then
     echo "Stopping EOS FUSE services"
     %if %{use_systemd}
-	/sbin/systemctl stop eosd@* > /dev/null 2>&1 || :
+      /sbin/systemctl stop eosd@* > /dev/null 2>&1 || :
     %else
-	/sbin/service eosd stop > /dev/null 2>&1 || :
+      /sbin/service eosd stop > /dev/null 2>&1 || :
     %endif
     /sbin/chkconfig --del eosd
   fi
