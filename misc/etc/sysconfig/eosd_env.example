@@ -60,8 +60,9 @@ EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # FUSE read-ahead. (default off)
 # EOS_FUSE_RDAHEAD=0
 
-# FUSE read-ahead window. (default 128k)
-# EOS_FUSE_RDAHEAD_WINDOW=131072
+# FUSE read-ahead window. (default 128k) - uncommented since it's an argument
+# option to the eosd command
+EOS_FUSE_RDAHEAD_WINDOW=131072
 
 # Using access for access permission check. (default on)
 # EOS_FUSE_NOACCESS=1
