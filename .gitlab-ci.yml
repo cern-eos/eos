@@ -69,3 +69,10 @@ eos_docker:
   variables:
     TO: gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     DOCKER_FILE: eos-docker/Dockerfile
+
+eos_system_test:
+  stage: test
+  script:
+    - docker info
+  tags:
+    - shell-with-docker
