@@ -24,12 +24,10 @@
 Description=EOSd %i
 
 [Service]
-Environment=EOS_FUSE_LOG_PREFIX=%i
-Environment=EOS_FUSE_MOUNTDIR=/eos/%i
-Environment=EOS_FUSE_REMOTEDIR=/eos/%i
 EnvironmentFile=/etc/sysconfig/eos_env
 EnvironmentFile=/etc/sysconfig/eosd_env
 EnvironmentFile=-/etc/sysconfig/eosd_env.%i
+Environment=EOS_FUSE_LOG_PREFIX=%i
 
 ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eosd-start %i"
 
