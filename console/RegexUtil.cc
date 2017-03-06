@@ -24,7 +24,7 @@
 #include "RegexUtil.hh"
 
 RegexUtil::RegexUtil()
-  : m_regex(), m_tokenize(false),  m_regex_flags(0), m_origin("")
+  : m_regex(), m_tokenize(false), m_origin("")
 {
   for (unsigned i = 0; i < max_num_of_matches; ++i) {
     m_matches[i].rm_so = 0;
