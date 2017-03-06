@@ -101,7 +101,7 @@ pthread_rwlock_t RWMutex::orderChkMgmLock;
 #define EOS_RWMUTEX_CHECKORDER_LOCK
 #define EOS_RWMUTEX_CHECKORDER_UNLOCK
 #define EOS_RWMUTEX_TIMER_START
-#define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what) AtomicInc(##what##LockCounter);
+#define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what) AtomicInc(what##LockCounter);
 #endif
 
 //------------------------------------------------------------------------------
