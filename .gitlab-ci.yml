@@ -63,6 +63,7 @@ eos_rpm_slc6:
 eos_dmg_macosx:
   stage: build:rpm
   script:
+    - git submodule update --init --recursive
     - mkdir build
     - mkdir install
     - cd build
