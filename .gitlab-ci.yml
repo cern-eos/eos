@@ -184,6 +184,7 @@ eos_dmg_macosx:
 eos_dmg_macosx:
   stage: build:rpm
   script:
+    - git submodule update --init --recursive
     - mkdir build
     - mkdir install
     - cd build
