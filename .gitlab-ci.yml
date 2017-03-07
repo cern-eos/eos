@@ -74,6 +74,7 @@ eos_dmg_macosx:
     - mkdir osx
     - cp *.dmg osx
   artifacts:
+    paths:
     - osx/
   tags:
     - macosx-shell
