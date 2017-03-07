@@ -191,7 +191,7 @@ eos_dmg_macosx:
     - /Users/jenkins/workspace/cmake-3.5.2/install/bin/cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=/usr/local -D Z_ROOT_DIR=/usr/local/opt/zlib/ -D OPENSSL_ROOT_DIR=/usr/local/opt/openssl/ -D NCURSES_ROOT_DIR=/usr/local/opt/ncurses/ -D ZMQ_ROOT_DIR=/usr/local/opt/zmqpp/include/zmqpp/ -D XROOTD_ROOT_DIR=/Users/jenkins/workspace/xrootd-latest/install/usr/local/ ..
     - make -j 4
     - make install DESTDIR=../install/
-    - version=`./genversion.sh`
+    - version=`../genversion.sh`
     - ../utils/eos-osx-package.sh $version /Users/jenkins/workspace/xrootd-latest/build/ ../install/
     - mkdir osx
     - cp *.dmg osx
