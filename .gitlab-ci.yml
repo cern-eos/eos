@@ -72,8 +72,9 @@ eos_dmg_macosx:
     - make install DESTDIR=../install/
     - version=`../genversion.sh`
     - ../utils/eos-osx-package.sh $version /Users/jenkins/workspace/xrootd-latest/build/ ../install/
+    - cd ..
     - mkdir osx
-    - cp *.dmg osx
+    - cp build/*.dmg osx
   artifacts:
     paths:
     - osx/
