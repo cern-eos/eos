@@ -34,6 +34,10 @@ eos_rpm_cc7:
     - eos-docker/
   tags:
     - docker
+  only:
+    - master
+    - beryl_aquamarine
+    - master-ci
 
 eos_rpm_slc6:
   stage: build:rpm
@@ -59,6 +63,10 @@ eos_rpm_slc6:
     - slc6/
   tags:
     - docker
+  only:
+    - master
+    - beryl_aquamarine
+    - master-ci
 
 eos_rpm_fedora_rawhide:
   stage: build:rpm
@@ -82,6 +90,10 @@ eos_rpm_fedora_rawhide:
     - fedora-rawhide/
   tags:
     - docker
+  only:
+    - master
+    - beryl_aquamarine
+    - master-ci
 
 eos_rpm_fedora_25:
   stage: build:rpm
@@ -105,6 +117,10 @@ eos_rpm_fedora_25:
     - fedora25/
   tags:
     - docker
+  only:
+    - master
+    - beryl_aquamarine
+    - master-ci
 
 eos_dmg_macosx:
   stage: build:rpm
@@ -126,6 +142,10 @@ eos_dmg_macosx:
     - osx/
   tags:
     - macosx-shell
+  only:
+    - master
+    - beryl_aquamarine
+    - master-ci
 
 eos_docker:
   stage: build:dockerimage
@@ -136,6 +156,10 @@ eos_docker:
   variables:
     TO: gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     DOCKER_FILE: eos-docker/Dockerfile
+  only:
+    - master
+    - beryl_aquamarine
+    - master-ci
 
 eos_system_test:
   stage: test
@@ -149,3 +173,7 @@ eos_system_test:
     - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID} 
   tags:
     - shell-with-docker
+  only:
+    - master
+    - beryl_aquamarine
+    - master-ci
