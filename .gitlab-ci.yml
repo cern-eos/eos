@@ -170,7 +170,6 @@ eos_system_test:
     - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     - docker ps -a
     - docker exec -i eos-mgm-test eos fs ls
-    - docker exec -i eos-client-test bash -c "XRD_LOGLEVEL=Dump xrdcp -f /root/anaconda-ks.cfg root://eos-mgm-test.eoscluster.cern.ch//eos/dockertest/test1.dat"
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID} 
   tags:
@@ -179,4 +178,3 @@ eos_system_test:
     - master
     - beryl_aquamarine
     - master-ci
-  allow_failure: true
