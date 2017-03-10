@@ -73,5 +73,6 @@ com_chown_usage:
   fprintf(stdout, "Remark: EOS does access control on directory level - the '-r' option only applies to directories! It is not possible to set uid!=0 and gid=0!\n\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout, "                  -r : recursive\n");
+  global_retc = EINVAL;
   return (0);
 }

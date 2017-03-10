@@ -895,7 +895,7 @@ com_file_usage:
   fprintf(stdout, "       <path>          : path to create a share link\n");
   fprintf(stdout,"        <lifetime>      : validity time of the share link like 1, 1s, 1d, 1w, 1mo, 1y, ... default is 28d\n");
   fprintf(stdout, "\n");
-
+  global_retc = EINVAL;
   return (0);
 }
 

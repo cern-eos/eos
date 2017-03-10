@@ -102,5 +102,6 @@ com_map_usage:
   fprintf(stdout, "                                                : create a symbolic link from source-path to destination-path\n");
   fprintf(stdout, "map unlink <source-path> :\n");
   fprintf(stdout, "                                                : remove symbolic link from source-path\n");
+  global_retc = 0;
   return (0);
 }

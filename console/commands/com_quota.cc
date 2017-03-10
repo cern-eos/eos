@@ -357,8 +357,7 @@ com_quota_usage:
   fprintf(stdout, "     => for convenience all commands can just use <path> as last argument ommitting the -p|--path e.g. quota ls /eos/ ...\n");
   fprintf(stdout, "     => if <path> is not terminated with a '/' it is assumed to be a file so it want match the quota node with <path>/ !\n");
   fprintf(stdout, "       quota rmnode -p <path>                                                                      : remove quota node and every defined quota on that node\n");
-
-
+  global_retc = 0;
 
   return (0);
 }

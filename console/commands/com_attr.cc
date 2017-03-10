@@ -497,5 +497,6 @@ com_attr_usage:
   fprintf(stdout, ".... Attribute Link ...\n");
   fprintf(stdout, ".......................\n");
   fprintf(stdout, "     |eos> attr set sys.attr.link=/eos/dev/origin-attr/ /eos/dev/instance/attr-linked/\n");
+  global_retc = EINVAL;
   return (0);
 }

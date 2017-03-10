@@ -812,5 +812,6 @@ com_find_usage:
   fprintf(stdout, "                                                               path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters\n");
   fprintf(stdout, "                                                               path=as3:...   :  do a find on an S3 bucket\n");
   fprintf(stdout, "                                                               path=...       :  all other paths are considered to be EOS paths!\n");
+  global_retc = EINVAL;
   return (0);
 }

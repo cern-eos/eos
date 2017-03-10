@@ -143,5 +143,6 @@ com_stat_usage:
   fprintf(stdout, "usage: stat [-f|-d]    <path>                                                  :  stat <path>\n");
   fprintf(stdout, "                    -f : checks if <path> is a file\n");
   fprintf(stdout, "                    -d : checks if <path> is a directory\n");
+  global_retc = EINVAL;
   return (0);
 }

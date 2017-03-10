@@ -68,5 +68,6 @@ com_chmod_usage:
   fprintf(stdout, "                 <mode> can be only numerical like 755, 644, 700\n");
   fprintf(stdout, "                 <mode> are automatically changed to 2755, 2644, 2700 respectivly\n");
   fprintf(stdout, "                 <mode> to disable attribute inheritance use 4755, 4644, 4700 ...\n");
+  global_retc = EINVAL;
   return (0);
 }

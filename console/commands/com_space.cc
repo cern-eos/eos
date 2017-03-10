@@ -341,5 +341,7 @@ com_space_usage:
   fprintf(stdout, "       space rm <space-name>                                         : remove space\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       space quota <space-name> on|off                               : enable/disable quota\n");
+
+  global_retc = EINVAL;
   return (0);
 }

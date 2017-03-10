@@ -280,6 +280,7 @@ com_config_usage:
   fprintf(stdout, "                                                  reset all configuration to empty state\n");
   fprintf(stdout, "config autosave [on|off] :\n");
   fprintf(stdout, "                                                  without on/off just prints the state otherwise set's autosave to on or off\n");
+  global_retc = EINVAL;
 
   return (0);
 }

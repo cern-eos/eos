@@ -57,5 +57,6 @@ com_member (char* arg1)
 
 com_member_usage:
   fprintf(stdout, "usage: member [<egroup>]                                :  show the (cached) information about egroup membership\n");
+  global_retc = 0;
   return (0);
 }

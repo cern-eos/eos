@@ -235,5 +235,6 @@ com_ns_usage:
   fprintf(stdout, "       ns master --log-clear                                         -  clean the master log\n");
   fprintf(stdout, "       ns master --disable                                           -  disable the slave/master supervisor thread modifying stall/redirection variables\n");
   fprintf(stdout, "       ns master --enable                                            -  enable  the slave/master supervisor thread modifying stall/redirectino variables\n");
+  global_retc = 0;
   return (0);
 }

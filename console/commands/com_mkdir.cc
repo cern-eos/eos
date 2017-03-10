@@ -90,6 +90,7 @@ com_mkdir (char* arg1)
 
 com_mkdir_usage:
   fprintf(stdout, "usage: mkdir -p <path>                                                :  create directory <path>\n");
+  global_retc = EINVAL;
   return (0);
 
 }

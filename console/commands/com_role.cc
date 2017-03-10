@@ -49,5 +49,7 @@ com_role_usage:
 
   fprintf(stdout, "            <user-role> can be a virtual user ID (unsigned int) or a user mapping alias\n");
   fprintf(stdout, "            <group-role> can be a virtual group ID (unsigned int) or a group mapping alias\n");
+
+  global_retc = EINVAL;
   return (0);
 }

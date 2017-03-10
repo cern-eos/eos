@@ -165,9 +165,6 @@ com_fsck_usage:
   fprintf(stdout, "       fsck repair --unlink-zero-replicas\n");
   fprintf(stdout, "                                                                  :  drop all files which have no replica's attached and are older than 48 hours!\n");
   fprintf(stdout, "       fsck repair --all                                          :  do all the repair actions besides <checksum-commit>\n");
-
-
-
-
+  global_retc = EINVAL;
   return (0);
 }

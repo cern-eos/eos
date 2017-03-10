@@ -970,5 +970,6 @@ com_fs_usage:
   fprintf(stdout, "  fs mv spare default    Move one filesystem from the sapre space into the default space. If default has subgroups the smallest subgroup is selected.\n\n");
   fprintf(stdout, "  fs mv 100 default.0    Move filesystem 100 into scheduling group default.0\n\n");
   fprintf(stdout, "Report bugs to eos-dev@cern.ch.\n");
+  global_retc = EINVAL;
   return (0);
 }

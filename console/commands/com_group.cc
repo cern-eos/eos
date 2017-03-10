@@ -180,5 +180,6 @@ com_group_usage:
   fprintf(stdout, "       group set <group-name> on|off                                 : activate/deactivate group\n");
   fprintf(stdout, "                                                                       => when a group is (re-)enabled, the drain pull flag is recomputed for all filesystems within a group\n");
   fprintf(stdout, "                                                                       => when a group is (re-)disabled, the drain pull flag is removed from all members in the group\n");
+  global_retc = EINVAL;
   return (0);
 }

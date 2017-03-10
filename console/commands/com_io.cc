@@ -286,5 +286,6 @@ com_io_usage:
   fprintf(stdout, "                                                           -10000 :  show the first 10000 in the ranking\n");
   fprintf(stdout, "                                                               -w :  show history for the last 7 days\n");
   fprintf(stdout, "                                                               -f :  show the 'hotfiles' which are the files with highest number of present file opens\n");
+  global_retc = EINVAL;
   return (0);
 }

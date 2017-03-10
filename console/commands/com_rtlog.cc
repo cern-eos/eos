@@ -80,5 +80,6 @@ com_rtlog_usage:
   fprintf(stdout, "                     - '*' means to query all nodes\n");
   fprintf(stdout, "                     - '.' means to query only the connected mgm\n");
   fprintf(stdout, "                     - if the first argument is ommitted '.' is assumed\n");
+  global_retc = EINVAL;
   return (0);
 }

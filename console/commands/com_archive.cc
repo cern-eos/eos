@@ -142,5 +142,6 @@ com_archive_usage:
       << ": display help message" << std::endl;
 
   fprintf(stdout, "%s", oss.str().c_str());
+  global_retc = EINVAL;
   return 0;
 }

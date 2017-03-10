@@ -136,5 +136,6 @@ com_backup_usage:
       << "              also not checked during the verification step" << std::endl;
 
   fprintf(stdout, "%s", oss.str().c_str());
+  global_retc = EINVAL;
   return 0;
 }
