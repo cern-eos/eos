@@ -11,7 +11,9 @@ eos_rpm_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities
+    - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache
+    - export CCACHE_DIR="`pwd`/ccache"
+    - ccache -s
     - git submodule update --init --recursive
     - mkdir build_srpm
     - cd build_srpm
@@ -23,6 +25,7 @@ eos_rpm_cc7:
     - yum-builddep --nogpgcheck -y build_srpm/SRPMS/*
     - mkdir build_rpm
     - rpmbuild --rebuild --with=server --define "_rpmdir build_rpm/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build_srpm/SRPMS/*
+    - ccache -s
     - mkdir cc7
     - cp -R build_srpm/SRPMS cc7
     - cp -R build_rpm/RPMS cc7
@@ -32,6 +35,10 @@ eos_rpm_cc7:
     paths:
     - cc7/
     - eos-docker/
+  cache:
+    key: "$CI_BUILD_NAME"
+    paths:
+    - ccache/
   tags:
     - docker
   only:
@@ -43,7 +50,9 @@ eos_rpm_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar
+    - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache
+    - export CCACHE_DIR="`pwd`/ccache"
+    - ccache -s
     - git submodule update --init --recursive
     - mkdir build_srpm
     - cd build_srpm
@@ -55,12 +64,17 @@ eos_rpm_slc6:
     - yum-builddep --nogpgcheck -y build_srpm/SRPMS/*
     - mkdir build_rpm
     - rpmbuild --rebuild --with server --define "_rpmdir build_rpm/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build_srpm/SRPMS/*
+    - ccache -s
     - mkdir slc6
     - cp -R build_srpm/SRPMS slc6
     - cp -R build_rpm/RPMS slc6
   artifacts:
     paths:
     - slc6/
+  cache:
+    key: "$CI_BUILD_NAME"
+    paths:
+    - ccache/
   tags:
     - docker
   only:
@@ -72,7 +86,9 @@ eos_rpm_fedora_rawhide:
   stage: build:rpm
   image: fedora:rawhide
   script:
-    - dnf install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils
+    - dnf install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache
+    - export CCACHE_DIR="`pwd`/ccache"
+    - ccache -s
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -81,6 +97,7 @@ eos_rpm_fedora_rawhide:
     - echo -e '[xrootd]\nname=XRootD CERN\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/xrootd.repo
     - yum-builddep --nogpgcheck -y SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" SRPMS/*
+    - ccache -s
     - cd ..
     - mkdir fedora-rawhide
     - cp -R build/SRPMS fedora-rawhide
@@ -88,6 +105,10 @@ eos_rpm_fedora_rawhide:
   artifacts:
     paths:
     - fedora-rawhide/
+  cache:
+    key: "$CI_BUILD_NAME"
+    paths:
+    - ccache/
   tags:
     - docker
   only:
@@ -95,11 +116,13 @@ eos_rpm_fedora_rawhide:
     - beryl_aquamarine
     - master-ci
 
-eos_rpm_fedora_25:
+eos_rpm_fedora_24:
   stage: build:rpm
   image: fedora:24
   script:
-    - dnf install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils
+    - dnf install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache
+    - export CCACHE_DIR="`pwd`/ccache"
+    - ccache -s
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -108,6 +131,7 @@ eos_rpm_fedora_25:
     - echo -e '[xrootd]\nname=XRootD CERN\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/fc-24/x86_64/\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/xrootd.repo
     - yum-builddep --nogpgcheck -y SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" SRPMS/*
+    - ccache -s
     - cd ..
     - mkdir fedora25
     - cp -R build/SRPMS fedora25
@@ -115,6 +139,10 @@ eos_rpm_fedora_25:
   artifacts:
     paths:
     - fedora25/
+  cache:
+    key: "$CI_BUILD_NAME"
+    paths:
+    - ccache/
   tags:
     - docker
   only:
@@ -156,6 +184,8 @@ eos_docker:
   variables:
     TO: gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     DOCKER_FILE: eos-docker/Dockerfile
+  dependencies:
+    - eos_rpm_cc7
   only:
     - master
     - beryl_aquamarine
