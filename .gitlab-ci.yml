@@ -19,6 +19,8 @@ eos_rpm_cc7:
     - cd build_srpm
     - cmake3 .. -DPACKAGEONLY=1
     - make srpm
+    - export CCACHE_BASEDIR="/root/rpmbuild/BUILDROOT`ls SRPMS/*.src.rpm | sed -e 's/SRPMS\(.*\)src.rpm/\1/'`x86_64"
+    - echo $CCACHE_BASEDIR
     - cd ..
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-7-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
@@ -51,7 +53,6 @@ eos_rpm_slc6:
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache
-    - ls -la ccache/
     - export CCACHE_DIR="`pwd`/ccache"
     - ccache -s
     - git submodule update --init --recursive
