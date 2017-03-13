@@ -51,6 +51,7 @@ eos_rpm_slc6:
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache
+    - ls -la ccache/
     - export CCACHE_DIR="`pwd`/ccache"
     - ccache -s
     - git submodule update --init --recursive
