@@ -12,9 +12,9 @@ eos_rpm_cc7:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache
+    - ls -la ccache/
     - export CCACHE_DIR="`pwd`/ccache"
     - ccache -s
-    - ls -la ccache/
     - git submodule update --init --recursive
     - mkdir build_srpm
     - cd build_srpm
