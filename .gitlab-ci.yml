@@ -14,6 +14,7 @@ eos_rpm_cc7:
     - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache
     - export CCACHE_DIR="`pwd`/ccache"
     - ccache -s
+    - ls -la ccache/
     - git submodule update --init --recursive
     - mkdir build_srpm
     - cd build_srpm
@@ -31,16 +32,16 @@ eos_rpm_cc7:
     - cp -R build_rpm/RPMS cc7
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
-  artifacts:
-    paths:
-    - cc7/
-    - eos-docker/
   cache:
     key: "$CI_BUILD_NAME"
     paths:
     - ccache/
+  artifacts:
+    paths:
+    - cc7/
+    - eos-docker/
   tags:
-    - docker
+    - docker-custom
   only:
     - master
     - beryl_aquamarine
