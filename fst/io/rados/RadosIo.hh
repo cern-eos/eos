@@ -287,6 +287,20 @@ public:
     return SFS_ERROR;
   }
 
+  //----------------------------------------------------------------------------
+  //! Execute implementation dependant command
+  //!
+  //! @param cmd command
+  //! @param client client identity
+  //!
+  //! @return 0 if successful, -1 otherwise
+  //----------------------------------------------------------------------------
+  int fileFctl(const std::string& cmd, uint16_t timeout = 0)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
+
   // ------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)
   //!

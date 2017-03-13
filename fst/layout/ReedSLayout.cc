@@ -21,22 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <cmath>
 #include <map>
 #include <set>
 #include <algorithm>
-/*----------------------------------------------------------------------------*/
 #include "common/Timing.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/jerasure/include/jerasure.h"
 #include "fst/layout/jerasure/include/reed_sol.h"
 #include "fst/layout/jerasure/include/galois.h"
 #include "fst/layout/jerasure/include/cauchy.h"
 #include "fst/layout/jerasure/include/liberation.h"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 

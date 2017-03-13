@@ -245,6 +245,19 @@ public:
   virtual int fileStat(struct stat* buf, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
+  //! Execute implementation dependant commands
+  //!
+  //! @param buf stat buffer
+  //! @param timeout timeout value
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //----------------------------------------------------------------------------
+  virtual int fileFctl(const std::string& cmd, uint16_t timeout = 0)
+  {
+    return SFS_OK;
+  }
+
+  //----------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)
   //!
   //! @param name attribute name

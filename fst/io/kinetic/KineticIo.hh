@@ -245,6 +245,20 @@ public:
   int fileStat(struct stat* buf, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
+  //! Execute implementation dependant command
+  //!
+  //! @param cmd command
+  //! @param client client identity
+  //!
+  //! @return 0 if successful, -1 otherwise
+  //----------------------------------------------------------------------------
+  int fileFctl(const std::string& cmd, uint16_t timeout = 0)
+  {
+    // TODO: this needs a proper implementation for the Kinetic drives
+    return SFS_OK;
+  }
+
+  //----------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)
   //!
   //! @param name attribute name

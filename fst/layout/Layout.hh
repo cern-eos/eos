@@ -25,18 +25,14 @@
 #ifndef __EOSFST_LAYOUT_HH__
 #define __EOSFST_LAYOUT_HH__
 
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
-/*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
 #include "fst/io/FileIoPlugin.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -46,19 +42,15 @@ class XrdFstOfsFile;
 //------------------------------------------------------------------------------
 //! Class which abstracts the physical layout of the file
 //------------------------------------------------------------------------------
-
 class Layout : public eos::common::LogId
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param file file handler
-  //!
   //----------------------------------------------------------------------------
   Layout(XrdFstOfsFile* file);
-
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -70,7 +62,6 @@ public:
   //! @param io access type informatio ( ofs/xrd )
   //! @param timeout timeout value
   //! @param timeout timeout value
-  //!
   //----------------------------------------------------------------------------
   Layout(XrdFstOfsFile* file,
          unsigned long lid,
@@ -79,39 +70,32 @@ public:
          const char* path,
          uint16_t timeout = 0);
 
-
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~Layout();
 
-
   //----------------------------------------------------------------------------
   //! Get the name of the layout
   //--------------------------------------------------------------------------
-
   const char*
   GetName()
   {
     return mName.c_str();
   }
 
-
   //----------------------------------------------------------------------------
   //! Get path to the local replica
   //--------------------------------------------------------------------------
-
   const char*
   GetLocalReplicaPath()
   {
     return mLocalPath.c_str();
   }
 
-
   //----------------------------------------------------------------------------
   //! Get layout id
   //--------------------------------------------------------------------------
-
   inline unsigned int
   GetLayoutId()
   {
@@ -121,7 +105,6 @@ public:
   //--------------------------------------------------------------------------
   //! Get last remote URL (if available)
   //--------------------------------------------------------------------------
-
   const std::string&
   GetLastUrl()
   {
@@ -131,7 +114,6 @@ public:
   //--------------------------------------------------------------------------
   //! Get last remote URL (if available)
   //--------------------------------------------------------------------------
-
   const std::string&
   GetLastTriedUrl()
   {
@@ -159,13 +141,11 @@ public:
   //--------------------------------------------------------------------------
   //! Test if we are at the entry server
   //--------------------------------------------------------------------------
-
   virtual bool
   IsEntryServer()
   {
     return mIsEntryServer;
   }
-
 
   //----------------------------------------------------------------------------
   //! Open a file of the current layout type
@@ -175,12 +155,9 @@ public:
   //! @param opaque opaque information
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
-  virtual int Open(
-    XrdSfsFileOpenMode flags,
-    mode_t mode,
-    const char* opaque) = 0;
+  virtual int Open(XrdSfsFileOpenMode flags, mode_t mode,
+                   const char* opaque) = 0;
 
   //----------------------------------------------------------------------------
   //! Read from file
@@ -190,13 +167,11 @@ public:
   //! @param length length
   //!
   //! @return number of bytes read or -1 if error
-  //!
   //----------------------------------------------------------------------------
   virtual int64_t Read(XrdSfsFileOffset offset,
                        char* buffer,
                        XrdSfsXferSize length,
                        bool readahead = false) = 0;
-
 
   //----------------------------------------------------------------------------
   //! Vector read
@@ -205,11 +180,9 @@ public:
   //! @param len total length of the vector read
   //!
   //! @return number of bytes read of -1 if error
-  //!
   //----------------------------------------------------------------------------
   virtual int64_t ReadV(XrdCl::ChunkList& chunkList,
                         uint32_t len) = 0;
-
 
   //----------------------------------------------------------------------------
   //! Write to file
@@ -219,12 +192,14 @@ public:
   //! @param length length
   //!
   //! @return number of bytes written or -1 if error
-  //!
   //----------------------------------------------------------------------------
   virtual int64_t Write(XrdSfsFileOffset offset,
                         const char* buffer,
                         XrdSfsXferSize length) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Wait for asynchronous IO
+  //----------------------------------------------------------------------------
   virtual int WaitAsyncIO()
   {
     return 0;
@@ -236,10 +211,8 @@ public:
   //! @param offset truncate file to this value
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Truncate(XrdSfsFileOffset offset) = 0;
-
 
   //----------------------------------------------------------------------------
   //! Allocate file space
@@ -247,15 +220,12 @@ public:
   //! @param length space to be allocated
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
   virtual int
   Fallocate(XrdSfsFileOffset lenght)
   {
     return 0;
   }
-
 
   //----------------------------------------------------------------------------
   //! Deallocate file space
@@ -264,7 +234,6 @@ public:
   //! @param toOffset offset end
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
 
   virtual int
@@ -274,63 +243,65 @@ public:
     return 0;
   }
 
-
   //----------------------------------------------------------------------------
   //! Remove file
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
   virtual int
   Remove()
   {
     return 0;
   }
 
-
   //----------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Sync() = 0;
-
 
   //----------------------------------------------------------------------------
   //! Close file
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Close() = 0;
 
-
   //----------------------------------------------------------------------------
   //! Get stats about the file
   //!
   //! @param buf stat buffer
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Stat(struct stat* buf) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Execute implementation dependant command
+  //!
+  //! @param cmd command
+  //! @param client client identity
+  //!
+  //! @return 0 if successful, -1 otherwise
+  //----------------------------------------------------------------------------
+  virtual int Fctl(const std::string& cmd, const XrdSecEntity* client) = 0;
+
   //--------------------------------------------------------------------------
   //! Get stats about the file
   //!
   //! @param buf stat buffer
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
   FileIo* GetFileIo()
   {
     return mFileIO;
   }
 
+  //--------------------------------------------------------------------------
+  //! Redirect given path
+  //--------------------------------------------------------------------------
   virtual void Redirect(const char* path)
   {
     if (mFileIO) {
@@ -341,7 +312,6 @@ public:
   }
 
 protected:
-
   bool mIsEntryServer; ///< mark entry server
   unsigned long mLayoutId; ///< layout id
   XrdOucString mName; ///< layout name
