@@ -16,17 +16,17 @@ eos_rpm_cc7:
     - export CCACHE_DIR="`pwd`/ccache"
     - ccache --max-size=1G
     - ccache -s
-    - export CCACHE_BASEDIR="`rpm --eval %_buildrootdir`"
-    - echo $CCACHE_BASEDIR
     - mkdir build
     - cd build
     - cmake3 .. -DPACKAGEONLY=1
     - make srpm
+    - export CCACHE_BASEDIR="`rpm --eval %_builddir`/`ls SRPMS/*.src.rpm | awk -F '.' 'BEGIN{OFS=".";} {NF-=4;}1' | awk -F '/' '{print $NF}'`"
+    - echo $CCACHE_BASEDIR
     - cd ..
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-7-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck -y build/SRPMS/*
-    - rpmbuild --rebuild --with=server --define "_rpmdir build/RPMS/" --define "buildroot %_buildrootdir" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
+    - rpmbuild --rebuild --with=server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - mkdir cc7
     - cp -R build/SRPMS cc7
@@ -34,10 +34,11 @@ eos_rpm_cc7:
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
   cache:
-    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+    key: "$CI_BUILD_NAME"
     paths:
     - ccache/
   artifacts:
+    expire_in: 2 days
     paths:
     - cc7/
     - eos-docker/
@@ -76,6 +77,7 @@ eos_rpm_slc6:
     paths:
     - ccache/
   artifacts:
+    expire_in: 2 days
     paths:
     - slc6/
   tags:
@@ -107,6 +109,7 @@ eos_rpm_fedora_rawhide:
     - cp -R build/SRPMS fedora-rawhide
     - cp -R build/RPMS fedora-rawhide
   artifacts:
+    expire_in: 2 days
     paths:
     - fedora-rawhide/
   cache:
@@ -142,6 +145,7 @@ eos_rpm_fedora_24:
     - cp -R build/SRPMS fedora25
     - cp -R build/RPMS fedora25
   artifacts:
+    expire_in: 2 days
     paths:
     - fedora25/
   cache:
@@ -172,6 +176,7 @@ eos_dmg_macosx:
     - mkdir osx
     - cp build/*.dmg osx
   artifacts:
+    expire_in: 2 days
     paths:
     - osx/
   tags:
