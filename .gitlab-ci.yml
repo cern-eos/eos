@@ -73,7 +73,7 @@ eos_rpm_slc6:
     - cp -R build_srpm/SRPMS slc6
     - cp -R build_rpm/RPMS slc6
   cache:
-    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+    key: "$CI_BUILD_NAME"
     paths:
     - ccache/
   artifacts:
