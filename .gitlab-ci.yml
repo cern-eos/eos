@@ -214,4 +214,3 @@ eos_system_test:
     - master
     - beryl_aquamarine
     - master-ci
-
