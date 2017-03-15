@@ -78,18 +78,16 @@ ProcCommand::Fs()
                           pOpaque->Get("mgm.fs.space") : "";
       std::string configstatus = (pOpaque->Get("mgm.fs.configstatus")) ?
                                  pOpaque->Get("mgm.fs.configstatus") : "";
-      //          eos::common::RWMutexWriteLock vlock(FsView::gFsView.ViewMutex); => moving into the routine to do it more clever(shorted)
       retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus,
                          stdOut, stdErr, tident, *pVid);
     }
 
     if (mSubCmd == "mv") {
       if (pVid->uid == 0) {
-        std::string sfsid = (pOpaque->Get("mgm.fs.id")) ? pOpaque->Get("mgm.fs.id") :
-                            "";
-        std::string space = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") :
-                            "";
-        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+        std::string sfsid = (pOpaque->Get("mgm.fs.id") ?
+                             pOpaque->Get("mgm.fs.id") : "");
+        std::string space = (pOpaque->Get("mgm.space") ?
+                             pOpaque->Get("mgm.space") : "");
         retc = proc_fs_mv(sfsid, space, stdOut, stdErr, tident, *pVid);
       } else {
         retc = EPERM;

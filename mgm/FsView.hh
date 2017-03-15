@@ -443,7 +443,7 @@ public:
 //------------------------------------------------------------------------------
 //! Class describing a space (set of filesystems)
 //------------------------------------------------------------------------------
-class FsSpace : public BaseView
+class FsSpace: public BaseView
 {
 public:
 #ifndef EOSMGMFSVIEWTEST
@@ -557,21 +557,21 @@ public:
       if (GetConfigMember("groupbalancer.threshold") == "") {
         SetConfigMember("groupbalancer.threshold", "5", true, "/eos/*/mgm");
       }
-      
+
       if (GetConfigMember("geobalancer") == "") {
         SetConfigMember("geobalancer", "off", true, "/eos/*/mgm");
       }
-      
+
       // Set the geobalancer max number of scheduled files by default
       if (GetConfigMember("geobalancer.ntx") == "") {
         SetConfigMember("geobalancer.ntx", "10", true, "/eos/*/mgm");
       }
-      
+
       // Set the geobalancer threshold by default
       if (GetConfigMember("geobalancer.threshold") == "") {
         SetConfigMember("geobalancer.threshold", "5", true, "/eos/*/mgm");
       }
-      
+
       // Disable lru by default
       if (GetConfigMember("lru") == "") {
         SetConfigMember("converter", "off", true, "/eos/*/mgm");
@@ -890,13 +890,27 @@ public:
 
   //----------------------------------------------------------------------------
   //! Add or modify a filesystem
+  //!
+  //! @param fs filesystem to register
+  //! @parma registerInGeoTreeEngine
+  //!
+  //! @return true if done, otherwise false
   //----------------------------------------------------------------------------
   bool Register(FileSystem* fs, bool registerInGeoTreeEngine = true);
 
   //----------------------------------------------------------------------------
   //! Move a filesystem to another group
+  //!
+  //! @param fs filesystem object to move
+  //! @param group target group
+  //! @param spaces_to_del spaces to be deleted
+  //! @param groups_to_del groups to be deleted
+  //!
+  //! @return true if moved otherwise false
   //----------------------------------------------------------------------------
-  bool MoveGroup(FileSystem* fs, std::string group);
+  bool MoveGroup(FileSystem* fs, std::string group,
+                 std::list<FsSpace*>& spaces_to_del,
+                 std::list<FsGroup*>& groups_to_del);
 
   //----------------------------------------------------------------------------
   //! Store the filesystem configuration into the config engine. Should be

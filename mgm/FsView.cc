@@ -707,10 +707,10 @@ DoubleAggregator::aggregateNodes(
     size_t i = it->second->mId;
 
     if (pNb[i]) { // consider this only if there is something there
-      pMiD = std::min(pMiD,
-                      std::min((pMinDevs[i] + pMeans[i]) - pM , (pMaxDevs[i] + pMeans[i]) - pM));
-      pMaD = std::max(pMaD,
-                      std::max((pMinDevs[i] + pMeans[i]) - pM , (pMaxDevs[i] + pMeans[i]) - pM));
+      pMiD = std::min(pMiD, std::min((pMinDevs[i] + pMeans[i]) - pM,
+                                     (pMaxDevs[i] + pMeans[i]) - pM));
+      pMaD = std::max(pMaD, std::max((pMinDevs[i] + pMeans[i]) - pM,
+                                     (pMaxDevs[i] + pMeans[i]) - pM));
       pSD += pNb[i] * (pStdDevs[i] * pStdDevs[i] + pMeans[i] * pMeans[i]);
     }
   }
@@ -1038,9 +1038,7 @@ FsView::GetGroupFormat(std::string option)
 }
 
 //------------------------------------------------------------------------------
-// @brief register a filesystem object in the filesystem view
-// @param fs filesystem to register
-// @return true if done, otherwise false
+// Register a filesystem object in the filesystem view
 //------------------------------------------------------------------------------
 bool
 FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
@@ -1189,13 +1187,12 @@ FsView::StoreFsConfig(FileSystem* fs)
 }
 
 //------------------------------------------------------------------------------
-// @brief Move a filesystem in to a target group
-// @param fs filesystem object to move
-// @param group target group
-// @return true if moved otherwise false
+// Move a filesystem in to a target group
 //------------------------------------------------------------------------------
 bool
-FsView::MoveGroup(FileSystem* fs, std::string group)
+FsView::MoveGroup(FileSystem* fs, std::string group,
+                  std::list<FsSpace*>& spaces_to_del,
+                  std::list<FsGroup*>& groups_to_del)
 {
   if (!fs) {
     return false;
@@ -1221,7 +1218,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
 
         if (!space->size()) {
           mSpaceView.erase(snapshot1.mSpace);
-          delete space;
+          spaces_to_del.push_back(space);
         }
       }
 
@@ -1261,7 +1258,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
           }
 
           mGroupView.erase(snapshot1.mGroup);
-          delete group;
+          groups_to_del.push_back(group);
         }
       }
 
@@ -1814,7 +1811,7 @@ FsView::HeartBeatCheck()
         }
       }
 
-      // iterator over all filesystems
+      // Iterate over all filesystems
       for (auto it = mNodeView.begin(); it != mNodeView.end(); it++) {
         if (!it->second) {
           continue;
