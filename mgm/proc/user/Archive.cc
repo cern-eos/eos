@@ -697,7 +697,7 @@ ProcCommand::ArchiveExecuteCmd(const::string& cmd)
   try {
     socket.connect(gOFS->mArchiveEndpoint.c_str());
   } catch (zmq::error_t& zmq_err) {
-    eos_static_err("connect to archiver failed");
+    eos_static_err("connect to archiver failed:% ", zmq_err.what());
     stdErr = "error: connect to archiver failed";
     retc = EINVAL;
   }
