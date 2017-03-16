@@ -29,7 +29,7 @@ include_directories( ../
                      ${NCURSES_INCLUDE_DIR}
                      ${LDAP_INCLUDE_DIR}
                      ${Z_INCLUDE_DIR}
-		     ${ZMQ_INCLUDE_DIR}
+		     ${ZMQ_INCLUDE_DIRS}
 		     ${JSONCPP_INCLUDE_DIR}
 )
 
