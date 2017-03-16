@@ -270,15 +270,17 @@ ScanDir::CheckFile(const char* filepath)
 #endif
 
         if ((!io->fileStat(&buf2)) && (buf1.st_mtime == buf2.st_mtime) &&
-            filecxerror && !reopened) {
-          if (bgThread) {
-            syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n",
-                   filePath.c_str(), logicalFileName.c_str());
-            eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(),
-                    logicalFileName.c_str());
-          } else {
-            fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n",
-                    filePath.c_str(), logicalFileName.c_str());
+            !reopened) {
+          if (filecxerror) {
+            if (bgThread) {
+              syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n",
+                     filePath.c_str(), logicalFileName.c_str());
+              eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(),
+                      logicalFileName.c_str());
+            } else {
+              fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n",
+                      filePath.c_str(), logicalFileName.c_str());
+            }
           }
         } else {
           // If the file was changed in the meanwhile or is reopened for update,
@@ -293,8 +295,8 @@ ScanDir::CheckFile(const char* filepath)
                     filePath.c_str());
           } else {
             fprintf(stderr,
-                    "[ScanDir] file %s has been modified during the scan ... ignoring checksum error\n",
-                    filePath.c_str());
+                    "[ScanDir] file %s has been modified during the scan ... "
+                    "ignoring checksum error\n", filePath.c_str());
           }
         }
       }
