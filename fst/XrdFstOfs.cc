@@ -717,7 +717,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   // !!! WATCH OUT: GOTO ANCHOR !!!
 again:
   XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
-  eos_static_info("url=%s", address.c_str());
+  //eos_static_info("url=%s", address.c_str());
 
   if (!fs) {
     eos_err("error=failed to get new FS object");

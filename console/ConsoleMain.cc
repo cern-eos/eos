@@ -1585,7 +1585,7 @@ bool RegWrapDenominator(XrdOucString& path, const std::string& key)
 
 bool Path2FileDenominator(XrdOucString& path)
 {
-  if (RegWrapDenominator(path, "fxid:[A-F0-9]+$")) {
+  if (RegWrapDenominator(path, "fxid:[a-fA-F0-9]+$")) {
     std::string temp = std::to_string(strtoull(path.c_str(), 0, 16));
     path = XrdOucString(temp.c_str());
     return true;
