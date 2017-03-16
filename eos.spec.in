@@ -70,7 +70,11 @@ Requires: eos-client
 Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
+%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
+Requires: zeromq3
+%else
 Requires: zeromq
+%endif
 Requires: protobuf
 Requires: jemalloc
 Requires: jsoncpp
