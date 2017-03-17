@@ -753,6 +753,8 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
   XrdOucString address = "root://";
   XrdOucString lManager;
 
+  size_t tried = 0;
+
   if (!manager)
   {
     // use the broadcasted manager name
@@ -833,9 +835,10 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
 	  delete fs;
 	  XrdSysTimer sleeper;
 	  sleeper.Snooze(1);
+	  tried++;
 	  eos_static_info("msg=\"retry query\" query=\"%s\"", capOpaqueFile.c_str());
 	  
-	  if (!manager)
+	  if (!manager || (tried>60))
 	  {
 	    // use the broadcasted manager name in the repeated try
 	    XrdSysMutexHelper lock(Config::gConfig.Mutex);
