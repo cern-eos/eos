@@ -33,11 +33,14 @@
 
 FuseCacheEntry::FuseCacheEntry (int noEntries,
                                 struct timespec modifTime,
-                                struct dirbuf* pBuf) :
+                                struct dirbuf* pBuf, 
+				long lifetimeinns) :
 mNumEntries (noEntries)
 {
   mModifTime.tv_sec = modifTime.tv_sec;
   mModifTime.tv_nsec = modifTime.tv_nsec;
+  mLifeTime=lifetimeinns;
+  eos::common::Timing::GetTimeSpec (mQueryTime, true);
   mBuf.size = pBuf->size;
   mBuf.p = static_cast<char*> (calloc(mBuf.size, sizeof ( char)));
   mBuf.p = static_cast<char*> (memcpy(mBuf.p, pBuf->p, mBuf.size * sizeof ( char)));
@@ -80,6 +83,8 @@ FuseCacheEntry::Update (int noEntries,
   mModifTime.tv_nsec = modifTime.tv_nsec;
   mNumEntries = noEntries;
   mSubEntries.clear();
+
+  eos::common::Timing::GetTimeSpec (mQueryTime, true);
 
   if (mBuf.size != pBuf->size)
   {
@@ -141,6 +146,11 @@ bool
 FuseCacheEntry::GetEntry (unsigned long long inode,
                           struct fuse_entry_param& e)
 {
+  // if the entry is older than the allowed lifetime, don't return it
+  if ( eos::common::Timing::GetAgeInNs (&mQueryTime) > mLifeTime)
+    return 0;
+
+
   eos::common::RWMutexReadLock rd_lock(mMutex);
 
   if (mSubEntries.count(inode))

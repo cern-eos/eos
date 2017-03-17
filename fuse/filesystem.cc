@@ -429,6 +429,54 @@ filesystem::store_p2i (unsigned long long inode, const char* path)
   inode2path[inode] = path;
 }
 
+//----------------------------------------------------------------------------                                                
+//! Store an inode/mtime pair                                                                                                 
+//----------------------------------------------------------------------------                                                
+void 
+filesystem::store_i2mtime (unsigned long long inode, timespec ts)
+{
+  eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
+  inode2mtime[inode] = ts;
+}
+
+//----------------------------------------------------------------------------                                                
+//! Store and test inode/mtime pair - returns true if open can set keep_cache
+//----------------------------------------------------------------------------                                                
+
+bool 
+filesystem::store_open_i2mtime (unsigned long long inode)
+{
+  bool retval = false;
+  return true;
+  eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
+
+  eos_static_debug("%16x %lu.%lu %lu.%lu\n", inode, 
+		   inode2mtime_open[inode].tv_sec, 
+		   inode2mtime_open[inode].tv_nsec, 
+		   inode2mtime[inode].tv_sec, 
+		   inode2mtime[inode].tv_nsec);
+  // this was never set !
+  if (inode2mtime_open[inode].tv_sec==0)
+    retval = true;
+  else
+    if ( (inode2mtime_open[inode].tv_sec == inode2mtime[inode].tv_sec ) &&
+	 (inode2mtime_open[inode].tv_nsec == inode2mtime[inode].tv_nsec ) )
+      retval = true;
+    else
+      retval = false;
+
+  inode2mtime_open[inode] = inode2mtime[inode];
+
+  eos_static_debug("%16x %lu.%lu %lu.%lu out=%d\n", inode, 
+		   inode2mtime_open[inode].tv_sec, 
+		   inode2mtime_open[inode].tv_nsec, 
+		   inode2mtime[inode].tv_sec, 
+		   inode2mtime[inode].tv_nsec, retval);
+
+  return retval;
+}
+
+
 //------------------------------------------------------------------------------
 // Replace a prefix when directories are renamed
 //------------------------------------------------------------------------------
@@ -538,6 +586,8 @@ filesystem::forget_p2i (unsigned long long inode)
      path2inode.erase (path);
    inode2path.erase (inode);
   }
+ inode2mtime.erase(inode);
+ inode2mtime_open.erase(inode);
 }
 
 //------------------------------------------------------------------------------
@@ -615,10 +665,10 @@ filesystem::dir_cache_get (unsigned long long inode,
       // Dir in cache and valid
      *b = static_cast<struct dirbuf*> (calloc (1, sizeof ( dirbuf)));
      dir->GetDirbuf (*b);
-      retc = 1; // found
+     retc = 1; // found
     }
   }
-
+ 
   return retc;
 }
 
@@ -655,7 +705,8 @@ filesystem::dir_cache_sync (unsigned long long inode,
                            int nentries,
                            struct timespec mtime,
                            struct timespec ctime,
-                           struct dirbuf* b)
+			   struct dirbuf* b, 
+  		           long lifetimens)
 {
  eos::common::RWMutexWriteLock wr_lock (mutex_fuse_cache);
   FuseCacheEntry* dir = 0;
@@ -694,7 +745,7 @@ filesystem::dir_cache_sync (unsigned long long inode,
       }
     }
 
-   dir = new FuseCacheEntry (nentries, modtime, b);
+   dir = new FuseCacheEntry (nentries, modtime, b, lifetimens);
     inode2cache[inode] = dir;
   }
 

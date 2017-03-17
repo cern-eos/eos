@@ -58,7 +58,8 @@ class FuseCacheEntry
     //--------------------------------------------------------------------------
     FuseCacheEntry( int             noEntries,
                     struct timespec modifTime,
-                    struct dirbuf*  pBuf );
+                    struct dirbuf*  pBuf, 
+		    long lifetime );
 
 
     //--------------------------------------------------------------------------
@@ -157,6 +158,8 @@ class FuseCacheEntry
     int mNumEntries;                   ///< number of subentries in directory
     struct dirbuf mBuf;                ///< dirbuf structure
     struct timespec mModifTime;        ///< modification time of the directory
+    struct timespec mQueryTime;        ///< time when queried
+    long mLifeTime;                    ///< lifetime in nanoseconds
     eos::common::RWMutex mMutex;       ///< mutex protecting the subentries map
     std::map<unsigned long long, struct fuse_entry_param> mSubEntries;  ///< map of subentries
 };
