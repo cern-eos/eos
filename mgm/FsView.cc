@@ -1145,9 +1145,9 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
 
       // Set new space default parameters
       if ((!space->SetConfigMember(std::string("groupsize"), "0",
-                                   true, "/eos/*/mgm")) ||
+                                   true, "/eos/*/mgm", true)) ||
           (!space->SetConfigMember(std::string("groupmod"), "24",
-                                   true, "/eos/*/mgm"))) {
+                                   true, "/eos/*/mgm", true))) {
         eos_err("failed setting space %s default config values",
                 snapshot.mSpace.c_str());
         return false;
