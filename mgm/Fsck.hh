@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: Fsck.hh
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -37,138 +37,135 @@
 #include <map>
 #include <set>
 
-/*----------------------------------------------------------------------------*/
-/**
- * @file Fsck.hh
- *
- * @brief Class aggregating FSCK statistics and repair functionality
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! @file Fsck.hh
+//! @brief Class aggregating FSCK statistics and repair functionality
+//------------------------------------------------------------------------------
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Class implementing the EOS filesystem check.
- *
- * When the FSCK thread is enabled it collects in a regular interval the
- * FSCK results broadcasted by all FST nodes into a central view.
- *
- * The FSCK interface offers a 'report' and a 'repair' utility allowing to
- * inspect and to actively try to run repair commands to fix inconsistencies.
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! @brief Class implementing the EOS filesystem check.
+//!
+//! When the FSCK thread is enabled it collects in a regular interval the
+//! FSCK results broadcasted by all FST nodes into a central view.
+//!
+//! The FSCK interface offers a 'report' and a 'repair' utility allowing to
+//! inspect and to actively try to run repair commands to fix inconsistencies.
+//------------------------------------------------------------------------------
 class Fsck
 {
-private:
-
-  /// in-memory FSCK log
-  XrdOucString mLog;
-
-  /// mutex protecting the in-memory log
-  XrdSysMutex mLogMutex;
-
-  /// flag indicating if the collection thread is active
-  XrdOucString mEnabled;
-
-  /// interval between two FSCK collection loops in minutes
-  int mInterval;
-
-  /// thread-id of the collection thread
-  pthread_t mThread;
-
-  /// indicator if the collection thread is currently running
-  bool mRunning;
-
-  /// mutex protecting all eX... map objects
-  XrdSysMutex eMutex;
-
-  /// error detail  map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
-  std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t> > >
-  eFsMap;
-
-  /// error summary map storing "<error-name>"=>[fid1,fid2,fid3...]"
-  std::map<std::string, std::set <eos::common::FileId::fileid_t> > eMap;
-  std::map<std::string, unsigned long long > eCount;
-
-  /// unavailable filesystems map
-  std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsUnavail;
-
-  /// dark filesystem map - dark filesystems are filesystems referenced by
-  /// a file but they are currently not configured in the filesystem view
-  std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsDark;
-
-  // timestamp of collection
-  time_t eTimeStamp;
-
-  // ---------------------------------------------------------------------------
-  /**
-   * @brief reset all collected errors in the error map
-   *
-  */
-  // ---------------------------------------------------------------------------
-  void
-  ResetErrorMaps()
-  {
-    XrdSysMutexHelper lock(eMutex);
-    eFsMap.clear();
-    eMap.clear();
-    eCount.clear();
-    eFsUnavail.clear();
-    eFsDark.clear();
-    eTimeStamp = time(NULL);
-  }
-
 public:
-  /// configuration key used in the configuration engine to store the enable
-  /// status
+  //! Key used in the configuration engine to store the enable status
   static const char* gFsckEnabled;
-
-  /// configuration key used in the configuration engine to store the interval
+  //! Key used in the configuration engine to store the check interval
   static const char* gFsckInterval;
 
-  // Constructor
+  //----------------------------------------------------------------------------
+  //! Static thread startup function
+  //----------------------------------------------------------------------------
+  static void* StaticCheck(void*);
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   Fsck();
 
-  // Destructor
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~Fsck();
 
-  // Start the collection thread
+  //----------------------------------------------------------------------------
+  //! Start the collection thread
+  //!
+  //! @param interval check interval in minutes
+  //----------------------------------------------------------------------------
   bool Start(int interval = 0);
 
-  // Stop the collection thread
+  //----------------------------------------------------------------------------
+  //! Stop the collection thread
+  //----------------------------------------------------------------------------
   bool Stop(bool store = true);
 
-  // FSCK interface usage output
+  //----------------------------------------------------------------------------
+  //! FSCK interface usage output
+  //----------------------------------------------------------------------------
   bool Usage(XrdOucString& out, XrdOucString& err);
 
-  // Print function to display FSCK results
+  //----------------------------------------------------------------------------
+  //! Print function to display FSCK results
+  //----------------------------------------------------------------------------
   void PrintOut(XrdOucString& out, XrdOucString option = "");
 
-  // Method to create a report
+  //----------------------------------------------------------------------------
+  //! Method to create a report
+  //----------------------------------------------------------------------------
   bool Report(XrdOucString& out, XrdOucString& err, XrdOucString option = "",
               XrdOucString selection = "");
 
-  // Method ot issue an repair action
+  //----------------------------------------------------------------------------
+  //! Method ot issue a repair action
+  //!
+  //! @param out return of the action output
+  //! @param err return of STDERR
+  //! @param option selection of repair action (see code or command help)
+  //----------------------------------------------------------------------------
   bool Repair(XrdOucString& out, XrdOucString& err, XrdOucString option = "");
 
-  // Clear the in-memory log
+  //----------------------------------------------------------------------------
+  //! Clear the in-memory log
+  //----------------------------------------------------------------------------
   void ClearLog();
 
-  // Write a log message to the in-memory log
+  //----------------------------------------------------------------------------
+  //! Write a log message to the in-memory log
+  //!
+  //! @param overwrite if true overwrites the last message
+  //!@param msg variable length list of printf like format string and args
+  //----------------------------------------------------------------------------
   void Log(bool overwrite, const char* msg, ...);
 
-  // Apply the FSCK configuration stored in the configuration engine
+  //----------------------------------------------------------------------------
+  //! Apply the FSCK configuration stored in the configuration engine
+  //----------------------------------------------------------------------------
   void ApplyFsckConfig();
 
-  // Store the FSCK configuration to the configuration engine
+  //----------------------------------------------------------------------------
+  //! Store the FSCK configuration to the configuration engine
+  //----------------------------------------------------------------------------
   bool StoreFsckConfig();
 
-  // static thread startup function
-  static void* StaticCheck(void*);
-
-  // FSCK thread loop function
+  //----------------------------------------------------------------------------
+  //! FSCK thread loop function
+  //----------------------------------------------------------------------------
   void* Check();
+
+private:
+  XrdOucString mLog; ///< In-memory FSCK log
+  XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
+  XrdOucString mEnabled; ///< True if collection thread is active
+  int mInterval; ///< Interval in min between two FSCK collection loops
+  pthread_t mThread; ///< Collection thread id
+  bool mRunning; ///< True if collection thread is currently running
+  XrdSysMutex eMutex; ///< Mutex protecting all eX... map objects
+  //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
+  std::map<std::string,
+      std::map<eos::common::FileSystem::fsid_t,
+      std::set <eos::common::FileId::fileid_t> > > eFsMap;
+  //! Error summary map storing "<error-name>"=>[fid1,fid2,fid3...]"
+  std::map<std::string, std::set <eos::common::FileId::fileid_t> > eMap;
+  std::map<std::string, unsigned long long > eCount;
+  //! Unavailable filesystems map
+  std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsUnavail;
+  //! Dark filesystem map - filesystems referenced by a file bu not configured
+  //! in the filesystem view
+  std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsDark;
+  time_t eTimeStamp; ///< Timestamp of collection
+
+  //----------------------------------------------------------------------------
+  //! Reset all collected errors in the error map
+  //----------------------------------------------------------------------------
+  void ResetErrorMaps();
 };
 
 EOSMGMNAMESPACE_END
