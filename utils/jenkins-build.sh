@@ -141,7 +141,6 @@ echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.c
 echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
 echo -e '"""' >> eos.cfg
 
-<<<<<<< HEAD
 # Build the RPMs (without yum repo rpms)
 mock --yum --init --uniqueext="eos_fuse" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
 
