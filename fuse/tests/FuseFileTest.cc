@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <cppunit/extensions/HelperMacros.h>
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -31,14 +29,11 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
-/*----------------------------------------------------------------------------*/
 #include "TestEnv.hh"
 #include "fuse/FuseCache/CacheEntry.hh"
-/*----------------------------------------------------------------------------*/
 
 #ifndef __EOS_FUSE_FUSEFILETEST_HH__
 #define __EOS_FUSE_FUSEFILETEST_HH__
-
 
 //------------------------------------------------------------------------------
 //! FuseFileTest class
@@ -152,7 +147,14 @@ FuseFileTest::WriteStatTest()
   mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
   std::string fname = mEnv->GetMapping("file_dummy");
   fname += "_wst";
-  CPPUNIT_ASSERT((fd = creat(fname.c_str(), mode)) != -1);
+  CPPUNIT_ASSERT((fd = creat(fname.c_str(), mode)) >= 0);
+
+  if (fd < 0) {
+    CPPUNIT_FAIL("file descriptor is negative");
+    delete[] buff;
+    return;
+  }
+
   // Write-(sync)-stat the file
   int count = 0;
   off_t offset = 0;
@@ -205,11 +207,19 @@ FuseFileTest::MultiProcessTest()
   std::string fname = mEnv->GetMapping("file_dummy");
   fname += "_mpt";
   CPPUNIT_ASSERT((fd = creat(fname.c_str(), S_IRUSR | S_IWUSR)) != -1);
+
+  if (fd < 0) {
+    CPPUNIT_FAIL("file descriptor is negative");
+    delete[] buff;
+    return;
+  }
+
   pid_t pid = fork();
 
   if (pid == -1) {
     // Error while forking
     CPPUNIT_ASSERT_MESSAGE("Error while forking", pid == -1);
+    (void) close(fd);
   } else if (pid == 0) {
     // Child
     CPPUNIT_ASSERT(write(fd, buff, sz_buff) == (ssize_t)sz_buff);
@@ -220,7 +230,14 @@ FuseFileTest::MultiProcessTest()
     CPPUNIT_ASSERT(wait(&status) == pid);
     CPPUNIT_ASSERT(WIFEXITED(status));
     close(fd);
-    CPPUNIT_ASSERT((fd = open(fname.c_str(), O_RDONLY, 0)) != -1);
+    CPPUNIT_ASSERT((fd = open(fname.c_str(), O_RDONLY, 0)) >= 0);
+
+    if (fd < 0) {
+      CPPUNIT_FAIL("file descriptor is negative");
+      delete[] buff;
+      return;
+    }
+
     char* rbuff = new char[sz_buff];
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // *** TODO ***
@@ -228,12 +245,20 @@ FuseFileTest::MultiProcessTest()
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //CPPUNIT_ASSERT(read(fd, rbuff, sz_buff) == (ssize_t)sz_buff);
     ssize_t nread = pread(fd, rbuff, sz_buff, 0);
+
     //std::cout << "Rd_sz= " << nread << " expected size=" << sz_buff << std::endl;
     // TODO: also replace below nread with sz_buff
+    if (nread < 0) {
+      CPPUNIT_FAIL("read from file failed");
+      (void) close(fd);
+      delete[] buff;
+      delete[] rbuff;
+      return;
+    }
+
     CPPUNIT_ASSERT_MESSAGE("WR/RD buffer missmatch", !strncmp(buff, rbuff, nread));
     CPPUNIT_ASSERT(!close(fd));
     CPPUNIT_ASSERT(!remove(fname.c_str()));
-    close(fd);
     delete[] rbuff;
   }
 
@@ -253,7 +278,14 @@ FuseFileTest::WriteReadTest()
   memset(buf, 7, buff_sz);
   std::string fname = mEnv->GetMapping("file_dummy");
   fname += "_wrt";
-  CPPUNIT_ASSERT((fd = open(fname.c_str(), O_CREAT | O_RDWR, S_IRWXU)) != -1);
+  CPPUNIT_ASSERT((fd = open(fname.c_str(), O_CREAT | O_RDWR, S_IRWXU)) >= 0);
+
+  if (fd < 0) {
+    CPPUNIT_FAIL("file descriptor is negative");
+    delete[] buf;
+    return;
+  }
+
   CPPUNIT_ASSERT(write(fd, buf, buff_sz) == (ssize_t)buff_sz);
   ssize_t nread = pread(fd, buf, 30, 10200);
   CPPUNIT_ASSERT(nread == 30);
@@ -279,7 +311,13 @@ FuseFileTest::SparseWriteTest()
   int sz_cache = atoi(mEnv->GetMapping("fuse_cache_size").c_str());
   std::string fname = mEnv->GetMapping("file_dummy");
   fname += "_swt";
-  CPPUNIT_ASSERT((fd = creat(fname.c_str(), S_IRWXU)) != -1);
+  CPPUNIT_ASSERT((fd = creat(fname.c_str(), S_IRWXU)) >= 0);
+
+  if (fd < 0) {
+    CPPUNIT_FAIL("file descriptor is negative");
+    return;
+  }
+
   off_t sz_gap = 4 * 1024 * 1024;
   off_t sz_final = 1.5 * sz_cache; // fill all cache and beyond
 
@@ -326,7 +364,13 @@ FuseFileTest::ManyWriteFilesTest()
   for (int findx = 0; findx < num_files; ++findx) {
     oss.str("");
     oss << base_fname << findx;
-    CPPUNIT_ASSERT((fd = creat(oss.str().c_str(), S_IRWXU)) != -1);
+    CPPUNIT_ASSERT((fd = creat(oss.str().c_str(), S_IRWXU)) >= 0);
+
+    if (fd < 0) {
+      CPPUNIT_FAIL("file descriptor is negative");
+      return;
+    }
+
     CPPUNIT_ASSERT(pwrite(fd, buff, sz_buff, 0) == sz_buff);
     vfd.push_back(fd);
     vfname.push_back(oss.str());
@@ -351,5 +395,3 @@ FuseFileTest::ManyWriteFilesTest()
 }
 
 #endif // __EOS_FUSE_FUSEFILETEST_HH__
-
-

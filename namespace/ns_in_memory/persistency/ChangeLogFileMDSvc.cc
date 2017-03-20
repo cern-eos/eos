@@ -57,7 +57,7 @@ public:
     // Update
     if (type == UPDATE_RECORD_MAGIC) {
       std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, pFileSvc);
-      static_cast<FileMD*>(file.get())->deserialize((Buffer&)buffer);
+      file->deserialize((Buffer&)buffer);
       FileMap::iterator it = pUpdated.find(file->getId());
 
       if (file->getId() >= pFileSvc->pFirstFreeId) {
@@ -240,8 +240,16 @@ public:
 
           handleReplicas(originalFile.get(), currentFile.get());
           // Cast to derived class implementation to avoid "slicing" of info
-          *dynamic_cast<eos::FileMD*>(originalFile.get()) =
-            *dynamic_cast<eos::FileMD*>(currentFile.get());
+          auto tmp_orig = dynamic_cast<eos::FileMD*>(originalFile.get());
+          auto tmp_curr = dynamic_cast<eos::FileMD*>(currentFile.get());
+
+          if (tmp_orig && tmp_curr) {
+            *tmp_orig = *tmp_curr;
+          } else {
+            fprintf(stderr, "error: FileMD dynamic cast failed\n");
+            exit(1);
+          }
+
           originalFile->setFileMDSvc(pFileSvc);
 
           if (originalContainer && readd) {
@@ -286,8 +294,16 @@ public:
           // Update the file and handle the replicas
           handleReplicas(originalFile.get(), currentFile.get());
           // Cast to derived class implementation to avoid "slicing" of info
-          *dynamic_cast<eos::FileMD*>(originalFile.get()) =
-            *dynamic_cast<eos::FileMD*>(currentFile.get());
+          auto tmp_orig = dynamic_cast<eos::FileMD*>(originalFile.get());
+          auto tmp_curr = dynamic_cast<eos::FileMD*>(currentFile.get());
+
+          if (tmp_orig && tmp_curr) {
+            *tmp_orig = *tmp_curr;
+          } else {
+            fprintf(stderr, "error: FileMD dynamic cast failed\n");
+            exit(1);
+          }
+
           originalFile->setFileMDSvc(pFileSvc);
           it->second.logOffset = currentOffset;
 
@@ -652,7 +668,6 @@ public:
 private:
   std::map<eos::IFileMD::id_t, RecordData>& pUpdates;
   eos::ChangeLogFile*                      pNewLog;
-  uint64_t                                 pCounter;
 };
 }
 
@@ -705,7 +720,7 @@ void ChangeLogFileMDSvc::initialize()
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
       // Unpack the serialized buffers
       std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
-      file.get()->deserialize(*it->second.buffer);
+      file->deserialize(*it->second.buffer);
       it->second.ptr = file;
       delete it->second.buffer;
       it->second.buffer = 0;
@@ -1323,7 +1338,11 @@ ChangeLogFileMDSvc::clearWarningMessages()
 void
 ChangeLogFileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 {
-  pContSvc = dynamic_cast<eos::ChangeLogContainerMDSvc*>(cont_svc);
+  auto tmp_cont_svc = dynamic_cast<eos::ChangeLogContainerMDSvc*>(cont_svc);
+
+  if (tmp_cont_svc) {
+    pContSvc = tmp_cont_svc;
+  }
 }
 
 //------------------------------------------------------------------------------

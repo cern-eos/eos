@@ -940,7 +940,7 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
 
   eos_static_info("userquota=%d groupquota=%d userquota=%d groupquota=%d "
                   "userinodequota=%d uservolumequota=%d projectquota=%d "
-                  "hasprojectquota=%d\n", userquota, groupquota, hasuserquota,
+                  "hasprojectquota=%d", userquota, groupquota, hasuserquota,
                   hasgroupquota, userinodequota, uservolumequota, projectquota,
                   hasprojectquota);
 

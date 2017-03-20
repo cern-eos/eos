@@ -129,7 +129,7 @@ public:
   //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
-  std::shared_ptr<IFileMD> findFile(const std::string& name);
+  virtual std::shared_ptr<IFileMD> findFile(const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Get number of files

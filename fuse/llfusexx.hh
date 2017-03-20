@@ -57,14 +57,14 @@ extern "C"
 
 namespace llfusexx
 {
- //----------------------------------------------------------------------------
- //! Interface to the low-level FUSE API
- //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Interface to the low-level FUSE API
+//----------------------------------------------------------------------------
 
- template <typename T>
- class FuseBase
- {
- protected:
+template <typename T>
+class FuseBase
+{
+protected:
   //------------------------------------------------------------------------
   //! Structure holding function pointers to the low-level "operations"
   //! (function implementations)
@@ -76,9 +76,9 @@ namespace llfusexx
   //------------------------------------------------------------------------
 
   const fuse_lowlevel_ops&
-  get_operations ()
+  get_operations()
   {
-   return operations;
+    return operations;
   }
 
   //------------------------------------------------------------------------
@@ -88,43 +88,44 @@ namespace llfusexx
   //! subclass
   //------------------------------------------------------------------------
 
-  FuseBase ()
+  FuseBase():
+    operations{0}
   {
-   operations.init = &T::init;
-   operations.destroy = &T::destroy;
-   operations.getattr = &T::getattr;
-   operations.lookup = &T::lookup;
-   operations.setattr = &T::setattr;
-   operations.access = &T::access;
-   operations.opendir = &T::opendir;
-   operations.readdir = &T::readdir;
-   operations.mkdir = &T::mkdir;
-   operations.unlink = &T::unlink;
-   operations.rmdir = &T::rmdir;
-   operations.rename = &T::rename;
-   operations.open = &T::open;
-   operations.create = &T::create;
-   operations.mknod = &T::mknod;
-   operations.read = &T::read;
-   operations.write = &T::write;
-   operations.statfs = &T::statfs;
-   operations.release = &T::release;
-   operations.releasedir = &T::releasedir;
-   operations.fsync = &T::fsync;
-   operations.forget = &T::forget;
-   operations.flush = &T::flush;
-   operations.setxattr = &T::setxattr;
-   operations.getxattr = &T::getxattr;
-   operations.listxattr = &T::listxattr;
-   operations.removexattr = &T::removexattr;
-   operations.readlink = &T::readlink;
-   operations.symlink = &T::symlink;
+    operations.init = &T::init;
+    operations.destroy = &T::destroy;
+    operations.getattr = &T::getattr;
+    operations.lookup = &T::lookup;
+    operations.setattr = &T::setattr;
+    operations.access = &T::access;
+    operations.opendir = &T::opendir;
+    operations.readdir = &T::readdir;
+    operations.mkdir = &T::mkdir;
+    operations.unlink = &T::unlink;
+    operations.rmdir = &T::rmdir;
+    operations.rename = &T::rename;
+    operations.open = &T::open;
+    operations.create = &T::create;
+    operations.mknod = &T::mknod;
+    operations.read = &T::read;
+    operations.write = &T::write;
+    operations.statfs = &T::statfs;
+    operations.release = &T::release;
+    operations.releasedir = &T::releasedir;
+    operations.fsync = &T::fsync;
+    operations.forget = &T::forget;
+    operations.flush = &T::flush;
+    operations.setxattr = &T::setxattr;
+    operations.getxattr = &T::getxattr;
+    operations.listxattr = &T::listxattr;
+    operations.removexattr = &T::removexattr;
+    operations.readlink = &T::readlink;
+    operations.symlink = &T::symlink;
   }
 
- public:
+public:
 
-  int run (int argc, char* argv[], void *userdata);
- };
+  int run(int argc, char* argv[], void* userdata);
+};
 }
 
 #endif /* __LLFUSEXX_H__ */

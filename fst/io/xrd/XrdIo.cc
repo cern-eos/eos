@@ -99,7 +99,8 @@ XrdIo::XrdIo(std::string path) :
   mDoReadahead(false),
   mBlocksize(ReadaheadBlock::sDefaultBlocksize),
   mXrdFile(NULL),
-  mMetaHandler(new AsyncMetaHandler())
+  mMetaHandler(new AsyncMetaHandler()),
+  mConnectionId(0)
 {
   // Set the TimeoutResolution to 1
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
@@ -622,13 +623,13 @@ XrdIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
   XrdCl::XRootDStatus status;
   eos_debug("read count=%i", chunkList.size());
   vhandler = mMetaHandler->Register(chunkList, NULL, false);
-  int64_t nread = vhandler->GetLength();
 
   if (!vhandler) {
     eos_err("unable to get vector handler");
     return SFS_ERROR;
   }
 
+  int64_t nread = vhandler->GetLength();
   status = mXrdFile->VectorRead(chunkList, static_cast<void*>(0),
                                 static_cast<XrdCl::ResponseHandler*>(vhandler),
                                 timeout);
@@ -715,43 +716,39 @@ XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
 }
 
 //------------------------------------------------------------------------------
-// Wait for async IO 
+// Wait for async IO
 //------------------------------------------------------------------------------
 
-int 
+int
 XrdIo::fileWaitAsyncIO()
 {
   bool async_ok = true;
 
-  if (mDoReadahead)
-  {
+  if (mDoReadahead) {
     // Wait for any requests on the fly and then close
-    while (!mMapBlocks.empty())
-    {
+    while (!mMapBlocks.empty()) {
       SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
-      if (shandler->HasRequest())
-      {
+
+      if (shandler->HasRequest()) {
         async_ok = shandler->WaitOK();
       }
+
       delete mMapBlocks.begin()->second;
       mMapBlocks.erase(mMapBlocks.begin());
     }
   }
 
   // Wait for any async requests before closing
-  if (mMetaHandler)
-  {
-    if (mMetaHandler->WaitOK() != XrdCl::errNone)
-    {
+  if (mMetaHandler) {
+    if (mMetaHandler->WaitOK() != XrdCl::errNone) {
       eos_err("error=async requests failed for file path=%s", mFilePath.c_str());
       async_ok = false;
     }
   }
-  
-  if (async_ok)
+
+  if (async_ok) {
     return 0;
-  else
-  {
+  } else {
     errno = EIO;
     return -1;
   }
@@ -766,21 +763,6 @@ XrdIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
   if (!mXrdFile) {
     errno = EIO;
     return SFS_ERROR;
-  }
-
-  if (mExternalStorage || !mIsOpen) {
-    if (offset == EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN) {
-      // if we have an external XRootD we cannot send this truncate
-      // we issue an 'rm' instead
-      int rc = fileDelete(mFilePath.c_str());
-      return rc;
-    }
-
-    if (offset == EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN) {
-      // if we have an external XRootD we cannot send this truncate
-      // we can just ignore this message
-      return 0;
-    }
   }
 
   XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t>(offset),
@@ -860,6 +842,26 @@ XrdIo::fileStat(struct stat* buf, uint16_t timeout)
 }
 
 //------------------------------------------------------------------------------
+// Execute implementation dependant commands
+//------------------------------------------------------------------------------
+int
+XrdIo::fileFctl(const std::string& cmd, uint16_t timeout)
+{
+  if (!mXrdFile) {
+    eos_info("underlying XrdClFile object doesn't exist");
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  (void) arg.FromString(cmd);
+  XrdCl::XRootDStatus status = mXrdFile->Fcntl(arg, response, timeout);
+  delete response;
+  return status.status;
+}
+
+//------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
 int
@@ -873,8 +875,9 @@ XrdIo::fileClose(uint16_t timeout)
   bool async_ok = true;
   mIsOpen = false;
 
-  if (fileWaitAsyncIO())
+  if (fileWaitAsyncIO()) {
     async_ok = false;
+  }
 
   XrdCl::XRootDStatus status = mXrdFile->Close(timeout);
 
@@ -905,17 +908,19 @@ XrdIo::fileRemove(uint16_t timeout)
     return SFS_ERROR;
   }
 
-  // TODO: this should be removed
-  // Remove the file by truncating using the special value offset
-  int retc = fileTruncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN, timeout);
+  // Send opaque coamand to file object to mark it for deletion
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  (void) arg.FromString("delete");
+  XrdCl::XRootDStatus status = mXrdFile->Fcntl(arg, response, timeout);
+  delete response;
 
-  if (retc) {
-    eos_err("error=failed to truncate file with deletion offset - %s",
-            mFilePath.c_str());
-    mLastErrMsg = "failed to truncate file with deletion offset";
+  if (!status.IsOK()) {
+    eos_err("failed to mark the file for deletion:%s", mFilePath.c_str());
+    return SFS_ERROR;
   }
 
-  return retc;
+  return SFS_OK;
 }
 
 //------------------------------------------------------------------------------
@@ -1362,20 +1367,29 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
       std::vector<std::string> files;
       std::vector<std::string> directories;
       auto dit = handle->found_dirs[handle->deepness].begin();
+      bool found = true;
 
-      if (dit == handle->found_dirs[handle->deepness].end()) {
+      while (dit == handle->found_dirs[handle->deepness].end()) {
         // move to next level
         handle->deepness++;
         handle->found_dirs.resize(handle->deepness + 1);
 
         if (!handle->found_dirs[handle->deepness].size()) {
+          found = false;
           break;
+        } else {
+          dit = handle->found_dirs[handle->deepness].begin();
         }
+      }
+
+      if (!found) {
+        break;
       }
 
       eos_info("searching at deepness=%d directory=%s", handle->deepness,
                dit->c_str());
-      XrdCl::URL url(*dit);
+      std::string surl_dir = *dit;
+      XrdCl::URL url(surl_dir);
       XrdCl::FileSystem fs(url);
       status = XrdIo::GetDirList(&fs, url, &files, &directories);
 
@@ -1390,6 +1404,9 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
         handle->found_dirs[handle->deepness].erase(dit);
       }
 
+      std::string new_file{""};
+      std::string new_dir{""};
+
       for (auto it = files.begin(); it != files.end(); ++it) {
         XrdOucString fname = it->c_str();
 
@@ -1397,14 +1414,16 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
           continue;
         }
 
-        eos_info("adding file=%s", (*dit + *it).c_str());
-        handle->found_files.push_back(*dit + *it);
+        new_file = surl_dir + *it;
+        eos_info("adding file=%s", new_file.c_str());
+        handle->found_files.push_back(new_file);
       }
 
       for (auto it = directories.begin(); it != directories.end(); ++it) {
-        eos_info("adding dir=%s deepness=%d", (*dit + *it + "/").c_str(),
+        new_dir = surl_dir + *it + "/";
+        eos_info("adding dir=%s deepness=%d", new_dir.c_str(),
                  handle->deepness + 1);
-        handle->found_dirs[handle->deepness + 1].push_back(*dit + *it + "/");
+        handle->found_dirs[handle->deepness + 1].push_back(new_dir);
       }
     } while (!handle->found_files.size());
   }

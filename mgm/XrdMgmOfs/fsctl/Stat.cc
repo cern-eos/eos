@@ -31,55 +31,47 @@
   ACCESSMODE_R_MASTER;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("Fuse-Stat", vid.uid, vid.gid, 1);
-
   struct stat buf;
-
-  int retc = lstat(spath.c_str(),
-                   &buf,
-                   error,
-                   client,
-                   info);
+  int retc = lstat(spath.c_str(), &buf, error, client, ininfo);
 
   if (retc == SFS_OK)
   {
     char* statinfo = static_cast<char*>(malloc(16384));
-    sprintf(statinfo, "stat: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
-            (unsigned long long) buf.st_dev,
-            (unsigned long long) buf.st_ino,
-            (unsigned long long) buf.st_mode,
-            (unsigned long long) buf.st_nlink,
-            (unsigned long long) buf.st_uid,
-            (unsigned long long) buf.st_gid,
-            (unsigned long long) buf.st_rdev,
-            (unsigned long long) buf.st_size,
-            (unsigned long long) buf.st_blksize,
-            (unsigned long long) buf.st_blocks,
+    sprintf(statinfo,
+    "stat: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
+    (unsigned long long) buf.st_dev,
+    (unsigned long long) buf.st_ino,
+    (unsigned long long) buf.st_mode,
+    (unsigned long long) buf.st_nlink,
+    (unsigned long long) buf.st_uid,
+    (unsigned long long) buf.st_gid,
+    (unsigned long long) buf.st_rdev,
+    (unsigned long long) buf.st_size,
+    (unsigned long long) buf.st_blksize,
+    (unsigned long long) buf.st_blocks,
 #ifdef __APPLE__
-            (unsigned long long) buf.st_atimespec.tv_sec,
-            (unsigned long long) buf.st_mtimespec.tv_sec,
-            (unsigned long long) buf.st_ctimespec.tv_sec,
-            (unsigned long long) buf.st_atimespec.tv_nsec,
-            (unsigned long long) buf.st_mtimespec.tv_nsec,
-            (unsigned long long) buf.st_ctimespec.tv_nsec
+    (unsigned long long) buf.st_atimespec.tv_sec,
+    (unsigned long long) buf.st_mtimespec.tv_sec,
+    (unsigned long long) buf.st_ctimespec.tv_sec,
+    (unsigned long long) buf.st_atimespec.tv_nsec,
+    (unsigned long long) buf.st_mtimespec.tv_nsec,
+    (unsigned long long) buf.st_ctimespec.tv_nsec
 #else
-            (unsigned long long) buf.st_atime,
-            (unsigned long long) buf.st_mtime,
-            (unsigned long long) buf.st_ctime,
-            (unsigned long long) buf.st_atim.tv_nsec,
-            (unsigned long long) buf.st_mtim.tv_nsec,
-            (unsigned long long) buf.st_ctim.tv_nsec
+    (unsigned long long) buf.st_atime,
+    (unsigned long long) buf.st_mtime,
+    (unsigned long long) buf.st_ctime,
+    (unsigned long long) buf.st_atim.tv_nsec,
+    (unsigned long long) buf.st_mtim.tv_nsec,
+    (unsigned long long) buf.st_ctim.tv_nsec
 #endif
-            );
-
+           );
     // Ownership of statinfo is taken by xrd_buff and error then takes
     // ownership of the xrd_buff object.
     XrdOucBuffer* xrd_buff = new XrdOucBuffer(statinfo, strlen(statinfo));
     error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
     return SFS_DATA;
-  }
-  else
+  } else
   {
     XrdOucString response = "stat: retc=";
     response += errno;

@@ -1,0 +1,48 @@
+# ----------------------------------------------------------------------
+# File: eos@.service
+# Author: Ivan Arizanovic - ComTrade Solutions Engineering
+# ----------------------------------------------------------------------
+#
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2016 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+[Unit]
+Description=EOS %i
+
+[Service]
+EnvironmentFile=/etc/sysconfig/eos_env
+
+ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-start-pre %i"
+
+ExecStart=/usr/bin/xrootd -n %i -c /etc/xrd.cf.%i -l \
+/var/log/eos/xrdlog.%i -s /tmp/xrootd.%i.pid -b -Rdaemon
+
+ExecStop=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-stop %i"
+
+Type=forking
+User=root
+Group=root
+Restart=on-abort
+RestartSec=0
+LimitNOFILE=65000
+KillMode=mixed
+PIDFile=/tmp/xrootd.%i.pid
+#ExitStatus is KILL because FST daemon. Stop-signal from FST daemon is 9/KILL.
+SuccessExitStatus=KILL
+
+[Install]
+RequiredBy=multi-user.target

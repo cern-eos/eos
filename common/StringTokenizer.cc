@@ -35,7 +35,8 @@ EOSCOMMONNAMESPACE_BEGIN
  *
  */
 /*----------------------------------------------------------------------------*/
-StringTokenizer::StringTokenizer(const char* s)
+StringTokenizer::StringTokenizer(const char* s):
+  fCurrentLine(-1), fCurrentArg(-1)
 {
   // -----------------------------------------------------------
   // the constructor just parses lines not token's within a line
@@ -70,9 +71,6 @@ StringTokenizer::StringTokenizer(const char* s)
       fLineStart.push_back(i + 1);
     }
   }
-
-  fCurrentLine = -1;
-  fCurrentArg = -1;
 }
 
 /*----------------------------------------------------------------------------*/

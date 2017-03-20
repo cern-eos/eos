@@ -132,7 +132,7 @@ XrdStress::XrdStress(unsigned int nChilds,
       // of files so that each job receives the same number of different files
       // Each file is processed only once, by only one job.
       if (((num_entries / numChilds) != numFiles)) {
-        numFiles = ceil(num_entries / numChilds);
+        numFiles = ceil(1.0 * num_entries / numChilds);
       }
     }
   }
@@ -149,6 +149,8 @@ XrdStress::XrdStress(unsigned int nChilds,
     callback = XrdStress::WrProc;
   } else if (opType == "rdwr") {
     callback = XrdStress::RdWrProc;
+  } else {
+    callback = XrdStress::RdProc;
   }
 }
 
@@ -437,7 +439,14 @@ XrdStress::RdProc(void* arg)
   for (unsigned int indx = startIndx; indx < endIndx ; indx++) {
     std::string urlFile = pxt->vectFilename[indx];
     struct stat buf;
-    XrdPosixXrootd::Stat(urlFile.c_str(), &buf);
+
+    if (XrdPosixXrootd::Stat(urlFile.c_str(), &buf)) {
+      fprintf(stderr, "error=failed stat on file: %s.\n", urlFile.c_str());
+      delete[] buffer;
+      free(arg);
+      exit(1);
+    }
+
     sizeReadFile = buf.st_size;
     count_open++;
     int fdWrite = XrdPosixXrootd::Open(urlFile.c_str(), O_RDONLY,

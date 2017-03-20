@@ -76,8 +76,8 @@ public:
    */
   // ----------------------------------------------------------------------------
   static void Tokenize(const std::string& str,
-		       std::vector<std::string>& tokens,
-		       const std::string& delimiters = " ");
+                       std::vector<std::string>& tokens,
+                       const std::string& delimiters = " ");
 
 
   // ---------------------------------------------------------------------------
@@ -90,8 +90,8 @@ public:
    */
   // ---------------------------------------------------------------------------
   static void EmptyTokenize(const std::string& str,
-			    std::vector<std::string>& tokens,
-			    const std::string& delimiters = " ");
+                            std::vector<std::string>& tokens,
+                            const std::string& delimiters = " ");
 
   // ---------------------------------------------------------------------------
   /**
@@ -105,7 +105,7 @@ public:
   // ---------------------------------------------------------------------------
   static const char*
   GetReadableAgeString(XrdOucString& sizestring,
-		       unsigned long long age);
+                       unsigned long long age);
 
   // ---------------------------------------------------------------------------
   /**
@@ -120,8 +120,8 @@ public:
   // ---------------------------------------------------------------------------
   static const char*
   GetReadableSizeString(XrdOucString& sizestring,
-			unsigned long long insize,
-			const char* unit);
+                        unsigned long long insize,
+                        const char* unit);
 
   // ---------------------------------------------------------------------------
   /**
@@ -136,8 +136,8 @@ public:
   // ---------------------------------------------------------------------------
   static const char*
   GetReadableSizeString(std::string& sizestring,
-			unsigned long long insize,
-			const char* unit);
+                        unsigned long long insize,
+                        const char* unit);
 
   // ---------------------------------------------------------------------------
   /**
@@ -231,7 +231,7 @@ public:
   // ---------------------------------------------------------------------------
   static bool
   SplitKeyValue(std::string keyval, std::string& key, std::string& value,
-		std::string split = ":");
+                std::string split = ":");
 
   // ---------------------------------------------------------------------------
   /**
@@ -247,7 +247,7 @@ public:
   // ---------------------------------------------------------------------------
   static bool
   SplitKeyValue(XrdOucString keyval, XrdOucString& key, XrdOucString& value,
-		XrdOucString split = ":");
+                XrdOucString split = ":");
 
   // ---------------------------------------------------------------------------
   /**
@@ -263,33 +263,34 @@ public:
   // ---------------------------------------------------------------------------
   static bool
   GetKeyValueMap(const char* mapstring,
-		 std::map<std::string, std::string>& map,
-		 const char* split = ":",
-		 const char* delimiter = ",",
-		 std::vector<std::string>* keyvector = 0);
+                 std::map<std::string, std::string>& map,
+                 const char* split = ":",
+                 const char* delimiter = ",",
+                 std::vector<std::string>* keyvector = 0);
 
 
   // ---------------------------------------------------------------------------
   /**
    * Replace a key in a string,string map
-   * 
+   *
    * @return true if replaced
    */
   // ---------------------------------------------------------------------------
   static bool
-  ReplaceMapKey (std::map<std::string,std::string> &map, const char* oldk, const char* newk)
+  ReplaceMapKey(std::map<std::string, std::string>& map, const char* oldk,
+                const char* newk)
   {
-    if (map.count(oldk))
-    {
-      map[newk]=map[oldk];
+    if (map.count(oldk)) {
+      map[newk] = map[oldk];
       map.erase(oldk);
       return true;
     }
+
     return false;
   }
 
-  // ---------------------------------------------------------------------------  
-  /** 
+  // ---------------------------------------------------------------------------
+  /**
    * Specialized splitting function returning the host part out of a queue name
    *
    * @param queue name of a queue e.g. /eos/host:port/role
@@ -349,7 +350,7 @@ public:
   // ---------------------------------------------------------------------------
   static bool
   ParseStringIdSet(char* in, std::string& tag, unsigned long& id,
-		   std::set<unsigned long long>& set);
+                   std::set<unsigned long long>& set);
 
   // ---------------------------------------------------------------------------
   /**
@@ -446,7 +447,7 @@ public:
   // ---------------------------------------------------------------------------
   static const char*
   CreateUrl(const char* protocol, const char* hostport, const char* path,
-	    XrdOucString& url);
+            XrdOucString& url);
 
   // ---------------------------------------------------------------------------
   /**
@@ -511,17 +512,15 @@ public:
 
   static void InitLookupTables()
   {
-    for (int i = 0; i < 10; i++)
-      {
-	pAscii2HexLkup['0' + i] = i;
-	pHex2AsciiLkup[i] = '0' + i;
-      }
+    for (int i = 0; i < 10; i++) {
+      pAscii2HexLkup['0' + i] = i;
+      pHex2AsciiLkup[i] = '0' + i;
+    }
 
-    for (int i = 0; i < 6; i++)
-      {
-	pAscii2HexLkup['a' + i] = 10 + i;
-	pHex2AsciiLkup[10 + i] = 'a' + i;
-      }
+    for (int i = 0; i < 6; i++) {
+      pAscii2HexLkup['a' + i] = 10 + i;
+      pHex2AsciiLkup[10 + i] = 'a' + i;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -535,23 +534,23 @@ public:
   template <typename UnsignedType> static char*
   FastUnsignedToAsciiHex(UnsignedType u, char* s)
   {
-    if (!u)
-      {
-	*s = '0';
-	return s + 1;
-      }
+    if (!u) {
+      *s = '0';
+      return s + 1;
+    }
 
     int nchar = 0;
     const int size = 2 * sizeof(UnsignedType);
 
-    for (int j = 1; j <= size; j++)
-      {
-	int digit = (u >> ((size - j) << 2)) & 15;
+    for (int j = 1; j <= size; j++) {
+      int digit = (u >> ((size - j) << 2)) & 15;
 
-	if (!nchar && !digit) continue;
-
-	s[nchar++] = pHex2AsciiLkup[digit];
+      if (!nchar && !digit) {
+        continue;
       }
+
+      s[nchar++] = pHex2AsciiLkup[digit];
+    }
 
     return s + nchar;
   }
@@ -568,11 +567,10 @@ public:
   {
     *u = 0;
 
-    for (int j = 0; s[j] != 0 && j != len; j++)
-      {
-	(*u) <<= 4;
-	(*u) += pAscii2HexLkup[static_cast<int>(s[j])];
-      }
+    for (int j = 0; s[j] != 0 && j != len; j++) {
+      (*u) <<= 4;
+      (*u) += pAscii2HexLkup[static_cast<int>(s[j])];
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -606,7 +604,7 @@ public:
   // ---------------------------------------------------------------------------
 
   static std::string
-  json_encode(const std::string &str);
+  json_encode(const std::string& str);
 
   // ---------------------------------------------------------------------------
   /**
@@ -627,9 +625,13 @@ public:
   template <typename T>
   static std::string stringify(const T& elem)
   {
-    fmt::MemoryWriter out;
-    out << elem;
-    return out.str();
+    try {
+      fmt::MemoryWriter out;
+      out << elem;
+      return out.str();
+    } catch (fmt::FormatError& e) {
+      return std::string("");
+    }
   }
 
   //----------------------------------------------------------------------------

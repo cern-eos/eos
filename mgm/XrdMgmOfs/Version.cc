@@ -21,20 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 // -----------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    int max_versions,
-                    XrdOucString* versionedpath,
-                    bool simulate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief handles file versioning for fid
@@ -49,8 +40,15 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
  * Versions are kept in a hidden directory .<name>/<ctime>owned by root
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
+                   XrdOucErrInfo& error,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   int max_versions,
+                   XrdOucString* versionedpath,
+                   bool simulate)
 {
-  static const char *epname = "version";
+  static const char* epname = "version";
   EXEC_TIMING_BEGIN("Version");
   gOFS->MgmStats.Add("Versioning", vid.uid, vid.gid, 1);
   std::shared_ptr<eos::IFileMD> fmd;
@@ -61,11 +59,10 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
   eos::common::Mapping::VirtualIdentity fidvid;
   eos::common::Mapping::Copy(vid, fidvid);
   time_t filectime = 0;
-
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    try
-    {
+
+    try {
       fmd = gOFS->eosFileService->getFileMD(fid);
       path = gOFS->eosView->getUri(fmd.get()).c_str();
       eos::common::Path cPath(path.c_str());
@@ -78,9 +75,7 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
       eos::IFileMD::ctime_t ctime;
       fmd->getCTime(ctime);
       filectime = (time_t) ctime.tv_sec;
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                 e.getMessage().str().c_str());
       errno = e.getErrno();
@@ -90,9 +85,9 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
     }
   }
 
-  if ((fidvid.uid != vid.uid) && (vid.uid))
-  {
-    return Emsg(epname, error, EPERM, "create version - you are not the owner of this file", path.c_str());
+  if ((fidvid.uid != vid.uid) && (vid.uid)) {
+    return Emsg(epname, error, EPERM,
+                "create version - you are not the owner of this file", path.c_str());
   }
 
   vpath += ".sys.v#.";
@@ -101,71 +96,62 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
   versionpath += "/";
   {
     char vci[128];
-    snprintf(vci, sizeof (vci) - 1, "%llu.%08llx", (unsigned long long) filectime, (unsigned long long) fid);
+    snprintf(vci, sizeof(vci) - 1, "%llu.%08llx", (unsigned long long) filectime,
+             (unsigned long long) fid);
     versionpath += vci;
+
     // return the latest version name
-    if (versionedpath)
+    if (versionedpath) {
       *versionedpath = versionpath.c_str();
+    }
   }
-
-
   // -----------------------------------------------------
   // check if .version directory exists, if not create it
   // -----------------------------------------------------
   struct stat buf;
-  if (gOFS->_stat(vpath.c_str(), &buf, error, fidvid, 0, 0))
-  {
-    eos_info("msg=\"creating version directory\" version-directory=\"%s\"", vpath.c_str());
-    if (gOFS->_mkdir(vpath.c_str(), 0, error, fidvid, (const char*) 0))
-    {
+
+  if (gOFS->_stat(vpath.c_str(), &buf, error, fidvid, 0, 0)) {
+    eos_info("msg=\"creating version directory\" version-directory=\"%s\"",
+             vpath.c_str());
+
+    if (gOFS->_mkdir(vpath.c_str(), 0, error, fidvid, (const char*) 0)) {
       return Emsg(epname, error, errno, "create version directory", path.c_str());
     }
-    // remove any directory attribute here - sort of obsolete since we don't create them in first place anymore, let's just keep it
-    if (gOFS->_attr_clear(vpath.c_str(), error, fidvid, (const char*) 0))
-    {
-      return Emsg(epname, error, errno, "clear version directory attributes", path.c_str());
+
+    // Remove any directory attribute here - sort of obsolete since we don't
+    // create them in first place anymore, let's just keep it
+    if (gOFS->_attr_clear(vpath.c_str(), error, fidvid, (const char*) 0)) {
+      return Emsg(epname, error, errno, "clear version directory attributes",
+                  path.c_str());
     }
   }
 
-
-  // -----------------------------------------------------
-  // rename to the version directory target
-  // -----------------------------------------------------
-
+  // Rename to the version directory target
   if ((!gOFS->_stat(vpath.c_str(), &buf, error, fidvid, 0, 0)) && (!simulate) &&
-      gOFS->_rename(path.c_str(), versionpath.c_str(), error, fidvid, 0, 0, false, false))
-  {
+      gOFS->_rename(path.c_str(), versionpath.c_str(), error, fidvid, 0, 0, false,
+                    false)) {
     return Emsg(epname, error, errno, "version file", path.c_str());
   }
 
-  // -----------------------------------------------------
-  // purge versions according to policy
-  // -----------------------------------------------------
-  if (max_versions > 0)
-  {
-    if (gOFS->PurgeVersion(vpath.c_str(), error, max_versions))
+  // Purge versions according to policy
+  if (max_versions > 0) {
+    if (gOFS->PurgeVersion(vpath.c_str(), error, max_versions)) {
       return Emsg(epname, error, errno, "purge versions", path.c_str());
+    }
   }
 
-  if (!simulate)
-  {
-    eos_info("msg=\"new version created\" previous-path=\"%s\" version-path=\"%s\"", path.c_str(), versionpath.c_str());
+  if (!simulate) {
+    eos_info("msg=\"new version created\" previous-path=\"%s\" version-path=\"%s\"",
+             path.c_str(), versionpath.c_str());
+  } else {
+    eos_info("msg=\"new version simulated\" previous-path=\"%s\" version-path=\"%s\"",
+             path.c_str(), versionpath.c_str());
   }
-  else
-  {
 
-    eos_info("msg=\"new version simulated\" previous-path=\"%s\" version-path=\"%s\"", path.c_str(), versionpath.c_str());
-  }
   EXEC_TIMING_END("Versioning");
-
   return SFS_OK;
 }
 
-int
-/*----------------------------------------------------------------------------*/
-XrdMgmOfs::PurgeVersion (const char* versiondir,
-                         XrdOucErrInfo &error,
-                         int max_versions)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief purge oldest versions exceeding max_versions
@@ -176,114 +162,105 @@ XrdMgmOfs::PurgeVersion (const char* versiondir,
  * @return SFS_OK if success otherwise SFS_ERROR and might set errno
  *
  * If max_versions=0 it will remove all versions and the version directory!
- * If max_versions=-1 it will read the attribute sys.versioning of the parent directory and apply the setting.
- * If max_versions=-2 it will read the attribute sys.versioning of the parent directory and apply the setting-1 .
+ * If max_versions=-1 it will read the attribute sys.versioning of the parent
+ * directory and apply the setting.
+ * If max_versions=-2 it will read the attribute sys.versioning of the parent
+ * directory and apply the setting-1 .
  *
  * The caller needs to have the quota mutex read locked (gQuoatMutex).
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::PurgeVersion(const char* versiondir,
+                        XrdOucErrInfo& error,
+                        int max_versions)
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
-
   eos_info("version-dir=%s max-versions=%d", versiondir, max_versions);
-  if (!versiondir)
-  {
+
+  if (!versiondir) {
     errno = EINVAL;
     return SFS_ERROR;
   }
 
   std::string path = versiondir;
 
-  XrdMgmOfsDirectory directory;
-
-  if (max_versions < 0)
-  {
-    // this indicates that we should read the max version depth from the parent attributes
+  if (max_versions < 0) {
+    // Indicates that we should read the max version depth from the parent attributes
     eos::common::Path cPath(versiondir);
-    // get the attributes and call the verify function
+    // Get the attributes and call the verify function
     eos::IContainerMD::XAttrMap map;
-    if (gOFS->_attr_ls(cPath.GetParentPath(),
-                       error,
-                       rootvid,
-                       (const char *) 0,
-                       map))
-    {
+
+    if (gOFS->_attr_ls(cPath.GetParentPath(), error, rootvid, (const char*) 0,
+                       map)) {
       return SFS_ERROR;
     }
-    if (map.count("sys.versioning"))
-    {
+
+    if (map.count("sys.versioning")) {
       max_versions = atoi(map["sys.versioning"].c_str());
-    }
-    else
-    {
+    } else {
       return SFS_OK;
     }
   }
 
+  XrdMgmOfsDirectory directory;
   int listrc = directory.open(versiondir, rootvid, (const char*) 0);
-
-  int success = 0;
-
   eos_info("listrc=%d max-version=%d", listrc, max_versions);
-  if (!listrc && !max_versions)
-  {
-    // we use the rm-r proc function to do the clean-up to have the recycle functionality involved for version directories
+
+  if (!listrc && !max_versions) {
+    // We use the rm -r proc function to do the clean-up to have the recycle
+    // functionality involved for version directories
     ProcCommand Cmd;
     //info=eos.rgid=0&eos.ruid=0&mgm.cmd=rm&mgm.option=r&mgm.path=
     XrdOucString info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
     info += path.c_str();
     Cmd.open("/proc/user", info.c_str(), vid, &error);
     Cmd.close();
-    if (Cmd.GetRetc())
-    {
+
+    if (Cmd.GetRetc()) {
       return SFS_ERROR;
-    }
-    else
-    {
+    } else {
       return SFS_OK;
     }
   }
 
-  if (!listrc)
-  {
+  int success = 0;
+
+  if (!listrc) {
     std::vector<std::string> versions;
     const char* val = 0;
-    while ((val = directory.nextEntry()))
-    {
+
+    while ((val = directory.nextEntry())) {
       std::string entryname = val;
-      if ((entryname == ".") ||
-          (entryname == ".."))
+
+      if ((entryname == ".") || (entryname == "..")) {
         continue;
+      }
+
       versions.push_back(entryname);
     }
 
-    if ((int) versions.size() > max_versions)
-    {
-      for (size_t i = 0; i < (versions.size() - max_versions); i++)
-      {
+    if ((int) versions.size() > max_versions) {
+      for (size_t i = 0; i < (versions.size() - max_versions); ++i) {
         std::string deletionpath = path;
         deletionpath += "/";
         deletionpath += versions[i];
-        success |= gOFS->_rem(deletionpath.c_str(), error, rootvid, (const char*) 0, false, false);
+        success |= gOFS->_rem(deletionpath.c_str(), error, rootvid, (const char*) 0,
+                              false, false);
       }
     }
-    if (max_versions == 0)
-    {
-      // remove also the version dir itself
-      success |= gOFS->_remdir(versiondir, error, vid, (const char*) 0, false);
-    }
-    if (success == SFS_OK)
-      eos_info("dir=\"%s\" msg=\"purging ok\" old-versions=%d new-versions=%d", versiondir, versions.size(), max_versions);
-    else
-      eos_err("dir=\"%s\" msg=\"purging failed\" versions=%d", versiondir, versions.size());
-  }
-  else
-  {
 
+    if (success == SFS_OK) {
+      eos_info("dir=\"%s\" msg=\"purging ok\" old-versions=%d new-versions=%d",
+               versiondir, versions.size(), max_versions);
+    } else {
+      eos_err("dir=\"%s\" msg=\"purging failed\" versions=%d", versiondir,
+              versions.size());
+    }
+  } else {
     success = SFS_ERROR;
   }
 
   return success;
 }
-

@@ -56,7 +56,9 @@ FsIo::FsIo(std::string path, std::string iotype) :
 //------------------------------------------------------------------------------
 FsIo::~FsIo()
 {
-  if(mFd!=-1) fileClose(mFd);
+  if (mFd != -1) {
+    fileClose(mFd);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -277,15 +279,17 @@ FsIo::ftsRead(FileIo::FtsHandle* fts_handle)
   FTSENT* node;
   FtsHandle* handle = dynamic_cast<FtsHandle*>(fts_handle);
 
-  while ((node = fts_read((FTS*) handle->tree))) {
-    if (node->fts_level > 0 && node->fts_name[0] == '.') {
-      fts_set((FTS*) handle->tree, node, FTS_SKIP);
-    } else {
-      if (node->fts_info == FTS_F) {
-        XrdOucString filePath = node->fts_accpath;
+  if (handle) {
+    while ((node = fts_read((FTS*) handle->tree))) {
+      if (node->fts_level > 0 && node->fts_name[0] == '.') {
+        fts_set((FTS*) handle->tree, node, FTS_SKIP);
+      } else {
+        if (node->fts_info == FTS_F) {
+          XrdOucString filePath = node->fts_accpath;
 
-        if (!filePath.matches("*.xsmap")) {
-          return filePath.c_str();
+          if (!filePath.matches("*.xsmap")) {
+            return filePath.c_str();
+          }
         }
       }
     }
@@ -302,8 +306,13 @@ int
 FsIo::ftsClose(FileIo::FtsHandle* fts_handle)
 {
   FtsHandle* handle = dynamic_cast<FtsHandle*>(fts_handle);
-  int rc = fts_close((FTS*) handle->tree);
-  return rc;
+
+  if (handle) {
+    int rc = fts_close((FTS*) handle->tree);
+    return rc;
+  }
+
+  return -1;
 }
 
 //------------------------------------------------------------------------------

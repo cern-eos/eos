@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: ScanDir.hh
 // Author: Elvin Sindrilaru - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -23,9 +23,8 @@
 
 #ifndef __EOSFST_SCANDIR_HH__
 #define __EOSFST_SCANDIR_HH__
-/*----------------------------------------------------------------------------*/
+
 #include <pthread.h>
-/*----------------------------------------------------------------------------*/
 #include "fst/Load.hh"
 #include "fst/Namespace.hh"
 #include "fst/FmdDbMap.hh"
@@ -34,9 +33,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIo.hh"
-/*----------------------------------------------------------------------------*/
 #include <syslog.h>
-/*----------------------------------------------------------------------------*/
 
 #include <sys/syscall.h>
 #ifndef __APPLE__
@@ -47,19 +44,17 @@ EOSFSTNAMESPACE_BEGIN
 
 class ScanDir : eos::common::LogId
 {
-  // ---------------------------------------------------------------------------
-  //! This class scan's a directory tree and checks checksums (and blockchecksums if present)
-  //! in a defined interval with limited bandwidth
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! This class scan's a directory tree and checks checksums (and
+  //! blockchecksums if present) in a defined interval with limited bandwidth.
+  //----------------------------------------------------------------------------
 private:
-
   eos::fst::Load* fstLoad;
   eos::common::FileSystem::fsid_t fsId;
-
   XrdOucString dirPath;
   long int testInterval; // in seconds
 
-  //statistics
+  // Statistics
   long int noScanFiles;
   long int noCorruptFiles;
   float durationScan;
@@ -73,9 +68,7 @@ private:
   int rateBandwidth; // MB/s
   long alignment;
   char* buffer;
-
   pthread_t thread;
-
   bool bgThread;
   bool forcedScan;
 
@@ -85,11 +78,11 @@ public:
           eos::fst::Load* fstload, bool bgthread = true, long int testinterval = 10,
           int ratebandwidth = 100, bool setchecksum = false) :
     fstLoad(fstload), fsId(fsid), dirPath(dirpath), testInterval(testinterval),
-    rateBandwidth(ratebandwidth)
+    setChecksum(setchecksum), rateBandwidth(ratebandwidth), forcedScan(false)
   {
     thread = 0;
-    noNoChecksumFiles = noScanFiles = noCorruptFiles = noTotalFiles = SkippedFiles =
-                                        0;
+    noNoChecksumFiles = noScanFiles = 0;
+    noCorruptFiles = noTotalFiles = SkippedFiles = 0;
     durationScan = 0;
     totalScanSize = bufferSize = 0;
     buffer = 0;
@@ -100,7 +93,6 @@ public:
 
     if (alignment > 0) {
       bufferSize = 256 * alignment;
-      setChecksum = setchecksum;
 
       if (posix_memalign((void**) &buffer, palignment, bufferSize)) {
         buffer = 0;

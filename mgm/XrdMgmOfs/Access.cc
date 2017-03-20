@@ -29,11 +29,11 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::access (const char *inpath,
-                   int mode,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *ininfo)
+XrdMgmOfs::access(const char* inpath,
+                  int mode,
+                  XrdOucErrInfo& error,
+                  const XrdSecEntity* client,
+                  const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check access permissions for file/directories
@@ -48,42 +48,32 @@ XrdMgmOfs::access (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-
-  static const char *epname = "access";
-  const char *tident = error.getErrUser();
-
-
+  static const char* epname = "access";
+  const char* tident = error.getErrUser();
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
-  XrdOucEnv access_Env(info);
-
+  XrdOucEnv access_Env(ininfo);
   AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
-
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, info, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
-  return _access(path, mode, error, vid, info);
+  return _access(path, mode, error, vid, ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_access (const char *path,
-                    int mode,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    const char *info)
+XrdMgmOfs::_access(const char* path,
+                   int mode,
+                   XrdOucErrInfo& error,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const char* info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check access permissions for file/directories
@@ -100,13 +90,10 @@ XrdMgmOfs::_access (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "_access";
-
+  static const char* epname = "_access";
   eos_debug("path=%s mode=%x uid=%u gid=%u", path, mode, vid.uid, vid.gid);
   gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
-
   eos::common::Path cPath(path);
-
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fh;
   bool permok = false;
@@ -114,47 +101,39 @@ XrdMgmOfs::_access (const char *path,
   uid_t fuid = 99;
   gid_t fgid = 99;
   std::string attr_path = cPath.GetPath();
-
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   // check for existing file
-  try
-  {
+  try {
     fh = gOFS->eosView->getFile(cPath.GetPath());
     flags = fh->getFlags();
     fuid = fh->getCUid();
     fgid = fh->getCGid();
-  }
-  catch (eos::MDException &e)
-  {
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+  } catch (eos::MDException& e) {
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+              e.getMessage().str().c_str());
   }
 
-  try
-  {
+  try {
     dh = gOFS->eosView->getContainer(cPath.GetPath());
-  }
-  catch (eos::MDException &e)
-  {
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+  } catch (eos::MDException& e) {
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+              e.getMessage().str().c_str());
   }
 
   errno = 0;
-  try
-  {
+
+  try {
     eos::IContainerMD::XAttrMap attrmap;
 
-    if (fh || (!dh))
-    {
+    if (fh || (!dh)) {
       std::string uri;
+
       // if this is a file or a not existing directory we check the access on the parent directory
-      if (fh)
-      {
+      if (fh) {
         uri = gOFS->eosView->getUri(fh.get());
-      }
-      else
-      {
+      } else {
         uri = cPath.GetPath();
       }
 
@@ -164,79 +143,65 @@ XrdMgmOfs::_access (const char *path,
     }
 
     permok = dh->access(vid.uid, vid.gid, mode);
-
     // ACL and permission check
     Acl acl(attr_path.c_str(), error, vid, attrmap, false);
-
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
 
-    if (vid.uid && !acl.IsMutable() && (mode & W_OK))
-    {
+    if (vid.uid && !acl.IsMutable() && (mode & W_OK)) {
       eos_debug("msg=\"access\" errno=EPERM reason=\"immutable\"");
       errno = EPERM;
       return Emsg(epname, error, EPERM, "access", path);
     }
 
-    if (!permok)
-    {
+    if (!permok) {
       // browse permission by ACL
-      if (acl.HasAcl())
-      {
+      if (acl.HasAcl()) {
         permok = true;
-        if ((mode & W_OK) && (!acl.CanWrite()))
-        {
+
+        if ((mode & W_OK) && (!acl.CanWrite())) {
           permok = false;
         }
 
-        if (mode & R_OK)
-        {
+        if (mode & R_OK) {
           if (!acl.CanRead() &&
-              (!dh->access(vid.uid, vid.gid, R_OK)))
-          {
+              (!dh->access(vid.uid, vid.gid, R_OK))) {
             permok = false;
           }
         }
 
-        if (mode & X_OK)
-        {
+        if (mode & X_OK) {
           if ((!acl.CanBrowse()) &&
-              (!dh->access(vid.uid, vid.gid, X_OK)))
-
-          {
+              (!dh->access(vid.uid, vid.gid, X_OK))) {
             permok = false;
           }
         }
       }
     }
-    if (fh && (mode & X_OK) && flags)
-    {
+
+    if (fh && (mode & X_OK) && flags) {
       // the execution permission is taken from the flags definition of a file
       permok = false;
-      if (vid.uid == fuid)
-      {
+
+      if (vid.uid == fuid) {
         // user check
-        if (flags & S_IXUSR)
+        if (flags & S_IXUSR) {
           permok = true;
-        else
-          if (vid.gid == fgid)
-        {
+        } else if (vid.gid == fgid) {
           // group check
-          if (flags & S_IXGRP)
+          if (flags & S_IXGRP) {
             permok = true;
-          else
-          {
+          } else {
             // other check
-            if (flags & S_IXOTH)
+            if (flags & S_IXOTH) {
               permok = true;
+            }
           }
         }
       }
     }
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
@@ -244,36 +209,31 @@ XrdMgmOfs::_access (const char *path,
   }
 
   // Check permissions
-  if (!dh)
-  {
+  if (!dh) {
     eos_debug("msg=\"access\" errno=ENOENT");
     errno = ENOENT;
     return Emsg(epname, error, ENOENT, "access", path);
   }
 
   // root/daemon can always access, daemon only for reading!
-  if ((vid.uid == 0) || ((vid.uid == DAEMONUID) && (!(mode & W_OK))))
+  if ((vid.uid == 0) || ((vid.uid == DAEMONUID) && (!(mode & W_OK)))) {
     permok = true;
+  }
 
-  if (dh)
-  {
+  if (dh) {
     eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
               vid.uid, vid.gid, permok, dh->getMode());
   }
 
-  if (dh && (mode & F_OK))
-  {
+  if (dh && (mode & F_OK)) {
     return SFS_OK;
   }
 
-  if (dh && permok)
-  {
+  if (dh && permok) {
     return SFS_OK;
   }
 
-  if (dh && (!permok))
-  {
-
+  if (dh && (!permok)) {
     errno = EACCES;
     return Emsg(epname, error, EACCES, "access", path);
   }
@@ -284,10 +244,10 @@ XrdMgmOfs::_access (const char *path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::acc_access (const char* path,
-                       XrdOucErrInfo &error,
-                       eos::common::Mapping::VirtualIdentity &vid,
-                       std::string& accperm)
+XrdMgmOfs::acc_access(const char* path,
+                      XrdOucErrInfo& error,
+                      eos::common::Mapping::VirtualIdentity& vid,
+                      std::string& accperm)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief define access permissions for files/directories
@@ -314,7 +274,6 @@ XrdMgmOfs::acc_access (const char* path,
 {
   eos_debug("path=%s mode=%x uid=%u gid=%u", path, vid.uid, vid.gid);
   gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
-
   eos::common::Path cPath(path);
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fh;
@@ -323,42 +282,34 @@ XrdMgmOfs::acc_access (const char* path,
   bool w_ok = false;
   bool x_ok = false;
   bool d_ok = false;
-
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   // check for existing file
-  try
-  {
+  try {
     fh = gOFS->eosView->getFile(cPath.GetPath());
-  }
-  catch (eos::MDException &e)
-  {
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+  } catch (eos::MDException& e) {
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+              e.getMessage().str().c_str());
   }
 
-  try
-  {
+  try {
     dh = gOFS->eosView->getContainer(cPath.GetPath());
+  } catch (eos::MDException& e) {
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+              e.getMessage().str().c_str());
   }
-  catch (eos::MDException &e)
-  {
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
-  }
-  try
-  {
+
+  try {
     eos::IContainerMD::XAttrMap attrmap;
 
-    if (fh || (!dh))
-    {
+    if (fh || (!dh)) {
       std::string uri;
+
       // if this is a file or a not existing directory we check the access on the parent directory
-      if (fh)
-      {
+      if (fh) {
         uri = gOFS->eosView->getUri(fh.get());
-      }
-      else
-      {
+      } else {
         uri = cPath.GetPath();
       }
 
@@ -367,56 +318,57 @@ XrdMgmOfs::acc_access (const char* path,
       attr_path = pPath.GetParentPath();
     }
 
-
-    if (dh->access(vid.uid, vid.gid, R_OK))
+    if (dh->access(vid.uid, vid.gid, R_OK)) {
       r_ok = true;
+    }
 
-    if (dh->access(vid.uid, vid.gid, W_OK))
-    {
+    if (dh->access(vid.uid, vid.gid, W_OK)) {
       w_ok = true;
       d_ok = true;
     }
 
-    if (dh->access(vid.uid, vid.gid, X_OK))
+    if (dh->access(vid.uid, vid.gid, X_OK)) {
       x_ok = true;
+    }
 
     // ACL and permission check
     Acl acl(attr_path.c_str(), error, vid, attrmap, false);
-
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
 
     // browse permission by ACL
-    if (acl.HasAcl())
-    {
-      if (acl.CanWrite())
-      {
-	w_ok = true;
-	d_ok = true;
+    if (acl.HasAcl()) {
+      if (acl.CanWrite()) {
+        w_ok = true;
+        d_ok = true;
       }
 
       // write-once or write is fine for OC write permission
-      if (!(acl.CanWrite() || acl.CanWriteOnce()))
+      if (!(acl.CanWrite() || acl.CanWriteOnce())) {
         w_ok = false;
+      }
+
       // deletion might be overwritten/forbidden
-      if (acl.CanNotDelete())
+      if (acl.CanNotDelete()) {
         d_ok = false;
+      }
 
       // the r/x are added to the posix permissions already set
-      if (acl.CanRead())
+      if (acl.CanRead()) {
         r_ok |= true;
-      if (acl.CanBrowse())
+      }
+
+      if (acl.CanBrowse()) {
         x_ok |= true;
-      if (!acl.IsMutable())
-      {
+      }
+
+      if (!acl.IsMutable()) {
         w_ok = d_ok = false;
       }
     }
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     dh = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
@@ -424,25 +376,24 @@ XrdMgmOfs::acc_access (const char* path,
   }
 
   // check permissions
-  if (!dh)
-  {
+  if (!dh) {
     accperm = "";
     return SFS_ERROR;
   }
 
   // return the OC string;
-  if (r_ok)
-  {
+  if (r_ok) {
     accperm += "R";
   }
-  if (w_ok)
-  {
+
+  if (w_ok) {
     accperm += "WCKNV";
   }
-  if (d_ok)
-  {
+
+  if (d_ok) {
     accperm += "D";
   }
+
   return SFS_OK;
 }
 /*----------------------------------------------------------------------------*/

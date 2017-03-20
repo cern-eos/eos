@@ -29,11 +29,11 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::exists (const char *inpath,
-                   XrdSfsFileExistence &file_exists,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *ininfo)
+XrdMgmOfs::exists(const char* inpath,
+                  XrdSfsFileExistence& file_exists,
+                  XrdOucErrInfo& error,
+                  const XrdSecEntity* client,
+                  const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief Check for the existance of a file or directory
@@ -49,42 +49,31 @@ XrdMgmOfs::exists (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-
-  static const char *epname = "exists";
-  const char *tident = error.getErrUser();
-
-
-  // use a thread private vid
+  static const char* epname = "exists";
+  const char* tident = error.getErrUser();
   eos::common::Mapping::VirtualIdentity vid;
-
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
-  XrdOucEnv exists_Env(info);
-
+  XrdOucEnv exists_Env(ininfo);
   AUTHORIZE(client, &exists_Env, AOP_Stat, "execute exists", inpath, error);
-
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, info, tident, vid);
-  EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
-  return _exists(path, file_exists, error, vid, info);
+  return _exists(path, file_exists, error, vid, ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_exists (const char *path,
-                    XrdSfsFileExistence &file_exists,
-                    XrdOucErrInfo &error,
-                    const XrdSecEntity *client,
-                    const char *ininfo)
+XrdMgmOfs::_exists(const char* path,
+                   XrdSfsFileExistence& file_exists,
+                   XrdOucErrInfo& error,
+                   const XrdSecEntity* client,
+                   const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check for the existance of a file or directory
@@ -110,103 +99,85 @@ XrdMgmOfs::_exists (const char *path,
   EXEC_TIMING_BEGIN("Exists");
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
   std::shared_ptr<eos::IContainerMD> cmd;
-
   {
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    try
-    {
+
+    try {
       cmd = gOFS->eosView->getContainer(path, false);
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
     };
+
     // -------------------------------------------------------------------------
   }
 
-  if (!cmd)
-  {
+  if (!cmd) {
     // -------------------------------------------------------------------------
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
 
-    try
-    {
+    try {
       fmd = gOFS->eosView->getFile(path, false);
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                 e.getMessage().str().c_str());
     }
+
     // -------------------------------------------------------------------------
-    if (!fmd)
-    {
+    if (!fmd) {
       file_exists = XrdSfsFileExistNo;
-    }
-    else
-    {
+    } else {
       file_exists = XrdSfsFileExistIsFile;
     }
-  }
-  else
-  {
+  } else {
     file_exists = XrdSfsFileExistIsDirectory;
   }
 
-  if (file_exists == XrdSfsFileExistNo)
-  {
+  if (file_exists == XrdSfsFileExistNo) {
     // get the parent directory
     eos::common::Path cPath(path);
     std::shared_ptr<eos::IContainerMD> dir;
     eos::IContainerMD::XAttrMap attrmap;
-
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    try
-    {
-      dir = eosView->getContainer(cPath.GetParentPath(),false);
-      eos::IContainerMD::XAttrMap::const_iterator it;
 
+    try {
+      dir = eosView->getContainer(cPath.GetParentPath(), false);
+      eos::IContainerMD::XAttrMap::const_iterator it;
       // get attributes
       gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap, false);
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       dir.reset();
     }
+
     // -------------------------------------------------------------------------
 
-    if (dir)
-    {
+    if (dir) {
       MAYREDIRECT_ENOENT;
       MAYSTALL_ENOENT;
-
       XrdOucString redirectionhost = "invalid?";
       int ecode = 0;
       int rcode = SFS_OK;
-      if (attrmap.count("sys.redirect.enoent"))
-      {
+
+      if (attrmap.count("sys.redirect.enoent")) {
         // there is a redirection setting here
         redirectionhost = "";
         redirectionhost = attrmap["sys.redirect.enoent"].c_str();
         int portpos = 0;
-        if ((portpos = redirectionhost.find(":")) != STR_NPOS)
-        {
+
+        if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
           XrdOucString port = redirectionhost;
           port.erase(0, portpos + 1);
           ecode = atoi(port.c_str());
           redirectionhost.erase(portpos);
-        }
-        else
-        {
-
+        } else {
           ecode = 1094;
         }
+
         rcode = SFS_REDIRECT;
         error.setErrInfo(ecode, redirectionhost.c_str());
         gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
@@ -221,11 +192,11 @@ XrdMgmOfs::_exists (const char *path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_exists (const char *path,
-                    XrdSfsFileExistence &file_exists,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    const char *ininfo)
+XrdMgmOfs::_exists(const char* path,
+                   XrdSfsFileExistence& file_exists,
+                   XrdOucErrInfo& error,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check for the existance of a file or directory
@@ -247,53 +218,43 @@ XrdMgmOfs::_exists (const char *path,
   EXEC_TIMING_BEGIN("Exists");
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
   std::shared_ptr<eos::IContainerMD> cmd;
-
   // try if that is directory
   {
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    try
-    {
+
+    try {
       cmd = gOFS->eosView->getContainer(path, false);
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       cmd.reset();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
-		e.getMessage().str().c_str());
+                e.getMessage().str().c_str());
     };
+
     // -------------------------------------------------------------------------
   }
 
-  if (!cmd)
-  {
+  if (!cmd) {
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
 
-    try
-    {
+    try {
       fmd = gOFS->eosView->getFile(path, false);
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
     }
+
     // -------------------------------------------------------------------------
 
-    if (!fmd)
-    {
+    if (!fmd) {
       file_exists = XrdSfsFileExistNo;
-    }
-    else
-    {
+    } else {
       file_exists = XrdSfsFileExistIsFile;
     }
-  }
-  else
-  {
+  } else {
     file_exists = XrdSfsFileExistIsDirectory;
   }
 

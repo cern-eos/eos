@@ -27,7 +27,7 @@
 
 /* Map ls, link, unlink */
 int
-com_map (char* arg1)
+com_map(char* arg1)
 {
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
@@ -37,11 +37,11 @@ com_map (char* arg1)
   XrdOucString in = "mgm.cmd=map";
   XrdOucString arg = "";
 
-  if (wants_help(arg1))
+  if (wants_help(arg1)) {
     goto com_map_usage;
+  }
 
-  if (subcommand.beginswith("-"))
-  {
+  if (subcommand.beginswith("-")) {
     option = subcommand;
     option.erase(0, 1);
     optionstring += subcommand;
@@ -50,28 +50,26 @@ com_map (char* arg1)
     arg = subtokenizer.GetToken();
     in += "&mgm.option=";
     in += option;
-  }
-  else
-  {
+  } else {
     arg = subtokenizer.GetToken();
   }
 
   if ((!subcommand.length()) ||
-      ((subcommand != "ls") && (subcommand != "link") && (subcommand != "unlink")))
+      ((subcommand != "ls") && (subcommand != "link") && (subcommand != "unlink"))) {
     goto com_map_usage;
+  }
 
-  if (subcommand == "ls")
-  {
+  if (subcommand == "ls") {
     in += "&mgm.subcmd=ls";
   }
 
-  if (subcommand == "link")
-  {
+  if (subcommand == "link") {
     XrdOucString key = arg;
     XrdOucString value = subtokenizer.GetToken();
 
-    if ((!key.length()) || (!value.length()))
+    if ((!key.length()) || (!value.length())) {
       goto com_map_usage;
+    }
 
     in += "&mgm.subcmd=link&mgm.map.src=";
     in += key;
@@ -79,28 +77,33 @@ com_map (char* arg1)
     in += value;
   }
 
-  if (subcommand == "unlink")
-  {
+  if (subcommand == "unlink") {
     XrdOucString key = arg;
-    if (!key.length())
+
+    if (!key.length()) {
       goto com_map_usage;
+    }
+
     in += "&mgm.subcmd=unlink&mgm.map.src=";
     in += key;
   }
 
   global_retc = output_result(client_user_command(in));
   return (0);
-
 com_map_usage:
-  fprintf(stdout, "'[eos] map ..' provides a namespace mapping interface for directories in EOS.\n");
+  fprintf(stdout,
+          "'[eos] map ..' provides a namespace mapping interface for directories in EOS.\n");
   fprintf(stdout, "Usage: map [OPTIONS] ls|link|unlink ...\n");
   fprintf(stdout, "Options:\n");
-
   fprintf(stdout, "map ls :\n");
-  fprintf(stdout, "                                                : list all defined mappings\n");
+  fprintf(stdout,
+          "                                                : list all defined mappings\n");
   fprintf(stdout, "map link <source-path> <destination-path> :\n");
-  fprintf(stdout, "                                                : create a symbolic link from source-path to destination-path\n");
+  fprintf(stdout,
+          "                                                : create a symbolic link from source-path to destination-path\n");
   fprintf(stdout, "map unlink <source-path> :\n");
-  fprintf(stdout, "                                                : remove symbolic link from source-path\n");
+  fprintf(stdout,
+          "                                                : remove symbolic link from source-path\n");
+  global_retc = 0;
   return (0);
 }

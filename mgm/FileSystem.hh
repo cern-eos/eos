@@ -24,26 +24,22 @@
 #ifndef __EOSMGM_FILESYSTEM_HH__
 #define __EOSMGM_FILESYSTEM_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/FileSystem.hh"
 #include "mgm/DrainJob.hh"
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 /**
  * @file FileSystem.hh
- * 
+ *
  * @brief Class implementing egroup support via LDAP queries
- * 
+ *
  */
 
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 /**
- * 
+ *
  * @brief Class representing a filesystem on the MGM
  */
 /*----------------------------------------------------------------------------*/
@@ -66,7 +62,8 @@ public:
    */
 
   /*--------------------------------------------------------------------------*/
-  FileSystem (const char* queuepath, const char* queue, XrdMqSharedObjectManager* som) : eos::common::FileSystem (queuepath, queue, som)
+  FileSystem(const char* queuepath, const char* queue,
+             XrdMqSharedObjectManager* som) : eos::common::FileSystem(queuepath, queue, som)
   {
     mDrainJob = 0;
   }
@@ -74,21 +71,22 @@ public:
   /*--------------------------------------------------------------------------*/
   /**
    * @brief Destructor
-   * 
+   *
    * Eventually removes also an associated DrainJob.
    */
 
   /*--------------------------------------------------------------------------*/
   virtual
-  ~FileSystem ()
+  ~FileSystem()
   {
-    mDrainJobMutex.Lock ();
-    if (mDrainJob)
-    {
+    mDrainJobMutex.Lock();
+
+    if (mDrainJob) {
       delete mDrainJob;
       mDrainJob = 0;
     }
-    mDrainJobMutex.UnLock ();
+
+    mDrainJobMutex.UnLock();
   }
 
   /*--------------------------------------------------------------------------*/
@@ -99,32 +97,29 @@ public:
 
   /*--------------------------------------------------------------------------*/
   bool
-  ShouldBroadCast ()
+  ShouldBroadCast()
   {
-    if (mSom)
-    {
-      return mSom->ShouldBroadCast ();
-    }
-    else
-    {
+    if (mSom) {
+      return mSom->ShouldBroadCast();
+    } else {
       return false;
     }
   }
 
   // ---------------------------------------------------------------------------
-  // this methods are overwriting the base class implementation 
+  // this methods are overwriting the base class implementation
   // to catch any status change to/from 'drain' or 'draindead'
-  bool SetConfigStatus (eos::common::FileSystem::fsstatus_t status);
-  bool SetString (const char* key, const char* str, bool broadcast = true);
+  bool SetConfigStatus(eos::common::FileSystem::fsstatus_t status);
+  bool SetString(const char* key, const char* str, bool broadcast = true);
   // ---------------------------------------------------------------------------
 
-  // starts a drain job with the opserror flag - 
+  // starts a drain job with the opserror flag -
   // this is triggered by stat.errc!= 0 via the FsListener Thread
-  bool StartDrainJob ();
+  bool StartDrainJob();
 
-  // stops  a drain job with the opserror flag - 
+  // stops  a drain job with the opserror flag -
   // this is triggered by stat.errc = 0 via the FsListener Thread
-  bool StopDrainJob ();
+  bool StopDrainJob();
 };
 
 EOSMGMNAMESPACE_END

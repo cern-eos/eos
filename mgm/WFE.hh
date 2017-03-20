@@ -24,22 +24,17 @@
 #ifndef __EOSMGM_WFE__HH__
 #define __EOSMGM_WFE__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "common/Timing.hh"
 #include "namespace/interface/IView.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -62,7 +57,8 @@ private:
   eos::common::Mapping::VirtualIdentity mRootVid; //< we operate with the root vid
   XrdOucErrInfo mError; //< XRootD error object
 
-  static XrdSysMutex gQueueChangeMutex; //< whenever a load/save/delete is executed it uses this mutex
+  static XrdSysMutex
+  gQueueChangeMutex; //< whenever a load/save/delete is executed it uses this mutex
 
   mutable XrdSysMutex mActiveJobsMutex;
 
@@ -162,6 +158,7 @@ public:
         eos::common::Mapping::VirtualIdentity& vid)
     {
       mFid = fid;
+      mRetry = 0;
       eos::common::Mapping::Copy(vid, mVid);
     }
 
@@ -174,6 +171,7 @@ public:
       mActions = other.mActions;
       mFid = other.mFid;
       mDescription = other.mDescription;
+      mRetry = other.mRetry;
     }
     // ---------------------------------------------------------------------------
     // Job execution function

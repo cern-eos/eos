@@ -28,7 +28,7 @@
 /* Retrieve realtime log output */
 
 int
-com_rtlog (char* arg1)
+com_rtlog(char* arg1)
 {
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
@@ -37,15 +37,16 @@ com_rtlog (char* arg1)
   XrdOucString tag = subtokenizer.GetToken();
   XrdOucString filter = subtokenizer.GetToken();
   XrdOucString in = "mgm.cmd=rtlog&mgm.rtlog.queue=";
-  
-  if (wants_help(arg1) || !strlen(arg1))
-    goto com_rtlog_usage;
 
-  if (!queue.length())
+  if (wants_help(arg1) || !strlen(arg1)) {
     goto com_rtlog_usage;
+  }
 
-  if ((queue != ".") && (queue != "*") && (!queue.beginswith("/eos/")))
-  {
+  if (!queue.length()) {
+    goto com_rtlog_usage;
+  }
+
+  if ((queue != ".") && (queue != "*") && (!queue.beginswith("/eos/"))) {
     // there is no queue argument and means to talk with the mgm directly
     filter = tag;
     tag = lines;
@@ -53,32 +54,42 @@ com_rtlog (char* arg1)
     queue = ".";
   }
 
-  if (queue.length())
-  {
+  if (queue.length()) {
     in += queue;
-    if (!lines.length())
+
+    if (!lines.length()) {
       in += "&mgm.rtlog.lines=10";
-    else
+    } else {
       in += "&mgm.rtlog.lines=";
+    }
+
     in += lines;
-    if (!tag.length())
+
+    if (!tag.length()) {
       in += "&mgm.rtlog.tag=err";
-    else
+    } else {
       in += "&mgm.rtlog.tag=";
+    }
+
     in += tag;
 
-    if (filter.length())
+    if (filter.length()) {
       in += "&mgm.rtlog.filter=";
-    in += filter;
+    }
 
+    in += filter;
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
 
 com_rtlog_usage:
-  fprintf(stdout, "usage: rtlog [<queue>|*|.] [<sec in the past>=3600] [<debug>=err] [filter-word]\n");
+  fprintf(stdout,
+          "usage: rtlog [<queue>|*|.] [<sec in the past>=3600] [<debug>=err] [filter-word]\n");
   fprintf(stdout, "                     - '*' means to query all nodes\n");
-  fprintf(stdout, "                     - '.' means to query only the connected mgm\n");
-  fprintf(stdout, "                     - if the first argument is ommitted '.' is assumed\n");
+  fprintf(stdout,
+          "                     - '.' means to query only the connected mgm\n");
+  fprintf(stdout,
+          "                     - if the first argument is ommitted '.' is assumed\n");
+  global_retc = EINVAL;
   return (0);
 }

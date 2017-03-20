@@ -38,12 +38,6 @@ ProcCommand::Attr()
   XrdOucString option = pOpaque->Get("mgm.option");
   const char* inpath = spath.c_str();
   NAMESPACEMAP;
-  info = 0;
-
-  if (info) {
-    info = 0;  // for compiler happyness
-  }
-
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   eos::common::Path cPath(path);
@@ -81,7 +75,7 @@ ProcCommand::Attr()
         }
       } else {
         // the single dir case
-        found[spath.c_str()].size();
+        (void) found[spath.c_str()].size();
       }
 
       if (!retc) {
@@ -269,7 +263,6 @@ ProcCommand::Attr()
   }
 
   return SFS_OK;
-  ;
 }
 
 EOSMGMNAMESPACE_END

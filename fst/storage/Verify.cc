@@ -40,7 +40,7 @@ EOSFSTNAMESPACE_BEGIN
 void
 Storage::Verify()
 {
-  // this thread unlinks stored files
+  // This thread unlinks stored files
   while (1) {
     verificationsMutex.Lock();
 
@@ -103,12 +103,13 @@ Storage::Verify()
     FileIo* io = eos::fst::FileIoPluginHelper::GetIoObject(fstPath.c_str());
     // get current size on disk
     struct stat statinfo;
-    int open_rc = 0;
+    int open_rc = -1;
 
     if (!io || (open_rc = io->fileOpen(0, 0)) || io->fileStat(&statinfo)) {
-      eos_static_err("unable to verify file id=%x on fs=%u path=%s - stat on local disk failed",
-                     verifyfile->fId, verifyfile->fsId, fstPath.c_str());
-      // if there is no file, we should not commit anything to the MGM
+      eos_static_err("unable to verify file id=%x on fs=%u path=%s - stat on "
+                     "local disk failed", verifyfile->fId, verifyfile->fsId,
+                     fstPath.c_str());
+      // If there is no file, we should not commit anything to the MGM
       verifyfile->commitSize = 0;
       verifyfile->commitChecksum = 0;
       statinfo.st_size = 0; // indicates the missing file - not perfect though
@@ -164,8 +165,9 @@ Storage::Verify()
         XrdOucString sizestring;
 
         if (checksummer && verifyfile->computeChecksum) {
-          eos_static_info("rescanned checksum - size=%s time=%.02fms rate=%.02f MB/s limit=%d MB/s",
-                          eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"),
+          eos_static_info("rescanned checksum - size=%s time=%.02fms rate=%.02f "
+                          "MB/s limit=%d MB/s", eos::common::StringConversion::GetReadableSizeString(
+                            sizestring, scansize, "B"),
                           scantime, 1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
                           verifyfile->verifyRate);
         }

@@ -419,6 +419,7 @@ FileAbstraction::SetRawFileRW(LayoutWrapper* file)
   }
 
   mFileRW = file;
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
   mNumOpenRW = 1;
 };
 
@@ -433,5 +434,6 @@ FileAbstraction::SetRawFileRO(LayoutWrapper* file)
   }
 
   mFileRO = file;
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
   mNumOpenRO = 1;
 };

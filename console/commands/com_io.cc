@@ -250,5 +250,6 @@ com_io_usage:
           "                                                               -w :  show history for the last 7 days\n");
   fprintf(stdout,
           "                                                               -f :  show the 'hotfiles' which are the files with highest number of present file opens\n");
+  global_retc = EINVAL;
   return (0);
 }

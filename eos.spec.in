@@ -66,6 +66,10 @@ BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: jsoncpp, jsoncpp-devel
+# Hiredis not available on SLC6 - therefore ns_quarkdb not built
+%if 0%{distribution} > 6
+BuildRequires: hiredis-devel
+%endif
 %endif
 
 %if 0%{distribution} == 5
@@ -151,6 +155,10 @@ The EOS server installation containing MGM, FST & MQ service.
 %files -n eos-server
 %defattr(-, root, root, -)
 %{_bindir}/xrdmqdumper
+# Namespace on Quarkdb requires at least CC7
+%if 0%{distribution} > 6
+%{_bindir}/convert_mem_to_kv
+%endif
 %{_sbindir}/eosha
 %{_sbindir}/eoshapl
 %{_sbindir}/eosfilesync
@@ -184,6 +192,10 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosNsCommon.so.%{major_version}
 %{_libdir}/libEosNsCommon.so
 %{_libdir}/libEosNsInMemory.so
+# Namespace on Quarkdb requires at least CC7
+%if 0%{distribution} > 6
+%{_libdir}/libEosNsQuarkdb.so
+%endif
 %{_libdir}/libEosAuthProto.so.%{version}
 %{_libdir}/libEosAuthProto.so.%{major_version}
 %{_libdir}/libEosAuthProto.so
@@ -197,20 +209,20 @@ The EOS server installation containing MGM, FST & MQ service.
 %config(noreplace) %{_sysconfdir}/xrd.cf.fed
 %config(noreplace) %{_sysconfdir}/xrd.cf.prefix
 %if %{use_systemd}
-    %config(noreplace) %{_sysconfdir}/sysconfig/eos_env.example
-    %{_sysconfdir}/systemd/system/eos.service
-    %{_sysconfdir}/systemd/system/eos@.service
-    %{_sysconfdir}/systemd/system/eos@fed.service
-    %{_sysconfdir}/systemd/system/eos@master.service
-    %{_sysconfdir}/systemd/system/eos@slave.service
-    %{_sysconfdir}/systemd/system/eosfstdb@.service
-    %{_sysconfdir}/systemd/system/eosha.service
-    %{_sysconfdir}/systemd/system/eosslave.service
-    %{_sysconfdir}/systemd/system/eossync.service
-    %{_sysconfdir}/systemd/system/eossync@.service
-    %{_sysconfdir}/systemd/system/eossync@config.service
+    %config %{_sysconfdir}/sysconfig/eos_env.example
+    %{_prefix}/lib/systemd/system/eos.service
+    %{_prefix}/lib/systemd/system/eos@.service
+    %{_prefix}/lib/systemd/system/eos@master.service
+    %{_prefix}/lib/systemd/system/eos@slave.service
+
+    %{_prefix}/lib/systemd/system/eosfstdb@.service
+    %{_prefix}/lib/systemd/system/eosha.service
+    %{_prefix}/lib/systemd/system/eosslave.service
+    %{_prefix}/lib/systemd/system/eossync.service
+    %{_prefix}/lib/systemd/system/eossync@.service
+    %{_prefix}/lib/systemd/system/eossync@config.service
 %else
-    %config(noreplace) %{_sysconfdir}/sysconfig/eos.example
+    %config %{_sysconfdir}/sysconfig/eos.example
     %{_sysconfdir}/rc.d/init.d/eos
     %{_sysconfdir}/rc.d/init.d/eosha
     %{_sysconfdir}/rc.d/init.d/eossync
@@ -230,9 +242,8 @@ The EOS server installation containing MGM, FST & MQ service.
 echo "Starting conditional EOS services"
 sleep 2
 %if %{use_systemd}
-    /sbin/systemctl daemon-reload > /dev/null 2>&1 || :
-    /sbin/systemctl restart eos@* > /dev/null 2>&1 || :
-    /sbin/systemctl restart eosd@* > /dev/null 2>&1 || :
+    systemctl daemon-reload > /dev/null 2>&1 || :
+    systemctl restart eos@* > /dev/null 2>&1 || :
 %else
     /sbin/chkconfig --add eos
     /sbin/chkconfig --add eosslave
@@ -244,11 +255,11 @@ sleep 2
 if [ $1 = 0 ]; then
   echo "Stopping EOS services"
   %if %{use_systemd}
-    /sbin/systemctl stop eosha > /dev/null 2>&1
-    /sbin/systemctl stop eosd@* > /dev/null 2>&1
-    /sbin/systemctl stop eos@* > /dev/null 2>&1 || :
-    /sbin/systemctl stop eossync@* > /dev/null 2>&1
-    /sbin/systemctl stop eosslave > /dev/null 2>&1
+    systemctl stop eosha > /dev/null 2>&1
+    systemctl stop eosd@* > /dev/null 2>&1
+    systemctl stop eos@* > /dev/null 2>&1 || :
+    systemctl stop eossync@* > /dev/null 2>&1
+    systemctl stop eosslave > /dev/null 2>&1
   %else
     /sbin/service eosha stop > /dev/null 2>&1
     /sbin/service eosd stop > /dev/null 2>&1
@@ -383,6 +394,7 @@ The EOS fuse SYSV init scripts.
     %{_sysconfdir}/rc.d/init.d/eosd
 
 %post -n eos-fuse-sysv
+
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
   echo "Skipping chkconfig for eosd"
 %else
@@ -395,7 +407,7 @@ The EOS fuse SYSV init scripts.
 %else
   if [ $1 = 0 ]; then
     echo "Stopping EOS FUSE services"
-	/sbin/service eosd stop > /dev/null 2>&1 || :
+    /sbin/service eosd stop > /dev/null 2>&1 || :
     /sbin/chkconfig --del eosd
   fi
 %endif

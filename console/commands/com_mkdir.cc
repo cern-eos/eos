@@ -27,7 +27,7 @@
 
 /* Create a directory */
 int
-com_mkdir (char* arg1)
+com_mkdir(char* arg1)
 {
   // split subcommands
   eos::common::StringTokenizer subtokenizer(arg1);
@@ -35,61 +35,49 @@ com_mkdir (char* arg1)
   XrdOucString path = subtokenizer.GetToken();
   XrdOucString in = "mgm.cmd=mkdir";
 
-  if (wants_help(arg1))
+  if (wants_help(arg1)) {
     goto com_mkdir_usage;
+  }
 
-  if (path == "-p")
-  {
+  if (path == "-p") {
     path = subtokenizer.GetToken();
     in += "&mgm.option=p";
-  }
-  else
-  {
-    if (path.beginswith("-"))
-    {
+  } else {
+    if (path.beginswith("-")) {
       goto com_mkdir_usage;
     }
   }
 
-  do
-  {
+  do {
     // read space seperated names as a single directory name
     XrdOucString param;
     param = subtokenizer.GetToken();
-    if (param.length())
-    {
+
+    if (param.length()) {
       path += " ";
       path += param;
-    }
-    else
-    {
+    } else {
       break;
     }
-  }
-  while (1);
+  } while (1);
 
   // remove escaped blanks
-  while (path.replace("\\ ", " "))
-  {
+  while (path.replace("\\ ", " ")) {
   }
 
-  if (!path.length())
-  {
+  if (!path.length()) {
     goto com_mkdir_usage;
-
-  }
-  else
-  {
+  } else {
     path = abspath(path.c_str());
     in += "&mgm.path=";
     in += path;
-
     global_retc = output_result(client_user_command(in));
     return (0);
   }
 
 com_mkdir_usage:
-  fprintf(stdout, "usage: mkdir -p <path>                                                :  create directory <path>\n");
+  fprintf(stdout,
+          "usage: mkdir -p <path>                                                :  create directory <path>\n");
+  global_retc = EINVAL;
   return (0);
-
 }

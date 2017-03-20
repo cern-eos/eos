@@ -186,7 +186,12 @@ Iostat::Start()
     queue += gOFS->HostName;
     queue += "/report";
     queue.replace("root://", "root://daemon@");
-    mClient.AddBroker(queue.c_str());
+
+    if (!mClient.AddBroker(queue.c_str())) {
+      eos_static_err("failed to add broker %s", queue.c_str());
+      return false;
+    }
+
     mInit = true;
   }
 
@@ -1389,6 +1394,7 @@ Iostat::Restore()
   int item = 0;
   char line[16384];
 
+  // coverity[DC.STREAM_BUFFER]
   while ((item = fscanf(fin, "%s\n", line)) == 1) {
     XrdOucEnv env(line);
 
@@ -1713,7 +1719,7 @@ Iostat::AddUdpTarget(const char* target, bool storeitandlock)
     int udpsocket = -1;
     udpsocket = socket(AF_INET, SOCK_DGRAM, 0);
 
-    if (udpsocket > 0) {
+    if (udpsocket >= 0) {
       XrdOucString a_host, a_port, hp;
       int port = 0;
       hp = starget.c_str();
@@ -1748,6 +1754,7 @@ Iostat::AddUdpTarget(const char* target, bool storeitandlock)
 
   // store the configuration
   if ((storeitandlock) && (!StoreIostatConfig())) {
+    BroadcastMutex.UnLock();
     return false;
   }
 

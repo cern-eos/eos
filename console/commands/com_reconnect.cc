@@ -28,7 +28,7 @@
 
 /* Force a reconnection/reauthentication */
 int
-com_reconnect (char* arg1)
+com_reconnect(char* arg1)
 {
   // split subcommands
   eos::common::StringTokenizer subtokenizer(arg1);
@@ -41,22 +41,19 @@ com_reconnect (char* arg1)
       (param == "gsi") ||
       (param == "krb5") ||
       (param == "unix") ||
-      (param == "sss"))
-  {
-    if (param.length())
-    {
-      fprintf(stdout, "# reconnecting to %s with <%s> authentication\n", serveruri.c_str(), param.c_str());
+      (param == "sss")) {
+    if (param.length()) {
+      fprintf(stdout, "# reconnecting to %s with <%s> authentication\n",
+              serveruri.c_str(), param.c_str());
       setenv("XrdSecPROTOCOL", param.c_str(), 1);
-    }
-    else
-    {
+    } else {
       fprintf(stdout, "# reconnecting to %s\n", serveruri.c_str());
     }
 
     XrdOucString path = serveruri;
     path += "//proc/admin/";
 
-    /* - NOT SUPPORTED IN THE NEW CLIENT 
+    /* - NOT SUPPORTED IN THE NEW CLIENT
     XrdClientAdmin admin(path.c_str());
     admin.Connect();
     if (admin.GetClientConn()) {
@@ -64,13 +61,15 @@ com_reconnect (char* arg1)
     }
      */
 
-    if (debug)
+    if (debug) {
       fprintf(stdout, "debug: %s\n", path.c_str());
+    }
+
     return (0);
-  }
-  else
-  {
-    fprintf(stdout, "usage: reconnect [gsi,krb5,unix,sss]                                    :  reconnect to the management node [using the specified protocol]\n");
+  } else {
+    fprintf(stdout,
+            "usage: reconnect [gsi,krb5,unix,sss]                                    :  reconnect to the management node [using the specified protocol]\n");
+    global_retc = EINVAL;
     return (0);
   }
 }

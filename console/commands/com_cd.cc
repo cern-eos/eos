@@ -27,43 +27,36 @@
 
 /* Change working directory &*/
 int
-com_cd (char *arg1)
+com_cd(char* arg1)
 {
   static XrdOucString opwd = "/";
   static XrdOucString oopwd = "/";
   XrdOucString lsminuss;
   XrdOucString newpath;
   XrdOucString oldpwd;
-
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString arg = subtokenizer.GetToken();
 
-  if ( (arg.beginswith("--help")) || (arg.beginswith("-h")))
+  if ((arg.beginswith("--help")) || (arg.beginswith("-h"))) {
     goto com_cd_usage;
-
+  }
 
   // cd -
-  if (arg == "-")
-  {
+  if (arg == "-") {
     oopwd = opwd;
     arg = (char*) opwd.c_str();
   }
 
   opwd = pwd;
-
   newpath = abspath(arg.c_str());
   oldpwd = pwd;
 
   // cd ~ (home)
-  if ( (arg=="") || (arg== "~") )
-  {
-    if (getenv("EOS_HOME"))
-    {
+  if ((arg == "") || (arg == "~")) {
+    if (getenv("EOS_HOME")) {
       newpath = abspath(getenv("EOS_HOME"));
-    }
-    else
-    {
+    } else {
       fprintf(stderr, "warning: there is no home directory defined via EOS_HOME\n");
       newpath = opwd;
     }
@@ -71,83 +64,84 @@ com_cd (char *arg1)
 
   pwd = newpath;
 
-  if ((!pwd.endswith("/")) && (!pwd.endswith("/\"")))
+  if ((!pwd.endswith("/")) && (!pwd.endswith("/\""))) {
     pwd += "/";
+  }
 
   // filter "/./";
-  while (pwd.replace("/./", "/"))
-  {
+  while (pwd.replace("/./", "/")) {
   }
+
   // filter "..";
   int dppos;
   dppos = 0;
-  while ((dppos = pwd.find("/../")) != STR_NPOS)
-  {
-    if (dppos == 0)
-    {
+
+  while ((dppos = pwd.find("/../")) != STR_NPOS) {
+    if (dppos == 0) {
       pwd = oldpwd;
       break;
     }
+
     int rpos = pwd.rfind("/", dppos - 1);
+
     //    fprintf(stdout,"%s %d %d\n", pwd.c_str(), dppos, rpos);
-    if (rpos != STR_NPOS)
-    {
+    if (rpos != STR_NPOS) {
       //      fprintf(stdout,"erasing %d %d", rpos, dppos-rpos+3);
       pwd.erase(rpos, dppos - rpos + 3);
-    }
-    else
-    {
+    } else {
       pwd = oldpwd;
       break;
     }
   }
 
-  if ((!pwd.endswith("/")) && (!pwd.endswith("/\"")))
+  if ((!pwd.endswith("/")) && (!pwd.endswith("/\""))) {
     pwd += "/";
+  }
 
   // check if this exists, otherwise go back to oldpwd
-
   lsminuss = "mgm.cmd=cd&mgm.path=";
   lsminuss += pwd;
   lsminuss += "&mgm.option=s";
   global_retc = output_result(client_user_command(lsminuss));
-  if (global_retc)
-  {
-    pwd = oldpwd;
-  }
-  else
-  {
-    if (pwdfile.length()) 
-    {
-    // store the last used directory
-    int cfd = open(pwdfile.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRWXU);
-    if (cfd >= 0)
-    {
-      if ((::write(cfd, pwd.c_str(), pwd.length())) != pwd.length())
-      {
-        fprintf(stderr, "warning: unable to store CWD to %s [errno=%d]\n", pwdfile.c_str(), errno);
-      }
-      close(cfd);
-    }
-    else
-    {
-      fprintf(stderr, "warning: unable to store CWD to %s\n", pwdfile.c_str());
-      }
-    }
-  }
-  return (0);
 
+  if (global_retc) {
+    pwd = oldpwd;
+  } else {
+    if (pwdfile.length()) {
+      // store the last used directory
+      int cfd = open(pwdfile.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRWXU);
+
+      if (cfd >= 0) {
+        if ((::write(cfd, pwd.c_str(), pwd.length())) != pwd.length()) {
+          fprintf(stderr, "warning: unable to store CWD to %s [errno=%d]\n",
+                  pwdfile.c_str(), errno);
+        }
+
+        close(cfd);
+      } else {
+        fprintf(stderr, "warning: unable to store CWD to %s\n", pwdfile.c_str());
+      }
+    }
+  }
+
+  return (0);
 com_cd_usage:
-  fprintf(stdout, "'[eos] cd ...' provides the namespace change directory command in EOS.\n");
+  fprintf(stdout,
+          "'[eos] cd ...' provides the namespace change directory command in EOS.\n");
   fprintf(stdout, "Usage: cd <dir>|-|..|~\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout, "cd <dir> :\n");
-  fprintf(stdout, "                                                  change into direcotry <dir>. If it does not exist, the current directory will stay as before!\n");
+  fprintf(stdout,
+          "                                                  change into direcotry <dir>. If it does not exist, the current directory will stay as before!\n");
   fprintf(stdout, "cd - :\n");
-  fprintf(stdout, "                                                  change into the previous directory\n");
+  fprintf(stdout,
+          "                                                  change into the previous directory\n");
   fprintf(stdout, "cd .. :\n");
-  fprintf(stdout, "                                                  change into the directory one level up\n");
+  fprintf(stdout,
+          "                                                  change into the directory one level up\n");
   fprintf(stdout, "cd ~ :\n");
-  fprintf(stdout, "                                                  change into the directory defined via the environment variable EOS_HOME\n");
+  fprintf(stdout,
+          "                                                  change into the directory defined via the environment variable EOS_HOME\n");
+  global_retc = EINVAL;
   return (0);
 }

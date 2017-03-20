@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -29,16 +28,13 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
-/*----------------------------------------------------------------------------*/
 #ifndef __APPLE__
 #include <sys/inotify.h>
 #endif
-
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "common/Logging.hh"
-/*----------------------------------------------------------------------------*/
 
 #define PROGNAME "eosfilesync"
 #define TRANSFERBLOCKSIZE 1024*1024*4
@@ -49,8 +45,8 @@
 //------------------------------------------------------------------------------
 void usage()
 {
-  fprintf( stderr, "usage: %s <src-path> <dst-url> [--debug]\n", PROGNAME );
-  exit( -1 );
+  fprintf(stderr, "usage: %s <src-path> <dst-url> [--debug]\n", PROGNAME);
+  exit(-1);
 }
 
 // -------------------------------------------------------------
@@ -71,30 +67,30 @@ char buffer[EVENT_BUF_LEN];
 //------------------------------------------------------------------------------
 // Main function
 //------------------------------------------------------------------------------
-int main( int argc, char* argv[] )
+int main(int argc, char* argv[])
 {
-  if ( argc < 3 ) {
+  if (argc < 3) {
     usage();
   }
 
   eos::common::Logging::Init();
-  eos::common::Logging::SetUnit( "eosfilesync" );
-  eos::common::Logging::SetLogPriority( LOG_NOTICE );
+  eos::common::Logging::SetUnit("eosfilesync");
+  eos::common::Logging::SetLogPriority(LOG_NOTICE);
   XrdOucString debugstring = "";
 
-  if ( argc == 4 ) {
+  if (argc == 4) {
     debugstring = argv[3];
   }
 
-  if ( ( debugstring == "--debug" ) || ( debugstring == "-d" ) ) {
-    eos::common::Logging::SetLogPriority( LOG_DEBUG );
+  if ((debugstring == "--debug") || (debugstring == "-d")) {
+    eos::common::Logging::SetLogPriority(LOG_DEBUG);
   }
 
-  if ( ( debugstring == "--debug" ) || ( debugstring == "-d" ) ) {
-    eos::common::Logging::SetLogPriority( LOG_DEBUG );
+  if ((debugstring == "--debug") || (debugstring == "-d")) {
+    eos::common::Logging::SetLogPriority(LOG_DEBUG);
   }
 
-  eos_static_notice( "starting %s=>%s", argv[1], argv[2] );
+  eos_static_notice("starting %s=>%s", argv[1], argv[2]);
   int fd = 0;
   off_t localoffset = 0;
   off_t remoteoffset = 0;
@@ -102,76 +98,73 @@ int main( int argc, char* argv[] )
   struct timeval sync1;
   struct timeval sync2;
   bool isdumpfile = false; // dump files are not 'follower' files in append mode,
-                           // they need to be resynched completely
-  
-  gettimeofday( &sync1, &tz );
+  // they need to be resynched completely
+  gettimeofday(&sync1, &tz);
   XrdOucString sourcefile = argv[1];
   XrdOucString dsturl = argv[2];
   std::string sdsturl = dsturl.c_str();
-
   XrdCl::URL dUrl(sdsturl);
 
-  if ( sourcefile.endswith( ".dump" ) ) {
+  if (sourcefile.endswith(".dump")) {
     isdumpfile = true;
   }
 
-  XrdCl::File* file  = 0;  
-  
+  XrdCl::File* file  = 0;
   int inotify_fd = -1;
   int watch_fd = -1;
-
 #ifndef __APPLE__
   inotify_fd = inotify_init();
 
-  if ( inotify_fd < 0 ) {
-    fprintf(stderr,"error: unable to initialize inotify interface - will use polling\n");
+  if (inotify_fd < 0) {
+    fprintf(stderr,
+            "error: unable to initialize inotify interface - will use polling\n");
   }
+
 #endif
 
   do {
-    fd = open( sourcefile.c_str(), O_RDONLY );
+    fd = open(sourcefile.c_str(), O_RDONLY);
 
-    if ( fd < 0 ) {
+    if (fd < 0) {
       XrdSysTimer sleeper;
-      sleeper.Wait( 1000 );
+      sleeper.Wait(1000);
     }
-  } while ( fd < 0 );
+  } while (fd < 0);
 
- 
- again:
+again:
   XrdCl::OpenFlags::Flags flags_xrdcl;
-  XrdCl::Access::Mode mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR |
-                        XrdCl::Access::GW | XrdCl::Access::OR;
-  
+  XrdCl::Access::Mode mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW |
+                                   XrdCl::Access::GR |
+                                   XrdCl::Access::GW | XrdCl::Access::OR;
   file = new XrdCl::File();
-
 #ifndef __APPLE__
-  if (watch_fd) {
+
+  if (watch_fd >= 0) {
     inotify_rm_watch(inotify_fd, watch_fd);
     close(watch_fd);
   }
 
-  watch_fd = inotify_add_watch(inotify_fd, sourcefile.c_str(), IN_MODIFY | IN_MOVE_SELF );
-
+  watch_fd = inotify_add_watch(inotify_fd, sourcefile.c_str(),
+                               IN_MODIFY | IN_MOVE_SELF);
 #endif
 
-  if ( !file ) {
-    fprintf( stderr, "Error: cannot create XrdCl object\n" );
-    exit( -1 );
-
+  if (!file) {
+    fprintf(stderr, "Error: cannot create XrdCl object\n");
+    exit(-1);
   }
 
   flags_xrdcl = XrdCl::OpenFlags::MakePath | XrdCl::OpenFlags::Update;
 
-  if ( !file->Open( dsturl.c_str(), flags_xrdcl, mode_xrdcl ).IsOK() ) {
-    eos_static_info( "Creating the file..." );
+  if (!file->Open(dsturl.c_str(), flags_xrdcl, mode_xrdcl).IsOK()) {
+    eos_static_info("Creating the file...");
     flags_xrdcl = XrdCl::OpenFlags::MakePath | XrdCl::OpenFlags::New;
     delete file;
     file = new XrdCl::File();
-    if ( !file->Open( dsturl.c_str(), flags_xrdcl, mode_xrdcl ).IsOK() ) {
-      eos_static_err( "cannot open remote file %s", dsturl.c_str() );
+
+    if (!file->Open(dsturl.c_str(), flags_xrdcl, mode_xrdcl).IsOK()) {
+      eos_static_err("cannot open remote file %s", dsturl.c_str());
       delete file;
-      exit( -1 );
+      exit(-1);
     }
   }
 
@@ -182,100 +175,124 @@ int main( int argc, char* argv[] )
   do {
     struct stat src_curr_stat;
 
-    if ( fstat( fd, &srcstat ) ) {
-      eos_static_err( "cannot stat source file %s - retry in 1 minute ...", sourcefile.c_str() );
-      sleep( 60 );
+    if (fstat(fd, &srcstat)) {
+      eos_static_err("cannot stat source file %s - retry in 1 minute ...",
+                     sourcefile.c_str());
+      sleep(60);
       continue;
     }
-    
-    int cantstat=0;
+
+    int cantstat = 0;
 
     do {
-      if (!(cantstat=stat(sourcefile.c_str(), &src_curr_stat))) {
-	if (src_curr_stat.st_ino != srcstat.st_ino) {
-	  eos_static_notice("source file has been replaced");
-	  close(fd);
-	  do {
-	    fd= open (sourcefile.c_str(),O_RDONLY);
-	    if (fd<0) {
-	      sleep(1);
-	    }
-	  } while(fd <0 );
+      if (!(cantstat = stat(sourcefile.c_str(), &src_curr_stat))) {
+        if (src_curr_stat.st_ino != srcstat.st_ino) {
+          eos_static_notice("source file has been replaced");
+          close(fd);
 
-	  if (fstat(fd, &srcstat)) {
-	    eos_static_err("cannot stat source file %s - retry in 1 minute ...", sourcefile.c_str());
-	    sleep(60);
-	    continue;
-	  }
+          do {
+            fd = open(sourcefile.c_str(), O_RDONLY);
 
-	  eos_static_notice("re-opened source file");
+            if (fd < 0) {
+              sleep(1);
+            }
+          } while (fd < 0);
 
-	  if (isdumpfile) {
-	    if (!file->Truncate( 0 ).IsOK() ) {
-	      eos_static_crit("couldn't truncate remote file");
-	      sleep(60);
-	      if (file) delete file;
-	      goto again;
-	    }
-	  } else {
-	    eos_static_notice("re-opened source file");
-	    (void) file->Close();
-	    if (file) delete file;
-	    
-	    XrdCl::FileSystem FsSync ( dUrl );
-	    XrdOucString sourcebackupfile = sourcefile;
-	    sourcebackupfile += ".";
-	    sourcebackupfile += (int)time(NULL);
-	    std::string s_file = sourcefile.c_str();
-	    std::string d_file = sourcebackupfile.c_str();
-	    if (!FsSync.Mv(s_file, d_file).IsOK()) {
-	      eos_static_crit("couldn't rename %s=>%s\n", sourcefile.c_str(), sourcebackupfile.c_str());
-	    }
-	    goto again;
-	  }
-	}
+          if (fstat(fd, &srcstat)) {
+            eos_static_err("cannot stat source file %s - retry in 1 minute ...",
+                           sourcefile.c_str());
+            sleep(60);
+            continue;
+          }
+
+          eos_static_notice("re-opened source file");
+
+          if (isdumpfile) {
+            if (!file->Truncate(0).IsOK()) {
+              eos_static_crit("couldn't truncate remote file");
+              sleep(60);
+
+              if (file) {
+                delete file;
+              }
+
+              goto again;
+            }
+          } else {
+            eos_static_notice("re-opened source file");
+            (void) file->Close();
+
+            if (file) {
+              delete file;
+            }
+
+            XrdCl::FileSystem FsSync(dUrl);
+            XrdOucString sourcebackupfile = sourcefile;
+            sourcebackupfile += ".";
+            sourcebackupfile += (int)time(NULL);
+            std::string s_file = sourcefile.c_str();
+            std::string d_file = sourcebackupfile.c_str();
+
+            if (!FsSync.Mv(s_file, d_file).IsOK()) {
+              eos_static_crit("couldn't rename %s=>%s\n", sourcefile.c_str(),
+                              sourcebackupfile.c_str());
+            }
+
+            goto again;
+          }
+        }
       } else {
-	sleep(1);
+        sleep(1);
       }
     } while (cantstat);
 
-    if ( !file->Stat( true, dststat ).IsOK() ) {
-      eos_static_crit( "cannot stat destination file %s", dsturl.c_str() );
+    if (!file->Stat(true, dststat).IsOK()) {
+      eos_static_crit("cannot stat destination file %s", dsturl.c_str());
       delete file;
-      exit( -1 );
+      exit(-1);
     }
 
     localoffset = srcstat.st_size;
     remoteoffset = dststat->GetSize();
 
-    if ( isdumpfile ) {
-      if ( !file->Truncate( 0 ).IsOK() ) {
+    if (isdumpfile) {
+      if (!file->Truncate(0).IsOK()) {
         eos_static_crit("couldn't truncate remote file");
-	sleep(60);
-	if (file) delete file;
-	goto again;
+        sleep(60);
+
+        if (file) {
+          delete file;
+        }
+
+        goto again;
       }
 
       remoteoffset = 0;
     } else {
-      if ( remoteoffset > localoffset ) {
-        eos_static_err( "remote file is longer than local file - force truncation\n" );
+      if (remoteoffset > localoffset) {
+        eos_static_err("remote file is longer than local file - force truncation\n");
 
-        if ( !file->Truncate( 0 ).IsOK() ) {
+        if (!file->Truncate(0).IsOK()) {
           eos_static_crit("couldn't truncate remote file");
-	  sleep(60);
-	  if (file) delete file;
-	  
-	  XrdCl::FileSystem FsSync ( dUrl );
-	  XrdOucString sourcebackupfile = sourcefile;
-	  sourcebackupfile += ".";
-	  sourcebackupfile += (int)time(NULL);
-	  std::string s_file = sourcefile.c_str();
-	  std::string d_file = sourcebackupfile.c_str();
-	  if (!FsSync.Mv(s_file, d_file).IsOK()) {
-	    eos_static_crit("couldn't rename %s=>%s\n", sourcefile.c_str(), sourcebackupfile.c_str());
-	  }
-	  goto again;
+          sleep(60);
+
+          if (file) {
+            delete file;
+          }
+
+          XrdCl::FileSystem FsSync(dUrl);
+          XrdOucString sourcebackupfile = sourcefile;
+          sourcebackupfile += ".";
+          sourcebackupfile += (int)time(NULL);
+          std::string s_file = sourcefile.c_str();
+          std::string d_file = sourcebackupfile.c_str();
+
+          if (!FsSync.Mv(s_file, d_file).IsOK()) {
+            eos_static_crit("couldn't rename %s=>%s\n", sourcefile.c_str(),
+                            sourcebackupfile.c_str());
+          }
+
+          goto again;
         }
 
         remoteoffset = 0;
@@ -284,69 +301,72 @@ int main( int argc, char* argv[] )
 
     size_t transfersize = 0;
 
-    if ( ( localoffset - remoteoffset ) > TRANSFERBLOCKSIZE ) {
+    if ((localoffset - remoteoffset) > TRANSFERBLOCKSIZE) {
       transfersize = TRANSFERBLOCKSIZE;
-    }
-    else {
-      transfersize = ( localoffset - remoteoffset );
+    } else {
+      transfersize = (localoffset - remoteoffset);
     }
 
-    off_t mapoffset = remoteoffset - ( remoteoffset % PAGESIZE );
-    size_t mapsize = transfersize + ( remoteoffset % PAGESIZE );
+    off_t mapoffset = remoteoffset - (remoteoffset % PAGESIZE);
+    size_t mapsize = transfersize + (remoteoffset % PAGESIZE);
 
-    if (!transfersize) {      
-      if ( (inotify_fd  >= 0 ) && (watch_fd >=0) ) {
-	// use inotify to wait for changes on our file, we don't really care to look at the event since we look only at a single file
-	ssize_t length = read( inotify_fd, buffer, EVENT_BUF_LEN );
-	if (!length) {
-	  eos_static_crit("read via inotify returned errno=%d", errno);
-	}
+    if (!transfersize) {
+      if ((inotify_fd  >= 0) && (watch_fd >= 0)) {
+        // use inotify to wait for changes on our file, we don't really care to look at the event since we look only at a single file
+        ssize_t length = read(inotify_fd, buffer, EVENT_BUF_LEN);
+
+        if (!length) {
+          eos_static_crit("read via inotify returned errno=%d", errno);
+        }
       } else {
-	// sleep 1ms
-	usleep(1000);
+        // sleep 1ms
+        usleep(1000);
       }
     } else {
-      eos_static_debug( "remoteoffset=%llu module=%llu mapoffset=%llu mapsize =%lu",
-                        ( unsigned long long )remoteoffset,
-                        ( unsigned long long )remoteoffset % PAGESIZE,
-                        ( unsigned long long )mapoffset,
-                        ( unsigned long )mapsize );
-      char* copyptr = ( char* ) mmap( NULL, mapsize, PROT_READ, MAP_SHARED, fd, mapoffset );
+      eos_static_debug("remoteoffset=%llu module=%llu mapoffset=%llu mapsize =%lu",
+                       (unsigned long long)remoteoffset,
+                       (unsigned long long)remoteoffset % PAGESIZE,
+                       (unsigned long long)mapoffset,
+                       (unsigned long)mapsize);
+      char* copyptr = (char*) mmap(NULL, mapsize, PROT_READ, MAP_SHARED, fd,
+                                   mapoffset);
 
-      if ( !copyptr ) {
-        eos_static_crit( "cannot map source file at %llu", ( unsigned long long )remoteoffset );
-        exit( -1 );
+      if (!copyptr) {
+        eos_static_crit("cannot map source file at %llu",
+                        (unsigned long long)remoteoffset);
+        exit(-1);
       }
 
-      if ( !file->Write( remoteoffset, transfersize, copyptr + ( remoteoffset % PAGESIZE ) ).IsOK() ) {
-        eos_static_err( "cannot write remote block at %llu/%lu",
-                        ( unsigned long long )remoteoffset,
-                        ( unsigned long )transfersize );
-        sleep( 60 );
+      if (!file->Write(remoteoffset, transfersize,
+                       copyptr + (remoteoffset % PAGESIZE)).IsOK()) {
+        eos_static_err("cannot write remote block at %llu/%lu",
+                       (unsigned long long)remoteoffset,
+                       (unsigned long)transfersize);
+        sleep(60);
       }
 
-      munmap( copyptr, mapsize );
+      munmap(copyptr, mapsize);
     }
 
-    gettimeofday( &sync2, &tz );
-    float syncperiod = ( ( ( sync2.tv_sec - sync1.tv_sec ) * 1000.0 ) +
-                         ( ( sync2.tv_usec - sync1.tv_usec ) / 1000.0 ) );
+    gettimeofday(&sync2, &tz);
+    float syncperiod = (((sync2.tv_sec - sync1.tv_sec) * 1000.0) +
+                        ((sync2.tv_usec - sync1.tv_usec) / 1000.0));
 
     // every 1000 ms we send a sync command
-    if ( syncperiod > 1000 ) {
-      if ( !file->Sync().IsOK() ) {
-        eos_static_crit( "cannot sync remote file" );
+    if (syncperiod > 1000) {
+      if (!file->Sync().IsOK()) {
+        eos_static_crit("cannot sync remote file");
         delete dststat;
         delete file;
-        exit( -1 );
+        exit(-1);
       }
     }
 
-    if ( isdumpfile ) {
+    if (isdumpfile) {
       // update the file every 5 seconds
-      sleep( 5 );
+      sleep(5);
     }
-  } while ( 1 );
+  } while (1);
 
   delete dststat;
   delete file;

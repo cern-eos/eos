@@ -20,36 +20,33 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-/*----------------------------------------------------------------------------*/
 #include "common/DbMapCommon.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 #include <iomanip>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
-bool operator == (const DbMapTypes::Tlogentry &l, const DbMapTypes::Tlogentry &r)
+bool operator == (const DbMapTypes::Tlogentry& l,
+                  const DbMapTypes::Tlogentry& r)
 {
   return !l.timestampstr.compare(r.timestampstr)
-      && !l.seqid.compare(r.seqid)
-      && !l.writer.compare(r.writer)
-      && !l.key.compare(r.key)
-      && !l.value.compare(r.value)
-      && !l.comment.compare(r.comment);
+         && !l.seqid.compare(r.seqid)
+         && !l.writer.compare(r.writer)
+         && !l.key.compare(r.key)
+         && !l.value.compare(r.value)
+         && !l.comment.compare(r.comment);
 }
 
-bool operator == (const DbMapTypes::Tval &l, const DbMapTypes::Tval &r)
-                                                                                                                                    {
+bool operator == (const DbMapTypes::Tval& l, const DbMapTypes::Tval& r)
+{
   return !l.timestampstr.compare(r.timestampstr)
-      && l.seqid==r.seqid
-      && !l.writer.compare(r.writer)
-      && !l.value.compare(r.value)
-      && !l.comment.compare(r.comment);
-                                                                                                                                    }
+         && l.seqid == r.seqid
+         && !l.writer.compare(r.writer)
+         && !l.value.compare(r.value)
+         && !l.comment.compare(r.comment);
+}
 
 void
-Tlogentry2Tval (const DbMapTypes::Tlogentry &tle, DbMapTypes::Tval *tval)
+Tlogentry2Tval(const DbMapTypes::Tlogentry& tle, DbMapTypes::Tval* tval)
 {
   tval->timestampstr = tle.timestampstr;
   tval->seqid = atol(tle.seqid.c_str());
@@ -58,44 +55,55 @@ Tlogentry2Tval (const DbMapTypes::Tlogentry &tle, DbMapTypes::Tval *tval)
   tval->comment = tle.comment;
 }
 
-ostream& operator << (ostream &os, const DbMapTypes::Tval &val)
+ostream& operator << (ostream& os, const DbMapTypes::Tval& val)
 {
-  os << setprecision(20) << "\t" << val.timestampstr << "\t" << val.seqid << "\t" << val.writer << "\t" << val.value << "\t" << val.comment;
+  auto orig_flags = os.flags();
+  os << setprecision(20) << "\t" << val.timestampstr << "\t" << val.seqid
+     << "\t" << val.writer << "\t" << val.value << "\t" << val.comment;
+  os.flags(orig_flags);
   return os;
 }
 
-istream& operator >> (istream &is, DbMapTypes::Tval &val)
+istream& operator >> (istream& is, DbMapTypes::Tval& val)
 {
   string buffer;
   //is >> val.timestamp;
   getline(is, val.timestampstr, '\t');
   getline(is, buffer, '\t');
-  sscanf(buffer.c_str(), "%lu", &val.seqid);
+  (void) sscanf(buffer.c_str(), "%lu", &val.seqid);
   getline(is, val.value, '\t');
   getline(is, val.comment, '\t');
   return is;
 }
 
-ostream& operator << (ostream &os, const DbMapTypes::Tlogentry &entry)
+ostream& operator << (ostream& os, const DbMapTypes::Tlogentry& entry)
 {
-  os << setprecision(20)  << "\ttimestampstr=" << entry.timestampstr << "\tseqid=" << entry.seqid << "\twriter=" << entry.writer << "\tkey=" << entry.key << "\tvalue=" << entry.value << "\tcomment=" << entry.comment;
+  auto orig_flags = os.flags();
+  os << setprecision(20)  << "\ttimestampstr=" << entry.timestampstr
+     << "\tseqid=" << entry.seqid << "\twriter=" << entry.writer
+     << "\tkey=" << entry.key << "\tvalue=" << entry.value << "\tcomment=" <<
+     entry.comment;
+  os.flags(orig_flags);
   return os;
 }
 
-ostream& operator << (ostream &os, const DbMapTypes::TlogentryVec &entryvec)
+ostream& operator << (ostream& os, const DbMapTypes::TlogentryVec& entryvec)
 {
-  for (DbMapTypes::TlogentryVec::const_iterator it = entryvec.begin(); it != entryvec.end(); it++)
+  for (DbMapTypes::TlogentryVec::const_iterator it = entryvec.begin();
+       it != entryvec.end(); it++) {
     os << (*it) << endl;
+  }
+
   return os;
 }
 
-void TimeToStr(const time_t t, char *tstr ) {
+void TimeToStr(const time_t t, char* tstr)
+{
   struct tm ptm;
-  localtime_r(&t,&ptm);
-  size_t offset=strftime(tstr, 64, "%Y-%m-%d %H:%M:%S", &ptm);
-  tstr[offset++]='#';
-
-  sprintf(tstr+offset, "%9.9lu",(time_t)0);
+  localtime_r(&t, &ptm);
+  size_t offset = strftime(tstr, 64, "%Y-%m-%d %H:%M:%S", &ptm);
+  tstr[offset++] = '#';
+  sprintf(tstr + offset, "%9.9lu", (time_t)0);
 }
 
 EOSCOMMONNAMESPACE_END

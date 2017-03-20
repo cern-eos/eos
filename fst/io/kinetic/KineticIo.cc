@@ -381,6 +381,11 @@ KineticIo::ftsRead(FileIo::FtsHandle* fts_handle)
 
   auto handle = dynamic_cast<KineticIo::FtsHandle*>(fts_handle);
 
+  if (!handle) {
+    eos_err("failed dynamic cast to KineticIO::FtsHandle");
+    return "";
+  }
+
   if (handle->cached.size() > handle->current_index) {
     return handle->cached.at(handle->current_index++);
   }

@@ -95,6 +95,9 @@ echo "Running in directory: $(pwd)"
 # Exit script immediately if a command exits with a non-zero status
 set -e
 
+# List of branches for CI YUM repo
+BRANCH_LIST=('aquamarine' 'citrine')
+
 # Get local branch and dist tag for the RPMS
 getLocalBranchAndDistTag ${BRANCH_OR_TAG} ${PLATFORM}
 
@@ -122,7 +125,15 @@ git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
 
 # Prepare the mock configuration
 head -n -1 ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/$XROOTD_TAG/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
+
 # Add eos dependencies repos
+if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
+  REPO_DEPEND="${BRANCH}-depend"
+else
+  # For any other branch use the citrine dependencies
+  REPO_DEPEND="citrine-depend"
+fi
+
 # TODO: move these dependencies inside the dss-ci-mock repository
 echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/citrine-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\n' >> eos.cfg
 # Add kineticio repos for kineticio-devel header-only package...
@@ -130,6 +141,7 @@ echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.c
 echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
 echo -e '"""' >> eos.cfg
 
+<<<<<<< HEAD
 # Build the RPMs (without yum repo rpms)
 mock --yum --init --uniqueext="eos_fuse" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
 

@@ -58,12 +58,6 @@ ProcCommand::File()
   }
 
   NAMESPACEMAP;
-  info = 0;
-
-  if (info) {
-    info = 0;  // for compiler happyness
-  }
-
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
@@ -1745,12 +1739,6 @@ ProcCommand::File()
       XrdOucString spath = pOpaque->Get("mgm.path");
       const char* inpath = spath.c_str();
       NAMESPACEMAP;
-      info = 0;
-
-      if (info) {
-        info = 0;  // for compiler happyness
-      }
-
       PROC_BOUNCE_ILLEGAL_NAMES;
       PROC_BOUNCE_NOT_ALLOWED;
       spath = path;

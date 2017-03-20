@@ -62,7 +62,8 @@ private:
   unsigned long long* scrubPatternVerify;
 
   TransferQueue* mTxGwQueue; // the handle to the storage queue of gw transfers
-  eos::common::TransferQueue* mGwQueue; // the handle to the low-level queue of gw transfers
+  eos::common::TransferQueue*
+  mGwQueue; // the handle to the low-level queue of gw transfers
 
 protected:
   eos::common::RWMutex fsMutex;
@@ -71,108 +72,114 @@ protected:
   std::set<pthread_t> ThreadSet;
 
 public:
-  TransferMultiplexer mGwMultiplexer; // the multiplexer for gw transfers
-
   // Var partition monitor thread
   static void* StartVarPartitionMonitor(void* pp);
   // fsstat & quota thread
-  static void* StartDaemonSupervisor (void *pp);
-  static void* StartFsCommunicator (void *pp);
-  static void* StartFsScrub (void * pp);
-  static void* StartFsTrim (void* pp);
-  static void* StartFsRemover (void* pp);
-  static void* StartFsReport (void* pp);
-  static void* StartFsErrorReport (void* pp);
-  static void* StartFsVerify (void* pp);
-  static void* StartFsPublisher (void* pp);
-  static void* StartFsBalancer (void* pp);
-  static void* StartFsDrainer (void* pp);
-  static void* StartFsCleaner (void* pp);
-  static void* StartMgmSyncer (void* pp);
+  static void* StartDaemonSupervisor(void* pp);
+  static void* StartFsCommunicator(void* pp);
+  static void* StartFsScrub(void* pp);
+  static void* StartFsTrim(void* pp);
+  static void* StartFsRemover(void* pp);
+  static void* StartFsReport(void* pp);
+  static void* StartFsErrorReport(void* pp);
+  static void* StartFsVerify(void* pp);
+  static void* StartFsPublisher(void* pp);
+  static void* StartFsBalancer(void* pp);
+  static void* StartFsDrainer(void* pp);
+  static void* StartFsCleaner(void* pp);
+  static void* StartMgmSyncer(void* pp);
+  static void* StartBoot(void* pp);
 
-  struct BootThreadInfo
-  {
+  struct BootThreadInfo {
     Storage* storage;
     FileSystem* filesystem;
   };
 
-  static void* StartBoot (void* pp);
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  Storage(const char* metadirectory);
 
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~Storage();
+
+  TransferMultiplexer mGwMultiplexer; // the multiplexer for gw transfers
   XrdSysMutex BootSetMutex; // Mutex protecting the boot set
-  std::set<eos::common::FileSystem::fsid_t> BootSet; // set containing the filesystems currently booting
-  bool RunBootThread (FileSystem* fs);
+  //! Set containing the filesystems currently booting
+  std::set<eos::common::FileSystem::fsid_t> BootSet;
+  bool RunBootThread(FileSystem* fs);
 
-  // ---------------------------------------------------------------------------
-  // generic methods
-  // ---------------------------------------------------------------------------
-
-  void WaitConfigQueue (std::string & nodeconfigqueue);
-
-  void Scrub ();
-  void Trim ();
-  void Remover ();
-  void Report ();
-  void ErrorReport ();
-  void Verify ();
-  void Communicator ();
-  void Supervisor ();
-  void Publish ();
+  //----------------------------------------------------------------------------
+  //! Generic methods
+  //----------------------------------------------------------------------------
+  void WaitConfigQueue(std::string& nodeconfigqueue);
+  void Scrub();
+  void Trim();
+  void Remover();
+  void Report();
+  void ErrorReport();
+  void Verify();
+  void Communicator();
+  void Supervisor();
+  void Publish();
 
   // ---------------------------------------------------------------------------
   // balancer related methods
   // ---------------------------------------------------------------------------
   XrdSysCondVar balanceJobNotification;
 
-  void Balancer ();
-  void GetBalanceSlotVariables (unsigned long long &nparalleltx,
-                                unsigned long long &ratex,
-                                std::string configqueue);
+  void Balancer();
+  void GetBalanceSlotVariables(unsigned long long& nparalleltx,
+                               unsigned long long& ratex,
+                               std::string configqueue);
 
 
-  unsigned long long GetScheduledBalanceJobs (unsigned long long totalscheduled,
-                                              unsigned long long &totalexecuted);
+  unsigned long long GetScheduledBalanceJobs(unsigned long long totalscheduled,
+      unsigned long long& totalexecuted);
 
-  unsigned long long WaitFreeBalanceSlot (unsigned long long &nparalleltx,
-                                          unsigned long long &totalscheduled,
-                                          unsigned long long &totalexecuted);
+  unsigned long long WaitFreeBalanceSlot(unsigned long long& nparalleltx,
+                                         unsigned long long& totalscheduled,
+                                         unsigned long long& totalexecuted);
 
-  bool GetFileSystemInBalanceMode (std::vector<unsigned int> &balancefsvector,
-                                   unsigned int &cycler,
-                                   unsigned long long nparalleltx,
-                                   unsigned long long ratetx);
+  bool GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
+                                  unsigned int& cycler,
+                                  unsigned long long nparalleltx,
+                                  unsigned long long ratetx);
 
-  bool GetBalanceJob (unsigned int index);
+  bool GetBalanceJob(unsigned int index);
 
   // ---------------------------------------------------------------------------
   // drain related methods
   // ---------------------------------------------------------------------------
-  void Drainer ();
+  void Drainer();
   XrdSysCondVar drainJobNotification;
 
-  void GetDrainSlotVariables (unsigned long long &nparalleltx,
-                              unsigned long long &ratex,
-                              std::string configqueue);
+  void GetDrainSlotVariables(unsigned long long& nparalleltx,
+                             unsigned long long& ratex,
+                             std::string configqueue);
 
-  unsigned long long GetScheduledDrainJobs (unsigned long long totalscheduled,
-                                            unsigned long long &totalexecuted);
+  unsigned long long GetScheduledDrainJobs(unsigned long long totalscheduled,
+      unsigned long long& totalexecuted);
 
-  unsigned long long WaitFreeDrainSlot (unsigned long long &nparalleltx,
-                                        unsigned long long &totalscheduled,
-                                        unsigned long long &totalexecuted);
+  unsigned long long WaitFreeDrainSlot(unsigned long long& nparalleltx,
+                                       unsigned long long& totalscheduled,
+                                       unsigned long long& totalexecuted);
 
-  bool GetFileSystemInDrainMode (std::vector<unsigned int> &drainfsvector,
-                                 unsigned int &cycler,
-                                 unsigned long long nparalleltx,
-                                 unsigned long long ratetx);
+  bool GetFileSystemInDrainMode(std::vector<unsigned int>& drainfsvector,
+                                unsigned int& cycler,
+                                unsigned long long nparalleltx,
+                                unsigned long long ratetx);
 
-  bool GetDrainJob (unsigned int index);
+  bool GetDrainJob(unsigned int index);
 
   // ---------------------------------------------------------------------------
 
-  void Cleaner ();
-  void MgmSyncer ();
+  void Cleaner();
+  void MgmSyncer();
 
-  void Boot (FileSystem* fs);
+  void Boot(FileSystem* fs);
 
   eos::fst::Verify* runningVerify;
 
@@ -180,15 +187,15 @@ public:
   std::vector <Deletion> deletions;
 
   off_t
-  deletionsSize ()
+  deletionsSize()
   {
-    // take the lock 'deletionsMutex' outside: 
+    // take the lock 'deletionsMutex' outside:
     off_t totalsize = 0;
 
-    for (size_t i = 0; i < deletions.size(); i++)
-    {
+    for (size_t i = 0; i < deletions.size(); i++) {
       totalsize = deletions[i].fIdVector.size();
     }
+
     return totalsize;
   }
 
@@ -200,41 +207,43 @@ public:
   std::map<eos::common::FileSystem::fsid_t, FileSystem*> fileSystemsMap;
 
   XrdSysMutex fileSystemFullMapMutex;
-  std::map<eos::common::FileSystem::fsid_t, bool> fileSystemFullMap; // map indicating if a filesystem has less than  5 GB free
-  std::map<eos::common::FileSystem::fsid_t, bool> fileSystemFullWarnMap; // map indicating if a filesystem has less than (headroom) space free (disables drain + balancing)
+  std::map<eos::common::FileSystem::fsid_t, bool>
+  fileSystemFullMap; // map indicating if a filesystem has less than  5 GB free
+  std::map<eos::common::FileSystem::fsid_t, bool>
+  fileSystemFullWarnMap; // map indicating if a filesystem has less than (headroom) space free (disables drain + balancing)
 
   //  static int HasStatfsChanged(const char* key, FileSystem* filesystem, void* arg);
-  int ScrubFs (const char* path, unsigned long long free, unsigned long long lbocks, unsigned long id, bool direct_io);
-
-  Storage (const char* metadirectory);
-
-  ~Storage () { };
+  int ScrubFs(const char* path, unsigned long long free,
+              unsigned long long lbocks, unsigned long id, bool direct_io);
 
   Load fstLoad;
   Health fstHealth;
 
-  static Storage* Create (const char* metadirectory);
+  static Storage* Create(const char* metadirectory);
 
-  void BroadcastQuota (XrdOucString &quotareport);
+  void BroadcastQuota(XrdOucString& quotareport);
 
-  bool BootFileSystem (XrdOucEnv &env);
+  bool BootFileSystem(XrdOucEnv& env);
 
   bool
-  IsZombie ()
+  IsZombie()
   {
     return zombie;
   }
 
-  bool OpenTransaction (eos::common::FileSystem::fsid_t fsid, unsigned long long fid);
-  bool CloseTransaction (eos::common::FileSystem::fsid_t fsid, unsigned long long fid);
+  bool OpenTransaction(eos::common::FileSystem::fsid_t fsid,
+                       unsigned long long fid);
+  bool CloseTransaction(eos::common::FileSystem::fsid_t fsid,
+                        unsigned long long fid);
 
-  bool FsLabel (std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid);
-  bool CheckLabel (std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid, bool failenoid = false, bool failnouuid = false);
-  bool GetFsidFromLabel (std::string path, eos::common::FileSystem::fsid_t &fsid);
-  bool GetFsidFromPath (std::string path, eos::common::FileSystem::fsid_t &fsid);
+  bool FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
+               std::string uuid);
+  bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
+                  std::string uuid, bool failenoid = false, bool failnouuid = false);
+  bool GetFsidFromLabel(std::string path, eos::common::FileSystem::fsid_t& fsid);
+  bool GetFsidFromPath(std::string path, eos::common::FileSystem::fsid_t& fsid);
 };
 
 EOSFSTNAMESPACE_END
 
 #endif
-

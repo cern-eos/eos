@@ -80,6 +80,7 @@ protected:
   XrdMqSharedObjectManager* mSom;
 
   //! Mutex used in a file system constructor
+  // TODO (esindril): This seems to be useless!!!
   XrdSysMutex mConstructorLock;
 
   //! Handle to the drain queue
@@ -490,7 +491,7 @@ public:
   //------------------------------------------------------------------------
 
   fsactive_t
-  GetActiveStatus(fs_snapshot_t snapshot)
+  GetActiveStatus(const fs_snapshot_t& snapshot)
   {
     return snapshot.mActiveStatus;
   }
@@ -803,8 +804,8 @@ public:
   //------------------------------------------------------------------------
   static bool SnapShotHost(XrdMqSharedObjectManager* som,
                            const std::string& queue,
-			   FileSystem::host_snapshot_t& fs,
-			   bool dolock = true);
+                           FileSystem::host_snapshot_t& fs,
+                           bool dolock = true);
 
   //------------------------------------------------------------------------
   //! Dump Function printing the filesystem variables to out.

@@ -45,14 +45,17 @@ public:
     pthread_rwlockattr_init(&attr);
     wlockid = 0;
 #ifndef __APPLE__
+
     if (pthread_rwlockattr_setkind_np
-	(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) {
+        (&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) {
+      // TODO: throw a standard exception to make coverity happy
       throw "pthread_rwlockattr_setkind_np failed";
     }
 
     if (pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED)) {
       throw "pthread_rwlockattr_setpshared failed";
     }
+
 #endif
 
     if ((retc = pthread_rwlock_init(&rwlock, &attr))) {
@@ -67,6 +70,16 @@ public:
   ~XrdMqRWMutex() {}
 
   //----------------------------------------------------------------------------
+  //! Copy assignment operator - disabled
+  //----------------------------------------------------------------------------
+  //XrdMqRWMutex& operator=(const XrdMqRWMutex& other) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Copy constructor - disabled
+  //----------------------------------------------------------------------------
+  //XrdMqRWMutex(const XrdMqRWMutex& other) = delete;
+
+  //----------------------------------------------------------------------------
   //! Read lock
   //----------------------------------------------------------------------------
   void LockRead()
@@ -75,7 +88,7 @@ public:
 
     if (AtomicGet(wlockid) == (unsigned long long) XrdSysThread::ID()) {
       fprintf(stderr, "MQ === WRITE LOCK FOLLOWED BY READ === TID=%llu OBJECT=%llx\n",
-	      (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+              (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
       throw "pthread_rwlock_wrlock write then read lock";
     }
 
@@ -114,7 +127,7 @@ public:
   {
     if (AtomicGet(wlockid) == (unsigned long long) XrdSysThread::ID()) {
       fprintf(stderr, "MQ === WRITE LOCK DOUBLELOCK === TID=%llu OBJECT=%llx\n",
-	      (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+              (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
       throw "pthread_rwlock_wrlock double lock";
     }
 
@@ -177,7 +190,11 @@ public:
   //----------------------------------------------------------------------------
   ~XrdMqRWMutexWriteLock()
   {
-    mMutex->UnLockWrite();
+    try {
+      mMutex->UnLockWrite();
+    } catch (const char* e) {
+      // ignore exception
+    }
   }
 
 private:
@@ -185,9 +202,9 @@ private:
 };
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Class XrdMqRWMutexWriteLock
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class XrdMqRWMutexReadLock
 {
 public:
@@ -205,7 +222,11 @@ public:
   //----------------------------------------------------------------------------
   ~XrdMqRWMutexReadLock()
   {
-    mMutex->UnLockRead();
+    try {
+      mMutex->UnLockRead();
+    } catch (const char* e) {
+      // ignore exception
+    }
   }
 
 private:

@@ -30,7 +30,7 @@
 bool txcancel = false;
 
 void
-txcancel_handler (int)
+txcancel_handler(int)
 {
   txcancel = true;
   signal(SIGINT, exit_handler);
@@ -38,7 +38,7 @@ txcancel_handler (int)
 
 /* Transfer Interface */
 int
-com_transfer (char* argin)
+com_transfer(char* argin)
 {
   // split subcommands
   eos::common::StringTokenizer subtokenizer(argin);
@@ -56,87 +56,61 @@ com_transfer (char* argin)
   bool sync = false;
   bool noauth = false;
 
-  if (wants_help(argin))
+  if (wants_help(argin)) {
     goto com_transfer_usage;
+  }
 
-  if ((subcmd != "submit") && (subcmd != "cancel") && (subcmd != "ls") && (subcmd != "enable") && (subcmd != "disable") && (subcmd != "reset") && (subcmd != "clear") && (subcmd != "log") && (subcmd != "resubmit") && (subcmd != "kill") && (subcmd != "purge"))
+  if ((subcmd != "submit") && (subcmd != "cancel") && (subcmd != "ls") &&
+      (subcmd != "enable") && (subcmd != "disable") && (subcmd != "reset") &&
+      (subcmd != "clear") && (subcmd != "log") && (subcmd != "resubmit") &&
+      (subcmd != "kill") && (subcmd != "purge")) {
     goto com_transfer_usage;
+  }
 
   in += subcmd;
 
-  do
-  {
+  do {
     option = subtokenizer.GetToken();
-    if (!option.length())
+
+    if (!option.length()) {
       break;
-    if (option.beginswith("--rate="))
-    {
+    }
+
+    if (option.beginswith("--rate=")) {
       rate = option;
       rate.replace("--rate=", "");
-    }
-    else
-    {
-      if (option == "--sync")
-      {
+    } else {
+      if (option == "--sync") {
         sync = true;
-      }
-      else
-      if (option == "--noauth")
-      {
-	noauth = true;
-      }
-      else
-      {
-        if (option.beginswith("--streams="))
-        {
+      } else if (option == "--noauth") {
+        noauth = true;
+      } else {
+        if (option.beginswith("--streams=")) {
           streams = option;
           streams.replace("--streams=", "");
-        }
-        else
-        {
-          if (option.beginswith("--group="))
-          {
+        } else {
+          if (option.beginswith("--group=")) {
             group = option;
             group.replace("--group=", "");
-          }
-          else
-          {
-            if (option == "-a")
-            {
+          } else {
+            if (option == "-a") {
               foption += "a";
-            }
-            else
-            {
-              if (option == "-m")
-              {
+            } else {
+              if (option == "-m") {
                 foption = "m";
-              }
-              else
-              {
-                if (option == "-p")
-                {
+              } else {
+                if (option == "-p") {
                   foption = "mp";
-                }
-                else
-                {
-                  if (option == "-s")
-                  {
+                } else {
+                  if (option == "-s") {
                     foption = "s";
-                  }
-                  else
-                  {
-                    if (option == "-n")
-                    {
+                  } else {
+                    if (option == "-n") {
                       foption = "n";
-                    }
-                    else
-                    {
-                      if (option.beginswith("-"))
-                      {
+                    } else {
+                      if (option.beginswith("-")) {
                         goto com_transfer_usage;
-                      }
-                      else
-                      {
+                      } else {
                         arg1 = option;
                         arg2 = subtokenizer.GetToken();
                         break;
@@ -150,19 +124,15 @@ com_transfer (char* argin)
         }
       }
     }
-  }
-  while (1);
+  } while (1);
 
-  if (subcmd == "submit")
-  {
-
+  if (subcmd == "submit") {
     if ((!arg2.beginswith("root://")) &&
         (!arg2.beginswith("as3://")) &&
         (!arg2.beginswith("gsiftp://")) &&
         (!arg2.beginswith("http://")) &&
         (!arg2.beginswith("https://")) &&
-        (!arg2.beginswith("/eos/")))
-    {
+        (!arg2.beginswith("/eos/"))) {
       goto com_transfer_usage;
     }
 
@@ -171,31 +141,27 @@ com_transfer (char* argin)
         (!arg1.beginswith("gsiftp://")) &&
         (!arg1.beginswith("http://")) &&
         (!arg1.beginswith("https://")) &&
-        (!arg1.beginswith("root://")))
-    {
+        (!arg1.beginswith("root://"))) {
       goto com_transfer_usage;
     }
 
     bool noprogress = false;
 
-    if ((foption.find("s")) != STR_NPOS)
-    {
-      while (foption.replace("s", ""))
-      {
+    if ((foption.find("s")) != STR_NPOS) {
+      while (foption.replace("s", "")) {
       }
+
       silent = true;
     }
 
-    if ((foption.find("n")) != STR_NPOS)
-    {
-      while (foption.replace("n", ""))
-      {
+    if ((foption.find("n")) != STR_NPOS) {
+      while (foption.replace("n", "")) {
       }
+
       noprogress = true;
     }
 
-    if (foption.length())
-    {
+    if (foption.length()) {
       goto com_transfer_usage;
     }
 
@@ -212,149 +178,140 @@ com_transfer (char* argin)
     in += "&mgm.txnoauth=";
     in += noauth;
 
-    if (!sync)
-    {
+    if (!sync) {
       global_retc = output_result(client_admin_command(in));
-    }
-    else
-    {
+    } else {
       signal(SIGINT, txcancel_handler);
-
       time_t starttime = time(NULL);
       in += "&mgm.txoption=s";
-
       XrdOucEnv* result = client_admin_command(in);
       std::vector<std::string> lines;
       command_result_stdout_to_vector(lines);
       global_retc = output_result(result);
-      if (!global_retc)
-      {
+
+      if (!global_retc) {
         // scan for success: submitted transfer id=<#>
-        if (lines.size() == 2)
-        {
+        if (lines.size() == 2) {
           std::string id;
-          if ((lines[1].find(" id=")) != std::string::npos)
-          {
+
+          if ((lines[1].find(" id=")) != std::string::npos) {
             id = lines[1];
             id.erase(0, lines[1].find(" id=") + 4);
           }
-          // now poll the state
 
+          // now poll the state
           errno = 0;
           long lid = strtol(id.c_str(), 0, 10);
-          if (errno || (lid == LONG_MIN) || (lid == LONG_MAX))
-          {
-            fprintf(stderr, "error: submission of transfer probably failed - check with 'transfer ls'\n");
+
+          if (errno || (lid == LONG_MIN) || (lid == LONG_MAX)) {
+            fprintf(stderr,
+                    "error: submission of transfer probably failed - check with 'transfer ls'\n");
             global_retc = EFAULT;
             return (0);
           }
+
           // prepare the get progress command
           in = "mgm.cmd=transfer&mgm.subcmd=ls&mgm.txoption=mp&mgm.txid=";
           in += id.c_str();
           XrdOucString incp = in;
-          while (1)
-          {
+
+          while (1) {
             lines.clear();
             XrdOucEnv* result = client_admin_command(in);
             in = incp;
             command_result_stdout_to_vector(lines);
-            if (result) delete result;
-            if (lines.size() == 2)
-            {
+
+            if (result) {
+              delete result;
+            }
+
+            if (lines.size() == 2) {
               // this transfer is in the queue
               XrdOucString info = lines[1].c_str();
-              while (info.replace(" ", "&"))
-              {
-              }
-              XrdOucEnv txinfo(info.c_str());
 
+              while (info.replace(" ", "&")) {
+              }
+
+              XrdOucEnv txinfo(info.c_str());
               XrdOucString status = txinfo.Get("tx.status");
 
-              if (!noprogress)
-              {
-                if ((status != "done") && (status != "failed"))
-                {
+              if (!noprogress) {
+                if ((status != "done") && (status != "failed")) {
                   fprintf(stdout, "[eoscp TX] [ %-10s ]\t|", txinfo.Get("tx.status"));
                   int progress = atoi(txinfo.Get("tx.progress"));
-                  for (int l = 0; l < 20; l++)
-                  {
-                    if (l < ((int) (0.2 * progress)))
-                    {
+
+                  for (int l = 0; l < 20; l++) {
+                    if (l < ((int)(0.2 * progress))) {
                       fprintf(stdout, "=");
                     }
-                    if (l == ((int) (0.2 * progress)))
-                    {
+
+                    if (l == ((int)(0.2 * progress))) {
                       fprintf(stdout, ">");
                     }
-                    if (l > ((int) (0.2 * progress)))
-                    {
+
+                    if (l > ((int)(0.2 * progress))) {
                       fprintf(stdout, ".");
                     }
                   }
-                  fprintf(stdout, "| %5s%% : %us\r", txinfo.Get("tx.progress"), (unsigned int) (time(NULL) - starttime));
+
+                  fprintf(stdout, "| %5s%% : %us\r", txinfo.Get("tx.progress"),
+                          (unsigned int)(time(NULL) - starttime));
                   fflush(stdout);
                 }
               }
 
-              if ((status == "done") || (status == "failed"))
-              {
-
-                if (!noprogress)
-                {
+              if ((status == "done") || (status == "failed")) {
+                if (!noprogress) {
                   fprintf(stdout, "[eoscp TX] [ %-10s ]\t|", txinfo.Get("tx.status"));
                   int progress = 0;
-                  if (status == "done")
-                  {
+
+                  if (status == "done") {
                     progress = 100;
                   }
-                  for (int l = 0; l < 20; l++)
-                  {
-                    if (l < ((int) (0.2 * progress)))
-                    {
+
+                  for (int l = 0; l < 20; l++) {
+                    if (l < ((int)(0.2 * progress))) {
                       fprintf(stdout, "=");
                     }
-                    if (l == ((int) (0.2 * progress)))
-                    {
+
+                    if (l == ((int)(0.2 * progress))) {
                       fprintf(stdout, ">");
                     }
-                    if (l > ((int) (0.2 * progress)))
-                    {
+
+                    if (l > ((int)(0.2 * progress))) {
                       fprintf(stdout, ".");
                     }
                   }
-                  if (status == "done")
-                  {
-                    fprintf(stdout, "|  100.0%% : %us\n", (unsigned int) (time(NULL) - starttime));
+
+                  if (status == "done") {
+                    fprintf(stdout, "|  100.0%% : %us\n", (unsigned int)(time(NULL) - starttime));
+                  } else {
+                    fprintf(stdout, "|    0.0%% : %us\n", (unsigned int)(time(NULL) - starttime));
                   }
-                  else
-                  {
-                    fprintf(stdout, "|    0.0%% : %us\n", (unsigned int) (time(NULL) - starttime));
-                  }
+
                   fflush(stdout);
                 }
 
-                if (!silent)
-                {
+                if (!silent) {
                   // get the log
                   in = "mgm.cmd=transfer&mgm.subcmd=log&mgm.txid=";
                   in += id.c_str();
                   output_result(client_admin_command(in));
                 }
-                if (status == "done")
-                {
+
+                if (status == "done") {
                   global_retc = 0;
-                }
-                else
-                {
+                } else {
                   global_retc = EFAULT;
                 }
+
                 return (0);
               }
-              for (size_t i = 0; i < 10; i++)
-              {
+
+              for (size_t i = 0; i < 10; i++) {
                 usleep(100000);
-                if (txcancel)
-                {
+
+                if (txcancel) {
                   fprintf(stdout, "\n<Control-C>\n");
                   in = "mgm.cmd=transfer&mgm.subcmd=cancel&mgm.txid=";
                   in += id.c_str();
@@ -363,9 +320,7 @@ com_transfer (char* argin)
                   return (0);
                 }
               }
-            }
-            else
-            {
+            } else {
               fprintf(stderr, "error: transfer has been canceled externnaly!\n");
               global_retc = EFAULT;
               return (0);
@@ -374,13 +329,12 @@ com_transfer (char* argin)
         }
       }
     }
+
     return (0);
   }
 
-  if (subcmd == "ls")
-  {
-    if (arg2.length())
-    {
+  if (subcmd == "ls") {
+    if (arg2.length()) {
       goto com_transfer_usage;
     }
 
@@ -390,31 +344,28 @@ com_transfer (char* argin)
     in += group;
     in += "&mgm.txid=";
     in += arg1;
-
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
 
-  if ((subcmd == "enable") || (subcmd == "disable") || (subcmd == "clear"))
-  {
+  if ((subcmd == "enable") || (subcmd == "disable") || (subcmd == "clear")) {
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
 
-  if ((subcmd == "cancel") || (subcmd == "log") || (subcmd == "resubmit") || (subcmd == "kill") || (subcmd == "purge") || (subcmd == "reset"))
-  {
+  if ((subcmd == "cancel") || (subcmd == "log") || (subcmd == "resubmit") ||
+      (subcmd == "kill") || (subcmd == "purge") || (subcmd == "reset")) {
     xid = arg1;
-    if ((subcmd != "purge") && ((subcmd != "reset")) && (!xid.length() && (!group.length())))
-    {
+
+    if ((subcmd != "purge") && ((subcmd != "reset")) && (!xid.length() &&
+        (!group.length()))) {
       goto com_transfer_usage;
     }
-    if (!xid.length())
-    {
+
+    if (!xid.length()) {
       in += "&mgm.txgroup=";
       in += group;
-    }
-    else
-    {
+    } else {
       in += "&mgm.txid=";
       in += xid;
     }
@@ -423,41 +374,59 @@ com_transfer (char* argin)
     return (0);
   }
 
- com_transfer_usage:
-  fprintf(stdout, "Usage: transfer submit|cancel|ls|enable|disable|reset|clear|resubmit|log ..");
-  fprintf(stdout, "'[eos] transfer ..' provides the transfer interface of EOS.\n");
+com_transfer_usage:
+  fprintf(stdout,
+          "Usage: transfer submit|cancel|ls|enable|disable|reset|clear|resubmit|log ..");
+  fprintf(stdout,
+          "'[eos] transfer ..' provides the transfer interface of EOS.\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "transfer submit [--rate=<rate>] [--streams=<#>] [--group=<groupname>] [--sync] [--noauth] <URL1> <URL2> :\n");
-  fprintf(stdout, "                                                  transfer a file from URL1 to URL2\n");
-  fprintf(stdout, "                                                             <URL> can be root://<host>/<path> or a local path /eos/...\n");
+  fprintf(stdout,
+          "transfer submit [--rate=<rate>] [--streams=<#>] [--group=<groupname>] [--sync] [--noauth] <URL1> <URL2> :\n");
+  fprintf(stdout,
+          "                                                  transfer a file from URL1 to URL2\n");
+  fprintf(stdout,
+          "                                                             <URL> can be root://<host>/<path> or a local path /eos/...\n");
   fprintf(stdout, "       --rate          : limit the transfer rate to <rate>\n");
   fprintf(stdout, "       --streams       : use <#> parallel streams\n\n");
-  fprintf(stdout, "       --group         : set the group name for this transfer\n");
-  fprintf(stdout, "       --noauth        : disable authentication protocol enforcement for the copy job\n");
+  fprintf(stdout,
+          "       --group         : set the group name for this transfer\n");
+  fprintf(stdout,
+          "       --noauth        : disable authentication protocol enforcement for the copy job\n");
   fprintf(stdout, "transfer cancel <id>|--group=<groupname>\n");
-  fprintf(stdout, "                                                  cancel transfer with ID <id> or by group <groupname>\n");
-  fprintf(stdout, "       <id>=*          : cancel all transfers (only root can do that)\n\n");
+  fprintf(stdout,
+          "                                                  cancel transfer with ID <id> or by group <groupname>\n");
+  fprintf(stdout,
+          "       <id>=*          : cancel all transfers (only root can do that)\n\n");
   fprintf(stdout, "transfer ls [-a] [-m] [s] [--group=<groupname>] [id] \n");
-  fprintf(stdout, "       -a              : list all transfers not only of the current role\n");
-  fprintf(stdout, "       -m              : list all transfers in monitoring format (key-val pairs)\n");
+  fprintf(stdout,
+          "       -a              : list all transfers not only of the current role\n");
+  fprintf(stdout,
+          "       -m              : list all transfers in monitoring format (key-val pairs)\n");
   fprintf(stdout, "       -s              : print transfer summary\n");
   fprintf(stdout, "       --group         : list all transfers in this group\n");
-  fprintf(stdout, "       --sync          : follow the transfer in interactive mode (like interactive third party 'cp')\n");
+  fprintf(stdout,
+          "       --sync          : follow the transfer in interactive mode (like interactive third party 'cp')\n");
   fprintf(stdout, "                  <id> : id of the transfer to list\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "transfer enable\n");
-  fprintf(stdout, "                       : start the transfer engine (you have to be root to do that)\n");
+  fprintf(stdout,
+          "                       : start the transfer engine (you have to be root to do that)\n");
   fprintf(stdout, "transfer disable\n");
-  fprintf(stdout, "                       : stop the transfer engine (you have to be root to do that)\n");
+  fprintf(stdout,
+          "                       : stop the transfer engine (you have to be root to do that)\n");
   fprintf(stdout, "transfer reset [<id>|--group=<groupname>]\n");
-  fprintf(stdout, "                       : reset all transfers to 'inserted' state (you have to be root to do that)\n");
+  fprintf(stdout,
+          "                       : reset all transfers to 'inserted' state (you have to be root to do that)\n");
   fprintf(stdout, "transfer clear \n");
-  fprintf(stdout, "                       : clear's the transfer database (you have to be root to do that)\n");
+  fprintf(stdout,
+          "                       : clear's the transfer database (you have to be root to do that)\n");
   fprintf(stdout, "transfer resubmit <id> [--group=<groupname>]\n");
   fprintf(stdout, "                       : resubmit's a transfer\n");
   fprintf(stdout, "transfer kill <id>|--group=<groupname>\n");
   fprintf(stdout, "                       : kill a running transfer\n");
   fprintf(stdout, "transfer purge [<id>|--group=<groupname>]\n");
-  fprintf(stdout, "                       : remove 'failed' transfers from the transfer queue by id, group or all if not specified\n");
+  fprintf(stdout,
+          "                       : remove 'failed' transfers from the transfer queue by id, group or all if not specified\n");
+  global_retc = EINVAL;
   return (0);
 }

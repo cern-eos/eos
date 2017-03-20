@@ -76,13 +76,26 @@ main(int argc, const char* argv[])
                                  env);
   int blockSize = atoi(blocksize.c_str());
   int blockSizeSymbol = eos::common::LayoutId::BlockSizeEnum(blockSize);
-  unsigned int layoutid = eos::common::LayoutId::GetId(
-                            eos::common::LayoutId::kPlain, eos::common::LayoutId::kNone, 0, blockSizeSymbol,
-                            checksumType);
+  unsigned int layoutid =
+    eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
+                                 eos::common::LayoutId::kNone, 0,
+                                 blockSizeSymbol, checksumType);
   eos::fst::CheckSum* checksum = eos::fst::ChecksumPlugins::GetChecksumObject(
                                    layoutid, true);
+
+  if (!checksum) {
+    fprintf(stderr, "error: failed to get checksum object for file %s",
+            path.c_str());
+    exit(-1);
+  }
+
   struct stat info;
-  fstat(fd, &info);
+
+  if (fstat(fd, &info)) {
+    fprintf(stderr, "error: failed to stat file %s\n", path.c_str());
+    exit(-1);
+  }
+
   off_t maxfilesize = info.st_size;
   off_t offset = 0;
   char* buffer = (char*) malloc(blockSize);
@@ -93,14 +106,14 @@ main(int argc, const char* argv[])
     exit(-1);
   }
 
-  if (checksum &&
-      checksum->OpenMap(pathXS.c_str(), maxfilesize, blockSize, true)) {
+  if (checksum->OpenMap(pathXS.c_str(), maxfilesize, blockSize, true)) {
     do {
       int nread = read(fd, buffer, blockSize);
 
       if (nread < 0) {
         fprintf(stderr, "error: failed to read block at offset %llu\n",
                 (unsigned long long) offset);
+        free(buffer);
         exit(-1);
       }
 
@@ -115,7 +128,7 @@ main(int argc, const char* argv[])
         fprintf(stderr, "block-XS error => offset %llu\n", (unsigned long long) offset);
         nerr++;
       } else {
-        //          fprintf(stderr,"block-XS ok    => offset %llu\n", (unsigned long long)offset);
+        // fprintf(stderr,"block-XS ok    => offset %llu\n", (unsigned long long)offset);
         ngood++;
       }
 

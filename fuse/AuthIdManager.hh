@@ -153,7 +153,12 @@ public:
     }
   }
 
-  AuthIdManager()
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  AuthIdManager():
+    use_user_krb5cc(false), use_user_gsiproxy(false), use_unsafe_krk5(false),
+    tryKrb5First(false), fallback2nobody(false), connectionId(0), mCleanupThread()
   {
     resize(proccachenbins);
   }
@@ -219,7 +224,7 @@ protected:
           snprintf(buffer, 1024, formats[f], (int) uid, suffixes[i]);
         }
 
-        size_t bsize = 0;
+        ssize_t bsize = 0;
 
         //eos_static_debug("trying to stat %s", buffer);
         if (!::lstat(buffer, &linkstat) &&

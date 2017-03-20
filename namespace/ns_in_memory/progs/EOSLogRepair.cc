@@ -34,81 +34,83 @@
 //------------------------------------------------------------------------------
 class Feedback: public eos::ILogRepairFeedback
 {
-  public:
-    //--------------------------------------------------------------------------
-    // Constructor
-    //--------------------------------------------------------------------------
-    Feedback(): pPrevSize( 0 ), pLastUpdated( 0 ) {}
+public:
+  //--------------------------------------------------------------------------
+  // Constructor
+  //--------------------------------------------------------------------------
+  Feedback(): pPrevSize(0), pLastUpdated(0) {}
 
-    //--------------------------------------------------------------------------
-    // Report progress
-    //--------------------------------------------------------------------------
-    virtual void reportProgress( eos::LogRepairStats &stats )
-    {
-      uint64_t          sum = stats.bytesAccepted + stats.bytesDiscarded;
-      std::stringstream o;
+  //--------------------------------------------------------------------------
+  // Report progress
+  //--------------------------------------------------------------------------
+  virtual void reportProgress(eos::LogRepairStats& stats)
+  {
+    uint64_t          sum = stats.bytesAccepted + stats.bytesDiscarded;
+    std::stringstream o;
 
-      if( pLastUpdated == stats.timeElapsed  && sum != stats.bytesTotal )
-        return;
-      pLastUpdated = stats.timeElapsed;
-
-      o << "\r";
-      o << "Elapsed time: ";
-      o << eos::DisplayHelper::getReadableTime( stats.timeElapsed ) << " ";
-      o << "Progress: " << eos::DisplayHelper::getReadableSize( sum ) << " / ";
-      o << eos::DisplayHelper::getReadableSize( stats.bytesTotal );
-
-      //------------------------------------------------------------------------
-      // Avoid garbage on the screen by overwriting it with spaces
-      //------------------------------------------------------------------------
-      int thisSize = o.str().size();
-      for( int i = thisSize; i <= pPrevSize; ++i )
-        o << " ";
-      pPrevSize = thisSize;
-
-      std::cerr << o.str() << std::flush;
-
-      //------------------------------------------------------------------------
-      // Go to the next line
-      //------------------------------------------------------------------------
-      if( sum == stats.bytesTotal )
-        std::cerr << std::endl;
+    if (pLastUpdated == stats.timeElapsed  && sum != stats.bytesTotal) {
+      return;
     }
 
-    //--------------------------------------------------------------------------
-    // Check the header
-    //--------------------------------------------------------------------------
-    virtual void reportHeaderStatus( bool               isOk,
-                                     const std::string &message,
-                                     uint8_t            version,
-                                     uint16_t           contentFlag )
-    {
-      std::cerr << "Header status: ";
-      if( isOk )
-      {
-        std::cerr << "OK (version: 0x" << std::setbase(16) << (int)version;
-        std::cerr << ", content: 0x" << std::setbase(16) << contentFlag;
-        std::cerr << ")" << std::setbase(10) << std::endl;
-      }
-      else
-        std::cerr << "broken (" << message << ")" << std::endl;
+    pLastUpdated = stats.timeElapsed;
+    o << "\r";
+    o << "Elapsed time: ";
+    o << eos::DisplayHelper::getReadableTime(stats.timeElapsed) << " ";
+    o << "Progress: " << eos::DisplayHelper::getReadableSize(sum) << " / ";
+    o << eos::DisplayHelper::getReadableSize(stats.bytesTotal);
+    //------------------------------------------------------------------------
+    // Avoid garbage on the screen by overwriting it with spaces
+    //------------------------------------------------------------------------
+    int thisSize = o.str().size();
+
+    for (int i = thisSize; i <= pPrevSize; ++i) {
+      o << " ";
     }
 
-  private:
-    int    pPrevSize;
-    time_t pLastUpdated;
+    pPrevSize = thisSize;
+    std::cerr << o.str() << std::flush;
+
+    //------------------------------------------------------------------------
+    // Go to the next line
+    //------------------------------------------------------------------------
+    if (sum == stats.bytesTotal) {
+      std::cerr << std::endl;
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // Check the header
+  //--------------------------------------------------------------------------
+  virtual void reportHeaderStatus(bool               isOk,
+                                  const std::string& message,
+                                  uint8_t            version,
+                                  uint16_t           contentFlag)
+  {
+    std::cerr << "Header status: ";
+
+    if (isOk) {
+      std::cerr << "OK (version: 0x" << std::setbase(16) << (int)version;
+      std::cerr << ", content: 0x" << std::setbase(16) << contentFlag;
+      std::cerr << ")" << std::setbase(10) << std::endl;
+    } else {
+      std::cerr << "broken (" << message << ")" << std::endl;
+    }
+  }
+
+private:
+  int    pPrevSize;
+  time_t pLastUpdated;
 };
 
 //------------------------------------------------------------------------------
 // Here we go
 //------------------------------------------------------------------------------
-int main( int argc, char **argv )
+int main(int argc, char** argv)
 {
   //----------------------------------------------------------------------------
   // Check the commandline parameters
   //----------------------------------------------------------------------------
-  if( argc != 3 )
-  {
+  if (argc != 3) {
     std::cerr << "Usage:" << std::endl;
     std::cerr << "  " << argv[0] << " broken_log_file new_log_file";
     std::cerr << std::endl;
@@ -121,13 +123,11 @@ int main( int argc, char **argv )
   Feedback            feedback;
   eos::LogRepairStats stats;
 
-  try
-  {
-    eos::ChangeLogFile::repair( argv[1], argv[2], stats, &feedback );
-    eos::DataHelper::copyOwnership( argv[2], argv[1] );
-  }
-  catch( eos::MDException &e )
-  {
+  try {
+    eos::ChangeLogFile::repair(std::string(argv[1]), std::string(argv[2]),
+                               stats, &feedback);
+    eos::DataHelper::copyOwnership(std::string(argv[2]), std::string(argv[1]));
+  } catch (eos::MDException& e) {
     std::cerr << std::endl;
     std::cerr << "Error: " << e.what() << std::endl;
     return 2;
@@ -136,18 +136,26 @@ int main( int argc, char **argv )
   //----------------------------------------------------------------------------
   // Display the stats
   //----------------------------------------------------------------------------
-  std::cerr << "Scanned:                " << stats.scanned            << std::endl;
-  std::cerr << "Healthy:                " << stats.healthy            << std::endl;
-  std::cerr << "Bytes total:            " << stats.bytesTotal         << std::endl;
-  std::cerr << "Bytes accepted:         " << stats.bytesAccepted      << std::endl;
-  std::cerr << "Bytes discarded:        " << stats.bytesDiscarded     << std::endl;
-  std::cerr << "Not fixed:              " << stats.notFixed           << std::endl;
-  std::cerr << "Fixed (wrong magic):    " << stats.fixedWrongMagic    << std::endl;
-  std::cerr << "Fixed (wrong checksum): " << stats.fixedWrongChecksum << std::endl;
-  std::cerr << "Fixed (wrong size):     " << stats.fixedWrongSize     << std::endl;
+  std::cerr << "Scanned:                " << stats.scanned            <<
+            std::endl;
+  std::cerr << "Healthy:                " << stats.healthy            <<
+            std::endl;
+  std::cerr << "Bytes total:            " << stats.bytesTotal         <<
+            std::endl;
+  std::cerr << "Bytes accepted:         " << stats.bytesAccepted      <<
+            std::endl;
+  std::cerr << "Bytes discarded:        " << stats.bytesDiscarded     <<
+            std::endl;
+  std::cerr << "Not fixed:              " << stats.notFixed           <<
+            std::endl;
+  std::cerr << "Fixed (wrong magic):    " << stats.fixedWrongMagic    <<
+            std::endl;
+  std::cerr << "Fixed (wrong checksum): " << stats.fixedWrongChecksum <<
+            std::endl;
+  std::cerr << "Fixed (wrong size):     " << stats.fixedWrongSize     <<
+            std::endl;
   std::cerr << "Elapsed time:           ";
   std::cerr << eos::DisplayHelper::getReadableTime(stats.timeElapsed);
   std::cerr << std::endl;
-
   return 0;
 }

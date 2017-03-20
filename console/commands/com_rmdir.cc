@@ -27,7 +27,7 @@
 
 /* Remove a directory */
 int
-com_rmdir (char* arg1)
+com_rmdir(char* arg1)
 {
   // split subcommands
   eos::common::StringTokenizer subtokenizer(arg1);
@@ -35,31 +35,27 @@ com_rmdir (char* arg1)
   XrdOucString path = subtokenizer.GetToken();
   XrdOucString in = "mgm.cmd=rmdir&";
 
-  if (wants_help(arg1))
-    goto com_rmdir_usage;
-
-  if ((path == "--help") || (path == "-h"))
-  {
+  if (wants_help(arg1)) {
     goto com_rmdir_usage;
   }
 
-  if (!path.length())
-  {
+  if ((path == "--help") || (path == "-h")) {
     goto com_rmdir_usage;
-
   }
-  else
-  {
+
+  if (!path.length()) {
+    goto com_rmdir_usage;
+  } else {
     path = abspath(path.c_str());
     in += "mgm.path=";
     in += path;
-
     global_retc = output_result(client_user_command(in));
     return (0);
   }
 
 com_rmdir_usage:
-  fprintf(stdout, "usage: rmdir <path>                                                   :  remote directory <path>\n");
+  fprintf(stdout,
+          "usage: rmdir <path>                                                   :  remote directory <path>\n");
+  global_retc = EINVAL;
   return (0);
-
 }

@@ -83,7 +83,7 @@ FileTest::WriteTest()
 
   // Create the readv list and the list for normal reads
   for (int i = 0; i < num_chunks; i++) {
-    off = i * size_chunk ;
+    off = (uint64_t) i * size_chunk ;
     status = mFile->Write(off, size_chunk, buff_write);
 
     if (!status.IsOK()) {
@@ -141,7 +141,7 @@ FileTest::ReadVTest()
 
   // Create the readv list and the list for normal reads
   for (int i = 0; i < num_chunks; i++) {
-    off = i * size_gap ;
+    off = (uint64_t) i * size_gap ;
     ptr_readv = buff_readv + i * size_chunk;
     ptr_read = buff_read + i * size_chunk;
     //std::cout << off << " " << size_chunk << std::endl;

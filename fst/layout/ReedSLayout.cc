@@ -21,22 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <cmath>
 #include <map>
 #include <set>
 #include <algorithm>
-/*----------------------------------------------------------------------------*/
 #include "common/Timing.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/jerasure/include/jerasure.h"
 #include "fst/layout/jerasure/include/reed_sol.h"
 #include "fst/layout/jerasure/include/galois.h"
 #include "fst/layout/jerasure/include/cauchy.h"
 #include "fst/layout/jerasure/include/liberation.h"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -54,7 +50,8 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
                          std::string bookingOpaque) :
   RaidMetaLayout(file, lid, client, outError, path, timeout,
                  storeRecovery, targetSize, bookingOpaque),
-  mDoneInitialisation(false)
+  mDoneInitialisation(false),
+  mPacketSize(0), matrix(0), bitmatrix(0), schedule(0)
 {
   mNbDataBlocks = mNbDataFiles;
   mNbTotalBlocks = mNbDataFiles + mNbParityFiles;
@@ -116,15 +113,15 @@ ReedSLayout::ComputeParity()
     mDoneInitialisation = true;
   }
 
-  // Get pointers to data and parity information
-  char* coding[mNbParityFiles];
+  // Get pointers to data and parity informatio
   char* data[mNbDataFiles];
+  char* coding[mNbParityFiles];
 
-  for (unsigned int i = 0; i < mNbDataFiles; i++) {
+  for (unsigned int i = 0; i < mNbDataFiles; ++i) {
     data[i] = (char*) mDataBlocks[i];
   }
 
-  for (unsigned int i = 0; i < mNbParityFiles; i++) {
+  for (unsigned int i = 0; i < mNbParityFiles; ++i) {
     coding[i] = (char*) mDataBlocks[mNbDataFiles + i];
   }
 

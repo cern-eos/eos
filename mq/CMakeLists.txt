@@ -54,6 +54,7 @@ add_library(XrdMqClient SHARED ${XRDMQCLIENT_SRCS})
 
 target_link_libraries(
   XrdMqClient PUBLIC
+  fmt
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${XROOTD_CL_LIBRARY}
@@ -79,6 +80,7 @@ target_compile_options(
 
 target_link_libraries(
   XrdMqClient-Static PRIVATE
+  fmt
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${XROOTD_CL_LIBRARY}

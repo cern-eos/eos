@@ -111,7 +111,6 @@
           }
         }
 
-        // TODO: this looks fishy, review the quota addFile/removeFile calls
         if (drop_fsid.size()) {
           if (ns_quota) {
             ns_quota->addFile(fmd.get());

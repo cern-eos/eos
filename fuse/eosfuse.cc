@@ -140,9 +140,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   char rdr[4096];
   char url[4096];
   rdr[0] = 0;
+  char* cstr = getenv("EOS_RDURL");
 
-  if (getenv("EOS_RDRURL")) {
-    snprintf(rdr, 4096, "%s", getenv("EOS_RDRURL"));
+  if (cstr && (strlen(cstr) < 4096)) {
+    snprintf(rdr, 4096, "%s", cstr);
   }
 
   for (i = 0; i < argc; i++) {
@@ -173,6 +174,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     exit(-1);
   }
 
+  // coverity[TAINTED_STRING]
   setenv("EOS_RDRURL", rdr, 1);
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 // Move the mounthostport starting with the host name
@@ -203,7 +205,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     *smountprefix = 0;
     smountprefix++;
     smountprefix++;
-    strcpy(mountprefix, smountprefix);
+    strncpy(mountprefix, smountprefix, std::min(strlen(smountprefix),
+            (size_t)4095));
 
     while (mountprefix[strlen(mountprefix) - 1] == '/') {
       mountprefix[strlen(mountprefix) - 1] = '\0';
@@ -249,7 +252,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     me.fs().setPrefix(me.config.mountprefix);
     std::map<std::string, std::string> features;
 
-    if (!me.fs().init(argc, argv, userdata, &features)) {
+    try {
+      if (!me.fs().init(argc, argv, userdata, &features)) {
+        return 1;
+      }
+    } catch (const std::length_error& e) {
+      fprintf(stderr, "error: failed to insert into google map\n");
       return 1;
     }
 
@@ -374,7 +382,6 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   const char* name = me.fs().path((unsigned long long) ino);
 
   if (!name || !checkpathname(name)) {
-    eos_static_err("name=%s checkpathname=%d", name, checkpathname(name));
     fuse_reply_err(req, ENOENT);
     me.fs().unlock_r_p2i();   // <=
     return;
@@ -393,6 +400,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                     (long) stbuf.ATIMESPEC.tv_sec, (long) stbuf.ATIMESPEC.tv_nsec,
                     (long) stbuf.MTIMESPEC.tv_sec, (long) stbuf.MTIMESPEC.tv_nsec);
     fuse_reply_attr(req, &stbuf, me.config.attrcachetime);
+    me.fs().store_i2mtime(stbuf.st_ino, stbuf.MTIMESPEC);
     eos_static_debug("mode=%x timeout=%.02f\n", stbuf.st_mode,
                      me.config.attrcachetime);
   } else {
@@ -482,6 +490,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int to_set,
       newattr.MTIMESPEC.tv_sec = attr->MTIMESPEC.tv_sec;
       newattr.MTIMESPEC.tv_nsec = attr->MTIMESPEC.tv_nsec;
       newattr.st_ino = ino;
+      me.fs().store_i2mtime(ino, attr->MTIMESPEC);
       eos_static_debug("set attr ino=%lld atime=%ld atime.nsec=%ld mtime=%ld mtime.nsec=%ld",
                        (long long) ino, (long) newattr.ATIMESPEC.tv_sec,
                        (long) newattr.ATIMESPEC.tv_nsec, (long) newattr.MTIMESPEC.tv_sec,
@@ -568,6 +577,10 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     entry_found = me.fs().dir_cache_get_entry(req, parent, entry_inode, ifullpath,
                   rc ? 0 : &e.attr);
     eos_static_debug("subentry_found = %i", entry_found);
+
+    if (entry_found) {
+      fuse_reply_entry(req, &e);
+    }
   }
 
   if (!entry_found) {
@@ -718,10 +731,9 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       }
     }
 
-    //........................................................................
     // Add directory to cache or update it
-    //........................................................................
-    me.fs().dir_cache_sync(ino, cnt, attr.MTIMESPEC, attr.CTIMESPEC, &b);
+    me.fs().dir_cache_sync(ino, cnt, attr.MTIMESPEC, attr.CTIMESPEC, &b,
+                           me.config.attrcachetime * 1000000000l);
     // duplicate the dirbuf response and store in the file handle
     fh_buf = (struct dirbuf*) malloc(sizeof(dirbuf));
     fh_buf->p = (char*) calloc(b.size, sizeof(char));
@@ -730,18 +742,18 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     fh_buf->alloc_size = b.size;
     fi->fh = (uint64_t) fh_buf;
 
-    //........................................................................
-    // Add the stat to the cache
-    //........................................................................
-    for (size_t i = 2; i < nstats; i++) { // the two first ones are . and ..
-      entriesstats[i].attr_timeout = me.config.attrcachetime;
-      entriesstats[i].entry_timeout = me.config.entrycachetime;
-      me.fs().dir_cache_add_entry(ino, entriesstats[i].attr.st_ino, entriesstats + i);
-      eos_static_debug("add_entry  %lu  %lu", entriesstats[i].ino,
-                       entriesstats[i].attr.st_ino);
-    }
+    if (entriesstats) {
+      // Add the stat to the cache
+      for (size_t i = 2; i < nstats; i++) { // the two first ones are . and ..
+        entriesstats[i].attr_timeout = me.config.attrcachetime;
+        entriesstats[i].entry_timeout = me.config.entrycachetime;
+        me.fs().dir_cache_add_entry(ino, entriesstats[i].attr.st_ino, entriesstats + i);
+        eos_static_debug("add_entry  %lu  %lu", entriesstats[i].ino,
+                         entriesstats[i].attr.st_ino);
+      }
 
-    free(entriesstats);
+      free(entriesstats);
+    }
   } else {
     // duplicate the dirbuf from cache and store in the file handle
     fh_buf = (struct dirbuf*) malloc(sizeof(dirbuf));
@@ -750,6 +762,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     fh_buf->size = tmp_buf->size;
     fh_buf->alloc_size = tmp_buf->size;
     fi->fh = (uint64_t) fh_buf;
+    free(tmp_buf);
   }
 
   free(name);
@@ -906,7 +919,8 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char* name, mode_t mode)
     const char* ptr = strrchr(parentpath.c_str(), (int)('/'));
 
     if (ptr) {
-      char gparent[16384];
+      size_t sz = 16384;
+      char gparent[sz];
       int num = (int)(ptr - parentpath.c_str());
 
       if (num) {
@@ -918,7 +932,8 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char* name, mode_t mode)
           num = (int)(ptr - gparent);
           strncpy(gparent, parentpath.c_str(), num);
           parentpath[num] = '\0';
-          strcpy(gparent, parentpath.c_str());
+          size_t len = std::min(sz, parentpath.length());
+          strncpy(gparent, parentpath.c_str(), len);
         }
       } else {
         strcpy(gparent, "/\0");
@@ -1265,7 +1280,14 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     if (strstr(fullpath.c_str(), "/proc/")) {
       fi->keep_cache = 0;
     } else {
-      fi->keep_cache = 1;
+      // If we created this file, we keep our cache
+      if (LayoutWrapper::CacheAuthSize(ino) >= 0) {
+        fi->keep_cache = 1;
+      } else {
+        fi->keep_cache = me.fs().store_open_i2mtime(ino);
+      }
+
+      eos_static_debug("ino=%lx keep-cache=%d", ino, fi->keep_cache);
     }
   } else {
     fi->keep_cache = 0;

@@ -21,13 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifdef REDOX_FOUND
+#ifdef HAVE_HIREDIS
 
 #include "mgm/RedisConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "common/GlobalConfig.hh"
-#include "redox/redoxSet.hpp"
 #include <ctime>
 
 EOSMGMNAMESPACE_BEGIN
@@ -41,8 +40,8 @@ std::string RedisCfgEngineChangelog::sChLogHashKey = "EOSConfig:changeLogHash";
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RedisCfgEngineChangelog::RedisCfgEngineChangelog(redox::Redox& client)
-  : mChLogHash(client, sChLogHashKey) {}
+RedisCfgEngineChangelog::RedisCfgEngineChangelog(qclient::QClient* client)
+  : mChLogHash(*client, sChLogHashKey) {}
 
 //------------------------------------------------------------------------------
 // Add entry to the changelog
@@ -58,6 +57,7 @@ bool RedisCfgEngineChangelog::AddEntry(const char* info)
   }
 
   // Add entry to the set
+  // coverity[TAINED_SCALAR]
   std::ostringstream oss(action.c_str());
 
   if (key != "") {
@@ -124,9 +124,7 @@ RedisConfigEngine::RedisConfigEngine(const char* configdir,
                                      const char* redisHost, int redisPort)
 {
   SetConfigDir(configdir);
-  redisHost = redisHost;
-  redisPort = redisPort;
-  client.connect(redisHost, redisPort);
+  client = BackendClient::getInstance(redisHost, redisPort);
   mChangelog.reset(new RedisCfgEngineChangelog(client));
 }
 
@@ -135,7 +133,6 @@ RedisConfigEngine::RedisConfigEngine(const char* configdir,
 //------------------------------------------------------------------------------
 RedisConfigEngine::~RedisConfigEngine()
 {
-  client.disconnect();
 }
 
 //------------------------------------------------------------------------------
@@ -161,9 +158,9 @@ RedisConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
   hash_key += ":";
   hash_key += name;
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
-  redox::RedoxHash rdx_hash(client, hash_key);
+  qclient::QHash q_hash(*client, hash_key);
 
-  if (!PullFromRedis(rdx_hash, err)) {
+  if (!PullFromRedis(q_hash, err)) {
     return false;
   }
 
@@ -251,9 +248,9 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   hash_key += ":";
   hash_key += name;
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
-  redox::RedoxHash rdx_hash(client, hash_key);
+  qclient::QHash q_hash(*client, hash_key);
 
-  if (rdx_hash.hlen() > 0) {
+  if (q_hash.hlen() > 0) {
     if (force) {
       // Create backup
       char buff[20];
@@ -267,22 +264,22 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
       hash_key_backup += buff;
       eos_notice("HASH KEY NAME => %s", hash_key_backup.c_str());
       // Backup hash
-      redox::RedoxHash rdx_hash_backup(client, hash_key_backup);
-      std::vector<std::string> resp = rdx_hash.hkeys();
+      qclient::QHash q_hash_backup(*client, hash_key_backup);
+      std::vector<std::string> resp = q_hash.hkeys();
 
       for (auto && elem : resp) {
-        rdx_hash_backup.hset(elem, rdx_hash.hget(elem));
+        q_hash_backup.hset(elem, q_hash.hget(elem));
       }
 
       // Clear
       for (auto && elem : resp) {
-        rdx_hash.hdel(elem);
+        q_hash.hdel(elem);
       }
 
       // Add hash to backup set
-      redox::RedoxSet rdx_set_backup(client, conf_set_backup_key);
+      qclient::QSet q_set_backup(*client, conf_set_backup_key);
       // Add the hash key to the set if it's not there
-      rdx_set_backup.sadd(hash_key_backup);
+      q_set_backup.sadd(hash_key_backup);
     } else {
       errno = EEXIST;
       err = "error: a configuration with name \"";
@@ -293,18 +290,18 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   }
 
   mMutex.Lock();
-  sConfigDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
+  sConfigDefinitions.Apply(SetConfigToRedisHash, &q_hash);
   mMutex.UnLock();
   // Adding  timestamp
   XrdOucString stime;
   getTimeStamp(stime);
-  rdx_hash.hset("timestamp", stime.c_str());
+  q_hash.hset("timestamp", stime.c_str());
   // We store in redis the list of available EOSConfigs as Set
-  redox::RedoxSet rdx_set(client, conf_set_key);
+  qclient::QSet q_set(*client, conf_set_key);
 
   // Add the hash key to the set if it's not there
-  if (!rdx_set.sismember(hash_key)) {
-    rdx_set.sadd(hash_key);
+  if (!q_set.sismember(hash_key)) {
+    q_set.sadd(hash_key);
   }
 
   cl += " successfully";
@@ -327,10 +324,10 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   configlist = "Existing Configurations on Redis\n";
   configlist += "================================\n";
   // Get the set from redis with the available configurations
-  redox::RedoxSet rdx_set(client, conf_set_key);
+  qclient::QSet q_set(*client, conf_set_key);
 
-  for (auto && elem : rdx_set.smembers()) {
-    redox::RedoxHash rdx_hash(client, elem);
+  for (auto && elem : q_set.smembers()) {
+    qclient::QHash q_hash(*client, elem);
     // Strip the prefix
     XrdOucString key = elem.c_str();
     int pos = key.rfind(":");
@@ -340,9 +337,9 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     }
 
     // Retrieve the timestamp value
-    if (rdx_hash.hexists("timestamp")) {
+    if (q_hash.hexists("timestamp")) {
       char outline[1024];
-      sprintf(outline, "created: %s name: %s", rdx_hash.hget("timestamp").c_str(),
+      sprintf(outline, "created: %s name: %s", q_hash.hget("timestamp").c_str(),
               key.c_str());
       configlist += outline;
     } else {
@@ -361,10 +358,10 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     configlist += "=======================================\n";
     configlist += "Existing Backup Configurations on Redis\n";
     configlist += "=======================================\n";
-    redox::RedoxSet rdx_set_backup(client, conf_set_backup_key);
+    qclient::QSet q_set_backup(*client, conf_set_backup_key);
 
-    for (auto && elem : rdx_set_backup.smembers()) {
-      redox::RedoxHash rdx_hash(client, elem);
+    for (auto && elem : q_set_backup.smembers()) {
+      qclient::QHash q_hash(*client, elem);
       XrdOucString key = elem.c_str();
       int pos = key.rfind(":");
 
@@ -372,9 +369,9 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
         key.erasefromstart(pos + 1);
       }
 
-      if (rdx_hash.hexists("timestamp")) {
+      if (q_hash.hexists("timestamp")) {
         char outline[1024];
-        sprintf(outline, "created: %s name: %s", rdx_hash.hget("timestamp").c_str(),
+        sprintf(outline, "created: %s name: %s", q_hash.hget("timestamp").c_str(),
                 key.c_str());
         configlist += outline;
       } else {
@@ -393,7 +390,7 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 // Pull the configuration from Redis
 //------------------------------------------------------------------------------
 bool
-RedisConfigEngine::PullFromRedis(redox::RedoxHash& hash, XrdOucString& err)
+RedisConfigEngine::PullFromRedis(qclient::QHash& hash, XrdOucString& err)
 {
   err = "";
   mMutex.Lock();
@@ -428,13 +425,13 @@ RedisConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
   hash_key += ":";
   hash_key += configName;
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
-  redox::RedoxHash rdx_hash(client, hash_key);
-  std::vector<std::string> resp = rdx_hash.hkeys();
+  qclient::QHash q_hash(*client, hash_key);
+  std::vector<std::string> resp = q_hash.hkeys();
   std::sort(resp.begin(), resp.end());
   bool filtered;
 
   for (auto && key : resp) {
-    std::string _value = rdx_hash.hget(key);
+    std::string _value = q_hash.hget(key);
     XrdOucString _key = key.c_str();
     filtered = false;
 
@@ -688,9 +685,9 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
       hash_key += ":";
       hash_key += name;
       eos_notice("HASH KEY NAME => %s", hash_key.c_str());
-      redox::RedoxHash rdx_hash(client, hash_key);
+      qclient::QHash q_hash(*client, hash_key);
 
-      if (rdx_hash.hlen() > 0) {
+      if (q_hash.hlen() > 0) {
         if (force) {
           // Create backup
           char buff[20];
@@ -704,22 +701,22 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
           hash_key_backup += buff;
           eos_notice("HASH KEY NAME => %s", hash_key_backup.c_str());
           // Backup hash
-          redox::RedoxHash rdx_hash_backup(client, hash_key_backup);
-          std::vector<std::string> resp = rdx_hash.hkeys();
+          qclient::QHash q_hash_backup(*client, hash_key_backup);
+          std::vector<std::string> resp = q_hash.hkeys();
 
           for (auto && elem : resp) {
-            rdx_hash_backup.hset(elem, rdx_hash.hget(elem));
+            q_hash_backup.hset(elem, q_hash.hget(elem));
           }
 
           // Clear
           for (auto && elem : resp) {
-            rdx_hash.hdel(elem);
+            q_hash.hdel(elem);
           }
 
           // Add hash to backup set
-          redox::RedoxSet rdx_set_backup(client, conf_set_backup_key);
+          qclient::QSet q_set_backup(*client, conf_set_backup_key);
           // Add the hash key to the set if it's not there
-          rdx_set_backup.sadd(hash_key_backup);
+          q_set_backup.sadd(hash_key_backup);
         } else {
           errno = EEXIST;
           err = "error: a configuration with name \"";
@@ -730,18 +727,18 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
       }
 
       mMutex.Lock();
-      sConfigDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
+      sConfigDefinitions.Apply(SetConfigToRedisHash, &q_hash);
       mMutex.UnLock();
       // Adding key for timestamp
       XrdOucString stime;
       getTimeStamp(stime);
-      rdx_hash.hset("timestamp", stime.c_str());
+      q_hash.hset("timestamp", stime.c_str());
       // We store in redis the list of available EOSConfigs as Set
-      redox::RedoxSet rdx_set(client, conf_set_key);
+      qclient::QSet q_set(*client, conf_set_key);
 
       // Add the hash key to the set if it's not there
-      if (!rdx_set.sismember(hash_key)) {
-        rdx_set.sadd(hash_key);
+      if (!q_set.sismember(hash_key)) {
+        q_set.sadd(hash_key);
       }
 
       cl += " successfully";
@@ -770,7 +767,7 @@ RedisConfigEngine::SetConfigToRedisHash(const char* key, XrdOucString* def,
 
 {
   eos_static_debug("%s => %s", key, def->c_str());
-  redox::RedoxHash* hash = reinterpret_cast<redox::RedoxHash*>(arg);
+  qclient::QHash* hash = reinterpret_cast<qclient::QHash*>(arg);
   hash->hset(key, std::string(def->c_str()));
   return 0;
 }
@@ -788,4 +785,4 @@ RedisConfigEngine::getTimeStamp(XrdOucString& out)
 
 EOSMGMNAMESPACE_END
 
-#endif // REDOX_FOUND
+#endif // HAVE_HIREDIS

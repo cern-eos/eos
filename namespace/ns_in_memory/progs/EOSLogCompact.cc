@@ -33,82 +33,81 @@
 //------------------------------------------------------------------------------
 class Feedback: public eos::ILogCompactingFeedback
 {
-  public:
-    //--------------------------------------------------------------------------
-    // Constructor
-    //--------------------------------------------------------------------------
-    Feedback(): pPrevSize( 0 ), pLastUpdated( 0 ) {}
+public:
+  //--------------------------------------------------------------------------
+  // Constructor
+  //--------------------------------------------------------------------------
+  Feedback(): pPrevSize(0), pLastUpdated(0) {}
 
-    //--------------------------------------------------------------------------
-    // Report progress
-    //--------------------------------------------------------------------------
-    virtual void reportProgress( eos::LogCompactingStats            &stats,
-                                 eos::ILogCompactingFeedback::Stage stage )
-    {
-      std::stringstream o;
+  //--------------------------------------------------------------------------
+  // Report progress
+  //--------------------------------------------------------------------------
+  virtual void reportProgress(eos::LogCompactingStats&            stats,
+                              eos::ILogCompactingFeedback::Stage stage)
+  {
+    std::stringstream o;
 
-      if( stage == eos::ILogCompactingFeedback::InitialScan )
-      {
-        if( pLastUpdated == stats.timeElapsed )
-          return;
-        pLastUpdated = stats.timeElapsed;
-
-        o << "\r";
-        o << "Elapsed time: ";
-        o << eos::DisplayHelper::getReadableTime( stats.timeElapsed ) << " ";
-        o << "Records processed: " << stats.recordsTotal << " (u:";
-        o << stats.recordsUpdated << "/d:" << stats.recordsDeleted << ")";
-      }
-      else if( stage == eos::ILogCompactingFeedback::CopyPreparation )
-      {
-        std::cerr << std::endl;
-        std::cerr << "Records kept: " << stats.recordsKept << " out of ";
-        std::cerr << stats.recordsTotal << std::endl;
+    if (stage == eos::ILogCompactingFeedback::InitialScan) {
+      if (pLastUpdated == stats.timeElapsed) {
         return;
       }
-      else if( stage == eos::ILogCompactingFeedback::RecordCopying )
-      {
-        if( pLastUpdated == stats.timeElapsed &&
-            stats.recordsWritten != stats.recordsKept )
-          return;
-        pLastUpdated = stats.timeElapsed;
 
-        o << "\r";
-        o << "Elapsed time: ";
-        o << eos::DisplayHelper::getReadableTime( stats.timeElapsed ) << " ";
-        o << "Records written: " << stats.recordsWritten << " out of ";
-        o << stats.recordsKept;
+      pLastUpdated = stats.timeElapsed;
+      o << "\r";
+      o << "Elapsed time: ";
+      o << eos::DisplayHelper::getReadableTime(stats.timeElapsed) << " ";
+      o << "Records processed: " << stats.recordsTotal << " (u:";
+      o << stats.recordsUpdated << "/d:" << stats.recordsDeleted << ")";
+    } else if (stage == eos::ILogCompactingFeedback::CopyPreparation) {
+      std::cerr << std::endl;
+      std::cerr << "Records kept: " << stats.recordsKept << " out of ";
+      std::cerr << stats.recordsTotal << std::endl;
+      return;
+    } else if (stage == eos::ILogCompactingFeedback::RecordCopying) {
+      if (pLastUpdated == stats.timeElapsed &&
+          stats.recordsWritten != stats.recordsKept) {
+        return;
       }
 
-      //------------------------------------------------------------------------
-      // Avoid garbage on the screen by overwriting it with spaces
-      //------------------------------------------------------------------------
-      int thisSize = o.str().size();
-      for( int i = thisSize; i <= pPrevSize; ++i )
-        o << " ";
-      pPrevSize = thisSize;
-
-      std::cerr << o.str() << std::flush;
-
-      if( stage == eos::ILogCompactingFeedback::RecordCopying &&
-          stats.recordsWritten == stats.recordsKept )
-        std::cerr << std::endl;
+      pLastUpdated = stats.timeElapsed;
+      o << "\r";
+      o << "Elapsed time: ";
+      o << eos::DisplayHelper::getReadableTime(stats.timeElapsed) << " ";
+      o << "Records written: " << stats.recordsWritten << " out of ";
+      o << stats.recordsKept;
     }
-  private:
-    int    pPrevSize;
-    time_t pLastUpdated;
+
+    //------------------------------------------------------------------------
+    // Avoid garbage on the screen by overwriting it with spaces
+    //------------------------------------------------------------------------
+    int thisSize = o.str().size();
+
+    for (int i = thisSize; i <= pPrevSize; ++i) {
+      o << " ";
+    }
+
+    pPrevSize = thisSize;
+    std::cerr << o.str() << std::flush;
+
+    if (stage == eos::ILogCompactingFeedback::RecordCopying &&
+        stats.recordsWritten == stats.recordsKept) {
+      std::cerr << std::endl;
+    }
+  }
+private:
+  int    pPrevSize;
+  time_t pLastUpdated;
 };
 
 //------------------------------------------------------------------------------
 // Here we go
 //------------------------------------------------------------------------------
-int main( int argc, char **argv )
+int main(int argc, char** argv)
 {
   //----------------------------------------------------------------------------
   // Check the commandline parameters
   //----------------------------------------------------------------------------
-  if( argc != 3 )
-  {
+  if (argc != 3) {
     std::cerr << "Usage:" << std::endl;
     std::cerr << "  " << argv[0] << " old_log_file new_log_file";
     std::cerr << std::endl;
@@ -121,29 +120,35 @@ int main( int argc, char **argv )
   Feedback                feedback;
   eos::LogCompactingStats stats;
 
-  try
-  {
-    eos::LogManager::compactLog( argv[1], argv[2], stats, &feedback );
-    eos::DataHelper::copyOwnership( argv[2], argv[1] );
-  }
-  catch( eos::MDException &e )
-  {
+  try {
+    eos::LogManager::compactLog(std::string(argv[1]), std::string(argv[2]),
+                                stats, &feedback);
+    eos::DataHelper::copyOwnership(std::string(argv[2]), std::string(argv[1]));
+  } catch (eos::MDException& e) {
     std::cerr << std::endl;
     std::cerr << "Error: " << e.what() << std::endl;
     return 2;
+  } catch (const std::length_error& e) {
+    std::cerr << std::endl
+              << "Error: failed to insert into google map" << std::endl;
+    return 3;
   }
 
   //----------------------------------------------------------------------------
   // Display the stats
   //----------------------------------------------------------------------------
-  std::cerr << "Records updated         " << stats.recordsUpdated     << std::endl;
-  std::cerr << "Records deleted:        " << stats.recordsDeleted     << std::endl;
-  std::cerr << "Records total:          " << stats.recordsTotal       << std::endl;
-  std::cerr << "Records kept:           " << stats.recordsKept        << std::endl;
-  std::cerr << "Records written:        " << stats.recordsWritten     << std::endl;
+  std::cerr << "Records updated         " << stats.recordsUpdated     <<
+            std::endl;
+  std::cerr << "Records deleted:        " << stats.recordsDeleted     <<
+            std::endl;
+  std::cerr << "Records total:          " << stats.recordsTotal       <<
+            std::endl;
+  std::cerr << "Records kept:           " << stats.recordsKept        <<
+            std::endl;
+  std::cerr << "Records written:        " << stats.recordsWritten     <<
+            std::endl;
   std::cerr << "Elapsed time:           ";
   std::cerr << eos::DisplayHelper::getReadableTime(stats.timeElapsed);
   std::cerr << std::endl;
-
   return 0;
 }

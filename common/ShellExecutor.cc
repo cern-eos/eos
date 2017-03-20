@@ -21,26 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/ShellExecutor.hh"
 #include "XrdSys/XrdSysPthread.hh"
-
-/*----------------------------------------------------------------------------*/
 #include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sstream>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
-;
 
-/*----------------------------------------------------------------------------*/
 const std::string ShellExecutor::stdout = "stdout";
 const std::string ShellExecutor::stderr = "stderr";
 const std::string ShellExecutor::stdin = "stdin";
-/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 ShellExecutor::ShellExecutor()
@@ -91,9 +84,7 @@ pid_t
 ShellExecutor::execute(const std::string& cmd, fifo_uuid_t uuid) const
 {
   static XrdSysMutex executeMutex;
-
   XrdSysMutexHelper lLock(&executeMutex);
-
   // ---------------------------------------------------------------------------
   // the offset in case we need to send several messages
   // to cover the command string
@@ -125,7 +116,7 @@ ShellExecutor::execute(const std::string& cmd, fifo_uuid_t uuid) const
   }
 
   // the child will respond with pid of the 'command' process
-  pid_t pid=0;
+  pid_t pid = 0;
   TEMP_FAILURE_RETRY(read(infd[0], &pid, sizeof(pid_t)));
   return pid;
 }
@@ -135,7 +126,6 @@ ShellExecutor::alarm(int signal)
 {
   if (kill(getppid(), 0)) {
     throw ShellException("Parent died - aborting");
-    abort();
   }
 }
 
@@ -166,28 +156,26 @@ ShellExecutor::run_child() const
   std::string cmd;
   // check every 5 seconds for parent death
   alarm(5);
+  size_t nread = 0;
+  off_t off = 0;
 
-  size_t nread=0;
-  off_t off=0;
-
-  while ( (nread = TEMP_FAILURE_RETRY(read(outfd[0], (char*)&msg + off, sizeof(msg) - off))) > 0)
-  {
+  while ((nread = TEMP_FAILURE_RETRY(read(outfd[0], (char*)&msg + off,
+                                          sizeof(msg) - off))) > 0) {
     alarm(0);
     off += nread;
 
-    if (off == sizeof(msg))
-    {
+    if (off == sizeof(msg)) {
       cmd += msg.buff;
       off = 0;
 
       if (msg.complete) {
-	// execute the command
-	pid_t pid = system(cmd.c_str(), msg.uuid);
-	// respond with 'command' pid
-	write(infd[1], &pid, sizeof(pid_t));
-	// clean up
-	msg.complete = false;
-	cmd.erase();
+        // execute the command
+        pid_t pid = system(cmd.c_str(), msg.uuid);
+        // respond with 'command' pid
+        write(infd[1], &pid, sizeof(pid_t));
+        // clean up
+        msg.complete = false;
+        cmd.erase();
       }
     }
 
@@ -224,6 +212,10 @@ ShellExecutor::system(char const* cmd, fifo_uuid_t uuid) const
       std::string stdout_name = fifo_name(uuid, stdout);
       stdout_fd = open(stdout_name.c_str(), O_WRONLY);
 
+      if (stdout_fd < 0) {
+        throw ShellException("Unable to open stdout file");
+      }
+
       if (dup2(stdout_fd, STDOUT_FILENO) != STDOUT_FILENO) {
         throw ShellException("Not able to redirect the 'sdtout' to FIFO!");
       }
@@ -232,6 +224,10 @@ ShellExecutor::system(char const* cmd, fifo_uuid_t uuid) const
       std::string stdin_name = fifo_name(uuid, stdin);
       stdin_fd = open(stdin_name.c_str(), O_RDONLY);
 
+      if (stdin_fd < 0) {
+        throw ShellException("Unable to open stdin file");
+      }
+
       if (dup2(stdin_fd, STDIN_FILENO) != STDIN_FILENO) {
         throw ShellException("Not able to redirect the 'sdtin' to FIFO!");
       }
@@ -239,6 +235,10 @@ ShellExecutor::system(char const* cmd, fifo_uuid_t uuid) const
       // redirect 'stderr'
       std::string stderr_name = fifo_name(uuid, stderr);
       stderr_fd = open(stderr_name.c_str(), O_WRONLY);
+
+      if (stderr_fd < 0) {
+        throw ShellException("Unalbe to open stderr file");
+      }
 
       if (dup2(stderr_fd, STDERR_FILENO) != STDERR_FILENO) {
         throw ShellException("Not able to redirect the 'sdterr' to FIFO!");
@@ -289,6 +289,7 @@ ShellExecutor::msg_t::msg_t (fifo_uuid_t uuid) : complete(false)
     strncpy(this->uuid, uuid, 36);
     this->uuid[36] = 0;
   }
+
   memset(buff, 0, max_size);
 }
 

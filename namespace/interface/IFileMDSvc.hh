@@ -181,7 +181,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get first free file id
   //----------------------------------------------------------------------------
-  virtual IFileMD::id_t getFirstFreeId() const = 0;
+  virtual IFileMD::id_t getFirstFreeId() = 0;
 };
 
 EOSNSNAMESPACE_END

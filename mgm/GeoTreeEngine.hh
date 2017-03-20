@@ -47,7 +47,7 @@
 /*----------------------------------------------------------------------------*/
 /**
  * @file GeoTreeEngine.hh
- * 
+ *
  * @brief Class responsible to handle %GeoTree Operations
  * (file placement for new replica, source finding for balancing and draining)
  *
@@ -207,7 +207,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * @brief Class responsible to handle GeoTree Operations
  *
  */
@@ -217,44 +217,44 @@ class GeoTreeEngine : public eos::common::LogId
 //**********************************************************
 // BEGIN INTERNAL DATA STRUCTURES
 //**********************************************************
-  struct Penalties
-  {
+  struct Penalties {
     char
-    dlScorePenalty,ulScorePenalty;
+    dlScorePenalty, ulScorePenalty;
 
     Penalties() :
-      dlScorePenalty(0),ulScorePenalty(0)
+      dlScorePenalty(0), ulScorePenalty(0)
     {}
   };
   typedef std::vector<Penalties> tPenaltiesVec;
-  typedef std::map<std::string,Penalties> tPenaltiesMap;
+  typedef std::map<std::string, Penalties> tPenaltiesMap;
 
-  struct tLatencyStats
-  {
-    double minlatency,maxlatency,averagelatency,lastupdate,age;
+  struct tLatencyStats {
+    double minlatency, maxlatency, averagelatency, lastupdate, age;
     tLatencyStats() :
-      minlatency(std::numeric_limits<double>::max()), maxlatency(-std::numeric_limits<double>::max()),
-      averagelatency(0.0),lastupdate(0.0), age(0.0) {};
-    double getage(double nowms=0.0)
+      minlatency(std::numeric_limits<double>::max()),
+      maxlatency(-std::numeric_limits<double>::max()),
+      averagelatency(0.0), lastupdate(0.0), age(0.0) {};
+    double getage(double nowms = 0.0)
     {
-      if(nowms == 0.0)
-      {
+      if (nowms == 0.0) {
         struct timeval curtime;
         gettimeofday(&curtime, 0);
-        nowms = curtime.tv_sec*1000 + curtime.tv_usec/1000;
+        nowms = curtime.tv_sec * 1000 + curtime.tv_usec / 1000;
       }
+
       return  nowms - lastupdate;
     }
-    void update(const double &nowms=0.0)
+    void update(const double& nowms = 0.0)
     {
       double latency = getage(nowms);
-      averagelatency = (averagelatency!=0.0)?(averagelatency*0.99+latency*0.01):latency;
-      minlatency = std::min( minlatency , latency);
-      maxlatency = std::max( maxlatency , latency);
+      averagelatency = (averagelatency != 0.0) ? (averagelatency * 0.99 + latency *
+                       0.01) : latency;
+      minlatency = std::min(minlatency , latency);
+      maxlatency = std::max(maxlatency , latency);
     }
   };
 
-  struct nodeAgreg{
+  struct nodeAgreg {
     bool saturated;
     size_t fsCount;
     size_t rOpen;
@@ -264,7 +264,8 @@ class GeoTreeEngine : public eos::common::LogId
     double netInWeight;
     double diskUtilSum;
     size_t netSpeedClass;
-    nodeAgreg() : saturated(false),fsCount(0),rOpen(0),wOpen(0),gOpen(0),netOutWeight(0.0),netInWeight(0.0),diskUtilSum(0.0),netSpeedClass(0) {};
+    nodeAgreg() : saturated(false), fsCount(0), rOpen(0), wOpen(0), gOpen(0),
+      netOutWeight(0.0), netInWeight(0.0), diskUtilSum(0.0), netSpeedClass(0) {};
   };
 //**********************************************************
 // END INTERNAL DATA STRUCTURES
@@ -280,8 +281,7 @@ class GeoTreeEngine : public eos::common::LogId
    *
    */
   /*----------------------------------------------------------------------------*/
-  struct FastStructSched
-  {
+  struct FastStructSched {
     FastROAccessTree* rOAccessTree;
     FastRWAccessTree* rWAccessTree;
     FastBalancingAccessTree* blcAccessTree;
@@ -292,7 +292,7 @@ class GeoTreeEngine : public eos::common::LogId
     SchedTreeBase::FastTreeInfo* treeInfo;
     Fs2TreeIdxMap* fs2TreeIdx;
     GeoTag2NodeIdxMap* tag2NodeIdx;
-    tPenaltiesVec *penalties;
+    tPenaltiesVec* penalties;
 
     FastStructSched()
     {
@@ -310,96 +310,121 @@ class GeoTreeEngine : public eos::common::LogId
       blcPlacementTree->selfAllocate(FastBalancingPlacementTree::sGetMaxNodeCount());
       drnPlacementTree = new FastDrainingPlacementTree;
       drnPlacementTree->selfAllocate(FastDrainingPlacementTree::sGetMaxNodeCount());
-
       treeInfo = new SchedTreeBase::FastTreeInfo;
       penalties = new tPenaltiesVec;
       penalties->reserve(SchedTreeBase::sGetMaxNodeCount());
-
-      rOAccessTree->pFs2Idx
-      = rWAccessTree->pFs2Idx
-      = blcAccessTree->pFs2Idx
-      = drnAccessTree->pFs2Idx
-      = placementTree->pFs2Idx
-      = blcPlacementTree->pFs2Idx
-      = drnPlacementTree->pFs2Idx
-      = fs2TreeIdx;
-
-      rOAccessTree->pTreeInfo
-      = rWAccessTree->pTreeInfo
-      = blcAccessTree->pTreeInfo
-      = drnAccessTree->pTreeInfo
-      = placementTree->pTreeInfo
-      = blcPlacementTree->pTreeInfo
-      = drnPlacementTree->pTreeInfo
-      = treeInfo;
-
       fs2TreeIdx = new Fs2TreeIdxMap;
       fs2TreeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
-
+      rOAccessTree->pFs2Idx
+        = rWAccessTree->pFs2Idx
+          = blcAccessTree->pFs2Idx
+            = drnAccessTree->pFs2Idx
+              = placementTree->pFs2Idx
+                = blcPlacementTree->pFs2Idx
+                  = drnPlacementTree->pFs2Idx
+                    = fs2TreeIdx;
+      rOAccessTree->pTreeInfo
+        = rWAccessTree->pTreeInfo
+          = blcAccessTree->pTreeInfo
+            = drnAccessTree->pTreeInfo
+              = placementTree->pTreeInfo
+                = blcPlacementTree->pTreeInfo
+                  = drnPlacementTree->pTreeInfo
+                    = treeInfo;
       tag2NodeIdx = new GeoTag2NodeIdxMap;
       tag2NodeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
     }
 
     ~FastStructSched()
     {
-      if(rOAccessTree) delete rOAccessTree;
-      if(rWAccessTree) delete rWAccessTree;
-      if(blcAccessTree) delete blcAccessTree;
-      if(drnAccessTree) delete drnAccessTree;
-      if(placementTree) delete placementTree;
-      if(blcPlacementTree) delete blcPlacementTree;
-      if(drnPlacementTree) delete drnPlacementTree;
-      if(treeInfo) delete treeInfo;
-      if(penalties) delete penalties;
-      if(fs2TreeIdx) delete fs2TreeIdx;
-      if(tag2NodeIdx) delete tag2NodeIdx;
+      if (rOAccessTree) {
+        delete rOAccessTree;
+      }
+
+      if (rWAccessTree) {
+        delete rWAccessTree;
+      }
+
+      if (blcAccessTree) {
+        delete blcAccessTree;
+      }
+
+      if (drnAccessTree) {
+        delete drnAccessTree;
+      }
+
+      if (placementTree) {
+        delete placementTree;
+      }
+
+      if (blcPlacementTree) {
+        delete blcPlacementTree;
+      }
+
+      if (drnPlacementTree) {
+        delete drnPlacementTree;
+      }
+
+      if (treeInfo) {
+        delete treeInfo;
+      }
+
+      if (penalties) {
+        delete penalties;
+      }
+
+      if (fs2TreeIdx) {
+        delete fs2TreeIdx;
+      }
+
+      if (tag2NodeIdx) {
+        delete tag2NodeIdx;
+      }
     }
 
-    bool DeepCopyTo (FastStructSched *target) const
+    bool DeepCopyTo(FastStructSched* target) const
     {
-      if(
-	  rOAccessTree->copyToFastTree(target->rOAccessTree) ||
-	  rWAccessTree->copyToFastTree(target->rWAccessTree) ||
-	  blcAccessTree->copyToFastTree(target->blcAccessTree) ||
-	  drnAccessTree->copyToFastTree(target->drnAccessTree) ||
-	  placementTree->copyToFastTree(target->placementTree) ||
-	  blcPlacementTree->copyToFastTree(target->blcPlacementTree) ||
-	  drnPlacementTree->copyToFastTree(target->drnPlacementTree)
-      )
-      {
-	return false;
+      if (
+        rOAccessTree->copyToFastTree(target->rOAccessTree) ||
+        rWAccessTree->copyToFastTree(target->rWAccessTree) ||
+        blcAccessTree->copyToFastTree(target->blcAccessTree) ||
+        drnAccessTree->copyToFastTree(target->drnAccessTree) ||
+        placementTree->copyToFastTree(target->placementTree) ||
+        blcPlacementTree->copyToFastTree(target->blcPlacementTree) ||
+        drnPlacementTree->copyToFastTree(target->drnPlacementTree)
+      ) {
+        return false;
       }
+
       // copy the information
       *(target->treeInfo) = *treeInfo;
-      if(
-	  fs2TreeIdx->copyToFsId2NodeIdxMap(target->fs2TreeIdx) ||
-	  tag2NodeIdx->copyToGeoTag2NodeIdxMap(target->tag2NodeIdx) )
-      {
-	return false;
+
+      if (
+        fs2TreeIdx->copyToFsId2NodeIdxMap(target->fs2TreeIdx) ||
+        tag2NodeIdx->copyToGeoTag2NodeIdxMap(target->tag2NodeIdx)) {
+        return false;
       }
 
       // copy the penalties
       std::copy(penalties->begin(), penalties->end(),
-                    target->penalties->begin());
-
+                target->penalties->begin());
       // update the information in the FastTrees to point to the copy
       target->rOAccessTree->pFs2Idx
-      = target->rWAccessTree->pFs2Idx
-      = target->blcAccessTree->pFs2Idx
-      = target->drnAccessTree->pFs2Idx
-      = target->placementTree->pFs2Idx
-      = target->blcPlacementTree->pFs2Idx
-      = target->drnPlacementTree->pFs2Idx
-      = target->fs2TreeIdx;
+        = target->rWAccessTree->pFs2Idx
+          = target->blcAccessTree->pFs2Idx
+            = target->drnAccessTree->pFs2Idx
+              = target->placementTree->pFs2Idx
+                = target->blcPlacementTree->pFs2Idx
+                  = target->drnPlacementTree->pFs2Idx
+                    = target->fs2TreeIdx;
       target->rOAccessTree->pTreeInfo
-      = target->rWAccessTree->pTreeInfo
-      = target->blcAccessTree->pTreeInfo
-      = target->drnAccessTree->pTreeInfo
-      = target->placementTree->pTreeInfo
-      = target->blcPlacementTree->pTreeInfo
-      = target->drnPlacementTree->pTreeInfo
-      = target->treeInfo;
-
+        = target->rWAccessTree->pTreeInfo
+          = target->blcAccessTree->pTreeInfo
+            = target->drnAccessTree->pTreeInfo
+              = target->placementTree->pTreeInfo
+                = target->blcPlacementTree->pTreeInfo
+                  = target->drnPlacementTree->pTreeInfo
+                    = target->treeInfo;
       return true;
     }
 
@@ -414,85 +439,91 @@ class GeoTreeEngine : public eos::common::LogId
       drnPlacementTree->updateTree();
     }
 
-    void WriteSlowState( SlowTreeNode::TreeNodeStateFloat &slowState, SchedTreeBase::tFastTreeIdx idx) const
+    void WriteSlowState(SlowTreeNode::TreeNodeStateFloat& slowState,
+                        SchedTreeBase::tFastTreeIdx idx) const
     {
-      FastPlacementTree::FsData &fastState = placementTree->pNodes[idx].fsData;
-      slowState.dlScore = float(fastState.dlScore)/255;
-      slowState.ulScore = float(fastState.ulScore)/255;
-      slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
-      slowState.fillRatio = float(fastState.fillRatio)/255;
+      FastPlacementTree::FsData& fastState = placementTree->pNodes[idx].fsData;
+      slowState.dlScore = float(fastState.dlScore) / 255;
+      slowState.ulScore = float(fastState.ulScore) / 255;
+      slowState.mStatus = fastState.mStatus &
+                          ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
+      slowState.fillRatio = float(fastState.fillRatio) / 255;
       slowState.totalSpace = float(fastState.totalSpace);
     }
 
-    inline void applyDlScorePenalty(SchedTreeBase::tFastTreeIdx idx, const char &penalty, bool background)
+    inline void applyDlScorePenalty(SchedTreeBase::tFastTreeIdx idx,
+                                    const char& penalty, bool background)
     /**< Apply download score penalty */
     {
-      AtomicSub(placementTree->pNodes[idx].fsData.dlScore,penalty);
-      AtomicSub(drnPlacementTree->pNodes[idx].fsData.dlScore,penalty);
-      AtomicSub(blcPlacementTree->pNodes[idx].fsData.dlScore,penalty);
-      AtomicSub(rOAccessTree->pNodes[idx].fsData.dlScore,penalty);
-      AtomicSub(rWAccessTree->pNodes[idx].fsData.dlScore,penalty);
-      AtomicSub(drnAccessTree->pNodes[idx].fsData.dlScore,penalty);
-      AtomicSub(blcAccessTree->pNodes[idx].fsData.dlScore,penalty);
-      if(!background)
-      {
-        AtomicAdd((*penalties)[idx].dlScorePenalty,penalty);
+      AtomicSub(placementTree->pNodes[idx].fsData.dlScore, penalty);
+      AtomicSub(drnPlacementTree->pNodes[idx].fsData.dlScore, penalty);
+      AtomicSub(blcPlacementTree->pNodes[idx].fsData.dlScore, penalty);
+      AtomicSub(rOAccessTree->pNodes[idx].fsData.dlScore, penalty);
+      AtomicSub(rWAccessTree->pNodes[idx].fsData.dlScore, penalty);
+      AtomicSub(drnAccessTree->pNodes[idx].fsData.dlScore, penalty);
+      AtomicSub(blcAccessTree->pNodes[idx].fsData.dlScore, penalty);
+
+      if (!background) {
+        AtomicAdd((*penalties)[idx].dlScorePenalty, penalty);
       }
     }
 
-    inline void applyUlScorePenalty(SchedTreeBase::tFastTreeIdx idx, const char &penalty, bool background)
+    inline void applyUlScorePenalty(SchedTreeBase::tFastTreeIdx idx,
+                                    const char& penalty, bool background)
     /**< Apply upload score penalty */
     {
-      AtomicSub(placementTree->pNodes[idx].fsData.ulScore,penalty);
-      AtomicSub(drnPlacementTree->pNodes[idx].fsData.ulScore,penalty);
-      AtomicSub(blcPlacementTree->pNodes[idx].fsData.ulScore,penalty);
-      AtomicSub(rOAccessTree->pNodes[idx].fsData.ulScore,penalty);
-      AtomicSub(rWAccessTree->pNodes[idx].fsData.ulScore,penalty);
-      AtomicSub(drnAccessTree->pNodes[idx].fsData.ulScore,penalty);
-      AtomicSub(blcAccessTree->pNodes[idx].fsData.ulScore,penalty);
-      if(!background)
-      {
-        AtomicAdd((*penalties)[idx].ulScorePenalty,penalty);
+      AtomicSub(placementTree->pNodes[idx].fsData.ulScore, penalty);
+      AtomicSub(drnPlacementTree->pNodes[idx].fsData.ulScore, penalty);
+      AtomicSub(blcPlacementTree->pNodes[idx].fsData.ulScore, penalty);
+      AtomicSub(rOAccessTree->pNodes[idx].fsData.ulScore, penalty);
+      AtomicSub(rWAccessTree->pNodes[idx].fsData.ulScore, penalty);
+      AtomicSub(drnAccessTree->pNodes[idx].fsData.ulScore, penalty);
+      AtomicSub(blcAccessTree->pNodes[idx].fsData.ulScore, penalty);
+
+      if (!background) {
+        AtomicAdd((*penalties)[idx].ulScorePenalty, penalty);
       }
     }
 
-    inline bool isUlScorePos ( SchedTreeBase::tFastTreeIdx idx)
+    inline bool isUlScorePos(SchedTreeBase::tFastTreeIdx idx)
     {
-      return placementTree->pNodes[idx].fsData.ulScore>0;
+      return placementTree->pNodes[idx].fsData.ulScore > 0;
     }
 
-    inline bool isDlScorePos ( SchedTreeBase::tFastTreeIdx idx)
+    inline bool isDlScorePos(SchedTreeBase::tFastTreeIdx idx)
     {
-      return placementTree->pNodes[idx].fsData.dlScore>0;
+      return placementTree->pNodes[idx].fsData.dlScore > 0;
     }
 
-    inline SchedTreeBase::FastTreeInfo* getTreeInfo() { return treeInfo; }
+    inline SchedTreeBase::FastTreeInfo* getTreeInfo()
+    {
+      return treeInfo;
+    }
 
-    inline bool buildFastStructures(SlowTree *slowTree)
+    inline bool buildFastStructures(SlowTree* slowTree)
     {
       return slowTree->buildFastStrcturesSched(
-                placementTree , rOAccessTree, rWAccessTree,
-                blcPlacementTree , blcAccessTree,
-                drnPlacementTree , drnAccessTree,
-                treeInfo , fs2TreeIdx, tag2NodeIdx
-            );
+               placementTree , rOAccessTree, rWAccessTree,
+               blcPlacementTree , blcAccessTree,
+               drnPlacementTree , drnAccessTree,
+               treeInfo , fs2TreeIdx, tag2NodeIdx
+             );
     }
 
-    inline void resizePenalties ( const size_t &newsize)
+    inline void resizePenalties(const size_t& newsize)
     {
       penalties->resize(newsize);
     }
 
     inline void setConfigParam(
-        const char &fillRatioLimit,
-        const char &fillRatioCompTol,
-        const char &saturationThres)
+      const char& fillRatioLimit,
+      const char& fillRatioCompTol,
+      const char& saturationThres)
     {
       rOAccessTree->setSaturationThreshold(saturationThres);
       rWAccessTree->setSaturationThreshold(saturationThres);
       drnAccessTree->setSaturationThreshold(saturationThres);
       blcAccessTree->setSaturationThreshold(saturationThres);
-
       placementTree->setSaturationThreshold(saturationThres);
       placementTree->setSpreadingFillRatioCap(fillRatioLimit);
       placementTree->setFillRatioCompTol(fillRatioCompTol);
@@ -513,74 +544,77 @@ class GeoTreeEngine : public eos::common::LogId
    *
    */
   /*----------------------------------------------------------------------------*/
-  struct FastStructProxy
-  {
+  struct FastStructProxy {
     FastGatewayAccessTree* proxyAccessTree;
     SchedTreeBase::FastTreeInfo* treeInfo;
     Host2TreeIdxMap* host2TreeIdx;
     GeoTag2NodeIdxMap* tag2NodeIdx;
-    tPenaltiesVec *penalties;
+    tPenaltiesVec* penalties;
 
     FastStructProxy()
     {
       proxyAccessTree = new FastGatewayAccessTree;
       proxyAccessTree->selfAllocate(FastGatewayAccessTree::sGetMaxNodeCount());
-
       treeInfo = new SchedTreeBase::FastTreeInfo;
       penalties = new tPenaltiesVec;
       penalties->reserve(FastGatewayAccessTree::sGetMaxNodeCount());
-
       host2TreeIdx = new Host2TreeIdxMap;
       host2TreeIdx->selfAllocate(FastGatewayAccessTree::sGetMaxNodeCount());
-
       proxyAccessTree->pFs2Idx = host2TreeIdx;
-
       proxyAccessTree->pTreeInfo
-      = treeInfo;
-
+        = treeInfo;
       tag2NodeIdx = new GeoTag2NodeIdxMap;
       tag2NodeIdx->selfAllocate(FastGatewayAccessTree::sGetMaxNodeCount());
     }
 
     ~FastStructProxy()
     {
-      if(proxyAccessTree) delete proxyAccessTree;
-      if(treeInfo) delete treeInfo;
-      if(penalties) delete penalties;
-      if(tag2NodeIdx) delete tag2NodeIdx;
+      if (proxyAccessTree) {
+        delete proxyAccessTree;
+      }
+
+      if (treeInfo) {
+        delete treeInfo;
+      }
+
+      if (penalties) {
+        delete penalties;
+      }
+
+      if (tag2NodeIdx) {
+        delete tag2NodeIdx;
+      }
     }
 
-    bool DeepCopyTo (FastStructProxy *target) const
+    bool DeepCopyTo(FastStructProxy* target) const
     {
-      if(
-          proxyAccessTree->copyToFastTree(target->proxyAccessTree)
-      )
-      {
+      if (
+        proxyAccessTree->copyToFastTree(target->proxyAccessTree)
+      ) {
         return false;
       }
+
       // copy the information
       *(target->treeInfo) = *treeInfo;
-      if(
-          tag2NodeIdx->copyToGeoTag2NodeIdxMap(target->tag2NodeIdx) )
-      {
+
+      if (
+        tag2NodeIdx->copyToGeoTag2NodeIdxMap(target->tag2NodeIdx)) {
         return false;
       }
-      if(
-          host2TreeIdx->copyToFsId2NodeIdxMap(target->host2TreeIdx) )
-      {
+
+      if (
+        host2TreeIdx->copyToFsId2NodeIdxMap(target->host2TreeIdx)) {
         return false;
       }
 
       // copy the penalties
       std::copy(penalties->begin(), penalties->end(),
-                    target->penalties->begin());
-
+                target->penalties->begin());
       // update the information in the FastTrees to point to the copy
       target->proxyAccessTree->pFs2Idx
-      = NULL;
+        = NULL;
       target->proxyAccessTree->pTreeInfo
-      = target->treeInfo;
-
+        = target->treeInfo;
       return true;
     }
 
@@ -589,63 +623,70 @@ class GeoTreeEngine : public eos::common::LogId
       proxyAccessTree->updateTree();
     }
 
-    void WriteSlowState( SlowTreeNode::TreeNodeStateFloat &slowState, SchedTreeBase::tFastTreeIdx idx) const
+    void WriteSlowState(SlowTreeNode::TreeNodeStateFloat& slowState,
+                        SchedTreeBase::tFastTreeIdx idx) const
     {
-      FastPlacementTree::FsData &fastState = proxyAccessTree->pNodes[idx].fsData;
-      slowState.dlScore = float(fastState.dlScore)/255;
-      slowState.ulScore = float(fastState.ulScore)/255;
-      slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
-      slowState.fillRatio = float(fastState.fillRatio)/255;
+      FastPlacementTree::FsData& fastState = proxyAccessTree->pNodes[idx].fsData;
+      slowState.dlScore = float(fastState.dlScore) / 255;
+      slowState.ulScore = float(fastState.ulScore) / 255;
+      slowState.mStatus = fastState.mStatus &
+                          ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
+      slowState.fillRatio = float(fastState.fillRatio) / 255;
       slowState.totalSpace = float(fastState.totalSpace);
     }
 
-    inline void applyDlScorePenalty(SchedTreeBase::tFastTreeIdx idx, const char &penalty, bool background)
+    inline void applyDlScorePenalty(SchedTreeBase::tFastTreeIdx idx,
+                                    const char& penalty, bool background)
     {
-      AtomicSub(proxyAccessTree->pNodes[idx].fsData.dlScore,penalty);
-      if(!background)
-      {
-        AtomicAdd((*penalties)[idx].dlScorePenalty,penalty);
+      AtomicSub(proxyAccessTree->pNodes[idx].fsData.dlScore, penalty);
+
+      if (!background) {
+        AtomicAdd((*penalties)[idx].dlScorePenalty, penalty);
       }
     }
 
-    inline void applyUlScorePenalty(SchedTreeBase::tFastTreeIdx idx, const char &penalty, bool background)
+    inline void applyUlScorePenalty(SchedTreeBase::tFastTreeIdx idx,
+                                    const char& penalty, bool background)
     {
-      AtomicSub(proxyAccessTree->pNodes[idx].fsData.ulScore,penalty);
-      if(!background)
-      {
-        AtomicAdd((*penalties)[idx].ulScorePenalty,penalty);
+      AtomicSub(proxyAccessTree->pNodes[idx].fsData.ulScore, penalty);
+
+      if (!background) {
+        AtomicAdd((*penalties)[idx].ulScorePenalty, penalty);
       }
     }
 
-    inline bool isUlScorePos ( SchedTreeBase::tFastTreeIdx idx)
+    inline bool isUlScorePos(SchedTreeBase::tFastTreeIdx idx)
     {
-      return proxyAccessTree->pNodes[idx].fsData.ulScore>0;
+      return proxyAccessTree->pNodes[idx].fsData.ulScore > 0;
     }
 
-    inline bool isDlScorePos ( SchedTreeBase::tFastTreeIdx idx)
+    inline bool isDlScorePos(SchedTreeBase::tFastTreeIdx idx)
     {
-      return proxyAccessTree->pNodes[idx].fsData.dlScore>0;
+      return proxyAccessTree->pNodes[idx].fsData.dlScore > 0;
     }
 
-    inline SchedTreeBase::FastTreeInfo* getTreeInfo() { return treeInfo; }
+    inline SchedTreeBase::FastTreeInfo* getTreeInfo()
+    {
+      return treeInfo;
+    }
 
-    inline bool buildFastStructures(SlowTree *slowTree)
+    inline bool buildFastStructures(SlowTree* slowTree)
     {
       return slowTree->buildFastStructuresGW(
-                proxyAccessTree,host2TreeIdx,
-                treeInfo , tag2NodeIdx
-            );
+               proxyAccessTree, host2TreeIdx,
+               treeInfo , tag2NodeIdx
+             );
     }
 
-    inline void resizePenalties ( const size_t &newsize)
+    inline void resizePenalties(const size_t& newsize)
     {
       penalties->resize(newsize);
     }
 
     inline void setConfigParam(
-        const char &fillRatioLimit,
-        const char &fillRatioCompTol,
-        const char &saturationThres)
+      const char& fillRatioLimit,
+      const char& fillRatioCompTol,
+      const char& saturationThres)
     {
       proxyAccessTree->setSaturationThreshold(saturationThres);
     }
@@ -659,12 +700,11 @@ class GeoTreeEngine : public eos::common::LogId
    *        it is just a base to derived structs
    */
   /*----------------------------------------------------------------------------*/
-  template<typename FastStruct> struct TreeMapEntry
-  {
+  template<typename FastStruct> struct TreeMapEntry {
 
     // ==== SlowTree : this is used to add or remove nodes ==== //
     // every access to mSlowTree or mFs2SlowTreeNode should be protected by a lock to mSlowTreeMutex
-    SlowTree *slowTree;
+    SlowTree* slowTree;
     //std::map<eos::common::FileSystem::fsid_t,SlowTreeNode*> fs2SlowTreeNode;
     eos::common::RWMutex slowTreeMutex;
     bool slowTreeModified;
@@ -672,9 +712,9 @@ class GeoTreeEngine : public eos::common::LogId
     // ===== Fast Structures Management and Double Buffering ====== //
     FastStruct fastStructures[2];
     // the pointed object is read only accessed by several thread
-    FastStruct *foregroundFastStruct;
+    FastStruct* foregroundFastStruct;
     // the pointed object is accessed in read /write only by the thread update
-    FastStruct *backgroundFastStruct;
+    FastStruct* backgroundFastStruct;
     // the two previous pointers are swapped once an update is done. To do so, we need a mutex and a counter (for deletion)
     // every access to *mForegroundFastStruct for reading should be protected by a LockRead to mDoubleBufferMutex
     // when swapping mForegroundFastStruct and mBackgroundFastStruct is needed a LockWrite is taken to mDoubleBufferMutex
@@ -682,12 +722,12 @@ class GeoTreeEngine : public eos::common::LogId
     size_t fastStructLockWaitersCount;
     bool fastStructModified;
 
-    TreeMapEntry(const std::string &groupName="") :
-    slowTreeModified(false),
-    foregroundFastStruct(fastStructures),
-    backgroundFastStruct(fastStructures+1),
-    fastStructLockWaitersCount(0),
-    fastStructModified(false)
+    TreeMapEntry(const std::string& groupName = "") :
+      slowTreeModified(false),
+      foregroundFastStruct(fastStructures),
+      backgroundFastStruct(fastStructures + 1),
+      fastStructLockWaitersCount(0),
+      fastStructModified(false)
     {
       slowTree = new SlowTree(groupName);
       slowTreeMutex.SetBlocking(true);
@@ -696,23 +736,24 @@ class GeoTreeEngine : public eos::common::LogId
 
     ~TreeMapEntry()
     {
-      if(slowTree) delete slowTree;
+      if (slowTree) {
+        delete slowTree;
+      }
     }
 
     void swapFastStructBuffers()
     {
       eos::common::RWMutexWriteLock lock(doubleBufferMutex);
-      std::swap(foregroundFastStruct,backgroundFastStruct);
+      std::swap(foregroundFastStruct, backgroundFastStruct);
     }
 
     void updateBGFastStructuresConfigParam(
-	const char &fillRatioLimit,
-	const char &fillRatioCompTol,
-	const char &saturationThres)
+      const char& fillRatioLimit,
+      const char& fillRatioCompTol,
+      const char& saturationThres)
     {
-
-      backgroundFastStruct->setConfigParam(fillRatioLimit,fillRatioCompTol,saturationThres);
-
+      backgroundFastStruct->setConfigParam(fillRatioLimit, fillRatioCompTol,
+                                           saturationThres);
       refreshBackGroundFastStructures();
     }
 
@@ -723,15 +764,14 @@ class GeoTreeEngine : public eos::common::LogId
 
     bool updateFastStructures()
     {
-      FastStruct *ft = backgroundFastStruct;
+      FastStruct* ft = backgroundFastStruct;
 
-      if(!ft->buildFastStructures(slowTree))
-      {
+      if (!ft->buildFastStructures(slowTree)) {
         eos_static_crit("Error updating the fast structures");
         return false;
       }
-      ft->resizePenalties(slowTree->getNodeCount());
 
+      ft->resizePenalties(slowTree->getNodeCount());
       return true;
     }
 
@@ -744,36 +784,37 @@ class GeoTreeEngine : public eos::common::LogId
    *
    */
   /*----------------------------------------------------------------------------*/
-  struct SchedTME : public TreeMapEntry<FastStructSched>
-  {
-    FsGroup *group;
+  struct SchedTME : public TreeMapEntry<FastStructSched> {
+    FsGroup* group;
 
-    std::map<eos::common::FileSystem::fsid_t,SlowTreeNode*> fs2SlowTreeNode;
+    std::map<eos::common::FileSystem::fsid_t, SlowTreeNode*> fs2SlowTreeNode;
 
-    SchedTME( const std::string &groupName) :
+    SchedTME(const std::string& groupName) :
       TreeMapEntry<FastStructSched>(groupName),
       group(NULL)
-      {}
+    {}
 
     void updateSlowTreeInfoFromBgFastStruct()
     {
-      for(auto it = fs2SlowTreeNode.begin(); it!= fs2SlowTreeNode.end(); ++it)
-      {
-        const SchedTreeBase::tFastTreeIdx *idx;
-        if(!backgroundFastStruct->fs2TreeIdx->get(it->first,idx))
-        {
+      for (auto it = fs2SlowTreeNode.begin(); it != fs2SlowTreeNode.end(); ++it) {
+        const SchedTreeBase::tFastTreeIdx* idx;
+
+        if (!backgroundFastStruct->fs2TreeIdx->get(it->first, idx)) {
           // this node was added in the SlowTree, the fast structures doesn't include it yet
           continue;
         }
-        FastPlacementTree::FsData &fastState = backgroundFastStruct->placementTree->pNodes[*idx].fsData;
-        SlowTreeNode::TreeNodeStateFloat &slowState = it->second->pNodeState;
+
+        FastPlacementTree::FsData& fastState =
+          backgroundFastStruct->placementTree->pNodes[*idx].fsData;
+        SlowTreeNode::TreeNodeStateFloat& slowState = it->second->pNodeState;
         slowState.dlScore = fastState.dlScore;
         slowState.ulScore = fastState.ulScore;
-        slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
+        slowState.mStatus = fastState.mStatus &
+                            ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
         slowState.fillRatio = fastState.fillRatio;
         slowState.totalSpace = float(fastState.totalSpace);
-        SchedTreeBase::TreeNodeInfo &fastInfo = (*backgroundFastStruct->treeInfo)[*idx];
-        SlowTreeNode::TreeNodeInfo &slowInfo = it->second->pNodeInfo;
+        SchedTreeBase::TreeNodeInfo& fastInfo = (*backgroundFastStruct->treeInfo)[*idx];
+        SlowTreeNode::TreeNodeInfo& slowInfo = it->second->pNodeInfo;
         slowInfo.netSpeedClass = fastInfo.netSpeedClass;
         slowInfo.proxygroup = fastInfo.proxygroup;
         slowInfo.fileStickyProxyDepth = fastInfo.fileStickyProxyDepth;
@@ -789,34 +830,35 @@ class GeoTreeEngine : public eos::common::LogId
    *
    */
   /*----------------------------------------------------------------------------*/
-  struct ProxyTMEBase : public TreeMapEntry<FastStructProxy>
-  {
-    FsGroup *group;
+  struct ProxyTMEBase : public TreeMapEntry<FastStructProxy> {
+    FsGroup* group;
 
-    std::map<std::string,SlowTreeNode*> host2SlowTreeNode;
+    std::map<std::string, SlowTreeNode*> host2SlowTreeNode;
 
-    ProxyTMEBase( const std::string &groupName) :
+    ProxyTMEBase(const std::string& groupName) :
       TreeMapEntry<FastStructProxy>(groupName),
       group(NULL)
-      {}
+    {}
 
     void updateSlowTreeInfoFromBgFastStruct()
     {
-      for(auto it = host2SlowTreeNode.begin(); it!= host2SlowTreeNode.end(); ++it)
-      {
-        const SchedTreeBase::tFastTreeIdx *idx;
-        if(!backgroundFastStruct->host2TreeIdx->get(it->first.c_str(),idx))
-        {
+      for (auto it = host2SlowTreeNode.begin(); it != host2SlowTreeNode.end(); ++it) {
+        const SchedTreeBase::tFastTreeIdx* idx;
+
+        if (!backgroundFastStruct->host2TreeIdx->get(it->first.c_str(), idx)) {
           // this node was added in the SlowTree, the fast structures doesn't include it yet
           continue;
         }
-        FastPlacementTree::FsData &fastState = backgroundFastStruct->proxyAccessTree->pNodes[*idx].fsData;
-        SlowTreeNode::TreeNodeStateFloat &slowState = it->second->pNodeState;
+
+        FastPlacementTree::FsData& fastState =
+          backgroundFastStruct->proxyAccessTree->pNodes[*idx].fsData;
+        SlowTreeNode::TreeNodeStateFloat& slowState = it->second->pNodeState;
         slowState.dlScore = fastState.dlScore;
         slowState.ulScore = fastState.ulScore;
-        slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
-        SchedTreeBase::TreeNodeInfo &fastInfo = (*backgroundFastStruct->treeInfo)[*idx];
-        SlowTreeNode::TreeNodeInfo &slowInfo = it->second->pNodeInfo;
+        slowState.mStatus = fastState.mStatus &
+                            ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
+        SchedTreeBase::TreeNodeInfo& fastInfo = (*backgroundFastStruct->treeInfo)[*idx];
+        SlowTreeNode::TreeNodeInfo& slowInfo = it->second->pNodeInfo;
         slowInfo.netSpeedClass = fastInfo.netSpeedClass;
       }
     }
@@ -830,116 +872,114 @@ class GeoTreeEngine : public eos::common::LogId
    *
    */
   /*----------------------------------------------------------------------------*/
-  struct DataProxyTME : public ProxyTMEBase
-  {
-    DataProxyTME( const std::string &groupName) : ProxyTMEBase( groupName)
+  struct DataProxyTME : public ProxyTMEBase {
+    DataProxyTME(const std::string& groupName) : ProxyTMEBase(groupName)
     {}
   };
 
-  bool updateFastStructures( SchedTME *entry )
+  bool updateFastStructures(SchedTME* entry)
   {
     // if nothing is modified here move to the next group
-    if(!(entry->slowTreeModified || entry->fastStructModified))
-    return true;
-
-    if(entry->slowTreeModified)
-    {
-      entry->updateSlowTreeInfoFromBgFastStruct();
-      if(!entry->updateFastStructures())
-      {
-	eos_crit("error updating the fast structures from the slowtree");
-	return false;
-      }
-      applyBranchDisablings(*entry);
-      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
-      {
-	stringstream ss;
-	ss << (*entry->backgroundFastStruct->placementTree);
-	eos_debug("fast structures updated successfully from slowtree : new FASTtree is \n %s",ss.str().c_str());
-	ss.str()="";
-	ss << (*entry->slowTree);
-	eos_debug("fast structures updated successfully from slowtree : old SLOW tree was \n %s",ss.str().c_str());
-      }
-
-    }
-    else
-    {
-      // the rebuild of the fast structures is not necessary
-      entry->refreshBackGroundFastStructures();
-      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
-      {
-	stringstream ss;
-	ss << (*entry->backgroundFastStruct->placementTree);
-	eos_debug("fast structures updated successfully from fastree : new FASTtree is \n %s",ss.str().c_str());
-      }
+    if (!(entry->slowTreeModified || entry->fastStructModified)) {
+      return true;
     }
 
-    // mark the entry as updated
-    entry->slowTreeModified = false;
-    entry->fastStructModified = false;
-
-    // update the BackGroundFastStructures configuration parameters accordingly to the one present in the GeoTree (and update the fast trees)
-    entry->updateBGFastStructuresConfigParam(pFillRatioLimit,pFillRatioCompTol,pSaturationThres);
-
-    // clear the penalties
-    std::fill(entry->backgroundFastStruct->penalties->begin(), entry->backgroundFastStruct->penalties->end(), Penalties());
-
-    // swap the buffers (this is the only bit where the fast structures is not accessible for a placement/access operation)
-    entry->swapFastStructBuffers();
-
-    return true;
-  }
-
-  bool updateFastStructures( ProxyTMEBase *entry )
-  {
-    // if nothing is modified here move to the next group
-    if(!(entry->slowTreeModified || entry->fastStructModified))
-    return true;
-
-    if(entry->slowTreeModified)
-    {
+    if (entry->slowTreeModified) {
       entry->updateSlowTreeInfoFromBgFastStruct();
-      if(!entry->updateFastStructures())
-      {
+
+      if (!entry->updateFastStructures()) {
         eos_crit("error updating the fast structures from the slowtree");
         return false;
       }
+
       applyBranchDisablings(*entry);
-      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
-      {
+
+      if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
         stringstream ss;
-        ss << (*entry->backgroundFastStruct->proxyAccessTree);
-        eos_debug("fast structures updated successfully from slowtree : new FASTtree is \n %s",ss.str().c_str());
-        ss.str()="";
+        ss << (*entry->backgroundFastStruct->placementTree);
+        eos_debug("fast structures updated successfully from slowtree : new FASTtree is \n %s",
+                  ss.str().c_str());
+        ss.str() = "";
         ss << (*entry->slowTree);
-        eos_debug("fast structures updated successfully from slowtree : old SLOW tree was \n %s",ss.str().c_str());
+        eos_debug("fast structures updated successfully from slowtree : old SLOW tree was \n %s",
+                  ss.str().c_str());
       }
-    }
-    else
-    {
+    } else {
       // the rebuild of the fast structures is not necessary
       entry->refreshBackGroundFastStructures();
-      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
-      {
+
+      if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
         stringstream ss;
-        ss << (*entry->backgroundFastStruct->proxyAccessTree);
-        eos_debug("fast structures updated successfully from fastree : new FASTtree is \n %s",ss.str().c_str());
+        ss << (*entry->backgroundFastStruct->placementTree);
+        eos_debug("fast structures updated successfully from fastree : new FASTtree is \n %s",
+                  ss.str().c_str());
       }
     }
 
     // mark the entry as updated
     entry->slowTreeModified = false;
     entry->fastStructModified = false;
-
     // update the BackGroundFastStructures configuration parameters accordingly to the one present in the GeoTree (and update the fast trees)
-    entry->updateBGFastStructuresConfigParam(pFillRatioLimit,pFillRatioCompTol,pSaturationThres);
-
+    entry->updateBGFastStructuresConfigParam(pFillRatioLimit, pFillRatioCompTol,
+        pSaturationThres);
     // clear the penalties
-    std::fill(entry->backgroundFastStruct->penalties->begin(), entry->backgroundFastStruct->penalties->end(), Penalties());
-
+    std::fill(entry->backgroundFastStruct->penalties->begin(),
+              entry->backgroundFastStruct->penalties->end(), Penalties());
     // swap the buffers (this is the only bit where the fast structures is not accessible for a placement/access operation)
     entry->swapFastStructBuffers();
+    return true;
+  }
 
+  bool updateFastStructures(ProxyTMEBase* entry)
+  {
+    // if nothing is modified here move to the next group
+    if (!(entry->slowTreeModified || entry->fastStructModified)) {
+      return true;
+    }
+
+    if (entry->slowTreeModified) {
+      entry->updateSlowTreeInfoFromBgFastStruct();
+
+      if (!entry->updateFastStructures()) {
+        eos_crit("error updating the fast structures from the slowtree");
+        return false;
+      }
+
+      applyBranchDisablings(*entry);
+
+      if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+        stringstream ss;
+        ss << (*entry->backgroundFastStruct->proxyAccessTree);
+        eos_debug("fast structures updated successfully from slowtree : new FASTtree is \n %s",
+                  ss.str().c_str());
+        ss.str() = "";
+        ss << (*entry->slowTree);
+        eos_debug("fast structures updated successfully from slowtree : old SLOW tree was \n %s",
+                  ss.str().c_str());
+      }
+    } else {
+      // the rebuild of the fast structures is not necessary
+      entry->refreshBackGroundFastStructures();
+
+      if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+        stringstream ss;
+        ss << (*entry->backgroundFastStruct->proxyAccessTree);
+        eos_debug("fast structures updated successfully from fastree : new FASTtree is \n %s",
+                  ss.str().c_str());
+      }
+    }
+
+    // mark the entry as updated
+    entry->slowTreeModified = false;
+    entry->fastStructModified = false;
+    // update the BackGroundFastStructures configuration parameters accordingly to the one present in the GeoTree (and update the fast trees)
+    entry->updateBGFastStructuresConfigParam(pFillRatioLimit, pFillRatioCompTol,
+        pSaturationThres);
+    // clear the penalties
+    std::fill(entry->backgroundFastStruct->penalties->begin(),
+              entry->backgroundFastStruct->penalties->end(), Penalties());
+    // swap the buffers (this is the only bit where the fast structures is not accessible for a placement/access operation)
+    entry->swapFastStructBuffers();
     return true;
   }
 
@@ -951,7 +991,7 @@ class GeoTreeEngine : public eos::common::LogId
   /// enum holding the possible operations
 public:
   enum SchedType
-  { regularRO,regularRW,balancing,draining};
+  { regularRO, regularRW, balancing, draining};
 
 protected:
 //**********************************************************
@@ -968,10 +1008,11 @@ protected:
   //! these are implicitly convertible enums
   //! they map to specific changes that happen on the fs
   static const int
-  sfgGeotag,sfgId,sfgBoot,sfgDrain,sfgDrainer,sfgBlcingrun,sfgBlcerrun,
-  sfgBalthres,sfgActive,sfgBlkavailb,sfgDiskload,
-  sfgEthmib,sfgInratemib,sfgOutratemib,sfgWriteratemb,
-  sfgReadratemb,sfgFsfilled,sfgNomfilled,sfgConfigstatus,sfgHost,sfgErrc,sfgPubTmStmp,sfgPxyGrp,sfgFileStickPxy;
+  sfgGeotag, sfgId, sfgBoot, sfgDrain, sfgDrainer, sfgBlcingrun, sfgBlcerrun,
+             sfgBalthres, sfgActive, sfgBlkavailb, sfgDiskload,
+             sfgEthmib, sfgInratemib, sfgOutratemib, sfgWriteratemb,
+             sfgReadratemb, sfgFsfilled, sfgNomfilled, sfgConfigstatus, sfgHost, sfgErrc,
+             sfgPubTmStmp, sfgPxyGrp, sfgFileStickPxy;
 
   //! This mutex protects the consistency between the GeoTreeEngine state and the filesystems it contains
   //! To make any change that temporarily set an unconsistent state (mainly adding a fs, removing a fs,
@@ -986,10 +1027,10 @@ protected:
   static set<std::string> gWatchedKeysGw;
 
   //! this map allow to convert a notification key to an enum for efficient processing
-  static const std::map<string,int> gNotifKey2EnumSched;
+  static const std::map<string, int> gNotifKey2EnumSched;
 
   //! this map allow to convert a notification key to an enum for efficient processing
-  static const std::map<string,int> gNotifKey2EnumProxy;
+  static const std::map<string, int> gNotifKey2EnumProxy;
 
   //! this is the list of the watched queues to be notified about
   std::set<std::string> pWatchedQueues;
@@ -1006,9 +1047,9 @@ protected:
 
   /// these settings indicate if saturated FS should try to be avoided
   /// this might lead to unoptimal access/placement location-wise
-  bool pSkipSaturatedPlct,pSkipSaturatedAccess,
-  pSkipSaturatedDrnAccess,pSkipSaturatedBlcAccess,
-  pSkipSaturatedDrnPlct,pSkipSaturatedBlcPlct;
+  bool pSkipSaturatedPlct, pSkipSaturatedAccess,
+       pSkipSaturatedDrnAccess, pSkipSaturatedBlcAccess,
+       pSkipSaturatedDrnPlct, pSkipSaturatedBlcPlct;
   /// these setting indicates if sthe proxy should be selected closest to the fs or closest to the client
   bool pProxyCloseToFs;
 
@@ -1039,7 +1080,8 @@ protected:
 
   /// the following settings control the Disabled branches in the trees
   // group -> (optype -> geotag)
-  std::map<std::string, std::map<std::string,std::set<std::string> > > pDisabledBranches;
+  std::map<std::string, std::map<std::string, std::set<std::string> > >
+  pDisabledBranches;
   //! [Configuration]
 
   //--------------------------------------------------------------------------------------------------------
@@ -1052,9 +1094,9 @@ protected:
   // => fs scheduling groups management / operations
   //    they are used to schedule fs accesses
   //
-  std::map<const FsGroup*,SchedTME*> pGroup2SchedTME;
-  std::map<FileSystem::fsid_t,SchedTME*> pFs2SchedTME;
-  std::map<FileSystem::fsid_t,FileSystem*> pFsId2FsPtr;
+  std::map<const FsGroup*, SchedTME*> pGroup2SchedTME;
+  std::map<FileSystem::fsid_t, SchedTME*> pFs2SchedTME;
+  std::map<FileSystem::fsid_t, FileSystem*> pFsId2FsPtr;
   /// protects all the above maps
   eos::common::RWMutex pTreeMapMutex;
 
@@ -1062,34 +1104,46 @@ protected:
   //    they are used to schedule data proxy to translate dedicated proxygroup to xrootd to serve the client (if any defined)
   //    they are also used to manage the entry points to the instance (if any defined)
   //
-  std::map<std::string ,DataProxyTME*>  pPxyGrp2DpTME;           // one proxygroup => one TreeMapEntry
-  std::map<std::string ,std::set<DataProxyTME*>> pPxyHost2DpTMEs; // one proxyhost  => several proxygroups
-  std::map<std::string,SchedTreeBase::tFastTreeIdx> pPxyQueue2PxyId;
+  std::map<std::string , DataProxyTME*>
+  pPxyGrp2DpTME;          // one proxygroup => one TreeMapEntry
+  std::map<std::string , std::set<DataProxyTME*>>
+      pPxyHost2DpTMEs; // one proxyhost  => several proxygroups
+  std::map<std::string, SchedTreeBase::tFastTreeIdx> pPxyQueue2PxyId;
   std::set<SchedTreeBase::tFastTreeIdx> pPxyId2Recycle;
   /// protects all the above maps
   eos::common::RWMutex pPxyTreeMapMutex;
 
   //
-  struct AccessStruct
-  {
-    SlowTree *accessST;
-    std::map<std::string,std::string> accessGeotagMap;
-    FastGatewayAccessTree *accessFT;
-    SchedTreeBase::FastTreeInfo *accessFTI;
-    Host2TreeIdxMap *accessHost2Idx;
-    GeoTag2NodeIdxMap *accessTag2Idx;
+  struct AccessStruct {
+    SlowTree* accessST;
+    std::map<std::string, std::string> accessGeotagMap;
+    FastGatewayAccessTree* accessFT;
+    SchedTreeBase::FastTreeInfo* accessFTI;
+    Host2TreeIdxMap* accessHost2Idx;
+    GeoTag2NodeIdxMap* accessTag2Idx;
     /// protects all the above maps
     eos::common::RWMutex accessMutex;
     bool inuse;
     std::string configkey;
 
-    AccessStruct(const std::string& cfgkey) {inuse=false; configkey=cfgkey;}
-    std::string getMappingStr() const;
-    bool setMapping (const std::string& geotag, const std::string &geotaglist, bool updateFastStruct=true, bool setconfig=true);
-    bool setMapping (const std::string& mapping, bool setconfig=false);
-    bool clearMapping (const std::string& geotag="", bool updateFastStruct=true, bool setconfig=true);
-    bool showMapping (XrdOucString *output);
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    AccessStruct(const std::string& cfgkey):
+      accessST(0), accessFT(0), accessFTI(0), accessHost2Idx(0), accessTag2Idx(0),
+      inuse(false), configkey(cfgkey) {}
 
+    std::string getMappingStr() const;
+
+    bool setMapping(const std::string& geotag, const std::string& geotaglist,
+                    bool updateFastStruct = true, bool setconfig = true);
+
+    bool setMapping(const std::string& mapping, bool setconfig = false);
+
+    bool clearMapping(const std::string& geotag = "", bool updateFastStruct = true,
+                      bool setconfig = true);
+
+    bool showMapping(XrdOucString* output);
   };
   /// => access geotag mappings management / operations
   ///    they are used to check if going through a firewall entrypoint is required
@@ -1111,8 +1165,7 @@ protected:
   //
   const size_t pCircSize;
   size_t pFrameCount;
-  struct PenaltySubSys
-  {
+  struct PenaltySubSys {
     std::vector<tPenaltiesVec> pCircFrCnt2FsPenalties;
     std::vector<tPenaltiesMap> pCircFrCnt2HostPenalties;
     /// self estimated penalties
@@ -1121,35 +1174,38 @@ protected:
     /// Atomic penalties to be applied to the scheduled FSs
     /// those are in the state section because they can be self estimated
     /// the following vectors map an netzorkSpeedClass to a penalty
-    std::vector<float> pPlctDlScorePenaltyF,pPlctUlScorePenaltyF;
-    std::vector<float> pAccessDlScorePenaltyF,pAccessUlScorePenaltyF;
+    std::vector<float> pPlctDlScorePenaltyF, pPlctUlScorePenaltyF;
+    std::vector<float> pAccessDlScorePenaltyF, pAccessUlScorePenaltyF;
     std::vector<float> pProxyScorePenaltyF;
     // casted version to avoid conversion on every plct / access operation
-    std::vector<char> pPlctDlScorePenalty,pPlctUlScorePenalty;
-    std::vector<char> pAccessDlScorePenalty,pAccessUlScorePenalty;
+    std::vector<char> pPlctDlScorePenalty, pPlctUlScorePenalty;
+    std::vector<char> pAccessDlScorePenalty, pAccessUlScorePenalty;
     std::vector<char> pProxyScorePenalty;
     // Constructor
-    PenaltySubSys(const size_t &circSize) :
+    PenaltySubSys(const size_t& circSize) :
       pCircFrCnt2FsPenalties(circSize),
       pCircFrCnt2HostPenalties(circSize),
-        pMaxNetSpeedClass(0),
-        pPlctDlScorePenaltyF(8,10),pPlctUlScorePenaltyF(8,10),     // 8 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
-        pAccessDlScorePenaltyF(8,10),pAccessUlScorePenaltyF(8,10),pProxyScorePenaltyF(8,10) ,
-        pPlctDlScorePenalty(8,10),pPlctUlScorePenalty(8,10),     // 8 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
-        pAccessDlScorePenalty(8,10),pAccessUlScorePenalty(8,10),pProxyScorePenalty(8,10) {};
+      pMaxNetSpeedClass(0),
+      pPlctDlScorePenaltyF(8, 10), pPlctUlScorePenaltyF(8,
+          10),  // 8 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
+      pAccessDlScorePenaltyF(8, 10), pAccessUlScorePenaltyF(8, 10),
+      pProxyScorePenaltyF(8, 10) ,
+      pPlctDlScorePenalty(8, 10), pPlctUlScorePenalty(8,
+          10),  // 8 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
+      pAccessDlScorePenalty(8, 10), pAccessUlScorePenalty(8, 10),
+      pProxyScorePenalty(8, 10) {};
   };
   PenaltySubSys pPenaltySched;
   //
   // => latency estimation
   //
-  struct LatencySubSys
-  {
-    tLatencyStats pGlobalLatencyStats,globalAgeStats;
+  struct LatencySubSys {
+    tLatencyStats pGlobalLatencyStats, globalAgeStats;
     std::vector<tLatencyStats> pFsId2LatencyStats;
-    std::map<std::string,tLatencyStats> pHost2LatencyStats;
+    std::map<std::string, tLatencyStats> pHost2LatencyStats;
     std::vector<size_t> pCircFrCnt2Timestamp;
     // Constructor
-    LatencySubSys(const size_t &circSize) :
+    LatencySubSys(const size_t& circSize) :
       pCircFrCnt2Timestamp(circSize) {}
   };
   LatencySubSys pLatencySched;
@@ -1159,10 +1215,12 @@ protected:
   /// thread ID of the dumper thread
   pthread_t pUpdaterTid;
   /// maps a notification subject to changes that happened in the current time frame
-  static std::map<std::string,int> gNotificationsBufferFs;    /**< Shared object change notification for filesystems */
-  static std::map<std::string,int> gNotificationsBufferProxy; /**< Shared object change notification for proxy nodes */
-  static const unsigned char sntFilesystem,sntGateway,sntDataproxy;
-  static std::map<std::string,unsigned char> gQueue2NotifType;
+  static std::map<std::string, int>
+  gNotificationsBufferFs;   /**< Shared object change notification for filesystems */
+  static std::map<std::string, int>
+  gNotificationsBufferProxy; /**< Shared object change notification for proxy nodes */
+  static const unsigned char sntFilesystem, sntGateway, sntDataproxy;
+  static std::map<std::string, unsigned char> gQueue2NotifType;
   /// deletions to be carried out ASAP
   /// they are delayed so that any function that is using the treemapentry can safely finish
   std::list<SchedTME*> pPendingDeletionsFs;
@@ -1180,7 +1238,7 @@ protected:
 
   /// Trees update management
   void listenFsChange();
-  static void* startFsChangeListener( void *pp);
+  static void* startFsChangeListener(void* pp);
 
 
   /// Clean
@@ -1189,21 +1247,29 @@ protected:
     int count = 0;
     auto lastEntry = pPendingDeletionsFs.begin();
     bool eraseLastEntry = false;
-    for(auto it=pPendingDeletionsFs.begin(); it!=pPendingDeletionsFs.end(); it++)
-    {
-      if(eraseLastEntry) pPendingDeletionsFs.erase(lastEntry);
-      eraseLastEntry = false;
-      if(!(*it)->fastStructLockWaitersCount)
-      {
-	delete (*it);
-	eraseLastEntry = true;
-	count++;
+
+    for (auto it = pPendingDeletionsFs.begin(); it != pPendingDeletionsFs.end();
+         it++) {
+      if (eraseLastEntry) {
+        pPendingDeletionsFs.erase(lastEntry);
       }
+
+      eraseLastEntry = false;
+
+      if (!(*it)->fastStructLockWaitersCount) {
+        delete(*it);
+        eraseLastEntry = true;
+        count++;
+      }
+
       lastEntry = it;
     }
-    if(eraseLastEntry) pPendingDeletionsFs.erase(lastEntry);
 
-    eos_debug("%d pending deletions executed for filesystems",count);
+    if (eraseLastEntry) {
+      pPendingDeletionsFs.erase(lastEntry);
+    }
+
+    eos_debug("%d pending deletions executed for filesystems", count);
   }
 
   void checkPendingDeletionsDp()
@@ -1211,77 +1277,103 @@ protected:
     int count = 0;
     auto lastEntry = pPendingDeletionsDp.begin();
     bool eraseLastEntry = false;
-    for(auto it=pPendingDeletionsDp.begin(); it!=pPendingDeletionsDp.end(); it++)
-    {
-      if(eraseLastEntry) pPendingDeletionsDp.erase(lastEntry);
+
+    for (auto it = pPendingDeletionsDp.begin(); it != pPendingDeletionsDp.end();
+         it++) {
+      if (eraseLastEntry) {
+        pPendingDeletionsDp.erase(lastEntry);
+      }
+
       eraseLastEntry = false;
-      if(!(*it)->fastStructLockWaitersCount)
-      {
-        delete (*it);
+
+      if (!(*it)->fastStructLockWaitersCount) {
+        delete(*it);
         eraseLastEntry = true;
         count++;
       }
+
       lastEntry = it;
     }
-    if(eraseLastEntry) pPendingDeletionsDp.erase(lastEntry);
 
-    eos_debug("%d pending deletions executed for dataproxys",count);
+    if (eraseLastEntry) {
+      pPendingDeletionsDp.erase(lastEntry);
+    }
+
+    eos_debug("%d pending deletions executed for dataproxys", count);
   }
 
   /// thread-local buffer management
-  static void tlFree( void *arg);
-  static char* tlAlloc( size_t size);
+  static void tlFree(void* arg);
+  static char* tlAlloc(size_t size);
 
-  inline void applyDlScorePenalty(SchedTME *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
+  inline void applyDlScorePenalty(SchedTME* entry,
+                                  const SchedTreeBase::tFastTreeIdx& idx, const char& penalty,
+                                  bool background = false)
   {
-    FastStructSched *ft = background?entry->backgroundFastStruct:entry->foregroundFastStruct;
-    ft->applyDlScorePenalty(idx,penalty,background);
+    FastStructSched* ft = background ? entry->backgroundFastStruct :
+                          entry->foregroundFastStruct;
+    ft->applyDlScorePenalty(idx, penalty, background);
   }
 
-  inline void applyDlScorePenalty(ProxyTMEBase *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
+  inline void applyDlScorePenalty(ProxyTMEBase* entry,
+                                  const SchedTreeBase::tFastTreeIdx& idx, const char& penalty,
+                                  bool background = false)
   {
-    FastStructProxy *ft = background?entry->backgroundFastStruct:entry->foregroundFastStruct;
-    ft->applyDlScorePenalty(idx,penalty,background);
+    FastStructProxy* ft = background ? entry->backgroundFastStruct :
+                          entry->foregroundFastStruct;
+    ft->applyDlScorePenalty(idx, penalty, background);
   }
 
-  inline void applyUlScorePenalty(SchedTME *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
+  inline void applyUlScorePenalty(SchedTME* entry,
+                                  const SchedTreeBase::tFastTreeIdx& idx, const char& penalty,
+                                  bool background = false)
   {
-    FastStructSched *ft = background?entry->backgroundFastStruct:entry->foregroundFastStruct;
-    ft->applyUlScorePenalty(idx,penalty,background);
+    FastStructSched* ft = background ? entry->backgroundFastStruct :
+                          entry->foregroundFastStruct;
+    ft->applyUlScorePenalty(idx, penalty, background);
   }
 
-  inline void applyUlScorePenalty(ProxyTMEBase *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
+  inline void applyUlScorePenalty(ProxyTMEBase* entry,
+                                  const SchedTreeBase::tFastTreeIdx& idx, const char& penalty,
+                                  bool background = false)
   {
-    FastStructProxy *ft = background?entry->backgroundFastStruct:entry->foregroundFastStruct;
-    ft->applyUlScorePenalty(idx,penalty,background);
+    FastStructProxy* ft = background ? entry->backgroundFastStruct :
+                          entry->foregroundFastStruct;
+    ft->applyUlScorePenalty(idx, penalty, background);
   }
 
-  inline void recallScorePenalty(SchedTME *entry, const SchedTreeBase::tFastTreeIdx &idx)
+  inline void recallScorePenalty(SchedTME* entry,
+                                 const SchedTreeBase::tFastTreeIdx& idx)
   {
     auto fsid = (*entry->backgroundFastStruct->treeInfo)[idx].fsId;
-    tLatencyStats &lstat = pLatencySched.pFsId2LatencyStats[fsid];
+    tLatencyStats& lstat = pLatencySched.pFsId2LatencyStats[fsid];
     //auto mydata = entry->backgroundFastStruct->placementTree->pNodes[idx].fsData;
     int count = 0;
-    for( size_t circIdx = pFrameCount%pCircSize;
-        (lstat.lastupdate!=0) && (pLatencySched.pCircFrCnt2Timestamp[circIdx] > lstat.lastupdate - pPublishToPenaltyDelayMs);
-        circIdx=((pCircSize+circIdx-1)%pCircSize) )
-    {
-      if(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.dlScore>0)
-      applyDlScorePenalty(entry,idx,
-                          pPenaltySched.pCircFrCnt2FsPenalties[circIdx][fsid].dlScorePenalty,
-                          true
-                          );
-      if(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.ulScore>0)
-      applyUlScorePenalty(entry,idx,
-                          pPenaltySched.pCircFrCnt2FsPenalties[circIdx][fsid].ulScorePenalty,
-                          true
-                          );
-      if(++count == (int)pCircSize)
-      {
-        eos_warning("Last fs update for fs %d is older than older penalty : it could happen as a transition but should not happen permanently.",(int)fsid);
+
+    for (size_t circIdx = pFrameCount % pCircSize;
+         (lstat.lastupdate != 0) &&
+         (pLatencySched.pCircFrCnt2Timestamp[circIdx] > lstat.lastupdate -
+          pPublishToPenaltyDelayMs);
+         circIdx = ((pCircSize + circIdx - 1) % pCircSize)) {
+      if (entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.dlScore > 0)
+        applyDlScorePenalty(entry, idx,
+                            pPenaltySched.pCircFrCnt2FsPenalties[circIdx][fsid].dlScorePenalty,
+                            true
+                           );
+
+      if (entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.ulScore > 0)
+        applyUlScorePenalty(entry, idx,
+                            pPenaltySched.pCircFrCnt2FsPenalties[circIdx][fsid].ulScorePenalty,
+                            true
+                           );
+
+      if (++count == (int)pCircSize) {
+        eos_warning("Last fs update for fs %d is older than older penalty : it could happen as a transition but should not happen permanently.",
+                    (int)fsid);
         break;
       }
     }
+
 //    if(mydata.dlScore!=entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.dlScore || mydata.ulScore!=entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.ulScore)
 //    {
 //      eos_static_info("score before recalling penalties dl=%d  ul=%d",
@@ -1294,355 +1386,401 @@ protected:
 //    }
   }
 
-  inline void recallScorePenalty(ProxyTMEBase *entry, const SchedTreeBase::tFastTreeIdx &idx)
+  inline void recallScorePenalty(ProxyTMEBase* entry,
+                                 const SchedTreeBase::tFastTreeIdx& idx)
   {
     auto host = (*entry->backgroundFastStruct->treeInfo)[idx].host;
-    tLatencyStats &lstat = pLatencySched.pHost2LatencyStats[host];
+    tLatencyStats& lstat = pLatencySched.pHost2LatencyStats[host];
     int count = 0;
-    for( size_t circIdx = pFrameCount%pCircSize;
-        (lstat.lastupdate!=0) && (pLatencySched.pCircFrCnt2Timestamp[circIdx] > lstat.lastupdate - pPublishToPenaltyDelayMs);
-        circIdx=((pCircSize+circIdx-1)%pCircSize) )
-    {
-      if(entry->foregroundFastStruct->proxyAccessTree->pNodes[idx].fsData.dlScore>0)
-      applyDlScorePenalty(entry,idx,
-                          pPenaltySched.pCircFrCnt2HostPenalties[circIdx][host].dlScorePenalty,
-                          true
-                          );
-      if(entry->foregroundFastStruct->proxyAccessTree->pNodes[idx].fsData.ulScore>0)
-      applyUlScorePenalty(entry,idx,
-                          pPenaltySched.pCircFrCnt2HostPenalties[circIdx][host].ulScorePenalty,
-                          true
-                          );
-      if(++count == (int)pCircSize)
-      {
-        eos_warning("Last host update for host %s is older than older penalty : it could happen as a transition but should not happen permanently.",host.c_str());
+
+    for (size_t circIdx = pFrameCount % pCircSize;
+         (lstat.lastupdate != 0) &&
+         (pLatencySched.pCircFrCnt2Timestamp[circIdx] > lstat.lastupdate -
+          pPublishToPenaltyDelayMs);
+         circIdx = ((pCircSize + circIdx - 1) % pCircSize)) {
+      if (entry->foregroundFastStruct->proxyAccessTree->pNodes[idx].fsData.dlScore >
+          0)
+        applyDlScorePenalty(entry, idx,
+                            pPenaltySched.pCircFrCnt2HostPenalties[circIdx][host].dlScorePenalty,
+                            true
+                           );
+
+      if (entry->foregroundFastStruct->proxyAccessTree->pNodes[idx].fsData.ulScore >
+          0)
+        applyUlScorePenalty(entry, idx,
+                            pPenaltySched.pCircFrCnt2HostPenalties[circIdx][host].ulScorePenalty,
+                            true
+                           );
+
+      if (++count == (int)pCircSize) {
+        eos_warning("Last host update for host %s is older than older penalty : it could happen as a transition but should not happen permanently.",
+                    host.c_str());
         break;
       }
     }
   }
 
-  template<class T> bool placeNewReplicas(SchedTME* entry, const size_t &nNewReplicas,
+  template<class T> bool placeNewReplicas(SchedTME* entry,
+                                          const size_t& nNewReplicas,
 
-      std::vector<SchedTreeBase::tFastTreeIdx> *newReplicas,
-      T *placementTree,
-      std::vector<SchedTreeBase::tFastTreeIdx> *existingReplicas=NULL,
-      unsigned long long bookingSize=0,
-      const SchedTreeBase::tFastTreeIdx &startFromNode=0,
-      const size_t &nFinalCollocatedReplicas=0,
-      std::vector<SchedTreeBase::tFastTreeIdx> *excludedNodes=NULL,
-      std::vector<SchedTreeBase::tFastTreeIdx> *forceNodes=NULL,
-      bool skipSaturated=false)
+                                          std::vector<SchedTreeBase::tFastTreeIdx>* newReplicas,
+                                          T* placementTree,
+                                          std::vector<SchedTreeBase::tFastTreeIdx>* existingReplicas = NULL,
+                                          unsigned long long bookingSize = 0,
+                                          const SchedTreeBase::tFastTreeIdx& startFromNode = 0,
+                                          const size_t& nFinalCollocatedReplicas = 0,
+                                          std::vector<SchedTreeBase::tFastTreeIdx>* excludedNodes = NULL,
+                                          std::vector<SchedTreeBase::tFastTreeIdx>* forceNodes = NULL,
+                                          bool skipSaturated = false)
   {
     // a read lock is supposed to be acquired on the fast structures
-
     bool updateNeeded = false;
 
-    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
-    {
+    if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
       stringstream ss;
       ss << (*placementTree);
-      eos_debug("fast tree used to copy from is: \n %s",ss.str().c_str());
+      eos_debug("fast tree used to copy from is: \n %s", ss.str().c_str());
     }
 
     // make a working copy of the required fast tree
     // allocate the buffer only once for the lifetime of the thread
-    if(!tlGeoBuffer) tlGeoBuffer = tlAlloc(gGeoBufferSize);
+    if (!tlGeoBuffer) {
+      tlGeoBuffer = tlAlloc(gGeoBufferSize);
+    }
 
-    if(placementTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
-    {
+    if (placementTree->copyToBuffer((char*)tlGeoBuffer, gGeoBufferSize)) {
       eos_crit("could not make a working copy of the fast tree");
       return false;
     }
-    T *tree = (T*)tlGeoBuffer;
 
-    if(forceNodes)
-    {
+    T* tree = (T*)tlGeoBuffer;
+
+    if (forceNodes) {
       ///// =====  NOT IMPLEMENTED
       assert(false);
+
       // make all the nodes
-      for(SchedTreeBase::tFastTreeIdx k=0; k<tree->getMaxNodeCount(); k++)
-      tree->pNodes[k].fsData.mStatus &= ~SchedTreeBase::Available;
+      for (SchedTreeBase::tFastTreeIdx k = 0; k < tree->getMaxNodeCount(); k++) {
+        tree->pNodes[k].fsData.mStatus &= ~SchedTreeBase::Available;
+      }
     }
 
     // place the existing replicas
     size_t nAdjustCollocatedReplicas = nFinalCollocatedReplicas;
-    if(existingReplicas)
-    {
+
+    if (existingReplicas) {
       size_t ncomp = (*tree->pTreeInfo)[startFromNode].fullGeotag.find("::");
-      if(ncomp == std::string::npos) ncomp = (*tree->pTreeInfo)[startFromNode].fullGeotag.size();
-      for(auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it)
-      {
-	tree->pNodes[*it].fileData.freeSlotsCount = 0;
-	tree->pNodes[*it].fileData.takenSlotsCount = 1;
-	// check if this replica is to be considered as a collocated one
-	if(startFromNode)
-	{ // we have an accesser geotag
-	  if((*tree->pTreeInfo)[startFromNode].fullGeotag.compare(0,ncomp,(*tree->pTreeInfo)[*it].fullGeotag)==0
-	      && ((*tree->pTreeInfo)[*it].fullGeotag.size()==ncomp || (*tree->pTreeInfo)[*it].fullGeotag[ncomp]==':') )
-	  {
-	    // this existing replica is under the same first level of the tree
-	    // we consider it as a collocated replica
-	    if(nAdjustCollocatedReplicas) nAdjustCollocatedReplicas--;
-	  }
-	}
+
+      if (ncomp == std::string::npos) {
+        ncomp = (*tree->pTreeInfo)[startFromNode].fullGeotag.size();
       }
-      if(nAdjustCollocatedReplicas>nNewReplicas) nAdjustCollocatedReplicas = nNewReplicas;
+
+      for (auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it) {
+        tree->pNodes[*it].fileData.freeSlotsCount = 0;
+        tree->pNodes[*it].fileData.takenSlotsCount = 1;
+
+        // check if this replica is to be considered as a collocated one
+        if (startFromNode) {
+          // we have an accesser geotag
+          if ((*tree->pTreeInfo)[startFromNode].fullGeotag.compare(0, ncomp,
+              (*tree->pTreeInfo)[*it].fullGeotag) == 0
+              && ((*tree->pTreeInfo)[*it].fullGeotag.size() == ncomp ||
+                  (*tree->pTreeInfo)[*it].fullGeotag[ncomp] == ':')) {
+            // this existing replica is under the same first level of the tree
+            // we consider it as a collocated replica
+            if (nAdjustCollocatedReplicas) {
+              nAdjustCollocatedReplicas--;
+            }
+          }
+        }
+      }
+
+      if (nAdjustCollocatedReplicas > nNewReplicas) {
+        nAdjustCollocatedReplicas = nNewReplicas;
+      }
+
       // if(!startFromNode), the value of nCollocatedReplicas does not make any difference and furthermore, it should be zero
 
       // update the tree
       // (could be made faster for a small number of existing replicas by using update branches)
-      if(!existingReplicas->empty())
-      updateNeeded = true;
+      if (!existingReplicas->empty()) {
+        updateNeeded = true;
+      }
     }
 
-    if(excludedNodes)
-    {
+    if (excludedNodes) {
       // mark the excluded branches as unavailable and sort the branches (no deep, or we would lose the unavailable marks)
-      for(auto it = excludedNodes->begin(); it != excludedNodes->end(); ++it)
-      {
-	tree->pNodes[*it].fsData.mStatus = tree->pNodes[*it].fsData.mStatus & ~SchedTreeBase::Available;
+      for (auto it = excludedNodes->begin(); it != excludedNodes->end(); ++it) {
+        tree->pNodes[*it].fsData.mStatus = tree->pNodes[*it].fsData.mStatus &
+                                           ~SchedTreeBase::Available;
       }
-      if(!excludedNodes->empty())
-      updateNeeded = true;
+
+      if (!excludedNodes->empty()) {
+        updateNeeded = true;
+      }
     }
 
-    if(bookingSize)
-    {
-      for(auto it = tree->pFs2Idx->begin(); it != tree->pFs2Idx->end(); it++ )
-      {
-	// we prebook the space on all the possible nodes before the selection
-	// reminder : this is just a working copy of the tree and will affect only the current placement
-	const SchedTreeBase::tFastTreeIdx &idx = (*it).second;
-	float &freeSpace = tree->pNodes[idx].fsData.totalSpace;
-	if(freeSpace>bookingSize)// if there is enough space , prebook it
-	freeSpace -= bookingSize;
-	else// if there is not enough space, make the node unavailable
-	tree->pNodes[idx].fsData.mStatus = tree->pNodes[idx].fsData.mStatus & ~SchedTreeBase::Available;
+    if (bookingSize) {
+      for (auto it = tree->pFs2Idx->begin(); it != tree->pFs2Idx->end(); it++) {
+        // we prebook the space on all the possible nodes before the selection
+        // reminder : this is just a working copy of the tree and will affect only the current placement
+        const SchedTreeBase::tFastTreeIdx& idx = (*it).second;
+        float& freeSpace = tree->pNodes[idx].fsData.totalSpace;
+
+        if (freeSpace > bookingSize) { // if there is enough space , prebook it
+          freeSpace -= bookingSize;
+        } else { // if there is not enough space, make the node unavailable
+          tree->pNodes[idx].fsData.mStatus = tree->pNodes[idx].fsData.mStatus &
+                                             ~SchedTreeBase::Available;
+        }
       }
+
       updateNeeded = true;
     }
 
     // do the placement
-    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
-    {
+    if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
       stringstream ss;
       ss << (*tree);
-      eos_debug("fast tree used for placement is: \n %s",ss.str().c_str());
+      eos_debug("fast tree used for placement is: \n %s", ss.str().c_str());
     }
 
-    if(updateNeeded)
-    {
+    if (updateNeeded) {
       tree->updateTree();
     }
 
-    for(size_t k = 0; k < nNewReplicas; k++)
-    {
+    for (size_t k = 0; k < nNewReplicas; k++) {
       SchedTreeBase::tFastTreeIdx idx;
-      SchedTreeBase::tFastTreeIdx startidx = (k<nNewReplicas-nAdjustCollocatedReplicas)?0:startFromNode;
-      if(!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, skipSaturated))
-      {
-	if(skipSaturated) eos_debug("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
-	if( (!skipSaturated) || !tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, false) )
-	{
-	  eos_debug("could not find a new slot for a replica in the fast tree");
-	  stringstream ss;
-	  ss << (*tree);
-	  eos_debug("iteration number %lu fast tree used for placement is: \n %s",k,ss.str().c_str());
-	  return false;
-	}
+      SchedTreeBase::tFastTreeIdx startidx = (k < nNewReplicas -
+                                              nAdjustCollocatedReplicas) ? 0 : startFromNode;
+
+      if (!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true,
+                              skipSaturated)) {
+        if (skipSaturated) {
+          eos_debug("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
+        }
+
+        if ((!skipSaturated) ||
+            !tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true,
+                                false)) {
+          eos_debug("could not find a new slot for a replica in the fast tree");
+          stringstream ss;
+          ss << (*tree);
+          eos_debug("iteration number %lu fast tree used for placement is: \n %s", k,
+                    ss.str().c_str());
+          return false;
+        }
       }
+
       newReplicas->push_back(idx);
     }
 
     return true;
   }
 
-  template<class T> unsigned char accessReplicas(SchedTME* entry, const size_t &nNewReplicas,
-      std::vector<SchedTreeBase::tFastTreeIdx> *accessedReplicas,
+  template<class T> unsigned char accessReplicas(SchedTME* entry,
+      const size_t& nNewReplicas,
+      std::vector<SchedTreeBase::tFastTreeIdx>* accessedReplicas,
       SchedTreeBase::tFastTreeIdx accesserNode,
-      std::vector<SchedTreeBase::tFastTreeIdx> *existingReplicas,
-      T *accessTree,
-      std::vector<SchedTreeBase::tFastTreeIdx> *excludedNodes=NULL,
-      std::vector<SchedTreeBase::tFastTreeIdx> *forceNodes=NULL,
-      bool skipSaturated=false)
+      std::vector<SchedTreeBase::tFastTreeIdx>* existingReplicas,
+      T* accessTree,
+      std::vector<SchedTreeBase::tFastTreeIdx>* excludedNodes = NULL,
+      std::vector<SchedTreeBase::tFastTreeIdx>* forceNodes = NULL,
+      bool skipSaturated = false)
   {
-
-    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
-    {
+    if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
       stringstream ss;
       ss << (*accessTree);
-      eos_debug("fast tree used to copy from is: \n %s",ss.str().c_str());
+      eos_debug("fast tree used to copy from is: \n %s", ss.str().c_str());
     }
 
     // make a working copy of the required fast tree
     // allocate the buffer only once for the lifetime of the thread
-    if(!tlGeoBuffer) tlGeoBuffer = tlAlloc(gGeoBufferSize);
+    if (!tlGeoBuffer) {
+      tlGeoBuffer = tlAlloc(gGeoBufferSize);
+    }
 
-    if(accessTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
-    {
+    if (accessTree->copyToBuffer((char*)tlGeoBuffer, gGeoBufferSize)) {
       eos_crit("could not make a working copy of the fast tree");
       return 0;
     }
-    T *tree = (T*)tlGeoBuffer;
-    eos_static_debug("saturationTresh original=%d / copy=%d",(int)accessTree->pBranchComp.saturationThresh,(int)tree->pBranchComp.saturationThresh);
 
-    if(forceNodes)
-    {
+    T* tree = (T*)tlGeoBuffer;
+    eos_static_debug("saturationTresh original=%d / copy=%d",
+                     (int)accessTree->pBranchComp.saturationThresh,
+                     (int)tree->pBranchComp.saturationThresh);
+
+    if (forceNodes) {
       ///// =====  NOT IMPLEMENTED
       assert(false);
+
       // make all the nodes
-      for(SchedTreeBase::tFastTreeIdx k=0; k<tree->getMaxNodeCount(); k++)
-      tree->pNodes[k].fsData.mStatus &= ~SchedTreeBase::Available;
+      for (SchedTreeBase::tFastTreeIdx k = 0; k < tree->getMaxNodeCount(); k++) {
+        tree->pNodes[k].fsData.mStatus &= ~SchedTreeBase::Available;
+      }
     }
 
     // place the existing replicas
-    if(existingReplicas)
-    {
-      for(auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it)
-      {
-	tree->pNodes[*it].fileData.freeSlotsCount = 1;
-	tree->pNodes[*it].fileData.takenSlotsCount = 0;
+    if (existingReplicas) {
+      for (auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it) {
+        tree->pNodes[*it].fileData.freeSlotsCount = 1;
+        tree->pNodes[*it].fileData.takenSlotsCount = 0;
       }
+
       // update the tree
       // (could be made faster for a small number of existing replicas by using update branches)
       tree->updateTree();
     }
 
-    if(excludedNodes)
-    {
+    if (excludedNodes) {
       // mark the excluded branches as unavailable and sort the branches (no deep, or we would lose the unavailable marks)
-      for(auto it = excludedNodes->begin(); it != excludedNodes->end(); ++it)
-      {
-	tree->pNodes[*it].fsData.mStatus = tree->pNodes[*it].fsData.mStatus & ~SchedTreeBase::Available;
-	tree->updateBranch(*it);
+      for (auto it = excludedNodes->begin(); it != excludedNodes->end(); ++it) {
+        tree->pNodes[*it].fsData.mStatus = tree->pNodes[*it].fsData.mStatus &
+                                           ~SchedTreeBase::Available;
+        tree->updateBranch(*it);
       }
     }
 
     // do the access
-    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
-    {
+    if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
       stringstream ss;
       ss << (*tree);
-      eos_debug("fast tree used for access is: \n %s",ss.str().c_str());
+      eos_debug("fast tree used for access is: \n %s", ss.str().c_str());
     }
 
     // do the access
     unsigned char retCode = 0;
-    for(size_t k = 0; k < nNewReplicas; k++)
-    {
+
+    for (size_t k = 0; k < nNewReplicas; k++) {
       SchedTreeBase::tFastTreeIdx idx;
-      if(!tree->findFreeSlot(idx,accesserNode,true,true,skipSaturated))
-      {
-	if(skipSaturated) eos_debug("Could not find any replica to access while skipping saturated fs. Trying with saturated nodes included");
-	if( (!skipSaturated) || !tree->findFreeSlot(idx, 0, false, true, false) )
-	{
-	  eos_debug("could not find a new slot for a replica in the fast tree");
-	  return 0;
-	}
-	else retCode = 1;
+
+      if (!tree->findFreeSlot(idx, accesserNode, true, true, skipSaturated)) {
+        if (skipSaturated) {
+          eos_debug("Could not find any replica to access while skipping saturated fs. Trying with saturated nodes included");
+        }
+
+        if ((!skipSaturated) || !tree->findFreeSlot(idx, 0, false, true, false)) {
+          eos_debug("could not find a new slot for a replica in the fast tree");
+          return 0;
+        } else {
+          retCode = 1;
+        }
+      } else {
+        retCode = 2;
       }
-      else
-      retCode = 2;
+
       accessedReplicas->push_back(idx);
     }
 
     return retCode;
   }
 
-  bool updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
-  bool updateTreeInfo(ProxyTMEBase* entry, eos::common::FileSystem::host_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
-  bool updateTreeInfo(const map<string,int> &updatesFs, const map<string,int> &updatesDp);
+  bool updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_snapshot_t* fs,
+                      int keys, SchedTreeBase::tFastTreeIdx ftidx = 0 , SlowTreeNode* stn = NULL);
+  bool updateTreeInfo(ProxyTMEBase* entry,
+                      eos::common::FileSystem::host_snapshot_t* fs, int keys,
+                      SchedTreeBase::tFastTreeIdx ftidx = 0 , SlowTreeNode* stn = NULL);
+  bool updateTreeInfo(const map<string, int>& updatesFs,
+                      const map<string, int>& updatesDp);
   //bool updateTreeInfoFs(const map<string,int> &updatesFs);
 
-  template<typename T> bool _setInternalParam(T& param, const T& value, bool updateStructs)
-    {
-      eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
-      eos::common::RWMutexWriteLock lock2(pTreeMapMutex);
-      eos::common::RWMutexWriteLock lock3(configMutex);
+  template<typename T> bool _setInternalParam(T& param, const T& value,
+      bool updateStructs)
+  {
+    eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+    eos::common::RWMutexWriteLock lock2(pTreeMapMutex);
+    eos::common::RWMutexWriteLock lock3(configMutex);
+    bool result = true;
+    param = value;
 
-      bool result = true;
+    for (auto it = pFs2SchedTME.begin(); it != pFs2SchedTME.end(); it++) {
+      if (updateStructs) {
+        it->second->fastStructModified = true;
+        it->second->slowTreeModified = true;
+        result = result && updateFastStructures(it->second);
+      }
+    }
 
-      param = value;
+    return result;
+  }
 
-      for(auto it = pFs2SchedTME.begin(); it != pFs2SchedTME.end(); it++)
-      {
-        if(updateStructs)
-        {
-          it->second->fastStructModified = true;
-          it->second->slowTreeModified = true;
-          result = result && updateFastStructures(it->second);
-        }
+  static void setConfigValue(const char* prefix,
+                             const char* key,
+                             const char* val,
+                             bool tochangelog = true);
+
+  template<typename T> bool setInternalParam(T& param, const int& value,
+      bool updateStructs, const std::string& configentry)
+  {
+    bool ret = _setInternalParam(param, static_cast<T>(value), updateStructs);
+
+    if (ret && configentry.length()) {
+      XrdOucString s;
+      s.append((int)value);
+      setConfigValue("geosched", configentry.c_str() , s.c_str());
+    }
+
+    return ret;
+  }
+
+  template<typename T> bool setInternalParam(T& param, const float& value,
+      bool updateStructs, const std::string& configentry)
+  {
+    bool ret = _setInternalParam(param, static_cast<T>(value), updateStructs);
+
+    if (ret && configentry.length()) {
+      XrdOucString s;
+      char buf[32];
+      sprintf(buf, "%f", value);
+      s += buf;
+      setConfigValue("geosched", configentry.c_str() , s.c_str());
+    }
+
+    return ret;
+  }
+
+  bool setInternalParam(std::vector<char>& param, const std::vector<char >& value,
+                        bool updateStructs, const std::string& configentry)
+  {
+    bool ret = _setInternalParam(param, value, updateStructs);
+
+    if (ret && configentry.length()) {
+      XrdOucString s;
+      s += "[";
+
+      for (size_t i = 0; i < param.size(); i++) {
+        s += (int)value[i];
+        s += ",";
       }
 
-      return result;
+      s[s.length() - 1] = ']';
+      setConfigValue("geosched", configentry.c_str() , s.c_str());
     }
 
-  static void setConfigValue (const char* prefix,
-                                            const char* key,
-                                            const char* val,
-                                            bool tochangelog=true);
-
-  template<typename T> bool setInternalParam(T& param, const int& value, bool updateStructs, const std::string &configentry)
-  {
-    bool ret = _setInternalParam(param,static_cast<T>(value),updateStructs);
-    if(ret && configentry.length())
-    {
-    XrdOucString s;
-    s.append((int)value);
-    setConfigValue("geosched",configentry.c_str() , s.c_str());
-    }
     return ret;
   }
 
-  template<typename T> bool setInternalParam(T& param, const float& value, bool updateStructs, const std::string &configentry)
+  bool setInternalParam(std::vector<float>& param,
+                        const std::vector<float>& value, bool updateStructs,
+                        const std::string& configentry)
   {
-    bool ret = _setInternalParam(param,static_cast<T>(value),updateStructs);
-    if(ret && configentry.length())
-    {
-    XrdOucString s;
-    char buf[32];
-    sprintf(buf,"%f",value);
-    s+=buf;
-    setConfigValue("geosched",configentry.c_str() , s.c_str());
-    }
-    return ret;
-  }
+    bool ret = _setInternalParam(param, value, updateStructs);
 
-  bool setInternalParam(std::vector<char>& param, const std::vector<char >& value, bool updateStructs, const std::string &configentry)
-  {
-    bool ret = _setInternalParam(param,value,updateStructs);
-    if(ret && configentry.length())
-    {
+    if (ret && configentry.length()) {
       XrdOucString s;
-      s+="[";
-      for(size_t i=0;i<param.size();i++)
-      {
-        s+=(int)value[i];
-        s+=",";
-      }
-      s[s.length()-1]=']';
-      setConfigValue("geosched",configentry.c_str() , s.c_str());
-    }
-    return ret;
-  }
+      s += "[";
 
-  bool setInternalParam(std::vector<float>& param, const std::vector<float>& value, bool updateStructs, const std::string &configentry)
-  {
-    bool ret = _setInternalParam(param,value,updateStructs);
-    if(ret && configentry.length())
-    {
-      XrdOucString s;
-      s+="[";
-      for(size_t i=0;i<param.size();i++)
-      {
+      for (size_t i = 0; i < param.size(); i++) {
         char buf[32];
-        sprintf(buf,"%f",value[i]);
-        s+=buf;
-        s+=",";
+        sprintf(buf, "%f", value[i]);
+        s += buf;
+        s += ",";
       }
-      s[s.length()-1]=']';
-      setConfigValue("geosched",configentry.c_str() , s.c_str());
+
+      s[s.length() - 1] = ']';
+      setConfigValue("geosched", configentry.c_str() , s.c_str());
     }
+
     return ret;
   }
 
@@ -1652,87 +1790,108 @@ protected:
     regular,    // give priority to the closer and more idle proxy in a proxygroup
     any         // do the regular scheduling for all the filesystems
   } tProxySchedType;
-  bool findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fsidxs,
-                 std::vector<SchedTME *> entries,
+  bool findProxy(const std::vector<SchedTreeBase::tFastTreeIdx>& fsidxs,
+                 std::vector<SchedTME*> entries,
                  ino64_t inode,
-                 std::vector<std::string> *proxies,
-                 std::vector<std::string> *proxyGroups=NULL,
-                 const std::string &clientgeotag="",
-                 tProxySchedType proxyschedtype=regular);
-  bool markPendingBranchDisablings(const std::string &group, const std::string&optype, const std::string&geotag);
+                 std::vector<std::string>* proxies,
+                 std::vector<std::string>* proxyGroups = NULL,
+                 const std::string& clientgeotag = "",
+                 tProxySchedType proxyschedtype = regular);
+  bool markPendingBranchDisablings(const std::string& group,
+                                   const std::string& optype, const std::string& geotag);
   bool applyBranchDisablings(const SchedTME& entry);
   bool applyBranchDisablings(const ProxyTMEBase& entry);
-  bool setSkipSaturatedPlct(bool value, bool setconfig=false);
-  bool setSkipSaturatedAccess(bool value, bool setconfig=false);
-  bool setSkipSaturatedDrnAccess(bool value, bool setconfig=false);
-  bool setSkipSaturatedBlcAccess(bool value, bool setconfig=false);
-  bool setSkipSaturatedDrnPlct(bool value, bool setconfig=false);
-  bool setSkipSaturatedBlcPlct(bool value, bool setconfig=false);
-  bool setProxyCloseToFs(bool value, bool setconfig=false);
-  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const std::vector<char> &value, const std::string &configentry);
-  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const char* vvalue, const std::string &configentry);
-  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, char value, int netSpeedClass, const std::string &configentry);
-  bool setPlctDlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
-  bool setPlctUlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
-  bool setAccessDlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
-  bool setAccessUlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
-  bool setProxyScorePenalty(char value, int netSpeedClass, bool setconfig=false);
-  bool setPlctDlScorePenalty(const char *value, bool setconfig=false);
-  bool setPlctUlScorePenalty(const char *value, bool setconfig=false);
-  bool setAccessDlScorePenalty(const char *value, bool setconfig=false);
-  bool setAccessUlScorePenalty(const char *value, bool setconfig=false);
-  bool setProxyScorePenalty(const char *value, bool setconfig=false);
-  bool setFillRatioLimit(char value, bool setconfig=false);
-  bool setFillRatioCompTol(char value, bool setconfig=false);
-  bool setSaturationThres(char value, bool setconfig=false);
-  bool setTimeFrameDurationMs(int value, bool setconfig=false);
-  bool setPenaltyUpdateRate(float value, bool setconfig=false);
-  bool accessReqFwEP(const std::string &targetGeotag, const std::string &accesserGeotag) const ;
-  std::string accessGetProxygroup(const std::string &geotag) const ;
+  bool setSkipSaturatedPlct(bool value, bool setconfig = false);
+  bool setSkipSaturatedAccess(bool value, bool setconfig = false);
+  bool setSkipSaturatedDrnAccess(bool value, bool setconfig = false);
+  bool setSkipSaturatedBlcAccess(bool value, bool setconfig = false);
+  bool setSkipSaturatedDrnPlct(bool value, bool setconfig = false);
+  bool setSkipSaturatedBlcPlct(bool value, bool setconfig = false);
+  bool setProxyCloseToFs(bool value, bool setconfig = false);
+  bool setScorePenalty(std::vector<float>& fvector, std::vector<char>& cvector,
+                       const std::vector<char>& value, const std::string& configentry);
+  bool setScorePenalty(std::vector<float>& fvector, std::vector<char>& cvector,
+                       const char* vvalue, const std::string& configentry);
+  bool setScorePenalty(std::vector<float>& fvector, std::vector<char>& cvector,
+                       char value, int netSpeedClass, const std::string& configentry);
+  bool setPlctDlScorePenalty(char value, int netSpeedClass,
+                             bool setconfig = false);
+  bool setPlctUlScorePenalty(char value, int netSpeedClass,
+                             bool setconfig = false);
+  bool setAccessDlScorePenalty(char value, int netSpeedClass,
+                               bool setconfig = false);
+  bool setAccessUlScorePenalty(char value, int netSpeedClass,
+                               bool setconfig = false);
+  bool setProxyScorePenalty(char value, int netSpeedClass,
+                            bool setconfig = false);
+  bool setPlctDlScorePenalty(const char* value, bool setconfig = false);
+  bool setPlctUlScorePenalty(const char* value, bool setconfig = false);
+  bool setAccessDlScorePenalty(const char* value, bool setconfig = false);
+  bool setAccessUlScorePenalty(const char* value, bool setconfig = false);
+  bool setProxyScorePenalty(const char* value, bool setconfig = false);
+  bool setFillRatioLimit(char value, bool setconfig = false);
+  bool setFillRatioCompTol(char value, bool setconfig = false);
+  bool setSaturationThres(char value, bool setconfig = false);
+  bool setTimeFrameDurationMs(int value, bool setconfig = false);
+  bool setPenaltyUpdateRate(float value, bool setconfig = false);
+  bool accessReqFwEP(const std::string& targetGeotag,
+                     const std::string& accesserGeotag) const ;
+  std::string accessGetProxygroup(const std::string& geotag) const ;
 public:
   //! [public member functions]
-  GeoTreeEngine () :
-  pSkipSaturatedPlct(false),pSkipSaturatedAccess(true),
-  pSkipSaturatedDrnAccess(true),pSkipSaturatedBlcAccess(true),
-  pSkipSaturatedDrnPlct(false),pSkipSaturatedBlcPlct(false),pProxyCloseToFs(true),
-  pPenaltyUpdateRate(1),
-  pFillRatioLimit(80),pFillRatioCompTol(100),pSaturationThres(10),
-  pTimeFrameDurationMs(1000),pPublishToPenaltyDelayMs(1000),
-  pAccessGeotagMapping("accessgeotagmapping"),
-  pAccessProxygroup("accessproxygroup"),
-  pCircSize(30),pFrameCount(0),
-  pPenaltySched(pCircSize),
-  pLatencySched(pCircSize),
-  pUpdaterTid(0)
+  GeoTreeEngine() :
+    pSkipSaturatedPlct(false), pSkipSaturatedAccess(true),
+    pSkipSaturatedDrnAccess(true), pSkipSaturatedBlcAccess(true),
+    pSkipSaturatedDrnPlct(false), pSkipSaturatedBlcPlct(false),
+    pProxyCloseToFs(true),
+    pPenaltyUpdateRate(1),
+    pFillRatioLimit(80), pFillRatioCompTol(100), pSaturationThres(10),
+    pTimeFrameDurationMs(1000), pPublishToPenaltyDelayMs(1000),
+    pAccessGeotagMapping("accessgeotagmapping"),
+    pAccessProxygroup("accessproxygroup"),
+    pCircSize(30), pFrameCount(0),
+    pPenaltySched(pCircSize),
+    pLatencySched(pCircSize),
+    pUpdaterTid(0)
   {
     // by default, disable all the placement operations for non geotagged fs
-    addDisabledBranch("*","plct","nogeotag",NULL,false);
-    addDisabledBranch("*","accsblc","nogeotag",NULL,false);
-    addDisabledBranch("*","accsdrain","nogeotag",NULL,false);
+    addDisabledBranch("*", "plct", "nogeotag", NULL, false);
+    addDisabledBranch("*", "accsblc", "nogeotag", NULL, false);
+    addDisabledBranch("*", "accsdrain", "nogeotag", NULL, false);
     // set blocking mutexes for lower latencies
     pAddRmFsMutex.SetBlocking(true);
     configMutex.SetBlocking(true);
     pTreeMapMutex.SetBlocking(true);
-    for(auto it=pPenaltySched.pCircFrCnt2FsPenalties.begin(); it!=pPenaltySched.pCircFrCnt2FsPenalties.end(); it++)
+
+    for (auto it = pPenaltySched.pCircFrCnt2FsPenalties.begin();
+         it != pPenaltySched.pCircFrCnt2FsPenalties.end(); it++) {
       it->reserve(100);
+    }
+
     // create the thread local key to handle allocation/destruction of thread local geobuffers
     pthread_key_create(&gPthreadKey, GeoTreeEngine::tlFree);
+
     // initialize pauser semaphore
-    if(sem_init(&gUpdaterPauseSem, 0, 1)) { throw "sem_init() failed";}
+    if (sem_init(&gUpdaterPauseSem, 0, 1)) {
+      throw "sem_init() failed";
+    }
+
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 #ifdef EOS_INSTRUMENTED_RWMUTEX
     eos::common::RWMutex::SetOrderCheckingGlobal(true);
     pAddRmFsMutex.SetDebugName("pAddRmFsMutex");
     pTreeMapMutex.SetDebugName("pTreeMapMutex");
-    eos::common::RWMutex::AddOrderRule("GTE base rule",std::vector<eos::common::RWMutex*>(
-	    { &pAddRmFsMutex,&pTreeMapMutex}));
+    eos::common::RWMutex::AddOrderRule("GTE base rule",
+                                       std::vector<eos::common::RWMutex*>(
+    { &pAddRmFsMutex, &pTreeMapMutex}));
 #endif
 #endif
   }
   // ---------------------------------------------------------------------------
   //! constants to describe the fs type, including in client access capability
   // ---------------------------------------------------------------------------
-  static const unsigned char fsTypeEosReplica, fsTypeEosPIO, fsTypeKinetic, fstTypeAll;
+  static const unsigned char fsTypeEosReplica, fsTypeEosPIO, fsTypeKinetic,
+         fstTypeAll;
   // ---------------------------------------------------------------------------
   //! Force a refresh of the information in the scheduling trees
   // @return
@@ -1758,7 +1917,8 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool insertFsIntoGroup(FileSystem *fs , FsGroup *group, bool updateFastStructures = false);
+  bool insertFsIntoGroup(FileSystem* fs , FsGroup* group,
+                         bool updateFastStructures = false);
 
   // ---------------------------------------------------------------------------
   //! Remove a file system into the GeoTreeEngine
@@ -1771,7 +1931,8 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool removeFsFromGroup(FileSystem *fs , FsGroup *group, bool updateFastStructures = true);
+  bool removeFsFromGroup(FileSystem* fs , FsGroup* group,
+                         bool updateFastStructures = true);
 
   // ---------------------------------------------------------------------------
   //! Remove a file system into the GeoTreeEngine
@@ -1780,7 +1941,7 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool removeGroup(FsGroup *group);
+  bool removeGroup(FsGroup* group);
 
   // ---------------------------------------------------------------------------
   //! Print formated information about the GeoTreeEngine
@@ -1797,9 +1958,10 @@ public:
   // @param schedgroup
   //   narrow down information to this type of operation
   // ---------------------------------------------------------------------------
-  void printInfo(std::string &info,
-      bool dispTree, bool dispSnaps, bool dispParam, bool dispState,
-      const std::string &schedgroup, const std::string &optype, bool useColors=false);
+  void printInfo(std::string& info,
+                 bool dispTree, bool dispSnaps, bool dispParam, bool dispState,
+                 const std::string& schedgroup, const std::string& optype,
+                 bool useColors = false);
 
   // ---------------------------------------------------------------------------
   //! Place several replicas in one scheduling group.
@@ -1848,21 +2010,21 @@ public:
   // @return
   //   true if the success false else
   // ---------------------------------------------------------------------------
-  bool placeNewReplicasOneGroup( FsGroup* group, const size_t &nNewReplicas,
-      std::vector<eos::common::FileSystem::fsid_t> *newReplicas,
-      ino64_t inode,
-      std::vector<std::string> *dataProxys,
-      std::vector<std::string> *firewallEntryPoints,
-      SchedType type,
-      std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
-      std::vector<std::string>*fsidsgeotags=0,
-      unsigned long long bookingSize=0,
-      const std::string &startFromGeoTag="",
-      const std::string &clientGeoTag="",
-      const size_t &nCollocatedReplicas=0,
-      std::vector<eos::common::FileSystem::fsid_t> *excludeFs=NULL,
-      std::vector<std::string> *excludeGeoTags=NULL,
-      std::vector<std::string> *forceGeoTags=NULL);
+  bool placeNewReplicasOneGroup(FsGroup* group, const size_t& nNewReplicas,
+                                std::vector<eos::common::FileSystem::fsid_t>* newReplicas,
+                                ino64_t inode,
+                                std::vector<std::string>* dataProxys,
+                                std::vector<std::string>* firewallEntryPoints,
+                                SchedType type,
+                                std::vector<eos::common::FileSystem::fsid_t>* existingReplicas,
+                                std::vector<std::string>* fsidsgeotags = 0,
+                                unsigned long long bookingSize = 0,
+                                const std::string& startFromGeoTag = "",
+                                const std::string& clientGeoTag = "",
+                                const size_t& nCollocatedReplicas = 0,
+                                std::vector<eos::common::FileSystem::fsid_t>* excludeFs = NULL,
+                                std::vector<std::string>* excludeGeoTags = NULL,
+                                std::vector<std::string>* forceGeoTags = NULL);
 
   // ---------------------------------------------------------------------------
   //! Access several replicas in one scheduling group.
@@ -1891,25 +2053,25 @@ public:
   // @return
   //   true if the success false else
   // ---------------------------------------------------------------------------
-  bool accessReplicasOneGroup(FsGroup* group, const size_t &nReplicas,
-      std::vector<eos::common::FileSystem::fsid_t> *accessedReplicas,
-      std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
-      SchedType type=regularRO,
-      const std::string &accesserGeotag="",
-      std::vector<eos::common::FileSystem::fsid_t> *excludeFs=NULL,
-      std::vector<std::string> *excludeGeoTags=NULL,
-      std::vector<std::string> *forceGeoTags=NULL);
+  bool accessReplicasOneGroup(FsGroup* group, const size_t& nReplicas,
+                              std::vector<eos::common::FileSystem::fsid_t>* accessedReplicas,
+                              std::vector<eos::common::FileSystem::fsid_t>* existingReplicas,
+                              SchedType type = regularRO,
+                              const std::string& accesserGeotag = "",
+                              std::vector<eos::common::FileSystem::fsid_t>* excludeFs = NULL,
+                              std::vector<std::string>* excludeGeoTags = NULL,
+                              std::vector<std::string>* forceGeoTags = NULL);
 
   // this function to access replica spread across multiple scheduling group is a BACKCOMPATIBILITY artifact
   // the new scheduler doesn't try to place files across multiple scheduling groups.
-  //	bool accessReplicasMultipleGroup(const size_t &nAccessReplicas,
-  //			std::vector<eos::common::FileSystem::fsid_t> *accessedReplicas,
-  //			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
-  //			SchedType type=regularRO,
-  //			const std::string &accesserGeotag="",
-  //			std::vector<eos::common::FileSystem::fsid_t> *excludeFs=NULL,
-  //			std::vector<std::string> *excludeGeoTags=NULL,
-  //			std::vector<std::string> *forceGeoTags=NULL);
+  //  bool accessReplicasMultipleGroup(const size_t &nAccessReplicas,
+  //      std::vector<eos::common::FileSystem::fsid_t> *accessedReplicas,
+  //      std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
+  //      SchedType type=regularRO,
+  //      const std::string &accesserGeotag="",
+  //      std::vector<eos::common::FileSystem::fsid_t> *excludeFs=NULL,
+  //      std::vector<std::string> *excludeGeoTags=NULL,
+  //      std::vector<std::string> *forceGeoTags=NULL);
 
   // ---------------------------------------------------------------------------
   //! Access replicas across one or several scheduling group.
@@ -1948,18 +2110,18 @@ public:
   //           for this access operation
   //   0       if success
   // ---------------------------------------------------------------------------
-  int accessHeadReplicaMultipleGroup(const size_t &nReplicas,
-      unsigned long &fsIndex,
-      std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
-      ino64_t inode,
-      std::vector<std::string> *dataProxys,
-      std::vector<std::string> *firewallEntryPoints,
-      SchedType type=regularRO,
-      const std::string &accesserGeotag="",
-      const eos::common::FileSystem::fsid_t &forcedFsId=0,
-      std::vector<eos::common::FileSystem::fsid_t> *unavailableFs=NULL,
-      bool noIO=false
-  );
+  int accessHeadReplicaMultipleGroup(const size_t& nReplicas,
+                                     unsigned long& fsIndex,
+                                     std::vector<eos::common::FileSystem::fsid_t>* existingReplicas,
+                                     ino64_t inode,
+                                     std::vector<std::string>* dataProxys,
+                                     std::vector<std::string>* firewallEntryPoints,
+                                     SchedType type = regularRO,
+                                     const std::string& accesserGeotag = "",
+                                     const eos::common::FileSystem::fsid_t& forcedFsId = 0,
+                                     std::vector<eos::common::FileSystem::fsid_t>* unavailableFs = NULL,
+                                     bool noIO = false
+                                    );
 
   // ---------------------------------------------------------------------------
   //! Start the background updater thread
@@ -1974,19 +2136,29 @@ public:
   // ---------------------------------------------------------------------------
   inline static bool PauseUpdater()
   {
-    if(gUpdaterStarted && !gUpdaterPaused)
-    {
+    if (gUpdaterStarted && !gUpdaterPaused) {
       timespec ts;
-      eos::common::Timing::GetTimeSpec(ts,false);
-      ts.tv_sec += 2; // we wait for two seconds and then we fail. It avoids deadlocking when no update is received (No FST)
+      eos::common::Timing::GetTimeSpec(ts, false);
+      ts.tv_sec +=
+        2; // we wait for two seconds and then we fail. It avoids deadlocking when no update is received (No FST)
       int rc = 0;
-      while ( (rc = sem_timedwait(&gUpdaterPauseSem,&ts)) && errno == EINTR)
+
+      while ((rc = sem_timedwait(&gUpdaterPauseSem, &ts)) && errno == EINTR) {
         continue;
-      if( rc && (errno == ETIMEDOUT) ) return false;
-      if( rc && errno ) throw "sem_timedwait() failed";
+      }
+
+      if (rc && (errno == ETIMEDOUT)) {
+        return false;
+      }
+
+      if (rc && errno) {
+        throw "sem_timedwait() failed";
+      }
+
       gUpdaterPaused = true;
       return true;
     }
+
     return true; // already paused
   }
 
@@ -1995,9 +2167,14 @@ public:
   //! Process all the notifications accumulated since it was paused
   // ---------------------------------------------------------------------------
   inline static void ResumeUpdater()
-  { if(gUpdaterStarted && gUpdaterPaused) {
-    if (sem_post(&gUpdaterPauseSem)) {throw "sem_post() failed";}
-    gUpdaterPaused = false; }
+  {
+    if (gUpdaterStarted && gUpdaterPaused) {
+      if (sem_post(&gUpdaterPauseSem)) {
+        throw "sem_post() failed";
+      }
+
+      gUpdaterPaused = false;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -2006,8 +2183,14 @@ public:
   class UpdaterPauser
   {
   public:
-    UpdaterPauser() { GeoTreeEngine::PauseUpdater(); }
-    ~UpdaterPauser() { GeoTreeEngine::ResumeUpdater(); }
+    UpdaterPauser()
+    {
+      GeoTreeEngine::PauseUpdater();
+    }
+    ~UpdaterPauser()
+    {
+      GeoTreeEngine::ResumeUpdater();
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -2031,8 +2214,9 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool getInfosFromFsIds(const std::vector<FileSystem::fsid_t> &fsids, std::vector<std::string> *fsgeotags,
-                          std::vector<std::string> *hosts, std::vector<FsGroup*> *sortedgroups);
+  bool getInfosFromFsIds(const std::vector<FileSystem::fsid_t>& fsids,
+                         std::vector<std::string>* fsgeotags,
+                         std::vector<std::string>* hosts, std::vector<FsGroup*>* sortedgroups);
 
   // ---------------------------------------------------------------------------
   //! Set an internal parameter to a value
@@ -2047,7 +2231,8 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool setParameter( std::string param, const std::string &value,int iparamidx, bool setconfig=false);
+  bool setParameter(std::string param, const std::string& value, int iparamidx,
+                    bool setconfig = false);
 
   // ---------------------------------------------------------------------------
   //! Add a branch disabling rule
@@ -2062,7 +2247,8 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool addDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output=NULL, bool toConfig=false);
+  bool addDisabledBranch(const std::string& group, const std::string& optype,
+                         const std::string& geotag, XrdOucString* output = NULL, bool toConfig = false);
 
   // ---------------------------------------------------------------------------
   //! Rm a branch disabling rule
@@ -2077,7 +2263,8 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool rmDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output=NULL, bool toConfig=false);
+  bool rmDisabledBranch(const std::string& group, const std::string& optype,
+                        const std::string& geotag, XrdOucString* output = NULL, bool toConfig = false);
 
   // ---------------------------------------------------------------------------
   //! Show branch disabling rules
@@ -2094,7 +2281,8 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool showDisabledBranches (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output, bool lock=true);
+  bool showDisabledBranches(const std::string& group, const std::string& optype,
+                            const std::string& geotag, XrdOucString* output, bool lock = true);
 
   // ---------------------------------------------------------------------------
   //! Insert a file system into the GeoTreeEngine
@@ -2107,7 +2295,8 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool insertHostIntoPxyGr(FsNode *host , const std::string &proxygroup, bool lockAddRm, bool lockFsView, bool updateFastStructures = false);
+  bool insertHostIntoPxyGr(FsNode* host , const std::string& proxygroup,
+                           bool lockAddRm, bool lockFsView, bool updateFastStructures = false);
 
   // ---------------------------------------------------------------------------
   //! Remove a file system into the GeoTreeEngine
@@ -2120,7 +2309,8 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool removeHostFromPxyGr(FsNode *host , const std::string &proxygroup, bool lockAddRm, bool lockFsView, bool updateFastStructures = true);
+  bool removeHostFromPxyGr(FsNode* host , const std::string& proxygroup,
+                           bool lockAddRm, bool lockFsView, bool updateFastStructures = true);
 
   // ---------------------------------------------------------------------------
   //! Make the GeotreeEngine trees match the proxygroups for given host
@@ -2135,7 +2325,8 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool matchHostPxyGr(FsNode *host , const std::string &status, bool lockFsView, bool updateFastStructures = true);
+  bool matchHostPxyGr(FsNode* host , const std::string& status, bool lockFsView,
+                      bool updateFastStructures = true);
 
   // ---------------------------------------------------------------------------
   //! Rebuild all the proxy trees in the GeotreeEngine
@@ -2156,15 +2347,23 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  inline bool setAccessGeotagMapping (XrdOucString *output,const std::string& geotag, const std::string &geotaglist, bool updateFastStruct=true, bool setconfig=true)
+  inline bool setAccessGeotagMapping(XrdOucString* output,
+                                     const std::string& geotag, const std::string& geotaglist,
+                                     bool updateFastStruct = true, bool setconfig = true)
   {
-    bool ret = pAccessGeotagMapping.setMapping(geotag,geotaglist,updateFastStruct,setconfig);
-    if(!ret && output) *output+="Error: failed to add direct access geotag mapping";
+    bool ret = pAccessGeotagMapping.setMapping(geotag, geotaglist, updateFastStruct,
+               setconfig);
+
+    if (!ret && output) {
+      *output += "Error: failed to add direct access geotag mapping";
+    }
+
     return ret;
   }
-  inline bool setAccessGeotagMapping (const std::string& geotag, bool setconfig=false)
+  inline bool setAccessGeotagMapping(const std::string& geotag,
+                                     bool setconfig = false)
   {
-    return pAccessGeotagMapping.setMapping(geotag,setconfig);
+    return pAccessGeotagMapping.setMapping(geotag, setconfig);
   }
 
 
@@ -2178,11 +2377,21 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  inline bool clearAccessGeotagMapping (XrdOucString *output,const std::string& geotag="", bool updateFastStruct=true, bool setconfig=true)
+  inline bool clearAccessGeotagMapping(XrdOucString* output,
+                                       const std::string& geotag = "", bool updateFastStruct = true,
+                                       bool setconfig = true)
   {
-    bool ret = pAccessGeotagMapping.clearMapping(geotag,updateFastStruct,setconfig);
-    if(!ret && output) *output+="Error: failed to clear direct access geotag mapping";
-    if(ret && geotag.empty() && output) *output+="Cleared all direct access geotag mappings";
+    bool ret = pAccessGeotagMapping.clearMapping(geotag, updateFastStruct,
+               setconfig);
+
+    if (!ret && output) {
+      *output += "Error: failed to clear direct access geotag mapping";
+    }
+
+    if (ret && geotag.empty() && output) {
+      *output += "Cleared all direct access geotag mappings";
+    }
+
     return ret;
   }
 
@@ -2193,13 +2402,14 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  inline bool showAccessGeotagMapping (XrdOucString *output)
+  inline bool showAccessGeotagMapping(XrdOucString* output)
   {
-    if(!pAccessGeotagMapping.inuse)
-    {
-      *output += "There is no direct access geotag mapping defined. All file accesses will be scheduled as direct accesses.";
+    if (!pAccessGeotagMapping.inuse) {
+      *output +=
+        "There is no direct access geotag mapping defined. All file accesses will be scheduled as direct accesses.";
       return true;
     }
+
     return pAccessGeotagMapping.showMapping(output);
   }
 
@@ -2214,15 +2424,23 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  inline bool setAccessProxygroup (XrdOucString *output,const std::string& geotag, const std::string &proxygroup, bool updateFastStruct=true, bool setconfig=true)
+  inline bool setAccessProxygroup(XrdOucString* output, const std::string& geotag,
+                                  const std::string& proxygroup, bool updateFastStruct = true,
+                                  bool setconfig = true)
   {
-    bool ret = pAccessProxygroup.setMapping(geotag,proxygroup,updateFastStruct,setconfig);
-    if(!ret && output) *output+="Error: failed to add access proxygroup mapping";
+    bool ret = pAccessProxygroup.setMapping(geotag, proxygroup, updateFastStruct,
+                                            setconfig);
+
+    if (!ret && output) {
+      *output += "Error: failed to add access proxygroup mapping";
+    }
+
     return ret;
   }
-  inline bool setAccessProxygroup (const std::string& geotag, bool setconfig=false)
+  inline bool setAccessProxygroup(const std::string& geotag,
+                                  bool setconfig = false)
   {
-    return pAccessProxygroup.setMapping(geotag,setconfig);
+    return pAccessProxygroup.setMapping(geotag, setconfig);
   }
 
 
@@ -2236,11 +2454,20 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  inline bool clearAccessProxygroup (XrdOucString *output,const std::string& geotag="", bool updateFastStruct=true, bool setconfig=true)
+  inline bool clearAccessProxygroup(XrdOucString* output,
+                                    const std::string& geotag = "", bool updateFastStruct = true,
+                                    bool setconfig = true)
   {
-    bool ret = pAccessProxygroup.clearMapping(geotag,updateFastStruct,setconfig);
-    if(!ret && output) *output+="Error: failed to clear access proxygroup mapping";
-    if(ret && geotag.empty() && output) *output+="Cleared all access proxygroup mappings";
+    bool ret = pAccessProxygroup.clearMapping(geotag, updateFastStruct, setconfig);
+
+    if (!ret && output) {
+      *output += "Error: failed to clear access proxygroup mapping";
+    }
+
+    if (ret && geotag.empty() && output) {
+      *output += "Cleared all access proxygroup mappings";
+    }
+
     return ret;
   }
 
@@ -2251,13 +2478,14 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  inline bool showAccessProxygroup (XrdOucString *output)
+  inline bool showAccessProxygroup(XrdOucString* output)
   {
-    if(!pAccessProxygroup.inuse)
-    {
-      *output += "There is no access proxygroup mapping defined. No firewall entry point access can be scheduled.";
+    if (!pAccessProxygroup.inuse) {
+      *output +=
+        "There is no access proxygroup mapping defined. No firewall entry point access can be scheduled.";
       return true;
     }
+
     return pAccessProxygroup.showMapping(output);
   }
   //! [public member functions]

@@ -95,7 +95,7 @@ com_cp_usage()
   fprintf(stdout, "\n");
   fprintf(stdout,
           "      If <src> and <dst> are using S3, we are using the same credentials on both ands and the target credentials will overwrite source credentials!\n");
-  return (0);
+  return (EINVAL);
 }
 
 /* Cp Interface */
@@ -964,7 +964,16 @@ com_cp(char* argin)
     if (((arg2.find(":/") != STR_NPOS) && (!arg2.beginswith("root:")))) {
       // if the target is any other protocol than root: we download to a temporary file
       upload_target = arg2;
-      arg2 = tmpnam(NULL);
+      char tmp_name[] = "/tmp/com_cp.XXXXXX";
+      int tmp_fd = mkstemp(tmp_name);
+
+      if (tmp_fd == -1) {
+        fprintf(stderr, "error: failed to create temporary file\n");
+        exit(-1);
+      }
+
+      (void) close(tmp_fd);
+      arg2 = tmp_name;
       targetfile = arg2;
     }
 
@@ -1195,11 +1204,10 @@ com_cp(char* argin)
           if (preserve && (source_size.size() == source_utime.size())) {
             char value[4096];
             value[0] = 0;
-            ;
             XrdOucString request;
             request = url.c_str();
 
-            if ((url.find("?") == STR_NPOS)) {
+            if ((request.find("?") == STR_NPOS)) {
               request += "?";
             } else {
               request += "&";

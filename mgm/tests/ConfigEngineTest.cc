@@ -1,5 +1,7 @@
+#ifdef HAVE_HIREDIS
 
 #include "ConfigEngineTest.hh"
+
 
 using namespace std;
 
@@ -42,3 +44,5 @@ int main(int argc, char** argv)
   runner.run();
   return 0;
 }
+
+#endif

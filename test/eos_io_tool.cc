@@ -29,8 +29,6 @@
   reading.
 */
 
-
-//------------------------------------------------------------------------------
 #include <map>
 #include <cstdlib>
 #include <cstdio>
@@ -40,7 +38,6 @@
 #include <memory>
 #include <sys/time.h>
 #include <getopt.h>
-//------------------------------------------------------------------------------
 #include "XrdCl/XrdClFile.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "fst/io/FileIoPlugin.hh"
@@ -49,7 +46,6 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
-//------------------------------------------------------------------------------
 
 //! Type of operations supported
 enum OperationType {
@@ -118,7 +114,6 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
 
   if (!extf) {
     eos_static_err("Failed to open ext file:%s in rd mode", ext_file.c_str());
-    fclose(extf);
     delete eosf;
     delete[] buffer;
     return false;
@@ -296,9 +291,8 @@ ReadPattern(XrdCl::URL& url,
   // Open file outside EOS, where the data is written
   int ext_fd = open(ext_file.c_str(), O_CREAT | O_WRONLY | O_LARGEFILE, S_IRWXU);
 
-  if (ext_fd == -1) {
+  if (ext_fd < 0) {
     eos_static_err("Failed to open ext file:%s in wr mode: ", ext_file.c_str());
-    close(ext_fd);
     delete eosf;
     delete[] buffer;
     return false;
@@ -414,9 +408,8 @@ WriteSequentially(XrdCl::URL& url,
   // Open file outside EOS, from where the data is read
   int ext_fd = open(ext_file.c_str(), O_RDONLY | O_LARGEFILE);
 
-  if (ext_fd == -1) {
+  if (ext_fd < 0) {
     eos_static_err("Failed to open ext file:%s in rd mode", ext_file.c_str());
-    close(ext_fd);
     delete eosf;
     delete[] buffer;
     return false;
@@ -540,9 +533,8 @@ WritePattern(XrdCl::URL& url,
   // Open file outside EOS, from where the data is read
   int ext_fd = open(ext_file.c_str(), O_RDONLY | O_LARGEFILE);
 
-  if (ext_fd == -1) {
+  if (ext_fd < 0) {
     eos_static_err("Failed to open ext file:%s in rd mode: ", ext_file.c_str());
-    close(ext_fd);
     delete eosf;
     delete[] buffer;
     return false;

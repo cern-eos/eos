@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: RWMutex.cc
 // Author: Andreas-Joachim Peters & Geoffrey Adde - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,70 +21,81 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/RWMutex.hh"
-#include "XrdSys/XrdSysAtomics.hh"
-/*----------------------------------------------------------------------------*/
-
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-size_t RWMutex::cumulatedwaitread_static = 0;
-size_t RWMutex::cumulatedwaitwrite_static = 0;
-size_t eos::common::RWMutex::maxwaitread_static = 0;
-size_t RWMutex::maxwaitwrite_static = 0;
-size_t RWMutex::minwaitread_static = 1e12;
-size_t RWMutex::minwaitwrite_static = 1e12;
-size_t RWMutex::readLockCounterSample_static = 0;
-size_t RWMutex::writeLockCounterSample_static = 0;
+size_t RWMutex::mRdCumulatedWait_static = 0;
+size_t RWMutex::mWrCumulatedWait_static = 0;
+size_t RWMutex::mRdMaxWait_static = 0;
+size_t RWMutex::mWrMaxWait_static = 0;
+size_t RWMutex::mRdMinWait_static = 1e12;
+size_t RWMutex::mWrMinWait_static = 1e12;
+size_t RWMutex::mRdLockCounterSample_static = 0;
+size_t RWMutex::mWrLockCounterSample_static = 0;
 size_t RWMutex::timingCompensation = 0;
 size_t RWMutex::timingLatency = 0;
 size_t RWMutex::orderCheckingLatency = 0;
 size_t RWMutex::lockUnlockDuration = 0;
-int RWMutex::samplingModulo_static = (int)(0.01 * RAND_MAX);
+int RWMutex::sSamplingModulo = (int)(0.01 * RAND_MAX);
 bool RWMutex::staticInitialized = false;
-bool RWMutex::enabletimingglobal = false;
-bool RWMutex::enableordercheckglobal = false;
-RWMutex::rules_t *RWMutex::rules_static=NULL;
-std::map<unsigned char, std::string> *RWMutex::ruleIndex2Name_static=NULL;
-std::map<std::string, unsigned char> *RWMutex::ruleName2Index_static=NULL;
+bool RWMutex::sEnableGlobalTiming = false;
+bool RWMutex::sEnableGlobalOrderCheck = false;
+RWMutex::rules_t* RWMutex::rules_static = NULL;
+std::map<unsigned char, std::string>* RWMutex::ruleIndex2Name_static = NULL;
+std::map<std::string, unsigned char>* RWMutex::ruleName2Index_static = NULL;
 __thread bool* RWMutex::orderCheckReset_staticthread = NULL;
 __thread unsigned long
 RWMutex::ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
-std::map<pthread_t, bool> *RWMutex::threadOrderCheckResetFlags_static=NULL;
+std::map<pthread_t, bool>* RWMutex::threadOrderCheckResetFlags_static = NULL;
 pthread_rwlock_t RWMutex::orderChkMgmLock;
 
-#define EOS_RWMUTEX_CHECKORDER_LOCK if(enableordercheckglobal) CheckAndLockOrder();
-#define EOS_RWMUTEX_CHECKORDER_UNLOCK if(enableordercheckglobal) CheckAndUnlockOrder();
+#define EOS_RWMUTEX_CHECKORDER_LOCK if(sEnableGlobalOrderCheck) CheckAndLockOrder();
+#define EOS_RWMUTEX_CHECKORDER_UNLOCK if(sEnableGlobalOrderCheck) CheckAndUnlockOrder();
 
-#define EOS_RWMUTEX_TIMER_START \
-  bool issampled=false; size_t tstamp=0; \
-  if( enabletiming || enabletimingglobal ) { \
-    issampled=enablesampling?(!((++counter)%samplingModulo)):true; \
-    if( issampled ) tstamp=NowInt(); \
+#define EOS_RWMUTEX_TIMER_START                                         \
+  bool issampled = false; size_t tstamp = 0;                            \
+  if(mEnableTiming || sEnableGlobalTiming) {                            \
+    issampled=mEnableSampling ? (!((++mCounter)%mSamplingModulo)) : true; \
+    if( issampled ) tstamp = Timing::GetNowInNs();                      \
   }
 
-// what = write or what = read
-#define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what) \
-  AtomicInc(what##LockCounter); \
-  if( issampled ) { \
-    tstamp=NowInt()-tstamp; \
-    if(enabletiming) { \
-      AtomicInc(what##LockCounter##Sample); \
-      AtomicAdd(cumulatedwait##what,tstamp);\
-      bool needloop=true; \
-      do {size_t mymax=AtomicGet(maxwait##what); if (tstamp > mymax) needloop=!AtomicCAS(maxwait##what, mymax, tstamp); else needloop=false; }while(needloop); \
-      do {size_t mymin=AtomicGet(minwait##what); if (tstamp < mymin) needloop=!AtomicCAS(minwait##what, mymin, tstamp); else needloop=false; }while(needloop); \
-    }\
-    if(enabletimingglobal) { \
-      AtomicInc(what##LockCounter##Sample_static); \
-      AtomicAdd(cumulatedwait##what##_static,tstamp);\
-      bool needloop=true; \
-      do {size_t mymax=AtomicGet(maxwait##what##_static); if (tstamp > mymax) needloop=!AtomicCAS(maxwait##what##_static, mymax, tstamp); else needloop=false; }while(needloop); \
-      do {size_t mymin=AtomicGet(minwait##what##_static); if (tstamp < mymin) needloop=!AtomicCAS(minwait##what##_static, mymin, tstamp); else needloop=false; }while(needloop); \
-    }\
+// what = mRd or mWr
+#define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what)                         \
+  AtomicInc(what##LockCounter);                                         \
+  if(issampled) {                                                       \
+    tstamp = Timing::GetNowInNs() - tstamp;                             \
+    if(mEnableTiming) {                                                 \
+      AtomicInc(what##LockCounterSample);                               \
+      AtomicAdd(what##CumulatedWait, tstamp);                           \
+      bool needloop=true;                                               \
+      do {size_t mymax = AtomicGet(what##MaxWait);                      \
+        if (tstamp > mymax)                                             \
+          needloop = !AtomicCAS(what##MaxWait, mymax, tstamp);          \
+        else needloop = false; }                                        \
+      while(needloop);                                                  \
+      do {size_t mymin = AtomicGet(what##MinWait);                      \
+        if (tstamp < mymin)                                             \
+          needloop = !AtomicCAS(what##MinWait, mymin, tstamp);          \
+        else needloop = false; }                                        \
+      while(needloop);                                                  \
+    }                                                                   \
+    if(sEnableGlobalTiming) {                                           \
+      AtomicInc(what##LockCounterSample_static);                        \
+      AtomicAdd(what##CumulatedWait_static,tstamp);                     \
+      bool needloop = true;                                             \
+      do {size_t mymax = AtomicGet(what##MaxWait_static);               \
+        if (tstamp > mymax)                                             \
+          needloop = !AtomicCAS(what##MaxWait_static, mymax, tstamp);   \
+        else needloop = false; }                                        \
+      while(needloop);                                                  \
+      do {size_t mymin = AtomicGet(what##MinWait_static);               \
+        if (tstamp < mymin)                                             \
+          needloop = !AtomicCAS(what##MinWait_static, mymin, tstamp);   \
+        else needloop = false; }                                        \
+      while(needloop);                                                  \
+    }                                                                   \
   }
 #else
 #define EOS_RWMUTEX_CHECKORDER_LOCK
@@ -93,42 +104,41 @@ pthread_rwlock_t RWMutex::orderChkMgmLock;
 #define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what) AtomicInc(what##LockCounter);
 #endif
 
-
-
-RWMutex::RWMutex()
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+RWMutex::RWMutex():
+  mBlocking(false), mRdLockCounter(0), mWrLockCounter(0)
 {
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-  // by default we are not a blocking write mutex
-  blocking = false;
-  // try to get write lock in 5 seconds, then release quickly and retry
+  // Try to get write lock in 5 seconds, then release quickly and retry
   wlocktime.tv_sec = 5;
   wlocktime.tv_nsec = 0;
-  // try to get read lock in 100ms, otherwise allow this thread to be canceled - used by LockReadCancel
+  // Try to get read lock in 100ms, otherwise allow this thread to be canceled
   rlocktime.tv_sec = 0;
   rlocktime.tv_nsec = 1000000;
-  readLockCounter = writeLockCounter = 0;
 #ifdef EOS_INSTRUMENTED_RWMUTEX
+  mSamplingModulo = 300;
 
   if (!staticInitialized) {
     staticInitialized = true;
     InitializeClass();
   }
 
-  counter = 0;
+  mCounter = 0;
   ResetTimingStatistics();
-  enabletiming = false;
-  enablesampling = false;
+  mEnableTiming = false;
+  mEnableSampling = false;
   nrules = 0;
 #endif
-#ifndef __APPLE__
   pthread_rwlockattr_init(&attr);
+#ifndef __APPLE__
 
-  // readers don't go ahead of writers!
+  // Readers don't go ahead of writers!
   if (pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP)) {
     throw "pthread_rwlockattr_setkind_np failed";
   }
+
+#endif
 
   if (pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED)) {
     throw "pthread_rwlockattr_setpshared failed";
@@ -138,26 +148,12 @@ RWMutex::RWMutex()
     throw "pthread_rwlock_init failed";
   }
 }
-#else
-  pthread_rwlockattr_init(&attr);
 
-  if (pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED))
-  {
-    throw "pthread_rwlockattr_setpshared failed";
-  }
-
-  if ((pthread_rwlock_init(&rwlock, &attr)))
-  {
-    throw "pthread_rwlock_init failed";
-  }
-}
-#endif
-
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 RWMutex::~RWMutex()
 {
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   pthread_rwlock_rdlock(&orderChkMgmLock);
   std::map<std::string, std::vector<RWMutex*> >* rules = NULL;
@@ -179,10 +175,10 @@ RWMutex::~RWMutex()
   pthread_rwlock_unlock(&orderChkMgmLock);
 
   if (rules != NULL) {
-    // erase the rules
+    // Erase the rules
     ResetOrderRule();
 
-    // inserts the remaining rules
+    // Inserts the remaining rules
     for (auto it = rules->begin(); it != rules->end(); it++) {
       AddOrderRule(it->first, it->second);
     }
@@ -193,865 +189,23 @@ RWMutex::~RWMutex()
 #endif
 }
 
-void
-RWMutex::SetBlocking(bool block)
-{
-  // ---------------------------------------------------------------------------
-  //! Set the write lock to blocking or not blocking
-  // ---------------------------------------------------------------------------
-  blocking = block;
-}
-
+//------------------------------------------------------------------------------
+// Set the time to wait for the acquisition of the write mutex before releasing
+// quicky and retrying.
+//------------------------------------------------------------------------------
 void
 RWMutex::SetWLockTime(const size_t& nsec)
 {
-  // ---------------------------------------------------------------------------
-  //! Set the time to wait the acquisition of the write mutex before releasing quicky and retrying
-  // ---------------------------------------------------------------------------
   wlocktime.tv_sec = nsec / 1000000;
   wlocktime.tv_nsec = nsec % 1000000;
 }
 
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-
-void
-RWMutex::ResetTimingStatistics()
-{
-  // ---------------------------------------------------------------------------
-  //! Reset statistics at the instance level
-  // ---------------------------------------------------------------------------
-  // might need a mutex or at least a flag!!!
-  cumulatedwaitread = cumulatedwaitwrite = 0;
-  maxwaitread = maxwaitwrite = std::numeric_limits<size_t>::min();
-  minwaitread = minwaitwrite = std::numeric_limits<long long>::max();
-  readLockCounterSample = writeLockCounterSample = 0;
-}
-
-void
-RWMutex::ResetTimingStatisticsGlobal()
-{
-  // ---------------------------------------------------------------------------
-  //! Reset statistics at the class level
-  // ---------------------------------------------------------------------------
-  // might need a mutex or at least a flag!!!
-  cumulatedwaitread_static = cumulatedwaitwrite_static = 0;
-  maxwaitread_static = maxwaitwrite_static = std::numeric_limits<size_t>::min();
-  minwaitread_static = minwaitwrite_static =
-                         std::numeric_limits<long long>::max();
-  readLockCounterSample_static = writeLockCounterSample_static = 0;
-}
-
-void
-RWMutex::SetTiming(bool on)
-{
-  // ---------------------------------------------------------------------------
-  //! Turn on/off timings at the instance level
-  // ---------------------------------------------------------------------------
-  enabletiming = on;
-}
-
-bool
-RWMutex::GetTiming()
-{
-  // ---------------------------------------------------------------------------
-  //! Get the timing status at the class level
-  // ---------------------------------------------------------------------------
-  return enabletiming;
-}
-
-void
-RWMutex::SetTimingGlobal(bool on)
-{
-  // ---------------------------------------------------------------------------
-  //! Turn on/off timings at the class level
-  // ---------------------------------------------------------------------------
-  enabletimingglobal = on;
-}
-
-bool
-RWMutex::GetTimingGlobal()
-{
-  // ---------------------------------------------------------------------------
-  //! Get the timing status  at the class level
-  // ---------------------------------------------------------------------------
-  return enabletimingglobal;
-}
-
-void
-RWMutex::SetOrderCheckingGlobal(bool on)
-{
-  // ---------------------------------------------------------------------------
-  //! Turn on/off order checking at the class level
-  // ---------------------------------------------------------------------------
-  enableordercheckglobal = on;
-}
-
-bool
-RWMutex::GetOrderCheckingGlobal()
-{
-  // ---------------------------------------------------------------------------
-  //! Get the order checking status at the class level
-  // ---------------------------------------------------------------------------
-  return enableordercheckglobal;
-}
-
-void
-RWMutex::SetDebugName(const std::string& name)
-{
-  // ---------------------------------------------------------------------------
-  //! Set the debug name
-  // ---------------------------------------------------------------------------
-  debugname = name;
-}
-
-#ifdef __APPLE__
-
-int
-RWMutex::round(double number)
-{
-  return number < 0.0 ? ceil(number - 0.5) : floor(number + 0.5);
-}
-#endif
-
-/* ---------------------------------------------------------------------------
-  Enable sampling of timings
-  @param $first
-   turns on or off the sampling
-  @param $second
-   sampling between 0 and 1 (if <0, use the precomputed level for the class, see GetSamplingRateFromCPUOverhead)
-   --------------------------------------------------------------------------- */
-
-void
-RWMutex::SetSampling(bool on, float rate)
-{
-  enablesampling = on;
-  ResetTimingStatistics();
-
-  if (rate < 0) {
-    samplingModulo = samplingModulo_static;
-  } else
-#ifdef __APPLE__
-    samplingModulo = std::min(RAND_MAX, std::max(0, (int) round(1.0 / rate)));
-
-#else
-    samplingModulo = std::min(RAND_MAX, std::max(0, (int) std::round(1.0 / rate)));
-#endif
-}
-
-/* ---------------------------------------------------------------------------
-   Return the timing sampling rate/status
-   @return the sample rate if the sampling is turned on, -1.0 if the sampling is off
-   --------------------------------------------------------------------------- */
-
-float
-RWMutex::GetSampling()
-{
-  if (!enablesampling) {
-    return -1.0;
-  } else {
-    return 1.0 / samplingModulo;
-  }
-}
-
-void
-RWMutex::GetTimingStatistics(RWMutexTimingStats& stats, bool compensate)
-{
-  // ---------------------------------------------------------------------------
-  //! Get the timing statistics at the instance level
-  // ---------------------------------------------------------------------------
-  size_t compensation = compensate ? timingCompensation : 0;
-  stats.readLockCounterSample = AtomicGet(readLockCounterSample);
-  stats.writeLockCounterSample = AtomicGet(writeLockCounterSample);
-  stats.averagewaitread = 0;
-
-  if (AtomicGet(readLockCounterSample) != 0) {
-    double avg = (double(AtomicGet(cumulatedwaitread)) / AtomicGet(
-                    readLockCounterSample) - compensation);
-
-    if (avg > 0) {
-      stats.averagewaitread = avg;
-    }
-  }
-
-  stats.averagewaitwrite = 0;
-
-  if (AtomicGet(writeLockCounterSample) != 0) {
-    double avg = (double(AtomicGet(cumulatedwaitwrite)) / AtomicGet(
-                    writeLockCounterSample) - compensation);
-
-    if (avg > 0) {
-      stats.averagewaitwrite = avg;
-    }
-  }
-
-  if (AtomicGet(minwaitread) != std::numeric_limits<size_t>::max()) {
-    long long compensated = AtomicGet(minwaitread) - compensation;
-
-    if (compensated > 0) {
-      stats.minwaitread = compensated;
-    } else {
-      stats.minwaitread = 0;
-    }
-  } else {
-    stats.minwaitread = std::numeric_limits<long long>::max();
-  }
-
-  if (AtomicGet(maxwaitread) != std::numeric_limits<size_t>::min()) {
-    long long compensated = AtomicGet(maxwaitread) - compensation;
-
-    if (compensated > 0) {
-      stats.maxwaitread = compensated;
-    } else {
-      stats.maxwaitread = 0;
-    }
-  } else {
-    stats.maxwaitread = std::numeric_limits<size_t>::min();
-  }
-
-  if (AtomicGet(minwaitwrite) != std::numeric_limits<size_t>::max()) {
-    long long compensated = AtomicGet(minwaitwrite) - compensation;
-
-    if (compensated > 0) {
-      stats.minwaitwrite = compensated;
-    } else {
-      stats.minwaitwrite = 0;
-    }
-  } else {
-    stats.minwaitwrite = std::numeric_limits<long long>::max();
-  }
-
-  if (AtomicGet(maxwaitwrite) != std::numeric_limits<size_t>::min()) {
-    long long compensated = AtomicGet(maxwaitwrite) - compensation;
-
-    if (compensated > 0) {
-      stats.maxwaitwrite = compensated;
-    } else {
-      stats.maxwaitwrite = 0;
-    }
-  } else {
-    stats.maxwaitwrite = std::numeric_limits<size_t>::min();
-  }
-}
-
-void
-RWMutex::OrderViolationMessage(unsigned char rule, const std::string& message)
-{
-  // ---------------------------------------------------------------------------
-  //! Check the orders defined by the rules and update
-  // ---------------------------------------------------------------------------
-  void* array[10];
-  size_t size;
-  unsigned long threadid = XrdSysThread::Num();
-  // get void*'s for all entries on the stack
-  size = backtrace(array, 10);
-  const std::string& rulename =
-    (*ruleIndex2Name_static)[ruleLocalIndexToGlobalIndex[rule]];
-  fprintf(stderr,
-          "RWMutex: Order Checking Error in thread %lu\n %s\n In rule %s :\nLocking Order should be:\n",
-          threadid,
-          message.c_str(),
-          rulename.c_str());
-  std::vector<RWMutex*> order = (*rules_static)[rulename];
-
-  for (std::vector<RWMutex*>::iterator ito = order.begin(); ito != order.end();
-       ito++) {
-    fprintf(stderr, "\t%12s (%p)", (*ito)->debugname.c_str(), (*ito));
-  }
-
-  fprintf(stderr,
-          "\nThe lock states of these mutexes are (before the violating lock/unlock) :\n");
-
-  for (unsigned char k = 0; k < order.size(); k++) {
-    unsigned long int mask = (1 << k);
-    fprintf(stderr, "\t%d", int((ordermask_staticthread[rule] & mask) != 0));
-  }
-
-  fprintf(stderr, "\n");
-  backtrace_symbols_fd(array, size, 2);
-}
-
-void
-RWMutex::CheckAndLockOrder()
-{
-  // ---------------------------------------------------------------------------
-  //! Check the orders defined by the rules and update for a lock
-  // ---------------------------------------------------------------------------
-
-  // initialize the thread local ordermask if not already done
-  if (orderCheckReset_staticthread == NULL) {
-    ResetCheckOrder();
-  }
-
-  if (*orderCheckReset_staticthread) {
-    ResetCheckOrder();
-    *orderCheckReset_staticthread = false;
-  }
-
-  for (unsigned char k = 0; k < nrules; k++) {
-    unsigned long int mask = (1 << rankinrule[k]);
-
-    // check if following mutex is already locked in the same thread
-    if (ordermask_staticthread[k] >= mask) {
-      char strmess[1024];
-      sprintf(strmess, "locking %s at address %p", debugname.c_str(), this);
-      OrderViolationMessage(k, strmess);
-    }
-
-    ordermask_staticthread[k] |= mask;
-  }
-}
-
-void
-RWMutex::CheckAndUnlockOrder()
-{
-  // ---------------------------------------------------------------------------
-  //! Get the timing statistics at the instance level for an unlock
-  // ---------------------------------------------------------------------------
-
-  // initialize the thread local ordermask if not already done
-  if (orderCheckReset_staticthread == NULL) {
-    ResetCheckOrder();
-  }
-
-  if (*orderCheckReset_staticthread) {
-    ResetCheckOrder();
-    *orderCheckReset_staticthread = false;
-  }
-
-  for (unsigned char k = 0; k < nrules; k++) {
-    unsigned long int mask = (1 << rankinrule[k]);
-
-    // check if following mutex is already locked in the same thread
-    if (ordermask_staticthread[k] >= (mask << 1)) {
-      char strmess[1024];
-      sprintf(strmess, "unlocking %s at address %p", debugname.c_str(), this);
-      OrderViolationMessage(k, strmess);
-    }
-
-    ordermask_staticthread[k] &= (~mask);
-  }
-}
-
-void
-RWMutex::GetTimingStatisticsGlobal(RWMutexTimingStats& stats, bool compensate)
-{
-  // ---------------------------------------------------------------------------
-  //! Get the timing statistics at the class level
-  // ---------------------------------------------------------------------------
-  size_t compensation = compensate ? timingCompensation : 0;
-  stats.readLockCounterSample = AtomicGet(readLockCounterSample_static);
-  stats.writeLockCounterSample = AtomicGet(writeLockCounterSample_static);
-  stats.averagewaitread = 0;
-
-  if (AtomicGet(readLockCounterSample_static) != 0) {
-    double avg = (double(AtomicGet(cumulatedwaitread_static)) / AtomicGet(
-                    readLockCounterSample_static) - compensation);
-
-    if (avg > 0) {
-      stats.averagewaitread = avg;
-    }
-  }
-
-  stats.averagewaitwrite = 0;
-
-  if (AtomicGet(writeLockCounterSample_static) != 0) {
-    double avg = (double(AtomicGet(cumulatedwaitwrite_static)) / AtomicGet(
-                    writeLockCounterSample_static) - compensation);
-
-    if (avg > 0) {
-      stats.averagewaitwrite = avg;
-    }
-  }
-
-  if (AtomicGet(minwaitread_static) != std::numeric_limits<size_t>::max()) {
-    long long compensated = AtomicGet(minwaitread_static) - compensation;
-
-    if (compensated > 0) {
-      stats.minwaitread = compensated;
-    } else {
-      stats.minwaitread = 0;
-    }
-  } else {
-    stats.minwaitread = std::numeric_limits<long long>::max();
-  }
-
-  if (AtomicGet(maxwaitread_static) != std::numeric_limits<size_t>::min()) {
-    long long compensated = AtomicGet(maxwaitread_static) - compensation;
-
-    if (compensated > 0) {
-      stats.maxwaitread = compensated;
-    } else {
-      stats.maxwaitread = 0;
-    }
-  } else {
-    stats.maxwaitread = std::numeric_limits<size_t>::min();
-  }
-
-  if (AtomicGet(minwaitwrite_static) != std::numeric_limits<size_t>::max()) {
-    long long compensated = AtomicGet(minwaitwrite_static) - compensation;
-
-    if (compensated > 0) {
-      stats.minwaitwrite = compensated;
-    } else {
-      stats.minwaitwrite = 0;
-    }
-  } else {
-    stats.minwaitwrite = std::numeric_limits<long long>::max();
-  }
-
-  if (AtomicGet(maxwaitwrite_static) != std::numeric_limits<size_t>::min()) {
-    long long compensated = AtomicGet(maxwaitwrite_static) - compensation;
-
-    if (compensated > 0) {
-      stats.maxwaitwrite = compensated;
-    } else {
-      stats.maxwaitwrite = 0;
-    }
-  } else {
-    stats.maxwaitwrite = std::numeric_limits<size_t>::min();
-  }
-}
-
-// ---------------------------------------------------------------------------
-/**
- * Compute the SamplingRate corresponding to a given CPU overhead
- *  @param $first
- *  the ratio between the timing cost and the mutexing cost
- *  @return
- *   sampling rate (the ratio of mutex to time so that the argument value is not violated)
- */
-// ---------------------------------------------------------------------------
-
-float
-RWMutex::GetSamplingRateFromCPUOverhead(const double& overhead)
-{
-  RWMutex mutex;
-  bool entimglobbak = enabletimingglobal;
-  mutex.SetTiming(true);
-  mutex.SetSampling(true, 1.0);
-  RWMutex::SetTimingGlobal(true);
-  size_t monitoredTiming = NowInt();
-
-  for (int k = 0; k < 1e6; k++) {
-    mutex.LockWrite();
-    mutex.UnLockWrite();
-  }
-
-  monitoredTiming = NowInt() - monitoredTiming;
-  mutex.SetTiming(false);
-  mutex.SetSampling(false);
-  RWMutex::SetTimingGlobal(false);
-  size_t unmonitoredTiming = NowInt();
-
-  for (int k = 0; k < 1e6; k++) {
-    mutex.LockWrite();
-    mutex.UnLockWrite();
-  }
-
-  unmonitoredTiming = NowInt() - unmonitoredTiming;
-  RWMutex::SetTimingGlobal(entimglobbak);
-  float mutexShare = unmonitoredTiming;
-  float timingShare = monitoredTiming - unmonitoredTiming;
-  float samplingRate = std::min(1.0, std::max(0.0,
-                                overhead * mutexShare / timingShare));
-  samplingModulo_static = (int)(1.0 / samplingRate);
-  return samplingRate;
-}
-
-// ---------------------------------------------------------------------------
-/**
- * @param $first
- *   the size of the loop to estimate the compensation (default 1e7)
- * @return
- *   the compensation in nanoseconds
- */
-// ---------------------------------------------------------------------------
-
-size_t
-RWMutex::EstimateTimingCompensation(size_t loopsize)
-{
-  size_t t = NowInt();
-
-  for (unsigned long k = 0; k < loopsize; k++) {
-    struct timespec ts;
-    eos::common::Timing::GetTimeSpec(ts);
-  }
-
-  t = NowInt() - t;
-  return size_t(double(t) / loopsize);
-}
-
-
-// ---------------------------------------------------------------------------
-/**
- *  Compute the speed for lock/unlock cycle
- *  @param $first
- *    the size of the loop to estimate the compensation (default 1e6)
- *  @return
- *    the duration of the cycle in nanoseconds
- */
-// ---------------------------------------------------------------------------
-
-size_t
-RWMutex::EstimateLockUnlockDuration(size_t loopsize)
-{
-  RWMutex mutex;
-  bool sav = enabletimingglobal;
-  bool sav2 = enableordercheckglobal;
-  RWMutex::SetTimingGlobal(false);
-  RWMutex::SetOrderCheckingGlobal(false);
-  mutex.SetTiming(false);
-  mutex.SetSampling(false);
-  size_t t = NowInt();
-
-  for (size_t k = 0; k < loopsize; k++) {
-    mutex.LockWrite();
-    mutex.UnLockWrite();
-  }
-
-  t = NowInt() - t;
-  enabletimingglobal = sav;
-  enableordercheckglobal = sav2;
-  return size_t(double(t) / loopsize);
-}
-
-// ---------------------------------------------------------------------------
-/**
- * Compute the latency introduced by taking timings
- * @param $first
- *   the size of the loop to estimate the compensation (default 1e6)
- * @param $second
- *   enable global timing in the estimation (default false)
- * @return
- *   the latency in nanoseconds
- */
-// ---------------------------------------------------------------------------
-
-size_t
-RWMutex::EstimateTimingAddedLatency(size_t loopsize, bool globaltiming)
-{
-  RWMutex mutex;
-  bool sav = enabletimingglobal;
-  bool sav2 = enableordercheckglobal;
-  RWMutex::SetTimingGlobal(globaltiming);
-  RWMutex::SetOrderCheckingGlobal(false);
-  mutex.SetTiming(true);
-  mutex.SetSampling(true, 1.0);
-  size_t t = NowInt();
-
-  for (size_t k = 0; k < loopsize; k++) {
-    mutex.LockWrite();
-    mutex.UnLockWrite();
-  }
-
-  size_t s = NowInt() - t;
-  RWMutex::SetTimingGlobal(false);
-  mutex.SetTiming(false);
-  mutex.SetSampling(false);
-  t = NowInt();
-
-  for (size_t k = 0; k < loopsize; k++) {
-    mutex.LockWrite();
-    mutex.UnLockWrite();
-  }
-
-  t = NowInt() - t;
-  enabletimingglobal = sav;
-  enableordercheckglobal = sav2;
-  return size_t(double(s - t) / loopsize);
-}
-
-// ---------------------------------------------------------------------------
-/**
- * Compute the latency introduced by checking the mutexes locking orders
- * @param $first
- *   the number of nested mutexes in the loop
- * @param $second
- *   the size of the loop to estimate the compensation (default 1e6)
- * @return
- *   the latency in nanoseconds
- */
-// ---------------------------------------------------------------------------
-
-size_t
-RWMutex::EstimateOrderCheckingAddedLatency(size_t nmutexes, size_t loopsize)
-{
-  std::vector<RWMutex> mutexes;
-  mutexes.resize(nmutexes);
-  std::vector<RWMutex*> order;
-  order.resize(nmutexes);
-  int count = 0;
-
-  for (std::vector<RWMutex>::iterator it = mutexes.begin(); it != mutexes.end();
-       it++) {
-    it->SetTiming(false);
-    it->SetSampling(false);
-    order[count++] = &(*it);
-  }
-
-  RWMutex::AddOrderRule("estimaterule", order);
-  bool sav = enabletimingglobal;
-  bool sav2 = enableordercheckglobal;
-  RWMutex::SetTimingGlobal(false);
-  RWMutex::SetOrderCheckingGlobal(true);
-  std::vector<RWMutex>::iterator it;
-  std::vector<RWMutex>::reverse_iterator rit;
-  size_t t = NowInt();
-
-  for (size_t k = 0; k < loopsize; k++) {
-    for (it = mutexes.begin(); it != mutexes.end(); it++) {
-      it->LockWrite();
-    }
-
-    for (rit = mutexes.rbegin(); rit != mutexes.rend(); rit++) {
-      rit->UnLockWrite();
-    }
-  }
-
-  size_t s = NowInt() - t;
-  RWMutex::SetOrderCheckingGlobal(false);
-  t = NowInt();
-
-  for (size_t k = 0; k < loopsize; k++) {
-    for (it = mutexes.begin(); it != mutexes.end(); it++) {
-      it->LockWrite();
-    }
-
-    for (rit = mutexes.rbegin(); rit != mutexes.rend(); rit++) {
-      rit->UnLockWrite();
-    }
-  }
-
-  t = NowInt() - t;
-  enabletimingglobal = sav;
-  enableordercheckglobal = sav2;
-  RemoveOrderRule("estimaterule");
-  return size_t(double(s - t) / (loopsize * nmutexes));
-}
-
-void
-RWMutex::InitializeClass()
-{
-  // ---------------------------------------------------------------------------
-  //! Performs the initialization of the class
-  // ---------------------------------------------------------------------------
-
-  if (pthread_rwlock_init(&orderChkMgmLock, NULL))
-  {
-    throw "pthread_orderChkMgmLock_init failed";
-  }
-
-  rules_static=new RWMutex::rules_t();
-  RWMutex::ruleIndex2Name_static=new std::map<unsigned char, std::string>;
-  RWMutex::ruleName2Index_static=new std::map<std::string, unsigned char>;
-  RWMutex::threadOrderCheckResetFlags_static=new std::map<pthread_t, bool>;
-}
-
-void
-RWMutex::EstimateLatenciesAndCompensation(size_t loopsize)
-{
-  timingCompensation = EstimateTimingCompensation(loopsize);
-  timingLatency = EstimateTimingAddedLatency(loopsize);
-  orderCheckingLatency = EstimateOrderCheckingAddedLatency(3, loopsize);
-  lockUnlockDuration = EstimateLockUnlockDuration(loopsize);
-  //std::cerr<< " timing compensation = "<<timingCompensation<<std::endl;
-  //std::cerr<< " timing latency = "<<timingLatency<<std::endl;
-  //std::cerr<< " order  latency = "<<orderCheckingLatency<<std::endl;
-  //std::cerr<< " lock/unlock duration = "<<lockUnlockDuration<<std::endl;
-}
-
-size_t
-RWMutex::GetTimingCompensation()
-{
-  return timingCompensation; // in nsec
-}
-
-size_t
-RWMutex::GetOrderCheckingLatency()
-{
-  return orderCheckingLatency; // in nsec
-}
-
-size_t
-RWMutex::GetTimingLatency()
-{
-  return timingLatency; // in nsec
-}
-
-size_t
-RWMutex::GetLockUnlockDuration()
-{
-  return lockUnlockDuration; // in nsec
-}
-
-
-// ---------------------------------------------------------------------------
-/**
- * Add or overwrite an order checking rule
- * @param $first
- *   name of the rule
- * @param $second
- *   a vector contaning the adress of the RWMutex instances in the locking order
- * @return
- */
-// ---------------------------------------------------------------------------
-
-int
-RWMutex::AddOrderRule(const std::string& rulename,
-                      const std::vector<RWMutex*>& order)
-{
-  bool sav = enableordercheckglobal;
-  enableordercheckglobal = false;
-  usleep(100000); // let the time to all the threads to finish their bookkeeping activity regarding order checking
-  pthread_rwlock_wrlock(&orderChkMgmLock);
-
-  // if we reached the max number of rules, ignore
-  if (rules_static->size() == EOS_RWMUTEX_ORDER_NRULES || order.size() > 63) {
-    enableordercheckglobal = sav;
-    pthread_rwlock_unlock(&orderChkMgmLock);
-    return -1;
-  }
-
-  (*rules_static)[rulename] = order;
-  int ruleIdx = rules_static->size() - 1;
-  // update the maps
-  (*ruleName2Index_static)[rulename] = ruleIdx;
-  (*ruleIndex2Name_static)[ruleIdx] = rulename;
-  // update each object
-  unsigned char count = 0;
-
-  for (std::vector<RWMutex*>::const_iterator it = order.begin();
-       it != order.end(); it++) {
-    //ruleIdx begin at 0
-    (*it)->rankinrule[(*it)->nrules] =
-      count; // each RWMutex has hits own number of rules, they are all <= EOS_RWMUTEX_ORDER_NRULES
-    (*it)->ruleLocalIndexToGlobalIndex[(*it)->nrules++] = ruleIdx;
-    count++;
-  }
-
-  pthread_rwlock_unlock(&orderChkMgmLock);
-  enableordercheckglobal = sav;
-  return 0;
-}
-
-void
-RWMutex::ResetOrderRule()
-{
-  // ---------------------------------------------------------------------------
-  //! Reset order checking rules
-  // ---------------------------------------------------------------------------
-  bool sav = enableordercheckglobal;
-  enableordercheckglobal = false;
-  usleep(100000); // let some time to all the threads to finish their book keeping activity regarding order checking
-  pthread_rwlock_wrlock(&orderChkMgmLock);
-  // remove all the dead threads from the map
-  // #### !!!!!!! THIS DOESN'T WORK SO DEAD THREADS ARE NOT REMOVED FROM THE MAP ##### //
-  // #### !!!!!!! THIS IS BECAUSE THERE IS NO RELIABLE WAY TO CHECK IF A THREAD IS STILL RUNNING ##### //
-  // #### !!!!!!! THIS IS NOT A PROBLEM FOR EOS BECAUSE XROOTD REUSES ITS THREADS ##### //
-  // #### !!!!!!! SO THE MAP DOESN'T GO INTO AN INFINITE GROWTH ####################### //
-#if 0
-
-  for (auto it = threadOrderCheckResetFlags_static.begin();
-       it != threadOrderCheckResetFlags_static.end(); it++) {
-    if (XrdSysThread::Signal(it->first, 0)) {
-      // this line crashes when the threads is no more valid.
-      threadOrderCheckResetFlags_static.erase(it);
-      it = threadOrderCheckResetFlags_static.begin();
-    }
-  }
-
-#endif
-
-  // tell the threads to reset the states of the order mask (because it's thread-local)
-  for (auto it = threadOrderCheckResetFlags_static->begin();
-       it != threadOrderCheckResetFlags_static->end(); it++) {
-    it->second = true;
-  }
-
-  // tell all the RWMutex that they are not involved in any order checking anymore
-  for (auto rit = rules_static->begin(); rit != rules_static->end(); rit++) {
-    // for each rule
-    for (auto it = rit->second.begin(); it != rit->second.end(); it++) {
-      // for each RWMutex involved in that rule
-      (*it)->nrules = 0; // no rule involved
-    }
-  }
-
-  // clean the manager side.
-  ruleName2Index_static->clear();
-  ruleIndex2Name_static->clear();
-  rules_static->clear();
-  pthread_rwlock_unlock(&orderChkMgmLock);
-  enableordercheckglobal = sav;
-}
-
-// ---------------------------------------------------------------------------
-/**
- * Remove an order checking rule
- * @param $first
- *  name of the rule
- * @return
- *  the number of rules removed (0 or 1)
- */
-// ---------------------------------------------------------------------------
-
-int
-RWMutex::RemoveOrderRule(const std::string& rulename)
-{
-  // make a local copy of the rules and remove the rule to remove
-  std::map<std::string, std::vector<RWMutex*> > rules = (*rules_static);
-
-  if (!rules.erase(rulename)) {
-    return 0;
-  }
-
-  // reset the rules
-  ResetOrderRule();
-
-  // add all the rules but the removed one
-  for (auto it = rules.begin(); it != rules.end(); it++) {
-    AddOrderRule(it->first, it->second);
-  }
-
-  // one rule was removed
-  return 1;
-}
-
-void
-RWMutex::ResetCheckOrder()
-{
-  // ---------------------------------------------------------------------------
-  //! Reset the order checking mechanism for the current thread
-  // ---------------------------------------------------------------------------
-
-  // reset the order mask
-  for (int k = 0; k < EOS_RWMUTEX_ORDER_NRULES; k++) {
-    ordermask_staticthread[k] = 0;
-  }
-
-  // update orderCheckReset_staticthread, this memory should be specific to this thread
-  pthread_t tid = XrdSysThread::ID();
-  pthread_rwlock_rdlock(&orderChkMgmLock);
-
-  if (threadOrderCheckResetFlags_static->find(tid) ==
-      threadOrderCheckResetFlags_static->end()) {
-    pthread_rwlock_unlock(&orderChkMgmLock);
-    pthread_rwlock_wrlock(&orderChkMgmLock);
-    (*threadOrderCheckResetFlags_static)[tid] = false;
-  }
-
-  orderCheckReset_staticthread = &(*threadOrderCheckResetFlags_static)[tid];
-  pthread_rwlock_unlock(&orderChkMgmLock);
-}
-
-#endif
-
+//------------------------------------------------------------------------------
+// Lock for read
+//------------------------------------------------------------------------------
 void
 RWMutex::LockRead()
 {
-  // ---------------------------------------------------------------------------
-  //! Lock for read
-  // ---------------------------------------------------------------------------
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
 
@@ -1059,15 +213,15 @@ RWMutex::LockRead()
     throw "pthread_rwlock_rdlock failed";
   }
 
-  EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(read);
+  EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
 }
 
+//------------------------------------------------------------------------------
+// Lock for read allowing to be canceled waiting for a lock
+//------------------------------------------------------------------------------
 void
 RWMutex::LockReadCancel()
 {
-  // ---------------------------------------------------------------------------
-  //! Lock for read allowing to be canceled waiting for a lock
-  // ---------------------------------------------------------------------------
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
 #ifndef __APPLE__
@@ -1102,15 +256,16 @@ RWMutex::LockReadCancel()
 #else
   LockRead();
 #endif
-  EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(read);
+  EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
 }
 
+
+//------------------------------------------------------------------------------
+// Unlock a read lock
+//------------------------------------------------------------------------------
 void
 RWMutex::UnLockRead()
 {
-  // ---------------------------------------------------------------------------
-  //! Unlock a read lock
-  // ---------------------------------------------------------------------------
   EOS_RWMUTEX_CHECKORDER_UNLOCK;
 
   if (pthread_rwlock_unlock(&rwlock)) {
@@ -1118,35 +273,35 @@ RWMutex::UnLockRead()
   }
 }
 
+//------------------------------------------------------------------------------
+// Lock for write
+//------------------------------------------------------------------------------
 void
 RWMutex::LockWrite()
 {
-  // ---------------------------------------------------------------------------
-  //! Lock for write
-  // ---------------------------------------------------------------------------
-  //AtomicInc(writeLockCounter);  // not needed anymore because of the macro EOS_RWMUTEX_TIMER_STOP_AND_UPDATE
+  //AtomicInc(mWrLockCounter);
+  // not needed anymore because of the macro EOS_RWMUTEX_TIMER_STOP_AND_UPDATE
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
 
-  if (blocking) {
-    // a blocking mutex is just a normal lock for write
+  if (mBlocking) {
+    // A blocking mutex is just a normal lock for write
     if (pthread_rwlock_wrlock(&rwlock)) {
       throw "pthread_rwlock_rdlock failed";
     }
   } else {
 #ifdef __APPLE__
 
-    // -------------------------------------------------
     // Mac does not support timed mutexes
-    // -------------------------------------------------
     if (pthread_rwlock_wrlock(&rwlock)) {
       throw "pthread_rwlock_rdlock failed";
     }
 
 #else
 
-    // a non-blocking mutex tries for few seconds to write lock, then releases
-    // this has the side effect, that it allows dead locked readers to jump ahead the lock queue
+    // A non-blocking mutex tries for few seconds to write lock, then releases.
+    // It has the side effect, that it allows dead locked readers to jump ahead
+    // the lock queue.
     while (1) {
       struct timespec writetimeout = {0};
       clock_gettime(CLOCK_REALTIME, &writetimeout);
@@ -1161,12 +316,14 @@ RWMutex::LockWrite()
                   (unsigned long long) XrdSysThread::ID(), (unsigned long long) this, rc);
           throw "pthread_rwlock_wrlock failed";
         } else {
-          //fprintf(stderr,"==== WRITE LOCK PENDING ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+          // fprintf(stderr,"==== WRITE LOCK PENDING ==== TID=%llu OBJECT=%llx\n",
+          // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
           XrdSysTimer msSleep;
           msSleep.Wait(500);
         }
       } else {
-        //    fprintf(stderr,"=== WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+        // fprintf(stderr,"=== WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",
+        // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
         break;
       }
     }
@@ -1174,30 +331,32 @@ RWMutex::LockWrite()
 #endif
   }
 
-  EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(write);
+  EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mWr);
 }
 
+//------------------------------------------------------------------------------
+// Unlock a write lock
+//------------------------------------------------------------------------------
 void
 RWMutex::UnLockWrite()
 {
-  // ---------------------------------------------------------------------------
-  //! Unlock a write lock
-  // ---------------------------------------------------------------------------
   EOS_RWMUTEX_CHECKORDER_UNLOCK;
 
   if (pthread_rwlock_unlock(&rwlock)) {
     throw "pthread_rwlock_unlock failed";
   }
 
-  //    fprintf(stderr,"*** WRITE LOCK RELEASED  **** TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+  // fprintf(stderr,"*** WRITE LOCK RELEASED  **** TID=%llu OBJECT=%llx\n",
+  // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
 }
 
+
+//------------------------------------------------------------------------------
+// Lock for write but give up after wlocktime
+//------------------------------------------------------------------------------
 int
 RWMutex::TimeoutLockWrite()
 {
-  // ---------------------------------------------------------------------------
-  //! Lock for write but give up after wlocktime
-  // ---------------------------------------------------------------------------
   EOS_RWMUTEX_CHECKORDER_LOCK;
 #ifdef __APPLE__
   return pthread_rwlock_wrlock(&rwlock);
@@ -1206,76 +365,738 @@ RWMutex::TimeoutLockWrite()
 #endif
 }
 
-size_t
-RWMutex::GetReadLockCounter()
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+
+//------------------------------------------------------------------------------
+// Performs the initialization of the class
+//------------------------------------------------------------------------------
+void
+RWMutex::InitializeClass()
 {
-  // ---------------------------------------------------------------------------
-  //! Get Readlock Counter
-  // ---------------------------------------------------------------------------
-  return AtomicGet(readLockCounter);
+  if (pthread_rwlock_init(&orderChkMgmLock, NULL)) {
+    throw "pthread_orderChkMgmLock_init failed";
+  }
+
+  rules_static = new RWMutex::rules_t();
+  RWMutex::ruleIndex2Name_static = new std::map<unsigned char, std::string>;
+  RWMutex::ruleName2Index_static = new std::map<std::string, unsigned char>;
+  RWMutex::threadOrderCheckResetFlags_static = new std::map<pthread_t, bool>;
 }
 
-size_t
-RWMutex::GetWriteLockCounter()
+//------------------------------------------------------------------------------
+// Reset statistics at the instance level
+//------------------------------------------------------------------------------
+void
+RWMutex::ResetTimingStatistics()
 {
-  // ---------------------------------------------------------------------------
-  //! Get Writelock Counter
-  // ---------------------------------------------------------------------------
-  return AtomicGet(writeLockCounter);
+  // Might need a mutex or at least a flag!!!
+  mRdCumulatedWait = mWrCumulatedWait = 0;
+  mRdMaxWait = mWrMaxWait = std::numeric_limits<size_t>::min();
+  mRdMinWait = mWrMinWait = std::numeric_limits<long long>::max();
+  mRdLockCounterSample = mWrLockCounterSample = 0;
 }
 
-RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex, bool doit)
+//-----------------------------------------------------------------------------
+// Reset statistics at the class level
+//------------------------------------------------------------------------------
+void
+RWMutex::ResetTimingStatisticsGlobal()
 {
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-  Mutex = &mutex;
-  DoIt = doit;
+  // might need a mutex or at least a flag!!!
+  mRdCumulatedWait_static = mWrCumulatedWait_static = 0;
+  mRdMaxWait_static = mWrMaxWait_static = std::numeric_limits<size_t>::min();
+  mRdMinWait_static = mWrMinWait_static = std::numeric_limits<long long>::max();
+  mRdLockCounterSample_static = mWrLockCounterSample_static = 0;
+}
 
-  if (DoIt) {
-    Mutex->LockWrite();
+#ifdef __APPLE__
+int
+RWMutex::round(double number)
+{
+  return number < 0.0 ? ceil(number - 0.5) : floor(number + 0.5);
+}
+#endif
+
+//------------------------------------------------------------------------------
+// Enable sampling of timings
+//------------------------------------------------------------------------------
+void
+RWMutex::SetSampling(bool on, float rate)
+{
+  mEnableSampling = on;
+  ResetTimingStatistics();
+
+  if (rate < 0) {
+    mSamplingModulo = sSamplingModulo;
+  } else
+#ifdef __APPLE__
+    mSamplingModulo = std::min(RAND_MAX, std::max(0, (int) round(1.0 / rate)));
+
+#else
+    mSamplingModulo = std::min(RAND_MAX, std::max(0, (int) std::round(1.0 / rate)));
+#endif
+}
+
+//------------------------------------------------------------------------------
+//   Return the timing sampling rate/status
+//------------------------------------------------------------------------------
+float
+RWMutex::GetSampling()
+{
+  if (!mEnableSampling) {
+    return -1.0;
+  } else {
+    return 1.0 / mSamplingModulo;
   }
 }
 
+//------------------------------------------------------------------------------
+// Compute the SamplingRate corresponding to a given CPU overhead
+//------------------------------------------------------------------------------
+float
+RWMutex::GetSamplingRateFromCPUOverhead(const double& overhead)
+{
+  RWMutex mutex;
+  bool entimglobbak = RWMutex::GetTimingGlobal();
+  mutex.SetTiming(true);
+  mutex.SetSampling(true, 1.0);
+  RWMutex::SetTimingGlobal(true);
+  size_t monitoredTiming = Timing::GetNowInNs();
+
+  for (int k = 0; k < 1e6; k++) {
+    mutex.LockWrite();
+    mutex.UnLockWrite();
+  }
+
+  monitoredTiming = Timing::GetNowInNs() - monitoredTiming;
+  mutex.SetTiming(false);
+  mutex.SetSampling(false);
+  RWMutex::SetTimingGlobal(false);
+  size_t unmonitoredTiming = Timing::GetNowInNs();
+
+  for (int k = 0; k < 1e6; k++) {
+    mutex.LockWrite();
+    mutex.UnLockWrite();
+  }
+
+  unmonitoredTiming = Timing::GetNowInNs() - unmonitoredTiming;
+  RWMutex::SetTimingGlobal(entimglobbak);
+  float mutexShare = unmonitoredTiming;
+  float timingShare = monitoredTiming - unmonitoredTiming;
+  float samplingRate = std::min(1.0, std::max(0.0,
+                                overhead * mutexShare / timingShare));
+  RWMutex::sSamplingModulo = (int)(1.0 / samplingRate);
+  return samplingRate;
+}
+
+
+//------------------------------------------------------------------------------
+// Reset order checking rules
+//------------------------------------------------------------------------------
+void
+RWMutex::ResetOrderRule()
+{
+  bool sav = sEnableGlobalOrderCheck;
+  sEnableGlobalOrderCheck = false;
+  // Leave some time to all the threads to finish their book keeping activity
+  // regarding order checking
+  usleep(100000);
+  pthread_rwlock_wrlock(&orderChkMgmLock);
+  // Remove all the dead threads from the map
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~ NOTICE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // !!! THIS DOESN'T WORK SO DEAD THREADS ARE NOT REMOVED FROM THE MAP
+  // !!! THIS IS BECAUSE THERE IS NO RELIABLE WAY TO CHECK IF A THREAD IS STILL
+  // !!! RUNNING. THIS IS NOT A PROBLEM FOR EOS BECAUSE XROOTD REUSES ITS THREADS
+  // !!! SO THE MAP DOESN'T GO INTO AN INFINITE GROWTH.
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~ NOTICE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#if 0
+
+  for (auto it = threadOrderCheckResetFlags_static.begin();
+       it != threadOrderCheckResetFlags_static.end(); ++it) {
+    if (XrdSysThread::Signal(it->first, 0)) {
+      // this line crashes when the threads is no more valid.
+      threadOrderCheckResetFlags_static.erase(it);
+      it = threadOrderCheckResetFlags_static.begin();
+    }
+  }
+
+#endif
+
+  // Tell the threads to reset the states of the order mask (because it's thread-local)
+  for (auto it = threadOrderCheckResetFlags_static->begin();
+       it != threadOrderCheckResetFlags_static->end(); ++it) {
+    it->second = true;
+  }
+
+  // Tell all the RWMutex that they are not involved in any order checking anymore
+  for (auto rit = rules_static->begin(); rit != rules_static->end(); ++rit) {
+    for (auto it = rit->second.begin(); it != rit->second.end(); ++it) {
+      // For each RWMutex involved in that rule
+      (*it)->nrules = 0; // no rule involved
+    }
+  }
+
+  // Clear the manager side.
+  ruleName2Index_static->clear();
+  ruleIndex2Name_static->clear();
+  rules_static->clear();
+  pthread_rwlock_unlock(&orderChkMgmLock);
+  sEnableGlobalOrderCheck = sav;
+}
+
+//------------------------------------------------------------------------------
+// Remove an order checking rule
+//------------------------------------------------------------------------------
+int
+RWMutex::RemoveOrderRule(const std::string& rulename)
+{
+  // Make a local copy of the rules and remove the required rule
+  std::map<std::string, std::vector<RWMutex*> > rules = (*rules_static);
+
+  if (!rules.erase(rulename)) {
+    return 0;
+  }
+
+  // Reset the rules
+  ResetOrderRule();
+
+  // Add all the rules but the removed one
+  for (auto it = rules.begin(); it != rules.end(); ++it) {
+    AddOrderRule(it->first, it->second);
+  }
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
+// Compute the cost in time of taking timings so that it can be compensated in
+// the statistics
+//------------------------------------------------------------------------------
+size_t
+RWMutex::EstimateTimingCompensation(size_t loopsize)
+{
+  size_t t = Timing::GetNowInNs();
+
+  for (unsigned long k = 0; k < loopsize; k++) {
+    struct timespec ts;
+    eos::common::Timing::GetTimeSpec(ts);
+  }
+
+  t = Timing::GetNowInNs() - t;
+  return size_t(double(t) / loopsize);
+}
+
+//------------------------------------------------------------------------------
+// Compute the speed for lock/unlock cycle
+//------------------------------------------------------------------------------
+size_t
+RWMutex::EstimateLockUnlockDuration(size_t loopsize)
+{
+  RWMutex mutex;
+  bool sav = RWMutex::GetTimingGlobal();
+  bool sav2 = RWMutex::GetOrderCheckingGlobal();
+  RWMutex::SetTimingGlobal(false);
+  RWMutex::SetOrderCheckingGlobal(false);
+  mutex.SetTiming(false);
+  mutex.SetSampling(false);
+  size_t t = Timing::GetNowInNs();
+
+  for (size_t k = 0; k < loopsize; k++) {
+    mutex.LockWrite();
+    mutex.UnLockWrite();
+  }
+
+  t = Timing::GetNowInNs() - t;
+  RWMutex::SetTimingGlobal(sav);
+  RWMutex::SetOrderCheckingGlobal(sav2);
+  return size_t(double(t) / loopsize);
+}
+
+//------------------------------------------------------------------------------
+// Compute the latency introduced by taking timings
+//------------------------------------------------------------------------------
+size_t
+RWMutex::EstimateTimingAddedLatency(size_t loopsize, bool globaltiming)
+{
+  RWMutex mutex;
+  bool sav = RWMutex::GetTimingGlobal();
+  bool sav2 = RWMutex::GetOrderCheckingGlobal();
+  RWMutex::SetTimingGlobal(globaltiming);
+  RWMutex::SetOrderCheckingGlobal(false);
+  mutex.SetTiming(true);
+  mutex.SetSampling(true, 1.0);
+  size_t t = Timing::GetNowInNs();
+
+  for (size_t k = 0; k < loopsize; k++) {
+    mutex.LockWrite();
+    mutex.UnLockWrite();
+  }
+
+  size_t s = Timing::GetNowInNs() - t;
+  RWMutex::SetTimingGlobal(false);
+  mutex.SetTiming(false);
+  mutex.SetSampling(false);
+  t = Timing::GetNowInNs();
+
+  for (size_t k = 0; k < loopsize; k++) {
+    mutex.LockWrite();
+    mutex.UnLockWrite();
+  }
+
+  t = Timing::GetNowInNs() - t;
+  RWMutex::SetTimingGlobal(sav);
+  RWMutex::SetOrderCheckingGlobal(sav2);
+  return size_t(double(s - t) / loopsize);
+}
+
+//------------------------------------------------------------------------------
+// Compute the latency introduced by checking the mutexes locking orders
+//------------------------------------------------------------------------------
+size_t
+RWMutex::EstimateOrderCheckingAddedLatency(size_t nmutexes, size_t loopsize)
+{
+  std::vector<RWMutex> mutexes;
+  mutexes.resize(nmutexes);
+  std::vector<RWMutex*> order;
+  order.resize(nmutexes);
+  int count = 0;
+
+  for (auto it = mutexes.begin(); it != mutexes.end(); ++it) {
+    it->SetTiming(false);
+    it->SetSampling(false);
+    order[count++] = &(*it);
+  }
+
+  RWMutex::AddOrderRule("estimaterule", order);
+  bool sav = RWMutex::GetTimingGlobal();
+  bool sav2 = RWMutex::GetOrderCheckingGlobal();
+  RWMutex::SetTimingGlobal(false);
+  RWMutex::SetOrderCheckingGlobal(true);
+  size_t t = Timing::GetNowInNs();
+
+  for (size_t k = 0; k < loopsize; k++) {
+    for (auto it = mutexes.begin(); it != mutexes.end(); ++it) {
+      it->LockWrite();
+    }
+
+    for (auto rit = mutexes.rbegin(); rit != mutexes.rend(); ++rit) {
+      rit->UnLockWrite();
+    }
+  }
+
+  size_t s = Timing::GetNowInNs() - t;
+  RWMutex::SetOrderCheckingGlobal(false);
+  t = Timing::GetNowInNs();
+
+  for (size_t k = 0; k < loopsize; ++k) {
+    for (auto it = mutexes.begin(); it != mutexes.end(); ++it) {
+      it->LockWrite();
+    }
+
+    for (auto rit = mutexes.rbegin(); rit != mutexes.rend(); ++rit) {
+      rit->UnLockWrite();
+    }
+  }
+
+  t = Timing::GetNowInNs() - t;
+  RWMutex::SetTimingGlobal(sav);
+  RWMutex::SetOrderCheckingGlobal(sav2);
+  RemoveOrderRule("estimaterule");
+  return size_t(double(s - t) / (loopsize * nmutexes));
+}
+
+//-------------------------------------------------------------------------------
+// Estimate latencies and compensation
+//------------------------------------------------------------------------------
+void
+RWMutex::EstimateLatenciesAndCompensation(size_t loopsize)
+{
+  timingCompensation = EstimateTimingCompensation(loopsize);
+  timingLatency = EstimateTimingAddedLatency(loopsize);
+  orderCheckingLatency = EstimateOrderCheckingAddedLatency(3, loopsize);
+  lockUnlockDuration = EstimateLockUnlockDuration(loopsize);
+  //std::cerr<< " timing compensation = "<<timingCompensation<<std::endl;
+  //std::cerr<< " timing latency = "<<timingLatency<<std::endl;
+  //std::cerr<< " order  latency = "<<orderCheckingLatency<<std::endl;
+  //std::cerr<< " lock/unlock duration = "<<lockUnlockDuration<<std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Get the timing statistics at the instance level
+//------------------------------------------------------------------------------
+void
+RWMutex::GetTimingStatistics(TimingStats& stats, bool compensate)
+{
+  size_t compensation = (compensate ? timingCompensation : 0);
+  stats.readLockCounterSample = AtomicGet(mRdLockCounterSample);
+  stats.writeLockCounterSample = AtomicGet(mWrLockCounterSample);
+  stats.averagewaitread = 0;
+
+  if (AtomicGet(mRdLockCounterSample) != 0) {
+    double avg = (double(AtomicGet(mRdCumulatedWait)) /
+                  AtomicGet(mRdLockCounterSample) - compensation);
+
+    if (avg > 0) {
+      stats.averagewaitread = avg;
+    }
+  }
+
+  stats.averagewaitwrite = 0;
+
+  if (AtomicGet(mWrLockCounterSample) != 0) {
+    double avg = (double(AtomicGet(mWrCumulatedWait)) / AtomicGet(
+                    mWrLockCounterSample) - compensation);
+
+    if (avg > 0) {
+      stats.averagewaitwrite = avg;
+    }
+  }
+
+  if (AtomicGet(mRdMinWait) != std::numeric_limits<size_t>::max()) {
+    long long compensated = AtomicGet(mRdMinWait) - compensation;
+
+    if (compensated > 0) {
+      stats.minwaitread = compensated;
+    } else {
+      stats.minwaitread = 0;
+    }
+  } else {
+    stats.minwaitread = std::numeric_limits<long long>::max();
+  }
+
+  if (AtomicGet(mRdMaxWait) != std::numeric_limits<size_t>::min()) {
+    long long compensated = AtomicGet(mRdMaxWait) - compensation;
+
+    if (compensated > 0) {
+      stats.maxwaitread = compensated;
+    } else {
+      stats.maxwaitread = 0;
+    }
+  } else {
+    stats.maxwaitread = std::numeric_limits<size_t>::min();
+  }
+
+  if (AtomicGet(mWrMinWait) != std::numeric_limits<size_t>::max()) {
+    long long compensated = AtomicGet(mWrMinWait) - compensation;
+
+    if (compensated > 0) {
+      stats.minwaitwrite = compensated;
+    } else {
+      stats.minwaitwrite = 0;
+    }
+  } else {
+    stats.minwaitwrite = std::numeric_limits<long long>::max();
+  }
+
+  if (AtomicGet(mWrMaxWait) != std::numeric_limits<size_t>::min()) {
+    long long compensated = AtomicGet(mWrMaxWait) - compensation;
+
+    if (compensated > 0) {
+      stats.maxwaitwrite = compensated;
+    } else {
+      stats.maxwaitwrite = 0;
+    }
+  } else {
+    stats.maxwaitwrite = std::numeric_limits<size_t>::min();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Check the order defined by the rules and update
+//------------------------------------------------------------------------------
+void
+RWMutex::OrderViolationMessage(unsigned char rule, const std::string& message)
+{
+  void* array[10];
+  unsigned long threadid = XrdSysThread::Num();
+  // Get void*'s for all entries on the stack
+  size_t size = backtrace(array, 10);
+  const std::string& rulename =
+    (*ruleIndex2Name_static)[ruleLocalIndexToGlobalIndex[rule]];
+  fprintf(stderr, "RWMutex: Order Checking Error in thread %lu\n %s\n in rule "
+          "%s :\nLocking Order should be:\n", threadid, message.c_str(),
+          rulename.c_str());
+  std::vector<RWMutex*> order = (*rules_static)[rulename];
+
+  for (auto ito = order.begin(); ito != order.end(); ++ito) {
+    fprintf(stderr, "\t%12s (%p)", (*ito)->mDebugName.c_str(), (*ito));
+  }
+
+  fprintf(stderr, "\nThe lock states of these mutexes are (before the violating"
+          " lock/unlock) :\n");
+
+  for (unsigned char k = 0; k < order.size(); k++) {
+    unsigned long int mask = (1 << k);
+    fprintf(stderr, "\t%d", int((ordermask_staticthread[rule] & mask) != 0));
+  }
+
+  fprintf(stderr, "\n");
+  backtrace_symbols_fd(array, size, 2);
+}
+
+//------------------------------------------------------------------------------
+// Check the orders defined by the rules and update for a lock
+//------------------------------------------------------------------------------
+void
+RWMutex::CheckAndLockOrder()
+{
+  // Initialize the thread local ordermask if not already done
+  if (orderCheckReset_staticthread == NULL) {
+    ResetCheckOrder();
+  }
+
+  if (*orderCheckReset_staticthread) {
+    ResetCheckOrder();
+    *orderCheckReset_staticthread = false;
+  }
+
+  for (unsigned char k = 0; k < nrules; k++) {
+    unsigned long int mask = (1 << rankinrule[k]);
+
+    // Check if following mutex is already locked in the same thread
+    if (ordermask_staticthread[k] >= mask) {
+      char strmess[1024];
+      sprintf(strmess, "locking %s at address %p", mDebugName.c_str(), this);
+      OrderViolationMessage(k, strmess);
+    }
+
+    ordermask_staticthread[k] |= mask;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Check the orders defined by the rules and update for an unlock
+//------------------------------------------------------------------------------
+void
+RWMutex::CheckAndUnlockOrder()
+{
+  // Initialize the thread local ordermask if not already done
+  if (orderCheckReset_staticthread == NULL) {
+    ResetCheckOrder();
+  }
+
+  if (*orderCheckReset_staticthread) {
+    ResetCheckOrder();
+    *orderCheckReset_staticthread = false;
+  }
+
+  for (unsigned char k = 0; k < nrules; k++) {
+    unsigned long int mask = (1 << rankinrule[k]);
+
+    // check if following mutex is already locked in the same thread
+    if (ordermask_staticthread[k] >= (mask << 1)) {
+      char strmess[1024];
+      sprintf(strmess, "unlocking %s at address %p", mDebugName.c_str(), this);
+      OrderViolationMessage(k, strmess);
+    }
+
+    ordermask_staticthread[k] &= (~mask);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get the timing statistics at the class level
+//------------------------------------------------------------------------------
+void
+RWMutex::GetTimingStatisticsGlobal(TimingStats& stats, bool compensate)
+{
+  size_t compensation = compensate ? timingCompensation : 0;
+  stats.readLockCounterSample = AtomicGet(mRdLockCounterSample_static);
+  stats.writeLockCounterSample = AtomicGet(mWrLockCounterSample_static);
+  stats.averagewaitread = 0;
+
+  if (AtomicGet(mRdLockCounterSample_static) != 0) {
+    double avg = (double(AtomicGet(mRdCumulatedWait_static)) / AtomicGet(
+                    mRdLockCounterSample_static) - compensation);
+
+    if (avg > 0) {
+      stats.averagewaitread = avg;
+    }
+  }
+
+  stats.averagewaitwrite = 0;
+
+  if (AtomicGet(mWrLockCounterSample_static) != 0) {
+    double avg = (double(AtomicGet(mWrCumulatedWait_static)) / AtomicGet(
+                    mWrLockCounterSample_static) - compensation);
+
+    if (avg > 0) {
+      stats.averagewaitwrite = avg;
+    }
+  }
+
+  if (AtomicGet(mRdMinWait_static) != std::numeric_limits<size_t>::max()) {
+    long long compensated = AtomicGet(mRdMinWait_static) - compensation;
+
+    if (compensated > 0) {
+      stats.minwaitread = compensated;
+    } else {
+      stats.minwaitread = 0;
+    }
+  } else {
+    stats.minwaitread = std::numeric_limits<long long>::max();
+  }
+
+  if (AtomicGet(mWrMaxWait_static) != std::numeric_limits<size_t>::min()) {
+    long long compensated = AtomicGet(mWrMaxWait_static) - compensation;
+
+    if (compensated > 0) {
+      stats.maxwaitread = compensated;
+    } else {
+      stats.maxwaitread = 0;
+    }
+  } else {
+    stats.maxwaitread = std::numeric_limits<size_t>::min();
+  }
+
+  if (AtomicGet(mWrMinWait_static) != std::numeric_limits<size_t>::max()) {
+    long long compensated = AtomicGet(mWrMinWait_static) - compensation;
+
+    if (compensated > 0) {
+      stats.minwaitwrite = compensated;
+    } else {
+      stats.minwaitwrite = 0;
+    }
+  } else {
+    stats.minwaitwrite = std::numeric_limits<long long>::max();
+  }
+
+  if (AtomicGet(mWrMaxWait_static) != std::numeric_limits<size_t>::min()) {
+    long long compensated = AtomicGet(mWrMaxWait_static) - compensation;
+
+    if (compensated > 0) {
+      stats.maxwaitwrite = compensated;
+    } else {
+      stats.maxwaitwrite = 0;
+    }
+  } else {
+    stats.maxwaitwrite = std::numeric_limits<size_t>::min();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Add or overwrite an order checking rule
+//------------------------------------------------------------------------------
+int
+RWMutex::AddOrderRule(const std::string& rulename,
+                      const std::vector<RWMutex*>& order)
+{
+  bool sav = sEnableGlobalOrderCheck;
+  sEnableGlobalOrderCheck = false;
+  // Leave time to all the threads to finish their book-keeping activity
+  // regarding order checking
+  usleep(100000);
+  pthread_rwlock_wrlock(&orderChkMgmLock);
+
+  // If we reached the max number of rules, ignore
+  if (rules_static->size() == EOS_RWMUTEX_ORDER_NRULES || order.size() > 63) {
+    sEnableGlobalOrderCheck = sav;
+    pthread_rwlock_unlock(&orderChkMgmLock);
+    return -1;
+  }
+
+  (*rules_static)[rulename] = order;
+  int ruleIdx = rules_static->size() - 1;
+  // update the maps
+  (*ruleName2Index_static)[rulename] = ruleIdx;
+  (*ruleIndex2Name_static)[ruleIdx] = rulename;
+  // update each object
+  unsigned char count = 0;
+
+  for (auto it = order.begin(); it != order.end(); it++) {
+    // ruleIdx begin at 0
+    // Each RWMutex has its own number of rules, they are all <= than
+    // EOS_RWMUTEX_ORDER_NRULES
+    (*it)->rankinrule[(*it)->nrules] = count;
+    (*it)->ruleLocalIndexToGlobalIndex[(*it)->nrules++] = ruleIdx;
+    count++;
+  }
+
+  pthread_rwlock_unlock(&orderChkMgmLock);
+  sEnableGlobalOrderCheck = sav;
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Reset the order checking mechanism for the current thread
+//------------------------------------------------------------------------------
+void
+RWMutex::ResetCheckOrder()
+{
+  // Reset the order mask
+  for (int k = 0; k < EOS_RWMUTEX_ORDER_NRULES; k++) {
+    ordermask_staticthread[k] = 0;
+  }
+
+  // Update orderCheckReset_staticthread, this memory should be specific to
+  // this thread
+  pthread_t tid = XrdSysThread::ID();
+  pthread_rwlock_rdlock(&orderChkMgmLock);
+
+  if (threadOrderCheckResetFlags_static->find(tid) ==
+      threadOrderCheckResetFlags_static->end()) {
+    pthread_rwlock_unlock(&orderChkMgmLock);
+    pthread_rwlock_wrlock(&orderChkMgmLock);
+    (*threadOrderCheckResetFlags_static)[tid] = false;
+  }
+
+  orderCheckReset_staticthread = &(*threadOrderCheckResetFlags_static)[tid];
+  pthread_rwlock_unlock(&orderChkMgmLock);
+}
+
+#endif
+
+//------------------------------------------------------------------------------
+//                      ***** Class RWMutexWriteLock *****
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex, bool doit):
+  mDoIt(doit)
+{
+  mWrMutex = &mutex;
+
+  if (mDoIt) {
+    mWrMutex->LockWrite();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 RWMutexWriteLock::~RWMutexWriteLock()
 {
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-  if (DoIt) {
-    Mutex->UnLockWrite();
+  if (mDoIt) {
+    mWrMutex->UnLockWrite();
   }
 }
 
-RWMutexReadLock::RWMutexReadLock(RWMutex& mutex)
-{
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-  Mutex = &mutex;
-  Mutex->LockRead();
-}
+//------------------------------------------------------------------------------
+//                      ***** Class RWMutexReadLock *****
+//------------------------------------------------------------------------------
 
-RWMutexReadLock::RWMutexReadLock(RWMutex& mutex, bool allowcancel)
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+RWMutexReadLock::RWMutexReadLock(RWMutex& mutex, bool allow_cancel)
 {
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-  if (allowcancel) {
-    Mutex = &mutex;
-    Mutex->LockReadCancel();
+  if (allow_cancel) {
+    mRdMutex = &mutex;
+    mRdMutex->LockReadCancel();
   } else {
-    Mutex = &mutex;
-    Mutex->LockRead();
+    mRdMutex = &mutex;
+    mRdMutex->LockRead();
   }
 }
 
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 RWMutexReadLock::~RWMutexReadLock()
 {
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-  Mutex->UnLockRead();
+  mRdMutex->UnLockRead();
 }
 
 EOSCOMMONNAMESPACE_END

@@ -1,3 +1,6 @@
 [submodule "common/fmt"]
 	path = common/fmt
 	url = https://github.com/fmtlib/fmt.git
+[submodule "namespace/ns_quarkdb/qclient"]
+	path = namespace/ns_quarkdb/qclient
+	url = https://gitlab.cern.ch/eos/qclient.git

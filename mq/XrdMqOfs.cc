@@ -106,7 +106,8 @@ XrdMqOfsOutMutex::~XrdMqOfsOutMutex()
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdMqOfs::XrdMqOfs(XrdSysError* ep)
+XrdMqOfs::XrdMqOfs(XrdSysError* ep):
+  myPort(1097)
 {
   ConfigFN  = 0;
   StartupTime = time(0);
@@ -644,19 +645,19 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 
         if (!strcmp("maxmessagebacklog", var)) {
           if ((val = Config.GetWord())) {
-            sscanf(val, "%lld", &MaxMessageBacklog);
+            (void) sscanf(val, "%lld", &MaxMessageBacklog);
           }
         }
 
         if (!strcmp("maxqueuebacklog", var)) {
           if ((val = Config.GetWord())) {
-            sscanf(val, "%lld", &MaxQueueBacklog);
+            (void) sscanf(val, "%lld", &MaxQueueBacklog);
           }
         }
 
         if (!strcmp("rejectqueuebacklog", var)) {
           if ((val = Config.GetWord())) {
-            sscanf(val, "%lld", &RejectQueueBacklog);
+            (void) sscanf(val, "%lld", &RejectQueueBacklog);
           }
         }
 

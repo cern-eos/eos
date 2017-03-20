@@ -29,10 +29,10 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::remdir (const char *inpath,
-		   XrdOucErrInfo &error,
-		   const XrdSecEntity *client,
-		   const char *ininfo)
+XrdMgmOfs::remdir(const char* inpath,
+                  XrdOucErrInfo& error,
+                  const XrdSecEntity* client,
+                  const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
@@ -46,43 +46,31 @@ XrdMgmOfs::remdir (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-
-  static const char *epname = "remdir";
-  const char *tident = error.getErrUser();
-
-  // use a thread private vid
+  static const char* epname = "remdir";
+  const char* tident = error.getErrUser();
   eos::common::Mapping::VirtualIdentity vid;
-
-  XrdSecEntity mappedclient;
-
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
-  XrdOucEnv remdir_Env(info);
-
+  XrdOucEnv remdir_Env(ininfo);
   AUTHORIZE(client, &remdir_Env, AOP_Delete, "remove", inpath, error);
-
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, info, tident, vid);
-  EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
-  return _remdir(path, error, vid, info);
+  return _remdir(path, error, vid, ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_remdir (const char *path,
-		    XrdOucErrInfo &error,
-		    eos::common::Mapping::VirtualIdentity &vid,
-		    const char *ininfo,
-		    bool simulate)
+XrdMgmOfs::_remdir(const char* path,
+                   XrdOucErrInfo& error,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const char* ininfo,
+                   bool simulate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
@@ -99,28 +87,23 @@ XrdMgmOfs::_remdir (const char *path,
 /*----------------------------------------------------------------------------*/
 
 {
-  static const char *epname = "remdir";
+  static const char* epname = "remdir";
   errno = 0;
-
   eos_info("path=%s", path);
-
   EXEC_TIMING_BEGIN("RmDir");
-
   gOFS->MgmStats.Add("RmDir", vid.uid, vid.gid, 1);
-
   std::shared_ptr<eos::IContainerMD> dhpar;
   std::shared_ptr<eos::IContainerMD> dh;
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
-
   // Make sure this is not a quota node
   std::string qpath = path;
 
-  if (qpath[qpath.length() - 1] != '/')
+  if (qpath[qpath.length() - 1] != '/') {
     qpath += '/';
+  }
 
-  if (Quota::Exists(qpath))
-  {
+  if (Quota::Exists(qpath)) {
     errno = EBUSY;
     return Emsg(epname, error, errno, "rmdir - this is a quota node",
                 qpath.c_str());
@@ -130,25 +113,21 @@ XrdMgmOfs::_remdir (const char *path,
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::string aclpath;
 
-  try
-  {
+  try {
     dh = gOFS->eosView->getContainer(path);
     eos::common::Path pPath(gOFS->eosView->getUri(dh.get()).c_str());
     dhpar = gOFS->eosView->getContainer(pPath.GetParentPath());
     aclpath = pPath.GetParentPath();
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     dh.reset();
     dhpar.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-	      e.getErrno(), e.getMessage().str().c_str());
+              e.getErrno(), e.getMessage().str().c_str());
   }
 
   // check existence
-  if (!dh)
-  {
+  if (!dh) {
     errno = ENOENT;
     return Emsg(epname, error, errno, "rmdir", path);
   }
@@ -156,88 +135,72 @@ XrdMgmOfs::_remdir (const char *path,
   // ACL and permission check
   Acl acl(aclpath.c_str(), error, vid, attrmap, false);
 
-  if (vid.uid && !acl.IsMutable())
-  {
+  if (vid.uid && !acl.IsMutable()) {
     errno = EPERM;
     return Emsg(epname, error, EPERM, "rmdir - immutable", path);
   }
 
   bool stdpermcheck = false;
   bool aclok = false;
-  if (acl.HasAcl())
-  {
+
+  if (acl.HasAcl()) {
     if ((dh->getCUid() != vid.uid) &&
-	(vid.uid) && // not the root user
-	(vid.uid != 3) && // not the admin user
-	(vid.gid != 4) && // not the admin group
-	(acl.CanNotDelete()))
-    {
+        (vid.uid) && // not the root user
+        (vid.uid != 3) && // not the admin user
+        (vid.gid != 4) && // not the admin group
+        (acl.CanNotDelete())) {
       // deletion is explicitly forbidden
       errno = EPERM;
       return Emsg(epname, error, EPERM, "rmdir by ACL", path);
     }
 
-    if ((!acl.CanWrite()))
-    {
+    if ((!acl.CanWrite())) {
       // we have to check the standard permissions
       stdpermcheck = true;
-    }
-    else
-    {
+    } else {
       aclok = true;
     }
-  }
-  else
-  {
+  } else {
     stdpermcheck = true;
   }
 
   // Check permissions
-  bool permok = stdpermcheck ? (dhpar ? (dhpar->access(vid.uid, vid.gid, X_OK | W_OK)) : false) : aclok;
+  bool permok = stdpermcheck ? (dhpar ? (dhpar->access(vid.uid, vid.gid,
+                                         X_OK | W_OK)) : false) : aclok;
 
-  if (!permok)
-  {
+  if (!permok) {
     errno = EPERM;
     return Emsg(epname, error, errno, "rmdir", path);
   }
 
-  if ((dh->getFlags() && eos::QUOTA_NODE_FLAG) && (vid.uid))
-  {
+  if ((dh->getFlags() && eos::QUOTA_NODE_FLAG) && (vid.uid)) {
     errno = EADDRINUSE;
     eos_err("%s is a quota node - deletion canceled", path);
     return Emsg(epname, error, errno, "rmdir", path);
   }
 
-  if (!simulate)
-  {
-    try
-    {
+  if (!simulate) {
+    try {
       // update the in-memory modification time of the parent directory
-      if (dhpar)
-      {
-	dhpar->setMTimeNow();
-	dhpar->notifyMTimeChange( gOFS->eosDirectoryService );
-	eosView->updateContainerStore(dhpar.get());
+      if (dhpar) {
+        dhpar->setMTimeNow();
+        dhpar->notifyMTimeChange(gOFS->eosDirectoryService);
+        eosView->updateContainerStore(dhpar.get());
       }
+
       eosView->removeContainer(path);
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		e.getErrno(), e.getMessage().str().c_str());
+                e.getErrno(), e.getMessage().str().c_str());
     }
   }
 
   EXEC_TIMING_END("RmDir");
 
-  if (errno)
-  {
+  if (errno) {
     return Emsg(epname, error, errno, "rmdir", path);
-  }
-  else
-  {
-
+  } else {
     return SFS_OK;
   }
 }

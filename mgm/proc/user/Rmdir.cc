@@ -31,33 +31,25 @@
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Rmdir ()
+ProcCommand::Rmdir()
 {
   XrdOucString spath = pOpaque->Get("mgm.path");
-
   const char* inpath = spath.c_str();
-
   NAMESPACEMAP;
-  info = 0;
-  if (info)info = 0; // for compiler happyness
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
-
   spath = path;
 
-  if (!spath.length())
-  {
+  if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'rmdir'";
     retc = EINVAL;
-  }
-  else
-  {
-    if (gOFS->_remdir(spath.c_str(), *mError, *pVid, (const char*) 0))
-    {
+  } else {
+    if (gOFS->_remdir(spath.c_str(), *mError, *pVid, (const char*) 0)) {
       stdErr += "error: unable to remove directory";
       retc = errno;
     }
   }
+
   return SFS_OK;
 }
 

@@ -32,7 +32,9 @@ include_directories(
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
-  ${CMAKE_BINARY_DIR}/auth_plugin/)
+  ${CMAKE_BINARY_DIR}/auth_plugin/
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src)
 
 #-------------------------------------------------------------------------------
 # XrdEosMgm library
@@ -128,6 +130,10 @@ set(XRDEOSMGM_SRCS
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)
 
+if (HIREDIS_FOUND)
+  list(APPEND XRDEOSMGM_SRCS ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
+endif()
+
 add_library(XrdEosMgm MODULE ${XRDEOSMGM_SRCS})
 
 #-------------------------------------------------------------------------------
@@ -159,8 +165,6 @@ target_link_libraries(
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${GLIBC_DL_LIBRARY}
-  ${REDOX_LIBRARIES}
-  ${LIBEV_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
@@ -168,6 +172,12 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT}
   ${JSONCPP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
+
+if (HIREDIS_FOUND)
+target_link_libraries(
+  XrdEosMgm PUBLIC
+  qclient)
+endif()
 
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part
@@ -209,7 +219,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------
-if(CPPUNIT_FOUND AND REDOX_FOUND AND Linux)
+if(CPPUNIT_FOUND AND HIREDIS_FOUND AND Linux)
   add_library(XrdEosMgm-Static STATIC ${XRDEOSMGM_SRCS})
 
   target_compile_definitions(
@@ -225,14 +235,13 @@ if(CPPUNIT_FOUND AND REDOX_FOUND AND Linux)
     eosCapability-Static
     XrdMqClient-Static
     EosAuthProto
+    qclient
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
     ${LDAP_LIBRARIES}
     ${UUID_LIBRARIES}
     ${NCURSES_LIBRARY}
     ${GLIBC_DL_LIBRARY}
-    ${LIBEV_LIBRARIES}
-    ${REDOX_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_POSIX_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
@@ -268,5 +277,5 @@ install(
   PROGRAMS eos-repair-tool
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
-	      GROUP_READ GROUP_EXECUTE
-	      WORLD_READ WORLD_EXECUTE)
+              GROUP_READ GROUP_EXECUTE
+              WORLD_READ WORLD_EXECUTE)

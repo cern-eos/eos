@@ -24,17 +24,13 @@
 #ifndef __EOSMGM_ACL__HH__
 #define __EOSMGM_ACL__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "namespace/interface/IContainerMD.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <string>
-/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -56,7 +52,8 @@ EOSMGMNAMESPACE_BEGIN
 //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{arw[o]ximc(!u)(+u)(!d)(+d)q}|z:xmc(!u)(+u)(!d)(+d)q}'
 //!
 /*----------------------------------------------------------------------------*/
-class Acl {
+class Acl
+{
   bool canRead; ///< acl allows read access
   bool canWrite; ///< acl allows write access
   bool canWriteOnce; ///< acl allows write-once access (creation, no delete)
@@ -72,13 +69,13 @@ class Acl {
   bool hasEgroup; ///< acl contains egroup rule
   bool isMutable; ///< acl does not contain the immutable flag
   bool canArchive; ///< acl which allows archiving
-  int  modMask; ///< mask defined via sys.mask
+
 public:
   /*---------------------------------------------------------------------------*/
   //! Default Constructor
 
   /*---------------------------------------------------------------------------*/
-  Acl ()
+  Acl()
   {
     canRead = false;
     canWrite = false;
@@ -100,42 +97,42 @@ public:
   /*---------------------------------------------------------------------------*/
   //! Constructor
   /*---------------------------------------------------------------------------*/
-  Acl (std::string sysacl,
-       std::string useracl,
-       eos::common::Mapping::VirtualIdentity &vid,
-       bool allowUserAcl = false);
+  Acl(std::string sysacl,
+      std::string useracl,
+      eos::common::Mapping::VirtualIdentity& vid,
+      bool allowUserAcl = false);
 
 
   /*---------------------------------------------------------------------------*/
   //! Constructor by path
   /*---------------------------------------------------------------------------*/
-  Acl (const char* path,
-       XrdOucErrInfo &error,
-       eos::common::Mapping::VirtualIdentity &vid,
-       eos::IContainerMD::XAttrMap &attrmap,
-       bool lockNs);
-  
+  Acl(const char* path,
+      XrdOucErrInfo& error,
+      eos::common::Mapping::VirtualIdentity& vid,
+      eos::IContainerMD::XAttrMap& attrmap,
+      bool lockNs);
+
   /*--------------------------------------------------------------------------*/
   //! Destructor
   /*--------------------------------------------------------------------------*/
-  ~Acl ()
+  ~Acl()
   {
   };
 
   /*--------------------------------------------------------------------------*/
   //! Enter system and user definition + identity used for ACL interpretation
   /*--------------------------------------------------------------------------*/
-  void Set (std::string sysacl,
-            std::string useracl,
-            eos::common::Mapping::VirtualIdentity &vid,
-            bool allowUserAcl = false);
+  void Set(std::string sysacl,
+           std::string useracl,
+           eos::common::Mapping::VirtualIdentity& vid,
+           bool allowUserAcl = false);
 
   /*--------------------------------------------------------------------------*/
   //! Use regex to check ACL format / syntax
   /*--------------------------------------------------------------------------*/
-  static bool IsValid (const std::string value,
-                       XrdOucErrInfo &error,
-                       bool sysacl = false);
+  static bool IsValid(const std::string value,
+                      XrdOucErrInfo& error,
+                      bool sysacl = false);
 
   /*--------------------------------------------------------------------------*/
   // Getter Functions for ACL booleans
@@ -143,98 +140,98 @@ public:
   /*--------------------------------------------------------------------------*/
 
   bool
-  CanRead ()
+  CanRead()
   /// allowed to read
   {
     return canRead;
   }
 
   bool
-  CanWrite ()
+  CanWrite()
   /// allowed to write
   {
     return canWrite;
   }
 
   bool
-  CanWriteOnce ()
+  CanWriteOnce()
   /// allowed to write-once (no overwrite/update/delete)
   {
     return canWriteOnce;
   }
 
   bool
-  CanUpdate ()
+  CanUpdate()
   /// allowed to update
   {
     return canUpdate;
   }
 
   bool
-  CanBrowse ()
+  CanBrowse()
   /// allowed to list
   {
     return canBrowse;
   }
 
   bool
-  CanChmod ()
+  CanChmod()
   /// allowed to change mod
   {
     return canChmod;
   }
 
   bool
-  CanNotChmod ()
+  CanNotChmod()
   /// not allowed to change mod
   {
     return canNotChmod;
   }
 
   bool
-  CanChown ()
+  CanChown()
   /// allowed to change owner
   {
     return canChown;
   }
 
   bool
-  CanNotDelete ()
+  CanNotDelete()
   /// not allowed to delete
   {
     return canNotDelete;
   }
 
   bool
-  CanDelete ()
+  CanDelete()
   /// allowed to delete
   {
     return canDelete;
   }
 
   bool
-  CanSetQuota ()
+  CanSetQuota()
   /// allowed to administer quota
   {
     return canSetQuota;
   }
 
   bool
-  HasAcl ()
+  HasAcl()
   /// has any acl defined
   {
     return hasAcl;
   }
 
   bool
-  HasEgroup ()
+  HasEgroup()
   /// has any egroup defined
   {
     return hasEgroup;
   }
 
   bool
-  IsMutable ()
+  IsMutable()
   /// has not the 'i' flag
   {
     return isMutable;
@@ -248,12 +245,6 @@ public:
   {
     return canArchive;
   }
-
-  int GetMask()
-  {
-    return modMask;
-  }
-
 };
 
 EOSMGMNAMESPACE_END

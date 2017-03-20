@@ -46,16 +46,9 @@ ProcCommand::Rm()
   XrdOucString filter = "";
   std::set<std::string> rmList;
   NAMESPACEMAP;
-  info = 0;
-
-  if (info) {
-    info = 0;  // for compiler happyness
-  }
-
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
-  GetPathFromFid(spath, pOpaque, "Cannot get fid");
 
   if (force && (vid.uid)) {
     stdErr = "warning: removing the force flag - this is only allowed for the 'root' role!\n";

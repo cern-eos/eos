@@ -31,16 +31,20 @@
 // Constructor
 //------------------------------------------------------------------------------
 
-FuseCacheEntry::FuseCacheEntry (int noEntries,
-                                struct timespec modifTime,
-                                struct dirbuf* pBuf) :
-mNumEntries (noEntries)
+FuseCacheEntry::FuseCacheEntry(int noEntries,
+                               struct timespec modifTime,
+                               struct dirbuf* pBuf,
+                               long lifetimeinns) :
+  mNumEntries(noEntries)
 {
   mModifTime.tv_sec = modifTime.tv_sec;
   mModifTime.tv_nsec = modifTime.tv_nsec;
+  mLifeTime = lifetimeinns;
+  eos::common::Timing::GetTimeSpec(mQueryTime, true);
   mBuf.size = pBuf->size;
-  mBuf.p = static_cast<char*> (calloc(mBuf.size, sizeof ( char)));
-  mBuf.p = static_cast<char*> (memcpy(mBuf.p, pBuf->p, mBuf.size * sizeof ( char)));
+  mBuf.alloc_size = pBuf->size;
+  mBuf.p = static_cast<char*>(calloc(mBuf.size, sizeof(char)));
+  mBuf.p = static_cast<char*>(memcpy(mBuf.p, pBuf->p, mBuf.size * sizeof(char)));
 }
 
 
@@ -48,7 +52,7 @@ mNumEntries (noEntries)
 // Destructor
 //------------------------------------------------------------------------------
 
-FuseCacheEntry::~FuseCacheEntry ()
+FuseCacheEntry::~FuseCacheEntry()
 {
   free(mBuf.p);
 }
@@ -59,10 +63,10 @@ FuseCacheEntry::~FuseCacheEntry ()
 //------------------------------------------------------------------------------
 
 bool
-FuseCacheEntry::IsFilled ()
+FuseCacheEntry::IsFilled()
 {
   eos::common::RWMutexReadLock rd_lock(mMutex);
-  return ( mSubEntries.size() == static_cast<unsigned int> (mNumEntries - 2));
+  return (mSubEntries.size() == static_cast<unsigned int>(mNumEntries - 2));
 }
 
 
@@ -71,23 +75,23 @@ FuseCacheEntry::IsFilled ()
 //------------------------------------------------------------------------------
 
 void
-FuseCacheEntry::Update (int noEntries,
-                        struct timespec modifTime,
-                        struct dirbuf* pBuf)
+FuseCacheEntry::Update(int noEntries,
+                       struct timespec modifTime,
+                       struct dirbuf* pBuf)
 {
   eos::common::RWMutexWriteLock wr_lock(mMutex);
   mModifTime.tv_sec = modifTime.tv_sec;
   mModifTime.tv_nsec = modifTime.tv_nsec;
   mNumEntries = noEntries;
   mSubEntries.clear();
+  eos::common::Timing::GetTimeSpec(mQueryTime, true);
 
-  if (mBuf.size != pBuf->size)
-  {
+  if (mBuf.size != pBuf->size) {
     mBuf.size = pBuf->size;
-    mBuf.p = static_cast<char*> (realloc(mBuf.p, mBuf.size * sizeof ( char)));
+    mBuf.p = static_cast<char*>(realloc(mBuf.p, mBuf.size * sizeof(char)));
   }
 
-  mBuf.p = static_cast<char*> (memcpy(mBuf.p, pBuf->p, mBuf.size * sizeof ( char)));
+  mBuf.p = static_cast<char*>(memcpy(mBuf.p, pBuf->p, mBuf.size * sizeof(char)));
 }
 
 //------------------------------------------------------------------------------
@@ -95,12 +99,13 @@ FuseCacheEntry::Update (int noEntries,
 //------------------------------------------------------------------------------
 
 void
-FuseCacheEntry::GetDirbuf (struct dirbuf*& rpBuf)
+FuseCacheEntry::GetDirbuf(struct dirbuf*& rpBuf)
 {
   eos::common::RWMutexReadLock rd_lock(mMutex);
   rpBuf->size = mBuf.size;
-  rpBuf->p = static_cast<char*> (calloc(rpBuf->size, sizeof ( char)));
-  rpBuf->p = static_cast<char*> (memcpy(rpBuf->p, mBuf.p, rpBuf->size * sizeof ( char)));
+  rpBuf->p = static_cast<char*>(calloc(rpBuf->size, sizeof(char)));
+  rpBuf->p = static_cast<char*>(memcpy(rpBuf->p, mBuf.p,
+                                       rpBuf->size * sizeof(char)));
 }
 
 
@@ -109,7 +114,7 @@ FuseCacheEntry::GetDirbuf (struct dirbuf*& rpBuf)
 //------------------------------------------------------------------------------
 
 struct timespec
-FuseCacheEntry::GetModifTime ()
+FuseCacheEntry::GetModifTime()
 {
   eos::common::RWMutexReadLock rd_lock(mMutex);
   return mModifTime;
@@ -121,13 +126,12 @@ FuseCacheEntry::GetModifTime ()
 //------------------------------------------------------------------------------
 
 void
-FuseCacheEntry::AddEntry (unsigned long long inode,
-                          struct fuse_entry_param* e)
+FuseCacheEntry::AddEntry(unsigned long long inode,
+                         struct fuse_entry_param* e)
 {
   eos::common::RWMutexWriteLock wr_lock(mMutex);
 
-  if (!mSubEntries.count(inode))
-  {
+  if (!mSubEntries.count(inode)) {
     mSubEntries[inode] = *e;
   }
 }
@@ -138,13 +142,17 @@ FuseCacheEntry::AddEntry (unsigned long long inode,
 //------------------------------------------------------------------------------
 
 bool
-FuseCacheEntry::GetEntry (unsigned long long inode,
-                          struct fuse_entry_param& e)
+FuseCacheEntry::GetEntry(unsigned long long inode,
+                         struct fuse_entry_param& e)
 {
+  // if the entry is older than the allowed lifetime, don't return it
+  if (eos::common::Timing::GetAgeInNs(&mQueryTime) > mLifeTime) {
+    return 0;
+  }
+
   eos::common::RWMutexReadLock rd_lock(mMutex);
 
-  if (mSubEntries.count(inode))
-  {
+  if (mSubEntries.count(inode)) {
     e = mSubEntries[inode];
     return true;
   }
@@ -156,16 +164,16 @@ FuseCacheEntry::GetEntry (unsigned long long inode,
 // Update subentry
 //------------------------------------------------------------------------------
 
-bool 
-FuseCacheEntry::UpdateEntry( unsigned long long inode, struct stat* buf )
+bool
+FuseCacheEntry::UpdateEntry(unsigned long long inode, struct stat* buf)
 {
   eos::common::RWMutexWriteLock wr_lock(mMutex);
 
-  if (!mSubEntries.count(inode))
-  {
+  if (!mSubEntries.count(inode)) {
     mSubEntries[inode].attr.st_size = buf->st_size;
     return true;
   }
+
   return false;
 }
 
@@ -173,14 +181,15 @@ FuseCacheEntry::UpdateEntry( unsigned long long inode, struct stat* buf )
 // Get Etnry indoe set
 //------------------------------------------------------------------------------
 
-std::set<unsigned long long> 
+std::set<unsigned long long>
 FuseCacheEntry::GetEntryInodes()
 {
   std::set<unsigned long long> lset;
   eos::common::RWMutexReadLock rd_lock(mMutex);
-  for (auto it= mSubEntries.begin(); it!= mSubEntries.end(); ++it)
-  {
+
+  for (auto it = mSubEntries.begin(); it != mSubEntries.end(); ++it) {
     lset.insert(it->first);
   }
+
   return lset;
 }

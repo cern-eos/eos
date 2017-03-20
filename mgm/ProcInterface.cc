@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
@@ -231,6 +230,12 @@ ProcCommand::ProcCommand()
   ininfo = 0;
   fstdout = fstderr = fresultStream = 0;
   fstdoutfilename = fstderrfilename = fresultStreamfilename = "";
+  mDoSort = false;
+  mSelection = 0;
+  mOutDepth = 0;
+  mBase64Encoding = false;
+  mOutFormat = "";
+  mFuseFormat = mJsonFormat = mHttpFormat = false;
 }
 
 /*----------------------------------------------------------------------------*/

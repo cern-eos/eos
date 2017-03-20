@@ -37,59 +37,65 @@
 //------------------------------------------------------------------------------
 // Print all the tests present in the test suite
 //------------------------------------------------------------------------------
-void printTests( const CppUnit::Test *t, std::string prefix = "" )
+void printTests(const CppUnit::Test* t, std::string prefix = "")
 {
-  if( t == 0 )
+  if (t == 0) {
     return;
+  }
 
-  const CppUnit::TestSuite* suite = dynamic_cast<const CppUnit::TestSuite*>( t );
+  const CppUnit::TestSuite* suite = dynamic_cast<const CppUnit::TestSuite*>(t);
   std::cerr << prefix << t->getName();
 
-  if( suite )
-  {
+  if (suite) {
     std::cerr << "/" << std::endl;
-    std::string prefix1 = "  "; prefix1 += prefix;
-    prefix1 += t->getName(); prefix1 += "/";
-    const std::vector<CppUnit::Test*> &tests = suite->getTests();
+    std::string prefix1 = "  ";
+    prefix1 += prefix;
+    prefix1 += t->getName();
+    prefix1 += "/";
+    const std::vector<CppUnit::Test*>& tests = suite->getTests();
     std::vector<CppUnit::Test*>::const_iterator it;
 
-    for( it = tests.begin(); it != tests.end(); ++it )
-      printTests( *it, prefix1 );
-  }
-  else
+    for (it = tests.begin(); it != tests.end(); ++it) {
+      printTests(*it, prefix1);
+    }
+  } else {
     std::cerr << std::endl;
+  }
 }
 
 
 //------------------------------------------------------------------------------
 // Start the show
 //------------------------------------------------------------------------------
-int main( int argc, char **argv)
+int main(int argc, char** argv)
 {
   // Load the test library
-  if( argc < 2 )
-  {
+  if (argc < 2) {
     std::cerr << "Usage: " << argv[0] << " libname.so testname" << std::endl;
     return 1;
   }
-  void *libHandle = dlopen( argv[1], RTLD_LAZY );
-  if( libHandle == 0 )
-  {
+
+  char* ptr = argv[1];
+  char lib_path[ptr ? strlen(ptr) + 1 : 1];
+  (void) strcpy(lib_path, ptr ? ptr : "");
+  void* libHandle = dlopen(lib_path, RTLD_LAZY);
+
+  if (libHandle == 0) {
     std::cerr << "Unable to load the test library: " << dlerror() << std::endl;
     return 1;
   }
 
   // Print help
-  CppUnit::Test *all = CppUnit::TestFactoryRegistry::getRegistry().makeTest();
+  CppUnit::Test* all = CppUnit::TestFactoryRegistry::getRegistry().makeTest();
 
-  if( argc == 2 )
-  {
+  if (argc == 2) {
     std::cerr << "Select your tests:" << std::endl << std::endl;
-    printTests( all );
+    printTests(all);
     std::cerr << std::endl;
 
-    if (dlclose( libHandle ))
+    if (dlclose(libHandle)) {
       std::cerr << "Error during dynamic library unloading" << std::endl;
+    }
 
     delete all;
     return 1;
@@ -97,46 +103,40 @@ int main( int argc, char **argv)
 
   // Build the test suite for the requested path
   std::string test_path = argv[2];
-
   // Create event manager and test controller
   CppUnit::TestResult controller;
-
   // Add listener that collects test results
   CppUnit::TestResultCollector result;
   controller.addListener(&result);
-
   // Add listener that prints the name of the test and status
   CppUnit::BriefTestProgressListener brief_progress;
   controller.addListener(&brief_progress);
-
   // Add the top suite to the test runner
   CppUnit::TestRunner runner;
   runner.addTest(all);
 
-  try
-  {
+  try {
     std::cout << std::endl << "Running:" <<  std::endl;
     runner.run(controller, test_path);
     std::cerr << std::endl;
-
     // Print test in a compiler compatible format
     CppUnit::CompilerOutputter outputter(&result, std::cerr);
     outputter.write();
-  }
-  catch (std::invalid_argument &e)
-  {
+  } catch (std::invalid_argument& e) {
     std::cerr << std::endl
-	      << "ERROR: " << e.what()
-	      << std::endl;
+              << "ERROR: " << e.what()
+              << std::endl;
 
-    if (dlclose( libHandle ))
+    if (dlclose(libHandle)) {
       std::cerr << "Error during dynamic library unloading" << std::endl;
+    }
 
     return 0;
   }
 
-  if (dlclose( libHandle ))
+  if (dlclose(libHandle)) {
     std::cerr << "Error during dynamic library unloading" << std::endl;
+  }
 
   return result.wasSuccessful() ? 0 : 1;
 }

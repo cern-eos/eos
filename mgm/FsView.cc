@@ -209,9 +209,9 @@ bool GeoTree::erase(const fsid_t& fs)
 
   if (leaf->mFsIds.empty() && leaf->mSons.empty()) {
     // Compute the depth for the current father
-    int i, depth = -1;
+    int depth = -1;
 
-    for (i = (int)pLevels.size() - 1; i >= 0; i--) {
+    for (int i = (int)pLevels.size() - 1; i >= 0; i--) {
       if (pLevels[i].count(father)) {
         depth = i;
         break;
@@ -219,6 +219,10 @@ bool GeoTree::erase(const fsid_t& fs)
     }
 
     assert(depth >= 0); // consistency check
+
+    if (depth < 0) {
+      return false;
+    }
 
     // Go uproot until there is more than one branch
     while (father->mFather && father->mFather->mSons.size() == 1 &&
@@ -703,10 +707,10 @@ DoubleAggregator::aggregateNodes(
     size_t i = it->second->mId;
 
     if (pNb[i]) { // consider this only if there is something there
-      pMiD = std::min(pMiD,
-                      std::min((pMinDevs[i] + pMeans[i]) - pM , (pMaxDevs[i] + pMeans[i]) - pM));
-      pMaD = std::max(pMaD,
-                      std::max((pMinDevs[i] + pMeans[i]) - pM , (pMaxDevs[i] + pMeans[i]) - pM));
+      pMiD = std::min(pMiD, std::min((pMinDevs[i] + pMeans[i]) - pM,
+                                     (pMaxDevs[i] + pMeans[i]) - pM));
+      pMaD = std::max(pMaD, std::max((pMinDevs[i] + pMeans[i]) - pM,
+                                     (pMaxDevs[i] + pMeans[i]) - pM));
       pSD += pNb[i] * (pStdDevs[i] * pStdDevs[i] + pMeans[i] * pMeans[i]);
     }
   }
@@ -1034,9 +1038,7 @@ FsView::GetGroupFormat(std::string option)
 }
 
 //------------------------------------------------------------------------------
-// @brief register a filesystem object in the filesystem view
-// @param fs filesystem to register
-// @return true if done, otherwise false
+// Register a filesystem object in the filesystem view
 //------------------------------------------------------------------------------
 bool
 FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
@@ -1143,9 +1145,9 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
 
       // Set new space default parameters
       if ((!space->SetConfigMember(std::string("groupsize"), "0",
-                                   true, "/eos/*/mgm")) ||
+                                   true, "/eos/*/mgm", true)) ||
           (!space->SetConfigMember(std::string("groupmod"), "24",
-                                   true, "/eos/*/mgm"))) {
+                                   true, "/eos/*/mgm", true))) {
         eos_err("failed setting space %s default config values",
                 snapshot.mSpace.c_str());
         return false;
@@ -1185,13 +1187,12 @@ FsView::StoreFsConfig(FileSystem* fs)
 }
 
 //------------------------------------------------------------------------------
-// @brief Move a filesystem in to a target group
-// @param fs filesystem object to move
-// @param group target group
-// @return true if moved otherwise false
+// Move a filesystem in to a target group
 //------------------------------------------------------------------------------
 bool
-FsView::MoveGroup(FileSystem* fs, std::string group)
+FsView::MoveGroup(FileSystem* fs, std::string group,
+                  std::list<FsSpace*>& spaces_to_del,
+                  std::list<FsGroup*>& groups_to_del)
 {
   if (!fs) {
     return false;
@@ -1217,7 +1218,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
 
         if (!space->size()) {
           mSpaceView.erase(snapshot1.mSpace);
-          delete space;
+          spaces_to_del.push_back(space);
         }
       }
 
@@ -1257,7 +1258,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
           }
 
           mGroupView.erase(snapshot1.mGroup);
-          delete group;
+          groups_to_del.push_back(group);
         }
       }
 
@@ -1280,8 +1281,8 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
 
       if (!gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[group], false)) {
         if (fs->SetString("schedgroup", group.c_str()) && UnRegister(fs, false)) {
-          if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str())
-              && Register(fs)) {
+          if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str()) &&
+              Register(fs)) {
             eos_err("while moving fs, could not insert fs %u in group %s. fs "
                     "was registered back to group %s and consistency is KEPT "
                     "between FsView and GeoTreeEngine",
@@ -1810,7 +1811,7 @@ FsView::HeartBeatCheck()
         }
       }
 
-      // iterator over all filesystems
+      // Iterate over all filesystems
       for (auto it = mNodeView.begin(); it != mNodeView.end(); it++) {
         if (!it->second) {
           continue;
@@ -2085,6 +2086,8 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create,
         // we have to register this queue into the gw set for fast lookups
         FsView::gFsView.mGwNodes.insert(broadcastqueue);
         // clear the queue if a machine is enabled
+        // TODO (esindril): Clear also takes the HashMutex lock again - this
+        // is undefined behaviour !!!
         FsView::gFsView.mNodeView[broadcastqueue]->mGwQueue->Clear();
       } else {
         FsView::gFsView.mGwNodes.erase(broadcastqueue);
@@ -2561,8 +2564,8 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
         }
 
         broadcast += "/fst";
-        FsView::gFsView.RegisterNode(
-          broadcast.c_str()); // the node might not yet exist!
+        // The node might not yet exist!
+        FsView::gFsView.RegisterNode(broadcast.c_str());
         eos::common::RWMutexWriteLock gwlock(GwMutex);
 
         if (val == "on") {

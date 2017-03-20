@@ -20,86 +20,107 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-/**
- * @file   RWMutexTest.cc
- *
- * @brief  This program demonstrates the timing facilities of the RWMutex class.
- *
- */
 
+//----------------------------------------------------------------------------
+// Program demonstrating the timing facilities of the RWMutex class
+//----------------------------------------------------------------------------
 #include <iostream>
 #include "common/RWMutex.hh"
 
 using namespace eos::common;
-using namespace std;
-
+const int loopsize = 10e6;
 const unsigned long int NNUM_THREADS = 10;
 pthread_t threads[NNUM_THREADS];
 unsigned long int NUM_THREADS = NNUM_THREADS;
-int writecount;
-
 RWMutex globmutex;
-const int loopsize = 10e6;
+RWMutex gm1, gm2, gm3;
 
-void*
-TestThread(void *threadid)
+//----------------------------------------------------------------------------
+//! Output to stream operator for TimingStats structure
+//!
+//! @param os output strream
+//! @param stats structure to serialize
+//!
+//! @return reference to output stream
+//----------------------------------------------------------------------------
+inline std::ostream& operator << (std::ostream& os,
+                                  const RWMutex::TimingStats& stats)
 {
-  unsigned long int tid=* (unsigned long int*)threadid;
-  if (tid % 2)
-  {
-    for (int k = 0; k < loopsize / (int) NUM_THREADS; k++)
-    {
+  os << "\t" << "RWMutex Read  Wait (number : min , avg , max)" << " = "
+     << stats.readLockCounterSample << " : " << stats.minwaitread << " , "
+     << stats.averagewaitread << " , " << stats.maxwaitread << std::endl
+     << "\t" << "RWMutex Write Wait (number : min , avg , max)" << " = "
+     << stats.writeLockCounterSample << " : " << stats.minwaitwrite << " , "
+     << stats.averagewaitwrite << " , " << stats.maxwaitwrite << std::endl;
+  return os;
+}
+
+typedef void* (*TestFuncT)(void*);
+
+//----------------------------------------------------------------------------
+// Test function ran by a thread
+//----------------------------------------------------------------------------
+void*
+TestThread(void* threadid)
+{
+  unsigned long int tid = *(unsigned long int*)threadid;
+
+  if (tid % 2) {
+    for (int k = 0; k < loopsize / (int) NUM_THREADS; k++) {
       globmutex.LockWrite();
       globmutex.UnLockWrite();
     }
-  }
-  else
-  {
-    for (int k = 0; k < loopsize / (int) NUM_THREADS; k++)
-    {
+  } else {
+    for (int k = 0; k < loopsize / (int) NUM_THREADS; k++) {
       globmutex.LockRead();
       globmutex.UnLockRead();
     }
   }
+
   pthread_exit(NULL);
   return NULL;
 }
 
+//----------------------------------------------------------------------------
+// Function to run all threads
+//----------------------------------------------------------------------------
 void
-RunThreads()
+RunThreads(TestFuncT func)
 {
-  void *ret;
-  for (unsigned long int t = 0; t < NUM_THREADS; t++)
-  {
-    int rc = pthread_create(&threads[t], NULL, TestThread, (void *) &t);
-    if (rc)
-    {
+  for (unsigned long int t = 0; t < NUM_THREADS; t++) {
+    int rc = pthread_create(&threads[t], NULL, func, (void*) &t);
+
+    if (rc) {
       printf("ERROR; return code from pthread_create() is %d\n", rc);
       exit(-1);
     }
   }
-  for (unsigned long int t = 0; t < NUM_THREADS; t++)
+
+  void* ret;
+
+  for (unsigned long int t = 0; t < NUM_THREADS; t++) {
     pthread_join(threads[t], &ret);
+  }
 }
 
-RWMutex gm1,gm2,gm3;
-
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-
+//----------------------------------------------------------------------------
+// Test function 2 ran by a thread
+//----------------------------------------------------------------------------
 void*
-TestThread2(void *threadid)
+TestThread2(void* threadid)
 {
-  unsigned long int tid=XrdSysThread::Num();
-  int itid=(int)tid;
-  for (int k = 0; k < loopsize / (int) NUM_THREADS; k++)
-  {
-    if(k==itid) {
-      cout<<"!!!!!!!! thread "<<tid<<" triggers an incorrect lock/unlock order ON PURPOSE at iteration "<<k<<" !!!!!!!!"<<endl;
+  int tid = (int) XrdSysThread::Num();
+
+  for (int k = 0; k < loopsize / (int) NUM_THREADS; ++k) {
+    if (k == tid) {
+      std::cout << "!!!!!!!! Thread " << tid << " triggers an incorrect "
+                << "lock/unlock order ON PURPOSE at iteration " << k
+                << " !!!!!!!!" << std::endl;
       gm1.LockWrite();
       gm3.LockWrite();
       gm2.LockWrite();
       gm2.UnLockWrite();
-      gm3.UnLockWrite();
+      gm3.UnLockWrite(); // swapped with previous one
       gm1.UnLockWrite();
     } else {
       gm1.LockWrite();
@@ -110,202 +131,207 @@ TestThread2(void *threadid)
       gm1.UnLockWrite();
     }
   }
+
   return NULL;
 }
 
-void
-RunThreads2()
-{
-  void *ret;
-  for (unsigned long int t = 0; t < NUM_THREADS; t++)
-  {
-    int rc = pthread_create(&threads[t], NULL, TestThread2, (void *) &t);
-    if (rc)
-    {
-      printf("ERROR; return code from pthread_create() is %d\n", rc);
-      exit(-1);
-    }
-  }
-  for (unsigned long int t = 0; t < NUM_THREADS; t++)
-    pthread_join(threads[t], &ret);
-}
-
-
+//----------------------------------------------------------------------------
+// Main function
+//----------------------------------------------------------------------------
 int
 main()
 {
   RWMutex::SetOrderCheckingGlobal(false);
-  cout<<" Using Instrumented Version of RWMutex class"<<endl;
+  std::cout << " Using Instrumented Version of RWMutex class" << std::endl;
   RWMutex::EstimateLatenciesAndCompensation();
+  size_t t = Timing::GetNowInNs();
 
-  size_t t = NowInt();
-  for (int k = 0; k < loopsize; k++)
-  {
+  for (int k = 0; k < loopsize; ++k) {
     struct timespec ts;
     eos::common::Timing::GetTimeSpec(ts);
   }
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Measuring speed of function clock_gettime() " << endl;
-  cout << " Monothreaded Loop of size " << double(loopsize) << " took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")"<< endl;
-  cout << " ------------------------- " << endl << endl;
 
-
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Measuring speed of function clock_gettime() " << std::endl;
+  std::cout << " Monothreaded Loop of size " << double(loopsize) << " took " <<
+            t /
+            1.0e9 << " sec" << " (" << double(loopsize) / (t / 1.0e9) << "Hz" << ")" <<
+            std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   RWMutex::SetTimingGlobal(true);
-
   RWMutex mutex, mutex2;
   mutex.SetTiming(true);
+  t = Timing::GetNowInNs();
 
-  t = NowInt();
-  for (int k = 0; k < loopsize; k++)
-  {
+  for (int k = 0; k < loopsize; ++k) {
     mutex.LockWrite();
     mutex.UnLockWrite();
   }
-  t = NowInt() - t;
 
-  RWMutexTimingStats stats;
+  t = Timing::GetNowInNs() - t;
+  RWMutex::TimingStats stats;
   mutex.GetTimingStatistics(stats);
-  cout << " ------------------------- " << endl;
-  cout << " Monothreaded Loop of size " << double(loopsize) << " took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")"<< endl;
-  cout << stats;
-  cout << " ------------------------- " << endl << endl;
-
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Monothreaded Loop of size " << double(loopsize) << " took " <<
+            t /
+            1.0e9 << " sec" << " (" << double(loopsize) / (t / 1.0e9) << "Hz" << ")" <<
+            std::endl;
+  std::cout << stats;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   float rate = RWMutex::GetSamplingRateFromCPUOverhead(0.033);
-  cout << " suggested sample rate is " << rate << endl << endl;
+  std::cout << " suggested sample rate is " << rate << std::endl << std::endl;
   mutex2.SetTiming(true);
   mutex2.SetSampling(true);
+  t = Timing::GetNowInNs();
 
-  t = NowInt();
-  for (int k = 0; k < loopsize; k++)
-  {
+  for (int k = 0; k < loopsize; ++k) {
     mutex2.LockWrite();
     mutex2.UnLockWrite();
   }
-  t = NowInt() - t;
-  mutex2.GetTimingStatistics(stats);
-  cout << " ------------------------- " << endl;
-  cout << " Monothreaded Loop of size " << double(loopsize) << " with a sample rate of " << rate << " took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
-  cout << stats;
-  cout << " ------------------------- " << endl << endl;
 
+  t = Timing::GetNowInNs() - t;
+  mutex2.GetTimingStatistics(stats);
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Monothreaded Loop of size " << double(loopsize) <<
+            " with a sample rate of " << rate << " took " << t / 1.0e9 << " sec" << " (" <<
+            double(loopsize) / (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << stats;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   RWMutex mutex3;
-  RWMutex::SetTimingGlobal(false); // by default no local timing, but global timing with samplerate of 1
-  t = NowInt();
-  for (int k = 0; k < loopsize; k++)
-  {
+  // By default no local timing, but global timing with samplerate of 1
+  RWMutex::SetTimingGlobal(false);
+  t = Timing::GetNowInNs();
+
+  for (int k = 0; k < loopsize; ++k) {
     mutex3.LockWrite();
     mutex3.UnLockWrite();
   }
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Monothreaded Loop of size " << double(loopsize) << " without stats took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
-  cout << " no stats available" << endl;
-  cout << " ------------------------- " << endl << endl;
 
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Monothreaded Loop of size " << double(loopsize) <<
+            " without stats took " << t / 1.0e9 << " sec" << " (" << double(loopsize) /
+            (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << " no stats available" << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   globmutex.SetBlocking(true);
   RWMutex::SetTimingGlobal(false);
-  t = NowInt();
-  RunThreads();
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Multithreaded Loop (" << NUM_THREADS << " threads half reading/half writing, blocking mutex) of size " << double(loopsize) / (int) NUM_THREADS
-      << " without stats took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
-  cout << " no stats available" << endl;
-  cout << " ------------------------- " << endl << endl;
+  t = Timing::GetNowInNs();
+  RunThreads(&TestThread);
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Multithreaded Loop (" << NUM_THREADS <<
+            " threads half reading/half writing, blocking mutex) of size " << double(
+              loopsize) / (int) NUM_THREADS
+            << " without stats took " << t / 1.0e9 << " sec" << " (" << double(loopsize) /
+            (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << " no stats available" << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   sleep(1);
-
   globmutex.SetBlocking(false);
   RWMutex::SetTimingGlobal(false);
-  t = NowInt();
-  RunThreads();
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Multithreaded Loop (" << NUM_THREADS << " threads half reading/half writing, NON-blocking mutex) of size " << double(loopsize) / (int) NUM_THREADS
-      << " without stats took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
-  cout << " no stats available" << endl;
-  cout << " ------------------------- " << endl << endl;
+  t = Timing::GetNowInNs();
+  RunThreads(&TestThread);
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Multithreaded Loop (" << NUM_THREADS <<
+            " threads half reading/half writing, NON-blocking mutex) of size " << double(
+              loopsize) / (int) NUM_THREADS
+            << " without stats took " << t / 1.0e9 << " sec" << " (" << double(loopsize) /
+            (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << " no stats available" << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   sleep(1);
-
-  cout << " ------------------------- " << endl;
-  cout << " Native statistics for global mutex" << endl;
-  cout << " ReadLockCount = " << globmutex.GetReadLockCounter() <<endl;
-  cout << " WriteLockCount = " << globmutex.GetWriteLockCounter() <<endl;
-  cout << " ------------------------- " << endl << endl;
-
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Native statistics for global mutex" << std::endl;
+  std::cout << " ReadLockCount = " << globmutex.GetReadLockCounter() << std::endl;
+  std::cout << " WriteLockCount = " << globmutex.GetWriteLockCounter() <<
+            std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   globmutex.SetBlocking(true);
   globmutex.SetTiming(true);
   globmutex.SetSampling(true);
   globmutex.ResetTimingStatistics();
   RWMutex::SetTimingGlobal(true);
-  t = NowInt();
-  RunThreads();
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Multithreaded Loop (" << NUM_THREADS << " threads half reading/half writing, blocking mutex) of size " << double(loopsize) / (int) NUM_THREADS
-      << " with a sample rate of " << rate << " took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
+  t = Timing::GetNowInNs();
+  RunThreads(&TestThread);
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Multithreaded Loop (" << NUM_THREADS <<
+            " threads half reading/half writing, blocking mutex) of size " << double(
+              loopsize) / (int) NUM_THREADS
+            << " with a sample rate of " << rate << " took " << t / 1.0e9 << " sec" << " ("
+            << double(loopsize) / (t / 1.0e9) << "Hz" << ")" << std::endl;
   globmutex.GetTimingStatistics(stats);
-  cout << stats;
-  cout << " ------------------------- " << endl << endl;
+  std::cout << stats;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   sleep(1);
-
   globmutex.SetBlocking(false);
   globmutex.SetTiming(true);
   globmutex.SetSampling(true);
   globmutex.ResetTimingStatistics();
   RWMutex::SetTimingGlobal(true);
-  t = NowInt();
-  RunThreads();
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Multithreaded Loop (" << NUM_THREADS << " threads half reading/half writing, NON-blocking mutex) of size " << double(loopsize) / (int) NUM_THREADS
-      << " with a sample rate of " << rate << " took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
+  t = Timing::GetNowInNs();
+  RunThreads(&TestThread);
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Multithreaded Loop (" << NUM_THREADS <<
+            " threads half reading/half writing, NON-blocking mutex) of size " << double(
+              loopsize) / (int) NUM_THREADS
+            << " with a sample rate of " << rate << " took " << t / 1.0e9 << " sec" << " ("
+            << double(loopsize) / (t / 1.0e9) << "Hz" << ")" << std::endl;
   globmutex.GetTimingStatistics(stats);
-  cout << stats;
-  cout << " ------------------------- " << endl << endl;
-
-  cout << " ------------------------- " << endl;
-  cout << " Global statistics" << endl;
+  std::cout << stats;
+  std::cout << " ------------------------- " << std::endl << std::endl;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Global statistics" << std::endl;
   RWMutex::GetTimingStatisticsGlobal(stats);
-  cout << stats;
-  cout << " ------------------------- " << endl << endl;
-
-  cout<<"###################################################################"<<endl;
-  cout<<"################ MONOTHREADED ORDER CHECKING TESTS ################"<<endl;
-  cout<<"###################################################################"<<endl;
+  std::cout << stats;
+  std::cout << " ------------------------- " << std::endl << std::endl;
+  std::cout << "#################################################" << std::endl;
+  std::cout << "######## MONOTHREADED ORDER CHECKING TESTS ######" << std::endl;
+  std::cout << "#################################################" << std::endl;
   RWMutex::SetTimingGlobal(false);
   RWMutex::SetOrderCheckingGlobal(true);
   vector<RWMutex*> order;
-  order.push_back(&gm1); gm1.SetDebugName("mutex1");
-  order.push_back(&gm2); gm2.SetDebugName("mutex2");
-  order.push_back(&gm3); gm3.SetDebugName("mutex3");
-  RWMutex::AddOrderRule("rule1",order);
+  order.push_back(&gm1);
+  gm1.SetDebugName("mutex1");
+  order.push_back(&gm2);
+  gm2.SetDebugName("mutex2");
+  order.push_back(&gm3);
+  gm3.SetDebugName("mutex3");
+  RWMutex::AddOrderRule("rule1", order);
   order.clear();
-  order.push_back(&gm2);order.push_back(&gm3);
-  RWMutex::AddOrderRule("rule2",order);
-
-  cout<<"======== Trying lock/unlock mutex in proper order... ========"<<std::endl; cout.flush();
+  order.push_back(&gm2);
+  order.push_back(&gm3);
+  RWMutex::AddOrderRule("rule2", order);
+  std::cout << "==== Trying lock/unlock mutex in proper order... ====" <<
+            std::endl;
+  std::cout.flush();
   gm1.LockWrite();
   gm2.LockWrite();
   gm3.LockWrite();
   gm3.UnLockWrite();
   gm2.UnLockWrite();
   gm1.UnLockWrite();
-  cout<<"======== ... done ========"<<std::endl<<std::endl; cout.flush();
-
-  cout<<"======== Trying lock/unlock mutex in an improper order... ========"<<std::endl; cout.flush();
+  std::cout << "======== ... done ========" << std::endl << std::endl;
+  std::cout.flush();
+  std::cout << "=== Trying lock/unlock mutex in an improper order... ===" <<
+            std::endl;
+  std::cout.flush();
   gm1.LockWrite();
   gm3.LockWrite();
   gm2.LockWrite();
   gm2.UnLockWrite();
   gm3.UnLockWrite();
   gm1.UnLockWrite();
-  cout<<"======== ... done ========"<<std::endl<<std::endl; cout.flush();
-
+  std::cout << "======== ... done ========" << std::endl << std::endl;
+  std::cout.flush();
   RWMutex::SetOrderCheckingGlobal(false);
-  t = NowInt();
-  for (int k = 0; k < loopsize; k++)
-  {
+  t = Timing::GetNowInNs();
+
+  for (int k = 0; k < loopsize; ++k) {
     gm1.LockWrite();
     gm2.LockWrite();
     gm3.LockWrite();
@@ -313,16 +339,18 @@ main()
     gm2.UnLockWrite();
     gm1.UnLockWrite();
   }
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Monothreaded Loop of size " << double(loopsize) << " WITHOUT order check took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
-  cout << " no stats available" << endl;
-  cout << " ------------------------- " << endl << endl;
 
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Monothreaded Loop of size " << double(loopsize)
+            << " WITHOUT order check took " << t / 1.0e9 << " sec" << " ("
+            << double(loopsize) / (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << " no stats available" << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   RWMutex::SetOrderCheckingGlobal(true);
-  t = NowInt();
-  for (int k = 0; k < loopsize; k++)
-  {
+  t = Timing::GetNowInNs();
+
+  for (int k = 0; k < loopsize; ++k) {
     gm1.LockWrite();
     gm2.LockWrite();
     gm3.LockWrite();
@@ -330,72 +358,79 @@ main()
     gm2.UnLockWrite();
     gm1.UnLockWrite();
   }
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Monothreaded Loop of size " << double(loopsize) << " WITH order check took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
-  cout << " no stats available" << endl;
-  cout << " ------------------------- " << endl << endl;
 
-  cout<<"###################################################################"<<endl;
-  cout<<"############### MULTITHREADED ORDER CHECKING TESTS ################"<<endl;
-  cout<<"###################################################################"<<endl;
-
-  RunThreads2();
-
-
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Monothreaded Loop of size " << double(loopsize)
+            << " WITH order check took " << t / 1.0e9 << " sec" << " ("
+            <<  double(loopsize) / (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << " no stats available" << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
+  std::cout << "#################################################" << std::endl;
+  std::cout << "####### MULTITHREADED ORDER CHECKING TESTS ######" << std::endl;
+  std::cout << "#################################################" << std::endl;
+  RunThreads(&TestThread2);
   return 0;
 }
-#else
 
+/*
 int
 main()
 {
-  cout << " Using NON-Instrumented Version of RWMutex class" << endl;
+  std::cout << " Using NON-Instrumented Version of RWMutex class" << std::endl;
   RWMutex mutex3;
-  size_t t = NowInt();
-  for (int k = 0; k < loopsize; k++)
-  {
+  size_t t = Timing::GetNowInNs();
+
+  for (int k = 0; k < loopsize; ++k) {
     mutex3.LockWrite();
     mutex3.UnLockWrite();
   }
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Monothreaded Loop of size " << double(loopsize) << " without stats took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
-  cout << " no stats available" << endl;
-  cout << " ------------------------- " << endl << endl;
 
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Monothreaded Loop of size " << double(loopsize) <<
+       " without stats took " << t / 1.0e9 << " sec" << " (" << double(loopsize) /
+       (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << " no stats available" << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   globmutex.SetBlocking(true);
-  t = NowInt();
-  RunThreads();
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Multithreaded Loop (" << NUM_THREADS << " threads half reading/half writing, blocking mutex) of size " << double(loopsize) / (int) NUM_THREADS
-      << " without stats took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
-  cout << " no stats available" << endl;
-  cout << " ------------------------- " << endl << endl;
-
+  t = Timing::GetNowInNs();
+  RunThreads(&TestThread);
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Multithreaded Loop (" << NUM_THREADS <<
+       " threads half reading/half writing, blocking mutex) of size " << double(
+         loopsize) / (int) NUM_THREADS
+       << " without stats took " << t / 1.0e9 << " sec" << " (" << double(loopsize) /
+       (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << " no stats available" << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
   globmutex.SetBlocking(false);
-  t = NowInt();
-  RunThreads();
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Multithreaded Loop (" << NUM_THREADS << " threads half reading/half writing, NON-blocking mutex) of size " << double(loopsize) / (int) NUM_THREADS
-      << " without stats took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
-  cout << " no stats available" << endl;
-  cout << " ------------------------- " << endl << endl;
+  t = Timing::GetNowInNs();
+  RunThreads(&TestThread);
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Multithreaded Loop (" << NUM_THREADS <<
+       " threads half reading/half writing, NON-blocking mutex) of size " << double(
+         loopsize) / (int) NUM_THREADS
+       << " without stats took " << t / 1.0e9 << " sec" << " (" << double(loopsize) /
+       (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << " no stats available" << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Native statistics for global mutex" << std::endl;
+  std::cout << " ReadLockCount = " << globmutex.GetReadLockCounter() << std::endl;
+  std::cout << " WriteLockCount = " << globmutex.GetWriteLockCounter() << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
+  std::cout << "###################################################################" <<
+       std::endl;
+  std::cout << "################ MONOTHREADED ORDER CHECKING TESTS ################" <<
+       std::endl;
+  std::cout << "###################################################################" <<
+       std::endl;
+  t = Timing::GetNowInNs();
 
-  cout << " ------------------------- " << endl;
-  cout << " Native statistics for global mutex" << endl;
-  cout << " ReadLockCount = " << globmutex.GetReadLockCounter() <<endl;
-  cout << " WriteLockCount = " << globmutex.GetWriteLockCounter() <<endl;
-  cout << " ------------------------- " << endl << endl;
-
-  cout<<"###################################################################"<<endl;
-  cout<<"################ MONOTHREADED ORDER CHECKING TESTS ################"<<endl;
-  cout<<"###################################################################"<<endl;
-  t = NowInt();
-  for (int k = 0; k < loopsize; k++)
-  {
+  for (int k = 0; k < loopsize; ++k) {
     gm1.LockWrite();
     gm2.LockWrite();
     gm3.LockWrite();
@@ -403,12 +438,13 @@ main()
     gm2.UnLockWrite();
     gm1.UnLockWrite();
   }
-  t = NowInt() - t;
-  cout << " ------------------------- " << endl;
-  cout << " Monothreaded Loop of size " << double(loopsize) << " WITHOUT order check took " << t / 1.0e9 << " sec"<<" ("<<double(loopsize)/(t / 1.0e9)<<"Hz"<<")" << endl;
-  cout << " no stats available" << endl;
-  cout << " ------------------------- " << endl << endl;
+
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Monothreaded Loop of size " << double(loopsize) <<
+       " WITHOUT order check took " << t / 1.0e9 << " sec" << " (" << double(
+         loopsize) / (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << " no stats available" << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
 }
-#endif
-
-
+*/

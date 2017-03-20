@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -43,7 +42,6 @@
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -55,12 +53,10 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-/*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
-/*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -70,8 +66,6 @@
 #define S_IAMB  0x1FF
 #endif
 
-
-/*----------------------------------------------------------------------------*/
 
 /******************************************************************************/
 /******************************************************************************/
@@ -188,7 +182,7 @@ XrdMgmOfsFile::open(const char* inpath,
     break;
   }
 
-  XrdOucString pinfo = info ? info : "";
+  XrdOucString pinfo = (ininfo ? ininfo : "");
   eos::common::StringConversion::MaskTag(pinfo, "cap.msg");
   eos::common::StringConversion::MaskTag(pinfo, "cap.sym");
   eos::common::StringConversion::MaskTag(pinfo, "authz");
@@ -247,7 +241,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  openOpaque = new XrdOucEnv(info);
+  openOpaque = new XrdOucEnv(ininfo);
   {
     // figure out if this is FUSE access
     const char* val = 0;
@@ -396,13 +390,13 @@ XrdMgmOfsFile::open(const char* inpath,
 
     gOFS->MgmStats.Add("OpenProc", vid.uid, vid.gid, 1);
 
-    if (!ProcInterface::Authorize(path, info, vid, client)) {
+    if (!ProcInterface::Authorize(path, ininfo, vid, client)) {
       return Emsg(epname, error, EPERM, "execute proc command - you don't have "
                   "the requested permissions for that operation (2)", path);
     } else {
       procCmd = new ProcCommand();
       procCmd->SetLogId(logId, vid, tident);
-      return procCmd->open(path, info, vid, &error);
+      return procCmd->open(path, ininfo, vid, &error);
     }
   }
 
@@ -443,7 +437,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
     // if it does not exist try to create the path!
     if ((!ec) && (file_exists == XrdSfsFileExistNo)) {
-      ec = gOFS->_mkdir(cPath.GetParentPath(), Mode, error, vid, info);
+      ec = gOFS->_mkdir(cPath.GetParentPath(), Mode, error, vid, ininfo);
 
       if (ec) {
         gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
@@ -746,7 +740,7 @@ XrdMgmOfsFile::open(const char* inpath,
         }
       } else {
         // drop the old file (for non atomic uploads) and create a new truncated one
-        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, info, false, false)) {
+        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, ininfo, false, false)) {
           return Emsg(epname, error, errno, "remove file for truncation", path);
         }
       }
@@ -1619,7 +1613,7 @@ XrdMgmOfsFile::open(const char* inpath,
       targethost  = filesystem->GetString("host").c_str();
       targetport  = atoi(filesystem->GetString("port").c_str());
     } else { // we have a proxy to use
-      proxys[fsIndex].c_str();
+      (void) proxys[fsIndex].c_str();
       auto idx = proxys[fsIndex].rfind(":");
 
       if (idx != std::string::npos) {
@@ -1972,7 +1966,7 @@ XrdMgmOfsFile::open(const char* inpath,
               targethost  = filesystem->GetString("host").c_str();
               targetport  = atoi(filesystem->GetString("port").c_str());
             } else { // we have a proxy to use
-              proxys[fsIndex].c_str();
+              (void) proxys[fsIndex].c_str();
               auto idx = proxys[fsIndex].rfind(":");
 
               if (idx != std::string::npos) {
@@ -2013,7 +2007,6 @@ XrdMgmOfsFile::open(const char* inpath,
         replicahost += repfilesystem->GetString("host").c_str();
         replicaport = atoi(repfilesystem->GetString("port").c_str());
       } else { // we have a proxy to use
-        proxys[i].c_str();
         auto idx = proxys[i].rfind(":");
 
         if (idx != std::string::npos) {

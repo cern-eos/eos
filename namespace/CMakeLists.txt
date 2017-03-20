@@ -117,9 +117,7 @@ endif()
 
 add_subdirectory(ns_in_memory)
 
-# Build ns_on_redis if Redox client library available
-if (REDOX_FOUND)
-  add_subdirectory(ns_on_redis)
+# Build EosNsQuarkdb only if hiredis is available
+if (HIREDIS_FOUND)
+  add_subdirectory(ns_quarkdb)
 endif()
-
-#add_subdirectory(ns_on_ramcloud)

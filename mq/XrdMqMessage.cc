@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-// xroot includes
 #include <mq/XrdMqMessage.hh>
 #include <sys/time.h>
 #include <uuid/uuid.h>
@@ -57,7 +56,7 @@ XrdMqMessageHeader::XrdMqMessageHeader():
   kMessageId(""), kReplyId(""), kSenderId(""), kBrokerId(""), kReceiverId(""),
   kSenderTime_sec(0), kSenderTime_nsec(0), kBrokerTime_sec(0),
   kBrokerTime_nsec(0), kReceiverTime_sec(0), kReceiverTime_nsec(0),
-  kMessageSignature(""), kMessageDigest(""), kEncrypted(false),
+  kMessageSignature(""), kMessageDigest(""), kEncrypted(false), kType(0),
   mMsgHdrBuffer(""), kCertificateHash("")
 {
 }
@@ -282,19 +281,20 @@ XrdMqMessageHeader::Print()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-XrdMqMessage::XrdMqMessage(const char* description, int type)
+XrdMqMessage::XrdMqMessage(const char* description, int type):
+  kMonitor(false), errc(0)
 {
   kMessageHeader.kDescription = description;
   NewId();
   kMessageHeader.kType = type;
-  kMonitor = false;
 }
 
 //------------------------------------------------------------------------------
 // Constructor - just fills the raw buffer, the Decode method has to be called
 // to unpack it.
 //------------------------------------------------------------------------------
-XrdMqMessage::XrdMqMessage(XrdOucString& rawmessage)
+XrdMqMessage::XrdMqMessage(XrdOucString& rawmessage):
+  kMonitor(false), errc(0)
 {
   kMessageBuffer = rawmessage;
 }
@@ -462,7 +462,12 @@ XrdMqMessage::Configure(const char* ConfigFN)
         }
 
         // add to the public key hash
-        PublicKeyHash.Add(ep->d_name, pkey);
+        try {
+          PublicKeyHash.Add(ep->d_name, pkey);
+        } catch (int& excp) {
+          return Eroute.Emsg("Config", EINVAL, "insert public key in map");
+        }
+
         X509_free(x509);
         x509 = 0;
       }

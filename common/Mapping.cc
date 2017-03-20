@@ -1172,8 +1172,9 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
             eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx",
                              bituser, n_tohll(bituser));
           } else {
+            gPhysicalIdMutex.UnLock();
             eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d", outlen);
-	    delete id;
+            delete id;
             return;
           }
 
@@ -1182,13 +1183,19 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
           if (out) {
             free(out);
           }
-
+          
+          if (id) {
+            delete id;
+          }
+          
           id  = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
           eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid,
                            id->gid);
         } else {
           eos_static_err("msg=\"failed to decoded base-64 uid/gid/sid\" id=%s",
                          sname.c_str());
+          gPhysicalIdMutex.UnLock();
+          delete id;
           return;
         }
       }
@@ -1487,7 +1494,7 @@ Mapping::GroupNameToGid(const std::string& groupname, int& errc)
   struct group* grbufp = 0;
   gid_t gid = 99;
   errc = 0;
-  getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
+  (void) getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
 
   if (!grbufp) {
     bool is_number = true;

@@ -21,10 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-/*----------------------------------------------------------------------------*/
 #include <cppunit/extensions/HelperMacros.h>
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -35,9 +32,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <algorithm>
-/*----------------------------------------------------------------------------*/
 #include "TestEnv.hh"
-/*----------------------------------------------------------------------------*/
 
 #ifndef __EOS_FUSE_FUSEFSTEST_HH__
 #define __EOS_FUSE_FUSEFSTEST_HH__
@@ -250,7 +245,7 @@ FuseFsTest::XAttrTest()
   ssize_t sz_xattr = 16384;
   char listx[sz_xattr];
   std::string dir = mEnv->GetMapping("dir_path");
-  CPPUNIT_ASSERT((sz_real = listxattr(dir.c_str(), listx, sz_xattr)) != -1);
+  CPPUNIT_ASSERT((sz_real = listxattr(dir.c_str(), listx, sz_xattr)) >= 0);
   // Get the individual xattrs
   std::vector<std::string> vxattr;
   std::istringstream iss(std::string(listx, listx + sz_real - 1));
@@ -289,6 +284,12 @@ FuseFsTest::XAttrTest()
   for (auto elem = vxattr.begin(); elem != vxattr.begin(); ++elem) {
     CPPUNIT_ASSERT((sz_val_real = getxattr(dir.c_str(), elem->c_str(), value,
                                            sz_val)) != -1);
+
+    if (sz_val_real < 0) {
+      CPPUNIT_FAIL("getxattr return is negative");
+      return;
+    }
+
     CPPUNIT_ASSERT(strncmp(value, expect_map[*elem].c_str(), sz_val_real) == 0);
   }
 
@@ -300,6 +301,12 @@ FuseFsTest::XAttrTest()
   // Check the newly set xattr
   CPPUNIT_ASSERT((sz_val_real = getxattr(dir.c_str(), new_xattr.c_str(), value,
                                          sz_val)) != -1);
+
+  if (sz_val_real < 0) {
+    CPPUNIT_FAIL("getxattr return is negative");
+    return;
+  }
+
   CPPUNIT_ASSERT(strncmp(value, new_val.c_str(), sz_val_real) == 0);
   // Remove the newly added xattr
   CPPUNIT_ASSERT(!removexattr(dir.c_str(), new_xattr.c_str()));
@@ -317,7 +324,13 @@ FuseFsTest::RenameFileTest()
   std::string old_path = mEnv->GetMapping("file_dummy");
   std::string new_path = mEnv->GetMapping("file_rename");
   old_path += "_rft";
-  CPPUNIT_ASSERT((fd = creat(old_path.c_str(), S_IRWXU)) != -1);
+  CPPUNIT_ASSERT((fd = creat(old_path.c_str(), S_IRWXU)) >= 0);
+
+  if (fd < 0) {
+    CPPUNIT_FAIL("file descriptor is negative");
+    return;
+  }
+  
   CPPUNIT_ASSERT(!close(fd));
   CPPUNIT_ASSERT(!rename(old_path.c_str(), new_path.c_str()));
   CPPUNIT_ASSERT(stat(old_path.c_str(), &buf)); // fails
@@ -340,7 +353,13 @@ FuseFsTest::DirListTest()
   std::string fdummy = mEnv->GetMapping("file_dummy");
   fdummy += "_dlt";
   int fd = -1;
-  CPPUNIT_ASSERT((fd = creat(fdummy.c_str(), S_IRUSR | S_IWUSR)) != -1);
+  CPPUNIT_ASSERT((fd = creat(fdummy.c_str(), S_IRUSR | S_IWUSR)) >= 0);
+
+  if (fd < 0) {
+    CPPUNIT_FAIL("file descriptor is negative");
+    return;
+  }
+
   CPPUNIT_ASSERT(!close(fd));
   // Open, read and close directory
   struct dirent* dirent;
@@ -381,7 +400,13 @@ FuseFsTest::CreatTruncRmFileTest()
   off_t file_size = 4.5 * 1024;
   std::string fdummy = mEnv->GetMapping("file_dummy");
   fdummy += "_ctrft";
-  CPPUNIT_ASSERT((fd = creat(fdummy.c_str(), S_IRUSR | S_IWUSR)) != -1);
+  CPPUNIT_ASSERT((fd = creat(fdummy.c_str(), S_IRUSR | S_IWUSR)) >= 0);
+
+  if (fd < 0) {
+    CPPUNIT_FAIL("file descriptor is negative");
+    delete[] buff;
+    return;
+  }
 
   while (offset != file_size) {
     if (file_size - offset < sz_buff) {
@@ -446,4 +471,3 @@ FuseFsTest::UtimesTest()
 }
 
 #endif // __EOS_FUSE_FUSEFSTEST_HH__
-

@@ -29,7 +29,7 @@ using namespace eos::common;
 
 /* Group listing, configuration, manipulation */
 int
-com_group (char* arg1)
+com_group(char* arg1)
 {
   XrdOucString in = "";
   bool silent = false;
@@ -44,102 +44,102 @@ com_group (char* arg1)
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
 
-  if (wants_help(arg1))
+  if (wants_help(arg1)) {
     goto com_group_usage;
+  }
 
-  if (subcommand == "ls")
-  {
+  if (subcommand == "ls") {
     in = "mgm.cmd=group&mgm.subcmd=ls";
     option = "";
 
-    do
-    {
+    do {
       ok = false;
       subtokenizer.GetLine();
       option = subtokenizer.GetToken();
-      if (option.length())
-      {
-        if (option == "-m")
-        {
+
+      if (option.length()) {
+        if (option == "-m") {
           in += "&mgm.outformat=m";
           ok = true;
           highlighting = false;
         }
-        if (option == "-l")
-        {
+
+        if (option == "-l") {
           in += "&mgm.outformat=l";
           ok = true;
         }
-        if (option == "-g")
-        {
+
+        if (option == "-g") {
           XrdOucString geodepth = subtokenizer.GetToken();
-          if(!geodepth.length())
-          {
+
+          if (!geodepth.length()) {
             fprintf(stderr, "Error: geodepth is not provided\n");
             goto com_group_usage;
           }
-          if(!geodepth.isdigit() || geodepth.atoi()<0 )
-          {
+
+          if (!geodepth.isdigit() || geodepth.atoi() < 0) {
             fprintf(stderr, "Error: geodepth should be a positive integer\n");
             return 0;
           }
+
           in += "&mgm.outdepth=";
           in += geodepth;
           ok = true;
         }
-        if (option == "--io")
-        {
+
+        if (option == "--io") {
           in += "&mgm.outformat=io";
           ok = true;
         }
-        if (option == "--IO")
-        {
+
+        if (option == "--IO") {
           in += "&mgm.outformat=IO";
           ok = true;
         }
-        if (option == "-s")
-        {
+
+        if (option == "-s") {
           silent = true;
           ok = true;
         }
-	if ( (option == "--brief") || (option == "-b") )
-	{
-	  in += "&mgm.outhost=brief";
-	  ok = true;
-	}
-        if (!option.beginswith("-"))
-        {
+
+        if ((option == "--brief") || (option == "-b")) {
+          in += "&mgm.outhost=brief";
+          ok = true;
+        }
+
+        if (!option.beginswith("-")) {
           in += "&mgm.selection=";
           in += option;
-          if (!sel)
+
+          if (!sel) {
             ok = true;
+          }
+
           sel = true;
         }
 
-        if (!ok)
+        if (!ok) {
           printusage = true;
-      }
-      else
-      {
+        }
+      } else {
         ok = true;
       }
-    }
-    while (option.length());
+    } while (option.length());
   }
 
-  if (subcommand == "set")
-  {
+  if (subcommand == "set") {
     in = "mgm.cmd=group&mgm.subcmd=set";
     XrdOucString nodename = subtokenizer.GetToken();
     XrdOucString active = subtokenizer.GetToken();
 
-    if ((active != "on") && (active != "off"))
-    {
+    if ((active != "on") && (active != "off")) {
       printusage = true;
     }
 
-    if (!nodename.length())
+    if (!nodename.length()) {
       printusage = true;
+    }
+
     in += "&mgm.group=";
     in += nodename;
     in += "&mgm.group.state=";
@@ -147,55 +147,61 @@ com_group (char* arg1)
     ok = true;
   }
 
-  if (subcommand == "rm")
-  {
+  if (subcommand == "rm") {
     in = "mgm.cmd=group&mgm.subcmd=rm";
     XrdOucString groupname = subtokenizer.GetToken();
 
-    if (!groupname.length())
+    if (!groupname.length()) {
       printusage = true;
+    }
+
     in += "&mgm.group=";
     in += groupname;
     ok = true;
   }
 
-
-  if (printusage || (!ok))
+  if (printusage || (!ok)) {
     goto com_group_usage;
+  }
 
   result = client_admin_command(in);
 
-  if (!silent)
-  {
+  if (!silent) {
     global_retc = output_result(result, highlighting);
-  }
-  else
-  {
-    if (result)
-    {
+  } else {
+    if (result) {
       global_retc = 0;
-    }
-    else
-    {
+    } else {
       global_retc = EINVAL;
     }
   }
 
   return (0);
-
 com_group_usage:
-
-  fprintf(stdout, "usage: group ls                                                      : list groups\n");
-  fprintf(stdout, "usage: group ls [-s] [-g] [-b|--brief] [-m|-l|--io] [<group>]                          : list groups or only <group>. <group> is a substring match and can be a comma seperated list\n");
-  fprintf(stdout, "                                                                  -s : silent mode\n");
-  fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
-  fprintf(stdout, "                                                                  -l : long output - list also file systems after each group\n");
-  fprintf(stdout, "                                                                  -g : geo output - aggregate group information along the instance geotree down to <depth>\n");
-  fprintf(stdout, "                                                                --io : print IO statistics for the group\n");
-  fprintf(stdout, "                                                                --IO : print IO statistics for each filesystem\n");
-  fprintf(stdout, "       group rm <group-name>                                         : remove group\n");
-  fprintf(stdout, "       group set <group-name> on|off                                 : activate/deactivate group\n");
-  fprintf(stdout, "                                                                       => when a group is (re-)enabled, the drain pull flag is recomputed for all filesystems within a group\n");
-  fprintf(stdout, "                                                                       => when a group is (re-)disabled, the drain pull flag is removed from all members in the group\n");
+  fprintf(stdout,
+          "usage: group ls                                                      : list groups\n");
+  fprintf(stdout,
+          "usage: group ls [-s] [-g] [-b|--brief] [-m|-l|--io] [<group>]                          : list groups or only <group>. <group> is a substring match and can be a comma seperated list\n");
+  fprintf(stdout,
+          "                                                                  -s : silent mode\n");
+  fprintf(stdout,
+          "                                                                  -m : monitoring key=value output format\n");
+  fprintf(stdout,
+          "                                                                  -l : long output - list also file systems after each group\n");
+  fprintf(stdout,
+          "                                                                  -g : geo output - aggregate group information along the instance geotree down to <depth>\n");
+  fprintf(stdout,
+          "                                                                --io : print IO statistics for the group\n");
+  fprintf(stdout,
+          "                                                                --IO : print IO statistics for each filesystem\n");
+  fprintf(stdout,
+          "       group rm <group-name>                                         : remove group\n");
+  fprintf(stdout,
+          "       group set <group-name> on|off                                 : activate/deactivate group\n");
+  fprintf(stdout,
+          "                                                                       => when a group is (re-)enabled, the drain pull flag is recomputed for all filesystems within a group\n");
+  fprintf(stdout,
+          "                                                                       => when a group is (re-)disabled, the drain pull flag is removed from all members in the group\n");
+  global_retc = EINVAL;
   return (0);
 }

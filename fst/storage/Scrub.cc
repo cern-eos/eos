@@ -21,10 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-/*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
 #define O_DIRECT 0
@@ -65,8 +63,8 @@ Storage::Scrub()
         std::string path = fileSystemsVector[i]->GetPath();
 
         if (!fileSystemsVector[i]->GetStatfs()) {
-          eos_static_info("GetStatfs failed");
           fsMutex.UnLockRead();
+          eos_static_info("GetStatfs failed");
           continue;
         }
 

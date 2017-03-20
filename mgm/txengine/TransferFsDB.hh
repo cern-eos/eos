@@ -24,40 +24,44 @@
 #ifndef __EOSMGM_TRANSFERFSDB__HH__
 #define __EOSMGM_TRANSFERFSDB__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "mgm/txengine/TransferDB.hh"
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
 #include "common/sqlite/sqlite3.h"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 #include <string>
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-class TransferFsDB : public TransferDB, eos::common::LogId {
+class TransferFsDB : public TransferDB, eos::common::LogId
+{
   typedef std::vector<std::map< std::string, std::string > > qr_result_t;
 private:
-  sqlite3 *DB;
+  sqlite3* DB;
   FILE* fdArchive;
   qr_result_t Qr;
   char* ErrMsg;
   XrdSysMutex Lock;
 
 public:
-  static int CallBack(void *NotUsed, int argc, char **argv, char **ColName);
+  static int CallBack(void* NotUsed, int argc, char** argv, char** ColName);
   TransferFsDB();
-  bool Init(const char* dbpath="/var/eos/tx/");
+  bool Init(const char* dbpath = "/var/eos/tx/");
   virtual ~TransferFsDB();
-  
-  virtual int Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid);
 
-  virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost, bool sync, bool noauth);
-  virtual int Cancel(long long id, XrdOucString& stdOut, XrdOucString& stdErr, bool nolock=false);
-  virtual int Archive(long long id, XrdOucString& stdOUt, XrdOucString& sttdErr, bool nolock=false);
+  virtual int Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group,
+                 XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid);
+
+  virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate,
+                     XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut,
+                     XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime,
+                     XrdOucString& credentials, XrdOucString& submissionhost, bool sync,
+                     bool noauth);
+  virtual int Cancel(long long id, XrdOucString& stdOut, XrdOucString& stdErr,
+                     bool nolock = false);
+  virtual int Archive(long long id, XrdOucString& stdOUt, XrdOucString& sttdErr,
+                      bool nolock = false);
   virtual int Clear(XrdOucString& stdOut, XrdOucString& stdErr);
   virtual std::vector<long long> QueryByGroup(XrdOucString& group);
   virtual std::vector<long long> QueryByState(XrdOucString& state);
@@ -66,10 +70,11 @@ public:
   virtual bool SetState(long long id, int status);
   virtual bool SetProgress(long long id, float progress);
   virtual bool SetExecutionHost(long long id, std::string& exechost);
-  virtual bool SetCredential(long long id, std::string credential, time_t exptime);
+  virtual bool SetCredential(long long id, std::string credential,
+                             time_t exptime);
   virtual bool SetLog(long long id, std::string log);
   virtual transfer_t GetNextTransfer(int status);
-  virtual transfer_t GetTransfer(long long id, bool nolock=false);
+  virtual transfer_t GetTransfer(long long id, bool nolock = false);
 };
 
 EOSMGMNAMESPACE_END

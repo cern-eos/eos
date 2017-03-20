@@ -124,7 +124,9 @@ Storage::Communicator()
           if (queue.beginswith("/config/") &&
               (queue.length() > Config::gConfig.FstHostPort.length()) &&
               queue.endswith(Config::gConfig.FstHostPort)) {
-            // this is the configuration entry and we should store it to have access to it since it's name depends on the instance name and we don't know (yet)
+            // This is the configuration entry and we should store it to have
+            // access to it since it's name depends on the instance name and
+            // we don't know (yet)
             Config::gConfig.FstNodeConfigQueue = queue;
             eos_static_info("storing config queue name <%s>",
                             Config::gConfig.FstNodeConfigQueue.c_str());
@@ -380,7 +382,9 @@ Storage::Communicator()
             if (do_reload) {
               try {
                 KineticLib::access()->reloadConfiguration();
-                for (auto fs_it = fileSystemsVector.cbegin(); fs_it != fileSystemsVector.cend(); fs_it++) {
+
+                for (auto fs_it = fileSystemsVector.cbegin(); fs_it != fileSystemsVector.cend();
+                     fs_it++) {
                   (*fs_it)->condReloadFileIo("kinetic");
                 }
               } catch (const std::exception& e) {
@@ -473,7 +477,8 @@ Storage::Communicator()
               gOFS.ObjectManager.HashMutex.UnLockRead();
             }
           } else {
-            eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s",
+            eos_static_err("illegal subject found - no filesystem object "
+                           "existing for modification %s;%s",
                            queue.c_str(), key.c_str());
           }
 

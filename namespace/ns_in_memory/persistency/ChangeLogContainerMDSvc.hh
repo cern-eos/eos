@@ -60,12 +60,19 @@ public:
   //--------------------------------------------------------------------------
   //! Constructor
   //--------------------------------------------------------------------------
-  ChangeLogContainerMDSvc(): pFirstFreeId(0), pSlaveLock(0),
-    pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
-    pFollowStart(0), pQuotaStats(0), pFileSvc(NULL),
-    pAutoRepair(0), pResSize(1000000), pContainerAccounting(0)
+  ChangeLogContainerMDSvc():
+    pFirstFreeId(0), pFollowerThread(0), pSlaveLock(0), pSlaveMode(false),
+    pSlaveStarted(false), pSlavePoll(1000), pFollowStart(0), pQuotaStats(0),
+    pFileSvc(NULL), pAutoRepair(0), pResSize(1000000), pContainerAccounting(0)
   {
-    pIdMap.set_deleted_key(0);
+    try {
+      pIdMap.set_deleted_key(0);
+    } catch (const std::length_error& e) {
+      fprintf(stderr, "error: %s can not insert into google map",
+              __FUNCTION__);
+      exit(1);
+    }
+
     pIdMap.set_empty_key(std::numeric_limits<IContainerMD::id_t>::max());
     pChangeLog = new ChangeLogFile();
     pthread_mutex_init(&pFollowStartMutex, 0);
@@ -316,7 +323,7 @@ public:
   //------------------------------------------------------------------------
   //! Get first free container id
   //------------------------------------------------------------------------
-  IContainerMD::id_t getFirstFreeId() const
+  IContainerMD::id_t getFirstFreeId()
   {
     return pFirstFreeId;
   }

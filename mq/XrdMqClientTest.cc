@@ -27,7 +27,8 @@
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 
-int main (int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
   printf("Starting up ...\n");
   XrdMqMessage::Logger = new XrdSysLogger();
   XrdMqMessage::Eroute.logger(XrdMqMessage::Logger);
@@ -49,62 +50,66 @@ int main (int argc, char* argv[]) {
   mqc.Subscribe();
   mqc.SetDefaultReceiverQueue("/xmessage/*");
   XrdMqMessage message("TestMessage");
-   
   message.Print();
   message.Print();
-  printf("Decode %d \n",message.Decode());
+  printf("Decode %d \n", message.Decode());
   message.Print();
-
   XrdMqTiming mq("send");
-
-  TIMING("START",&mq);
-
-
+  TIMING("START", &mq);
 #ifdef __BLA__
-  for (int i=0; i< 1000; i++) {
+
+  for (int i = 0; i < 1000; i++) {
     message.NewId();
     message.kMessageHeader.kDescription = "Test";
     message.kMessageHeader.kDescription += i;
-    
     bool ret = (mqc << message);
     //    printf("Message send gave %d\n",ret);
   }
 
-  TIMING("SEND",&mq);
-  for (int i=0; i< 1000; i++) {
+  TIMING("SEND", &mq);
+
+  for (int i = 0; i < 1000; i++) {
     XrdMqMessage* newmessage = mqc.RecvMessage();
-    if (i==0) {
-      if (newmessage) newmessage->Print();
+
+    if (i == 0) {
+      if (newmessage) {
+        newmessage->Print();
+      }
     }
-    if (newmessage) 
+
+    if (newmessage) {
       delete newmessage;
+    }
   }
-  TIMING("RECV",&mq);
+
+  TIMING("RECV", &mq);
   mq.Print();
-
-
-#else 
+#else
   int n = 1000;
-  if (argc==2) {
-    printf("%s %s\n",argv[0],argv[1]);
+
+  if (argc == 2) {
+    printf("%s %s\n", argv[0], argv[1]);
     n = atoi(argv[1]);
-    printf("n is %d\n",n);
+    printf("n is %d\n", n);
   }
-  
-  for (int i=0; i< n; i++) {
+
+  for (int i = 0; i < n; i++) {
     message.NewId();
     message.kMessageHeader.kDescription = "Test";
     message.kMessageHeader.kDescription += i;
-    
     (mqc << message);
-
     XrdMqMessage* newmessage = mqc.RecvMessage();
-    if (i==0) 
-      newmessage->Print();
-    if (newmessage) 
+
+    if (newmessage) {
+      if (i == 0)  {
+        newmessage->Print();
+      }
+
       delete newmessage;
+    }
   }
-  TIMING("SEND+RECV",&mq);
+
+  TIMING("SEND+RECV", &mq);
   mq.Print();
 #endif
 }

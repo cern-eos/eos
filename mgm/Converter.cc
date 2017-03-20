@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Converter.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
@@ -29,12 +28,11 @@
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "Xrd/XrdScheduler.hh"
-/*----------------------------------------------------------------------------*/
+
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
 
@@ -42,7 +40,7 @@ extern XrdOucTrace gMgmOfsTrace;
 #define STR(x) _STR(x)
 #define SDUID STR(DAEMONUID)
 #define SDGID STR(DAEMONGID)
-/*----------------------------------------------------------------------------*/
+
 EOSMGMNAMESPACE_BEGIN
 
 XrdSysMutex eos::mgm::Converter::gSchedulerMutex;
@@ -50,46 +48,35 @@ XrdScheduler* eos::mgm::Converter::gScheduler;
 XrdSysMutex eos::mgm::Converter::gConverterMapMutex;
 std::map<std::string, Converter*> eos::mgm::Converter::gConverterMap;
 
-/*----------------------------------------------------------------------------*/
-ConverterJob::ConverterJob (eos::common::FileId::fileid_t fid,
-                            const char* conversionlayout,
-                            std::string &convertername)
-: mFid (fid),
-mConversionLayout (conversionlayout),
-mConverterName (convertername)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief Constructor of a conversion job
- * 
- * @param fid file id of the file to convert
- * @param conversionlayout string describing the conversion layout to use
- * @param convertername to be used
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+ConverterJob::ConverterJob(eos::common::FileId::fileid_t fid,
+                           const char* conversionlayout,
+                           std::string& convertername):
+  mFid(fid),
+  mConversionLayout(conversionlayout),
+  mConverterName(convertername)
 {
   mProcPath = gOFS->MgmProcConversionPath.c_str();
   mProcPath += "/";
   char xfid[20];
-  snprintf(xfid, sizeof (xfid), "%016llx", (long long) mFid);
+  snprintf(xfid, sizeof(xfid), "%016llx", (long long) mFid);
   mProcPath += xfid;
   mProcPath += ":";
   mProcPath += conversionlayout;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Run a third-party conversion transfer
+//------------------------------------------------------------------------------
 void
-ConverterJob::DoIt ()
-/*----------------------------------------------------------------------------*/
-/*
- * @brief run a third-party conversion transfer
- * 
- */
-/*----------------------------------------------------------------------------*/
+ConverterJob::DoIt()
+
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
-
   eos_static_info("msg=\"start tpc job\" fxid=%016x layout=%s proc_path=%s",
                   mFid, mConversionLayout.c_str(), mProcPath.c_str());
   XrdSysTimer sleeper;
@@ -104,16 +91,14 @@ ConverterJob::DoIt ()
   XrdOucString sourceSize;
   Converter* startConverter = 0;
   Converter* stopConverter = 0;
-
   {
     XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
     startConverter = Converter::gConverterMap[mConverterName];
   }
-
   {
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
-    try
-    {
+
+    try {
       fmd = gOFS->eosFileService->getFileMD(mFid);
       owner_uid = fmd->getCUid();
       owner_gid = fmd->getCGid();
@@ -122,72 +107,59 @@ ConverterJob::DoIt ()
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
       cmd = gOFS->eosView->getContainer(gOFS->eosView->getUri(cmd.get()));
-
       XrdOucErrInfo error;
       // load the attributes
       gOFS->_attr_ls(gOFS->eosView->getUri(cmd.get()).c_str(), error, rootvid, 0,
-		     attrmap, false, true);
+                     attrmap, false, true);
 
       // get the checksum string if defined
       for (unsigned int i = 0;
-        i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
-      {
+           i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
         char hb[3];
-        sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+        sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
         sourceChecksum += hb;
       }
 
       // get the size string
       eos::common::StringConversion::GetSizeString(sourceSize,
-                                                   (unsigned long long) fmd->getSize());
-
+          (unsigned long long) fmd->getSize());
       std::string conversionattribute = "sys.conversion.";
       conversionattribute += mConversionLayout.c_str();
       XrdOucString lEnv;
       const char* val = 0;
-      if (attrmap.count(mConversionLayout.c_str()))
-      {
-        // conversion layout can either point to a conversion attribute definition in the parent directory
+
+      if (attrmap.count(mConversionLayout.c_str())) {
+        // Conversion layout can either point to a conversion attribute
+        // definition in the parent directory.
         val = eos::common::LayoutId::GetEnvFromConversionIdString(
-            lEnv, attrmap[mConversionLayout.c_str()].c_str());
-      }
-      else
-      {
+                lEnv, attrmap[mConversionLayout.c_str()].c_str());
+      } else {
         // or can be directly a hexadecimal layout representation or env representation
         val =
-          eos::common::LayoutId::GetEnvFromConversionIdString(lEnv, mConversionLayout.c_str());
+          eos::common::LayoutId::GetEnvFromConversionIdString(lEnv,
+              mConversionLayout.c_str());
       }
 
-      if (val)
-      {
+      if (val) {
         mTargetCGI = val;
       }
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_err("fid=%016x errno=%d msg=\"%s\"\n",
                      mFid, e.getErrno(), e.getMessage().str().c_str());
     }
   }
-
   bool success = false;
-  if (mTargetCGI.length())
-  {
-    // -------------------------------------------------------------------------
-    // this is properly defined job
-    // -------------------------------------------------------------------------
+
+  if (mTargetCGI.length()) {
+    // This is a properly defined job
     eos_static_info("msg=\"conversion layout correct\" fxid=%016x cgi=\"%s\"",
                     mFid, mTargetCGI.c_str());
-
-    // -------------------------------------------------------------------------
-    // prepare the TPC copy job
-    // -------------------------------------------------------------------------
+    // Prepare the TPC copy job
     XrdCl::PropertyList properties;
     XrdCl::PropertyList result;
 
-    if (size)
-    {
+    if (size) {
       // non-empty files run with TPC
       properties.Set("thirdParty", "only");
     }
@@ -195,7 +167,6 @@ ConverterJob::DoIt ()
     properties.Set("force", true);
     properties.Set("posc", false);
     properties.Set("coerce", false);
-
     std::string source = mSourcePath.c_str();
     std::string target = mProcPath.c_str();
     std::string cgi = "eos.ruid=" SDUID "&eos.rgid=" SDGID "&";
@@ -204,12 +175,11 @@ ConverterJob::DoIt ()
     cgi += "&eos.targetsize=";
     cgi += sourceSize.c_str();
 
-    if (sourceChecksum.length())
-    {
+    if (sourceChecksum.length()) {
       cgi += "&eos.checksum=";
       cgi += sourceChecksum.c_str();
     }
-    
+
     XrdCl::URL url_src;
     url_src.SetProtocol("root");
     url_src.SetHostName("localhost");
@@ -217,42 +187,33 @@ ConverterJob::DoIt ()
     url_src.SetParams("eos.app=converter");
     url_src.SetParams("eos.ruid=0&eos.rgid=0");
     url_src.SetPath(source);
-
-    XrdCl::URL url_trg;    
+    XrdCl::URL url_trg;
     url_trg.SetProtocol("root");
     url_trg.SetHostName("localhost");
     url_trg.SetUserName("root");
     url_trg.SetParams(cgi);
     url_trg.SetPath(target);
-        
     properties.Set("source", url_src);
     properties.Set("target", url_trg);
     properties.Set("sourceLimit", (uint16_t) 1);
-    properties.Set("chunkSize", (uint32_t) (4 * 1024 * 1024));
+    properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
     properties.Set("parallelChunks", (uint8_t) 1);
-
     XrdCl::CopyProcess lCopyProcess;
     lCopyProcess.AddJob(properties, &result);
-
     XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
     eos_static_info("[tpc]: %s=>%s %s",
                     url_src.GetURL().c_str(),
                     url_trg.GetURL().c_str(),
                     lTpcPrepareStatus.ToStr().c_str());
 
-    if (lTpcPrepareStatus.IsOK())
-    {
+    if (lTpcPrepareStatus.IsOK()) {
       XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
       eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
       success = lTpcStatus.IsOK();
-    }
-    else
-    {
+    } else {
       success = false;
     }
-  }
-  else
-  {
+  } else {
     // -------------------------------------------------------------------------
     // this is a crappy defined job
     // -------------------------------------------------------------------------
@@ -266,390 +227,288 @@ ConverterJob::DoIt ()
   // ---------------------------------------------------------------------------
   {
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
-    try
-    {
+
+    try {
       fmd = gOFS->eosFileService->getFileMD(mFid);
 
       // get the checksum string if defined
       for (unsigned int i = 0;
-        i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
-      {
+           i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
         char hb[3];
-        sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+        sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
         sourceAfterChecksum += hb;
       }
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_err("fid=%016x errno=%d msg=\"%s\"\n",
                      mFid, e.getErrno(), e.getMessage().str().c_str());
     }
 
-    if (sourceChecksum != sourceAfterChecksum)
-    {
+    if (sourceChecksum != sourceAfterChecksum) {
       success = false;
       eos_static_err("fid=%016x conversion failed since file was modified",
                      mFid);
     }
   }
-
   eos_static_info("msg=\"stop tpc job\" fxid=%016x layout=%s",
                   mFid, mConversionLayout.c_str());
-
   {
-    // -------------------------------------------------------------------------
-    // we can only call-back to the Converter object if it wasn't 
-    // destroyed/recreated in the mean-while
-    // -------------------------------------------------------------------------
-
+    // We can only call-back to the Converter object if it wasn't destroyed/
+    // recreated in the mean-while.
     XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
     stopConverter = Converter::gConverterMap[mConverterName];
-    if (startConverter && (startConverter == stopConverter))
-    {
+
+    if (startConverter && (startConverter == stopConverter)) {
       stopConverter->GetSignal()->Signal();
       stopConverter->DecActiveJobs();
     }
   }
 
-
-  if (success)
-  {
-    // -------------------------------------------------------------------------
-    // we merge the conversion entry
-    // -------------------------------------------------------------------------
-
-    if (!gOFS->merge(mProcPath.c_str(),
-                     mSourcePath.c_str(),
-                     error,
-                     rootvid))
-    {
+  if (success) {
+    // Merge the conversion entry
+    if (!gOFS->merge(mProcPath.c_str(), mSourcePath.c_str(), error, rootvid)) {
       eos_static_info("msg=\"deleted processed conversion job entry\" name=\"%s\"",
                       mConversionLayout.c_str());
       gOFS->MgmStats.Add("ConversionDone", owner_uid, owner_gid, 1);
-    }
-    else
-    {
+    } else {
       eos_static_err("msg=\"failed to remove failed conversion job entry\" name=\"%s\"",
                      mConversionLayout.c_str());
       gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
     }
-  }
-  else
-  {
-    // -------------------------------------------------------------------------
-    // we set owner nobody to indicate that this is a failed/faulty entry
-    // -------------------------------------------------------------------------
-    if (!gOFS->_rem(mProcPath.c_str(),
-                    error,
-                    rootvid,
-                    (const char*) 0))
-    {
+  } else {
+    // Set owner nobody to indicate that this is a failed/faulty entry
+    if (!gOFS->_rem(mProcPath.c_str(), error, rootvid, (const char*) 0)) {
       eos_static_info("msg=\"removed failed conversion entry\" name=\"%s\"",
                       mConversionLayout.c_str());
-    }
-    else
-    {
-
+    } else {
       eos_static_err("msg=\"failed to removefailed conversion job entry\" name=\"%s\"",
                      mConversionLayout.c_str());
     }
+
     gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
   }
-
 
   delete this;
 }
 
-/*----------------------------------------------------------------------------*/
-Converter::Converter (const char* spacename)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Constructor by space name
- * 
- * @param spacename name of the associated space
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor by space name
+//------------------------------------------------------------------------------
+Converter::Converter(const char* spacename)
 {
   mSpaceName = spacename;
   XrdSysMutexHelper sLock(gSchedulerMutex);
-  if (!gScheduler)
-  {
+
+  if (!gScheduler) {
     gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, 128, 64);
     gScheduler->Start();
   }
 
   {
-
     XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
     // store this object in the converter map for callbask
     gConverterMap[spacename] = this;
   }
 
   mActiveJobs = 0;
-
-  XrdSysThread::Run(&mThread,
-                    Converter::StaticConverter,
-                    static_cast<void *> (this),
-                    XRDSYSTHREAD_HOLD,
+  XrdSysThread::Run(&mThread, Converter::StaticConverter,
+                    static_cast<void*>(this), XRDSYSTHREAD_HOLD,
                     "Converter Thread");
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Stop convertor thread
+//------------------------------------------------------------------------------
 void
-Converter::Stop ()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief thread stop function
- */
-/*---------------------- ------------------------------------------------------*/
+Converter::Stop()
 {
   XrdSysThread::Cancel(mThread);
 }
 
-/*----------------------------------------------------------------------------*/
-Converter::~Converter ()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Destructor
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+Converter::~Converter()
 {
   Stop();
-
-  {
-    XrdSysThread::Join(mThread, NULL);
-  }
-
-  {
-    XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
-    gConverterMap[mSpaceName] = 0;
-  }
+  XrdSysThread::Join(mThread, NULL);
+  XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
+  gConverterMap[mSpaceName] = 0;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Method executed by the covertor thread
+//------------------------------------------------------------------------------
 void*
-Converter::StaticConverter (void* arg)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Static thread startup function calling Convert
- */
-/*----------------------------------------------------------------------------*/
+Converter::StaticConverter(void* arg)
 {
-
-  return reinterpret_cast<Converter*> (arg)->Convert();
+  return reinterpret_cast<Converter*>(arg)->Convert();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Eternal loop trying to run conversion jobs
+//------------------------------------------------------------------------------
 void*
-Converter::Convert (void)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief eternal loop trying to run conversion jobs
- *
- */
-/*----------------------------------------------------------------------------*/
+Converter::Convert(void)
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
   XrdSysThread::SetCancelOn();
-  // ---------------------------------------------------------------------------
-  // wait that the namespace is initialized
-  // ---------------------------------------------------------------------------
+  // Wait that the namespace is initialized
   bool go = false;
-  do
-  {
+
+  do {
     XrdSysThread::SetCancelOff();
     {
       XrdSysMutexHelper(gOFS->InitializationMutex);
-      if (gOFS->Initialized == gOFS->kBooted)
-      {
+
+      if (gOFS->Initialized == gOFS->kBooted) {
         go = true;
       }
     }
     XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
     sleeper.Wait(1000);
-  }
-  while (!go);
+  } while (!go);
 
   XrdSysTimer sleeper;
   sleeper.Snooze(10);
-
-  // ---------------------------------------------------------------------------
   // Reset old jobs pending from service restart/crash
-  // ---------------------------------------------------------------------------
   ResetJobs();
-
-  // ---------------------------------------------------------------------------
   // loop forever until cancelled
-  // ---------------------------------------------------------------------------
-
-  // the conversion fid set points from file id to conversion attribute name in 
+  // the conversion fid set points from file id to conversion attribute name in
   // the parent container of the fid
-
   std::map<eos::common::FileId::fileid_t, std::string> lConversionFidMap;
 
-  while (1)
-  {
+  while (1) {
     bool IsSpaceConverter = true;
     bool IsMaster = true;
-
     int lSpaceTransfers = 0;
     //    int lSpaceTransferRate = 0; => currently not used
-
     XrdSysThread::SetCancelOff();
     {
-      // -----------------------------------------------------------------------
-      // extract the current settings if conversion enabled and how many 
+      // extract the current settings if conversion enabled and how many
       // conversion jobs should run
-      // -----------------------------------------------------------------------
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-      std::set<FsGroup*>::const_iterator git;
-      if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str()))
+      if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
         break;
+      }
 
-      if (FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
- GetConfigMember("converter") == "on")
+      if (FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("converter")
+          == "on") {
         IsSpaceConverter = true;
-      else
+      } else {
         IsSpaceConverter = false;
+      }
 
-      lSpaceTransfers =
-        atoi(FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("converter.ntx").c_str());
+      lSpaceTransfers = atoi(FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
+                             GetConfigMember("converter.ntx").c_str());
       // lSpaceTransferRate = atoi(FsView::gFsView.mSpaceView[mSpaceName.c_str()]->
       // GetConfigMember("converter.rate").c_str());
     }
-
     IsMaster = gOFS->MgmMaster.IsMaster();
 
-    if (IsMaster && IsSpaceConverter)
-    {
-      if (!lConversionFidMap.size())
-      {
+    if (IsMaster && IsSpaceConverter) {
+      if (!lConversionFidMap.size()) {
         XrdMgmOfsDirectory dir;
         int listrc = 0;
         // fill the conversion queue with the existing entries
-        listrc = dir.open(gOFS->MgmProcConversionPath.c_str(),
-                          rootvid,
+        listrc = dir.open(gOFS->MgmProcConversionPath.c_str(), rootvid,
                           (const char*) 0);
-        if (listrc == SFS_OK)
-        {
+
+        if (listrc == SFS_OK) {
           const char* val;
-          while ((val = dir.nextEntry()))
-          {
+
+          while ((val = dir.nextEntry())) {
             XrdOucString sfxid = val;
-            if ((sfxid == ".") ||
-                (sfxid == ".."))
-            {
+
+            if ((sfxid == ".") || (sfxid == "..")) {
               continue;
             }
+
             XrdOucString fxid;
             XrdOucString conversionattribute;
-
             eos_static_info("name=\"%s\"", sfxid.c_str());
-
             std::string lFullConversionFilePath =
               gOFS->MgmProcConversionPath.c_str();
             lFullConversionFilePath += "/";
             lFullConversionFilePath += val;
             struct stat buf;
 
-            if (gOFS->_stat(lFullConversionFilePath.c_str(), &buf, error, rootvid, ""))
-            {
+            if (gOFS->_stat(lFullConversionFilePath.c_str(), &buf, error, rootvid, "")) {
               continue;
             }
 
-            if ((buf.st_uid != 0) /* this is a failed or scheduled entry */)
-            {
+            if ((buf.st_uid != 0) /* this is a failed or scheduled entry */) {
               continue;
             }
 
-
-            if (eos::common::StringConversion::SplitKeyValue(sfxid, fxid, conversionattribute) &&
+            if (eos::common::StringConversion::SplitKeyValue(sfxid, fxid,
+                conversionattribute) &&
                 (eos::common::FileId::Hex2Fid(fxid.c_str())) &&
-                (fxid.length() == 16))
-            {
-              if (conversionattribute.beginswith(mSpaceName.c_str()))
-              {
-                // -----------------------------------------------------------
-                // this is a valid entry like <fxid>:<attribute>
-                // we add it to the set
-                // if <attribute> starts with our space name!
-                // -----------------------------------------------------------
+                (fxid.length() == 16)) {
+              if (conversionattribute.beginswith(mSpaceName.c_str())) {
+                // This is a valid entry like <fxid>:<attribute> and we add it
+                // to the set if <attribute> starts with our space name!
                 lConversionFidMap[eos::common::FileId::Hex2Fid(fxid.c_str())] =
                   conversionattribute.c_str();
 
-                // -------------------------------------------------------------------------
-                // we set owner admin to indicate that this is a scheduled entry
-                // -------------------------------------------------------------------------
-                if (!gOFS->_chown(lFullConversionFilePath.c_str(),
-                                  3,
-                                  4,
-                                  error,
-                                  rootvid,
-                                  (const char*) 0))
-                {
-                  eos_static_info("msg=\"tagged scheduled conversion entry with owner admin\" name=\"%s\"",
+                // We set owner admin to indicate that this is a scheduled entry
+                if (!gOFS->_chown(lFullConversionFilePath.c_str(), 3, 4, error,
+                                  rootvid, (const char*) 0)) {
+                  eos_static_info("msg=\"tagged scheduled conversion entry with"
+                                  " owner admin\" name=\"%s\"",
                                   conversionattribute.c_str());
-                }
-                else
-                {
-
-                  eos_static_err("msg=\"failed to tag with owner admin scheduled conversion job entry\" name=\"%s\"",
+                } else {
+                  eos_static_err("msg=\"failed to tag with owner admin scheduled"
+                                 " conversion job entry\" name=\"%s\"",
                                  conversionattribute.c_str());
                 }
               }
-            }
-            else
-            {
-              eos_static_warning("split=%d fxid=%llu fxid=|%s|length=%u", eos::common::StringConversion::SplitKeyValue(sfxid, fxid, conversionattribute), eos::common::FileId::Hex2Fid(fxid.c_str()), fxid.c_str(), fxid.length());
+            } else {
+              eos_static_warning("split=%d fxid=%llu fxid=|%s|length=%u",
+                                 eos::common::StringConversion::SplitKeyValue(sfxid, fxid,
+                                     conversionattribute),
+                                 eos::common::FileId::Hex2Fid(fxid.c_str()),
+                                 fxid.c_str(), fxid.length());
 
-              // this is an invalid entry not following the <key(016x)>:<value> syntax
-
-              // this is an invalid entry we just remove it
-              if (!gOFS->_rem(lFullConversionFilePath.c_str(),
-                              error,
-                              rootvid,
-                              (const char*) 0))
-              {
-                eos_static_warning("msg=\"deleted invalid conversion entry\" name=\"%s\"", val);
+              // This is an invalid entry not following the <key(016x)>:<value>
+              // syntax - just remove it
+              if (!gOFS->_rem(lFullConversionFilePath.c_str(), error, rootvid,
+                              (const char*) 0)) {
+                eos_static_warning("msg=\"deleted invalid conversion entry\" "
+                                   "name=\"%s\"", val);
               }
             }
           }
-          dir.close();
 
-        }
-        else
-        {
+          dir.close();
+        } else {
           eos_static_err("msg=\"failed to list conversion directory\" path=\"%s\"",
                          gOFS->MgmProcConversionPath.c_str());
         }
       }
+
       eos_static_info("converter is enabled ntx=%d nqueued=%d",
                       lSpaceTransfers,
                       lConversionFidMap.size());
-    }
-    else
-    {
+    } else {
       lConversionFidMap.clear();
-      if (IsMaster)
+
+      if (IsMaster) {
         eos_static_debug("converter is disabled");
-      else
+      } else {
         eos_static_debug("converter is in slave mode");
+      }
     }
 
-    // -------------------------------------------------------------------------
-    // Schedule some conversion jobs if any 
-    // -------------------------------------------------------------------------
+    // Schedule some conversion jobs if any
     int nschedule = lSpaceTransfers - mActiveJobs;
-    for (int i = 0; i < nschedule; i++)
-    {
 
-      if (lConversionFidMap.size())
-      {
+    for (int i = 0; i < nschedule; i++) {
+      if (lConversionFidMap.size()) {
         auto it = lConversionFidMap.begin();
         ConverterJob* job = new ConverterJob(it->first,
                                              it->second.c_str(),
@@ -658,74 +517,59 @@ Converter::Convert (void)
         XrdSysMutexHelper sLock(gSchedulerMutex);
         gScheduler->Schedule((XrdJob*) job);
         IncActiveJobs();
-        // remove the entry from the conversion map
+        // Remove the entry from the conversion map
         lConversionFidMap.erase(lConversionFidMap.begin());
-      }
-      else
-      {
+      } else {
         break;
       }
     }
 
     XrdSysThread::SetCancelOn();
-    // -------------------------------------------------------------------------
     // Let some time pass or wait for a notification
-    // -------------------------------------------------------------------------
     mDoneSignal.Wait(10);
-
     XrdSysThread::CancelPoint();
   }
+
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Publish the active job number in the space view
+//------------------------------------------------------------------------------
 void
-Converter::PublishActiveJobs ()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief publish the active job number in the space view
- *
- */
-/*----------------------------------------------------------------------------*/
+Converter::PublishActiveJobs()
 {
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   char sactive[256];
-  snprintf(sactive, sizeof (sactive) - 1, "%lu", mActiveJobs);
+  snprintf(sactive, sizeof(sactive) - 1, "%lu", mActiveJobs);
   FsView::gFsView.mSpaceView[mSpaceName.c_str()]->SetConfigMember
-    ("stat.converter.active",
-     sactive,
-     true,
-     "/eos/*/mgm",
-     true);
+  ("stat.converter.active",
+   sactive,
+   true,
+   "/eos/*/mgm",
+   true);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Reset pending conversion entries
+//------------------------------------------------------------------------------
 void
-Converter::ResetJobs ()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief publish the active job number in the space view
- *
- */
-/*----------------------------------------------------------------------------*/
+Converter::ResetJobs()
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
-
   XrdMgmOfsDirectory dir;
-  int listrc = dir.open(gOFS->MgmProcConversionPath.c_str(),
-                        rootvid,
+  int listrc = dir.open(gOFS->MgmProcConversionPath.c_str(), rootvid,
                         (const char*) 0);
-  if (listrc == SFS_OK)
-  {
+
+  if (listrc == SFS_OK) {
     const char* val;
-    while ((val = dir.nextEntry()))
-    {
+
+    while ((val = dir.nextEntry())) {
       XrdOucString sfxid = val;
-      if ((sfxid == ".") ||
-          (sfxid == ".."))
-      {
+
+      if ((sfxid == ".") || (sfxid == "..")) {
         continue;
       }
 
@@ -734,24 +578,18 @@ Converter::ResetJobs ()
       lFullConversionFilePath += "/";
       lFullConversionFilePath += val;
 
-      if (!gOFS->_chown(lFullConversionFilePath.c_str(),
-                        0,
-                        0,
-                        error,
-                        rootvid,
-                        (const char*) 0))
-      {
-        eos_static_info("msg=\"reset scheduled conversion entry with owner root\" name=\"%s\"",
-                        lFullConversionFilePath.c_str());
-      }
-      else
-      {
-
-        eos_static_err("msg=\"failed to reset with owner root scheduled old job entry\" name=\"%s\"",
-                       lFullConversionFilePath.c_str());
+      if (!gOFS->_chown(lFullConversionFilePath.c_str(), 0, 0, error,
+                        rootvid, (const char*) 0)) {
+        eos_static_info("msg=\"reset scheduled conversion entry with owner "
+                        "root\" name=\"%s\"", lFullConversionFilePath.c_str());
+      } else {
+        eos_static_err("msg=\"failed to reset with owner root scheduled old "
+                       "job entry\" name=\"%s\"", lFullConversionFilePath.c_str());
       }
     }
   }
+
   dir.close();
 }
+
 EOSMGMNAMESPACE_END

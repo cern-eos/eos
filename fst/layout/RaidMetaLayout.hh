@@ -25,15 +25,12 @@
 #ifndef __EOSFST_RAIDMETALAYOUT_HH__
 #define __EOSFST_RAIDMETALAYOUT_HH__
 
-/*----------------------------------------------------------------------------*/
 #include <vector>
 #include <string>
 #include <list>
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
 #include "fst/layout/HeaderCRC.hh"
 #include "fst/XrdFstOfsFile.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -191,6 +188,17 @@ public:
   //----------------------------------------------------------------------------
   virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
                           XrdSfsFileOffset toOffset) = 0;
+
+
+  //----------------------------------------------------------------------------
+  //! Execute implementation dependant command
+  //!
+  //! @param cmd command
+  //! @param client client identity
+  //!
+  //! @return 0 if successful, -1 otherwise
+  //----------------------------------------------------------------------------
+  virtual int Fctl(const std::string& cmd, const XrdSecEntity* client);
 
 
   //----------------------------------------------------------------------------
@@ -506,4 +514,3 @@ private:
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_RAIDMETALAYOUT_HH__
-

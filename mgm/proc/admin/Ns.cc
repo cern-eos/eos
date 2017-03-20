@@ -248,11 +248,16 @@ ProcCommand::Ns()
     }
     char slatencyf[1024];
     char slatencyd[1024];
-    snprintf(slatencyf, sizeof(slatencyf) - 1, "%ld", (long int)statf.st_size -
-             dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService)->getFollowOffset());
-    snprintf(slatencyd, sizeof(slatencyd) - 1, "%ld", (long int)statd.st_size -
-             dynamic_cast<eos::IChLogContainerMDSvc*>
-             (gOFS->eosDirectoryService)->getFollowOffset());
+    auto chlog_file_svc = dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
+    auto chlog_dir_svc = dynamic_cast<eos::IChLogContainerMDSvc*>
+                         (gOFS->eosDirectoryService);
+
+    if (chlog_file_svc && chlog_dir_svc) {
+      snprintf(slatencyf, sizeof(slatencyf) - 1, "%ld", (long int)statf.st_size -
+               chlog_file_svc->getFollowOffset());
+      snprintf(slatencyd, sizeof(slatencyd) - 1, "%ld", (long int)statd.st_size -
+               chlog_dir_svc->getFollowOffset());
+    }
 
     if (!monitoring) {
       stdOut += "# ------------------------------------------------------------------------------------\n";

@@ -25,18 +25,13 @@
  * @file   StringTokenizer.hh
  *
  * @brief  Convenience class to deal with command line strings
- *
- *
  */
 
 #ifndef __EOSCOMMON_STRINGTOKENIZER__
 #define __EOSCOMMON_STRINGTOKENIZER__
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-/*----------------------------------------------------------------------------*/
 #include <string>
 #include <vector>
 #include <set>
@@ -44,7 +39,6 @@
 #include <errno.h>
 #include <string.h>
 
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -73,9 +67,11 @@ public:
   {
     StringTokenizer(s.c_str());
   }
+
   ~StringTokenizer();
 
   const char* GetLine();  // return the next parsed line seperated by \n
+
   const char* GetToken(bool escapeand = true); // return the next token
 };
 

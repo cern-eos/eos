@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -47,7 +46,6 @@
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/GeoTreeEngine.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucBuffer.hh"
@@ -60,15 +58,12 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-/*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <memory>
-/*----------------------------------------------------------------------------*/
 #include "google/protobuf/io/zero_copy_stream_impl.h"
-/*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -77,7 +72,6 @@
 #ifndef S_IAMB
 #define S_IAMB  0x1FF
 #endif
-
 
 /*----------------------------------------------------------------------------*/
 XrdSysError gMgmOfsEroute(0);
@@ -148,11 +142,18 @@ XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
-  mCapabilityValidity(3600),
-  deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0),
-  mFstGwHost(""),
-  mFstGwPort(0),
-  mSubmitterTid(0)
+  ConfigFN(0), ConfEngine(0), CapabilityEngine(0), mCapabilityValidity(3600),
+  MgmOfsMessaging(0), MgmOfsVstMessaging(0),  ManagerPort(1094),
+  MgmOfsConfigEngineRedisPort(0), LinuxStatsStartup{0},
+  StartTime(0), HostName(0), HostPref(0), Initialized(kDown),
+  InitializationTime(0), Shutdown(false), RemoveStallRuleAfterBoot(false),
+  BootFileId(0), BootContainerId(0), IsRedirect(true), IsStall(true),
+  authorize(false), IssueCapability(false), MgmRedirector(false),
+  ErrorLog(true), eosDirectoryService(0), eosFileService(0), eosView(0),
+  eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
+  deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0), auth_tid(0),
+  mFrontendPort(0), mNumAuthThreads(0), Authorization(0), commentLog(0),
+  UTF8(false), mFstGwHost(""), mFstGwPort(0), mSubmitterTid(0)
 {
   eDest = ep;
   ConfigFN = 0;
@@ -344,10 +345,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
   const char* tident = error.getErrUser();
   eos::common::Mapping::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-
   std::string info;
-  info = pargs.oinfo->text?pargs.oinfo->text:"";
-
+  info = pargs.oinfo->text ? pargs.oinfo->text : "";
   eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
@@ -366,15 +365,12 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
 
   // check that all files exist
   while (pptr) {
-    XrdOucString prep_path = pptr ? (pptr->text ? pptr->text : "") : "";
+    XrdOucString prep_path = (pptr->text ? pptr->text : "");
     eos_info("path=\"%s\"", prep_path.c_str());
     XrdSfsFileExistence check;
 
-    if (_exists(prep_path.c_str(),
-                check,
-                error,
-                client,
-                "") || (check != XrdSfsFileExistIsFile)) {
+    if (_exists(prep_path.c_str(), check, error, client, "") ||
+        (check != XrdSfsFileExistIsFile)) {
       if (check != XrdSfsFileExistIsFile) {
         Emsg(epname, error, ENOENT,
              "prepare - file does not exist or is not accessible to you",
@@ -384,20 +380,14 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
       return SFS_ERROR;
     }
 
-    // check that we have write permission on path                                                                             
-    if (gOFS->_access(prep_path.c_str(),
-		      W_OK,
-		      error,
-		      vid,
-		      "")) {
+    // check that we have write permission on path
+    if (gOFS->_access(prep_path.c_str(), W_OK, error, vid, "")) {
       Emsg(epname, error, EPERM, "prepare - you don't have write permission",
-	   prep_path.c_str());
+           prep_path.c_str());
       return SFS_ERROR;
     }
 
-    if (pptr) {
-      pptr = pptr->next;
-    }
+    pptr = pptr->next;
 
     if (optr) {
       optr = optr->next;
@@ -408,7 +398,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
   optr = pargs.oinfo;
 
   while (pptr) {
-    XrdOucString prep_path = pptr ? (pptr->text ? pptr->text : "") : "";
+    XrdOucString prep_path = (pptr->text ? pptr->text : "");
     eos_info("path=\"%s\"", prep_path.c_str());
     XrdOucString prep_info = optr ? (optr->text ? optr->text : "") : "";
     XrdOucEnv prep_env(prep_info.c_str());
@@ -431,23 +421,19 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
     prep_info += (int)vid.uid;
     prep_info += "&mgm.rgid=";
     prep_info += (int)vid.gid;
-
     XrdSecEntity lClient(vid.prot.c_str());
     lClient.name = (char*) vid.name.c_str();
     lClient.tident = (char*) vid.tident.c_str();
     lClient.host = (char*) vid.host.c_str();
     XrdOucString lSec = "&mgm.sec=";
     lSec += eos::common::SecEntity::ToKey(&lClient,
-					  "eos").c_str();
-
+                                          "eos").c_str();
     prep_info += lSec;
-
     XrdSfsFSctl args;
     args.Arg1 = prep_path.c_str();
     args.Arg1Len = prep_path.length();
     args.Arg2 = prep_info.c_str();
     args.Arg2Len = prep_info.length();
-
     eos_static_info("prep-info=%s", prep_info.c_str());
 
     if (XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN,

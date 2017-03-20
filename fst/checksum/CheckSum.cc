@@ -90,9 +90,9 @@ CheckSum::ScanFile(const char* path, unsigned long long& scansize,
     return false;
   }
 
-  eos::common::CloExec::Set(fd);
+  (void) eos::common::CloExec::Set(fd);
   bool scan = ScanFile(fd, scansize, scantime, rate);
-  close(fd);
+  (void) close(fd);
   return scan;
 }
 
@@ -194,8 +194,7 @@ CheckSum::ScanFile(ReadCallBack rcb, unsigned long long& scansize,
       return false;
     }
 
-    if (nread>0)
-    {
+    if (nread > 0) {
       Add(buffer, nread, offset);
       offset += nread;
     }
@@ -243,12 +242,12 @@ CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
     return false;
   }
 
-  eos::common::CloExec::Set(fd);
+  (void) eos::common::CloExec::Set(fd);
   ResetInit(offsetInit, lengthInit, checksumInit);
 
   //move at the right location in the  file
   if (lseek(fd, offsetInit + lengthInit, SEEK_SET) < 0) {
-    close(fd);
+    (void) close(fd);
     return false;
   }
 
@@ -257,7 +256,7 @@ CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
   char* buffer = (char*) malloc(buffersize);
 
   if (!buffer) {
-    close(fd);
+    (void) close(fd);
     return false;
   }
 
@@ -334,7 +333,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     return false;
   }
 
-  eos::common::CloExec::Set(ChecksumMapFd);
+  (void) eos::common::CloExec::Set(ChecksumMapFd);
   char sblocksize[1024];
   snprintf(sblocksize, sizeof(sblocksize) - 1, "%llu",
            (unsigned long long) blocksize);
@@ -370,7 +369,6 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 #ifdef __APPLE__
     rc = ftruncate(ChecksumMapFd, ChecksumMapSize);
 #else
-
     rc = posix_fallocate(ChecksumMapFd, 0, ChecksumMapSize);
 #endif
 
@@ -386,8 +384,8 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     // make sure the file on disk is large enough
     struct stat xsstat;
     xsstat.st_size = 0;
-    fstat(ChecksumMapFd,
-          &xsstat); // don't need to check the rc, it is covered by the logic afterwards
+    // Don't need to check the rc, it is covered by the logic afterwards
+    (void) fstat(ChecksumMapFd, &xsstat);
 
     if (xsstat.st_size < (off_t) ChecksumMapSize) {
       if (ftruncate(ChecksumMapFd, (ChecksumMapSize))) {

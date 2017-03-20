@@ -21,16 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/XrdFstOfs.hh"
 
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_BEGIN
-
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -48,7 +44,6 @@ ReplicaParLayout::ReplicaParLayout(XrdFstOfsFile* file,
   ioLocal = false;
   hasWriteError = false;
 }
-
 
 //------------------------------------------------------------------------------
 // Redirect to new target
@@ -70,10 +65,8 @@ int
 ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
                        const char* opaque)
 {
-  //............................................................................
   // No replica index definition indicates that this is gateway access just
   // forwarding to another remote server
-  //............................................................................
   int replica_index = -1;
   int replica_head = -1;
   bool is_gateway = false;
@@ -133,13 +126,9 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
   XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
   XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
 
-  //............................................................................
   // Only a gateway or head server needs to contact others
-  //............................................................................
   if (is_gateway || is_head_server) {
-    //..........................................................................
     // Assign stripe URLs
-    //..........................................................................
     std::string replica_url;
 
     for (int i = 0; i < mNumReplicas; i++) {
@@ -155,15 +144,11 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
                          reptag.c_str());
       }
 
-      //........................................................................
       // Check if the first replica is remote
-      //........................................................................
       replica_url = rep;
       replica_url += remoteOpenPath.c_str();
       replica_url += "?";
-      //........................................................................
       // Prepare the index for the next target
-      //........................................................................
       remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
 
       if (index) {
@@ -173,9 +158,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
         newindex += i;
         remoteOpenOpaque.replace(oldindex.c_str(), newindex.c_str());
       } else {
-        //......................................................................
         // This points now to the head
-        //......................................................................
         remoteOpenOpaque += "&mgm.replicaindex=";
         remoteOpenOpaque += head;
       }
@@ -186,17 +169,12 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
     }
   }
 
-  //............................................................................
   // Open all the replicas needed
-  //............................................................................
   for (int i = 0; i < mNumReplicas; i++) {
     if ((ioLocal) && (i == replica_index)) {
-      //........................................................................
       // Only the referenced entry URL does local IO
-      //........................................................................
       mReplicaUrl.push_back(mLocalPath);
-      FileIo* file = FileIoPlugin::GetIoObject(mLocalPath.c_str(),
-                     mOfsFile,
+      FileIo* file = FileIoPlugin::GetIoObject(mLocalPath.c_str(), mOfsFile,
                      mSecEntity);
 
       // evt. mark an IO module as talking to external storage
@@ -214,14 +192,10 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
 
       mLastTriedUrl = file->GetLastTriedUrl();
       mLastUrl = file->GetLastUrl();
-      //........................................................................
       // Local replica is always on the first position in the vector
-      //........................................................................
       mReplicaFile.insert(mReplicaFile.begin(), file);
     } else {
-      //........................................................................
       // Gateway contacts the head, head contacts all
-      //........................................................................
       if ((is_gateway && (i == replica_head)) ||
           (is_head_server && (i != replica_index))) {
         if (mOfsFile->isRW) {
@@ -233,9 +207,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
           FileIo* file = FileIoPlugin::GetIoObject(mReplicaUrl[i].c_str(), mOfsFile,
                          mSecEntity);
 
-          //....................................................................
           // Write case
-          //....................................................................
           if (file->fileOpen(flags, mode, opaque, mTimeout)) {
             mLastTriedUrl = file->GetLastTriedUrl();
             eos_err("Failed to open stripes - remote open failed on %s",
@@ -250,9 +222,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
           mReplicaFile.push_back(file);
           eos_debug("Opened remote file for IO: %s.", maskUrl.c_str());
         } else {
-          //....................................................................
           // Read case just uses one replica
-          //....................................................................
           eos_debug("Read case uses just one replica.");
           continue;
         }
@@ -262,7 +232,6 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
 
   return SFS_OK;
 }
-
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -275,7 +244,6 @@ ReplicaParLayout::~ReplicaParLayout()
     delete file_io;
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Read from file
@@ -348,7 +316,6 @@ ReplicaParLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
   return rc;
 }
 
-
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
@@ -374,12 +341,13 @@ ReplicaParLayout::Write(XrdSfsFileOffset offset,
       }
 
       // show only the first write error as an error to broadcast upstream
-      if (hasWriteError)
+      if (hasWriteError) {
         eos_err("[NB] Failed to write replica %i - write failed -%llu %s",
                 i, offset, maskUrl.c_str());
-      else
+      } else {
         eos_err("Failed to write replica %i - write failed - %llu %s",
                 i, offset, maskUrl.c_str());
+      }
 
       hasWriteError = true;
       return gOFS.Emsg("ReplicaWrite", *mError, errno, "write replica failed",
@@ -389,7 +357,6 @@ ReplicaParLayout::Write(XrdSfsFileOffset offset,
 
   return length;
 }
-
 
 //------------------------------------------------------------------------------
 // Truncate file
@@ -421,7 +388,6 @@ ReplicaParLayout::Truncate(XrdSfsFileOffset offset)
   return rc;
 }
 
-
 //------------------------------------------------------------------------------
 // Get stats for file
 //------------------------------------------------------------------------------
@@ -441,7 +407,6 @@ ReplicaParLayout::Stat(struct stat* buf)
 
   return rc;
 }
-
 
 //------------------------------------------------------------------------------
 // Sync file to disk
@@ -472,7 +437,6 @@ ReplicaParLayout::Sync()
 
   return rc;
 }
-
 
 //------------------------------------------------------------------------------
 // Remove file and all replicas
@@ -509,7 +473,6 @@ ReplicaParLayout::Remove()
   return rc;
 }
 
-
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
@@ -542,6 +505,20 @@ ReplicaParLayout::Close()
   return rc;
 }
 
+//------------------------------------------------------------------------------
+// Execute implementation dependant command
+//------------------------------------------------------------------------------
+int
+ReplicaParLayout::Fctl(const std::string& cmd, const XrdSecEntity* client)
+{
+  int retc = SFS_OK;
+
+  for (unsigned int i = 0; i < mReplicaFile.size(); i++) {
+    retc += mReplicaFile[i]->fileFctl(cmd);
+  }
+
+  return retc;
+}
 
 //------------------------------------------------------------------------------
 // Reserve space for file
@@ -551,7 +528,6 @@ ReplicaParLayout::Fallocate(XrdSfsFileOffset length)
 {
   return mReplicaFile[0]->fileFallocate(length);
 }
-
 
 //------------------------------------------------------------------------------
 // Deallocate reserved space
@@ -563,6 +539,4 @@ ReplicaParLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
   return mReplicaFile[0]->fileFdeallocate(fromOffset, toOffset);
 }
 
-
 EOSFSTNAMESPACE_END
-

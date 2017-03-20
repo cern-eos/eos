@@ -21,62 +21,69 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/VstView.hh"
 #include "common/StringConversion.hh"
 #include "XrdSys/XrdSysTimer.hh"
-
-/*----------------------------------------------------------------------------*/
 #include <math.h>
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
 VstView VstView::gVstView;
 
 /*----------------------------------------------------------------------------*/
-void
-VstView::Print (std::string &out,
-                std::string option,
-                const char* selection)
+//
 /*----------------------------------------------------------------------------*/
+void
+VstView::Print(std::string& out,
+               std::string option,
+               const char* selection)
+
 {
   XrdSysMutexHelper vLock(ViewMutex);
   bool monitoring = false;
   bool ioformating = false;
 
-  if (option == "m")
+  if (option == "m") {
     monitoring = true;
-  if (option == "io")
-    ioformating = true;
+  }
 
-  const char* format = "%s %-32s %-4s %-40s %-16s %-6s %-20s %-8s %12s %8s %5s %6s %8s %11s %11s %8s\n";
-  const char* ioformat = "%s %-32s %-4s %12s %8s %5s %11s %11s %8s %5s %5s %10s %10s %10s %10s %5s %5s\n";
+  if (option == "io") {
+    ioformating = true;
+  }
+
+  const char* format =
+    "%s %-32s %-4s %-40s %-16s %-6s %-20s %-8s %12s %8s %5s %6s %8s %11s %11s %8s\n";
+  const char* ioformat =
+    "%s %-32s %-4s %12s %8s %5s %11s %11s %8s %5s %5s %10s %10s %10s %10s %5s %5s\n";
   char line[4096];
-  if (!monitoring)
-  {
-    if (ioformating)
-      snprintf(line, sizeof (line) - 1, ioformat, "#", "instance", "age", "space", "used", "n-fs", "files", "directories", "clients", "ropen", "wopen", "diskr-MB/s", "diskw-MB/s", "etho-MiB/s", "ethi-MiB/s", "NsR/s", "NsW/s");
-    else
-      snprintf(line, sizeof (line) - 1, format, "#", "instance", "age", "host", "ip", "mode", "version", "uptime", "space", "used", "n(fs)", "iops", "bw-MB/s", "files", "directories", "clients");
+
+  if (!monitoring) {
+    if (ioformating) {
+      snprintf(line, sizeof(line) - 1, ioformat, "#", "instance", "age", "space",
+               "used", "n-fs", "files", "directories", "clients", "ropen", "wopen",
+               "diskr-MB/s", "diskw-MB/s", "etho-MiB/s", "ethi-MiB/s", "NsR/s", "NsW/s");
+    } else {
+      snprintf(line, sizeof(line) - 1, format, "#", "instance", "age", "host", "ip",
+               "mode", "version", "uptime", "space", "used", "n(fs)", "iops", "bw-MB/s",
+               "files", "directories", "clients");
+    }
+
     out += "# _______________________________________________________________________________________________________________________________________________________________________________________\n";
     out += line;
     out += "# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n";
   }
-  if (!monitoring)
-  {
-    for (auto it = mView.begin(); it != mView.end(); ++it)
-    {
+
+  if (!monitoring) {
+    for (auto it = mView.begin(); it != mView.end(); ++it) {
       XrdOucString age1, age2;
       XrdOucString space;
       XrdOucString val1, val2, val3, val4, val5, val6, val7, val8, val9;
       char sused[64];
       long lage = time(NULL) - strtol(it->second["timestamp"].c_str(), 0, 10);
       long lup = time(NULL) - strtol(it->second["uptime"].c_str(), 0, 10);
-
       unsigned long long max_bytes = strtoull(it->second["maxbytes"].c_str(), 0, 10);
-      unsigned long long free_bytes = strtoull(it->second["freebytes"].c_str(), 0, 10);
+      unsigned long long free_bytes = strtoull(it->second["freebytes"].c_str(), 0,
+                                      10);
       unsigned long long diskin = strtoull(it->second["diskin"].c_str(), 0, 10);
       unsigned long long diskout = strtoull(it->second["diskout"].c_str(), 0, 10);
       unsigned long long ethin = strtoull(it->second["ethin"].c_str(), 0, 10);
@@ -88,30 +95,36 @@ VstView::Print (std::string &out,
       unsigned long long nfsrw = strtoull(it->second["nfsrw"].c_str(), 0, 10);
       unsigned long long iops = strtoull(it->second["iops"].c_str(), 0, 10);
       unsigned long long bw = strtoull(it->second["bw"].c_str(), 0, 10);
+      double used = 100.0 * (max_bytes - free_bytes) / (max_bytes ? max_bytes : 1);
 
-      double used = 100.0 * (max_bytes - free_bytes) / max_bytes;
-      if ((used < 0) || (used > 100))
+      if ((used < 0) || (used > 100)) {
         used = 100;
+      }
 
-      if (lage < 0)
+      if (lage < 0) {
         lage = 0;
+      }
 
-      if (lup < 0)
+      if (lup < 0) {
         lup = 0;
+      }
 
-      if (max_bytes)
-        snprintf(sused, sizeof (sused) - 1, "%.02f%%", used);
-      else
-        snprintf(sused, sizeof (sused) - 1, "unavail");
+      if (max_bytes) {
+        snprintf(sused, sizeof(sused) - 1, "%.02f%%", used);
+      } else {
+        snprintf(sused, sizeof(sused) - 1, "unavail");
+      }
 
       std::string is = it->second["instance"];
-      if (it->second["mode"] == "master")
-        is += "[W]";
-      else
-        is += "[R]";
 
-      if (ioformating)
-        snprintf(line, sizeof (line) - 1, ioformat,
+      if (it->second["mode"] == "master") {
+        is += "[W]";
+      } else {
+        is += "[R]";
+      }
+
+      if (ioformating) {
+        snprintf(line, sizeof(line) - 1, ioformat,
                  " ",
                  is.c_str(),
                  eos::common::StringConversion::GetReadableAgeString(age1, lage),
@@ -128,10 +141,9 @@ VstView::Print (std::string &out,
                  eos::common::StringConversion::GetSizeString(val3, ethout),
                  eos::common::StringConversion::GetSizeString(val4, ethin),
                  eos::common::StringConversion::GetSizeString(val7, rlock),
-                 eos::common::StringConversion::GetSizeString(val8, wlock)
-                 );
-      else
-        snprintf(line, sizeof (line) - 1, format,
+                 eos::common::StringConversion::GetSizeString(val8, wlock));
+      } else {
+        snprintf(line, sizeof(line) - 1, format,
                  " ",
                  it->second["instance"].c_str(),
                  eos::common::StringConversion::GetReadableAgeString(age1, lage),
@@ -147,37 +159,39 @@ VstView::Print (std::string &out,
                  eos::common::StringConversion::GetSizeString(val3, bw),
                  it->second["ns_files"].c_str(),
                  it->second["ns_container"].c_str(),
-                 it->second["clients"].c_str()
-                 );
+                 it->second["clients"].c_str());
+      }
 
       out += line;
     }
-  }
-  else
-  {
-    for (auto it = mView.begin(); it != mView.end(); ++it)
-    {
-      if (it != mView.begin())
+  } else {
+    for (auto it = mView.begin(); it != mView.end(); ++it) {
+      if (it != mView.begin()) {
         out += "\n";
-      for (auto sit = it->second.begin(); sit != it->second.end(); ++sit)
-      {
-        if (sit != it->second.begin())
+      }
+
+      for (auto sit = it->second.begin(); sit != it->second.end(); ++sit) {
+        if (sit != it->second.begin()) {
           out += " ";
+        }
+
         out += sit->first.c_str();
         out += "=";
         out += sit->second.c_str();
       }
     }
   }
-  if (!monitoring)
-  {
-    out += "# ........................................................................................................................................................................................\n";
+
+  if (!monitoring) {
+    out += "# ................................................................"
+           "......................................................................."
+           ".................................................\n";
   }
 }
 
 /*----------------------------------------------------------------------------*/
 void
-VstView::PrintHtml (XrdOucString &out, bool js)
+VstView::PrintHtml(XrdOucString& out, bool js)
 /*----------------------------------------------------------------------------*/
 {
   out += R"literal(
@@ -189,8 +203,7 @@ VstView::PrintHtml (XrdOucString &out, bool js)
 <title>EOS VST MAP</title>
  )literal";
 
-  if (js)
-  {
+  if (js) {
     out += R"literal(
 <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/0.4.0/MarkerCluster.Default.css" type="text/css" />
 <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/0.4.0/MarkerCluster.css" type="text/css" />
@@ -313,16 +326,19 @@ $(function(){
             IPMapper.initializeMap("map");
 
   )literal";
-
   XrdSysMutexHelper vLock(ViewMutex);
-  for (auto it = mView.begin(); it != mView.end(); ++it)
-  {
-    if (it->second["mode"] != "master")
+
+  for (auto it = mView.begin(); it != mView.end(); ++it) {
+    if (it->second["mode"] != "master") {
       continue;
+    }
+
     double mb = strtoull(it->second["maxbytes"].c_str(), 0, 10);
     mb /= 50000000000000;
-    if (mb < 50)
+
+    if (mb < 50) {
       mb = 50;
+    }
 
     out += "          IPMapper.addIPMarker(\"";
     out += it->second["ip"].c_str();
@@ -348,7 +364,6 @@ $(function(){
 </body>
 </html>
   )literal";
-
   return;
 }
 

@@ -24,28 +24,24 @@
 #ifndef __EOSMGM_WORKFLOW__HH__
 #define __EOSMGM_WORKFLOW__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/FileId.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IView.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 class Workflow
 {
 public:
+  Workflow():
+    mAttr(0), mPath(""), mFid(0), mEvent(""), mWorkflow(""), mAction("")
+  {}
 
-  Workflow()
-  {
-    mAttr = 0;
-  };
+  ~Workflow()
+  {}
 
   void Init(eos::IContainerMD::XAttrMap* attr, std::string path = "",
             eos::common::FileId::fileid_t fid = 0)
@@ -72,10 +68,6 @@ public:
 
   std::string getCGICloseR(std::string workflow);
 
-  ~Workflow()
-  {
-  };
-
   void Reset()
   {
     mPath = "";
@@ -85,12 +77,14 @@ public:
     mAttr = 0;
     mAction = "";
   }
+
   bool Create(eos::common::Mapping::VirtualIdentity& vid);
+
   bool Attach(const char* path);
+
   bool Delete();
 
 private:
-
   eos::IContainerMD::XAttrMap* mAttr;
   std::string mPath;
   eos::common::FileId::fileid_t mFid;
@@ -100,5 +94,4 @@ private:
 };
 
 EOSMGMNAMESPACE_END
-
 #endif

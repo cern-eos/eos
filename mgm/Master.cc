@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Master.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Access.hh"
@@ -30,16 +29,13 @@
 #include "common/Statfs.hh"
 #include "common/ShellCmd.hh"
 #include "common/plugin_manager/PluginManager.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "mq/XrdMqClient.hh"
-/*----------------------------------------------------------------------------*/
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
-/*----------------------------------------------------------------------------*/
 
 // -----------------------------------------------------------------------------
 // Note: the defines after have to be in agreements with the defins in XrdMqOfs.cc
@@ -77,6 +73,8 @@ Master::Master()
   fFileNamespaceInode = fDirNamespaceInode = 0;
   f2MasterTransitionTime = time(NULL) - 3600; // start without service delays
   fHasSystemd = false;
+  fDirCompactingRatio = 0.0;
+  fAutoRepair = false;
 }
 
 //------------------------------------------------------------------------------
@@ -649,6 +647,11 @@ Master::Compacting()
         sleeper.Wait(1000);
       }
     } while (!go);
+
+    if (!gOFS->eosFileService || !gOFS->eosDirectoryService) {
+      eos_notice("file/directory metadata service is not available");
+      return 0;
+    }
 
     eos::IChLogFileMDSvc* eos_chlog_filesvc =
       dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
@@ -1341,27 +1344,28 @@ Master::Slave2Master()
   }
 
   size_t n_wait = 0;
-
   // Wait that the follower reaches the offset seen now
-  while (dynamic_cast<eos::IChLogFileMDSvc*>
-         (gOFS->eosFileService)->getFollowOffset() <
-         (uint64_t)size_local_file_changelog) {
-    XrdSysTimer sleeper;
-    sleeper.Wait(5000);
-    eos_static_info("msg=\"waiting for the namespace to reach the follow "
-                    "point\" is-offset=%llu follow-offset=%llu",
-                    dynamic_cast<eos::IChLogFileMDSvc*>
-                    (gOFS->eosFileService)->getFollowOffset(),
-                    (uint64_t) size_local_file_changelog);
+  auto chlog_file_svc = dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
-    if (n_wait > 12) {
-      MasterLog(eos_crit("slave=>master transition aborted since we didn't "
-                         "reach the follow point in 60 seconds - you may retry"));
-      fRunningState = Run::State::kIsRunningSlave;
-      return false;
+  if (chlog_file_svc) {
+    while (chlog_file_svc->getFollowOffset() <
+           (uint64_t)size_local_file_changelog) {
+      XrdSysTimer sleeper;
+      sleeper.Wait(5000);
+      eos_static_info("msg=\"waiting for the namespace to reach the follow "
+                      "point\" is-offset=%llu follow-offset=%llu",
+                      chlog_file_svc->getFollowOffset(),
+                      (uint64_t) size_local_file_changelog);
+
+      if (n_wait > 12) {
+        MasterLog(eos_crit("slave=>master transition aborted since we didn't "
+                           "reach the follow point in 60 seconds - you may retry"));
+        fRunningState = Run::State::kIsRunningSlave;
+        return false;
+      }
+
+      n_wait++;
     }
-
-    n_wait++;
   }
 
   bool syncok = false;
@@ -1382,11 +1386,8 @@ Master::Slave2Master()
     // Stat the two remote changelog files
     if (FsSync.Stat(rfclf.c_str(), sinfo, 5).IsOK()) {
       size_remote_file_changelog = sinfo->GetSize();
-
-      if (sinfo) {
-        delete sinfo;
-        sinfo = 0;
-      }
+      delete sinfo;
+      sinfo = 0;
     } else {
       if (sinfo) {
         delete sinfo;
@@ -1396,11 +1397,8 @@ Master::Slave2Master()
 
     if (FsSync.Stat(rdclf.c_str(), sinfo, 5).IsOK()) {
       size_remote_dir_changelog = sinfo->GetSize();
-
-      if (sinfo) {
-        delete sinfo;
-        sinfo = 0;
-      }
+      delete sinfo;
+      sinfo = 0;
     } else {
       if (sinfo) {
         delete sinfo;
@@ -2004,7 +2002,6 @@ Master::SignalRemoteBounceToMaster()
   std::string signalbounce = "/?mgm.pcmd=mastersignalbounce";
   XrdCl::URL remoteMgmUrl(remoteMgmUrlString.c_str());
   XrdCl::FileSystem FsMgm(remoteMgmUrl);
-  XrdCl::StatInfo* sinfo = 0;
   XrdCl::Buffer qbuffer;
   qbuffer.FromString(signalbounce);
   XrdCl::Buffer* rbuffer = 0;
@@ -2019,11 +2016,6 @@ Master::SignalRemoteBounceToMaster()
   if (rbuffer) {
     delete rbuffer;
     rbuffer = 0;
-  }
-
-  if (sinfo) {
-    delete sinfo;
-    sinfo = 0;
   }
 }
 
@@ -2050,7 +2042,6 @@ Master::SignalRemoteReload(bool compact_files, bool compact_directories)
 
   XrdCl::URL remoteMgmUrl(remoteMgmUrlString.c_str());
   XrdCl::FileSystem FsMgm(remoteMgmUrl);
-  XrdCl::StatInfo* sinfo = 0;
   XrdCl::Buffer qbuffer;
   qbuffer.FromString(signalreload);
   XrdCl::Buffer* rbuffer = 0;
@@ -2064,11 +2055,6 @@ Master::SignalRemoteReload(bool compact_files, bool compact_directories)
   if (rbuffer) {
     delete rbuffer;
     rbuffer = 0;
-  }
-
-  if (sinfo) {
-    delete sinfo;
-    sinfo = 0;
   }
 }
 
@@ -2141,9 +2127,8 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 
     // stat the two remote changelog files
     if (FsSync.Stat(rfclf.c_str(), sinfo, 5).IsOK()) {
-      size_remote_file_changelog = sinfo->GetSize();
-
       if (sinfo) {
+        size_remote_file_changelog = sinfo->GetSize();
         delete sinfo;
         sinfo = 0;
       }
@@ -2158,9 +2143,8 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
     }
 
     if (FsSync.Stat(rdclf.c_str(), sinfo, 5).IsOK()) {
-      size_remote_dir_changelog = sinfo->GetSize();
-
       if (sinfo) {
+        size_remote_dir_changelog = sinfo->GetSize();
         delete sinfo;
         sinfo = 0;
       }

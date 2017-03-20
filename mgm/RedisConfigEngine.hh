@@ -25,8 +25,12 @@
 #define __EOSMGM_REDISCONFIGENGINE__HH__
 
 #include "mgm/IConfigEngine.hh"
-#include "redox.hpp"
-#include "redox/redoxHash.hpp"
+#include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QHash.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QSet.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/AsyncHandler.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
+
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -39,9 +43,9 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param client Redox client
+  //! @param client qclient client
   //----------------------------------------------------------------------------
-  RedisCfgEngineChangelog(redox::Redox& client);
+  RedisCfgEngineChangelog(qclient::QClient* client);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -69,7 +73,7 @@ public:
 
 private:
   static std::string sChLogHashKey; ///< Hash map key
-  redox::RedoxHash mChLogHash; ///< Redis changelog hash map
+  qclient::QHash mChLogHash; ///< Redis changelog hash map
 };
 
 
@@ -80,8 +84,8 @@ class RedisConfigEngine : public IConfigEngine
 {
 public:
   //----------------------------------------------------------------------------
-  //! XrdOucHash callback function to add to the Redox hash all the
-  //! configuration values.
+  //! XrdOucHash callback function to add to the hash all the configuration
+  //! values.
   //!
   //! @param key configuration key
   //! @param val configuration value
@@ -198,7 +202,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool PullFromRedis(redox::RedoxHash& hash, XrdOucString& err);
+  bool PullFromRedis(qclient::QHash& hash, XrdOucString& err);
 
   //----------------------------------------------------------------------------
   //! Set configuration folder
@@ -214,9 +218,7 @@ public:
 
 private:
 
-  redox::Redox client;
-  std::string REDIS_HOST;
-  int REDIS_PORT;
+  qclient::QClient* client;
   std::string conf_set_key = "EOSConfig:list";
   std::string conf_hash_key_prefix = "EOSConfig";
   std::string conf_backup_hash_key_prefix = "EOSConfig:backup";

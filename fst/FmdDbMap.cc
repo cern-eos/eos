@@ -1,5 +1,3 @@
-
-
 // ------------- ---------------------------------------------------------
 // File: FmdDbMap.cc
 // Author: Geoffray Adde - CERN
@@ -109,7 +107,7 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
                 eos::common::DbMap::getDbType().c_str());
 
     if (!src) {
-      if (chmod(DBfilename[fsid].c_str(), S_IRWXU | S_IRGRP)) {
+      if (chmod(fsDBFileName, S_IRWXU | S_IRGRP)) {
         eos_crit("failed to switch the %s database file mode to S_IRWXU | S_IRGRP errno=%d",
                  eos::common::DbMap::getDbType().c_str(), errno);
       }
@@ -124,7 +122,7 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
   eos::common::LvDbDbMapInterface::Option* dbopt = &lvdboption;
 
   // if we have not set the leveldb option, use the default (currently, bloom filter 10 bits and 100MB cache)
-  if (lvdboption.BloomFilterNbits == 0 && lvdboption.BloomFilterNbits == 0) {
+  if (lvdboption.BloomFilterNbits == 0) {
     dbopt = NULL;
   }
 
@@ -295,33 +293,34 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
         }
 
         // The force flag allows to retrieve 'any' value even with inconsistencies
-	// as needed by ResyncAllMgm
+        // as needed by ResyncAllMgm
         if (!force) {
-          if (strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid()),"raid6") &&
+          if (strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid()),
+                     "raid6") &&
               strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid()), "raiddp") &&
               strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid()), "archive")) {
             // If we have a mismatch between the mgm/disk and 'ref' value in size,
-	    // we don't return the Fmd record
+            // we don't return the Fmd record
             if ((!isRW) &&
-		((fmd->fMd.disksize() &&
-		  (fmd->fMd.disksize() != 0xfffffffffff1ULL) &&
-		  (fmd->fMd.disksize() != fmd->fMd.size())) ||
-		 (fmd->fMd.mgmsize() &&
-		  (fmd->fMd.mgmsize() != 0xfffffffffff1ULL) &&
-		  (fmd->fMd.mgmsize() != fmd->fMd.size())))) {
+                ((fmd->fMd.disksize() &&
+                  (fmd->fMd.disksize() != 0xfffffffffff1ULL) &&
+                  (fmd->fMd.disksize() != fmd->fMd.size())) ||
+                 (fmd->fMd.mgmsize() &&
+                  (fmd->fMd.mgmsize() != 0xfffffffffff1ULL) &&
+                  (fmd->fMd.mgmsize() != fmd->fMd.size())))) {
               eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx "
-		       "fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
+                       "fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
                        fid, (unsigned long) fsid, fmd->fMd.size(),
-		       fmd->fMd.disksize(), fmd->fMd.mgmsize());
+                       fmd->fMd.disksize(), fmd->fMd.mgmsize());
               delete fmd;
               FmdSqliteUnLockRead(fsid);
               return 0;
             }
 
             // If we have a mismatch between the mgm/disk and 'ref' value in
-	    // checksum, we don't return the Fmd record. This check we can do
-	    // only if the file is !zero otherwise we don't have a checksum on
-	    // disk (e.g. a touch <a> file)
+            // checksum, we don't return the Fmd record. This check we can do
+            // only if the file is !zero otherwise we don't have a checksum on
+            // disk (e.g. a touch <a> file)
             if ((!isRW) && fmd->fMd.mgmsize() &&
                 ((fmd->fMd.diskchecksum().length() &&
                   (fmd->fMd.diskchecksum() != fmd->fMd.checksum())) ||
@@ -467,6 +466,7 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
 
   if (dbmap.count(fsid)) {
     bool res = PutFmd(fid, fsid, fmd->fMd);
+
     // update in-memory
     if (lockit) {
       FmdSqliteUnLockWrite(fsid);
@@ -818,7 +818,6 @@ FmdDbMapHandler::ResyncDisk(const char* path,
  *
  * @return true if successfull
  */
-
 /*----------------------------------------------------------------------------*/
 bool
 FmdDbMapHandler::ResyncAllDisk(const char* path,
@@ -826,12 +825,14 @@ FmdDbMapHandler::ResyncAllDisk(const char* path,
                                bool flaglayouterror)
 {
   char** paths = (char**) calloc(2, sizeof(char*));
-  paths[0] = (char*) path;
-  paths[1] = 0;
 
   if (!paths) {
+    eos_err("error: failed to allocate memory");
     return false;
   }
+
+  paths[0] = (char*) path;
+  paths[1] = 0;
 
   if (flaglayouterror) {
     isSyncing[fsid] = true;
@@ -927,18 +928,19 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
     if (fmd) {
       // check if there was a disk replica
       if (fmd->fMd.disksize() == 0xfffffffffff1ULL) {
-        if (fMd.layouterror() && eos::common::LayoutId::kUnregistered) {
-          // there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
+        if (fMd.layouterror() & eos::common::LayoutId::kUnregistered) {
+          // There is no replica supposed to be here and there is nothing on
+          // disk, so remove it from the database
           eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fid,
                       (unsigned long) fsid);
           delete fmd;
           return DeleteFmd(fMd.fid(), fsid);
         } else {
-          // we proceed
+          // We proceed
         }
       }
     } else {
-      if (fMd.layouterror() && eos::common::LayoutId::kUnregistered) {
+      if (fMd.layouterror() & eos::common::LayoutId::kUnregistered) {
         // this entry is deleted and we are not supposed to have it
         return true;
       }
@@ -1016,16 +1018,25 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  XrdOucString consolestring =
-    "/proc/admin/?&mgm.format=fuse&mgm.cmd=fs&mgm.subcmd=dumpmd&mgm.dumpmd.storetime=1&mgm.dumpmd.option=m&mgm.fsid=";
+  XrdOucString consolestring = "/proc/admin/?&mgm.format=fuse&mgm.cmd=fs&"
+                               "mgm.subcmd=dumpmd&mgm.dumpmd.storetime=1&mgm.dumpmd.option=m&mgm.fsid=";
   consolestring += (int) fsid;
   XrdOucString url = "root://";
   url += manager;
   url += "//";
   url += consolestring;
   // we run an external command and parse the output
-  char* tmpfile = tempnam("/tmp/", "efstd");
-  XrdOucString cmd = "env XrdSecPROTOCOL=sss xrdcp -s \"";
+  char tmpfile[] = "/tmp/efstd.XXXXXX";
+  // coverity[SECURE_TEMP]
+  int tmp_fd = mkstemp(tmpfile);
+
+  if (tmp_fd == -1) {
+    eos_err("failed to create a temporary file");
+    return false;
+  }
+
+  (void) close(tmp_fd);
+  XrdOucString cmd = "env XrdSecPROTOCOL=sss xrdcp -f -s \"";
   cmd += url;
   cmd += "\" ";
   cmd += tmpfile;
@@ -1038,10 +1049,9 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
     eos_debug("%s executed successfully", cmd.c_str());
   }
 
-  // parse the result
+  // Parse the result and unlink temporary file
   std::ifstream inFile(tmpfile);
   std::string dumpentry;
-  // unlink the temporary file
   unlink(tmpfile);
   unsigned long long cnt = 0;
 
@@ -1092,7 +1102,6 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
   }
 
   isSyncing[fsid] = false;
-  free(tmpfile);
   return true;
 }
 

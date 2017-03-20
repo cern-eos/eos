@@ -38,7 +38,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/FileConfigEngine.hh"
-#ifdef REDOX_FOUND
+#ifdef HAVE_HIREDIS
 #include "mgm/RedisConfigEngine.hh"
 #endif
 #include "common/plugin_manager/PluginManager.hh"
@@ -209,7 +209,13 @@ XrdMgmOfs::InitializeFileView()
       eos_static_info("msg=\"starting slave listener\"");
       struct stat buf;
       buf.st_size = 0;
-      ::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf);
+
+      if (::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf) == -1) {
+        eos_static_alert("msg=\"failed to stat the file changlog\"");
+        Initialized = kFailed;
+        return 0;
+      }
+
       eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
         dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
       eos::IChLogFileMDSvc* eos_chlog_filesvc =
@@ -279,8 +285,7 @@ XrdMgmOfs::InitializeFileView()
     }
   }
 
-  // fill the current accounting
-  // load all the quota nodes from the namespace
+  // Load all the quota nodes from the namespace
   Quota::LoadNodes();
   return 0;
 }
@@ -750,10 +755,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             }
           }
 
-          if (ErrorLog) {
-            Eroute.Say("=====> mgmofs.errorlog   : true");
+          if (MgmRedirector) {
+            Eroute.Say("=====> mgmofs.redirector : true");
           } else {
-            Eroute.Say("=====> mgmofs.errorlog   : false");
+            Eroute.Say("=====> mgmofs.redirector : false");
           }
         }
 
@@ -1021,7 +1026,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "trace option not specified");
-	    close(cfgFD);
+            close(cfgFD);
             return 1;
           }
 
@@ -1342,7 +1347,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     ConfEngine = new FileConfigEngine(MgmConfigDir.c_str());
   }
 
-#ifdef REDOX_FOUND
+#ifdef HAVE_HIREDIS
   else if (MgmOfsConfigEngineType == "redis") {
     ConfEngine = new RedisConfigEngine(MgmConfigDir.c_str(),
                                        MgmOfsConfigEngineRedisHost.c_str(),
@@ -1798,7 +1803,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
     MgmOfsMessaging->SetLogId("MgmOfsMessaging");
 
-    if ((!MgmOfsMessaging) || (MgmOfsMessaging->IsZombie())) {
+    if (MgmOfsMessaging->IsZombie()) {
       Eroute.Emsg("Config", "cannot create messaging object(thread)");
       return NoGo;
     }
@@ -1815,7 +1820,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
       MgmOfsMessaging->SetLogId("MgmOfsVstMessaging");
 
-      if ((!MgmOfsVstMessaging) || (MgmOfsVstMessaging->IsZombie())) {
+      if (MgmOfsVstMessaging->IsZombie()) {
         Eroute.Emsg("Config", "cannot create vst messaging object(thread)");
         return NoGo;
       }

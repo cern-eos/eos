@@ -153,7 +153,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get first free container id
   //----------------------------------------------------------------------------
-  virtual IContainerMD::id_t getFirstFreeId() const = 0;
+  virtual IContainerMD::id_t getFirstFreeId() = 0;
 };
 
 EOSNSNAMESPACE_END

@@ -58,15 +58,17 @@
 #define OSPAGESIZE 65536
 #endif
 
-filesystem::filesystem()
+filesystem::filesystem():
+  pid_max(32767), uid_max(0), link_pidmap(false), use_user_krb5cc(false),
+  use_user_gsiproxy(false), use_unsafe_krk5(false), fallback2nobody(false),
+  lazy_open_ro(false), lazy_open_rw(false), async_open(false),
+  lazy_open_disabled(false), inline_repair(false),
+  max_inline_repair_size(268435456), tryKrb5First(false), do_rdahead(false),
+  rm_level_protect(1), rm_watch_relpath(false), fuse_cache_write(false),
+  encode_pathname(false), mode_overlay(0)
 {
-  lazy_open_ro = false;
-  lazy_open_rw = false;
-  async_open = false;
-  lazy_open_disabled = false;
   hide_special_files = true;
   show_eos_attributes = false;
-  do_rdahead = false;
   rdahead_window = "131072";
   fuse_exec = false;
   fuse_shared = false;
@@ -417,6 +419,52 @@ filesystem::store_p2i(unsigned long long inode, const char* path)
   inode2path[inode] = path;
 }
 
+//----------------------------------------------------------------------------
+//! Store an inode/mtime pair
+//----------------------------------------------------------------------------
+void
+filesystem::store_i2mtime(unsigned long long inode, timespec ts)
+{
+  eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
+  inode2mtime[inode] = ts;
+}
+
+//----------------------------------------------------------------------------
+//! Store and test inode/mtime pair - returns true if open can set keep_cache
+//----------------------------------------------------------------------------
+
+bool
+filesystem::store_open_i2mtime(unsigned long long inode)
+{
+  bool retval = false;
+  return true;
+  eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
+  eos_static_debug("%16x %lu.%lu %lu.%lu\n", inode,
+                   inode2mtime_open[inode].tv_sec,
+                   inode2mtime_open[inode].tv_nsec,
+                   inode2mtime[inode].tv_sec,
+                   inode2mtime[inode].tv_nsec);
+
+  // this was never set !
+  if (inode2mtime_open[inode].tv_sec == 0) {
+    retval = true;
+  } else if ((inode2mtime_open[inode].tv_sec == inode2mtime[inode].tv_sec) &&
+             (inode2mtime_open[inode].tv_nsec == inode2mtime[inode].tv_nsec)) {
+    retval = true;
+  } else {
+    retval = false;
+  }
+
+  inode2mtime_open[inode] = inode2mtime[inode];
+  eos_static_debug("%16x %lu.%lu %lu.%lu out=%d\n", inode,
+                   inode2mtime_open[inode].tv_sec,
+                   inode2mtime_open[inode].tv_nsec,
+                   inode2mtime[inode].tv_sec,
+                   inode2mtime[inode].tv_nsec, retval);
+  return retval;
+}
+
+
 //------------------------------------------------------------------------------
 // Replace a prefix when directories are renamed
 //------------------------------------------------------------------------------
@@ -513,6 +561,9 @@ filesystem::forget_p2i(unsigned long long inode)
 
     inode2path.erase(inode);
   }
+
+  inode2mtime.erase(inode);
+  inode2mtime_open.erase(inode);
 }
 //------------------------------------------------------------------------------
 // Redirect an inode to a new inode - repair actions change inodes, so we have
@@ -626,9 +677,12 @@ filesystem::dir_cache_forget(unsigned long long inode)
 // Add or update a cache directory entry
 //------------------------------------------------------------------------------
 void
-filesystem::dir_cache_sync(unsigned long long inode, int nentries,
-                           struct timespec mtime, struct timespec ctime,
-                           struct dirbuf* b)
+filesystem::dir_cache_sync(unsigned long long inode,
+                           int nentries,
+                           struct timespec mtime,
+                           struct timespec ctime,
+                           struct dirbuf* b,
+                           long lifetimens)
 {
   eos::common::RWMutexWriteLock wr_lock(mutex_fuse_cache);
   FuseCacheEntry* dir = 0;
@@ -662,7 +716,7 @@ filesystem::dir_cache_sync(unsigned long long inode, int nentries,
       }
     }
 
-    dir = new FuseCacheEntry(nentries, modtime, b);
+    dir = new FuseCacheEntry(nentries, modtime, b, lifetimens);
     inode2cache[inode] = dir;
   }
 }
@@ -3253,6 +3307,7 @@ filesystem::open(const char* path,
     delete file;
     return eos::common::error_retc_map(errno);
   } else {
+    // TODO: return_inode already dereferenced before
     if (return_inode) {
       // Try to extract the inode from the opaque redirection
       std::string url = file->GetLastUrl().c_str();
@@ -4315,6 +4370,7 @@ bool filesystem::get_features(const std::string& url,
 
     if (response) {
       delete response;
+      response = 0;
     }
 
     return false;
@@ -4342,11 +4398,7 @@ bool filesystem::get_features(const std::string& url,
 
       if (pos == std::string::npos) {
         eos_static_crit("error parsing instance features");
-
-        if (response) {
-          delete response;
-        }
-
+        delete response;
         return false; // there is something wrong here
       }
 
@@ -4363,18 +4415,12 @@ bool filesystem::get_features(const std::string& url,
 
   if (!infeatures) {
     eos_static_warning("retrieving features is not supported on this eos instance");
-
-    if (response) {
-      delete response;
-    }
-
+    delete response;
+    response = 0;
     return false;
   }
 
-  if (response) {
-    delete response;
-  }
-
+  delete response;
   return true;
 }
 
@@ -4442,8 +4488,7 @@ filesystem::check_mgm(std::map<std::string, std::string>* features)
 //------------------------------------------------------------------------------
 // Init function
 //------------------------------------------------------------------------------
-
-void
+bool
 filesystem::initlogging()
 {
   FILE* fstderr;
@@ -4462,8 +4507,9 @@ filesystem::initlogging()
     // Running as a user ... we log into /tmp/eos-fuse.$UID.log
     if (!(fstderr = freopen(logfile, "a+", stderr))) {
       fprintf(stdout, "error: cannot open log file %s\n", logfile);
+      return false;
     } else {
-      ::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      (void) ::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     }
   } else {
     fuse_shared = true; //eosfsd
@@ -4482,8 +4528,9 @@ filesystem::initlogging()
 
     if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr))) {
       fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
+      return false;
     } else {
-      ::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR);
+      (void) ::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR);
     }
   }
 
@@ -4504,21 +4551,32 @@ filesystem::initlogging()
       eos::common::Logging::SetLogPriority(LOG_INFO);
     }
   }
+
+  return true;
 }
 
 bool
 filesystem::init(int argc, char* argv[], void* userdata,
                  std::map<std::string, std::string>* features)
 {
-  initlogging();
-  path2inode.set_empty_key("");
-  path2inode.set_deleted_key("#__deleted__#");
-  inodexrdlogin2fds.set_empty_key("");
-  inodexrdlogin2fds.set_deleted_key("#__deleted__#");
-  fd2fabst.set_empty_key(-1);
-  fd2fabst.set_deleted_key(-2);
-  fd2count.set_empty_key(-1);
-  fd2count.set_deleted_key(-2);
+  if (!initlogging()) {
+    return false;
+  }
+
+  try {
+    path2inode.set_empty_key("");
+    path2inode.set_deleted_key("#__deleted__#");
+    inodexrdlogin2fds.set_empty_key("");
+    inodexrdlogin2fds.set_deleted_key("#__deleted__#");
+    fd2fabst.set_empty_key(-1);
+    fd2fabst.set_deleted_key(-2);
+    fd2count.set_empty_key(-1);
+    fd2count.set_deleted_key(-2);
+  } catch (std::length_error& len_excp) {
+    eos_static_err("error: failed to insert into google map");
+    return false;
+  }
+
   eos::common::StringConversion::InitLookupTables();
 // Create the root entry
   path2inode["/"] = 1;
@@ -4610,12 +4668,12 @@ filesystem::init(int argc, char* argv[], void* userdata,
                                  0, 10);
   }
 
-// Check if we should set files executable
+  // Check if we should set files executable
   if (getenv("EOS_FUSE_EXEC") && (!strcmp(getenv("EOS_FUSE_EXEC"), "1"))) {
     fuse_exec = true;
   }
 
-// Initialise the XrdFileCache
+  // Initialise the XrdFileCache
   fuse_cache_write = false;
 
   if ((!(getenv("EOS_FUSE_CACHE"))) ||
@@ -4684,62 +4742,65 @@ filesystem::init(int argc, char* argv[], void* userdata,
   if (rm_level_protect) {
     rm_watch_relpath = false;
     char rm_cmd[PATH_MAX];
+    (void) memset(rm_cmd, '\0', sizeof(rm_cmd));
     FILE* f = popen("exec bash -c 'type -P rm'", "r");
 
     if (!f) {
       eos_static_err("could not run the system wide rm command procedure");
-    } else if (!fscanf(f, "%s", rm_cmd)) {
+    } else if (fscanf(f, "%s", rm_cmd) != 1) {
       pclose(f);
       eos_static_err("cannot get rm command to watch");
     } else {
       pclose(f);
-      eos_static_notice("rm command to watch is %s", rm_cmd);
-      rm_command = rm_cmd;
-      char cmd[PATH_MAX + 16];
-      sprintf(cmd, "%s --version", rm_cmd);
-      f = popen(cmd, "r");
 
-      if (!f) {
-        eos_static_err("could not run the rm command to watch");
-      }
+      if (strlen(rm_cmd) >= PATH_MAX) {
+        eos_static_err("buffer overflow while reading rm command");
+      } else {
+        eos_static_notice("rm command to watch is %s", rm_cmd);
+        rm_command = rm_cmd;
+        char cmd[PATH_MAX + 16];
+        sprintf(cmd, "%s --version", (const char*)rm_cmd);
+        f = popen(cmd, "r");
 
-      char* line = NULL;
-      size_t len = 0;
+        if (!f) {
+          eos_static_err("could not run the rm command to watch");
+        } else {
+          char* line = NULL;
+          size_t len = 0;
 
-      if (f && getline(&line, &len, f) == -1) {
-        pclose(f);
+          if (getline(&line, &len, f) == -1) {
+            pclose(f);
+            eos_static_err("could not read rm command version to watch");
+          } else if (line) {
+            pclose(f);
+            char* lasttoken = strrchr(line, ' ');
 
-        if (f) {
-          eos_static_err("could not read rm command version to watch");
-        }
-      } else if (line) {
-        pclose(f);
-        char* lasttoken = strrchr(line, ' ');
+            if (lasttoken) {
+              float rmver;
 
-        if (lasttoken) {
-          float rmver;
+              if (!sscanf(lasttoken, "%f", &rmver)) {
+                eos_static_err("could not interpret rm command version to watch %s",
+                               lasttoken);
+              } else {
+                int rmmajv = floor(rmver);
+                eos_static_notice("top level recursive deletion command to watch "
+                                  "is %s, version is %f, major version is %d",
+                                  rm_cmd, rmver, rmmajv);
 
-          if (!sscanf(lasttoken, "%f", &rmver)) {
-            eos_static_err("could not interpret rm command version to watch %s",
-                           lasttoken);
-          } else {
-            int rmmajv = floor(rmver);
-            eos_static_notice("top level recursive deletion command to watch "
-                              "is %s, version is %f, major version is %d",
-                              rm_cmd, rmver, rmmajv);
-
-            if (rmmajv >= 8) {
-              rm_watch_relpath = true;
-              eos_static_notice("top level recursive deletion CAN watch "
-                                "relative path removals");
-            } else {
-              eos_static_warning("top level recursive deletion CANNOT watch "
-                                 "relative path removals");
+                if (rmmajv >= 8) {
+                  rm_watch_relpath = true;
+                  eos_static_notice("top level recursive deletion CAN watch "
+                                    "relative path removals");
+                } else {
+                  eos_static_warning("top level recursive deletion CANNOT watch "
+                                     "relative path removals");
+                }
+              }
             }
           }
-        }
 
-        free(line);
+          free(line);
+        }
       }
     }
   }
@@ -4860,7 +4921,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
   }
 #endif
 
-// Get parameters about strong authentication
+  // Get parameters about strong authentication
   if (getenv("EOS_FUSE_PIDMAP") && (atoi(getenv("EOS_FUSE_PIDMAP")) == 1)) {
     link_pidmap = true;
   } else {

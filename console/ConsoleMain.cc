@@ -21,23 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "ConsoleMain.hh"
 #include "ConsolePipe.hh"
 #include "License"
-
 #include "common/Path.hh"
 #include "common/IoPipe.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 XrdPosixXrootd posixsingleton;
 #include "fst/FmdClient.hh"
-/*----------------------------------------------------------------------------*/
 #include <setjmp.h>
-/*----------------------------------------------------------------------------*/
 
 // ----------------------------------------------------------------------------
 // - Implemented Commands                                                     -
@@ -1444,8 +1439,8 @@ main(int argc, char* argv[])
       fflush(stderr);
 
       if (pipemode) {
-        n = write(retcfd, &global_retc, 1);
-        n = write(retcfd, &newline, 1);
+        n = write(retcfd, &global_retc, sizeof(global_retc));
+        n = write(retcfd, &newline, sizeof(newline));
 
         if (n != 1) {
           fprintf(stderr, "error: unable to write retc to retc-socket\n");
@@ -1590,7 +1585,7 @@ bool RegWrapDenominator(XrdOucString& path, const std::string& key)
 
 bool Path2FileDenominator(XrdOucString& path)
 {
-  if (RegWrapDenominator(path, "fxid:[A-F0-9]+$")) {
+  if (RegWrapDenominator(path, "fxid:[a-fA-F0-9]+$")) {
     std::string temp = std::to_string(strtoull(path.c_str(), 0, 16));
     path = XrdOucString(temp.c_str());
     return true;

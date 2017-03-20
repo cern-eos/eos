@@ -44,18 +44,18 @@
 //------------------------------------------------------------------------------
 class HierarchicalViewTest: public CppUnit::TestCase
 {
-  public:
-    CPPUNIT_TEST_SUITE(HierarchicalViewTest);
-    CPPUNIT_TEST(reloadTest);
-    CPPUNIT_TEST(quotaTest);
-    CPPUNIT_TEST(lostContainerTest);
-    CPPUNIT_TEST(onlineCompactingTest);
-    CPPUNIT_TEST_SUITE_END();
+public:
+  CPPUNIT_TEST_SUITE(HierarchicalViewTest);
+  CPPUNIT_TEST(reloadTest);
+  CPPUNIT_TEST(quotaTest);
+  CPPUNIT_TEST(lostContainerTest);
+  CPPUNIT_TEST(onlineCompactingTest);
+  CPPUNIT_TEST_SUITE_END();
 
-    void reloadTest();
-    void quotaTest();
-    void lostContainerTest();
-    void onlineCompactingTest();
+  void reloadTest();
+  void quotaTest();
+  void lostContainerTest();
+  void onlineCompactingTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION(HierarchicalViewTest);
@@ -65,8 +65,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION(HierarchicalViewTest);
 //------------------------------------------------------------------------------
 void HierarchicalViewTest::reloadTest()
 {
-  try
-  {
+  try {
     std::shared_ptr<eos::IContainerMDSvc> contSvc =
       std::shared_ptr<eos::IContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
     std::shared_ptr<eos::IFileMDSvc> fileSvc =
@@ -88,10 +87,14 @@ void HierarchicalViewTest::reloadTest()
     view->setFileMDSvc(fileSvc.get());
     view->configure(settings);
     view->initialize();
-    std::shared_ptr<eos::IContainerMD> cont1 = view->createContainer("/test/embed/embed1", true);
-    std::shared_ptr<eos::IContainerMD> cont2 = view->createContainer("/test/embed/embed2", true);
-    std::shared_ptr<eos::IContainerMD> cont3 = view->createContainer("/test/embed/embed3", true);
-    std::shared_ptr<eos::IContainerMD> cont4 = view->createContainer("/test/embed/embed4", true);
+    std::shared_ptr<eos::IContainerMD> cont1 =
+      view->createContainer("/test/embed/embed1", true);
+    std::shared_ptr<eos::IContainerMD> cont2 =
+      view->createContainer("/test/embed/embed2", true);
+    std::shared_ptr<eos::IContainerMD> cont3 =
+      view->createContainer("/test/embed/embed3", true);
+    std::shared_ptr<eos::IContainerMD> cont4 =
+      view->createContainer("/test/embed/embed4", true);
     std::shared_ptr<eos::IContainerMD> root  = view->getContainer("/");
     std::shared_ptr<eos::IContainerMD> test  = view->getContainer("/test");
     std::shared_ptr<eos::IContainerMD> embed = view->getContainer("/test/embed");
@@ -113,7 +116,8 @@ void HierarchicalViewTest::reloadTest()
     view->createFile("/test/embed/embed1/file1");
     view->createFile("/test/embed/embed1/file2");
     view->createFile("/test/embed/embed1/file3");
-    std::shared_ptr<eos::IFileMD> fileR = view->createFile("/test/embed/embed1/fileR");
+    std::shared_ptr<eos::IFileMD> fileR =
+      view->createFile("/test/embed/embed1/fileR");
     CPPUNIT_ASSERT(view->getFile("/test/embed/file1"));
     CPPUNIT_ASSERT(view->getFile("/test/embed/file2"));
     CPPUNIT_ASSERT(view->getFile("/test/embed/embed1/file1"));
@@ -124,25 +128,30 @@ void HierarchicalViewTest::reloadTest()
     //--------------------------------------------------------------------------
     CPPUNIT_ASSERT_NO_THROW(view->renameContainer(cont4.get(), "embed4.renamed"));
     CPPUNIT_ASSERT(cont4->getName() == "embed4.renamed");
-    CPPUNIT_ASSERT_THROW(view->renameContainer(cont4.get(), "embed1"), eos::MDException);
+    CPPUNIT_ASSERT_THROW(view->renameContainer(cont4.get(), "embed1"),
+                         eos::MDException);
     CPPUNIT_ASSERT_THROW(view->renameContainer(cont4.get(), "embed1/asd"),
                          eos::MDException);
     CPPUNIT_ASSERT_NO_THROW(view->getContainer("/test/embed/embed4.renamed"));
     CPPUNIT_ASSERT_NO_THROW(view->renameFile(fileR.get(), "fileR.renamed"));
     CPPUNIT_ASSERT(fileR->getName() == "fileR.renamed");
     CPPUNIT_ASSERT_THROW(view->renameFile(fileR.get(), "file1"), eos::MDException);
-    CPPUNIT_ASSERT_THROW(view->renameFile(fileR.get(), "file1/asd"), eos::MDException);
+    CPPUNIT_ASSERT_THROW(view->renameFile(fileR.get(), "file1/asd"),
+                         eos::MDException);
     CPPUNIT_ASSERT_NO_THROW(view->getFile("/test/embed/embed1/fileR.renamed"));
-    CPPUNIT_ASSERT_THROW(view->renameContainer(root.get(), "rename"), eos::MDException);
+    CPPUNIT_ASSERT_THROW(view->renameContainer(root.get(), "rename"),
+                         eos::MDException);
     //--------------------------------------------------------------------------
     // Test the "reverse" lookup
     //--------------------------------------------------------------------------
     std::shared_ptr<eos::IFileMD> file = view->getFile("/test/embed/embed1/file3");
-    std::shared_ptr<eos::IContainerMD> container = view->getContainer("/test/embed/embed1");
+    std::shared_ptr<eos::IContainerMD> container =
+      view->getContainer("/test/embed/embed1");
     CPPUNIT_ASSERT(view->getUri(container.get()) == "/test/embed/embed1/");
     CPPUNIT_ASSERT(view->getUri(file.get()) == "/test/embed/embed1/file3");
     CPPUNIT_ASSERT_THROW(view->getUri((eos::IFileMD*)0), eos::MDException);
-    std::shared_ptr<eos::IFileMD> toBeDeleted = view->getFile("/test/embed/embed1/file2");
+    std::shared_ptr<eos::IFileMD> toBeDeleted =
+      view->getFile("/test/embed/embed1/file2");
     toBeDeleted->addLocation(12);
     //--------------------------------------------------------------------------
     // This should not succeed since the file should have a replica
@@ -179,9 +188,7 @@ void HierarchicalViewTest::reloadTest()
     view->finalize();
     unlink(fileNameFileMD.c_str());
     unlink(fileNameContMD.c_str());
-  }
-  catch (eos::MDException& e)
-  {
+  } catch (eos::MDException& e) {
     CPPUNIT_ASSERT_MESSAGE(e.getMessage().str(), false);
   }
 }
@@ -193,8 +200,7 @@ static uint64_t mapSize(const eos::IFileMD* file)
 {
   eos::IFileMD::layoutId_t lid = file->getLayoutId();
 
-  if (lid > 3)
-  {
+  if (lid > 3) {
     eos::MDException e(ENOENT);
     e.getMessage() << "Location does not exist" << std::endl;
     throw (e);
@@ -213,8 +219,7 @@ static void createFiles(const std::string&                          path,
 {
   eos::IQuotaNode* node = view->getQuotaNode(view->getContainer(path).get());
 
-  for (int i = 0; i < 1000; ++i)
-  {
+  for (int i = 0; i < 1000; ++i) {
     std::ostringstream p;
     p << path << "file" << i;
     std::shared_ptr<eos::IFileMD> file = view->createFile(p.str());
@@ -277,8 +282,7 @@ void HierarchicalViewTest::quotaTest()
   eos::IQuotaNode* meldNode1 = new eos::QuotaNode(0);
   eos::IQuotaNode* meldNode2 = new eos::QuotaNode(0);
 
-  for (int i = 0; i < 10000; ++i)
-  {
+  for (int i = 0; i < 10000; ++i) {
     uid_t uid = random();
     gid_t gid = random();
     eos::IQuotaNode::UsageInfo& user  = users[uid];
@@ -290,32 +294,34 @@ void HierarchicalViewTest::quotaTest()
     uint64_t groupPhysicalSpace = random() % 100000;
     uint64_t groupFiles         = random() % 1000;
 
-    if (random() % 3)
-    {
+    if (random() % 3) {
       static_cast<eos::QuotaNode*>(meldNode1)->changeSpaceUser(uid, userSpace);
-      static_cast<eos::QuotaNode*>(meldNode1)->changePhysicalSpaceUser(uid, userPhysicalSpace);
+      static_cast<eos::QuotaNode*>(meldNode1)->changePhysicalSpaceUser(uid,
+          userPhysicalSpace);
       static_cast<eos::QuotaNode*>(meldNode1)->changeNumFilesUser(uid, userFiles);
       user.space          += userSpace;
       user.physicalSpace  += userPhysicalSpace;
       user.files          += userFiles;
       static_cast<eos::QuotaNode*>(meldNode1)->changeSpaceGroup(gid, groupSpace);
-      static_cast<eos::QuotaNode*>(meldNode1)->changePhysicalSpaceGroup(gid, groupPhysicalSpace);
+      static_cast<eos::QuotaNode*>(meldNode1)->changePhysicalSpaceGroup(gid,
+          groupPhysicalSpace);
       static_cast<eos::QuotaNode*>(meldNode1)->changeNumFilesGroup(gid, groupFiles);
       group.space         += groupSpace;
       group.physicalSpace += groupPhysicalSpace;
       group.files         += groupFiles;
     }
 
-    if (random() % 3)
-    {
+    if (random() % 3) {
       static_cast<eos::QuotaNode*>(meldNode2)->changeSpaceUser(uid, userSpace);
-      static_cast<eos::QuotaNode*>(meldNode2)->changePhysicalSpaceUser(uid, userPhysicalSpace);
+      static_cast<eos::QuotaNode*>(meldNode2)->changePhysicalSpaceUser(uid,
+          userPhysicalSpace);
       static_cast<eos::QuotaNode*>(meldNode2)->changeNumFilesUser(uid, userFiles);
       user.space          += userSpace;
       user.physicalSpace  += userPhysicalSpace;
       user.files          += userFiles;
       static_cast<eos::QuotaNode*>(meldNode2)->changeSpaceGroup(gid, groupSpace);
-      static_cast<eos::QuotaNode*>(meldNode2)->changePhysicalSpaceGroup(gid, groupPhysicalSpace);
+      static_cast<eos::QuotaNode*>(meldNode2)->changePhysicalSpaceGroup(gid,
+          groupPhysicalSpace);
       static_cast<eos::QuotaNode*>(meldNode2)->changeNumFilesGroup(gid, groupFiles);
       group.space         += groupSpace;
       group.physicalSpace += groupPhysicalSpace;
@@ -325,8 +331,7 @@ void HierarchicalViewTest::quotaTest()
 
   meldNode1->meld(meldNode2);
 
-  for (userIt = users.begin(); userIt != users.end(); ++userIt)
-  {
+  for (userIt = users.begin(); userIt != users.end(); ++userIt) {
     CPPUNIT_ASSERT(userIt->second.space == meldNode1->getUsedSpaceByUser(
                      userIt->first));
     CPPUNIT_ASSERT(userIt->second.physicalSpace ==
@@ -335,8 +340,7 @@ void HierarchicalViewTest::quotaTest()
                      userIt->first));
   }
 
-  for (groupIt = groups.begin(); groupIt != groups.end(); ++groupIt)
-  {
+  for (groupIt = groups.begin(); groupIt != groups.end(); ++groupIt) {
     CPPUNIT_ASSERT(groupIt->second.space == meldNode1->getUsedSpaceByGroup(
                      groupIt->first));
     CPPUNIT_ASSERT(groupIt->second.physicalSpace ==
@@ -350,9 +354,12 @@ void HierarchicalViewTest::quotaTest()
   //----------------------------------------------------------------------------
   // Create some structures, insert quota nodes and test their correctness
   //----------------------------------------------------------------------------
-  std::shared_ptr<eos::IContainerMD> cont1 = view->createContainer("/test/embed/embed1", true);
-  std::shared_ptr<eos::IContainerMD> cont2 = view->createContainer("/test/embed/embed2", true);
-  std::shared_ptr<eos::IContainerMD> cont3 = view->createContainer("/test/embed/embed3", true);
+  std::shared_ptr<eos::IContainerMD> cont1 =
+    view->createContainer("/test/embed/embed1", true);
+  std::shared_ptr<eos::IContainerMD> cont2 =
+    view->createContainer("/test/embed/embed2", true);
+  std::shared_ptr<eos::IContainerMD> cont3 =
+    view->createContainer("/test/embed/embed3", true);
   std::shared_ptr<eos::IContainerMD> cont4 = view->getContainer("/test/embed");
   std::shared_ptr<eos::IContainerMD> cont5 = view->getContainer("/test");
   eos::IQuotaNode* qnCreated1 = view->registerQuotaNode(cont1.get());
@@ -398,8 +405,7 @@ void HierarchicalViewTest::quotaTest()
   eos::IQuotaNode* node1 = view->getQuotaNode(view->getContainer(path1).get());
   eos::IQuotaNode* node2 = view->getQuotaNode(view->getContainer(path2).get());
 
-  for (int i = 1; i <= 10; ++i)
-  {
+  for (int i = 1; i <= 10; ++i) {
     CPPUNIT_ASSERT(node1->getPhysicalSpaceByUser(i) == users1[i].physicalSpace);
     CPPUNIT_ASSERT(node2->getPhysicalSpaceByUser(i) == users2[i].physicalSpace);
     CPPUNIT_ASSERT(node1->getUsedSpaceByUser(i) == users1[i].space);
@@ -408,8 +414,7 @@ void HierarchicalViewTest::quotaTest()
     CPPUNIT_ASSERT(node2->getNumFilesByUser(i)  == users2[i].files);
   }
 
-  for (int i = 1; i <= 3; ++i)
-  {
+  for (int i = 1; i <= 3; ++i) {
     CPPUNIT_ASSERT(node1->getPhysicalSpaceByGroup(i) == groups1[i].physicalSpace);
     CPPUNIT_ASSERT(node2->getPhysicalSpaceByGroup(i) == groups2[i].physicalSpace);
     CPPUNIT_ASSERT(node1->getUsedSpaceByGroup(i) == groups1[i].space);
@@ -431,8 +436,7 @@ void HierarchicalViewTest::quotaTest()
   CPPUNIT_ASSERT(node1);
   CPPUNIT_ASSERT(node2);
 
-  for (int i = 1; i <= 10; ++i)
-  {
+  for (int i = 1; i <= 10; ++i) {
     CPPUNIT_ASSERT(node1->getPhysicalSpaceByUser(i) == users1[i].physicalSpace);
     CPPUNIT_ASSERT(node2->getPhysicalSpaceByUser(i) == users2[i].physicalSpace);
     CPPUNIT_ASSERT(node1->getUsedSpaceByUser(i) == users1[i].space);
@@ -441,8 +445,7 @@ void HierarchicalViewTest::quotaTest()
     CPPUNIT_ASSERT(node2->getNumFilesByUser(i)  == users2[i].files);
   }
 
-  for (int i = 1; i <= 3; ++i)
-  {
+  for (int i = 1; i <= 3; ++i) {
     CPPUNIT_ASSERT(node1->getPhysicalSpaceByGroup(i) == groups1[i].physicalSpace);
     CPPUNIT_ASSERT(node2->getPhysicalSpaceByGroup(i) == groups2[i].physicalSpace);
     CPPUNIT_ASSERT(node1->getUsedSpaceByGroup(i) == groups1[i].space);
@@ -456,12 +459,11 @@ void HierarchicalViewTest::quotaTest()
   // and check if the on /test has been updated
   //----------------------------------------------------------------------------
   eos::IQuotaNode* parentNode = 0;
-  CPPUNIT_ASSERT_NO_THROW(parentNode = 
-			  view->getQuotaNode(view->getContainer("/test").get()));
+  CPPUNIT_ASSERT_NO_THROW(parentNode =
+                            view->getQuotaNode(view->getContainer("/test").get()));
   CPPUNIT_ASSERT_NO_THROW(view->removeQuotaNode(view->getContainer(path1).get()));
 
-  for (int i = 1; i <= 10; ++i)
-  {
+  for (int i = 1; i <= 10; ++i) {
     CPPUNIT_ASSERT(parentNode->getPhysicalSpaceByUser(i) ==
                    users1[i].physicalSpace + users2[i].physicalSpace);
     CPPUNIT_ASSERT(parentNode->getUsedSpaceByUser(i)     ==
@@ -470,8 +472,7 @@ void HierarchicalViewTest::quotaTest()
                    users1[i].files + users2[i].files);
   }
 
-  for (int i = 1; i <= 3; ++i)
-  {
+  for (int i = 1; i <= 3; ++i) {
     CPPUNIT_ASSERT(parentNode->getPhysicalSpaceByGroup(i) ==
                    groups1[i].physicalSpace + groups2[i].physicalSpace);
     CPPUNIT_ASSERT(parentNode->getUsedSpaceByGroup(i)     ==
@@ -484,8 +485,7 @@ void HierarchicalViewTest::quotaTest()
   CPPUNIT_ASSERT_THROW(view->removeQuotaNode(view->getContainer(path3).get()),
                        eos::MDException);
 
-  for (int i = 1; i <= 10; ++i)
-  {
+  for (int i = 1; i <= 10; ++i) {
     CPPUNIT_ASSERT(parentNode->getPhysicalSpaceByUser(i)  ==
                    users1[i].physicalSpace + users2[i].physicalSpace + users3[i].physicalSpace);
     CPPUNIT_ASSERT(parentNode->getUsedSpaceByUser(i)      ==
@@ -494,8 +494,7 @@ void HierarchicalViewTest::quotaTest()
                    users1[i].files + users2[i].files + users3[i].files);
   }
 
-  for (int i = 1; i <= 3; ++i)
-  {
+  for (int i = 1; i <= 3; ++i) {
     CPPUNIT_ASSERT(parentNode->getPhysicalSpaceByGroup(i)  ==
                    groups1[i].physicalSpace + groups2[i].physicalSpace + groups3[i].physicalSpace);
     CPPUNIT_ASSERT(parentNode->getUsedSpaceByGroup(i)      ==
@@ -538,19 +537,22 @@ void HierarchicalViewTest::lostContainerTest()
   view->setFileMDSvc(fileSvc.get());
   view->configure(settings);
   view->initialize();
-  std::shared_ptr<eos::IContainerMD> cont1 = view->createContainer("/test/embed/embed1", true);
-  std::shared_ptr<eos::IContainerMD> cont2 = view->createContainer("/test/embed/embed2", true);
-  std::shared_ptr<eos::IContainerMD> cont3 = view->createContainer("/test/embed/embed3", true);
+  std::shared_ptr<eos::IContainerMD> cont1 =
+    view->createContainer("/test/embed/embed1", true);
+  std::shared_ptr<eos::IContainerMD> cont2 =
+    view->createContainer("/test/embed/embed2", true);
+  std::shared_ptr<eos::IContainerMD> cont3 =
+    view->createContainer("/test/embed/embed3", true);
   std::shared_ptr<eos::IContainerMD> cont4 =
     view->createContainer("/test/embed/embed1/embedembed", true);
-  std::shared_ptr<eos::IContainerMD> cont5 = view->createContainer("/test/embed/embed3.conflict",
-								   true);
+  std::shared_ptr<eos::IContainerMD> cont5 =
+    view->createContainer("/test/embed/embed3.conflict",
+                          true);
 
   //----------------------------------------------------------------------------
   // Create some files
   //----------------------------------------------------------------------------
-  for (int i = 0; i < 1000; ++i)
-  {
+  for (int i = 0; i < 1000; ++i) {
     std::ostringstream s1;
     s1 << "/test/embed/embed1/file" << i;
     std::ostringstream s2;
@@ -628,8 +630,7 @@ void HierarchicalViewTest::lostContainerTest()
 //------------------------------------------------------------------------------
 // Compact thread
 //------------------------------------------------------------------------------
-struct CompactData
-{
+struct CompactData {
   CompactData(): compactData(0), svc(0) {}
   void*                    compactData;
   eos::ChangeLogFileMDSvc* svc;
@@ -654,12 +655,12 @@ void CheckOnlineComp(std::shared_ptr<eos::IView> view, uint32_t totalFiles,
   std::shared_ptr<eos::IFileMD> fmd;
   std::set<std::string> fnames = cont->getNameFiles();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
-  {
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
     fmd = cont->findFile(*fit);
 
-    if (fmd->getSize() == 99999)
+    if (fmd->getSize() == 99999) {
       ++changedFound;
+    }
   }
 
   CPPUNIT_ASSERT(totalFiles == cont->getNumFiles());
@@ -701,8 +702,7 @@ void HierarchicalViewTest::onlineCompactingTest()
   std::shared_ptr<eos::IContainerMD> cont;
   CPPUNIT_ASSERT_NO_THROW(cont = view->createContainer("/test/", true));
 
-  for (int i = 0; i < 10000; ++i)
-  {
+  for (int i = 0; i < 10000; ++i) {
     std::ostringstream s;
     s << "/test/file" << i;
     CPPUNIT_ASSERT_NO_THROW(view->createFile(s.str()));
@@ -717,8 +717,7 @@ void HierarchicalViewTest::onlineCompactingTest()
   td.resize(1000);
   std::vector<int>::iterator it;
 
-  for (it = td.begin(); it != td.end(); ++it)
-  {
+  for (it = td.begin(); it != td.end(); ++it) {
     std::ostringstream s;
     s << "/test/file" << *it;
     CPPUNIT_ASSERT_NO_THROW(view->removeFile(view->getFile(s.str()).get()));
@@ -727,6 +726,12 @@ void HierarchicalViewTest::onlineCompactingTest()
   std::string newFileLogName = getTempName("/tmp", "eosns");
   eos::ChangeLogFileMDSvc* clFileSvc = dynamic_cast<eos::ChangeLogFileMDSvc*>
                                        (view->getFileMDSvc());
+
+  if (!clFileSvc) {
+    fprintf(stderr, "Failed dynamic cast to ChangeLogFileMDSvc\n");
+    exit(-1);
+  }
+
   void* compData = 0;
   CPPUNIT_ASSERT_NO_THROW(compData = clFileSvc->compactPrepare(newFileLogName));
   //----------------------------------------------------------------------------
@@ -741,8 +746,7 @@ void HierarchicalViewTest::onlineCompactingTest()
   //----------------------------------------------------------------------------
   // Do stuff - create some new files, modify existing ones
   //----------------------------------------------------------------------------
-  for (int i = 10000; i < 20000; ++i)
-  {
+  for (int i = 10000; i < 20000; ++i) {
     std::ostringstream s;
     s << "/test/file" << i;
     CPPUNIT_ASSERT_NO_THROW(view->createFile(s.str()));
@@ -752,10 +756,8 @@ void HierarchicalViewTest::onlineCompactingTest()
   std::shared_ptr<eos::IFileMD> fmd;
   std::set<std::string> fnames = cont->getNameFiles();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
-  {
-    if (random() % 100 < 70)
-    {
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
+    if (random() % 100 < 70) {
       fmd = cont->findFile(*fit);
       fmd->setSize(99999);
       CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd.get()));
@@ -768,8 +770,7 @@ void HierarchicalViewTest::onlineCompactingTest()
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT(pthread_join(thread, 0) == 0);
 
-  for (int i = 20000; i < 21000; ++i)
-  {
+  for (int i = 20000; i < 21000; ++i) {
     std::ostringstream s;
     s << "/test/file" << i;
     CPPUNIT_ASSERT_NO_THROW(view->createFile(s.str()));
@@ -777,20 +778,16 @@ void HierarchicalViewTest::onlineCompactingTest()
 
   fnames = cont->getNameFiles();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
-  {
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
     fmd = cont->findFile(*fit);
 
-    if (fmd->getSize() == 0)
-    {
-      if (random() % 100 < 10)
-      {
+    if (fmd->getSize() == 0) {
+      if (random() % 100 < 10) {
         fmd->setSize(99999);
         CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd.get()));
         changed++;
       }
     }
-
   }
 
   CPPUNIT_ASSERT_NO_THROW(clFileSvc->compactCommit(compData));
@@ -798,8 +795,7 @@ void HierarchicalViewTest::onlineCompactingTest()
   //----------------------------------------------------------------------------
   // Create some new files
   //----------------------------------------------------------------------------
-  for (int i = 21000; i < 22000; ++i)
-  {
+  for (int i = 21000; i < 22000; ++i) {
     std::ostringstream s;
     s << "/test/file" << i;
     CPPUNIT_ASSERT_NO_THROW(view->createFile(s.str()));
@@ -807,14 +803,11 @@ void HierarchicalViewTest::onlineCompactingTest()
 
   fnames = cont->getNameFiles();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
-  {
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
     fmd = cont->findFile(*fit);
 
-    if (fmd->getSize() == 0)
-    {
-      if (random() % 100 < 10)
-      {
+    if (fmd->getSize() == 0) {
+      if (random() % 100 < 10) {
         fmd->setSize(99999);
         CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd.get()));
         changed++;
