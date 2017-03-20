@@ -129,7 +129,7 @@ set(XRDEOSMGM_SRCS
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)
-  
+
 if (HIREDIS_FOUND)
   list(APPEND XRDEOSMGM_SRCS ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 endif()
@@ -277,5 +277,5 @@ install(
   PROGRAMS eos-repair-tool
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
-	      GROUP_READ GROUP_EXECUTE
-	      WORLD_READ WORLD_EXECUTE)
+              GROUP_READ GROUP_EXECUTE
+              WORLD_READ WORLD_EXECUTE)

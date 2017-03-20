@@ -405,5 +405,6 @@ com_quota_usage:
       << "=> if <path> is not terminated with a '/' it is assumed to be a file "
       << "so it won't match the quota node with <path>/ !" << std::endl;
   fprintf(stdout, "%s", oss.str().c_str());
+  global_retc = EINVAL;
   return 0;
 }

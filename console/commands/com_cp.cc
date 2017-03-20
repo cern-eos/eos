@@ -95,7 +95,7 @@ com_cp_usage()
   fprintf(stdout, "\n");
   fprintf(stdout,
           "      If <src> and <dst> are using S3, we are using the same credentials on both ands and the target credentials will overwrite source credentials!\n");
-  return (0);
+  return (EINVAL);
 }
 
 /* Cp Interface */

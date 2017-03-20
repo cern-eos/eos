@@ -133,5 +133,6 @@ com_rm_usage:
           "                                                                    -r :  remove recursivly\n");
   fprintf(stdout,
           "                                                                    -F :  remove bypassing recycling policies (you have to take the root role to use this flag!)\n");
+  global_retc = EINVAL;
   return (0);
 }

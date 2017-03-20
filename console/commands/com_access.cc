@@ -343,5 +343,6 @@ com_access_usage:
           "  access set limit 2000 rate:group:zp:Stat        Limit the stat rate for the zp group to 2kHz\n");
   fprintf(stdout,
           "  access rm limit rate:user:*:OpenRead            Removes the defined limit\n");
+  global_retc = EINVAL;
   return (0);
 }

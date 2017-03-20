@@ -810,5 +810,6 @@ com_find_usage:
           "                                                               path=as3:...   :  do a find on an S3 bucket\n");
   fprintf(stdout,
           "                                                               path=...       :  all other paths are considered to be EOS paths!\n");
+  global_retc = EINVAL;
   return (0);
 }

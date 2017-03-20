@@ -27,23 +27,25 @@
 
 /* Egroup member -  Interface */
 int
-com_member (char* arg1)
+com_member(char* arg1)
 {
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString egroup = subtokenizer.GetToken();
   XrdOucString in = "";
 
-  if (wants_help(egroup.c_str()) || !egroup.length())
+  if (wants_help(egroup.c_str()) || !egroup.length()) {
     goto com_member_usage;
+  }
 
   in = "mgm.cmd=member";
   in += "&mgm.egroup=";
   in += egroup;
   global_retc = output_result(client_user_command(in));
   return (0);
-
 com_member_usage:
-  fprintf(stdout, "usage: member [<egroup>]                                :  show the (cached) information about egroup membership\n");
+  fprintf(stdout,
+          "usage: member [<egroup>]                                :  show the (cached) information about egroup membership\n");
+  global_retc = 0;
   return (0);
 }

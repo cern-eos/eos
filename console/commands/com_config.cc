@@ -312,5 +312,6 @@ com_config_usage:
       "If no name is specified the current config file is overwritten."
       << std::endl;
   fprintf(stdout, "%s", oss.str().c_str());
+  global_retc = EINVAL;
   return (0);
 }

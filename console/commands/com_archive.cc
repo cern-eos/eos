@@ -38,89 +38,78 @@ com_archive(char* arg1)
   XrdOucString token;
   in_cmd << "mgm.cmd=archive&mgm.subcmd=" << subcmd;
 
-  if (subcmd == "create")
-  {
+  if (subcmd == "create") {
     XrdOucString path = subtokenizer.GetToken();
-   
-    if (!path.length())
+
+    if (!path.length()) {
       path = pwd;
+    }
 
     path = abspath(path.c_str());
     in_cmd << "&mgm.archive.path=" << path;
-  }
-  else if ((subcmd == "put") ||
-           (subcmd == "get") ||
-           (subcmd == "purge") ||
-           (subcmd == "delete"))
-  {
+  } else if ((subcmd == "put") ||
+             (subcmd == "get") ||
+             (subcmd == "purge") ||
+             (subcmd == "delete")) {
     token = subtokenizer.GetToken();
 
-    if (!token.length())
-    {
+    if (!token.length()) {
       goto com_archive_usage;
-    }
-    else if (token.beginswith("--"))
-    {
+    } else if (token.beginswith("--")) {
       token.erase(0, 2);
 
-      if (token != "retry")
-      {
+      if (token != "retry") {
         fprintf(stdout, "Unknown option: %s", token.c_str());
         goto com_archive_usage;
-      }
-      else
+      } else {
         in_cmd << "&mgm.archive.option=r";
+      }
 
       token = subtokenizer.GetToken();
     }
 
-    // The last token is the path 
-    if (!token.length())
+    // The last token is the path
+    if (!token.length()) {
       in_cmd << "&mgm.archive.path=" << pwd;
-    else
-    {
+    } else {
       token = abspath(token.c_str());
       in_cmd << "&mgm.archive.path=" << token;
     }
-  }
-  else if (subcmd == "transfers")
-  {
+  } else if (subcmd == "transfers") {
     // type: all, stage, migrate, job_uuid
-    token = subtokenizer.GetToken(); 
-
-    if (!token.length())
-      in_cmd << "&mgm.archive.option=all";
-    else      
-      in_cmd << "&mgm.archive.option=" << token;
-  }
-  else if (subcmd == "list")
-  {
     token = subtokenizer.GetToken();
 
-    if (!token.length())
+    if (!token.length()) {
+      in_cmd << "&mgm.archive.option=all";
+    } else {
+      in_cmd << "&mgm.archive.option=" << token;
+    }
+  } else if (subcmd == "list") {
+    token = subtokenizer.GetToken();
+
+    if (!token.length()) {
       in_cmd << "&mgm.archive.path=/";
-    else if (token == "./" || token == ".")
+    } else if (token == "./" || token == ".") {
       in_cmd << "&mgm.archive.path=" << abspath(pwd.c_str());
-    else
+    } else {
       in_cmd << "&mgm.archive.path=" << token;
-  }
-  else if (subcmd == "kill")
-  {
+    }
+  } else if (subcmd == "kill") {
     // Token is the job_uuid
     token = subtokenizer.GetToken();
 
-    if (token.length())
-      in_cmd  <<"&mgm.archive.option=" << token;
-    else
+    if (token.length()) {
+      in_cmd  << "&mgm.archive.option=" << token;
+    } else {
       goto com_archive_usage;
-  }
-  else
+    }
+  } else {
     goto com_archive_usage;
+  }
 
   in = in_cmd.str().c_str();
   global_retc = output_result(client_user_command(in));
   return (0);
-
 com_archive_usage:
   std::ostringstream oss;
   oss << "usage: archive <subcmd> " << std::endl
@@ -140,7 +129,7 @@ com_archive_usage:
       << ": kill transfer" << std::endl
       << "               help [--help|-h]                       "
       << ": display help message" << std::endl;
-
   fprintf(stdout, "%s", oss.str().c_str());
+  global_retc = EINVAL;
   return 0;
 }

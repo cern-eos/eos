@@ -7,6 +7,16 @@
 Beryl Release Notes
 ===================
 
+``V0.3.232 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix stale kernel cache contents problem if file contents changed but not the file size
+- FUSE: fix stale directory/file attributes for lookup/getattr of cached files/directories (apply attr lifetime)
+- FST: avoid to try to call forever an old master in commit/drop calls which specified an explicit call-back manager - use the broadcasted MGM name after 60 attempts
+
 ``V0.3.231 Aquamarine``
 =======================
 

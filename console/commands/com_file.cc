@@ -995,6 +995,7 @@ com_file_usage:
   fprintf(stdout,
           "                                                  trigger workflow <workflow> with event <event> on <path>\n");
   fprintf(stdout, "\n");
+  global_retc = EINVAL;
   return (0);
 }
 
