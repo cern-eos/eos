@@ -140,7 +140,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   char rdr[4096];
   char url[4096];
   rdr[0] = 0;
-  char* cstr = getenv("EOS_RDURL");
+  char* cstr = getenv("EOS_RDRURL");
 
   if (cstr && (strlen(cstr) < 4096)) {
     snprintf(rdr, 4096, "%s", cstr);
@@ -174,10 +174,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     exit(-1);
   }
 
-  // coverity[TAINTED_STRING]
   setenv("EOS_RDRURL", rdr, 1);
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-// Move the mounthostport starting with the host name
+  // Move the mounthostport starting with the host name
   char* pmounthostport = 0;
   char* smountprefix = 0;
   pmounthostport = strstr(url, "root://");
@@ -205,8 +204,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     *smountprefix = 0;
     smountprefix++;
     smountprefix++;
-    strncpy(mountprefix, smountprefix, std::min(strlen(smountprefix),
-            (size_t)4095));
+    size_t sz = std::min(strlen(smountprefix), (size_t)4095);
+    strncpy(mountprefix, smountprefix, sz);
+    mountprefix[sz] = '\0';
 
     while (mountprefix[strlen(mountprefix) - 1] == '/') {
       mountprefix[strlen(mountprefix) - 1] = '\0';
@@ -934,6 +934,7 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char* name, mode_t mode)
           parentpath[num] = '\0';
           size_t len = std::min(sz, parentpath.length());
           strncpy(gparent, parentpath.c_str(), len);
+          gparent[len] = '\0';
         }
       } else {
         strcpy(gparent, "/\0");
