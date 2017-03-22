@@ -990,4 +990,47 @@ Storage::CloseTransaction(unsigned int fsid, unsigned long long fid)
   return false;
 }
 
+//------------------------------------------------------------------------------
+// Add deletion to the list of pending ones
+//------------------------------------------------------------------------------
+void
+Storage::AddDeletion(std::unique_ptr<Deletion> del)
+{
+  XrdSysMutexHelper scope_lock(mDeletionsMutex);
+  mListDeletions.push_front(std::move(del));
+}
+
+//------------------------------------------------------------------------------
+// Get deletion object removing it from the list
+//------------------------------------------------------------------------------
+std::unique_ptr<Deletion>
+Storage::GetDeletion()
+{
+  std::unique_ptr<Deletion> del;
+  XrdSysMutexHelper scope_lock(mDeletionsMutex);
+
+  if (mListDeletions.size()) {
+    del.swap(mListDeletions.back());
+    mListDeletions.pop_back();
+  }
+
+  return del;
+}
+
+//------------------------------------------------------------------------------
+// Get number of pending deletions
+//------------------------------------------------------------------------------
+size_t
+Storage::GetNumDeletions()
+{
+  size_t total = 0;
+  XrdSysMutexHelper scope_lock(mDeletionsMutex);
+
+  for (auto it = mListDeletions.cbegin(); it != mListDeletions.cend(); ++it) {
+    total += (*it)->fIdVector.size();
+  }
+
+  return total;
+}
+
 EOSFSTNAMESPACE_END

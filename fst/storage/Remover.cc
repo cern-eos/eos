@@ -21,98 +21,81 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Storage::Remover ()
+Storage::Remover()
 {
   static time_t lastAskedForDeletions = 0;
-
   std::string nodeconfigqueue = "";
   const char* val = 0;
+
   // we have to wait that we know our node config queue
-  while (!(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str()))
-  {
+  while (!(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
     XrdSysTimer sleeper;
     sleeper.Snooze(5);
     eos_static_info("Snoozing ...");
   }
 
   nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
+  std::unique_ptr<Deletion> to_del {};
 
-  // this thread unlinks stored files
-  while (1)
-  {
-    // since we use vector and erase from the beginning, this is not really a perfect choice, but we don't have any performance issues here
-    deletionsMutex.Lock();
-    while (deletions.size())
-    {
-      eos_static_debug("%u files to delete", deletions.size());
-      Deletion todelete = deletions[0];
-      deletionsMutex.UnLock();
+  // Thread that unlinks stored files
+  while (1) {
+    while ((to_del = GetDeletion())) {
+      eos_static_debug("%u files to delete", GetNumDeletions());
 
-      for (unsigned int j = 0; j < todelete.fIdVector.size(); j++)
-      {
-        eos_static_debug("Deleting File Id=%llu on Fs=%u", todelete.fIdVector[j], todelete.fsId);
-        // delete the file
+      for (unsigned int j = 0; j < to_del->fIdVector.size(); ++j) {
+        eos_static_debug("Deleting file_id=%llu on fs_id=%u", to_del->fIdVector[j],
+                         to_del->fsId);
         XrdOucString hexstring = "";
-        eos::common::FileId::Fid2Hex(todelete.fIdVector[j], hexstring);
+        eos::common::FileId::Fid2Hex(to_del->fIdVector[j], hexstring);
         XrdOucErrInfo error;
-
         XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
         XrdOucString OpaqueString = "";
         OpaqueString += "&mgm.fsid=";
-        OpaqueString += (int) todelete.fsId;
+        OpaqueString += (int) to_del->fsId;
         OpaqueString += "&mgm.fid=";
         OpaqueString += hexstring;
         OpaqueString += "&mgm.localprefix=";
-        OpaqueString += todelete.localPrefix;
+        OpaqueString += to_del->localPrefix;
         XrdOucEnv Opaque(OpaqueString.c_str());
         capOpaqueString += OpaqueString;
 
-        if ((gOFS._rem("/DELETION", error, (const XrdSecEntity*) 0, &Opaque, 0, 0, 0, true) != SFS_OK))
-        {
-          eos_static_warning("unable to remove fid %s fsid %lu localprefix=%s", hexstring.c_str(), todelete.fsId, todelete.localPrefix.c_str());
+        if ((gOFS._rem("/DELETION", error, (const XrdSecEntity*) 0, &Opaque,
+                       0, 0, 0, true) != SFS_OK)) {
+          eos_static_warning("unable to remove fid %s fsid %lu localprefix=%s",
+                             hexstring.c_str(), to_del->fsId, to_del->localPrefix.c_str());
         }
 
-        // update the manager
+        // Update the manager
         int rc = gOFS.CallManager(&error, 0, 0 , capOpaqueString);
-        if (rc)
-        {
-          eos_static_err("unable to drop file id %s fsid %u at manager %s", hexstring.c_str(), todelete.fsId, todelete.managerId.c_str());
+
+        if (rc) {
+          eos_static_err("unable to drop file id %s fsid %u at manager %s",
+                         hexstring.c_str(), to_del->fsId, to_del->managerId.c_str());
         }
       }
-      deletionsMutex.Lock();
-      deletions.erase(deletions.begin());
     }
 
-    deletionsMutex.UnLock();
     XrdSysTimer msSleep;
     msSleep.Wait(100);
-
     time_t now = time(NULL);
 
-    // ask to schedule deletions every 5 minutes
-    if ((now - lastAskedForDeletions) > 300)
-    {
-      // ---------------------------------------
+    // Ask to schedule deletions every 5 minutes
+    if ((now - lastAskedForDeletions) > 300) {
       // get some global variables
-      // ---------------------------------------
       gOFS.ObjectManager.HashMutex.LockRead();
-
-      XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(nodeconfigqueue.c_str());
+      XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(
+                                      nodeconfigqueue.c_str());
       std::string manager = confighash ? confighash->Get("manager") : "unknown";
       eos_static_debug("manager=%s", manager.c_str());
       gOFS.ObjectManager.HashMutex.UnLockRead();
       // ---------------------------------------
-
       lastAskedForDeletions = now;
       eos_static_debug("asking for new deletions");
       XrdOucString managerQuery = "/?";
@@ -122,25 +105,19 @@ Storage::Remover ()
       // the log ID to the schedule2delete call
       managerQuery += "&mgm.logid=";
       managerQuery += logId;
-
       XrdOucErrInfo error;
       XrdOucString response = "";
       int rc = gOFS.CallManager(&error, "/", 0, managerQuery, &response);
-      if (rc)
-      {
+
+      if (rc) {
         eos_static_err("manager returned errno=%d", rc);
-      }
-      else
-      {
-        if (response == "submitted")
-        {
+      } else {
+        if (response == "submitted") {
           eos_static_debug("manager scheduled deletions for us!");
-          // we wait 30 seconds to receive our deletions
+          // We wait 30 seconds to receive our deletions
           XrdSysTimer Sleeper;
           Sleeper.Snooze(30);
-        }
-        else
-        {
+        } else {
           eos_static_debug("manager returned no deletion to schedule [ENODATA]");
         }
       }
@@ -149,5 +126,3 @@ Storage::Remover ()
 }
 
 EOSFSTNAMESPACE_END
-
-
