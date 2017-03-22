@@ -39,7 +39,7 @@ eos_rpm_cc7:
     - cc7/
     - eos-docker/
   tags:
-    - docker-cc7
+    - docker
   only:
     - master
     - beryl_aquamarine
