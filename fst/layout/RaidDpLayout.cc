@@ -866,7 +866,6 @@ RaidDpLayout::Truncate(XrdSfsFileOffset offset)
   return rc;
 }
 
-
 //------------------------------------------------------------------------------
 // Allocate file space (reserve)
 //------------------------------------------------------------------------------
@@ -876,7 +875,6 @@ RaidDpLayout::Fallocate(XrdSfsFileOffset length)
   int64_t size = ceil((1.0 * length) / mSizeGroup) * mSizeLine + mSizeHeader;
   return mStripe[0]->fileFallocate(size);
 }
-
 
 //------------------------------------------------------------------------------
 // Deallocate file space
@@ -890,7 +888,6 @@ RaidDpLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
   int64_t to_size = ceil((1.0 * toOffset) / mSizeGroup) * mSizeLine + mSizeHeader;
   return mStripe[0]->fileFdeallocate(from_size, to_size);
 }
-
 
 //------------------------------------------------------------------------------
 // Convert a global offset (from the inital file) to a local offset within
@@ -921,7 +918,6 @@ RaidDpLayout::GetGlobalOff(int stripe_id, uint64_t local_off)
                         (stripe_id * mStripeWidth) + (local_off % mStripeWidth);
   return global_off;
 }
-
 
 EOSFSTNAMESPACE_END
 

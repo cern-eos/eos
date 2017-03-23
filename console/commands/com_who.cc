@@ -27,60 +27,45 @@
 
 /* Who is connected -  Interface */
 int
-com_who (char* arg1)
+com_who(char* arg1)
 {
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString option = "";
   XrdOucString options = "";
-
   XrdOucString in = "";
 
-  if (wants_help(arg1))
+  if (wants_help(arg1)) {
     goto com_who_usage;
+  }
 
   in = "mgm.cmd=who";
-  do
-  {
+
+  do {
     option = subtokenizer.GetToken();
-    if (!option.length())
+
+    if (!option.length()) {
       break;
-    if (option == "-c")
-    {
-      options += "c";
     }
-    else
-    {
-      if (option == "-n")
-      {
+
+    if (option == "-c") {
+      options += "c";
+    } else {
+      if (option == "-n") {
         options += "n";
-      }
-      else
-      {
-        if (option == "-a")
-        {
+      } else {
+        if (option == "-a") {
           options += "a";
-        }
-        else
-        {
-          if (option == "-z")
-          {
+        } else {
+          if (option == "-z") {
             options += "z";
-          }
-          else
-          {
-            if (option == "-m")
-            {
+          } else {
+            if (option == "-m") {
               options += "m";
-            }
-            else
-            {
-              if (option == "-s")
-              {
+            } else {
+              if (option == "-s") {
                 options += "s";
-              }
-              else
-              {
+              } else {
                 goto com_who_usage;
               }
             }
@@ -88,25 +73,30 @@ com_who (char* arg1)
         }
       }
     }
-  }
-  while (1);
+  } while (1);
 
-  if (options.length())
-  {
+  if (options.length()) {
     in += "&mgm.option=";
     in += options;
   }
 
   global_retc = output_result(client_user_command(in));
   return (0);
-
 com_who_usage:
-  fprintf(stdout, "usage: who [-c] [-n] [-z] [-a] [-m] [-s]                             :  print statistics about active users (idle<5min)\n");
-  fprintf(stdout, "                -c                                                   -  break down by client host\n");
-  fprintf(stdout, "                -n                                                   -  print id's instead of names\n");
-  fprintf(stdout, "                -z                                                   -  print auth protocols\n");
-  fprintf(stdout, "                -a                                                   -  print all\n");
-  fprintf(stdout, "                -s                                                   -  print summary for clients\n");
-  fprintf(stdout, "                -m                                                   -  print in monitoring format <key>=<value>\n");
+  fprintf(stdout,
+          "usage: who [-c] [-n] [-z] [-a] [-m] [-s]                             :  print statistics about active users (idle<5min)\n");
+  fprintf(stdout,
+          "                -c                                                   -  break down by client host\n");
+  fprintf(stdout,
+          "                -n                                                   -  print id's instead of names\n");
+  fprintf(stdout,
+          "                -z                                                   -  print auth protocols\n");
+  fprintf(stdout,
+          "                -a                                                   -  print all\n");
+  fprintf(stdout,
+          "                -s                                                   -  print summary for clients\n");
+  fprintf(stdout,
+          "                -m                                                   -  print in monitoring format <key>=<value>\n");
+  global_retc = EINVAL;
   return (0);
 }

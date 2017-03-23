@@ -82,8 +82,13 @@ com_rm(char* arg1)
   if (!path.length()) {
     goto com_rm_usage;
   } else {
-    path = abspath(path.c_str());
-    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
+    if (Path2FileDenominator(path)) {
+      in += "&mgm.file.id=";
+    } else {
+      path = abspath(path.c_str());
+      in += "&mgm.path=";
+    }
+
     in += path;
     in += "&mgm.option=";
     in += option;
@@ -128,5 +133,6 @@ com_rm_usage:
           "                                                                    -r :  remove recursivly\n");
   fprintf(stdout,
           "                                                                    -F :  remove bypassing recycling policies (you have to take the root role to use this flag!)\n");
+  global_retc = EINVAL;
   return (0);
 }

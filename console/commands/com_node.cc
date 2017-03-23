@@ -398,5 +398,6 @@ com_node_usage:
           "       node proxygroupclear  <queue-name>|<host:port>              : clear the list of groups a node belongs to\n");
   fprintf(stdout,
           "       node status     <queue-name>|<host:port>                 : print's all defined variables for a node\n");
+  global_retc = EINVAL;
   return (0);
 }

@@ -103,5 +103,6 @@ com_debug(char* arg1)
           "  debug crit /eos/*/mgm               set MGM into debug mode 'crit'\n\n");
   fprintf(stdout,
           "  debug debug -filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages comming from unit 'MgmOfsMessage'.\n\n");
+  global_retc = EINVAL;
   return (0);
 }

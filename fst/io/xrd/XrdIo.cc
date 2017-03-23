@@ -765,21 +765,6 @@ XrdIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
     return SFS_ERROR;
   }
 
-  if (mExternalStorage || !mIsOpen) {
-    if (offset == EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN) {
-      // if we have an external XRootD we cannot send this truncate
-      // we issue an 'rm' instead
-      int rc = fileDelete(mFilePath.c_str());
-      return rc;
-    }
-
-    if (offset == EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN) {
-      // if we have an external XRootD we cannot send this truncate
-      // we can just ignore this message
-      return 0;
-    }
-  }
-
   XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t>(offset),
                                timeout);
 
@@ -857,6 +842,26 @@ XrdIo::fileStat(struct stat* buf, uint16_t timeout)
 }
 
 //------------------------------------------------------------------------------
+// Execute implementation dependant commands
+//------------------------------------------------------------------------------
+int
+XrdIo::fileFctl(const std::string& cmd, uint16_t timeout)
+{
+  if (!mXrdFile) {
+    eos_info("underlying XrdClFile object doesn't exist");
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  (void) arg.FromString(cmd);
+  XrdCl::XRootDStatus status = mXrdFile->Fcntl(arg, response, timeout);
+  delete response;
+  return status.status;
+}
+
+//------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
 int
@@ -903,17 +908,19 @@ XrdIo::fileRemove(uint16_t timeout)
     return SFS_ERROR;
   }
 
-  // TODO: this should be removed
-  // Remove the file by truncating using the special value offset
-  int retc = fileTruncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN, timeout);
+  // Send opaque coamand to file object to mark it for deletion
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  (void) arg.FromString("delete");
+  XrdCl::XRootDStatus status = mXrdFile->Fcntl(arg, response, timeout);
+  delete response;
 
-  if (retc) {
-    eos_err("error=failed to truncate file with deletion offset - %s",
-            mFilePath.c_str());
-    mLastErrMsg = "failed to truncate file with deletion offset";
+  if (!status.IsOK()) {
+    eos_err("failed to mark the file for deletion:%s", mFilePath.c_str());
+    return SFS_ERROR;
   }
 
-  return retc;
+  return SFS_OK;
 }
 
 //------------------------------------------------------------------------------

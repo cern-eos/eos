@@ -172,7 +172,7 @@ set(
   io/local/FsIo.cc               io/local/FsIo.hh
   io/kinetic/KineticIo.cc        io/kinetic/KineticIo.hh
   ${DAVIX_SRC}                   ${DAVIX_HDR}
-  io/rados/RadosIo.cc            io/rados/RadosIo.hh
+#  io/rados/RadosIo.cc            io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh

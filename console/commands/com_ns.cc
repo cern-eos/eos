@@ -28,89 +28,92 @@
 
 /* Namespace Interface */
 int
-com_ns (char* arg1)
+com_ns(char* arg1)
 {
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString cmd = subtokenizer.GetToken();
   XrdOucString option = "";
   XrdOucString options = "";
-
   XrdOucString in = "";
   XrdOucString state;
   XrdOucString delay;
   XrdOucString interval;
   XrdOucString compacttype;
 
-  if (wants_help(arg1))
+  if (wants_help(arg1)) {
     goto com_ns_usage;
+  }
 
-  if ((cmd != "stat") && (cmd != "") && (cmd != "compact") && (cmd != "master") && (cmd != "mutex"))
-  {
+  if ((cmd != "stat") && (cmd != "") && (cmd != "compact") && (cmd != "master") &&
+      (cmd != "mutex")) {
     goto com_ns_usage;
   }
 
   in = "mgm.cmd=ns&";
-  if (cmd == "stat")
-  {
+
+  if (cmd == "stat") {
     in += "mgm.subcmd=stat";
   }
 
-  if (cmd == "compact")
-  {
+  if (cmd == "compact") {
     in += "mgm.subcmd=compact";
     state = subtokenizer.GetToken();
-    if ((state != "on") && (state != "off"))
+
+    if ((state != "on") && (state != "off")) {
       goto com_ns_usage;
+    }
+
     in += "&mgm.ns.compact=";
     in += state;
     delay = subtokenizer.GetToken();
     interval = subtokenizer.GetToken();
     compacttype = subtokenizer.GetToken();
-    if (delay.length())
-    {
+
+    if (delay.length()) {
       int idelay = atoi(delay.c_str());
-      if (!idelay)
+
+      if (!idelay) {
         goto com_ns_usage;
+      }
 
       in += "&mgm.ns.compact.delay=";
       in += delay;
 
-      if (!interval.length())
-      {
+      if (!interval.length()) {
         interval = "0";
       }
+
       int iinterval = atoi(interval.c_str());
 
-      if (!iinterval)
-      {
-        if (interval != "0")
+      if (!iinterval) {
+        if (interval != "0") {
           goto com_ns_usage;
+        }
       }
+
       in += "&mgm.ns.compact.interval=";
       in += interval;
-      if (compacttype.length()) 
-      {
-	if ( (compacttype != "files") &&
-	     (compacttype != "directories") && 
-	     (compacttype != "all") && 
-	     (compacttype != "files-repair") && 
-	     (compacttype != "directories-repair") && 
-	     (compacttype != "all-repair") )
-	  goto com_ns_usage;
 
-	in += "&mgm.ns.compact.type=";
-	in += compacttype.c_str();
-      } 
-      else
-      {
-	in += "&mgm.ns.compact.type=files";
+      if (compacttype.length()) {
+        if ((compacttype != "files") &&
+            (compacttype != "directories") &&
+            (compacttype != "all") &&
+            (compacttype != "files-repair") &&
+            (compacttype != "directories-repair") &&
+            (compacttype != "all-repair")) {
+          goto com_ns_usage;
+        }
+
+        in += "&mgm.ns.compact.type=";
+        in += compacttype.c_str();
+      } else {
+        in += "&mgm.ns.compact.type=files";
       }
     }
   }
 
-  if (cmd == "master")
-  {
+  if (cmd == "master") {
     in += "mgm.subcmd=master";
     XrdOucString master = subtokenizer.GetToken();
     in += "&mgm.master=";
@@ -118,77 +121,56 @@ com_ns (char* arg1)
   }
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-  if (cmd == "mutex")
-  {
+
+  if (cmd == "mutex") {
     in += "mgm.subcmd=mutex";
   }
+
 #endif
-  do
-  {
+
+  do {
     option = subtokenizer.GetToken();
-    if (!option.length())
+
+    if (!option.length()) {
       break;
-    if (option == "-a")
-    {
-      options += "a";
     }
-    else
-    {
-      if (option == "-m")
-      {
+
+    if (option == "-a") {
+      options += "a";
+    } else {
+      if (option == "-m") {
         options += "m";
-      }
-      else
-      {
-        if (option == "-n")
-        {
+      } else {
+        if (option == "-n") {
           options += "n";
-        }
-        else
-        {
-          if (option == "--reset")
-          {
+        } else {
+          if (option == "--reset") {
             options += "r";
-          }
-          else
-          {
+          } else {
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-            if (option == "--toggletiming")
-            {
+
+            if (option == "--toggletiming") {
               options += "t";
-            }
-            else
-            {
-              if (option == "--toggleorder")
-              {
+            } else {
+              if (option == "--toggleorder") {
                 options += "o";
-              }
-              else
-              {
-                if (option == "--smplrate1")
-                {
+              } else {
+                if (option == "--smplrate1") {
                   options += "1";
-                }
-                else
-                {
-                  if (option == "--smplrate10")
-                  {
+                } else {
+                  if (option == "--smplrate10") {
                     options += "s";
-                  }
-                  else
-                  {
-                    if (option == "--smplrate100")
-                    {
+                  } else {
+                    if (option == "--smplrate100") {
                       options += "f";
-                    }
-                    else
-                    {
+                    } else {
                       goto com_ns_usage;
                     }
                   }
                 }
               }
             }
+
 #else
             goto com_ns_usage;
 #endif
@@ -196,44 +178,66 @@ com_ns (char* arg1)
         }
       }
     }
-  }
-  while (1);
+  } while (1);
 
-  if (options.length())
-  {
+  if (options.length()) {
     in += "&mgm.option=";
     in += options;
   }
 
   global_retc = output_result(client_admin_command(in));
   return (0);
-
 com_ns_usage:
-  fprintf(stdout, "Usage: ns                                                         :  print basic namespace parameters\n");
-  fprintf(stdout, "       ns stat [-a] [-m] [-n]                                     :  print namespace statistics\n");
-  fprintf(stdout, "                -a                                                   -  break down by uid/gid\n");
-  fprintf(stdout, "                -m                                                   -  print in <key>=<val> monitoring format\n");
-  fprintf(stdout, "                -n                                                   -  print numerical uid/gids\n");
-  fprintf(stdout, "                --reset                                              -  reset namespace counter\n");
+  fprintf(stdout,
+          "Usage: ns                                                         :  print basic namespace parameters\n");
+  fprintf(stdout,
+          "       ns stat [-a] [-m] [-n]                                     :  print namespace statistics\n");
+  fprintf(stdout,
+          "                -a                                                   -  break down by uid/gid\n");
+  fprintf(stdout,
+          "                -m                                                   -  print in <key>=<val> monitoring format\n");
+  fprintf(stdout,
+          "                -n                                                   -  print numerical uid/gids\n");
+  fprintf(stdout,
+          "                --reset                                              -  reset namespace counter\n");
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-  fprintf(stdout, "       ns mutex                                                   :  manage mutex monitoring\n");
-  fprintf(stdout, "                --toggletiming                                       -  toggle the timing\n");
-  fprintf(stdout, "                --toggleorder                                        -  toggle the order checking\n");
-  fprintf(stdout, "                --smplrate1                                          -  set the timing sample rate at 1%%   (default, almost no slow-down)\n");
-  fprintf(stdout, "                --smplrate10                                         -  set the timing sample rate at 10%%  (medium slow-down)\n");
-  fprintf(stdout, "                --smplrate100                                        -  set the timing sample rate at 100%% (severe slow-down)\n");
+  fprintf(stdout,
+          "       ns mutex                                                   :  manage mutex monitoring\n");
+  fprintf(stdout,
+          "                --toggletiming                                       -  toggle the timing\n");
+  fprintf(stdout,
+          "                --toggleorder                                        -  toggle the order checking\n");
+  fprintf(stdout,
+          "                --smplrate1                                          -  set the timing sample rate at 1%%   (default, almost no slow-down)\n");
+  fprintf(stdout,
+          "                --smplrate10                                         -  set the timing sample rate at 10%%  (medium slow-down)\n");
+  fprintf(stdout,
+          "                --smplrate100                                        -  set the timing sample rate at 100%% (severe slow-down)\n");
 #endif
-  fprintf(stdout, "       ns compact on <delay> [<interval>] [<type>]                   -  enable online compactification after <delay> seconds\n");
-  fprintf(stdout, "                                                                     -  if <interval> is >0 the compactifcation is repeated automatically after <interval> seconds!\n");
-  fprintf(stdout, "                                                                     -  <type> can be 'files' 'directories' or 'all'. By default only the file changelog is compacted!\n");
-  fprintf(stdout, "                                                                     -  the repair flag can be indicated by adding '-repair': 'files-repair', 'directories-repair', 'all-repair'\n");
-  fprintf(stdout, "       ns compact off                                                -  disable online compactification\n");
-  fprintf(stdout, "       ns master <master-hostname>|[--log]|--log-clear            :  master/slave operation\n");
-  fprintf(stdout, "       ns master <master-hostname>                                   -  set the host name of the MGM RW master daemon\n");
-  fprintf(stdout, "       ns master                                                     -  show the master log\n");
-  fprintf(stdout, "       ns master --log                                               -  show the master log\n");
-  fprintf(stdout, "       ns master --log-clear                                         -  clean the master log\n");
-  fprintf(stdout, "       ns master --disable                                           -  disable the slave/master supervisor thread modifying stall/redirection variables\n");
-  fprintf(stdout, "       ns master --enable                                            -  enable  the slave/master supervisor thread modifying stall/redirectino variables\n");
+  fprintf(stdout,
+          "       ns compact on <delay> [<interval>] [<type>]                   -  enable online compactification after <delay> seconds\n");
+  fprintf(stdout,
+          "                                                                     -  if <interval> is >0 the compactifcation is repeated automatically after <interval> seconds!\n");
+  fprintf(stdout,
+          "                                                                     -  <type> can be 'files' 'directories' or 'all'. By default only the file changelog is compacted!\n");
+  fprintf(stdout,
+          "                                                                     -  the repair flag can be indicated by adding '-repair': 'files-repair', 'directories-repair', 'all-repair'\n");
+  fprintf(stdout,
+          "       ns compact off                                                -  disable online compactification\n");
+  fprintf(stdout,
+          "       ns master <master-hostname>|[--log]|--log-clear            :  master/slave operation\n");
+  fprintf(stdout,
+          "       ns master <master-hostname>                                   -  set the host name of the MGM RW master daemon\n");
+  fprintf(stdout,
+          "       ns master                                                     -  show the master log\n");
+  fprintf(stdout,
+          "       ns master --log                                               -  show the master log\n");
+  fprintf(stdout,
+          "       ns master --log-clear                                         -  clean the master log\n");
+  fprintf(stdout,
+          "       ns master --disable                                           -  disable the slave/master supervisor thread modifying stall/redirection variables\n");
+  fprintf(stdout,
+          "       ns master --enable                                            -  enable  the slave/master supervisor thread modifying stall/redirectino variables\n");
+  global_retc = 0;
   return (0);
 }

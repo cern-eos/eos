@@ -91,7 +91,7 @@ com_attr(char* arg1)
       if (key != "default") {
         eos::common::SymKey::Base64(value, value64);
         value = value64;
-    }
+      }
     } else {
       value = "";
     }
@@ -162,7 +162,9 @@ com_attr(char* arg1)
         d5 += "set ";
         d5 += "sys.forced.space=default ";
         d5 += path;
-        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) || com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) || com_attr((char*) d5.c_str());
+        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) ||
+                      com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) ||
+                      com_attr((char*) d5.c_str());
         return (0);
       }
 
@@ -329,10 +331,8 @@ com_attr_usage:
           "attr [-r] set default=replica|raiddp|raid6|archive <path> :\n");
   fprintf(stdout,
           "                                                : set attributes of path (-r recursive) to the EOS defaults for replicas,dual-parity-raid (4+2), raid-6 (4+2) or archive layouts (5+3).\n");
-
   //  fprintf(stdout,"attr [-r] set default=reeds <path> :\n");
   //  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for reed solomon (4+2).\n");
-
   fprintf(stdout, " -r : set recursive on all directory children\n");
   fprintf(stdout, "attr [-r] get <key> <path> :\n");
   fprintf(stdout,
@@ -623,5 +623,6 @@ com_attr_usage:
   fprintf(stdout, ".......................\n");
   fprintf(stdout,
           "     |eos> attr set sys.attr.link=/eos/dev/origin-attr/ /eos/dev/instance/attr-linked/\n");
+  global_retc = EINVAL;
   return (0);
 }

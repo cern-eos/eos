@@ -49,7 +49,6 @@ ProcCommand::Rm()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
-  GetPathFromFid(spath, pOpaque, "Cannot get fid");
 
   if (force && (vid.uid)) {
     stdErr = "warning: removing the force flag - this is only allowed for the 'root' role!\n";

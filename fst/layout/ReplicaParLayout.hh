@@ -25,16 +25,14 @@
 #ifndef __EOSFST_REPLICAPARLAYOUT_HH__
 #define __EOSFST_REPLICAPARLAYOUT_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class abstracting the physical layout of a file with replicas
 //------------------------------------------------------------------------------
-class ReplicaParLayout : public Layout
+class ReplicaParLayout: public Layout
 {
 public:
 
@@ -191,6 +189,15 @@ public:
   //----------------------------------------------------------------------------
   virtual int Stat(struct stat* buf);
 
+  //----------------------------------------------------------------------------
+  //! Execute implementation dependant command
+  //!
+  //! @param cmd command
+  //! @param client client identity
+  //!
+  //! @return 0 if successful, -1 otherwise
+  //----------------------------------------------------------------------------
+  virtual int Fctl(const std::string& cmd, const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Close file
@@ -214,4 +221,3 @@ private:
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_REPLICAPARLAYOUT_HH__
-

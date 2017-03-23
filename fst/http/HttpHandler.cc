@@ -394,9 +394,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       }
 
       eos::common::OwnCloud::GetChunkInfo(request->GetQuery().c_str(),
-                                          chunk_n,
-                                          chunk_max,
-                                          chunk_uuid);
+                                          chunk_n, chunk_max, chunk_uuid);
 
       if (chunk_n >= chunk_max) {
         // there is something inconsistent here
@@ -425,7 +423,6 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         // there is buggy ANDROID client not providing this header
         // in this case we have to assume 1MB chunks
         // -------------------------------------------------------
-
         // the last chunks has to be written at offset=total-length - chunk-length
         if (eos::common::StringConversion::GetSizeFromString(
               eos::common::OwnCloud::getContentSize(request))) {
@@ -442,7 +439,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       }
     }
 
-    // file streaming in
+    // File streaming in
     size_t* bodySize = request->GetBodySize();
 
     if (request->GetBody().c_str() && bodySize && (*bodySize)) {
@@ -488,16 +485,25 @@ HttpHandler::Put(eos::common::HttpRequest* request)
 
       if ((!mLastChunk) && (request->GetHeaders().count("oc-chunked"))) {
         // WARNING: this assumes that chunks are uploaded in order
-        mFile->disableChecksum();
+        std::string cmd = "nochecksum";
+
+        if (mFile->fctl(SFS_FCTL_SPEC1, cmd.length(), cmd.c_str(), 0)) {
+          mErrCode = response->INTERNAL_SERVER_ERROR;
+          mErrText = "Failed to disable checksum";
+          response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+          delete mFile;
+          mFile = 0;
+          return response;
+        }
       }
 
       // retrieve a checksum when file is still open
       eos::common::OwnCloud::checksum_t checksum;
 
       if (mFile->GetChecksum()) {
-        if (header.count("x-oc-mtime") && (mLastChunk ||
-                                           (!request->GetHeaders().count("oc-chunked")))) {
-          // call the checksum verification explicite now because
+        if (header.count("x-oc-mtime") &&
+            (mLastChunk || (!request->GetHeaders().count("oc-chunked")))) {
+          // Call explicitly the checksum verification
           mFile->verifychecksum();
           std::string checksum_name = mFile->GetChecksum()->GetName();
           std::string checksum_val = mFile->GetChecksum()->GetHexChecksum();
@@ -523,12 +529,12 @@ HttpHandler::Put(eos::common::HttpRequest* request)
             if (client_checksum.first == checksum.first) {
               // compare only if the algorithm is the same
               if (client_checksum.second != checksum.second) {
-                eos_static_err("msg=\"invalid checksum\" client-checksum-type=%s client-checksum-value=%s "
-                               "server-checksum-type=%s server-checksum-value=%s",
+                eos_static_err("msg=\"invalid checksum\" client-checksum-type=%s"
+                               " client-checksum-value=%s server-checksum-type=%s"
+                               " server-checksum-value=%s",
                                client_checksum.first.c_str(),
                                client_checksum.second.c_str(),
-                               checksum.first.c_str(),
-                               checksum.second.c_str());
+                               checksum.first.c_str(), checksum.second.c_str());
                 checksumError = true;
               }
 

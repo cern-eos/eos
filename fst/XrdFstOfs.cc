@@ -695,6 +695,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   XrdCl::XRootDStatus status;
   XrdOucString address = "root://";
   XrdOucString lManager;
+  size_t tried = 0;
 
   if (!manager) {
     // use the broadcasted manager name
@@ -717,7 +718,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   // !!! WATCH OUT: GOTO ANCHOR !!!
 again:
   XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
-  eos_static_info("url=%s", address.c_str());
+  //eos_static_info("url=%s", address.c_str());
 
   if (!fs) {
     eos_err("error=failed to get new FS object");
@@ -766,14 +767,25 @@ again:
       eos_static_err("msg=\"query error\" status=%d code=%d", status.status,
                      status.code);
 
-      if ((status.code >= 100) &&
-          (status.code <= 300) &&
-          (!timeout)) {
+      if ((status.code >= 100) && (status.code <= 300) && (!timeout)) {
         // implement automatic retry - network errors will be cured at some point
         delete fs;
         XrdSysTimer sleeper;
         sleeper.Snooze(1);
+        tried++;
         eos_static_info("msg=\"retry query\" query=\"%s\"", capOpaqueFile.c_str());
+
+        if (!manager || (tried > 60)) {
+          // use the broadcasted manager name in the repeated try
+          XrdSysMutexHelper lock(Config::gConfig.Mutex);
+          lManager = Config::gConfig.Manager.c_str();
+          address = "root://";
+          address += lManager.c_str();
+          address += "//dummy";
+          url.Clear();
+          url.FromString((address.c_str()));
+        }
+
         goto again;
       }
 

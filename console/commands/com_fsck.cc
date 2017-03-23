@@ -27,7 +27,7 @@
 
 /* Namespace Interface */
 int
-com_fsck (char* arg1)
+com_fsck(char* arg1)
 {
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
@@ -38,69 +38,69 @@ com_fsck (char* arg1)
   XrdOucString in = "";
   XrdOucString selection = "";
 
-  if (wants_help(arg1))
+  if (wants_help(arg1)) {
     goto com_fsck_usage;
+  }
 
-  if ((cmd != "stat") && (cmd != "enable") && (cmd != "disable") && (cmd != "report") && (cmd != "repair"))
-  {
+  if ((cmd != "stat") && (cmd != "enable") && (cmd != "disable") &&
+      (cmd != "report") && (cmd != "repair")) {
     goto com_fsck_usage;
   }
 
   in = "mgm.cmd=fsck&";
-  if (cmd == "enable")
-  {
+
+  if (cmd == "enable") {
     XrdOucString interval = subtokenizer.GetToken();
-    if (interval.length() && ((atoi(interval.c_str())) <= 0))
-    {
+
+    if (interval.length() && ((atoi(interval.c_str())) <= 0)) {
       goto com_fsck_usage;
     }
+
     in += "mgm.subcmd=enable";
-    if (interval.length())
-    {
+
+    if (interval.length()) {
       in += "&mgm.fsck.interval=";
       in += interval.c_str();
     }
   }
-  if (cmd == "disable")
-  {
+
+  if (cmd == "disable") {
     in += "mgm.subcmd=disable";
   }
 
-  if (cmd == "stat")
-  {
+  if (cmd == "stat") {
     in += "mgm.subcmd=stat";
   }
 
-  if (cmd == "report")
-  {
+  if (cmd == "report") {
     in += "mgm.subcmd=report";
-    do
-    {
+
+    do {
       option = subtokenizer.GetToken();
-      if (option.length())
-      {
-        if (option == "--error")
-        {
+
+      if (option.length()) {
+        if (option == "--error") {
           selection = subtokenizer.GetToken();
-          if (!selection.length())
-          {
+
+          if (!selection.length()) {
             goto com_fsck_usage;
           }
+
           continue;
         }
-        while (option.replace("-", ""))
-        {
+
+        while (option.replace("-", "")) {
         }
+
         options += option;
       }
-    }
-    while (option.length());
+    } while (option.length());
   }
 
-  if (cmd == "repair")
-  {
+  if (cmd == "repair") {
     in += "mgm.subcmd=repair";
     option = subtokenizer.GetToken();
+
     if ((!option.length()) ||
         ((option != "--checksum") &&
          (option != "--checksum-commit") &&
@@ -111,63 +111,76 @@ com_fsck (char* arg1)
          (option != "--adjust-replicas-nodrop") &&
          (option != "--drop-missing-replicas") &&
          (option != "--unlink-zero-replicas") &&
-         (option != "--all")))
+         (option != "--all"))) {
       goto com_fsck_usage;
+    }
+
     option.replace("--", "");
     in += "&mgm.option=";
     in += option;
   }
 
-
-  if (options.length())
-  {
+  if (options.length()) {
     in += "&mgm.option=";
     in += options;
   }
 
-  if (selection.length())
-  {
+  if (selection.length()) {
     in += "&mgm.fsck.selection=";
     in += selection;
   }
 
   global_retc = output_result(client_admin_command(in));
   return (0);
-
 com_fsck_usage:
-  fprintf(stdout, "usage: fsck stat                                                  :  print status of consistency check\n");
-  fprintf(stdout, "       fsck enable [<interval>]                                   :  enable fsck\n");
-  fprintf(stdout, "                                                       <interval> :  check interval in minutes - default 30 minutes");
-  fprintf(stdout, "       fsck disable                                               :  disable fsck\n");
-  fprintf(stdout, "       fsck report [-h] [-a] [-i] [-l] [--json] [--error <tag> ]  :  report consistency check results");
-  fprintf(stdout, "                                                               -a :  break down statistics per filesystem\n");
-  fprintf(stdout, "                                                               -i :  print concerned file ids\n");
-  fprintf(stdout, "                                                               -l :  print concerned logical names\n");
-  fprintf(stdout, "                                                           --json :  select JSON output format\n");
-  fprintf(stdout, "                                                          --error :  select to report only error tag <tag>\n");
-  fprintf(stdout, "                                                               -h :  print help explaining the individual tags!\n");
-
+  fprintf(stdout,
+          "usage: fsck stat                                                  :  print status of consistency check\n");
+  fprintf(stdout,
+          "       fsck enable [<interval>]                                   :  enable fsck\n");
+  fprintf(stdout,
+          "                                                       <interval> :  check interval in minutes - default 30 minutes");
+  fprintf(stdout,
+          "       fsck disable                                               :  disable fsck\n");
+  fprintf(stdout,
+          "       fsck report [-h] [-a] [-i] [-l] [--json] [--error <tag> ]  :  report consistency check results");
+  fprintf(stdout,
+          "                                                               -a :  break down statistics per filesystem\n");
+  fprintf(stdout,
+          "                                                               -i :  print concerned file ids\n");
+  fprintf(stdout,
+          "                                                               -l :  print concerned logical names\n");
+  fprintf(stdout,
+          "                                                           --json :  select JSON output format\n");
+  fprintf(stdout,
+          "                                                          --error :  select to report only error tag <tag>\n");
+  fprintf(stdout,
+          "                                                               -h :  print help explaining the individual tags!\n");
   fprintf(stdout, "       fsck repair --checksum\n");
-  fprintf(stdout, "                                                                  :  issues a 'verify' operation on all files with checksum errors\n");
+  fprintf(stdout,
+          "                                                                  :  issues a 'verify' operation on all files with checksum errors\n");
   fprintf(stdout, "       fsck repair --checksum-commit\n");
-  fprintf(stdout, "                                                                  :  issues a 'verify' operation on all files with checksum errors and forces a commit of size and checksum to the MGM\n");
+  fprintf(stdout,
+          "                                                                  :  issues a 'verify' operation on all files with checksum errors and forces a commit of size and checksum to the MGM\n");
   fprintf(stdout, "       fsck repair --resync\n");
-  fprintf(stdout, "                                                                  :  issues a 'resync' operation on all files with any error. This will resync the MGM meta data to the storage node and will clean-up 'ghost' entries in the FST meta data cache.\n");
-
+  fprintf(stdout,
+          "                                                                  :  issues a 'resync' operation on all files with any error. This will resync the MGM meta data to the storage node and will clean-up 'ghost' entries in the FST meta data cache.\n");
   fprintf(stdout, "       fsck repair --unlink-unregistered\n");
-  fprintf(stdout, "                                                                  :  unlink replicas which are not connected/registered to their logical name\n");
+  fprintf(stdout,
+          "                                                                  :  unlink replicas which are not connected/registered to their logical name\n");
   fprintf(stdout, "       fsck repair --unlink-orphans\n");
-  fprintf(stdout, "                                                                  :  unlink replicas which don't belong to any logical name\n");
+  fprintf(stdout,
+          "                                                                  :  unlink replicas which don't belong to any logical name\n");
   fprintf(stdout, "       fsck repair --adjust-replicas[-nodrop]\n");
-  fprintf(stdout, "                                                                  :  try to fix all replica inconsistencies - if --adjust-replicas-nodrop is used replicas are only added but never removed!\n");
+  fprintf(stdout,
+          "                                                                  :  try to fix all replica inconsistencies - if --adjust-replicas-nodrop is used replicas are only added but never removed!\n");
   fprintf(stdout, "       fsck repair --drop-missing-replicas\n");
-  fprintf(stdout, "                                                                  :  just drop replicas from the namespace if they cannot be found on disk\n");
+  fprintf(stdout,
+          "                                                                  :  just drop replicas from the namespace if they cannot be found on disk\n");
   fprintf(stdout, "       fsck repair --unlink-zero-replicas\n");
-  fprintf(stdout, "                                                                  :  drop all files which have no replica's attached and are older than 48 hours!\n");
-  fprintf(stdout, "       fsck repair --all                                          :  do all the repair actions besides <checksum-commit>\n");
-
-
-
-
+  fprintf(stdout,
+          "                                                                  :  drop all files which have no replica's attached and are older than 48 hours!\n");
+  fprintf(stdout,
+          "       fsck repair --all                                          :  do all the repair actions besides <checksum-commit>\n");
+  global_retc = EINVAL;
   return (0);
 }

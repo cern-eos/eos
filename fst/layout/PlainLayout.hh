@@ -257,6 +257,18 @@ public:
   //----------------------------------------------------------------------------
   virtual int Stat(struct stat* buf);
 
+  //----------------------------------------------------------------------------
+  //! Execute implementation dependant command
+  //!
+  //! @param cmd command
+  //! @param client client identity
+  //!
+  //! @return 0 (SFS_OK) if successful, -1 (SFS_ERROR) otherwise
+  //----------------------------------------------------------------------------
+  virtual int Fctl(const std::string& cmd, const XrdSecEntity* client)
+  {
+    return mFileIO->fileFctl(cmd);
+  }
 
   //----------------------------------------------------------------------------
   //! Close file

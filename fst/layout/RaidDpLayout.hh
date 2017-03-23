@@ -101,7 +101,6 @@ public:
   virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
                           XrdSfsFileOffset toOffset);
 
-
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------

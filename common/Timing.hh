@@ -129,6 +129,22 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Return the age of a timespec
+  //----------------------------------------------------------------------------
+  static long long
+  GetAgeInNs(const struct timespec* ts, const struct timespec* now = NULL)
+  {
+    struct timespec tsn;
+
+    if (!now) {
+      GetTimeSpec(tsn);
+      now = &tsn;
+    }
+
+    return (now->tv_sec - ts->tv_sec) * 1000000000 + (now->tv_nsec - ts->tv_nsec);
+  }
+
+  //----------------------------------------------------------------------------
   //! Return the age of a ns timestamp
   //----------------------------------------------------------------------------
   static long long

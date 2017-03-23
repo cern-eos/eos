@@ -32,14 +32,6 @@
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
 
-//------------------------------------------------------------------------------
-//! The truncate offset (1TB) is used to indicate that a file should be deleted
-//! during the close as there is no better interface usable via XrdCl to
-//! communicate a deletion on a open file
-//------------------------------------------------------------------------------
-#define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll
-#define EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN ((1024 * 1024 * 1024 * 1024ll)+1)
-
 EOSFSTNAMESPACE_BEGIN
 
 class FileIo : public eos::common::LogId
@@ -271,6 +263,15 @@ public:
   //----------------------------------------------------------------------------
   virtual int fileStat(struct stat* buf, uint16_t timeout = 0) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Execute implementation dependant commands
+  //!
+  //! @param buf stat buffer
+  //! @param timeout timeout value
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //----------------------------------------------------------------------------
+  virtual int fileFctl(const std::string& cmd, uint16_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)
