@@ -118,6 +118,7 @@ public:
     if (spath.beginswith("kinetic:")) {
       return kKinetic;
     }
+
     //! Definition of predefined block sizes
     if (spath.beginswith("rados:")) {
       return kRados;
@@ -187,30 +188,30 @@ public:
 
   static unsigned long
   GetId(int layout,
-	 int checksum = 1,
-	 int stripesize = 1,
-	 int stripewidth = 0,
-	 int blockchecksum = 1,
-	 int excessreplicas = 0,
-	 int redundancystripes = 0)
+        int checksum = 1,
+        int stripesize = 1,
+        int stripewidth = 0,
+        int blockchecksum = 1,
+        int excessreplicas = 0,
+        int redundancystripes = 0)
   {
     unsigned long id = (checksum |
-			((layout & 0xf) << 4) |
-			(((stripesize - 1) & 0xff) << 8) |
-			((stripewidth & 0xf) << 16) |
-			((blockchecksum & 0xf) << 20) |
-			((excessreplicas & 0xf) << 24));
+                        ((layout & 0xf) << 4) |
+                        (((stripesize - 1) & 0xff) << 8) |
+                        ((stripewidth & 0xf) << 16) |
+                        ((blockchecksum & 0xf) << 20) |
+                        ((excessreplicas & 0xf) << 24));
 
     // Set the number of parity stripes depending on the layout type if not
     // already set explicitly
     if (redundancystripes == 0) {
       if (layout == kRaidDP) {
-	redundancystripes = 2;
+        redundancystripes = 2;
       } else if (layout == kRaid6) {
-	redundancystripes = 2;
+        redundancystripes = 2;
       } else if (layout == kArchive) {
-	redundancystripes = 3;
-    }
+        redundancystripes = 3;
+      }
     }
 
     id |= ((redundancystripes & 0x7) << 28);
@@ -412,8 +413,11 @@ public:
   GetBlockChecksum(unsigned long layout)
   {
     // disable block checksum in replica layouts
-    if (GetLayoutType(layout) == kReplica) return kNone;
-    return ( (layout >> 20) & 0xf);
+    if (GetLayoutType(layout) == kReplica) {
+      return kNone;
+    }
+
+    return ((layout >> 20) & 0xf);
   }
 
 
@@ -479,18 +483,18 @@ public:
 
     if (GetLayoutType(layout) == kRaidDP)
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
-		     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
-			layout))) + GetExcessStripeNumber(layout));
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
+                        layout))) + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kRaid6)
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
-		     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
-			layout))) + GetExcessStripeNumber(layout));
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
+                        layout))) + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kArchive)
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
-		     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
-			layout))) + GetExcessStripeNumber(layout));
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
+                        layout))) + GetExcessStripeNumber(layout));
 
     return 1.0;
   }
@@ -809,23 +813,23 @@ public:
       XrdOucString xsum = val;
 
       if (xsum == "adler") {
-	return kAdler;
+        return kAdler;
       }
 
       if (xsum == "crc32") {
-	return kCRC32;
+        return kCRC32;
       }
 
       if (xsum == "crc32c") {
-	return kCRC32C;
+        return kCRC32C;
       }
 
       if (xsum == "md5") {
-	return kMD5;
+        return kMD5;
       }
 
       if (xsum == "sha") {
-	return kSHA1;
+        return kSHA1;
       }
     }
 
@@ -846,23 +850,23 @@ public:
       XrdOucString xsum = val;
 
       if (xsum == "adler") {
-	return kAdler;
+        return kAdler;
       }
 
       if (xsum == "crc32") {
-	return kCRC32;
+        return kCRC32;
       }
 
       if (xsum == "crc32c") {
-	return kCRC32C;
+        return kCRC32C;
       }
 
       if (xsum == "md5") {
-	return kMD5;
+        return kMD5;
       }
 
       if (xsum == "sha") {
-	return kSHA1;
+        return kSHA1;
       }
     }
 
@@ -883,35 +887,35 @@ public:
       XrdOucString bs = val;
 
       if (bs == "4k") {
-	return k4k;
+        return k4k;
       }
 
       if (bs == "64k") {
-	return k64k;
+        return k64k;
       }
 
       if (bs == "128k") {
-	return k128k;
+        return k128k;
       }
 
       if (bs == "512k") {
-	return k512k;
+        return k512k;
       }
 
       if (bs == "1M") {
-	return k1M;
+        return k1M;
       }
 
       if (bs == "4M") {
-	return k4M;
+        return k4M;
       }
 
       if (bs == "16M") {
-	return k16M;
+        return k16M;
       }
 
       if (bs == "64M") {
-	return k64M;
+        return k64M;
       }
     }
 
@@ -932,19 +936,19 @@ public:
       XrdOucString typ = val;
 
       if (typ == "replica") {
-	return kReplica;
+        return kReplica;
       }
 
       if (typ == "raiddp") {
-	return kRaidDP;
+        return kRaidDP;
       }
 
       if (typ == "raid6") {
-	return kRaid6;
+        return kRaid6;
       }
 
       if (typ == "archive") {
-	return kArchive;
+        return kArchive;
       }
     }
 
@@ -965,7 +969,7 @@ public:
       int n = atoi(val);
 
       if (((n - 1) >= kOneStripe) && ((n - 1) <= kSixteenStripe)) {
-	return n;
+        return n;
       }
     }
 
@@ -978,7 +982,7 @@ public:
 
   static const char*
   GetEnvFromConversionIdString(XrdOucString& out,
-				const char* conversionlayoutidstring)
+                               const char* conversionlayoutidstring)
   {
     if (!conversionlayoutidstring) {
       return NULL;
@@ -989,11 +993,11 @@ public:
 
     // check if this is already a complete env representation
     if ((keyval.find("eos.layout.type") != std::string::npos) &&
-	 (keyval.find("eos.layout.nstripes") != std::string::npos) &&
-	 (keyval.find("eos.layout.blockchecksum") != std::string::npos) &&
-	 (keyval.find("eos.layout.checksum") != std::string::npos) &&
-	 (keyval.find("eos.layout.blocksize") != std::string::npos) &&
-	(keyval.find("eos.space") != std::string::npos)) {
+        (keyval.find("eos.layout.nstripes") != std::string::npos) &&
+        (keyval.find("eos.layout.blockchecksum") != std::string::npos) &&
+        (keyval.find("eos.layout.checksum") != std::string::npos) &&
+        (keyval.find("eos.layout.blocksize") != std::string::npos) &&
+        (keyval.find("eos.space") != std::string::npos)) {
       out = conversionlayoutidstring;
       return out.c_str();
     }
@@ -1020,7 +1024,7 @@ public:
     std::string spaceStripped("");
 
     if (eos::common::StringConversion::SplitKeyValue(space, spaceStripped,
-	group, ".")) {
+        group, ".")) {
       space = spaceStripped;
     }
 
@@ -1124,9 +1128,9 @@ public:
     }
 
     if ((!(flags_sfs & SFS_O_TRUNC)) &&
-	(!(flags_sfs & SFS_O_WRONLY)) &&
-	(!(flags_sfs & SFS_O_CREAT)) &&
-	(!(flags_sfs & SFS_O_RDWR))) {
+        (!(flags_sfs & SFS_O_WRONLY)) &&
+        (!(flags_sfs & SFS_O_CREAT)) &&
+        (!(flags_sfs & SFS_O_RDWR))) {
       xflags |= XrdCl::OpenFlags::Read;
     }
 

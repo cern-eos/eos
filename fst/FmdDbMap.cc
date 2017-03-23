@@ -1025,9 +1025,8 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
   url += manager;
   url += "//";
   url += consolestring;
-  // we run an external command and parse the output
+  // We run an external command and parse the output
   char tmpfile[] = "/tmp/efstd.XXXXXX";
-  // coverity[SECURE_TEMP]
   int tmp_fd = mkstemp(tmpfile);
 
   if (tmp_fd == -1) {
@@ -1152,14 +1151,14 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
   statistics["mem_n"] = 0; // number of files in DB
   statistics["d_sync_n"] = 0; // number of synced files from disk
   statistics["m_sync_n"] = 0; // number of synced files from MGM server
-  statistics["d_mem_sz_diff"] =
-    0; // number of files with disk and reference size mismatch
-  statistics["m_mem_sz_diff"] =
-    0; // number of files with MGM and reference size mismatch
-  statistics["d_cx_diff"] =
-    0; // number of files with disk and reference checksum mismatch
-  statistics["m_cx_diff"] =
-    0; // number of files with MGM and reference checksum mismatch
+  // number of files with disk and reference size mismatch
+  statistics["d_mem_sz_diff"] = 0;
+  // number of files with MGM and reference size mismatch
+  statistics["m_mem_sz_diff"] = 0;
+  // number of files with disk and reference checksum mismatch
+  statistics["d_cx_diff"] = 0;
+  // number of files with MGM and reference checksum mismatch
+  statistics["m_cx_diff"] = 0;
   statistics["orphans_n"] = 0; // number of orphaned replicas
   statistics["unreg_n"] = 0; // number of unregistered replicas
   statistics["rep_diff_n"] = 0; // number of files with replica number mismatch
@@ -1182,7 +1181,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     eos::common::DbMapTypes::Tval val;
     FmdSqliteReadLock vlock(fsid);
 
-    // we report values only when we are not in the sync phase from disk/mgm
+    // We report values only when we are not in the sync phase from disk/mgm
     for (dbmap[fsid]->beginIter(); dbmap[fsid]->iterate(&k, &v);) {
       Fmd f;
       f.ParseFromString(v->value);
