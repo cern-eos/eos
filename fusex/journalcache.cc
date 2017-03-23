@@ -1,0 +1,331 @@
+/*
+ * journalcache.cc
+ *
+ *  Created on: Mar 15, 2017
+ *      Author: Michal Simon
+ *
+ ************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+#include "journalcache.hh"
+
+#include "common/Path.hh"
+
+#include <algorithm>
+#include <iostream>
+
+std::string journalcache::sLocation;
+bufferllmanager journalcache::sBufferManager;
+
+journalcache::journalcache() : ino( 0 ), cachesize( 0 ), fd( -1 ), nbAttached( 0 )
+{
+
+}
+
+journalcache::journalcache( fuse_ino_t ino ) : ino( ino ), cachesize( 0 ), fd( -1 ), nbAttached( 0 )
+{
+
+}
+
+journalcache::~journalcache()
+{
+
+}
+
+int journalcache::location( std::string &path, bool mkpath )
+{
+  char cache_path[1024 + 20];
+  snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lu",
+           sLocation.c_str(), ino / 10000, ino);
+
+  if (mkpath)
+  {
+    eos::common::Path cPath(cache_path);
+    if (!cPath.MakeParentPath(S_IRWXU))
+    {
+      return errno;
+    }
+  }
+  path = cache_path;
+  return 0;
+}
+
+int journalcache::read_journal()
+{
+  journal.clear();
+
+  const size_t bufsize = 1024;
+  char buffer[bufsize];
+  ssize_t bytesRead = 0, totalBytesRead = 0;
+  int64_t pos = 0;
+  ssize_t entrySize = 0;
+
+
+  while( true )
+  {
+    bytesRead = ::pread( fd, buffer, bufsize, totalBytesRead );
+    if( bytesRead <= 0 ) break;
+    pos = 0;
+
+    do
+    {
+      if( entrySize == 0 )
+      {
+        header_t *header = reinterpret_cast<header_t*>( buffer + pos );
+        journal.insert( header->offset, header->offset + header->size, totalBytesRead + pos );
+        entrySize = header->size;
+        pos += sizeof( header_t );
+      }
+      size_t shift = entrySize > bytesRead - pos ? bytesRead - pos : entrySize;
+      pos += shift;
+      entrySize -= shift;
+    }
+    while( pos < bytesRead );
+
+    totalBytesRead += bytesRead;
+  }
+
+  if( bytesRead < 0 ) return errno;
+
+  return totalBytesRead;
+}
+
+int journalcache::attach()
+{
+  XrdSysMutexHelper lck( mtx );
+  if (nbAttached == 0)
+  {
+    std::string path;
+    int rc = location( path );
+    if( rc ) return rc;
+    fd = open( path.c_str(), O_CREAT | O_RDWR, S_IRWXU );
+    if( fd < 0 )
+      return errno;
+    cachesize = read_journal();
+  }
+  nbAttached++;
+  return 0;
+}
+
+int journalcache::detach()
+{
+  XrdSysMutexHelper lck( mtx );
+  nbAttached--;
+  if( !nbAttached )
+  {
+    int rc = close(fd);
+    if (rc)
+      return errno;
+    journal.clear();
+  }
+  return 0;
+}
+
+int journalcache::unlink()
+{
+  std::string path;
+  int rc = location(path);
+  if (!rc)
+    rc = ::unlink(path.c_str());
+  return rc;
+}
+
+ssize_t journalcache::pread( void *buf, size_t count, off_t offset )
+{
+  XrdSysRWLockHelper lck( rwLock );
+
+  auto result = journal.query( offset, offset + count );
+
+  // there is not a single interval that overlaps
+  if( result.empty() ) return 0;
+
+  char *buffer = reinterpret_cast<char*>( buf );
+  uint64_t off = offset;
+  uint64_t bytesRead = 0;
+  for( auto &itr : result )
+  {
+    if( itr->low <= off && off < itr->high )
+    {
+      // read from cache
+      uint64_t cacheoff = itr->value + sizeof( header_t ) + ( off - itr->low );
+      int64_t intervalsize = itr->high - off;
+      int64_t bytesLeft = count - bytesRead;
+      int64_t bufsize = intervalsize < bytesLeft ? intervalsize : bytesLeft;
+      ssize_t ret = ::pread( fd, buffer, bufsize, cacheoff );
+      if( ret < 0 )
+        return -1;
+      bytesRead += ret;
+      off += ret;
+      buffer += ret;
+      if( bytesRead >= count )
+        break;
+    }
+  }
+  return bytesRead;
+}
+
+ssize_t journalcache::peek_read( char* &buf, size_t count, off_t offset )
+{
+  mtx.Lock();
+  buffer = sBufferManager.get_buffer();
+  if (count > buffer->capacity())
+    buffer->reserve(count);
+  buf = buffer->ptr();
+  return pread( buf, count, offset );
+}
+
+void journalcache::release_read()
+{
+  sBufferManager.put_buffer(buffer);
+  buffer.reset();
+  mtx.UnLock();
+  return;
+}
+
+void journalcache::process_intersection( interval_tree<uint64_t, const void*> &to_write, interval_tree<uint64_t, uint64_t>::iterator itr, std::vector<update_t> &updates )
+{
+  auto result = to_write.query( itr->low, itr->high );
+
+  if( result.empty() ) return;
+
+  if( result.size() > 1 ) throw std::logic_error( "journalcache: overlapping journal entries" );
+
+  const interval_tree<uint64_t, const void*>::iterator to_wrt = *result.begin();
+
+  // the intersection
+  uint64_t low  = std::max( to_wrt->low,  itr->low  );
+  uint64_t high = std::min( to_wrt->high, itr->high );
+
+  // update
+  update_t update;
+  update.offset = offset_for_update( itr->value, low - itr->low );
+  update.size   = high - low;
+  update.buff   = static_cast<const char*>( to_wrt->value ) + ( low - to_wrt->low );
+  updates.push_back( update );
+
+  // update the 'to write' intervals
+  uint64_t wrtlow = to_wrt->low;
+  uint64_t wrthigh = to_wrt->high;
+  const void *wrtbuff = to_wrt->value;
+
+  to_write.erase( wrtlow, wrthigh );
+  // the intersection overlaps with the given
+  // interval so there is nothing more to do
+  if( low == wrtlow && high == wrthigh )
+    return;
+
+  if( high < wrthigh )
+  {
+    // the remaining right-hand-side interval
+    const char* buff = static_cast<const char*>( wrtbuff ) + ( high - wrtlow );
+    to_write.insert( high, wrthigh, buff );
+  }
+
+  if( low > wrtlow )
+  {
+    // the remaining left-hand-side interval
+    to_write.insert( wrtlow,  low,  wrtbuff );
+  }
+}
+
+int journalcache::update_cache( std::vector<update_t> &updates )
+{
+  // make sure we are updating the cache in ascending order
+  std::sort( updates.begin(), updates.end() );
+  int rc = 0;
+  for( auto &u : updates )
+  {
+    rc = ::pwrite( fd, u.buff, u.size, u.offset ); // TODO is it safe to assume it will write it all
+    if( rc <= 0 )
+      return errno;
+  }
+  return 0;
+}
+
+ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
+{
+  if( count <= 0 ) return 0;
+
+  XrdSysRWLockHelper lck( rwLock, false );
+
+  interval_tree<uint64_t, const void*> to_write;
+  std::vector<update_t> updates;
+
+  to_write.insert( offset, offset + count, buf );
+
+  auto res = journal.query( offset, offset + count );
+  for( auto itr : res )
+  {
+    process_intersection( to_write, itr, updates );
+  }
+
+  int rc = update_cache( updates );
+  if( rc )
+    return -1;
+
+  interval_tree<uint64_t, const void*>::iterator itr;
+  for( itr = to_write.begin(); itr != to_write.end(); ++itr ) // this could be replaced with a single pwritev
+  {
+    uint64_t size   = itr->high - itr->low;
+
+    header_t header;
+    header.offset = itr->low;
+    header.size = size;
+
+    iovec iov[2];
+    iov[0].iov_base = &header;
+    iov[0].iov_len  = sizeof( header_t );
+    iov[1].iov_base = const_cast<void*>( itr->value );
+    iov[1].iov_len  = size;
+
+    rc = ::pwritev( fd, iov, 2, cachesize ); // TODO is it safe to assume it will write it all
+    if( rc <= 0 )
+      return -1;
+
+    journal.insert( itr->low, itr->high, cachesize );
+    cachesize += sizeof( header_t ) + size;
+  }
+
+  return count;
+}
+
+int journalcache::truncate(off_t offset)
+{
+  return ::ftruncate( fd, offset );
+}
+
+int journalcache::sync()
+{
+  return ::fdatasync( fd );
+}
+
+size_t journalcache::size()
+{
+  return cachesize;
+}
+
+int journalcache::init()
+{
+  cachehandler::cacheconfig config = cachehandler::instance().get_config();
+  if( ::access( config.location.c_str(), W_OK ) )
+  {
+    return errno;
+  }
+  sLocation = config.location;
+  return 0;
+}

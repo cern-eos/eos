@@ -160,3 +160,40 @@ install(
 
 endif()
 
+#-------------------------------------------------------------------------------
+# eosxd library
+#-------------------------------------------------------------------------------
+add_library(
+  eosxd-test
+  journalcache.cc
+  eosfuse.cc eosfuse.hh 
+  Stat.cc Stat.hh 
+  md.cc md.hh 
+  cap.cc cap.hh
+  data.cc data.hh 
+  kv.cc kv.hh 
+  longstring.cc longstring.hh 
+  cache.cc cache.hh bufferll.hh
+  ${PROTO_SRC} ${PROTO_HEADER}
+)
+
+
+  target_link_libraries(
+    eosxd-test
+    ${FUSE_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KRB5_LIBRARIES}
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${PROTOBUF_LIBRARY}
+    ${JSONCPP_LIBRARIES}
+    ${HIREDIS_LIBRARIES}
+    ${LIBEVENT_LIBRARIES}
+    eosCommon)
+
+  set_target_properties(
+    eosxd-test 
+    PROPERTIES
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" -fPIC")
