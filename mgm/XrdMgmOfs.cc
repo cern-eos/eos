@@ -30,6 +30,7 @@
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
 #include "common/http/OwnCloud.hh"
+#include "common/plugin_manager/Plugin.hh"
 #include "namespace/Constants.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
@@ -695,4 +696,25 @@ XrdMgmOfs::GetPendingBkps()
   }
 
   return bkps;
+}
+
+//------------------------------------------------------------------------------
+// Discover/search for a service provided to the plugins by the platform
+//------------------------------------------------------------------------------
+int32_t
+XrdMgmOfs::DiscoverPlatformServices(const char* svc_name, void* opaque)
+{
+  std::string sname = svc_name;
+
+  if (sname == "NsViewMutex") {
+    PF_Discovery_Service* ns_lock = (PF_Discovery_Service*)(opaque);
+    std::string htype = std::to_string(typeid(&gOFS->eosViewMutex).hash_code());
+    ns_lock->objType = (char*)calloc(htype.length() + 1, sizeof(char));
+    (void) strcpy(ns_lock->objType, htype.c_str());
+    ns_lock->ptrService = static_cast<void*>(&gOFS->eosViewMutex);
+  } else {
+    return EINVAL;
+  }
+
+  return 0;
 }

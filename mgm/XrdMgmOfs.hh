@@ -1035,6 +1035,17 @@ public:
   std::vector<ProcCommand::ArchDirStatus>
   GetPendingBkps();
 
+  //------------------------------------------------------------------------------
+  //! Discover/search for a service provided to the plugins by the platform
+  //!
+  //! @param svc_name name of the service the plugin wants to use
+  //! @param opaque parameter for the service or reference to returned discvoery
+  //!        service info
+  //!
+  //! @return 0 if successful, otherwise errno
+  //------------------------------------------------------------------------------
+  static int32_t DiscoverPlatformServices(const char* svc_name, void* opaque);
+
   //----------------------------------------------------------------------------
   // Configuration variables
   //----------------------------------------------------------------------------
