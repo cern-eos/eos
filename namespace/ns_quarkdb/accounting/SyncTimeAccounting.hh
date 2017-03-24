@@ -29,7 +29,7 @@
 #include <mutex>
 #include <thread>
 #include <list>
-#include <map>
+#include <unordered_map>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -74,34 +74,15 @@ private:
   //----------------------------------------------------------------------------
   void PropagateUpdates();
 
-  //----------------------------------------------------------------------------
-  //! Get hierarchy level of the current container. Root is 0.
-  //!
-  //! @param obj container object
-  //!
-  //! @return level in the hierarchy
-  //----------------------------------------------------------------------------
-  uint16_t GetLevel(IContainerMD* obj);
-
-  //! Node information
-  struct NodeInfoT {
-    //! Constructor
-    NodeInfoT(IContainerMD::id_t id, uint16_t level):
-      mId(id), mLevel(level)
-    {}
-
-    IContainerMD::id_t mId; ///< Continer id
-    uint16_t mLevel; ///< Level in the hierarchy of the container
-  };
-
   //! Update structure containing a list of the nodes that need an update in
   //! the order that the updates need to be applied and also a map used for
   //! filtering out multiple updates to the same container ID. Try to optimise
   //! the number of updates to a container by keeping only the last one.
   struct UpdateT {
-    std::list<NodeInfoT> mLstUpd; ///< Ordered list of updates
-    //! Map used for fast search operations
-    std::map<IContainerMD::id_t, std::list<NodeInfoT>::iterator > mMap;
+    std::list<IContainerMD::id_t> mLstUpd; ///< Ordered list of updates
+    //! Map used for fast search/insert operations
+    std::unordered_map<IContainerMD::id_t,
+        std::list<IContainerMD::id_t>::iterator > mMap;
 
     void Clean()
     {

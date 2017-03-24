@@ -18,6 +18,7 @@
 
 #include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
 #include <iostream>
+#include <chrono>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -74,8 +75,7 @@ SyncTimeAccounting::QueueForUpdate(IContainerMD* obj)
     // Move it from current location to the back of the list
     batch.mLstUpd.splice(batch.mLstUpd.end(), batch.mLstUpd, it_lst);
   } else {
-    auto it_new = batch.mLstUpd.emplace(batch.mLstUpd.end(), obj->getId(),
-                                        GetLevel(obj));
+    auto it_new = batch.mLstUpd.emplace(batch.mLstUpd.end(), obj->getId());
     batch.mMap[obj->getId()] = it_new;
   }
 }
@@ -107,10 +107,9 @@ SyncTimeAccounting::PropagateUpdates()
     // Start updating form the last node (the most recent) and also collect the
     // nodes that we've updated so that older updates don't propagate further
     // up than strictly necessary.
-
-    for (auto it_node = lst.rbegin(); it_node != lst.rend(); ++it_node) {
+    for (auto it_id = lst.rbegin(); it_id != lst.rend(); ++it_id) {
       deepness = 0;
-      id = it_node->mId;
+      id = *it_id;
 
       if (id == 0u) {
         continue;
@@ -159,24 +158,7 @@ SyncTimeAccounting::PropagateUpdates()
 
     // Clean up the batch
     mBatch[mCommitIndx].Clean();
-    // TODO: add sleep
-    sleep(5);
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get level in the hierarchy of the current container
-//------------------------------------------------------------------------------
-uint16_t
-SyncTimeAccounting::GetLevel(IContainerMD* obj)
-{
-  uint16_t level = 0;
-  std::shared_ptr<IContainerMD> cursor =
-    mContainerMDSvc->getContainerMD(obj->getParentId());
-
-  while (cursor->getId() != 1) {
-    cursor = mContainerMDSvc->getContainerMD(cursor->getParentId());
-    ++level;
+    std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 
   return level;
