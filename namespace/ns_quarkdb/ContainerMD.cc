@@ -621,8 +621,10 @@ ContainerMD::getMTime(mtime_t& mtime) const
 bool
 ContainerMD::setTMTime(tmtime_t tmtime)
 {
-  if ((tmtime.tv_sec > pMTime.tv_sec) ||
-      ((tmtime.tv_sec == pMTime.tv_sec) && (tmtime.tv_nsec > pMTime.tv_nsec))) {
+  if (((pTMTime.tv_sec == 0) && (pTMTime.tv_nsec == 0)) ||
+      (tmtime.tv_sec > pTMTime.tv_sec) ||
+      ((tmtime.tv_sec == pTMTime.tv_sec) &&
+       (tmtime.tv_nsec > pTMTime.tv_nsec))) {
     pTMTime.tv_sec = tmtime.tv_sec;
     pTMTime.tv_nsec = tmtime.tv_nsec;
     return true;

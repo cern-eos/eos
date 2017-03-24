@@ -41,10 +41,10 @@ add_subdirectory(qclient)
 # EosNsQuarkdb library sources
 #-----------------------------------------------------------------------------
 set(EOS_NS_QDB_SRCS
-  NsOnRedisPlugin.cc     NsOnRedisPlugin.hh
+  NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
-  BackendClient.cc         BackendClient.hh
+  BackendClient.cc       BackendClient.hh
   LRU.hh
 
   persistency/ContainerMDSvc.hh
@@ -59,7 +59,8 @@ set(EOS_NS_QDB_SRCS
   accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
 
   ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
-  ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
+  ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc
+  ${CMAKE_SOURCE_DIR}/common/RWMutex.cc)
 
 #-------------------------------------------------------------------------------
 # EosNsQuarkdb library

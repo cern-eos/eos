@@ -1,6 +1,11 @@
+//------------------------------------------------------------------------------
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
+//! @brief Synchronous mtime propagation listener
+//------------------------------------------------------------------------------
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -16,16 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-//! @author Andreas-Joachim Peters <apeters@cern.ch>
-//! @brief Synchronous mtime propagation listener
-//------------------------------------------------------------------------------
-
-#ifndef EOS_NS_SYNCTIME_ACCOUNTING_HH
-#define EOS_NS_SYNCTIME_ACCOUNTING_HH
+#pragma once
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
+#include "common/RWMutex.hh"
+#include <mutex>
+#include <thread>
+#include <list>
+#include <map>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -37,30 +41,86 @@ class SyncTimeAccounting : public IContainerMDChangeListener
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param svc container meta-data service
+  //! @param ns_mutex global namespace view mutex
   //----------------------------------------------------------------------------
-  SyncTimeAccounting(IContainerMDSvc* svc);
+  SyncTimeAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~SyncTimeAccounting() {}
+  virtual ~SyncTimeAccounting();
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
+  //!
+  //! @param obj container object pointer
+  //! @param type action type
   //----------------------------------------------------------------------------
   void containerMDChanged(IContainerMD* obj, Action type);
 
 private:
-  IContainerMDSvc* pContainerMDSvc;
+  //----------------------------------------------------------------------------
+  //! Queue container info for update
+  //!
+  //! @param obj container object
+  //----------------------------------------------------------------------------
+  void QueueForUpdate(IContainerMD* obj);
 
   //----------------------------------------------------------------------------
-  //! Propagate a container change
-  //!
-  //! @param id container id
+  //! Propagate updates in the hierarchical structure. Method ran by the
+  //! asynchronous thread.
   //----------------------------------------------------------------------------
-  void Propagate(IContainerMD::id_t id);
+  void PropagateUpdates();
+
+  //----------------------------------------------------------------------------
+  //! Get hierarchy level of the current container. Root is 0.
+  //!
+  //! @param obj container object
+  //!
+  //! @return level in the hierarchy
+  //----------------------------------------------------------------------------
+  uint16_t GetLevel(IContainerMD* obj);
+
+  //! Node information
+  struct NodeInfoT {
+    //! Constructor
+    NodeInfoT(IContainerMD::id_t id, uint16_t level):
+      mId(id), mLevel(level)
+    {}
+
+    IContainerMD::id_t mId; ///< Continer id
+    uint16_t mLevel; ///< Level in the hierarchy of the container
+  };
+
+  //! Update structure containing a list of the nodes that need an update in
+  //! the order that the updates need to be applied and also a map used for
+  //! filtering out multiple updates to the same container ID. Try to optimise
+  //! the number of updates to a container by keeping only the last one.
+  struct UpdateT {
+    std::list<NodeInfoT> mLstUpd; ///< Ordered list of updates
+    //! Map used for fast search operations
+    std::map<IContainerMD::id_t, std::list<NodeInfoT>::iterator > mMap;
+
+    void Clean()
+    {
+      mLstUpd.clear();
+      mMap.clear();
+    }
+  };
+
+  //! Vector of two elements containing the batch which is currently begin
+  //! accumulated and the batch which is being commited to the namespace by the
+  //! asynchronous thread
+  std::vector<UpdateT> mBatch;
+  uint8_t mAccumutateIndx; ///< Index of the batch accumulating updates
+  uint8_t mCommitIndx; ///< Index of the batch committing updates
+  std::mutex mMutexBatch; ///< Mutex protecting acces to the updates batch
+  std::thread mThread; ///< Thread updating the namespace
+  IContainerMDSvc* mContainerMDSvc; ///< Container meta-data service
+  eos::common::RWMutex* gNsRwMutex; ///< Global(MGM) namespace RW mutex
+  bool mShutdown; ///< Flag to shutdown async thread
 };
 
 EOSNSNAMESPACE_END
-
-#endif
