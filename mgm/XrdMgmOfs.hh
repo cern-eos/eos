@@ -1170,7 +1170,6 @@ public:
   eos::IFileMDChangeListener* eosContainerAccounting; ///< subtree accoutning
   //! Subtree mtime propagation
   eos::IContainerMDChangeListener* eosSyncTimeAccounting;
-  XrdSysMutex eosViewMutex; ///< mutex making the namespace single threaded
   eos::common::RWMutex eosViewRWMutex; ///< rw namespace mutex
   XrdOucString
   MgmMetaLogDir; //  Directory containing the meta data (change) log files

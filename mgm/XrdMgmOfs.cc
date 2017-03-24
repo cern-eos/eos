@@ -708,10 +708,10 @@ XrdMgmOfs::DiscoverPlatformServices(const char* svc_name, void* opaque)
 
   if (sname == "NsViewMutex") {
     PF_Discovery_Service* ns_lock = (PF_Discovery_Service*)(opaque);
-    std::string htype = std::to_string(typeid(&gOFS->eosViewMutex).hash_code());
+    std::string htype = std::to_string(typeid(&gOFS->eosViewRWMutex).hash_code());
     ns_lock->objType = (char*)calloc(htype.length() + 1, sizeof(char));
     (void) strcpy(ns_lock->objType, htype.c_str());
-    ns_lock->ptrService = static_cast<void*>(&gOFS->eosViewMutex);
+    ns_lock->ptrService = static_cast<void*>(&gOFS->eosViewRWMutex);
   } else {
     return EINVAL;
   }
