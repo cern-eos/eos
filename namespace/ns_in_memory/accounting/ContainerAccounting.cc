@@ -25,7 +25,7 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //----------------------------------------------------------------------------
 ContainerAccounting::ContainerAccounting(IContainerMDSvc* svc) :
-    pContainerMDSvc(svc)
+  pContainerMDSvc(svc)
 {
 }
 
@@ -34,33 +34,13 @@ ContainerAccounting::ContainerAccounting(IContainerMDSvc* svc) :
 //----------------------------------------------------------------------------
 void ContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
 {
-  switch (e->action)
-  {
-    // New file has been created
-    case IFileMDChangeListener::Created:
-      if (e->file)
-      {
-	// Creation is triggered with a SizeChange event separately
-      }
+  switch (e->action) {
+  case IFileMDChangeListener::SizeChange:
+    Account(e->file, e->sizeChange);
+    break;
 
-      break;
-
-    // File has been deleted
-    case IFileMDChangeListener::Deleted:
-      if (e->file)
-      {
-	Account(e->file, -e->file->getSize());
-      }
-
-      break;
-
-    // Unlink location
-    case IFileMDChangeListener::SizeChange:
-      Account(e->file, e->sizeChange);
-      break;
-
-    default:
-      break;
+  default:
+    break;
   }
 }
 
@@ -71,25 +51,23 @@ void ContainerAccounting::Account(IFileMD* obj , int64_t dsize)
 {
   size_t deepness = 0;
 
-  if (!obj)
+  if (!obj) {
     return;
+  }
 
   ContainerMD::id_t iId = obj->getContainerId();
 
-  while ((iId > 1) && (deepness < 255))
-  {
+  while ((iId > 1) && (deepness < 255)) {
     std::shared_ptr<IContainerMD> iCont;
 
-    try
-    {
+    try {
       iCont = pContainerMDSvc->getContainerMD(iId);
-    }
-    catch (MDException& e)
-    {
+    } catch (MDException& e) {
     }
 
-    if (!iCont)
+    if (!iCont) {
       return;
+    }
 
     iCont->addTreeSize(dsize);
     iId = iCont->getParentId();
@@ -100,7 +78,7 @@ void ContainerAccounting::Account(IFileMD* obj , int64_t dsize)
 //------------------------------------------------------------------------------
 // Add tree
 //------------------------------------------------------------------------------
-void ContainerAccounting::AddTree( IContainerMD* obj , int64_t dsize )
+void ContainerAccounting::AddTree(IContainerMD* obj , int64_t dsize)
 {
   size_t deepness = 0;
 
@@ -110,17 +88,16 @@ void ContainerAccounting::AddTree( IContainerMD* obj , int64_t dsize )
 
   ContainerMD::id_t iId = obj->getId();
 
-  while ( (iId > 1 ) && (deepness < 255) )
-  {
+  while ((iId > 1) && (deepness < 255)) {
     std::shared_ptr<IContainerMD> iCont;
-    try
-    {
-      iCont = pContainerMDSvc->getContainerMD(iId);
-    }
-    catch( MDException &e ) {}
 
-    if (!iCont)
+    try {
+      iCont = pContainerMDSvc->getContainerMD(iId);
+    } catch (MDException& e) {}
+
+    if (!iCont) {
       return;
+    }
 
     iCont->addTreeSize(dsize);
     iId = iCont->getParentId();
@@ -131,7 +108,7 @@ void ContainerAccounting::AddTree( IContainerMD* obj , int64_t dsize )
 //------------------------------------------------------------------------------
 //! Remove tree
 //------------------------------------------------------------------------------
-void ContainerAccounting::RemoveTree( IContainerMD* obj , int64_t dsize )
+void ContainerAccounting::RemoveTree(IContainerMD* obj , int64_t dsize)
 {
   AddTree(obj, -dsize);
 }
