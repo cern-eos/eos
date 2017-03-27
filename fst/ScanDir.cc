@@ -461,9 +461,13 @@ ScanDir::CheckFile (const char* filepath)
 		  delete fmd;
 		}
 
-		// call the autorepair method on the MGM
+		// call the autorepair method on the MGM - but not for opphaned or unregistered files
 		// if the MGM has autorepair disabled it won't do anything
-		gFmdSqliteHandler.CallAutoRepair(manager.c_str(), fid);
+		if ( !orphaned ||
+		     (!(fmd->fMd.layouterror & eos::common::LayoutId::kUnregistered)) )
+		{
+		  gFmdSqliteHandler.CallAutoRepair(manager.c_str(), fid);
+		}
               }
             }
           }
@@ -742,6 +746,17 @@ ScanDir::ThreadProc (void)
 	    XrdSysThread::CancelPoint();
 	  XrdSysTimer sleeper;
 	  sleeper.Wait(1000);
+	}
+      }
+      else
+      {
+	// call the ghost entry clean-up function
+	if (bgThread)
+	{
+	  eos_notice("Directory: %s fsid=%d - cleaning ghost entries", dirPath.c_str(), fsId);
+	  gFmdSqliteHandler.RemoveGhostEntries(dirPath.c_str(),fsId); 
+	  XrdSysTimer sleeper;
+	  sleeper.Wait(60);
 	}
       }
     }
