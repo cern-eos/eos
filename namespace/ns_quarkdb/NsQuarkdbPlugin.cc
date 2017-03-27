@@ -256,7 +256,8 @@ NsQuarkdbPlugin::CreateSyncTimeAcc(PF_PlatformServices* services)
   }
 
   std::string ptype = ns_lock_svc.objType;
-  std::string rtype = std::to_string(typeid(eos::common::RWMutex*).hash_code());
+  std::string rtype = "eos::common::RWMutex*";
+  //std::string rtype = std::to_string(typeid(eos::common::RWMutex*).hash_code());
   free(ns_lock_svc.objType);
 
   if (ptype != rtype) {

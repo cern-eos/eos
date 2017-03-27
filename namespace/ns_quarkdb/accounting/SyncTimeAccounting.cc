@@ -160,8 +160,6 @@ SyncTimeAccounting::PropagateUpdates()
     mBatch[mCommitIndx].Clean();
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
-
-  return level;
 }
 
 EOSNSNAMESPACE_END
