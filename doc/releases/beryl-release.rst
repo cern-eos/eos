@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.233 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: remove falsely commited debug return statement disabling stale cache file detection from previous fix
+- FST: extending '.eosscan' functionality to cleanup ghost entries which are neither on disk or memory but can normally only be removed by wiping the local database and rebuild from scratch
+
 ``V0.3.232 Aquamarine``
 =======================
 
