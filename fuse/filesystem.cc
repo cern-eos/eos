@@ -447,7 +447,6 @@ bool
 filesystem::store_open_i2mtime (unsigned long long inode)
 {
   bool retval = false;
-  return true;
   eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
 
   eos_static_debug("%16x %lu.%lu %lu.%lu\n", inode, 
