@@ -57,6 +57,7 @@ namespace eos
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( std::numeric_limits<FileMD::id_t>::max() );
+	pIdMap.min_load_factor(0.0);
         pChangeLog = new ChangeLogFile;
 	pthread_mutex_init(&pFollowStartMutex,0);
       }
