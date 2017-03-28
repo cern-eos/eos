@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.234 Aquamarine``
+=======================
+
+- NS: avoid that the main indexes ever shrink
+- MGM: don't follow symlinks when stating recycle bin entries
+- FUSE/FST: add read-ahead cache consistency to FUSE client and make kernel cache invalidation work properly
+- FST: allow to define the network speed via an environment variable since 'ip route' and ethtool are not equivalent on SLC6/EL7
+
 ``V0.3.233 Aquamarine``
 =======================
 
