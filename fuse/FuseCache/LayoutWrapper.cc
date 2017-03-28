@@ -642,6 +642,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
     std::string _lasturl,_path(path);
     size_t pos, _pos(0);
+    size_t n_retry = 0 ;
+
     while (retry)
     {
       eos_static_debug("Sync-open path=%s opaque=%s",
@@ -653,6 +655,28 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         eos_static_debug("Sync-open got errNo=%d errCode=%d",
                          static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrNo (),
                          static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrCode ());
+
+	if(static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo()==3005)
+	{
+	  n_retry++;
+	  if (n_retry < 100) 
+	  {
+	    XrdSysTimer sleeper;
+	    sleeper.Wait(10);
+	    eos_static_debug("retrying attempt=%d", n_retry);
+	    continue;
+	  }
+	  else
+	  {
+	    eos_static_err("giving up retrying after attempt=%d", n_retry);
+	    break;
+	  }
+	}
+	else
+	{
+	  eos_static_debug("not retrying");
+	}
+
 #ifdef STOPONREDIRECT
         /*
         =======================================================================================

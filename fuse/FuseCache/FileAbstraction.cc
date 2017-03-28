@@ -422,3 +422,15 @@ FileAbstraction::SetRawFileRO(LayoutWrapper* file)
   mNumOpenRO=1;
 };
 
+
+//--------------------------------------------------------------------------                                               
+
+// Clean all internal caches (read-ahead cache)                                                                           
+
+//--------------------------------------------------------------------------                                               
+void 
+FileAbstraction::CleanReadCache()
+{
+  if (GetRawFileRO())
+    GetRawFileRO()->CleanReadCache();
+};

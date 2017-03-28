@@ -646,6 +646,7 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
      // Add entry to cached dir
      // Add entry to cached dir
      me.fs ().dir_cache_add_entry (parent, e.attr.st_ino, &e);
+     me.fs ().store_i2mtime(e.attr.st_ino, e.attr.MTIMESPEC);
    }
    else
    {
@@ -1438,7 +1439,7 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   }
 
  filesystem::fd_user_info* info = (struct filesystem::fd_user_info*) calloc (1, sizeof (struct filesystem::fd_user_info));
-  info->fd = res;
+ info->fd = res;
  info->uid = fuse_req_ctx (req)->uid;
  info->gid = fuse_req_ctx (req)->gid;
  info->pid = fuse_req_ctx (req)->pid;

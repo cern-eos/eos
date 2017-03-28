@@ -437,6 +437,11 @@ filesystem::store_i2mtime (unsigned long long inode, timespec ts)
 {
   eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
   inode2mtime[inode] = ts;
+  eos_static_debug("%8lx %lu.%lu %lu.%lu\n", inode, 
+		   inode2mtime_open[inode].tv_sec, 
+		   inode2mtime_open[inode].tv_nsec, 
+		   inode2mtime[inode].tv_sec, 
+		   inode2mtime[inode].tv_nsec);
 }
 
 //----------------------------------------------------------------------------                                                
@@ -449,7 +454,7 @@ filesystem::store_open_i2mtime (unsigned long long inode)
   bool retval = false;
   eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
 
-  eos_static_debug("%16x %lu.%lu %lu.%lu\n", inode, 
+  eos_static_debug("%8lx %lu.%lu %lu.%lu\n", inode, 
 		   inode2mtime_open[inode].tv_sec, 
 		   inode2mtime_open[inode].tv_nsec, 
 		   inode2mtime[inode].tv_sec, 
@@ -466,7 +471,7 @@ filesystem::store_open_i2mtime (unsigned long long inode)
 
   inode2mtime_open[inode] = inode2mtime[inode];
 
-  eos_static_debug("%16x %lu.%lu %lu.%lu out=%d\n", inode, 
+  eos_static_debug("%lx %lu.%lu %lu.%lu out=%d\n", inode, 
 		   inode2mtime_open[inode].tv_sec, 
 		   inode2mtime_open[inode].tv_nsec, 
 		   inode2mtime[inode].tv_sec, 
@@ -964,12 +969,13 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
      {
        if (isROfd == (fd2count[*fdit] < 0))
        {
-          fd2count[*fdit] += isROfd ? -1 : 1;
+	 fd2count[*fdit] += isROfd ? -1 : 1;
          isROfd ? iter_file->second->IncNumOpenRO () : iter_file->second->IncNumOpenRW ();
          eos_static_debug("existing fdesc exisiting fabst: fabst=%p path=%s "
                           "isRO=%d  =>  fdesc=%d", fabst.get(), path,
                           (int)isROfd, (int) *fdit);
-          return *fdit;
+	 fabst->CleanReadCache();
+	 return *fdit;
         }
       }
     }

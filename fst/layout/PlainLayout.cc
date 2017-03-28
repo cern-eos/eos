@@ -106,7 +106,7 @@ PlainLayout::Open (const std::string& path,
   mLastErrNo = mPlainFile->GetLastErrNo();
 
   // Get initial file size if not new file or truncated
-  if (!(mFlags & (SFS_O_CREAT | SFS_O_TRUNC)))
+  if ((!retc) && !(mFlags & (SFS_O_CREAT | SFS_O_TRUNC)))
   {
     struct stat st_info;
     int retc_stat = mPlainFile->Stat(&st_info);
@@ -173,6 +173,28 @@ PlainLayout::WaitOpenAsync()
 
   return mAsyncResponse;
 }
+
+//------------------------------------------------------------------------------
+// Clean read-ahead caches and update filesize
+//------------------------------------------------------------------------------
+void
+PlainLayout::CleanReadCache()
+{
+  if (!mDisableRdAhead)
+  {
+    mPlainFile->CleanReadCache();
+    struct stat st_info;
+    int retc_stat = mPlainFile->Stat(&st_info);
+
+    if (!retc_stat)
+    {
+      mFileSize = st_info.st_size;
+    }
+  }
+}
+
+
+
 
 //------------------------------------------------------------------------------
 // Read from file

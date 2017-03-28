@@ -109,6 +109,16 @@ class LayoutWrapper
   int MakeOpen();
 
   //----------------------------------------------------------------------------
+  //! Instruct all lower layers to clean a read cache (read-ahead cache) and 
+  //! cached filesize
+  //----------------------------------------------------------------------------
+  void CleanReadCache()
+  {
+    if (mFile)
+      mFile->CleanReadCache();
+  }
+
+  //----------------------------------------------------------------------------
   //! Overloading member functions of FileLayout class
   //----------------------------------------------------------------------------
   const char* GetName();
