@@ -1464,17 +1464,6 @@ FsView::RegisterNode(const char* nodename)
 }
 
 //------------------------------------------------------------------------------
-// Remove all nodes
-//------------------------------------------------------------------------------
-void
-FsView::UnRegisterNodes()
-{
-  for (auto it = mNodeView.begin(); it != mNodeView.end(); it++) {
-    delete(it->second);
-  }
-}
-
-//------------------------------------------------------------------------------
 // Remove view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
 //------------------------------------------------------------------------------
 bool
@@ -1651,7 +1640,6 @@ FsView::Reset()
     UnRegisterSpace(mSpaceView.begin()->first.c_str());
   }
 
-  //  UnRegisterNodes();
   eos::common::RWMutexWriteLock maplock(MapMutex);
   // Remove all mappins
   Fs2UuidMap.clear();
