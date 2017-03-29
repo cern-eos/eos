@@ -496,7 +496,9 @@ Converter::Convert (void)
   // ---------------------------------------------------------------------------
   // Reset old jobs pending from service restart/crash
   // ---------------------------------------------------------------------------
-  ResetJobs();
+
+  if (gOFS->MgmMaster.IsMaster())
+    ResetJobs();
 
   // ---------------------------------------------------------------------------
   // loop forever until cancelled
