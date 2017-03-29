@@ -205,7 +205,12 @@ RWMutex::TimedRdLock(uint64_t timeout_ms)
   }
 
   timeout.tv_nsec += (timeout_ms % 1000) * 1000000;
+#ifdef __APPLE__
+  // Mac does not support timed mutexes
+  int retc = pthread_rwlock_rdlock(&rwlock);
+#else
   int retc = pthread_rwlock_timedrdlock(&rwlock, &timeout);
+#endif
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
   return retc;
 }
