@@ -603,6 +603,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
       fuse_reply_entry(req, &e);
       eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
       me.fs().dir_cache_add_entry(parent, e.attr.st_ino, &e);
+      me.fs().store_i2mtime(e.attr.st_ino, e.attr.MTIMESPEC);
     } else {
       // Add entry as a negative stat cache entry
       e.ino = 0;

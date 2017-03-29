@@ -629,6 +629,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
     std::string _lasturl, _path(path);
     size_t pos, _pos(0);
+    size_t n_retry = 0 ;
 
     while (retry) {
       eos_static_debug("Sync-open path=%s opaque=%s", _path.c_str(),
@@ -640,6 +641,23 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         eos_static_debug("Sync-open got errNo=%d errCode=%d",
                          static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
                          static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrCode());
+
+        if (static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() == 3005) {
+          n_retry++;
+
+          if (n_retry < 100) {
+            XrdSysTimer sleeper;
+            sleeper.Wait(10);
+            eos_static_debug("retrying attempt=%d", n_retry);
+            continue;
+          } else {
+            eos_static_err("giving up retrying after attempt=%d", n_retry);
+            break;
+          }
+        } else {
+          eos_static_debug("not retrying");
+        }
+
         XrdCl::URL url(mFile->GetLastTriedUrl());
         const std::string& username = url.GetUserName();
         /*
@@ -659,8 +677,9 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         fail recovery procedure on open which goes back to the mgm using the previous
         connection. This is implemented on server side starting from eos-citrine 4.0.20.
         =======================================================================================
-        This is useful only  when the server runs eos 0.3 as there, when a recoverable error happens
-        on an fst open, the client gets redirected to the mgm instead of falling back to it as the last redirector.
+        This is useful only  when the server runs eos 0.3 as there, when a
+        recoverable error happens on an fst open, the client gets redirected to
+        the mgm instead of falling back to it as the last redirector.
         Then, it does not reuse the channel which is already open as for a fall-back.
         */
         eos_static_debug("LastErrNo=%d  _lasturl=%s  LastUrl=%s  _path=%s",

@@ -211,6 +211,26 @@ PlainLayout::WaitOpenAsync()
 }
 
 //------------------------------------------------------------------------------
+// Clean read-ahead caches and update filesize
+//------------------------------------------------------------------------------
+void
+PlainLayout::CleanReadCache()
+{
+  if (!mDisableRdAhead) {
+    mFileIO->CleanReadCache();
+    struct stat st_info;
+    int retc_stat = mFileIO->fileStat(&st_info);
+
+    if (!retc_stat) {
+      mFileSize = st_info.st_size;
+    }
+  }
+}
+
+
+
+
+//------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
 

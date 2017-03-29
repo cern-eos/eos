@@ -21,16 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <string>
 #include <iostream>
 #include <sys/types.h>
 #include <dirent.h>
 #include <unistd.h>
-/*----------------------------------------------------------------------------*/
 #include "PluginManager.hh"
 #include "DynamicLibrary.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -73,14 +70,10 @@ int32_t PluginManager::Shutdown()
 {
   int32_t result = 0;
 
-  for (auto func = mExitFuncVec.begin(); func != mExitFuncVec.end(); ++func)
-  {
-    try
-    {
+  for (auto func = mExitFuncVec.begin(); func != mExitFuncVec.end(); ++func) {
+    try {
       result += (*func)();
-    }
-    catch (...)
-    {
+    } catch (...) {
       result = -1;
     }
   }
@@ -98,12 +91,14 @@ int32_t PluginManager::Shutdown()
 static bool IsValid(const char* objType,
                     const PF_RegisterParams* params)
 {
-  if (!objType)
+  if (!objType) {
     return false;
+  }
 
   // Plugin does not implement the interface
-  if (!params || !params->CreateFunc || !params->DestroyFunc)
+  if (!params || !params->CreateFunc || !params->DestroyFunc) {
     return false;
+  }
 
   return true;
 }
@@ -117,8 +112,9 @@ PluginManager::InitializePlugin(PF_InitFunc initFunc)
   PluginManager& pm = PluginManager::GetInstance();
   PF_ExitFunc exitFunc = initFunc(&pm.mPlatformServices);
 
-  if (!exitFunc)
+  if (!exitFunc) {
     return -1;
+  }
 
   // Store the exit func so it can be called when unloading this plugin
   pm.mExitFuncVec.push_back(exitFunc);
@@ -133,25 +129,23 @@ PluginManager::RegisterObject(const char* objType,
                               const PF_RegisterParams* params)
 {
   // Check parameters
-  if (!IsValid(objType, params))
+  if (!IsValid(objType, params)) {
     return -1;
+  }
 
   std::string key = std::string(objType);
   PluginManager& pm = PluginManager::GetInstance();
-
   // Verify that versions match
   PF_PluginAPI_Version v = pm.mPlatformServices.version;
 
-  if (v.major != params->version.major)
-  {
+  if (v.major != params->version.major) {
     std::cerr << "Plugin manager API and plugin object API version missmatch"
               << std::endl;
     return -1;
   }
 
   // Fail if item already exists (only one can handle)
-  if (pm.mObjectMap.find(key) != pm.mObjectMap.end())
-  {
+  if (pm.mObjectMap.find(key) != pm.mObjectMap.end()) {
     std::cerr << "Error, object type already registered" << std::endl;
     return -1;
   }
@@ -168,21 +162,18 @@ int32_t
 PluginManager::LoadAll(std::string dir_path,
                        PF_InvokeServiceFunc func)
 {
-  if (dir_path.empty())
-  {
+  if (dir_path.empty()) {
     std::cerr << "Plugin path is empty" << std::endl;
     return -1;
   }
 
   // If relative path, get current working directory
-  if (dir_path[0] == '.')
-  {
+  if (dir_path[0] == '.') {
     char* cwd {0};
     size_t size {0};
     cwd = getcwd(cwd, size);
 
-    if (cwd)
-    {
+    if (cwd) {
       std::string tmp_path = cwd;
       dir_path = dir_path.erase(0, 1);
       dir_path = tmp_path + dir_path;
@@ -191,41 +182,43 @@ PluginManager::LoadAll(std::string dir_path,
   }
 
   // Add backslash at the end
-  if (dir_path[dir_path.length() - 1] != '/')
+  if (dir_path[dir_path.length() - 1] != '/') {
     dir_path += '/';
+  }
 
-  if (func)
+  if (func) {
     mPlatformServices.invokeService = func;
+  }
 
   auto dir = opendir(dir_path.c_str());
 
-  if (dir == 0)
-  {
+  if (dir == 0) {
     std::cerr << "Cannot open dir: " << dir_path << std::endl;
     return -1;
   }
 
   std::string full_path;
-  struct dirent* entity {0};
+  struct dirent* entity {
+    0
+  };
 
-  while ((entity = readdir(dir)))
-  {
+  while ((entity = readdir(dir))) {
     // Skip directories and link files
-    if ((entity->d_type & DT_DIR) || (entity->d_type == DT_LNK))
+    if ((entity->d_type & DT_DIR) || (entity->d_type == DT_LNK)) {
       continue;
+    }
 
-    full_path= dir_path + entity->d_name;
+    full_path = dir_path + entity->d_name;
 
     // Try all accepted extensions
     for (auto extension = sDynLibExtensions.begin();
          extension != sDynLibExtensions.end();
-         ++extension)
-    {
-      if (full_path.length() <= extension->length())
+         ++extension) {
+      if (full_path.length() <= extension->length()) {
         continue;
+      }
 
-      if (full_path.find(*extension) != std::string::npos)
-      {
+      if (full_path.find(*extension) != std::string::npos) {
         LoadByPath(full_path);
         break;
       }
@@ -243,14 +236,14 @@ int32_t
 PluginManager::LoadByPath(const std::string& lib_path)
 {
   // Don't load the same dynamic library twice
-  if (mDynamicLibMap.find(lib_path) != mDynamicLibMap.end())
+  if (mDynamicLibMap.find(lib_path) != mDynamicLibMap.end()) {
     return -1;
+  }
 
   std::string error;
   DynamicLibrary* dyn_lib = LoadLibrary(lib_path, error);
 
-  if (!dyn_lib)
-  {
+  if (!dyn_lib) {
     std::cerr << error << std::endl;
     return -1;
   }
@@ -259,8 +252,7 @@ PluginManager::LoadByPath(const std::string& lib_path)
   PF_InitFunc initFunc = (PF_InitFunc)(dyn_lib->GetSymbol("PF_initPlugin"));
 
   // Expected entry point missing from dynamic library
-  if (!initFunc)
-  {
+  if (!initFunc) {
     eos_static_err("expected entry point PF_initPlugin missing from plugin "
                    "library");
     return -1;
@@ -268,8 +260,7 @@ PluginManager::LoadByPath(const std::string& lib_path)
 
   int32_t res = InitializePlugin(initFunc);
 
-  if (res < 0)
-  {
+  if (res < 0) {
     eos_static_err("failed initialization of plugin library=%s", lib_path.c_str());
     return res;
   }
@@ -285,14 +276,12 @@ PluginManager::CreateObject(const std::string& obj_type)
 {
   auto iter = mObjectMap.find(obj_type);
 
-  if (iter != mObjectMap.end())
-  {
+  if (iter != mObjectMap.end()) {
     PF_RegisterParams& rp = iter->second;
     void* object = rp.CreateFunc(&mPlatformServices);
 
     // Register the new plugin object
-    if (object)
-    {
+    if (object) {
       eos_static_info("created plugin object type=%s", obj_type.c_str());
       return object;
     }
@@ -310,8 +299,9 @@ PluginManager::LoadLibrary(const std::string& path, std::string& error)
 {
   DynamicLibrary* dyn_lib = DynamicLibrary::Load(path, error);
 
-  if (!dyn_lib)
+  if (!dyn_lib) {
     return NULL;
+  }
 
   // Add library to map, so it can be unloaded at the end
   mDynamicLibMap[path] = std::shared_ptr<DynamicLibrary>(dyn_lib);

@@ -427,25 +427,28 @@ filesystem::store_i2mtime(unsigned long long inode, timespec ts)
 {
   eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
   inode2mtime[inode] = ts;
+  eos_static_debug("%8lx %lu.%lu %lu.%lu\n", inode,
+                   inode2mtime_open[inode].tv_sec,
+                   inode2mtime_open[inode].tv_nsec,
+                   inode2mtime[inode].tv_sec,
+                   inode2mtime[inode].tv_nsec);
 }
 
 //----------------------------------------------------------------------------
 //! Store and test inode/mtime pair - returns true if open can set keep_cache
 //----------------------------------------------------------------------------
-
 bool
 filesystem::store_open_i2mtime(unsigned long long inode)
 {
   bool retval = false;
-  return true;
   eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
-  eos_static_debug("%16x %lu.%lu %lu.%lu\n", inode,
+  eos_static_debug("%8lx %lu.%lu %lu.%lu\n", inode,
                    inode2mtime_open[inode].tv_sec,
                    inode2mtime_open[inode].tv_nsec,
                    inode2mtime[inode].tv_sec,
                    inode2mtime[inode].tv_nsec);
 
-  // this was never set !
+  // This was never set !
   if (inode2mtime_open[inode].tv_sec == 0) {
     retval = true;
   } else if ((inode2mtime_open[inode].tv_sec == inode2mtime[inode].tv_sec) &&
@@ -456,14 +459,13 @@ filesystem::store_open_i2mtime(unsigned long long inode)
   }
 
   inode2mtime_open[inode] = inode2mtime[inode];
-  eos_static_debug("%16x %lu.%lu %lu.%lu out=%d\n", inode,
+  eos_static_debug("%lx %lu.%lu %lu.%lu out=%d\n", inode,
                    inode2mtime_open[inode].tv_sec,
                    inode2mtime_open[inode].tv_nsec,
                    inode2mtime[inode].tv_sec,
                    inode2mtime[inode].tv_nsec, retval);
   return retval;
 }
-
 
 //------------------------------------------------------------------------------
 // Replace a prefix when directories are renamed
@@ -916,6 +918,7 @@ filesystem::add_fd2file(LayoutWrapper* raw_file,
           eos_static_debug("existing fdesc exisiting fabst: fabst=%p path=%s "
                            "isRO=%d => fdesc=%d",
                            fabst.get(), path, (int) isROfd, (int) *fdit);
+          fabst->CleanReadCache();
           return *fdit;
         }
       }

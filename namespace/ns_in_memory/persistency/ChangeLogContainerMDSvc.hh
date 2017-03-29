@@ -74,6 +74,7 @@ public:
     }
 
     pIdMap.set_empty_key(std::numeric_limits<IContainerMD::id_t>::max());
+    pIdMap.min_load_factor(0.0);
     pChangeLog = new ChangeLogFile();
     pthread_mutex_init(&pFollowStartMutex, 0);
   }

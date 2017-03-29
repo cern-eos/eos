@@ -55,7 +55,6 @@ class LayoutWrapper;
 class FileAbstraction
 {
 public:
-
   //! Errors collected during writes
   eos::common::ConcurrentQueue<error_type>* errorsQueue;
   XrdSysRWLock mMutexRW; ///< RW mutex for file access
@@ -65,22 +64,18 @@ public:
   //!
   //! @param fd file descriptor
   //! @param file raw file object
-  //!
   //--------------------------------------------------------------------------
   FileAbstraction(const char* path = "");
-
 
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
   ~FileAbstraction();
 
-
   //--------------------------------------------------------------------------
   //! Get size of writes in cache for current file
   //--------------------------------------------------------------------------
   size_t GetSizeWrites();
-
 
   //--------------------------------------------------------------------------
   //! Get number of write blocks in cache for the file
@@ -106,7 +101,6 @@ public:
     eos_static_debug("ptr_obj=%p, first_key=%llu, last_key=%llu",
                      this, mFirstPossibleKey, mLastPossibleKey);
   };
-
 
   //--------------------------------------------------------------------------
   //! Get undelying raw file object
@@ -151,7 +145,6 @@ public:
     return mLastPossibleKey;
   };
 
-
   //--------------------------------------------------------------------------
   //! Increment the size of writes
   //!
@@ -159,7 +152,6 @@ public:
   //!
   //--------------------------------------------------------------------------
   void IncrementWrites(size_t sizeWrite);
-
 
   //--------------------------------------------------------------------------
   //! Decrement the size of writes
@@ -169,12 +161,10 @@ public:
   //--------------------------------------------------------------------------
   void DecrementWrites(size_t sizeWrite);
 
-
   //--------------------------------------------------------------------------
   //! Increment the number of open requests
   //--------------------------------------------------------------------------
   void IncNumOpenRW();
-
 
   //--------------------------------------------------------------------------
   //! Decrement the number of open requests
@@ -236,12 +226,15 @@ public:
   //--------------------------------------------------------------------------
   bool IsInUse();
 
-
   //--------------------------------------------------------------------------
   //! Method used to wait for writes to be done
   //--------------------------------------------------------------------------
   void WaitFinishWrites();
 
+  //--------------------------------------------------------------------------
+  //! Clean all internal caches (read-ahead cache)
+  //--------------------------------------------------------------------------
+  void CleanReadCache();
 
   //--------------------------------------------------------------------------
   //! Genereate block key
@@ -252,7 +245,6 @@ public:
   //!
   //--------------------------------------------------------------------------
   long long int GenerateBlockKey(off_t offset);
-
 
   //--------------------------------------------------------------------------
   //! Get the queue of errros
@@ -273,6 +265,7 @@ public:
   //! Conditionally increase the max write offset if offset is bigger
   //--------------------------------------------------------------------------
   void TestMaxWriteOffset(off_t offset);
+
   void GrabMaxWriteOffset();
 
   void GrabUtimes();

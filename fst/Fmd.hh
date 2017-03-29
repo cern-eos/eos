@@ -132,7 +132,7 @@ public:
               eos::common::LayoutId::layoutid_t lid, std::string locations)
   {
     if (lid == 0) {
-      // an orphans has not lid at the MGM e.g. lid=0
+      // a orphans has no lid at the MGM e.g. lid=0
       return eos::common::LayoutId::kOrphan;
     }
 
@@ -144,7 +144,7 @@ public:
 
     for (size_t i = 0; i < location_vector.size(); i++) {
       if (location_vector[i].length()) {
-        // unlinked locates have a '!' infront of the fsid
+        // unlinked locations have a '!' in front of the fsid
         if (location_vector[i][0] == '!') {
           location_set.insert(strtoul(location_vector[i].c_str() + 1, 0, 10));
         } else {

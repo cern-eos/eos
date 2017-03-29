@@ -436,4 +436,15 @@ FileAbstraction::SetRawFileRO(LayoutWrapper* file)
   mFileRO = file;
   XrdSysCondVarHelper cond_helper(mCondUpdate);
   mNumOpenRO = 1;
-};
+}
+
+//--------------------------------------------------------------------------
+// Clean read internal caches (read-ahead cache)
+//--------------------------------------------------------------------------
+void
+FileAbstraction::CleanReadCache()
+{
+  if (GetRawFileRO()) {
+    GetRawFileRO()->CleanReadCache();
+  }
+}

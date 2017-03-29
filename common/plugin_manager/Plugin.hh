@@ -24,9 +24,7 @@
 #ifndef __PF_PLUGIN_HH__
 #define __PF_PLUGIN_HH__
 
-/*----------------------------------------------------------------------------*/
 #include <cstdint>
-/*----------------------------------------------------------------------------*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,8 +37,7 @@ struct PF_PlatformServices;
 //! Plugin layer value indicating the layer for which the plugin object is
 //! responsible
 //------------------------------------------------------------------------------
-typedef enum PF_Plugin_Layer
-{
+typedef enum PF_Plugin_Layer {
   L0, // bottom one
   L1,
   L2,
@@ -50,8 +47,7 @@ typedef enum PF_Plugin_Layer
 //------------------------------------------------------------------------------
 //! Plugin version information
 //------------------------------------------------------------------------------
-typedef struct PF_PluginAPI_Version
-{
+typedef struct PF_PluginAPI_Version {
   int32_t major;
   int32_t minor;
 } PF_PluginAPI_Version;
@@ -66,8 +62,7 @@ typedef int32_t (*PF_DestroyFunc)(void*);
 //------------------------------------------------------------------------------
 //! Parameters registered by the plugin objects with the PluginManager
 //------------------------------------------------------------------------------
-typedef struct PF_RegisterParams
-{
+typedef struct PF_RegisterParams {
   PF_PluginAPI_Version version;
   PF_CreateFunc CreateFunc;
   PF_DestroyFunc DestroyFunc;
@@ -95,8 +90,7 @@ typedef int32_t (*PF_InvokeServiceFunc)(const char* serviceName,
 //! the plugin object and also other possible services which are made available
 //! by the PM to the plugin objects.
 //------------------------------------------------------------------------------
-typedef struct PF_PlatformServices
-{
+typedef struct PF_PlatformServices {
   PF_PluginAPI_Version version;
   PF_RegisterFunc registerObject;
   PF_InvokeServiceFunc invokeService;
@@ -105,9 +99,8 @@ typedef struct PF_PlatformServices
 //------------------------------------------------------------------------------
 //! Discovery service parameters
 //------------------------------------------------------------------------------
-typedef struct PF_Discovery_Service
-{
-  const char* objType;
+typedef struct PF_Discovery_Service {
+  char* objType;
   void* ptrService;
 } PF_Discovery_Service;
 
@@ -127,11 +120,11 @@ typedef int32_t (*PF_ExitFunc)();
 //!
 //! @return the exit func of the plugin or NULL if initialization failed
 //------------------------------------------------------------------------------
-typedef PF_ExitFunc (*PF_InitFunc)(const PF_PlatformServices*);
+typedef PF_ExitFunc(*PF_InitFunc)(const PF_PlatformServices*);
 
 extern
 #ifdef  __cplusplus
-  "C"
+"C"
 #endif
 
 //------------------------------------------------------------------------------

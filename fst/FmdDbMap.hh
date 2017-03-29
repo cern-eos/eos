@@ -230,10 +230,20 @@ public:
                                           std::map<std::string, size_t>& statistics,
                                           std::map<std::string, std::set < eos::common::FileId::fileid_t> >& fidset);
 
-  // ---------------------------------------------------------------------------
-  //! Initialize the changelog hash
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Remove ghost entries - entries which are neither on disk nor the mgm
+  //!
+  //! @param path mount prefix of the filesystem
+  //! @param fsid filesystem id
+  //!
+  //! @return true if successful
+  //----------------------------------------------------------------------------
+  bool RemoveGhostEntries(const char* prefix,
+                          eos::common::FileSystem::fsid_t fsid);
 
+  //----------------------------------------------------------------------------
+  //! Initialize the changelog hash
+  //----------------------------------------------------------------------------
   virtual void
   Reset(eos::common::FileSystem::fsid_t fsid)
   {
@@ -342,8 +352,9 @@ public:
   // ---------------------------------------------------------------------------
   //! Hash map pointing from fid to offset in changelog file
   // ---------------------------------------------------------------------------
-  google::dense_hash_map<eos::common::FileSystem::fsid_t, google::dense_hash_map<unsigned long long, struct Fmd > >
-    FmdHelperMap;
+  google::dense_hash_map<eos::common::FileSystem::fsid_t,
+         google::dense_hash_map<unsigned long long, struct Fmd > >
+           FmdHelperMap;
 
   // ---------------------------------------------------------------------------
   //! Constructor

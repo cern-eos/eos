@@ -1035,6 +1035,17 @@ public:
   std::vector<ProcCommand::ArchDirStatus>
   GetPendingBkps();
 
+  //------------------------------------------------------------------------------
+  //! Discover/search for a service provided to the plugins by the platform
+  //!
+  //! @param svc_name name of the service the plugin wants to use
+  //! @param opaque parameter for the service or reference to returned discvoery
+  //!        service info
+  //!
+  //! @return 0 if successful, otherwise errno
+  //------------------------------------------------------------------------------
+  static int32_t DiscoverPlatformServices(const char* svc_name, void* opaque);
+
   //----------------------------------------------------------------------------
   // Configuration variables
   //----------------------------------------------------------------------------
@@ -1159,7 +1170,6 @@ public:
   eos::IFileMDChangeListener* eosContainerAccounting; ///< subtree accoutning
   //! Subtree mtime propagation
   eos::IContainerMDChangeListener* eosSyncTimeAccounting;
-  XrdSysMutex eosViewMutex; ///< mutex making the namespace single threaded
   eos::common::RWMutex eosViewRWMutex; ///< rw namespace mutex
   XrdOucString
   MgmMetaLogDir; //  Directory containing the meta data (change) log files
