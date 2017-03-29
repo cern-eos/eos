@@ -269,18 +269,15 @@ Recycle::Recycler()
                         l4 += "/";
                         l4 += dname3;
                         eos_static_info("path=%s", l4.c_str());
-                        //.......................................................
-                        // stat the directory to get the mtime
-                        //.......................................................
+                        // Stat the directory to get the mtime
                         struct stat buf;
 
-                        if (gOFS->_stat(l4.c_str(), &buf, lError, rootvid, "")) {
-                          eos_static_err("msg=\"unable to stat a garbage directory entry\" recycle-path=%s l2-path=%s l3-path=%s",
+                        if (gOFS->_stat(l4.c_str(), &buf, lError, rootvid, "", 0, false)) {
+                          eos_static_err("msg=\"unable to stat a garbage directory entry\" "
+                                         "recycle-path=%s l2-path=%s l3-path=%s",
                                          Recycle::gRecyclingPrefix.c_str(), l2.c_str(), l3.c_str());
                         } else {
-                          //.....................................................
-                          // add to the garbage fifo deletion multimap
-                          //.....................................................
+                          // Add to the garbage fifo deletion multimap
                           lDeletionMap.insert(std::pair<time_t, std::string > (buf.st_ctime, l4));
                         }
                       }

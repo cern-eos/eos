@@ -1250,6 +1250,62 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Remove ghost entries - entries which are neither on disk nor the mgm
+//------------------------------------------------------------------------------
+bool
+FmdDbMapHandler::RemoveGhostEntries(const char* path,
+                                    eos::common::FileSystem::fsid_t fsid)
+{
+  bool rc = true;
+  eos_static_info("");
+  std::vector<eos::common::FileId::fileid_t> delvector;
+
+  if (!IsSyncing(fsid)) {
+    {
+      FmdSqliteReadLock vlock(fsid);
+      eos_static_info("verifying %d entries", FmdHelperMap[fsid].size());
+
+      // we report values only when we are not in the sync phase from disk/mgm
+      for (auto it = FmdHelperMap[fsid].begin(); it != FmdHelperMap[fsid].end();
+           it++) {
+        if (it->second.layouterror()) {
+          XrdOucString hexfid;
+          XrdOucString fstPath;
+          int rc = 0;
+          struct stat buf;
+          eos::common::FileId::Fid2Hex(it->first, hexfid);
+          eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), path, fstPath);
+
+          if ((rc = stat(fstPath.c_str(), &buf))) {
+            if ((errno == ENOENT) || (errno == ENOTDIR)) {
+              if ((it->second.layouterror() & eos::common::LayoutId::kOrphan) ||
+                  (it->second.layouterror() & eos::common::LayoutId::kUnregistered)) {
+                eos_static_info("push back for deletion %lu", it->first);
+                delvector.push_back(it->first);
+              }
+            }
+          }
+
+          eos_static_info("stat %s rc=%d errno=%d", fstPath.c_str(), rc, errno);
+        }
+      }
+    }
+
+    for (size_t i = 0; i < delvector.size(); ++i) {
+      if (DeleteFmd(delvector[i], fsid)) {
+        eos_static_info("removed FMD ghost entry fid=%lx fsid=%d", delvector[i], fsid);
+      } else {
+        eos_static_err("failed to removed FMD ghost entry fid=%lx fsid=%d",
+                       delvector[i], fsid);
+      }
+    }
+  } else {
+    rc = false;
+  }
+
+  return rc;
+}
 
 /*----------------------------------------------------------------------------*/
 /**

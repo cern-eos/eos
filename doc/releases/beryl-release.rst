@@ -7,6 +7,23 @@
 Beryl Release Notes
 ===================
 
+``V0.3.234 Aquamarine``
+=======================
+
+- NS: avoid that the main indexes ever shrink
+- MGM: don't follow symlinks when stating recycle bin entries
+- FUSE/FST: add read-ahead cache consistency to FUSE client and make kernel cache invalidation work properly
+- FST: allow to define the network speed via an environment variable since 'ip route' and ethtool are not equivalent on SLC6/EL7
+
+``V0.3.233 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: remove falsely commited debug return statement disabling stale cache file detection from previous fix
+- FST: extending '.eosscan' functionality to cleanup ghost entries which are neither on disk or memory but can normally only be removed by wiping the local database and rebuild from scratch
+
 ``V0.3.232 Aquamarine``
 =======================
 

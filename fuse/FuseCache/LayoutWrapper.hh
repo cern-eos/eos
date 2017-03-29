@@ -33,8 +33,8 @@ namespace eos
 {
 namespace fst
 {
-    class AsyncLayoutOpenHandler;
-  }
+class AsyncLayoutOpenHandler;
+}
 }
 
 //------------------------------------------------------------------------------
@@ -85,7 +85,7 @@ class LayoutWrapper
                const char* opaque, const struct stat* buf);
 
 
- public:
+public:
   //----------------------------------------------------------------------------
   static XrdSysMutex gCacheAuthorityMutex;
   static std::map<unsigned long long, LayoutWrapper::CacheEntry> gCacheAuthority;
@@ -108,6 +108,17 @@ class LayoutWrapper
   //! Reopen it if needed using (almost) the same argument as the previous open
   //----------------------------------------------------------------------------
   int MakeOpen();
+
+  //----------------------------------------------------------------------------
+  //! Instruct all lower layers to clean a read cache (read-ahead cache) and
+  //! cached filesize
+  //----------------------------------------------------------------------------
+  void CleanReadCache()
+  {
+    if (mFile) {
+      mFile->CleanReadCache();
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Overloading member functions of FileLayout class
@@ -156,7 +167,8 @@ class LayoutWrapper
   //! Overloading member functions of FileLayout class
   //----------------------------------------------------------------------------
   int Open(const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
-           const char* opaque, const struct stat* buf, bool async=false, bool doOpen = true,
+           const char* opaque, const struct stat* buf, bool async = false,
+           bool doOpen = true,
            size_t creator_lifetime = 30, bool inlineRepair = false);
 
   //----------------------------------------------------------------------------
@@ -187,18 +199,19 @@ class LayoutWrapper
   int64_t Write(XrdSfsFileOffset offset, const char* buffer,
                 XrdSfsXferSize length, bool touchMtime = true);
 
-  
+
   //----------------------------------------------------------------------------
   //! Wait for all async IO to finish
   //----------------------------------------------------------------------------
   int WaitAsyncIO()
   {
-    if (mFile)
+    if (mFile) {
       return mFile->WaitAsyncIO();
-    else
+    } else {
       return 0;
+    }
   }
-    
+
   //----------------------------------------------------------------------------
   //! Overloading member functions of FileLayout class
   //----------------------------------------------------------------------------
@@ -257,7 +270,7 @@ class LayoutWrapper
   //! Restore a file from the cache into EOS
   //----------------------------------------------------------------------------
   bool Restore();
-  
+
   //----------------------------------------------------------------------------
   //! Enable the restore flag when closing the file
   //----------------------------------------------------------------------------
@@ -316,7 +329,7 @@ class LayoutWrapper
   {
     return mCanCache;
   }
-  
+
   //----------------------------------------------------------------------------
   //! Return FUSE inode
   //----------------------------------------------------------------------------
@@ -325,7 +338,7 @@ class LayoutWrapper
     return eos::common::FileId::FidToInode(mInode);
   }
 
- private:
+private:
   bool mDoneAsyncOpen; ///< Mark if async open was issued
   eos::fst::AsyncLayoutOpenHandler* mOpenHandler; ///< Asynchronous open handler
 };

@@ -725,6 +725,8 @@ XrdIo::fileWaitAsyncIO()
   bool async_ok = true;
 
   if (mDoReadahead) {
+    XrdSysMutexHelper scope_lock(mPrefetchMutex);
+
     // Wait for any requests on the fly and then close
     while (!mMapBlocks.empty()) {
       SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
@@ -984,6 +986,23 @@ XrdIo::fileDelete(const char* url)
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Clean read cache
+//------------------------------------------------------------------------------
+void
+XrdIo::CleanReadCache()
+{
+  if (mDoReadahead) {
+    fileWaitAsyncIO();
+
+    if (mQueueBlocks.empty()) {
+      for (unsigned int i = 0; i < sNumRdAheadBlocks; i++) {
+        mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
