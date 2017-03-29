@@ -190,6 +190,27 @@ RWMutex::~RWMutex()
 }
 
 //------------------------------------------------------------------------------
+// Try to read lock the mutex within the timout value
+//------------------------------------------------------------------------------
+int
+RWMutex::TimedRdLock(uint64_t timeout_ms)
+{
+  EOS_RWMUTEX_CHECKORDER_LOCK;
+  EOS_RWMUTEX_TIMER_START;
+  struct timespec timeout = {0};
+  clock_gettime(CLOCK_REALTIME, &timeout);
+
+  if (timeout_ms > 1000) {
+    timeout.tv_sec += (timeout_ms / 1000);
+  }
+
+  timeout.tv_nsec += (timeout_ms % 1000) * 1000000;
+  int retc = pthread_rwlock_timedrdlock(&rwlock, &timeout);
+  EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
+  return retc;
+}
+
+//------------------------------------------------------------------------------
 // Set the time to wait for the acquisition of the write mutex before releasing
 // quicky and retrying.
 //------------------------------------------------------------------------------
@@ -279,8 +300,6 @@ RWMutex::UnLockRead()
 void
 RWMutex::LockWrite()
 {
-  //AtomicInc(mWrLockCounter);
-  // not needed anymore because of the macro EOS_RWMUTEX_TIMER_STOP_AND_UPDATE
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
 

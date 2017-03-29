@@ -1190,9 +1190,7 @@ FsView::StoreFsConfig(FileSystem* fs)
 // Move a filesystem in to a target group
 //------------------------------------------------------------------------------
 bool
-FsView::MoveGroup(FileSystem* fs, std::string group,
-                  std::list<FsSpace*>& spaces_to_del,
-                  std::list<FsGroup*>& groups_to_del)
+FsView::MoveGroup(FileSystem* fs, std::string group)
 {
   if (!fs) {
     return false;
@@ -1218,7 +1216,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group,
 
         if (!space->size()) {
           mSpaceView.erase(snapshot1.mSpace);
-          spaces_to_del.push_back(space);
+          delete space;
         }
       }
 
@@ -1258,7 +1256,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group,
           }
 
           mGroupView.erase(snapshot1.mGroup);
-          groups_to_del.push_back(group);
+          delete group;
         }
       }
 

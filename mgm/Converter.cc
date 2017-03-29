@@ -385,14 +385,20 @@ Converter::Convert(void)
     bool IsSpaceConverter = true;
     bool IsMaster = true;
     int lSpaceTransfers = 0;
-    //    int lSpaceTransferRate = 0; => currently not used
-    XrdSysThread::SetCancelOff();
     {
-      // extract the current settings if conversion enabled and how many
-      // conversion jobs should run
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      // Extract the current settings if conversion enabled and how many
+      // conversion jobs should run.
+      uint64_t timeout_ms = 100;
+
+      // Try to read lock the mutex
+      while (FsView::gFsView.ViewMutex.TimedRdLock(timeout_ms)) {
+        XrdSysThread::CancelPoint();
+      }
+
+      XrdSysThread::SetCancelOff();
 
       if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
+        FsView::gFsView.ViewMutex.UnLockRead();
         break;
       }
 
@@ -403,10 +409,9 @@ Converter::Convert(void)
         IsSpaceConverter = false;
       }
 
-      lSpaceTransfers = atoi(FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
+      lSpaceTransfers = atoi(FsView::gFsView.mSpaceView[mSpaceName.c_str()]-> \
                              GetConfigMember("converter.ntx").c_str());
-      // lSpaceTransferRate = atoi(FsView::gFsView.mSpaceView[mSpaceName.c_str()]->
-      // GetConfigMember("converter.rate").c_str());
+      FsView::gFsView.ViewMutex.UnLockRead();
     }
     IsMaster = gOFS->MgmMaster.IsMaster();
 
