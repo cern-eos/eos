@@ -2041,10 +2041,10 @@ Master::BootNamespace ()
 
     contSettings["slave_mode"] = "true";
     contSettings["poll_interval_us"] = "1000";
-    contSettings["auto_repair"] = "true";
+    contSettings["auto_repair"] = "false";
     fileSettings["slave_mode"] = "true";
     fileSettings["poll_interval_us"] = "1000";
-    fileSettings["auto_repair"] = "true";
+    fileSettings["auto_repair"] = "false";
   }
 
   gOFS->MgmNsFileChangeLogFile = fileSettings["changelog_path"].c_str();
