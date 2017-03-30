@@ -374,8 +374,12 @@ Converter::Convert(void)
 
   XrdSysTimer sleeper;
   sleeper.Snooze(10);
+
   // Reset old jobs pending from service restart/crash
-  ResetJobs();
+  if (gOFS->MgmMaster.IsMaster()) {
+    ResetJobs();
+  }
+
   // loop forever until cancelled
   // the conversion fid set points from file id to conversion attribute name in
   // the parent container of the fid

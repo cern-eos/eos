@@ -62,6 +62,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   opened = false;
   haswrite = false;
   hasReadError = false;
+  hasWriteError = false;
   fMd = 0;
   checkSum = 0;
   layOut = 0;
@@ -2499,25 +2500,19 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset,
   eos_debug("rc=%d offset=%lu size=%lu", rc, fileOffset,
             static_cast<unsigned long>(buffer_size));
 
-  /* THIS SEEMS REDUNDANT ?!
-  if (rc < 0)
-  {
+  if (rc < 0) {
     int envlen = 0;
-    std::string exclusiontag = "";
-    if (hasWriteError)
-      exclusiontag = " [NB]";
 
-    eos_crit("block-write error=%d offset=%llu len=%llu file=%s%s",
-       error.getErrInfo(),
-       static_cast<unsigned long long> (fileOffset),
-       static_cast<unsigned long long> (buffer_size),
-       FName(),
-       capOpaque ? capOpaque->Env(envlen) : FName(),
-       exclusiontag.c_str());
+    if (!hasWriteError || EOS_LOGS_DEBUG) {
+      eos_crit("block-write error=%d offset=%llu len=%llu file=%s",
+               error.getErrInfo(),
+               static_cast<unsigned long long>(fileOffset),
+               static_cast<unsigned long long>(buffer_size),
+               FName(), capOpaque ? capOpaque->Env(envlen) : FName());
+    }
+
     hasWriteError = true;
-
   }
-  */
 
   if (rc < 0) {
     int envlen = 0;
