@@ -399,7 +399,6 @@ protected:
   bool haswrite; //! indicator that file was written/modified
   bool hasWriteError;// indicator for write errros to avoid message flooding
   bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
-  bool hasWriteError; //! indicator for a write error
   bool isRW; //! indicator that file is opened for rw
   bool isCreation; //! indicator that a new file is created
   bool isReplication; //! indicator that the opened file is a replica transfer

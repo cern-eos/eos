@@ -104,7 +104,6 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   isOCchunk = 0;
   mTimeout = getenv("EOS_FST_STREAM_TIMEOUT") ? strtoul(
                getenv("EOS_FST_STREAM_TIMEOUT"), 0, 10) : msDefaultTimeout;
-  hasWriteError = false;
 }
 
 //------------------------------------------------------------------------------
