@@ -298,7 +298,6 @@ namespace eos
                 // add to the new parent container
                 // -------------------------------------------------------------
                 itNP->second.ptr->addContainer(it->second.ptr);
-                delete currentCont;
                 
                 // -------------------------------------------------------------
                 // STEP 3 add all the files in the new tree to new quota node
@@ -342,9 +341,10 @@ namespace eos
 		if (pContainerAccounting)
 		{
 		  // move subtree accouting from source to destination
-		  ((ContainerAccounting*)pContainerAccounting)->AddTree(itNP->second.ptr, currentCont->getTreeSize());
-		  ((ContainerAccounting*)pContainerAccounting)->RemoveTree(itP->second.ptr,currentCont->getTreeSize());
+		  ((ContainerAccounting*)pContainerAccounting)->AddTree(itNP->second.ptr, it->second.ptr->getTreeSize());
+		  ((ContainerAccounting*)pContainerAccounting)->RemoveTree(itP->second.ptr, it->second.ptr->getTreeSize());
 		}
+                delete currentCont;
 	      }
             }
           }

@@ -26,7 +26,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "SyncResponseHandler.hh"
 #include "common/Logging.hh"
-
+#include "fuse/filesystem.hh"
 int xrootd_nullresponsebug_retrycount=3; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we retry.
 int xrootd_nullresponsebug_retrysleep=1; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we sleep between attempts.
 
@@ -95,6 +95,12 @@ XrdCl::XRootDStatus xrdreq_retryonnullbuf(XrdCl::FileSystem &fs,
       eos_static_err("status is NOT ok : %s", status.ToString ().c_str ());
     }
     errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
+    if( status.code == XrdCl::errErrorResponse )
+    {
+      filesystem::error_retc_map(status.errNo);
+      eos_static_debug("setting errno to %d", errno);
+    }
+
     break;
   }
   return status;
