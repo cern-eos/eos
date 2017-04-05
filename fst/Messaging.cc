@@ -144,14 +144,12 @@ Messaging::Process(XrdMqMessage* newmessage)
     } else {
       int envlen = 0;
       eos_debug("opaque is %s", capOpaque->Env(envlen));
-      Deletion* newdeletion = Deletion::Create(capOpaque);
+      std::unique_ptr<Deletion> new_del;
+      new_del.reset(Deletion::Create(capOpaque));
       delete capOpaque;
 
-      if (newdeletion) {
-        gOFS.Storage->deletionsMutex.Lock();
-        gOFS.Storage->deletions.push_back(*newdeletion);
-        delete newdeletion;
-        gOFS.Storage->deletionsMutex.UnLock();
+      if (new_del) {
+        gOFS.Storage->AddDeletion(std::move(new_del));
       } else {
         eos_err("Cannot create a deletion entry - illegal opaque information");
       }

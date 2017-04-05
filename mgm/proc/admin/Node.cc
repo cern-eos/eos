@@ -287,7 +287,8 @@ ProcCommand::Node()
         } else {
           // we only remove a node if it has no heartbeat anymore
           if ((time(NULL) - FsView::gFsView.mNodeView[nodename]->GetHeartBeat()) < 5) {
-            stdErr = "error: this node was still sending a heartbeat < 5 seconds ago - stop the FST daemon first!\n";
+            stdErr = "error: this node was still sending a heartbeat < 5 "
+                     "seconds ago - stop the FST daemon first!\n";
             retc = EBUSY;
             return SFS_OK;
           }
@@ -303,7 +304,8 @@ ProcCommand::Node()
                 if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
                   stdErr = "error: unable to remove node '";
                   stdErr += nodename.c_str();
-                  stdErr += "' - filesystems are not all in empty state - try to drain them or: node config <name> configstatus=empty\n";
+                  stdErr += "' - filesystems are not all in empty state - try "
+                            "to drain them or: node config <name> configstatus=empty\n";
                   retc = EBUSY;
                   return SFS_OK;
                 }

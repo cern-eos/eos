@@ -183,21 +183,29 @@ public:
 
   eos::fst::Verify* runningVerify;
 
-  XrdSysMutex deletionsMutex;
-  std::vector <Deletion> deletions;
+  XrdSysMutex mDeletionsMutex; ///< Mutex protecting the list of deletions
+  std::list< std::unique_ptr<Deletion> > mListDeletions; ///< List of deletions
 
-  off_t
-  deletionsSize()
-  {
-    // take the lock 'deletionsMutex' outside:
-    off_t totalsize = 0;
+  //----------------------------------------------------------------------------
+  //! Add deletion object to the list of pending ones
+  //!
+  //! @param del deletion object
+  //----------------------------------------------------------------------------
+  void AddDeletion(std::unique_ptr<Deletion> del);
 
-    for (size_t i = 0; i < deletions.size(); i++) {
-      totalsize = deletions[i].fIdVector.size();
-    }
+  //----------------------------------------------------------------------------
+  //! Get deletion object removing it from the list
+  //!
+  //! @return get deletion object
+  //----------------------------------------------------------------------------
+  std::unique_ptr<Deletion> GetDeletion();
 
-    return totalsize;
-  }
+  //----------------------------------------------------------------------------
+  //! Get number of pending deletions
+  //!
+  //! @return number of pending deletions
+  //----------------------------------------------------------------------------
+  size_t GetNumDeletions();
 
   XrdSysMutex verificationsMutex;
   std::queue <eos::fst::Verify*> verifications;

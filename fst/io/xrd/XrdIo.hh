@@ -253,7 +253,6 @@ public:
   //! Wait for all async IO
   //!
   //! @return global return code of async IO
-  //!
   //--------------------------------------------------------------------------
   virtual int fileWaitAsyncIO();
 
@@ -363,6 +362,11 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
   int fileFctl(const std::string& cmd, uint16_t timeout = 0);
+
+  //----------------------------------------------------------------------------
+  //! Clean read cache
+  //----------------------------------------------------------------------------
+  virtual void CleanReadCache();
 
   //----------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)

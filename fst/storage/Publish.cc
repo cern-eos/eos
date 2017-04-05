@@ -50,6 +50,13 @@ Storage::Publish()
   (void) close(tmp_fd);
   XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' |"
                              " xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> ";
+
+  if (getenv("EOS_FST_NETWORK_SPEED")) {
+    getnetspeed = "echo ";
+    getnetspeed += getenv("EOS_FST_NETWORK_SPEED");
+    getnetspeed += " >> ";
+  }
+
   getnetspeed += tmp_name;
   eos::common::ShellCmd scmd1(getnetspeed.c_str());
   eos::common::cmd_status rc = scmd1.wait(5);

@@ -24,15 +24,12 @@
 #ifndef __EOS_PF_PLUGIN_MANAGER_HH__
 #define __EOS_PF_PLUGIN_MANAGER_HH__
 
-/*----------------------------------------------------------------------------*/
 #include <vector>
 #include <map>
 #include <memory>
-/*----------------------------------------------------------------------------*/
 #include "Plugin.hh"
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 

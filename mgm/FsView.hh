@@ -903,14 +903,10 @@ public:
   //!
   //! @param fs filesystem object to move
   //! @param group target group
-  //! @param spaces_to_del spaces to be deleted
-  //! @param groups_to_del groups to be deleted
   //!
   //! @return true if moved otherwise false
   //----------------------------------------------------------------------------
-  bool MoveGroup(FileSystem* fs, std::string group,
-                 std::list<FsSpace*>& spaces_to_del,
-                 std::list<FsGroup*>& groups_to_del);
+  bool MoveGroup(FileSystem* fs, std::string group);
 
   //----------------------------------------------------------------------------
   //! Store the filesystem configuration into the config engine. Should be
@@ -937,11 +933,6 @@ public:
   //! Remove a node
   //----------------------------------------------------------------------------
   bool UnRegisterNode(const char* nodequeue);
-
-  //----------------------------------------------------------------------------
-  //! Remove all nodes
-  //----------------------------------------------------------------------------
-  void UnRegisterNodes();
 
   //----------------------------------------------------------------------------
   //! Add or modify a space

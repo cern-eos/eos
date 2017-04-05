@@ -1784,6 +1784,8 @@ Master::BootNamespace()
   }
 
   PluginManager& pm = PluginManager::GetInstance();
+  PF_PlatformServices& pm_svc = pm.GetPlatformServices();
+  pm_svc.invokeService = &XrdMgmOfs::DiscoverPlatformServices;
   gOFS->eosDirectoryService = static_cast<IContainerMDSvc*>
                               (pm.CreateObject("ContainerMDSvc"));
   gOFS->eosFileService = static_cast<IFileMDSvc*>(pm.CreateObject("FileMDSvc"));
@@ -1800,7 +1802,7 @@ Master::BootNamespace()
   if (getenv("EOS_NS_ACCOUNTING") &&
       ((std::string(getenv("EOS_NS_ACCOUNTING")) == "1") ||
        (std::string(getenv("EOS_NS_ACCOUNTING")) == "yes"))) {
-    eos_alert("msg=\"enabling recursive size accounting ...\n\"");
+    eos_alert("msg=\"enabling recursive size accounting ...\"");
     gOFS->eosContainerAccounting = static_cast<IFileMDChangeListener*>(
                                      pm.CreateObject("ContainerAccounting"));
 
@@ -1814,7 +1816,7 @@ Master::BootNamespace()
   if (getenv("EOS_SYNCTIME_ACCOUNTING") &&
       ((std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "1") ||
        (std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "yes"))) {
-    eos_alert("msg=\"enabling sync time propagation ...\n\"");
+    eos_alert("msg=\"enabling sync time propagation ...\"");
     gOFS->eosSyncTimeAccounting = static_cast<IContainerMDChangeListener*>(
                                     pm.CreateObject("SyncTimeAccounting"));
 
@@ -1843,7 +1845,8 @@ Master::BootNamespace()
     eos_alert("msg=\"namespace size optimization\" nfiles=%s ndirs=%s",
               getenv("EOS_NS_DIR_SIZE"), getenv("EOS_NS_FILE_SIZE"));
   } else {
-    eos_alert("msg=\"preset the expected namespace size to optimize RAM usage via EOS_NS_DIR_SIZE && EOS_NS_FILE_SIZE in /etc/sysconfig/eos\"");
+    eos_alert("msg=\"preset the expected namespace size to optimize RAM usage "
+              "via EOS_NS_DIR_SIZE && EOS_NS_FILE_SIZE in /etc/sysconfig/eos\"");
   }
 
   contSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
@@ -1858,10 +1861,10 @@ Master::BootNamespace()
   if (!IsMaster()) {
     contSettings["slave_mode"] = "true";
     contSettings["poll_interval_us"] = "1000";
-    contSettings["auto_repair"] = "true";
+    contSettings["auto_repair"] = "false";
     fileSettings["slave_mode"] = "true";
     fileSettings["poll_interval_us"] = "1000";
-    fileSettings["auto_repair"] = "true";
+    fileSettings["auto_repair"] = "false";
   }
 
   gOFS->MgmNsFileChangeLogFile = fileSettings["changelog_path"].c_str();
@@ -1888,6 +1891,11 @@ Master::BootNamespace()
     }
 
     gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
+
+    if (gOFS->eosSyncTimeAccounting) {
+      gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);
+    }
+
     // This is only done for the ChangeLog implementation
     eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
       dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
@@ -1914,11 +1922,6 @@ Master::BootNamespace()
     gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
     gOFS->eosDirectoryService->setQuotaStats(gOFS->eosView->getQuotaStats());
     gOFS->eosDirectoryService->setContainerAccounting(gOFS->eosContainerAccounting);
-
-    if (gOFS->eosSyncTimeAccounting) {
-      gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);
-    }
-
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
     time_t tstop = time(0);

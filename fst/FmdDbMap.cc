@@ -1025,9 +1025,8 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
   url += manager;
   url += "//";
   url += consolestring;
-  // we run an external command and parse the output
+  // We run an external command and parse the output
   char tmpfile[] = "/tmp/efstd.XXXXXX";
-  // coverity[SECURE_TEMP]
   int tmp_fd = mkstemp(tmpfile);
 
   if (tmp_fd == -1) {
@@ -1152,14 +1151,14 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
   statistics["mem_n"] = 0; // number of files in DB
   statistics["d_sync_n"] = 0; // number of synced files from disk
   statistics["m_sync_n"] = 0; // number of synced files from MGM server
-  statistics["d_mem_sz_diff"] =
-    0; // number of files with disk and reference size mismatch
-  statistics["m_mem_sz_diff"] =
-    0; // number of files with MGM and reference size mismatch
-  statistics["d_cx_diff"] =
-    0; // number of files with disk and reference checksum mismatch
-  statistics["m_cx_diff"] =
-    0; // number of files with MGM and reference checksum mismatch
+  // number of files with disk and reference size mismatch
+  statistics["d_mem_sz_diff"] = 0;
+  // number of files with MGM and reference size mismatch
+  statistics["m_mem_sz_diff"] = 0;
+  // number of files with disk and reference checksum mismatch
+  statistics["d_cx_diff"] = 0;
+  // number of files with MGM and reference checksum mismatch
+  statistics["m_cx_diff"] = 0;
   statistics["orphans_n"] = 0; // number of orphaned replicas
   statistics["unreg_n"] = 0; // number of unregistered replicas
   statistics["rep_diff_n"] = 0; // number of files with replica number mismatch
@@ -1182,7 +1181,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     eos::common::DbMapTypes::Tval val;
     FmdSqliteReadLock vlock(fsid);
 
-    // we report values only when we are not in the sync phase from disk/mgm
+    // We report values only when we are not in the sync phase from disk/mgm
     for (dbmap[fsid]->beginIter(); dbmap[fsid]->iterate(&k, &v);) {
       Fmd f;
       f.ParseFromString(v->value);
@@ -1251,6 +1250,62 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Remove ghost entries - entries which are neither on disk nor the mgm
+//------------------------------------------------------------------------------
+bool
+FmdDbMapHandler::RemoveGhostEntries(const char* path,
+                                    eos::common::FileSystem::fsid_t fsid)
+{
+  bool rc = true;
+  eos_static_info("");
+  std::vector<eos::common::FileId::fileid_t> delvector;
+
+  if (!IsSyncing(fsid)) {
+    {
+      FmdSqliteReadLock vlock(fsid);
+      eos_static_info("verifying %d entries", FmdHelperMap[fsid].size());
+
+      // we report values only when we are not in the sync phase from disk/mgm
+      for (auto it = FmdHelperMap[fsid].begin(); it != FmdHelperMap[fsid].end();
+           it++) {
+        if (it->second.layouterror()) {
+          XrdOucString hexfid;
+          XrdOucString fstPath;
+          int rc = 0;
+          struct stat buf;
+          eos::common::FileId::Fid2Hex(it->first, hexfid);
+          eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), path, fstPath);
+
+          if ((rc = stat(fstPath.c_str(), &buf))) {
+            if ((errno == ENOENT) || (errno == ENOTDIR)) {
+              if ((it->second.layouterror() & eos::common::LayoutId::kOrphan) ||
+                  (it->second.layouterror() & eos::common::LayoutId::kUnregistered)) {
+                eos_static_info("push back for deletion %lu", it->first);
+                delvector.push_back(it->first);
+              }
+            }
+          }
+
+          eos_static_info("stat %s rc=%d errno=%d", fstPath.c_str(), rc, errno);
+        }
+      }
+    }
+
+    for (size_t i = 0; i < delvector.size(); ++i) {
+      if (DeleteFmd(delvector[i], fsid)) {
+        eos_static_info("removed FMD ghost entry fid=%lx fsid=%d", delvector[i], fsid);
+      } else {
+        eos_static_err("failed to removed FMD ghost entry fid=%lx fsid=%d",
+                       delvector[i], fsid);
+      }
+    }
+  } else {
+    rc = false;
+  }
+
+  return rc;
+}
 
 /*----------------------------------------------------------------------------*/
 /**

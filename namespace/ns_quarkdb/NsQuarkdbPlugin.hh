@@ -1,3 +1,8 @@
+//------------------------------------------------------------------------------
+//! @author Elvin Sindrilaru <esindril@cern.ch>
+//! @brief  Namespace on Quarkdb plugin interface implementation
+//------------------------------------------------------------------------------
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2016 CERN/Switzerland                                  *
@@ -16,14 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-//! @author Elvin Sindrilaru <esindril@cern.ch>
-//! @brief  Namespace on Redis plugin interface implementation
-//------------------------------------------------------------------------------
-
-#ifndef __EOS_NS_ON_REDIS_PLUGIN_HH__
-#define __EOS_NS_ON_REDIS_PLUGIN_HH__
-
+#pragma once
 #include "common/plugin_manager/Plugin.hh"
 #include "namespace/Namespace.hh"
 
@@ -43,9 +41,9 @@ EOSNSNAMESPACE_BEGIN
 class IContainerMDSvc;
 
 //------------------------------------------------------------------------------
-//! Class NsOnRedisPlugin
+//! Class NsQuarkdbPlugin
 //------------------------------------------------------------------------------
-class NsOnRedisPlugin
+class NsQuarkdbPlugin
 {
 public:
   //----------------------------------------------------------------------------
@@ -155,5 +153,3 @@ private:
 };
 
 EOSNSNAMESPACE_END
-
-#endif // __EOS_NS_ON_REDIS_PLUGIN_HH__

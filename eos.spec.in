@@ -6,15 +6,15 @@
 
 %if %{?rhel:1}%{!?rhel:0}
     %if %{rhel} >= 7
-	%define use_systemd 1
+        %define use_systemd 1
     %else
-	%define use_systemd 0
+        %define use_systemd 0
     %endif
 %else
     %if %{?fedora}%{!?fedora:0} >= 19
-	%define use_systemd 1
+        %define use_systemd 1
     %else
-	%define use_systemd 0
+        %define use_systemd 0
     %endif
 %endif
 
@@ -219,13 +219,13 @@ The EOS server installation containing MGM, FST & MQ service.
     %{_prefix}/lib/systemd/system/eos@.service
     %{_prefix}/lib/systemd/system/eos@master.service
     %{_prefix}/lib/systemd/system/eos@slave.service
-
     %{_prefix}/lib/systemd/system/eosfstdb@.service
     %{_prefix}/lib/systemd/system/eosha.service
     %{_prefix}/lib/systemd/system/eosslave.service
     %{_prefix}/lib/systemd/system/eossync.service
     %{_prefix}/lib/systemd/system/eossync@.service
     %{_prefix}/lib/systemd/system/eossync@config.service
+    %{_sbindir}/eos_start_pre.sh
 %else
     %config %{_sysconfdir}/sysconfig/eos.example
     %{_sysconfdir}/rc.d/init.d/eos

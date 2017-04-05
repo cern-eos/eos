@@ -40,6 +40,8 @@ EOSFSTNAMESPACE_BEGIN
 void
 Storage::Verify()
 {
+  std::map<uint64_t, time_t> open_w_out;
+
   // This thread unlinks stored files
   while (1) {
     verificationsMutex.Lock();
@@ -61,8 +63,16 @@ Storage::Verify()
 
         if (gOFS.WOpenFid[verifyfile->fsId].count(verifyfile->fId)) {
           if (gOFS.WOpenFid[verifyfile->fsId][verifyfile->fId] > 0) {
-            eos_static_warning("file is currently opened for writing id=%x on fs=%u - skipping verification",
-                               verifyfile->fId, verifyfile->fsId);
+            time_t now = time(NULL);
+
+            if (open_w_out[verifyfile->fId] < now) {
+              eos_static_warning("file is currently opened for writing id=%x on "
+                                 "fs=%u - skipping verification", verifyfile->fId,
+                                 verifyfile->fsId);
+              // Spit this message out only once pre minute
+              open_w_out[verifyfile->fId] = now + 60;
+            }
+
             verifications.push(verifyfile);
             verificationsMutex.UnLock();
             continue;

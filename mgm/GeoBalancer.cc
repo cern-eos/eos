@@ -600,19 +600,24 @@ GeoBalancer::GeoBalance()
     bool isSpaceGeoBalancer = true;
     bool isMaster = true;
     int nrTransfers = 0;
-    XrdSysThread::SetCancelOff();
     {
-      // -----------------------------------------------------------------------
-      // extract the current settings if conversion enabled and how many
+      // Extract the current settings if conversion enabled and how many
       // conversion jobs should run
-      // -----------------------------------------------------------------------
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      uint64_t timeout_ms = 100;
+
+      // Try to read lock the mutex
+      while (FsView::gFsView.ViewMutex.TimedRdLock(timeout_ms)) {
+        XrdSysThread::CancelPoint();
+      }
+
+      XrdSysThread::SetCancelOff();
       FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
 
       if (space->GetConfigMember("converter") != "on") {
         eos_static_debug("Converter is off for! It needs to be on "
                          "for the geotag balancer to work. space=%s",
                          mSpaceName.c_str());
+        FsView::gFsView.ViewMutex.UnLockRead();
         goto wait;
       }
 
@@ -621,6 +626,7 @@ GeoBalancer::GeoBalance()
       mThreshold =
         atof(space->GetConfigMember("geobalancer.threshold").c_str());
       mThreshold /= 100.0;
+      FsView::gFsView.ViewMutex.UnLockRead();
     }
     isMaster = gOFS->MgmMaster.IsMaster();
 
