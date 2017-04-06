@@ -2014,7 +2014,7 @@ Master::BootNamespace ()
 
   if (getenv("EOS_NS_FILE_SIZE"))
   {
-    contSettings["ns_size"] = getenv("EOS_NS_FILE_SIZE");
+    fileSettings["ns_size"] = getenv("EOS_NS_FILE_SIZE");
     ns_preset=true;
   }
 
