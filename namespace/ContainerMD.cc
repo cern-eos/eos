@@ -52,7 +52,7 @@ namespace eos
     pMTime.tv_nsec = 0;
     pTMTime.tv_sec = 0;
     pTMTime.tv_nsec = 0;
-    pTreeSize = 0;
+    setTreeSize(0);
   }
 
   //----------------------------------------------------------------------------
@@ -71,7 +71,7 @@ namespace eos
   {
     pFiles = other.pFiles;
     pSubContainers = other.pSubContainers;
-    pTreeSize = other.pTreeSize;
+    setTreeSize(other.pTreeSize);
   }
 
   //----------------------------------------------------------------------------

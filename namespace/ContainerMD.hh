@@ -33,6 +33,10 @@
 #include <google/dense_hash_map>
 #include <map>
 #include <sys/time.h>
+#include <features.h>
+#if __GNUC_PREREQ(4,8)
+#include <atomic>
+#endif
 #include "namespace/persistency/Buffer.hh"
 
 namespace eos
@@ -225,7 +229,11 @@ namespace eos
       //------------------------------------------------------------------------
       uint64_t getTreeSize() const
       {
+#if __GNUC_PREREQ(4,8)
+	return pTreeSize.load();
+#else
 	return pTreeSize;
+#endif
       }
 
       //------------------------------------------------------------------------
@@ -233,7 +241,11 @@ namespace eos
       //------------------------------------------------------------------------
       void setTreeSize( uint64_t treesize)
       {
+#if __GNUC_PREREQ(4,8)
+	pTreeSize.store(treesize);
+#else
 	pTreeSize = treesize;
+#endif
       }
 
       //------------------------------------------------------------------------
@@ -242,7 +254,7 @@ namespace eos
       uint64_t addTreeSize( uint64_t addsize)
       {
 	pTreeSize += addsize;
-        return pTreeSize;
+	return getTreeSize();
       }
 
       //------------------------------------------------------------------------
@@ -251,7 +263,7 @@ namespace eos
       uint64_t removeTreeSize( uint64_t removesize)
       {
 	pTreeSize -= removesize;
-        return pTreeSize;
+	return getTreeSize();
       }
 
       //------------------------------------------------------------------------
@@ -535,7 +547,11 @@ namespace eos
       // non presisted data members
       mtime_t      pMTime;
       tmtime_t     pTMTime;
+#if __GNUC_PREREQ(4,8)
+      std::atomic_ulong pTreeSize;
+#else
       uint64_t     pTreeSize;
+#endif
   };
 }
 
