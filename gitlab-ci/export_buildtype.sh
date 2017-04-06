@@ -1,6 +1,6 @@
 #!/bin/bash
 
-COMMIT_LEN=24
+COMMIT_LEN=$1
 RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 \
     | awk -F "-" '{print $3;}' \
     | awk -F "." '{print length($1);}')
