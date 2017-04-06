@@ -30,10 +30,12 @@ eos_rpm_cc7:
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
     - echo -e '\n[xrootd]\nname=XROOTD\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/cc-7/x86_64/v4.6.0/\ngpgcheck=0\nenabled=1\npriority=4\n' >> eos-docker/eos.repo
-    - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/commit/el-7/x86_64
-    - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/commit/el-7/x86_64/
-    - sudo -u stci -H cp build/RPMS/* /eos/project/s/storage-ci/www/${BRANCH}/commit/el-7/x86_64/
-    - sudo -u stci -H createrepo -q /eos/project/s/storage-ci/www/${BRANCH}/commit/el-7/x86_64/
+    - source gitlab-ci/export_buildtype.sh
+    - echo "Exporting BUILD_TYPE=${BUILD_TYPE}"
+    - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-7/x86_64
+    - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-7/x86_64/
+    - sudo -u stci -H cp build/RPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-7/x86_64/
+    - sudo -u stci -H createrepo -q /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-7/x86_64/
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
