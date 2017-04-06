@@ -749,7 +749,7 @@ namespace eos
 	if (progress==0)
 	  fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate none \n", fname.c_str(), (unsigned int)progress);
 	else
-	  fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate %3.01fs [ %lus/%.0fs ]\n", fname.c_str(), (unsigned int)progress, estimate, time(NULL)-start_time, (double)time(NULL)-(double)start_time+estimate, estimate);
+	  fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate %3.01fs [ %lus/%.0fs ]\n", fname.c_str(), (unsigned int)progress, estimate, time(NULL)-start_time, (double)time(NULL)-(double)start_time+estimate);
 	progress += 2;
 
       }      
