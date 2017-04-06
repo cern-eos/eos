@@ -68,9 +68,6 @@ eos_rpm_slc6:
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
-    - mkdir slc6
-    - cp -R build/SRPMS slc6
-    - cp -R build/RPMS slc6
     - authconfig --enablesssd --update
     - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/commit/el-6/x86_64
     - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/commit/el-6/x86_64/
@@ -80,10 +77,6 @@ eos_rpm_slc6:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
     - ccache/
-  artifacts:
-    expire_in: 2 days
-    paths:
-    - slc6/
   tags:
     - docker-slc6
   only:
@@ -107,17 +100,10 @@ eos_rpm_fedora_rawhide:
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
-    - mkdir fedora-rawhide
-    - cp -R build/SRPMS fedora-rawhide
-    - cp -R build/RPMS fedora-rawhide
     - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/commit/fc-rawhide/x86_64
     - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/commit/fc-rawhide/x86_64/
     - sudo -u stci -H cp build/RPMS/* /eos/project/s/storage-ci/www/${BRANCH}/commit/fc-rawhide/x86_64/
     - sudo -u stci -H createrepo -q /eos/project/s/storage-ci/www/${BRANCH}/commit/fc-rawhide/x86_64/
-  artifacts:
-    expire_in: 2 days
-    paths:
-    - fedora-rawhide/
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
@@ -145,9 +131,6 @@ eos_rpm_fedora_24:
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
-    - mkdir fedora24
-    - cp -R build/SRPMS fedora24
-    - cp -R build/RPMS fedora24
     - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/commit/fc-24/x86_64
     - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/commit/fc-24/x86_64/
     - sudo -u stci -H cp build/RPMS/* /eos/project/s/storage-ci/www/${BRANCH}/commit/fc-24/x86_64/
@@ -156,10 +139,6 @@ eos_rpm_fedora_24:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
     - ccache/
-  artifacts:
-    expire_in: 2 days
-    paths:
-    - fedora24/
   tags:
     - docker-fc25
   only:
