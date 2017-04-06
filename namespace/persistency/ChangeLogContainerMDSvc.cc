@@ -622,8 +622,9 @@ namespace eos
       
       int nthread = std::thread::hardware_concurrency() ;
 
-      if (pIdMap.size()/nthread && !getenv("EOS_NS_BOOT_NOPARALLEL"))
+      if (pIdMap.size()/nthread && getenv("EOS_NS_BOOT_PARALLEL"))
       {
+	fprintf(stderr,"INFO     [ doing parallel boot ]\n");
         //----------------------------------------------------------------------
 	// parallel boot
         //------------------------------------------------------------------------
@@ -672,6 +673,7 @@ namespace eos
       else
 #endif
       {
+	fprintf(stderr,"INFO     [ doing sequential boot ]\n");
         //----------------------------------------------------------------------
 	// sequential boot
         //----------------------------------------------------------------------
@@ -717,6 +719,7 @@ namespace eos
 
         recreateContainer( it, orphans, nameConflicts );
 
+	fprintf(stderr,"=> notify container %lx\n", it->first);
 	notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
 
 	if ( (100.0 * cnt / end ) > progress) 
@@ -1437,7 +1440,7 @@ namespace eos
     //--------------------------------------------------------------------------
     else if( type == COMPACT_STAMP_RECORD_MAGIC )
     {
-      fprintf(stderr,"INFO     [found directory compaction mark at offset=%lu\n", offset);
+      fprintf(stderr,"INFO     [ found directory compaction mark at offset=%lu ]\n", offset);
       if( pSlaveMode )
         return false;
     }

@@ -29,6 +29,7 @@
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/accounting/QuotaStats.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
+#include "common/Murmur3.hh"
 #include <google/sparse_hash_map>
 #include <google/dense_hash_map>
 #include <list>
@@ -316,7 +317,7 @@ namespace eos
         Buffer   *buffer;
       };
 
-      typedef google::dense_hash_map<FileMD::id_t, DataInfo> IdMap;
+      typedef google::dense_hash_map<FileMD::id_t, DataInfo, Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr> IdMap;
       typedef std::list<IFileMDChangeListener*>               ListenerList;
 
       //------------------------------------------------------------------------

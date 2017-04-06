@@ -30,6 +30,7 @@
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
 #include "namespace/accounting/QuotaStats.hh"
+#include "common/Murmur3.hh"
 
 #include <google/dense_hash_map>
 #include <google/sparse_hash_map>
@@ -331,7 +332,7 @@ namespace eos
 	bool attached;
       };
 
-      typedef google::dense_hash_map<ContainerMD::id_t, DataInfo> IdMap;
+      typedef google::dense_hash_map<ContainerMD::id_t, DataInfo , Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr> IdMap;
       typedef std::list<IContainerMDChangeListener*>              ListenerList;
       typedef std::list<ContainerMD*>                             ContainerList;
 
