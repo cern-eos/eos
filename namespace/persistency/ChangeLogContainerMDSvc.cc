@@ -28,9 +28,10 @@
 #include "namespace/utils/ThreadUtils.hh"
 #include "namespace/Constants.hh"
 #include "common/ShellCmd.hh"
-
+#include "common/Parallel.hh"
 #include <set>
 #include <memory>
+#include <features.h>
 
 //------------------------------------------------------------------------------
 // Follower
@@ -63,11 +64,15 @@ namespace eos
           ContMap::iterator it = pUpdated.find( container->getId() );
           if( it != pUpdated.end() )
           {
-            delete it->second;
-            it->second = container;
+            delete it->second.ptr;
+            it->second.ptr = container;
+	    it->second.logOffset = offset;
           }
           else
-            pUpdated[container->getId()] = container;
+	  {
+            pUpdated[container->getId()].ptr = container;
+	    pUpdated[container->getId()].logOffset = offset;
+	  }
 
           //--------------------------------------------------------------------
           // Remember the largest container ID
@@ -88,7 +93,7 @@ namespace eos
           ContMap::iterator it = pUpdated.find( id );
           if( it != pUpdated.end() )
           {
-            delete it->second;
+            delete it->second.ptr;
             pUpdated.erase( it );
           }
           pDeleted.insert( id );
@@ -149,12 +154,12 @@ namespace eos
         {
           ChangeLogContainerMDSvc::IdMap::iterator it;
           ChangeLogContainerMDSvc::IdMap::iterator itP;
-          ContainerMD *currentCont = itU->second;
+          ContainerMD *currentCont = itU->second.ptr;
           it = idMap->find( currentCont->getId() );
           if( it == idMap->end() )
           {
             (*idMap)[currentCont->getId()] =
-              ChangeLogContainerMDSvc::DataInfo( 0, currentCont );
+              ChangeLogContainerMDSvc::DataInfo( itU->second.logOffset, currentCont );
             itP = idMap->find( currentCont->getParentId() );
             if( itP != idMap->end() )
 	    {
@@ -175,6 +180,7 @@ namespace eos
                 // meta data change - keeping directory name
                 // -------------------------------------------------------------
                 (*it->second.ptr) = *currentCont;
+		it->second.logOffset = itU->second.logOffset;
 		pContSvc->notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
                 delete currentCont;
               }
@@ -200,7 +206,7 @@ namespace eos
                   // -----------------------------------------------------------
                   // update idmap pointer to the container
                   // -----------------------------------------------------------
-                  (*idMap)[currentCont->getId()] = ChangeLogContainerMDSvc::DataInfo(0, currentCont);
+                  (*idMap)[currentCont->getId()] = ChangeLogContainerMDSvc::DataInfo(itU->second.logOffset, currentCont);
                 }
               }
             }
@@ -278,6 +284,7 @@ namespace eos
                 // copy the meta data
                 // -------------------------------------------------------------
 		(*it->second.ptr) = *currentCont;
+		it->second.logOffset = itU->second.logOffset;
 		{
 		  // the file and container lists are not copied in the copy constructor
 		  for (fIt = currentCont->filesBegin(); 
@@ -396,7 +403,18 @@ namespace eos
         return pQuotaStats->registerNewNode(current->getId());
       }
       
-      typedef std::map<eos::ContainerMD::id_t, eos::ContainerMD*> ContMap;
+      struct DataInfo
+      {
+        DataInfo(): logOffset(0), ptr(0) {} 
+        DataInfo( uint64_t logOffset, ContainerMD *ptr )
+        {
+	  this->logOffset = logOffset;
+	  this->ptr       = ptr;
+        }
+        uint64_t     logOffset;
+        ContainerMD *ptr;
+      };
+      typedef std::map<eos::ContainerMD::id_t, DataInfo> ContMap;
       ContMap                           pUpdated;
       std::set<eos::ContainerMD::id_t>  pDeleted;
       eos::ChangeLogContainerMDSvc     *pContSvc;
@@ -572,7 +590,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Rescan the change log if needed
     //
-    // In the master mode we go throug the entire file
+    // In the master mode we go through the entire file
     // In the slave mode up untill the compaction mark or not at all
     // if the compaction mark is not present
     //--------------------------------------------------------------------------
@@ -583,6 +601,7 @@ namespace eos
     if( !pSlaveMode || logIsCompacted )
     {
       ContainerMDScanner scanner( pIdMap, pSlaveMode );
+      pChangeLog->mmap();
       pFollowStart = pChangeLog->scanAllRecords( &scanner , pAutoRepair );
       pFirstFreeId = scanner.getLargestId()+1;
       //------------------------------------------------------------------------
@@ -592,17 +611,112 @@ namespace eos
       ContainerList   orphans;
       ContainerList   nameConflicts;
 
+      
       time_t start_time = time(0);
       time_t now = start_time;
       size_t progress = 0;
       uint64_t end = pIdMap.size();
       uint64_t cnt=0;
+
+#if __GNUC_PREREQ(4,8)
+      
+      int nthread = std::thread::hardware_concurrency() ;
+
+      if (pIdMap.size()/nthread && !getenv("EOS_NS_BOOT_NOPARALLEL"))
+      {
+        //----------------------------------------------------------------------
+	// parallel boot
+        //------------------------------------------------------------------------
+	std::mutex critical;
+	size_t chunk=pIdMap.size()/nthread;
+	size_t last_chunk =chunk + pIdMap.size() - (chunk * nthread);
+
+	eos::common::Parallel::For( 0, nthread , [&] (int i)
+	{
+	  IdMap::iterator it = pIdMap.begin();
+	  std::advance(it, i * chunk);
+	  for (size_t n = 0; n < ((i==(nthread-1))? last_chunk:chunk); ++n)
+	  {
+	    {
+	      std::lock_guard<std::mutex> lock(critical);
+	      cnt++;
+	    }
+
+	    if( it->second.ptr )
+	    {
+	      ++it;
+	      continue;
+	    }
+	    
+	    loadContainer( it ); 
+
+	    
+	    {
+	      std::lock_guard<std::mutex> lock(critical);
+	      if ( (100.0 * cnt / end ) > progress) 
+	      {
+		now = time(0);
+		double estimate = (1+end-cnt) / ((1.0*cnt/(now+1 - start_time)));
+		if (progress==0)
+		  fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate none \n", "container-load",(unsigned int)progress);
+		else
+		  fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate %3.01fs [ %lus/%.0fs ] [%lu/%lu]\n", "container-load", (unsigned int)progress, estimate, time(NULL)-start_time, (double)time(NULL)-(double)start_time+estimate, cnt, end);
+		
+		progress += 2;
+	      }
+	    }
+	    ++it;
+	  }
+	});
+      }
+      else
+#endif
+      {
+        //----------------------------------------------------------------------
+	// sequential boot
+        //----------------------------------------------------------------------
+	for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
+	{
+	  cnt++;
+	  if( it->second.ptr )
+	    continue;
+	  
+	  loadContainer( it); 
+	  
+	  if ( (100.0 * cnt / end ) > progress) 
+	  {
+	    now = time(0);
+	    double estimate = (1+end-cnt) / ((1.0*cnt/(now+1 - start_time)));
+	    if (progress==0)
+	      fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate none \n", "container-load",(unsigned int)progress);
+	    else
+	      fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate %3.01fs [ %lus/%.0fs ] [%lu/%lu]\n", "container-load", (unsigned int)progress, estimate, time(NULL)-start_time, (double)time(NULL)-(double)start_time+estimate, cnt, end);
+	    
+	    progress += 2;
+	  }
+	}
+      }
+
+      pChangeLog->munmap();
+
+      now = time(0);
+      fprintf(stderr,"ALERT    [ %-64s ] finished in %ds\n", "container-load", (int)(now-start_time));        
+      start_time = time(0);
+
+      progress = 0;
+      cnt=0;
+      
+
+
       for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
       {
 	cnt++;
-        if( it->second.ptr )
-          continue;
+
+	if ( it->second.attached )
+	  continue;
+
         recreateContainer( it, orphans, nameConflicts );
+
 	notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
 
 	if ( (100.0 * cnt / end ) > progress) 
@@ -610,11 +724,13 @@ namespace eos
 	  now = time(0);
 	  double estimate = (1+end-cnt) / ((1.0*cnt/(now+1 - start_time)));
 	  if (progress==0)
-	    fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate none \n", "container-attach",(unsigned int)progress);
+	    fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate none \n", "container-create",(unsigned int)progress);
 	  else
-	    fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate %3.02fs\n", "container-attach", (unsigned int)progress, estimate);
-	  progress += 10;
+	    fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate %3.01fs [ %lus/%.0fs ] [%lu/%lu]\n", "container-create", (unsigned int)progress, estimate, time(NULL)-start_time, (double)time(NULL)-(double)start_time+estimate, cnt, end);
+
+	  progress += 2;
 	}
+
       }
       now = time(0);
       
@@ -905,7 +1021,7 @@ namespace eos
   //----------------------------------------------------------------------------
 
   void *
-  ChangeLogContainerMDSvc::compactPrepare (const std::string &newLogFileName) const
+  ChangeLogContainerMDSvc::compactPrepare (const std::string &newLogFileName) 
     throw ( MDException)
   {
     //--------------------------------------------------------------------------
@@ -927,6 +1043,11 @@ namespace eos
     }
 
     //--------------------------------------------------------------------------
+    // Shrink the pIdMap
+    //--------------------------------------------------------------------------
+    pIdMap.resize(0);
+
+    //--------------------------------------------------------------------------
     // Get the list of records
     //--------------------------------------------------------------------------
     IdMap::const_iterator it;
@@ -934,6 +1055,10 @@ namespace eos
     {
       if (it->second.logOffset) // slaves have a non-persisted '/' record at offset 0
 	data->records.push_back(::ContainerRecordData(it->second.logOffset, it->first));
+      else 
+      {
+	fprintf(stderr, "WARNING: skipping record %lu in compaction\n", it->first);
+      }
     }
     return data;
   }
@@ -1033,7 +1158,9 @@ namespace eos
       //------------------------------------------------------------------------
       it = pIdMap.find(itO->containerId);
       if (it == pIdMap.end())
-        continue;
+      {
+	continue;
+      }
 
       //------------------------------------------------------------------------
       // If the original offset does not match it means that we must have
@@ -1063,6 +1190,7 @@ namespace eos
       ++containerCounter;
     }
 
+    // fprintf(stderr,"counter=%lu size=%lu records=%lu\n", containerCounter, pIdMap.size(), data->records.size());
     assert(containerCounter == pIdMap.size());
 
     //--------------------------------------------------------------------------
@@ -1137,6 +1265,19 @@ namespace eos
     pFollowerThread = 0;
   }
 
+
+  //----------------------------------------------------------------------------
+  // Load the container
+  //----------------------------------------------------------------------------
+  void ChangeLogContainerMDSvc::loadContainer( IdMap::iterator &it )
+  {
+    Buffer buffer;
+    pChangeLog->readRecord( it->second.logOffset, buffer );
+    ContainerMD *container = new ContainerMD( 0 );
+    container->deserialize( buffer );
+    it->second.ptr = container;
+  }
+
   //----------------------------------------------------------------------------
   // Recreate the container
   //----------------------------------------------------------------------------
@@ -1144,11 +1285,8 @@ namespace eos
                                                    ContainerList   &orphans,
                                                    ContainerList   &nameConflicts )
   {
-    Buffer buffer;
-    pChangeLog->readRecord( it->second.logOffset, buffer );
-    ContainerMD *container = new ContainerMD( 0 );
-    container->deserialize( buffer );
-    it->second.ptr = container;
+    ContainerMD *container = it->second.ptr;
+    it->second.attached = true;
 
     //--------------------------------------------------------------------------
     // For non-root containers recreate the parent
@@ -1163,19 +1301,22 @@ namespace eos
         return;
       }
 
-      if( !(parentIt->second.ptr) )
-        recreateContainer( parentIt, orphans, nameConflicts );
+      if( !(parentIt->second.attached) )
+      {
+	recreateContainer( parentIt, orphans, nameConflicts );
+      }
 
       ContainerMD *parent = parentIt->second.ptr;
       ContainerMD *child  = parent->findContainer( container->getName() );
       if( !child )
+      {
         parent->addContainer( container );
+      }
       else
       {
         nameConflicts.push_back( child );
         parent->addContainer( container );
       }
-
     }
   }
 
@@ -1296,6 +1437,7 @@ namespace eos
     //--------------------------------------------------------------------------
     else if( type == COMPACT_STAMP_RECORD_MAGIC )
     {
+      fprintf(stderr,"INFO     [found directory compaction mark at offset=%lu\n", offset);
       if( pSlaveMode )
         return false;
     }

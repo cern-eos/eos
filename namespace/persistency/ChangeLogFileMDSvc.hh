@@ -29,7 +29,6 @@
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/accounting/QuotaStats.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
-
 #include <google/sparse_hash_map>
 #include <google/dense_hash_map>
 #include <list>
@@ -57,7 +56,6 @@ namespace eos
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( std::numeric_limits<FileMD::id_t>::max() );
-	pIdMap.min_load_factor(0.0);
         pChangeLog = new ChangeLogFile;
 	pthread_mutex_init(&pFollowStartMutex,0);
       }
@@ -173,7 +171,7 @@ namespace eos
       //! @throw  MDException    preparation stage failed, cannot proceed with
       //!                        compacting
       //------------------------------------------------------------------------
-      void *compactPrepare( const std::string &newLogFileName ) const
+      void *compactPrepare( const std::string &newLogFileName )
         throw( MDException );
 
       //------------------------------------------------------------------------
