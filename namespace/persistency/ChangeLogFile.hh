@@ -150,6 +150,43 @@ namespace eos
         return pIsOpen;
       }
 
+      ssize_t pread(int fd, void *buf, size_t count, off_t offset, bool cache=false)
+      {
+	if (!cache)
+	  return ::pread(fd, buf, count, offset);
+	
+	// bigger than cache, normal pread
+	if (count > sizeof(pReadCache.buffer))
+	  return ::pread(fd, buf, count, offset);
+
+	if ( ((offset + count) > (pReadCache.offset + pReadCache.len)) || 
+	     (offset < pReadCache.offset) )
+	{
+	  //	  not completely in cache, refill
+	  int nread = ::pread(fd, pReadCache.buffer, sizeof(pReadCache.buffer), offset);
+	  if (nread<0)
+	  {
+	    pReadCache.offset=0;
+	    pReadCache.len = 0;
+	    return -1;
+	  }
+	  pReadCache.offset = offset;
+	  pReadCache.len = nread;
+	}
+	
+	if (count > pReadCache.len)
+	{
+	  memcpy(buf, pReadCache.buffer + (offset-pReadCache.offset), pReadCache.len - (offset-pReadCache.offset));
+	  return pReadCache.len;
+	}
+	else
+	{
+	  memcpy(buf, pReadCache.buffer + (offset-pReadCache.offset), count );
+	  return count;
+	}
+      }
+ 
+
       //------------------------------------------------------------------------
       //! Close the log
       //------------------------------------------------------------------------
@@ -190,8 +227,29 @@ namespace eos
       //------------------------------------------------------------------------
       //! Read the record at given offset
       //------------------------------------------------------------------------
-      uint8_t readRecord( uint64_t offset, Buffer &record ) throw( MDException);
+      uint8_t readRecord( uint64_t offset, Buffer &record, bool cache=false ) throw( MDException);
 
+      //------------------------------------------------------------------------
+      //! Read the record at given offset when changelog file is mmaped
+      //------------------------------------------------------------------------
+      uint8_t readMappedRecord( uint64_t offset, Buffer &record, bool checksum=true ) throw( MDException);
+
+      
+      //------------------------------------------------------------------------
+      //! Helper functions to mmap changelog files for scannning
+      //!
+      //! @return 
+      //------------------------------------------------------------------------
+      void mmap();
+      
+      //------------------------------------------------------------------------
+      //! Helper functions to munmap changelog files for scannning
+      //!
+      //! @return 
+      //------------------------------------------------------------------------
+      void munmap();  
+     
+      
       //------------------------------------------------------------------------
       //! Scan all the records in the changelog file
       //!
@@ -314,6 +372,15 @@ namespace eos
 	pWarningMessages.clear();
 	pthread_mutex_unlock(&pWarningMessagesMutex);
       }
+    
+      struct read_cache {
+	int fd;
+	off_t offset; 
+	size_t len;
+	char buffer[256*1024];
+      };
+     
+      typedef struct read_cache read_cache_t;
 
     private:
 
@@ -347,6 +414,9 @@ namespace eos
       std::string pFileName;
       std::vector<std::string> pWarningMessages;
       pthread_mutex_t pWarningMessagesMutex;
+      read_cache_t pReadCache;
+      char*    pData; // mmap pointer
+      off_t    pDataLen; // mmap length
   };
 }
 
