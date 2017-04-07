@@ -18,4 +18,11 @@ yum install -y e2fsprogs-devel
 yum install -y perl-Time-HiRes
 yum install -y jsoncpp jsoncpp-devel
 ( cd /tmp/; git clone  https://github.com/zeromq/cppzmq; cp cppzmq/zmq.hpp /usr/include/ )
+( cd /etc/yum.repos.d/;  wget http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo )
+yum makecache
+# get gcc 4.8.X
+yum install -y devtoolset-2-gcc-c++
+yum install -y devtoolset-2-binutils-devel
+# enable gcc 4.8.X
+scl enable devtoolset-2 bash
 
