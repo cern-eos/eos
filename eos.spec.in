@@ -53,7 +53,8 @@ BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 %endif
 
 
-%if 0%{?rhel} == 6 || 0%{?el6} == 1 
+%if 0%{?rhel} == 6 || 0%{?el6} == 1
+# provides gcc 4.8 on SLC6
 BuildRequires: devtoolset-2-gcc-c++
 BuildRequires: devtoolset-2-binutils-devel
 %endif
@@ -93,6 +94,7 @@ Requires: libcurl
 %endif
 
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 
+# provides gcc 4.8 on SLC6
 Requires: devtoolset-2-gcc-c++
 Requires: devtoolset-2-binutils-devel
 %endif
