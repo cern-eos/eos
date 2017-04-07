@@ -95,8 +95,8 @@ Requires: libcurl
 
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 
 # provides gcc 4.8 on SLC6
-Requires: devtoolset-2-gcc-c++
-Requires: devtoolset-2-binutils-devel
+#Requires: devtoolset-2-gcc-c++
+#Requires: devtoolset-2-binutils-devel
 %endif
 
 
