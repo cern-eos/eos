@@ -61,6 +61,9 @@ namespace eos
   ContainerMD::ContainerMD( const ContainerMD &other)
   {
     *this = other;
+#if __GNUC_PREREQ(4,8)
+    this->pTMTime_atomic = other.pTMTime_atomic;
+#endif
   }
 
   //------------------------------------------------------------------------                       
@@ -71,7 +74,7 @@ namespace eos
   {
     pFiles = other.pFiles;
     pSubContainers = other.pSubContainers;
-    setTreeSize(other.pTreeSize);
+    setTreeSize(other.getTreeSize());
   }
 
   //----------------------------------------------------------------------------
