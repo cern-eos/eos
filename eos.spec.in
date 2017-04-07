@@ -52,6 +52,13 @@ BuildRequires: zeromq3, zeromq3-devel
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 %endif
 
+
+%if 0%{?rhel} == 6 || 0%{?el6} == 1 
+BuildRequires: devtoolset-2-gcc-c++
+BuildRequires: devtoolset-2-binutils-devel
+%endif
+
+
 %endif
 
 %description
@@ -85,6 +92,12 @@ Requires: curl
 Requires: libcurl
 %endif
 
+%if 0%{?rhel} == 6 || 0%{?el6} == 1 
+Requires: devtoolset-2-gcc-c++
+Requires: devtoolset-2-binutils-devel
+%endif
+
+
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
 
@@ -101,6 +114,11 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 
 mkdir -p build
 cd build
+
+%if 0%{?rhel} == 6 || 0%{?el6} == 1 
+scl enable devtoolset-2 bash
+%endif
+
 %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo
 %{__make} %{_smp_mflags}
 
