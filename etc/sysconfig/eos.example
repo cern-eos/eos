@@ -395,3 +395,15 @@ fi
 # ------------------------------------------------------------------
 # export EOS_NS_DIR_SIZE=1000000
 # export EOS_NS_FILE_SIZE=1000000
+
+# ------------------------------------------------------------------
+# MGM Boot options
+# ------------------------------------------------------------------
+# uncomment to avoid mmaping a changelog file
+# export EOS_NS_BOOT_NOMMAP
+
+# uncomment to speed up the scanning phase skipping CRC32 computation
+# export EOS_NS_BOOT_NOCRC32
+
+# uncomment to allow a multi-threaded boot process using maximum number of cores available
+# export EOS_NS_BOOT_PARALLEL
