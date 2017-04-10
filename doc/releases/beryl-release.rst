@@ -8,7 +8,7 @@ Beryl Release Notes
 ===================
 
 ``V0.3.235 Aquamarine``
-=======================
+=====================
 
 New Feature
 +++++++++++
@@ -24,6 +24,8 @@ New Feature
 - FST: limit 'writer error' message to only once per open/write/close file sequence
 - COMMON: add generic lambda function to run parallel for loops Parallel::For ()
 - UTILS: add yum packages to install devtoolset-2 to compile with gcc 4.8
+
+New documentation of namespace variables: http://eos.readthedocs.io/en/latest/configuration/namespace.html
 
 Bug Fixes
 +++++++++
