@@ -29,6 +29,7 @@ Bug Fixes
 +++++++++
 
 - NS: fix various bugs in slave follower losing directories, not showing proper treesize aso.
+- NS: start 'eossync' in slave2master transition
 - MGM: avoid Converter::ResetMasterJobs on slaves
 - MGM: don't run slaves in auto-repair mode when scanning the changelog file
 - FUSE: fix 'bad address' errors and show proper 'permission denied' messages when a client has not credential or is forbidden to talk to certain EOS instances
