@@ -61,5 +61,17 @@ Enable sync time propagation
 Each directory which has the extended attribute 'sys.mtime.propagation=1' set, will propagate its modification time into parent directory sync time. The parent directory sync time is updated if the propagated modification time is newer than the last stored sync time. This meachnism is used to find quickly directories which have modifications as used by Owncloud clients or backup scripts. The 'fileinfo' command displays for directories besides'Change", "Modify" time a third field with the propagated "Sync" time.
 
 
+Namespace Size Preset Variables
+-------------------------------
+
+-- code-block:: bash
+
+   # Set Namespace Preset size
+   export EOS_NS_DIR_SIZE=15000000
+   export EOS_NS_FILE_SIZE=62000000
+
+It is possible to resize hashmaps to the expected maximum size at the start of the boot process. There is no other adavantage besides that the MGM process never needs to resize the hashmap during normal operation ( locking the namespace for several seconds). The boot time of the namespace stays unchanged by these settings.
+
+
 
 
