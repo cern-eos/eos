@@ -122,6 +122,7 @@ namespace eos
       {
         if( offset+dataSize > getSize() )
         {
+	  fprintf(stderr,"offset=%llu dataSize=%ld\n", (unsigned long long)offset, (long) dataSize);
           MDException e( EINVAL );
           e.getMessage() << "Not enough data to fulfil the request";
           throw e;

@@ -1018,6 +1018,9 @@ Master::Compacting ()
 
         try
         {
+	  contSettings["auto_repair"] = "true";
+	  fileSettings["auto_repair"] = "true";
+	  
           gOFS->eosFileService->configure(fileSettings);
           gOFS->eosDirectoryService->configure(contSettings);
         }
@@ -1711,6 +1714,15 @@ Master::Slave2Master ()
     fRunningState = kIsNothing;
     return false;
   }
+
+  // get eossync up if it is not up
+  eos::common::ShellCmd scmd4(". /etc/sysconfig/eos; service eossync status || service eossync start ");
+  rc = scmd4.wait(30);
+  if (rc.exit_code)
+  {
+    MasterLog(eos_crit("slave=>master failed to restart eossync - fix that otherwise your slave won't boot");
+  }
+
 
   UnBlockCompacting();
 

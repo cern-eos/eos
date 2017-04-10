@@ -79,6 +79,9 @@ class DummyFileMDSvc: public eos::IFileMDSvc
     virtual eos::FileMD *getFileMD( eos::FileMD::id_t id )
       throw( eos::MDException )
     { return 0; }
+    virtual eos::FileMD *getFileMD( eos::FileMD::id_t id, uint64_t* clock  )
+      throw( eos::MDException )
+    { return 0; }
     virtual eos::FileMD *createFile() throw( eos::MDException ) { return 0; }
     virtual void updateStore( eos::FileMD *obj ) throw( eos::MDException ) {}
     virtual void removeFile( eos::FileMD *obj ) throw( eos::MDException ) {}

@@ -1,0 +1,67 @@
+syntax = "proto3";
+package eos.wfe;
+
+message id {
+  sfixed n = 1;         // identity number
+  string name = 2;       // identity name 
+}
+
+message checksum {
+  string value = 1;      //< checksum value
+  string name = 2;       //< checksum name
+}
+
+message clock {
+  fixed64 sec = 1;       //< seconds of a clock
+  fixed64 nsec = 2;      //< nanoseconds of a clock
+}
+
+message md {
+  fixed64 fid = 1;       //< file/container id
+  fixed64 pid = 2;       //< parent id
+  clock ctime = 3;       //< change time
+  clock mtime = 4;       //< modification time
+  clock btime = 5;       //< birth time
+  clock ttime = 6;       //< tree modification time
+  id owner = 7;          //< ownership 
+  fixed64 size = 8;      //< size 
+  checksum cks = 9;      //< checksum information
+  sfixed32 mode = 10;    //< mode
+  string lpath = 11;     //< logical path
+  map<string, string> xattr = 12; //< xattribute map
+};
+
+message security {
+  string host = 1;       //< client host 
+  string app = 2;        //< app string
+  string name = 3;       //< sec name
+  string prot = 4;       //< security protocol
+  string grps = 5;       //< security grps
+}
+
+message client {
+  id user = 1;           //< acting client 
+  security sec = 2;      //< client security information
+}
+
+message service {
+  string name = 1;       //< name of the service
+  string url = 2;        //< access url of the service
+}
+
+message workflow {
+  string event = 1;      //< event
+  string queue = 2;      //< queue
+  string workflow = 3;   //< workflow
+  string vpath = 4;      //< vpath
+  service instance = 5;  //< instance information
+  fixed64 timestamp = 6; //< event timestamp
+}
+
+message notification {
+  workflow wf = 1;      //< workflow
+  string turl = 2;      //< transport URL
+  client cli = 3;       //< client information
+  md file = 4;          //< file meta data
+  md directory = 5;     //< directory meta data
+}

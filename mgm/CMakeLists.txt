@@ -21,8 +21,10 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+
 include_directories( ../
 		     ${CMAKE_CURRENT_SOURCE_DIR}
+		     ${CMAKE_BINARY_DIR}
 		     ${XROOTD_INCLUDE_DIR} 
                      ${XROOTD_PRIVATE_INCLUDE_DIR} 
                      ${SPARSEHASH_INCLUDE_DIR} 
@@ -31,11 +33,26 @@ include_directories( ../
                      ${Z_INCLUDE_DIR}
 		     ${ZMQ_INCLUDE_DIR}
 		     ${JSONCPP_INCLUDE_DIR}
+		     ${PROTOBUF_INCLUDE_DIRS}
 )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} 
 		  ${XROOTD_LIB_DIR}
 		  ${ZMQ_LIBRARIES})
+
+#-------------------------------------------------------------------------------
+# Generate protocol buffer files
+#-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER PROTOFILES fusex.proto )
+
+set_source_files_properties(
+        ${PROTO_SRC} ${PROTO_HEADER}
+        PROPERTIES GENERATED 1
+)
+
+set(PROTO_SRC ${PROTO_SRC} PARENT_SCOPE)
+set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
+
 
 add_library (XrdEosMgm MODULE
             Access.cc
@@ -51,6 +68,7 @@ add_library (XrdEosMgm MODULE
             proc/admin/Debug.cc
             proc/admin/Fs.cc
             proc/admin/Fsck.cc
+            proc/admin/Fusex.cc
             proc/admin/Group.cc
             proc/admin/Io.cc
             proc/admin/Node.cc
@@ -70,6 +88,7 @@ add_library (XrdEosMgm MODULE
             proc/user/Fileinfo.cc
             proc/user/Find.cc
             proc/user/Fuse.cc
+            proc/user/FuseX.cc
             proc/user/Ls.cc
             proc/user/Map.cc
 	    proc/user/Member.cc
@@ -102,6 +121,8 @@ add_library (XrdEosMgm MODULE
             txengine/TransferEngine.cc
             txengine/TransferFsDB.cc
             ZMQ.cc
+	    FuseServer.cc FuseServer.hh
+	    ${PROTO_SRC} ${PROTO_HEADER}
             Master.cc
             Recycle.cc
             LRU.cc
@@ -131,6 +152,7 @@ target_link_libraries( XrdEosMgm
 		       ${ZMQ_LIBRARIES}     ${Z_LIBRARIES}
                        ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
 		       ${JSONCPP_LIBRARIES}
+		       ${PROTOBUF_LIBRARY}
                      )
 
 add_executable ( testmgmview
@@ -147,7 +169,9 @@ target_link_libraries ( testmgmview
                         dl                
 			${ZMQ_LIBRARIES}  ${Z_LIBRARIES}
                         ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}
-			${JSONCPP_LIBRARIES})
+			${JSONCPP_LIBRARIES}
+			${PROTOBUF_LIBRARY}
+			)
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
 

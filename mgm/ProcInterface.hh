@@ -197,6 +197,7 @@ public:
   int FileInfo (const char* path);
   int FileJSON (uint64_t id, Json::Value *json);
   int Fuse ();
+  int FuseX ();
   int Ls ();
   int Map ();
   int Member ();
@@ -219,6 +220,7 @@ public:
   int Debug ();
   int Fs ();
   int Fsck ();
+  int Fusex ();
   int Group ();
   int Io ();
   int Node ();
@@ -277,7 +279,7 @@ private:
   XrdOucString stdErr; //< stdErr returned by proc command
   XrdOucString stdJson; //< JSON output returned by proc command
   int retc; //< return code from the proc command
-  XrdOucString mResultStream; //< string containing the assembled stream
+  std::string mResultStream; //< string containing the assembled stream
   XrdOucEnv* pOpaque; //< pointer to the opaque information object
   const char* ininfo; //< original opaque info string
   bool mDoSort; //< sort flag (true = sorting)

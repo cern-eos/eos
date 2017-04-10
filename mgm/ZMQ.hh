@@ -24,10 +24,14 @@
 #ifndef __EOSMGM_ZMQ__HH__
 #define __EOSMGM_ZMQ__HH__
 
-#ifdef HAVE_ZMQ
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
-#include "common/ZMQ.hh"
+#include "mgm/FuseServer.hh"
+#include <thread>
+#include <vector>
+#include <zmq.hpp>
+#include <unistd.h>
+
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -35,16 +39,103 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class ZMQ : public eos::common::ZMQ
+class ZMQ
 {
 public:
   ZMQ (const char* URL);
 
-  ~ZMQ () { };
-  virtual void Process (zmq::socket_t &socket, zmq::message_t &request); // we implement the MGM processing here
-};
+  ~ZMQ ()
+  {
+  };
+
+  class Worker
+  {
+  public:
+
+    Worker(zmq::context_t &ctx, int sock_type)
+    : ctx_(ctx),
+    worker_(ctx_, sock_type)
+    {
+    }
+
+    void work();
+
+  private:
+    zmq::context_t &ctx_;
+    zmq::socket_t worker_;
+  } ;
+
+  class Task
+  {
+  public:
+
+    Task(std::string url_)
+    : ctx_(1),
+    frontend_(ctx_, ZMQ_ROUTER),
+    backend_(ctx_, ZMQ_DEALER),
+    injector_(ctx_, ZMQ_DEALER)
+    {
+      bindUrl = url_;
+    }
+
+    enum
+    {
+      kMaxThread = 16
+    } ;
+
+    void run()
+    {
+      frontend_.bind(bindUrl.c_str());
+      backend_.bind("inproc://backend");
+      injector_.connect("inproc://backend");
+
+      Worker* worker;
+      std::thread * worker_thread;
+      for (int i = 0; i < kMaxThread; ++i)
+      {
+        worker = new Worker(ctx_, ZMQ_DEALER);
+
+        worker_thread = new std::thread(&Worker::work, worker);
+        worker_thread->detach();
+      }
+
+      try
+      {
+        zmq::proxy(frontend_, backend_, nullptr);
+      }
+      catch (std::exception &e)
+      {
+      }
+    }
+
+    void reply(const std::string& id, const std::string& data)
+    {
+      static XrdSysMutex sMutex;
+      XrdSysMutexHelper lLock(sMutex);
+      zmq::message_t id_msg(id.c_str(), id.size());
+      zmq::message_t data_msg(data.c_str(), data.size());
+
+      injector_.send(id_msg, ZMQ_SNDMORE);
+      injector_.send(data_msg);
+    }
+
+  private:
+    zmq::context_t ctx_;
+    zmq::socket_t frontend_;
+    zmq::socket_t backend_;
+    zmq::socket_t injector_;
+
+    std::string bindUrl;
+  } ;
+
+  void ServeFuse();
+
+  Task* task;
+
+  std::string bindUrl;
+  static FuseServer gFuseServer;
+} ;
 
 EOSMGMNAMESPACE_END
 
-#endif
 #endif

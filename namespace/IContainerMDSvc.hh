@@ -84,6 +84,9 @@ namespace eos
       virtual ContainerMD *getContainerMD( ContainerMD::id_t id )
         throw( MDException ) = 0;
 
+      virtual ContainerMD *getContainerMD( ContainerMD::id_t id, uint64_t* clock )
+        throw( MDException ) = 0;
+
       //------------------------------------------------------------------------
       //! Create new container metadata object with an assigned id, the user has
       //! to fill all the remaining fields

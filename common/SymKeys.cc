@@ -280,6 +280,55 @@ SymKey::Base64 (XrdOucString &in, XrdOucString &out)
 }
 
 bool
+SymKey::DeBase64 (std::string &in, std::string &out)
+{
+  if (in.substr(0,7)!= "base64:")
+  {
+    out = in;
+    return true;
+  }
+
+  XrdOucString in64 = in.c_str();
+
+  in64.erase(0, 7);
+
+  char* valout = 0;
+  unsigned int valout_len = 0;
+
+  eos::common::SymKey::Base64Decode(in64, valout, valout_len);
+  
+  if (valout)
+  {
+    out.assign(valout, valout_len);
+    free(valout);
+    return true;
+  }
+  return false;
+}
+
+bool
+SymKey::Base64 (std::string &in, std::string &out)
+{
+  if (in.substr(0,7) == "base64:")
+  {
+    out = in;
+    return false;
+  }
+  XrdOucString sout;
+  bool done = Base64Encode((char*) in.c_str(), in.length(), sout);
+  if (done)
+  {
+    out = "base64:";
+    out.append(sout.c_str());
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+bool
 SymKey::DeBase64 (XrdOucString &in, XrdOucString &out)
 {
   if (!in.beginswith("base64:"))

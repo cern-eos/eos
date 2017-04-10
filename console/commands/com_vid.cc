@@ -505,6 +505,6 @@ com_vid_usage:
   fprintf(stdout, "       vid add|remove gateway <hostname> [krb5|gsi|sss|unix|https]\n");
   fprintf(stdout, "                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
   fprintf(stdout, "                                              [<prot>] restricts the gateway role change to the specified authentication method\n");
-
+  global_retc = EINVAL;
   return (0);
 }

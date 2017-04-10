@@ -5,6 +5,8 @@
   "localdir" : "/eos/",
   "mdcachehost" : "localhost",
   "mdcacheport" : 6379,
+  "mdzmqtarget" : "tcp://localhost:1100",
+  "mdzmqidentity" : "eosxd",
   "options" : {
     "debug" : "1",
     "lowleveldebug" : "0",

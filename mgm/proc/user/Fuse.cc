@@ -79,8 +79,7 @@ ProcCommand::Fuse ()
 
     const char* entry;
 
-    mResultStream += 0;
-    mResultStream += " ";
+    mResultStream += "0 ";
 
     unsigned long long inode = 0;
 
@@ -119,17 +118,17 @@ ProcCommand::Fuse ()
 
       if ((!isdot) && (!isdotdot))
       {
-        mResultStream += whitespaceentry;
+        mResultStream += whitespaceentry.c_str();
         mResultStream += " ";
       }
       if (isdot)
       {
         // the . and .. has to be streamed as first entries
-        mResultStream.insert(". ", dotstart);
+        mResultStream.insert(dotstart, ". ");
       }
       if (isdotdot)
       {
-        mResultStream.insert(".. ", dotend);
+        mResultStream.insert(dotend, ".. ");
       }
 
       XrdOucString statpath = path;
@@ -232,14 +231,14 @@ ProcCommand::Fuse ()
       {
         if (isdot)
         {
-          mResultStream.insert(inodestr, dotstart + 2);
-          mResultStream.insert(" ", dotstart + 2 + strlen(inodestr));
+          mResultStream.insert(dotstart + 2, inodestr);
+          mResultStream.insert(dotstart + 2 + strlen(inodestr), " ");
           dotend = dotstart + 2 + strlen(inodestr) + 1;
         }
         else if(isdotdot)
         {
-          mResultStream.insert(inodestr, dotend + 3);
-          mResultStream.insert(" ", dotend + strlen(inodestr) + 3);
+          mResultStream.insert(dotend + 3, inodestr);
+          mResultStream.insert(dotend + strlen(inodestr) + 3, " ");
         }
         else
         {

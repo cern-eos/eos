@@ -90,6 +90,11 @@ public:
     return (ino >> 28);
   }
 
+  static bool IsFileInode(unsigned long long ino)
+  {
+    return ( ino >= ( 1 << 28 ) );
+  }
+
   //! Compute a path from a fid and localprefix
 
   static void FidPrefix2FullPath (const char* hexstring, const char* localprefix, XrdOucString &fullpath, unsigned int subindex = 0)

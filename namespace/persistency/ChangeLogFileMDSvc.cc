@@ -987,7 +987,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get the file metadata information for the given file ID
   //----------------------------------------------------------------------------
-  FileMD *ChangeLogFileMDSvc::getFileMD( FileMD::id_t id ) throw( MDException )
+  FileMD *ChangeLogFileMDSvc::getFileMD( FileMD::id_t id, uint64_t* clock ) throw( MDException )
   {
     IdMap::iterator it = pIdMap.find( id );
     if( it == pIdMap.end() )
@@ -998,6 +998,9 @@ namespace eos
     }
 
     it->second.ptr->setFileMDSvc(this);
+
+    if (clock)
+      *clock = it->second.logOffset;
 
     return it->second.ptr;
   }

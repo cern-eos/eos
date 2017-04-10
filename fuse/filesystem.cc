@@ -1201,7 +1201,7 @@ filesystem::rmxattr (const char* path,
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("GETPLUGIN", &rmxattrtiming);
- errno = 0;
+  errno = 0;
 
  if (status.IsOK ())
  {
@@ -1220,8 +1220,8 @@ filesystem::rmxattr (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-   errno = ((status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT);
- }
+    errno = ((status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT);
+  }
 
  COMMONTIMING ("END", &rmxattrtiming);
 
@@ -1297,7 +1297,7 @@ filesystem::setxattr (const char* path,
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("GETPLUGIN", &setxattrtiming);
- errno = 0;
+  errno = 0;
 
  if (status.IsOK ())
  {
@@ -1315,16 +1315,16 @@ filesystem::setxattr (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
- }
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
  COMMONTIMING ("END", &setxattrtiming);
 
  if (EOS_LOGS_DEBUG)
   setxattrtiming.Print ();
 
- delete response;
- return errno;
+  delete response;
+  return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -1377,7 +1377,7 @@ filesystem::getxattr (const char* path,
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("GETPLUGIN", &getxattrtiming);
- errno = 0;
+  errno = 0;
 
  if (status.IsOK ())
  {
@@ -1425,16 +1425,16 @@ filesystem::getxattr (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
- }
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
  COMMONTIMING ("END", &getxattrtiming);
 
  if (EOS_LOGS_DEBUG)
   getxattrtiming.Print ();
 
- delete response;
- return errno;
+  delete response;
+  return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -1471,7 +1471,7 @@ filesystem::listxattr (const char* path,
 
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
  COMMONTIMING ("GETPLUGIN", &listxattrtiming);
- errno = 0;
+  errno = 0;
 
  if (status.IsOK ())
  {
@@ -1535,16 +1535,16 @@ filesystem::listxattr (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
- }
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
  COMMONTIMING ("END", &listxattrtiming);
 
  if (EOS_LOGS_DEBUG)
   listxattrtiming.Print ();
 
- delete response;
- return errno;
+  delete response;
+  return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -1959,7 +1959,7 @@ filesystem::chmod (const char* path,
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("END", &chmodtiming);
- errno = 0;
+  errno = 0;
 
  if (EOS_LOGS_DEBUG)
    chmodtiming.Print ();
@@ -1986,11 +1986,11 @@ filesystem::chmod (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
- }
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
- delete response;
- return errno;
+  delete response;
+  return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -2073,7 +2073,7 @@ filesystem::utimes (const char* path,
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("END", &utimestiming);
- errno = 0;
+  errno = 0;
 
  if (EOS_LOGS_DEBUG)
    utimestiming.Print ();
@@ -2093,11 +2093,11 @@ filesystem::utimes (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
- }
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
- delete response;
- return errno;
+  delete response;
+  return errno;
 }
 
 //----------------------------------------------------------------------------
@@ -2146,7 +2146,7 @@ filesystem::symlink (const char* path,
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("STOP", &symlinktiming);
- errno = 0;
+  errno = 0;
 
  if (EOS_LOGS_DEBUG)
    symlinktiming.Print ();
@@ -2168,11 +2168,11 @@ filesystem::symlink (const char* path,
  else
  {
    eos_static_err ("error=status is NOT ok : %s", status.ToString ().c_str ());
-   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
- }
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
- delete response;
- return errno;
+  delete response;
+  return errno;
 }
 
 //----------------------------------------------------------------------------
@@ -2209,7 +2209,7 @@ filesystem::readlink (const char* path,
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("END", &readlinktiming);
- errno = 0;
+  errno = 0;
 
  if (EOS_LOGS_DEBUG)
    readlinktiming.Print ();
@@ -2264,11 +2264,11 @@ filesystem::readlink (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
- }
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
- delete response;
- return errno;
+  delete response;
+  return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -2311,7 +2311,7 @@ filesystem::access (const char* path,
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  COMMONTIMING ("STOP", &accesstiming);
- errno = 0;
+  errno = 0;
 
  if (EOS_LOGS_DEBUG)
    accesstiming.Print ();
@@ -2333,11 +2333,11 @@ filesystem::access (const char* path,
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
-   errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
- }
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
- delete response;
- return errno;
+  delete response;
+  return errno;
 }
 
 
@@ -2849,8 +2849,8 @@ filesystem::mkdir (const char* path,
  else
  {
    eos_static_err ("status is NOT ok");
-   errno = EFAULT;
- }
+    errno = EFAULT;
+  }
 
  COMMONTIMING ("END", &mkdirtiming);
 
@@ -2858,8 +2858,8 @@ filesystem::mkdir (const char* path,
   mkdirtiming.Print ();
 
  eos_static_debug ("path=%s inode=%llu", path, buf->st_ino);
- delete response;
- return errno;
+  delete response;
+  return errno;
 }
 
 //------------------------------------------------------------------------------
@@ -4587,6 +4587,7 @@ filesystem::check_mgm (std::map<std::string,std::string> *features)
    get_features(address,features);
 
  // make sure the host has not '/' in the end and no prefix anymore
+
  gMgmHost = address.c_str ();
  gMgmHost.replace ("root://", "");
   int pos;

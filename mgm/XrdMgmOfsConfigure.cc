@@ -1223,6 +1223,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("Balancer");
   lFanOutTags.push_back("Converter");
   lFanOutTags.push_back("DrainJob");
+  lFanOutTags.push_back("ZMQ");
   lFanOutTags.push_back("Http");
   lFanOutTags.push_back("Master");
   lFanOutTags.push_back("Recycle");
@@ -1280,6 +1281,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   eos::common::Logging::AddFanOutAlias("WebDAVReponse", "Http");
   eos::common::Logging::AddFanOutAlias("S3Handler", "Http");
   eos::common::Logging::AddFanOutAlias("S3Store", "Http");
+  eos::common::Logging::AddFanOutAlias("FuseServer", "ZMQ");
 
   eos::common::Logging::SetUnit(MgmOfsBrokerUrl.c_str());
 
@@ -1889,17 +1891,17 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       }
     }
 
-#ifdef HAVE_ZMQ
     //-------------------------------------------
     // create the ZMQ processor
-    zMQ = new ZMQ("tcp://*:5555");
-    if (!zMQ || zMQ->IsZombie())
+    zMQ = new ZMQ("tcp://*:1100");
+    if (!zMQ)
     {
       Eroute.Emsg("Config", "cannto start ZMQ processor");
       return 1;
     }
-#endif
 
+    zMQ->ServeFuse();
+    
     ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
     ObjectManager.HashMutex.LockRead();
     hash = ObjectManager.GetHash("/eos/*");
@@ -2082,6 +2084,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("Fuse-Statvfs", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Mkdir", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Stat", 0, 0, 0);
+  gOFS->MgmStats.Add("Fuse-Fusex", 0, 0, 0);
+  gOFS->MgmStats.Add("Fuse-FuseX", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Chmod", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Chown", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Access", 0, 0, 0);

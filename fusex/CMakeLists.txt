@@ -33,6 +33,7 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
   ${HIREDIS_INCLUDE_DIR}
+  ${ZMQ_INCLUDE_DIR}
 )
 
 if(CPPUNIT_FOUND)
@@ -66,6 +67,7 @@ add_executable(
   kv.cc kv.hh 
   longstring.cc longstring.hh 
   cache.cc cache.hh bufferll.hh
+  backend.cc backend.hh
   ${PROTO_SRC} ${PROTO_HEADER}
 )
 
@@ -83,6 +85,7 @@ if(MacOSX)
     ${JSONCPP_LIBRARIES}
     ${HIREDIS_LIBRARIES}
     ${LIBETENV_LIBRARIES}
+    ${ZMQ_LIBRARIES}
     eosCommon
     )
 
@@ -105,6 +108,7 @@ else()
     ${JSONCPP_LIBRARIES}
     ${HIREDIS_LIBRARIES}
     ${LIBEVENT_LIBRARIES}
+    ${ZMQ_LIBRARIES}
     eosCommon)
 
   set_target_properties(

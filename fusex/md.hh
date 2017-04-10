@@ -27,17 +27,21 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
 #include "kv.hh"
+#include "backend.hh"
 #include "common/Logging.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 #include <map>
 #include <set>
+#include <vector>
 #include <atomic>
 #include <exception>
 #include <stdexcept>
+#include <zmq.hpp>
 
 class metad
 {
@@ -50,15 +54,18 @@ public:
   {
   public:
 
+    // local operations
+
     enum md_op
     {
-      ADD, DELETE, SETSIZE
+      ADD, MV, UPDATE, RM, SETSIZE, LSTORE, NONE
     } ;
 
     mdx()
     {
       setop_add();
       lookup_cnt = 0;
+      lock_remote = true;
     }
 
     mdx(fuse_ino_t ino)
@@ -66,6 +73,13 @@ public:
       set_id(ino);
       setop_add();
       lookup_cnt = 0;
+      lock_remote = true;
+    }
+
+    mdx& operator=(eos::fusex::md other)
+    {
+      (*((eos::fusex::md*)(this))) = other;
+      return *this;
     }
 
     virtual ~mdx()
@@ -83,7 +97,7 @@ public:
 
     void setop_delete()
     {
-      op = DELETE;
+      op = RM;
     }
 
     void setop_add()
@@ -94,6 +108,21 @@ public:
     void setop_setsize()
     {
       op = SETSIZE;
+    }
+
+    void setop_localstore()
+    {
+      op = LSTORE;
+    }
+
+    void setop_update()
+    {
+      op = UPDATE;
+    }
+
+    void setop_none()
+    {
+      op = NONE;
     }
 
     void lookup_inc()
@@ -118,12 +147,50 @@ public:
 
     bool deleted() const
     {
-      return (op == DELETE) ;
+      return (op == RM) ;
     }
+
+    void set_lock_remote()
+    {
+      lock_remote = true;
+    }
+
+    void set_lock_local()
+    {
+      lock_remote = false;
+    }
+
+    bool locks_remote()
+    {
+      return lock_remote;
+    }
+
+    void cap_inc()
+    {
+      // requires to have Locker outside
+      cap_cnt++;
+    }
+
+    void cap_dec()
+    {
+      // requires to have Lock outside
+      cap_cnt--;
+    }
+
+    int cap_count()
+    {
+      return cap_cnt;
+    }
+
+    std::vector<struct flock> locktable;
+
   private:
     XrdSysMutex mLock;
     md_op op;
     int lookup_cnt;
+    int cap_cnt;
+    bool lock_remote;
+    bool refresh;
 
   } ;
 
@@ -188,7 +255,7 @@ public:
 
   //----------------------------------------------------------------------------
 
-  class vmap : public std::map<fuse_ino_t, fuse_ino_t>, public XrdSysMutex
+  class vmap : public XrdSysMutex
   //----------------------------------------------------------------------------
   {
   public:
@@ -200,6 +267,53 @@ public:
     virtual ~vmap()
     {
     }
+
+    void insert(fuse_ino_t a, fuse_ino_t b)
+    {
+      XrdSysMutexHelper mLock(this);
+      fwd_map.erase(bwd_map[b]);
+      fwd_map[a]=b;
+      bwd_map[b]=a;
+
+      /*
+      fprintf(stderr, "============================================\n");
+      for (auto it = fwd_map.begin(); it != fwd_map.end(); it++)
+      {
+        fprintf(stderr, "%16lx <=> %16lx\n", it->first, it->second);
+      }
+      fprintf(stderr, "============================================\n");
+       */
+    }
+
+    void erase_fwd(fuse_ino_t lookup)
+    {
+      XrdSysMutexHelper mLock(this);
+      bwd_map.erase(fwd_map[lookup]);
+      fwd_map.erase(lookup);
+    }
+
+    void erase_bwd(fuse_ino_t lookup)
+    {
+      XrdSysMutexHelper mLock(this);
+      fwd_map.erase(bwd_map[lookup]);
+      bwd_map.erase(lookup);
+    }
+
+    fuse_ino_t forward(fuse_ino_t lookup)
+    {
+      XrdSysMutexHelper mLock(this);
+      return fwd_map[lookup];
+    }
+
+    fuse_ino_t backward(fuse_ino_t lookup)
+    {
+      XrdSysMutexHelper mLock(this);
+      return bwd_map[lookup];
+    }
+
+  private:
+    std::map<fuse_ino_t, fuse_ino_t> fwd_map; // forward map points from remote to local inode
+    std::map<fuse_ino_t, fuse_ino_t> bwd_map; // backward map points from local remote inode
   } ;
 
   class pmap : public std::map<fuse_ino_t, shared_md> , public XrdSysMutex
@@ -221,7 +335,12 @@ public:
 
   virtual ~metad();
 
-  void init();
+  void init(backend* _mdbackend);
+
+  shared_md load_from_kv(fuse_ino_t ino);
+
+  bool map_children_to_local(shared_md md);
+
 
   shared_md lookup(fuse_req_t req,
                    fuse_ino_t parent,
@@ -232,19 +351,49 @@ public:
              int nlookup);
 
   shared_md get(fuse_req_t req,
-                fuse_ino_t ino);
+                fuse_ino_t ino,
+                bool listing=false,
+                shared_md pmd = 0 ,
+                const char* name = 0,
+                bool readdir=false
+                );
 
   uint64_t insert(fuse_req_t req,
-                  shared_md md);
+                  shared_md md,
+                  std::string authid);
 
   void update(fuse_req_t req,
-              shared_md md);
+              shared_md md,
+              std::string authid);
 
-  void add(shared_md pmd, shared_md md);
-  void remove(shared_md pmd, shared_md md);
-  void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname);
+  void add(shared_md pmd, shared_md md, std::string authid);
+  void remove(shared_md pmd, shared_md md, std::string authid);
+  void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
+          std::string authid1, std::string authid2);
+
+  std::string dump_md(shared_md md);
+  std::string dump_container(eos::fusex::container & cont);
+
+  uint64_t apply(fuse_req_t req, eos::fusex::container& cont, bool listing);
+
+  int getlk(fuse_req_t req, shared_md md, struct flock* lock) {return 0;}
+  int setlk(fuse_req_t req, shared_md md, struct flock* lock, int slepp) { return 0;}
+
+  bool should_terminate()
+  {
+    return mdterminate.load();
+  } // check if threads should terminate 
+
+  void terminate()
+  {
+    mdterminate.store(true, std::memory_order_seq_cst);
+  } // indicate to terminate
 
   void mdcflush(); // thread pushing into md cache
+
+  void mdcommunicate(); // thread interacting with the MGM for meta data
+
+  int connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname, std::string zmqclienthost, std::string zmqclientuuid);
 
   class mdstat
   {
@@ -342,8 +491,50 @@ public:
     return stat;
   }
 
-private:
+  vmap& vmaps()
+  {
+    return inomap;
+  }
 
+  void
+  decrease_cap(uint64_t ino)
+  {
+    XrdSysMutexHelper mLock(mdmap);
+    auto item = mdmap.find(ino);
+    if ( item != mdmap.end() )
+    {
+      XrdSysMutexHelper iLock(item->second->Locker());
+      item->second->cap_dec();
+      eos_static_err("decrease cap counter for ino=%lx", ino);
+    }
+    else
+    {
+      eos_static_err("no cap counter change for ino=%lx", ino);
+    }
+  }
+
+  void
+  increase_cap(uint64_t ino)
+  {
+    auto item = mdmap.find(ino);
+    if ( item != mdmap.end() )
+    {
+      //      XrdSysMutexHelper iLock(item->second->Locker());
+      item->second->cap_inc();
+      eos_static_err("increase cap counter for ino=%lx", ino);
+    }
+    else
+    {
+      eos_static_err("no cap counter change for ino=%lx", ino);
+    }
+  }
+
+  std::string get_clientuuid() const
+  {
+    return zmq_clientuuid;
+  }
+
+private:
   pmap mdmap;
   vmap inomap;
   mdstat stat;
@@ -351,10 +542,21 @@ private:
   vnode_gen next_ino;
 
   XrdSysCondVar mdflush;
-  std::set<uint64_t> mdqueue;
+  std::map<uint64_t, std::string> mdqueue; // inode => authid
 
   size_t mdqueue_max_backlog;
 
+  // ZMQ objects
+  zmq::context_t z_ctx;
+  zmq::socket_t z_socket;
+  std::string zmq_target;
+  std::string zmq_identity;
+  std::string zmq_name;
+  std::string zmq_clienthost;
+  std::string zmq_clientuuid;
 
+  std::atomic<bool> mdterminate;
+
+  backend* mdbackend;
 } ;
 #endif /* FUSE_MD_HH_ */

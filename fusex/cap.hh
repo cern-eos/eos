@@ -28,6 +28,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "llfusexx.hh"
+#include "backend.hh"
+#include "md.hh"
 #include "fusex/fusex.pb.h"
 
 #include "XrdSys/XrdSysPthread.hh"
@@ -40,6 +42,7 @@
 #define M_OK 16    // chmod
 #define C_OK 32    // chown
 #define SA_OK 64   // set xattr
+#define U_OK 128   // can update
 
 class cap
 {
@@ -56,6 +59,12 @@ public:
     {
     }
 
+    capx& operator=(eos::fusex::cap other)
+    {
+      (*((eos::fusex::cap*)(this))) = other;
+      return *this;
+    }
+
     XrdSysMutex & Locker()
     {
       return mLock;
@@ -63,10 +72,10 @@ public:
 
     static std::string capid(fuse_req_t req, fuse_ino_t ino)
     {
-      // TODO: in the future we have to translate this from the auth environment
       char sid[128];
       snprintf(sid, sizeof (sid),
-               "%u:%u@%s",
+               "%lx:%u:%u@%s",
+               ino,
                fuse_req_ctx(req)->uid,
                fuse_req_ctx(req)->gid,
                "localhost"
@@ -92,9 +101,7 @@ public:
 
     bool satisfy(mode_t mode);
 
-    void renew(mode_t mode);
-
-    bool valid();
+    bool valid(bool debug=true);
 
   private:
     XrdSysMutex mLock;
@@ -123,6 +130,14 @@ public:
 
   virtual ~cap();
 
+  static cap* sCAP;
+
+  static cap& Instance()
+  {
+    return *sCAP;
+  }
+  
+  
   shared_cap get(fuse_req_t req,
                  fuse_ino_t ino);
 
@@ -131,8 +146,31 @@ public:
                      mode_t mode
                      );
 
+  void store(fuse_req_t req,
+             eos::fusex::cap cap);
+
+  void refresh(fuse_req_t req, shared_cap cap);
+
+  void init(backend* _mdbackend, metad* _metad);
+
+  bool should_terminate()
+  {
+    return capterminate.load();
+  } // check if threads should terminate 
+
+  void terminate()
+  {
+    capterminate.store(true, std::memory_order_seq_cst);
+  } // indicate to terminate
+
+  void capflush(); // thread removing capabilities
+
 private:
 
   cmap capmap;
+  backend* mdbackend;
+  metad* mds;
+
+  std::atomic<bool> capterminate;
 } ;
 #endif /* FUSE_CAP_HH_ */

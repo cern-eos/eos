@@ -110,6 +110,9 @@ namespace eos
       //! Get the container metadata information for the given container ID
       //------------------------------------------------------------------------
       virtual ContainerMD *getContainerMD( ContainerMD::id_t id )
+        throw( MDException ) { return getContainerMD(id, 0); }
+
+      virtual ContainerMD *getContainerMD( ContainerMD::id_t id, uint64_t* clock )
         throw( MDException );
 
       //------------------------------------------------------------------------

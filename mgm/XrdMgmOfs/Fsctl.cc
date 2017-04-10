@@ -59,7 +59,7 @@ XrdMgmOfs::fsctl (const int cmd,
   {
 
     char locResp[4096];
-    char rType[3], *Resp[] = {rType, locResp};
+    char rType[3], *Resp[] ={rType, locResp};
     rType[0] = 'S';
     // we don't want to manage writes via global redirection - therefore we mark the files as 'r'
     rType[1] = 'r'; //(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
@@ -170,7 +170,19 @@ XrdMgmOfs::FSctl (const int cmd,
     ipath[0] = 0;
   }
 
-  if (args.Arg2Len)
+  bool fusexset = false;
+
+  // check if this is a protocol buffer injection
+  if ((cmd == SFS_FSCTL_PLUGIN) && (args.Arg2Len > 5))
+  {
+    std::string key;
+    key.assign(args.Arg2, 6);
+    if (key == "fusex:")
+    {
+      fusexset = true;
+    }
+  }
+  if (!fusexset && args.Arg2Len)
   {
     if (args.Arg2Len < 16384)
     {
@@ -187,6 +199,8 @@ XrdMgmOfs::FSctl (const int cmd,
   {
     iopaque[0] = 0;
   }
+
+  eos_static_err("1 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
 
   const char* inpath = ipath;
   const char* ininfo = iopaque;
@@ -207,6 +221,8 @@ XrdMgmOfs::FSctl (const int cmd,
 
   BOUNCE_ILLEGAL_NAMES;
 
+  eos_static_err("2 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+
   // ---------------------------------------------------------------------------
   // from here on we can deal with XrdOucString which is more 'comfortable'
   // ---------------------------------------------------------------------------
@@ -216,14 +232,18 @@ XrdMgmOfs::FSctl (const int cmd,
   XrdOucEnv env(opaque.c_str());
 
   const char* scmd = env.Get("mgm.pcmd");
-  XrdOucString execmd = scmd?scmd:"";
+  XrdOucString execmd = scmd ? scmd : "";
+
+  eos_static_err("3 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
 
   // version is not submitted to access control
   // so that features of the instance can be retrieved by an authenticated user
-  if( execmd != "version" )
+  if ( (execmd != "version") && !fusexset)
   {
     BOUNCE_NOT_ALLOWED;
   }
+
+  eos_static_err("4 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
 
   eos_thread_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
 
@@ -245,7 +265,7 @@ XrdMgmOfs::FSctl (const int cmd,
     }
 
     char locResp[4096];
-    char rType[3], *Resp[] = {rType, locResp};
+    char rType[3], *Resp[] ={rType, locResp};
     rType[0] = 'S';
     // we don't want to manage writes via global redirection - therefore we mark the files as 'r'
     rType[1] = 'r'; //(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
@@ -261,6 +281,19 @@ XrdMgmOfs::FSctl (const int cmd,
     return Emsg("fsctl", error, EOPNOTSUPP, "fsctl", inpath);
   }
 
+  // -------------------------------------------------------------------------
+  // Fuse e(x)tension - this we always redirect to the RW master
+  // -------------------------------------------------------------------------
+  if (fusexset)
+  {
+    eos_static_err("5 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+    std::string protobuf;
+    protobuf.assign(args.Arg2 + 6, args.Arg2Len - 6);
+#include "fsctl/Fusex.cc"
+  }
+
+  
+  
   if ( scmd )
   {
     // -------------------------------------------------------------------------
@@ -313,7 +346,7 @@ XrdMgmOfs::FSctl (const int cmd,
     // -------------------------------------------------------------------------
     // Make a directory and return it's inode
     // -------------------------------------------------------------------------
-    
+
     if (execmd == "mkdir")
     {
 #include "fsctl/Mkdir.cc"
@@ -474,11 +507,11 @@ XrdMgmOfs::FSctl (const int cmd,
       const char* sd = env.Get("compact_dirs");
       bool compact_files=false;
       bool compact_directories=false;
-      
+
       if (sf)
-	compact_files=true;
+        compact_files=true;
       if (sd)
-	compact_directories=true;
+        compact_directories=true;
 
       gOFS->MgmMaster.WaitNamespaceFilesInSync(compact_files, compact_directories);
       gOFS->MgmMaster.RebootSlaveNamespace();

@@ -121,6 +121,8 @@ namespace llfusexx
    operations.removexattr = &T::removexattr;
    operations.readlink = &T::readlink;
    operations.symlink = &T::symlink;
+   operations.getlk = &T::getlk;
+   operations.setlk = &T::setlk;
   }
 
  public:

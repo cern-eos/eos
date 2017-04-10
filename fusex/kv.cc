@@ -168,6 +168,7 @@ kv::put(std::string &key, std::string &value)
   if (!mContext)
     return 0;
 
+  XrdSysMutexHelper locker(this);
   redisAsyncCommand(mAsyncContext, 0, 0, "SET %s %b",
                     key.c_str(),
                     value.c_str(),
@@ -188,6 +189,8 @@ kv::erase(std::string &key)
     return 0;
 
   eos_static_info("key=%s", key.c_str());
+  
+  XrdSysMutexHelper locker(this);
   redisAsyncCommand(mAsyncContext, 0, 0, "DEL %s",
                     key.c_str());
   //event_base_dispatch(mEventBase);

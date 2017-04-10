@@ -30,6 +30,7 @@
 #include "common/StringConversion.hh"
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
+#include "common/SymKeys.hh"
 #include "common/http/OwnCloud.hh"
 #include "namespace/Constants.hh"
 #include "mgm/Access.hh"

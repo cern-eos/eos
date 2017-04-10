@@ -802,7 +802,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get the container metadata information
   //----------------------------------------------------------------------------
-  ContainerMD *ChangeLogContainerMDSvc::getContainerMD( ContainerMD::id_t id )
+  ContainerMD *ChangeLogContainerMDSvc::getContainerMD( ContainerMD::id_t id, uint64_t* clock )
     throw( MDException )
   {
     IdMap::iterator it = pIdMap.find( id );
@@ -812,6 +812,12 @@ namespace eos
       e.getMessage() << "Container #" << id << " not found";
       throw e;
     }
+
+    if (clock)
+    {
+      *clock = it->second.logOffset;
+    }
+   
     return it->second.ptr;
   }
 

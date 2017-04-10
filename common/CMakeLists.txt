@@ -59,7 +59,6 @@ add_library (eosCommon SHARED
 	    GlobalConfig.cc
             Attr.cc
             Report.cc
-	    ZMQ.cc
 	    ShellExecutor.cc
 	    ShellCmd.cc
 	    StringTokenizer.cc
@@ -84,7 +83,6 @@ add_library (eosCommon-Static STATIC
 	    ShellCmd.cc
 	    StringTokenizer.cc
             StringConversion.cc
-	    ZMQ.cc
 	    CommentLog.cc
 	    RWMutex.cc
 )

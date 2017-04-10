@@ -207,7 +207,6 @@ diskcache::attach()
   if (nattached == 0)
   {
     std::string path;
-    //
     int rc = location(path);
     if (rc)
     { 

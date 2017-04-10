@@ -37,7 +37,7 @@
 #include <hiredis/adapters/libevent.h>
 #include <event.h>
 
-class kv
+class kv : public XrdSysMutex
 {
 public:
 

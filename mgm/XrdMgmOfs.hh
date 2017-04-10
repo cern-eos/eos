@@ -115,9 +115,7 @@
 #include "mgm/Master.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/Recycle.hh"
-#ifdef HAVE_ZMQ
 #include "mgm/ZMQ.hh"
-#endif
 #include "mgm/Messaging.hh"
 #include "mgm/VstMessaging.hh"
 #include "mgm/ProcInterface.hh"
@@ -989,9 +987,7 @@ public:
 
   static XrdSysError *eDest; //< error routing object
 
-#ifdef HAVE_ZMQ
   ZMQ* zMQ; //<  ZMQ processor
-#endif
 
   //----------------------------------------------------------------------------
   // Namespace specific variables

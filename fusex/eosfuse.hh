@@ -29,6 +29,7 @@
 #include "md.hh"
 #include "cap.hh"
 #include "data.hh"
+#include "backend.hh"
 #include "kv.hh"
 #include "llfusexx.hh"
 
@@ -140,9 +141,16 @@ public:
   static void
   symlink(fuse_req_t req, const char *link, fuse_ino_t parent, const char *name);
 
+  static void getlk(fuse_req_t req, fuse_ino_t ino,
+                   struct fuse_file_info *fi, struct flock *lock);
+
+  static void setlk(fuse_req_t req, fuse_ino_t ino,
+                   struct fuse_file_info *fi,
+                   struct flock *lock, int sleep) ;
   metad mds;
   data datas;
   cap caps;
+  backend mdbackend;
 
 private:
 
@@ -194,6 +202,11 @@ private:
     std::string statfilepath;
     std::string mdcachehost;
     int mdcacheport;
+    std::string mqtargethost;
+    std::string mqidentity;
+    std::string mqname;
+    std::string clienthost;
+    std::string clientuuid;
 
     typedef struct options
     {
@@ -232,6 +245,8 @@ private:
   std::thread tDumpStatistic;
   std::thread tStatCirculate;
   std::thread tMetaCacheFlush;
+  std::thread tMetaCommunicate;
+  std::thread tCapFlush;
 
   static void DumpStatistic();
   static void StatCirculate();

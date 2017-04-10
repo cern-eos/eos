@@ -1105,7 +1105,7 @@ EosFuse::unlink (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  if (!retc)
  {
-   me.fs ().forget_p2i ((unsigned long long) ino);
+   //   me.fs ().forget_p2i ((unsigned long long) ino);
    fuse_reply_buf (req, NULL, 0);
   }
  else

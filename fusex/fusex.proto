@@ -2,6 +2,9 @@ syntax = "proto3";
 package eos.fusex;
 
 message md {
+  enum OP { GET = 0; SET = 1; DELETE = 2; GETCAP = 3; LS = 4; }
+  enum TYPE { MD = 0; MDLS = 1; }
+
   fixed64 id = 1;        //< file/container id
   fixed64 pid = 2;       //< parent id
   fixed64 ctime = 3    ; //< change time
@@ -14,7 +17,7 @@ message md {
   fixed64 btime_ns = 10; //< ns of birth time
   fixed64 ttime = 11   ; //< tree modification time
   fixed64 ttime_ns = 12; //< ns of tree modification time
-  sint64 size = 13     ; //< size 
+  fixed64 size = 13     ; //< size 
   sfixed32 uid = 14    ; //< user  id
   sfixed32 gid = 15    ; //< group id
   sfixed32 mode = 16   ; //< mode
@@ -23,10 +26,23 @@ message md {
   string target = 19   ; //< symlink target
   string authid = 20   ; //< strong security auth id
   string clientid = 21 ; //< string identifying a client
-  sint64 clock = 22    ; //< vector clock
-  fixed32 operation = 23   ; //< indicates operations to execute
-  map<string, string> attr = 24; //< xattribute map
-  map<string, fixed64> children = 25; //< children's name and id
+  string clientuuid = 22; //< optional string of a temporary client id
+  fixed64 clock = 23    ; //< vector clock
+  fixed64 reqid =24     ; //< request ID
+  fixed64 md_ino = 25  ; //< central namespace inode
+  fixed64 md_pino = 26 ; //< central namespace parent inode
+  OP operation = 27    ; //< indicates operations to execute
+  TYPE type = 28       ; //< indicates the content of this recored, just MD or MD+children
+  sfixed32 err = 29  ; //< errno concerning md record
+  map<string, string> attr = 30; //< xattribute map
+  map<string, fixed64> children = 31; //< children's name and id 
+  // children id is a virtual inode on when stored FUSE client side
+  // children id is the physical inode when created on server side 
+  cap capability = 32; //< optional response capability
+};
+
+message md_map {
+  map<fixed64, md> md_map_ = 1;
 };
 
 message dir {
@@ -44,15 +60,83 @@ message io {
 
 message cap {
   fixed64 id = 1; //< file/container 
-  fixed32 type = 2; //< cap type
-  fixed32 mode = 3; //< granted mode
-  fixed64 vtime = 4; //< valid until unix timestamp
-  fixed64 vtime_ns = 5; //< valid ns resolution
-  sfixed32 uid = 6    ; //< user  id
-  sfixed32 gid = 7    ; //< group id
-  string  authid = 8; //< auth id
-  string  clientid = 9; //< client id 
-  fixed32 errc = 10; //< error code when acquired
-  repeated string token = 11; //< capability granted 
-  repeated string domain = 12; //< validity domain
+  fixed32 mode = 2; //< granted mode
+  fixed64 vtime = 3; //< valid until unix timestamp
+  fixed64 vtime_ns = 4; //< valid ns resolution
+  sfixed32 uid = 5    ; //< user  id
+  sfixed32 gid = 6    ; //< group id
+  string clientuuid = 7; //< client uuid
+  string clientid = 8; //< client id
+  string authid = 9; //< auth id
+  fixed32 errc = 10; //< error code
+}
+
+message cap_map {
+   map<fixed64, cap> cap_map_ = 1;
+};
+
+message heartbeat {
+  string name = 1; //< client chosen ID	
+  string host = 2; //< client host
+  string uuid = 3; //< client uuid
+  string version = 4; //< client version
+  fixed32 pid = 5; //< client pid
+  fixed64 starttime = 6; //< client startup time
+  fixed64 clock = 7; //< client clock ns when sending
+  fixed64 clock_ns = 8; //< client clock ns when sending
+  double delta = 9; //< client delta after arrival
+}
+
+message statistics {
+  fixed64 inodes = 1; //< client inodes
+  fixed64 inodes_todelete = 2; //< client inodes to delete
+  fixed64 inodes_backlog = 3; //< client inodes backlog
+  fixed64 inodes_ever = 4; //< client inodes ever used
+  fixed64 inodes_ever_deleted = 5; //< client inodes ever deleted
+  fixed32 threads = 6; //< client threads in use
+  float vsize_mb = 7; //< client virtual memory usage in mb
+  float rss_mb = 8; //< client resident memory usage in mb
+}
+
+message container {
+  enum Type { HEARTBEAT = 0; STATISTICS = 1; MD = 2; DIR = 3; MDMAP = 4; CAP = 5; }
+
+  // Identifies which field is filled in.
+  Type type = 1;
+
+  // One of the following will be filled in.
+  heartbeat heartbeat_ = 2;
+  statistics statistics_ = 3;
+  md md_ = 4;
+  dir dir_ = 5;
+  md_map md_map_ = 6;
+  fixed64 ref_inode_ = 7;
+  cap cap_ = 8;
+  cap_map cap_map_ = 9;
+}
+
+message evict {
+  string reason = 1; //< reason given by server
+}
+
+message ack {
+  enum Code { OK = 0; TMP_FAILURE = 1; PERMANENT_FAILURE = 2; }
+
+  Code code = 1; //< ack code 
+  fixed64 transactionid = 2; //< transaction id to ack
+  fixed32 err_no = 3; //< error number
+  fixed64 md_ino = 4; //< newly created inode number
+  string err_msg = 5; //< error message
+  
+}
+
+message response {
+  enum Type { EVICT = 0; ACK = 1; }
+
+  // Identifies which field is filled in.
+  Type type = 1;
+
+  // One of the following will be filled in.
+  evict evict_ = 2;
+  ack ack_ = 3;
 }

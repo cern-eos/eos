@@ -108,7 +108,8 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get the file metadata information for the given file ID
       //------------------------------------------------------------------------
-      virtual FileMD *getFileMD( FileMD::id_t id ) throw( MDException );
+      virtual FileMD *getFileMD( FileMD::id_t id, uint64_t* clock) throw( MDException );
+      virtual FileMD *getFileMD( FileMD::id_t id) throw( MDException ) { return getFileMD(id, 0); }
 
       //------------------------------------------------------------------------
       //! Create new file metadata object with an assigned id

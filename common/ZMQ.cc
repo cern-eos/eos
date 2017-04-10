@@ -23,7 +23,6 @@
 
 /*----------------------------------------------------------------------------*/
 
-#ifdef HAVE_ZMQ
 #include "common/ZMQ.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -101,4 +100,3 @@ ZMQ::Process (zmq::socket_t &socket, zmq::message_t &request)
 
 EOSCOMMONNAMESPACE_END
 
-#endif

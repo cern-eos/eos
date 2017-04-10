@@ -1217,6 +1217,19 @@ StringConversion::json_encode(const std::string &s)
 }
 
 
+// ---------------------------------------------------------------------------
+//! Create random uuid string
+// ---------------------------------------------------------------------------
+
+std::string
+StringConversion::random_uuidstring () 
+{
+  char id[40];
+  uuid_t uuid;
+  uuid_generate_time(uuid);
+  uuid_unparse(uuid, id);
+  return id;
+}
 
 
 

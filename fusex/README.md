@@ -78,7 +78,25 @@ ALL        setxattr                                    0     0.00     0.00     0
 ALL        statfs                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
 ALL        symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
 ALL        unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
+ALL        write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-  
+
+# -----------------------------------------------------------------------------------------------------------
+ALL        inodes              := 4
+ALL        inodes-todelete     := 0
+ALL        inodes-backlog      := 0
+ALL        inodes-ever         := 4
+ALL        inodes-ever-deleted := 0
+# -----------------------------------------------------------------------------------------------------------
+ALL        threads             := 14
+ALL        visze               := 815.51 Mb
+All        rss                 := 26.21 Mb
+All        version             := 0.3.212
+ALl        fuseversion         := 28
+All        starttime           := 1490279571
+All        uptime              := 183
+All        instance-url        := 128.142.24.85:1094
+# -----------------------------------------------------------------------------------------------------------
+    
 
 ```
 # mount on /eos/
@@ -87,5 +105,14 @@ mount -t fuse eosxd /eos/
 # umount /eos/
 umount -f /eos/
 ```
+
+Live Interaction with a FUSE mount
+----------------------------------
+
+To change the log configuration do as root:
+
+# setfattr -n system.eos.debug -v info
+# setfattr -n system.eos.debug -v debug
+# setfattr -n system.eos.debug -v notic
 
 

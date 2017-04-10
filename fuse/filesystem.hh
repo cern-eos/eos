@@ -920,6 +920,8 @@ private:
  bool encode_pathname; ///< indicated if filename should be encoded
  bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
  bool show_eos_attributes; ///< show all sys.* and emulated user.eos attributes when listing xattributes
+ int xrootd_nullresponsebug_retrycount; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we retry.
+ int xrootd_nullresponsebug_retrysleep; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we sleep between attempts.
  mode_t mode_overlay; ///< mask which is or'ed into the retrieved mode
  uint64_t max_wb_in_memory_size; ///< maximum size of in-memory wb cache structures
  XrdOucString gMgmHost; ///< host name of the FUSE contact point
