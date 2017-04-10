@@ -7,6 +7,34 @@
 Beryl Release Notes
 ===================
 
+``V0.3.235 Aquamarine``
+=======================
+
+New Feature
++++++++++++
+
+- NS: compile with devtoolset-2 on SLC6
+- NS: make part of boot process parallel (gain 3-6x in boottime) [ enable with export EOS_NS_BOOT_PARALLEL=1 ]
+- NS: mmap changelog files during first scan phase to avoid performance limitation by too many syscalls [ disable with export EOS_NS_BOOT_NOMMAP=1 ]
+- NS: implement pread function for namespace file following using read-ahead caching to avoid too many syscalls
+- NS: allow to disable CRC32 on boot (e.g. when using BTRS/ZFS) [ enable with export EOS_NS_BOOT_NORCRC32=1 ]
+- NS: use murmurhash3 for the main flat indexes avoiding serious performance degradation for high id's in google::dense_hash_map
+- NS: make treesize and tree modification time atomic variables if gcc >=4.8
+- FST: limit 'file open for writing' messages in Verify to once per minute
+- FST: limit 'writer error' message to only once per open/write/close file sequence
+- COMMON: add generic lambda function to run parallel for loops Parallel::For ()
+- UTILS: add yum packages to install devtoolset-2 to compile with gcc 4.8
+
+Bug Fixes
++++++++++
+
+- NS: fix various bugs in slave follower losing directories, not showing proper treesize aso.
+- MGM: avoid Converter::ResetMasterJobs on slaves
+- MGM: don't run slaves in auto-repair mode when scanning the changelog file
+- FUSE: fix 'bad address' errors and show proper 'permission denied' messages when a client has not credential or is forbidden to talk to certain EOS instances
+- CONSOLE: fix 'treesize' output in 'fileinfo' 
+
+
 ``V0.3.234 Aquamarine``
 =======================
 
