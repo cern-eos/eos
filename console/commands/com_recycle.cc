@@ -202,6 +202,7 @@ com_recycle_usage:
   fprintf(stdout, "                                                  set the size of the recycle bin\n");
   fprintf(stdout, "'ls' and 'config' support the '-m' flag to give monitoring format output!\n");
   fprintf(stdout, "'ls' supports the '-n' flag to give numeric user/group ids instead of names!\n");
+  global_retc = EINVAL;
   return (0);
 }
 

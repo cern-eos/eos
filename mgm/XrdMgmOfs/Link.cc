@@ -202,7 +202,7 @@ XrdMgmOfs::_symlink (const char *source_name,
 
   eos_info("source=%s target=%s", source_name, target_name);
 
-  EXEC_TIMING_BEGIN("SymLink");
+  EXEC_TIMING_BEGIN("Symlink");
 
   eos::common::Path oPath(source_name);
   std::string oP = oPath.GetParentPath();
@@ -263,7 +263,7 @@ XrdMgmOfs::_symlink (const char *source_name,
     }
   }
 
-  EXEC_TIMING_END("SymLink");
+  EXEC_TIMING_END("Symlink");
 
   return SFS_OK;
 }

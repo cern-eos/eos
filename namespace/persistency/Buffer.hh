@@ -45,6 +45,7 @@ namespace eos
       Buffer( unsigned size = 512 )
       {
         reserve( size );
+	data = 0;
       }
 
       //------------------------------------------------------------------------
@@ -65,7 +66,8 @@ namespace eos
       //------------------------------------------------------------------------
       Buffer &operator = ( const Buffer &other )
       {
-        resize( other.getSize() );
+	if (!data)
+	  resize( other.getSize() );
         memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
         return *this;
       };
@@ -75,7 +77,10 @@ namespace eos
       //------------------------------------------------------------------------
       char *getDataPtr()
       {
-        return &operator[]( 0 );
+	if (!data)
+	  return &operator[]( 0 );
+	else
+	  return data;
       }
 
       //------------------------------------------------------------------------
@@ -83,16 +88,33 @@ namespace eos
       //------------------------------------------------------------------------
       const char *getDataPtr() const
       {
-        return &operator[]( 0 );
+	if (!data)
+	  return &operator[]( 0 );
+	else
+	  return data;
       }
+
+      void setDataPtr(char* ptr, size_t size)
+      {
+       data = ptr;
+       len = size;
+      } 
 
       //------------------------------------------------------------------------
       //! Get data padded (if we read over the size we get 0 as response)
       //------------------------------------------------------------------------
       const char getDataPadded(size_t i) const
       {
-        if (i < size())
-	  return (operator[](i));
+	if (!data)
+	{
+	  if (i < size())
+	    return (operator[](i));
+	}
+	else
+	{
+	  if (i < len)
+	    return *(data+i);
+	}
         return 0;
       }
 
@@ -101,7 +123,10 @@ namespace eos
       //------------------------------------------------------------------------
       size_t getSize() const
       {
-        return size();
+	if (!data)
+	  return size();
+	else
+	  return len;
       }
 
       //------------------------------------------------------------------------
@@ -109,9 +134,18 @@ namespace eos
       //------------------------------------------------------------------------
       void putData( const void *ptr, size_t dataSize )
       {
-        size_t currSize = size();
-        resize( currSize + dataSize );
-        memcpy( &operator[](currSize), ptr, dataSize );
+	if (!data)
+	{
+	  size_t currSize = size();
+	  resize( currSize + dataSize );
+	  memcpy( &operator[](currSize), ptr, dataSize );
+	}
+	else
+	{
+	  MDException e( EINVAL );
+	  e.getMessage() << "Read only structure";
+	  throw e;
+	}
       }
 
       //------------------------------------------------------------------------
@@ -120,15 +154,21 @@ namespace eos
       uint16_t grabData( uint16_t offset, void *ptr, size_t dataSize ) const
         throw( MDException )
       {
-        if( offset+dataSize > getSize() )
-        {
-	  fprintf(stderr,"offset=%llu dataSize=%ld\n", (unsigned long long)offset, (long) dataSize);
-          MDException e( EINVAL );
-          e.getMessage() << "Not enough data to fulfil the request";
-          throw e;
-        }
-        memcpy( ptr, &operator[](offset), dataSize );
-        return offset+dataSize;
+	if( offset+dataSize > getSize() )
+	{
+	  MDException e( EINVAL );
+	  e.getMessage() << "Not enough data to fulfil the request";
+	  throw e;
+	}
+	if (!data)
+	{
+	  memcpy( ptr, &operator[](offset), dataSize );
+	}
+	else
+	{
+	  memcpy( ptr, data+offset, dataSize );
+	}
+	return offset+dataSize;
       }
 
       //------------------------------------------------------------------------
@@ -140,6 +180,8 @@ namespace eos
                      (const Bytef*)getDataPtr(), size() );
       }
     protected:
+    char* data;
+    size_t len;
   };
 }
 

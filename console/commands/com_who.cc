@@ -108,5 +108,6 @@ com_who_usage:
   fprintf(stdout, "                -a                                                   -  print all\n");
   fprintf(stdout, "                -s                                                   -  print summary for clients\n");
   fprintf(stdout, "                -m                                                   -  print in monitoring format <key>=<value>\n");
+  global_retc = EINVAL;
   return (0);
 }

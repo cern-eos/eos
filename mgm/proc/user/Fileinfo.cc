@@ -200,6 +200,7 @@ ProcCommand::FileInfo (const char* path)
       // make a copy of the meta data
       eos::FileMD fmdCopy(*fmd);
       fmd = &fmdCopy;
+
       gOFS->eosViewRWMutex.UnLockRead();
       //-------------------------------------------
 
@@ -722,7 +723,10 @@ ProcCommand::DirInfo (const char* path)
 
       // Make a copy of the meta data
       eos::ContainerMD fmdCopy(*fmd);
+      fmdCopy.InheritChildren(*fmd);
       fmd = &fmdCopy;
+
+
       gOFS->eosViewRWMutex.UnLockRead();
       //-------------------------------------------
 

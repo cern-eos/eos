@@ -28,6 +28,7 @@ Configuration
    configuration/scheduler
    configuration/transfer
    configuration/tty
+   configuration/namespace
    configuration/wfe
 
 

@@ -149,5 +149,6 @@ com_cd_usage:
   fprintf(stdout, "                                                  change into the directory one level up\n");
   fprintf(stdout, "cd ~ :\n");
   fprintf(stdout, "                                                  change into the directory defined via the environment variable EOS_HOME\n");
+  global_retc = EINVAL;
   return (0);
 }

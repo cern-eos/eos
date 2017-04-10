@@ -179,6 +179,17 @@ public:
  //----------------------------------------------------------------------------
  void store_p2i (unsigned long long inode, const char* path);
 
+ //----------------------------------------------------------------------------
+ //! Store an inode/mtime pair
+ //----------------------------------------------------------------------------
+ void store_i2mtime (unsigned long long inode, timespec ts);
+
+ //----------------------------------------------------------------------------
+ //! Store and test inode/mtime pair
+ //----------------------------------------------------------------------------
+
+ bool store_open_i2mtime (unsigned long long inode);
+
 
  //----------------------------------------------------------------------------
  //! Store an inode/path mapping starting from the parent:
@@ -445,7 +456,8 @@ unsigned long long redirect_i2i (unsigned long long inode);
                       int nentries,
                       struct timespec mtime,
                       struct timespec ctime,
-                      struct dirbuf* b);
+                      struct dirbuf* b, 
+		      long lifetimens);
 
 
  //----------------------------------------------------------------------------
@@ -574,8 +586,8 @@ unsigned long long redirect_i2i (unsigned long long inode);
  //----------------------------------------------------------------------------
  //!
  //----------------------------------------------------------------------------
- int error_retc_map (int retc);
-
+ static int error_retc_map (int retc);
+  
 
  //----------------------------------------------------------------------------
  //!
@@ -938,6 +950,9 @@ private:
 
  // Mapping inode to path name
  std::map<unsigned long long, std::string> inode2path;
+
+  std::map<unsigned long long, struct timespec> inode2mtime;
+  std::map<unsigned long long, struct timespec> inode2mtime_open;
 
  // Prefix (duplicated from upstream object)
  std::string mPrefix;

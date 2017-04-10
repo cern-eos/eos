@@ -101,5 +101,6 @@ com_debug (char* arg1)
   fprintf(stdout, "  debug err /eos/*/fst                set all FSTs into debug mode 'info'\n\n");
   fprintf(stdout, "  debug crit /eos/*/mgm               set MGM into debug mode 'crit'\n\n");
   fprintf(stdout, "  debug debug -filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages comming from unit 'MgmOfsMessage'.\n\n");
+  global_retc = EINVAL;
   return (0);
 }

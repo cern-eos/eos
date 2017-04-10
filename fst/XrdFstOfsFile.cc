@@ -57,6 +57,7 @@ mTpcThreadStatus(EINVAL)
   opened = false;
   haswrite = false;
   hasReadError = false;
+  hasWriteError = false;
   fMd = 0;
   checkSum = 0;
   layOut = 0;
@@ -2722,12 +2723,16 @@ XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
   if (rc < 0)
   {
     int envlen = 0;
-    eos_crit("block-write error=%d offset=%llu len=%llu file=%s",
-             error.getErrInfo(),
-             static_cast<unsigned long long> (fileOffset),
-             static_cast<unsigned long long> (buffer_size),
-             FName(),
-             capOpaque ? capOpaque->Env(envlen) : FName());
+    if (!hasWriteError || EOS_LOGS_DEBUG)
+    {
+      eos_crit("block-write error=%d offset=%llu len=%llu file=%s",
+	       error.getErrInfo(),
+	       static_cast<unsigned long long> (fileOffset),
+	       static_cast<unsigned long long> (buffer_size),
+	       FName(),
+	       capOpaque ? capOpaque->Env(envlen) : FName());
+    }
+    hasWriteError = true;
   }
 
   if (rc < 0)

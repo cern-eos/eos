@@ -1018,9 +1018,6 @@ Master::Compacting ()
 
         try
         {
-	  contSettings["auto_repair"] = "true";
-	  fileSettings["auto_repair"] = "true";
-	  
           gOFS->eosFileService->configure(fileSettings);
           gOFS->eosDirectoryService->configure(contSettings);
         }
@@ -1720,9 +1717,8 @@ Master::Slave2Master ()
   rc = scmd4.wait(30);
   if (rc.exit_code)
   {
-    MasterLog(eos_crit("slave=>master failed to restart eossync - fix that otherwise your slave won't boot");
+    MasterLog(eos_warning("failed to start eossync services - %d", rc.exit_code));
   }
-
 
   UnBlockCompacting();
 
@@ -2026,7 +2022,7 @@ Master::BootNamespace ()
 
   if (getenv("EOS_NS_FILE_SIZE"))
   {
-    contSettings["ns_size"] = getenv("EOS_NS_FILE_SIZE");
+    fileSettings["ns_size"] = getenv("EOS_NS_FILE_SIZE");
     ns_preset=true;
   }
 
@@ -2053,10 +2049,10 @@ Master::BootNamespace ()
 
     contSettings["slave_mode"] = "true";
     contSettings["poll_interval_us"] = "1000";
-    contSettings["auto_repair"] = "true";
+    contSettings["auto_repair"] = "false";
     fileSettings["slave_mode"] = "true";
     fileSettings["poll_interval_us"] = "1000";
-    fileSettings["auto_repair"] = "true";
+    fileSettings["auto_repair"] = "false";
   }
 
   gOFS->MgmNsFileChangeLogFile = fileSettings["changelog_path"].c_str();

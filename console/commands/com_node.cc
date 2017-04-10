@@ -343,5 +343,6 @@ com_node_usage:
   fprintf(stdout, "                                                                --force : removes any existing filesystem label and re-registers\n");
   fprintf(stdout, "                                                                --root  : allows to register paths on the root partition\n");
   fprintf(stdout, "       node status <queue-name>|<host:port>                     : print's all defined variables for a node\n");
+  global_retc = 0;
   return (0);
 }

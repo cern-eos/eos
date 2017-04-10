@@ -52,7 +52,7 @@ namespace eos
     pMTime.tv_nsec = 0;
     pTMTime.tv_sec = 0;
     pTMTime.tv_nsec = 0;
-    pTreeSize = 0;
+    setTreeSize(0);
   }
 
   //----------------------------------------------------------------------------
@@ -61,6 +61,9 @@ namespace eos
   ContainerMD::ContainerMD( const ContainerMD &other)
   {
     *this = other;
+#if __GNUC_PREREQ(4,8)
+    this->pTMTime_atomic = other.pTMTime_atomic;
+#endif
   }
 
   //------------------------------------------------------------------------                       
@@ -69,14 +72,11 @@ namespace eos
   void
   ContainerMD::InheritChildren( const ContainerMD &other)
   {
-<<<<<<< Updated upstream
     pFiles = other.pFiles;
     pSubContainers = other.pSubContainers;
-    pTreeSize = other.pTreeSize;
-=======
     this->pFiles = other.pFiles;
     this->pSubContainers = other.pSubContainers;
->>>>>>> Stashed changes
+    setTreeSize(other.getTreeSize());
   }
 
   //----------------------------------------------------------------------------

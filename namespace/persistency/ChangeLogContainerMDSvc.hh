@@ -30,6 +30,7 @@
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
 #include "namespace/accounting/QuotaStats.hh"
+#include "common/Murmur3.hh"
 
 #include <google/dense_hash_map>
 #include <google/sparse_hash_map>
@@ -52,7 +53,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ChangeLogContainerMDSvc(): pFirstFreeId( 0 ), pSlaveLock( 0 ),
+      ChangeLogContainerMDSvc(): pFirstFreeId( 1 ), pSlaveLock( 0 ),
         pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
         pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 ), pContainerAccounting ( 0 ), pResSize( 1000000 )
       {
@@ -164,7 +165,7 @@ namespace eos
       //! @throw  MDException    preparation stage failed, cannot proceed with
       //!                        compacting
       //------------------------------------------------------------------------
-      void *compactPrepare (const std::string &newLogFileName) const
+      void *compactPrepare (const std::string &newLogFileName)
         throw ( MDException);
 
       //------------------------------------------------------------------------
@@ -322,17 +323,19 @@ namespace eos
       //------------------------------------------------------------------------
       struct DataInfo
       {
-        DataInfo(): logOffset(0), ptr(0) {} // for some reason needed by sparse_hash_map::erase
+        DataInfo(): logOffset(0), ptr(0), attached(false) {} // for some reason needed by sparse_hash_map::erase
         DataInfo( uint64_t logOffset, ContainerMD *ptr )
         {
           this->logOffset = logOffset;
           this->ptr       = ptr;
+	  attached = false;
         }
         uint64_t     logOffset;
         ContainerMD *ptr;
+	bool attached;
       };
 
-      typedef google::dense_hash_map<ContainerMD::id_t, DataInfo> IdMap;
+      typedef google::dense_hash_map<ContainerMD::id_t, DataInfo , Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr> IdMap;
       typedef std::list<IContainerMDChangeListener*>              ListenerList;
       typedef std::list<ContainerMD*>                             ContainerList;
 
@@ -367,7 +370,9 @@ namespace eos
         for( it = pListeners.begin(); it != pListeners.end(); ++it )
           (*it)->containerMDChanged( obj, a );
       }
-
+      
+      void loadContainer( IdMap::iterator &it );
+      
       //------------------------------------------------------------------------
       // Recreate the container structure recursively and create the list
       // of orphans and name conflicts

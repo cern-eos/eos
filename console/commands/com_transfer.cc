@@ -459,5 +459,6 @@ com_transfer (char* argin)
   fprintf(stdout, "                       : kill a running transfer\n");
   fprintf(stdout, "transfer purge [<id>|--group=<groupname>]\n");
   fprintf(stdout, "                       : remove 'failed' transfers from the transfer queue by id, group or all if not specified\n");
+  global_retc = EINVAL;
   return (0);
 }

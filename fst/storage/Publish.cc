@@ -43,6 +43,13 @@ Storage::Publish ()
   // ---------------------------------------------------------------------
   char* tmpname = tmpnam(NULL);
   XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' | xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> ";
+
+  if (getenv("EOS_FST_NETWORK_SPEED"))
+  {
+    getnetspeed = "echo ";
+    getnetspeed += getenv("EOS_FST_NETWORK_SPEED");
+    getnetspeed += " >> ";
+  }
   getnetspeed += tmpname;
   eos::common::ShellCmd scmd1(getnetspeed.c_str());
   eos::common::cmd_status rc = scmd1.wait(5);
@@ -53,7 +60,9 @@ Storage::Publish ()
 
   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ? getenv("EOS_GEOTAG") : "");
   XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ? getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
+  
 
+    
   FILE* fnetspeed = fopen(tmpname, "r");
   if (fnetspeed)
   {

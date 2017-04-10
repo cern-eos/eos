@@ -109,7 +109,8 @@ target_link_libraries( eos
 		XrdPosix	        XrdCl
 		XrdUtils  	eosCommon
 		crypto           curses
-		dl               z
+		dl               z 
+		rt
 		readline         ${CMAKE_THREAD_LIBS_INIT}
 		${UUID_LIBRARIES} 			       
 )
@@ -120,6 +121,7 @@ target_link_libraries( eos
 		readline          XrdMqClient-Static
 		crypto            curses
 		dl                z
+		rt
 		${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}
 )
 endif(CLIENT)

@@ -416,6 +416,9 @@ EosFuse::getattr (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
  {
    eos_static_info("attr-reply %lld %u %u %ld.%ld %ld.%ld",  (long long) stbuf.st_ino, stbuf.st_uid, stbuf.st_gid, (long) stbuf.ATIMESPEC.tv_sec, (long) stbuf.ATIMESPEC.tv_nsec, (long) stbuf.MTIMESPEC.tv_sec, (long) stbuf.MTIMESPEC.tv_nsec);
    fuse_reply_attr (req, &stbuf, me.config.attrcachetime);
+
+   me.fs ().store_i2mtime(stbuf.st_ino, stbuf.MTIMESPEC);
+
    eos_static_debug("mode=%x timeout=%.02f\n", stbuf.st_mode, me.config.attrcachetime);
   }
  else
@@ -518,6 +521,9 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
       newattr.MTIMESPEC.tv_sec = attr->MTIMESPEC.tv_sec;
       newattr.MTIMESPEC.tv_nsec = attr->MTIMESPEC.tv_nsec;
       newattr.st_ino = ino;
+
+      me.fs ().store_i2mtime(ino, attr->MTIMESPEC);
+
       eos_static_debug("set attr ino=%lld atime=%ld atime.nsec=%ld mtime=%ld mtime.nsec=%ld",
 		      (long long) ino, (long) newattr.ATIMESPEC.tv_sec, (long) newattr.ATIMESPEC.tv_nsec, (long) newattr.MTIMESPEC.tv_sec, (long) newattr.MTIMESPEC.tv_nsec);
     }
@@ -567,89 +573,91 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
 
   UPDATEPROCCACHE;
 
- eos_static_debug ("name=%s, ino_parent=%llu",
-                   name, (unsigned long long) parent);
-
- me.fs ().lock_r_p2i (); // =>
- parentpath = me.fs ().path ((unsigned long long) parent);
-
- if (!parentpath || !checkpathname(name) )
- {
+  eos_static_debug ("name=%s, ino_parent=%llu",
+		    name, (unsigned long long) parent);
+  
+  me.fs ().lock_r_p2i (); // =>
+  parentpath = me.fs ().path ((unsigned long long) parent);
+  
+  if (!parentpath || !checkpathname(name) )
+  {
     eos_static_err("pathname=%s checkpathname=%d", parentpath, checkpathname(name));
-   fuse_reply_err (req, ENOENT);
-   me.fs ().unlock_r_p2i (); // <=
+    fuse_reply_err (req, ENOENT);
+    me.fs ().unlock_r_p2i (); // <=
     return;
   }
-
- if (name[0] == '/')
-   sprintf (ifullpath, "%s%s", parentpath, name);
- else
- {
-   if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
-     sprintf (ifullpath, "/%s", name);
-   else
-     sprintf (ifullpath, "%s/%s", parentpath, name);
+  
+  if (name[0] == '/')
+    sprintf (ifullpath, "%s%s", parentpath, name);
+  else
+  {
+    if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
+      sprintf (ifullpath, "/%s", name);
+    else
+      sprintf (ifullpath, "%s/%s", parentpath, name);
   }
 
- me.fs ().getPath (fullpath, me.config.mountprefix, ifullpath);
-
- me.fs ().unlock_r_p2i (); // <=
-
- eos_static_debug ("parent=%lld path=%s uid=%d",
-                   (long long) parent, fullpath.c_str (), fuse_req_ctx (req)->uid);
-
- entry_inode = me.fs ().inode (ifullpath);
-
- eos_static_debug ("entry_found = %lli %s", entry_inode, ifullpath);
-
- if (entry_inode && ( LayoutWrapper::CacheAuthSize(entry_inode) == -1))
- {
-    struct fuse_entry_param e;
+  me.fs ().getPath (fullpath, me.config.mountprefix, ifullpath);
+  
+  me.fs ().unlock_r_p2i (); // <=
+  
+  eos_static_debug ("parent=%lld path=%s uid=%d",
+		    (long long) parent, fullpath.c_str (), fuse_req_ctx (req)->uid);
+  
+  entry_inode = me.fs ().inode (ifullpath);
+  
+  eos_static_debug ("entry_found = %lli %s", entry_inode, ifullpath);
+  
+  if (entry_inode && ( LayoutWrapper::CacheAuthSize(entry_inode) == -1))
+  {
+   struct fuse_entry_param e;
    memset (&e, 0, sizeof ( e));
    int rc = me.fs ().stat (fullpath.c_str (), &e.attr, fuse_req_ctx (req)->uid,
 		  fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, entry_inode, true);
-    // Try to get entry from cache if this inode is not currently opened, but eventualy overwrite the cached size & mtime
    // Try to get entry from cache if this inode is not currently opened, but eventualy overwrite the cached size & mtime
    entry_found = me.fs ().dir_cache_get_entry (req, parent, entry_inode, ifullpath, rc?0:&e.attr);
 
    eos_static_debug ("subentry_found = %i", entry_found);
+   if (entry_found)
+     fuse_reply_entry (req, &e);
   }
 
  if (!entry_found)
  {
-    struct fuse_entry_param e;
+   struct fuse_entry_param e;
    memset (&e, 0, sizeof ( e));
 
-    e.attr_timeout = me.config.attrcachetime;
-    e.entry_timeout = me.config.entrycachetime;
+   e.attr_timeout = me.config.attrcachetime;
+   e.entry_timeout = me.config.entrycachetime;
    int retc = me.fs ().stat (fullpath.c_str (), &e.attr, fuse_req_ctx (req)->uid,
-                             fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, entry_inode);
+                              fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, entry_inode);
 
    if (!retc)
    {
      eos_static_debug ("storeinode=%lld path=%s",
                        (long long) e.attr.st_ino, ifullpath);
 
-      e.ino = e.attr.st_ino;
+     e.ino = e.attr.st_ino;
      me.fs ().store_p2i (e.attr.st_ino, ifullpath);
 
      eos_static_notice("attr-reply %lld %u %u %ld.%ld %ld.%ld",  (long long) e.attr.st_ino, e.attr.st_uid, e.attr.st_gid, (long) e.attr.ATIMESPEC.tv_sec, (long) e.attr.ATIMESPEC.tv_nsec, (long) e.attr.MTIMESPEC.tv_sec, (long) e.attr.MTIMESPEC.tv_nsec);
      fuse_reply_entry (req, &e);
-      eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
-      // Add entry to cached dir
+     eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
+     // Add entry to cached dir
      // Add entry to cached dir
      me.fs ().dir_cache_add_entry (parent, e.attr.st_ino, &e);
+     me.fs ().store_i2mtime(e.attr.st_ino, e.attr.MTIMESPEC);
    }
    else
    {
-      // Add entry as a negative stat cache entry
-      e.ino = 0;
-      e.attr_timeout = me.config.neg_entrycachetime;
-      e.entry_timeout = me.config.neg_entrycachetime;
+     // Add entry as a negative stat cache entry
+     e.ino = 0;
+     e.attr_timeout = me.config.neg_entrycachetime;
+     e.entry_timeout = me.config.neg_entrycachetime;
      fuse_reply_entry (req, &e);
-      eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
-    }
-  }
+     eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
+   }
+ }
 
  COMMONTIMING ("_stop_", &timing);
 
@@ -783,7 +791,7 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 
       //........................................................................
       // Add directory to cache or update it
-    me.fs ().dir_cache_sync (ino, cnt, attr.MTIMESPEC, attr.CTIMESPEC, &b);
+    me.fs ().dir_cache_sync (ino, cnt, attr.MTIMESPEC, attr.CTIMESPEC, &b, me.config.attrcachetime*1000000000l);
       //........................................................................
 
     fh_buf = (struct dirbuf*) malloc(sizeof(dirbuf));
@@ -1436,7 +1444,7 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   }
 
  filesystem::fd_user_info* info = (struct filesystem::fd_user_info*) calloc (1, sizeof (struct filesystem::fd_user_info));
-  info->fd = res;
+ info->fd = res;
  info->uid = fuse_req_ctx (req)->uid;
  info->gid = fuse_req_ctx (req)->gid;
  info->pid = fuse_req_ctx (req)->pid;
@@ -1448,8 +1456,15 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
    if (strstr (fullpath.c_str (), "/proc/"))
       fi->keep_cache = 0;
    else
-      fi->keep_cache = 1;
-    }
+   {
+     // if we created this file, we keep our cache
+     if (LayoutWrapper::CacheAuthSize(ino)>=0)
+       fi->keep_cache = 1;
+     else
+       fi->keep_cache = me.fs ().store_open_i2mtime(ino);
+     eos_static_debug("ino=%lx keep-cache=%d", ino, fi->keep_cache);
+   }
+ }
  else
     fi->keep_cache = 0;
 

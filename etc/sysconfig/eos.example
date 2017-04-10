@@ -106,6 +106,10 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Network interface to monitor (default eth0)
 #export EOS_FST_NETWORK_INTERFACE="eth0"
 
+# Network interface speed (automatic detection works only on SLC6)
+# specify in MBit/s
+#export EOS_FST_NETWORK_SPEED=1000
+
 # Stream timeout for operations
 #export EOS_FST_STREAM_TIMEOUT=300
 
@@ -394,3 +398,15 @@ fi
 # ------------------------------------------------------------------
 # export EOS_NS_DIR_SIZE=1000000
 # export EOS_NS_FILE_SIZE=1000000
+
+# ------------------------------------------------------------------
+# MGM Boot options
+# ------------------------------------------------------------------
+# uncomment to avoid mmaping a changelog file
+# export EOS_NS_BOOT_NOMMAP
+
+# uncomment to speed up the scanning phase skipping CRC32 computation
+# export EOS_NS_BOOT_NOCRC32
+
+# uncomment to allow a multi-threaded boot process using maximum number of cores available
+# export EOS_NS_BOOT_PARALLEL

@@ -44,6 +44,9 @@
 #include <stdio.h>
 #include <fcntl.h>
 
+#include <sys/mman.h>
+
+
 #define CHANGELOG_MAGIC 0x45434847
 #define RECORD_MAGIC    0x4552
 
@@ -130,6 +133,9 @@ namespace eos
     {
       uint32_t fileFlags = checkHeader( fd, name );
       uint8_t  version   = 0;
+
+      pReadCache.offset=0;
+      pReadCache.len=0;
       decodeHeaderFlags( fileFlags, version, pContentFlag, pUserFlags );
 
       if( version == 0 || version > 1 )
@@ -396,10 +402,10 @@ namespace eos
     vec[3].iov_base = &seq;    vec[3].iov_len = 8;
     vec[4].iov_base = &opts;   vec[4].iov_len = 4;
     vec[5].iov_base = (void*)record.getDataPtr();
-    vec[5].iov_len = record.size();
+    vec[5].iov_len = record.getSize();
     vec[6].iov_base = &chkSum; vec[6].iov_len = 4;
 
-    if( writev( pFd, vec, 7 ) != (ssize_t)(24+record.size()) )
+    if( writev( pFd, vec, 7 ) != (ssize_t)(24+record.getSize()) )
     {
       MDException ex( errno );
       ex.getMessage() << "Unable to write the record data at offset 0x";
@@ -413,7 +419,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Read the record at given offset
   //----------------------------------------------------------------------------
-  uint8_t ChangeLogFile::readRecord( uint64_t offset, Buffer &record )
+  uint8_t ChangeLogFile::readMappedRecord( uint64_t offset, Buffer &record, bool checksum )
     throw( MDException)
   {
     if( !pIsOpen )
@@ -432,14 +438,7 @@ namespace eos
     uint64_t *seq;
     uint32_t  chkSum2;
     uint8_t  *type;
-    char      buffer[20];
-
-    if( pread( pFd, buffer, 20, offset ) != 20 )
-    {
-      MDException ex( errno );
-      ex.getMessage() << "Read: Error reading at offset: " << offset;
-      throw ex;
-    }
+    char*     buffer = pData + offset;
 
     magic   = (uint16_t*)(buffer);
     size    = (uint16_t*)(buffer+2);
@@ -457,16 +456,91 @@ namespace eos
       throw ex;
     }
 
+
+    //--------------------------------------------------------------------------
+    // Read the second part of the buffer
+    //--------------------------------------------------------------------------
+    record.setDataPtr(pData+offset+20, *size+4);
+    record.grabData( record.getSize()-4, &chkSum2, 4 );
+    record.setDataPtr(pData+offset+20, *size);
+
+    //--------------------------------------------------------------------------
+    // Check the checksum
+    //--------------------------------------------------------------------------
+    if (checksum)
+    {
+      uint32_t crc = DataHelper::computeCRC32( seq, 8 );
+      crc = DataHelper::updateCRC32( crc, (buffer+16), 4 ); // opts
+      crc = DataHelper::updateCRC32( crc, record.getDataPtr(), record.getSize() );
+      
+      if( *chkSum1 != crc || *chkSum1 != chkSum2 )
+      {
+	MDException ex( EFAULT );
+	ex.getMessage() << "Read: Record's checksums do not match.";
+	throw ex;
+      }
+    }
+    return *type;
+  }
+
+  //----------------------------------------------------------------------------
+  // Read the record at given offset
+  //----------------------------------------------------------------------------
+  uint8_t ChangeLogFile::readRecord( uint64_t offset, Buffer &record, bool cache )
+    throw( MDException)
+  {
+    if( !pIsOpen )
+      {
+	MDException ex( EFAULT );
+	ex.getMessage() << "Read: Changelog file is not open";
+	throw ex;
+      }
+
+    //--------------------------------------------------------------------------
+    // Read first part of the record
+    //--------------------------------------------------------------------------
+    uint16_t *magic;
+    uint16_t *size;
+    uint32_t *chkSum1;
+    uint64_t *seq;
+    uint32_t  chkSum2;
+    uint8_t  *type;
+    char      buffer[20];
+
+    if( pread( pFd, buffer, 20, offset, cache ) != 20 )
+      {
+	MDException ex( errno );
+	ex.getMessage() << "Read: Error reading at offset: " << offset;
+	throw ex;
+      }
+
+    magic   = (uint16_t*)(buffer);
+    size    = (uint16_t*)(buffer+2);
+    chkSum1 = (uint32_t*)(buffer+4);
+    seq     = (uint64_t*)(buffer+8);
+    type    = (uint8_t*) (buffer+16);
+
+    //--------------------------------------------------------------------------
+    // Check the consistency
+    //--------------------------------------------------------------------------
+    if( *magic != RECORD_MAGIC )
+      {
+	MDException ex( EFAULT );
+	ex.getMessage() << "Read: Record's magic number is wrong at offset: " << offset;
+	throw ex;
+      }
+
     //--------------------------------------------------------------------------
     // Read the second part of the buffer
     //--------------------------------------------------------------------------
     record.resize( *size+4, 0 );
-    if( pread( pFd, record.getDataPtr(), *size+4, offset+20 ) != *size+4 )
-    {
-      MDException ex( errno );
-      ex.getMessage() << "Read: Error reading at offset: " << offset + 9;
-      throw ex;
-    }
+    if( pread( pFd, record.getDataPtr(), *size+4, offset+20, cache ) != *size+4 )
+      {
+	MDException ex( errno );
+	ex.getMessage() << "Read: Error reading at offset: " << offset + 9;
+	throw ex;
+      }
+
     record.grabData( record.size()-4, &chkSum2, 4 );
     record.resize( *size );
 
@@ -483,8 +557,51 @@ namespace eos
       ex.getMessage() << "Read: Record's checksums do not match.";
       throw ex;
     }
-
     return *type;
+  }
+
+
+  //----------------------------------------------------------------------------
+  // Mmap a changelog file
+  //----------------------------------------------------------------------------
+
+  void ChangeLogFile::mmap()
+  {
+    if (getenv("EOS_NS_BOOT_NOMMAP"))
+    {
+      return;
+    }
+    
+    off_t end = ::lseek( pFd, 0, SEEK_END );
+    if( end == -1 )
+    {
+      MDException ex( EFAULT );
+      ex.getMessage() << "Scan: Unable to find the end of the log file: ";
+      ex.getMessage() << strerror( errno );
+      throw ex;
+    }
+
+    fprintf(stderr,"# mmapped changelogfile\n");
+    pData = (char*)::mmap(0, end, PROT_READ,MAP_SHARED, pFd,0);
+    pDataLen = end;
+  }
+
+  //----------------------------------------------------------------------------
+  // Munmap a changelog file
+  //----------------------------------------------------------------------------
+
+  void ChangeLogFile::munmap()
+  {
+    if (getenv("EOS_NS_BOOT_NOMMAP"))
+    {
+      return;
+    }
+    
+    if (pData)
+    {
+      fprintf(stderr,"# munmapped changelogfile\n");
+      ::munmap(pData, pDataLen);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -547,6 +664,13 @@ namespace eos
 
     std::string fname = pFileName;
     fname.erase(0, pFileName.rfind("/")+1);
+    
+    bool checksum = true;
+
+    if (getenv("EOS_NS_BOOT_NOCRC32"))
+    {
+      checksum = false;
+    }
 
     while( offset < end )
     {
@@ -554,9 +678,12 @@ namespace eos
       bool readerror = false;
       try 
       {
-	type = readRecord( offset, data );
+	if (pData)
+	  type = readMappedRecord( offset, data, checksum );
+	else
+	  type = readRecord( offset, data, true );
 	proceed = scanner->processRecord( offset, type, data );
-	offset += data.size();
+	offset += data.getSize();
 	offset += 24;
       }
       catch( MDException &e )
@@ -614,7 +741,7 @@ namespace eos
       }
       if (!proceed)
 	break;
-
+      
       now = time(0);
 
       if ( (100.0 * offset / end ) > progress) {
@@ -622,8 +749,8 @@ namespace eos
 	if (progress==0)
 	  fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate none \n", fname.c_str(), (unsigned int)progress);
 	else
-	  fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate %3.02fs\n", fname.c_str(), (unsigned int)progress, estimate);
-	progress += 5;
+	  fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate %3.01fs [ %lus/%.0fs ]\n", fname.c_str(), (unsigned int)progress, estimate, time(NULL)-start_time, (double)time(NULL)-(double)start_time+estimate);
+	progress += 2;
 
       }      
     }
@@ -775,7 +902,7 @@ namespace eos
     uint32_t magic = 0;
     while( 1 )
     {
-      if( pread( fd, &magic, 4, offset ) != 4 )
+      if( ::pread( fd, &magic, 4, offset ) != 4 )
         return -1;
 
       if( (magic & 0x0000ffff) == RECORD_MAGIC )

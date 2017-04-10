@@ -220,5 +220,6 @@ com_dropbox_usage:
   fprintf(stdout, "                                                  stop the drop box daemon for all configured dropbox directories!\n");
   fprintf(stdout, "dropbox ls                          :\n");
   fprintf(stdout, "                                                  list configured drop box daemons and their status\n");
+  global_retc = EINVAL;
   return (0);
 }

@@ -281,7 +281,7 @@ Recycle::Recycler ()
                         // stat the directory to get the mtime
                         //.......................................................
                         struct stat buf;
-                        if (gOFS->_stat(l4.c_str(), &buf, lError, rootvid, ""))
+                        if (gOFS->_stat(l4.c_str(), &buf, lError, rootvid, "",0, false))
                         {
                           eos_static_err("msg=\"unable to stat a garbage directory entry\" recycle-path=%s l2-path=%s l3-path=%s", Recycle::gRecyclingPrefix.c_str(), l2.c_str(), l3.c_str());
 

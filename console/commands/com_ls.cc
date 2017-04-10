@@ -293,5 +293,6 @@ com_ls_usage:
   fprintf(stdout, "         path=file:... : list on a local file system\n");
   fprintf(stdout, "         path=root:... : list on a plain XRootD server (does not work on native XRootD clusters\n");
   fprintf(stdout, "         path=...      : all other paths are considered to be EOS paths!\n");
+  global_retc = EINVAL;
   return (0);
 }

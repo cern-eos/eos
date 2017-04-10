@@ -71,6 +71,7 @@ com_reconnect (char* arg1)
   else
   {
     fprintf(stdout, "usage: reconnect [gsi,krb5,unix,sss]                                    :  reconnect to the management node [using the specified protocol]\n");
+    global_retc = EINVAL;
     return (0);
   }
 }

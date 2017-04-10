@@ -24,6 +24,7 @@
 #include "namespace/persistency/LogManager.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
 #include "namespace/persistency/ChangeLogConstants.hh"
+#include "common/Murmur3.hh"
 #include <google/sparse_hash_map>
 #include <google/dense_hash_map>
 #include <iomanip>
@@ -34,7 +35,7 @@ namespace
   //----------------------------------------------------------------------------
   // Record scanner
   //----------------------------------------------------------------------------
-  typedef google::dense_hash_map<uint64_t, uint64_t> RecordMap;
+  typedef google::dense_hash_map<uint64_t, uint64_t,  Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr> RecordMap;
   class CompactingScanner: public eos::ILogRecordScanner
   {
     public:

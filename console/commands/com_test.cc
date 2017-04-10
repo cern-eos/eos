@@ -146,6 +146,7 @@ com_test (char* arg1)
   return (0);
 com_test_usage:
   fprintf(stdout, "usage: test [mkdir|rmdir|ls|lsla <N> ]                                             :  run performance test\n");
+  global_retc = EINVAL;
   return (0);
 
 }

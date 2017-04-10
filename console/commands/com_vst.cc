@@ -94,5 +94,6 @@ com_vst_usage:
   fprintf(stdout, "                                      --io : IO format\n");
   fprintf(stdout, "       vst --udp [<host:port>] [--self]                         : list[set] VST influxdb target\n");
   fprintf(stdout, "\n");
+  global_retc = EINVAL;
   return (0);
 }

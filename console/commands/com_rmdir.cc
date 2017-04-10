@@ -60,6 +60,7 @@ com_rmdir (char* arg1)
 
 com_rmdir_usage:
   fprintf(stdout, "usage: rmdir <path>                                                   :  remote directory <path>\n");
+  global_retc = EINVAL;
   return (0);
 
 }

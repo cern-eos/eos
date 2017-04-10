@@ -630,6 +630,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
           }
         }
       }
+      eos_debug("looping length=%d", length);
     }
 
     mPrefetchMutex.UnLock(); // <--
@@ -748,6 +749,30 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset, const char* buffer,
   return length;
 }
 
+//--------------------------------------------------------------------------                                                 
+//! Clean all read caches                                                                                                    
+//!                                                                                                                          
+//! @return                                                                                                                  
+//!                                                                                                                          
+//--------------------------------------------------------------------------                                                 
+void 
+XrdIo::CleanReadCache()
+{
+  if (mDoReadahead)
+  {
+    WaitAsyncIO();
+    if (mQueueBlocks.empty())
+    {
+      for (unsigned int i = 0; i < sNumRdAheadBlocks; i++)
+      {
+        mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
+      }
+    }
+
+  }
+}
+
+
 
 //------------------------------------------------------------------------------
 // Wait for async IO 
@@ -760,6 +785,7 @@ XrdIo::WaitAsyncIO()
 
   if (mDoReadahead)
   {
+    mPrefetchMutex.Lock();
     // Wait for any requests on the fly and then close
     while (!mMapBlocks.empty())
     {
@@ -771,6 +797,7 @@ XrdIo::WaitAsyncIO()
       delete mMapBlocks.begin()->second;
       mMapBlocks.erase(mMapBlocks.begin());
     }
+    mPrefetchMutex.UnLock();
   }
 
   // Wait for any async requests before closing

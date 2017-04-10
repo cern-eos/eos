@@ -101,7 +101,6 @@ XrdMgmOfs::_utimes (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  bool done = false;
   eos::ContainerMD* cmd = 0;
 
   EXEC_TIMING_BEGIN("Utimes");
@@ -116,7 +115,6 @@ XrdMgmOfs::_utimes (const char *path,
     cmd->setMTime(tvp[1]);
     cmd->notifyMTimeChange( gOFS->eosDirectoryService );
     eosView->updateContainerStore(cmd);
-    done = true;
   }
   catch (eos::MDException &e)
   {
@@ -141,7 +139,6 @@ XrdMgmOfs::_utimes (const char *path,
 
       fmd->setMTime(tvp[1]);
       eosView->updateFileStore(fmd);
-      done = true;
     }
     catch (eos::MDException &e)
     {

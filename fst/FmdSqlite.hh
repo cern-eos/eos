@@ -370,6 +370,13 @@ public:
   bool GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fsid, std::map<std::string, size_t> &statistics, std::map<std::string, std::set < eos::common::FileId::fileid_t> > &fidset);
 
   // ---------------------------------------------------------------------------
+  //! Remove Ghost Entries - entries which are neither on disk nor the mgm
+  // ---------------------------------------------------------------------------
+  bool RemoveGhostEntries (const char* prefix, eos::common::FileSystem::fsid_t fsid);
+
+
+
+  // ---------------------------------------------------------------------------
   //! Initialize the changelog hash
   // ---------------------------------------------------------------------------
 
