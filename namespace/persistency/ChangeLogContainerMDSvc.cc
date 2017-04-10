@@ -719,7 +719,6 @@ namespace eos
 
         recreateContainer( it, orphans, nameConflicts );
 
-	fprintf(stderr,"=> notify container %lx\n", it->first);
 	notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
 
 	if ( (100.0 * cnt / end ) > progress) 
