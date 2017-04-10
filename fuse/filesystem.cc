@@ -603,6 +603,7 @@ filesystem::dir_cache_get (unsigned long long inode,
 {
   int retc = 0;
   FuseCacheEntry* dir = 0;
+<<<<<<< Updated upstream
  eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
 
  if (inode2cache.count (inode) && (dir = inode2cache[inode]))
@@ -615,6 +616,21 @@ filesystem::dir_cache_get (unsigned long long inode,
       // Dir in cache and valid
      *b = static_cast<struct dirbuf*> (calloc (1, sizeof ( dirbuf)));
      dir->GetDirbuf (*b);
+=======
+  eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
+
+  eos_static_info("dir-cache ino=%lx", inode);
+  if (inode2cache.count (inode) && (dir = inode2cache[inode]))
+  {
+    struct timespec oldtime = dir->GetModifTime ();
+    
+    if ((oldtime.tv_sec == (mtime.tv_sec+ctime.tv_sec)) &&
+	(oldtime.tv_nsec == (mtime.tv_nsec+ctime.tv_nsec)))
+    {
+      // Dir in cache and valid
+      *b = static_cast<struct dirbuf*> (calloc (1, sizeof ( dirbuf)));
+      dir->GetDirbuf (*b);
+>>>>>>> Stashed changes
       retc = 1; // found
     }
   }
@@ -714,6 +730,7 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
                                 struct stat* overwrite_stat)
 {
   int retc = 0;
+<<<<<<< Updated upstream
  eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
   FuseCacheEntry* dir;
 
@@ -739,6 +756,38 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
     }
   }
 
+=======
+  eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
+  FuseCacheEntry* dir;
+
+  eos_static_debug("inode=%lx", inode);
+  if ((inode2cache.count (inode)) && (dir = inode2cache[inode]))
+  {
+    if (dir->IsFilled ())
+    {
+      eos_static_debug("inode=%lx filled", inode);
+      struct fuse_entry_param e;
+      if (dir->GetEntry (entry_inode, e))
+      {
+	if (overwrite_stat)
+	{
+          e.attr.MTIMESPEC = overwrite_stat->MTIMESPEC;
+          e.attr.st_mtime = overwrite_stat->MTIMESPEC.tv_sec;
+          e.attr.st_size = overwrite_stat->st_size;
+	}
+	store_p2i (entry_inode, efullpath);
+	fuse_reply_entry (req, &e);
+	eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
+	retc = 1; // found
+      }
+      else
+      {
+	eos_static_debug("inode=%lx no entry ino=%lx", inode, entry_inode);
+      }
+    }
+  }
+  
+>>>>>>> Stashed changes
   return retc;
 }
 
@@ -1427,6 +1476,10 @@ filesystem::getxattr (const char* path,
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
   }
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 
  COMMONTIMING ("END", &getxattrtiming);
 
@@ -1537,6 +1590,10 @@ filesystem::listxattr (const char* path,
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
   }
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 
  COMMONTIMING ("END", &listxattrtiming);
 
@@ -1552,6 +1609,10 @@ filesystem::listxattr (const char* path,
 // (e.g., st_ino) then it should be set to 0 or given a "reasonable" value.
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 int
 filesystem::stat (const char* path,
                  struct stat* buf,
@@ -1666,7 +1727,18 @@ filesystem::stat (const char* path,
          {
             // we can use the cache value here
             file_size = cache_size;
+<<<<<<< Updated upstream
           }
+=======
+	 }
+	 else
+	 {
+           if ((!file->Stat (&tmp)))
+           {
+	     file_size = tmp.st_size;
+	   }	
+	 }
+>>>>>>> Stashed changes
         }
      }
      else
@@ -1716,6 +1788,7 @@ filesystem::stat (const char* path,
 
  eos_static_debug ("arg = %s", arg.ToString ().c_str ());
 
+<<<<<<< Updated upstream
  COMMONTIMING ("GETPLUGIN", &stattiming);
 
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -1779,6 +1852,97 @@ filesystem::stat (const char* path,
    errno = 0;
   }
  }
+=======
+ for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount; retrycount++)
+ {
+   SyncResponseHandler handler;
+   fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+   XrdCl::XRootDStatus status = handler.Sync(response);
+
+   COMMONTIMING ("GETPLUGIN", &stattiming);
+
+   if (status.IsOK () && response && response->GetBuffer ())
+   {
+    unsigned long long sval[10];
+    unsigned long long ival[6];
+    char tag[1024];
+    tag[0] = 0;
+    // Parse output
+     int items = sscanf (response->GetBuffer (), "%s %llu %llu %llu %llu %llu %llu %llu %llu "
+                       "%llu %llu %llu %llu %llu %llu %llu %llu",
+                         tag, (unsigned long long*) &sval[0], (unsigned long long*) &sval[1], (unsigned long long*) &sval[2],
+                         (unsigned long long*) &sval[3], (unsigned long long*) &sval[4], (unsigned long long*) &sval[5],
+                         (unsigned long long*) &sval[6], (unsigned long long*) &sval[7], (unsigned long long*) &sval[8],
+                         (unsigned long long*) &sval[9], (unsigned long long*) &ival[0], (unsigned long long*) &ival[1],
+                         (unsigned long long*) &ival[2], (unsigned long long*) &ival[3], (unsigned long long*) &ival[4],
+                       (unsigned long long*) &ival[5]);
+
+     if ((items != 17) || (strcmp (tag, "stat:")))
+     {
+      int retc = 0;
+       items = sscanf (response->GetBuffer (), "%s retc=%i", tag, &retc);
+       if ((!strcmp (tag, "stat:")) && (items == 2))
+        errno = retc;
+       else
+        errno = EFAULT;
+      eos_static_info("path=%s errno=%i tag=%s", path, errno, tag);
+      delete response;
+      return errno;
+     }
+     else
+     {
+      buf->st_dev = (dev_t) sval[0];
+      buf->st_ino = (ino_t) sval[1];
+      buf->st_mode = (mode_t) sval[2];
+      buf->st_nlink = (nlink_t) sval[3];
+      buf->st_uid = (uid_t) sval[4];
+      buf->st_gid = (gid_t) sval[5];
+      buf->st_rdev = (dev_t) sval[6];
+      buf->st_size = (off_t) sval[7];
+      buf->st_blksize = (blksize_t) sval[8];
+      buf->st_blocks = (blkcnt_t) sval[9];
+      buf->st_atime = (time_t) ival[0];
+      buf->st_mtime = (time_t) ival[1];
+      buf->st_ctime = (time_t) ival[2];
+      buf->ATIMESPEC.tv_sec = (time_t) ival[0];
+      buf->MTIMESPEC.tv_sec = (time_t) ival[1];
+      buf->CTIMESPEC.tv_sec = (time_t) ival[2];
+      buf->ATIMESPEC.tv_nsec = (time_t) ival[3];
+      buf->MTIMESPEC.tv_nsec = (time_t) ival[4];
+      buf->CTIMESPEC.tv_nsec = (time_t) ival[5];
+
+       if (S_ISREG (buf->st_mode) && fuse_exec) buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
+        buf->st_mode &= (~S_ISVTX); // clear the vxt bit
+
+      buf->st_mode &= (~S_ISUID); // clear suid
+      buf->st_mode &= (~S_ISGID); // clear sgid
+      errno = 0;
+    }
+     break;
+    }
+   else
+   {
+     if (!response || !response->GetBuffer ())
+     {
+       if(retrycount+1<xrootd_nullresponsebug_retrycount)
+       {
+         XrdSysTimer sleeper;
+         if(xrootd_nullresponsebug_retrysleep) sleeper.Wait(xrootd_nullresponsebug_retrysleep);
+
+         continue;
+       }
+       else
+         eos_static_err("no response received after %d attempts", retrycount);
+     }
+     else
+     {
+       eos_static_err("status is NOT ok : %s", status.ToString ().c_str ());
+     }
+    errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
+      break;
+   }
+  }
+>>>>>>> Stashed changes
 
  if (file_size == (off_t)-1)
  {
@@ -1875,6 +2039,7 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
+<<<<<<< Updated upstream
  XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
 
  if (status.IsOK () && response && response->GetBuffer ())
@@ -1913,6 +2078,73 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
  }
  else
    statmutex.UnLock ();
+=======
+ for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount; retrycount++)
+ {
+   SyncResponseHandler handler;
+   fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+   XrdCl::XRootDStatus status = handler.Sync(response);
+
+  errno = 0;
+
+   if (status.IsOK () && response && response->GetBuffer ())
+   {
+    int retc;
+    char tag[1024];
+     if (!response->GetBuffer ())
+     {
+       statmutex.UnLock ();
+      errno = EFAULT;
+      delete response;
+      return errno;
+    }
+
+     int items = sscanf (response->GetBuffer (), "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
+                       "f_max_bytes=%llu f_max_files=%llu",
+                       tag, &retc, &a1, &a2, &a3, &a4);
+     if ((items != 6) || (strcmp (tag, "statvfs:")))
+     {
+       statmutex.UnLock ();
+      errno = EFAULT;
+      delete response;
+      return errno;
+    }
+    errno = retc;
+     laststat = time (NULL);
+     statmutex.UnLock ();
+    stbuf->f_bsize = 4096;
+    stbuf->f_frsize = 4096;
+    stbuf->f_blocks = a3 / 4096;
+    stbuf->f_bfree = a1 / 4096;
+    stbuf->f_bavail = a1 / 4096;
+    stbuf->f_files = a4;
+    stbuf->f_ffree = a2;
+    stbuf->f_namemax = 1024;
+     break;
+   }
+   else
+   {
+     if (!response || !response->GetBuffer ())
+     {
+       if (retrycount + 1 < xrootd_nullresponsebug_retrycount)
+       {
+         XrdSysTimer sleeper;
+         if (xrootd_nullresponsebug_retrysleep) sleeper.Wait (xrootd_nullresponsebug_retrysleep);
+         continue;
+       }
+       else
+         eos_static_err("no response received after %d attempts", retrycount);
+     }
+     else
+     {
+       eos_static_err("status is NOT ok : %s", status.ToString ().c_str ());
+     }
+     statmutex.UnLock ();
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+     break;
+   }
+  }
+>>>>>>> Stashed changes
 
  COMMONTIMING ("END", &statfstiming);
 
@@ -2089,7 +2321,11 @@ filesystem::utimes (const char* path,
       errno = EFAULT;
    else
       errno = retc;
+<<<<<<< Updated upstream
  }
+=======
+    }
+>>>>>>> Stashed changes
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
@@ -2164,7 +2400,11 @@ filesystem::symlink (const char* path,
       errno = EFAULT;
    else
       errno = retc;
+<<<<<<< Updated upstream
  }
+=======
+    }
+>>>>>>> Stashed changes
  else
  {
    eos_static_err ("error=status is NOT ok : %s", status.ToString ().c_str ());
@@ -2329,7 +2569,11 @@ filesystem::access (const char* path,
       errno = EFAULT;
    else
       errno = retc;
+<<<<<<< Updated upstream
  }
+=======
+    }
+>>>>>>> Stashed changes
  else
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
@@ -2598,9 +2842,12 @@ filesystem::inodirlist (unsigned long long dirinode,
 	  if (S_ISREG (buf.st_mode) && fuse_exec)
             buf.st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
 
+<<<<<<< Updated upstream
 	  if (S_ISREG(buf.st_mode) || S_ISLNK(buf.st_mode))
 	    buf.st_nlink = 1;
 
+=======
+>>>>>>> Stashed changes
           buf.st_mode &= (~S_ISVTX); // clear the vxt bit
           buf.st_mode &= (~S_ISUID); // clear suid
           buf.st_mode &= (~S_ISGID); // clear sgid
@@ -3647,13 +3894,21 @@ filesystem::flush (int fd, uid_t uid, gid_t gid, pid_t pid)
  {
     errno = ENOENT;
     return -1;
+<<<<<<< Updated upstream
   }
+=======
+ }
+>>>>>>> Stashed changes
 
  if (!isRW)
  {
    fabst->DecNumRefRO ();
     return 0;
+<<<<<<< Updated upstream
   }
+=======
+ }
+>>>>>>> Stashed changes
 
   /*
   LayoutWrapper* file = fabst->GetRawFileRW ();
@@ -3704,8 +3959,12 @@ filesystem::flush (int fd, uid_t uid, gid_t gid, pid_t pid)
    else
    {
      eos_static_info("No flush error");
+<<<<<<< Updated upstream
     }
 
+=======
+   }
+>>>>>>> Stashed changes
    fabst->mMutexRW.UnLock ();
 
   }
@@ -4159,7 +4418,11 @@ filesystem::strongauth_cgi (pid_t pid)
  {
     std::string authmet;
     if(gProcCache(pid).HasEntry(pid))
+<<<<<<< Updated upstream
       gProcCache(pid).GetAuthMethod(pid,authmet);
+=======
+      gProcCache(pid).GetEntry(pid)->GetAuthMethod(authmet);
+>>>>>>> Stashed changes
 
    if (authmet.compare (0, 5, "krb5:") == 0)
    {
@@ -4239,7 +4502,11 @@ filesystem::is_toplevel_rm (int pid, const char* local_dir)
   time_t psstime=0;
   if (
       !gProcCache(pid).HasEntry(pid) ||
+<<<<<<< Updated upstream
       !gProcCache(pid).GetStartupTime(pid, psstime)
+=======
+      !gProcCache(pid).GetEntry(pid)->GetStartupTime(psstime)
+>>>>>>> Stashed changes
       ) {
     eos_static_err("could not get process start time");
   }
@@ -4257,7 +4524,11 @@ filesystem::is_toplevel_rm (int pid, const char* local_dir)
        eos_static_debug ("found in cache pid=%i, rm_deny=%i", it_map->first, it_map->second.second);
        if (it_map->second.second)
        {
+<<<<<<< Updated upstream
          std::string cmd = gProcCache(pid).GetArgsStr (pid);
+=======
+         std::string cmd = gProcCache(pid).GetEntry (pid)->GetArgsStr ();
+>>>>>>> Stashed changes
          eos_static_notice ("rejected toplevel recursive deletion command %s", cmd.c_str ());
         }
         return (it_map->second.second ? 1 : 0);
@@ -4272,8 +4543,13 @@ filesystem::is_toplevel_rm (int pid, const char* local_dir)
 
 // Try to print the command triggering the unlink
   std::ostringstream oss;
+<<<<<<< Updated upstream
  const auto &cmdv = gProcCache(pid).GetArgsVec (pid);
  std::string cmd = gProcCache(pid).GetArgsStr (pid);
+=======
+ const auto &cmdv = gProcCache(pid).GetEntry (pid)->GetArgsVec ();
+ std::string cmd = gProcCache(pid).GetEntry (pid)->GetArgsStr ();
+>>>>>>> Stashed changes
   std::set<std::string> rm_entries;
   std::set<std::string> rm_opt; // rm command options (long and short)
   char exe[PATH_MAX];
@@ -4570,9 +4846,13 @@ filesystem::check_mgm (std::map<std::string,std::string> *features)
 // Check MGM is available
   if (!features)
   {
+<<<<<<< Updated upstream
     uint16_t timeout = 15;
     if(getenv("EOS_FUSE_PING_TIMEOUT"))
       timeout = (uint16_t) strtol(getenv("EOS_FUSE_PING_TIMEOUT"), 0,10);
+=======
+    uint16_t timeout = 10;
+>>>>>>> Stashed changes
     XrdCl::FileSystem fs (url);
     XrdCl::XRootDStatus st = fs.Ping (timeout);
 
@@ -4585,9 +4865,13 @@ filesystem::check_mgm (std::map<std::string,std::string> *features)
 
  if(features)
    get_features(address,features);
+<<<<<<< Updated upstream
 
  // make sure the host has not '/' in the end and no prefix anymore
 
+=======
+// make sure the host has not '/' in the end and no prefix anymore
+>>>>>>> Stashed changes
  gMgmHost = address.c_str ();
  gMgmHost.replace ("root://", "");
   int pos;
@@ -4649,6 +4933,7 @@ filesystem::initlogging()
 
     eos::common::Path cPath (log_path.c_str ());
     cPath.MakeParentPath (S_IRWXU | S_IRGRP | S_IROTH);
+<<<<<<< Updated upstream
 
     if (!(fstderr = freopen (cPath.GetPath (), "a+", stderr)))
       fprintf (stderr, "error: cannot open log file %s\n", cPath.GetPath ());
@@ -4658,6 +4943,17 @@ filesystem::initlogging()
 
   setvbuf (fstderr, (char*) NULL, _IONBF, 0);
 
+=======
+
+    if (!(fstderr = freopen (cPath.GetPath (), "a+", stderr)))
+      fprintf (stderr, "error: cannot open log file %s\n", cPath.GetPath ());
+    else
+      ::chmod (cPath.GetPath (), S_IRUSR | S_IWUSR);
+    }
+
+  setvbuf (fstderr, (char*) NULL, _IONBF, 0);
+
+>>>>>>> Stashed changes
   eos::common::Mapping::VirtualIdentity_t vid;
   eos::common::Mapping::Root (vid);
   eos::common::Logging::Init ();
@@ -4712,9 +5008,13 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
 
 // Extract MGM endpoint and check availability
  if (!check_mgm ( features ) )
+<<<<<<< Updated upstream
  {
    return false;
  }
+=======
+   return false;
+>>>>>>> Stashed changes
 
 // Get read-ahead configuration
  if (getenv ("EOS_FUSE_RDAHEAD") && (!strcmp (getenv ("EOS_FUSE_RDAHEAD"), "1")))
@@ -4944,6 +5244,7 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  else
     tryKrb5First = false;
 
+<<<<<<< Updated upstream
  if (!use_user_krb5cc && !use_user_gsiproxy)
  {
    if (getenv ("EOS_FUSE_SSS_KEYTAB"))
@@ -4951,6 +5252,9 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    else
      setenv ("XrdSecPROTOCOL", "unix", 1);
  }
+=======
+ if(!use_user_krb5cc && !use_user_gsiproxy) setenv("XrdSecPROTOCOL","unix",1);
+>>>>>>> Stashed changes
 
  authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, fallback2nobody, tryKrb5First);
 
@@ -5081,12 +5385,21 @@ filesystem::mylstat (const char *__restrict name, struct stat *__restrict __buf,
  {
    eos_static_debug ("name=%s\n", name);
 
+<<<<<<< Updated upstream
     uid_t uid=0;
     gid_t gid=0;
 
     if (
         !gProcCache(pid).HasEntry(pid) ||
         !gProcCache(pid).GetFsUidGid(pid, uid,gid)
+=======
+    uid_t uid;
+    gid_t gid;
+
+    if (
+        !gProcCache(pid).HasEntry(pid) ||
+        !gProcCache(pid).GetEntry(pid)->GetFsUidGid(uid,gid)
+>>>>>>> Stashed changes
         ) {
       return ESRCH;
     }

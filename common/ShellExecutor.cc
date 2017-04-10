@@ -167,10 +167,14 @@ ShellExecutor::run_child() const
   // check every 5 seconds for parent death
   alarm(5);
 
+<<<<<<< Updated upstream
   size_t nread=0;
   off_t off=0;
 
   while ( (nread = TEMP_FAILURE_RETRY(read(outfd[0], (char*)&msg + off, sizeof(msg) - off))) > 0)
+=======
+  while (((read(outfd[0], &msg, sizeof (msg)) > 0) || (errno == EINTR)))
+>>>>>>> Stashed changes
   {
     alarm(0);
     off += nread;

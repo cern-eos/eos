@@ -69,9 +69,14 @@ namespace eos
   void
   ContainerMD::InheritChildren( const ContainerMD &other)
   {
+<<<<<<< Updated upstream
     pFiles = other.pFiles;
     pSubContainers = other.pSubContainers;
     pTreeSize = other.pTreeSize;
+=======
+    this->pFiles = other.pFiles;
+    this->pSubContainers = other.pSubContainers;
+>>>>>>> Stashed changes
   }
 
   //----------------------------------------------------------------------------

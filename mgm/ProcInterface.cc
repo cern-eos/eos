@@ -894,6 +894,7 @@ ProcCommand::MakeResult ()
       }
       else
       {
+<<<<<<< Updated upstream
         if (mJsonCallback.length())
         {
           // JSONP
@@ -910,6 +911,10 @@ ProcCommand::MakeResult ()
 	  }
 	  mResultStream += stdJson;
 	}
+=======
+        mResultStream = "mgm.proc.json=";
+        mResultStream += stdJson.c_str();
+>>>>>>> Stashed changes
       }
     }
     if (mResultStream.length() && (*(mResultStream.rbegin()) != '\n'))

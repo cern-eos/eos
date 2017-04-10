@@ -427,8 +427,13 @@ namespace eos
 	try 
 	{
 	  while( current->getId() != 1 &&
+<<<<<<< Updated upstream
 		 ((current->getFlags() & QUOTA_NODE_FLAG) == 0 ) && 
 		 ((current->getParentId())) )
+=======
+		 ( (current->getFlags() & QUOTA_NODE_FLAG) == 0) &&
+		 ( (current->getParentId()) ) )
+>>>>>>> Stashed changes
 	    current = pContSvc->getContainerMD( current->getParentId() );
 	}
 	catch( MDException &e )
