@@ -25,7 +25,6 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${XROOTD_INCLUDE_DIRS}
-  ${XROOTD_PRIVATE_INCLUDE_DIR}
   ${FUSE_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${KRB5_INCLUDE_DIR}
@@ -43,11 +42,10 @@ add_subdirectory(FuseCache)
 add_executable(
   eosd
   ProcCache.cc ProcCache.hh
-  ProcCacheC.cc ProcCacheC.h
   main.cc eosfuse.cc eosfuse.hh
   filesystem.cc      filesystem.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh
-  AuthIdManager.cc)
+  AuthIdManager.cc xrdutils.cc )
 
 if(MacOSX)
   target_link_libraries(
@@ -102,11 +100,10 @@ if (FUSE3_FOUND)
 add_executable(
   eosd3
   ProcCache.cc ProcCache.hh
-  ProcCacheC.cc ProcCacheC.h
   main.cc eosfuse.cc eosfuse.hh
   filesystem.cc      filesystem.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh
-  AuthIdManager.cc)
+  AuthIdManager.cc xrdutils.cc )
 
   target_link_libraries(
     eosd3

@@ -517,6 +517,30 @@ Storage::Boot (FileSystem *fs)
   fs->IoPing();
   fs->SetStatus(eos::common::FileSystem::kBooted);
   fs->SetError(0, "");
+
+
+  // create FS orphan directory
+  std::string orphanDirectory = fs->GetPath();
+  orphanDirectory += "/.eosorphans";
+
+  if (mkdir(orphanDirectory.c_str(),
+            S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+  {
+    if (errno != EEXIST)
+    {
+      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetError(errno ? errno : EIO, "cannot create orphandirectory");
+      return;
+    }
+  }
+
+  if (chown(orphanDirectory.c_str(), 2, 2))
+  {
+    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetError(errno ? errno : EIO, "cannot change ownership of orphandirectory");
+    return;
+  }
+
   eos_info("msg=\"finished boot procedure\" fsid=%lu", (unsigned long) fsid);
 
   return;

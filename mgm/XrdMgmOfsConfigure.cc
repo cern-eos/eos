@@ -309,6 +309,48 @@ XrdMgmOfs::InitializeFileView ()
   return 0;
 }
 
+void XrdMgmOfs::StartHeapProfiling( int sig )
+{
+  if(!gOFS->mJeMallocHandler.CanProfile())
+  {
+    eos_static_crit("cannot run heap profiling");
+    return;
+  }
+
+  if(gOFS->mJeMallocHandler.StartProfiling())
+    eos_static_warning("started jemalloc heap profiling");
+  else
+    eos_static_warning("failed to start jemalloc heap profiling");
+}
+
+void XrdMgmOfs::StopHeapProfiling( int sig )
+{
+  if(!gOFS->mJeMallocHandler.CanProfile())
+  {
+    eos_static_crit("cannot run heap profiling");
+    return;
+  }
+
+  if(gOFS->mJeMallocHandler.StopProfiling())
+    eos_static_warning("stopped jemalloc heap profiling");
+  else
+    eos_static_warning("failed to stop jemalloc heap profiling");
+}
+
+void XrdMgmOfs::DumpHeapProfile( int sig )
+{
+  if(!gOFS->mJeMallocHandler.ProfRunning())
+  {
+    eos_static_crit("profiling is not running");
+    return;
+  }
+
+  if(gOFS->mJeMallocHandler.DumpProfile())
+    eos_static_warning("dumped heap profile");
+  else
+    eos_static_warning("failed to sump heap profile");
+}
+
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Configure (XrdSysError &Eroute)
@@ -380,6 +422,40 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   {
     MgmArchiveSvcClass = getenv("EOS_ARCHIVE_SVCCLASS");
   }
+
+  // configure heap profiling if any
+  if(mJeMallocHandler.JeMallocLoaded())
+  {
+    eos_warning("jemalloc is loaded!");
+    Eroute.Say("jemalloc is loaded!");
+    if(mJeMallocHandler.CanProfile())
+    {
+      Eroute.Say(mJeMallocHandler.ProfRunning()?"jemalloc heap profiling enabled and running":"jemalloc heap profiling enabled and NOT running");
+      eos_warning("jemalloc heap profiling enabled and %srunning. will start running on signal 40 and will stop running on signal 41",
+                  mJeMallocHandler.ProfRunning()?"":"NOT ");
+    }
+    else
+    {
+      eos_warning("jemalloc heap profiling is disabled");
+      Eroute.Say("jemalloc heap profiling is disabled");
+    }
+
+  }
+  else
+  {
+    eos_warning("jemalloc is NOT loaded!");
+    Eroute.Say("jemalloc is NOT loaded!");
+  }
+  if(SIGRTMIN<=40 && 42<=SIGRTMAX)
+  {
+  signal(40,StartHeapProfiling);
+  signal(41,StopHeapProfiling);
+  signal(42,DumpHeapProfile);
+  }
+  else
+    eos_static_warning("cannot install signal handlers for heap profiling as ports 40,41,42 don't fit in the allowed realtime dignal range. SIGRTMIN=%d  SIGRTMAX=%d",(int)SIGRTMIN,(int)SIGRTMAX);
+
+
 
   // Create and own the output cache directory or clean it up if it exists -
   // this is used to store temporary results for commands like find, backup

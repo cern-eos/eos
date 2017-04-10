@@ -250,12 +250,14 @@ public:
     {
     }
 
-    parentPath = "";
+    parentPath = "/";
     lastPath = "";
 
     if ((fullPath == "/") ||
         (fullPath == "/.") ||
-        (fullPath == "/.."))
+        (fullPath == "/..") ||
+        (fullPath == "/./") ||
+        (fullPath == "/../") )
     {
       fullPath = "/";
       return;

@@ -58,9 +58,20 @@ namespace eos
   //----------------------------------------------------------------------------
   // Copy constructor
   //----------------------------------------------------------------------------
-  ContainerMD::ContainerMD( const ContainerMD &other )
+  ContainerMD::ContainerMD( const ContainerMD &other)
   {
     *this = other;
+  }
+
+  //------------------------------------------------------------------------                       
+  //! Children inheritance                                                                         
+  //------------------------------------------------------------------------                       
+  void
+  ContainerMD::InheritChildren( const ContainerMD &other)
+  {
+    pFiles = other.pFiles;
+    pSubContainers = other.pSubContainers;
+    pTreeSize = other.pTreeSize;
   }
 
   //----------------------------------------------------------------------------
@@ -81,7 +92,9 @@ namespace eos
     pACLId    = other.pACLId;
     pXAttrs   = other.pXAttrs;
     pFlags    = other.pFlags;
-    pTreeSize = other.pTreeSize;
+
+
+    // pTreeSize is not copied here
 
     // pFiles & pSubContainers are not copied here!!!
 

@@ -282,6 +282,8 @@ com_fuse (char* arg1)
      env += " EOS_FUSE_LOGLEVEL=5";
    }
    
+   env += " XRD_RUNFORKHANDLER=1";
+
    fprintf(stderr, "===> fuse readahead        : %s\n", getenv("EOS_FUSE_RDAHEAD"));
    fprintf(stderr, "===> fuse readahead-window : %s\n", getenv("EOS_FUSE_RDAHEAD_WINDOW"));
    fprintf(stderr, "===> fuse debug            : %s\n", getenv("EOS_FUSE_DEBUG"));

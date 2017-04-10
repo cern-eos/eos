@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: Open.cc
-// Author: Andreas-Joachim Peters - CERN
+// File: JeMallocHandler.hh
+// Author: Geoffray Adde - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -21,40 +21,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef __EOSCOMMON_JEMALLOCHANDLER__HH__
+#define __EOSCOMMON_JEMALLOCHANDLER__HH__
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
+/*----------------------------------------------------------------------------*/
+#include <cstddef>
+/*----------------------------------------------------------------------------*/
 
+EOSCOMMONNAMESPACE_BEGIN
+
+/*----------------------------------------------------------------------------*/
+/*                                                                            */
+/*----------------------------------------------------------------------------*/
+
+class JeMallocHandler
 {
-  ACCESSMODE_R;
-  MAYSTALL;
-  MAYREDIRECT;
+  bool pJeMallocLoaded;
+  bool pCanProfile;
+  bool pProfRunning;
+  int  (*mallctl)(const char *, void *, size_t *, void *, size_t );
 
-  gOFS->MgmStats.Add("OpenLayout", vid.uid, vid.gid, 1);
-  XrdMgmOfsFile* file = new XrdMgmOfsFile(client->tident);
+  bool IsJemallocLoader();
 
-  if (file)
-  {
-    opaque += "&eos.cli.access=pio";
-    int rc = file->open(spath.c_str(), SFS_O_RDONLY, 0, client, opaque.c_str());
-    error.setErrInfo(strlen(file->error.getErrText()) + 1, file->error.getErrText());
-    if (rc == SFS_REDIRECT)
-    {
-      delete file;
-      return SFS_DATA;
-    }
-    else
-    {
-      error.setErrCode(file->error.getErrInfo());
-      delete file;
-      return SFS_ERROR;
-    }
-  }
-  else
-  {
-    error.setErrInfo(ENOMEM, "allocate file object");
-    return SFS_ERROR;
-  }
-}
+  bool IsProfEnabled();
+
+  bool IsProfgRunning();
+
+public:
+  JeMallocHandler();
+  ~JeMallocHandler();
+  inline bool JeMallocLoaded() { return pJeMallocLoaded; }
+  inline bool CanProfile() { return pCanProfile; }
+  inline bool ProfRunning() { return IsProfgRunning(); }
+  bool StartProfiling();
+  bool StopProfiling();
+  bool DumpProfile();
+};
+
+EOSCOMMONNAMESPACE_END
+
+#endif	/* __EOSCOMMON_JEMALLOCHANDLER__HH__ */
+

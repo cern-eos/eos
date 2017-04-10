@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 #include <signal.h>
+#define __PROCCACHE__NOGPROCCACHE__
 #include "ProcCache.hh"
 #include "common/Logging.hh"
 #include <openssl/x509v3.h>
@@ -35,6 +36,11 @@
 #include <unistd.h>
 #include <ctime>
 #include <XrdSys/XrdSysAtomics.hh>
+#include <vector>
+
+//ProcCache gProcCache;
+std::vector<ProcCache> gProcCacheV;
+int gProcCacheShardSize;
 
 int ProcReaderCmdLine::ReadContent (std::vector<std::string> &cmdLine)
 {
@@ -124,22 +130,42 @@ int ProcReaderFsUid::ReadContent (uid_t &fsUid, gid_t &fsGid)
 
   return retval;
 }
+
+void ProcReaderPsStat::SetFilename(const std::string &filename)
+{
+  pFileName = filename;
+  fd = open (pFileName.c_str (), O_RDONLY & O_NONBLOCK);
+  if (fd >= 0)
+  {
+    file = fdopen (fd, "r");
+  }
+  else
+    eos_static_err("could not open %s",pFileName.c_str ());
+}
+
+void ProcReaderPsStat::Close()
+{
+  if(file) fclose(file);
+  file = NULL;
+  fd = -1;
+}
+
+
 int ProcReaderPsStat::ReadContent (long long unsigned &startTime, pid_t &ppid, pid_t &sid)
 {
   int retval = 1;
-  int fd = open (pFileName.c_str (), O_RDONLY & O_NONBLOCK);
 
   if (fd >= 0)
   {
-    FILE *file = fdopen (fd, "r");
+    rewind (file);
     std::string token, line;
     const int bufsize = 16384;
     char buffer[bufsize];
     int size = 0;
 
     // read the one line of the file
-    if (!(fgets ((char*)buffer, bufsize, file))) return 2;
-    size=strlen(buffer);
+    if (!(fgets ((char*) buffer, bufsize, file))) return 2;
+    size = strlen (buffer);
 
     int tokcount = 0, tokStart = 0;
     bool inParenth = false;
@@ -169,18 +195,18 @@ int ProcReaderPsStat::ReadContent (long long unsigned &startTime, pid_t &ppid, p
           {
             case 3:
               if (!sscanf (buffer + tokStart, "%u", &ppid))
-                // error parsing parent process id
+              // error parsing parent process id
                 over = true;
               break;
             case 5:
               if (!sscanf (buffer + tokStart, "%u", &sid))
-                // error parsing session id
+              // error parsing session id
                 over = true;
               break;
             case 21:
               over = true;
               if (sscanf (buffer + tokStart, "%llu", &startTime))
-                // we parsed everything
+              // we parsed everything
                 retval = 0;
               break;
             default:
@@ -193,8 +219,6 @@ int ProcReaderPsStat::ReadContent (long long unsigned &startTime, pid_t &ppid, p
         continue;
       }
     }
-    // read char by char
-    if (file) fclose (file);
   }
 
   return retval;
@@ -344,7 +368,7 @@ time_t ProcReaderGsiIdentity::GetModifTime ()
   return mktime (clock);
 }
 
-int ProcCacheEntry::ReadContentFromFiles (ProcCache *procCache)
+int ProcCacheEntry::ReadContentFromFiles ()
 {
   eos::common::RWMutexWriteLock lock (pMutex);
   ProcReaderCmdLine pciCmd (pProcPrefix + "/cmdline"); // this one does NOT gets locked by the kernel when exeve is called
@@ -388,14 +412,16 @@ int ProcCacheEntry::ReadContentFromFiles (ProcCache *procCache)
   return finalret;
 }
 
-int ProcCacheEntry::UpdateIfPsChanged (ProcCache *procCache)
+int ProcCacheEntry::UpdateIfPsChanged ()
 {
-  ProcReaderPsStat pciPsStat (pProcPrefix + "/stat");
   unsigned long long procStartTime = 0;
+  // TODO: find a way not to open and close this proc file every time we call this function if possible
+  pciPsStat.SetFilename(pProcPrefix + "/stat");
   pciPsStat.ReadContent(procStartTime,pPPid,pSid);
+  pciPsStat.Close();
   if (procStartTime > pStartTime)
   {
-    int retc = ReadContentFromFiles (procCache);
+    int retc = ReadContentFromFiles ();
     if (retc == 0)
     {
       pStartTime = procStartTime;

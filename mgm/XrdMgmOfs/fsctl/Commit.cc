@@ -403,7 +403,7 @@
           eos_thread_info("subcmd=commit max-chunks=%d commited-chunks=%d", oc_max, fmd->getFlags());
 
 	  // the last chunk terminates all
-          if (oc_max == oc_n)
+          if (oc_max == (oc_n+1))
           {
             // we are done with chunked upload, remove the flags counter
             fmd->setFlags((S_IRWXU | S_IRWXG | S_IRWXO));

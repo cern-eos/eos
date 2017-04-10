@@ -54,7 +54,7 @@
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
 #include "FuseCacheEntry.hh"
-#include "ProcCacheC.h"
+#include "ProcCache.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
@@ -72,6 +72,10 @@
 #define N_OPEN_MUTEXES (1 << N_OPEN_MUTEXES_NBITS)
 
 #define PAGESIZE 128 * 1024
+
+extern int xrootd_nullresponsebug_retrycount; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we retry.
+extern int xrootd_nullresponsebug_retrysleep; ///< sometimes, XRootd gives a NULL responses on some calls, this is a bug. When it happens we sleep between attempts.
+
 
 class filesystem
 {
@@ -306,17 +310,6 @@ unsigned long long redirect_i2i (unsigned long long inode);
  //----------------------------------------------------------------------------
  char* attach_rd_buff (pthread_t tid, size_t size);
 
-
- //----------------------------------------------------------------------------
- //! Release a read buffer for the specified thread id
- //!
- //! @param tid thread id
- //!
- //----------------------------------------------------------------------------
- void release_rd_buff (pthread_t tid);
-
-
-
  //----------------------------------------------------------------------------
  //              ******* POSIX opened file descriptors *******
  //----------------------------------------------------------------------------
@@ -461,7 +454,7 @@ unsigned long long redirect_i2i (unsigned long long inode);
  //! @param entry_inode
  //! @param buf stat info
  //----------------------------------------------------------------------------
-bool dir_cache_update_entry (unsigned long long entry_inode,
+ bool dir_cache_update_entry (unsigned long long entry_inode,
 			      struct stat* buf);
 
 
@@ -774,7 +767,9 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
  //----------------------------------------------------------------------------
  //! Initialisation function
  //----------------------------------------------------------------------------
- void init (int argc, char* argv[], void *userdata, std::map<std::string,std::string> *features);
+ void initlogging();
+ bool init (int argc, char* argv[], void *userdata, std::map<std::string,std::string> *features);
+ bool check_mgm (std::map<std::string,std::string> *features);
 
  void log (const char* level, const char *msg);
  void
@@ -854,26 +849,26 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
 
    Monitor (const char* caller, Track& tracker, unsigned long long ino, bool exclusive = false)
    {
-    eos_static_debug ("trylock caller=%s self=%llx in=%llu exclusive=%d", caller, pthread_self (), ino, exclusive);
+    eos_static_debug ("trylock caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
 
     this->me = tracker.Attach (ino, exclusive);
     this->ino = ino;
     this->caller = caller;
     this->exclusive = exclusive;
-    eos_static_debug ("locked  caller=%s self=%llx in=%llu exclusive=%d obj=%llx", caller, pthread_self (), ino, exclusive,
+    eos_static_debug ("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx", caller, thread_id (), ino, exclusive,
                      &(*(this->me)));
 
    }
 
    ~Monitor ()
    {
-    eos_static_debug ("unlock  caller=%s self=%llx in=%llu exclusive=%d", caller, pthread_self (), ino, exclusive);
+    eos_static_debug ("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
 
     if (exclusive)
       me->mInUse.UnLockWrite ();
     else
       me->mInUse.UnLockRead ();
-    eos_static_debug ("unlocked  caller=%s self=%llx in=%llu exclusive=%d", caller, pthread_self (), ino, exclusive);
+    eos_static_debug ("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
    }
   private:
    std::shared_ptr<meta_t> me;
@@ -1121,7 +1116,6 @@ private:
  myrealpath (const char * __restrict path, char * __restrict resolved, pid_t pid);
 
  bool get_features(const std::string &url, std::map<std::string,std::string> *features);
- int check_mgm (std::map<std::string,std::string> *features);
 
  std::string mount_dir;
 };

@@ -7,6 +7,202 @@
 Beryl Release Notes
 ===================
 
+``V0.3.229 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix bug introduced with retry 'query' mechanism doing double deletes
+- FUSE: fix bug in AuthId manager doing a double lock when session id != process id
+- FUSE: set the link count for files/links to 1 to make applications like gzip work
+- MGM: fix subtree accounting in the slave follower
+- FST: add an .eosorphans directory to each FST mount point and allow to isolate orphans into this directory by creating a tag file  <mnt>/.eosscan. The .eosscan file removes any smearing and sleep time between scans. The original location is tagged as an exteneded attribute after during the move
+ 
+``V0.3.228 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix locking strategy bug in the proc cache usage where entries were not locked anymore when used
+
+``V0.3.227 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: fix failover procedure: slave stays forever booting until master sees a change
+- MGM: safte in failover procedure: don't failover if the slave did not follow the changelog to the end
+- MGM: show bytes left to follow in 'ns master' on slave
+- NS: avoid infinite loop in slave follower when looking for a quota node
+- FUSE: fix bug leaving files open when a file was inline repaired
+- DAV: fix webdav bug when a symbolic link is present in a directory listing leading to an error response
+- MGM: fix 'access rm' implementation to remove ENOENT and ENONET redirection
+- DAV: take into account sys.owner.auth when looking for webdav quota 
+
+``V0.3.226 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- COMMON: make ShellExecutor thread/interrupt safe
+- FST: reset checksum error flags also after correct 'verify -checksum' 
+- FUSE: fix ping timeouts and dependencies, allow sss mounts
+- NS: remove ns file archiving process by default in SLAVE->MASTER transition and fix too early enabling of the namespace for write
+
+New Feature
++++++++++++
+
+- MGM: add REST API for 'fileinfo'
+
+
+``V0.3.225 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: fix vulnerability for http GET of '/./' via eos::common::Path
+- COMMON: make '/' the full and parent path of /. /.. /./ /../
+
+``V0.3.224 Aquamarine``
+=======================
+
+New Feature
++++++++++++
+
+- FST: allow 'eos.checksum=ignore' for file uploads to avoid checksum computation
+- FST: fix 'eoscp -a' and add 'eoscp -A <offset>' to upload a file to a certain offset
+
+``V0.3.223 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix foreground option for eosd
+- FUSE: shard proc cache to keep memory footprint low for high MAX_PID settings and run AuthId cleanup every 5 minutes
+- FUSE: don't pick up root credentials inside eosd
+- COMMON: fix syslog logging interface using wrong argument list
+
+
+``V0.3.222 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MQ: fix race condition multiplexed/non-multiplexed set
+- FST: fix race condition in filesystem mutex map
+- FUSE: fix wrong default values for query retry sleep time
+- MGM: protect scheduling against scheduling in a space without filesystems 
+- MGM: fix 'fileinfo by inode' 
+
+New Feature
++++++++++++
+
+- FUSE: use proc map sharding to avoid too large mutex maps for machines with high max proc ID settings
+- FUSE: allow to run eosd as a foreground process when specified in /etc/sysconfig/eos
+
+``V0.3.221 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: don't hold (timeout) HTTP requests during compacting
+- FST: fix mutex race condition
+- FUSE: fix memory issues and remove unreachable code
+- FUSE: avoid SEGV on empty XRootD buffer responses
+- FUSE: restructure read-buffer handling and clean-up not used read-buffers in CacheCleanup function - avois significant memory leaking under parallel access
+
+``V0.3.220 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: avoid triggering recreation of xsmap files during draining/balancing for replica layouts
+- FUSE/FST: fix 'critical' bug in async write implementation not collecting async writes errors when flush is called and file exceeds the cache size
+- FUSE: always wait for asynchronous writes in case of file modifications
+
+
+Feature
++++++++
+
+- COMMON: allow to duplicate EOS log to syslog via export EOS_LOG_SYSLOG=1
+
+
+Bug Fix
++++++++
+
+- COMMON/FUSE: fix base64 encoding of not-string buffers
+- FUSE: fix memory leak in proc cache
+- FUSE: use FORKHANDLER in XrdCl and check mgm before forking the FUSE daemon
+- FUSE: fix shutdown behaviour after MGM ping failure
+- MGM: fix 'fileinfo' for high inode numbers
+
+
+``V0.3.218 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FUSE: fix a bug in auth cache when sid process of a calling pid does not exist anymore
+        
+
+``V0.3.217 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- FST: cleanup checksum error flags after "file verify -checksum"
+
+``V0.3.216 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: fix OC upload complete condition
+
+
+``V0.3.215 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- ETC: fix typoe introduced by MALLOC_CONF_VARNAME 
+
+``V0.3.214 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: fix geobalancer default variable names (were geotagbalancer)
+
+New Feature
++++++++++++
+
+- MGM: bounce checksum & open requests without an attached replica to an alive master
+- MGM: add heap profiler
+
+``V0.3.213 Aquamarine``
+=======================
+
+Bug Fix
++++++++
+
+- MGM: Fix condition in ShellExecutor leading to deadlock in MGM startup
+- TEST: Adapt the eos-instance test give the modifications done to the default "replica" layout i.e. drop of the blockchecksum
+
 ``V0.3.212 Aquamarine``
 =======================
 

@@ -160,6 +160,11 @@ Scheduler::FilePlacement (const char* path, //< path to place
     std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
     eos::common::FileSystem::fsid_t fsid = 0;
 
+    if (git == FsView::gFsView.mSpaceGroupView[spacename].end())
+    {
+      return ENOSPC;
+    }
+
     // create the string map key for this group/index pair
     XrdOucString fsindextag = "";
     fsindextag += (int) (*git)->GetIndex();

@@ -36,6 +36,7 @@
 #include <krb5.h>
 #include "common/Logging.hh"
 
+
 /*----------------------------------------------------------------------------*/
 class ProcCache;
 
@@ -89,16 +90,23 @@ public:
 class ProcReaderPsStat
 {
   std::string pFileName;
-  time_t pStartTime;
-  pid_t pPpid, pSid;
+  int fd;
+  FILE *file;
+
 public:
-  ProcReaderPsStat (const std::string &filename) :
-      pFileName (filename), pStartTime(), pPpid(), pSid()
+  ProcReaderPsStat () : fd(-1), file(NULL) {}
+  ProcReaderPsStat (const std::string &filename)
   {
+    fd = -1;
+    file = NULL;
+    SetFilename(filename);
   }
   ~ProcReaderPsStat ()
   {
+    Close();
   }
+  void SetFilename( const std::string &filename);
+  void Close();
   int ReadContent (long long unsigned &startTime, pid_t &ppid, pid_t &sid);
 };
 
@@ -171,6 +179,9 @@ class ProcCacheEntry
   mutable eos::common::RWMutex pMutex;
 
   // internal values
+  ProcReaderPsStat pciPsStat;
+
+  // internal values
   pid_t pPid;
   pid_t pPPid;
   pid_t pSid;
@@ -186,10 +197,10 @@ class ProcCacheEntry
 
   //! return true fs success, false if failure
   int
-  ReadContentFromFiles (ProcCache *procCache);
+  ReadContentFromFiles ();
   //! return true if the information is up-to-date after the call, false else
   int
-  UpdateIfPsChanged (ProcCache *procCache);
+  UpdateIfPsChanged ();
 
 public:
   ProcCacheEntry (unsigned int pid, const char* procpath=0) :
@@ -321,12 +332,24 @@ public:
     pProcPath = procpath;
   }
 
+  const std::string&
+  GetProcPath () const
+  {
+    return pProcPath;
+  }
+
   //! returns true if the cache has an up-to-date entry after the call
   int
   InsertEntry (int pid)
   {
     int errCode;
 
+    // if there is no such process return an error and remove the entry from the cache
+    if(getpgid(pid) < 0)
+    {
+      RemoveEntry(pid);
+      return ESRCH;
+    }
     if (!HasEntry (pid))
     {
       //eos_static_debug("There and pid is %d",pid);
@@ -334,9 +357,9 @@ public:
       pCatalog[pid] = new ProcCacheEntry (pid,pProcPath.c_str());
     }
     auto entry = GetEntry (pid);
-    if ((errCode = entry->UpdateIfPsChanged (this)))
+    if ((errCode = entry->UpdateIfPsChanged()))
     {
-      //eos_static_debug("something wrong happened in reading proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
+      eos_static_err("something wrong happened in reading proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
       eos::common::RWMutexWriteLock lock (pMutex);
       delete pCatalog[pid];
       pCatalog.erase (pid);
@@ -360,6 +383,24 @@ public:
     }
   }
 
+  //! returns true if the entry is removed after the call
+  int RemoveEntries (const std::set<pid_t>* protect)
+  {
+    int count = 0;
+    eos::common::RWMutexWriteLock lock (pMutex);
+    for (auto it = pCatalog.begin (); it != pCatalog.end ();)
+    {
+      if (protect && protect->count (it->first))
+        ++it;
+      else
+      {
+        pCatalog.erase (it++);
+        ++count;
+      }
+    }
+    return count;
+  }
+
   //! get the entry associated to the pid if it exists
   //! gets NULL if the the cache does not have such an entry
   ProcCacheEntry* GetEntry (int pid)
@@ -371,6 +412,84 @@ public:
     else
       return entry->second;
   }
+
+  bool GetAuthMethod (int pid, std::string &value)
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return false;
+    
+    return entry->second->GetAuthMethod(value);
+  }
+
+  bool GetStartupTime (int pid, time_t &sut)
+  {  
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return false;
+
+    return entry->second->GetStartupTime(sut);
+  }
+
+  bool GetFsUidGid (int pid, uid_t &uid, gid_t &gid)
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return false;
+
+    return entry->second->GetFsUidGid(uid, gid);
+  }
+
+  const std::vector<std::string>&
+  GetArgsVec (int pid)
+  {
+    static std::vector<std::string> dummy;
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return dummy;
+
+    return entry->second->GetArgsVec();
+  }
+
+  const std::string&
+  GetArgsStr (int pid)
+  {
+    static std::string dummy;
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return dummy;
+    return entry->second->GetArgsStr();
+  }
+
+  bool GetSid (int pid, pid_t &sid)
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return false;
+    return entry->second->GetSid(sid);
+  }
+
+  bool SetAuthMethod (int pid, const std::string &value)
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    auto entry = pCatalog.find (pid);
+    if (entry == pCatalog.end ())
+      return false;
+    return entry->second->SetAuthMethod(value);
+  }
 };
+
+#ifndef __PROCCACHE__NOGPROCCACHE__
+//extern ProcCache gProcCache;
+extern std::vector<ProcCache> gProcCacheV;
+extern int gProcCacheShardSize;
+inline ProcCache& gProcCache(int i) { return gProcCacheV[i%gProcCacheShardSize]; }
+#endif
 
 #endif

@@ -1164,6 +1164,58 @@ Quota::GetSpaceNameList (const char* key, SpaceQuota* spacequota, void *Arg)
 void
 Quota::GetIndividualQuota (eos::common::Mapping::VirtualIdentity_t &vid, const char* path, long long &maxbytes, long long &freebytes)
 {
+  eos::common::Mapping::VirtualIdentity_t m_vid = vid;
+  {
+    // check for sys.auth='*'
+
+    XrdOucString xownerauth;
+    XrdOucErrInfo error;
+
+    struct stat buf;
+
+
+    if (!gOFS->_stat(path, &buf, error, vid, ""))
+    {
+      gOFS->_attr_get(path, error, vid, "","sys.owner.auth", xownerauth);
+    
+      std::string ownerauth = xownerauth.c_str();
+      
+      
+      if (ownerauth.length())
+      {
+	if (ownerauth == "*")
+	{
+	  eos_static_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid, vid.gid, buf.st_uid, buf.st_gid);
+	  // yes the client can operate as the owner, we rewrite the virtual id
+	  m_vid.uid = buf.st_uid;
+	  m_vid.gid = buf.st_gid;
+	}
+	else
+	{
+	  ownerauth += ",";
+	  std::string ownerkey = vid.prot.c_str();
+	  ownerkey += ":";
+	  if (vid.prot == "gsi")
+	  {
+	    ownerkey += vid.dn.c_str();
+	  }
+	  else
+	  {
+	    ownerkey += vid.uid_string.c_str();
+	  }
+	  if ((ownerauth.find(ownerkey)) != std::string::npos)
+	  {
+	    eos_static_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid, vid.gid, buf.st_uid, buf.st_gid);
+	    // yes the client can operate as the owner, we rewrite the virtual id
+	    m_vid.uid = buf.st_uid;
+	    m_vid.gid = buf.st_gid;
+	  }
+	}
+      }
+    }
+  }
+
+
   eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
   SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path);
   if (space)
@@ -1173,11 +1225,11 @@ Quota::GetIndividualQuota (eos::common::Mapping::VirtualIdentity_t &vid, const c
     freebytes_user = freebytes_group = freebytes_project = 0;
     maxbytes_user = maxbytes_group = maxbytes_project = 0;
     space->Refresh();
-    maxbytes_user  = space->GetQuota(SpaceQuota::kUserBytesTarget,vid.uid);
-    maxbytes_group = space->GetQuota(SpaceQuota::kGroupBytesTarget,vid.gid);
+    maxbytes_user  = space->GetQuota(SpaceQuota::kUserBytesTarget,m_vid.uid);
+    maxbytes_group = space->GetQuota(SpaceQuota::kGroupBytesTarget,m_vid.gid);
     maxbytes_project = space->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
-    freebytes_user = maxbytes_user - space->GetQuota(SpaceQuota::kUserLogicalBytesIs, vid.uid);
-    freebytes_group = maxbytes_group - space->GetQuota(SpaceQuota::kGroupLogicalBytesIs, vid.gid);
+    freebytes_user = maxbytes_user - space->GetQuota(SpaceQuota::kUserLogicalBytesIs, m_vid.uid);
+    freebytes_group = maxbytes_group - space->GetQuota(SpaceQuota::kGroupLogicalBytesIs, m_vid.gid);
     freebytes_project = maxbytes_project - space->GetQuota(SpaceQuota::kGroupLogicalBytesIs, Quota::gProjectId);
 
     if (freebytes_user > freebytes)

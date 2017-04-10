@@ -195,12 +195,21 @@ Storage::Verify ()
             if (verifyfile->commitChecksum)
             {
               fMd->fMd.mgmchecksum = computedchecksum;
+	      fMd->fMd.blockcxerror = 0;
+	      fMd->fMd.filecxerror = 0;
             }
             localUpdate = true;
           }
           else
           {
             eos_static_info("checksum OK        : path=%s fid=%s checksum=%s", verifyfile->path.c_str(), hexfid.c_str(), checksummer->GetHexChecksum());
+	    // reset error flags if needed
+	    if (fMd->fMd.blockcxerror || fMd->fMd.filecxerror)
+	    {
+	      fMd->fMd.blockcxerror = 0;
+	      fMd->fMd.filecxerror = 0;
+	      localUpdate = true;
+	    }
           }
           eos::common::Attr *attr = eos::common::Attr::OpenAttr(fstPath.c_str());
           if (attr)
@@ -209,6 +218,7 @@ Storage::Verify ()
             attr->Set("user.eos.checksum", checksummer->GetBinChecksum(checksumlen), checksumlen);
             attr->Set(std::string("user.eos.checksumtype"), std::string(checksummer->GetName()));
             attr->Set("user.eos.filecxerror", "0");
+            attr->Set("user.eos.blockcxerror", "0");
             delete attr;
           }
         }

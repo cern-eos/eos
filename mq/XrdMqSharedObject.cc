@@ -44,16 +44,14 @@ unsigned long long XrdMqSharedHash::GetCounter = 0;
 /*----------------------------------------------------------------------------*/
 XrdMqSharedObjectManager::XrdMqSharedObjectManager ()
 {
+  XrdSysMutexHelper mLock(MuxTransactionsMutex);
   broadcast = true;
   EnableQueue = false;
   DumperFile = "";
   AutoReplyQueue = "";
   AutoReplyQueueDerive = false;
   IsMuxTransaction = false;
-  {
-    XrdSysMutexHelper mLock(MuxTransactionsMutex);
-    MuxTransactions.clear();
-  }
+  MuxTransactions.clear();
   dumper_tid = 0;
 }
 
@@ -818,10 +816,9 @@ XrdMqSharedObjectManager::Clear ()
 bool
 XrdMqSharedObjectManager::CloseMuxTransaction ()
 {
+  XrdSysMutexHelper lock(MuxTransactionsMutex);
   // Mux Transactions can only update values with the same broadcastqueue, no deletions of subjects
-
   {
-    XrdSysMutexHelper mLock(MuxTransactionsMutex);
     if (MuxTransactions.size())
     {
       XrdOucString txmessage = "";
@@ -836,7 +833,7 @@ XrdMqSharedObjectManager::CloseMuxTransaction ()
     IsMuxTransaction = false;
     MuxTransactions.clear();
   }
-  MuxTransactionMutex.UnLock();
+
   return true;
 }
 
@@ -954,6 +951,8 @@ XrdMqSharedHash::StoreAsString (const char* notprefix)
 bool
 XrdMqSharedObjectManager::OpenMuxTransaction (const char* type, const char* broadcastqueue)
 {
+  XrdSysMutexHelper lock(MuxTransactionsMutex);
+
   MuxTransactionType = type;
   if (MuxTransactionType != "hash")
   {
@@ -970,7 +969,6 @@ XrdMqSharedObjectManager::OpenMuxTransaction (const char* type, const char* broa
   {
     MuxTransactionBroadCastQueue = broadcastqueue;
   }
-  MuxTransactionMutex.Lock();
   MuxTransactions.clear();
 
   IsMuxTransaction = true;
@@ -1242,6 +1240,7 @@ XrdMqSharedHash::Set (const char* key, const char* value, bool broadcast, bool t
   if (!value)
     return false;
 
+  bool emulatetransaction = false;
   std::string skey = key;
 
   {
@@ -1263,20 +1262,29 @@ XrdMqSharedHash::Set (const char* key, const char* value, bool broadcast, bool t
       }
     }
 
-
     if (XrdMqSharedObjectManager::broadcast && broadcast)
     {
+      bool done = false;
       if (SOM->IsMuxTransaction)
       {
-        SOM->MuxTransactions[Subject].insert(skey);
+        XrdSysMutexHelper mLock(SOM->MuxTransactionsMutex);
+        // SOM->IsMuxTransaction is tested a first time to avoid contention on SOM->MuxTransactionsMutex
+        // SOM->IsMuxTransaction is then tested a second time, when we have the lock to check it was not changed in the meantime
+        if(SOM->IsMuxTransaction)
+        {
+          SOM->MuxTransactions[Subject].insert(skey);
+          done = true;
+        }
       }
-      else
+
+      if(!done)
       {
         // we emulate a transaction for a single Set
         if (!IsTransaction)
         {
           TransactionMutex.Lock();
           Transactions.clear();
+          emulatetransaction = true;
         }
 
         Transactions.insert(skey);
@@ -1319,12 +1327,8 @@ XrdMqSharedHash::Set (const char* key, const char* value, bool broadcast, bool t
     }
   }
 
-  if (XrdMqSharedObjectManager::broadcast && broadcast)
-  {
-    if (!SOM->IsMuxTransaction)
-      if (!IsTransaction)
+  if (emulatetransaction)
         CloseTransaction();
-  }
 
   return true;
 }
@@ -1667,11 +1671,11 @@ XrdMqSharedHash::Print (std::string &out, std::string format)
             if (noblankline.length()>1)
               while (noblankline.replace(" ", "%20", 0, (pos==std::string::npos)?-1:pos)) {}
           }
-       
+
           snprintf(keyval, sizeof (keyval) - 1, "%s=%s", formattags["key"].c_str(), noblankline.c_str());
-        }
+          }
         body += keyval;
-      }
+          }
       else
       {
         std::string sline = line;

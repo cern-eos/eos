@@ -60,6 +60,9 @@ export EOS_MGM_MASTER2=eosdevsrv2.cern.ch
 # The alias which selects master 1 or 2
 export EOS_MGM_ALIAS=eosdev.cern.ch
 
+# Define if you want a namespace copy when doing a slave2master transition [default off]
+# export EOS_MGM_CP_ON_FAILOVER=1
+
 # The mail notification in case of fail-over
 export EOS_MAIL_CC="apeters@mail.cern.ch"
 export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
@@ -84,6 +87,14 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
 # Allow read-write-modify to unpriviledged users (define to set, undefine to unset)
 # export EOS_ALLOW_RAIN_RWM
+
+# Allow heap profiling when using jemalloc built with profiling enabled (start profiling with signal 40 and stop with signal 41)
+# for information about the option see https://linux.die.net/man/3/jemalloc
+# export MALLOC_CONF_mgm="prof:true,prof_active:false,prof_accum:true,lg_prof_interval:30"
+# means enable profiling support, start with NOT running profiling, issue cumulative dumps, autodump a profile every 2^30 bytes (1GB)
+
+# Duplicate all logging information to SYSLOG
+# export EOS_LOG_SYSLOG=0 ( set 1 or true to enable)
 
 # ------------------------------------------------------------------
 # FST Configuration
@@ -126,6 +137,13 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Specify the FUSE logging level (default=4 is LOG_WARNING ... see /usr/include/sys/syslog.h LOG_XXX definitions)
 # EOS_FUSE_DEBUG=1 overwrites these settings
 #export EOS_FUSE_LOGLEVEL=4
+
+# Set FUSE to not daemonize the process, staying open in the foreground
+# export EOS_FUSE_FOREGROUND=1
+
+# Timeout in seconds of the initial ping to the instance to check if the fs should be mounted
+#   note that this is constrained by XRD_TIMEOUTRESOLUTION which by default is 15 sec
+# export EOS_FUSE_PING_TIMEOUT=15
 
 # Disable parallel IO mode (default on)
 #export EOS_FUSE_NOPIO=1
@@ -211,6 +229,11 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Set FUSE kernel negative stat cache time - default 30 seconds
 # export EOS_FUSE_NEG_ENTRY_CACHE_TIME=30
 
+# an XRootD client bug makes that sometimes when a stat is issued it can come back with a null response
+# when this happens, it gets retried a few times sleeping between attempts 
+# EOS_FUSE_XRDBUGNULLRESPONSE_RETRYCOUNT=3
+# EOS_FUSE_XRDBUGNULLRESPONSE_RETRYSLEEPMS=1
+
 # Set FUSE client creator CAP liftime
 #    During this time window all reads done on the client where a file has been created
 #    can be served from a local file write-back cache.
@@ -225,6 +248,10 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 
 # Set the FUSE maximum in-memory size for all write-back cache entries - default 512M - clean-interval is fixed at 10 seconds
 # export EOS_FUSE_MAX_WB_INMEMORY_SIZE=536870912
+
+# Enable SSS connection. The path to the keytab file should be given there.  
+#    if KRB5 or GSI authentication is enabled, this is ignored 
+# EOS_FUSE_SSS_KEYTAB=""
 
 # ---------------------------------------------------------------------------------
 # this options are not available since AQUAMARINE is compiled with XROOTD3 

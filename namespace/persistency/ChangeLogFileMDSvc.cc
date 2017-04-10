@@ -28,7 +28,6 @@
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
 #include "common/ShellCmd.hh"
-
 #include <algorithm>
 #include <utility>
 #include <set>
@@ -48,19 +47,12 @@ namespace eos
         pQuotaStats = pFileSvc->pQuotaStats;
       }
 
-      virtual void publishOffset(uint64_t offset) 
-      {
-	pFileSvc->setFollowOffset(offset);
-      }
-
       //------------------------------------------------------------------------
       // Unpack new data and put it in the queue
       //------------------------------------------------------------------------
       virtual bool processRecord( uint64_t offset, char type,
                                   const eos::Buffer &buffer )
       {
-	publishOffset(offset);
-
         //----------------------------------------------------------------------
         // Update
         //----------------------------------------------------------------------
@@ -98,6 +90,7 @@ namespace eos
           }
           pDeleted.insert( id );
         }
+
         return true;
       }
 
@@ -219,6 +212,7 @@ namespace eos
 
               IFileMDChangeListener::Event e( currentFile,
                                               IFileMDChangeListener::Created );
+
               pFileSvc->notifyListeners( &e );
               handleReplicas( 0, currentFile );
 
@@ -253,6 +247,7 @@ namespace eos
             if( itP != contIdMap->end() )
               originalContainer = itP->second.ptr;
 
+	    bool readd=false;
             //------------------------------------------------------------------
             // The parent container did not change
             //------------------------------------------------------------------
@@ -262,6 +257,7 @@ namespace eos
               {
                 FileMD *existingFile =
                   originalContainer->findFile( originalFile->getName() );
+
                 if( existingFile &&
                     existingFile->getId() == originalFile->getId() )
                 {
@@ -279,15 +275,23 @@ namespace eos
                   //------------------------------------------------------------
                   // Rename
                   //------------------------------------------------------------
-                  originalContainer->removeFile( existingFile->getName() );
+		  originalContainer->removeFile(originalFile->getName());
                   existingFile->setName( currentFile->getName() );
-                  originalContainer->addFile( existingFile );
+		  readd = true;
                 }
-              }
+	      }
 
               handleReplicas( originalFile, currentFile );
+
               *originalFile = *currentFile;
+
               originalFile->setFileMDSvc( pFileSvc );
+
+	      if (originalContainer && readd)
+	      {
+		originalContainer->addFile(originalFile);
+	      }
+
               it->second.logOffset = currentOffset;
               processed.push_back( currentFile->getId() );
               delete currentFile;
@@ -423,7 +427,8 @@ namespace eos
 	try 
 	{
 	  while( current->getId() != 1 &&
-		 (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
+		 ((current->getFlags() & QUOTA_NODE_FLAG) == 0 ) && 
+		 ((current->getParentId())) )
 	    current = pContSvc->getContainerMD( current->getParentId() );
 	}
 	catch( MDException &e )
@@ -598,6 +603,7 @@ extern "C"
     {
       pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, 0 );
       offset = file->follow( &f, offset );
+      fileSvc->setFollowOffset(offset);
       f.commit();
       pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
       file->wait(pollInt);
@@ -848,14 +854,17 @@ namespace eos
     copyCmd += " ";
     copyCmd += tmpChangeLogPath.c_str();
 
-    eos::common::ShellCmd scmd( copyCmd.c_str() );
-    eos::common::cmd_status rc = scmd.wait(1800);
-
-    if( rc.exit_code )
+    if (getenv("EOS_MGM_CP_ON_FAILOVER"))
     {
-      MDException e( EIO ) ;
-      e.getMessage() << "Failed to copy the current change log file <";
-      e.getMessage() << pChangeLogPath << ">";
+      eos::common::ShellCmd scmd( copyCmd.c_str() );
+      eos::common::cmd_status rc = scmd.wait(1800);
+      
+      if( rc.exit_code )
+      {
+	MDException e( EIO ) ;
+	e.getMessage() << "Failed to copy the current change log file <";
+	e.getMessage() << pChangeLogPath << ">";
+      }
     }
 
     //--------------------------------------------------------------------------
@@ -874,15 +883,19 @@ namespace eos
       throw e;
     }
 
-    //--------------------------------------------------------------------------
-    // Rename the temp changelog file to the new file name
-    //--------------------------------------------------------------------------
-    if( rename( tmpChangeLogPath.c_str(), currentChangeLogPath.c_str() ) )
+
+    if (getenv("EOS_MGM_CP_ON_FAILOVER"))
     {
-      MDException e( EINVAL );
-      e.getMessage() << "Failed to rename changelog file from <";
-      e.getMessage() << tmpChangeLogPath << "> to <" << currentChangeLogPath;
-      throw e;
+      //--------------------------------------------------------------------------
+      // Rename the temp changelog file to the old file name
+      //--------------------------------------------------------------------------
+      if( rename( tmpChangeLogPath.c_str(), currentChangeLogPath.c_str() ) )
+      {
+	MDException e( EINVAL );
+	e.getMessage() << "Failed to rename changelog file from <";
+	e.getMessage() << tmpChangeLogPath << "> to <" << currentChangeLogPath;
+	throw e;
+      }
     }
 
     //--------------------------------------------------------------------------

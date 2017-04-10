@@ -190,6 +190,7 @@ namespace eos
                   // remove container with old name
                   // -----------------------------------------------------------
                   itP->second.ptr->removeContainer(it->second.ptr->getName());
+		  currentCont->InheritChildren(*(it->second.ptr));
                   delete it->second.ptr;
                   // -----------------------------------------------------------
                   // add container with new name
@@ -656,6 +657,7 @@ namespace eos
       throw e;
     }
 
+
     //--------------------------------------------------------------------------
     // Copy the current changelog file to the previous name
     //--------------------------------------------------------------------------
@@ -668,14 +670,17 @@ namespace eos
     copyCmd += " ";
     copyCmd += tmpChangeLogPath.c_str();
 
-    eos::common::ShellCmd scmd( copyCmd.c_str() );
-    eos::common::cmd_status rc = scmd.wait(1800);
-
-    if( rc.exit_code )
+    if (getenv("EOS_MGM_CP_ON_FAILOVER"))
     {
-      MDException e( EIO ) ;
-      e.getMessage() << "Failed to copy the current change log file <";
-      e.getMessage() << pChangeLogPath << ">";
+      eos::common::ShellCmd scmd( copyCmd.c_str() );
+      eos::common::cmd_status rc = scmd.wait(1800);
+
+      if( rc.exit_code )
+      {
+	MDException e( EIO ) ;
+	e.getMessage() << "Failed to copy the current change log file <";
+	e.getMessage() << pChangeLogPath << ">";
+      }
     }
 
     //--------------------------------------------------------------------------
@@ -694,15 +699,18 @@ namespace eos
       throw e;
     }
 
-    //--------------------------------------------------------------------------
-    // Rename the temp changelog file to the new file name
-    //--------------------------------------------------------------------------
-    if( rename( tmpChangeLogPath.c_str(), currentChangeLogPath.c_str() ) )
+    if (getenv("EOS_MGM_CP_ON_FAILOVER"))
     {
-      MDException e( EINVAL );
-      e.getMessage() << "Failed to rename changelog file from <";
-      e.getMessage() << tmpChangeLogPath << "> to <" << currentChangeLogPath;
-      throw e;
+      //--------------------------------------------------------------------------
+      // Rename the temp changelog file to the old file name
+      //--------------------------------------------------------------------------
+      if( rename( tmpChangeLogPath.c_str(), currentChangeLogPath.c_str() ) )
+      {
+	MDException e( EINVAL );
+	e.getMessage() << "Failed to rename changelog file from <";
+	e.getMessage() << tmpChangeLogPath << "> to <" << currentChangeLogPath;
+	throw e;
+      }
     }
 
     //--------------------------------------------------------------------------

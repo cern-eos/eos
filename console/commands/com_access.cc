@@ -315,7 +315,7 @@ com_access_usage:
   fprintf(stdout, "                                                : set default find query limit to <ndirss> for everybody\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "                                                : rule strength: user-limit >> group-limit >> wildcard-limit\n");
-  fprintf(stdout, "access rm  stall [r|w|ENOENT|ENOENT]:\n");
+  fprintf(stdout, "access rm  stall [r|w|ENOENT|ENONET]:\n");
   fprintf(stdout, "                                                  removes global stall time\n");
   fprintf(stdout, "                                          [r|w] : removes stall time for read or write requests\n");
   fprintf(stdout, "       rm limit rate:{user,group}:{name}:<counter\n");

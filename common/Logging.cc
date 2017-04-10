@@ -47,7 +47,7 @@ XrdOucHash<const char*> Logging::gDenyFilter;
 std::map<std::string, FILE*> Logging::gLogFanOut;
 
 Mapping::VirtualIdentity Logging::gZeroVid;
-
+bool Logging::gToSysLog = false;
 
 /*----------------------------------------------------------------------------*/
 /** 
@@ -187,6 +187,11 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   // limit the length of the output to buffer-1 length
   vsnprintf(ptr, logmsgbuffersize - (ptr - buffer - 1), msg, args);
 
+  if (gToSysLog)
+  {
+    syslog(priority,"%s", ptr);
+  }
+
   if (gLogFanOut.size())
   {
     // we do log-message fanout
@@ -270,6 +275,17 @@ Logging::Init ()
     gLogMemory[i].resize(gCircularIndexSize);
   }
   gZeroVid.name = "-";
+  XrdOucString tosyslog;
+  if (getenv("EOS_LOG_SYSLOG"))
+  {
+    tosyslog = getenv("EOS_LOG_SYSLOG");
+    if ( (tosyslog == "1" ||
+	  (tosyslog == "true") ) )
+    {
+      gToSysLog = true;
+      eos_static_info("logging to syslog");
+    }
+  }
 }
 
 /*----------------------------------------------------------------------------*/

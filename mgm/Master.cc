@@ -542,20 +542,23 @@ Master::Supervisor ()
           }
           else
           {
-            // remove any redirect or stall in this case
-            if (Access::gRedirectionRules.count(std::string("w:*")))
-            {
-              Access::gRedirectionRules.erase(std::string("w:*"));
-            }
-            if (Access::gStallRules.count(std::string("w:*")))
-            {
-              Access::gStallRules.erase(std::string("w:*"));
-              Access::gStallWrite = false;
-            }
-            if (Access::gRedirectionRules.count(std::string("ENOENT:*")))
-            {
-              Access::gRedirectionRules.erase(std::string("ENOENT:*"));
-            }
+	    if (fRunningState == kIsRunningMaster)
+	    {
+	      // remove any redirect or stall in this case
+	      if (Access::gRedirectionRules.count(std::string("w:*")))
+	      {
+		Access::gRedirectionRules.erase(std::string("w:*"));
+	      }
+	      if (Access::gStallRules.count(std::string("w:*")))
+	      {
+		Access::gStallRules.erase(std::string("w:*"));
+		Access::gStallWrite = false;
+	      }
+	      if (Access::gRedirectionRules.count(std::string("ENOENT:*")))
+	      {
+		Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+	      }
+	    }
           }
         }
       }
@@ -1138,6 +1141,9 @@ Master::PrintOut (XrdOucString &out)
     case kIsReadOnlyMaster:
       out += " state=master-ro";
       break;
+    case kIsTransition:
+      out += " state=trasition";
+      break;
   }
 
   out += " master=";
@@ -1533,6 +1539,24 @@ Master::Slave2Master ()
     MasterLog(eos_crit("slave=>master transition aborted since we cannot stat our own slave dir-changelog-file"));
     fRunningState = kIsRunningSlave;
     return false;
+  }
+
+  size_t n_wait = 0;
+  // wait that the follower reaches the offset seen now                                                                                    
+  while (gOFS->eosFileService->getFollowOffset() < (uint64_t) size_local_file_changelog)
+  {
+    XrdSysTimer sleeper;
+    sleeper.Wait(5000);
+    eos_static_info("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", 
+		    gOFS->eosFileService->getFollowOffset(), (uint64_t) size_local_file_changelog);
+
+    if (n_wait > 12)
+    {
+      MasterLog(eos_crit("slave=>master transition aborted since we didn't reach the follow point in 60 seconds - you may retry"));
+      fRunningState = kIsRunningSlave;
+      return false;
+    }
+    n_wait++;
   }
 
   bool syncok = false;

@@ -104,6 +104,7 @@
 #include "common/GlobalConfig.hh"
 #include "common/CommentLog.hh"
 #include "common/LinuxStat.hh"
+#include "common/JeMallocHandler.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "mgm/ConfigEngine.hh"
@@ -889,6 +890,21 @@ public:
   static void* StartMgmFsConfigListener (void *pp);
 
   // ---------------------------------------------------------------------------
+  // Signal handler for signal 40 to start profiling the heap
+  // ---------------------------------------------------------------------------
+  static void StartHeapProfiling (int);
+
+  // ---------------------------------------------------------------------------
+  // Signal handler for signal 41 to stop profiling the heap
+  // ---------------------------------------------------------------------------
+  static void StopHeapProfiling (int);
+
+  // ---------------------------------------------------------------------------
+  // Signal handler for signal 42 to dump the heap profile
+  // ---------------------------------------------------------------------------
+  static void DumpHeapProfile (int);
+
+  // ---------------------------------------------------------------------------
   // Filesystem error and configuration change listener thread function
   // ---------------------------------------------------------------------------
   void FsConfigListener ();
@@ -1065,6 +1081,7 @@ public:
   pthread_t mSubmitterTid; ///< Archive submitter thread
   XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
   std::list<std::string> mPendingBkps; ///< Backup jobs queue
+  eos::common::JeMallocHandler mJeMallocHandler; //< manage heap profiling
 
   //----------------------------------------------------------------------------
   //! Static method to start a thread that will queue, build and submit backup

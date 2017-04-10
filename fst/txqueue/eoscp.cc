@@ -172,6 +172,7 @@ usage ()
   fprintf(stderr, "       -V           : write summary as key value pairs\n");
   fprintf(stderr, "       -l           : try to force the destination to the local disk server [not supported]\n");
   fprintf(stderr, "       -a           : append to the file rather than truncate an existing file\n");
+  fprintf(stderr, "       -A <offset>  : append/overwrite at offset\n");
   fprintf(stderr, "       -b <size>    : use <size> as buffer size for copy operations\n");
   fprintf(stderr, "       -T <size>    : use <size> as target size for copies from STDIN\n");
   fprintf(stderr, "       -m <mode>    : set the mode for the destination file\n");
@@ -504,7 +505,7 @@ main (int argc, char* argv[])
   extern char* optarg;
   extern int optind;
 
-  while ((c = getopt(argc, argv, "nshdvlipfce:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:V0")) != -1)
+  while ((c = getopt(argc, argv, "nshdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0")) != -1)
   {
     switch (c)
     {
@@ -544,6 +545,10 @@ main (int argc, char* argv[])
       appendmode = 1;
       break;
 
+    case 'A':
+      appendmode = 1;
+      startwritebyte = strtoull(optarg, 0, 10);
+      break;
     case 'c':
       doStoreRecovery = true;
       offsetXrd = -1;
@@ -1870,6 +1875,8 @@ main (int argc, char* argv[])
                               st[i].st_mode, "");
         }
 
+	if (!startwritebyte && response)
+	  startwritebyte = response->GetSize();
         delete response;
       }
       else
