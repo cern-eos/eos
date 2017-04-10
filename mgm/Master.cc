@@ -1712,6 +1712,14 @@ Master::Slave2Master ()
     return false;
   }
 
+  // get eossync up if it is not up
+  eos::common::ShellCmd scmd4(". /etc/sysconfig/eos; service eossync status || service eossync start ");
+  rc = scmd4.wait(30);
+  if (rc.exit_code)
+  {
+    MasterLog(eos_warning("failed to start eossync services - %d", rc.exit_code));
+  }
+
   UnBlockCompacting();
 
   // broadcast the new manager node variable
