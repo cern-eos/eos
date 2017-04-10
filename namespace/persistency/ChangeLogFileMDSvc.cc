@@ -964,12 +964,15 @@ namespace eos
 #endif
       {
 	fprintf(stderr,"INFO     [ doing sequential boot ]\n");
+	uint64_t cnt = 0;
+	size_t progress = 0;
         //----------------------------------------------------------------------
         // Recreate the files
         //----------------------------------------------------------------------
         IdMap::iterator it;
         for ( it = pIdMap.begin(); it != pIdMap.end(); ++it )
         {
+	  cnt++;
           //--------------------------------------------------------------------
           // Unpack the serialized buffers
           //--------------------------------------------------------------------
@@ -1012,6 +1015,17 @@ namespace eos
           }
           else
             cont->addFile( file );
+
+	  if ( (100.0 * cnt / end ) > progress) 
+	  {   
+	    now = time(0);   
+	    double estimate = (1+end-cnt) / ((1.0*cnt/(now+1 - start_time)));   
+	    if (progress==0)     
+	      fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate none \n", "file-load",(unsigned int)progress);   
+	    else     
+	      fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate %3.02fs\n", "file-load", (unsigned int)progress, estimate);   
+	    progress += 10; 
+	  }
         }
       }
     }
