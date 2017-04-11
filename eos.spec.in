@@ -300,7 +300,7 @@ The EOS shell client.
 Summary: The EOS fuse client with init.d and mount script
 Group: Applications/File
 Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
-Requires: eos-fuse-sysv = @CPACK_PACKAGE_VERSION@
+Requires: eos-fuse-sys = @CPACK_PACKAGE_VERSION@
 
 %description -n eos-fuse
 The EOS fuse client bundle.
