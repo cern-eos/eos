@@ -7,6 +7,23 @@
 Beryl Release Notes
 ===================
 
+
+``V0.3.237 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- NS: fix slave follower attachment issue leading to invisible files
+- MGM: fix the logic when to show a slave as booted
+
+New Feature
++++++++++++
+
+- NS: add 'pending' counter to show if there are updates on the slave, which cannot be attached
+- NS: show follower progress during the initial scan phase and not only after
+    
+
 ``V0.3.236 Aquamarine``
 =====================
 
