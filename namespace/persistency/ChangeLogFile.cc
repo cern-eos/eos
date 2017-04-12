@@ -602,6 +602,7 @@ namespace eos
       fprintf(stderr,"# munmapped changelogfile\n");
       ::munmap(pData, pDataLen);
     }
+    pData=0;
   }
 
   //----------------------------------------------------------------------------
