@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.236 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- NS: set 'pData' pointer to 0 in munmap function to switch back to traditional read function
+
 ``V0.3.235 Aquamarine``
 =====================
 
