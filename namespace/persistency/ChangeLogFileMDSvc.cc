@@ -54,6 +54,11 @@ namespace eos
         pQuotaStats = pFileSvc->pQuotaStats;
       }
 
+      virtual void publishOffset(uint64_t offset)
+      {
+        pFileSvc->setFollowOffset(offset);
+      }
+    
       //------------------------------------------------------------------------
       // Unpack new data and put it in the queue
       //------------------------------------------------------------------------
@@ -111,6 +116,7 @@ namespace eos
         pFileSvc->getSlaveLock()->writeLock();
         ChangeLogFileMDSvc::IdMap      *fileIdMap = &pFileSvc->pIdMap;
         ChangeLogContainerMDSvc::IdMap *contIdMap = &pContSvc->pIdMap;
+	ChangeLogContainerMDSvc::DeletionSet *deletionSet = &pContSvc->pFollowerDeletions;
 
         //----------------------------------------------------------------------
         // Handle deletions
@@ -233,22 +239,25 @@ namespace eos
             }
 	    else
 	    {
-	      //----------------------------------------------------------------
-	      // It might happen that the parent container has been lost already
-	      // e.g. rm -r /cont/ and the files appear detached on the slave.
-	      // In this case we have to create the file entry to avoid
-	      // that files appear as orphaned and don't get deleted on FSTs
-	      // after a slave=>master promotion
-	      //----------------------------------------------------------------
-              (*fileIdMap)[currentFile->getId()] =
-                ChangeLogFileMDSvc::DataInfo( currentOffset, currentFile );
-
-              IFileMDChangeListener::Event e( currentFile,
-                                              IFileMDChangeListener::Created );
-
-              pFileSvc->notifyListeners( &e );
-              handleReplicas( 0, currentFile );
-              processed.push_back( currentFile->getId() );
+	      if (deletionSet->count(currentFile->getContainerId()) || (!currentFile->getContainerId()) )
+	      {
+		//----------------------------------------------------------------
+		// It might happen that the parent container has been lost already
+		// e.g. rm -r /cont/ and the files appear detached on the slave.
+		// In this case we have to create the file entry to avoid
+		// that files appear as orphaned and don't get deleted on FSTs
+		// after a slave=>master promotion
+		//----------------------------------------------------------------
+		(*fileIdMap)[currentFile->getId()] =
+		  ChangeLogFileMDSvc::DataInfo( currentOffset, currentFile );
+		
+		IFileMDChangeListener::Event e( currentFile,
+						IFileMDChangeListener::Created );
+		
+		pFileSvc->notifyListeners( &e );
+		handleReplicas( 0, currentFile );
+		processed.push_back( currentFile->getId() );
+	      }
 	    }
           }
 
@@ -429,6 +438,7 @@ namespace eos
         for( itPro = processed.begin(); itPro != processed.end(); ++itPro )
           pUpdated.erase( *itPro );
 
+	pFileSvc->setFollowPending(pUpdated.size());
         pContSvc->getSlaveLock()->unLock();
       }
 
@@ -924,8 +934,8 @@ namespace eos
             if ( !cont )
             {
               std::lock_guard<std::mutex> lock(critical);
-              if ( !pSlaveMode )
-                attachBroken( "orphans", file );
+	      if ( !pSlaveMode )
+		attachBroken( "orphans", file );
               ++it;
               continue;
             }
@@ -934,8 +944,8 @@ namespace eos
             if ( cont->findFile( file->getName() ) )
             {
               std::lock_guard<std::mutex> lock(critical);
-              if ( !pSlaveMode )
-                attachBroken( "name_conflicts", file );
+	      if ( !pSlaveMode )
+		attachBroken( "name_conflicts", file );
               ++it;
               continue;
             }
@@ -1002,15 +1012,15 @@ namespace eos
 
           if ( !cont )
           {
-            if ( !pSlaveMode )
-              attachBroken( "orphans", file );
+	    if ( !pSlaveMode )
+	      attachBroken( "orphans", file );
             continue;
           }
 
           if ( cont->findFile( file->getName() ) )
           {
-            if ( !pSlaveMode )
-              attachBroken( "name_conflicts", file );
+	    if ( !pSlaveMode )
+	      attachBroken( "name_conflicts", file );
             continue;
           }
           else
@@ -1648,6 +1658,7 @@ namespace eos
 
     s1 << file->getContainerId();
     ContainerMD *cont = parentCont->findContainer( s1.str() );
+
     if( !cont )
       cont = pContSvc->createInParent( s1.str(), parentCont );
 

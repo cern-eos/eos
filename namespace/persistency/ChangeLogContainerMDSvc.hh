@@ -36,6 +36,7 @@
 #include <google/sparse_hash_map>
 #include <list>
 #include <map>
+#include <set>
 #include <pthread.h>
 #include <limits>
 
@@ -332,7 +333,8 @@ namespace eos
 	bool attached;
       };
 
-      typedef google::dense_hash_map<ContainerMD::id_t, DataInfo , Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr> IdMap;
+      typedef google::dense_hash_map<ContainerMD::id_t, DataInfo , Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr> IdMap; 
+      typedef std::set<ContainerMD::id_t> DeletionSet;
       typedef std::list<IContainerMDChangeListener*>              ListenerList;
       typedef std::list<ContainerMD*>                             ContainerList;
 
@@ -390,6 +392,7 @@ namespace eos
       std::string        pChangeLogPath;
       ChangeLogFile     *pChangeLog;
       IdMap              pIdMap;
+      DeletionSet        pFollowerDeletions;
       ListenerList       pListeners;
       pthread_t          pFollowerThread;
       LockHandler       *pSlaveLock;

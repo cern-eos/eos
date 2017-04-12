@@ -229,20 +229,25 @@ XrdMgmOfs::InitializeFileView ()
     {
       eos_static_info("msg=\"starting slave listener\"");
 
-      struct stat buf;
-      buf.st_size = 0;
-      ::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf);
+      struct stat f_buf;
+      struct stat c_buf;
+      f_buf.st_size = 0;
+      c_buf.st_size = 0;
+      ::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &f_buf);
+      ::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &c_buf);
 
 
       gOFS->eosFileService->startSlave();
       gOFS->eosDirectoryService->startSlave();
 
       // wait that the follower reaches the offset seen now
-      while (gOFS->eosFileService->getFollowOffset() < (uint64_t) buf.st_size)
+      while ( (gOFS->eosFileService->getFollowOffset() < (uint64_t) f_buf.st_size) ||
+	      (gOFS->eosDirectoryService->getFollowOffset() < (uint64_t) c_buf.st_size) ||
+	      (gOFS->eosFileService->getFollowPending()) )
       {
         XrdSysTimer sleeper;
         sleeper.Wait(5000);
-        eos_static_info("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) buf.st_size);
+        eos_static_info("msg=\"waiting for the namespace to reach the follow point\" is-file-offset=%llu target-file--offset=%llu is-dir-offset=%llu target-dir-offset=%llu files-pending=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) f_buf.st_size, gOFS->eosDirectoryService->getFollowOffset(), (uint64_t) c_buf.st_size, gOFS->eosFileService->getFollowPending());
       }
 
       {
