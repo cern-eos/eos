@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.240 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- FST: implement fdellocate function for non-XFS detected filesystems (which used posix_fallocate)
+
 ``V0.3.239 Aquamarine``
 =====================
 
