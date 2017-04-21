@@ -7,11 +7,27 @@
 Beryl Release Notes
 ===================
 
+``V0.3.239 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- NS: fix resolution of multiple ../ path changes like ../../XYZ
+- COMMON: fix resolution of multipeo ../ path changes like /X/Y/Z/../../Z
+
+``V0.3.238 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- FST: avoid SEGV during startup when calling RemoveGhostEntries (.eosscan exists on data path)
 
 ``V0.3.237 Aquamarine``
 =====================
 
-Buf Fixes
+Bug Fixes
 +++++++++
 
 - NS: fix slave follower attachment issue leading to invisible files
