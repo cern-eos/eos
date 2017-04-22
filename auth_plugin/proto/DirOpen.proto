@@ -1,6 +1,7 @@
+syntax = "proto2";
 package eos.auth;
 
-import "proto/XrdSecEntity.proto";
+import "XrdSecEntity.proto";
 
 //------------------------------------------------------------------------------
 // DirOpen request protocol buffer message 

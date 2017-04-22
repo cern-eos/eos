@@ -67,7 +67,7 @@ endif()
 # Generate protocol buffer files used in several targets and make them visible
 # at the global scope
 #-------------------------------------------------------------------------------
-PROTOBUF_GENERATE_CPP(FMDBASE_SRCS FMDBASE_HDRS PROTOFILES FmdBase.proto)
+PROTOBUF_GENERATE_CPP(FMDBASE_SRCS FMDBASE_HDRS FmdBase.proto)
 set(FMDBASE_SRCS ${FMDBASE_SRCS} PARENT_SCOPE)
 set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
 set_source_files_properties(

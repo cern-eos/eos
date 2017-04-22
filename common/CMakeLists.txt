@@ -25,6 +25,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${Z_INCLUDE_DIRS}
+  ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
@@ -36,17 +37,13 @@ include_directories(
 #-------------------------------------------------------------------------------
 if (NOT TARGET fmt)
   add_subdirectory(fmt)
-
-  set_target_properties(
-    fmt
-    PROPERTIES
-    POSITION_INDEPENDENT_CODE TRUE)
+  set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
-PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS PROTOFILES dbmaptest/test.proto)
+PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS dbmaptest/test.proto)
 set_source_files_properties(
   ${DBMAPTEST_SRCS}
   ${DBMAPTEST_HDRS}
