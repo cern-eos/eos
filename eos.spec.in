@@ -87,6 +87,8 @@ BuildRequires: zeromq, zeromq-devel
 
 # Install gcc 4.8 on SLC6
 %if 0%{?rhel} == 6 || 0%{?el6} == 1
+%(wget -O /etc/yum.repos.d/slc6-devtoolset.repo \
+  http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo)
 BuildRequires: devtoolset-2-gcc-c++
 BuildRequires: devtoolset-2-binutils-devel
 %endif
