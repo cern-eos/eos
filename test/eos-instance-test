@@ -802,6 +802,10 @@ categorie="symlink"
 runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/
 runtest "### Touch     " unix 0 "" eos touch /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/touch
 runtest "### Symlink(d)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref
+runtest "### Symlink(r)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symrel2 ../../test/instancetest/ref/
+runtest "### Symlink   " unix 0 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/symrel2/touch
+runtest "### Symlink(r)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symrel1 ../instancetest/ref/
+runtest "### Symlink   " unix 0 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/symrel1/touch
 runtest "### Symlink(f)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/touch
 runtest "### Symlink(E)" unix 1 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami /eos/$EOS_TEST_INSTANCE/proc/whoami
 runtest "### Symlink(E)" unix 1 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref

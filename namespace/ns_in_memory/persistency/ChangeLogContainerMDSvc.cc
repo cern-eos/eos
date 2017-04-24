@@ -31,7 +31,7 @@
 #include "namespace/ns_in_memory/accounting/ContainerAccounting.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
-#include <set>
+#include "common/Parallel.hh"
 #include <memory>
 
 //------------------------------------------------------------------------------
@@ -51,6 +51,14 @@ public:
   }
 
   //------------------------------------------------------------------------
+  // Publish follow offset
+  //------------------------------------------------------------------------
+  virtual void publishOffset(uint64_t offset)
+  {
+    pContSvc->setFollowOffset(offset);
+  }
+
+  //------------------------------------------------------------------------
   // Unpack new data and put it in the queue
   //------------------------------------------------------------------------
   virtual bool processRecord(uint64_t offset, char type,
@@ -66,9 +74,11 @@ public:
       ContMap::iterator it = pUpdated.find(container->getId());
 
       if (it != pUpdated.end()) {
-        it->second = container;
+        it->second.ptr = container;
+        it->second.logOffset = offset;
       } else {
-        pUpdated[container->getId()] = container;
+        pUpdated[container->getId()].ptr = container;
+        pUpdated[container->getId()].logOffset = offset;
       }
 
       //--------------------------------------------------------------------
@@ -89,6 +99,7 @@ public:
       ContMap::iterator it = pUpdated.find(id);
 
       if (it != pUpdated.end()) {
+        it->second.ptr.reset();
         pUpdated.erase(it);
       }
 
@@ -105,6 +116,8 @@ public:
   {
     pContSvc->getSlaveLock()->writeLock();
     ChangeLogContainerMDSvc::IdMap* idMap = &pContSvc->pIdMap;
+    ChangeLogContainerMDSvc::DeletionSet* deletionSet =
+      &pContSvc->pFollowerDeletions;
     //----------------------------------------------------------------------
     // Handle deletions
     //----------------------------------------------------------------------
@@ -116,6 +129,7 @@ public:
       it = idMap->find(*itD);
 
       if (it == idMap->end()) {
+        deletionSet->insert(*itD);
         processed.push_back(*itD);
         continue;
       }
@@ -138,6 +152,8 @@ public:
         }
       }
 
+      it->second.ptr.reset();
+      deletionSet->insert(*itD);
       idMap->erase(it);
       processed.push_back(*itD);
     }
@@ -156,12 +172,12 @@ public:
     for (itU = pUpdated.begin(); itU != pUpdated.end(); ++itU) {
       ChangeLogContainerMDSvc::IdMap::iterator it;
       ChangeLogContainerMDSvc::IdMap::iterator itP;
-      std::shared_ptr<IContainerMD> currentCont = itU->second;
+      std::shared_ptr<IContainerMD> currentCont = itU->second.ptr;
       it = idMap->find(currentCont->getId());
 
       if (it == idMap->end()) {
         (*idMap)[currentCont->getId()] =
-          ChangeLogContainerMDSvc::DataInfo(0, currentCont);
+          ChangeLogContainerMDSvc::DataInfo(itU->second.logOffset, currentCont);
         itP = idMap->find(currentCont->getParentId());
 
         if (itP != idMap->end()) {
@@ -187,6 +203,7 @@ public:
           if (currentCont->getName() == it->second.ptr->getName()) {
             // meta data change - keeping directory name
             mem_found_cont = mem_current_cont;
+            it->second.logOffset = itU->second.logOffset;
             pContSvc->notifyListeners(it->second.ptr.get() ,
                                       IContainerMDChangeListener::MTimeChange);
           } else {
@@ -204,8 +221,9 @@ public:
               pContSvc->notifyListeners(itP->second.ptr.get(),
                                         IContainerMDChangeListener::MTimeChange);
               // update idmap pointer to the container
-              (*idMap)[currentCont->getId()] = ChangeLogContainerMDSvc::DataInfo(0,
-                                               currentCont);
+              (*idMap)[currentCont->getId()] =
+                ChangeLogContainerMDSvc::DataInfo(itU->second.logOffset,
+                                                  currentCont);
             }
           }
         } else {
@@ -274,6 +292,7 @@ public:
             itP->second.ptr->removeContainer(it->second.ptr->getName());
             // copy the meta data
             mem_found_cont = mem_current_cont;
+            it->second.logOffset = itU->second.logOffset;
             // -------------------------------------------------------------
             // add to the new parent container
             // -------------------------------------------------------------
@@ -318,10 +337,12 @@ public:
           if (pContainerAccounting) {
             // move subtree accouting from source to destination
             ((ContainerAccounting*)pContainerAccounting)->AddTree(itNP->second.ptr.get(),
-                currentCont->getTreeSize());
+                it->second.ptr->getTreeSize());
             ((ContainerAccounting*)pContainerAccounting)->RemoveTree(itP->second.ptr.get(),
-                currentCont->getTreeSize());
+                it->second.ptr->getTreeSize());
           }
+
+          itU->second.ptr.reset();
         }
       }
     }
@@ -373,8 +394,18 @@ private:
     return pQuotaStats->registerNewNode(current->getId());
   }
 
-  typedef std::map< IContainerMD::id_t, std::shared_ptr<eos::IContainerMD> >
-  ContMap;
+  struct DataInfo {
+    DataInfo(): logOffset(0), ptr((IContainerMD*)0) {}
+    DataInfo(uint64_t logOffset, std::shared_ptr<IContainerMD> ptr)
+    {
+      this->logOffset = logOffset;
+      this->ptr       = ptr;
+    }
+    uint64_t logOffset;
+    std::shared_ptr<IContainerMD> ptr;
+  };
+
+  typedef std::map<eos::ContainerMD::id_t, DataInfo> ContMap;
   ContMap                           pUpdated;
   std::set<eos::IContainerMD::id_t> pDeleted;
   eos::ChangeLogContainerMDSvc*     pContSvc;
@@ -539,7 +570,7 @@ void ChangeLogContainerMDSvc::initialize()
 
   // Rescan the change log if needed
   //
-  // In the master mode we go throug the entire file
+  // In the master mode we go through the entire file
   // In the slave mode up until the compaction mark or not at all
   // if the compaction mark is not present
   pChangeLog->open(pChangeLogPath, logOpenFlags, CONTAINER_LOG_MAGIC);
@@ -548,6 +579,7 @@ void ChangeLogContainerMDSvc::initialize()
 
   if (!pSlaveMode || logIsCompacted) {
     ContainerMDScanner scanner(pIdMap, pSlaveMode);
+    pChangeLog->mmap();
     pFollowStart = pChangeLog->scanAllRecords(&scanner , pAutoRepair);
     pFirstFreeId = scanner.getLargestId() + 1;
     // Recreate the container structure
@@ -559,13 +591,97 @@ void ChangeLogContainerMDSvc::initialize()
     size_t progress = 0;
     uint64_t end = pIdMap.size();
     uint64_t cnt = 0;
+#if __GNUC_PREREQ(4,8)
+    int nthread = std::thread::hardware_concurrency() ;
+
+    if (pIdMap.size() / nthread && getenv("EOS_NS_BOOT_PARALLEL")) {
+      fprintf(stderr, "INFO     [ doing parallel boot ]\n");
+      // Parallel boot
+      std::mutex critical;
+      size_t chunk = pIdMap.size() / nthread;
+      size_t last_chunk = chunk + pIdMap.size() - (chunk * nthread);
+      eos::common::Parallel::For(0, nthread , [&](int i) {
+        IdMap::iterator it = pIdMap.begin();
+        std::advance(it, i * chunk);
+
+        for (size_t n = 0; n < ((i == (nthread - 1)) ? last_chunk : chunk); ++n) {
+          {
+            std::lock_guard<std::mutex> lock(critical);
+            cnt++;
+          }
+
+          if (it->second.ptr) {
+            ++it;
+            continue;
+          }
+
+          loadContainer(it);
+          {
+            std::lock_guard<std::mutex> lock(critical);
+
+            if ((100.0 * cnt / end) > progress) {
+              now = time(0);
+              double estimate = (1 + end - cnt) / ((1.0 * cnt / (now + 1 - start_time)));
+
+              if (progress == 0) {
+                fprintf(stderr, "PROGRESS [ %-64s ] %02u%% estimate none \n", "container-load",
+                        (unsigned int)progress);
+              } else {
+                fprintf(stderr,
+                        "PROGRESS [ %-64s ] %02u%% estimate %3.01fs [ %lus/%.0fs ] [%lu/%lu]\n",
+                        "container-load", (unsigned int)progress, estimate, time(NULL) - start_time,
+                        (double)time(NULL) - (double)start_time + estimate, cnt, end);
+              }
+
+              progress += 2;
+            }
+          }
+          ++it;
+        }
+      });
+    } else
+#endif
+    {
+      for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+        if (it->second.ptr) {
+          continue;
+        }
+
+        ++cnt;
+        loadContainer(it);
+
+        if ((100.0 * cnt / end) > progress) {
+          now = time(0);
+          double estimate = (1 + end - cnt) / ((1.0 * cnt / (now + 1 - start_time)));
+
+          if (progress == 0) {
+            fprintf(stderr, "PROGRESS [ %-64s ] %02u%% estimate none \n",
+                    "container-attach", (unsigned int)progress);
+          } else {
+            fprintf(stderr, "PROGRESS [ %-64s ] %02u%% estimate %3.02fs\n",
+                    "container-attach", (unsigned int)progress, estimate);
+          }
+
+          progress += 2;
+        }
+      }
+    }
+
+    pChangeLog->munmap();
+    now = time(0);
+    fprintf(stderr, "ALERT    [ %-64s ] finished in %ds\n", "container-load",
+            (int)(now - start_time));
+    start_time = time(0);
+    progress = 0;
+    cnt = 0;
 
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
-      if (it->second.ptr) {
+      cnt++;
+
+      if (it->second.attached) {
         continue;
       }
 
-      ++cnt;
       recreateContainer(it, orphans, nameConflicts);
       notifyListeners(it->second.ptr.get() , IContainerMDChangeListener::MTimeChange);
 
@@ -575,13 +691,15 @@ void ChangeLogContainerMDSvc::initialize()
 
         if (progress == 0) {
           fprintf(stderr, "PROGRESS [ %-64s ] %02u%% estimate none \n",
-                  "container-attach", (unsigned int)progress);
+                  "container-create", (unsigned int)progress);
         } else {
-          fprintf(stderr, "PROGRESS [ %-64s ] %02u%% estimate %3.02fs\n",
-                  "container-attach", (unsigned int)progress, estimate);
+          fprintf(stderr,
+                  "PROGRESS [ %-64s ] %02u%% estimate %3.01fs [ %lus/%.0fs ] [%lu/%lu]\n",
+                  "container-create", (unsigned int)progress, estimate, time(NULL) - start_time,
+                  (double)time(NULL) - (double)start_time + estimate, cnt, end);
         }
 
-        progress += 10;
+        progress += 2;
       }
     }
 
@@ -831,7 +949,7 @@ ChangeLogContainerMDSvc::addChangeListener(IContainerMDChangeListener* listener)
 // Prepare for online compacting.
 //----------------------------------------------------------------------------
 void*
-ChangeLogContainerMDSvc::compactPrepare(const std::string& newLogFileName) const
+ChangeLogContainerMDSvc::compactPrepare(const std::string& newLogFileName)
 {
   // Try to open a new log file for writing
   ::ContainerCompactingData* data = new ::ContainerCompactingData();
@@ -847,6 +965,8 @@ ChangeLogContainerMDSvc::compactPrepare(const std::string& newLogFileName) const
     throw;
   }
 
+  // Shrink the pIdMap
+  pIdMap.resize(0);
   // Get the list of records
   IdMap::const_iterator it;
 
@@ -854,6 +974,8 @@ ChangeLogContainerMDSvc::compactPrepare(const std::string& newLogFileName) const
     // Slaves have a non-persisted '/' record at offset 0
     if (it->second.logOffset) {
       data->records.push_back(::ContainerRecordData(it->second.logOffset, it->first));
+    } else {
+      fprintf(stderr, "WARNING: skipping record %lu in compaction\n", it->first);
     }
   }
 
@@ -1030,6 +1152,20 @@ void ChangeLogContainerMDSvc::stopSlave()
   pSlaveStarted = false;
   pSlaveMode = false;
   pFollowerThread = 0;
+  pFollowerDeletions.clear();
+}
+
+//------------------------------------------------------------------------------
+// Load the container
+//------------------------------------------------------------------------------
+void ChangeLogContainerMDSvc::loadContainer(IdMap::iterator& it)
+{
+  Buffer buffer;
+  pChangeLog->readRecord(it->second.logOffset, buffer);
+  std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>
+      (IContainerMD::id_t(0), pFileSvc, this);
+  container->deserialize(buffer);
+  it->second.ptr = container;
 }
 
 //----------------------------------------------------------------------------
@@ -1039,12 +1175,8 @@ void ChangeLogContainerMDSvc::recreateContainer(IdMap::iterator& it,
     ContainerList& orphans,
     ContainerList& nameConflicts)
 {
-  Buffer buffer;
-  pChangeLog->readRecord(it->second.logOffset, buffer);
-  std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>
-      (IContainerMD::id_t(0), pFileSvc, this);
-  container->deserialize(buffer);
-  it->second.ptr = container;
+  std::shared_ptr<IContainerMD> container = it->second.ptr;
+  it->second.attached = true;
 
   // For non-root containers recreate the parent
   if (container->getId() != container->getParentId()) {
@@ -1189,6 +1321,9 @@ bool ChangeLogContainerMDSvc::ContainerMDScanner::processRecord(
   }
   // Compaction mark - we stop scanning here
   else if (type == COMPACT_STAMP_RECORD_MAGIC) {
+    fprintf(stderr, "INFO     [ found directory compaction mark at offset=%lu ]\n",
+            offset);
+
     if (pSlaveMode) {
       return false;
     }

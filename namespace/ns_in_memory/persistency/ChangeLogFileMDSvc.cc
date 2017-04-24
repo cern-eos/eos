@@ -25,15 +25,21 @@
 #include "ChangeLogContainerMDSvc.hh"
 #include "ChangeLogConstants.hh"
 #include "common/ShellCmd.hh"
+#include "common/Parallel.hh"
 #include "namespace/Constants.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
 #include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 #include <algorithm>
 #include <utility>
 #include <set>
+#include <features.h>
+#if __GNUC_PREREQ(4,8)
+#include <atomic>
+#endif
 
 //------------------------------------------------------------------------------
 // Follower
@@ -48,6 +54,11 @@ public:
   {
     pContSvc    = pFileSvc->pContSvc;
     pQuotaStats = pFileSvc->pQuotaStats;
+  }
+
+  virtual void publishOffset(uint64_t offset)
+  {
+    pFileSvc->setFollowOffset(offset);
   }
 
   // Unpack new data and put it in the queue
@@ -93,6 +104,8 @@ public:
     pFileSvc->getSlaveLock()->writeLock();
     ChangeLogFileMDSvc::IdMap*      fileIdMap = &pFileSvc->pIdMap;
     ChangeLogContainerMDSvc::IdMap* contIdMap = &pContSvc->pIdMap;
+    ChangeLogContainerMDSvc::DeletionSet* deletionSet =
+      &pContSvc->pFollowerDeletions;
     // Handle deletions
     std::set<IFileMD::id_t>::iterator itD;
 
@@ -194,6 +207,24 @@ public:
           }
 
           processed.push_back(currentFile->getId());
+        } else {
+          if (deletionSet->count(currentFile->getContainerId()) ||
+              (!currentFile->getContainerId())) {
+            //----------------------------------------------------------------
+            // It might happen that the parent container has been lost already
+            // e.g. rm -r /cont/ and the files appear detached on the slave.
+            // In this case we have to create the file entry to avoid
+            // that files appear as orphaned and don't get deleted on FSTs
+            // after a slave=>master promotion
+            //----------------------------------------------------------------
+            (*fileIdMap)[currentFile->getId()] =
+              ChangeLogFileMDSvc::DataInfo(currentOffset, currentFile);
+            IFileMDChangeListener::Event e(currentFile.get(),
+                                           IFileMDChangeListener::Created);
+            pFileSvc->notifyListeners(&e);
+            handleReplicas(0, currentFile.get());
+            processed.push_back(currentFile->getId());
+          }
         }
       }
       // It's an update
@@ -354,6 +385,7 @@ public:
       pUpdated.erase(*itPro);
     }
 
+    pFileSvc->setFollowPending(pUpdated.size());
     pContSvc->getSlaveLock()->unLock();
   }
 
@@ -712,51 +744,220 @@ void ChangeLogFileMDSvc::initialize()
 
   if (!pSlaveMode || logIsCompacted) {
     FileMDScanner scanner(pIdMap, pSlaveMode);
+    pChangeLog->mmap();
     pFollowStart = pChangeLog->scanAllRecords(&scanner);
     pFirstFreeId = scanner.getLargestId() + 1;
-    // Recreate the files
-    IdMap::iterator it;
+#if __GNUC_PREREQ(4,8)
+    time_t start_time = time(0);
+    std::atomic_ulong cnt(0);
+    time_t now = start_time;
+    uint64_t end = pIdMap.size();
+    int nthread = std::thread::hardware_concurrency();
 
-    for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
-      // Unpack the serialized buffers
-      std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
-      file->deserialize(*it->second.buffer);
-      it->second.ptr = file;
-      delete it->second.buffer;
-      it->second.buffer = 0;
-      ListenerList::iterator it;
+    if (pIdMap.size() / nthread && getenv("EOS_NS_BOOT_PARALLEL")) {
+      fprintf(stderr, "INFO     [ doing parallel boot ]\n");
+      // Recreate the files
+      std::mutex critical;
+      size_t chunk = pIdMap.size() / nthread;
+      size_t last_chunk = chunk + pIdMap.size() - (chunk * nthread);
 
-      for (it = pListeners.begin(); it != pListeners.end(); ++it) {
-        (*it)->fileMDRead(file.get());
+      if (!(pIdMap.size() / nthread)) {
+        nthread = 1;
+        last_chunk = chunk = pIdMap.size();
       }
 
-      // Attach to the hierarchy
-      if (file->getContainerId() == 0) {
-        continue;
-      }
+      eos::common::Parallel::For(0, nthread , [&](int i) {
+        IdMap::iterator it = pIdMap.begin();
+        std::advance(it, i * chunk);
+        time_t now = time(NULL);
+        size_t progress = 0;
 
-      std::shared_ptr<IContainerMD> cont;
+        for (size_t n = 0; n < ((i == (nthread - 1)) ? last_chunk : chunk); ++n) {
+          cnt++;
+          //------------------------------------------------------------------
+          // Unpack the serialized buffers
+          //------------------------------------------------------------------
+          std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
+          file->deserialize(*it->second.buffer);
+          it->second.ptr = file;
+          delete it->second.buffer;
+          it->second.buffer = 0;
+          uint64_t lcnt = cnt.load();
 
-      try {
-        cont = pContSvc->getContainerMD(file->getContainerId());
-      } catch (MDException& e) {}
+          if ((!i) && ((100.0 * lcnt / end) > progress)) {
+            //std::lock_guard<std::mutex> lock(critical);
+            now = time(NULL);
+            double estimate = (1 + end - lcnt) / ((1.0 * lcnt / (now + 1 - start_time)));
 
-      if (!cont) {
-        if (!pSlaveMode) {
-          attachBroken("orphans", file.get());
+            if (progress == 0) {
+              fprintf(stderr, "PROGRESS [ load %-64s ] %02u%% estimate none \n", "file-load",
+                      (unsigned int) progress);
+            } else {
+              fprintf(stderr, "PROGRESS [ load %-64s ] %02u%% estimate %3.01fs "
+                      "[ %lus/%.0fs ] [%lu/%lu]\n", "file-load",
+                      (unsigned int) progress, estimate,  time(NULL) - start_time,
+                      (double) time(NULL) - (double) start_time + estimate, lcnt, end);
+            }
+
+            progress += 2;
+          }
+
+          ++it;
+        }
+      });
+      pChangeLog->munmap();
+      IdMap::iterator it;
+      start_time = time(0);
+      uint64_t gcnt = 0;
+      size_t progress = 0;
+
+      for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+        std::shared_ptr<IFileMD> file = it->second.ptr;
+        gcnt++;
+        ListenerList::iterator lit;
+
+        for (lit = pListeners.begin(); lit != pListeners.end(); ++lit) {
+          (*lit)->fileMDRead(file.get());
         }
 
-        continue;
+        if ((100.0 * gcnt / end) > progress) {
+          now = time(NULL);
+          double estimate = (1 + end - gcnt) / ((1.0 * gcnt / (now + 1 - start_time)));
+
+          if (progress == 0) {
+            fprintf(stderr, "PROGRESS [ load %-64s ] %02u%% estimate none \n",
+                    "file-notify", (unsigned int) progress);
+          } else {
+            fprintf(stderr,
+                    "PROGRESS [ load %-64s ] %02u%% estimate %3.01fs  [ %lus/%.0fs ] [%lu/%lu]\n",
+                    "file-notify", (unsigned int) progress, estimate,  time(NULL) - start_time,
+                    (double) time(NULL) - (double) start_time + estimate, gcnt, end);
+          }
+
+          progress += 2;
+        }
       }
 
-      if (cont->findFile(file->getName())) {
-        if (!pSlaveMode) {
-          attachBroken("name_conflicts", file.get());
+      cnt.store(0);
+      std::mutex c_critical[256];
+      start_time = time(NULL);
+      eos::common::Parallel::For(0, nthread , [&](int i) {
+        IdMap::iterator it = pIdMap.begin();
+        std::advance(it, i * chunk);
+        time_t now = time(NULL);
+        size_t progress = 0;
+
+        for (size_t n = 0; n < ((i == (nthread - 1)) ? last_chunk : chunk); ++n) {
+          std::shared_ptr<IFileMD> file = it->second.ptr;
+          cnt++;
+
+          // Attach to the hierarchy
+          if (file->getContainerId() == 0) {
+            ++it;
+            continue;
+          }
+
+          std::shared_ptr<IContainerMD> cont;
+
+          try {
+            cont = pContSvc->getContainerMD(file->getContainerId());
+          } catch (MDException& e) {}
+
+          if (!cont) {
+            std::lock_guard<std::mutex> lock(critical);
+
+            if (!pSlaveMode) {
+              attachBroken("orphans", file.get());
+            }
+
+            ++it;
+            continue;
+          }
+
+          std::lock_guard<std::mutex> lock(c_critical[cont->getId() % 256]);
+
+          if (cont->findFile(file->getName())) {
+            std::lock_guard<std::mutex> lock(critical);
+
+            if (!pSlaveMode) {
+              attachBroken("name_conflicts", file.get());
+            }
+
+            ++it;
+            continue;
+          } else {
+            cont->addFile(file.get());
+          }
+
+          uint64_t lcnt = cnt.load();
+
+          if ((i == (nthread - 1)) && ((100.0 * lcnt / end) > progress)) {
+            now = time(NULL);
+            double estimate = (1 + end - lcnt) / ((1.0 * lcnt / (now + 1 - start_time)));
+
+            if (progress == 0) {
+              fprintf(stderr, "PROGRESS [ load %-64s ] %02u%% estimate none \n",
+                      "file-attach", (unsigned int) progress);
+            } else {
+              fprintf(stderr,
+                      "PROGRESS [ load %-64s ] %02u%% estimate %3.01fs  [ %lus/%.0fs ] [%lu/%lu]\n",
+                      "file-attach", (unsigned int) progress, estimate,  time(NULL) - start_time,
+                      (double) time(NULL) - (double) start_time + estimate, lcnt, end);
+            }
+
+            progress += 2;
+          }
+
+          ++it;
+        }
+      });
+    } else
+#endif
+    {
+      // Recreate the files
+      IdMap::iterator it;
+
+      for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+        // Unpack the serialized buffers
+        std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
+        file->deserialize(*it->second.buffer);
+        it->second.ptr = file;
+        delete it->second.buffer;
+        it->second.buffer = 0;
+        ListenerList::iterator it;
+
+        for (it = pListeners.begin(); it != pListeners.end(); ++it) {
+          (*it)->fileMDRead(file.get());
         }
 
-        continue;
-      } else {
-        cont->addFile(file.get());
+        // Attach to the hierarchy
+        if (file->getContainerId() == 0) {
+          continue;
+        }
+
+        std::shared_ptr<IContainerMD> cont;
+
+        try {
+          cont = pContSvc->getContainerMD(file->getContainerId());
+        } catch (MDException& e) {}
+
+        if (!cont) {
+          if (!pSlaveMode) {
+            attachBroken("orphans", file.get());
+          }
+
+          continue;
+        }
+
+        if (cont->findFile(file->getName())) {
+          if (!pSlaveMode) {
+            attachBroken("name_conflicts", file.get());
+          }
+
+          continue;
+        } else {
+          cont->addFile(file.get());
+        }
       }
     }
   }
@@ -1020,11 +1221,13 @@ void ChangeLogFileMDSvc::visit(IFileVisitor* visitor)
       double estimate = (1 + end - cnt) / ((1.0 * cnt / (now + 1 - start_time)));
 
       if (progress == 0) {
-        fprintf(stderr, "PROGRESS [ scan %-64s ] %02u%% estimate none \n", "file-visit",
-                (unsigned int)progress);
+        fprintf(stderr, "PROGRESS [ scan %-64s ] %02u%% estimate none \n",
+                "file-visit", (unsigned int)progress);
       } else {
-        fprintf(stderr, "PROGRESS [ scan %-64s ] %02u%% estimate %3.02fs\n",
-                "file-visit", (unsigned int)progress, estimate);
+        fprintf(stderr, "PROGRESS [ scan %-64s ] %02u%% estimate %3.01fs  "
+                "[ %lus/%.0fs ] [%lu/%lu]\n", "file-visit",
+                (unsigned int)progress, estimate, time(NULL) - start_time,
+                (double)time(NULL) - (double)start_time + estimate, cnt, end);
       }
 
       progress += 10;
@@ -1045,13 +1248,15 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
 {
   // Update
   if (type == UPDATE_RECORD_MAGIC) {
+    static int cnt = 0;
+    cnt++;
     IFileMD::id_t id;
     buffer.grabData(0, &id, sizeof(IFileMD::id_t));
     DataInfo& d = pIdMap[id];
     d.logOffset = offset;
 
     if (!d.buffer) {
-      d.buffer = new Buffer();
+      d.buffer = new Buffer(0);
     }
 
     (*d.buffer) = buffer;
@@ -1077,6 +1282,9 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
   }
   // Compaction mark - we stop scanning here
   else if (type == COMPACT_STAMP_RECORD_MAGIC) {
+    fprintf(stderr, "INFO     [ found file compaction mark at offset=%lu ] \n",
+            offset);
+
     if (pSlaveMode) {
       return false;
     }
@@ -1089,7 +1297,6 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
 // Prepare for online compacting.
 //------------------------------------------------------------------------------
 void* ChangeLogFileMDSvc::compactPrepare(const std::string& newLogFileName)
-const
 {
   // Try to open a new log file for writing
   ::CompactingData* data = new ::CompactingData();
@@ -1105,6 +1312,8 @@ const
     throw;
   }
 
+  // Shrink the pIdMap
+  pIdMap.resize(0);
   // Get the list of records
   IdMap::const_iterator it;
 

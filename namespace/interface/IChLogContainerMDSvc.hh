@@ -77,7 +77,7 @@ public:
   //! @return                compacting information that needs to be passed
   //!                        to other functions
   //----------------------------------------------------------------------------
-  virtual void* compactPrepare(const std::string& ocdir) const = 0;
+  virtual void* compactPrepare(const std::string& ocdir) = 0;
 
   //----------------------------------------------------------------------------
   //! Commit the compacting information.

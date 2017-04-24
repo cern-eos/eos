@@ -655,7 +655,7 @@ ContainerMD::setTMTimeNow()
 // Get propagated modification time
 //------------------------------------------------------------------------------
 void
-ContainerMD::getTMTime(tmtime_t& tmtime) const
+ContainerMD::getTMTime(tmtime_t& tmtime)
 {
   tmtime.tv_sec = pTMTime.tv_sec;
   tmtime.tv_nsec = pTMTime.tv_nsec;

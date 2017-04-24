@@ -248,6 +248,7 @@ ProcCommand::Ns()
     }
     char slatencyf[1024];
     char slatencyd[1024];
+    char slatencyp[1024];
     auto chlog_file_svc = dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
     auto chlog_dir_svc = dynamic_cast<eos::IChLogContainerMDSvc*>
                          (gOFS->eosDirectoryService);
@@ -257,6 +258,8 @@ ProcCommand::Ns()
                chlog_file_svc->getFollowOffset());
       snprintf(slatencyd, sizeof(slatencyd) - 1, "%ld", (long int)statd.st_size -
                chlog_dir_svc->getFollowOffset());
+      snprintf(slatencyp, sizeof(slatencyp) - 1, "%ld",
+               (long int)chlog_file_svc->getFollowPending());
     }
 
     if (!monitoring) {
@@ -289,6 +292,9 @@ ProcCommand::Ns()
         stdOut += "\n";
         stdOut += "ALL      Namespace Latency Directories    ";
         stdOut += slatencyd;
+        stdOut += "\n";
+        stdOut += "ALL      Namespace Pending Updates        ";
+        stdOut += slatencyp;
         stdOut += "\n";
       }
 
@@ -400,6 +406,9 @@ ProcCommand::Ns()
       stdOut += "\n";
       stdOut += "uid=all gid=all ns.latency.dirs=";
       stdOut += slatencyd;
+      stdOut += "\n";
+      stdOut += "uid=all gid=all ns.latency.pending.updates=";
+      stdOut += slatencyp;
       stdOut += "\n";
       stdOut += "uid=all gid=all ";
       gOFS->MgmMaster.PrintOut(stdOut);

@@ -64,6 +64,7 @@ set(
   StringConversion.cc
   CommentLog.cc
   RWMutex.cc
+  XrdErrorMap.cc
   JeMallocHandler.cc)
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})

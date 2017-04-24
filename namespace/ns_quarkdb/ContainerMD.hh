@@ -194,7 +194,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get propagated modification time
   //----------------------------------------------------------------------------
-  void getTMTime(tmtime_t& tmtime) const;
+  void getTMTime(tmtime_t& tmtime);
 
   //----------------------------------------------------------------------------
   //! Trigger an mtime change event

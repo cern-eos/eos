@@ -30,6 +30,7 @@
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/ns_in_memory/accounting/QuotaStats.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
+#include "common/Murmur3.hh"
 
 #include <google/sparse_hash_map>
 #include <google/dense_hash_map>
@@ -55,8 +56,8 @@ public:
   ChangeLogFileMDSvc():
     pFirstFreeId(1), pChangeLog(0), pFollowerThread(0), pSlaveLock(0),
     pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
-    pFollowStart(0), pContSvc(0), pQuotaStats(0), pAutoRepair(0),
-    pResSize(1000000)
+    pFollowStart(0), pFollowPending(0), pContSvc(0), pQuotaStats(0),
+    pAutoRepair(0), pResSize(1000000)
   {
     try {
       pIdMap.set_deleted_key(0);
@@ -172,7 +173,7 @@ public:
   //! @return                compacting information that needs to be passed
   //!                        to other functions
   //----------------------------------------------------------------------------
-  void* compactPrepare(const std::string& newLogFileName) const;
+  void* compactPrepare(const std::string& newLogFileName);
 
   //----------------------------------------------------------------------------
   //! Do the compacting.
@@ -270,6 +271,28 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get the pending items
+  //----------------------------------------------------------------------------
+  uint64_t getFollowPending()
+  {
+    uint64_t lFollowPending;
+    pthread_mutex_lock(&pFollowStartMutex);
+    lFollowPending = pFollowPending;
+    pthread_mutex_unlock(&pFollowStartMutex);
+    return lFollowPending;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set the pending items
+  //----------------------------------------------------------------------------
+  void setFollowPending(uint64_t pending)
+  {
+    pthread_mutex_lock(&pFollowStartMutex);
+    pFollowPending = pending;
+    pthread_mutex_unlock(&pFollowStartMutex);
+  }
+
+  //----------------------------------------------------------------------------
   //! Set the QuotaStats object for the follower
   //!
   //! @param quota_stats object implementing the IQuotaStats interface
@@ -330,7 +353,9 @@ private:
     Buffer*  buffer;
   };
 
-  typedef google::dense_hash_map<IFileMD::id_t, DataInfo> IdMap;
+  typedef google::dense_hash_map<IFileMD::id_t, DataInfo,
+          Murmur3::MurmurHasher<uint64_t>,
+          Murmur3::eqstr> IdMap;
   typedef std::list<IFileMDChangeListener*>               ListenerList;
 
   //----------------------------------------------------------------------------
@@ -374,6 +399,7 @@ private:
   int32_t            pSlavePoll;
   pthread_mutex_t    pFollowStartMutex;
   uint64_t           pFollowStart;
+  uint64_t           pFollowPending;
   ChangeLogContainerMDSvc* pContSvc;
   IQuotaStats*       pQuotaStats;
   bool               pAutoRepair;

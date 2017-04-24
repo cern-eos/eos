@@ -114,6 +114,7 @@ target_link_libraries(
   eos PUBLIC
   EosFstIo-Static
   ${Z_LIBRARY}
+  ${RT_LIBRARIES}
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${READLINE_LIBRARY}

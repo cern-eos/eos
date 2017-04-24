@@ -83,6 +83,10 @@ BuildRequires: zeromq3, zeromq3-devel
 %else
 BuildRequires: zeromq, zeromq-devel
 %endif
+# Provides gcc 4.8 on SLC6
+%if 0%{?rhel} == 6 || 0%{?el6} == 1
+BuildRequires: devtoolset-2-gcc-c++
+BuildRequires: devtoolset-2-binutils-devel
 %endif
 
 %if %{use_systemd}
@@ -95,7 +99,6 @@ Requires: initscripts
 
 %description
 The EOS software package.
-
 %prep
 %setup -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
 
@@ -109,9 +112,17 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 mkdir -p build
 cd build
 %if %{?_with_server:0}%{!?_with_server:1}
+%if 0%{?rhel} == 6 || 0%{?el6} == 1
+scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1"
+%else
 %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1
+%endif
+%else
+%if 0%{?rhel} == 6 || 0%{?el6} == 1
+scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo "
 %else
 %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo
+%endif
 %endif
 %{__make} %{_smp_mflags}
 

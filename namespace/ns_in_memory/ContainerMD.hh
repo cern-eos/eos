@@ -36,6 +36,11 @@
 #include <google/dense_hash_map>
 #include <map>
 #include <sys/time.h>
+#include <features.h>
+
+#if __GNUC_PREREQ(4,8)
+#include <atomic>
+#endif
 
 EOSNSNAMESPACE_BEGIN
 
@@ -56,6 +61,38 @@ public:
   ContainerMap;
   typedef google::dense_hash_map< std::string, eos::IFileMD::id_t >
   FileMap;
+
+#if __GNUC_PREREQ(4,8)
+  struct tmtime_atomic_t {
+    tmtime_atomic_t()
+    {
+      tv_sec.store(0);
+      tv_nsec.store(0);
+    }
+    std::atomic_ulong tv_sec;
+    std::atomic_ulong tv_nsec;
+
+    tmtime_atomic_t& operator= (const tmtime_atomic_t& other)
+    {
+      tv_sec.store(other.tv_sec.load());
+      tv_nsec.store(other.tv_nsec.load());
+      return *this;
+    }
+
+    void load(tmtime_t& tmt)
+    {
+      tmt.tv_sec = tv_sec.load();
+      tmt.tv_nsec = tv_nsec.load();
+    }
+
+    void store(const tmtime_t& tmt)
+    {
+      tv_sec.store(tmt.tv_sec);
+      tv_nsec.store(tmt.tv_nsec);
+    }
+  };
+#else
+#endif
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -241,11 +278,35 @@ public:
   //----------------------------------------------------------------------------
   bool setTMTime(tmtime_t tmtime)
   {
-    if ((tmtime.tv_sec > pTMTime.tv_sec) ||
-        ((tmtime.tv_sec == pTMTime.tv_sec) &&
-         (tmtime.tv_nsec > pTMTime.tv_nsec))) {
-      pTMTime.tv_sec = tmtime.tv_sec;
-      pTMTime.tv_nsec = tmtime.tv_nsec;
+    while (1) {
+#if __GNUC_PREREQ(4,8)
+      pTMTime_atomic.load(pTMTime);
+#endif
+
+      if ((tmtime.tv_sec > pTMTime.tv_sec) ||
+          ((tmtime.tv_sec == pTMTime.tv_sec) &&
+           (tmtime.tv_nsec > pTMTime.tv_nsec))) {
+#if __GNUC_PREREQ(4,8)
+        uint64_t ts = (uint64_t) pTMTime.tv_sec;
+        uint64_t tns = (uint64_t) pTMTime.tv_nsec;
+        bool retry1 = pTMTime_atomic.tv_sec.compare_exchange_weak(ts, tmtime.tv_sec,
+                      std::memory_order_relaxed,
+                      std::memory_order_relaxed);
+        bool retry2 = pTMTime_atomic.tv_nsec.compare_exchange_weak(tns, tmtime.tv_nsec,
+                      std::memory_order_relaxed,
+                      std::memory_order_relaxed);
+
+        if (!retry1 || !retry2) {
+          continue;
+        }
+
+        pTMTime_atomic.load(pTMTime);
+#else
+        pTMTime.tv_sec = tmtime.tv_sec;
+        pTMTime.tv_nsec = tmtime.tv_nsec;
+#endif
+      }
+
       return true;
     }
 
@@ -273,8 +334,11 @@ public:
   //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
-  void getTMTime(tmtime_t& tmtime) const
+  void getTMTime(tmtime_t& tmtime)
   {
+#if __GNUC_PREREQ(4,8)
+    pTMTime_atomic.load(pTMTime);
+#endif
     tmtime.tv_sec = pTMTime.tv_sec;
     tmtime.tv_nsec = pTMTime.tv_nsec;
   }
@@ -284,7 +348,11 @@ public:
   //----------------------------------------------------------------------------
   uint64_t getTreeSize() const
   {
+#if __GNUC_PREREQ(4,8)
+    return pTreeSize.load();
+#else
     return pTreeSize;
+#endif
   }
 
   //----------------------------------------------------------------------------
@@ -292,7 +360,11 @@ public:
   //----------------------------------------------------------------------------
   void setTreeSize(uint64_t treesize)
   {
+#if __GNUC_PREREQ(4,8)
+    pTreeSize.store(treesize);
+#else
     pTreeSize = treesize;
+#endif
   }
 
   //----------------------------------------------------------------------------
@@ -301,7 +373,7 @@ public:
   uint64_t addTreeSize(uint64_t addsize)
   {
     pTreeSize += addsize;
-    return pTreeSize;
+    return getTreeSize();
   }
 
   //----------------------------------------------------------------------------
@@ -516,7 +588,14 @@ private:
   // Non-presistent data members
   mtime_t      pMTime;
   tmtime_t     pTMTime;
+
+#if __GNUC_PREREQ(4,8)
+  // Atomic (thread-safe) types
+  std::atomic_ulong pTreeSize;
+  tmtime_atomic_t pTMTime_atomic;
+#else
   uint64_t     pTreeSize;
+#endif
 
   IFileMDSvc* pFileSvc; ///< File metadata service
   IContainerMDSvc* pContSvc; ///< Container metadata service
