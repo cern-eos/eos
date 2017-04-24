@@ -135,6 +135,7 @@ target_link_libraries(
   XrdMqClient-Static
   fmt
   ${Z_LIBRARY}
+  ${GLIBC_RT_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
