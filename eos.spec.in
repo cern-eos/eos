@@ -72,10 +72,6 @@ BuildRequires: hiredis-devel
 %endif
 %endif
 
-%if 0%{distribution} == 5
-BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
-BuildRequires: zeromq, zeromq-devel, curl-devel, curl
-%else
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
 BuildRequires: libcurl-devel libcurl, sparsehash-devel
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
@@ -83,12 +79,9 @@ BuildRequires: zeromq3, zeromq3-devel
 %else
 BuildRequires: zeromq, zeromq-devel
 %endif
-%endif
 
 # Install gcc 4.8 on SLC6
-%if 0%{?rhel} == 6 || 0%{?el6} == 1
-%(wget -O /etc/yum.repos.d/slc6-devtoolset.repo \
-  http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo)
+%if 0%{distribution} == 6
 BuildRequires: devtoolset-2-gcc-c++
 BuildRequires: devtoolset-2-binutils-devel
 %endif
@@ -108,11 +101,6 @@ The EOS software package.
 
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
-
-%if 0%{distribution} == 5
-export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
-%endif
-
 mkdir -p build
 cd build
 %if %{?_with_server:0}%{!?_with_server:1}
@@ -156,17 +144,11 @@ Requires: protobuf
 Requires: jemalloc
 Requires: jsoncpp
 Requires: psmisc
-
-%if 0%{distribution} == 5
-Requires: zeromq
-Requires: curl
-%else
 Requires: libcurl
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
 BuildRequires: zeromq3, zeromq3-devel
 %else
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
-%endif
 %endif
 
 %description -n eos-server
@@ -369,7 +351,7 @@ The EOS fuse core containing eosd and mount scripts.
 %{_usr}/lib/tmpfiles.d/eosd.conf
 %endif
 
-%if 0%{distribution} == 5 || 0%{distribution} == 6
+%if 0%{distribution} == 6
 %config(noreplace) %{_sysconfdir}/fuse.conf
 %{_sysconfdir}/fuse.conf.eos
 %else
