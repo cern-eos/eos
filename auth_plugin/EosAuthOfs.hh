@@ -259,7 +259,7 @@ private:
   ///! MGM endpoints to which requests can be dispatched and the corresponding sockets
   std::pair<std::string, zmq::socket_t*> mBackend1;
   std::pair<std::string, zmq::socket_t*> mBackend2;
-  std::string mHostIp; ///< auth ip address
+  std::string mManagerIp; ///< auth ip address
   int mPort;   ///< port on which the current auth server runs
   int mLogLevel; ///< log level value 0 -7 (LOG_EMERG - LOG_DEBUG)
 
