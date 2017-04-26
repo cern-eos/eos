@@ -21,12 +21,21 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-install(
-  FILES mount.eos
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/../sbin/
-  PERMISSIONS OWNER_READ OWNER_EXECUTE
-	      GROUP_READ GROUP_EXECUTE
-	      WORLD_READ WORLD_EXECUTE)
+if( MacOSX )
+  install(
+    FILES mount.eos
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/sbin/
+    PERMISSIONS OWNER_READ OWNER_EXECUTE
+	        GROUP_READ GROUP_EXECUTE
+	        WORLD_READ WORLD_EXECUTE)
+else()
+  install(
+    FILES mount.eos
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/../sbin/
+    PERMISSIONS OWNER_READ OWNER_EXECUTE
+	        GROUP_READ GROUP_EXECUTE
+	        WORLD_READ WORLD_EXECUTE)
+endif()
 
 # Script used by systemd in the start-up phase
 install(
