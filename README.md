@@ -68,12 +68,15 @@ doxygen
 * libmicrohttpd, libmicrohttpd-devel
 * openssl, openssl-devel, openssl-static
 * ncurses, ncurses-devel, ncurses-static
+* protobuf-devel cppunit-devel openldap-devel hiredis-devel zeromq-devel jsoncpp-devel
 * xrootd, xrootd-server-devel, xrootd-client-devel, xrootd-private-devel (>=3.3.6)
 
 ## Build
 
 To build **EOS**, you need **gcc (>=4.4)** and **CMake** installed on your system:
 ```bash
+# Note that you will also need to check out the fmd and qclient git submodules
+git submodule update --update --recursive
 # Create build workdir
 mkdir build
 cd build
