@@ -69,7 +69,7 @@ eos_rpm_slc6:
     - source gitlab-ci/setup_ccache_slc6.sh
     - ccache --max-size=1.5G
     # New eos-depend repository hosted on EOSUSER
-     - echo -e '[eos-depend-eosuser]\nname=EOS dependencies on EOSUSER\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies on EOSUSER\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     # TODO: This AFS repository should be retired soon
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-6-x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-6-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
