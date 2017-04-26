@@ -7,6 +7,55 @@
 Beryl Release Notes
 ===================
 
+``V0.3.240 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- FST: implement fdellocate function for non-XFS detected filesystems (which used posix_fallocate)
+
+``V0.3.239 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- NS: fix resolution of multiple ../ path changes like ../../XYZ
+- COMMON: fix resolution of multipeo ../ path changes like /X/Y/Z/../../Z
+
+``V0.3.238 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- FST: avoid SEGV during startup when calling RemoveGhostEntries (.eosscan exists on data path)
+
+``V0.3.237 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- NS: fix slave follower attachment issue leading to invisible files
+- MGM: fix the logic when to show a slave as booted
+
+New Feature
++++++++++++
+
+- NS: add 'pending' counter to show if there are updates on the slave, which cannot be attached
+- NS: show follower progress during the initial scan phase and not only after
+    
+
+``V0.3.236 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- NS: set 'pData' pointer to 0 in munmap function to switch back to traditional read function
+
 ``V0.3.235 Aquamarine``
 =====================
 

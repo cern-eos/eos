@@ -602,6 +602,7 @@ namespace eos
       fprintf(stderr,"# munmapped changelogfile\n");
       ::munmap(pData, pDataLen);
     }
+    pData=0;
   }
 
   //----------------------------------------------------------------------------
@@ -889,6 +890,7 @@ namespace eos
       scanner->processRecord( offset, *type, record );
       offset += record.size();
       offset += 24;
+      scanner->publishOffset(offset);
       record.clear();
     }
   }

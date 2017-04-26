@@ -1569,6 +1569,8 @@ FmdSqliteHandler::RemoveGhostEntries (const char* path, eos::common::FileSystem:
   eos_static_info("");
   std::vector<eos::common::FileId::fileid_t> delvector;
 
+  eos::common::RWMutexReadLock lock(Mutex);
+
   if (!IsSyncing(fsid))
   {
     {

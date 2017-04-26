@@ -233,9 +233,11 @@ ProcCommand::Ns ()
 
    char slatencyf[1024];
    char slatencyd[1024];
+   char slatencyp[1024];
 
    snprintf(slatencyf, sizeof (slatencyf) - 1, "%ld", (long int)statf.st_size - gOFS->eosFileService->getFollowOffset());
    snprintf(slatencyd, sizeof (slatencyd) - 1, "%ld", (long int)statd.st_size - gOFS->eosDirectoryService->getFollowOffset());
+   snprintf(slatencyp, sizeof (slatencyp) - 1, "%ld", (long int)gOFS->eosFileService->getFollowPending());
    
    if (!monitoring)
    {
@@ -270,6 +272,9 @@ ProcCommand::Ns ()
        stdOut += "\n";
        stdOut += "ALL      Namespace Latency Directories    ";
        stdOut += slatencyd;
+       stdOut += "\n";
+       stdOut += "ALL      Namespace Pending Updates        ";
+       stdOut += slatencyp;
        stdOut += "\n";
      }
      stdOut += "# ....................................................................................\n";
@@ -374,6 +379,9 @@ ProcCommand::Ns ()
      stdOut += "\n";
      stdOut += "uid=all gid=all ns.latency.dirs=";
      stdOut += slatencyd;
+     stdOut += "\n";
+     stdOut += "uid=all gid=all ns.latency.pending.updates=";
+     stdOut += slatencyp;
      stdOut += "\n";
      stdOut += "uid=all gid=all ";
      gOFS->MgmMaster.PrintOut(stdOut);

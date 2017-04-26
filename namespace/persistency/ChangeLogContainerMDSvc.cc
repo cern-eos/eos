@@ -48,6 +48,11 @@ namespace eos
 	pContainerAccounting = pContSvc->pContainerAccounting;
       }
 
+      virtual void publishOffset(uint64_t offset)
+      {
+	pContSvc->setFollowOffset(offset);
+      }
+
       //------------------------------------------------------------------------
       // Unpack new data and put it in the queue
       //------------------------------------------------------------------------
@@ -108,6 +113,7 @@ namespace eos
       {
         pContSvc->getSlaveLock()->writeLock();
         ChangeLogContainerMDSvc::IdMap *idMap = &pContSvc->pIdMap;
+	ChangeLogContainerMDSvc::DeletionSet *deletionSet = &pContSvc->pFollowerDeletions;
 
         //----------------------------------------------------------------------
         // Handle deletions
@@ -120,6 +126,7 @@ namespace eos
           it = idMap->find( *itD );
           if( it == idMap->end() )
           {
+	    deletionSet->insert(*itD);
             processed.push_back( *itD );
             continue;
           }
@@ -138,6 +145,7 @@ namespace eos
               itP->second.ptr->removeContainer( it->second.ptr->getName() );
           }
           delete it->second.ptr;
+	  deletionSet->insert(*itD);
           idMap->erase( it );
           processed.push_back( *itD );
         }
@@ -1271,6 +1279,7 @@ namespace eos
     pSlaveStarted = false;
     pSlaveMode = false;
     pFollowerThread = 0;
+    pFollowerDeletions.clear();
   }
 
 

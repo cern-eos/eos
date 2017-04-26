@@ -275,11 +275,7 @@ public:
     // recompute /..$
     if (fullPath.endswith("/.."))
     {
-      int spos = fullPath.rfind("/", fullPath.length() - 4);
-      if (spos != STR_NPOS)
-      {
-        fullPath.erase(spos + 1);
-      }
+      fullPath += "/";
     }
 
     if (!fullPath.beginswith("/"))

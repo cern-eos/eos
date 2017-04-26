@@ -53,7 +53,7 @@ namespace eos
       ChangeLogFileMDSvc():
         pFirstFreeId( 1 ), pChangeLog( 0 ), pSlaveLock( 0 ),
         pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
-        pFollowStart( 0 ), pContSvc( 0 ), pQuotaStats(0), pAutoRepair(0), pResSize(1000000)
+        pFollowStart( 0 ), pFollowPending( 0 ), pContSvc( 0 ), pQuotaStats(0), pAutoRepair(0), pResSize(1000000)
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( std::numeric_limits<FileMD::id_t>::max() );
@@ -267,6 +267,29 @@ namespace eos
         pthread_mutex_unlock(&pFollowStartMutex);
       }
 
+
+      //------------------------------------------------------------------------
+      //! Get the pending items
+      //------------------------------------------------------------------------
+      uint64_t getFollowPending()
+      {
+	uint64_t lFollowPending;
+	pthread_mutex_lock(&pFollowStartMutex);
+	lFollowPending = pFollowPending;
+        pthread_mutex_unlock(&pFollowStartMutex);
+	return lFollowPending;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set the pending items
+      //------------------------------------------------------------------------
+      void setFollowPending(uint64_t pending) 
+      {
+	pthread_mutex_lock(&pFollowStartMutex);
+        pFollowPending = pending;
+        pthread_mutex_unlock(&pFollowStartMutex);
+      }
+
       //------------------------------------------------------------------------
       //! Get the following poll interval
       //------------------------------------------------------------------------
@@ -362,6 +385,7 @@ namespace eos
       int32_t            pSlavePoll;
       pthread_mutex_t    pFollowStartMutex;
       uint64_t           pFollowStart;
+      uint64_t           pFollowPending;
       ChangeLogContainerMDSvc *pContSvc;
       QuotaStats        *pQuotaStats;
       bool               pAutoRepair;
