@@ -745,7 +745,7 @@ output_result (XrdOucEnv* result, bool highlighting)
     rstdout.replace("master-ro", "\033[49;34mmaster-ro\033[0m");
     rstdout.replace("slave-ro", "\033[1mslave-ro\033[0m");
     rstdout.replace("=ok", "=\033[49;32mok\033[0m");
-    rstdout.replace("=compacting", "=\033[49;32mcompaccting\033[0m");
+    rstdout.replace("=compacting", "=\033[49;32mcompacting\033[0m");
     rstdout.replace("=off", "=\033[49;34moff\033[0m");
     rstdout.replace("=blocked", "=\033[49;34mblocked\033[0m");
     rstdout.replace("=wait", "=\033[49;34mwait\033[0m");
