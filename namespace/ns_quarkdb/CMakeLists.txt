@@ -26,11 +26,26 @@ include_directories(
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
  ${SPARSEHASH_INCLUDE_DIR}
- ${XROOTD_INCLUDE_DIR})
+ ${PROTOBUF_INCLUDE_DIRS}
+ ${XROOTD_INCLUDE_DIR}
+ ${CMAKE_CURRENT_BINARY_DIR}) # for the generated proto files
 
-if(CPPUNIT_FOUND)
+
+if(BUILD_TESTS)
   add_subdirectory(tests)
-endif(CPPUNIT_FOUND)
+endif(BUILD_TESTS)
+
+#-------------------------------------------------------------------------------
+# Generate all protocol buffer files
+#-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(FMD_SRCS FMD_HDRS proto/FileMd.proto)
+PROTOBUF_GENERATE_CPP(CMD_SRCS CMD_HDRS proto/ContainerMd.proto)
+set(NS_PROTO_SRCS ${FMD_SRCS} ${CMD_SRCS})
+set(NS_PROTO_HDRS ${FMD_HDRS} ${CMD_HDRS})
+set_source_files_properties(
+ ${NS_PROTO_SRCS}
+ ${NS_PROTO_HDRS}
+ PROPERTIES GENERATED 1)
 
 #-----------------------------------------------------------------------------
 # Build qclient static library
@@ -47,6 +62,7 @@ set(EOS_NS_QDB_SRCS
   BackendClient.cc       BackendClient.hh
   LRU.hh
 
+  ${NS_PROTO_SRCS}       ${NS_PROTO_HDRS}
   persistency/ContainerMDSvc.hh
   persistency/ContainerMDSvc.cc
   persistency/FileMDSvc.hh
@@ -77,6 +93,7 @@ target_link_libraries(
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${XROOTD_UTILS_LIBRARY}
+  ${PROTOBUF_LIBRARIES}
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -96,6 +113,7 @@ if (Linux)
     ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}
     ${XROOTD_UTILS_LIBRARY}
+    ${PROTOBUF_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT})
 
   set_target_properties(

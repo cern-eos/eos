@@ -27,6 +27,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "FileMd.pb.h"
 #include <stdint.h>
 #include <string>
 #include <sys/time.h>
@@ -51,7 +52,7 @@ public:
   FileMD(id_t id, IFileMDSvc* fileMDSvc);
 
   //----------------------------------------------------------------------------
-  //! Constructor
+  //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FileMD() {};
 
@@ -106,7 +107,7 @@ public:
   inline id_t
   getId() const
   {
-    return pId;
+    return mFile.id();
   }
 
   //----------------------------------------------------------------------------
@@ -115,7 +116,7 @@ public:
   inline uint64_t
   getSize() const
   {
-    return pSize;
+    return mFile.size();
   }
 
   //----------------------------------------------------------------------------
@@ -129,7 +130,7 @@ public:
   inline IContainerMD::id_t
   getContainerId() const
   {
-    return pContainerId;
+    return mFile.cont_id();
   }
 
   //----------------------------------------------------------------------------
@@ -138,16 +139,18 @@ public:
   void
   setContainerId(IContainerMD::id_t containerId)
   {
-    pContainerId = containerId;
+    mFile.set_cont_id(containerId);
   }
 
   //----------------------------------------------------------------------------
   //! Get checksum
   //----------------------------------------------------------------------------
-  inline const Buffer&
+  inline const Buffer
   getChecksum() const
   {
-    return pChecksum;
+    Buffer buff(mFile.checksum().size());
+    buff.putData((void*)mFile.checksum().data(), mFile.checksum().size());
+    return buff;
   }
 
   //----------------------------------------------------------------------------
@@ -160,7 +163,8 @@ public:
   bool
   checksumMatch(const void* checksum) const
   {
-    return !memcmp(checksum, pChecksum.getDataPtr(), pChecksum.getSize());
+    return !memcmp(checksum, (void*)mFile.checksum().data(),
+                   mFile.checksum().size());
   }
 
   //----------------------------------------------------------------------------
@@ -169,7 +173,7 @@ public:
   void
   setChecksum(const Buffer& checksum)
   {
-    pChecksum = checksum;
+    mFile.set_checksum(checksum.getDataPtr(), checksum.getSize());
   }
 
   //----------------------------------------------------------------------------
@@ -178,11 +182,7 @@ public:
   void
   clearChecksum(uint8_t size = 20)
   {
-    char zero = 0;
-
-    for (uint8_t i = 0; i < size; i++) {
-      pChecksum.putData(&zero, 1);
-    }
+    mFile.clear_checksum();
   }
 
   //----------------------------------------------------------------------------
@@ -194,8 +194,8 @@ public:
   void
   setChecksum(const void* checksum, uint8_t size)
   {
-    pChecksum.clear();
-    pChecksum.putData(checksum, size);
+    mFile.clear_checksum();
+    mFile.set_checksum(checksum, size);
   }
 
   //----------------------------------------------------------------------------
@@ -204,7 +204,7 @@ public:
   inline const std::string
   getName() const
   {
-    return pName;
+    return mFile.name();
   }
 
   //----------------------------------------------------------------------------
@@ -212,7 +212,7 @@ public:
   //----------------------------------------------------------------------------
   inline void setName(const std::string& name)
   {
-    pName = name;
+    mFile.set_name(name);
   }
 
   //----------------------------------------------------------------------------
@@ -225,7 +225,8 @@ public:
   //----------------------------------------------------------------------------
   inline LocationVector getLocations() const
   {
-    return pLocation;
+    LocationVector locations(mFile.locations().begin(), mFile.locations().end());
+    return locations;
   }
 
   //----------------------------------------------------------------------------
@@ -234,8 +235,8 @@ public:
   location_t
   getLocation(unsigned int index)
   {
-    if (index < pLocation.size()) {
-      return pLocation[index];
+    if (index < (unsigned int)mFile.locations_size()) {
+      return mFile.locations(index);
     }
 
     return 0;
@@ -262,7 +263,7 @@ public:
   void
   clearLocations()
   {
-    pLocation.clear();
+    mFile.clear_locations();
   }
 
   //----------------------------------------------------------------------------
@@ -271,8 +272,8 @@ public:
   bool
   hasLocation(location_t location)
   {
-    for (location_t i = 0; i < pLocation.size(); i++) {
-      if (pLocation[i] == location) {
+    for (int i = 0; i < mFile.locations_size(); i++) {
+      if (mFile.locations(i) == location) {
         return true;
       }
     }
@@ -286,7 +287,7 @@ public:
   inline size_t
   getNumLocation() const
   {
-    return pLocation.size();
+    return mFile.locations_size();
   }
 
   //----------------------------------------------------------------------------
@@ -294,7 +295,9 @@ public:
   //----------------------------------------------------------------------------
   inline LocationVector getUnlinkedLocations() const
   {
-    return pUnlinkedLocation;
+    LocationVector unlinked_locations(mFile.unlink_locations().begin(),
+                                      mFile.unlink_locations().end());
+    return unlinked_locations;
   }
 
   //----------------------------------------------------------------------------
@@ -313,7 +316,7 @@ public:
   inline void
   clearUnlinkedLocations()
   {
-    pUnlinkedLocation.clear();
+    mFile.clear_unlink_locations();
   }
 
   //----------------------------------------------------------------------------
@@ -322,8 +325,8 @@ public:
   bool
   hasUnlinkedLocation(location_t location)
   {
-    for (location_t i = 0; i < pUnlinkedLocation.size(); i++) {
-      if (pUnlinkedLocation[i] == location) {
+    for (int i = 0; i < mFile.unlink_locations_size(); ++i) {
+      if (mFile.unlink_locations()[i] == location) {
         return true;
       }
     }
@@ -337,7 +340,7 @@ public:
   inline size_t
   getNumUnlinkedLocation() const
   {
-    return pUnlinkedLocation.size();
+    return mFile.unlink_locations_size();
   }
 
   //----------------------------------------------------------------------------
@@ -346,7 +349,7 @@ public:
   inline uid_t
   getCUid() const
   {
-    return pCUid;
+    return mFile.uid();
   }
 
   //----------------------------------------------------------------------------
@@ -355,7 +358,7 @@ public:
   inline void
   setCUid(uid_t uid)
   {
-    pCUid = uid;
+    mFile.set_uid(uid);
   }
 
   //----------------------------------------------------------------------------
@@ -364,7 +367,7 @@ public:
   inline gid_t
   getCGid() const
   {
-    return pCGid;
+    return mFile.gid();
   }
 
   //----------------------------------------------------------------------------
@@ -373,7 +376,7 @@ public:
   inline void
   setCGid(gid_t gid)
   {
-    pCGid = gid;
+    mFile.set_gid(gid);
   }
 
   //----------------------------------------------------------------------------
@@ -382,7 +385,7 @@ public:
   inline layoutId_t
   getLayoutId() const
   {
-    return pLayoutId;
+    return mFile.layout_id();
   }
 
   //----------------------------------------------------------------------------
@@ -391,7 +394,7 @@ public:
   inline void
   setLayoutId(layoutId_t layoutId)
   {
-    pLayoutId = layoutId;
+    mFile.set_layout_id(layoutId);
   }
 
   //----------------------------------------------------------------------------
@@ -400,7 +403,7 @@ public:
   inline uint16_t
   getFlags() const
   {
-    return pFlags;
+    return mFile.flags();
   }
 
   //----------------------------------------------------------------------------
@@ -409,7 +412,7 @@ public:
   inline bool
   getFlag(uint8_t n)
   {
-    return pFlags & (0x0001 << n);
+    return (bool)(mFile.flags() & (0x0001 << n));
   }
 
   //----------------------------------------------------------------------------
@@ -418,7 +421,7 @@ public:
   inline void
   setFlags(uint16_t flags)
   {
-    pFlags = flags;
+    mFile.set_flags(flags);
   }
 
   //----------------------------------------------------------------------------
@@ -428,9 +431,9 @@ public:
   setFlag(uint8_t n, bool flag)
   {
     if (flag) {
-      pFlags |= (1 << n);
+      mFile.set_flags(mFile.flags() | (1 << n));
     } else {
-      pFlags &= !(1 << n);
+      mFile.set_flags(mFile.flags() & !(1 << n));
     }
   }
 
@@ -463,7 +466,7 @@ public:
   inline std::string
   getLink() const
   {
-    return pLinkName;
+    return mFile.link_name();
   }
 
   //----------------------------------------------------------------------------
@@ -472,7 +475,7 @@ public:
   inline void
   setLink(std::string link_name)
   {
-    pLinkName = link_name;
+    mFile.set_link_name(link_name);
   }
 
   //----------------------------------------------------------------------------
@@ -481,7 +484,7 @@ public:
   bool
   isLink() const
   {
-    return (pLinkName.length() ? true : false);
+    return !mFile.link_name().empty();
   }
 
   //----------------------------------------------------------------------------
@@ -490,6 +493,7 @@ public:
   void
   setAttribute(const std::string& name, const std::string& value)
   {
+    (*mFile.mutable_xattrs())[name] = value;
     pXAttrs[name] = value;
   }
 
@@ -499,10 +503,15 @@ public:
   void
   removeAttribute(const std::string& name)
   {
-    XAttrMap::iterator it = pXAttrs.find(name);
+    auto it = mFile.xattrs().find(name);
 
-    if (it != pXAttrs.end()) {
-      pXAttrs.erase(it);
+    if (it != mFile.xattrs().end()) {
+      mFile.mutable_xattrs()->erase(it->first);
+      auto it1 = pXAttrs.find(name);
+
+      if (it1 != pXAttrs.end()) {
+        pXAttrs.erase(it1);
+      }
     }
   }
 
@@ -586,25 +595,12 @@ public:
   void Register(qclient::AsyncResponseType aresp, qclient::QClient* qcl);
 
 protected:
-  id_t pId;
-  ctime_t pCTime;
-  ctime_t pMTime;
-  uint64_t pSize;
-  IContainerMD::id_t pContainerId;
-  uid_t pCUid;
-  gid_t pCGid;
-  layoutId_t pLayoutId;
-  uint16_t pFlags;
-  std::string pName;
-  std::string pLinkName;
-  LocationVector pLocation;
-  LocationVector pUnlinkedLocation;
-  Buffer pChecksum;
-  XAttrMap pXAttrs;
-  FileMDSvc* pFileMDSvc;
+  IFileMDSvc* pFileMDSvc;
 
 private:
+  eos::ns::FileMdProto mFile; ///< ProtoBuf file representation
   qclient::AsyncHandler mAh; ///< Async handler
+  XAttrMap pXAttrs;
 };
 
 EOSNSNAMESPACE_END

@@ -16,23 +16,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <sstream>
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include <sstream>
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc)
-  : IFileMD(), pId(id), pCTime{0}, pMTime{0}, pSize(0), pContainerId(0), pCUid(0),
-    pCGid(0), pLayoutId(0), pFlags(0), pChecksum(0),
-    pFileMDSvc(dynamic_cast<FileMDSvc*>(fileMDSvc)), mAh()
+FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
+  pFileMDSvc(fileMDSvc), mAh()
 {
-  pCTime.tv_sec = pCTime.tv_nsec = 0;
-  pMTime.tv_sec = pMTime.tv_nsec = 0;
+  mFile.set_id(id);
 }
 
 //------------------------------------------------------------------------------
@@ -58,20 +57,7 @@ FileMD::FileMD(const FileMD& other)
 FileMD&
 FileMD::operator = (const FileMD& other)
 {
-  pName        = other.pName;
-  pId          = other.pId;
-  pSize        = other.pSize;
-  pContainerId = other.pContainerId;
-  pCUid        = other.pCUid;
-  pCGid        = other.pCGid;
-  pLayoutId    = other.pLayoutId;
-  pFlags       = other.pFlags;
-  pLinkName    = other.pLinkName;
-  pLocation    = other.pLocation;
-  pUnlinkedLocation = other.pUnlinkedLocation;
-  pCTime       = other.pCTime;
-  pMTime       = other.pMTime;
-  pChecksum    = other.pChecksum;
+  mFile = other.mFile;
   pFileMDSvc   = 0;
   return *this;
 }
@@ -86,7 +72,7 @@ FileMD::addLocation(location_t location)
     return;
   }
 
-  pLocation.push_back(location);
+  mFile.add_locations(location);
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationAdded,
                                  location);
   pFileMDSvc->notifyListeners(&e);
@@ -98,8 +84,8 @@ FileMD::addLocation(location_t location)
 void
 FileMD::replaceLocation(unsigned int index, location_t newlocation)
 {
-  location_t oldLocation = pLocation[index];
-  pLocation[index] = newlocation;
+  location_t oldLocation = mFile.locations(index);
+  mFile.set_locations(index, newlocation);
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationReplaced,
                                  newlocation, oldLocation);
   pFileMDSvc->notifyListeners(&e);
@@ -111,9 +97,10 @@ FileMD::replaceLocation(unsigned int index, location_t newlocation)
 void
 FileMD::removeLocation(location_t location)
 {
-  for (auto it = pUnlinkedLocation.begin(); it < pUnlinkedLocation.end(); ++it) {
+  for (auto it = mFile.unlink_locations().begin();
+       it != mFile.unlink_locations().end(); ++it) {
     if (*it == location) {
-      pUnlinkedLocation.erase(it);
+      mFile.mutable_unlink_locations()->erase(it);
       IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationRemoved,
                                      location);
       pFileMDSvc->notifyListeners(&e);
@@ -128,14 +115,15 @@ FileMD::removeLocation(location_t location)
 void
 FileMD::removeAllLocations()
 {
-  std::vector<location_t>::reverse_iterator it;
+  auto it = mFile.unlink_locations().rbegin();
 
-  while ((it = pUnlinkedLocation.rbegin()) != pUnlinkedLocation.rend()) {
-    pUnlinkedLocation.pop_back();
+  while (it != mFile.unlink_locations().rend()) {
     IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationRemoved,
                                    *it);
     pFileMDSvc->notifyListeners(&e);
   }
+
+  mFile.clear_locations();
 }
 
 //------------------------------------------------------------------------------
@@ -144,10 +132,11 @@ FileMD::removeAllLocations()
 void
 FileMD::unlinkLocation(location_t location)
 {
-  for (auto it = pLocation.begin(); it < pLocation.end(); it++) {
+  for (auto it = mFile.locations().begin();
+       it != mFile.locations().end(); ++it) {
     if (*it == location) {
-      pUnlinkedLocation.push_back(*it);
-      pLocation.erase(it);
+      mFile.add_unlink_locations(*it);
+      mFile.mutable_locations()->erase(it);
       IFileMDChangeListener::Event e(
         this, IFileMDChangeListener::LocationUnlinked, location);
       pFileMDSvc->notifyListeners(&e);
@@ -162,16 +151,16 @@ FileMD::unlinkLocation(location_t location)
 void
 FileMD::unlinkAllLocations()
 {
-  std::vector<location_t>::reverse_iterator it;
+  auto it = mFile.locations().rbegin();
 
-  while ((it = pLocation.rbegin()) != pLocation.rend()) {
-    location_t loc = *it;
-    pUnlinkedLocation.push_back(loc);
-    pLocation.pop_back();
+  while (it != mFile.locations().rend()) {
+    mFile.add_unlink_locations(*it);
     IFileMDChangeListener::Event e(
-      this, IFileMDChangeListener::LocationUnlinked, loc);
+      this, IFileMDChangeListener::LocationUnlinked, *it);
     pFileMDSvc->notifyListeners(&e);
   }
+
+  mFile.clear_locations();
 }
 
 //------------------------------------------------------------------------
@@ -182,7 +171,7 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
 {
   env = "";
   std::ostringstream o;
-  std::string saveName = pName;
+  std::string saveName = mFile.name();
 
   if (escapeAnd) {
     if (!saveName.empty()) {
@@ -198,35 +187,40 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
     }
   }
 
-  o << "name=" << saveName << "&id=" << pId << "&ctime=" << pCTime.tv_sec;
-  o << "&ctime_ns=" << pCTime.tv_nsec << "&mtime=" << pMTime.tv_sec;
-  o << "&mtime_ns=" << pMTime.tv_nsec << "&size=" << pSize;
-  o << "&cid=" << pContainerId << "&uid=" << pCUid << "&gid=" << pCGid;
-  o << "&lid=" << pLayoutId;
+  ctime_t ctime;
+  ctime_t mtime;
+  (void) getCTime(ctime);
+  (void) getMTime(mtime);
+  o << "name=" << saveName << "&id=" << mFile.id()
+    << "&ctime=" << ctime.tv_sec << "&ctime_ns=" << ctime.tv_nsec
+    << "&mtime=" << mtime.tv_sec << "&mtime_ns=" << mtime.tv_nsec
+    << "&size=" << mFile.size() << "&cid=" << mFile.cont_id()
+    << "&uid=" << mFile.uid() << "&gid=" << mFile.gid()
+    << "&lid=" << mFile.layout_id();
   env += o.str();
   env += "&location=";
   char locs[16];
 
-  for (auto && elem : pLocation) {
+  for (auto && elem : mFile.locations()) {
     snprintf(static_cast<char*>(locs), sizeof(locs), "%u", elem);
     env += static_cast<char*>(locs);
     env += ",";
   }
 
-  for (auto && elem : pUnlinkedLocation) {
+  for (auto && elem : mFile.unlink_locations()) {
     snprintf(static_cast<char*>(locs), sizeof(locs), "!%u", elem);
     env += static_cast<char*>(locs);
     env += ",";
   }
 
   env += "&checksum=";
-  uint8_t size = pChecksum.getSize();
+  uint8_t size = mFile.checksum().size();
 
   for (uint8_t i = 0; i < size; i++) {
     char hx[3];
     hx[0] = 0;
     snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
-             *reinterpret_cast<unsigned char*>(pChecksum.getDataPtr() + i));
+             *reinterpret_cast<unsigned char*>(mFile.checksum()[i]));
     env += static_cast<char*>(hx);
   }
 }
@@ -243,63 +237,15 @@ FileMD::serialize(eos::Buffer& buffer)
     throw ex;
   }
 
-  buffer.putData(&pId, sizeof(pId));
-  buffer.putData(&pCTime, sizeof(pCTime));
-  buffer.putData(&pMTime, sizeof(pMTime));
-  uint64_t tmp = pFlags;
-  tmp <<= 48;
-  tmp |= (pSize & 0x0000ffffffffffff);
-  buffer.putData(&tmp, sizeof(tmp));
-  buffer.putData(&pContainerId, sizeof(pContainerId));
-  // Symbolic links are serialized as <name>//<link>
-  std::string nameAndLink = pName;
+  // TODO(esindril): add checksum for the FileMD serialized object
+  size_t msg_size = mFile.ByteSizeLong();
+  buffer.setSize(msg_size);
+  google::protobuf::io::ArrayOutputStream aos(buffer.getDataPtr(), msg_size);
 
-  if (pLinkName.length() != 0u) {
-    nameAndLink += "//";
-    nameAndLink += pLinkName;
-  }
-
-  uint16_t len = nameAndLink.length() + 1;
-  buffer.putData(&len, sizeof(len));
-  buffer.putData(nameAndLink.c_str(), len);
-  len = pLocation.size();
-  buffer.putData(&len, sizeof(len));
-  LocationVector::iterator it;
-
-  for (it = pLocation.begin(); it != pLocation.end(); ++it) {
-    location_t location = *it;
-    buffer.putData(&location, sizeof(location_t));
-  }
-
-  len = pUnlinkedLocation.size();
-  buffer.putData(&len, sizeof(len));
-
-  for (it = pUnlinkedLocation.begin(); it != pUnlinkedLocation.end(); ++it) {
-    location_t location = *it;
-    buffer.putData(&location, sizeof(location_t));
-  }
-
-  buffer.putData(&pCUid, sizeof(pCUid));
-  buffer.putData(&pCGid, sizeof(pCGid));
-  buffer.putData(&pLayoutId, sizeof(pLayoutId));
-  uint8_t size = pChecksum.getSize();
-  buffer.putData(&size, sizeof(size));
-  buffer.putData(pChecksum.getDataPtr(), size);
-
-  // May store xattr
-  if (!pXAttrs.empty()) {
-    uint16_t len = pXAttrs.size();
-    buffer.putData(&len, sizeof(len));
-    XAttrMap::iterator it;
-
-    for (it = pXAttrs.begin(); it != pXAttrs.end(); ++it) {
-      uint16_t strLen = it->first.length() + 1;
-      buffer.putData(&strLen, sizeof(strLen));
-      buffer.putData(it->first.c_str(), strLen);
-      strLen = it->second.length() + 1;
-      buffer.putData(&strLen, sizeof(strLen));
-      buffer.putData(it->second.c_str(), strLen);
-    }
+  if (!mFile.SerializeToZeroCopyStream(&aos)) {
+    MDException ex(EIO);
+    ex.getMessage() << "Failed while serializing buffer";
+    throw ex;
   }
 
   if (!waitAsyncReplies()) {
@@ -315,71 +261,13 @@ FileMD::serialize(eos::Buffer& buffer)
 void
 FileMD::deserialize(const eos::Buffer& buffer)
 {
-  uint16_t offset = 0;
-  offset = buffer.grabData(offset, &pId, sizeof(pId));
-  offset = buffer.grabData(offset, &pCTime, sizeof(pCTime));
-  offset = buffer.grabData(offset, &pMTime, sizeof(pMTime));
-  uint64_t tmp;
-  offset = buffer.grabData(offset, &tmp, sizeof(tmp));
-  pSize = tmp & 0x0000ffffffffffff;
-  tmp >>= 48;
-  pFlags = tmp & 0x000000000000ffff;
-  offset = buffer.grabData(offset, &pContainerId, sizeof(pContainerId));
-  uint16_t len = 0;
-  offset = buffer.grabData(offset, &len, 2);
-  char strBuffer[len];
-  offset = buffer.grabData(offset, static_cast<char*>(strBuffer), len);
-  pName = static_cast<char*>(strBuffer);
-  // Possibly extract symbolic link
-  size_t link_pos = pName.find("//");
+  google::protobuf::io::ArrayInputStream ais(buffer.getDataPtr(),
+      buffer.getSize());
 
-  if (link_pos != std::string::npos) {
-    pLinkName = pName.substr(link_pos + 2);
-    pName.erase(link_pos);
-  }
-
-  offset = buffer.grabData(offset, &len, 2);
-
-  for (uint16_t i = 0; i < len; ++i) {
-    location_t location;
-    offset = buffer.grabData(offset, &location, sizeof(location_t));
-    pLocation.push_back(location);
-  }
-
-  offset = buffer.grabData(offset, &len, 2);
-
-  for (uint16_t i = 0; i < len; ++i) {
-    location_t location;
-    offset = buffer.grabData(offset, &location, sizeof(location_t));
-    pUnlinkedLocation.push_back(location);
-  }
-
-  offset = buffer.grabData(offset, &pCUid, sizeof(pCUid));
-  offset = buffer.grabData(offset, &pCGid, sizeof(pCGid));
-  offset = buffer.grabData(offset, &pLayoutId, sizeof(pLayoutId));
-  uint8_t size = 0;
-  offset = buffer.grabData(offset, &size, sizeof(size));
-  pChecksum.resize(size);
-  offset = buffer.grabData(offset, pChecksum.getDataPtr(), size);
-
-  if ((buffer.size() - offset) >= 4) {
-    // XAttr are optional
-    uint16_t len1 = 0;
-    uint16_t len2 = 0;
-    uint16_t len = 0;
-    offset = buffer.grabData(offset, &len, sizeof(len));
-
-    for (uint16_t i = 0; i < len; ++i) {
-      offset = buffer.grabData(offset, &len1, sizeof(len1));
-      char strBuffer1[len1];
-      offset = buffer.grabData(offset, static_cast<char*>(strBuffer1), len1);
-      offset = buffer.grabData(offset, &len2, sizeof(len2));
-      char strBuffer2[len2];
-      offset = buffer.grabData(offset, static_cast<char*>(strBuffer2), len2);
-      pXAttrs.insert(std::pair<std::string, std::string>
-                     (static_cast<char*>(strBuffer1),
-                      static_cast<char*>(strBuffer2)));
-    }
+  if (!mFile.ParseFromZeroCopyStream(&ais)) {
+    MDException ex(EIO);
+    ex.getMessage() << "Failed while deserializing buffer";
+    throw ex;
   }
 }
 
@@ -389,8 +277,8 @@ FileMD::deserialize(const eos::Buffer& buffer)
 void
 FileMD::setSize(uint64_t size)
 {
-  int64_t sizeChange = (size & 0x0000ffffffffffff) - pSize;
-  pSize = size & 0x0000ffffffffffff;
+  int64_t sizeChange = (size & 0x0000ffffffffffff) - mFile.size();
+  mFile.set_size(size & 0x0000ffffffffffff);
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0, 0,
                                  sizeChange);
   pFileMDSvc->notifyListeners(&e);
@@ -402,8 +290,7 @@ FileMD::setSize(uint64_t size)
 void
 FileMD::getCTime(ctime_t& ctime) const
 {
-  ctime.tv_sec = pCTime.tv_sec;
-  ctime.tv_nsec = pCTime.tv_nsec;
+  (void) memcpy(&ctime, mFile.ctime().data(), sizeof(ctime_t));
 }
 
 //------------------------------------------------------------------------------
@@ -412,8 +299,7 @@ FileMD::getCTime(ctime_t& ctime) const
 void
 FileMD::setCTime(ctime_t ctime)
 {
-  pCTime.tv_sec = ctime.tv_sec;
-  pCTime.tv_nsec = ctime.tv_nsec;
+  mFile.set_ctime(&ctime, sizeof(ctime));
 }
 
 //----------------------------------------------------------------------------
@@ -422,14 +308,16 @@ FileMD::setCTime(ctime_t ctime)
 void
 FileMD::setCTimeNow()
 {
+  struct timespec tnow;
 #ifdef __APPLE__
   struct timeval tv;
   gettimeofday(&tv, 0);
-  pCTime.tv_sec = tv.tv_sec;
-  pCTime.tv_nsec = tv.tv_usec * 1000;
+  tnow.tv_sec = tv.tv_sec;
+  tnow.tv_nsec = tv.tv_usec * 1000;
 #else
-  clock_gettime(CLOCK_REALTIME, &pCTime);
+  clock_gettime(CLOCK_REALTIME, &tnow);
 #endif
+  mFile.set_ctime(&tnow, sizeof(tnow));
 }
 
 //------------------------------------------------------------------------------
@@ -438,8 +326,7 @@ FileMD::setCTimeNow()
 void
 FileMD::getMTime(ctime_t& mtime) const
 {
-  mtime.tv_sec = pMTime.tv_sec;
-  mtime.tv_nsec = pMTime.tv_nsec;
+  (void) memcpy(&mtime, mFile.mtime().data(), sizeof(time_t));
 }
 
 //------------------------------------------------------------------------------
@@ -448,8 +335,7 @@ FileMD::getMTime(ctime_t& mtime) const
 void
 FileMD::setMTime(ctime_t mtime)
 {
-  pMTime.tv_sec = mtime.tv_sec;
-  pMTime.tv_nsec = mtime.tv_nsec;
+  mFile.set_mtime(&mtime, sizeof(mtime));
 }
 
 //------------------------------------------------------------------------------
@@ -458,14 +344,16 @@ FileMD::setMTime(ctime_t mtime)
 void
 FileMD::setMTimeNow()
 {
+  struct timespec tnow;
 #ifdef __APPLE__
   struct timeval tv;
   gettimeofday(&tv, 0);
-  pMTime.tv_sec = tv.tv_sec;
-  pMTime.tv_nsec = tv.tv_usec * 1000;
+  tnow.tv_sec = tv.tv_sec;
+  tnow.tv_nsec = tv.tv_usec * 1000;
 #else
-  clock_gettime(CLOCK_REALTIME, &pMTime);
+  clock_gettime(CLOCK_REALTIME, &tnow);
 #endif
+  mFile.set_mtime(&tnow, sizeof(tnow));
 }
 
 //------------------------------------------------------------------------------
