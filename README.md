@@ -76,7 +76,7 @@ doxygen
 To build **EOS**, you need **gcc (>=4.4)** and **CMake** installed on your system:
 ```bash
 # Note that you will also need to check out the fmd and qclient git submodules
-git submodule update --update --recursive
+git submodule update --init --recursive
 # Create build workdir
 mkdir build
 cd build
