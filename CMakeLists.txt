@@ -79,6 +79,15 @@ endif()
 #-------------------------------------------------------------------------------
 # Install targets
 #-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# Build the libfmt for fast convertions
+#-------------------------------------------------------------------------------
+if (NOT TARGET fmt)
+  include_directories(common/fmt)
+  add_subdirectory(common/fmt)
+  set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+endif()
+
 add_subdirectory(common)
 add_subdirectory(misc)
 add_subdirectory(authz)
