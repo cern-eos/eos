@@ -119,7 +119,6 @@ public:
   //------------------------------------------------------------------------------
 
   void
-<<<<<<< Updated upstream
   lock_r_pcache(pid_t pid, pid_t pid_locked)
   {
     if ( (pid % proccachenbins) != (pid_locked % proccachenbins) )
@@ -131,17 +130,6 @@ public:
   {
     if ( (pid % proccachenbins) != (pid_locked % proccachenbins) )
       proccachemutexes[pid%proccachenbins].LockWrite();
-=======
-  lock_r_pcache(pid_t pid)
-  {
-    proccachemutexes[pid%proccachenbins].LockRead();
-  }
-
-  void
-  lock_w_pcache(pid_t pid)
-  {
-    proccachemutexes[pid%proccachenbins].LockWrite();
->>>>>>> Stashed changes
   }
 
 
@@ -150,7 +138,6 @@ public:
   //------------------------------------------------------------------------------
 
   void
-<<<<<<< Updated upstream
   unlock_r_pcache(pid_t pid, pid_t pid_locked)
   {
     if ( (pid % proccachenbins) != (pid_locked % proccachenbins) )
@@ -166,21 +153,6 @@ public:
 
   AuthIdManager()
   {
-=======
-  unlock_r_pcache(pid_t pid)
-  {
-    proccachemutexes[pid%proccachenbins].UnLockRead();
-  }
-
-  void
-  unlock_w_pcache(pid_t pid)
-  {
-    proccachemutexes[pid%proccachenbins].UnLockWrite();
-  }
-
-  AuthIdManager()
-  {
->>>>>>> Stashed changes
     resize(proccachenbins);
   }
 
@@ -419,7 +391,6 @@ protected:
     cleancountProcCache += gProcCacheV[i].RemoveEntries(&runningPids);
 
     for (auto it = pid2StrongLogin[i].begin (); it != pid2StrongLogin[i].end ();)
-<<<<<<< Updated upstream
     {
       if (!runningPids.count(it->first))
       {
@@ -467,55 +438,6 @@ protected:
     XrdSysTimer sleeper;
     while(true)
     {
-=======
-    {
-      if (!runningPids.count(it->first))
-      {
-        pid2StrongLogin[i].erase(it++);
-        ++cleancountStrongLogin;
-      }
-      else
-        ++it;
-    }
-    for (auto it = siduid2credinfo[i].begin (); it != siduid2credinfo[i].end ();)
-    {
-      if (!runningPids.count(it->first))
-      {
-        siduid2credinfo[i].erase(it++);
-        cleancountCredInfo++;
-      }
-      else
-        ++it;
-    }
-  }
-
-  int cleanProcCache ()
-  {
-    int cleancountProcCache = 0;
-    int cleancountStrongLogin = 0;
-    int cleancountCredInfo = 0;
-
-    if (populatePids ())
-    {
-      for (unsigned int i = 0; i < proccachenbins; i++)
-        cleanProcCacheBin (i,cleancountProcCache,cleancountStrongLogin,cleancountCredInfo);
-
-    }
-    eos_static_info("ProcCache cleaning removed %d entries in gProcCache",cleancountProcCache);
-    eos_static_debug("ProcCache cleaning removed %d entries in pid2StrongLogin",cleancountStrongLogin);
-    eos_static_debug("ProcCache cleaning removed %d entries in siduid2CredInfo",cleancountCredInfo);
-      return 0;
-  }
-
-  static void*
-  CleanupThread(void* arg);
-
-  void CleanupLoop()
-  {
-    XrdSysTimer sleeper;
-    while(true)
-    {
->>>>>>> Stashed changes
       sleeper.Snooze(300);
       cleanProcCache();
     }
@@ -547,18 +469,11 @@ protected:
     // get the startuptime of the process
     time_t processSut = 0;
 
-<<<<<<< Updated upstream
     gProcCache(pid).GetStartupTime(pid, processSut);
-=======
-    if (gProcCache(pid).HasEntry(pid)) {
-      gProcCache(pid).GetEntry(pid)->GetStartupTime(processSut);
-    }
->>>>>>> Stashed changes
 
     // get the session id
     pid_t sid = 0;
 
-<<<<<<< Updated upstream
     gProcCache(pid).GetSid(pid, sid);
 
     // update the proccache of the session leader
@@ -567,41 +482,18 @@ protected:
 
       if ((errCode = gProcCache(sid).InsertEntry(sid))) {
         unlock_w_pcache(sid, pid);
-=======
-    if (gProcCache(pid).HasEntry(pid)) {
-      gProcCache(pid).GetEntry(pid)->GetSid(sid);
-    }
-
-    // update the proccache of the session leader
-    if (sid!=pid) {
-      lock_w_pcache(sid);
-
-      if ((errCode = gProcCache(sid).InsertEntry(sid))) {
-        unlock_w_pcache(sid);
->>>>>>> Stashed changes
         eos_static_debug("updating proc cache information for session leader process %d failed. Session leader process %d does not exist",
                        (int)pid, (int)sid);
         sid = -1;
       }
       else
-<<<<<<< Updated upstream
         unlock_w_pcache(sid, pid);
-=======
-        unlock_w_pcache(sid);
->>>>>>> Stashed changes
     }
 
     // get the startuptime of the leader of the session
     time_t sessionSut = 0;
 
-<<<<<<< Updated upstream
     if (!gProcCache(sid).GetStartupTime(sid, sessionSut))
-=======
-    if (gProcCache(sid).HasEntry(sid)) {
-      gProcCache(sid).GetEntry(sid)->GetStartupTime(sessionSut);
-    }
-    else
->>>>>>> Stashed changes
       sessionSut = 0;
 
     // find the credentials
@@ -623,11 +515,7 @@ protected:
     // check if the credentials in the credential cache cache are up to date
     // TODO: should we implement a TTL , my guess is NO
     bool sessionInCache = false;
-<<<<<<< Updated upstream
     if(sid!=pid) lock_r_pcache(sid,pid);
-=======
-    if(sid!=pid) lock_r_pcache(sid);
->>>>>>> Stashed changes
     bool cacheEntryFound = siduid2credinfo[sid%proccachenbins].count(sid)>0 && siduid2credinfo[sid%proccachenbins][sid].count(uid)>0;
     std::map<uid_t, CredInfo>::iterator cacheEntry;
     if (cacheEntryFound)
@@ -650,11 +538,7 @@ protected:
       }
     }
     }
-<<<<<<< Updated upstream
     if(sid!=pid) unlock_r_pcache(sid, pid);
-=======
-    if(sid!=pid) unlock_r_pcache(sid);
->>>>>>> Stashed changes
 
     if (sessionInCache) {
       // TODO: could detect from the call to ptoccahce_InsertEntry if the process was changed
@@ -666,17 +550,10 @@ protected:
 
       if (gProcCache(sid).HasEntry(sid)) {
         std::string authmeth;
-<<<<<<< Updated upstream
         gProcCache(sid).GetAuthMethod(sid, authmeth);
 
         if (gProcCache(pid).HasEntry(pid)) {
           gProcCache(pid).SetAuthMethod(pid, authmeth);
-=======
-        gProcCache(sid).GetEntry(sid)->GetAuthMethod(authmeth);
-
-        if (gProcCache(pid).HasEntry(pid)) {
-          gProcCache(pid).GetEntry(pid)->SetAuthMethod(authmeth);
->>>>>>> Stashed changes
         }
       }
 
@@ -691,19 +568,11 @@ protected:
       /*** using unix authentication and user nobody ***/
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       if (gProcCache(pid).HasEntry(pid)) {
-<<<<<<< Updated upstream
         gProcCache(pid).SetAuthMethod(pid,sId);
     }
       // refresh the credentials in the cache
       if (gProcCache(sid).HasEntry(sid)) {
         gProcCache(sid).SetAuthMethod(sid, sId);
-=======
-        gProcCache(pid).GetEntry(pid)->SetAuthMethod(sId);
-    }
-      // refresh the credentials in the cache
-      if (gProcCache(sid).HasEntry(sid)) {
-        gProcCache(sid).GetEntry(sid)->SetAuthMethod(sId);
->>>>>>> Stashed changes
       }
       // check the credential security
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
@@ -747,18 +616,8 @@ protected:
         return EACCES;
       }
 
-<<<<<<< Updated upstream
       gProcCache(pid).SetAuthMethod(pid, newauthmeth);
       gProcCache(sid).SetAuthMethod(sid, newauthmeth);
-=======
-      if (gProcCache(pid).HasEntry(pid)) {
-        gProcCache(pid).GetEntry(pid)->SetAuthMethod(newauthmeth);
-      }
-
-      if (gProcCache(sid).HasEntry(sid)) {
-        gProcCache(sid).GetEntry(sid)->SetAuthMethod(newauthmeth);
-      }
->>>>>>> Stashed changes
 
       authid = getNewConId(uid, gid, pid);
 
@@ -778,15 +637,9 @@ protected:
     credinfo.cachedStrongLogin = pid2StrongLogin[pid%proccachenbins][pid];
     eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",
                      (int)uid, (int)sid, (int)pid, credinfo.cachedStrongLogin.c_str());
-<<<<<<< Updated upstream
     if(sid!=pid) lock_w_pcache(sid, pid);
     siduid2credinfo[sid%proccachenbins][sid][uid] = credinfo;
     if(sid!=pid) unlock_w_pcache(sid,pid);
-=======
-    if(sid!=pid) lock_w_pcache(sid);
-    siduid2credinfo[sid%proccachenbins][sid][uid] = credinfo;
-    if(sid!=pid) unlock_w_pcache(sid);
->>>>>>> Stashed changes
     eos_static_info("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)",
                     sId.c_str(), (int)pid,
                     pid2StrongLogin[pid%proccachenbins][pid].c_str(), (int)uid, (int)authid);

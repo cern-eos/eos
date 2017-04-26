@@ -23,6 +23,7 @@
  ************************************************************************/
 
 #include "backend.hh"
+#include "cap.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
@@ -136,6 +137,10 @@ backend::fetchResponse(std::string& requestURL,
   if (!status.IsOK ())
   {
     eos_static_err ("error=status is NOT ok : %s", status.ToString ().c_str ());
+    
+    if (status.code == XrdCl::errNotFound )
+      return ENOENT;
+    
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
     return errno;
   }
@@ -243,7 +248,7 @@ backend::fetchResponse(std::string& requestURL,
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-backend::putMD(eos::fusex::md* md, std::string authid)
+backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex* locker)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::URL url ("root://" + hostport);
@@ -251,7 +256,10 @@ backend::putMD(eos::fusex::md* md, std::string authid)
 
   // temporary add the authid to be used for that request
   md->set_authid(authid);
+  md->set_clientuuid(clientuuid);
+
   std::string mdstream;
+  eos_static_info("proto-serialize");
   if (!md->SerializeToString(&mdstream))
   {
     md->clear_authid();
@@ -260,7 +268,11 @@ backend::putMD(eos::fusex::md* md, std::string authid)
   }
 
   md->clear_authid();
+  md->clear_clientuuid();
+  
+  locker->UnLock();
 
+  eos_static_info("proto-serialize unlock");
   XrdCl::FileSystem fs(url);
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
@@ -274,6 +286,8 @@ backend::putMD(eos::fusex::md* md, std::string authid)
   SyncResponseHandler handler;
   fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
   XrdCl::XRootDStatus status = handler.Sync(response);
+
+  eos_static_info("sync-response");
 
   if (status.IsOK ())
   {
@@ -308,32 +322,39 @@ backend::putMD(eos::fusex::md* md, std::string authid)
       if (!resp.ParseFromString(sresponse) || (resp.type() != resp.ACK))
       {
         eos_static_err("parsing error/wrong response type received");
+	locker->Lock();
         return EIO;
       }
       if (resp.ack_().code() == resp.ack_().OK)
       {
+	eos_static_info("relock do");
+	locker->Lock();
         md->set_md_ino(resp.ack_().md_ino());
         eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error=%s", md->id(), md->md_ino(),
                          resp.ack_().md_ino(), resp.ack_().transactionid(),
                          resp.ack_().err_msg().c_str());
-
+	eos_static_info("relock done");
         return 0;
       }
       eos_static_err("failed query command for ino=%lx", md->id());
+      locker->Lock();
       return EIO;
     }
     else
     {
       eos_static_err("no response retrieved response=%lu response-buffer=%lu",
                      response, response ? response->GetBuffer() : 0);
+      locker->Lock();
       return EIO;
     }
+    locker->Lock();
     return 0;
   }
   else
   {
     eos_static_err("query resulted in error url=%s", url.GetURL().c_str());
   }
+  locker->Lock();
   return EIO;
 }
 
@@ -352,6 +373,8 @@ backend::getURL(fuse_req_t req, const std::string & path, std::string op, std::s
   query["mgm.path"] = mount + path;
   query["mgm.op"] = op;
   query["mgm.uuid"] = clientuuid;
+  query["mgm.cid"] = cap::capx::getclientid(req);
+
   if (authid.length())
     query["mgm.authid"]= authid;
 
@@ -379,7 +402,7 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name, std::st
   query["mgm.uuid"] = clientuuid;
   if (authid.length())
     query["mgm.authid"]= authid;
-
+  query["mgm.cid"] = cap::capx::getclientid(req);
   url.SetParams(query);
   return url.GetURL();
 }
@@ -406,7 +429,7 @@ backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string op, 
   query["mgm.uuid"] = clientuuid;
   if (authid.length())
     query["mgm.authid"]= authid;
-
+  query["mgm.cid"] = cap::capx::getclientid(req);
   url.SetParams(query);
   return url.GetURL();
 }

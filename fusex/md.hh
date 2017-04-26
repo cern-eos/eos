@@ -505,11 +505,11 @@ public:
     {
       XrdSysMutexHelper iLock(item->second->Locker());
       item->second->cap_dec();
-      eos_static_err("decrease cap counter for ino=%lx", ino);
+      //eos_static_err("decrease cap counter for ino=%lx", ino);
     }
     else
     {
-      eos_static_err("no cap counter change for ino=%lx", ino);
+      //eos_static_err("no cap counter change for ino=%lx", ino);
     }
   }
 
@@ -521,11 +521,11 @@ public:
     {
       //      XrdSysMutexHelper iLock(item->second->Locker());
       item->second->cap_inc();
-      eos_static_err("increase cap counter for ino=%lx", ino);
+      //eos_static_err("increase cap counter for ino=%lx", ino);
     }
     else
     {
-      eos_static_err("no cap counter change for ino=%lx", ino);
+      //eos_static_err("no cap counter change for ino=%lx", ino);
     }
   }
 

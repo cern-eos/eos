@@ -89,7 +89,6 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 {
   eos_static_debug("");
 
-  struct fuse_chan* ch;
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
   char* local_mount_dir = 0;
   int err = 0;
@@ -251,7 +250,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
   int debug;
   if ((fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) != -1) &&
-      ((ch = fuse_mount(local_mount_dir, &args)) != NULL) &&
+      ((fusechan = fuse_mount(local_mount_dir, &args)) != NULL) &&
       (fuse_daemonize(config.options.foreground) != -1))
   {
     FILE* fstderr;
@@ -316,7 +315,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos::common::Logging::Init ();
     eos::common::Logging::SetUnit ("FUSE@eosxd");
     eos::common::Logging::gShortFormat = true;
-    eos::common::Logging::SetFilter("mdcommunicate,DumpStatistic");
+    eos::common::Logging::SetFilter("DumpStatistic");
     if (config.options.debug)
     {
       eos::common::Logging::SetLogPriority(LOG_DEBUG);
@@ -406,42 +405,42 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     cachehandler::instance().logconfig();
 
-    struct fuse_session* se;
-    se = fuse_lowlevel_new(&args,
+   
+    fusesession = fuse_lowlevel_new(&args,
                            &(get_operations()),
                            sizeof (operations), NULL);
 
-    if ((se != NULL))
+    if ((fusesession != NULL))
     {
-      if (fuse_set_signal_handlers(se) != -1)
+      if (fuse_set_signal_handlers(fusesession) != -1)
       {
-        fuse_session_add_chan(se, ch);
+        fuse_session_add_chan(fusesession, fusechan);
 
         if (getenv("EOS_FUSE_NO_MT") &&
             (!strcmp(getenv("EOS_FUSE_NO_MT"), "1")))
         {
-          err = fuse_session_loop(se);
+          err = fuse_session_loop(fusesession);
         }
         else
         {
 #if ( FUSE_USE_VERSION <= 28 )
-          err = fuse_session_loop_mt(se);
+          err = fuse_session_loop_mt(fusesession);
 #else
           if (config.options.libfusethreads)
           {
-            err = fuse_session_loop_mt(se);
+            err = fuse_session_loop_mt(fusesession);
           }
           else
           {
             EosFuseSessionLoop loop( 10, 20, 10, 20 );
-            err = loop.Loop( se );
+            err = loop.Loop( fusesession );
           }
 #endif
         }
-        fuse_remove_signal_handlers(se);
-        fuse_session_remove_chan(ch);
+        fuse_remove_signal_handlers(fusesession);
+        fuse_session_remove_chan(fusechan);
       }
-      fuse_session_destroy(se);
+      fuse_session_destroy(fusesession);
     }
 
 
@@ -464,7 +463,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("eosdx stopped version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
     eos_static_warning("********************************************************************************");
 
-    fuse_unmount(local_mount_dir, ch);
+    fuse_unmount(local_mount_dir, fusechan);
   }
   return err ? 1 : 0;
 }
@@ -1362,6 +1361,11 @@ EROFS  pathname refers to a file on a read-only filesystem.
           md->set_uid(pcap->uid());
           md->set_gid(pcap->gid());
           md->set_id(Instance().mds.insert(req, md, pcap->authid()));
+          std::string imply_authid = eos::common::StringConversion::random_uuidstring();
+          
+          Instance().caps.imply(pcap, imply_authid, mode, (fuse_ino_t) md->id());
+          md->cap_inc();
+          md->set_implied_authid(imply_authid);;
         }
       }
       if (!rc)
@@ -2320,7 +2324,9 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
   if (fuse_req_ctx(req)->uid == 0)
   {
     static std::string s_md = "system.eos.md";
-
+    static std::string s_cap = "system.eos.cap";
+    static std::string s_ls_caps= "system.eos.caps";
+   
     if (key.substr(0, s_md.length()) == s_md)
     {
       metad::shared_md md;
@@ -2330,6 +2336,17 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
         XrdSysMutexHelper mLock(md->Locker());
         value = Instance().mds.dump_md(md);
       }
+    }
+    if (key.substr(0, s_cap.length()) == s_cap)
+    {
+      pcap = Instance().caps.get(req, ino);
+      {
+        value = pcap->dump();
+      }
+    }
+    if (key.substr(0, s_ls_caps.length()) == s_ls_caps)
+    {
+      value = Instance().caps.ls();
     }
   }
   else
@@ -2494,8 +2511,9 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
   if (fuse_req_ctx(req)->uid == 0)
   {
     static std::string s_debug = "system.eos.debug";
-
-
+    static std::string s_dropcap = "system.eos.dropcap";
+    static std::string s_dropallcap = "system.eos.dropallcap";
+    
     if (key.substr(0, s_debug.length()) == s_debug)
     {
       local_setxattr = true;
@@ -2516,6 +2534,22 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
         eos::common::Logging::SetLogPriority(LOG_DEBUG);
         rc = 0;
       }
+    }
+    
+    if (key.substr(0, s_dropcap.length()) == s_dropcap)
+    {
+      local_setxattr = true;
+      cap::shared_cap pcap = Instance().caps.get(req, ino);
+      if (pcap->id())
+      {
+        Instance().caps.forget(pcap->capid(req, ino));
+      }
+    }
+    
+    if (key.substr(0, s_dropallcap.length()) == s_dropallcap)
+    {
+      local_setxattr = true;
+      Instance().caps.reset();
     }
   }
 

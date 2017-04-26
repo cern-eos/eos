@@ -39,6 +39,7 @@ message md {
   // children id is a virtual inode on when stored FUSE client side
   // children id is the physical inode when created on server side 
   cap capability = 32; //< optional response capability
+  string implied_authid = 33; //< implied auth id from a create call
 };
 
 message md_map {
@@ -69,6 +70,7 @@ message cap {
   string clientid = 8; //< client id
   string authid = 9; //< auth id
   fixed32 errc = 10; //< error code
+  fixed64 clock = 11    ; //< vector clock of the file/container
 }
 
 message cap_map {
@@ -127,11 +129,18 @@ message ack {
   fixed32 err_no = 3; //< error number
   fixed64 md_ino = 4; //< newly created inode number
   string err_msg = 5; //< error message
-  
+}
+
+message lease {
+  enum Type { RELEASECAP = 0; }
+
+  Type type = 1;
+  fixed64 md_ino = 2; //< inode number
+  string clientid = 3; //< clientid
 }
 
 message response {
-  enum Type { EVICT = 0; ACK = 1; }
+  enum Type { EVICT = 0; ACK = 1; LEASE = 2; }
 
   // Identifies which field is filled in.
   Type type = 1;
@@ -139,4 +148,5 @@ message response {
   // One of the following will be filled in.
   evict evict_ = 2;
   ack ack_ = 3;
+  lease lease_ = 4;
 }

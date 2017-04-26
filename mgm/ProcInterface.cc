@@ -894,13 +894,12 @@ ProcCommand::MakeResult ()
       }
       else
       {
-<<<<<<< Updated upstream
         if (mJsonCallback.length())
         {
           // JSONP
-          mResultStream = mJsonCallback;
+          mResultStream = mJsonCallback.c_str();
           mResultStream += "([\n";
-	  mResultStream += stdJson;
+	  mResultStream += stdJson.c_str();
           mResultStream += "\n]);";
         }
 	else
@@ -909,12 +908,8 @@ ProcCommand::MakeResult ()
 	  {
 	    mResultStream = "mgm.proc.json=";
 	  }
-	  mResultStream += stdJson;
+	  mResultStream += stdJson.c_str();
 	}
-=======
-        mResultStream = "mgm.proc.json=";
-        mResultStream += stdJson.c_str();
->>>>>>> Stashed changes
       }
     }
     if (mResultStream.length() && (*(mResultStream.rbegin()) != '\n'))

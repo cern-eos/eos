@@ -25,6 +25,7 @@
 #include "md.hh"
 #include "kv.hh"
 #include "cap.hh"
+#include "kernelcache.hh"
 #include "MacOSXHelper.hh"
 #include "common/Logging.hh"
 #include <iostream>
@@ -206,7 +207,7 @@ metad::lookup(fuse_req_t req,
     if (pmd->cap_count())
     {
       // --------------------------------------------------
-      // if we have a cap, we trust the child information  
+      // if we have a cap amd we listed this directory, we trust the child information  
       // --------------------------------------------------
       if (pmd->children().count(name))
       {
@@ -214,9 +215,12 @@ metad::lookup(fuse_req_t req,
       }
       else
       {
-        // no entry - TODO return a NULLMD object instead of creating it all the time
-        md = std::make_shared<mdx>();
-        return md;
+        if (pmd->type() == pmd->MDLS)
+        {
+          // no entry - TODO return a NULLMD object instead of creating it all the time
+          md = std::make_shared<mdx>();
+          return md;
+        }
       }
     }
     else
@@ -294,8 +298,8 @@ metad::mdx::convert(struct fuse_entry_param &e)
   e.attr.MTIMESPEC.tv_nsec=mtime_ns();
   e.attr.CTIMESPEC.tv_sec=ctime();
   e.attr.CTIMESPEC.tv_nsec=ctime_ns();
-  e.attr_timeout=0.0;
-  e.entry_timeout=0.0;
+  e.attr_timeout=3600.0;
+  e.entry_timeout=3600.0;
   e.generation = 1;
 }
 
@@ -459,6 +463,8 @@ metad::get(fuse_req_t req,
 {
   eos_static_info("ino=%08llx pino=%08llx name=%s listing=%d", ino, pmd ? pmd->id() : 0, name, listing);
   shared_md md;
+  bool loaded = false;
+
   if (ino)
   {
     // the inode is known, we try to get that one
@@ -478,6 +484,7 @@ metad::get(fuse_req_t req,
       // -----------------------------------------------------------------------
 
       md = load_from_kv(ino);
+      loaded = true;
     }
   }
   else
@@ -488,7 +495,7 @@ metad::get(fuse_req_t req,
     md = std::make_shared<mdx>();
   }
 
-  if (!md->id())
+  if (!md->id() || loaded)
   {
     // -------------------------------------------------------------------------
     // there is no local meta data available, this can only be found upstream
@@ -1073,7 +1080,7 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
   {
     mdqueue[p2md->id()] = authid2;
   }
-  
+
   mdqueue[md->id()] = authid2;
 
   stat.inodes_backlog_store(mdqueue.size());
@@ -1154,6 +1161,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       }
       assert(p_ino != 0);
       md->set_pid(p_ino);
+      md->set_id(ino);
       eos_static_info("store local pino=%08lx for %08x", md->pid(), md->id());
       md->setop_localstore();
       update(req, md, "");
@@ -1161,6 +1169,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
     }
     else
     {
+      eos_static_crit("msg=\"no local inode\" remote-ino=%lx", md_ino);
       return 0;
     }
   }
@@ -1244,7 +1253,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
               // store cap
               cap::Instance().store(req, cap_received);
               md->cap_inc();
-              eos_static_err("increase cap counter for ino=%lu", ino);
+              //eos_static_err("increase cap counter for ino=%lu", ino);
             }
           }
         }
@@ -1298,7 +1307,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
           // store cap
           cap::Instance().store(req, cap_received);
           md->cap_inc();
-          eos_static_err("increase cap counter for ino=%lu", new_ino);
+          //          eos_static_err("increase cap counter for ino=%lu", new_ino);
         }
         eos_static_debug("store md for local-ino=%08x remote-ino=%08x type=%d -", (long) new_ino, (long) map->first, md->type());
         eos_static_debug("%s", md->dump().c_str());
@@ -1335,7 +1344,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
   ;
 }
 
-
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
@@ -1371,65 +1379,82 @@ metad::mdcflush()
 
             md = mdmap[ino];
           }
+          else
+          {
+            continue;
+          }
         }
         if (md->id())
         {
-          XrdSysMutexHelper mLock(md->Locker());
-          metad::mdx::md_op op = md->getop();
-
-          int rc = 0;
-
-
-          if (op == metad::mdx::RM)
-            md->set_operation(md->DELETE);
-          else
-            md->set_operation(md->SET);
-
-          md->setop_none();
-
-          if (((op == metad::mdx::ADD) ||
-              (op == metad::mdx::UPDATE) ||
-              (op == metad::mdx::RM)) &&
-              md->id() != 1)
+          uint64_t removeentry=0;
           {
-            // push to backend
-            if ( (rc = mdbackend->putMD(&(*md), authid)) )
+            md->Locker().Lock();
+            metad::mdx::md_op op = md->getop();
+
+            int rc = 0;
+
+            if (op == metad::mdx::RM)
+              md->set_operation(md->DELETE);
+            else
+              md->set_operation(md->SET);
+
+            md->setop_none();
+
+            if (((op == metad::mdx::ADD) ||
+                (op == metad::mdx::UPDATE) ||
+                (op == metad::mdx::RM)) &&
+                md->id() != 1)
             {
-              eos_static_err("metacache::flush backend::putMD failed rc=%d", rc);
-              // ---------------------------------------------------------------
-              // in this case we always clean this MD record to force a refresh
-              // ---------------------------------------------------------------
-              inomap.erase_bwd(md->id());
-              XrdSysMutexHelper mLock(mdmap);
-              mdmap.erase(md->id());
+              eos_static_info("metacache::flush backend::putMD - start");
+              // push to backend
+              if ((rc = mdbackend->putMD(&(*md), authid, &(md->Locker()))))
+              {
+                eos_static_err("metacache::flush backend::putMD failed rc=%d", rc);
+                // ---------------------------------------------------------------
+                // in this case we always clean this MD record to force a refresh
+                // ---------------------------------------------------------------
+                inomap.erase_bwd(md->id());
+                removeentry=md->id();
+
+                // remove any implied authid, we don't want to have them in the local KV
+                md->clear_implied_authid();
+              }
+              else
+              {
+                inomap.insert(md->md_ino(), md->id());
+              }
+              eos_static_info("metacache::flush backend::putMD - stop");
+            }
+
+            if ( (op == metad::mdx::ADD) || (op == metad::mdx::UPDATE) || (op == metad::mdx::LSTORE) )
+            {
+              std::string mdstream;
+              md->SerializeToString(&mdstream);
+              md->Locker().UnLock();
+              kv::Instance().put(ino, mdstream);
             }
             else
             {
-              inomap.insert(md->md_ino(), md->id());
-            }
-          }
-          if ( (op == metad::mdx::ADD) || (op == metad::mdx::UPDATE) || (op == metad::mdx::LSTORE) )
-          {
-            std::string mdstream;
-            md->SerializeToString(&mdstream);
-            kv::Instance().put(ino, mdstream);
-          }
-          else
-          {
-            if (op == metad::mdx::RM)
-            {
-              kv::Instance().erase(ino);
-              // this step is coupled to the forget function, since we cannot
-              // forget an entry if we didn't process the outstanding KV changes
-              stat.inodes_deleted_dec();
-              if (md->lookup_dec(1))
+              md->Locker().UnLock();
+              if (op == metad::mdx::RM)
               {
-                // forget this inode
-
-                mdmap.erase(ino);
-                stat.inodes_dec();
+                kv::Instance().erase(ino);
+                // this step is coupled to the forget function, since we cannot
+                // forget an entry if we didn't process the outstanding KV changes
+                stat.inodes_deleted_dec();
+                if (md->lookup_dec(1))
+                {
+                  // forget this inode
+                  removeentry = ino;
+                  stat.inodes_dec();
+                }
               }
             }
+          }
+          if (removeentry)
+          {
+            XrdSysMutexHelper mmLock(mdmap);
+            mdmap.erase(removeentry);
           }
         }
       }
@@ -1486,9 +1511,9 @@ metad::mdcommunicate()
 
           do
           {
-            eos_static_debug("0MQ receive");
+            //eos_static_debug("0MQ receive");
             int size = zmq_msg_recv (&message, z_socket, 0);
-            eos_static_debug("0MQ size=%d", size);
+            //eos_static_debug("0MQ size=%d", size);
 
             rc = zmq_getsockopt(z_socket, ZMQ_RCVMORE, &more, &more_size);
           }
@@ -1509,6 +1534,37 @@ metad::mdcommunicate()
               kill(getpid(), SIGINT);
               wait();
             }
+            if (rsp.type() == rsp.LEASE)
+            {
+
+              uint64_t md_ino = rsp.lease_().md_ino();
+              uint64_t ino = inomap.forward(md_ino);
+              eos_static_info("lease: remote-ino=%lx ino=%lx clientid=%s",
+                              md_ino, ino, rsp.lease_().clientid().c_str());
+              if (ino)
+              {
+                std::string capid = cap::capx::capid(ino, rsp.lease_().clientid());
+
+                fuse_ino_t ino = cap::Instance().forget(capid);
+                {
+                  XrdSysMutexHelper mmLock(mdmap);
+                  // invalidate children
+                  eos_static_info("invalidate direct children ino=%08lx", ino);;
+                  if (mdmap.count(ino))
+                  {
+                    shared_md md = mdmap[ino];
+                    for (auto it = md->children().begin(); it != md->children().end(); ++it)
+                    {
+                      kernelcache::inval_inode(it->second);
+                      kernelcache::inval_entry(ino, it->first);
+                      mdmap.erase(it->second);
+                    }
+                    mdmap.erase(ino);
+                  }
+                  
+                }
+              }
+            }
           }
           else
           {
@@ -1518,7 +1574,7 @@ metad::mdcommunicate()
           zmq_msg_close(&message);
         }
       }
-      eos_static_debug("send");
+      //eos_static_debug("send");
 
       // prepare a heart-beat message
       struct timespec tsnow;

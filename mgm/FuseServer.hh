@@ -55,8 +55,7 @@ public:
   void shutdown();
 
   std::string dump_message(const google::protobuf::Message& message);
-  
- 
+
   class Clients : public XrdSysMutex
   {
   public:
@@ -150,6 +149,12 @@ public:
     // evict a client by force
     int Evict(std::string& uuid, std::string reason);
 
+    // release CAPs
+    int ReleaseCAP(uint64_t id,
+                   const std::string& uuid,
+                   const std::string& clientid
+                   );
+
   private:
     // lookup client full id to heart beat
     client_map_t mMap;
@@ -218,6 +223,7 @@ public:
     typedef std::string clientid_t;
     typedef std::pair<uint64_t, authid_t> ino_authid_t;
     typedef std::set<authid_t> authid_set_t;
+    typedef std::map<uint64_t, std::set<std::string>> notify_set_t; // inode=>set(authid_t)
 
     void pop()
     {
@@ -246,6 +252,9 @@ public:
         {
           fprintf(stderr, "releasing cap %s", cap->authid().c_str());
           mCaps.erase(id);
+          mInodeCaps[cap->id()].erase(id);
+          if (!mInodeCaps[cap->id()].size())
+            mInodeCaps.erase(cap->id());
           return true;
         }
         else
@@ -259,8 +268,17 @@ public:
     void Store(const eos::fusex::cap &cap,
                eos::common::Mapping::VirtualIdentity* vid);
 
+
+    bool Imply(uint64_t md_ino,
+               authid_t authid,
+               authid_t implied_authid);
+
+
     shared_cap Get(authid_t id);
 
+    int BroadcastRelease(const eos::fusex::md &md); // broad cast triggered by fuse network
+    int BroadcastReleaseFromExternal(uint64_t inode); // broad cast triggered non-fuse network
+    
     std::string Print(std::string option);
 
   protected:
@@ -277,6 +295,10 @@ public:
     // -------------------------------------------------------------------------
     std::map<clientid_t, authid_set_t> mClientCaps;
 
+    // -------------------------------------------------------------------------
+    // inode=>authid_t 
+    // -------------------------------------------------------------------------
+    notify_set_t mInodeCaps;
   } ;
 
   Clients& Client()
@@ -296,18 +318,18 @@ public:
   bool FillContainerMD(uint64_t id, eos::fusex::md& dir);
   bool FillFileMD(uint64_t id, eos::fusex::md& file);
   bool FillContainerCAP(uint64_t id, eos::fusex::md& md, eos::common::Mapping::VirtualIdentity* vid);
-  Caps::shared_cap ValidateCAP(const eos::fusex::md&, mode_t mode);
-
+  Caps::shared_cap ValidateCAP(const eos::fusex::md& md, mode_t mode);
+  uint64_t InodeFromCAP(const eos::fusex::md&);
 
   void HandleDir(const std::string& identity, const eos::fusex::dir& dir);
 
   std::string Header(const std::string& response); // reply a sync-response header
 
   int HandleMD(const std::string& identity,
-                const eos::fusex::md& md,
-                std::string* response = 0,
-                uint64_t* clock = 0,
-                eos::common::Mapping::VirtualIdentity* vid = 0);
+               const eos::fusex::md& md,
+               std::string* response = 0,
+               uint64_t* clock = 0,
+               eos::common::Mapping::VirtualIdentity* vid = 0);
 
   void
   MonitorCaps();

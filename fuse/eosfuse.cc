@@ -1113,7 +1113,7 @@ EosFuse::unlink (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  if (!retc)
  {
-   //   me.fs ().forget_p2i ((unsigned long long) ino);
+   me.fs ().forget_p2i ((unsigned long long) ino);
    fuse_reply_buf (req, NULL, 0);
   }
  else
@@ -1361,12 +1361,7 @@ EosFuse::access (fuse_req_t req, fuse_ino_t ino, int mask)
 // this is useful only if krb5 is not enabled
  uid_t fsuid = fuse_req_ctx (req)->uid;
  gid_t fsgid = fuse_req_ctx (req)->gid;
-<<<<<<< Updated upstream
  gProcCache(fuse_req_ctx(req)->pid).GetFsUidGid(fuse_req_ctx(req)->pid,fsuid, fsgid);
-=======
- if(gProcCache(fuse_req_ctx(req)->pid).HasEntry(fuse_req_ctx(req)->pid))
-   gProcCache(fuse_req_ctx(req)->pid).GetEntry(fuse_req_ctx(req)->pid)->GetFsUidGid(fsuid, fsgid);
->>>>>>> Stashed changes
  int retc = me.fs ().access (fullpath.c_str (), mask, fsuid,
                              fsgid, fuse_req_ctx (req)->pid);
 

@@ -111,8 +111,20 @@ Live Interaction with a FUSE mount
 
 To change the log configuration do as root:
 
-# setfattr -n system.eos.debug -v info
-# setfattr -n system.eos.debug -v debug
-# setfattr -n system.eos.debug -v notic
+# setfattr -n system.eos.debug -v info <path>
+# setfattr -n system.eos.debug -v debug <path>
+# setfattr -n system.eos.debug -v notic <path>
+
+
+To display a capability on a path do as root
+# getfattr --only-values -n system.eos.cap <path>
+
+To display a list of all capabilities on a path do as root
+# getfattr --only-values -n system.eos.caps <any-path>
+To drop a capability on a path do as root
+# setfattr -n system.eos.dropcap <path>
+
+To drop all capabilities on a mount do as root
+# setfattr -n system.eos.dropallcap <any-path>
 
 

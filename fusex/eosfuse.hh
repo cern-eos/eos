@@ -152,6 +152,22 @@ public:
   cap caps;
   backend mdbackend;
 
+  static EosFuse& Instance()
+  {
+    return *sEosFuse;
+  }
+
+  fuse_session* Session()
+  {
+    return fusesession;
+  }
+  
+  
+  fuse_chan* Channel()
+  {
+    return fusechan;
+  }
+  
 private:
 
   struct fuse_id
@@ -237,11 +253,9 @@ private:
 
   static EosFuse* sEosFuse;
 
-  static EosFuse& Instance()
-  {
-    return *sEosFuse;
-  }
-
+  struct fuse_session* fusesession;
+  struct fuse_chan* fusechan;
+  
   std::thread tDumpStatistic;
   std::thread tStatCirculate;
   std::thread tMetaCacheFlush;

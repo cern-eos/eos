@@ -65,7 +65,7 @@ public:
                     std::vector<eos::fusex::container>& cont
                     );
 
-  int putMD(eos::fusex::md* md, std::string authid="");
+  int putMD(eos::fusex::md* md, std::string authid, XrdSysMutex* locker);
 
   int getCAP(fuse_req_t req,
              uint64_t inode,
