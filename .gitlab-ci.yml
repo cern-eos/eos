@@ -174,8 +174,6 @@ eos_dmg_macosx:
     - ../utils/eos-osx-package.sh $version ../install/
     - ccache -s
     - cd ..
-    - rm -rf build
-    - rm -rf install
     - mkdir osx
     - cp build/*.dmg osx
   artifacts:
