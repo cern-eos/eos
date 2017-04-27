@@ -783,10 +783,10 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 	struct stat *buf = NULL;
 	if (entriesstats && entriesstats[cnt].attr.st_ino > 0) buf = &entriesstats[cnt].attr;
 	dirbuf_add (req, &b, bname.c_str (), (fuse_ino_t) in, buf);
-          }
+      }
       else
-          eos_static_err("failed for inode=%llu", in);
-        }
+	eos_static_err("failed for inode=%llu", in);
+    }
 
 
       //........................................................................
@@ -815,6 +815,7 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
       }
 
     free (entriesstats);
+    free(b.p);
   }
   else
   {
