@@ -1,6 +1,12 @@
 #!/bin/bash
 # give the desired versioon name like '0.3.49-beryl' and the path to the XRootD build directory as argument like '/Users/apeters/Software/xrootd-4.3.0/build'
-VERSION=$1
+if [ $# -ne 2 ]; then
+    echo "Usage $0 eos_version install_dir"
+    exit 1
+fi 
+
+EOS_VERSION=$1
+INSTALL_DIR=$2
 
 create_dmg_with_icon() {
 set -e
@@ -32,27 +38,34 @@ fi
 rm -rf /tmp/eos.dst/
 mkdir -p /tmp/eos.dst/
 mkdir -p /tmp/eos.dst/usr/local/bin/
-
 make install DESTDIR=/tmp/eos.dst/
-cd ${2-${HOME}/Software/xrootd-4.3.0/build/}
-make install DESTDIR=/tmp/eos.dst/
-cd -
 
-for name in `otool -L $3/usr/local/bin/eosd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse`; do
-echo $name
-if [ -n "$name" ];  then
-  dn=`dirname $name`;
+# Copy non-XRootD dependencies e.g openssl, ncurses
+for NAME in `otool -L $INSTALL_DIR/usr/local/bin/eosd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse`; do
+echo $NAME
+if [ -n "$NAME" ];  then
+  dn=`dirNAME $NAME`;
   mkdir -p /tmp/eos.dst/$dn/
-  cp -v $name /tmp/eos.dst/$name
+  cp -v $NAME /tmp/eos.dst/$NAME
 fi
+done
+
+# Copy XRootD dependencies
+for BINARY in eos eosd eoscp; do
+    for NAME in `otool -L $INSTALL_DIR/usr/local/bin/$BINARY | awk '{print $1;}' | grep "^libXrd" | awk '{p="xrootd_src/build_install/lib/"$1; print p;}'`; do
+        echo $NAME
+        if [ -n "$NAME" ]; then
+            mkdir -p /tmp/eos.dst/usr/local/lib/
+            cp -v $NAME /tmp/eos.dst/usr/local/lib/
+        fi
+    done
 done
 
 # exchange the eosx script with the eos binary
 mv /tmp/eos.dst/usr/local/bin/eos /tmp/eos.dst/usr/local/bin/eos.exe
 cp -v ../utils/eosx /tmp/eos.dst/usr/local/bin/eos
 chmod ugo+rx /tmp/eos.dst/usr/local/bin/eos
-
-pkgbuild --install-location / --version $VERSION --identifier com.eos.pkg.app --root /tmp/eos.dst EOS.pkg
+pkgbuild --install-location / --version $EOS_VERSION --identifier com.eos.pkg.app --root /tmp/eos.dst EOS.pkg
 
 rm -rf dmg
 mkdir dmg
@@ -60,7 +73,7 @@ cp EOS.pkg dmg/
 cp ../utils/README.osx dmg/README.txt
 
 #cp ../var/eos/html/EOS-logo.jpg dmg/
-unlink eos-osx-$VERSION.dmg >& /dev/null
-create_dmg_with_icon eos-osx-$VERSION eos-osx-$VERSION.dmg dmg ../icons/EOS.icns
+unlink eos-osx-$EOS_VERSION.dmg >& /dev/null
+create_dmg_with_icon eos-osx-$EOS_VERSION eos-osx-$EOS_VERSION.dmg dmg ../icons/EOS.icns
 # create_dmg_with_icon Frobulator Frobulator.dmg path/to/frobulator/dir path/to/someicon.icns [ 'Andreas-Joachim Peters' ]
 
