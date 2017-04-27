@@ -41,7 +41,8 @@ chunkedupload () {
   ok=0
   for f in `ls $DIR/$NAME-chunking*`; do
     echo $f
-    curl -L --verbose -k --header "Oc-Chunk-Uuid:$UUID" --header "Oc-Chunk-n:$i" --header "Oc-Chunk-Max:4" --header "OC-Chunked:1" --header "X-OC-Mtime:1402061782" --header "OC-Total-Length:33554432" -T $f $DEST_URL-$UUID-4-$i 2> $f.log
+    EOS_FN=`basename $f`
+    curl -L --verbose -k --header "Oc-Chunk-Uuid:$UUID" --header "Oc-Chunk-n:$i" --header "Oc-Chunk-Max:4" --header "OC-Chunked:1" --header "X-OC-Mtime:1402061782" --header "OC-Total-Length:33554432" -T $f $DEST_URL$EOS_FN 2> $f.log
   
     if (( i < $LAST_CHUNK_NUMBER )); then
       grep -q 'X-OC-Mtime: accepted' $f.log && echo "redundant reply header: 'X-OC-Mtime: accepted" 

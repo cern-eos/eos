@@ -51,7 +51,7 @@ fi
 done
 
 # Copy XRootD dependencies
-cp -v xrootd_src/build_install/lib/*.dylib /tmp/eos.dst/usr/local/lib/
+cp -v xrootd_src/build_install/lib/* /tmp/eos.dst/usr/local/lib/
 
 # exchange the eosx script with the eos binary
 mv /tmp/eos.dst/usr/local/bin/eos /tmp/eos.dst/usr/local/bin/eos.exe
