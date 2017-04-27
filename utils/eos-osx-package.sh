@@ -51,15 +51,7 @@ fi
 done
 
 # Copy XRootD dependencies
-for BINARY in eos eosd eoscp; do
-    for NAME in `otool -L $INSTALL_DIR/usr/local/bin/$BINARY | awk '{print $1;}' | grep "^libXrd" | awk '{p="xrootd_src/build_install/lib/"$1; print p;}'`; do
-        echo $NAME
-        if [ -n "$NAME" ]; then
-            mkdir -p /tmp/eos.dst/usr/local/lib/
-            cp -v $NAME /tmp/eos.dst/usr/local/lib/
-        fi
-    done
-done
+cp -v xrootd_src/build_install/lib/*.dylib /tmp/eos.dst/usr/local/lib/
 
 # exchange the eosx script with the eos binary
 mv /tmp/eos.dst/usr/local/bin/eos /tmp/eos.dst/usr/local/bin/eos.exe
