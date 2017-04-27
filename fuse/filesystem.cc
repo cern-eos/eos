@@ -742,9 +742,6 @@ filesystem::dir_cache_get_entry(fuse_req_t req,
     if (dir->IsFilled()) {
       struct fuse_entry_param e;
 
-      // we eventually need to overwrite the cached information
-      // we eventually need to overwrite the cached information
-      // we eventually need to overwrite the cached information
       if (dir->GetEntry(entry_inode, e)) {
         // we eventually need to overwrite the cached information
         if (overwrite_stat) {
