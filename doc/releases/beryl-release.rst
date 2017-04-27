@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.241 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- FUSE: fix memory leak in opendir function not cleaning dirbuf struct
+
 ``V0.3.240 Aquamarine``
 =====================
 
