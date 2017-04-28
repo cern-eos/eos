@@ -513,6 +513,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %files -n eos-test
 %defattr(-, root, root, -)
 %{_sbindir}/eos-instance-test
+%{_sbindir}/eos-instance-test-ci
 %{_sbindir}/eos-rain-test
 %{_sbindir}/eoscp-rain-test
 %{_sbindir}/eos-fuse-test

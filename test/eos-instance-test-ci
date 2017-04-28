@@ -1,0 +1,11 @@
+#! /bin/bash
+
+eos-instance-test
+
+if (( $? > 0 ));
+then
+  cat /tmp/eos-instance-test/test-output.log
+  exit 1
+else
+  exit 0
+fi
