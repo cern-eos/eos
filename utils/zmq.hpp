@@ -32,27 +32,35 @@
 #include <cstring>
 #include <exception>
 
+// This header file is intended to be used only on SLC6, for which the
+// cppzmq-devel is not available. This header file is only compatible
+// with zmq < 4.1.0
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)
+#error "FATAL: Please install the cppzmq-devel package. The zmq.hpp shiped by \
+EOS is not compatible with your current version of the zmq package."
+#endif
+
 //  Detect whether the compiler supports C++11 rvalue references.
 #if (defined(__GNUC__) && (__GNUC__ > 4 || \
       (__GNUC__ == 4 && __GNUC_MINOR__ > 2)) && \
       defined(__GXX_EXPERIMENTAL_CXX0X__))
-    #define ZMQ_HAS_RVALUE_REFS
-    #define ZMQ_DELETED_FUNCTION = delete
+#define ZMQ_HAS_RVALUE_REFS
+#define ZMQ_DELETED_FUNCTION = delete
 #elif defined(__clang__)
-    #if __has_feature(cxx_rvalue_references)
-	#define ZMQ_HAS_RVALUE_REFS
-    #endif
+#if __has_feature(cxx_rvalue_references)
+#define ZMQ_HAS_RVALUE_REFS
+#endif
 
-    #if __has_feature(cxx_deleted_functions)
-	#define ZMQ_DELETED_FUNCTION = delete
-    #else
-	#define ZMQ_DELETED_FUNCTION
-    #endif
-#elif defined(_MSC_VER) && (_MSC_VER >= 1600)
-    #define ZMQ_HAS_RVALUE_REFS
-    #define ZMQ_DELETED_FUNCTION
+#if __has_feature(cxx_deleted_functions)
+#define ZMQ_DELETED_FUNCTION = delete
 #else
-    #define ZMQ_DELETED_FUNCTION
+#define ZMQ_DELETED_FUNCTION
+#endif
+#elif defined(_MSC_VER) && (_MSC_VER >= 1600)
+#define ZMQ_HAS_RVALUE_REFS
+#define ZMQ_DELETED_FUNCTION
+#else
+#define ZMQ_DELETED_FUNCTION
 #endif
 
 // In order to prevent unused variable warnings when building in non-debug
@@ -66,450 +74,450 @@
 namespace zmq
 {
 
-    typedef zmq_free_fn free_fn;
-    typedef zmq_pollitem_t pollitem_t;
+typedef zmq_free_fn free_fn;
+typedef zmq_pollitem_t pollitem_t;
 
-    class error_t : public std::exception
-    {
-    public:
+class error_t : public std::exception
+{
+public:
 
-	error_t () : errnum (zmq_errno ()) {}
+  error_t () : errnum (zmq_errno ()) {}
 
-	virtual const char *what () const throw ()
-	{
-	    return zmq_strerror (errnum);
-	}
+  virtual const char *what () const throw ()
+  {
+    return zmq_strerror (errnum);
+  }
 
-	int num () const
-	{
-	    return errnum;
-	}
+  int num () const
+  {
+    return errnum;
+  }
 
-    private:
+private:
 
-	int errnum;
-    };
+  int errnum;
+};
 
-    inline int poll (zmq_pollitem_t *items_, int nitems_, long timeout_ = -1)
-    {
-	int rc = zmq_poll (items_, nitems_, timeout_);
-	if (rc < 0)
-	    throw error_t ();
-	return rc;
-    }
+inline int poll (zmq_pollitem_t *items_, int nitems_, long timeout_ = -1)
+{
+  int rc = zmq_poll (items_, nitems_, timeout_);
+  if (rc < 0)
+    throw error_t ();
+  return rc;
+}
 
-    inline void proxy (void *frontend, void *backend, void *capture)
-    {
-	int rc = zmq_proxy (frontend, backend, capture);
-	if (rc != 0)
-	    throw error_t ();
-    }
+inline void proxy (void *frontend, void *backend, void *capture)
+{
+  int rc = zmq_proxy (frontend, backend, capture);
+  if (rc != 0)
+    throw error_t ();
+}
 
-    inline void version (int *major_, int *minor_, int *patch_)
-    {
-	zmq_version (major_, minor_, patch_);
-    }
+inline void version (int *major_, int *minor_, int *patch_)
+{
+  zmq_version (major_, minor_, patch_);
+}
 
-    class message_t
-    {
-	friend class socket_t;
+class message_t
+{
+  friend class socket_t;
 
-    public:
+public:
 
-	inline message_t ()
-	{
-	    int rc = zmq_msg_init (&msg);
-	    if (rc != 0)
-		throw error_t ();
-	}
+  inline message_t ()
+  {
+    int rc = zmq_msg_init (&msg);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-	inline explicit message_t (size_t size_)
-	{
-	    int rc = zmq_msg_init_size (&msg, size_);
-	    if (rc != 0)
-		throw error_t ();
-	}
+  inline explicit message_t (size_t size_)
+  {
+    int rc = zmq_msg_init_size (&msg, size_);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-	inline message_t (void *data_, size_t size_, free_fn *ffn_,
-	    void *hint_ = NULL)
-	{
-	    int rc = zmq_msg_init_data (&msg, data_, size_, ffn_, hint_);
-	    if (rc != 0)
-		throw error_t ();
-	}
-
-#ifdef ZMQ_HAS_RVALUE_REFS
-	inline message_t (message_t &&rhs) : msg (rhs.msg)
-	{
-	    int rc = zmq_msg_init (&rhs.msg);
-	    if (rc != 0)
-		throw error_t ();
-	}
-
-	inline message_t &operator = (message_t &&rhs)
-	{
-	    std::swap (msg, rhs.msg);
-	    return *this;
-	}
-#endif
-
-	inline ~message_t ()
-	{
-	    int rc = zmq_msg_close (&msg);
-	    ZMQ_ASSERT (rc == 0);
-	}
-
-	inline void rebuild ()
-	{
-	    int rc = zmq_msg_close (&msg);
-	    if (rc != 0)
-		throw error_t ();
-	    rc = zmq_msg_init (&msg);
-	    if (rc != 0)
-		throw error_t ();
-	}
-
-	inline void rebuild (size_t size_)
-	{
-	    int rc = zmq_msg_close (&msg);
-	    if (rc != 0)
-		throw error_t ();
-	    rc = zmq_msg_init_size (&msg, size_);
-	    if (rc != 0)
-		throw error_t ();
-	}
-
-	inline void rebuild (void *data_, size_t size_, free_fn *ffn_,
-	    void *hint_ = NULL)
-	{
-	    int rc = zmq_msg_close (&msg);
-	    if (rc != 0)
-		throw error_t ();
-	    rc = zmq_msg_init_data (&msg, data_, size_, ffn_, hint_);
-	    if (rc != 0)
-		throw error_t ();
-	}
-
-	inline void move (message_t *msg_)
-	{
-	    int rc = zmq_msg_move (&msg, &(msg_->msg));
-	    if (rc != 0)
-		throw error_t ();
-	}
-
-	inline void copy (message_t *msg_)
-	{
-	    int rc = zmq_msg_copy (&msg, &(msg_->msg));
-	    if (rc != 0)
-		throw error_t ();
-	}
-
-	inline void *data ()
-	{
-	    return zmq_msg_data (&msg);
-	}
-
-	inline const void* data () const
-	{
-	    return zmq_msg_data (const_cast<zmq_msg_t*>(&msg));
-	}
-
-	inline size_t size () const
-	{
-	    return zmq_msg_size (const_cast<zmq_msg_t*>(&msg));
-	}
-
-    private:
-
-	//  The underlying message
-	zmq_msg_t msg;
-
-	//  Disable implicit message copying, so that users won't use shared
-	//  messages (less efficient) without being aware of the fact.
-	message_t (const message_t&);
-	void operator = (const message_t&);
-    };
-
-    class context_t
-    {
-	friend class socket_t;
-
-    public:
-
-	inline explicit context_t (int io_threads_)
-	{
-	    ptr = zmq_init (io_threads_);
-	    if (ptr == NULL)
-		throw error_t ();
-	}
+  inline message_t (void *data_, size_t size_, free_fn *ffn_,
+                    void *hint_ = NULL)
+  {
+    int rc = zmq_msg_init_data (&msg, data_, size_, ffn_, hint_);
+    if (rc != 0)
+      throw error_t ();
+  }
 
 #ifdef ZMQ_HAS_RVALUE_REFS
-	inline context_t (context_t &&rhs) : ptr (rhs.ptr)
-	{
-	    rhs.ptr = NULL;
-	}
-	inline context_t &operator = (context_t &&rhs)
-	{
-	    std::swap (ptr, rhs.ptr);
-	    return *this;
-	}
+  inline message_t (message_t &&rhs) : msg (rhs.msg)
+  {
+    int rc = zmq_msg_init (&rhs.msg);
+    if (rc != 0)
+      throw error_t ();
+  }
+
+  inline message_t &operator = (message_t &&rhs)
+  {
+    std::swap (msg, rhs.msg);
+    return *this;
+  }
 #endif
 
-	inline ~context_t ()
-	{
-	    close();
-	}
+  inline ~message_t ()
+  {
+    int rc = zmq_msg_close (&msg);
+    ZMQ_ASSERT (rc == 0);
+  }
 
-	inline void close()
-	{
-	    if (ptr == NULL)
-		return;
-	    int rc = zmq_term (ptr);
-	    ZMQ_ASSERT (rc == 0);
-	    ptr = NULL;
-	}
+  inline void rebuild ()
+  {
+    int rc = zmq_msg_close (&msg);
+    if (rc != 0)
+      throw error_t ();
+    rc = zmq_msg_init (&msg);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-	//  Be careful with this, it's probably only useful for
-	//  using the C api together with an existing C++ api.
-	//  Normally you should never need to use this.
-	inline operator void* ()
-	{
-	    return ptr;
-	}
+  inline void rebuild (size_t size_)
+  {
+    int rc = zmq_msg_close (&msg);
+    if (rc != 0)
+      throw error_t ();
+    rc = zmq_msg_init_size (&msg, size_);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-    private:
+  inline void rebuild (void *data_, size_t size_, free_fn *ffn_,
+                       void *hint_ = NULL)
+  {
+    int rc = zmq_msg_close (&msg);
+    if (rc != 0)
+      throw error_t ();
+    rc = zmq_msg_init_data (&msg, data_, size_, ffn_, hint_);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-	void *ptr;
+  inline void move (message_t *msg_)
+  {
+    int rc = zmq_msg_move (&msg, &(msg_->msg));
+    if (rc != 0)
+      throw error_t ();
+  }
 
-	context_t (const context_t&);
-	void operator = (const context_t&);
-    };
+  inline void copy (message_t *msg_)
+  {
+    int rc = zmq_msg_copy (&msg, &(msg_->msg));
+    if (rc != 0)
+      throw error_t ();
+  }
 
-    class monitor_t
-    {
-	public:
-	virtual void on_event_connected(const char *addr_) = 0;
-	virtual void on_event_connect_delayed(const char *addr_) = 0;
-	virtual void on_event_connect_retried(const char *addr_) = 0;
-	virtual void on_event_listening(const char *addr_) = 0;
-	virtual void on_event_bind_failed(const char *addr_) = 0;
-	virtual void on_event_accepted(const char *addr_) = 0;
-	virtual void on_event_accept_failed(const char *addr_) = 0;
-	virtual void on_event_closed(const char *addr_) = 0;
-	virtual void on_event_close_failed(const char *addr_) = 0;
-	virtual void on_event_disconnected(const char *addr_) = 0;
-	virtual void on_event_unknown(int event) = 0;
-    };
+  inline void *data ()
+  {
+    return zmq_msg_data (&msg);
+  }
 
-    class socket_t
-    {
-    public:
+  inline const void* data () const
+  {
+    return zmq_msg_data (const_cast<zmq_msg_t*>(&msg));
+  }
 
-	inline socket_t (context_t &context_, int type_)
-	{
-	    ctxptr = context_.ptr;
-	    ptr = zmq_socket (context_.ptr, type_);
-	    if (ptr == NULL)
-		throw error_t ();
-	}
+  inline size_t size () const
+  {
+    return zmq_msg_size (const_cast<zmq_msg_t*>(&msg));
+  }
+
+private:
+
+  //  The underlying message
+  zmq_msg_t msg;
+
+  //  Disable implicit message copying, so that users won't use shared
+  //  messages (less efficient) without being aware of the fact.
+  message_t (const message_t&);
+  void operator = (const message_t&);
+};
+
+class context_t
+{
+  friend class socket_t;
+
+public:
+
+  inline explicit context_t (int io_threads_)
+  {
+    ptr = zmq_init (io_threads_);
+    if (ptr == NULL)
+      throw error_t ();
+  }
 
 #ifdef ZMQ_HAS_RVALUE_REFS
-	inline socket_t(socket_t&& rhs) : ptr(rhs.ptr)
-	{
-	    rhs.ptr = NULL;
-	}
-	inline socket_t& operator=(socket_t&& rhs)
-	{
-	    std::swap(ptr, rhs.ptr);
-	    return *this;
-	}
+  inline context_t (context_t &&rhs) : ptr (rhs.ptr)
+  {
+    rhs.ptr = NULL;
+  }
+  inline context_t &operator = (context_t &&rhs)
+  {
+    std::swap (ptr, rhs.ptr);
+    return *this;
+  }
 #endif
 
-	inline ~socket_t ()
-	{
-	    close();
-	}
+  inline ~context_t ()
+  {
+    close();
+  }
 
-	inline operator void* ()
-	{
-	    return ptr;
-	}
+  inline void close()
+  {
+    if (ptr == NULL)
+      return;
+    int rc = zmq_term (ptr);
+    ZMQ_ASSERT (rc == 0);
+    ptr = NULL;
+  }
 
-	inline void close()
-	{
-	    if(ptr == NULL)
-		// already closed
-		return ;
-	    int rc = zmq_close (ptr);
-	    ZMQ_ASSERT (rc == 0);
-	    ptr = 0 ;
-	}
+  //  Be careful with this, it's probably only useful for
+  //  using the C api together with an existing C++ api.
+  //  Normally you should never need to use this.
+  inline operator void* ()
+  {
+    return ptr;
+  }
 
-	inline void setsockopt (int option_, const void *optval_,
-	    size_t optvallen_)
-	{
-	    int rc = zmq_setsockopt (ptr, option_, optval_, optvallen_);
-	    if (rc != 0)
-		throw error_t ();
-	}
+private:
 
-	inline void getsockopt (int option_, void *optval_,
-	    size_t *optvallen_)
-	{
-	    int rc = zmq_getsockopt (ptr, option_, optval_, optvallen_);
-	    if (rc != 0)
-		throw error_t ();
-	}
+  void *ptr;
 
-	inline void init_monitor(const char *addr_, int events)
-	{
-	    int rc = zmq_socket_monitor(ptr, addr_, events);
-	    if (rc != 0)
-		throw error_t ();
-	    monaddr = std::string(addr_);
-	}
+  context_t (const context_t&);
+  void operator = (const context_t&);
+};
 
-	inline void bind (const char *addr_)
-	{
-	    int rc = zmq_bind (ptr, addr_);
-	    if (rc != 0)
-		throw error_t ();
-	}
+class monitor_t
+{
+public:
+  virtual void on_event_connected(const char *addr_) = 0;
+  virtual void on_event_connect_delayed(const char *addr_) = 0;
+  virtual void on_event_connect_retried(const char *addr_) = 0;
+  virtual void on_event_listening(const char *addr_) = 0;
+  virtual void on_event_bind_failed(const char *addr_) = 0;
+  virtual void on_event_accepted(const char *addr_) = 0;
+  virtual void on_event_accept_failed(const char *addr_) = 0;
+  virtual void on_event_closed(const char *addr_) = 0;
+  virtual void on_event_close_failed(const char *addr_) = 0;
+  virtual void on_event_disconnected(const char *addr_) = 0;
+  virtual void on_event_unknown(int event) = 0;
+};
 
-	inline void unbind (const char *addr_)
-	{
-	    int rc = zmq_unbind (ptr, addr_);
-	    if (rc != 0)
-		throw error_t ();
-	}
+class socket_t
+{
+public:
 
-	inline void connect (const char *addr_)
-	{
-	    int rc = zmq_connect (ptr, addr_);
-	    if (rc != 0)
-		throw error_t ();
-	}
+  inline socket_t (context_t &context_, int type_)
+  {
+    ctxptr = context_.ptr;
+    ptr = zmq_socket (context_.ptr, type_);
+    if (ptr == NULL)
+      throw error_t ();
+  }
 
-	inline void disconnect (const char *addr_)
-	{
-	    int rc = zmq_disconnect (ptr, addr_);
-	    if (rc != 0)
-		throw error_t ();
-	}
+#ifdef ZMQ_HAS_RVALUE_REFS
+  inline socket_t(socket_t&& rhs) : ptr(rhs.ptr)
+  {
+    rhs.ptr = NULL;
+  }
+  inline socket_t& operator=(socket_t&& rhs)
+  {
+    std::swap(ptr, rhs.ptr);
+    return *this;
+  }
+#endif
 
-	inline bool connected()
-	{
-	    return(ptr != NULL);
-	}
+  inline ~socket_t ()
+  {
+    close();
+  }
 
-	inline void monitor (monitor_t* mon)
-	{
-	    zmq_event_t event;
-	    int rc;
+  inline operator void* ()
+  {
+    return ptr;
+  }
 
-	    assert(mon);
+  inline void close()
+  {
+    if(ptr == NULL)
+      // already closed
+      return ;
+    int rc = zmq_close (ptr);
+    ZMQ_ASSERT (rc == 0);
+    ptr = 0 ;
+  }
 
-	    void *s = zmq_socket (ctxptr, ZMQ_PAIR);
-	    assert (s);
+  inline void setsockopt (int option_, const void *optval_,
+                          size_t optvallen_)
+  {
+    int rc = zmq_setsockopt (ptr, option_, optval_, optvallen_);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-	    rc = zmq_connect (s, monaddr.c_str());
-	    assert (rc == 0);
-	    while (true) {
-		    zmq_msg_t msg;
-		    zmq_msg_init (&msg);
-		    rc = zmq_recvmsg (s, &msg, 0);
-		    if (rc == -1 && zmq_errno() == ETERM) break;
-		    assert (rc != -1);
-		    memcpy (&event, zmq_msg_data (&msg), sizeof (event));
+  inline void getsockopt (int option_, void *optval_,
+                          size_t *optvallen_)
+  {
+    int rc = zmq_getsockopt (ptr, option_, optval_, optvallen_);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-		    switch (event.event) {
-		    case ZMQ_EVENT_CONNECTED:
-			    mon->on_event_connected(event.data.connected.addr);
-			    break;
-		    case ZMQ_EVENT_CONNECT_DELAYED:
-			    mon->on_event_connect_delayed(event.data.connect_delayed.addr);
-			    break;
-		    case ZMQ_EVENT_CONNECT_RETRIED:
-			    mon->on_event_connect_retried(event.data.connect_retried.addr);
-			    break;
-		    case ZMQ_EVENT_LISTENING:
-			    mon->on_event_listening(event.data.listening.addr);
-			    break;
-		    case ZMQ_EVENT_BIND_FAILED:
-			    mon->on_event_bind_failed(event.data.bind_failed.addr);
-			    break;
-		    case ZMQ_EVENT_ACCEPTED:
-			    mon->on_event_accepted(event.data.accepted.addr);
-			    break;
-		    case ZMQ_EVENT_ACCEPT_FAILED:
-			    mon->on_event_accept_failed(event.data.accept_failed.addr);
-			    break;
-		    case ZMQ_EVENT_CLOSED:
-			mon->on_event_closed(event.data.closed.addr);
-			    break;
-		    case ZMQ_EVENT_CLOSE_FAILED:
-			    mon->on_event_close_failed(event.data.close_failed.addr);
-			    break;
-		    case ZMQ_EVENT_DISCONNECTED:
-			    mon->on_event_disconnected(event.data.disconnected.addr);
-			    break;
-		    default:
-			    mon->on_event_unknown(event.event);
-			    break;
-		    }
-		    zmq_msg_close (&msg);
-	    }
-	    zmq_close (s);
-	}
+  inline void init_monitor(const char *addr_, int events)
+  {
+    int rc = zmq_socket_monitor(ptr, addr_, events);
+    if (rc != 0)
+      throw error_t ();
+    monaddr = std::string(addr_);
+  }
 
-	inline size_t send (const void *buf_, size_t len_, int flags_ = 0)
-	{
-	    int nbytes = zmq_send (ptr, buf_, len_, flags_);
-	    if (nbytes >= 0)
-		return (size_t) nbytes;
-	    if (zmq_errno () == EAGAIN)
-		return 0;
-	    throw error_t ();
-	}
+  inline void bind (const char *addr_)
+  {
+    int rc = zmq_bind (ptr, addr_);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-	inline bool send (message_t &msg_, int flags_ = 0)
-	{
-	    int nbytes = zmq_msg_send (&(msg_.msg), ptr, flags_);
-	    if (nbytes >= 0)
-		return true;
-	    if (zmq_errno () == EAGAIN)
-		return false;
-	    throw error_t ();
-	}
+  inline void unbind (const char *addr_)
+  {
+    int rc = zmq_unbind (ptr, addr_);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-	inline size_t recv (void *buf_, size_t len_, int flags_ = 0)
-	{
-	    int nbytes = zmq_recv (ptr, buf_, len_, flags_);
-	    if (nbytes >= 0)
-		return (size_t) nbytes;
-	    if (zmq_errno () == EAGAIN)
-		return 0;
-	    throw error_t ();
-	}
+  inline void connect (const char *addr_)
+  {
+    int rc = zmq_connect (ptr, addr_);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-	inline bool recv (message_t *msg_, int flags_ = 0)
-	{
-	    int nbytes = zmq_msg_recv (&(msg_->msg), ptr, flags_);
-	    if (nbytes >= 0)
-		return true;
-	    if (zmq_errno () == EAGAIN)
-		return false;
-	    throw error_t ();
-	}
+  inline void disconnect (const char *addr_)
+  {
+    int rc = zmq_disconnect (ptr, addr_);
+    if (rc != 0)
+      throw error_t ();
+  }
 
-    private:
-	std::string monaddr;
-	void *ptr;
-	void *ctxptr;
+  inline bool connected()
+  {
+    return(ptr != NULL);
+  }
 
-	socket_t (const socket_t&) ZMQ_DELETED_FUNCTION;
-	void operator = (const socket_t&) ZMQ_DELETED_FUNCTION;
-    };
+  inline void monitor (monitor_t* mon)
+  {
+    zmq_event_t event;
+    int rc;
+
+    assert(mon);
+
+    void *s = zmq_socket (ctxptr, ZMQ_PAIR);
+    assert (s);
+
+    rc = zmq_connect (s, monaddr.c_str());
+    assert (rc == 0);
+    while (true) {
+      zmq_msg_t msg;
+      zmq_msg_init (&msg);
+      rc = zmq_recvmsg (s, &msg, 0);
+      if (rc == -1 && zmq_errno() == ETERM) break;
+      assert (rc != -1);
+      memcpy (&event, zmq_msg_data (&msg), sizeof (event));
+
+      switch (event.event) {
+      case ZMQ_EVENT_CONNECTED:
+        mon->on_event_connected(event.data.connected.addr);
+        break;
+      case ZMQ_EVENT_CONNECT_DELAYED:
+        mon->on_event_connect_delayed(event.data.connect_delayed.addr);
+        break;
+      case ZMQ_EVENT_CONNECT_RETRIED:
+        mon->on_event_connect_retried(event.data.connect_retried.addr);
+        break;
+      case ZMQ_EVENT_LISTENING:
+        mon->on_event_listening(event.data.listening.addr);
+        break;
+      case ZMQ_EVENT_BIND_FAILED:
+        mon->on_event_bind_failed(event.data.bind_failed.addr);
+        break;
+      case ZMQ_EVENT_ACCEPTED:
+        mon->on_event_accepted(event.data.accepted.addr);
+        break;
+      case ZMQ_EVENT_ACCEPT_FAILED:
+        mon->on_event_accept_failed(event.data.accept_failed.addr);
+        break;
+      case ZMQ_EVENT_CLOSED:
+        mon->on_event_closed(event.data.closed.addr);
+        break;
+      case ZMQ_EVENT_CLOSE_FAILED:
+        mon->on_event_close_failed(event.data.close_failed.addr);
+        break;
+      case ZMQ_EVENT_DISCONNECTED:
+        mon->on_event_disconnected(event.data.disconnected.addr);
+        break;
+      default:
+        mon->on_event_unknown(event.event);
+        break;
+      }
+      zmq_msg_close (&msg);
+    }
+    zmq_close (s);
+  }
+
+  inline size_t send (const void *buf_, size_t len_, int flags_ = 0)
+  {
+    int nbytes = zmq_send (ptr, buf_, len_, flags_);
+    if (nbytes >= 0)
+      return (size_t) nbytes;
+    if (zmq_errno () == EAGAIN)
+      return 0;
+    throw error_t ();
+  }
+
+  inline bool send (message_t &msg_, int flags_ = 0)
+  {
+    int nbytes = zmq_msg_send (&(msg_.msg), ptr, flags_);
+    if (nbytes >= 0)
+      return true;
+    if (zmq_errno () == EAGAIN)
+      return false;
+    throw error_t ();
+  }
+
+  inline size_t recv (void *buf_, size_t len_, int flags_ = 0)
+  {
+    int nbytes = zmq_recv (ptr, buf_, len_, flags_);
+    if (nbytes >= 0)
+      return (size_t) nbytes;
+    if (zmq_errno () == EAGAIN)
+      return 0;
+    throw error_t ();
+  }
+
+  inline bool recv (message_t *msg_, int flags_ = 0)
+  {
+    int nbytes = zmq_msg_recv (&(msg_->msg), ptr, flags_);
+    if (nbytes >= 0)
+      return true;
+    if (zmq_errno () == EAGAIN)
+      return false;
+    throw error_t ();
+  }
+
+private:
+  std::string monaddr;
+  void *ptr;
+  void *ctxptr;
+
+  socket_t (const socket_t&) ZMQ_DELETED_FUNCTION;
+  void operator = (const socket_t&) ZMQ_DELETED_FUNCTION;
+};
 
 }
 
