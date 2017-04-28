@@ -93,38 +93,38 @@ eos_rpm_slc6:
     - beryl_aquamarine
     - master-ci
 
-eos_rpm_fedora_rawhide:
-  stage: build:rpm
-  image: fedora:rawhide
-  script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache sssd-client sudo createrepo
-    - git submodule update --init --recursive
-    - mkdir build
-    - cd build
-    - cmake3 .. -DPACKAGEONLY=1
-    - make srpm
-    - cd ..
-    - source gitlab-ci/setup_ccache_fc.sh
-    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e '[xrootd]\nname=XRootD CERN\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/xrootd.repo
-    - yum-builddep --nogpgcheck -y build/SRPMS/*
-    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
-    - ccache -s
-    - source gitlab-ci/export_buildtype.sh 25
-    - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64
-    - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64/
-    - sudo -u stci -H cp build/RPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64/
-    - sudo -u stci -H createrepo -q /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64/
-  cache:
-    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
-    paths:
-    - ccache/
-  tags:
-    - docker-fc_rawhide
-  only:
-    - master
-    - beryl_aquamarine
-    - master-ci
+# eos_rpm_fedora_rawhide:
+#   stage: build:rpm
+#   image: fedora:rawhide
+#   script:
+#     - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache sssd-client sudo createrepo
+#     - git submodule update --init --recursive
+#     - mkdir build
+#     - cd build
+#     - cmake3 .. -DPACKAGEONLY=1
+#     - make srpm
+#     - cd ..
+#     - source gitlab-ci/setup_ccache_fc.sh
+#     - echo -e '[eos-depend-eosuser]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+#     - echo -e '[xrootd]\nname=XRootD CERN\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/xrootd.repo
+#     - yum-builddep --nogpgcheck -y build/SRPMS/*
+#     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
+#     - ccache -s
+#     - source gitlab-ci/export_buildtype.sh 25
+#     - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64
+#     - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64/
+#     - sudo -u stci -H cp build/RPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64/
+#     - sudo -u stci -H createrepo -q /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64/
+#   cache:
+#     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+#     paths:
+#     - ccache/
+#   tags:
+#     - docker-fc_rawhide
+#   only:
+#     - master
+#     - beryl_aquamarine
+#     - master-ci
 
 eos_rpm_fedora_24:
   stage: build:rpm
