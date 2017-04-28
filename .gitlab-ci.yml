@@ -210,6 +210,7 @@ eos_system_test:
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
+    - ./eos-docker/scripts/check_eos_fs_booted.sh
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
     - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
     - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos
