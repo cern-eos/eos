@@ -776,7 +776,7 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
  {
    if (dir->IsFilled ())
    {
-      struct fuse_entry_param e;
+     struct fuse_entry_param e;
      if (dir->GetEntry (entry_inode, e))
      {
 
@@ -788,8 +788,8 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
         }
        store_p2i (entry_inode, efullpath);
        fuse_reply_entry (req, &e);
-        eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
-        retc = 1; // found
+       eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
+       retc = 1; // found
       }
     }
   }
