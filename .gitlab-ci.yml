@@ -159,33 +159,32 @@ eos_rpm_fedora_24:
     - beryl_aquamarine
     - master-ci
 
-# eos_dmg_macosx:
-#   stage: build:rpm
-#   script:
-#     - git submodule update --init --recursive
-#     - mkdir build
-#     - mkdir install
-#     - cd build
-#     - ../utils/eos-osx-package-prepare.sh v4.6.0
-#     - /Users/jenkins/workspace/cmake-3.5.2/install/bin/cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=/usr/local -D Z_ROOT_DIR=/usr/local/opt/zlib/ -D OPENSSL_ROOT_DIR=/usr/local/opt/openssl/ -D NCURSES_ROOT_DIR=/usr/local/opt/ncurses/ -D ZMQ_ROOT_DIR=/usr/local/opt/zeromq32/ -D XROOTD_ROOT_DIR=`pwd`/xrootd_src/build_install/ ..
-#     - make -j 4
-#     - make install DESTDIR=../install/
-#     - version=`../genversion.sh`
-#     - ../utils/eos-osx-package.sh $version ../install/
-#     - ccache -s
-#     - cd ..
-#     - mkdir osx
-#     - cp build/*.dmg osx
-#   artifacts:
-#     expire_in: 2 days
-#     paths:
-#     - osx/
-#   tags:
-#     - macosx-shell
-#   only:
-#     - master
-#     - beryl_aquamarine
-#     - master-ci
+ eos_dmg_macosx:
+   stage: build:rpm
+   script:
+     - git submodule update --init --recursive
+     - mkdir build
+     - mkdir install
+     - cd build
+     - /Users/jenkins/workspace/cmake-3.5.2/install/bin/cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=/usr/local -D Z_ROOT_DIR=/usr/local/opt/zlib/ -D OPENSSL_ROOT_DIR=/usr/local/opt/openssl/ -D NCURSES_ROOT_DIR=/usr/local/opt/ncurses/ -D ZMQ_ROOT_DIR=/usr/local/opt/zeromq32/ -D XROOTD_ROOT_DIR=/usr/local/opt/xrootd/ ..
+     - make -j 4
+     - make install DESTDIR=../install/
+     - version=`../genversion.sh`
+     - ../utils/eos-osx-package.sh $version ../install/
+     - ccache -s
+     - cd ..
+     - mkdir osx
+     - cp build/*.dmg osx
+   artifacts:
+     expire_in: 2 days
+     paths:
+     - osx/
+   tags:
+     - macosx-shell
+   only:
+     - master
+     - beryl_aquamarine
+     - master-ci
 
 eos_docker:
   stage: build:dockerimage
