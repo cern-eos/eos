@@ -66,10 +66,13 @@ public:
   //------------------------------------------------------------------------
   Buffer& operator = (const Buffer& other)
   {
-    if (this != &other){
+    if (this != &other) {
+      data = 0;
+      len = 0;
       resize(other.getSize());
       memcpy(getDataPtr(), other.getDataPtr(), other.getSize());
     }
+
     return *this;
   };
 
