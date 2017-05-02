@@ -66,9 +66,11 @@ namespace eos
       //------------------------------------------------------------------------
       Buffer &operator = ( const Buffer &other )
       {
-	if (!data)
+	if (this != &other) 
+	{
 	  resize( other.getSize() );
-        memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
+	  memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
+	}
         return *this;
       };
 
