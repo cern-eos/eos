@@ -7,6 +7,24 @@
 Beryl Release Notes
 ===================
 
+``V0.3.243 Aquamarine``
+=====================
+
+- NS: fix memory allocation bug in Buffer class
+
+Buf Fixes
++++++++++
+
+``V0.3.242 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- FST: fix logical error when to call auto-repair (don't call it for unregsistered files)
+- FUSE: fix double response when returning entries from internal directory cache
+- MGM: fix protection when listing too large recycle bins with 'recycle ls' (> 1Gb output)
+
 ``V0.3.241 Aquamarine``
 =====================
 
