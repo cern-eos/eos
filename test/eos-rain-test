@@ -54,9 +54,8 @@ export ERR_MSG1="The provided directory does not have the extended attributes se
 XRDCP=$(which xrdcp)
 XRDCP="$XRDCP --nopbar"
 EOS=$(which eos)
-LOGNAME=$(logname)
 
-if [ $LOGNAME != "root" ]; then
+if [ "`whoami`" != "root" ]; then
    SUDO="sudo"
 else 
   SUDO=""
