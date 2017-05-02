@@ -1,3 +1,8 @@
+//------------------------------------------------------------------------------
+//! @file Namespace.hh
+//! @author Elvin Sindrilaru <esindril@cern.ch>
+//------------------------------------------------------------------------------
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2011 CERN/Switzerland                                  *
@@ -15,17 +20,7 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @file Namespace.hh
-//! @author Elvin Sindrilaru <esindril@cern.ch>
-//------------------------------------------------------------------------------
-#ifndef __EOSNS_NAMESPACE_HH__
-#define __EOSNS_NAMESPACE_HH__
-
+#pragma once
 #define USE_EOSNSNAMESPACE using namespace eos;
-
 #define EOSNSNAMESPACE_BEGIN namespace eos {
 #define EOSNSNAMESPACE_END }
-
-#endif

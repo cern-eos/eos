@@ -723,6 +723,7 @@ Recycle::Print(XrdOucString& stdOut, XrdOucString& stdErr,
                   stdOut += "... (truncated after 1G of output)\n";
                   retc = E2BIG;
                   stdErr += "warning: list too long - truncated after 1GB of output!\n";
+                  return;
                 }
 
                 stdOut += sline;

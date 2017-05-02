@@ -24,6 +24,7 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
+# TODO: remove protobuf reference which is not used
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIRS}
@@ -113,9 +114,11 @@ target_link_libraries(
   eos PUBLIC
   EosFstIo-Static
   ${Z_LIBRARY}
+  ${RT_LIBRARIES}
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${READLINE_LIBRARY}
+# TODO: remove protobuf reference which is not used
   ${PROTOBUF_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_POSIX_LIBRARY}

@@ -33,131 +33,165 @@
 
 namespace eos
 {
-  //----------------------------------------------------------------------------
-  //! Data Buffer
-  //----------------------------------------------------------------------------
-  class Buffer: public std::vector<char>
+//----------------------------------------------------------------------------
+//! Data Buffer
+//----------------------------------------------------------------------------
+class Buffer: public std::vector<char>
+{
+public:
+  //------------------------------------------------------------------------
+  //! Constructor
+  //------------------------------------------------------------------------
+  Buffer(unsigned size = 512):
+    data(0), len(0)
   {
-    public:
-      //------------------------------------------------------------------------
-      //! Constructor
-      //------------------------------------------------------------------------
-      Buffer( unsigned size = 512 )
-      {
-	reserve( size );
-      }
+    reserve(size);
+  }
 
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~Buffer() {}
+  //------------------------------------------------------------------------
+  //! Destructor
+  //------------------------------------------------------------------------
+  virtual ~Buffer() {}
 
-      //------------------------------------------------------------------------
-      //! Copy constructor
-      //------------------------------------------------------------------------
-      Buffer( const Buffer &other )
-      {
-	*this = other;
-      };
-
-      //------------------------------------------------------------------------
-      //! Assignment operator
-      //------------------------------------------------------------------------
-      Buffer &operator = ( const Buffer &other )
-      {
-	resize( other.getSize() );
-	(void) memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
-	return *this;
-      };
-
-      //------------------------------------------------------------------------
-      //! Get data pointer
-      //------------------------------------------------------------------------
-      char *getDataPtr()
-      {
-	return &operator[]( 0 );
-      }
-
-      //------------------------------------------------------------------------
-      //! Get data pointer
-      //------------------------------------------------------------------------
-      const char *getDataPtr() const
-      {
-	return &operator[]( 0 );
-      }
-
-      //------------------------------------------------------------------------
-      //! Get data padded (if we read over the size we get 0 as response)
-      //------------------------------------------------------------------------
-      const char getDataPadded(size_t i) const
-      {
-	if (i < size())
-	  return (operator[](i));
-	return 0;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get size
-      //------------------------------------------------------------------------
-      size_t getSize() const
-      {
-	return size();
-      }
-
-      //------------------------------------------------------------------------
-      //! Add data
-      //------------------------------------------------------------------------
-      void putData( const void *ptr, size_t dataSize )
-      {
-	size_t currSize = size();
-	resize( currSize + dataSize );
-	(void) memcpy( &operator[](currSize), ptr, dataSize );
-      }
-
-      //------------------------------------------------------------------------
-      //! Add data
-      //------------------------------------------------------------------------
-      uint16_t grabData( uint16_t offset, void *ptr, size_t dataSize ) const
-	throw( MDException )
-      {
-	if( offset+dataSize > getSize() )
-	{
-	  MDException e( EINVAL );
-	  e.getMessage() << "Not enough data to fulfil the request";
-	  throw e;
-	}
-	(void) memcpy( ptr, &operator[](offset), dataSize );
-	return offset+dataSize;
-      }
-
-    //--------------------------------------------------------------------------
-    //! Copy specified amount of data from buffer to new destination
-    //!
-    //! @param buffer std::string holding source binary blob
-    //! @param offset offset in the buffer from where we start copying
-    //! @param size amount of data that we copy
-    //! @param dest_ptr destination where data is copied
-    //!
-    //! @return new offset in the original string
-    //--------------------------------------------------------------------------
-    static uint64_t
-    grabData(const std::string& buffer, uint64_t offset, void* dest_ptr, uint64_t size)
-    {
-      const char* src_ptr = buffer.data() + offset;
-      (void) memcpy(dest_ptr, src_ptr, size);
-      return offset + size;
-    }
-
-    //------------------------------------------------------------------------
-    //! Calculate the CRC32 checksum
-    //------------------------------------------------------------------------
-    uint32_t getCRC32() const
-    {
-      return crc32( crc32( 0L, Z_NULL, 0 ),
-		    (const Bytef*)getDataPtr(), size() );
-    }
-  protected:
+  //------------------------------------------------------------------------
+  //! Copy constructor
+  //------------------------------------------------------------------------
+  Buffer(const Buffer& other)
+  {
+    *this = other;
   };
+
+  //------------------------------------------------------------------------
+  //! Assignment operator
+  //------------------------------------------------------------------------
+  Buffer& operator = (const Buffer& other)
+  {
+    if (this != &other) {
+      data = 0;
+      len = 0;
+      resize(other.getSize());
+      memcpy(getDataPtr(), other.getDataPtr(), other.getSize());
+    }
+
+    return *this;
+  };
+
+  //------------------------------------------------------------------------
+  //! Get data pointer
+  //------------------------------------------------------------------------
+  char* getDataPtr()
+  {
+    if (!data) {
+      return &operator[](0);
+    } else {
+      return data;
+    }
+  }
+
+  //------------------------------------------------------------------------
+  //! Get data pointer
+  //------------------------------------------------------------------------
+  const char* getDataPtr() const
+  {
+    if (!data) {
+      return &operator[](0);
+    } else {
+      return data;
+    }
+  }
+
+  void setDataPtr(char* ptr, size_t size)
+  {
+    data = ptr;
+    len = size;
+  }
+
+  //------------------------------------------------------------------------
+  //! Get data padded (if we read over the size we get 0 as response)
+  //------------------------------------------------------------------------
+  const char getDataPadded(size_t i) const
+  {
+    if (!data) {
+      if (i < size()) {
+        return (operator[](i));
+      }
+    } else {
+      if (i < len) {
+        return *(data + i);
+      }
+    }
+
+    return 0;
+  }
+
+  //------------------------------------------------------------------------
+  //! Get size
+  //------------------------------------------------------------------------
+  size_t getSize() const
+  {
+    if (!data) {
+      return size();
+    } else {
+      return len;
+    }
+  }
+
+  //------------------------------------------------------------------------
+  //! Set size
+  //------------------------------------------------------------------------
+  void setSize(size_t size)
+  {
+    resize(size);
+  }
+
+  //------------------------------------------------------------------------
+  //! Add data
+  //------------------------------------------------------------------------
+  void putData(const void* ptr, size_t dataSize)
+  {
+    if (!data) {
+      size_t currSize = size();
+      resize(currSize + dataSize);
+      memcpy(&operator[](currSize), ptr, dataSize);
+    } else {
+      MDException e(EINVAL);
+      e.getMessage() << "Read only structure";
+      throw e;
+    }
+  }
+
+  //------------------------------------------------------------------------
+  //! Add data
+  //------------------------------------------------------------------------
+  uint16_t grabData(uint16_t offset, void* ptr, size_t dataSize) const
+  {
+    if (offset + dataSize > getSize()) {
+      MDException e(EINVAL);
+      e.getMessage() << "Not enough data to fulfil the request";
+      throw e;
+    }
+
+    if (!data) {
+      memcpy(ptr, &operator[](offset), dataSize);
+    } else  {
+      memcpy(ptr, data + offset, dataSize);
+    }
+
+    return offset + dataSize;
+  }
+
+  //------------------------------------------------------------------------
+  //! Calculate the CRC32 checksum
+  //------------------------------------------------------------------------
+  uint32_t getCRC32() const
+  {
+    return crc32(crc32(0L, Z_NULL, 0), (const Bytef*)getDataPtr(), size());
+  }
+
+protected:
+  char* data;
+  size_t len;
+};
 }
 
 #endif // EOS_NS_BUFFER_HH

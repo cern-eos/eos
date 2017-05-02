@@ -36,6 +36,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdNet/XrdNetIF.hh"
 #include "XrdVersion.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
@@ -45,16 +46,17 @@ eos::auth::EosAuthOfs* eos::auth::gOFS;
 
 extern XrdSysError OfsEroute;
 extern XrdOfs* XrdOfsFS;
-XrdVERSIONINFO(XrdSfsGetFileSystem, AuthOfs);
+XrdVERSIONINFO(XrdSfsGetFileSystem2, AuthOfs);
 
 //------------------------------------------------------------------------------
 // Filesystem Plugin factory function
 //------------------------------------------------------------------------------
 extern "C"
 {
-  XrdSfsFileSystem* XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
-                                        XrdSysLogger* lp,
-                                        const char* configfn)
+  XrdSfsFileSystem* XrdSfsGetFileSystem2(XrdSfsFileSystem* native_fs,
+                                         XrdSysLogger* lp,
+                                         const char* configfn,
+                                         XrdOucEnv* envP)
   {
     // Do the herald thing
     //
@@ -67,7 +69,7 @@ extern "C"
     eos::auth::gOFS = new eos::auth::EosAuthOfs();
     eos::auth::gOFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
 
-    if (eos::auth::gOFS->Configure(OfsEroute)) {
+    if (eos::auth::gOFS->Configure(OfsEroute, envP)) {
       return 0;
     }
 
@@ -83,7 +85,7 @@ EOSAUTHNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 EosAuthOfs::EosAuthOfs():
   XrdOfs(), eos::common::LogId(),  proxy_tid(0), mFrontend(0), mMaster(0),
-  mSizePoolSocket(5), mManagerPort(0), mLogLevel(LOG_INFO)
+  mSizePoolSocket(5), mPort(0), mLogLevel(LOG_INFO)
 {
   // Initialise the ZMQ client
   mZmqContext = new zmq::context_t(1);
@@ -128,28 +130,37 @@ EosAuthOfs::~EosAuthOfs()
 // Configure routine
 //------------------------------------------------------------------------------
 int
-EosAuthOfs::Configure(XrdSysError& error)
+EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
 {
   int NoGo = 0;
   int cfgFD;
   char* var;
   const char* val;
   std::string space_tkn;
-  char buff_ip[4096];
   // Configure the basic XrdOfs and exit if not successful
-  NoGo = XrdOfs::Configure(error);
+  NoGo = XrdOfs::Configure(error, envP);
 
   if (NoGo) {
     return NoGo;
   }
 
-  if (!myIF->GetDest(&buff_ip[0], 4096)) {
-    return OfsEroute.Emsg("Config", errno, "unable to get IP address");
+  mPort = myPort;
+  // Get the hostname
+  char* errtext = 0;
+  const char* host_name = XrdSysDNS::getHostName(0, &errtext);
+
+  if (!host_name || std::string(host_name) == "0.0.0.0") {
+    error.Emsg("Config", "hostname is invalid : %s", host_name);
+    return 1;
   }
 
-  mManagerIp = buff_ip;
-  mManagerPort = myIF->Port();
-  // extract the manager from the config file
+  struct sockaddr inet_addr;
+
+  XrdSysDNS::getHostAddr(host_name, inet_addr);
+
+  mManagerIp = XrdSysDNS::getHostID(inet_addr);
+
+  // Extract the manager from the config file
   XrdOucStream Config(&error, getenv("XRDINSTANCE"));
 
   // Read in the auth configuration from the xrd.cf.auth file
@@ -259,7 +270,7 @@ EosAuthOfs::Configure(XrdSysError& error)
         std::string endpoint = "inproc://proxyfrontend";
 
         // Try in a loop to connect to the proxyfrontend as it can take a while for
-        // the poxy thread to do the binding, therefore connect can fail
+        // the proxy thread to do the binding, therefore connect can fail
         while (1) {
           try {
             socket->connect(endpoint.c_str());
@@ -285,7 +296,8 @@ EosAuthOfs::Configure(XrdSysError& error)
   // Build the adler & sha1 checksum of the default keytab file
   //----------------------------------------------------------------------------
   XrdOucString keytabcks = "unaccessible";
-  int fd = ::open("/etc/eos.keytab", O_RDONLY);
+  std::string keytab_path = "/etc/eos.keytab";
+  int fd = ::open(keytab_path.c_str(), O_RDONLY);
   XrdOucString symkey = "";
 
   if (fd >= 0) {
@@ -303,11 +315,18 @@ EosAuthOfs::Configure(XrdSysError& error)
       char sadler[1024];
       snprintf(sadler, sizeof(sadler) - 1, "%08x", adler);
       keytabcks = sadler;
+    } else {
+      eos_err("Failed while readling, error: %s", strerror(errno));
+      close(fd);
+      return 1;
     }
 
     SHA1_Final((unsigned char*) keydigest, &sha1);
     eos::common::SymKey::Base64Encode(keydigest, SHA_DIGEST_LENGTH, symkey);
     close(fd);
+  } else {
+    eos_err("Failed to open keytab file: %s", keytab_path.c_str());
+    return 1;
   }
 
   eos_notice("AUTH_HOST=%s AUTH_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s SYMKEY=%s",
@@ -350,8 +369,8 @@ EosAuthOfs::AuthProxyThread()
   mBackend1 = std::make_pair(mBackend1.first,
                              new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
   sstr << "tcp://" << mBackend1.first;
-  OfsEroute.Say("=====> connected to master MGM: ", mBackend1.first.c_str());
   mBackend1.second->connect(sstr.str().c_str());
+  OfsEroute.Say("=====> connected to master MGM: ", mBackend1.first.c_str());
 
   // Connect to the slave if present
   if (!mBackend2.first.empty()) {
@@ -359,25 +378,26 @@ EosAuthOfs::AuthProxyThread()
     mBackend2 = std::make_pair(mBackend2.first,
                                new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
     sstr << "tcp://" << mBackend2.first;
-    OfsEroute.Say("=====> connected to slave MGM: ", mBackend2.first.c_str());
     mBackend2.second->connect(sstr.str().c_str());
+    OfsEroute.Say("=====> connected to slave MGM: ", mBackend2.first.c_str());
   }
 
   // Set the master to point to the master MGM - no need for lock
   mMaster = mBackend1.second;
-  int rc;
+  int rc = -1;
   zmq::message_t msg;
-  // Start the poxy using the first entry
+  // Start the proxy using the first entry
   int more;
   size_t moresz;
   int poll_size = 2;
-  zmq_pollitem_t items [3];
-  items[0] = {mFrontend, 0, ZMQ_POLLIN, 0};
-  items[1] = {mBackend1.second, 0, ZMQ_POLLIN, 0};
+  zmq::pollitem_t items[3] = {
+    { (void*)* mFrontend, 0, ZMQ_POLLIN, 0},
+    { (void*)* mBackend1.second, 0, ZMQ_POLLIN, 0}
+  };
 
   if (!mBackend2.first.empty()) {
     poll_size = 3;
-    items[2] = {mBackend2.second, 0, ZMQ_POLLIN, 0};
+    items[2] = { (void*)* mBackend2.second, 0, ZMQ_POLLIN, 0};
   }
 
   // Main loop in which the proxy thread accepts request from the clients and
@@ -385,7 +405,11 @@ EosAuthOfs::AuthProxyThread()
   // at any point.
   while (true) {
     // Wait while there are either requests or replies to process
-    rc = zmq::poll(&items[0], poll_size, -1);
+    try {
+      rc = zmq::poll(&items[0], poll_size, -1);
+    } catch (zmq::error_t& e) {
+      eos_err("Exception thrown: %s", e.what());
+    }
 
     if (rc < 0) {
       eos_err("error in poll");
@@ -642,7 +666,7 @@ EosAuthOfs::fsctl(const int cmd,
     rType[1] = 'r';
     rType[2] = '\0';
     sprintf(locResp, "[::%s]:%d ", (char*) gOFS->mManagerIp.c_str(),
-            gOFS->mManagerPort);
+            gOFS->mPort);
     error.setErrInfo(strlen(locResp) + 3, (const char**) Resp, 2);
     return SFS_DATA;
   }
@@ -1285,7 +1309,4 @@ EosAuthOfs::UpdateMaster(std::string& redirect_host)
   return found;
 }
 
-
-
 EOSAUTHNAMESPACE_END
-

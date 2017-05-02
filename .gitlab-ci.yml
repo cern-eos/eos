@@ -11,7 +11,7 @@ eos_rpm_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache sssd-client sudo createrepo
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -19,6 +19,9 @@ eos_rpm_cc7:
     - make srpm
     - cd ..
     - source gitlab-ci/setup_ccache.sh
+    # New eos-depend repository hosted on EOSUSER
+    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies on EOSUSER\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    # TODO: This AFS repository should be retired soon
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-7-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck -y build/SRPMS/*
@@ -28,9 +31,16 @@ eos_rpm_cc7:
     - cp -R build/SRPMS cc7
     - cp -R build/RPMS cc7
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
+    - echo -e '[eos-depend-eosuser]\nname=EOS dpendencies on EOSUSER\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
+    - echo -e '[xrootd]\nname=XROOTD\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/cc-7/x86_64/v4.6.0/\ngpgcheck=0\nenabled=1\npriority=4\n' >> eos-docker/eos.repo
+    - source gitlab-ci/export_buildtype.sh 24
+    - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-7/x86_64
+    - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-7/x86_64/
+    - sudo -u stci -H cp build/RPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-7/x86_64/
+    - sudo -u stci -H createrepo -q /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-7/x86_64/
   cache:
-    key: "$CI_BUILD_NAME"
+    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
     - ccache/
   artifacts:
@@ -39,7 +49,7 @@ eos_rpm_cc7:
     - cc7/
     - eos-docker/
   tags:
-    - docker
+    - docker-cc7
   only:
     - master
     - beryl_aquamarine
@@ -49,34 +59,35 @@ eos_rpm_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache
-    - export CCACHE_DIR="`pwd`/ccache"
-    - ccache --max-size=1.5G
-    - ccache -s
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sssd-client sudo authconfig createrepo
     - git submodule update --init --recursive
     - mkdir build
     - cd build
     - cmake3 .. -DPACKAGEONLY=1
     - make srpm
     - cd ..
+    - source gitlab-ci/setup_ccache_slc6.sh
+    - ccache --max-size=1.5G
+    # New eos-depend repository hosted on EOSUSER
+    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies on EOSUSER\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    # TODO: This AFS repository should be retired soon
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-6-x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-6-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
-    - mkdir slc6
-    - cp -R build/SRPMS slc6
-    - cp -R build/RPMS slc6
+    - authconfig --enablesssd --update
+    - source gitlab-ci/export_buildtype.sh 24
+    - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-6/x86_64
+    - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-6/x86_64/
+    - sudo -u stci -H cp build/RPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-6/x86_64/
+    - sudo -u stci -H createrepo -q /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/el-6/x86_64/
   cache:
-    key: "$CI_BUILD_NAME"
+    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
     - ccache/
-  artifacts:
-    expire_in: 2 days
-    paths:
-    - slc6/
   tags:
-    - docker
+    - docker-slc6
   only:
     - master
     - beryl_aquamarine
@@ -86,33 +97,30 @@ eos_rpm_fedora_rawhide:
   stage: build:rpm
   image: fedora:rawhide
   script:
-    - dnf install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache
-    - export CCACHE_DIR="`pwd`/ccache"
-    - ccache --max-size=1.5G
-    - ccache -s
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache sssd-client sudo createrepo
     - git submodule update --init --recursive
     - mkdir build
     - cd build
     - cmake3 .. -DPACKAGEONLY=1
     - make srpm
-    - echo -e '[xrootd]\nname=XRootD CERN\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/xrootd.repo
-    - yum-builddep --nogpgcheck -y SRPMS/*
-    - rpmbuild --rebuild --with server --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" SRPMS/*
-    - ccache -s
     - cd ..
-    - mkdir fedora-rawhide
-    - cp -R build/SRPMS fedora-rawhide
-    - cp -R build/RPMS fedora-rawhide
-  artifacts:
-    expire_in: 2 days
-    paths:
-    - fedora-rawhide/
+    - source gitlab-ci/setup_ccache_fc.sh
+    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[xrootd]\nname=XRootD CERN\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/xrootd.repo
+    - yum-builddep --nogpgcheck -y build/SRPMS/*
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
+    - ccache -s
+    - source gitlab-ci/export_buildtype.sh 25
+    - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64
+    - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64/
+    - sudo -u stci -H cp build/RPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64/
+    - sudo -u stci -H createrepo -q /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64/
   cache:
-    key: "$CI_BUILD_NAME"
+    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
     - ccache/
   tags:
-    - docker
+    - docker-fc_rawhide
   only:
     - master
     - beryl_aquamarine
@@ -122,33 +130,30 @@ eos_rpm_fedora_24:
   stage: build:rpm
   image: fedora:24
   script:
-    - dnf install -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache
-    - export CCACHE_DIR="`pwd`/ccache"
-    - ccache --max-size=1.5G
-    - ccache -s
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache sssd-client sudo createrepo
     - git submodule update --init --recursive
     - mkdir build
     - cd build
     - cmake3 .. -DPACKAGEONLY=1
     - make srpm
-    - echo -e '[xrootd]\nname=XRootD CERN\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/fc-24/x86_64/\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/xrootd.repo
-    - yum-builddep --nogpgcheck -y SRPMS/*
-    - rpmbuild --rebuild --with server --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" SRPMS/*
-    - ccache -s
     - cd ..
-    - mkdir fedora25
-    - cp -R build/SRPMS fedora25
-    - cp -R build/RPMS fedora25
-  artifacts:
-    expire_in: 2 days
-    paths:
-    - fedora25/
+    - source gitlab-ci/setup_ccache_fc.sh
+    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/fc-24/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[xrootd]\nname=XRootD CERN\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/fc-24/x86_64/\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/xrootd.repo
+    - yum-builddep --nogpgcheck -y build/SRPMS/*
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
+    - ccache -s
+    - source gitlab-ci/export_buildtype.sh 24
+    - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-24/x86_64
+    - sudo -u stci -H cp build/SRPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-24/x86_64/
+    - sudo -u stci -H cp build/RPMS/* /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-24/x86_64/
+    - sudo -u stci -H createrepo -q /eos/project/s/storage-ci/www/${BRANCH}/${BUILD_TYPE}/fc-24/x86_64/
   cache:
-    key: "$CI_BUILD_NAME"
+    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
     - ccache/
   tags:
-    - docker
+    - docker-fc25
   only:
     - master
     - beryl_aquamarine
@@ -161,11 +166,11 @@ eos_dmg_macosx:
     - mkdir build
     - mkdir install
     - cd build
-    - /Users/jenkins/workspace/cmake-3.5.2/install/bin/cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=/usr/local -D Z_ROOT_DIR=/usr/local/opt/zlib/ -D OPENSSL_ROOT_DIR=/usr/local/opt/openssl/ -D NCURSES_ROOT_DIR=/usr/local/opt/ncurses/ -D ZMQ_ROOT_DIR=/usr/local/opt/zmqpp/include/zmqpp/ -D XROOTD_ROOT_DIR=/Users/jenkins/workspace/xrootd-latest/install/usr/local/ ..
+    - /Users/jenkins/workspace/cmake-3.5.2/install/bin/cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=/usr/local -D Z_ROOT_DIR=/usr/local/opt/zlib/ -D OPENSSL_ROOT_DIR=/usr/local/opt/openssl/ -D NCURSES_ROOT_DIR=/usr/local/opt/ncurses/ -D ZMQ_ROOT_DIR=/usr/local/opt/zeromq32/ -D XROOTD_ROOT_DIR=/usr/local/opt/xrootd/ ..
     - make -j 4
     - make install DESTDIR=../install/
     - version=`../genversion.sh`
-    - ../utils/eos-osx-package.sh $version /Users/jenkins/workspace/xrootd-latest/build/ ../install/
+    - ../utils/eos-osx-package.sh $version ../install/
     - ccache -s
     - cd ..
     - mkdir osx
@@ -204,10 +209,12 @@ eos_system_test:
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
-    - docker ps -a
-    - docker exec -i eos-mgm-test eos fs ls
+    - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
+    - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
+    - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos
+    - docker exec -i eos-client-test python /eosclient-tests/microtests/run-ci.py --eosdir /eos/dockertest
     - sudo ./eos-docker/scripts/shutdown_services.sh
-    - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID} 
+    - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
   tags:
     - shell-with-docker
   only:

@@ -577,10 +577,6 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     entry_found = me.fs().dir_cache_get_entry(req, parent, entry_inode, ifullpath,
                   rc ? 0 : &e.attr);
     eos_static_debug("subentry_found = %i", entry_found);
-
-    if (entry_found) {
-      fuse_reply_entry(req, &e);
-    }
   }
 
   if (!entry_found) {
@@ -754,6 +750,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       }
 
       free(entriesstats);
+      free(b.p);
     }
   } else {
     // duplicate the dirbuf from cache and store in the file handle

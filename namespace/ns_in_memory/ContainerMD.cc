@@ -35,7 +35,7 @@ EOSNSNAMESPACE_BEGIN
 ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
                          IContainerMDSvc* cont_svc):
   IContainerMD(), pId(id), pParentId(0), pFlags(0), pName(""), pCUid(0),
-  pCGid(0), pMode(040755), pACLId(0), pTreeSize(0), pFileSvc(file_svc),
+  pCGid(0), pMode(040755), pACLId(0), pFileSvc(file_svc),
   pContSvc(cont_svc)
 {
   pCTime.tv_sec = 0;
@@ -48,6 +48,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pFiles.set_deleted_key("");
   pSubContainers.set_empty_key("##_EMPTY_##");
   pFiles.set_empty_key("##_EMPTY_##");
+  setTreeSize(0);
 }
 
 //------------------------------------------------------------------------------
@@ -98,8 +99,11 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pFlags    = other.pFlags;
   pFileSvc  = other.pFileSvc;
   pContSvc  = other.pContSvc;
+#if __GNUC_PREREQ(4,8)
+  this->pTMTime_atomic = other.pTMTime_atomic;
+#endif
   pTreeSize = 0;
-  // Note: pFiles, pSubContainers are not copied here
+  // Note: pFiles, pSubContainers, pTreeSize are not copied here
   return *this;
 }
 
@@ -111,7 +115,7 @@ ContainerMD::InheritChildren(const ContainerMD& other)
 {
   pFiles = other.pFiles;
   pSubContainers = other.pSubContainers;
-  pTreeSize = other.pTreeSize;
+  setTreeSize(other.getTreeSize());
 }
 
 //------------------------------------------------------------------------------

@@ -232,7 +232,7 @@ com_fuse(char* arg1)
     bool mt = true;
 
     if (getenv("EOS_FUSE_NO_MT")) {
-      env += " EOS_FUSE_NO_MT";
+      env += " EOS_FUSE_NO_MT=";
       env += getenv("EOS_FUSE_NO_MT");
 
       if (!strcmp("1", getenv("EOS_FUSE_NO_MT"))) {

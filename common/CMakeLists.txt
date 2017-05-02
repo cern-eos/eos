@@ -25,6 +25,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${Z_INCLUDE_DIRS}
+  ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
@@ -32,25 +33,24 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
-# Build the libfmt for fast convertions
-#-------------------------------------------------------------------------------
-if (NOT TARGET fmt)
-  add_subdirectory(fmt)
-
-  set_target_properties(
-    fmt
-    PROPERTIES
-    POSITION_INDEPENDENT_CODE TRUE)
-endif()
-
-#-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
-PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS PROTOFILES dbmaptest/test.proto)
+PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS dbmaptest/test.proto)
 set_source_files_properties(
   ${DBMAPTEST_SRCS}
   ${DBMAPTEST_HDRS}
   PROPERTIES GENERATED 1)
+
+#-------------------------------------------------------------------------------
+# EosCrc32c-Static library
+#-------------------------------------------------------------------------------
+add_library(EosCrc32c-Static STATIC
+  crc32c/crc32c.cc
+  crc32c/crc32ctables.cc)
+
+set_target_properties(
+  EosCrc32c-Static PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
 # eosCommon library
@@ -67,6 +67,7 @@ set(
   StringConversion.cc
   CommentLog.cc
   RWMutex.cc
+  XrdErrorMap.cc
   JeMallocHandler.cc)
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
@@ -137,6 +138,7 @@ target_link_libraries(
   XrdMqClient-Static
   fmt
   ${Z_LIBRARY}
+  ${GLIBC_RT_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}

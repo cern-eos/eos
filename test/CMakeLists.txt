@@ -63,9 +63,7 @@ add_executable(
   eoschecksumbench
   EosChecksumBenchmark.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/Adler.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/crc32c.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/crc32ctables.cc)
+  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc)
 
 target_link_libraries(xrdcpabort ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
 target_link_libraries(xrdcprandom ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
@@ -132,7 +130,7 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(
-  PROGRAMS xrdstress eos-instance-test fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test eos-oc-test
+  PROGRAMS xrdstress eos-instance-test eos-instance-test-ci fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test eos-oc-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
 	      GROUP_READ GROUP_EXECUTE

@@ -723,6 +723,7 @@ ProcCommand::DirInfo(const char* path)
       size_t num_containers = dmd->getNumContainers();
       size_t num_files = dmd->getNumFiles();
       std::shared_ptr<eos::IContainerMD> dmd_copy(dmd->clone());
+      dmd_copy->InheritChildren(*(dmd.get()));
       dmd.reset();
       gOFS->eosViewRWMutex.UnLockRead();
       //-------------------------------------------

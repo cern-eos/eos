@@ -76,7 +76,7 @@ public:
   //! @return                compacting information that needs to be passed
   //!                        to other functions
   //----------------------------------------------------------------------------
-  virtual void* compactPrepare(const std::string& ocdir) const = 0;
+  virtual void* compactPrepare(const std::string& ocdir) = 0;
 
   //----------------------------------------------------------------------------
   //! Commit the compacting information.
@@ -129,6 +129,11 @@ public:
   //! @return offset value
   //----------------------------------------------------------------------------
   virtual uint64_t getFollowOffset() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get the pending items
+  //----------------------------------------------------------------------------
+  virtual uint64_t getFollowPending() = 0;
 
   //------------------------------------------------------------------------
   //! Resize container service map

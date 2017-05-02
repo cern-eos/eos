@@ -43,7 +43,7 @@ class IContainerMD;
 //------------------------------------------------------------------------------
 class FileMD: public IFileMD
 {
- public:
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -175,7 +175,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get checksum
   //----------------------------------------------------------------------------
-  const Buffer& getChecksum() const
+  const Buffer getChecksum() const
   {
     return pChecksum;
   }
@@ -205,8 +205,9 @@ class FileMD: public IFileMD
   {
     char zero = 0;
 
-    for (uint8_t i = 0; i < size; i++)
+    for (uint8_t i = 0; i < size; i++) {
       pChecksum.putData(&zero, 1);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -252,8 +253,9 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   location_t getLocation(unsigned int index)
   {
-    if (index < pLocation.size())
+    if (index < pLocation.size()) {
       return pLocation[index];
+    }
 
     return 0;
   }
@@ -301,10 +303,10 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   bool hasUnlinkedLocation(location_t location)
   {
-    for (unsigned int i = 0; i < pUnlinkedLocation.size(); i++)
-    {
-      if (pUnlinkedLocation[i] == location)
+    for (unsigned int i = 0; i < pUnlinkedLocation.size(); i++) {
+      if (pUnlinkedLocation[i] == location) {
         return true;
+      }
     }
 
     return false;
@@ -331,10 +333,10 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   bool hasLocation(location_t location)
   {
-    for (unsigned int i = 0; i < pLocation.size(); i++)
-    {
-      if (pLocation[i] == location)
+    for (unsigned int i = 0; i < pLocation.size(); i++) {
+      if (pLocation[i] == location) {
         return true;
+      }
     }
 
     return false;
@@ -425,10 +427,11 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   void setFlag(uint8_t n, bool flag)
   {
-    if (flag)
+    if (flag) {
       pFlags |= (1 << n);
-    else
+    } else {
       pFlags &= !(1 << n);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -483,13 +486,13 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   bool isLink() const
   {
-    return pLinkName.length() ? true:false;
+    return pLinkName.length() ? true : false;
   }
 
   //----------------------------------------------------------------------------
   //! Add extended attribute
   //----------------------------------------------------------------------------
-  void setAttribute (const std::string &name, const std::string &value)
+  void setAttribute(const std::string& name, const std::string& value)
   {
     pXAttrs[name] = value;
   }
@@ -497,18 +500,19 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Remove attribute
   //----------------------------------------------------------------------------
-  void removeAttribute (const std::string &name)
+  void removeAttribute(const std::string& name)
   {
     XAttrMap::iterator it = pXAttrs.find(name);
 
-    if (it != pXAttrs.end())
+    if (it != pXAttrs.end()) {
       pXAttrs.erase(it);
+    }
   }
 
   //----------------------------------------------------------------------------
   //! Check if the attribute exist
   //----------------------------------------------------------------------------
-  bool hasAttribute (const std::string &name) const
+  bool hasAttribute(const std::string& name) const
   {
     return pXAttrs.find(name) != pXAttrs.end();
   }
@@ -516,7 +520,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Return number of attributes
   //----------------------------------------------------------------------------
-  size_t numAttributes () const
+  size_t numAttributes() const
   {
     return pXAttrs.size();
   }
@@ -524,16 +528,16 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get the attribute
   //----------------------------------------------------------------------------
-  std::string getAttribute (const std::string &name) const
+  std::string getAttribute(const std::string& name) const
   {
     XAttrMap::const_iterator it = pXAttrs.find(name);
 
-    if (it == pXAttrs.end())
-    {
+    if (it == pXAttrs.end()) {
       MDException e(ENOENT);
       e.getMessage() << "Attribute: " << name << " not found";
       throw e;
     }
+
     return it->second;
   }
 
@@ -553,7 +557,7 @@ class FileMD: public IFileMD
     return pXAttrs.end();
   }
 
- protected:
+protected:
   //----------------------------------------------------------------------------
   // Data members
   //----------------------------------------------------------------------------

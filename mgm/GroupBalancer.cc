@@ -618,16 +618,20 @@ GroupBalancer::GroupBalance()
     bool isSpaceGroupBalancer = true;
     bool isMaster = true;
     int nrTransfers = 0;
-    XrdSysThread::SetCancelOff();
     {
-      // -----------------------------------------------------------------------
-      // extract the current settings if conversion enabled and how many
-      // conversion jobs should run
-      // -----------------------------------------------------------------------
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      std::set<FsGroup*>::const_iterator git;
+      // Extract the current settings if conversion enabled and how many
+      // conversion jobs should run.
+      uint64_t timeout_ms = 100;
+
+      // Try to read lock the mutex
+      while (FsView::gFsView.ViewMutex.TimedRdLock(timeout_ms)) {
+        XrdSysThread::CancelPoint();
+      }
+
+      XrdSysThread::SetCancelOff();
 
       if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
+        FsView::gFsView.ViewMutex.UnLockRead();
         break;
       }
 
@@ -637,6 +641,7 @@ GroupBalancer::GroupBalance()
         eos_static_debug("Converter is off for! It needs to be on "
                          "for the group balancer to work. space=%s",
                          mSpaceName.c_str());
+        FsView::gFsView.ViewMutex.UnLockRead();
         goto wait;
       }
 
@@ -645,6 +650,7 @@ GroupBalancer::GroupBalance()
       mThreshold =
         atof(space->GetConfigMember("groupbalancer.threshold").c_str());
       mThreshold /= 100.0;
+      FsView::gFsView.ViewMutex.UnLockRead();
     }
     isMaster = gOFS->MgmMaster.IsMaster();
 
@@ -677,9 +683,7 @@ GroupBalancer::GroupBalance()
 
 wait:
     XrdSysThread::SetCancelOn();
-    // -------------------------------------------------------------------------
     // Let some time pass or wait for a notification
-    // -------------------------------------------------------------------------
     XrdSysTimer sleeper;
     sleeper.Wait(10000);
     XrdSysThread::CancelPoint();

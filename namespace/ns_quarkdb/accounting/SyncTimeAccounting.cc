@@ -102,7 +102,6 @@ SyncTimeAccounting::PropagateUpdates()
     IContainerMD::id_t id = 0;
     std::set<IContainerMD::id_t> upd_nodes;
     auto& lst = mBatch[mCommitIndx].mLstUpd;
-    fprintf(stderr, "Running update loop on queue %i ...\n", mCommitIndx);
 
     // Start updating form the last node (the most recent) and also collect the
     // nodes that we've updated so that older updates don't propagate further

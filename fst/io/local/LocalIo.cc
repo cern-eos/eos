@@ -228,7 +228,9 @@ LocalIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
       fl.l_len = (off64_t) toOffset - fromOffset;
       return xfsctl(NULL, fd, XFS_IOC_UNRESVSP64, &fl);
     } else {
-      return 0;
+      // Posix_fallocate truncates a file to the reserved size, we have
+      // to truncate back to the beginning of the unwritten extent
+      return ftruncate(fd, fromOffset);;
     }
   }
 

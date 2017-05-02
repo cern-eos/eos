@@ -32,10 +32,11 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
 #include "namespace/ns_in_memory/accounting/QuotaStats.hh"
-
+#include "common/Murmur3.hh"
 #include <google/dense_hash_map>
 #include <google/sparse_hash_map>
 #include <list>
+#include <set>
 #include <map>
 #include <pthread.h>
 #include <limits>
@@ -61,7 +62,7 @@ public:
   //! Constructor
   //--------------------------------------------------------------------------
   ChangeLogContainerMDSvc():
-    pFirstFreeId(0), pFollowerThread(0), pSlaveLock(0), pSlaveMode(false),
+    pFirstFreeId(1), pFollowerThread(0), pSlaveLock(0), pSlaveMode(false),
     pSlaveStarted(false), pSlavePoll(1000), pFollowStart(0), pQuotaStats(0),
     pFileSvc(NULL), pAutoRepair(0), pResSize(1000000), pContainerAccounting(0)
   {
@@ -74,7 +75,6 @@ public:
     }
 
     pIdMap.set_empty_key(std::numeric_limits<IContainerMD::id_t>::max());
-    pIdMap.min_load_factor(0.0);
     pChangeLog = new ChangeLogFile();
     pthread_mutex_init(&pFollowStartMutex, 0);
   }
@@ -161,7 +161,7 @@ public:
   //! @return                compacting information that needs to be passed
   //!                        to other functions
   //--------------------------------------------------------------------------
-  void* compactPrepare(const std::string& newLogFileName) const;
+  void* compactPrepare(const std::string& newLogFileName);
 
   //--------------------------------------------------------------------------
   //! Do the compacting.
@@ -342,18 +342,22 @@ private:
   // Placeholder for the record info
   //--------------------------------------------------------------------------
   struct DataInfo {
-    DataInfo(): logOffset(0),
-      ptr((IContainerMD*)0) {}
+    DataInfo(): logOffset(0), ptr((IContainerMD*)0), attached(false) {}
     DataInfo(uint64_t logOffset, std::shared_ptr<IContainerMD> ptr)
     {
       this->logOffset = logOffset;
       this->ptr = ptr;
+      attached = false;
     }
     uint64_t logOffset;
     std::shared_ptr<IContainerMD> ptr;
+    bool attached;
   };
 
-  typedef google::dense_hash_map<IContainerMD::id_t, DataInfo> IdMap;
+  typedef google::dense_hash_map<IContainerMD::id_t, DataInfo,
+          Murmur3::MurmurHasher<uint64_t>,
+          Murmur3::eqstr> IdMap;
+  typedef std::set<IContainerMD::id_t> DeletionSet;
   typedef std::list<IContainerMDChangeListener*> ListenerList;
   typedef std::list<std::shared_ptr<IContainerMD>> ContainerList;
 
@@ -384,6 +388,11 @@ private:
   void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a);
 
   //--------------------------------------------------------------------------
+  //! Load the container
+  //--------------------------------------------------------------------------
+  void loadContainer(IdMap::iterator& it);
+
+  //--------------------------------------------------------------------------
   // Recreate the container structure recursively and create the list
   // of orphans and name conflicts
   //--------------------------------------------------------------------------
@@ -403,6 +412,7 @@ private:
   std::string        pChangeLogPath;
   ChangeLogFile*     pChangeLog;
   IdMap              pIdMap;
+  DeletionSet        pFollowerDeletions;
   ListenerList       pListeners;
   pthread_t          pFollowerThread;
   LockHandler*       pSlaveLock;

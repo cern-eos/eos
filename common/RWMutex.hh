@@ -139,6 +139,15 @@ public:
   void UnLockWrite();
 
   //----------------------------------------------------------------------------
+  //! Try to read lock the mutex within the timout value
+  //!
+  //! @param timeout_ms time duration in milliseconds we can wait for the lock
+  //!
+  //! @return 0 if lock aquired, ETIMEOUT if timeout occured
+  //----------------------------------------------------------------------------
+  int TimedRdLock(uint64_t timeout_ms);
+
+  //----------------------------------------------------------------------------
   //! Lock for write but give up after wlocktime
   //----------------------------------------------------------------------------
   int TimeoutLockWrite();

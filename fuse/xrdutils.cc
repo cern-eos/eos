@@ -25,7 +25,8 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "common/Logging.hh"
-
+#include "common/XrdErrorMap.hh"
+#include "fuse/filesystem.hh"
 //! Sometimes, XRootd gives a NULL responses on some calls, this is a bug.
 //! When it happens we retry.
 int xrootd_nullresponsebug_retrycount = 3;
@@ -83,6 +84,12 @@ XrdCl::XRootDStatus xrdreq_retryonnullbuf(XrdCl::FileSystem& fs,
     }
 
     errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
+
+    if (status.code == XrdCl::errErrorResponse) {
+      eos::common::error_retc_map(status.errNo);
+      eos_static_debug("setting errno to %d", errno);
+    }
+
     break;
   }
 

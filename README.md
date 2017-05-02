@@ -53,27 +53,22 @@ doxygen
 
 ## Dependencies
 
-* git
-* gcc (>= 4.4)
-* cmake (>=2.8)
-* readline, readline-devel
-* fuse, fuse-devel
-* leveldb, leveldb-devel
-* zlib, zlib-devel
-* libattr, libattr-devel
-* libuuid, libuuid-devel
-* xfsprogs, xfsprogs-devel
-* sparsehash, sparsehash-devel
-* e2fsprogs, e2fsprogs-devel
-* libmicrohttpd, libmicrohttpd-devel
-* openssl, openssl-devel, openssl-static
-* ncurses, ncurses-devel, ncurses-static
-* xrootd, xrootd-server-devel, xrootd-client-devel, xrootd-private-devel (>=3.3.6)
+```bash
+  yum install -y git gcc cmake readline readline-devel fuse fuse-devel \
+leveldb leveldb-devel zlib zlib-devel libattr libattr-devel libuuid libuuid-devel \
+xfsprogs xfsprogs-devel sparsehash sparsehash-devel e2fsprogs e2fsprogs-devel \
+libmicrohttpd libmicrohttpd-devel openssl openssl-devel openssl-static \
+ncurses ncurses-devel ncurses-static protobuf-devel cppunit-devel openldap-devel \
+hiredis-devel zeromq-devel jsoncpp-devel xrootd xrootd-server-devel xrootd-client-devel
+xrootd-private-devel cppzmq-devel libcurl-devel
+```
 
 ## Build
 
 To build **EOS**, you need **gcc (>=4.4)** and **CMake** installed on your system:
 ```bash
+# Note that you will also need to check out the fmd and qclient git submodules
+git submodule update --init --recursive
 # Create build workdir
 mkdir build
 cd build

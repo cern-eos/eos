@@ -1260,6 +1260,7 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
   bool rc = true;
   eos_static_info("");
   std::vector<eos::common::FileId::fileid_t> delvector;
+  eos::common::RWMutexReadLock rd_lock(Mutex);
 
   if (!IsSyncing(fsid)) {
     {

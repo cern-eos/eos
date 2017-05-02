@@ -33,3 +33,4 @@ valgrind.supp
 eos-log-repair
 /build/
 __pycache__
+kineticio-dist.tgz

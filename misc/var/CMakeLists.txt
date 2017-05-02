@@ -33,7 +33,13 @@ install(DIRECTORY DESTINATION /var/run/eosd/credentials/store)
 install(DIRECTORY DESTINATION /var/eos/wfe/)
 install(DIRECTORY DESTINATION /var/eos/wfe/bash/)
 install(DIRECTORY DESTINATION /var/eos/kinetic/)
-install(DIRECTORY DESTINATION /usr/lib/tmpfiles.d/)
+
+if( MacOSX )
+  install(DIRECTORY DESTINATION /usr/local/lib/tmpfiles.d/)
+else()
+  install(DIRECTORY DESTINATION /usr/lib/tmpfiles.d/)
+endif()
+
 install(SCRIPT chown.cmake)
 
 install(FILES
@@ -63,7 +69,14 @@ install(FILES
   DESTINATION /var/eos/test/fuse/untar/
   PERMISSIONS OWNER_READ GROUP_READ WORLD_READ)
 
-install(FILES
-  eosd.conf
-  DESTINATION /usr/lib/tmpfiles.d/
-  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+if( MacOSX )
+  install(FILES
+    eosd.conf
+    DESTINATION /usr/local/lib/tmpfiles.d/
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+else()
+  install(FILES
+    eosd.conf
+    DESTINATION /usr/lib/tmpfiles.d/
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+endif()

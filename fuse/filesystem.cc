@@ -742,9 +742,6 @@ filesystem::dir_cache_get_entry(fuse_req_t req,
     if (dir->IsFilled()) {
       struct fuse_entry_param e;
 
-      // we eventually need to overwrite the cached information
-      // we eventually need to overwrite the cached information
-      // we eventually need to overwrite the cached information
       if (dir->GetEntry(entry_inode, e)) {
         // we eventually need to overwrite the cached information
         if (overwrite_stat) {
@@ -1190,6 +1187,10 @@ filesystem::rmxattr(const char* path,
   } else {
     eos_static_err("status is NOT ok : %s", status.ToString().c_str());
     errno = ((status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT);
+
+    if (status.code == XrdCl::errErrorResponse) {
+      eos::common::error_retc_map(status.errNo);
+    }
   }
 
   COMMONTIMING("END", &rmxattrtiming);
@@ -1280,6 +1281,10 @@ filesystem::setxattr(const char* path,
   } else {
     eos_static_err("status is NOT ok : %s", status.ToString().c_str());
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+
+    if (status.code == XrdCl::errErrorResponse) {
+      eos::common::error_retc_map(status.errNo);
+    }
   }
 
   COMMONTIMING("END", &setxattrtiming);
@@ -1386,6 +1391,10 @@ filesystem::getxattr(const char* path,
   } else {
     eos_static_err("status is NOT ok : %s", status.ToString().c_str());
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+
+    if (status.code == XrdCl::errErrorResponse) {
+      eos::common::error_retc_map(status.errNo);
+    }
   }
 
   COMMONTIMING("END", &getxattrtiming);
@@ -1494,6 +1503,10 @@ filesystem::listxattr(const char* path,
   } else {
     eos_static_err("status is NOT ok : %s", status.ToString().c_str());
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+
+    if (status.code == XrdCl::errErrorResponse) {
+      eos::common::error_retc_map(status.errNo);
+    }
   }
 
   COMMONTIMING("END", &listxattrtiming);
@@ -1947,6 +1960,10 @@ filesystem::chmod(const char* path,
   } else {
     eos_static_err("status is NOT ok : %s", status.ToString().c_str());
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+
+    if (status.code == XrdCl::errErrorResponse) {
+      eos::common::error_retc_map(status.errNo);
+    }
   }
 
   delete response;
@@ -2054,6 +2071,10 @@ filesystem::utimes(const char* path,
   } else {
     eos_static_err("status is NOT ok : %s", status.ToString().c_str());
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+
+    if (status.code == XrdCl::errErrorResponse) {
+      eos::common::error_retc_map(status.errNo);
+    }
   }
 
   delete response;
@@ -2127,6 +2148,10 @@ filesystem::symlink(const char* path, const char* link, uid_t uid, gid_t gid,
   } else {
     eos_static_err("error=status is NOT ok : %s", status.ToString().c_str());
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+
+    if (status.code == XrdCl::errErrorResponse) {
+      eos::common::error_retc_map(status.errNo);
+    }
   }
 
   delete response;
@@ -2219,6 +2244,10 @@ filesystem::readlink(const char* path, char* buf, size_t bufsize, uid_t uid,
   } else {
     eos_static_err("status is NOT ok : %s", status.ToString().c_str());
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+
+    if (status.code == XrdCl::errErrorResponse) {
+      eos::common::error_retc_map(status.errNo);
+    }
   }
 
   delete response;
@@ -2292,6 +2321,10 @@ filesystem::access(const char* path,
   } else {
     eos_static_err("status is NOT ok : %s", status.ToString().c_str());
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+
+    if (status.code == XrdCl::errErrorResponse) {
+      eos::common::error_retc_map(status.errNo);
+    }
   }
 
   delete response;

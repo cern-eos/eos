@@ -18,5 +18,5 @@ yum install -y perl-Time-HiRes
 yum install -y json-c json-c-devel
 yum install -y jsoncpp jsoncpp-devel
 yum install -y xrootd-devel xrootd-private-devel xrootd-client-devel xrootd-server-devel
+yum install -y libcurl-devel
 ( cd /tmp/; git clone  https://github.com/zeromq/cppzmq; cp cppzmq/zmq.hpp /usr/include/ )
-

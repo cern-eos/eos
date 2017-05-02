@@ -906,11 +906,6 @@ proc_fs_mv(std::string& sfsid, std::string& space, XrdOucString& stdOut,
   bool space_exist = false;
   int space_groupsize = 0;
   int space_groupmode = 0;
-  // MoveGroup can trigger a deletion of a space/group but this needs to happen
-  // outside the gFsView.ViewMutex lock due to the balancer/converter and other
-  // async threads which also take this lock.
-  std::list<FsSpace*> spaces_to_del;
-  std::list<FsGroup*> groups_to_del;
   {
     // Lock FsView::ViewMutex
     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
@@ -968,8 +963,7 @@ proc_fs_mv(std::string& sfsid, std::string& space, XrdOucString& stdOut,
       if (!space_exist) {
         if (std::atoi(space_group.c_str()) < space_groupmode ||
             std::atoi(space_group.c_str()) == 0) {
-          if (FsView::gFsView.MoveGroup(fs, space, spaces_to_del,
-                                        groups_to_del)) {
+          if (FsView::gFsView.MoveGroup(fs, space)) {
             retc = 0;
             stdOut += "success: Filesystem ";
             stdOut += (int) fs->GetId();
@@ -996,8 +990,7 @@ proc_fs_mv(std::string& sfsid, std::string& space, XrdOucString& stdOut,
         fs->SnapShotFileSystem(snapshot);
 
         if (best_grp_exists && !check_node) {
-          if (FsView::gFsView.MoveGroup(fs, space, spaces_to_del,
-                                        groups_to_del)) {
+          if (FsView::gFsView.MoveGroup(fs, space)) {
             retc = 0;
             stdOut += "success: Filesystem ";
             stdOut += (int) fs->GetId();
@@ -1090,8 +1083,7 @@ proc_fs_mv(std::string& sfsid, std::string& space, XrdOucString& stdOut,
               if (!space_exist) {
                 if (std::atoi(space_group.c_str()) < space_groupmode ||
                     std::atoi(space_group.c_str()) == 0) {
-                  if (FsView::gFsView.MoveGroup(fs, space, spaces_to_del,
-                                                groups_to_del)) {
+                  if (FsView::gFsView.MoveGroup(fs, space)) {
                     stdOut += "ID=";
                     stdOut += (int) fs->GetId();
                     stdOut += "\tsuccess: Filesystem ";
@@ -1120,8 +1112,7 @@ proc_fs_mv(std::string& sfsid, std::string& space, XrdOucString& stdOut,
                 fs->SnapShotFileSystem(snapshot);
 
                 if (!check_node && best_grp_exists) {
-                  if (FsView::gFsView.MoveGroup(fs, space, spaces_to_del,
-                                                groups_to_del)) {
+                  if (FsView::gFsView.MoveGroup(fs, space)) {
                     stdOut += "ID=";
                     stdOut += (int) fs->GetId();
                     stdOut += "\tsuccess: Filesystem ";
@@ -1193,16 +1184,6 @@ proc_fs_mv(std::string& sfsid, std::string& space, XrdOucString& stdOut,
       }
     }
   }
-
-  // Delete required spaces and groups
-  for (auto it = spaces_to_del.begin(); it != spaces_to_del.end(); ++it) {
-    delete *it;
-  }
-
-  for (auto it = groups_to_del.begin(); it != groups_to_del.end(); ++it) {
-    delete *it;
-  }
-
   return retc;
 }
 

@@ -1,5 +1,5 @@
+syntax = "proto2";
 package eos.auth;
-
 
 //------------------------------------------------------------------------------
 // XrdSfsPrep request protocol buffer message 

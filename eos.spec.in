@@ -6,15 +6,15 @@
 
 %if %{?rhel:1}%{!?rhel:0}
     %if %{rhel} >= 7
-	%define use_systemd 1
+        %define use_systemd 1
     %else
-	%define use_systemd 0
+        %define use_systemd 0
     %endif
 %else
     %if %{?fedora}%{!?fedora:0} >= 19
-	%define use_systemd 1
+        %define use_systemd 1
     %else
-	%define use_systemd 0
+        %define use_systemd 0
     %endif
 %endif
 
@@ -56,7 +56,7 @@ BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: redhat-rpm-config
-BuildRequires: protobuf, protobuf-devel, protobuf-compiler
+BuildRequires: protobuf3, protobuf3-devel, protobuf3-compiler
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
@@ -72,17 +72,13 @@ BuildRequires: hiredis-devel
 %endif
 %endif
 
-%if 0%{distribution} == 5
-BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
-BuildRequires: zeromq, zeromq-devel, curl-devel, curl
-%else
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
 BuildRequires: libcurl-devel, libcurl, sparsehash-devel
-%if (0%{?fedora} >= 26)
-BuildRequires: zeromq, zeromq-devel, cppzmq-devel
-%else
-BuildRequires: zeromq3, zeromq3-devel
-%endif
+
+# Install gcc 4.8 on SLC6
+%if 0%{distribution} == 6
+BuildRequires: devtoolset-2-gcc-c++
+BuildRequires: devtoolset-2-binutils-devel
 %endif
 
 %if %{use_systemd}
@@ -95,23 +91,25 @@ Requires: initscripts
 
 %description
 The EOS software package.
-
 %prep
 %setup -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
 
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
-
-%if 0%{distribution} == 5
-export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
-%endif
-
 mkdir -p build
 cd build
 %if %{?_with_server:0}%{!?_with_server:1}
+%if 0%{?rhel} == 6 || 0%{?el6} == 1
+scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1"
+%else
 %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1
+%endif
+%else
+%if 0%{?rhel} == 6 || 0%{?el6} == 1
+scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo "
 %else
 %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo
+%endif
 %endif
 %{__make} %{_smp_mflags}
 
@@ -137,16 +135,15 @@ Requires: eos-client
 Requires: libmicrohttpd >= 0.9.38
 Requires: acl
 Requires: gdb
-Requires: protobuf
+Requires: protobuf3
 Requires: jemalloc
 Requires: jsoncpp
 Requires: psmisc
-
-%if 0%{distribution} == 5
-Requires: zeromq
-Requires: curl
-%else
 Requires: libcurl
+%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
+BuildRequires: zeromq3, zeromq3-devel
+%else
+BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 %endif
 
 %description -n eos-server
@@ -214,13 +211,13 @@ The EOS server installation containing MGM, FST & MQ service.
     %{_prefix}/lib/systemd/system/eos@.service
     %{_prefix}/lib/systemd/system/eos@master.service
     %{_prefix}/lib/systemd/system/eos@slave.service
-
     %{_prefix}/lib/systemd/system/eosfstdb@.service
     %{_prefix}/lib/systemd/system/eosha.service
     %{_prefix}/lib/systemd/system/eosslave.service
     %{_prefix}/lib/systemd/system/eossync.service
     %{_prefix}/lib/systemd/system/eossync@.service
     %{_prefix}/lib/systemd/system/eossync@config.service
+    %{_sbindir}/eos_start_pre.sh
 %else
     %config %{_sysconfdir}/sysconfig/eos.example
     %{_sysconfdir}/rc.d/init.d/eos
@@ -349,7 +346,7 @@ The EOS fuse core containing eosd and mount scripts.
 %{_usr}/lib/tmpfiles.d/eosd.conf
 %endif
 
-%if 0%{distribution} == 5 || 0%{distribution} == 6
+%if 0%{distribution} == 6
 %config(noreplace) %{_sysconfdir}/fuse.conf
 %{_sysconfdir}/fuse.conf.eos
 %else
@@ -499,8 +496,11 @@ Contains an instance and fuse test script and some test executables and test arc
 %files -n eos-test
 %defattr(-, root, root, -)
 %{_sbindir}/eos-instance-test
+%{_sbindir}/eos-instance-test-ci
 %{_sbindir}/eos-rain-test
+%{_sbindir}/eoscp-rain-test
 %{_sbindir}/eos-fuse-test
+%{_sbindir}/eos-oc-test
 %{_sbindir}/xrdcpabort
 %{_sbindir}/xrdcpappend
 %{_sbindir}/xrdcpposixcache

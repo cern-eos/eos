@@ -7,6 +7,112 @@
 Beryl Release Notes
 ===================
 
+``V0.3.243 Aquamarine``
+=====================
+
+- NS: fix memory allocation bug in Buffer class
+
+Buf Fixes
++++++++++
+
+``V0.3.242 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- FST: fix logical error when to call auto-repair (don't call it for unregsistered files)
+- FUSE: fix double response when returning entries from internal directory cache
+- MGM: fix protection when listing too large recycle bins with 'recycle ls' (> 1Gb output)
+
+``V0.3.241 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- FUSE: fix memory leak in opendir function not cleaning dirbuf struct
+
+``V0.3.240 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- FST: implement fdellocate function for non-XFS detected filesystems (which used posix_fallocate)
+
+``V0.3.239 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- NS: fix resolution of multiple ../ path changes like ../../XYZ
+- COMMON: fix resolution of multipeo ../ path changes like /X/Y/Z/../../Z
+
+``V0.3.238 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- FST: avoid SEGV during startup when calling RemoveGhostEntries (.eosscan exists on data path)
+
+``V0.3.237 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- NS: fix slave follower attachment issue leading to invisible files
+- MGM: fix the logic when to show a slave as booted
+
+New Feature
++++++++++++
+
+- NS: add 'pending' counter to show if there are updates on the slave, which cannot be attached
+- NS: show follower progress during the initial scan phase and not only after
+
+
+``V0.3.236 Aquamarine``
+=====================
+
+Buf Fixes
++++++++++
+
+- NS: set 'pData' pointer to 0 in munmap function to switch back to traditional read function
+
+``V0.3.235 Aquamarine``
+=====================
+
+New Feature
++++++++++++
+
+- NS: compile with devtoolset-2 on SLC6
+- NS: make part of boot process parallel (gain 3-6x in boottime) [ enable with export EOS_NS_BOOT_PARALLEL=1 ]
+- NS: mmap changelog files during first scan phase to avoid performance limitation by too many syscalls [ disable with export EOS_NS_BOOT_NOMMAP=1 ]
+- NS: implement pread function for namespace file following using read-ahead caching to avoid too many syscalls
+- NS: allow to disable CRC32 on boot (e.g. when using BTRS/ZFS) [ enable with export EOS_NS_BOOT_NORCRC32=1 ]
+- NS: use murmurhash3 for the main flat indexes avoiding serious performance degradation for high id's in google::dense_hash_map
+- NS: make treesize and tree modification time atomic variables if gcc >=4.8
+- FST: limit 'file open for writing' messages in Verify to once per minute
+- FST: limit 'writer error' message to only once per open/write/close file sequence
+- COMMON: add generic lambda function to run parallel for loops Parallel::For ()
+- UTILS: add yum packages to install devtoolset-2 to compile with gcc 4.8
+
+New documentation of namespace variables: http://eos.readthedocs.io/en/latest/configuration/namespace.html
+
+Bug Fixes
++++++++++
+
+- NS: fix various bugs in slave follower losing directories, not showing proper treesize aso.
+- NS: start 'eossync' in slave2master transition
+- MGM: avoid Converter::ResetMasterJobs on slaves
+- MGM: don't run slaves in auto-repair mode when scanning the changelog file
+- FUSE: fix 'bad address' errors and show proper 'permission denied' messages when a client has not credential or is forbidden to talk to certain EOS instances
+- CONSOLE: fix 'treesize' output in 'fileinfo'
+
+
 ``V0.3.234 Aquamarine``
 =======================
 
@@ -61,7 +167,7 @@ Bug Fix
 - FUSE: set the link count for files/links to 1 to make applications like gzip work
 - MGM: fix subtree accounting in the slave follower
 - FST: add an .eosorphans directory to each FST mount point and allow to isolate orphans into this directory by creating a tag file  <mnt>/.eosscan. The .eosscan file removes any smearing and sleep time between scans. The original location is tagged as an exteneded attribute after during the move
- 
+
 ``V0.3.228 Aquamarine``
 =======================
 
@@ -83,7 +189,7 @@ Bug Fix
 - FUSE: fix bug leaving files open when a file was inline repaired
 - DAV: fix webdav bug when a symbolic link is present in a directory listing leading to an error response
 - MGM: fix 'access rm' implementation to remove ENOENT and ENONET redirection
-- DAV: take into account sys.owner.auth when looking for webdav quota 
+- DAV: take into account sys.owner.auth when looking for webdav quota
 
 ``V0.3.226 Aquamarine``
 =======================
@@ -92,7 +198,7 @@ Bug Fix
 +++++++
 
 - COMMON: make ShellExecutor thread/interrupt safe
-- FST: reset checksum error flags also after correct 'verify -checksum' 
+- FST: reset checksum error flags also after correct 'verify -checksum'
 - FUSE: fix ping timeouts and dependencies, allow sss mounts
 - NS: remove ns file archiving process by default in SLAVE->MASTER transition and fix too early enabling of the namespace for write
 
@@ -141,8 +247,8 @@ Bug Fix
 - MQ: fix race condition multiplexed/non-multiplexed set
 - FST: fix race condition in filesystem mutex map
 - FUSE: fix wrong default values for query retry sleep time
-- MGM: protect scheduling against scheduling in a space without filesystems 
-- MGM: fix 'fileinfo by inode' 
+- MGM: protect scheduling against scheduling in a space without filesystems
+- MGM: fix 'fileinfo by inode'
 
 New Feature
 +++++++++++
@@ -196,7 +302,7 @@ Bug Fix
 +++++++
 
 - FUSE: fix a bug in auth cache when sid process of a calling pid does not exist anymore
-        
+
 
 ``V0.3.217 Aquamarine``
 =======================
@@ -221,7 +327,7 @@ Bug Fix
 Bug Fix
 +++++++
 
-- ETC: fix typoe introduced by MALLOC_CONF_VARNAME 
+- ETC: fix typoe introduced by MALLOC_CONF_VARNAME
 
 ``V0.3.214 Aquamarine``
 =======================

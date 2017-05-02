@@ -20,8 +20,25 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${CPPUNIT_INCLUDE_DIRS}
+  "${gtest_SOURCE_DIR}/include"
+  "${gmock_SOURCE_DIR}/include")
 
-include_directories(${CPPUNIT_INCLUDE_DIRS})
+#-------------------------------------------------------------------------------
+# ProtoBuf representation tests
+#-------------------------------------------------------------------------------
+add_executable(
+  test_proto
+  ProtoTests.cc)
+
+target_link_libraries(
+  test_proto
+  gtest
+  gmock_main
+  EosNsQuarkdb-Static
+  ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
 # EosNsQuarkdbTests library
@@ -34,12 +51,10 @@ add_library(
   FileSystemViewTest.cc
   OtherTests.cc)
 
-
 target_link_libraries(
   EosNsQuarkdbTests
   EosNsQuarkdb-Static
   ${CPPUNIT_LIBRARIES})
-
 
 #-------------------------------------------------------------------------------
 # eosnsbench executable

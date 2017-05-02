@@ -31,8 +31,8 @@ include_directories(
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
-PROTOBUF_GENERATE_CPP(CONFIG_SRCS CONFIG_HDRS PROTOFILES ConfigProto.proto)
-PROTOBUF_GENERATE_CPP(RESULT_SRCS RESULT_HDRS PROTOFILES ResultProto.proto)
+PROTOBUF_GENERATE_CPP(CONFIG_SRCS CONFIG_HDRS ConfigProto.proto)
+PROTOBUF_GENERATE_CPP(RESULT_SRCS RESULT_HDRS ResultProto.proto)
 set_source_files_properties(
   ${CONFIG_SRCS} ${CONFIG_HDRS} ${RESULT_SRCS} ${RESULT_HDRS}
   PROPERTIES GENERATED 1)
