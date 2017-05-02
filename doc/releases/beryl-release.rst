@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.243 Aquamarine``
+=====================
+
+- NS: fix memory allocation bug in Buffer class
+
+Buf Fixes
++++++++++
+
 ``V0.3.242 Aquamarine``
 =====================
 
