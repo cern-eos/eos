@@ -185,7 +185,6 @@ set(
   #-----------------------------------------------------------------------------
   checksum/CheckSum.cc           checksum/CheckSum.hh
   checksum/Adler.cc              checksum/Adler.hh
-  checksum/crc32c.cc             checksum/crc32ctables.cc
 
   #-----------------------------------------------------------------------------
   # File layout interface
@@ -205,6 +204,7 @@ target_link_libraries(
   EosFstIo PUBLIC
   eosCommon
   EosPluginManager-Static
+  EosCrc32c-Static
   jerasure-static
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
@@ -250,6 +250,7 @@ target_link_libraries(
   EosFstIo-Static PUBLIC
   eosCommon-Static
   EosPluginManager-Static
+  EosCrc32c-Static
   jerasure-static
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -307,7 +308,6 @@ add_library(
   XrdFstOssFile.cc XrdFstOssFile.hh
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
-  checksum/crc32c.cc checksum/crc32ctables.cc
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh)
 
 target_compile_definitions(
@@ -316,6 +316,7 @@ target_compile_definitions(
 target_link_libraries(
   EosFstOss PRIVATE
   eosCommon
+  EosCrc32c-Static
   ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
 
@@ -413,17 +414,13 @@ add_executable(
   eos-check-blockxs
   tools/CheckBlockXS.cc
   checksum/Adler.cc
-  checksum/CheckSum.cc
-  checksum/crc32c.cc
-  checksum/crc32ctables.cc)
+  checksum/CheckSum.cc)
 
 add_executable(
   eos-compute-blockxs
   tools/ComputeBlockXS.cc
   checksum/Adler.cc
-  checksum/CheckSum.cc
-  checksum/crc32c.cc
-  checksum/crc32ctables.cc)
+  checksum/CheckSum.cc)
 
 add_executable(
   eos-scan-fs
@@ -432,7 +429,6 @@ add_executable(
   FmdDbMap.cc
   FmdClient.cc           tools/ScanXS.cc
   checksum/Adler.cc      checksum/CheckSum.cc
-  checksum/crc32c.cc     checksum/crc32ctables.cc
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS})
 
@@ -440,9 +436,7 @@ add_executable(
   eos-adler32
   tools/Adler32.cc
   checksum/Adler.cc
-  checksum/CheckSum.cc
-  checksum/crc32c.cc
-  checksum/crc32ctables.cc)
+  checksum/CheckSum.cc)
 
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 

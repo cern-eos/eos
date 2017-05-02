@@ -194,7 +194,6 @@ public:
   void
   setChecksum(const void* checksum, uint8_t size)
   {
-    mFile.clear_checksum();
     mFile.set_checksum(checksum, size);
   }
 

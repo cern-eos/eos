@@ -63,9 +63,7 @@ add_executable(
   eoschecksumbench
   EosChecksumBenchmark.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/Adler.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/crc32c.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/crc32ctables.cc)
+  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc)
 
 target_link_libraries(xrdcpabort ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
 target_link_libraries(xrdcprandom ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})

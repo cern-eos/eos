@@ -7,7 +7,8 @@
 
 #include <stdint.h>
 
-namespace checksum {
+namespace checksum
+{
 
 extern const uint32_t crc_tableil8_o32[256];
 extern const uint32_t crc_tableil8_o40[256];

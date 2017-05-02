@@ -220,7 +220,7 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
     char hx[3];
     hx[0] = 0;
     snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
-             *reinterpret_cast<unsigned char*>(mFile.checksum()[i]));
+             *(unsigned char*)(mFile.checksum().data() + i));
     env += static_cast<char*>(hx);
   }
 }

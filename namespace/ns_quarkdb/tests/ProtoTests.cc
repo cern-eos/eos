@@ -71,6 +71,7 @@ TEST(MdProto, FileMd)
   rfile.deserialize(buffer);
   ASSERT_EQ(file.getSize(), rfile.getSize());
   ASSERT_EQ(file.getId(), rfile.getId());
+  ASSERT_EQ(file.getChecksum(), rfile.getChecksum());
 }
 
 EOSNSTESTING_END

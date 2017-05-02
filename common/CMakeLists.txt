@@ -42,6 +42,17 @@ set_source_files_properties(
   PROPERTIES GENERATED 1)
 
 #-------------------------------------------------------------------------------
+# EosCrc32c-Static library
+#-------------------------------------------------------------------------------
+add_library(EosCrc32c-Static STATIC
+  crc32c/crc32c.cc
+  crc32c/crc32ctables.cc)
+
+set_target_properties(
+  EosCrc32c-Static PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+#-------------------------------------------------------------------------------
 # eosCommon library
 #-------------------------------------------------------------------------------
 set(

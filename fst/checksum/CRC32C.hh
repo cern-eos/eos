@@ -27,7 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
-#include "fst/checksum/crc32c.h"
+#include "common/crc32c/crc32c.h"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -48,35 +48,36 @@ private:
 
 public:
 
-  CRC32C () : CheckSum ("crc32c")
+  CRC32C() : CheckSum("crc32c")
   {
     Reset();
   }
 
   off_t
-  GetLastOffset ()
+  GetLastOffset()
   {
     return crc32coffset;
   }
 
   bool
-  Add (const char* buffer, size_t length, off_t offset)
+  Add(const char* buffer, size_t length, off_t offset)
   {
-    if (offset != crc32coffset)
-    {
-        needsRecalculation = true;
-        return false;
+    if (offset != crc32coffset) {
+      needsRecalculation = true;
+      return false;
     }
+
     crcsum = checksum::crc32c(crcsum, (const Bytef*) buffer, length);
     crc32coffset += length;
     return true;
   }
 
   const char*
-  GetHexChecksum ()
+  GetHexChecksum()
   {
-    if (!finalized)
-        Finalize();
+    if (!finalized) {
+      Finalize();
+    }
 
     char scrc32[1024];
     sprintf(scrc32, "%08x", crcsum);
@@ -85,23 +86,24 @@ public:
   }
 
   const char*
-  GetBinChecksum (int &len)
+  GetBinChecksum(int& len)
   {
-    if (!finalized)
-        Finalize();
+    if (!finalized) {
+      Finalize();
+    }
 
-    len = sizeof (unsigned int);
+    len = sizeof(unsigned int);
     return (char*) &crcsum;
   }
 
   int
-  GetCheckSumLen ()
+  GetCheckSumLen()
   {
-    return sizeof (unsigned int);
+    return sizeof(unsigned int);
   }
 
   void
-  Reset ()
+  Reset()
   {
     crcsum = checksum::crc32cInit();
     crc32coffset = 0;
@@ -110,17 +112,16 @@ public:
   }
 
   void
-  Finalize ()
+  Finalize()
   {
-    if (!finalized)
-    {
-        crcsum = checksum::crc32cFinish(crcsum);
-        finalized = true;
+    if (!finalized) {
+      crcsum = checksum::crc32cFinish(crcsum);
+      finalized = true;
     }
   }
 
   virtual
-  ~CRC32C () { };
+  ~CRC32C() { };
 
 };
 
