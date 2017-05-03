@@ -229,7 +229,7 @@ eos_publish_artifacts:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
-    - source gitlab-ci/export_buildtype.sh 24 cc7
+    - source gitlab-ci/export_buildtype.sh 24 cc7_artifacts
     - export STORAGE_PATH_CC7=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/el-7/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH_CC7
     - sudo -u stci -H cp cc7_artifacts/* $STORAGE_PATH_CC7
