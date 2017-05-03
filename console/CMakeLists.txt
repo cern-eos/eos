@@ -22,17 +22,25 @@
 # ************************************************************************
 
 include_directories( ${CMAKE_SOURCE_DIR}
-		     ${XROOTD_INCLUDE_DIR} 
-		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
+		     ${XROOTD_INCLUDE_DIR}
+		     ${XROOTD_PRIVATE_INCLUDE_DIR}
 		     ${SPARSEHASH_INCLUDE_DIR} )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )
 
 
+#-------------------------------------------------------------------------------
+# Add CppUnit tests if possible
+#-------------------------------------------------------------------------------
+if(CPPUNIT_FOUND)
+  add_subdirectory(tests)
+endif()
+
+
 add_executable( eos
 		ConsoleMain.cc
-		ConsoleMain.hh	
+		ConsoleMain.hh
 		ConsolePipe.cc
 		ConsolePipe.hh
 		../fst/FmdClient.cc
@@ -40,82 +48,84 @@ add_executable( eos
 		../fst/checksum/Adler.cc
 		../fst/checksum/crc32c.cc
 		../fst/checksum/crc32ctables.cc
+		commands/AclCommand.cc
 		commands/com_access.cc
+		commands/com_acl.cc
 		commands/com_archive.cc
 	        commands/com_attr.cc
 		commands/com_backup.cc
 		commands/com_cd.cc
-		commands/com_chmod.cc 
-		commands/com_chown.cc 
-		commands/com_clear.cc         
-		commands/com_config.cc 
-		commands/com_console.cc 
-		commands/com_cp.cc 
-		commands/com_debug.cc 
-		commands/com_dropbox.cc 
-		commands/com_file.cc 
-		commands/com_find.cc 
-		commands/com_fs.cc 
+		commands/com_chmod.cc
+		commands/com_chown.cc
+		commands/com_clear.cc
+		commands/com_config.cc
+		commands/com_console.cc
+		commands/com_cp.cc
+		commands/com_debug.cc
+		commands/com_dropbox.cc
+		commands/com_file.cc
+		commands/com_find.cc
+		commands/com_fs.cc
 		commands/com_fsck.cc
 		commands/com_fuse.cc
 		commands/com_group.cc
 		commands/com_info.cc
 		commands/com_io.cc
 		commands/com_json.cc
-		commands/com_license.cc 
-		commands/com_ln.cc 
-		commands/com_ls.cc 
-		commands/com_map.cc 
-		commands/com_member.cc 
-		commands/com_mkdir.cc 
-		commands/com_motd.cc 
-		commands/com_mv.cc 
+		commands/com_license.cc
+		commands/com_ln.cc
+		commands/com_ls.cc
+		commands/com_map.cc
+		commands/com_member.cc
+		commands/com_mkdir.cc
+		commands/com_motd.cc
+		commands/com_mv.cc
 		commands/com_node.cc
-		commands/com_ns.cc    
-		commands/com_print.cc 
-		commands/com_pwd.cc 
-		commands/com_quit.cc 
-		commands/com_quota.cc 
-		commands/com_reconnect.cc 
+		commands/com_ns.cc
+		commands/com_print.cc
+		commands/com_pwd.cc
+		commands/com_quit.cc
+		commands/com_quota.cc
+		commands/com_reconnect.cc
 		commands/com_recycle.cc
-		commands/com_rm.cc 
-		commands/com_rmdir.cc 
-		commands/com_role.cc 
-		commands/com_rtlog.cc 
-		commands/com_silent.cc 
+		commands/com_rm.cc
+		commands/com_rmdir.cc
+		commands/com_role.cc
+		commands/com_rtlog.cc
+		commands/com_silent.cc
 		commands/com_space.cc
 		commands/com_stat.cc
-		commands/com_test.cc 
+		commands/com_test.cc
 		commands/com_timing.cc
-		commands/com_touch.cc 
-		commands/com_transfer.cc 
-		commands/com_version.cc 
-		commands/com_vid.cc 
-		commands/com_vst.cc 
-		commands/com_whoami.cc   
-		commands/com_who.cc 
+		commands/com_touch.cc
+		commands/com_transfer.cc
+		commands/com_version.cc
+		commands/com_vid.cc
+		commands/com_vst.cc
+		commands/com_whoami.cc
+		commands/com_who.cc
 )
 
 
 add_executable( eosdropboxd
-	        dropbox/eosdropboxd.cc 
+	        dropbox/eosdropboxd.cc
 )
 
 
 
 if (CLIENT)
-target_link_libraries( eos 
+target_link_libraries( eos
 		XrdPosix	        XrdCl
 		XrdUtils  	eosCommon
 		crypto           curses
 		dl               z 
 		rt
 		readline         ${CMAKE_THREAD_LIBS_INIT}
-		${UUID_LIBRARIES} 			       
+		${UUID_LIBRARIES}
 )
 else (CLIENT)
-target_link_libraries( eos 
-		XrdPosix	         XrdCl 
+target_link_libraries( eos
+		XrdPosix	         XrdCl
 		XrdUtils 	 eosCommon-Static
 		readline          XrdMqClient-Static
 		crypto            curses
@@ -127,14 +137,14 @@ endif(CLIENT)
 
 if (MacOSX)
 target_link_libraries( eosdropboxd
-		eosCommon XrdPosix 
-		XrdCl            XrdUtils 
+		eosCommon XrdPosix
+		XrdCl            XrdUtils
 		${CMAKE_THREAD_LIBS_INIT} )
 
 else (MacOSX)
-target_link_libraries( eosdropboxd 
-		eosCommon-Static XrdPosix 
-		XrdCl            XrdUtils 
+target_link_libraries( eosdropboxd
+		eosCommon-Static XrdPosix
+		XrdCl            XrdUtils
 		${CMAKE_THREAD_LIBS_INIT} )
 
 endif (MacOSX)
@@ -146,3 +156,4 @@ install( TARGETS eos eosdropboxd
          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )
+
