@@ -221,7 +221,7 @@ eos_system_test:
   tags:
     - shell-with-docker
   dependencies:
-    - ""
+    - eos_docker
   only:
     - master
     - beryl_aquamarine
