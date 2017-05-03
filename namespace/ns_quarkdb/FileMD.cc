@@ -121,6 +121,7 @@ FileMD::removeAllLocations()
     IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationRemoved,
                                    *it);
     pFileMDSvc->notifyListeners(&e);
+    ++it;
   }
 
   mFile.clear_locations();
@@ -158,6 +159,7 @@ FileMD::unlinkAllLocations()
     IFileMDChangeListener::Event e(
       this, IFileMDChangeListener::LocationUnlinked, *it);
     pFileMDSvc->notifyListeners(&e);
+    ++it;
   }
 
   mFile.clear_locations();
