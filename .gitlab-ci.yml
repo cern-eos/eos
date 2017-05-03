@@ -2,6 +2,7 @@ stages:
   - build:rpm
   - build:dockerimage
   - test
+  - publish
 
 before_script:
   - source gitlab-ci/export_branch.sh
@@ -11,7 +12,7 @@ eos_rpm_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache sssd-client sudo createrepo
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -26,24 +27,18 @@ eos_rpm_cc7:
     - rpmbuild --rebuild --with=server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - mkdir cc7
-    - cp -R build/SRPMS cc7
-    - cp -R build/RPMS cc7
+    - cp -R build/SRPMS/* cc7
+    - cp -R build/RPMS/* cc7
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
     - echo -e '[eos-depend-eosuser]\nname=EOS dpendencies on EOSUSER\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
     - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
     - echo -e '[xrootd]\nname=XROOTD\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/cc-7/x86_64/v4.6.0/\ngpgcheck=0\nenabled=1\npriority=4\n' >> eos-docker/eos.repo
-    - source gitlab-ci/export_buildtype.sh 24
-    - export STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/el-7/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp build/SRPMS/* $STORAGE_PATH
-    - sudo -u stci -H cp build/RPMS/* $STORAGE_PATH
-    - sudo -u stci -H createrepo -q $STORAGE_PATH
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
     - ccache/
   artifacts:
-    expire_in: 2 days
+    expire_in: 1 day
     paths:
     - cc7/
     - eos-docker/
@@ -58,7 +53,7 @@ eos_rpm_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sssd-client sudo authconfig createrepo
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -75,17 +70,17 @@ eos_rpm_slc6:
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
-    - authconfig --enablesssd --update
-    - source gitlab-ci/export_buildtype.sh 24
-    - export STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/el-6/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp build/SRPMS/* $STORAGE_PATH
-    - sudo -u stci -H cp build/RPMS/* $STORAGE_PATH
-    - sudo -u stci -H createrepo -q $STORAGE_PATH
+    - mkdir slc6_artifacts
+    - cp -R build/SRPMS/* slc6_artifacts
+    - cp -R build/RPMS/* slc6_artifacts
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
     - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - slc6_artifacts/
   tags:
     - docker-slc6
   only:
@@ -97,7 +92,7 @@ eos_rpm_fedora_rawhide:
   stage: build:rpm
   image: fedora:rawhide
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache sssd-client sudo createrepo
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -110,16 +105,17 @@ eos_rpm_fedora_rawhide:
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
-    - source gitlab-ci/export_buildtype.sh 25
-    - export STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp build/SRPMS/* $STORAGE_PATH
-    - sudo -u stci -H cp build/RPMS/* $STORAGE_PATH
-    - sudo -u stci -H createrepo -q $STORAGE_PATH
+    - mkdir fcrawhide_artifacts
+    - cp -R build/SRPMS/* fcrawhide_artifacts
+    - cp -R build/RPMS/* fcrawhide_artifacts
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
     - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - fcrawhide_artifacts/
   tags:
     - docker-fc_rawhide
   only:
@@ -131,7 +127,7 @@ eos_rpm_fedora_24:
   stage: build:rpm
   image: fedora:24
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache sssd-client sudo createrepo
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -144,16 +140,17 @@ eos_rpm_fedora_24:
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
-    - source gitlab-ci/export_buildtype.sh 24
-    - export STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/fc-24/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp build/SRPMS/* $STORAGE_PATH
-    - sudo -u stci -H cp build/RPMS/* $STORAGE_PATH
-    - sudo -u stci -H createrepo -q $STORAGE_PATH
+    - mkdir fcold_artifacts
+    - cp -R build/SRPMS/* fcold_artifacts
+    - cp -R build/RPMS/* fcold_artifacts
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
     - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - fcold_artifacts/
   tags:
     - docker-fc25
   only:
@@ -175,12 +172,12 @@ eos_dmg_macosx:
     - ../utils/eos-osx-package.sh $version ../install/
     - ccache -s
     - cd ..
-    - mkdir osx
-    - cp build/*.dmg osx
+    - mkdir osx_artifacts
+    - cp build/*.dmg osx_artifacts
   artifacts:
-    expire_in: 2 days
+    expire_in: 1 day
     paths:
-    - osx/
+    - osx_artifacts/
   tags:
     - macosx-shell
   only:
@@ -221,7 +218,39 @@ eos_system_test:
   tags:
     - shell-with-docker
   dependencies:
-    - eos_docker
+    - eos_rpm_cc7
+  only:
+    - master
+    - beryl_aquamarine
+    - master-ci
+
+eos_publish_artifacts:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sssd-client sudo createrepo
+    - source gitlab-ci/export_buildtype.sh 24 cc7
+    - export STORAGE_PATH_CC7=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/el-7/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH_CC7
+    - sudo -u stci -H cp cc7/* $STORAGE_PATH_CC7
+    - sudo -u stci -H createrepo -q $STORAGE_PATH_CC7
+    - export STORAGE_PATH_SLC6=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/el-6/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH_SLC6
+    - sudo -u stci -H cp slc6_artifacts/* $STORAGE_PATH_SLC6
+    - sudo -u stci -H createrepo -q $STORAGE_PATH_SLC6
+    - export STORAGE_PATH_FCRH=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH_FCRH
+    - sudo -u stci -H cp fcrawhide_artifacts/* $STORAGE_PATH_FCRH
+    - sudo -u stci -H createrepo -q $STORAGE_PATH_FCRH
+    - export STORAGE_PATH_FCOLD=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/fc-24/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH_FCOLD
+    - sudo -u stci -H cp fcold_artifacts/* $STORAGE_PATH_FCOLD
+    - sudo -u stci -H createrepo -q $STORAGE_PATH_FCOLD
+    - export STORAGE_PATH_MACOS=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/osx/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH_MACOS
+    - sudo -u stci -H cp osx_artifacts/* $STORAGE_PATH_MACOS
+  tags:
+    - docker-cc7
   only:
     - master
     - beryl_aquamarine
