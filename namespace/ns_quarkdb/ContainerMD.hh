@@ -49,7 +49,7 @@ public:
   //----------------------------------------------------------------------------
   //! Desstructor
   //----------------------------------------------------------------------------
-  virtual ~ContainerMD();
+  virtual ~ContainerMD() {};
 
   //----------------------------------------------------------------------------
   //! Copy constructor
@@ -353,22 +353,11 @@ public:
   std::string getAttribute(const std::string& name) const;
 
   //----------------------------------------------------------------------------
-  //! Get attribute begin iterator
+  //! Get map copy of the extended attributes
+  //!
+  //! @return std::map containing all the extended attributes
   //----------------------------------------------------------------------------
-  XAttrMap::iterator
-  attributesBegin()
-  {
-    return pXAttrs.begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the attribute end iterator
-  //----------------------------------------------------------------------------
-  XAttrMap::iterator
-  attributesEnd()
-  {
-    return pXAttrs.end();
-  }
+  XAttrMap getAttributes() const;
 
   //------------------------------------------------------------------------------
   //! Check the access permissions

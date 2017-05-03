@@ -509,4 +509,13 @@ void ContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
   containerMDSvc->notifyListeners(this , IContainerMDChangeListener::MTimeChange);
 }
 
+//------------------------------------------------------------------------------
+// Get map copy of the extended attributes
+//------------------------------------------------------------------------------
+eos::IFileMD::XAttrMap
+ContainerMD::getAttributes() const
+{
+  return pXAttrs;
+}
+
 EOSNSNAMESPACE_END

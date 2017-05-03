@@ -339,10 +339,10 @@ XrdMgmOfs::_mkdir(const char* path,
 
           if (dir->getMode() & S_ISGID) {
             // Inherit the attributes
-            eos::IContainerMD::XAttrMap::const_iterator it;
+            eos::IFileMD::XAttrMap xattrs = dir->getAttributes();
 
-            for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it) {
-              newdir->setAttribute(it->first, it->second);
+            for (const auto& elem : xattrs) {
+              newdir->setAttribute(elem.first, elem.second);
             }
           }
 
@@ -394,11 +394,11 @@ XrdMgmOfs::_mkdir(const char* path,
 
     if ((dir->getMode() & S_ISGID) &&
         (cPath.GetFullPath().find(EOS_COMMON_PATH_VERSION_PREFIX) == STR_NPOS)) {
-      // inherit the attributes - not for version directories
-      eos::IContainerMD::XAttrMap::const_iterator it;
+      // Inherit the attributes - not for version directories
+      eos::IFileMD::XAttrMap xattrs = dir->getAttributes();
 
-      for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it) {
-        newdir->setAttribute(it->first, it->second);
+      for (const auto& elem : xattrs) {
+        newdir->setAttribute(elem.first, elem.second);
       }
     }
 

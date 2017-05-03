@@ -947,14 +947,13 @@ ProcCommand::DirInfo(const char* path)
           stdOut += "etag=";
           stdOut += etag.c_str();
           stdOut += " ";
+          eos::IFileMD::XAttrMap xattrs = dmd_copy->getAttributes();
 
-          for (auto it_attr = dmd_copy->attributesBegin();
-               it_attr != dmd_copy->attributesEnd();
-               ++it_attr) {
+          for (const auto& elem : xattrs) {
             stdOut += "xattrn=";
-            stdOut += it_attr->first.c_str();
+            stdOut += elem.first.c_str();
             stdOut += " xattrv=";
-            stdOut += it_attr->second.c_str();
+            stdOut += elem.second.c_str();
             stdOut += " ";
           }
         }
@@ -1007,10 +1006,10 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
     }
 
     Json::Value jsonxattr;
+    eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
 
-    for (eos::IFileMD::XAttrMap::iterator it = fmd_copy->attributesBegin();
-         it != fmd_copy->attributesEnd(); ++it) {
-      jsonxattr[it->first] = it->second;
+    for (const auto& elem : xattrs) {
+      jsonxattr[elem.first] = elem.second;
     }
 
     if (fmd_copy->numAttributes()) {
@@ -1176,10 +1175,10 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json)
     }
 
     Json::Value jsonxattr;
+    eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
 
-    for (eos::IFileMD::XAttrMap::iterator it = cmd->attributesBegin();
-         it != cmd->attributesEnd(); ++it) {
-      jsonxattr[it->first] = it->second;
+    for (const auto& elem : xattrs) {
+      jsonxattr[elem.first] = elem.second;
     }
 
     if (cmd->numAttributes()) {

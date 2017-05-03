@@ -278,7 +278,7 @@ XrdMgmOfs::_stat(const char* path,
     buf->st_ino = cmd->getId();
     buf->st_mode = cmd->getMode();
 
-    if (cmd->attributesBegin() != cmd->attributesEnd()) {
+    if (cmd->numAttributes()) {
       buf->st_mode |= S_ISVTX;
     }
 

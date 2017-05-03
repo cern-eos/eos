@@ -295,14 +295,9 @@ public:
   virtual size_t numAttributes() const = 0;
 
   //----------------------------------------------------------------------------
-  //! Get attribute begin iterator
+  //! Get map copy of the extended attributes
   //----------------------------------------------------------------------------
-  virtual XAttrMap::iterator attributesBegin() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get the attribute end iterator
-  //----------------------------------------------------------------------------
-  virtual XAttrMap::iterator attributesEnd() = 0;
+  virtual XAttrMap getAttributes() const = 0;
 
   //----------------------------------------------------------------------------
   //! Check the access permissions

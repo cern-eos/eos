@@ -53,13 +53,6 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 }
 
 //------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-ContainerMD::~ContainerMD()
-{
-}
-
-//------------------------------------------------------------------------------
 // Virtual copy constructor
 //------------------------------------------------------------------------------
 ContainerMD*
@@ -871,5 +864,25 @@ ContainerMD::deserialize(Buffer& buffer)
     throw e;
   }
 }
+
+//------------------------------------------------------------------------------
+// Get map copy of the extended attributes
+//------------------------------------------------------------------------------
+eos::IFileMD::XAttrMap
+ContainerMD::getAttributes() const
+{
+  return pXAttrs;
+  // TODO (esindril): Finish implementation
+  /*
+  std::map<std::string, std::string> xattrs;
+
+  for (const auto& elem: mFile.xattrs()) {
+    xattrs.insert(elem);
+  }
+
+  return xattrs;
+  */
+}
+
 
 EOSNSNAMESPACE_END

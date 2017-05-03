@@ -226,11 +226,7 @@ XrdMgmOfs::_attr_ls(const char* path,
 
   try {
     dh = gOFS->eosView->getContainer(path);
-    eos::IContainerMD::XAttrMap::const_iterator it;
-
-    for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
-      map[it->first] = it->second;
-    }
+    map = dh->getAttributes();
   } catch (eos::MDException& e) {
     dh.reset();
     errno = e.getErrno();
@@ -241,12 +237,7 @@ XrdMgmOfs::_attr_ls(const char* path,
   if (!dh) {
     try {
       fmd = gOFS->eosView->getFile(path);
-      eos::IFileMD::XAttrMap::const_iterator it;
-
-      for (it = fmd->attributesBegin(); it != fmd->attributesEnd(); ++it) {
-        map[it->first] = it->second;
-      }
-
+      map = fmd->getAttributes();
       errno = 0;
     } catch (eos::MDException& e) {
       fmd.reset();
@@ -260,17 +251,17 @@ XrdMgmOfs::_attr_ls(const char* path,
   if (map.count("sys.attr.link")) {
     try {
       dh = gOFS->eosView->getContainer(map["sys.attr.link"]);
-      eos::IContainerMD::XAttrMap::const_iterator it;
+      eos::IFileMD::XAttrMap xattrs = dh->getAttributes();
 
-      for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
-        XrdOucString key = it->first.c_str();
+      for (const auto& elem : xattrs) {
+        XrdOucString key = elem.first.c_str();
 
         if (links) {
           key.replace("sys.", "sys.link.");
         }
 
-        if (!map.count(it->first)) {
-          map[key.c_str()] = it->second;
+        if (!map.count(elem.first)) {
+          map[key.c_str()] = elem.second;
         }
       }
     } catch (eos::MDException& e) {

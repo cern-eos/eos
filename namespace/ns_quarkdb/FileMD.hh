@@ -550,22 +550,11 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get attribute begin iterator
+  //! Get map copy of the extended attributes
+  //!
+  //! @return std::map containing all the extended attributes
   //----------------------------------------------------------------------------
-  XAttrMap::iterator
-  attributesBegin()
-  {
-    return pXAttrs.begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the attribute end iterator
-  //----------------------------------------------------------------------------
-  XAttrMap::iterator
-  attributesEnd()
-  {
-    return pXAttrs.end();
-  }
+  eos::IFileMD::XAttrMap getAttributes() const;
 
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer

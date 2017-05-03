@@ -390,4 +390,19 @@ FileMD::Register(qclient::AsyncResponseType aresp, qclient::QClient* qcl)
   mAh.Register(std::move(aresp), qcl);
 }
 
+//------------------------------------------------------------------------------
+// Get map copy of the extended attributes
+//------------------------------------------------------------------------------
+eos::IFileMD::XAttrMap
+FileMD::getAttributes() const
+{
+  std::map<std::string, std::string> xattrs;
+
+  for (const auto& elem : mFile.xattrs()) {
+    xattrs.insert(elem);
+  }
+
+  return xattrs;
+}
+
 EOSNSNAMESPACE_END

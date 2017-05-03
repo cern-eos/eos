@@ -77,7 +77,7 @@
   {
     ThreadLogId.SetLogId(alogid, tident);
   }
-  
+
   int envlen = 0;
 
   if (!spath || !afid || !alogid || !aevent)
@@ -121,46 +121,45 @@
       } else
       {
         fmd = gOFS->eosView->getFile(spath);
-	fid = fmd->getId();
+        fid = fmd->getId();
       }
 
       dh = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-      eos::IContainerMD::XAttrMap::const_iterator it;
+      eos::IFileMD::XAttrMap xattrs = dh->getAttributes();
 
-      for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
+      for (const auto& elem : xattrs)
       {
-        attr[it->first] = it->second;
+        attr[elem.first] = elem.second;
       }
 
-      // check for attribute references                                                                                         
-      if (attr.count("sys.attr.link")) {
-	try 
-        {
-	  dh = gOFS->eosView->getContainer(attr["sys.attr.link"]);
-	  eos::IContainerMD::XAttrMap::const_iterator it;
+      // check for attribute references
+      if (attr.count("sys.attr.link"))
+      {
+        try {
+          dh = gOFS->eosView->getContainer(attr["sys.attr.link"]);
+          eos::IFileMD::XAttrMap xattrs = dh->getAttributes();
 
-	  for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
-	    XrdOucString key = it->first.c_str();
+          for (const auto& elem : xattrs) {
+            XrdOucString key = elem.first.c_str();
 
-	    if (!attr.count(it->first)) {
-	      attr[key.c_str()] = it->second;
-	    }
-	  }
-	} 
-        catch (eos::MDException& e) 
-        {
-	  dh.reset();
-	  errno = e.getErrno();
-	  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-		    e.getMessage().str().c_str());
-	}
-	attr.erase("sys.attr.link");
+            if (!attr.count(elem.first)) {
+              attr[key.c_str()] = elem.second;
+            }
+          }
+        } catch (eos::MDException& e) {
+          dh.reset();
+          errno = e.getErrno();
+          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                    e.getMessage().str().c_str());
+        }
+
+        attr.erase("sys.attr.link");
       }
     } catch (eos::MDException& e)
     {
       errno = e.getErrno();
       eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-      e.getMessage().str().c_str());
+                       e.getMessage().str().c_str());
     }
   }
 
@@ -173,16 +172,14 @@
 
   if (rc == -1)
   {
-    if (errno == ENOKEY)
-    {
+    if (errno == ENOKEY) {
       // there is no workflow defined
-      return Emsg(epname, error, EINVAL, "trigger workflow - there is workflow define for this <workflow>.<event>",
-		  env.Env(envlen));
-    }
-    else
-    {
+      return Emsg(epname, error, EINVAL,
+                  "trigger workflow - there is workflow define for this <workflow>.<event>",
+                  env.Env(envlen));
+    } else {
       return Emsg(epname, error, EIO, "trigger workflow - internal error",
-		  env.Env(envlen));
+                  env.Env(envlen));
     }
   }
 
