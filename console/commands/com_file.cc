@@ -190,6 +190,8 @@ com_file(char* arg1)
     in += "&mgm.subcmd=rename";
     in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
+    in += "&mgm.file.source=";
+    in += path;
     in += "&mgm.file.target=";
     in += fsid1.c_str();
   }
