@@ -220,6 +220,8 @@ eos_system_test:
     - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
   tags:
     - shell-with-docker
+  dependencies:
+    - ""
   only:
     - master
     - beryl_aquamarine
