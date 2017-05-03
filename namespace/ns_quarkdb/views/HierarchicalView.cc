@@ -905,14 +905,27 @@ HierarchicalView::renameFile(IFileMD* file, const std::string& newName)
 //------------------------------------------------------------------------------
 // Abspath sanitizing all '..' and '.' in a path
 //------------------------------------------------------------------------------
-void
-HierarchicalView::absPath(std::string& mypath)
+void HierarchicalView::absPath(std::string& mypath)
 {
   std::string path = mypath;
   std::string abspath;
   size_t rpos = 4096;
+  size_t bppos;
 
-  while ((rpos = path.rfind('/', rpos)) != std::string::npos) {
+  // remove /../ from front
+  while ((bppos = path.find("/../")) != std::string::npos) {
+    size_t spos = path.rfind("/", bppos - 1);
+
+    if (spos != std::string::npos) {
+      path.erase(bppos, 4);
+      path.erase(spos + 1, bppos - spos - 1);
+    } else {
+      path = "/";
+      break;
+    }
+  }
+
+  while ((rpos = path.rfind("/", rpos)) != std::string::npos) {
     rpos--;
     std::string tp = path.substr(rpos + 1);
     path.erase(rpos + 1);
@@ -922,13 +935,6 @@ HierarchicalView::absPath(std::string& mypath)
     }
 
     if (tp == "/.") {
-      continue;
-    }
-
-    if (tp == "/..") {
-      rpos = path.rfind('/', rpos);
-      path.erase(rpos);
-      rpos--;
       continue;
     }
 
