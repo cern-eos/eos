@@ -21,6 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef __CONSOLE__MAIN__HH__
+#define _CONSOLE__MAIN__HH__
+
 /*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
 #include "common/Fmd.hh"
@@ -121,4 +124,7 @@ extern int wants_help (const char* arg1);
 extern COMMAND commands[];
 
 extern int done;
+
+#endif //_CONSOLE__MAIN__HH__
+
 
