@@ -580,7 +580,7 @@ protected:
   IFileMDSvc* pFileMDSvc;
 
 private:
-  eos::ns::FileMdProto mFile; ///< ProtoBuf file representation
+  eos::ns::FileMdProto mFile; ///< Protobuf file representation
   qclient::AsyncHandler mAh; ///< Async handler
 };
 

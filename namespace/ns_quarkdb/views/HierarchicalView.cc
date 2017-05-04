@@ -750,7 +750,7 @@ HierarchicalView::registerQuotaNode(IContainerMD* container)
   }
 
   IQuotaNode* node = pQuotaStats->registerNewNode(container->getId());
-  container->getFlags() |= QUOTA_NODE_FLAG;
+  container->setFlags(container->getFlags() | QUOTA_NODE_FLAG);
   updateContainerStore(container);
   return node;
 }
@@ -789,7 +789,7 @@ HierarchicalView::removeQuotaNode(IContainerMD* container)
                pContainerSvc->getContainerMD(container->getParentId()).get(), true);
   }
 
-  container->getFlags() &= ~QUOTA_NODE_FLAG;
+  container->setFlags(container->getFlags() & ~QUOTA_NODE_FLAG);
   updateContainerStore(container);
 
   if (parent != nullptr) {

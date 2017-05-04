@@ -27,6 +27,7 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "ContainerMd.pb.h"
 #include <string>
 #include <sys/time.h>
 
@@ -112,7 +113,7 @@ public:
   inline id_t
   getId() const
   {
-    return pId;
+    return mCont.id();
   }
 
   //----------------------------------------------------------------------------
@@ -121,7 +122,7 @@ public:
   inline id_t
   getParentId() const
   {
-    return pParentId;
+    return mCont.parent_id();
   }
 
   //----------------------------------------------------------------------------
@@ -130,16 +131,7 @@ public:
   void
   setParentId(id_t parentId)
   {
-    pParentId = parentId;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the flags
-  //----------------------------------------------------------------------------
-  uint16_t&
-  getFlags()
-  {
-    return pFlags;
+    mCont.set_parent_id(parentId);
   }
 
   //----------------------------------------------------------------------------
@@ -148,7 +140,15 @@ public:
   inline uint16_t
   getFlags() const
   {
-    return pFlags;
+    return mCont.flags();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set flags
+  //----------------------------------------------------------------------------
+  virtual void setFlags(uint16_t flags)
+  {
+    mCont.set_flags(0x00ff & flags);
   }
 
   //----------------------------------------------------------------------------
@@ -207,7 +207,7 @@ public:
   inline uint64_t
   getTreeSize() const
   {
-    return pTreeSize;
+    return mCont.tree_size();
   }
 
   //----------------------------------------------------------------------------
@@ -216,7 +216,7 @@ public:
   inline void
   setTreeSize(uint64_t treesize)
   {
-    pTreeSize = treesize;
+    mCont.set_tree_size(treesize);
   }
 
   //----------------------------------------------------------------------------
@@ -235,7 +235,7 @@ public:
   inline const std::string&
   getName() const
   {
-    return pName;
+    return mCont.name();
   }
 
   //----------------------------------------------------------------------------
@@ -249,7 +249,7 @@ public:
   inline uid_t
   getCUid() const
   {
-    return pCUid;
+    return mCont.uid();
   }
 
   //----------------------------------------------------------------------------
@@ -258,7 +258,7 @@ public:
   inline void
   setCUid(uid_t uid)
   {
-    pCUid = uid;
+    mCont.set_uid(uid);
   }
 
   //----------------------------------------------------------------------------
@@ -267,7 +267,7 @@ public:
   inline gid_t
   getCGid() const
   {
-    return pCGid;
+    return mCont.gid();
   }
 
   //----------------------------------------------------------------------------
@@ -276,7 +276,7 @@ public:
   inline void
   setCGid(gid_t gid)
   {
-    pCGid = gid;
+    mCont.set_gid(gid);
   }
 
   //----------------------------------------------------------------------------
@@ -285,7 +285,7 @@ public:
   inline mode_t
   getMode() const
   {
-    return pMode;
+    return mCont.mode();
   }
 
   //----------------------------------------------------------------------------
@@ -294,25 +294,7 @@ public:
   inline void
   setMode(mode_t mode)
   {
-    pMode = mode;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get ACL Id
-  //----------------------------------------------------------------------------
-  inline uint16_t
-  getACLId() const
-  {
-    return pACLId;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set ACL Id
-  //----------------------------------------------------------------------------
-  inline void
-  setACLId(uint16_t ACLId)
-  {
-    pACLId = ACLId;
+    mCont.set_mode(mode);
   }
 
   //----------------------------------------------------------------------------
@@ -321,7 +303,7 @@ public:
   void
   setAttribute(const std::string& name, const std::string& value)
   {
-    pXAttrs[name] = value;
+    (*mCont.mutable_xattrs())[name] = value;
   }
 
   //----------------------------------------------------------------------------
@@ -335,7 +317,7 @@ public:
   bool
   hasAttribute(const std::string& name) const
   {
-    return pXAttrs.find(name) != pXAttrs.end();
+    return (mCont.xattrs().find(name) != mCont.xattrs().end());
   }
 
   //----------------------------------------------------------------------------
@@ -344,7 +326,7 @@ public:
   size_t
   numAttributes() const
   {
-    return pXAttrs.size();
+    return mCont.xattrs().size();
   }
 
   //----------------------------------------------------------------------------
@@ -396,24 +378,8 @@ public:
   //----------------------------------------------------------------------------
   void deserialize(Buffer& buffer);
 
-protected:
-  id_t pId;
-  id_t pParentId;
-  uint16_t pFlags;
-  ctime_t pCTime;
-  std::string pName;
-  uid_t pCUid;
-  gid_t pCGid;
-  mode_t pMode;
-  uint16_t pACLId;
-  XAttrMap pXAttrs;
-
 private:
-  // Non-presistent data members
-  mtime_t pMTime;
-  tmtime_t pTMTime;
-  uint64_t pTreeSize;
-
+  eos::ns::ContainerMdProto mCont; ///< Protobuf container representation
   IContainerMDSvc* pContSvc;  ///< Container metadata service
   IFileMDSvc* pFileSvc;       ///< File metadata service
   qclient::QClient* pQcl;     ///< QClient object
@@ -421,7 +387,7 @@ private:
   std::string pDirsKey;       ///< Map dir key
   qclient::QHash pFilesMap;   ///< Map holding info about files
   qclient::QHash pDirsMap;    ///< Map holding info about subcontainers
-  //! Dir name to id map
+  //! Directory name to id map
   std::map<std::string, eos::IContainerMD::id_t> mDirsMap;
   std::map<std::string, eos::IFileMD::id_t> mFilesMap; ///< File name to id map
 };

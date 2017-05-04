@@ -21,7 +21,10 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "namespace/utils/DataHelper.hh"
 #include "namespace/utils/StringConvertion.hh"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 #include <sys/stat.h>
 #include <algorithm>
 
@@ -32,14 +35,13 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
                          IContainerMDSvc* cont_svc)
-  : IContainerMD(), pId(id), pParentId(0), pFlags(0), pCTime{0}, pName(""),
-    pCUid(0), pCGid(0), pMode(040755), pACLId(0), pMTime{0}, pTMTime{0},
-    pTreeSize(0), pContSvc(cont_svc), pFileSvc(file_svc),
+  : IContainerMD(), pContSvc(cont_svc), pFileSvc(file_svc),
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
     pDirsKey(stringify(id) + constants::sMapDirsSuffix),
     mDirsMap(), mFilesMap()
 {
-  ContainerMDSvc* impl_cont_svc = dynamic_cast<ContainerMDSvc*>(cont_svc);
+  mCont.set_id(id);
+  ContainerMDSvc* impl_cont_svc = (ContainerMDSvc*)(cont_svc);
 
   if (!impl_cont_svc) {
     MDException e(EFAULT);
@@ -74,24 +76,11 @@ ContainerMD::ContainerMD(const ContainerMD& other)
 //------------------------------------------------------------------------------
 ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 {
-  pId       = other.pId;
-  pParentId = other.pParentId;
-  pFlags    = other.pFlags;
-  pCTime    = other.pCTime;
-  pMTime    = other.pMTime;
-  pTMTime   = other.pTMTime;
-  pName     = other.pName;
-  pCUid     = other.pCUid;
-  pCGid     = other.pCGid;
-  pMode     = other.pMode;
-  pACLId    = other.pACLId;
-  pXAttrs   = other.pXAttrs;
-  pFlags    = other.pFlags;
-  pTreeSize = other.pTreeSize;
+  mCont    = other.mCont;
   pContSvc  = other.pContSvc;
   pFileSvc  = other.pFileSvc;
-  // Note: pFiles and pSubContainers are not copied here
   pQcl      = other.pQcl;
+  // Note: pFiles and pSubContainers are not copied here
   return *this;
 }
 
@@ -163,7 +152,7 @@ ContainerMD::removeContainer(const std::string& name)
 void
 ContainerMD::addContainer(IContainerMD* container)
 {
-  container->setParentId(pId);
+  container->setParentId(mCont.id());
   auto ret = mDirsMap.insert(std::pair<std::string, IContainerMD::id_t>(
                                container->getName(), container->getId()));
 
@@ -229,7 +218,7 @@ ContainerMD::findFile(const std::string& name)
 void
 ContainerMD::addFile(IFileMD* file)
 {
-  file->setContainerId(pId);
+  file->setContainerId(mCont.id());
   auto ret = mFilesMap.insert(
                std::pair<std::string, IFileMD::id_t>(file->getName(), file->getId()));
 
@@ -269,7 +258,7 @@ ContainerMD::removeFile(const std::string& name)
 
   if (iter == mFilesMap.end()) {
     MDException e(ENOENT);
-    e.getMessage() << "Unknown file " << name << " in container " << pName;
+    e.getMessage() << "Unknown file " << name << " in container " << mCont.name();
     throw e;
   } else {
     id = iter->second;
@@ -351,7 +340,7 @@ ContainerMD::cleanUp()
 
     if (err_conn) {
       MDException e(ECOMM);
-      e.getMessage() << __FUNCTION__ << "Container " << pName
+      e.getMessage() << __FUNCTION__ << "Container " << mCont.name()
                      << " error contacting KV-store";
       throw e;
     }
@@ -501,17 +490,17 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
   }
 
   // Check the perms
-  if (uid == pCUid) {
-    char user = convertModetUser(pMode);
+  if (uid == mCont.uid()) {
+    char user = convertModetUser(mCont.mode());
     return checkPerms(user, convFlags);
   }
 
-  if (gid == pCGid) {
-    char group = convertModetGroup(pMode);
+  if (gid == mCont.gid()) {
+    char group = convertModetGroup(mCont.mode());
     return checkPerms(group, convFlags);
   }
 
-  char other = convertModetOther(pMode);
+  char other = convertModetOther(mCont.mode());
   return checkPerms(other, convFlags);
 }
 
@@ -522,9 +511,9 @@ void
 ContainerMD::setName(const std::string& name)
 {
   // Check that there is no clash with other subcontainers having the same name
-  if (pParentId != 0u) {
+  if (mCont.parent_id() != 0u) {
     std::shared_ptr<eos::IContainerMD> parent =
-      pContSvc->getContainerMD(pParentId);
+      pContSvc->getContainerMD(mCont.parent_id());
 
     if (parent->findContainer(name)) {
       eos::MDException e(EINVAL);
@@ -533,7 +522,7 @@ ContainerMD::setName(const std::string& name)
     }
   }
 
-  pName = name;
+  mCont.set_name(name);
 }
 
 //------------------------------------------------------------------------------
@@ -542,8 +531,7 @@ ContainerMD::setName(const std::string& name)
 void
 ContainerMD::setCTime(ctime_t ctime)
 {
-  pCTime.tv_sec = ctime.tv_sec;
-  pCTime.tv_nsec = ctime.tv_nsec;
+  mCont.set_ctime(&ctime, sizeof(ctime));
 }
 
 //------------------------------------------------------------------------------
@@ -552,14 +540,16 @@ ContainerMD::setCTime(ctime_t ctime)
 void
 ContainerMD::setCTimeNow()
 {
+  struct timespec tnow;
 #ifdef __APPLE__
   struct timeval tv;
   gettimeofday(&tv, 0);
-  pCTime.tv_sec = tv.tv_sec;
-  pCTime.tv_nsec = tv.tv_usec * 1000;
+  tnow.tv_sec = tv.tv_sec;
+  tnow.tv_nsec = tv.tv_usec * 1000;
 #else
-  clock_gettime(CLOCK_REALTIME, &pCTime);
+  clock_gettime(CLOCK_REALTIME, &tnow);
 #endif
+  mCont.set_ctime(&tnow, sizeof(tnow));
 }
 
 //------------------------------------------------------------------------------
@@ -568,8 +558,7 @@ ContainerMD::setCTimeNow()
 void
 ContainerMD::getCTime(ctime_t& ctime) const
 {
-  ctime.tv_sec = pCTime.tv_sec;
-  ctime.tv_nsec = pCTime.tv_nsec;
+  (void) memcpy(&ctime, mCont.ctime().data(), sizeof(ctime));
 }
 
 //------------------------------------------------------------------------------
@@ -578,8 +567,7 @@ ContainerMD::getCTime(ctime_t& ctime) const
 void
 ContainerMD::setMTime(mtime_t mtime)
 {
-  pMTime.tv_sec = mtime.tv_sec;
-  pMTime.tv_nsec = mtime.tv_nsec;
+  mCont.set_mtime(&mtime, sizeof(mtime));
 }
 
 //------------------------------------------------------------------------------
@@ -588,14 +576,16 @@ ContainerMD::setMTime(mtime_t mtime)
 void
 ContainerMD::setMTimeNow()
 {
+  struct timespec tnow;
 #ifdef __APPLE__
   struct timeval tv = {0};
   gettimeofday(&tv, 0);
-  pMTime.tv_sec = tv.tv_sec;
-  pMTime.tv_nsec = tv.tv_usec * 1000;
+  tnow.tv_sec = tv.tv_sec;
+  tnow.tv_nsec = tv.tv_usec * 1000;
 #else
-  clock_gettime(CLOCK_REALTIME, &pMTime);
+  clock_gettime(CLOCK_REALTIME, &tnow);
 #endif
+  mCont.set_mtime(&tnow, sizeof(tnow));
 }
 
 //------------------------------------------------------------------------------
@@ -604,8 +594,7 @@ ContainerMD::setMTimeNow()
 void
 ContainerMD::getMTime(mtime_t& mtime) const
 {
-  mtime.tv_sec = pMTime.tv_sec;
-  mtime.tv_nsec = pMTime.tv_nsec;
+  (void) memcpy(&mtime, mCont.mtime().data(), sizeof(mtime));
 }
 
 //------------------------------------------------------------------------------
@@ -614,12 +603,14 @@ ContainerMD::getMTime(mtime_t& mtime) const
 bool
 ContainerMD::setTMTime(tmtime_t tmtime)
 {
-  if (((pTMTime.tv_sec == 0) && (pTMTime.tv_nsec == 0)) ||
-      (tmtime.tv_sec > pTMTime.tv_sec) ||
-      ((tmtime.tv_sec == pTMTime.tv_sec) &&
-       (tmtime.tv_nsec > pTMTime.tv_nsec))) {
-    pTMTime.tv_sec = tmtime.tv_sec;
-    pTMTime.tv_nsec = tmtime.tv_nsec;
+  tmtime_t tmt;
+  getTMTime(tmt);
+
+  if (((tmt.tv_sec == 0) && (tmt.tv_nsec == 0)) ||
+      (tmtime.tv_sec > tmt.tv_sec) ||
+      ((tmtime.tv_sec == tmt.tv_sec) &&
+       (tmtime.tv_nsec > tmt.tv_nsec))) {
+    mCont.set_stime(&tmtime, sizeof(tmtime));
     return true;
   }
 
@@ -650,8 +641,7 @@ ContainerMD::setTMTimeNow()
 void
 ContainerMD::getTMTime(tmtime_t& tmtime)
 {
-  tmtime.tv_sec = pTMTime.tv_sec;
-  tmtime.tv_nsec = pTMTime.tv_nsec;
+  (void) memcpy(&tmtime, mCont.stime().data(), sizeof(tmtime));
 }
 
 //------------------------------------------------------------------------------
@@ -670,8 +660,9 @@ ContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
 uint64_t
 ContainerMD::addTreeSize(uint64_t addsize)
 {
-  pTreeSize += addsize;
-  return pTreeSize;
+  uint64_t sz = mCont.tree_size() + addsize;
+  mCont.set_tree_size(sz);
+  return sz;
 }
 
 //------------------------------------------------------------------------------
@@ -680,8 +671,9 @@ ContainerMD::addTreeSize(uint64_t addsize)
 uint64_t
 ContainerMD::removeTreeSize(uint64_t removesize)
 {
-  pTreeSize += removesize;
-  return pTreeSize;
+  uint64_t sz = mCont.tree_size() - removesize;
+  mCont.set_tree_size(sz);
+  return sz;
 }
 
 //------------------------------------------------------------------------------
@@ -690,9 +682,9 @@ ContainerMD::removeTreeSize(uint64_t removesize)
 std::string
 ContainerMD::getAttribute(const std::string& name) const
 {
-  auto const it = pXAttrs.find(name);
+  auto it = mCont.xattrs().find(name);
 
-  if (it == pXAttrs.end()) {
+  if (it == mCont.xattrs().end()) {
     MDException e(ENOENT);
     e.getMessage() << "Attribute: " << name << " not found";
     throw e;
@@ -707,10 +699,10 @@ ContainerMD::getAttribute(const std::string& name) const
 void
 ContainerMD::removeAttribute(const std::string& name)
 {
-  auto it = pXAttrs.find(name);
+  auto it = mCont.xattrs().find(name);
 
-  if (it != pXAttrs.end()) {
-    pXAttrs.erase(it);
+  if (it != mCont.xattrs().end()) {
+    mCont.mutable_xattrs()->erase(it->first);
   }
 }
 
@@ -723,145 +715,98 @@ ContainerMD::serialize(Buffer& buffer)
   // Wait for any ongoing async requests and throw error if smth failed
   // if (!waitAsyncReplies()) {
   //   MDException e(EFAULT);
-  //   e.getMessage() << "Container #" << pId << " has failed async replies";
+  //   e.getMessage() << "Container #" << mCont.id() << " has failed async replies";
   //   throw e;
   // }
-  buffer.putData(&pId, sizeof(pId));
-  buffer.putData(&pParentId, sizeof(pParentId));
-  buffer.putData(&pFlags, sizeof(pFlags));
-  buffer.putData(&pCTime, sizeof(pCTime));
-  buffer.putData(&pCUid, sizeof(pCUid));
-  buffer.putData(&pCGid, sizeof(pCGid));
-  buffer.putData(&pMode, sizeof(pMode));
-  buffer.putData(&pACLId, sizeof(pACLId));
-  uint16_t len = pName.length() + 1;
-  buffer.putData(&len, 2);
-  buffer.putData(pName.c_str(), len);
-  len = pXAttrs.size() + 2;
-  buffer.putData(&len, sizeof(len));
-  XAttrMap::iterator it;
+  uint32_t cksum = 0;
+  size_t obj_size = mCont.ByteSizeLong();
+  size_t cksum_size = sizeof(cksum);
+  size_t msg_size = obj_size + cksum_size;
+  buffer.setSize(msg_size);
+  google::protobuf::io::ArrayOutputStream aos(buffer.getDataPtr() + cksum_size,
+      obj_size);
 
-  for (it = pXAttrs.begin(); it != pXAttrs.end(); ++it) {
-    uint16_t strLen = it->first.length() + 1;
-    buffer.putData(&strLen, sizeof(strLen));
-    buffer.putData(it->first.c_str(), strLen);
-    strLen = it->second.length() + 1;
-    buffer.putData(&strLen, sizeof(strLen));
-    buffer.putData(it->second.c_str(), strLen);
+  if (!mCont.SerializeToZeroCopyStream(&aos)) {
+    MDException ex(EIO);
+    ex.getMessage() << "Failed while serializing buffer";
+    throw ex;
   }
 
-  // Store mtime as ext. attributes
-  std::string k1 = "sys.mtime.s";
-  std::string k2 = "sys.mtime.ns";
-  uint16_t l1 = k1.length() + 1;
-  uint16_t l2 = k2.length() + 1;
-  uint16_t l3;
-  char stime[64];
-  snprintf(static_cast<char*>(stime), sizeof(stime), "%llu",
-           static_cast<unsigned long long>(pMTime.tv_sec));
-  l3 = strlen(static_cast<char*>(stime)) + 1;
-  // key
-  buffer.putData(&l1, sizeof(l1));
-  buffer.putData(k1.c_str(), l1);
-  // value
-  buffer.putData(&l3, sizeof(l3));
-  buffer.putData(static_cast<char*>(stime), l3);
-  snprintf(static_cast<char*>(stime), sizeof(stime), "%llu",
-           static_cast<unsigned long long>(pMTime.tv_nsec));
-  l3 = strlen(static_cast<char*>(stime)) + 1;
-  // key
-  buffer.putData(&l2, sizeof(l2));
-  buffer.putData(k2.c_str(), l2);
-  // value
-  buffer.putData(&l3, sizeof(l3));
-  buffer.putData(static_cast<char*>(stime), l3);
+  // Compute the CRC32C checkusm
+  cksum = DataHelper::computeCRC32C(buffer.getDataPtr() + cksum_size,
+                                    obj_size);
+  cksum = DataHelper::finalizeCRC32C(cksum);
+  (void) memcpy((void*)buffer.getDataPtr(), &cksum, cksum_size);
 }
 
 //------------------------------------------------------------------------------
-// Deserialize the class to a buffer
+// Deserialize from buffer
 //------------------------------------------------------------------------------
 void
 ContainerMD::deserialize(Buffer& buffer)
 {
-  uint16_t offset = 0;
-  offset = buffer.grabData(offset, &pId, sizeof(pId));
-  offset = buffer.grabData(offset, &pParentId, sizeof(pParentId));
-  offset = buffer.grabData(offset, &pFlags, sizeof(pFlags));
-  offset = buffer.grabData(offset, &pCTime, sizeof(pCTime));
-  offset = buffer.grabData(offset, &pCUid, sizeof(pCUid));
-  offset = buffer.grabData(offset, &pCGid, sizeof(pCGid));
-  offset = buffer.grabData(offset, &pMode, sizeof(pMode));
-  offset = buffer.grabData(offset, &pACLId, sizeof(pACLId));
-  uint16_t len;
-  offset = buffer.grabData(offset, &len, 2);
-  char strBuffer[len];
-  offset = buffer.grabData(offset, static_cast<char*>(strBuffer), len);
-  pName = static_cast<char*>(strBuffer);
-  pMTime.tv_sec = pCTime.tv_sec;
-  pMTime.tv_nsec = pCTime.tv_nsec;
-  uint16_t len1 = 0;
-  uint16_t len2 = 0;
-  len = 0;
-  offset = buffer.grabData(offset, &len, sizeof(len));
+  uint32_t cksum_expected = 0;
+  size_t cksum_size = sizeof(cksum_expected);
+  (void) memcpy(&cksum_expected, buffer.getDataPtr(), cksum_size);
+  size_t msg_size = buffer.getSize();
+  size_t obj_size = msg_size - cksum_size;
+  uint32_t cksum_computed =
+    DataHelper::computeCRC32C((char*) buffer.getDataPtr() + cksum_size,
+                              obj_size);
+  cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
 
-  for (uint16_t i = 0; i < len; ++i) {
-    offset = buffer.grabData(offset, &len1, sizeof(len1));
-    char strBuffer1[len1];
-    offset = buffer.grabData(offset, static_cast<char*>(strBuffer1), len1);
-    offset = buffer.grabData(offset, &len2, sizeof(len2));
-    char strBuffer2[len2];
-    offset = buffer.grabData(offset, static_cast<char*>(strBuffer2), len2);
-    std::string key = static_cast<char*>(strBuffer1);
+  if (cksum_expected != cksum_computed) {
+    MDException ex(EIO);
+    ex.getMessage() << "FileMD object checksum missmatch";
+    throw ex;
+  }
 
-    if (key == "sys.mtime.s") {
-      // Stored modification time in s
-      pMTime.tv_sec = strtoull(static_cast<char*>(strBuffer2), nullptr, 10);
-    } else {
-      if (key == "sys.mtime.ns") {
-        // Stored modification time in ns
-        pMTime.tv_nsec = strtoull(static_cast<char*>(strBuffer2), nullptr, 10);
-      } else {
-        pXAttrs.insert(std::pair<char*, char*>(static_cast<char*>(strBuffer1),
-                                               static_cast<char*>(strBuffer2)));
-      }
-    }
+  google::protobuf::io::ArrayInputStream ais(buffer.getDataPtr() + cksum_size,
+      obj_size);
+
+  if (!mCont.ParseFromZeroCopyStream(&ais)) {
+    MDException ex(EIO);
+    ex.getMessage() << "Failed while deserializing buffer";
+    throw ex;
   }
 
   // Rebuild the file and subcontainer keys
-  std::string files_key = stringify(pId) + constants::sMapFilesSuffix;
+  std::string files_key = stringify(mCont.id()) + constants::sMapFilesSuffix;
   pFilesMap.setKey(files_key);
-  std::string dirs_key = stringify(pId) + constants::sMapDirsSuffix;
+  std::string dirs_key = stringify(mCont.id()) + constants::sMapDirsSuffix;
   pDirsMap.setKey(dirs_key);
 
   // Grab the files and subcontainers
-  try {
-    std::string cursor = "0";
-    std::pair<std::string, std::unordered_map<std::string, std::string>> reply;
+  if (pQcl) {
+    try {
+      std::string cursor = "0";
+      std::pair<std::string, std::unordered_map<std::string, std::string>> reply;
 
-    do {
-      reply = pFilesMap.hscan(cursor);
-      cursor = reply.first;
+      do {
+        reply = pFilesMap.hscan(cursor);
+        cursor = reply.first;
 
-      for (auto && elem : reply.second) {
-        mFilesMap.emplace(elem.first, std::stoull(elem.second));
-      }
-    } while (cursor != "0");
+        for (auto && elem : reply.second) {
+          mFilesMap.emplace(elem.first, std::stoull(elem.second));
+        }
+      } while (cursor != "0");
 
-    // Get the subcontainers
-    cursor = "0";
+      // Get the subcontainers
+      cursor = "0";
 
-    do {
-      reply = pDirsMap.hscan(cursor);
-      cursor = reply.first;
+      do {
+        reply = pDirsMap.hscan(cursor);
+        cursor = reply.first;
 
-      for (auto && elem : reply.second) {
-        mDirsMap.emplace(elem.first, std::stoull(elem.second));
-      }
-    } while (cursor != "0");
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container #" << pId << "failed to get subentries";
-    throw e;
+        for (auto && elem : reply.second) {
+          mDirsMap.emplace(elem.first, std::stoull(elem.second));
+        }
+      } while (cursor != "0");
+    } catch (std::runtime_error& qdb_err) {
+      MDException e(ENOENT);
+      e.getMessage() << "Container #" << mCont.id() << "failed to get subentries";
+      throw e;
+    }
   }
 }
 
@@ -871,17 +816,13 @@ ContainerMD::deserialize(Buffer& buffer)
 eos::IFileMD::XAttrMap
 ContainerMD::getAttributes() const
 {
-  return pXAttrs;
-  // TODO (esindril): Finish implementation
-  /*
   std::map<std::string, std::string> xattrs;
 
-  for (const auto& elem: mFile.xattrs()) {
+  for (const auto& elem : mCont.xattrs()) {
     xattrs.insert(elem);
   }
 
   return xattrs;
-  */
 }
 
 

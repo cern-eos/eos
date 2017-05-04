@@ -22,7 +22,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
-#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+#include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -268,7 +268,7 @@ FileMD::serialize(eos::Buffer& buffer)
 }
 
 //------------------------------------------------------------------------------
-// Deserialize the class to a buffer
+// Deserialize from buffer
 //------------------------------------------------------------------------------
 void
 FileMD::deserialize(const eos::Buffer& buffer)
