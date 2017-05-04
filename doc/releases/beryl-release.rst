@@ -7,6 +7,12 @@
 Beryl Release Notes
 ===================
 
+``V0.3.244 Aquamarine``
+=====================
+
+- FST: don't block Fmd access for an unitialized filecxerror value (after Resync was called and filecxerror=-1)
+
+
 ``V0.3.243 Aquamarine``
 =====================
 
