@@ -318,14 +318,14 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
             }
 
             // Don't return a record, if there is a checksum error flagged
-            if ((!isRW) && ((fmd->fMd.filecxerror == 1) ||
-                            (fmd->fMd.mgmchecksum.length() &&
-                             (fmd->fMd.mgmchecksum != fmd->fMd.checksum)))) {
+            if ((!isRW) && ((fmd->fMd.filecxerror() == 1) ||
+                            (fmd->fMd.mgmchecksum().length() &&
+                             (fmd->fMd.mgmchecksum() != fmd->fMd.checksum())))) {
               eos_crit("msg=\"checksum error flagged/detected fid=%08llx "
                        "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s filecxerror=%d blockcxerror=%d",
-                       fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(),
-                       fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str(),
-                       fmd->fMd.filecxerror, fmd->fMd.blockcxerror);
+                       fid, (unsigned long) fsid, fmd->fMd.checksum().c_str(),
+                       fmd->fMd.diskchecksum().c_str(), fmd->fMd.mgmchecksum().c_str(),
+                       fmd->fMd.filecxerror(), fmd->fMd.blockcxerror());
               delete fmd;
               FmdSqliteUnLockRead(fsid);
               return 0;
