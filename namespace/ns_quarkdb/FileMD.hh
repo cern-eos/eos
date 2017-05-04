@@ -493,7 +493,6 @@ public:
   setAttribute(const std::string& name, const std::string& value)
   {
     (*mFile.mutable_xattrs())[name] = value;
-    pXAttrs[name] = value;
   }
 
   //----------------------------------------------------------------------------
@@ -506,11 +505,6 @@ public:
 
     if (it != mFile.xattrs().end()) {
       mFile.mutable_xattrs()->erase(it->first);
-      auto it1 = pXAttrs.find(name);
-
-      if (it1 != pXAttrs.end()) {
-        pXAttrs.erase(it1);
-      }
     }
   }
 
@@ -520,7 +514,7 @@ public:
   bool
   hasAttribute(const std::string& name) const
   {
-    return (pXAttrs.find(name) != pXAttrs.end());
+    return (mFile.xattrs().find(name) != mFile.xattrs().end());
   }
 
   //----------------------------------------------------------------------------
@@ -529,7 +523,7 @@ public:
   inline size_t
   numAttributes() const
   {
-    return pXAttrs.size();
+    return mFile.xattrs().size();
   }
 
   //----------------------------------------------------------------------------
@@ -538,9 +532,9 @@ public:
   std::string
   getAttribute(const std::string& name) const
   {
-    XAttrMap::const_iterator it = pXAttrs.find(name);
+    auto it = mFile.xattrs().find(name);
 
-    if (it == pXAttrs.end()) {
+    if (it == mFile.xattrs().end()) {
       MDException e(ENOENT);
       e.getMessage() << "Attribute: " << name << " not found";
       throw e;
@@ -588,7 +582,6 @@ protected:
 private:
   eos::ns::FileMdProto mFile; ///< ProtoBuf file representation
   qclient::AsyncHandler mAh; ///< Async handler
-  XAttrMap pXAttrs;
 };
 
 EOSNSNAMESPACE_END
