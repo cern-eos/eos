@@ -89,6 +89,7 @@ target_link_libraries(
   EosNsQuarkdb
   EosNsCommon
   eosCommon
+  EosCrc32c-Static
   qclient
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
@@ -109,6 +110,7 @@ if (Linux)
     EosNsQuarkdb-Static
     EosNsCommon-Static
     eosCommon-Static
+    EosCrc32c-Static
     qclient
     ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}

@@ -20,6 +20,7 @@
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/utils/DataHelper.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
@@ -239,16 +240,25 @@ FileMD::serialize(eos::Buffer& buffer)
     throw ex;
   }
 
-  // TODO(esindril): add checksum for the FileMD serialized object
-  size_t msg_size = mFile.ByteSizeLong();
+  uint32_t cksum = 0;
+  size_t obj_size = mFile.ByteSizeLong();
+  size_t cksum_size = sizeof(cksum);
+  size_t msg_size = obj_size + cksum_size;
   buffer.setSize(msg_size);
-  google::protobuf::io::ArrayOutputStream aos(buffer.getDataPtr(), msg_size);
+  google::protobuf::io::ArrayOutputStream aos(buffer.getDataPtr() + cksum_size,
+      obj_size);
 
   if (!mFile.SerializeToZeroCopyStream(&aos)) {
     MDException ex(EIO);
     ex.getMessage() << "Failed while serializing buffer";
     throw ex;
   }
+
+  // Compute the CRC32C checkusm
+  cksum = DataHelper::computeCRC32C(buffer.getDataPtr() + cksum_size,
+                                    obj_size);
+  cksum = DataHelper::finalizeCRC32C(cksum);
+  (void) memcpy((void*)buffer.getDataPtr(), &cksum, cksum_size);
 
   if (!waitAsyncReplies()) {
     MDException ex(EIO);
@@ -263,8 +273,24 @@ FileMD::serialize(eos::Buffer& buffer)
 void
 FileMD::deserialize(const eos::Buffer& buffer)
 {
-  google::protobuf::io::ArrayInputStream ais(buffer.getDataPtr(),
-      buffer.getSize());
+  uint32_t cksum_expected = 0;
+  size_t cksum_size = sizeof(cksum_expected);
+  (void) memcpy(&cksum_expected, buffer.getDataPtr(), cksum_size);
+  size_t msg_size = buffer.getSize();
+  size_t obj_size = msg_size - cksum_size;
+  uint32_t cksum_computed =
+    DataHelper::computeCRC32C((char*) buffer.getDataPtr() + cksum_size,
+                              obj_size);
+  cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
+
+  if (cksum_expected != cksum_computed) {
+    MDException ex(EIO);
+    ex.getMessage() << "FileMD object checksum missmatch";
+    throw ex;
+  }
+
+  google::protobuf::io::ArrayInputStream ais(buffer.getDataPtr() + cksum_size,
+      obj_size);
 
   if (!mFile.ParseFromZeroCopyStream(&ais)) {
     MDException ex(EIO);
