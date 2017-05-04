@@ -34,15 +34,15 @@ using ::testing::Return;
 EOSNSTESTING_BEGIN
 
 //------------------------------------------------------------------------------
-// Test FileMd serialisation and deserialization
+// Test FileMd serialisation, deserialization and checksumming
 //------------------------------------------------------------------------------
-TEST(MdProto, FileMd)
+TEST(NsQuarkdb, FileMd)
 {
   MockFileMDSvc file_svc;
   EXPECT_CALL(file_svc, notifyListeners(_)).WillRepeatedly(Return());
-  eos::IFileMD::id_t id = 1010;
+  eos::IFileMD::id_t id = 12345;
   eos::FileMD file(id, (eos::IFileMDSvc*)&file_svc);
-  eos::IContainerMD::id_t cont_id = 1;
+  eos::IContainerMD::id_t cont_id = 9876;
   uint64_t size = 4 * 1024 * 1024;
   eos::IFileMD::ctime_t tnow;
   clock_gettime(CLOCK_REALTIME, &tnow);
@@ -50,8 +50,8 @@ TEST(MdProto, FileMd)
   file.setMTime(tnow);
   file.setSize(size);
   file.setContainerId(cont_id);
-  std::string cksum = "abcdefgh";
-  file.setChecksum(cksum.data(), cksum.size());
+  std::string file_cksum = "abcdefgh";
+  file.setChecksum(file_cksum.data(), file_cksum.size());
   std::vector<eos::IFileMD::location_t> locations = {2, 23, 3736, 3871, 21, 47, 55};
 
   for (auto && elem : locations) {
@@ -69,9 +69,16 @@ TEST(MdProto, FileMd)
   file.serialize(buffer);
   eos::FileMD rfile(0, (eos::IFileMDSvc*)&file_svc);
   rfile.deserialize(buffer);
-  ASSERT_EQ(file.getSize(), rfile.getSize());
-  ASSERT_EQ(file.getId(), rfile.getId());
-  ASSERT_EQ(file.getChecksum(), rfile.getChecksum());
+  std::string orig_rep, new_rep;
+  file.getEnv(orig_rep);
+  rfile.getEnv(new_rep);
+  ASSERT_EQ(orig_rep, new_rep);
+  // Force a checksum corruption and check if it's detected
+  uint32_t cksum = 0;
+  (void) memcpy(&cksum, buffer.getDataPtr(), sizeof(cksum));
+  cksum += 11;
+  (void) memcpy(buffer.getDataPtr(), &cksum, sizeof(cksum));
+  ASSERT_THROW(rfile.deserialize(buffer), eos::MDException);
 }
 
 EOSNSTESTING_END
