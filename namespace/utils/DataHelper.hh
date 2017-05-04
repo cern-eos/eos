@@ -26,43 +26,67 @@
 
 #include <zlib.h>
 #include <stdint.h>
+#include "common/crc32c/crc32c.h"
 #include "namespace/MDException.hh"
 
 namespace eos
 {
-  class DataHelper
+class DataHelper
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Compute crc32 checksum out of a buffer
+  //----------------------------------------------------------------------------
+  static uint32_t computeCRC32(void* buffer, uint32_t len)
   {
-    public:
-      //------------------------------------------------------------------------
-      //! Compute crc32 checksum out of a buffer
-      //------------------------------------------------------------------------
-      static uint32_t computeCRC32( void *buffer, uint32_t len )
-      {
-        return crc32( crc32( 0L, Z_NULL, 0 ), (const Bytef*)buffer, len );
-      }
+    return crc32(crc32(0L, Z_NULL, 0), (const Bytef*)buffer, len);
+  }
 
-      //------------------------------------------------------------------------
-      //! Update a crc32 checksum
-      //------------------------------------------------------------------------
-      static uint32_t updateCRC32( uint32_t crc, void *buffer, uint32_t len )
-      {
-        return crc32( crc, (const Bytef*)buffer, len );
-      }
+  //----------------------------------------------------------------------------
+  //! Update a crc32 checksum
+  //----------------------------------------------------------------------------
+  static uint32_t updateCRC32(uint32_t crc, void* buffer, uint32_t len)
+  {
+    return crc32(crc, (const Bytef*)buffer, len);
+  }
 
-      //------------------------------------------------------------------------
-      //! Copy file ownership information
-      //!
-      //! @param target           target file
-      //! @param source           source file
-      //! @param ignoreWhenNoPerm exit seamlesly when the caller has
-      //!                         insufficient permissions to carry out this
-      //!                         operation
-      //------------------------------------------------------------------------
-      static void copyOwnership( const std::string &target,
-                                 const std::string &source,
-                                 bool ignoreNoPerm = true )
-        throw( MDException );
-  };
+  //----------------------------------------------------------------------------
+  //! Compute crc32c checksum out of a buffer
+  //----------------------------------------------------------------------------
+  static uint32_t computeCRC32C(void* buffer, uint32_t len)
+  {
+    return checksum::crc32c(checksum::crc32cInit(), (const Bytef*)buffer, len);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Update a crc32c checksum
+  //----------------------------------------------------------------------------
+  static uint32_t updateCRC32C(uint32_t crc, void* buffer, uint32_t len)
+  {
+    return checksum::crc32c(crc, (const Bytef*)buffer, len);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Finalize crc32c checksum
+  //----------------------------------------------------------------------------
+  static uint32_t finalizeCRC32C(uint32_t crc)
+  {
+    return checksum::crc32cFinish(crc);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Copy file ownership information
+  //!
+  //! @param target           target file
+  //! @param source           source file
+  //! @param ignoreWhenNoPerm exit seamlesly when the caller has
+  //!                         insufficient permissions to carry out this
+  //!                         operation
+  //----------------------------------------------------------------------------
+  static void copyOwnership(const std::string& target,
+                            const std::string& source,
+                            bool ignoreNoPerm = true);
+};
 }
 
 #endif // EOS_NS_DATA_HELPER_HH
