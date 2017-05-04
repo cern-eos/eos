@@ -2009,15 +2009,15 @@ filesystem::chmod (const char* path,
  eos_static_info ("path=%s mode=%x uid=%u pid=%u", path, mode, uid, pid);
  eos::common::Timing chmodtiming ("chmod");
  COMMONTIMING ("START", &chmodtiming);
-  int retc = 0;
-  XrdOucString smode;
-  smode += (int) mode;
-  std::string request;
-  XrdCl::Buffer arg;
-  XrdCl::Buffer* response = 0;
-  request = safePath(path);
-  request += "?";
-  request += "mgm.pcmd=chmod&eos.app=fuse&mode=";
+ int retc = 0;
+ XrdOucString smode;
+ smode += (int) mode & 0xfff; // mask sticky, vertex and gid bit
+ std::string request;
+ XrdCl::Buffer arg;
+ XrdCl::Buffer* response = 0;
+ request = safePath(path);
+ request += "?";
+ request += "mgm.pcmd=chmod&eos.app=fuse&mode=";
  request += smode.c_str ();
  if(encode_pathname) request += "&eos.encodepath=1";
  arg.FromString (request);
