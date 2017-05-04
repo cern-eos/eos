@@ -283,12 +283,7 @@ com_fuse(char* arg1)
 
     XrdOucString mount = env;
     mount += " eosd ";
-#ifdef __APPLE__
-    // El Captian does not forward DYLD_LIBRARY_PATH to subshells
-    mount += " env DYLD_LIBRARY_PATH=/usr/local/opt/eos/usr/local/lib eosd ";
-#else
     mount += mountpoint.c_str();
-#endif
     mount += " -f";
     mount += " -o";
     mount += params;
