@@ -28,3 +28,5 @@ then
   mkdir -p $STORAGE_PATH_MACOS
   cp osx_artifacts/* $STORAGE_PATH_MACOS
 fi
+
+exit 0

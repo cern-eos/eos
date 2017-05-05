@@ -231,23 +231,23 @@ eos_publish_artifacts:
     - ./gitlab-ci/store_artifacts_on_volume.sh ${BRANCH} ${BUILD_TYPE}
     - export STORAGE_PATH_CC7=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/el-7/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH_CC7
-    - sudo -u stci -H cp cc7_artifacts/* $STORAGE_PATH_CC7
+    - sudo -u stci -H cp cc7_artifacts/* $STORAGE_PATH_CC7 | true
     - sudo -u stci -H createrepo -q $STORAGE_PATH_CC7
     - export STORAGE_PATH_SLC6=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/el-6/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH_SLC6
-    - sudo -u stci -H cp slc6_artifacts/* $STORAGE_PATH_SLC6
+    - sudo -u stci -H cp slc6_artifacts/* $STORAGE_PATH_SLC6 | true
     - sudo -u stci -H createrepo -q $STORAGE_PATH_SLC6
     - export STORAGE_PATH_FCRH=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH_FCRH
-    - sudo -u stci -H cp fcrawhide_artifacts/* $STORAGE_PATH_FCRH
+    - sudo -u stci -H cp fcrawhide_artifacts/* $STORAGE_PATH_FCRH | true
     - sudo -u stci -H createrepo -q $STORAGE_PATH_FCRH
     - export STORAGE_PATH_FCOLD=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/fc-24/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH_FCOLD
-    - sudo -u stci -H cp fcold_artifacts/* $STORAGE_PATH_FCOLD
+    - sudo -u stci -H cp fcold_artifacts/* $STORAGE_PATH_FCOLD | true
     - sudo -u stci -H createrepo -q $STORAGE_PATH_FCOLD
     - export STORAGE_PATH_MACOS=/eos/project/s/storage-ci/www/eos/${BRANCH}/${BUILD_TYPE}/osx/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH_MACOS
-    - sudo -u stci -H cp osx_artifacts/* $STORAGE_PATH_MACOS
+    - sudo -u stci -H cp osx_artifacts/* $STORAGE_PATH_MACOS | true
     - sudo -u stci -H ./gitlab-ci/remove_old_artifacts.sh
   tags:
     - docker-cc7
