@@ -232,7 +232,7 @@ public:
 
   bool SetAuthMethod(const std::string& value)
   {
-    eos::common::RWMutexReadLock lock(pMutex);
+    eos::common::RWMutexWriteLock lock(pMutex);
     pAuthMethod = value;
     return true;
   }
@@ -329,7 +329,6 @@ public:
   //! regardless of the fact it's up-to-date or not
   bool HasEntry(int pid)
   {
-    eos::common::RWMutexReadLock lock(pMutex);
     return static_cast<bool>(pCatalog.count(pid));
   }
 
@@ -350,6 +349,7 @@ public:
   InsertEntry(int pid)
   {
     int errCode;
+    eos::common::RWMutexWriteLock lock(pMutex);
 
     // if there is no such process return an error and remove the entry from the cache
     if (getpgid(pid) < 0) {
@@ -359,7 +359,6 @@ public:
 
     if (!HasEntry(pid)) {
       //eos_static_debug("There and pid is %d",pid);
-      eos::common::RWMutexWriteLock lock(pMutex);
       pCatalog[pid] = new ProcCacheEntry(pid, pProcPath.c_str());
     }
 
@@ -368,7 +367,6 @@ public:
     if ((errCode = entry->UpdateIfPsChanged())) {
       eos_static_err("something wrong happened in reading proc stuff %d : %s", pid,
                      pCatalog[pid]->pErrMessage.c_str());
-      eos::common::RWMutexWriteLock lock(pMutex);
       delete pCatalog[pid];
       pCatalog.erase(pid);
       return errCode;
@@ -383,7 +381,6 @@ public:
     if (!HasEntry(pid)) {
       return true;
     } else {
-      eos::common::RWMutexWriteLock lock(pMutex);
       delete pCatalog[pid];
       pCatalog.erase(pid);
       return true;
@@ -412,7 +409,6 @@ public:
   //! gets NULL if the the cache does not have such an entry
   ProcCacheEntry* GetEntry(int pid)
   {
-    eos::common::RWMutexReadLock lock(pMutex);
     auto entry = pCatalog.find(pid);
 
     if (entry == pCatalog.end()) {
@@ -500,7 +496,7 @@ public:
 
   bool SetAuthMethod(int pid, const std::string& value)
   {
-    eos::common::RWMutexReadLock lock(pMutex);
+    eos::common::RWMutexWriteLock lock(pMutex);
     auto entry = pCatalog.find(pid);
 
     if (entry == pCatalog.end()) {

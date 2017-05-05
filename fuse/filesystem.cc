@@ -1909,7 +1909,7 @@ filesystem::chmod(const char* path,
   COMMONTIMING("START", &chmodtiming);
   int retc = 0;
   XrdOucString smode;
-  smode += (int) mode;
+  smode += (int) mode & 0xfff; // mask sticky, vertex and gid bit
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
