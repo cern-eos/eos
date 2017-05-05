@@ -30,11 +30,11 @@ include_directories(
 # ProtoBuf representation tests
 #-------------------------------------------------------------------------------
 add_executable(
-  test_proto
-  ProtoTests.cc)
+  test_metadata
+  MetadataTests.cc)
 
 target_link_libraries(
-  test_proto
+  test_metadata
   gtest
   gmock_main
   EosNsQuarkdb-Static

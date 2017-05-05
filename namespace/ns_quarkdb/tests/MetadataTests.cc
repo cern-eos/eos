@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ProtoTests.cc
+// File: MetadataTests.cc
 // Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
@@ -116,6 +116,8 @@ TEST(NsQuarkdb, ContainerMd)
   cont.setCGid(uid);
   int32_t mode = (1025 << 6);
   cont.setMode(mode);
+  uint64_t tree_size = 3 * 1024 * 1024 * 1024ul + 12345 * 1024ul; // 3,... GB
+  cont.setTreeSize(tree_size);
   std::map<std::string, std::string> xattrs = {
     {"attr_key1", "attr_val1" },
     {"attr_key1", "attr_val2" },
@@ -135,6 +137,33 @@ TEST(NsQuarkdb, ContainerMd)
   eos::ContainerMD rcont(0, (eos::IFileMDSvc*)&file_svc,
                          (eos::IContainerMDSvc*)&cont_svc);
   rcont.deserialize(buffer);
+  ASSERT_EQ(cont.getId(), rcont.getId());
+  ASSERT_EQ(cont.getName(), rcont.getName());
+  ASSERT_EQ(cont.getParentId(), rcont.getParentId());
+  ASSERT_EQ(cont.getFlags(), rcont.getFlags());
+  eos::IContainerMD::ctime_t texpected, treceived;
+  cont.getCTime(texpected);
+  rcont.getCTime(treceived);
+  ASSERT_EQ(texpected.tv_sec, treceived.tv_sec);
+  ASSERT_EQ(texpected.tv_nsec, treceived.tv_nsec);
+  cont.getMTime(texpected);
+  rcont.getMTime(treceived);
+  ASSERT_EQ(texpected.tv_sec, treceived.tv_sec);
+  ASSERT_EQ(texpected.tv_nsec, treceived.tv_nsec);
+  cont.getTMTime(texpected);
+  rcont.getTMTime(treceived);
+  ASSERT_EQ(texpected.tv_sec, treceived.tv_sec);
+  ASSERT_EQ(texpected.tv_nsec, treceived.tv_nsec);
+  ASSERT_EQ(cont.getTreeSize(), rcont.getTreeSize());
+  ASSERT_EQ(cont.getCUid(), rcont.getCUid());
+  ASSERT_EQ(cont.getCGid(), rcont.getCGid());
+  ASSERT_EQ(cont.getMode(), rcont.getMode());
+
+  for (const auto& elem : xattrs) {
+    ASSERT_TRUE(rcont.hasAttribute(elem.first));
+    ASSERT_EQ(elem.second, rcont.getAttribute(elem.first));
+  }
+
   // Force a checksum corruption and check if it's detected
   uint32_t cksum = 0;
   (void) memcpy(&cksum, buffer.getDataPtr(), sizeof(cksum));
