@@ -3,7 +3,7 @@
 BRANCH=$1
 BUILD_TYPE=$2
 
-if [ $BUILD_TYPE -eq "tag" ];
+if [ "$BUILD_TYPE" == "tag" ];
 then
   STORAGE_PATH_CC7=/mnt/eos_repositories/eos/${BRANCH}/${BUILD_TYPE}/el-7/x86_64
   mkdir -p $STORAGE_PATH_CC7
