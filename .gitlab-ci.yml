@@ -116,6 +116,7 @@ eos_rpm_fedora_rawhide:
     - fcrawhide_artifacts/
   tags:
     - docker-fc_rawhide
+  allow_failure: true
   only:
     - master
     - master-ci
@@ -150,6 +151,7 @@ eos_rpm_fedora_24:
     - fcold_artifacts/
   tags:
     - docker-fc25
+  allow_failure: true
   only:
     - master
     - master-ci
@@ -176,6 +178,7 @@ eos_dmg_macosx:
     - osx_artifacts/
   tags:
     - macosx-shell
+  allow_failure: true
   only:
     - master
     - master-ci
