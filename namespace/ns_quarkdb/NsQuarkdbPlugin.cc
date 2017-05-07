@@ -206,13 +206,42 @@ NsQuarkdbPlugin::DestroyFsView(void* obj)
 // Create recursive container accounting listener
 //------------------------------------------------------------------------------
 void*
-NsQuarkdbPlugin::CreateContAcc(PF_PlatformServices* /*services*/)
+NsQuarkdbPlugin::CreateContAcc(PF_PlatformServices* services)
 {
   if (pContMDSvc == nullptr) {
     return nullptr;
   }
 
-  return new ContainerAccounting(pContMDSvc);
+  if (!services->invokeService) {
+    std::cerr << "ERROR: Platform does not provide a discovery service!"
+              << std::endl;
+    return nullptr;
+  }
+
+  // Request a pointer to the namespace view RW mutex
+  PF_Discovery_Service ns_lock_svc;
+  std::string request_svc {"NsViewMutex"};
+
+  if (services->invokeService(request_svc.c_str(), &ns_lock_svc)) {
+    std::cerr << "ERROR: Failed while requesting service: " << request_svc
+              << std::endl;
+    return nullptr;
+  }
+
+  std::string ptype = ns_lock_svc.objType;
+  std::string rtype = "eos::common::RWMutex*";
+  //std::string rtype = std::to_string(typeid(eos::common::RWMutex*).hash_code());
+  free(ns_lock_svc.objType);
+
+  if (ptype != rtype) {
+    std::cerr << "ERROR: Provided and required object type hashes don't match: "
+              << "ptype=" << ptype << ", rtype=" << rtype << std::endl;
+    return nullptr;
+  }
+
+  eos::common::RWMutex* ns_mutex = static_cast<eos::common::RWMutex*>
+                                   (ns_lock_svc.ptrService);
+  return new ContainerAccounting(pContMDSvc, ns_mutex);
 }
 
 //------------------------------------------------------------------------------
@@ -266,8 +295,8 @@ NsQuarkdbPlugin::CreateSyncTimeAcc(PF_PlatformServices* services)
     return nullptr;
   }
 
-  eos::common::RWMutex* ns_mutex =
-    (eos::common::RWMutex*) ns_lock_svc.ptrService;
+  eos::common::RWMutex* ns_mutex = static_cast<eos::common::RWMutex*>
+                                   (ns_lock_svc.ptrService);
   return new SyncTimeAccounting(pContMDSvc, ns_mutex);
 }
 

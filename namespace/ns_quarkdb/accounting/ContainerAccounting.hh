@@ -1,6 +1,11 @@
+//------------------------------------------------------------------------------
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
+//! @brief Container subtree accounting
+//------------------------------------------------------------------------------
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -16,23 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-//! @author Andreas-Joachim Peters <apeters@cern.ch>
-//! @brief Container subtree accounting
-//------------------------------------------------------------------------------
-
-#ifndef EOS_NS_CONTAINER_ACCOUNTING_HH
-#define EOS_NS_CONTAINER_ACCOUNTING_HH
-
-#include "namespace/MDException.hh"
+#pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "namespace/ns_quarkdb/ContainerMD.hh"
-#include "namespace/ns_quarkdb/FileMD.hh"
-#include <deque>
-#include <list>
+#include "common/RWMutex.hh"
+#include <mutex>
+#include <thread>
+#include <vector>
 #include <utility>
+#include <unordered_map>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -44,13 +42,26 @@ class ContainerAccounting : public IFileMDChangeListener
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param svc container metadata service
+  //! @param ns_mutex global (MGM) namespace mutex
+  //! @param update_interval interval in seconds when updates are propagated
   //----------------------------------------------------------------------------
-  ContainerAccounting(IContainerMDSvc* svc);
+  ContainerAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex,
+                      int32_t update_interval = 5);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ContainerAccounting() {}
+  virtual ~ContainerAccounting();
+
+  //----------------------------------------------------------------------------
+  //! Delete copy/move constructor and assignment operators
+  //----------------------------------------------------------------------------
+  ContainerAccounting(const ContainerAccounting& other) = delete;
+  ContainerAccounting& operator=(const ContainerAccounting& other) = delete;
+  ContainerAccounting(ContainerAccounting&& other) = delete;
+  ContainerAccounting& operator=(ContainerAccounting&& other) = delete;
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
@@ -61,9 +72,7 @@ public:
   //! Notify me about files when recovering from changelog
   //----------------------------------------------------------------------------
   virtual void
-  fileMDRead(IFileMD* obj)
-  {
-  }
+  fileMDRead(IFileMD* obj) {}
 
   //----------------------------------------------------------------------------
   //! Recheck the current file object and make any modifications necessary so
@@ -80,27 +89,57 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Add tree - TODO(esindril): review this
+  //! Add tree - TODO(esindril): review this. These two methods should be
+  //! removed and we should use the concept of a virtual file to do these
+  //! updates for the Rename of a subtree case!
   //----------------------------------------------------------------------------
-  void AddTree(IContainerMD* obj, int64_t dsize) {};
+  void AddTree(IContainerMD* obj, int64_t dsize);
 
   //----------------------------------------------------------------------------
   //! Remove tree - TODO(esindril): review this
   //----------------------------------------------------------------------------
-  void RemoveTree(IContainerMD* obj, int64_t dsize) {};
+  void RemoveTree(IContainerMD* obj, int64_t dsize);
 
 private:
-  IContainerMDSvc* pContainerMDSvc; ///< container MD service
+
+  //! Type of operation that the update comes from. FILE means simple file
+  //! addition/removal and tree means rename on directories.
+  enum class OpType {FILE, TREE};
+
+  //! Update structure containin the nodes that need an update. We try to
+  //! optimise the number of updates to the backend by computing the final
+  //! size deltas from a number of individual updates.
+  struct UpdateT {
+    std::unordered_map<IContainerMD::id_t, int64_t> mMap; ///< Map updates
+  };
 
   //----------------------------------------------------------------------------
-  //! Account a file in the respective container
+  //! Queue info for update
   //!
-  //! @param obj file meta-data object
+  //! @param pid container id
   //! @param dsize size change
+  //! @param op type of operation
   //----------------------------------------------------------------------------
-  void Account(IFileMD* obj, int64_t dsize);
+  void QueueForUpdate(eos::IContainerMD::id_t pid, int64_t dsize, OpType op);
+
+  //----------------------------------------------------------------------------
+  //! Propagate updates in the hierarchical structure. Method ran by the
+  //! asynchronous thread.
+  //----------------------------------------------------------------------------
+  void PropagateUpdates();
+
+  //! Vector of two elements containing the batch which is currently being
+  //! accumulated and the batch which is being commited to the namespace by the
+  //! asynchronous thread
+  std::vector<UpdateT> mBatch;
+  std::mutex mMutexBatch; ///< Mutex protecting access to the updates batch
+  uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates
+  uint8_t mCommitIndx; ///< Index o the batch committing updates
+  std::thread mThread; ///< Thread updating the namespace
+  bool mShutdown; ///< Flag to shutdown the async thread
+  uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
+  IContainerMDSvc* mContainerMDSvc; ///< container MD service
+  eos::common::RWMutex* gNsRwMutex; ///< Global (MGM) name RW mutex
 };
 
 EOSNSNAMESPACE_END
-
-#endif

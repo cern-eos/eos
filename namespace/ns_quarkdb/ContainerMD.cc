@@ -276,8 +276,12 @@ ContainerMD::removeFile(const std::string& name)
 
   try {
     std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
-    IFileMDChangeListener::Event e(
-      file.get(), IFileMDChangeListener::SizeChange, 0, 0, -file->getSize());
+    // NOTE: This is an ugly hack. The file object has not reference to the
+    // container id, therefore we hijack the "location" member of the Event
+    // class to pass in the container id.
+    IFileMDChangeListener::Event
+    e(file.get(), IFileMDChangeListener::SizeChange, mCont.id(),
+      0, -file->getSize());
     pFileSvc->notifyListeners(&e);
   } catch (MDException& e) {
     // File already removed

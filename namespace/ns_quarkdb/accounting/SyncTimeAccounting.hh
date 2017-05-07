@@ -44,13 +44,23 @@ public:
   //!
   //! @param svc container meta-data service
   //! @param ns_mutex global namespace view mutex
+  //! @param update_interval interval in seconds when updates are propagated
   //----------------------------------------------------------------------------
-  SyncTimeAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex);
+  SyncTimeAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex,
+                     uint32_t update_interval = 5);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~SyncTimeAccounting();
+
+  //----------------------------------------------------------------------------
+  //! Delete copy constructor and assignment operator
+  //----------------------------------------------------------------------------
+  SyncTimeAccounting(const SyncTimeAccounting& other) = delete;
+  SyncTimeAccounting& operator=(const SyncTimeAccounting& other) = delete;
+  SyncTimeAccounting(SyncTimeAccounting&& other) = delete;
+  SyncTimeAccounting& operator=(SyncTimeAccounting&& other) = delete;
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
@@ -91,17 +101,18 @@ private:
     }
   };
 
-  //! Vector of two elements containing the batch which is currently begin
+  //! Vector of two elements containing the batch which is currently being
   //! accumulated and the batch which is being commited to the namespace by the
   //! asynchronous thread
   std::vector<UpdateT> mBatch;
-  uint8_t mAccumutateIndx; ///< Index of the batch accumulating updates
+  std::mutex mMutexBatch; ///< Mutex protecting access to the updates batch
+  uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates
   uint8_t mCommitIndx; ///< Index of the batch committing updates
-  std::mutex mMutexBatch; ///< Mutex protecting acces to the updates batch
   std::thread mThread; ///< Thread updating the namespace
+  bool mShutdown; ///< Flag to shutdown async thread
+  uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< Container meta-data service
   eos::common::RWMutex* gNsRwMutex; ///< Global(MGM) namespace RW mutex
-  bool mShutdown; ///< Flag to shutdown async thread
 };
 
 EOSNSNAMESPACE_END

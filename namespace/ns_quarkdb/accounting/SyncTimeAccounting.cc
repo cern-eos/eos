@@ -26,9 +26,11 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 SyncTimeAccounting::SyncTimeAccounting(IContainerMDSvc* svc,
-                                       eos::common::RWMutex* ns_mutex):
-  mAccumutateIndx(0), mCommitIndx(1), mContainerMDSvc(svc),
-  gNsRwMutex(ns_mutex), mShutdown(false)
+                                       eos::common::RWMutex* ns_mutex,
+                                       uint32_t update_interval):
+  mAccumulateIndx(0), mCommitIndx(1), mShutdown(false),
+  mUpdateIntervalSec(update_interval), mContainerMDSvc(svc),
+  gNsRwMutex(ns_mutex)
 {
   mBatch.resize(2);
   mThread = std::thread(&SyncTimeAccounting::PropagateUpdates, this);
@@ -66,13 +68,12 @@ void
 SyncTimeAccounting::QueueForUpdate(IContainerMD* obj)
 {
   std::lock_guard<std::mutex> scope_lock(mMutexBatch);
-  auto& batch = mBatch[mAccumutateIndx];
+  auto& batch = mBatch[mAccumulateIndx];
   auto it_map = batch.mMap.find(obj->getId());
 
   if (it_map != batch.mMap.end()) {
-    // There is already an update for this container
     auto& it_lst = it_map->second;
-    // Move it from current location to the back of the list
+    // Move it from current location to the end of the list (most recent)
     batch.mLstUpd.splice(batch.mLstUpd.end(), batch.mLstUpd, it_lst);
   } else {
     auto it_new = batch.mLstUpd.emplace(batch.mLstUpd.end(), obj->getId());
@@ -95,15 +96,15 @@ SyncTimeAccounting::PropagateUpdates()
       // Update the indexes to have the async thread working on the batch to
       // commit and the incoming updates to go to the batch to update
       std::lock_guard<std::mutex> scope_lock(mMutexBatch);
-      std::swap(mAccumutateIndx, mCommitIndx);
+      std::swap(mAccumulateIndx, mCommitIndx);
     }
 
-    uint32_t deepness = 0;
+    uint16_t deepness = 0;
     IContainerMD::id_t id = 0;
     std::set<IContainerMD::id_t> upd_nodes;
     auto& lst = mBatch[mCommitIndx].mLstUpd;
 
-    // Start updating form the last node (the most recent) and also collect the
+    // Start updating form the last node (most recent) and also collect the
     // nodes that we've updated so that older updates don't propagate further
     // up than strictly necessary.
     for (auto it_id = lst.rbegin(); it_id != lst.rend(); ++it_id) {
@@ -114,6 +115,7 @@ SyncTimeAccounting::PropagateUpdates()
         continue;
       }
 
+      // TODO: (esindril) Use the logging mechanism provided by the framework
       fprintf(stderr, "[%s] Container_id=%lu sync time\n", __FUNCTION__, id);
       IContainerMD::ctime_t mtime {0};
       eos::common::RWMutexWriteLock wr_lock(*gNsRwMutex);
@@ -157,7 +159,7 @@ SyncTimeAccounting::PropagateUpdates()
 
     // Clean up the batch
     mBatch[mCommitIndx].Clean();
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::this_thread::sleep_for(std::chrono::seconds(mUpdateIntervalSec));
   }
 }
 
