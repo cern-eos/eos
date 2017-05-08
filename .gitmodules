@@ -4,6 +4,3 @@
 [submodule "namespace/ns_quarkdb/qclient"]
 	path = namespace/ns_quarkdb/qclient
 	url = https://gitlab.cern.ch/eos/qclient.git
-[submodule "common/googletest"]
-	path = common/googletest
-	url = https://github.com/google/googletest
