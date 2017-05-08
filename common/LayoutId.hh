@@ -35,6 +35,7 @@
 #include "StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include <fcntl.h>
+#include <string>
 /*----------------------------------------------------------------------------*/
 
 
@@ -253,6 +254,47 @@ public:
     if ((layout & 0xf) == kSHA1) return 20;
 
     return 0;
+  }
+
+  static std::string
+  GetEmptyFileChecksum (unsigned long layout)
+  {
+    std::string hexchecksum;
+    std::string binchecksum;
+    binchecksum.resize(40);
+
+    switch ((layout & 0xf))
+    {
+    case kAdler:
+      hexchecksum="00000001";
+      break;
+    case kCRC32:
+      hexchecksum="00000000";
+      break;
+    case kCRC32C:
+      hexchecksum="00000000";
+      break;
+    case kMD5:
+      hexchecksum="d41d8cd98f00b204e9800998ecf8427e";
+      break;
+    case kSHA1:
+      hexchecksum="da39a3ee5e6b4b0d3255bfef95601890afd80709";
+      break;
+    }
+    
+    for (unsigned int i = 0; i < hexchecksum.length(); i += 2)
+    {
+      // hex2binary conversion
+      char hex[3];
+      hex[0] = hexchecksum[i];
+      hex[1] = hexchecksum[i + 1];
+      hex[2] = 0;
+      binchecksum[i / 2] = strtol(hex, 0, 16);
+    }
+    binchecksum.erase(hexchecksum.length()/2);
+    binchecksum.resize(hexchecksum.length()/2);
+    return binchecksum;
+
   }
 
   //--------------------------------------------------------------------------

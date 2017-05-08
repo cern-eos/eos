@@ -1652,6 +1652,12 @@ XrdMgmOfsFile::open (const char *inpath,
         // we do the same for chunked/parallel uploads
         // ---------------------------------------------------------------------
         {
+	  // get an empty file checksum
+
+	  std::string binchecksum = eos::common::LayoutId::GetEmptyFileChecksum(layoutId);
+	  eos::Buffer cx;
+	  cx.putData(binchecksum.c_str(), binchecksum.size());
+
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           // -------------------------------------------------------------------
 
@@ -1663,6 +1669,7 @@ XrdMgmOfsFile::open (const char *inpath,
             {
               fmd->addLocation(selectedfs[i]);
             }
+	    fmd->setChecksum(cx);
             gOFS->eosView->updateFileStore(fmd);
           }
           catch (eos::MDException &e)
