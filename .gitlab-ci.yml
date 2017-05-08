@@ -3,6 +3,7 @@ stages:
   - build:dockerimage
   - test
   - publish
+  - periodic
 
 before_script:
   - source gitlab-ci/export_branch.sh
@@ -237,3 +238,12 @@ eos_publish_artifacts:
     - master
     - beryl_aquamarine
     - master-ci
+
+eos_periodic_coverity:
+  stage: periodic
+  script:
+    - echo "Testing triggered periodic builds"
+  tags:
+    - coverity
+  only:
+    - triggers
