@@ -240,13 +240,16 @@ FileMD::serialize(eos::Buffer& buffer)
     throw ex;
   }
 
-  uint32_t cksum = 0;
+  // Align the buffer to 4 bytes to efficiently compute the checksum
   size_t obj_size = mFile.ByteSizeLong();
-  size_t cksum_size = sizeof(cksum);
-  size_t msg_size = obj_size + cksum_size;
+  uint32_t align_size = (obj_size + 3) >> 2 << 2;
+  size_t sz = sizeof(align_size);
+  size_t msg_size = align_size + 2 * sz;
   buffer.setSize(msg_size);
-  google::protobuf::io::ArrayOutputStream aos(buffer.getDataPtr() + cksum_size,
-      obj_size);
+  // Write the checksum value, size of the raw protobuf object and then the
+  // actual protobuf object serialized
+  const char* ptr = buffer.getDataPtr() + 2 * sz;
+  google::protobuf::io::ArrayOutputStream aos((void*)ptr, align_size);
 
   if (!mFile.SerializeToZeroCopyStream(&aos)) {
     MDException ex(EIO);
@@ -255,10 +258,13 @@ FileMD::serialize(eos::Buffer& buffer)
   }
 
   // Compute the CRC32C checkusm
-  cksum = DataHelper::computeCRC32C(buffer.getDataPtr() + cksum_size,
-                                    obj_size);
+  uint32_t cksum = DataHelper::computeCRC32C((void*)ptr, align_size);
   cksum = DataHelper::finalizeCRC32C(cksum);
-  (void) memcpy((void*)buffer.getDataPtr(), &cksum, cksum_size);
+  // Point to the beginning to fill in the checksum and size of useful data
+  ptr = buffer.getDataPtr();
+  (void) memcpy((void*)ptr, &cksum, sz);
+  ptr += sz;
+  (void) memcpy((void*)ptr, &obj_size, sz);
 
   if (!waitAsyncReplies()) {
     MDException ex(EIO);
@@ -274,13 +280,16 @@ void
 FileMD::deserialize(const eos::Buffer& buffer)
 {
   uint32_t cksum_expected = 0;
-  size_t cksum_size = sizeof(cksum_expected);
-  (void) memcpy(&cksum_expected, buffer.getDataPtr(), cksum_size);
+  uint32_t obj_size = 0;
+  size_t sz = sizeof(cksum_expected);
+  const char* ptr = buffer.getDataPtr();
+  (void) memcpy(&cksum_expected, ptr, sz);
+  ptr += sz;
+  (void) memcpy(&obj_size, ptr, sz);
   size_t msg_size = buffer.getSize();
-  size_t obj_size = msg_size - cksum_size;
-  uint32_t cksum_computed =
-    DataHelper::computeCRC32C((char*) buffer.getDataPtr() + cksum_size,
-                              obj_size);
+  uint32_t align_size = msg_size - 2 * sz;
+  ptr += sz; // now pointing to the serialized object
+  uint32_t cksum_computed = DataHelper::computeCRC32C((void*)ptr, align_size);
   cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
 
   if (cksum_expected != cksum_computed) {
@@ -289,8 +298,7 @@ FileMD::deserialize(const eos::Buffer& buffer)
     throw ex;
   }
 
-  google::protobuf::io::ArrayInputStream ais(buffer.getDataPtr() + cksum_size,
-      obj_size);
+  google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
 
   if (!mFile.ParseFromZeroCopyStream(&ais)) {
     MDException ex(EIO);

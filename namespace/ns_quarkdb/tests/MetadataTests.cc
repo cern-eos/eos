@@ -60,7 +60,7 @@ TEST(NsQuarkdb, FileMd)
   file.setLayoutId(lid);
   std::string file_cksum = "abcdefgh";
   file.setChecksum(file_cksum.data(), file_cksum.size());
-  std::vector<eos::IFileMD::location_t> locations = {2, 23, 3736, 3871, 21, 47, 55};
+  std::vector<eos::IFileMD::location_t> locations = {2, 23, 3736, 3871, 21, 47, 55, 76};
 
   for (auto && elem : locations) {
     file.addLocation(elem);
@@ -120,10 +120,11 @@ TEST(NsQuarkdb, ContainerMd)
   cont.setTreeSize(tree_size);
   std::map<std::string, std::string> xattrs = {
     {"attr_key1", "attr_val1" },
-    {"attr_key1", "attr_val2" },
-    {"attr_key1", "attr_val3" },
-    {"attr_key1", "attr_val4" },
-    {"attr_key1", "attr_val5" }
+    {"attr_key2", "attr_val2" },
+    {"attr_key3", "attr_val3" },
+    {"attr_key4", "attr_val4" },
+    {"attr_key5", "attr_val5" },
+    {"key", "val" }
   };
 
   for (const auto& elem : xattrs) {
