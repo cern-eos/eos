@@ -252,7 +252,7 @@ eos_periodic_coverity:
     - cmake3 ..
     - cov-build --dir cov-int make -j 4
     - tar czvf eos-metrics.tgz cov-int
-    - curl --form token="`cat /home/gitlab-runner/.coverity_token`" --form email=project-eos-commits@cern.ch --form file=@eos-metrics.tgz --form version="`../genversion.sh`" --form description="Periodic Gitlab build" https://scan.coverity.com/builds?project=cern-eos%2Feose
+    - curl --form token="`cat /home/gitlab-runner/.coverity_token`" --form email=project-eos-commits@cern.ch --form file=@eos-metrics.tgz --form version="`../genversion.sh`" --form description="Periodic Gitlab build" https://scan.coverity.com/builds?project=cern-eos%2Feos
   tags:
     - coverity
   only:
