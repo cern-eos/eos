@@ -190,6 +190,9 @@ EOS_FUSE_RDAHEAD_WINDOW=131072
 # EOS_FUSE_XRDBUGNULLRESPONSE_RETRYCOUNT=3
 # EOS_FUSE_XRDBUGNULLRESPONSE_RETRYSLEEPMS=1
 
+# Have the fuse mount retry endlessly if the MGM can not be contacted (default off)
+# EOS_FUSE_RETRY_CONNECTION_ERROR=1
+
 # Path to the SSS keytab file for SSS connections. If KRB5 or GSI authentication
 # is enabled, this is ignored.
 # EOS_FUSE_SSS_KEYTAB=""

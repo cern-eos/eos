@@ -340,6 +340,9 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # EOS_FUSE_XRDBUGNULLRESPONSE_RETRYCOUNT=3
 # EOS_FUSE_XRDBUGNULLRESPONSE_RETRYSLEEPMS=1
 
+# Have the fuse mount retry endlessly if the MGM can not be contacted (default off)
+# EOS_FUSE_RETRY_CONNECTION_ERROR=1
+
 # Set FUSE client creator CAP liftime
 #    During this time window all reads done on the client where a file has been created
 #    can be served from a local file write-back cache.

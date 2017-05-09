@@ -44,6 +44,7 @@ XrdCl::XRootDStatus xrdreq_retryonnullbuf(XrdCl::FileSystem& fs,
     XrdCl::Buffer& arg,
     XrdCl::Buffer*& response)
 {
+  XrdSysTimer sleeper;
   XrdCl::XRootDStatus status;
 
   for (int retrycount = 0; retrycount < xrootd_nullresponsebug_retrycount;
@@ -67,8 +68,6 @@ XrdCl::XRootDStatus xrdreq_retryonnullbuf(XrdCl::FileSystem& fs,
             response = 0;
           }
 
-          XrdSysTimer sleeper;
-
           if (xrootd_nullresponsebug_retrysleep) {
             sleeper.Wait(xrootd_nullresponsebug_retrysleep);
           }
@@ -81,6 +80,14 @@ XrdCl::XRootDStatus xrdreq_retryonnullbuf(XrdCl::FileSystem& fs,
       }
     } else {
       eos_static_err("status is NOT ok : %s", status.ToString().c_str());
+
+      if (getenv("EOS_FUSE_RETRY_CONNECTION_ERROR") &&
+          (status.code == XrdCl::errConnectionError)) {
+        eos_static_info("retry on on connection error until MGM is online");
+        retrycount = 0;
+        sleeper.Wait(10000); // 10 seconds
+        continue;
+      }
     }
 
     errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
