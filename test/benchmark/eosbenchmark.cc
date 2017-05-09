@@ -467,15 +467,15 @@ int main(int argc, char* argv[])
   // Set up the loggin infrastructure
   eos::common::Mapping::VirtualIdentity_t vid;
   eos::common::Mapping::Root(vid);
-  eos::common::Logging::Init();
-  eos::common::Logging::SetUnit("bmk@localhost");
-  eos::common::Logging::gShortFormat = true;
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetUnit("bmk@localhost");
+  g_logging.gShortFormat = true;
   XrdOucString bmk_debug = getenv("EOS_BMK_DEBUG");
 
   if ((getenv("EOS_BMK_DEBUG")) && (bmk_debug != "0")) {
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+    g_logging.SetLogPriority(LOG_DEBUG);
   } else {
-    eos::common::Logging::SetLogPriority(LOG_INFO);
+    g_logging.SetLogPriority(LOG_INFO);
   }
 
   FILE* fstderr;

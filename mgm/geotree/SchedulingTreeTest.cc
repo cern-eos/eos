@@ -440,9 +440,9 @@ int main2()
 
 int mainFull()
 {
-  eos::common::Logging::Init();
-  eos::common::Logging::SetUnit("SchedulingTreeTest");
-  eos::common::Logging::SetLogPriority(LOG_INFO);
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetUnit("SchedulingTreeTest");
+  g_logging.SetLogPriority(LOG_INFO);
   srand(0);
   string geoTagFileNameStr = __FILE__;
   geoTagFileNameStr += ".testfile";

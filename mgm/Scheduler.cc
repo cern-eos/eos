@@ -129,7 +129,7 @@ Scheduler::FilePlacement(PlacementArguments* args)
       args->selected_filesystems->clear();
       return ENOSPC;
     }
-    
+
     if (git == FsView::gFsView.mSpaceGroupView[*args->spacename].end()) {
       args->selected_filesystems->clear();
       return ENOSPC;
@@ -177,8 +177,9 @@ Scheduler::FilePlacement(PlacementArguments* args)
                       NULL,
                       NULL,
                       NULL);
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
-    if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+    if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
       char buffer[1024];
       buffer[0] = 0;
       char* buf = buffer;

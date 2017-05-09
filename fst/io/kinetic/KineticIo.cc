@@ -23,6 +23,7 @@
 
 #include "KineticIo.hh"
 #include <system_error>
+#include <functional>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -33,8 +34,9 @@ static void
 logmsg(const char* func, const char* file, int line, int priority,
        const char* msg)
 {
-  eos::common::Logging::log(func, file, line, "LIBKINETICIO",
-                            eos::common::Logging::gZeroVid, "", priority, msg);
+  static eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.log(func, file, line, "LIBKINETICIO", eos::common::Logging::gZeroVid,
+                "", priority, msg);
 }
 
 //------------------------------------------------------------------------------
@@ -64,7 +66,10 @@ KineticLib::KineticLib():
 
   typedef kio::LoadableKineticIoFactoryInterface* (*function_t)();
   mFactory = reinterpret_cast<function_t>(symbol)();
-  mFactory->registerLogFunction(logmsg, eos::common::Logging::shouldlog);
+  static eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  auto f = std::bind(&eos::common::Logging::shouldlog, &g_logging,
+                     std::placeholders::_1, std::placeholders::_2);
+  mFactory->registerLogFunction(logmsg, f);
 }
 
 //----------------------------------------------------------------------------

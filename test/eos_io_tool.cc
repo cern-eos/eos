@@ -644,12 +644,12 @@ int main(int argc, char* argv[])
              << "            [--async] [--update] [--help]" << std::endl;
   // Initialise the logging
   eos::common::LogId logId;
-  eos::common::Logging::Init();
-  eos::common::Logging::SetLogPriority(LOG_INFO);
-  eos::common::Logging::SetUnit("eosio@local");
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetLogPriority(LOG_INFO);
+  g_logging.SetUnit("eosio@local");
   // Log only mesages from functions in this file
-  eos::common::Logging::SetFilter("PASS:ReadSequentially,WriteSequentially,"
-                                  "LoadPattern,ReadPattern,WritePattern,main");
+  g_logging.SetFilter("PASS:ReadSequentially,WriteSequentially,"
+                      "LoadPattern,ReadPattern,WritePattern,main");
 
   if (argc < 2) {
     std::cout << usage_sstr.str() << std::endl;
@@ -793,7 +793,7 @@ int main(int argc, char* argv[])
   }
 
   if (debug == 1) {
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+    g_logging.SetLogPriority(LOG_DEBUG);
   }
 
   // Print the running configuration

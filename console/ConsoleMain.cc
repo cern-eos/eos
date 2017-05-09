@@ -1314,9 +1314,9 @@ main(int argc, char* argv[])
   }
 
   /* configure looging */
-  eos::common::Logging::Init();
-  eos::common::Logging::SetUnit("eos");
-  eos::common::Logging::SetLogPriority(LOG_NOTICE);
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetUnit("eos");
+  g_logging.SetLogPriority(LOG_NOTICE);
 
   /* install a shutdown handler */
   //signal(SIGINT, exit_handler);

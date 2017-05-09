@@ -4573,18 +4573,18 @@ filesystem::initlogging()
   setvbuf(fstderr, (char*) NULL, _IONBF, 0);
   eos::common::Mapping::VirtualIdentity_t vid;
   eos::common::Mapping::Root(vid);
-  eos::common::Logging::Init();
-  eos::common::Logging::SetUnit("FUSE@localhost");
-  eos::common::Logging::gShortFormat = true;
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetUnit("FUSE@localhost");
+  g_logging.gShortFormat = true;
   XrdOucString fusedebug = getenv("EOS_FUSE_DEBUG");
 
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0")) {
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+    g_logging.SetLogPriority(LOG_DEBUG);
   } else {
     if ((getenv("EOS_FUSE_LOGLEVEL"))) {
-      eos::common::Logging::SetLogPriority(atoi(getenv("EOS_FUSE_LOGLEVEL")));
+      g_logging.SetLogPriority(atoi(getenv("EOS_FUSE_LOGLEVEL")));
     } else {
-      eos::common::Logging::SetLogPriority(LOG_INFO);
+      g_logging.SetLogPriority(LOG_INFO);
     }
   }
 

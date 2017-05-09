@@ -1244,10 +1244,11 @@ protected:
   inline tFastTreeIdx
   getRandomBranch(const tFastTreeIdx& node, bool* visited = NULL) const
   {
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
     const tFastTreeIdx& nBranches = pNodes[node].fileData.lastHighestPriorityOffset
                                     + 1;
 
-    __EOSMGM_TREECOMMON_DBG3__ if (eos::common::Logging::gLogMask & LOG_MASK(
+    __EOSMGM_TREECOMMON_DBG3__ if (g_logging.gLogMask & LOG_MASK(
                                      LOG_DEBUG)) {
       stringstream ss;
       ss << "getRandomBranch at " << (*pTreeInfo)[node] << " choose among " <<
@@ -1298,7 +1299,9 @@ protected:
       return false;
     }
 
-    __EOSMGM_TREECOMMON_DBG3__ if (eos::common::Logging::gLogMask & LOG_MASK(
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+    __EOSMGM_TREECOMMON_DBG3__ if (g_logging.gLogMask & LOG_MASK(
                                      LOG_DEBUG)) {
       stringstream ss;
       ss << "getRandomBranchGeneric from Branch " << (int)brchBegIdx << " to branch "

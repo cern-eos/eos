@@ -94,9 +94,9 @@ EosAuthOfs::EosAuthOfs():
   // Set Logging parameters
   XrdOucString unit = "auth@localhost";
   // setup the circular in-memory log buffer
-  eos::common::Logging::Init();
-  eos::common::Logging::SetLogPriority(mLogLevel);
-  eos::common::Logging::SetUnit(unit.c_str());
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetLogPriority(mLogLevel);
+  g_logging.SetUnit(unit.c_str());
   eos_info("info=\"logging configured\"");
 }
 
@@ -139,6 +139,7 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
   std::string space_tkn;
   // Configure the basic XrdOfs and exit if not successful
   NoGo = XrdOfs::Configure(error, envP);
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
   if (NoGo) {
     return NoGo;
@@ -238,15 +239,15 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
               mLogLevel = atoi(val);
             } else {
               // The level is given as a string
-              mLogLevel = eos::common::Logging::GetPriorityByString(val);
+              mLogLevel = g_logging.GetPriorityByString(val);
             }
 
             error.Say("=====> eosauth.loglevel: ",
-                      eos::common::Logging::GetPriorityString(mLogLevel), "");
+                      g_logging.GetPriorityString(mLogLevel), "");
           }
 
           // Set the new log level
-          eos::common::Logging::SetLogPriority(mLogLevel);
+          g_logging.SetLogPriority(mLogLevel);
         }
       }
     }

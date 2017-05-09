@@ -93,6 +93,7 @@ Storage::Publish()
     eos_static_info("Snoozing ...");
   }
 
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   eos::common::FileSystem::fsid_t fsid = 0;
   std::string publish_uptime = "";
   std::string publish_sockets = "";
@@ -431,8 +432,8 @@ Storage::Publish()
             hash->Set("stat.geotag", lNodeGeoTag.c_str());
             hash->Set("debug.state",
                       eos::common::StringConversion::ToLower
-                      (eos::common::Logging::GetPriorityString
-                       (eos::common::Logging::gPriorityLevel)).c_str());
+                      (g_logging.GetPriorityString
+                       (g_logging.gPriorityLevel)).c_str());
             // copy out net info
             hash->Set("stat.net.ethratemib", netspeed / (8 * 1024 * 1024));
             hash->Set("stat.net.inratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),

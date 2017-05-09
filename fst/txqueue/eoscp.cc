@@ -788,8 +788,8 @@ main(int argc, char* argv[])
   }
 
   if (debug) {
-    eos::common::Logging::Init();
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+    g_logging.SetLogPriority(LOG_DEBUG);
   }
 
   if (optind - 1 + nsrc + ndst >= argc) {

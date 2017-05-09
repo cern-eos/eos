@@ -440,9 +440,9 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   unit += ":";
   unit += myPort;
   // Setup the circular in-memory log buffer
-  eos::common::Logging::Init();
-  eos::common::Logging::SetLogPriority(LOG_INFO);
-  eos::common::Logging::SetUnit(unit.c_str());
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetLogPriority(LOG_INFO);
+  g_logging.SetUnit(unit.c_str());
   // get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -815,7 +815,8 @@ XrdFstOfs::SetDebug(XrdOucEnv& env)
   XrdOucString debugnode = env.Get("mgm.nodename");
   XrdOucString debuglevel = env.Get("mgm.debuglevel");
   XrdOucString filterlist = env.Get("mgm.filter");
-  int debugval = eos::common::Logging::GetPriorityByString(debuglevel.c_str());
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
 
   if (debugval < 0) {
     eos_err("debug level %s is not known!", debuglevel.c_str());
@@ -827,11 +828,11 @@ XrdFstOfs::SetDebug(XrdOucEnv& env)
       ObjectManager.SetDebug(false);
     }
 
-    eos::common::Logging::SetLogPriority(debugval);
+    g_logging.SetLogPriority(debugval);
     eos_notice("setting debug level to <%s>", debuglevel.c_str());
 
     if (filterlist.length()) {
-      eos::common::Logging::SetFilter(filterlist.c_str());
+      g_logging.SetFilter(filterlist.c_str());
       eos_notice("setting message logid filter to <%s>", filterlist.c_str());
     }
   }
@@ -860,19 +861,21 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
     eos_err("illegal parameter queue=%s lines=%s tag=%s", queue.c_str(),
             lines.c_str(), tag.c_str());
   } else {
-    if ((eos::common::Logging::GetPriorityByString(tag.c_str())) == -1) {
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  
+    if ((g_logging.GetPriorityByString(tag.c_str())) == -1) {
       eos_err("mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice");
     } else {
-      int logtagindex = eos::common::Logging::GetPriorityByString(tag.c_str());
+      int logtagindex = g_logging.GetPriorityByString(tag.c_str());
 
       for (int j = 0; j <= logtagindex; j++) {
         for (int i = 1; i <= atoi(lines.c_str()); i++) {
-          eos::common::Logging::gMutex.Lock();
-          XrdOucString logline = eos::common::Logging::gLogMemory[j][
-                                   (eos::common::Logging::gLogCircularIndex[j] - i +
-                                    eos::common::Logging::gCircularIndexSize) %
-                                   eos::common::Logging::gCircularIndexSize].c_str();
-          eos::common::Logging::gMutex.UnLock();
+          g_logging.gMutex.Lock();
+          XrdOucString logline = g_logging.gLogMemory[j][
+                                   (g_logging.gLogCircularIndex[j] - i +
+                                    g_logging.gCircularIndexSize) %
+                                   g_logging.gCircularIndexSize].c_str();
+          g_logging.gMutex.UnLock();
 
           if (logline.length() && ((logline.find(filter.c_str())) != STR_NPOS)) {
             stdOut += logline;

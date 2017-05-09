@@ -43,9 +43,9 @@ int
 main(int argc, char* argv[])
 {
   bool setxs = false;
-  eos::common::Logging::Init();
-  eos::common::Logging::SetLogPriority(LOG_INFO);
-  eos::common::Logging::SetUnit("Scandir");
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetLogPriority(LOG_INFO);
+  g_logging.SetUnit("Scandir");
 
   if ((argc < 2) || (argc > 3)) {
     fprintf(stderr, "usage: eos-scan-fs <directory> [--setxs]\n");

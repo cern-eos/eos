@@ -40,11 +40,12 @@ com_debug(char* arg1)
     if (level == "this") {
       debug = !debug;
       fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
+      eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
       if (debug) {
-        eos::common::Logging::SetLogPriority(LOG_DEBUG);
+        g_logging.SetLogPriority(LOG_DEBUG);
       } else {
-        eos::common::Logging::SetLogPriority(LOG_NOTICE);
+        g_logging.SetLogPriority(LOG_NOTICE);
       }
 
       return (0);

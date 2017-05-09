@@ -115,8 +115,7 @@ SyncTimeAccounting::PropagateUpdates()
         continue;
       }
 
-      // TODO: (esindril) Use the logging mechanism provided by the framework
-      fprintf(stderr, "[%s] Container_id=%lu sync time\n", __FUNCTION__, id);
+      eos_debug("Container_id=%lu sync time", id);
       IContainerMD::ctime_t mtime {0};
       eos::common::RWMutexWriteLock wr_lock(*gNsRwMutex);
 

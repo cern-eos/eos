@@ -32,9 +32,9 @@ using namespace eos::mgm;
 int main()
 {
   srand(0);
-  Logging::Init();
-  Logging::SetUnit("MgmViewTest");
-  Logging::SetLogPriority(LOG_DEBUG);
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetUnit("MgmViewTest");
+  g_logging.SetLogPriority(LOG_DEBUG);
   XrdMqMessage::Configure("");
   XrdMqSharedObjectManager ObjectManager;
   ObjectManager.SetDebug(true);

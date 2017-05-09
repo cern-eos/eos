@@ -93,7 +93,7 @@ ContainerAccounting::RemoveTree(IContainerMD* obj, int64_t dsize)
 // Queue file info for update
 //------------------------------------------------------------------------------
 void
-ContainerAccounting::QueueForUpdate(eos::IContainerMD::id_t id, int64_t dsize,
+ContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize,
                                     OpType op)
 {
   uint16_t deepness = 0;
@@ -116,7 +116,7 @@ ContainerAccounting::QueueForUpdate(eos::IContainerMD::id_t id, int64_t dsize,
   while ((id > 1) && (deepness < 255)) {
     try {
       cont = mContainerMDSvc->getContainerMD(id);
-    } catch (eos::MDException& e) {
+    } catch (MDException& e) {
       // TODO (esindril): error message using default logging
       break;
     }
@@ -157,14 +157,14 @@ ContainerAccounting::PropagateUpdates()
     {
       // Need to lock the namespace
       eos::common::RWMutexWriteLock wr_lock(*gNsRwMutex);
-      std::shared_ptr<eos::IContainerMD> cont;
+      std::shared_ptr<IContainerMD> cont;
 
       for (auto const& elem : batch.mMap) {
         try {
           cont = mContainerMDSvc->getContainerMD(elem.first);
           cont->addTreeSize(elem.second);
           mContainerMDSvc->updateStore(cont.get());
-        } catch (eos::MDException& e) {
+        } catch (MDException& e) {
           // TODO: (esindril) error message using default logging
           continue;
         }

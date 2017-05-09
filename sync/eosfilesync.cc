@@ -73,9 +73,9 @@ int main(int argc, char* argv[])
     usage();
   }
 
-  eos::common::Logging::Init();
-  eos::common::Logging::SetUnit("eosfilesync");
-  eos::common::Logging::SetLogPriority(LOG_NOTICE);
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetUnit("eosfilesync");
+  g_logging.SetLogPriority(LOG_NOTICE);
   XrdOucString debugstring = "";
 
   if (argc == 4) {
@@ -83,11 +83,11 @@ int main(int argc, char* argv[])
   }
 
   if ((debugstring == "--debug") || (debugstring == "-d")) {
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+    g_logging.SetLogPriority(LOG_DEBUG);
   }
 
   if ((debugstring == "--debug") || (debugstring == "-d")) {
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+    g_logging.SetLogPriority(LOG_DEBUG);
   }
 
   eos_static_notice("starting %s=>%s", argv[1], argv[2]);

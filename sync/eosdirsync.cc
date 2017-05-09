@@ -38,61 +38,63 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "common/Logging.hh"
 
-void usage() {
-  fprintf(stderr,"usage: %s <src-dir> <dst-url-dir> [--debug]\n", PROGNAME);
+void usage()
+{
+  fprintf(stderr, "usage: %s <src-dir> <dst-url-dir> [--debug]\n", PROGNAME);
   exit(-1);
 }
 
 #define TRANSFERBLOCKSIZE 1024*1024*4
 
-bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
-
+bool forwardFile(XrdOucString& filename, XrdOucString& destfilename)
+{
   XrdOucString destfile = destfilename;
   int pos1 = destfile.find("//");
-  int pos2 = destfile.find("//",pos1+2);
+  int pos2 = destfile.find("//", pos1 + 2);
+
   if (pos2 == STR_NPOS) {
     eos_static_crit("illegal destination specified %s", destfilename.c_str());
     exit(-1);
   }
-      
-  destfile.erase( 0, pos2 + 1 );
 
+  destfile.erase(0, pos2 + 1);
   XrdCl::Buffer arg;
   XrdCl::StatInfo* stat_info = 0;
-  XrdCl::URL url( destfilename.c_str() );
+  XrdCl::URL url(destfilename.c_str());
 
-  if ( !url.IsValid() ) {
-    eos_static_err( "error=URL is not valid: %s", destfilename.c_str() );
-    exit( -1 );
+  if (!url.IsValid()) {
+    eos_static_err("error=URL is not valid: %s", destfilename.c_str());
+    exit(-1);
   }
 
   //.............................................................................
   // Get XrdCl::FileSystem object
   //.............................................................................
-  XrdCl::FileSystem* fs = new XrdCl::FileSystem( url );
+  XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
 
-  if ( !fs ) {
-    eos_static_crit( "cannot create FS obj to %s\n", destfilename.c_str() );
-    exit( -1 );
+  if (!fs) {
+    eos_static_crit("cannot create FS obj to %s\n", destfilename.c_str());
+    exit(-1);
   }
-  
+
   //..................................................................
   // Do a remote stat using XrdCl::FileSystem
   //..................................................................
   XrdCl::OpenFlags::Flags flags_xrdcl;
-  uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR |
+  uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR
+                        |
                         XrdCl::Access::GW | XrdCl::Access::OR;
 
-  if ( !fs->Stat( destfile.c_str(), stat_info ).IsOK() ) {
+  if (!fs->Stat(destfile.c_str(), stat_info).IsOK()) {
     flags_xrdcl = XrdCl::OpenFlags::MakePath | XrdCl::OpenFlags::New;
-  }
-  else {
+  } else {
     flags_xrdcl = XrdCl::OpenFlags::MakePath | XrdCl::OpenFlags::Update;
   }
 
   XrdCl::File* file = new XrdCl::File();
 
-  if ( !file->Open( destfilename.c_str(), flags_xrdcl, (XrdCl::Access::Mode)mode_xrdcl ).IsOK() ) {
+  if (!file->Open(destfilename.c_str(), flags_xrdcl,
+                  (XrdCl::Access::Mode)mode_xrdcl).IsOK()) {
     eos_static_err("cannot open remote file %s\n", destfilename.c_str());
     delete stat_info;
     delete fs;
@@ -105,21 +107,22 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
   //............................................................................
   delete stat_info;
   delete fs;
-  
   struct stat srcstat;
   XrdCl::StatInfo* dststat = 0;
-  bool success=true;
+  bool success = true;
+  int fd = open(filename.c_str(), O_RDONLY);
 
-  int fd = open(filename.c_str(),O_RDONLY);
-  if (fd<0) {
-    eos_static_err("cannot open source file %s - errno=%d ", filename.c_str(),errno);
-    success=false;
+  if (fd < 0) {
+    eos_static_err("cannot open source file %s - errno=%d ", filename.c_str(),
+                   errno);
+    success = false;
   } else {
     if (fstat(fd, &srcstat)) {
-      eos_static_err("cannot stat source file %s - errno=%d ", filename.c_str(),errno);
+      eos_static_err("cannot stat source file %s - errno=%d ", filename.c_str(),
+                     errno);
       success = false;
     } else {
-      if ( !file->Stat( true, dststat ).IsOK() ) {
+      if (!file->Stat(true, dststat).IsOK()) {
         eos_static_err("cannot stat destination file %s", destfilename.c_str());
         delete dststat;
         delete file;
@@ -127,7 +130,7 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
         return false;
       }
 
-      if (dststat->GetSize() == static_cast<uint64_t>( srcstat.st_size ) ) {
+      if (dststat->GetSize() == static_cast<uint64_t>(srcstat.st_size)) {
         // if the file exists already with the correct size we don't need to copoy
         delete dststat;
         delete file;
@@ -135,37 +138,41 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
         return true;
       }
 
-      if ( !file->Truncate(0).IsOK() ) {
+      if (!file->Truncate(0).IsOK()) {
         eos_static_err("cannot truncate remote file");
         success = false;
       } else {
-        char* copyptr = (char*) mmap(NULL, srcstat.st_size, PROT_READ, MAP_SHARED, fd, 0);
+        char* copyptr = (char*) mmap(NULL, srcstat.st_size, PROT_READ, MAP_SHARED, fd,
+                                     0);
+
         if (!copyptr) {
           eos_static_err("cannot map source file ");
           success = false;
         } else {
           for (unsigned long long offset = 0;
                offset < (unsigned long long)srcstat.st_size;
-               offset += (TRANSFERBLOCKSIZE))
-          {
+               offset += (TRANSFERBLOCKSIZE)) {
             unsigned long long length;
-            if ( (srcstat.st_size -offset) > TRANSFERBLOCKSIZE) {
+
+            if ((srcstat.st_size - offset) > TRANSFERBLOCKSIZE) {
               length = TRANSFERBLOCKSIZE;
             } else {
-              length = srcstat.st_size-offset;
+              length = srcstat.st_size - offset;
             }
-                
-            if ( !file->Write( offset, length, copyptr + offset ).IsOK() ) {
+
+            if (!file->Write(offset, length, copyptr + offset).IsOK()) {
               eos_static_err("cannot write remote block at %llu/%lu\n",
                              (unsigned long long)offset, (unsigned long)length);
               success = false;
               break;
             }
           }
-          munmap(copyptr,srcstat.st_size);
+
+          munmap(copyptr, srcstat.st_size);
         }
       }
     }
+
     close(fd);
   }
 
@@ -174,37 +181,37 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
   return success;
 }
 
-int main (int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
   if (argc < 3) {
     usage();
   }
-  
-  eos::common::Logging::Init();
-  eos::common::Logging::SetUnit("eosdirsync");
-  eos::common::Logging::SetLogPriority(LOG_NOTICE);
-  XrdOucString debugstring="";
 
-  if (argc==4) {
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetUnit("eosdirsync");
+  g_logging.SetLogPriority(LOG_NOTICE);
+  XrdOucString debugstring = "";
+
+  if (argc == 4) {
     debugstring = argv[3];
   }
-  
-  if ( (debugstring == "--debug") || (debugstring == "-d") ) {
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+
+  if ((debugstring == "--debug") || (debugstring == "-d")) {
+    g_logging.SetLogPriority(LOG_DEBUG);
   }
 
-  eos_static_notice("starting %s=>%s", argv[1],argv[2]);
-
+  eos_static_notice("starting %s=>%s", argv[1], argv[2]);
   XrdOucString sourcedir = argv[1];
   XrdOucString dsturl = argv[2];
   struct stat laststat;
   struct stat presentstat;
-  
-  memset(&laststat   ,0,sizeof(struct stat));
-  memset(&presentstat,0,sizeof(struct stat));
+  memset(&laststat   , 0, sizeof(struct stat));
+  memset(&presentstat, 0, sizeof(struct stat));
 
   do {
     if (stat(sourcedir.c_str(), &presentstat)) {
-      eos_static_err("cannot stat source directory %s - errno=%d - retry in 1 minute ...", sourcedir.c_str(),errno);
+      eos_static_err("cannot stat source directory %s - errno=%d - retry in 1 minute ...",
+                     sourcedir.c_str(), errno);
       XrdSysTimer sleeper;
       sleeper.Wait(60000);
       continue;
@@ -213,15 +220,18 @@ int main (int argc, char* argv[]) {
     if (presentstat.st_mtime != laststat.st_mtime) {
       // yes, there are modifications, loop over the contents in that directory
       DIR* dir = opendir(sourcedir.c_str());
+
       if (!dir) {
-        eos_static_err("cannot open source directory %s - errno=%d - retry in 1 minute ...", sourcedir.c_str(),errno);
-	XrdSysTimer sleeper;
-	sleeper.Wait(60000);
+        eos_static_err("cannot open source directory %s - errno=%d - retry in 1 minute ...",
+                       sourcedir.c_str(), errno);
+        XrdSysTimer sleeper;
+        sleeper.Wait(60000);
         continue;
       }
-      struct dirent *entry;
 
-      while ( (entry = readdir(dir)) ) {
+      struct dirent* entry;
+
+      while ((entry = readdir(dir))) {
         XrdOucString dstfile = dsturl;
         XrdOucString sentry = sourcedir;
         XrdOucString file = entry->d_name;
@@ -229,8 +239,8 @@ int main (int argc, char* argv[]) {
         sentry += entry->d_name;
         dstfile += "/";
         dstfile += entry->d_name;
-
         struct stat entrystat;
+
         if (stat(sentry.c_str(), &entrystat)) {
           eos_static_err("cannot stat file %s", sentry.c_str());
         } else {
@@ -238,11 +248,12 @@ int main (int argc, char* argv[]) {
             eos_static_info("skipping %s [not a file]", sentry.c_str());
           } else {
             if (!forwardFile(sentry, dstfile)) {
-              eos_static_err("cannot sync file %s => %s", sentry.c_str(),dsturl.c_str()); 
+              eos_static_err("cannot sync file %s => %s", sentry.c_str(), dsturl.c_str());
             }
           }
         }
       }
+
       closedir(dir);
     }
 
@@ -251,4 +262,4 @@ int main (int argc, char* argv[]) {
   } while (1);
 }
 
-  
+

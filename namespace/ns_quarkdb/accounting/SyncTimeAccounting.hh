@@ -25,6 +25,7 @@
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
+#include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include <mutex>
 #include <thread>
@@ -36,7 +37,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Synchronous mtime propagation listener
 //------------------------------------------------------------------------------
-class SyncTimeAccounting : public IContainerMDChangeListener
+class SyncTimeAccounting : public IContainerMDChangeListener,
+  public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------

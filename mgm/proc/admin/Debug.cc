@@ -40,6 +40,7 @@ ProcCommand::Debug()
     // filter out several *'s ...
     int nstars = 0;
     int npos = 0;
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
     while ((npos = debugnode.find("*", npos)) != STR_NPOS) {
       npos++;
@@ -53,7 +54,7 @@ ProcCommand::Debug()
       if ((debugnode == "*") || (debugnode == "") ||
           (debugnode == gOFS->MgmOfsQueue)) {
         // this is for us!
-        int debugval = eos::common::Logging::GetPriorityByString(debuglevel.c_str());
+        int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
 
         if (debugval < 0) {
           stdErr = "error: debug level ";
@@ -61,24 +62,24 @@ ProcCommand::Debug()
           stdErr += " is not known!";
           retc = EINVAL;
         } else {
-          eos::common::Logging::SetLogPriority(debugval);
+          g_logging.SetLogPriority(debugval);
           stdOut = "success: debug level is now <";
           stdOut += debuglevel.c_str();
           stdOut += ">";
           eos_notice("setting debug level to <%s>", debuglevel.c_str());
 
           if (filterlist.length()) {
-            eos::common::Logging::SetFilter(filterlist.c_str());
+            g_logging.SetFilter(filterlist.c_str());
             stdOut += " filter=";
             stdOut += filterlist;
             eos_notice("setting message logid filter to <%s>", filterlist.c_str());
           }
 
           if (debuglevel == "debug" &&
-              ((eos::common::Logging::gAllowFilter.Num() &&
-                eos::common::Logging::gAllowFilter.Find("SharedHash")) ||
-               ((eos::common::Logging::gDenyFilter.Num() == 0) ||
-                (eos::common::Logging::gDenyFilter.Find("SharedHash") == 0)))
+              ((g_logging.gAllowFilter.Num() &&
+                g_logging.gAllowFilter.Find("SharedHash")) ||
+               ((g_logging.gDenyFilter.Num() == 0) ||
+                (g_logging.gDenyFilter.Find("SharedHash") == 0)))
              ) {
             gOFS->ObjectManager.SetDebug(true);
           } else {

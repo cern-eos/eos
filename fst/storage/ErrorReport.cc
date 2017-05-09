@@ -34,12 +34,13 @@ Storage::ErrorReport()
   bool failure;
   XrdOucString errorReceiver = Config::gConfig.FstDefaultReceiverQueue;
   errorReceiver.replace("*/mgm", "*/errorreport");
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   eos::common::Logging::LogCircularIndex localCircularIndex;
   localCircularIndex.resize(LOG_DEBUG + 1);
 
   // initialize with the current positions of the circular index
   for (size_t i = LOG_EMERG; i <= LOG_DEBUG; i++) {
-    localCircularIndex[i] = eos::common::Logging::gLogCircularIndex[i];
+    localCircularIndex[i] = g_logging.gLogCircularIndex[i];
   }
 
   while (1) {
@@ -47,9 +48,9 @@ Storage::ErrorReport()
 
     // push messages from the circular buffers to the error queue
     for (size_t i = LOG_EMERG; i <= LOG_ERR; i++) {
-      eos::common::Logging::gMutex.Lock();
-      size_t endpos = eos::common::Logging::gLogCircularIndex[i];
-      eos::common::Logging::gMutex.UnLock();
+      g_logging.gMutex.Lock();
+      size_t endpos = g_logging.gLogCircularIndex[i];
+      g_logging.gMutex.UnLock();
 
       if (endpos > localCircularIndex[i]) {
         // we have to follow the messages and add them to the queue
@@ -57,10 +58,10 @@ Storage::ErrorReport()
 
         for (unsigned long j = localCircularIndex[i]; j < endpos; j++) {
           // copy the messages to the queue
-          eos::common::Logging::gMutex.Lock();
-          gOFS.ErrorReportQueue.push(eos::common::Logging::gLogMemory[i][j %
-                                     eos::common::Logging::gCircularIndexSize]);
-          eos::common::Logging::gMutex.UnLock();
+          g_logging.gMutex.Lock();
+          gOFS.ErrorReportQueue.push(g_logging.gLogMemory[i][j %
+                                     g_logging.gCircularIndexSize]);
+          g_logging.gMutex.UnLock();
         }
 
         localCircularIndex[i] = endpos;

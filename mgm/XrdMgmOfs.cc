@@ -718,6 +718,6 @@ XrdMgmOfs::DiscoverPlatformServices(const char* svc_name, void* opaque)
   } else {
     return EINVAL;
   }
-
+  
   return 0;
 }

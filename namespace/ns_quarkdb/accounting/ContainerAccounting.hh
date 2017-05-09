@@ -120,7 +120,7 @@ private:
   //! @param dsize size change
   //! @param op type of operation
   //----------------------------------------------------------------------------
-  void QueueForUpdate(eos::IContainerMD::id_t pid, int64_t dsize, OpType op);
+  void QueueForUpdate(IContainerMD::id_t pid, int64_t dsize, OpType op);
 
   //----------------------------------------------------------------------------
   //! Propagate updates in the hierarchical structure. Method ran by the

@@ -21,44 +21,48 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-// Global static variables
-/*----------------------------------------------------------------------------*/
-int Logging::gLogMask = 0;
-int Logging::gPriorityLevel = 0;
-int Logging::gShortFormat = 0;
-
-Logging::LogArray Logging::gLogMemory;
-Logging::LogCircularIndex Logging::gLogCircularIndex;
-unsigned long Logging::gCircularIndexSize;
-XrdSysMutex Logging::gMutex;
-XrdOucString Logging::gUnit = "none";
-XrdOucHash<const char*> Logging::gAllowFilter;
-XrdOucHash<const char*> Logging::gDenyFilter;
-std::map<std::string, FILE*> Logging::gLogFanOut;
-
 Mapping::VirtualIdentity Logging::gZeroVid;
-bool Logging::gToSysLog = false;
 
-/*----------------------------------------------------------------------------*/
-/**
- * Should log function
- *
- * @param func name of the calling function
- * @param priority priority level of the message
- */
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+Logging::Logging():
+  gLogMask(0), gPriorityLevel(0), gToSysLog(false),  gUnit("none"),
+  gShortFormat(0)
+{
+  // Initialize the log array and sets the log circular size
+  gLogCircularIndex.resize(LOG_DEBUG + 1);
+  gLogMemory.resize(LOG_DEBUG + 1);
+  gCircularIndexSize = EOSCOMMONLOGGING_CIRCULARINDEXSIZE;
 
-/*----------------------------------------------------------------------------*/
+  for (int i = 0; i <= LOG_DEBUG; i++) {
+    gLogCircularIndex[i] = 0;
+    gLogMemory[i].resize(gCircularIndexSize);
+  }
 
+  gZeroVid.name = "-";
+  XrdOucString tosyslog;
+
+  if (getenv("EOS_LOG_SYSLOG")) {
+    tosyslog = getenv("EOS_LOG_SYSLOG");
+
+    if ((tosyslog == "1" ||
+         (tosyslog == "true"))) {
+      gToSysLog = true;
+      eos_static_info("logging to syslog");
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Should log function
+//------------------------------------------------------------------------------
 bool
 Logging::shouldlog(const char* func, int priority)
 {
@@ -80,23 +84,9 @@ Logging::shouldlog(const char* func, int priority)
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Logging function
- *
- * @param func name of the calling function
- * @param file name of the source file calling
- * @param line line in the source file
- * @param logid log message identifier
- * @param vid virtual id of the caller
- * @param cident client identifier
- * @param priority priority level of the message
- * @param msg the actual log message
- * @return pointer to the log message
- */
-
-/*----------------------------------------------------------------------------*/
-
+//------------------------------------------------------------------------------
+// Logging function
+//------------------------------------------------------------------------------
 const char*
 Logging::log(const char* func, const char* file, int line, const char* logid,
              const Mapping::VirtualIdentity& vid, const char* cident, int priority,
@@ -242,40 +232,4 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   return rptr;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Initialize the circular index and logging object
- *
- */
-
-/*----------------------------------------------------------------------------*/
-void
-Logging::Init()
-{
-  // initialize the log array and sets the log circular size
-  gLogCircularIndex.resize(LOG_DEBUG + 1);
-  gLogMemory.resize(LOG_DEBUG + 1);
-  gCircularIndexSize = EOSCOMMONLOGGING_CIRCULARINDEXSIZE;
-
-  for (int i = 0; i <= LOG_DEBUG; i++) {
-    gLogCircularIndex[i] = 0;
-    gLogMemory[i].resize(gCircularIndexSize);
-  }
-
-  gZeroVid.name = "-";
-  XrdOucString tosyslog;
-
-  if (getenv("EOS_LOG_SYSLOG")) {
-    tosyslog = getenv("EOS_LOG_SYSLOG");
-
-    if ((tosyslog == "1" ||
-         (tosyslog == "true"))) {
-      gToSysLog = true;
-      eos_static_info("logging to syslog");
-    }
-  }
-}
-
-/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
-

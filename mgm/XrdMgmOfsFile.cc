@@ -242,7 +242,6 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   openOpaque = new XrdOucEnv(ininfo);
-
   {
     // figure out if this is FUSE access
     const char* val = 0;
@@ -1218,7 +1217,9 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   /// ###############
-  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     std::stringstream strstr;
     strstr << "\nselectedfs are : ";
 
@@ -1820,7 +1821,7 @@ XrdMgmOfsFile::open(const char* inpath,
       retc = Quota::FilePlacement(&plctargs);
 
       /// ###############
-      if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+      if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
         std::stringstream strstr;
         strstr << "\nselectedfs are : ";
 
@@ -2537,4 +2538,3 @@ XrdMgmOfsFile::Emsg(const char* pfx,
   einfo.setErrInfo(ecode, buffer);
   return SFS_ERROR;
 }
-

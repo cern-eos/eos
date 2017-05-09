@@ -879,6 +879,8 @@ class GeoTreeEngine : public eos::common::LogId
 
   bool updateFastStructures(SchedTME* entry)
   {
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
     // if nothing is modified here move to the next group
     if (!(entry->slowTreeModified || entry->fastStructModified)) {
       return true;
@@ -894,7 +896,7 @@ class GeoTreeEngine : public eos::common::LogId
 
       applyBranchDisablings(*entry);
 
-      if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+      if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
         stringstream ss;
         ss << (*entry->backgroundFastStruct->placementTree);
         eos_debug("fast structures updated successfully from slowtree : new FASTtree is \n %s",
@@ -908,7 +910,7 @@ class GeoTreeEngine : public eos::common::LogId
       // the rebuild of the fast structures is not necessary
       entry->refreshBackGroundFastStructures();
 
-      if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+      if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
         stringstream ss;
         ss << (*entry->backgroundFastStruct->placementTree);
         eos_debug("fast structures updated successfully from fastree : new FASTtree is \n %s",
@@ -932,6 +934,8 @@ class GeoTreeEngine : public eos::common::LogId
 
   bool updateFastStructures(ProxyTMEBase* entry)
   {
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
     // if nothing is modified here move to the next group
     if (!(entry->slowTreeModified || entry->fastStructModified)) {
       return true;
@@ -947,7 +951,7 @@ class GeoTreeEngine : public eos::common::LogId
 
       applyBranchDisablings(*entry);
 
-      if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+      if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
         stringstream ss;
         ss << (*entry->backgroundFastStruct->proxyAccessTree);
         eos_debug("fast structures updated successfully from slowtree : new FASTtree is \n %s",
@@ -961,7 +965,7 @@ class GeoTreeEngine : public eos::common::LogId
       // the rebuild of the fast structures is not necessary
       entry->refreshBackGroundFastStructures();
 
-      if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+      if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
         stringstream ss;
         ss << (*entry->backgroundFastStruct->proxyAccessTree);
         eos_debug("fast structures updated successfully from fastree : new FASTtree is \n %s",
@@ -1434,9 +1438,10 @@ protected:
                                           bool skipSaturated = false)
   {
     // a read lock is supposed to be acquired on the fast structures
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
     bool updateNeeded = false;
 
-    if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+    if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
       stringstream ss;
       ss << (*placementTree);
       eos_debug("fast tree used to copy from is: \n %s", ss.str().c_str());
@@ -1539,7 +1544,7 @@ protected:
     }
 
     // do the placement
-    if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+    if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
       stringstream ss;
       ss << (*tree);
       eos_debug("fast tree used for placement is: \n %s", ss.str().c_str());
@@ -1588,7 +1593,9 @@ protected:
       std::vector<SchedTreeBase::tFastTreeIdx>* forceNodes = NULL,
       bool skipSaturated = false)
   {
-    if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+    if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
       stringstream ss;
       ss << (*accessTree);
       eos_debug("fast tree used to copy from is: \n %s", ss.str().c_str());
@@ -1642,7 +1649,7 @@ protected:
     }
 
     // do the access
-    if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+    if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
       stringstream ss;
       ss << (*tree);
       eos_debug("fast tree used for access is: \n %s", ss.str().c_str());
@@ -2497,4 +2504,3 @@ extern GeoTreeEngine gGeoTreeEngine;
 EOSMGMNAMESPACE_END
 
 #endif
-

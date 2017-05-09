@@ -475,9 +475,10 @@ bool SlowTree::buildFastStrcturesSched(
     //return false;
   }
 
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   __EOSMGM_TREECOMMON_DBG1__
 
-  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     stringstream ss;
     ss << (*this);
     eos_static_debug("SLOWTREE IS %s", ss.str().c_str());
@@ -754,8 +755,7 @@ bool SlowTree::buildFastStrcturesSched(
   __EOSMGM_TREECOMMON_CHK2__
   fdat->checkConsistency(0, true);
 
-  __EOSMGM_TREECOMMON_DBG1__ if (eos::common::Logging::gLogMask & LOG_MASK(
-                                   LOG_DEBUG)) {
+  __EOSMGM_TREECOMMON_DBG1__ if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     stringstream ss;
     ss << (*fpt);
     eos_static_debug("FASTTREE IS %s", ss.str().c_str());
@@ -801,9 +801,10 @@ bool SlowTree::buildFastStructuresGW(
     //return false;
   }
 
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   __EOSMGM_TREECOMMON_DBG1__
 
-  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     stringstream ss;
     ss << (*this);
     eos_static_debug("SLOWTREE IS %s", ss.str().c_str());
@@ -1011,8 +1012,7 @@ bool SlowTree::buildFastStructuresGW(
   __EOSMGM_TREECOMMON_CHK2__
   fgat->checkConsistency(2, true);
 
-  __EOSMGM_TREECOMMON_DBG1__ if (eos::common::Logging::gLogMask & LOG_MASK(
-                                   LOG_DEBUG)) {
+  __EOSMGM_TREECOMMON_DBG1__ if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     stringstream ss;
     ss << (*fgat);
     eos_static_debug("FASTTREE IS %s", ss.str().c_str());

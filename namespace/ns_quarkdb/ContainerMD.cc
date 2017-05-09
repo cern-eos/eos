@@ -724,7 +724,6 @@ ContainerMD::serialize(Buffer& buffer)
   // }
   // Align the buffer to 4 bytes to efficiently compute the checksum
   size_t obj_size = mCont.ByteSizeLong();
-  fprintf(stderr, "Container size: %lu\n", obj_size);
   uint32_t align_size = (obj_size + 3) >> 2 << 2;
   size_t sz = sizeof(align_size);
   size_t msg_size = align_size + 2 * sz;

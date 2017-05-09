@@ -45,10 +45,10 @@ int main(int argc, char* argv[])
 {
   eos::common::Mapping::VirtualIdentity_t vid;
   eos::common::Mapping::Root(vid);
-  eos::common::Logging::Init();
-  eos::common::Logging::SetUnit("eoschecksumbenchmark@localhost");
-  eos::common::Logging::gShortFormat = true;
-  eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetUnit("eoschecksumbenchmark@localhost");
+  g_logging.gShortFormat = true;
+  g_logging.SetLogPriority(LOG_DEBUG);
   std::vector<std::string> checksumnames;
   std::vector<unsigned long long> checksumids;
   checksumnames.push_back("adler32");

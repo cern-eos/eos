@@ -399,8 +399,9 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
     pTreeMapMutex.UnLockWrite();
     mapEntry->slowTreeMutex.UnLockWrite();
   }
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
-  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     stringstream ss;
     ss << (*mapEntry->slowTree);
     eos_debug("inserted fs %lu into group %s geotag is %s and fullgeotag is %s\n%s",
@@ -1266,6 +1267,7 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx>&
             trimlastlevel ? std::string(*geotag, 0,
                                         geotag->rfind("::")).c_str() : geotag->c_str());
     bool schedsuccess = false;
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
     if (proxyschedtype == filesticky) {
       // scheduling should consistently go through the same (firewallentrypoint,proxy)
@@ -1294,7 +1296,7 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx>&
           schedsuccess = (np != 0);
 
           if (schedsuccess) {
-            if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+            if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
               stringstream ss;
               ss << " all proxys are:";
 
@@ -1362,7 +1364,7 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx>&
               // if it succeeds, feel the corresponding element of the return vector
               (*dataProxys)[i] = (*pxyentry->foregroundFastStruct->treeInfo)[idx].hostport;
 
-              if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+              if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
                 stringstream ss;
                 ss << "file sticky proxy scheduling fs:" <<
                    (*entries[i]->foregroundFastStruct->treeInfo)[fsIdxs[i]].fsId;
@@ -1782,6 +1784,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
   {
     SchedTreeBase::tFastTreeIdx accesserNode = 0;
     FileSystem::fsid_t selectedFsId = 0;
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
     {
       // maps a geolocation scores (int) to all the file system having this geolocation scores
       map< unsigned , std::vector< FileSystem::fsid_t > > geoScore2Fs;
@@ -1789,7 +1792,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
       for (auto entryIt = entry2FsId.begin(); entryIt != entry2FsId.end();
            entryIt ++) {
-        if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+        if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
           char buffer[1024];
           buffer[0] = 0;
           char* buf = buffer;
@@ -1913,7 +1916,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
       }
     }
 
-    if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+    if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
       char buffer[1024];
       buffer[0] = 0;
       char* buf = buffer;
@@ -4220,8 +4223,9 @@ GeoTreeEngine::insertHostIntoPxyGr(FsNode* host , const std::string& proxygroup,
     pPxyTreeMapMutex.UnLockWrite();
     mapEntry->slowTreeMutex.UnLockWrite();
   }
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
-  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     stringstream ss;
     ss << (*mapEntry->slowTree);
     eos_debug("inserted host %s into proxygroup %s : : geotag is %s and "

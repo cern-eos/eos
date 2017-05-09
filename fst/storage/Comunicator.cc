@@ -249,7 +249,8 @@ Storage::Communicator()
 
             if (hash) {
               std::string debuglevel = hash->Get("debug.level");
-              int debugval = eos::common::Logging::GetPriorityByString(debuglevel.c_str());
+              eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+              int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
 
               if (debugval < 0) {
                 eos_static_err("debug level %s is not known!", debuglevel.c_str());
@@ -261,7 +262,7 @@ Storage::Communicator()
                   gOFS.ObjectManager.SetDebug(false);
                 }
 
-                eos::common::Logging::SetLogPriority(debugval);
+                g_logging.SetLogPriority(debugval);
               }
             }
 

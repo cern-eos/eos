@@ -1222,10 +1222,11 @@ XrdMqSharedObjectChangeNotifier::SubscribesToSubjectAndKey(
   const std::set<std::string>& keys,
   XrdMqSharedObjectChangeNotifier::notification_t type)
 {
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   Subscriber* s = GetSubscriberFromCatalog(subscriber);
   XrdSysMutexHelper lock(s->WatchMutex);
 
-  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     size_t bufsize = 0;
 
     for (auto it = subjects.begin(); it != subjects.end(); ++it) {
@@ -1520,7 +1521,9 @@ XrdMqSharedObjectChangeNotifier::UnsubscribesToSubjectAndKey(
   std::set<std::string> keys,
   XrdMqSharedObjectChangeNotifier::notification_t type)
 {
-  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     size_t bufsize = 0;
 
     for (auto it = subjects.begin(); it != subjects.end(); ++it) {
@@ -1775,7 +1778,9 @@ XrdMqSharedObjectChangeNotifier::StartNotifySubjectsAndKeys(
   const std::set<std::string>& keys,
   XrdMqSharedObjectChangeNotifier::notification_t type)
 {
-  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     size_t bufsize = 0;
 
     for (auto it = subjects.begin(); it != subjects.end(); ++it) {
@@ -1910,7 +1915,9 @@ XrdMqSharedObjectChangeNotifier::StopNotifySubjectsAndKeys(
   const std::set<std::string>& keys,
   XrdMqSharedObjectChangeNotifier::notification_t type)
 {
-  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG)) {
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
     size_t bufsize = 0;
 
     for (auto it = subjects.begin(); it != subjects.end(); ++it) {

@@ -123,13 +123,13 @@ int main(int argc, char* argv[])
   eos::common::Mapping::Root(vid);
   vid.uid = getuid();
   vid.gid = getgid();
-  eos::common::Logging::Init();
-  eos::common::Logging::SetUnit("eosdropboxd@localhost");
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  g_logging.SetUnit("eosdropboxd@localhost");
 
   if (getenv("EOS_DEBUG")) {
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+    g_logging.SetLogPriority(LOG_DEBUG);
   } else {
-    eos::common::Logging::SetLogPriority(LOG_INFO);
+    g_logging.SetLogPriority(LOG_INFO);
   }
 
   XrdOucString syskill = "kill -15 `pgrep -f eosdropboxd -U ";

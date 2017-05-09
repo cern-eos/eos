@@ -1167,9 +1167,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmOfsQueue = "/eos/";
   MgmOfsQueue += ManagerId;
   MgmOfsQueue += "/mgm";
-  // setup the circular in-memory logging buffer
-  eos::common::Logging::Init();
-  // configure log-file fan out
+  // Setup the circular in-memory logging buffer
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  // Configure log-file fan out
   std::vector<std::string> lFanOutTags;
   lFanOutTags.push_back("Balancer");
   lFanOutTags.push_back("Converter");
@@ -1203,7 +1203,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       FILE* fp = fopen(lLogFile.c_str(), "a+");
 
       if (fp) {
-        eos::common::Logging::AddFanOut(lFanOutTags[i].c_str(), fp);
+        g_logging.AddFanOut(lFanOutTags[i].c_str(), fp);
       } else {
         fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
       }
@@ -1216,18 +1216,18 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // ---------------------------------------------------------------------------
   // HTTP module
   // ---------------------------------------------------------------------------
-  eos::common::Logging::AddFanOutAlias("HttpHandler", "Http");
-  eos::common::Logging::AddFanOutAlias("HttpServer", "Http");
-  eos::common::Logging::AddFanOutAlias("ProtocolHandler", "Http");
-  eos::common::Logging::AddFanOutAlias("S3", "Http");
-  eos::common::Logging::AddFanOutAlias("S3Store", "Http");
-  eos::common::Logging::AddFanOutAlias("WebDAV", "Http");
-  eos::common::Logging::AddFanOutAlias("PropFindResponse", "Http");
-  eos::common::Logging::AddFanOutAlias("WebDAVHandler", "Http");
-  eos::common::Logging::AddFanOutAlias("WebDAVReponse", "Http");
-  eos::common::Logging::AddFanOutAlias("S3Handler", "Http");
-  eos::common::Logging::AddFanOutAlias("S3Store", "Http");
-  eos::common::Logging::SetUnit(MgmOfsBrokerUrl.c_str());
+  g_logging.AddFanOutAlias("HttpHandler", "Http");
+  g_logging.AddFanOutAlias("HttpServer", "Http");
+  g_logging.AddFanOutAlias("ProtocolHandler", "Http");
+  g_logging.AddFanOutAlias("S3", "Http");
+  g_logging.AddFanOutAlias("S3Store", "Http");
+  g_logging.AddFanOutAlias("WebDAV", "Http");
+  g_logging.AddFanOutAlias("PropFindResponse", "Http");
+  g_logging.AddFanOutAlias("WebDAVHandler", "Http");
+  g_logging.AddFanOutAlias("WebDAVReponse", "Http");
+  g_logging.AddFanOutAlias("S3Handler", "Http");
+  g_logging.AddFanOutAlias("S3Store", "Http");
+  g_logging.SetUnit(MgmOfsBrokerUrl.c_str());
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
   XrdOucString ttybroadcastkillline = "pkill -9 -f \"eos-tty-broadcast\"";
   int rrc = system(ttybroadcastkillline.c_str());
@@ -1316,13 +1316,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   Config.Close();
   XrdOucString unit = "mgm@";
   unit += ManagerId;
-  eos::common::Logging::SetLogPriority(LOG_INFO);
-  eos::common::Logging::SetUnit(unit.c_str());
+  g_logging.SetLogPriority(LOG_INFO);
+  g_logging.SetUnit(unit.c_str());
   std::string filter =
     "Process,AddQuota,UpdateHint,Update,UpdateQuotaStatus,SetConfigValue,"
     "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,"
     "placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures";
-  eos::common::Logging::SetFilter(filter.c_str());
+  g_logging.SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
              "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
              "RegisterNode,SharedHash,"
