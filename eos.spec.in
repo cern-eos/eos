@@ -77,7 +77,7 @@ BuildRequires: libcurl-devel libcurl, sparsehash-devel
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
 BuildRequires: zeromq3, zeromq3-devel
 %else
-BuildRequires: zeromq, zeromq-devel
+BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 %endif
 
 # Install gcc 4.8 on SLC6
@@ -309,7 +309,7 @@ The EOS shell client.
 Summary: The EOS fuse client with init.d and mount script
 Group: Applications/File
 Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
-Requires: eos-fuse-sys = @CPACK_PACKAGE_VERSION@
+Requires: eos-fuse-sysv = @CPACK_PACKAGE_VERSION@
 
 %description -n eos-fuse
 The EOS fuse client bundle.
@@ -380,51 +380,71 @@ if [ $1 -eq 0 ]; then
 fi
 
 #-------------------------------------------------------------------------------
-# Package eos-fuse-sys
+# Package eos-fuse-sysv
 #-------------------------------------------------------------------------------
-%package -n eos-fuse-sys
+%package -n eos-fuse-sysv
 Summary: The EOS fuse client
 Group: Applications/File
-
 Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
 
-%description -n eos-fuse-sys
-The EOS fuse SYSV init scripts and SystemD scripts.
+%description -n eos-fuse-sysv
+The EOS fuse SYSV init scripts.
 
-%files -n eos-fuse-sys
+%files -n eos-fuse-sysv
 %defattr(-, root, root, -)
-%if %{use_systemd}
-  %config %{_sysconfdir}/sysconfig/eosd_env.example
-  %{_prefix}/lib/systemd/system/eosd@.service
-  %{_sbindir}/eos_start_pre.sh
-%else
-  %{_sysconfdir}/rc.d/init.d/eosd
-%endif
+%{_sysconfdir}/rc.d/init.d/eosd
 
-%post -n eos-fuse-sys
-%if %{use_systemd}
-  systemctl daemon-reload > /dev/null 2>&1 || :
-%endif
+%post -n eos-fuse-sysv
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
   echo "Skipping chkconfig for eosd"
 %else
   /sbin/chkconfig --add eosd
 %endif
 
-%preun -n eos-fuse-sys
+%preun -n eos-fuse-sysv
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
   echo "Skipping chkconfig for eosd"
 %else
   if [ $1 = 0 ]; then
     echo "Stopping EOS FUSE services"
-    %if %{use_systemd}
-      systemctl stop eosd@* > /dev/null 2>&1 || :
-    %else
-      /sbin/service eosd stop > /dev/null 2>&1 || :
-    %endif
+    /sbin/service eosd stop > /dev/null 2>&1 || :
     /sbin/chkconfig --del eosd
   fi
 %endif
+
+# TODO (esindril): This should be enabled when we move to systemd for fuse
+# %if %{use_systemd}
+#   %config %{_sysconfdir}/sysconfig/eosd_env.example
+#   %{_prefix}/lib/systemd/system/eosd@.service
+#   %{_sbindir}/eos_start_pre.sh
+# %else
+#   %{_sysconfdir}/rc.d/init.d/eosd
+# %endif
+
+# %post -n eos-fuse-sys
+# %if %{use_systemd}
+#   systemctl daemon-reload > /dev/null 2>&1 || :
+# %endif
+# %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
+#   echo "Skipping chkconfig for eosd"
+# %else
+#   /sbin/chkconfig --add eosd
+# %endif
+
+# %preun -n eos-fuse-sys
+# %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
+#   echo "Skipping chkconfig for eosd"
+# %else
+#   if [ $1 = 0 ]; then
+#     echo "Stopping EOS FUSE services"
+#     %if %{use_systemd}
+#       systemctl stop eosd@* > /dev/null 2>&1 || :
+#     %else
+#       /sbin/service eosd stop > /dev/null 2>&1 || :
+#     %endif
+#     /sbin/chkconfig --del eosd
+#   fi
+# %endif
 
 %if %{?_with_server:1}%{!?_with_server:0}
 #-------------------------------------------------------------------------------
