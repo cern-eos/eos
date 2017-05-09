@@ -122,11 +122,11 @@ eos_rpm_fedora_rawhide:
     - master
     - master-ci
 
-eos_rpm_fedora_24:
+eos_rpm_fedora_25:
   stage: build:rpm
-  image: fedora:24
+  image: fedora:25
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -134,8 +134,7 @@ eos_rpm_fedora_24:
     - make srpm
     - cd ..
     - source gitlab-ci/setup_ccache_fc.sh
-    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/fc-24/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e '[xrootd]\nname=XRootD CERN\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/fc-24/x86_64/\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/xrootd.repo
+    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/fc-25/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
