@@ -47,8 +47,29 @@ install(
 set(SYSTEMD_DIR /usr/lib/systemd/system/)
 
 if(EXISTS ${SYSTEMD_DIR})
+# TODO (esindril): Uncomment this when systemd support is enabled for fuse
+# install(
+#   FILES sysconfig/eos_env.example sysconfig/eosd_env.example
+#   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
+
+# install(DIRECTORY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
+
+# install(
+#   FILES systemd/system/eos.service
+# 	systemd/system/eos@.service
+# 	systemd/system/eos@master.service
+# 	systemd/system/eos@slave.service
+# 	systemd/system/eosd@.service
+# 	systemd/system/eosfstdb@.service
+# 	systemd/system/eosha.service
+# 	systemd/system/eosslave.service
+# 	systemd/system/eossync.service
+# 	systemd/system/eossync@.service
+# 	systemd/system/eossync@config.service
+#   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
+
 install(
-  FILES sysconfig/eos_env.example sysconfig/eosd_env.example
+  FILES sysconfig/eos_env.example
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
 
 install(DIRECTORY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
@@ -58,7 +79,6 @@ install(
 	systemd/system/eos@.service
 	systemd/system/eos@master.service
 	systemd/system/eos@slave.service
-	systemd/system/eosd@.service
 	systemd/system/eosfstdb@.service
 	systemd/system/eosha.service
 	systemd/system/eosslave.service
@@ -66,6 +86,18 @@ install(
 	systemd/system/eossync@.service
 	systemd/system/eossync@config.service
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
+
+# We keep for the moment the SysV scripts for eosd
+install(
+  FILES sysconfig/eos.example
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
+
+install(
+ FILES rc.d/init.d/eosd
+ DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d
+ PERMISSIONS OWNER_READ OWNER_EXECUTE
+	     GROUP_READ GROUP_EXECUTE
+	     WORLD_READ WORLD_EXECUTE)
 else()
 install(
   FILES sysconfig/eos.example
