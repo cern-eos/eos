@@ -48,7 +48,6 @@ eos_rpm_cc7:
   only:
     - master
     - beryl_aquamarine
-    - master-ci
 
 eos_rpm_slc6:
   stage: build:rpm
@@ -84,7 +83,6 @@ eos_rpm_slc6:
   only:
     - master
     - beryl_aquamarine
-    - master-ci
 
 eos_rpm_fedora_rawhide:
   stage: build:rpm
@@ -120,7 +118,6 @@ eos_rpm_fedora_rawhide:
   allow_failure: true
   only:
     - master
-    - master-ci
 
 eos_rpm_fedora_25:
   stage: build:rpm
@@ -155,7 +152,6 @@ eos_rpm_fedora_25:
   allow_failure: true
   only:
     - master
-    - master-ci
 
 eos_dmg_macosx:
   stage: build:rpm
@@ -182,7 +178,6 @@ eos_dmg_macosx:
   allow_failure: true
   only:
     - master
-    - master-ci
 
 eos_docker:
   stage: build:dockerimage
@@ -198,7 +193,6 @@ eos_docker:
   only:
     - master
     - beryl_aquamarine
-    - master-ci
 
 eos_system_test:
   stage: test
@@ -221,7 +215,6 @@ eos_system_test:
   only:
     - master
     - beryl_aquamarine
-    - master-ci
 
 eos_publish_artifacts:
   stage: publish
@@ -237,7 +230,6 @@ eos_publish_artifacts:
   only:
     - master
     - beryl_aquamarine
-    - master-ci
 
 eos_periodic_coverity:
   stage: periodic
