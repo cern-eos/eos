@@ -232,12 +232,12 @@ Storage::Verify()
 
           // Update the extended attributes
           if (io) {
-            io->attrSet("user.eos.checksum", checksummer->GetBinChecksum(checksumlen),
-                        checksumlen);
-            io->attrSet("user.eos.checksumtype", checksummer->GetName(),
-                        strlen(checksummer->GetName()));
-            io->attrSet("user.eos.filecxerror", "0", 1);
-            io->attrSet("user.eos.blockcxerror", "0");
+            (void)io->attrSet("user.eos.checksum", checksummer->GetBinChecksum(checksumlen),
+                              checksumlen);
+            (void)io->attrSet("user.eos.checksumtype", checksummer->GetName(),
+                              strlen(checksummer->GetName()));
+            (void)io->attrSet("user.eos.filecxerror", "0", 1);
+            (void)io->attrSet("user.eos.blockcxerror", "0");
           }
         }
 
@@ -245,8 +245,9 @@ Storage::Verify()
 
         // commit local
         if (localUpdate && (!gFmdDbMapHandler.Commit(fMd))) {
-          eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit to local MD storage failed",
-                         verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+          eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit "
+                         "to local MD storage failed", verifyfile->fId,
+                         verifyfile->fsId, fstPath.c_str());
         } else {
           if (localUpdate) {
             eos_static_info("commited verified meta data locally id=%llu on fs=%u path=%s",

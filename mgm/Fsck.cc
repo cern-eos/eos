@@ -351,7 +351,7 @@ Fsck::Check(void)
       // Loop over all replica_offline and layout error files to assemble a
       // file offline list
       std::set <eos::common::FileId::fileid_t> fid2check;
-      auto set_fids = eMap["rep_offline"];
+      auto& set_fids = eMap["rep_offline"];
 
       for (auto it = set_fids.cbegin(); it != set_fids.cend(); ++it) {
         fid2check.insert(*it);
@@ -1322,7 +1322,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
            "-------------------------\n";
     // Drop all namespace entries which are older than 48 hours and have no
     // files attached. Loop over all fids ...
-    auto set_fids = eMap["zero_replica"];
+    auto& set_fids = eMap["zero_replica"];
 
     for (auto it = set_fids.cbegin(); it != set_fids.cend(); ++it) {
       std::shared_ptr<eos::IFileMD> fmd;
