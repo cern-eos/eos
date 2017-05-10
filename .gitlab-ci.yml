@@ -13,7 +13,7 @@ eos_rpm_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache epel-release
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -22,7 +22,7 @@ eos_rpm_cc7:
     - cd ..
     - source gitlab-ci/export_buildtype.sh 24 build/SRPMS
     - if [ "$BUILD_TYPE" == "commit" ]; then source gitlab-ci/setup_ccache.sh; else export CCACHE_DISABLE=1; fi
-    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies on EOSUSER\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-7-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with=server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
@@ -31,9 +31,9 @@ eos_rpm_cc7:
     - cp -R build/SRPMS/* cc7_artifacts
     - cp -R build/RPMS/* cc7_artifacts
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
-    - echo -e '[eos-depend-eosuser]\nname=EOS dpendencies on EOSUSER\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
-    - echo -e '[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
-    - echo -e '[xrootd]\nname=XROOTD\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/cc-7/x86_64/v4.6.0/\ngpgcheck=0\nenabled=1\npriority=4\n' >> eos-docker/eos.repo
+    - echo -e '[eos-depend]\nname=EOS dependencies \nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
+    # TODO: this repository needs to be removed in the future
+    - echo -e '[eos-depend-afs]\nname=EOS dependencies on AFS\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
@@ -53,7 +53,7 @@ eos_rpm_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache epel-release
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -62,7 +62,8 @@ eos_rpm_slc6:
     - cd ..
     - source gitlab-ci/export_buildtype.sh 24 build/SRPMS
     - if [ "$BUILD_TYPE" == "commit" ]; then source gitlab-ci/setup_ccache_slc6.sh; ccache --max-size=1.5G; else export CCACHE_DISABLE=1; fi
-    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies on EOSUSER\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.rep
+    # TODO: this repository needs to be removed in the future
     - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-6-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
@@ -88,7 +89,7 @@ eos_rpm_fedora_rawhide:
   stage: build:rpm
   image: fedora:rawhide
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar yum-utils ccache https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -97,8 +98,7 @@ eos_rpm_fedora_rawhide:
     - cd ..
     - source gitlab-ci/export_buildtype.sh 25 build/SRPMS
     - if [ "$BUILD_TYPE" == "commit" ]; then source gitlab-ci/setup_ccache_fc.sh; else export CCACHE_DISABLE=1; fi
-    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e '[xrootd]\nname=XRootD CERN\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/xrootd/release/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/xrootd.repo
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/fc-rawhide/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
@@ -132,7 +132,7 @@ eos_rpm_fedora_25:
     - cd ..
     - source gitlab-ci/export_buildtype.sh 24 build/SRPMS
     - if [ "$BUILD_TYPE" == "commit" ]; then source gitlab-ci/setup_ccache_fc.sh; else export CCACHE_DISABLE=1; fi
-    - echo -e '[eos-depend-eosuser]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/fc-25/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-depend]\n name=EOS dependencies\n baseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/fc-25/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
