@@ -214,7 +214,27 @@ eos_system_test:
     - eos_rpm_cc7
   only:
     - master
-    - beryl_aquamarine
+    - master-ci
+
+eos_stress_test:
+  stage: test
+  script:
+    - sudo ./eos-docker/scripts/shutdown_services.sh
+    - ./eos-docker/scripts/remove_unused_images.sh
+    - docker pull gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
+    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
+    - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
+    - docker exec -i eos-mgm-test hammer-runner.py --strict-exit-code 1 --url eos-mgm-test.eoscluster.cern.ch//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000
+    - sudo ./eos-docker/scripts/shutdown_services.sh
+    - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
+  tags:
+    - eos-stress
+  dependencies:
+    - eos_rpm_cc7
+  allow_failure: true
+  only:
+    - master
+    - master-ci
 
 eos_publish_artifacts:
   stage: publish
