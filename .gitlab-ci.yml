@@ -224,7 +224,8 @@ eos_stress_test:
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
-    - docker exec -i eos-mgm-test hammer-runner.py --strict-exit-code 1 --url eos-mgm-test.eoscluster.cern.ch//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000
+    - docker exec -i eos-mgm-test mkdir results
+    - docker exec -i eos-mgm-test hammer-runner.py --data-repo results --strict-exit-code 1 --url eos-mgm-test.eoscluster.cern.ch//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
   tags:
