@@ -31,6 +31,7 @@
 
 std::string journalcache::sLocation;
 bufferllmanager journalcache::sBufferManager;
+size_t journalcache::sMaxSize = 10 * 1024 * 1024; // TODO Some dummy default
 
 journalcache::journalcache() : ino( 0 ), cachesize( 0 ), fd( -1 ), nbAttached( 0 )
 {
@@ -147,7 +148,7 @@ int journalcache::unlink()
 
 ssize_t journalcache::pread( void *buf, size_t count, off_t offset )
 {
-  XrdSysRWLockHelper lck( rwLock );
+  read_lock lck( clck );
 
   auto result = journal.query( offset, offset + count );
 
@@ -261,7 +262,10 @@ ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
 {
   if( count <= 0 ) return 0;
 
-  XrdSysRWLockHelper lck( rwLock, false );
+  write_lock lck( clck );
+
+  while( sMaxSize <= cachesize )
+    clck.write_wait();
 
   interval_tree<uint64_t, const void*> to_write;
   std::vector<update_t> updates;
@@ -279,7 +283,7 @@ ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
     return -1;
 
   interval_tree<uint64_t, const void*>::iterator itr;
-  for( itr = to_write.begin(); itr != to_write.end(); ++itr ) // this could be replaced with a single pwritev
+  for( itr = to_write.begin(); itr != to_write.end(); ++itr ) // TODO this could be replaced with a single pwritev
   {
     uint64_t size   = itr->high - itr->low;
 
@@ -306,6 +310,8 @@ ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
 
 int journalcache::truncate(off_t offset)
 {
+  // TODO I don't really think this should be
+  // truncated manually
   return ::ftruncate( fd, offset );
 }
 
@@ -328,4 +334,14 @@ int journalcache::init()
   }
   sLocation = config.location;
   return 0;
+}
+
+int journalcache::remote_sync( cachesyncer & syncer )
+{
+  write_lock lck( clck );
+  int ret = syncer.sync( fd, journal, sizeof( header_t ) );
+  journal.clear();
+  truncate( 0 );
+  clck.broadcast();
+  return ret;
 }
