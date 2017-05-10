@@ -166,6 +166,7 @@ endif()
 add_library(
   eosxd-test
   journalcache.cc
+  cachesyncer.cc
   eosfuse.cc eosfuse.hh 
   Stat.cc Stat.hh 
   md.cc md.hh 

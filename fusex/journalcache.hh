@@ -26,6 +26,8 @@
 #define FUSEX_JOURNALCACHE_HH_
 
 #include "cache.hh"
+#include "cachelock.hh"
+#include "cachesyncer.hh"
 
 #include "interval_tree.hh"
 
@@ -75,6 +77,8 @@ class journalcache : public cache
 
     virtual size_t size();
 
+    virtual int remote_sync( cachesyncer &syncer );
+
     static int init();
 
   private:
@@ -95,13 +99,15 @@ class journalcache : public cache
     fuse_ino_t                        ino;
     size_t                            cachesize;
     int                               fd;
+    // the value is the offset in the cache file
     interval_tree<uint64_t, uint64_t> journal;
     size_t                            nbAttached;
-    XrdSysRWLock                      rwLock;
+    cachelock                         clck;
     XrdSysMutex                       mtx;
     bufferllmanager::shared_buffer    buffer;
     static bufferllmanager            sBufferManager;
     static std::string                sLocation;
+    static size_t                     sMaxSize;
 };
 
 #endif /* FUSEX_JOURNALCACHE_HH_ */
