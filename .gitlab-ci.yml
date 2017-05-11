@@ -271,7 +271,7 @@ eos_periodic_coverity:
   only:
     - triggers
 
-eos_periodic_coverity:
+eos_periodic_sonar:
   stage: build:rpm
   script:
     - cppcheck -v --enable=all --inline-suppr --xml --xml-version=1 -i fst/layout/gf-complete -i common/sqlite  common/ fst/ mgm/ console/ fuse/ namespace/ mq/ 2> cppcheck-report.xml
