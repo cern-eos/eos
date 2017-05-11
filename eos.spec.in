@@ -362,7 +362,7 @@ The EOS fuse core containing eosd and mount scripts.
 %post -n eos-fuse-core
 if [ "$1" -le "1" ]; then # First install
   for VARIANT in mls strict targeted; do
-    semodule -i %{_datadir}/selinux/$variant/eosfuse.pp &> /dev/null || :
+    semodule -i %{_datarootdir}/selinux/${VARIANT}/eosfuse.pp &> /dev/null || :
   done
 fi
 
@@ -376,7 +376,7 @@ fi
 %postun -n eos-fuse-core
 if [ "$1" -ge "1" ]; then # Upgrade
   for VARIANT in mls strict targeted; do
-    semodule -i %{_datadir}/selinux/${VARIANT}/eosfuse.pp || :
+    semodule -i %{_datarootdir}/selinux/${VARIANT}/eosfuse.pp || :
   done
 fi
 
