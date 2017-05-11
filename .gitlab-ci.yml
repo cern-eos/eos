@@ -28,8 +28,8 @@ eos_rpm_cc7:
     - rpmbuild --rebuild --with=server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - mkdir cc7_artifacts
-    - cp -R build/SRPMS/* cc7_artifacts
-    - cp -R build/RPMS/* cc7_artifacts
+    - cp -R build/SRPMS cc7_artifacts
+    - cp -R build/RPMS cc7_artifacts
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
     - echo -e '[eos-depend]\nname=EOS dependencies \nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' > eos-docker/eos.repo
     # TODO: this repository needs to be removed in the future
@@ -69,8 +69,8 @@ eos_rpm_slc6:
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - mkdir slc6_artifacts
-    - cp -R build/SRPMS/* slc6_artifacts
-    - cp -R build/RPMS/* slc6_artifacts
+    - cp -R build/SRPMS slc6_artifacts
+    - cp -R build/RPMS slc6_artifacts
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
@@ -103,8 +103,8 @@ eos_rpm_fedora_rawhide:
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - mkdir fcrawhide_artifacts
-    - cp -R build/SRPMS/* fcrawhide_artifacts
-    - cp -R build/RPMS/* fcrawhide_artifacts
+    - cp -R build/SRPMS fcrawhide_artifacts
+    - cp -R build/RPMS fcrawhide_artifacts
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
@@ -137,8 +137,8 @@ eos_rpm_fedora_25:
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - mkdir fcold_artifacts
-    - cp -R build/SRPMS/* fcold_artifacts
-    - cp -R build/RPMS/* fcold_artifacts
+    - cp -R build/SRPMS fcold_artifacts
+    - cp -R build/RPMS fcold_artifacts
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
