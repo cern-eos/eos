@@ -275,7 +275,7 @@ eos_periodic_sonar:
   stage: build:rpm
   script:
     - cppcheck -v --enable=all --inline-suppr --xml --xml-version=1 -i fst/layout/gf-complete -i common/sqlite  common/ fst/ mgm/ console/ fuse/ namespace/ mq/ 2> cppcheck-report.xml
-    - sonar-scanner -Dsonar.host.url=http://sonar.cern.ch -Dsonar.cxx.cppcheck.reportPath=cppcheck-report.xml  -Dsonar.projectKey=eos:eos -Dsonar.projectName=eos -Dsonar.projectVersion="`../genversion.sh`" -Dsonar.sources=common/,fst/,mgm/,console/,fuse/,namespace/mq/
+    - sonar-scanner -Dsonar.host.url=http://sonar.cern.ch -Dsonar.cxx.cppcheck.reportPath=cppcheck-report.xml  -Dsonar.projectKey=eos:eos -Dsonar.projectName=eos -Dsonar.projectVersion="`./genversion.sh`" -Dsonar.sources=common/,fst/,mgm/,console/,fuse/,namespace/mq/
   tags:
     - coverity
   allow_failure: true
