@@ -3,7 +3,6 @@ stages:
   - build:dockerimage
   - test
   - publish
-  - periodic
 
 before_script:
   - source gitlab-ci/export_branch.sh
@@ -253,7 +252,7 @@ eos_publish_artifacts:
     - beryl_aquamarine
 
 eos_periodic_coverity:
-  stage: periodic
+  stage: build:rpm
   script:
     - git submodule update --init --recursive
     - mkdir build
@@ -268,5 +267,17 @@ eos_periodic_coverity:
     - curl --form token="`cat /home/gitlab-runner/.coverity_token`" --form email=project-eos-commits@cern.ch --form file=@eos-metrics.tgz --form version="`../genversion.sh`" --form description="Periodic Gitlab build" https://scan.coverity.com/builds?project=cern-eos%2Feos
   tags:
     - coverity
+  allow_failure: true
+  only:
+    - triggers
+
+eos_periodic_coverity:
+  stage: build:rpm
+  script:
+    - cppcheck -v --enable=all --inline-suppr --xml --xml-version=1 -i fst/layout/gf-complete -i common/sqlite  common/ fst/ mgm/ console/ fuse/ namespace/ mq/ 2> cppcheck-report.xml
+    - sonar-scanner -Dsonar.host.url=http://sonar.cern.ch -Dsonar.cxx.cppcheck.reportPath=cppcheck-report.xml  -Dsonar.projectKey=eos:eos -Dsonar.projectName=eos -Dsonar.projectVersion="`../genversion.sh`" -Dsonar.sources=common/,fst/,mgm/,console/,fuse/,namespace/mq/
+  tags:
+    - coverity
+  allow_failure: true
   only:
     - triggers
