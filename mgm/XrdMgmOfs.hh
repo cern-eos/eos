@@ -128,6 +128,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
+#include "mgm/Drainer.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -1238,6 +1239,8 @@ public:
   XrdOucString MgmOfsConfigEngineRedisHost; //Redis host
   int MgmOfsConfigEngineRedisPort; //Redis port
 
+  bool MgmOfsCentralDraining; //Central drainer enabled/disabled
+
   //! Process state after namespace load time
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup;
   //! Map with scheduled fids for draining
@@ -1416,8 +1419,10 @@ public:
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   XrdMqSharedObjectChangeNotifier
   ObjectNotifier; ///< Shared Hash/Queue Object Change Notifier
-
+  
   GeoTreeEngine GeotreeEngine; ///< Placement / Access Engine
+
+  Drainer* DrainerEngine; ///< Drainer Management thread
 
   //! Map storing the modification times of directories, they are either
   //! directly inserted from directory/file creation or they are set from

@@ -284,6 +284,10 @@ FileSystem::GetConfigStatusAsString(int status)
     return "rw";
   }
 
+  if (status == kCentralDrain) {
+    return "centraldrain";
+  }
+
   return "unknown";
 }
 
@@ -365,6 +369,10 @@ FileSystem::GetConfigStatusFromString(const char* ss)
 
   if (!strcmp(ss, "rw")) {
     return kRW;
+  }
+
+  if (!strcmp(ss, "centraldrain")) {
+    return kCentralDrain;
   }
 
   return kUnknown;

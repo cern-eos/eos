@@ -209,6 +209,7 @@ public:
   int Chown();
   int Config();
   int Debug();
+  int Drain();
   int Fs();
   int Fsck();
   int Fusex();

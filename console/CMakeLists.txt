@@ -59,6 +59,7 @@ add_library(
   commands/com_console.cc
   commands/com_cp.cc
   commands/com_debug.cc
+  commands/com_drain.cc
   commands/com_dropbox.cc
   commands/com_file.cc
   commands/com_find.cc

@@ -384,6 +384,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmOfsConfigEngineType = "file";
   MgmOfsConfigEngineRedisHost = "localhost";
   MgmOfsConfigEngineRedisPort = 6379;
+  MgmOfsCentralDraining = false;
   MgmConfigDir = "";
   MgmMetaLogDir = "";
   MgmTxDir = "";
@@ -628,6 +629,18 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             Eroute.Say("=====> mgmofs.cfgredisport: ", val, "");
             MgmOfsConfigEngineRedisPort = atoi(val);
           }
+        }
+
+        if (!strcmp("centraldraining", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for centraldraining invalid.");
+            NoGo = 1;
+          } else {
+            Eroute.Say("=====> mgmofs.centraldraining: ", val, "");
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              MgmOfsCentralDraining = true;
+            }
+	  }
         }
 
         if (!strcmp("targetport", var)) {
@@ -1936,7 +1949,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       NoGo = 1;
     }
   }
-
+  if (MgmOfsCentralDraining) {
+    //starting drainer
+    DrainerEngine = new Drainer();  
+  }
   gGeoTreeEngine.StartUpdater();
   XrdSysTimer sleeper;
   sleeper.Snooze(1);

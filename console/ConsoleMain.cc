@@ -50,6 +50,7 @@ extern int com_config(char*);
 extern int com_console(char*);
 extern int com_cp(char*);
 extern int com_debug(char*);
+extern int com_drain(char*);
 extern int com_dropbox(char*);
 extern int com_file(char*);
 extern int com_fileinfo(char*);
@@ -273,6 +274,104 @@ wants_help(const char* arg1)
   }
 
   return 0;
+}
+
+//------------------------------------------------------------------------------
+// Command mapping array
+//------------------------------------------------------------------------------
+COMMAND commands[] = {
+  { (char*) "access", com_access, (char*) "Access Interface"},
+  { (char*) "accounting", com_accounting, (char*) "Accounting Information"},
+  { (char*) "acl", com_acl, (char*) "Acl Interface"},
+  { (char*) "archive", com_archive, (char*) "Archive Interface"},
+  { (char*) "attr", com_attr, (char*) "Attribute Interface"},
+  { (char*) "backup", com_backup, (char*) "Backup Interface"},
+  { (char*) "clear", com_clear, (char*) "Clear the terminal"},
+  { (char*) "cd", com_cd, (char*) "Change directory"},
+  { (char*) "chmod", com_chmod, (char*) "Mode Interface"},
+  { (char*) "chown", com_chown, (char*) "Chown Interface"},
+  { (char*) "config", com_config, (char*) "Configuration System"},
+  { (char*) "console", com_console, (char*) "Run Error Console"},
+  { (char*) "cp", com_cp, (char*) "Cp command"},
+  { (char*) "debug", com_debug, (char*) "Set debug level"},
+  { (char*) "drain", com_drain, (char*) "Drain Management"},
+  { (char*) "dropbox", com_dropbox, (char*) "Drop box"},
+  { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
+  { (char*) "file", com_file, (char*) "File Handling"},
+  { (char*) "fileinfo", com_fileinfo, (char*) "File Information"},
+  { (char*) "find", com_find, (char*) "Find files/directories"},
+  { (char*) "fs", com_fs, (char*) "File System configuration"},
+  { (char*) "fsck", com_fsck, (char*) "File System Consistency Checking"},
+  { (char*) "fuse", com_fuse, (char*) "Fuse Mounting"},
+  { (char*) "geosched", com_geosched, (char*) "Geoscheduler Interface"},
+  { (char*) "group", com_group, (char*) "Group configuration"},
+  { (char*) "health", com_health, (char*) "Health information about system"},
+  { (char*) "help", com_help, (char*) "Display this text"},
+  { (char*) "info", com_info, (char*) "Retrieve file or directory information"},
+  { (char*) "io", com_io, (char*) "IO Interface"},
+  { (char*) "json", com_json, (char*) "Toggle JSON output flag for stdout"},
+  { (char*) "kinetic", com_kinetic, (char*) "Admin commands for kinetic clusters"},
+  { (char*) "license", com_license, (char*) "Display Software License"},
+  { (char*) "ls", com_ls, (char*) "List a directory"},
+  { (char*) "ln", com_ln, (char*) "Create a symbolic link"},
+  { (char*) "map", com_map, (char*) "Path mapping interface"},
+  { (char*) "member", com_member, (char*) "Check Egroup membership"},
+  { (char*) "mkdir", com_mkdir, (char*) "Create a directory"},
+  { (char*) "motd", com_motd, (char*) "Message of the day"},
+  { (char*) "mv", com_mv, (char*) "Rename file or directory"},
+  { (char*) "node", com_node, (char*) "Node configuration"},
+  { (char*) "ns", com_ns, (char*) "Namespace Interface"},
+  { (char*) "pwd", com_pwd, (char*) "Print working directory"},
+  { (char*) "quit", com_quit, (char*) "Exit from EOS console"},
+  { (char*) "quota", com_quota, (char*) "Quota System configuration"},
+  { (char*) "reconnect", com_reconnect, (char*) "Forces a re-authentication of the shell"},
+  { (char*) "recycle", com_recycle, (char*) "Recycle Bin Functionality"},
+  { (char*) "rmdir", com_rmdir, (char*) "Remove a directory"},
+  { (char*) "rm", com_rm, (char*) "Remove a file"},
+  { (char*) "role", com_role, (char*) "Set the client role"},
+  { (char*) "rtlog", com_rtlog, (char*) "Get realtime log output from mgm & fst servers"},
+  { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
+  { (char*) "space", com_space, (char*) "Space configuration"},
+  { (char*) "stat", com_stat, (char*) "Run 'stat' on a file or directory"},
+  { (char*) "test", com_test, (char*) "Run performance test"},
+  { (char*) "timing", com_timing, (char*) "Toggle timing flag for execution time measurement"},
+  { (char*) "touch", com_touch, (char*) "Touch a file"},
+  { (char*) "transfer", com_transfer, (char*) "Transfer Interface"},
+  { (char*) "version", com_version, (char*) "Verbose client/server version"},
+  { (char*) "vid", com_vid, (char*) "Virtual ID System Configuration"},
+  { (char*) "vst", com_vst, (char*) "Virtual Storage Interface"},
+  { (char*) "whoami", com_whoami, (char*) "Determine how we are mapped on server side"},
+  { (char*) "who", com_who, (char*) "Statistics about connected users"},
+  { (char*) "?", com_help, (char*) "Synonym for `help'"},
+  { (char*) ".q", com_quit, (char*) "Exit from EOS console"},
+  { (char*) 0, (int (*)(char*))0, (char*) 0}
+};
+
+//------------------------------------------------------------------------------
+// Forward declarations
+//------------------------------------------------------------------------------
+char* stripwhite(char* string);
+COMMAND* find_command(char* command);
+char** EOSConsole_completion(const char* text, int start, int intend);
+char* command_generator(const char* text, int state);
+char* dir_generator(const char* text, int state);
+char* filedir_generator(const char* text, int state);
+int valid_argument(char* caller, char* arg);
+int execute_line(char* line);
+
+/* The name of this program, as taken from argv[0]. */
+char* progname;
+
+/* When non-zero, this global means the user is done using this program. */
+int done;
+
+char*
+dupstr(char* s)
+{
+  char* r;
+  r = (char*) malloc(strlen(s) + 1);
+  strcpy(r, s);
+  return (r);
 }
 
 //------------------------------------------------------------------------------
