@@ -55,7 +55,6 @@ Logging::Logging():
     if ((tosyslog == "1" ||
          (tosyslog == "true"))) {
       gToSysLog = true;
-      eos_static_info("logging to syslog");
     }
   }
 }

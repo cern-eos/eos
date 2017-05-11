@@ -45,8 +45,7 @@ add_executable(
   main.cc eosfuse.cc eosfuse.hh
   filesystem.cc      filesystem.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh
-  AuthIdManager.cc   xrdutils.cc
-  ${CMAKE_SOURCE_DIR}/common/Logging.cc)
+  AuthIdManager.cc   xrdutils.cc)
 
 if(MacOSX)
   target_link_libraries(
