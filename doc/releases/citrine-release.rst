@@ -17,6 +17,33 @@ This is the first release targeted for clients to use EOS with XRootD >= 4.2.X.
 It is merged from the Aquamarine Version 0.3.130. Main difference to Aquamarine
 is the use of XRootD 4 and the new tree-based scheduling algorithm.
 
+``v4.1.21 Citrine``
++++++++++++++++++++
+
+Bugfix
+++++++
+* [EOS-1833] - eosfuse.cc uses a free'd fuse_req_t -> segfault
+* [EOS-1781] - MGM crash in GeoBalancer
+* [EOS-1642] - "Bad address" on EOS FUSE should be "Permission denied"
+* [EOS-1830] - Recycle bin list crash when doing full scan (need protection)
+
+
+Task
+++++
+* [EOS-1848] - selinux error when uninstalling eos-fuse-core
+
+User Documentation
+++++++++++++++++++
+* [EOS-1826] - Missing dependencies on the front page
+
+Suggestion
+++++++++++
+* [EOS-1827] - Ancient version of zmq.hpp causing issues when compiling with new zmq.h (taken from system)
+* [EOS-1828] - Utils.hh in qclient #include cannot find header
+* [EOS-1831] - CMAKE, microhttpd, and client
+* [EOS-1832] - Bug in console/commands/com_fuse.cc with handling of environment variable EOS_FUSE_NO_MT
+
+
 ``v4.1.3 Citrine``
 ++++++++++
 
