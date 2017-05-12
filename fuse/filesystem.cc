@@ -4591,6 +4591,13 @@ filesystem::initlogging()
   return true;
 }
 
+static bool getenv_boolean_flag(const std::string &name, bool default_value) {
+  const char* value = getenv(name.c_str());
+  if(!value) return default_value;
+
+  return (atoi(value) == 1);
+}
+
 bool
 filesystem::init(int argc, char* argv[], void* userdata,
                  std::map<std::string, std::string>* features)
@@ -4842,40 +4849,11 @@ filesystem::init(int argc, char* argv[], void* userdata,
   }
 
   // Get parameters about strong authentication
-  if (getenv("EOS_FUSE_USER_KRB5CC") &&
-      (atoi(getenv("EOS_FUSE_USER_KRB5CC")) == 1)) {
-    use_user_krb5cc = true;
-  } else {
-    use_user_krb5cc = false;
-  }
-
-  if (getenv("EOS_FUSE_USER_GSIPROXY") &&
-      (atoi(getenv("EOS_FUSE_USER_GSIPROXY")) == 1)) {
-    use_user_gsiproxy = true;
-  } else {
-    use_user_gsiproxy = false;
-  }
-
-  if (getenv("EOS_FUSE_USER_UNSAFEKRB5") &&
-      (atoi(getenv("EOS_FUSE_USER_UNSAFEKRB5")) == 1)) {
-    use_unsafe_krk5 = true;
-  } else {
-    use_unsafe_krk5 = false;
-  }
-
-  if (getenv("EOS_FUSE_FALLBACKTONOBODY") &&
-      (atoi(getenv("EOS_FUSE_FALLBACKTONOBODY")) == 1)) {
-    fallback2nobody = true;
-  } else {
-    fallback2nobody = false;
-  }
-
-  if (getenv("EOS_FUSE_USER_KRB5FIRST") &&
-      (atoi(getenv("EOS_FUSE_USER_KRB5FIRST")) == 1)) {
-    tryKrb5First = true;
-  } else {
-    tryKrb5First = false;
-  }
+  use_user_krb5cc = getenv_boolean_flag("EOS_FUSE_USER_KRB5CC", false);
+  use_user_gsiproxy = getenv_boolean_flag("EOS_FUSE_USER_GSIPROXY", false);
+  use_unsafe_krk5 = getenv_boolean_flag("EOS_FUSE_USER_UNSAFEKRB5", false);
+  fallback2nobody = getenv_boolean_flag("EOS_FUSE_FALLBACKTONOBODY", false);
+  tryKrb5First = getenv_boolean_flag("EOS_FUSE_USER_KRB5FIRST", false);
 
   if (!use_user_krb5cc && !use_user_gsiproxy) {
     if (getenv("EOS_FUSE_SSS_KEYTAB")) {
@@ -4958,11 +4936,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
 #endif
 
   // Get parameters about strong authentication
-  if (getenv("EOS_FUSE_PIDMAP") && (atoi(getenv("EOS_FUSE_PIDMAP")) == 1)) {
-    link_pidmap = true;
-  } else {
-    link_pidmap = false;
-  }
+  link_pidmap = getenv_boolean_flag("EOS_FUSE_PIDMAP", false);
 
   eos_static_notice("krb5=%d", use_user_krb5cc ? 1 : 0);
   pthread_t tid;
