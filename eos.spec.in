@@ -361,23 +361,21 @@ The EOS fuse core containing eosd and mount scripts.
 
 %post -n eos-fuse-core
 if [ "$1" -le "1" ]; then # First install
-  for VARIANT in mls strict targeted; do
-    semodule -i %{_datarootdir}/selinux/${VARIANT}/eosfuse.pp &> /dev/null || :
-  done
+  /usr/sbin/semodule -i %{_datarootdir}/selinux/mls/eosfuse.pp || :
+  /usr/sbin/semodule -i %{_datarootdir}/selinux/strict/eosfuse.pp || :
+  /usr/sbin/semodule -i %{_datarootdir}/selinux/targeted/eosfuse.pp || :
 fi
 
 %preun -n eos-fuse-core
 if [ "$1" -eq  "0" ]; then # Final removal
-  for VARIANT in mls strict targeted; do
-    semodule -n -s ${VARIANT} -r eosfuse &> /dev/null || :
-  done
+  /usr/sbin/semodule -r eosfuse || :
 fi
 
 %postun -n eos-fuse-core
 if [ "$1" -ge "1" ]; then # Upgrade
-  for VARIANT in mls strict targeted; do
-    semodule -i %{_datarootdir}/selinux/${VARIANT}/eosfuse.pp || :
-  done
+  /usr/sbin/semodule -i %{_datarootdir}/selinux/mls/eosfuse.pp || :
+  /usr/sbin/semodule -i %{_datarootdir}/selinux/strict/eosfuse.pp || :
+  /usr/sbin/semodule -i %{_datarootdir}/selinux/targeted/eosfuse.pp || :
 fi
 
 #-------------------------------------------------------------------------------
