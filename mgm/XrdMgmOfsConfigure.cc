@@ -1877,14 +1877,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
-    if (MgmMaster.IsMaster()) {
-      eos_info("starting file view loader thread");
+    eos_info("starting file view loader thread");
 
-      if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
-                             static_cast<void*>(this), 0, "File View Loader"))) {
-        eos_crit("cannot start file view loader");
-        NoGo = 1;
-      }
+    if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
+                           static_cast<void*>(this), 0, "File View Loader"))) {
+      eos_crit("cannot start file view loader");
+      NoGo = 1;
     }
   }
 
