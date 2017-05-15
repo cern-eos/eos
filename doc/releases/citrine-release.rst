@@ -17,6 +17,15 @@ This is the first release targeted for clients to use EOS with XRootD >= 4.2.X.
 It is merged from the Aquamarine Version 0.3.130. Main difference to Aquamarine
 is the use of XRootD 4 and the new tree-based scheduling algorithm.
 
+``v4.1.22 Citrine``
++++++++++++++++++++
+
+Bugfix
+++++++
+* Fix response for xrdfs query checksum to display "adler32" instead of "adler" as checksum type
+* Fix launch of the follower thread for the MGM slave
+
+
 ``v4.1.21 Citrine``
 +++++++++++++++++++
 
