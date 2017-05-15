@@ -87,7 +87,7 @@ ProcCommand::Attr()
 
             if ((mSubCmd == "ls")) {
               if (gOFS->_access(foundit->first.c_str(), R_OK, *mError, *pVid, 0)) {
-                stdErr += "error: unable to get attributues  ";
+                stdErr += "error: unable to get attributes  ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
                 return SFS_OK;
