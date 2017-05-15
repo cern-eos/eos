@@ -34,3 +34,10 @@ eos-log-repair
 /build/
 __pycache__
 kineticio-dist.tgz
+# clion specific configs
+/cmake-build-debug/
+/.idea/
+# eclipse specific configs
+/.settings/
+.cproject
+.project
