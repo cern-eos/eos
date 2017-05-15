@@ -155,7 +155,7 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
   }
 
   // Set the checksum type
-  std::string cksum_type = eos::common::LayoutId::GetChecksumString(
+  std::string cksum_type = eos::common::LayoutId::GetChecksumStringReal(
                              fmd->getLayoutId());
   sprintf(buff, "!%s ", cksum_type.c_str());
   // copy the checksum buffer
