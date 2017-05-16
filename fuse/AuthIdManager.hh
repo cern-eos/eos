@@ -106,11 +106,11 @@ public:
     connectionId++;
   }
 
-  enum CredType {
-    krb5, krk5, x509, nobody
-  };
-
   struct CredInfo {
+    enum CredType {
+      krb5, krk5, x509, nobody
+    };
+
     CredType type;     // krb5 , krk5 or x509
     std::string lname; // link to credential file
     std::string fname; // credential file
@@ -203,7 +203,7 @@ protected:
     // krk5 -> kerberos 5 credential cache not in a file (e.g. KeyRing)
     // x509 -> gsi authentication
     const char* suffixes[5] = {"krb5", "krk5", "x509", "krb5", "krk5"};
-    CredType credtypes[5] = {krb5, krk5, x509, krb5, krk5};
+    CredInfo::CredType credtypes[5] = {CredInfo::krb5, CredInfo::krk5, CredInfo::x509, CredInfo::krb5, CredInfo::krk5};
     int sidx = 1, sn = 2;
 
     if (!credConfig.use_user_krb5cc && credConfig.use_user_gsiproxy) {
@@ -246,7 +246,7 @@ protected:
           eos_static_debug("found credential link %s for uid %d and sid %d",
                            credinfo.lname.c_str(), (int) uid, (int) sid);
 
-          if (credinfo.type == krk5) {
+          if (credinfo.type == CredInfo::krk5) {
             credinfo.fname = buffer2;
             break; // there is no file to stat in that case
           }
@@ -287,17 +287,17 @@ protected:
   {
     bool ret = false;
     eos_static_debug("reading %s credential file %s",
-                     credinfo.type == krb5 ? "krb5" : (credinfo.type == krb5 ? "krk5" : "x509"),
+                     credinfo.type == CredInfo::krb5 ? "krb5" : (credinfo.type == CredInfo::krb5 ? "krk5" : "x509"),
                      credinfo.fname.c_str());
 
-    if (credinfo.type == krk5) {
+    if (credinfo.type == CredInfo::krk5) {
       // fileless authentication cannot rely on symlinks to be able to change the cache credential file
       // instead of the identity, we use the keyring information and each has a different xrd login
       credinfo.identity = credinfo.fname;
       ret = true;
     }
 
-    if (credinfo.type == krb5) {
+    if (credinfo.type == CredInfo::krb5) {
       ProcReaderKrb5UserName reader(credinfo.fname);
 
       if (!reader.ReadUserName(credinfo.identity)) {
@@ -308,7 +308,7 @@ protected:
       }
     }
 
-    if (credinfo.type == x509) {
+    if (credinfo.type == CredInfo::x509) {
       ProcReaderGsiIdentity reader(credinfo.fname);
 
       if (!reader.ReadIdentity(credinfo.identity)) {
@@ -324,13 +324,13 @@ protected:
 
   bool
   checkCredSecurity(const struct stat& linkstat, const struct stat& filestat,
-                    uid_t uid, CredType credtype)
+                    uid_t uid, CredInfo::CredType credtype)
   {
     //eos_static_debug("linkstat.st_uid=%d  filestat.st_uid=%d  filestat.st_mode=%o  requiredmode=%o",(int)linkstat.st_uid,(int)filestat.st_uid,filestat.st_mode & 0777,reqMode);
     if (
       // check owner ship
       linkstat.st_uid == uid) {
-      if (credtype == krk5) {
+      if (credtype == CredInfo::krk5) {
         return true;
       } else if (filestat.st_uid == uid &&
                  (filestat.st_mode & 0077) == 0 // no access to other users/groups
@@ -530,7 +530,7 @@ protected:
 
     if (!findCred(credinfo, linkstat, filestat, uid, sid, sessionSut)) {
       if (credConfig.fallback2nobody) {
-        credinfo.type = nobody;
+        credinfo.type = CredInfo::nobody;
         credinfo.lmtime = credinfo.lctime = 0;
         eos_static_debug("could not find any strong credential for uid %d pid %d sid %d, falling back on 'nobody'",
                          (int)uid, (int)pid, (int)sid);
@@ -599,7 +599,7 @@ protected:
     uint64_t authid = 0;
     std::string sId;
 
-    if (credinfo.type == nobody) {
+    if (credinfo.type == CredInfo::nobody) {
       sId = "unix:nobody";
 
       /*** using unix authentication and user nobody ***/
@@ -628,9 +628,9 @@ protected:
       }
 
       // update authmethods for session leader and current pid
-      if (credinfo.type == krb5) {
+      if (credinfo.type == CredInfo::krb5) {
         sId = "krb5:";
-      } else if (credinfo.type == krk5) {
+      } else if (credinfo.type == CredInfo::krk5) {
         sId = "krk5:";
       } else {
         sId = "x509:";
@@ -638,7 +638,7 @@ protected:
 
       std::string newauthmeth;
 
-      if (credinfo.type == krk5 && !checkKrk5StringSafe(credinfo.fname)) {
+      if (credinfo.type == CredInfo::krk5 && !checkKrk5StringSafe(credinfo.fname)) {
         eos_static_err("deny user %d using of unsafe in memory krb5 credential string '%s'",
                        (int)uid, credinfo.fname.c_str());
         return EPERM;
