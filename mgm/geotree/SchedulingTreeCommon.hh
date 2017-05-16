@@ -262,8 +262,10 @@ public:
   template<typename T>
   inline static signed char
   comparePlct(const TreeNodeState<T>* const& lefts,
-              const TreeNodeSlots* const& leftp, const TreeNodeState<T>* const& rights,
-              const TreeNodeSlots* const& rightp, const char& spreadingFillRatioCap,
+              const TreeNodeSlots* const& leftp,
+              const TreeNodeState<T>* const& rights,
+              const TreeNodeSlots* const& rightp,
+              const char& spreadingFillRatioCap,
               const char& fillRatioCompTol)
   {
     // this function compares the scheduling priority of two branches
@@ -272,7 +274,7 @@ public:
     // than the next priority level being present in the array,
     // a single swap is enough to keep the order
     // return value
-    // -1 if left  > right
+    // -1 if left > right
     //  0 if left == right
     //  1 if right < left
     // lexicographic order
@@ -298,7 +300,7 @@ public:
       return -1;
     }
 
-    // 0 - Having at least one free slot
+    // Having at least one free slot
     if (!leftp->freeSlotsCount && rightp->freeSlotsCount) {
       return 1;
     }
@@ -307,7 +309,16 @@ public:
       return -1;
     }
 
-    // 1 - respect of SpreadingFillRatioCap
+    // Have free space taking into account the headroom
+    if ((lefts->totalSpace == 0) && rights->totalSpace) {
+      return -1;
+    }
+
+    if ((rights->totalSpace == 0) && lefts->totalSpace) {
+      return 1;
+    }
+
+    // Respect the SpreadingFillRatioCap
     if (lefts->fillRatio > spreadingFillRatioCap &&
         rights->fillRatio <= spreadingFillRatioCap) {
       return 1;
@@ -318,7 +329,7 @@ public:
       return -1;
     }
 
-    // 2 - as few replicas as possible
+    // As few replicas as possible
     if (leftp->takenSlotsCount > rightp->takenSlotsCount) {
       return 1;
     }
@@ -330,7 +341,7 @@ public:
     //#define USEMAXSLOT
 #ifdef USEMAXSLOT
 
-    // 3 - as many available slots as possible
+    // As many available slots as possible
     if (leftp->freeSlotsCount
         < rightp->freeSlotsCount) {
       return 1;
@@ -344,7 +355,7 @@ public:
     //  else return false;
 #else
 
-    // 3 - as empty as possible
+    // As empty as possible
     if (lefts->fillRatio > rights->fillRatio + fillRatioCompTol) {
       return 1;
     }

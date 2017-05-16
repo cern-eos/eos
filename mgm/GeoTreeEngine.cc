@@ -2539,6 +2539,12 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
 
   if (keys & sfgBlkavailb) {
     float ts = float(fs->mDiskBfree * (double)fs->mDiskBsize);
+    // Account also for the headroom on the fst
+    ts = ts - fs->mHeadRoom;
+
+    if (ts < 0) {
+      ts = 0;
+    }
 
     if (ftIdx) {
       setOneStateVarInAllFastTrees(totalSpace, ts);
