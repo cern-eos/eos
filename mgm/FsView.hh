@@ -30,6 +30,7 @@
 #include "mgm/Converter.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
@@ -319,8 +320,19 @@ public:
 
   //----------------------------------------------------------------------------
   //! Print the view contents
+  //!
+  //! @param table_header table header info
+  //! @param table_data table data info
+  //! @param table_mq_header table header coming from mq object
+  //! @param table_mq_data table data coming from mq object
+  //! @param headerformat header format string
+  //! @param listformat data format string
+  //! @param outdepth ouput depth for geoscheduling
+  //! @param selections output filtering
   //----------------------------------------------------------------------------
-  void Print(std::string& out, std::string headerformat, std::string listformat,
+  void Print(TableHeader& table_header, TableData& table_data,
+             TableHeader& table_mq_header, TableData& table_mq_data,
+             std::string headerformat, std::string listformat,
              unsigned outdepth, std::vector<std::string>& selections);
 
   //----------------------------------------------------------------------------

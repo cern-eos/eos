@@ -22,7 +22,7 @@
 # ************************************************************************
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}	
+  ${CMAKE_SOURCE_DIR}
   ${OPENSSL_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
@@ -48,7 +48,8 @@ set(
   XrdMqMessage.cc       XrdMqMessage.hh
   XrdMqMessaging.cc     XrdMqMessaging.hh
   XrdMqSharedObject.cc  XrdMqSharedObject.hh
-  ${CMAKE_SOURCE_DIR}/common/Logging.cc)
+  ${CMAKE_SOURCE_DIR}/common/Logging.cc
+  ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableCell.cc)
 
 add_library(XrdMqClient SHARED ${XRDMQCLIENT_SRCS})
 

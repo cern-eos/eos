@@ -786,31 +786,30 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
 }
 
 //------------------------------------------------------------------------------
-// Format contents of the hash map and append it to the output string. Note
-// this command does NOT initialize the output string, it only appends to it.
+// Format contents of the hash map to be displayed using the table object
 //------------------------------------------------------------------------------
 void
-XrdMqSharedHash::Print(std::string& out, std::string format)
+XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
+                       std::string format)
 {
   std::vector<std::string> formattoken;
   bool buildheader = false;
-  std::string indent = "";
-  std::string header = "";
-  std::string body = "";
   std::string conditionkey = "";
   std::string conditionval = "";
-  bool headeronly = false;
   XrdMqStringConversion::Tokenize(format, formattoken, "|");
+  Row row;
+  table_mq_data.push_back(row);
 
-  for (unsigned int i = 0; i < formattoken.size(); i++) {
+  for (unsigned int i = 0; i < formattoken.size(); ++i) {
     std::vector<std::string> tagtoken;
     std::map<std::string, std::string> formattags;
     XrdMqStringConversion::Tokenize(formattoken[i], tagtoken, ":");
 
-    for (unsigned int j = 0; j < tagtoken.size(); j++) {
+    for (unsigned int j = 0; j < tagtoken.size(); ++j) {
       std::vector<std::string> keyval;
       XrdMqStringConversion::Tokenize(tagtoken[j], keyval, "=");
 
+      // TODO (ivan): The conditional filtering is not working any longer.
       if (keyval.size() == 3) {
         conditionkey = keyval[1];
         conditionval = keyval[2];
@@ -819,101 +818,40 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
       }
     }
 
-    // "key=<key>:width=<width>:format=[slfo]:uniq=<unit>"
-    bool alignleft = false;
-
-    if ((formattags["format"].find("-") != std::string::npos)) {
-      alignleft = true;
-    }
-
-    if (formattags.count("header")) {
-      // add the desired seperator
-      if (formattags.count("header") == 1) {
-        buildheader = true;
-      }
-    }
-
-    if (formattags.count("headeronly")) {
-      headeronly = true;
-    }
-
-    if (formattags.count("indent")) {
-      for (int i = 0; i < atoi(formattags["indent"].c_str()); i++) {
-        indent += " ";
-      }
+    if (formattags.count("header") == 1) {
+      buildheader = true;
     }
 
     if (formattags.count("width") && formattags.count("format")) {
       unsigned int width = atoi(formattags["width"].c_str());
-      // string
-      char line[1024];
-      char tmpline[1024];
-      char lformat[1024];
-      char lenformat[1024];
-      line[0] = 0;
-      snprintf(lformat, sizeof(lformat) - 1, "%%s");
+      std::string format = formattags["format"];
+      std::string unit = formattags["unit"];
 
-      if ((formattags["format"].find("s")) != std::string::npos) {
-        snprintf(lformat, sizeof(lformat) - 1, "%%s");
-      }
-
-      if ((formattags["format"].find("l")) != std::string::npos) {
-        snprintf(lformat, sizeof(lformat) - 1, "%%lld");
-      }
-
-      if ((formattags["format"].find("f")) != std::string::npos) {
-        snprintf(lformat, sizeof(lformat) - 1, "%%.02f");
-      }
-
-      if (width == 0) {
-        if (alignleft) {
-          snprintf(lenformat, sizeof(lenformat) - 1, "%%-s");
-        } else {
-          snprintf(lenformat, sizeof(lenformat) - 1, "%%s");
-        }
-      } else {
-        if (alignleft) {
-          snprintf(lenformat, sizeof(lenformat) - 1, "%%-%ds", width);
-        } else {
-          snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width);
-        }
-      }
-
-      // normal member printout
+      // Normal member printout
       if (formattags.count("key")) {
-        if ((formattags["format"].find("s")) != std::string::npos) {
-          snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                   Get(formattags["key"].c_str()).c_str());
+        if ((format.find("s")) != std::string::npos) {
+          table_mq_data.back().push_back(
+            TableCell(Get(formattags["key"].c_str()).c_str(), format));
         }
 
-        if ((formattags["format"].find("S")) != std::string::npos) {
+        if ((format.find("S")) != std::string::npos) {
           std::string shortstring = Get(formattags["key"].c_str());
           shortstring.erase(shortstring.find("."));
-          snprintf(tmpline, sizeof(tmpline) - 1, lformat, shortstring.c_str());
+          table_mq_data.back().push_back(
+            TableCell(shortstring, format));
         }
 
-        if ((formattags["format"].find("l")) != std::string::npos) {
-          if (((formattags["format"].find("+")) != std::string::npos)) {
-            std::string ssize;
-            XrdMqStringConversion::GetReadableSizeString(ssize,
-                (unsigned long long) GetLongLong(formattags["key"].c_str()),
-                formattags["unit"].c_str());
-            snprintf(tmpline, sizeof(tmpline) - 1, "%s", ssize.c_str());
-          } else {
-            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                     GetLongLong(formattags["key"].c_str()));
-          }
+        if ((format.find("l")) != std::string::npos) {
+          table_mq_data.back().push_back(
+            TableCell(GetLongLong(formattags["key"].c_str()), format, unit));
         }
 
-        if ((formattags["format"].find("f")) != std::string::npos) {
-          snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                   GetDouble(formattags["key"].c_str()));
+        if ((format.find("f")) != std::string::npos) {
+          table_mq_data.back().push_back(
+            TableCell(GetDouble(formattags["key"].c_str()), format, unit));
         }
 
         if (buildheader) {
-          char headline[1024];
-          char lenformat[1024];
-          snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 1);
           XrdOucString name = formattags["key"].c_str();
           name.replace("stat.", "");
           name.replace("stat.statfs.", "");
@@ -922,132 +860,19 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
             name = formattags["tag"].c_str();
           }
 
-          snprintf(headline, sizeof(headline) - 1, lenformat, name.c_str());
-          std::string sline = headline;
-
-          if (sline.length() > (width - 1)) {
-            sline.erase(0, ((sline.length() - width + 1 + 3) > 0) ?
-                        (sline.length() - width + 1 + 3) : 0);
-            sline.insert(0, "...");
-          }
-
-          header += "#";
-          header += sline;
+          table_mq_header.push_back(std::make_tuple(name.c_str(), width, format));
         }
-
-        snprintf(line, sizeof(line) - 1, lenformat, tmpline);
       }
 
-      body += indent;
-
-      if ((formattags["format"].find("o") != std::string::npos)) {
-        char keyval[4096];
+      if ((format.find("o") != std::string::npos) && formattags.count("key")) {
         buildheader = false; // auto disable header
-
-        // we are encoding spaces here in the URI way
-        if (formattags.count("key")) {
-          XrdOucString noblankline = line;
-          {
-            // replace all inner blanks with %20
-            std::string snoblankline = line;
-            size_t pos = snoblankline.find_last_not_of(" ");
-
-            if (noblankline.length() > 1) {
-              while (noblankline.replace(" ", "%20", 0,
-                                         (pos == std::string::npos) ? -1 : pos)) {}
-            }
-          }
-          snprintf(keyval, sizeof(keyval) - 1, "%s=%s", formattags["key"].c_str(),
-                   noblankline.c_str());
-        }
-
-        body += keyval;
-      } else {
-        std::string sline = line;
-
-        if (width) {
-          if (sline.length() > width) {
-            sline.erase(0, ((sline.length() - width + 3) > 0) ? (sline.length() - width + 3)
-                        : 0);
-            sline.insert(0, "...");
-          }
-        }
-
-        body += sline;
+        // TODO (ivan): When printing in monitoring output, we need to encode
+        // spaces using %20
+        table_mq_header.push_back(std::make_tuple(formattags["key"], 10, format));
       }
-    }
-
-    if (formattags.count("sep")) {
-      // add the desired seperator
-      body += formattags["sep"];
-
-      if (buildheader) {
-        header += formattags["sep"];
-      }
-    }
-  }
-
-  body += "\n";
-  bool accepted = true;
-
-  // Here we can match an EXACT condition or the beginning if '*' is
-  if (conditionkey != "") {
-    XrdOucString condval = conditionval.c_str();
-    XrdOucString condisval = "";
-
-    if (condval.endswith("*")) {
-      condval.erase(condval.length() - 1);
-      condisval = Get(conditionkey.c_str()).c_str();
-
-      if (!(condisval.beginswith(condval))) {
-        accepted = false;
-      }
-    } else {
-      if (condval.beginswith("!")) {
-        condisval = Get(conditionkey.c_str()).c_str();
-        condval.erase(0, 1);
-
-        if (!condisval.length()) {
-          accepted = false;
-        }
-
-        if ((condisval == condval)) {
-          accepted = false;
-        }
-      } else {
-        if (Get(conditionkey.c_str()) != conditionval) {
-          accepted = false;
-        }
-      }
-    }
-  }
-
-  if (buildheader) {
-    std::string line = "";
-    line += "#";
-
-    for (unsigned int i = 0; i < (header.length() - 1); i++) {
-      line += ".";
-    }
-
-    line += "\n";
-    out += line;
-    out += indent;
-    out += header;
-    out += "\n";
-    out += indent;
-    out += line;
-
-    if (!headeronly && accepted) {
-      out += body;
-    }
-  } else {
-    if (accepted) {
-      out += body;
     }
   }
 }
-
 
 //------------------------------------------------------------------------------
 //                 * * * Class XrdMqSharedQueue  * * *

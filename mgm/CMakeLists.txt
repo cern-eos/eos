@@ -111,6 +111,10 @@ set(XRDEOSMGM_SRCS
   Fsck.cc
   txengine/TransferEngine.cc
   txengine/TransferFsDB.cc
+  Converter.cc
+  GroupBalancer.cc
+  GeoBalancer.cc
+  Features.cc
   ZMQ.cc
   Master.cc
   Recycle.cc
@@ -126,13 +130,11 @@ set(XRDEOSMGM_SRCS
   http/webdav/PropFindResponse.cc
   http/webdav/PropPatchResponse.cc
   http/webdav/LockResponse.cc
-  Converter.cc
-  GroupBalancer.cc
-  GeoBalancer.cc
-  Features.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
-  geotree/SchedulingTreeCommon.cc)
+  geotree/SchedulingTreeCommon.cc
+  TableFormatter/TableFormatterBase.cc
+  TableFormatter/TableCell.cc)
 
 if (HIREDIS_FOUND)
   list(APPEND XRDEOSMGM_SRCS ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
@@ -186,7 +188,12 @@ endif()
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part
 #-------------------------------------------------------------------------------
-add_executable(testmgmview FsView.cc tests/MgmViewTest.cc)
+# TODO (esindril): Move these to the test directory
+add_executable(testmgmview
+  FsView.cc
+  tests/MgmViewTest.cc
+  TableFormatter/TableFormatterBase.cc
+  TableFormatter/TableCell.cc)
 
 add_executable(
   testschedulingtree

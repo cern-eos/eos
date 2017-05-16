@@ -32,31 +32,25 @@
 #ifndef __EOSCOMMON_FILESYSTEM_HH__
 #define __EOSCOMMON_FILESYSTEM_HH__
 
-/*----------------------------------------------------------------------------*/
+#include "mgm/TableFormatter/TableCell.hh"
 #include "common/Namespace.hh"
 #include "common/StringConversion.hh"
 #include "common/Statfs.hh"
 #include "common/TransferQueue.hh"
 #include "mq/XrdMqSharedObject.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-/*----------------------------------------------------------------------------*/
 #include <string>
 #include <stdint.h>
-/*----------------------------------------------------------------------------*/
 
 
 EOSCOMMONNAMESPACE_BEGIN;
 
 class TransferQueue;
 
-
 /*----------------------------------------------------------------------------*/
 //! Base Class abstracting the internal representation of a filesystem inside the MGM and FST
-
 /*----------------------------------------------------------------------------*/
-
 class FileSystem
 {
 protected:
@@ -784,51 +778,46 @@ public:
     return rConfigStatus;
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Return the error code variable of that filesystem.
-  //------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   int
   GetErrCode()
   {
     return atoi(GetString("stat.errc").c_str());
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Snapshot filesystem.
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock = true);
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Snapshot host.
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static bool SnapShotHost(XrdMqSharedObjectManager* som,
                            const std::string& queue,
                            FileSystem::host_snapshot_t& fs,
                            bool dolock = true);
 
-  //------------------------------------------------------------------------
-  //! Dump Function printing the filesystem variables to out.
-  //------------------------------------------------------------------------
-  void
-  Print(std::string& out, std::string listformat)
+  //----------------------------------------------------------------------------
+  //! Function printing the file system info to the table
+  //----------------------------------------------------------------------------
+  void Print(TableHeader& table_mq_header, TableData& table_mq_data,
+             std::string listformat)
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      mHash->Print(out, listformat);
+      mHash->Print(table_mq_header, table_mq_data, listformat);
     }
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Create Config key-value pair.
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void CreateConfig(std::string& key, std::string& val);
-
-
 };
-
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_END;
 

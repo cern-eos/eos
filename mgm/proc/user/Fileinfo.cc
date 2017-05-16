@@ -26,6 +26,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Quota.hh"
+#include "mgm/TableFormatter/TableCell.hh"
 #include "common/LayoutId.hh"
 #include <json/json.h>
 
@@ -499,10 +500,13 @@ ProcCommand::FileInfo(const char* path)
           Scheduler::AccessArguments acsargs;
           int i = 0;
           int schedretc = -1;
+          TableHeader table_mq_header;
+          TableData table_mq_data;
+          TableFormatterBase table_mq;
+          bool table_mq_header_exist = false;
 
-          // ignore filesystem id 0
           for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
-            // ignore filesystem id 0
+            // Ignore filesystem id 0
             if (!(*lociter)) {
               eos_err("fsid 0 found fid=%lld", fmd_copy->getId());
               continue;
@@ -521,35 +525,47 @@ ProcCommand::FileInfo(const char* path)
             }
 
             if (filesystem) {
-              if (i == 0) {
-                if (!Monitoring) {
-                  std::string out = "";
-                  stdOut += " #   fs-id  ";
-                  std::string format =
-                    "header=1|indent=12|headeronly=1|key=host:width=24:format=s|sep= |sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|sep= |key=stat.geotag:width=24:format=s";
-
-                  if ((option.find("-proxy")) != STR_NPOS) {
-                    format += "|sep= |key=proxygroup:width=24:format=s";
-                  }
-
-                  filesystem->Print(out, format);
-                  stdOut += out.c_str();
-                }
-              }
-
               if (!Monitoring) {
-                sprintf(fsline, "%3s   %5s ", si.c_str(), location.c_str());
-                stdOut += fsline;
-                std::string out = "";
                 std::string format =
-                  "key=host:width=24:format=s|sep= |sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|sep= |key=stat.geotag:width=24:format=s";
+                  "header=1|key=host:width=24:format=s|sep= |sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|sep= |key=stat.geotag:width=24:format=s";
 
                 if ((option.find("-proxy")) != STR_NPOS) {
                   format += "|sep= |key=proxygroup:width=24:format=s";
                 }
 
-                filesystem->Print(out, format);
-                stdOut += out.c_str();
+                filesystem->Print(table_mq_header, table_mq_data, format);
+
+                // Build header
+                if (!table_mq_header.empty()) {
+                  TableHeader table_mq_header_temp;
+                  table_mq_header_temp.push_back(std::make_tuple("No.", 4, "s"));
+                  table_mq_header_temp.push_back(std::make_tuple("fs-id", 6, "s"));
+                  std::copy(table_mq_header.begin(), table_mq_header.end(),
+                            std::back_inserter(table_mq_header_temp));
+                  table_mq.SetHeader(table_mq_header_temp);
+                  table_mq_header_exist = true;
+                }
+
+                //Build body
+                if (table_mq_header_exist) {
+                  TableData table_mq_data_temp;
+
+                  for (auto& row : table_mq_data) {
+                    if (!row.empty()) {
+                      table_mq_data_temp.emplace_back();
+                      table_mq_data_temp.back().push_back(TableCell(i, "l"));
+                      table_mq_data_temp.back().push_back(TableCell(*lociter, "l"));
+
+                      for (auto& cell : row) {
+                        table_mq_data_temp.back().push_back(cell);
+                      }
+                    }
+                  }
+
+                  table_mq.AddRows(table_mq_data_temp);
+                  table_mq_data.clear();
+                  table_mq_data_temp.clear();
+                }
 
                 if ((filesystem->GetString("proxygroup").size()) &&
                     (filesystem->GetString("proxygroup") != "<none>") &&
@@ -636,6 +652,7 @@ ProcCommand::FileInfo(const char* path)
             i++;
           }
 
+          stdOut += table_mq.GenerateTable().c_str();
           eos::IFileMD::LocationVector unlink_vect = fmd_copy->getUnlinkedLocations();
 
           for (lociter = unlink_vect.begin(); lociter != unlink_vect.end(); ++lociter) {

@@ -39,6 +39,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <regex.h>
+#include "mgm/TableFormatter/TableCell.hh"
 
 #define XRDMQSHAREDHASH_CMD       "mqsh.cmd"
 #define XRDMQSHAREDHASH_UPDATE    "mqsh.cmd=update"
@@ -382,10 +383,10 @@ public:
   //============================================================================
 
   //----------------------------------------------------------------------------
-  //! Format contents of the hash map and append it to the output string. Note
-  //! this command does NOT initialize the output string, it only appends to it.
+  //! Format contents of the hash map to be displayed using the table object.
   //!
-  //! @param out output string
+  //! @param table_mq_header table header
+  //! @param talbe_md_data table data
   //! @param format format has to be provided as a chain separated by "|" of
   //!        the following tags
   //! "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>:tag=<tag>:condition=<key>=<val>"
@@ -394,7 +395,6 @@ public:
   //! "header=1" -> to put a header with description on top - this must be the
   //!               first format tag.
   //! "indent=<n>" -> indent the output
-  //! "headeronly=1"-> only prints the header and nothnig else
   //! The formats are:
   //! 's' : print as string
   //! 'S' : print as short string (truncated after .)
@@ -407,7 +407,8 @@ public:
   //! e.g. 1500 with unit=B would end up as '1.5 kB'
   //! "tag=<tag>" -> use <tag> instead of the variable name to print the header
   //----------------------------------------------------------------------------
-  void Print(std::string& out, std::string format);
+  void Print(TableHeader& table_mq_header, TableData& table_mq_data,
+             std::string format);
 
   //----------------------------------------------------------------------------
   //! Open transaction

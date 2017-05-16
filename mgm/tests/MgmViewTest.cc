@@ -123,8 +123,28 @@ int main()
     "key=queuepath:width=2:format=os|sep=&|key=schedgroup:width=1:format=os|sep=&|key=blocks:width=1:format=os|sep=&|key=statfs.wopen:width=1:format=os";
   output += "[ next test ]\n";
   std::vector<std::string> selections;
-  FsView::gFsView.mSpaceView["default"]->Print(output, format1, "", 2,
-      selections);
+  TableFormatterBase table1;
+  bool table1_header_exist = false;
+  TableHeader table1_header;
+  TableData table1_data;
+  TableHeader table1_mq_header;
+  TableData table1_mq_data;
+  FsView::gFsView.mSpaceView["default"]->Print(table1_header, table1_data,
+      table1_mq_header, table1_mq_data,
+      format1, "", 2, selections);
+
+  if (!table1_header_exist && !table1_mq_header.empty()) {
+    table1.SetHeader(table1_header);
+    table1_header.clear();
+    table1_header_exist = true;
+  }
+
+  if (table1_header_exist) {
+    table1.AddRows(table1_mq_data);
+    table1_data.clear();
+  }
+
+  output += table1.GenerateTable().c_str();
   output += "[ next test ]\n";
   FsView::gFsView.PrintSpaces(output, format1, "", 2);
   output += "[ next test ]\n";
@@ -132,8 +152,28 @@ int main()
   output += "[ next test ]\n";
   FsView::gFsView.PrintNodes(output, format1, "", 2);
   output += "[ next test ]\n";
-  FsView::gFsView.mSpaceView["default"]->Print(output, format2, "", 2,
-      selections);
+  TableFormatterBase table2;
+  bool table2_header_exist = false;
+  TableHeader table2_header;
+  TableData table2_data;
+  TableHeader table2_mq_header;
+  TableData table2_mq_data;
+  FsView::gFsView.mSpaceView["default"]->Print(table2_header, table2_data,
+      table2_mq_header, table2_mq_data,
+      format2, "", 2, selections);
+
+  if (!table2_header_exist && !table2_mq_header.empty()) {
+    table2.SetHeader(table2_header);
+    table2_header.clear();
+    table2_header_exist = true;
+  }
+
+  if (table2_header_exist) {
+    table2.AddRows(table2_mq_data);
+    table2_data.clear();
+  }
+
+  output += table2.GenerateTable().c_str();
   output += "[ next test ]\n";
   FsView::gFsView.PrintSpaces(output, format2, "", 2);
   output += "[ next test ]\n";

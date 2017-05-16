@@ -917,7 +917,7 @@ FsView::GetNodeFormat(std::string option)
 
   if (option == "io") {
     // io format
-    return "header=1:member=hostport:width=32:format=sS|sep= |member=cfg.stat.geotag:width=16:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd|sep= |member=inqueue:width=10:format=s:tag=gw-queue|sep= |sum=stat.disk.iops?configstatus@rw:width=6:format=l:tag=iops|sep= |sum=stat.disk.bw?configstatus@rw:width=9:format=+l:unit=MB:tag=bw|";
+    return "header=1:member=hostport:width=32:format=sS|sep= |member=cfg.stat.geotag:width=16:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+f:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+f:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd|sep= |member=inqueue:width=10:format=s:tag=gw-queue|sep= |sum=stat.disk.iops?configstatus@rw:width=6:format=l:tag=iops|sep= |sum=stat.disk.bw?configstatus@rw:width=9:format=+l:unit=MB:tag=bw|";
   }
 
   if (option == "sys") {
@@ -954,7 +954,7 @@ FsView::GetFileSystemFormat(std::string option)
 
   if (option == "io") {
     // io format
-    return "header=1:key=hostport:width=32:format=s|sep= |key=id:width=5:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=stat.geotag:width=16:format=s|sep= |key=stat.disk.load:width=10:format=f:tag=diskload|sep= |key=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |key=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |key=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |key=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |key=stat.ropen:width=6:format=l:tag=ropen|sep= |key=stat.wopen:width=6:format=l:tag=wopen|sep= |key=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |key=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |key=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |key=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |key=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |key=stat.drainer.running:width=14:format=l:tag=drain-shd|key=stat.drainer:width=12:format=s:tag=drainpull|sep= |key=stat.disk.iops:width=6:format=l:tag=iops|sep= |key=stat.disk.bw:width=9:format=+l:unit=MB:tag=bw";
+    return "header=1:key=hostport:width=32:format=s|sep= |key=id:width=5:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=stat.geotag:width=16:format=s|sep= |key=stat.disk.load:width=10:format=f:tag=diskload|sep= |key=stat.disk.readratemb:width=12:format=+f:tag=diskr-MB/s|sep= |key=stat.disk.writeratemb:width=12:format=+f:tag=diskw-MB/s|sep= |key=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |key=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |key=stat.ropen:width=6:format=l:tag=ropen|sep= |key=stat.wopen:width=6:format=l:tag=wopen|sep= |key=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|sep= |key=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|sep= |key=stat.usedfiles:width=12:format=+f:tag=used-files|sep= |key=stat.statfs.files:width=11:format=+f:tag=max-files|sep= |key=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |key=stat.drainer.running:width=14:format=l:tag=drain-shd|key=stat.drainer:width=12:format=s:tag=drainpull|sep= |key=stat.disk.iops:width=6:format=l:tag=iops|sep= |key=stat.disk.bw:width=9:format=+l:unit=MB:tag=bw";
   }
 
   if (option == "fsck") {
@@ -969,7 +969,7 @@ FsView::GetFileSystemFormat(std::string option)
 
   if (option == "l") {
     // long format
-    return "header=1:key=host:width=24:format=-S|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=32:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=headroom:width=10:format=+l|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|key=scaninterval:width=14:format=s|sep= |key=stat.health:width=16:format=s";
+    return "header=1:key=host:width=24:format=-S|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=32:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=headroom:width=10:format=+f|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|key=scaninterval:width=14:format=s|sep= |key=stat.health:width=16:format=s";
   }
 
   if (option == "e") {
@@ -995,7 +995,7 @@ FsView::GetSpaceFormat(std::string option)
   }
 
   if (option == "io") {
-    return "header=1:member=name:width=10:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
+    return "header=1:member=name:width=10:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+f:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+f:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
   }
 
   if (option == "fsck") {
@@ -1004,10 +1004,10 @@ FsView::GetSpaceFormat(std::string option)
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |sum=<n>?*@*:width=6:format=l:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |sum=<n>?*@*:width=6:format=l:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+f|sep= |sum=stat.statfs.capacity:width=14:format=+f|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+f:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s";
   }
 
-  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s|sep= |member=cfg.balancer:width=10:format=s:tag=balancing|sep= |member=cfg.balancer.threshold:width=11:format=+l:tag=threshold|sep= |member=cfg.converter:width=11:format=s:tag=converter|sep= |member=cfg.converter.ntx:width=6:format=+l:tag=ntx|sep= |member=cfg.stat.converter.active:width=8:format=+l:tag=active|sep= |member=cfg.wfe:width=11:format=s:tag=wfe|sep= |member=cfg.wfe.ntx:width=6:format=+l:tag=ntx|sep= |member=cfg.stat.wfe.active:width=8:format=+l:tag=active|sep= |member=cfg.groupbalancer:width=11:format=s:tag=intergroup|";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+f|sep= |sum=stat.statfs.capacity:width=14:format=+f|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+f:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s|sep= |member=cfg.balancer:width=10:format=s:tag=balancing|sep= |member=cfg.balancer.threshold:width=11:format=+l:tag=threshold|sep= |member=cfg.converter:width=11:format=s:tag=converter|sep= |member=cfg.converter.ntx:width=6:format=+l:tag=ntx|sep= |member=cfg.stat.converter.active:width=8:format=+l:tag=active|sep= |member=cfg.wfe:width=11:format=s:tag=wfe|sep= |member=cfg.wfe.ntx:width=6:format=+l:tag=ntx|sep= |member=cfg.stat.wfe.active:width=8:format=+l:tag=active|sep= |member=cfg.groupbalancer:width=11:format=s:tag=intergroup|";
 }
 
 //------------------------------------------------------------------------------
@@ -1025,7 +1025,7 @@ FsView::GetGroupFormat(std::string option)
 
   if (option == "io") {
     // io format
-    return "header=1:member=name:width=16:format=-s|sep= |avg=stat.geotag:width=32:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
+    return "header=1:member=name:width=16:format=-s|sep= |avg=stat.geotag:width=32:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+f:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+f:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
   }
 
   if (option == "l") {
@@ -2270,7 +2270,7 @@ FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid)
 }
 
 //------------------------------------------------------------------------------
-// Print space information to out
+// Print space information
 //------------------------------------------------------------------------------
 void
 FsView::PrintSpaces(std::string& out, std::string headerformat,
@@ -2280,6 +2280,13 @@ FsView::PrintSpaces(std::string& out, std::string headerformat,
   std::map<std::string, FsSpace* >::iterator it;
   std::vector<std::string> selections;
   std::string selected = selection ? selection : "";
+  bool table_header_exist = false;
+  bool table_mq_header_exist = false;
+  TableHeader table_header;
+  TableData table_data;
+  TableHeader table_mq_header;
+  TableData table_mq_data;
+  TableFormatterBase table;
 
   if (selection) {
     eos::common::StringConversion::Tokenize(selected, selections , ",");
@@ -2313,16 +2320,62 @@ FsView::PrintSpaces(std::string& out, std::string headerformat,
       }
     }
 
-    it->second->Print(out, headerformat, listformat, outdepth, selections);
+    it->second->Print(table_header, table_data, table_mq_header, table_mq_data,
+                      headerformat, listformat, outdepth, selections);
+
+    // Table with information only from MGM
+    if (!table_header.empty()) {
+      table.SetHeader(table_header);
+      table_header_exist = true;
+    }
+
+    if (table_header_exist) {
+      table.AddRows(table_data);
+      table_data.clear();
+    }
+
+    // Table with information from MQ, if MGM table exist. (Option "-l")
+    if (table_header_exist && !table_mq_header.empty()) {
+      TableFormatterBase table_mq;
+
+      if (!table_mq_header.empty()) {
+        table_mq.SetHeader(table_mq_header);
+        table_mq_header_exist = true;
+      }
+
+      if (table_mq_header_exist && !table_mq_data.empty()) {
+        table_mq.AddRows(table_mq_data);
+        table_mq_data.clear();
+      }
+
+      table.AddString(table_mq.GenerateTable(3).c_str());
+    }
+
+    // Table with information only from MQ. (e.g. "fs ls")
+    if (!table_header_exist && !table_mq_header.empty()) {
+      if (!table_mq_header_exist) {
+        table.SetHeader(table_mq_header);
+        table_mq_header_exist = true;
+      } else {
+        table.AddSeparator();
+      }
+
+      if (table_mq_header_exist) {
+        table.AddRows(table_mq_data);
+        table_mq_data.clear();
+      }
+    }
 
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0)) {
       headerformat.erase(0, 9);
     }
   }
+
+  out =  table.GenerateTable(3).c_str();
 }
 
 //----------------------------------------------------------------------------
-// Print group information to out
+// Print group information
 //----------------------------------------------------------------------------
 void
 FsView::PrintGroups(std::string& out, std::string headerformat,
@@ -2332,6 +2385,13 @@ FsView::PrintGroups(std::string& out, std::string headerformat,
   std::map<std::string, FsGroup* >::iterator it;
   std::vector<std::string> selections;
   std::string selected = selection ? selection : "";
+  bool table_header_exist = false;
+  bool table_mq_header_exist = false;
+  TableHeader table_header;
+  TableData table_data;
+  TableHeader table_mq_header;
+  TableData table_mq_data;
+  TableFormatterBase table;
 
   if (selection) {
     eos::common::StringConversion::Tokenize(selected, selections , ",");
@@ -2353,16 +2413,62 @@ FsView::PrintGroups(std::string& out, std::string headerformat,
     }
 
     selections.clear();
-    it->second->Print(out, headerformat, listformat, outdepth, selections);
+    it->second->Print(table_header, table_data, table_mq_header, table_mq_data,
+                      headerformat, listformat, outdepth, selections);
+
+    // Table with information only from MGM
+    if (!table_header.empty()) {
+      table.SetHeader(table_header);
+      table_header_exist = true;
+    }
+
+    if (table_header_exist) {
+      table.AddRows(table_data);
+      table_data.clear();
+    }
+
+    // Table with information from MQ, if MGM Table exist. (Option "-l")
+    if (table_header_exist && !table_mq_header.empty()) {
+      TableFormatterBase table_mq;
+
+      if (!table_mq_header.empty()) {
+        table_mq.SetHeader(table_mq_header);
+        table_mq_header_exist = true;
+      }
+
+      if (table_mq_header_exist && !table_mq_data.empty()) {
+        table_mq.AddRows(table_mq_data);
+        table_mq_data.clear();
+      }
+
+      table.AddString(table_mq.GenerateTable(3).c_str());
+    }
+
+    // Table with information only from MQ. (e.g. "fs ls")
+    if (!table_header_exist && !table_mq_header.empty()) {
+      if (!table_mq_header_exist) {
+        table.SetHeader(table_mq_header);
+        table_mq_header_exist = true;
+      } else {
+        table.AddSeparator();
+      }
+
+      if (table_mq_header_exist) {
+        table.AddRows(table_mq_data);
+        table_mq_data.clear();
+      }
+    }
 
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0)) {
       headerformat.erase(0, 9);
     }
   }
+
+  out =  table.GenerateTable(3).c_str();
 }
 
 //------------------------------------------------------------------------------
-// Print node information to out
+// Print node information
 //------------------------------------------------------------------------------
 void
 FsView::PrintNodes(std::string& out, std::string headerformat,
@@ -2372,6 +2478,13 @@ FsView::PrintNodes(std::string& out, std::string headerformat,
   std::map<std::string, FsNode* >::iterator it;
   std::vector<std::string> selections;
   std::string selected = selection ? selection : "";
+  bool table_header_exist = false;
+  bool table_mq_header_exist = false;
+  TableHeader table_header;
+  TableData table_data;
+  TableHeader table_mq_header;
+  TableData table_mq_data;
+  TableFormatterBase table;
 
   if (selection) {
     eos::common::StringConversion::Tokenize(selected, selections , ",");
@@ -2393,12 +2506,58 @@ FsView::PrintNodes(std::string& out, std::string headerformat,
     }
 
     selections.clear();
-    it->second->Print(out, headerformat, listformat, outdepth, selections);
+    it->second->Print(table_header, table_data, table_mq_header, table_mq_data,
+                      headerformat, listformat, outdepth, selections);
+
+    // Table with information only from MGM
+    if (!table_header.empty()) {
+      table.SetHeader(table_header);
+      table_header_exist = true;
+    }
+
+    if (table_header_exist) {
+      table.AddRows(table_data);
+      table_data.clear();
+    }
+
+    // Table with information from MQ, if MGM Table exist. (Option "-l")
+    if (table_header_exist && !table_mq_header.empty()) {
+      TableFormatterBase table_mq;
+
+      if (!table_mq_header.empty()) {
+        table_mq.SetHeader(table_mq_header);
+        table_mq_header_exist = true;
+      }
+
+      if (table_mq_header_exist && !table_mq_data.empty()) {
+        table_mq.AddRows(table_mq_data);
+        table_mq_data.clear();
+      }
+
+      table.AddString(table_mq.GenerateTable(3).c_str());
+    }
+
+    // Table with information only from MQ. (e.g. "fs ls")
+    if (!table_header_exist && !table_mq_header.empty()) {
+      if (!table_mq_header_exist) {
+        table.SetHeader(table_mq_header);
+        table_mq_header_exist = true;
+      } else {
+        table.AddSeparator();
+      }
+
+      if (table_mq_header_exist) {
+        table.AddRows(table_mq_data);
+        table_mq_data.clear();
+      }
+    }
 
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0)) {
       headerformat.erase(0, 9);
     }
   }
+
+  out =  table.GenerateTable(3).c_str();
 }
 
 #ifndef EOSMGMFSVIEWTEST
@@ -3167,52 +3326,53 @@ BaseView::TotalCount(bool lock,
 
 //------------------------------------------------------------------------------
 // Print user defined format to out
+//
+// headerformat
+//-------------
+// format has to be provided as a chain (separated by "|" ) of the following tags
+// "member=<key>:width=<width>:format=[+][-][so]:unit=<unit>:tag=<tag>"
+//  -> to print a member variable of the view
+// "avg=<key>:width=<width>:format=[fo]"   -> to print the average
+// "sum=<key>:width=<width>:format=[lo]    -> to print a sum
+// "sig=<key>:width=<width>:format=[lo]    -> to print the standard deviation
+// "maxdev=<key>:width=<width>;format=[lo] -> to print the maxdeviation
+// "sep=<seperator>"                       -> to put a seperator
+// "tag=<tag>"                             -> use tag as header not the variable name
+// "header=1" -> put a header with description on top!
+//               This must be the first format tag!!!
+//
+// listformat
+//-----------
+// format has to be provided as a chain (separated by "|" ) of the following tags
+// "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>:tag=<tag>"
+//  -> to print a key of the attached children
+// "sep=<seperator>" -> to put a seperator
+// "header=1" -> put a header with description on top
+//               This must be the first format tag!!!
+// the formats are:
+// 's' : print as string
+// 'S' : print as short string
+// 'l' : print as long long
+// 'f' : print as double
+// 'o' : print as <key>=<val>
+// '-' : left align the printout
+// '+' : convert numbers into k,M,G,T,P ranges
+// the unit is appended to every number:
+// e.g. 1500 with unit=B would end up as '1.5 kB'
+// the command only appends to <out> and DOES NOT initialize it
+// "tag=<tag>" -> use tag as header not the variable name
 //------------------------------------------------------------------------------
 void
-BaseView::Print(std::string& out, std::string headerformat,
-                std::string listformat, unsigned outdepth,
+BaseView::Print(TableHeader& table_header, TableData& table_data,
+                TableHeader& table_mq_header, TableData& table_mq_data,
+                std::string headerformat, std::string listformat, unsigned outdepth,
                 std::vector<std::string>& selections)
 {
-  //-------------------------------------------------------------------------------
-  // headerformat
-  //-------------------------------------------------------------------------------
-  // format has to be provided as a chain (separated by "|" ) of the following tags
-  // "member=<key>:width=<width>:format=[+][-][so]:unit=<unit>:tag=<tag>"
-  //  -> to print a member variable of the view
-  // "avg=<key>:width=<width>:format=[fo]"   -> to print the average
-  // "sum=<key>:width=<width>:format=[lo]    -> to print a sum
-  // "sig=<key>:width=<width>:format=[lo]    -> to print the standard deviation
-  // "maxdev=<key>:width=<width>;format=[lo] -> to print the maxdeviation
-  // "sep=<seperator>"                       -> to put a seperator
-  // "tag=<tag>"                             -> use tag as header not the variable name
-  // "header=1" -> put a header with description on top!
-  //               This must be the first format tag!!!
-  //-------------------------------------------------------------------------------
-  // listformat
-  //-------------------------------------------------------------------------------
-  // format has to be provided as a chain (separated by "|" ) of the following tags
-  // "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>:tag=<tag>"
-  //  -> to print a key of the attached children
-  // "sep=<seperator>" -> to put a seperator
-  // "header=1" -> put a header with description on top
-  //               This must be the first format tag!!!
-  // the formats are:
-  // 's' : print as string
-  // 'S' : print as short string
-  // 'l' : print as long long
-  // 'f' : print as double
-  // 'o' : print as <key>=<val>
-  // '-' : left align the printout
-  // '+' : convert numbers into k,M,G,T,P ranges
-  // the unit is appended to every number:
-  // e.g. 1500 with unit=B would end up as '1.5 kB'
-  // the command only appends to <out> and DOES NOT initialize it
-  // "tag=<tag>" -> use tag as header not the variable name
-
   // Since we don't display the members with geodepth option, we proceed with
   // the non geodepth display first.
   if (outdepth > 0) {
-    Print(out, headerformat, listformat, 0, selections);
+    Print(table_header, table_data, table_mq_header, table_mq_data,
+          headerformat, listformat, 0, selections);
 
     // We force-print the header
     if (headerformat.find("header=1") == std::string::npos) {
@@ -3226,8 +3386,6 @@ BaseView::Print(std::string& out, std::string headerformat,
 
   std::vector<std::string> formattoken;
   bool buildheader = false;
-  std::string header = "";
-  std::string body = "";
   class DoubleAggregatedStats : public std::map<std::string, DoubleAggregator*>
   {
     BaseView* pThis;
@@ -3294,6 +3452,7 @@ BaseView::Print(std::string& out, std::string headerformat,
 
   for (unsigned int l = 0; l < nLines; l++) {
     buildheader = false;
+    table_data.emplace_back();
 
     for (unsigned int i = 0; i < formattoken.size(); i++) {
       std::vector<std::string> tagtoken;
@@ -3312,14 +3471,6 @@ BaseView::Print(std::string& out, std::string headerformat,
         formattags[keyval[0]] = keyval[1];
       }
 
-      // "key=<key>:width=<width>:format=[slfo]"
-      bool alignleft = false;
-
-      if (formattags.count("format") &&
-          (formattags["format"].find("-") != std::string::npos)) {
-        alignleft = true;
-      }
-
       if (formattags.count("header")) {
         // Add the desired seperator
         if (formattags.count("header") == 1 && l == 0) {
@@ -3333,52 +3484,22 @@ BaseView::Print(std::string& out, std::string headerformat,
       }
 
       if (formattags.count("width") && formattags.count("format")) {
+        std::string header = "";
         unsigned int width = atoi(formattags["width"].c_str());
-        // string
-        char line[1024];
-        char tmpline[1024];
-        char lformat[1024];
-        char lenformat[1024];
-        line[0] = 0;
-        lformat[0] = 0;
-
-        if ((formattags["format"].find("s")) != std::string::npos) {
-          snprintf(lformat, sizeof(lformat) - 1, "%%s");
-        }
-
-        if ((formattags["format"].find("l")) != std::string::npos) {
-          snprintf(lformat, sizeof(lformat) - 1, "%%lld");
-        }
-
-        if ((formattags["format"].find("f")) != std::string::npos) {
-          snprintf(lformat, sizeof(lformat) - 1, "%%.02f");
-        }
-
-        // Protect against missing format types
-        if (lformat[0] == 0) {
-          continue;
-        }
-
-        if (alignleft) {
-          snprintf(lenformat, sizeof(lenformat) - 1, "%%-%ds", width);
-        } else {
-          snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width);
-        }
+        std::string format = formattags["format"];
+        std::string unit = formattags["unit"];
 
         // Normal member printout
         if (formattags.count("member")) {
-          if ((formattags["format"].find("+") != std::string::npos) &&
-              (formattags["format"].find("s") == std::string::npos)) {
-            std::string ssize;
-            eos::common::StringConversion::GetReadableSizeString(
-              ssize, (unsigned long long)(strtoll(
-                                            GetMember(formattags["member"]).c_str(), 0, 10)),
-              formattags["unit"].c_str());
-            snprintf(line, sizeof(line) - 1, lenformat, ssize.c_str());
+          if ((format.find("+") != std::string::npos) &&
+              (format.find("s") == std::string::npos)) {
+            table_data.back().push_back(
+              TableCell(strtoll(GetMember(formattags["member"]).c_str(), 0, 10),
+                        format, unit));
           } else {
             std::string member = GetMember(formattags["member"]).c_str();
 
-            if ((formattags["format"].find("S") != std::string::npos)) {
+            if ((format.find("S") != std::string::npos)) {
               size_t colon = member.find(":");
               size_t dot = member.find(".");
 
@@ -3387,18 +3508,10 @@ BaseView::Print(std::string& out, std::string headerformat,
               }
             }
 
-            if ((formattags["format"].find("l") != std::string::npos)) {
-              snprintf(tmpline, sizeof(tmpline) - 1, lformat, strtoll(member.c_str(), 0, 10));
-            } else {
-              snprintf(tmpline, sizeof(tmpline) - 1, lformat, member.c_str());
-            }
-
-            snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+            table_data.back().push_back(TableCell(member, format));
           }
 
           if (buildheader) {
-            char headline[1024];
-            char lenformat[1024];
             XrdOucString pkey = formattags["member"].c_str();
             pkey.replace("stat.statfs.", "");
             pkey.replace("stat.", "");
@@ -3408,81 +3521,34 @@ BaseView::Print(std::string& out, std::string headerformat,
               pkey = formattags["tag"].c_str();
             }
 
-            snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 1);
-            snprintf(headline, sizeof(headline) - 1, lenformat, pkey.c_str());
-            std::string sline = headline;
-
-            if (sline.length() != (width - 1)) {
-              sline.erase(0, ((sline.length() - width + 1 + 3) > 0) ?
-                          (sline.length() - width + 1 + 3) : 0);
-              sline.insert(0, "...");
-            }
-
-            header += "#";
-            header += sline;
+            header = pkey.c_str();
           }
         }
 
         // Sum printout
         if (formattags.count("sum")) {
           if (!outdepth) {
-            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                     SumLongLong(formattags["sum"].c_str(), false));
+            table_data.back().push_back(
+              TableCell(SumLongLong(formattags["sum"].c_str(), false),
+                        format, unit));
           } else {
-            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                     (*longStats[formattags["sum"].c_str()]->getSums())[l]);
-          }
-
-          if ((formattags["format"].find("+") != std::string::npos)) {
-            std::string ssize;
-
-            if (!outdepth) {
-              eos::common::StringConversion::GetReadableSizeString(
-                ssize, (unsigned long long) SumLongLong(formattags["sum"].c_str(), false),
-                formattags["unit"].c_str());
-            } else {
-              eos::common::StringConversion::GetReadableSizeString(
-                ssize, (unsigned long long)(
-                  *longStats[formattags["sum"].c_str()]->getSums())[l],
-                formattags["unit"].c_str());
-            }
-
-            snprintf(line, sizeof(line) - 1, lenformat, ssize.c_str());
-          } else {
-            snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+            table_data.back().push_back(
+              TableCell((*longStats[formattags["sum"].c_str()]->getSums())[l],
+                        format, unit));
           }
 
           if (buildheader) {
-            char headline[1024];
-            char lenformat[1024];
             XrdOucString pkey = formattags["sum"].c_str();
             pkey.replace("stat.statfs.", "");
             pkey.replace("stat.", "");
             pkey.replace("cfg.", "");
 
-            if (formattags.count("tag")) {
-              pkey = formattags["tag"].c_str();
-              width += 5;
-            }
-
-            snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 6);
-            snprintf(headline, sizeof(headline) - 1, lenformat, pkey.c_str());
-            std::string sline = headline;
-
-            if (sline.length() != (width - 6)) {
-              sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ?
-                          (sline.length() - width + 6 + 3) : 0);
-              sline.insert(0, "...");
-            }
-
             if (!formattags.count("tag")) {
-              header += "#";
-              header += "sum(";
-              header += sline;
+              header = "sum(";
+              header += pkey.c_str();
               header += ")";
             } else {
-              header += "#";
-              header += sline;
+              header = formattags["tag"].c_str();
             }
           }
         }
@@ -3490,87 +3556,43 @@ BaseView::Print(std::string& out, std::string headerformat,
         if (formattags.count("avg")) {
           if (formattags["avg"] == "stat.geotag") {
             if (outdepth) {
-              // This average means anything only when displaying along the topology tree
-              snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                       (*longStats["lastHeartBeat"]->getGeoTags())[l].c_str());
-              snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+              // This average means anything only when displaying along the
+              // topology tree
+              table_data.back().push_back(
+                TableCell((*longStats["lastHeartBeat"]->getGeoTags())[l].c_str(),
+                          format));
 
               if (buildheader) {
-                char headline[1024];
-                char lenformat[1024];
-                snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 1);
-                snprintf(headline, sizeof(headline) - 1, lenformat, "geotag");
-                std::string sline = headline;
-
-                if (sline.length() != (width - 1)) {
-                  sline.erase(0, ((sline.length() - width + 1 + 3) > 0) ?
-                              (sline.length() - width + 1 + 3) : 0);
-                  sline.insert(0, "...");
-                }
-
-                header += "#";
-                header += sline;
+                XrdOucString pkey = formattags["avg"].c_str();
+                pkey.replace("stat.statfs.", "");
+                pkey.replace("stat.", "");
+                pkey.replace("cfg.", "");
+                header = pkey.c_str();
               }
             }
           } else { // If not geotag special case
             if (!outdepth) {
-              snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                       AverageDouble(formattags["avg"].c_str(), false));
+              table_data.back().push_back(
+                TableCell(AverageDouble(formattags["avg"].c_str(), false),
+                          format, unit));
             } else {
-              snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                       (*doubleStats[formattags["avg"].c_str()]->getMeans())[l]);
-            }
-
-            if ((formattags["format"].find("+") != std::string::npos)) {
-              std::string ssize;
-
-              if (!outdepth) {
-                eos::common::StringConversion::GetReadableSizeString(
-                  ssize, (unsigned long long) AverageDouble(formattags["avg"].c_str(), false),
-                  formattags["unit"].c_str());
-              } else {
-                eos::common::StringConversion::GetReadableSizeString(
-                  ssize, (unsigned long long)(
-                    *doubleStats[formattags["avg"].c_str()]->getMeans())[l],
-                  formattags["unit"].c_str());
-              }
-
-              snprintf(line, sizeof(line) - 1, lenformat, ssize.c_str());
-            } else {
-              snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+              table_data.back().push_back(
+                TableCell((*doubleStats[formattags["avg"].c_str()]->getMeans())[l],
+                          format, unit));
             }
 
             if (buildheader) {
-              char headline[1024];
-              char lenformat[1024];
               XrdOucString pkey = formattags["avg"].c_str();
               pkey.replace("stat.statfs.", "");
               pkey.replace("stat.", "");
               pkey.replace("cfg.", "");
 
-              if (formattags.count("tag")) {
-                pkey = formattags["tag"].c_str();
-                width += 5;
-              }
-
-              snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 6);
-              snprintf(headline, sizeof(headline) - 1, lenformat, pkey.c_str());
-              std::string sline = headline;
-
-              if (sline.length() != (width - 6)) {
-                sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ?
-                            (sline.length() - width + 6 + 3) : 0);
-                sline.insert(0, "...");
-              }
-
               if (!formattags.count("tag")) {
-                header += "#";
-                header += "avg(";
-                header += sline;
+                header = "avg(";
+                header += pkey.c_str();
                 header += ")";
               } else {
-                header += "#";
-                header += sline;
+                header = formattags["tag"].c_str();
               }
             }
           } // end not geotag case
@@ -3578,297 +3600,104 @@ BaseView::Print(std::string& out, std::string headerformat,
 
         if (formattags.count("sig")) {
           if (!outdepth) {
-            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                     SigmaDouble(formattags["sig"].c_str(), false));
+            table_data.back().push_back(
+              TableCell(SigmaDouble(formattags["sig"].c_str(), false),
+                        format, unit));
           } else {
-            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                     (*doubleStats[formattags["sig"].c_str()]->getStdDevs())[l]);
-          }
-
-          if ((formattags["format"].find("+") != std::string::npos)) {
-            std::string ssize;
-
-            if (!outdepth) {
-              eos::common::StringConversion::GetReadableSizeString(
-                ssize, (unsigned long long) SigmaDouble(formattags["sig"].c_str(), false),
-                formattags["unit"].c_str());
-            } else {
-              eos::common::StringConversion::GetReadableSizeString(
-                ssize, (unsigned long long)(
-                  *doubleStats[formattags["sig"].c_str()]->getStdDevs())[l],
-                formattags["unit"].c_str());
-            }
-
-            snprintf(line, sizeof(line) - 1, lenformat, ssize.c_str());
-          } else {
-            snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+            table_data.back().push_back(
+              TableCell((*doubleStats[formattags["sig"].c_str()]->getStdDevs())[l],
+                        format, unit));
           }
 
           if (buildheader) {
-            char headline[1024];
-            char lenformat[1024];
             XrdOucString pkey = formattags["sig"].c_str();
             pkey.replace("stat.statfs.", "");
             pkey.replace("stat.", "");
             pkey.replace("cfg.", "");
 
-            if (formattags.count("tag")) {
-              pkey = formattags["tag"].c_str();
-              width += 5;
-            }
-
-            snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 6);
-            snprintf(headline, sizeof(headline) - 1, lenformat, pkey.c_str());
-            std::string sline = headline;
-
-            if (sline.length() != (width - 6)) {
-              sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ?
-                          (sline.length() - width + 6 + 3) : 0);
-              sline.insert(0, "...");
-            }
-
             if (!formattags.count("tag")) {
-              header += "#";
-              header += "sig(";
-              header += sline;
+              header = "sig(";
+              header += pkey.c_str();
               header += ")";
             } else {
-              header += "#";
-              header += sline;
+              header = formattags["tag"].c_str();
             }
           }
         }
 
         if (formattags.count("maxdev")) {
           if (!outdepth) {
-            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                     MaxAbsDeviation(formattags["maxdev"].c_str(), false));
+            table_data.back().push_back(
+              TableCell(MaxAbsDeviation(formattags["maxdev"].c_str(), false),
+                        format, unit));
           } else {
-            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
-                     (*doubleStats[formattags["maxdev"].c_str()]->getMaxAbsDevs())[l]);
-          }
-
-          if ((formattags["format"].find("+") != std::string::npos)) {
-            std::string ssize;
-
-            if (!outdepth) {
-              eos::common::StringConversion::GetReadableSizeString(
-                ssize, (unsigned long long) MaxAbsDeviation(formattags["maxdev"].c_str(),
-                    false),
-                formattags["unit"].c_str());
-            } else {
-              eos::common::StringConversion::GetReadableSizeString(
-                ssize, (unsigned long long)(
-                  *doubleStats[formattags["maxdev"].c_str()]->getMaxAbsDevs())[l],
-                formattags["unit"].c_str());
-            }
-
-            snprintf(line, sizeof(line) - 1, lenformat, ssize.c_str());
-          } else {
-            snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+            table_data.back().push_back(
+              TableCell((*doubleStats[formattags["maxdev"].c_str()]->getMaxAbsDevs())[l],
+                        format, unit));
           }
 
           if (buildheader) {
-            char headline[1024];
-            char lenformat[1024];
             XrdOucString pkey = formattags["maxdev"].c_str();
             pkey.replace("stat.statfs.", "");
             pkey.replace("stat.", "");
             pkey.replace("cfg.", "");
 
-            if (formattags.count("tag")) {
-              pkey = formattags["tag"].c_str();
-              width += 5;
-            }
-
-            snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 6);
-            snprintf(headline, sizeof(headline) - 1, lenformat, pkey.c_str());
-            std::string sline = headline;
-
-            if (sline.length() != (width - 6)) {
-              sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ?
-                          (sline.length() - width + 6 + 3) : 0);
-              sline.insert(0, "...");
-            }
-
             if (!formattags.count("tag")) {
-              header += "#";
-              header += "dev(";
-              header += sline;
+              header = "dev(";
+              header += pkey.c_str();
               header += ")";
             } else {
-              header += "#";
-              header += sline;
+              header = formattags["tag"].c_str();
             }
           }
         }
 
-        if ((formattags["format"].find("o") != std::string::npos)) {
-          char keyval[4096];
+        if ((format.find("o") != std::string::npos)) {
           buildheader = false; // auto disable header
-          XrdOucString noblankline = line;
-          {
-            // replace all inner blanks with %20
-            std::string snoblankline = line;
-            size_t pos = snoblankline.find_last_not_of(" ");
-
-            if (noblankline.length() > 1) {
-              while (noblankline.replace(" ", "%20", 0,
-                                         (pos == std::string::npos) ? -1 : pos)) {}
-            }
-          }
 
           if (formattags.count("member")) {
-            snprintf(keyval, sizeof(keyval) - 1, "%s=%s", formattags["member"].c_str(),
-                     noblankline.c_str());
+            header = formattags["member"].c_str();
           }
 
           if (formattags.count("sum")) {
-            snprintf(keyval, sizeof(keyval) - 1, "sum.%s=%s", formattags["sum"].c_str(),
-                     noblankline.c_str());
+            header = "sum.";
+            header += formattags["sum"].c_str();
           }
 
           if (formattags.count("avg")) {
-            snprintf(keyval, sizeof(keyval) - 1, "avg.%s=%s", formattags["avg"].c_str(),
-                     noblankline.c_str());
+            header = "avg.";
+            header += formattags["avg"].c_str();
           }
 
           if (formattags.count("sig")) {
-            snprintf(keyval, sizeof(keyval) - 1, "sig.%s=%s", formattags["sig"].c_str(),
-                     noblankline.c_str());
+            header = "sig.";
+            header += formattags["sig"].c_str();
           }
 
           if (formattags.count("maxdev")) {
-            snprintf(keyval, sizeof(keyval) - 1, "dev.%s=%s", formattags["maxdev"].c_str(),
-                     noblankline.c_str());
+            header = "dev.";
+            header += formattags["maxdev"].c_str();
           }
-
-          body += keyval;
-        } else {
-          std::string sline = line;
-
-          if (sline.length() > width) {
-            sline.erase(0, ((sline.length() - width + 3) > 0) ? (sline.length() - width + 3)
-                        : 0);
-            sline.insert(0, "...");
-          }
-
-          body += sline;
         }
-      }
 
-      if (formattags.count("sep") && body.size() && ((*body.rbegin()) != '\n')) {
-        // don't add the separator if there is nothing in the line before
-        // add the desired seperator
-        body += formattags["sep"];
-
-        if (buildheader) {
-          header += formattags["sep"];
+        //Build header
+        if (header != "") {
+          table_header.push_back(std::make_tuple(header, width, format));
         }
       }
     }
-
-    body += "\n";
   } // l from 0 to nLines
 
+  //Get table from MQ side (second table)
   if (listformat.length()) {
-    bool first = true;
-    std::unordered_set<std::string> allowed_columns = {"host", "id", "path", "schedgroup",
-                                                       "geotag", "boot", "configstatus",
-                                                       "drain", "active", "health"
-                                                      };
-    std::vector<std::pair<std::string, regex_t>> parsed_selections;
-    std::vector<regex_t> plain_selections;
-
-    // Parse selections
-    for (auto selection = selections.begin();
-         selection != selections.end(); ++selection) {
-      std::pair<std::string, regex_t> curr;
-      auto pos = selection->find(":");
-      curr.first = selection->substr(0, pos);
-
-      // Selection is not allowed,  ignore it
-      if (allowed_columns.find(curr.first) == allowed_columns.end()) {
-        regex_t temp;
-        regcomp(&(temp), selection->c_str(), REG_EXTENDED | REG_NEWLINE);
-        plain_selections.push_back(temp);
-        continue;
-      }
-
-      std::string reg_str = selection->substr(pos + 1, selection->size());
-
-      // In case something went wrong during regex compilation, ignore regex
-      if (regcomp(&(curr.second), reg_str.c_str(), REG_EXTENDED | REG_NEWLINE) != 0) {
-        eos_static_debug("Regex couldn't be compiled!");
-        continue;
-      }
-
-      // Geotag is special, it needs "stat." in front
-      if (curr.first == "geotag") {
-        curr.first = "stat.geotag";
-      }
-
-      parsed_selections.push_back(curr);
-    }
-
     // If a format was given for the filesystem children, forward the print to
     // the filesystems
     for (auto it = begin(); it != end(); it++) {
-      std::string lbody;
-      bool matches = true;
+      std::string out_mq;
       FileSystem* fs = FsView::gFsView.mIdView[*it];
-
-      // Apply each selection as a find match in the string
-      for (auto selection = parsed_selections.begin();
-           selection != parsed_selections.end(); ++selection) {
-        std::string value = fs->GetString(selection->first.c_str());
-
-        if (regexec(&(selection->second), value.c_str(), 0, NULL, 0)) {
-          matches = false;
-        }
-      }
-
-      // Check non key:value selections.
-      fs->Print(lbody, listformat);
-
-      for (auto selection = plain_selections.begin();
-           selection != plain_selections.end(); ++selection) {
-        if (regexec(&(*selection), lbody.c_str(), 0, NULL, 0)) {
-          matches = false;
-        }
-      }
-
-      if (matches) {
-        body += lbody;
-      }
-
-      if (first) {
-        // Put the header format only in the first node printout
-        first = false;
-
-        if ((listformat.find("header=1:")) == 0) {
-          listformat.erase(0, 9);
-        }
-      }
+      table_mq_header.clear();
+      fs->Print(table_mq_header, table_mq_data, listformat);
     }
-  }
-
-  if (header.size()) {
-    std::string line = "";
-    line += "#";
-
-    for (unsigned int i = 0; i < (header.length() - 1); i++) {
-      line += "-";
-    }
-
-    line += "\n";
-    out += line;
-    out += header;
-    out += "\n";
-    out += line;
-    out += body;
-  } else {
-    out += body;
   }
 }
 
