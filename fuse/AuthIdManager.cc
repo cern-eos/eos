@@ -48,7 +48,7 @@ std::string AuthIdManager::mapUser (uid_t uid, gid_t gid, pid_t pid, uint64_t co
   XrdOucString sb64;
   unsigned long long bituser = 0;
 
-  if ((use_user_krb5cc || use_user_gsiproxy))
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy))
   {
     sid = "A"; // this might be increased by redirection handling
     bituser=conid;

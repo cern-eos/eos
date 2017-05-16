@@ -59,11 +59,10 @@
 #endif
 
 filesystem::filesystem():
-  pid_max(32767), uid_max(0), link_pidmap(false), use_user_krb5cc(false),
-  use_user_gsiproxy(false), use_unsafe_krk5(false), fallback2nobody(false),
+  pid_max(32767), uid_max(0), link_pidmap(false),
   lazy_open_ro(false), lazy_open_rw(false), async_open(false),
   lazy_open_disabled(false), inline_repair(false),
-  max_inline_repair_size(268435456), tryKrb5First(false), do_rdahead(false),
+  max_inline_repair_size(268435456), do_rdahead(false),
   rm_level_protect(1), rm_watch_relpath(false), fuse_cache_write(false),
   encode_pathname(false), mode_overlay(0)
 {
@@ -291,13 +290,13 @@ filesystem::log_settings()
   eos_static_warning("proc filesystem path   := %s",
                      getenv("EOS_FUSE_PROCPATH") ? getenv("EOS_FUSE_PROCPATH") : "/proc/");
   eos_static_warning("krb5 authentication    := %s",
-                     use_user_krb5cc ? "true" : "false");
+                     credConfig.use_user_krb5cc ? "true" : "false");
   eos_static_warning("krb5 unsafe inmem krb5 := %s",
-                     use_unsafe_krk5 ? "true" : "false");
+                     credConfig.use_unsafe_krk5 ? "true" : "false");
   eos_static_warning("x509 authentication    := %s",
-                     use_user_gsiproxy ? "true" : "false");
+                     credConfig.use_user_gsiproxy ? "true" : "false");
   eos_static_warning("fallback to nobody     := %s",
-                     fallback2nobody ? "true" : "false");
+                     credConfig.fallback2nobody ? "true" : "false");
   eos_static_warning("xrd null resp retry    := %d",
                      xrootd_nullresponsebug_retrycount);
   eos_static_warning("xrd null resp sleep    := %d",
@@ -1161,7 +1160,7 @@ filesystem::rmxattr(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -1254,7 +1253,7 @@ filesystem::setxattr(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -1339,7 +1338,7 @@ filesystem::getxattr(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -1436,7 +1435,7 @@ filesystem::listxattr(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -1655,7 +1654,7 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -1835,7 +1834,7 @@ filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid ,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -1925,7 +1924,7 @@ filesystem::chmod(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -2042,7 +2041,7 @@ filesystem::utimes(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -2116,7 +2115,7 @@ filesystem::symlink(const char* path, const char* link, uid_t uid, gid_t gid,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -2184,7 +2183,7 @@ filesystem::readlink(const char* path, char* buf, size_t bufsize, uid_t uid,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -2289,7 +2288,7 @@ filesystem::access(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -2364,7 +2363,7 @@ filesystem::inodirlist(unsigned long long dirinode,
   }
 
   // add the kerberos token
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     request += '&';
   }
 
@@ -2748,7 +2747,7 @@ filesystem::readdir(const char* path_dir, size_t* size,
 
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -2826,7 +2825,7 @@ filesystem::mkdir(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -2933,7 +2932,7 @@ filesystem::rmdir(const char* path, uid_t uid, gid_t gid, pid_t pid)
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -3028,7 +3027,7 @@ filesystem::open(const char* path,
 
     // Force a reauthentication to the head node
     if (spath.endswith("/proc/reconnect")) {
-      if (use_user_gsiproxy || use_user_krb5cc) {
+      if (credConfig.use_user_gsiproxy || credConfig.use_user_krb5cc) {
         authidmanager.reconnectProcCache(uid, gid, pid);
       } else {
         authidmanager.IncConnectionId();
@@ -3045,7 +3044,7 @@ filesystem::open(const char* path,
       spath += '?';
       spath += strongauth_cgi(pid).c_str();
 
-      if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+      if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
         spath += '&';
       }
 
@@ -3084,7 +3083,7 @@ filesystem::open(const char* path,
       spath += '?';
       spath += strongauth_cgi(pid).c_str();
 
-      if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+      if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
         spath += '&';
       }
 
@@ -3122,7 +3121,7 @@ filesystem::open(const char* path,
       spath += '?';
       spath += strongauth_cgi(pid).c_str();
 
-      if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+      if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
         spath += '&';
       }
 
@@ -3178,7 +3177,7 @@ filesystem::open(const char* path,
     arg.FromString(request);
     std::string surl = user_url(uid, gid, pid);
 
-    if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+    if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
       surl += '?';
     }
 
@@ -3294,7 +3293,7 @@ filesystem::open(const char* path,
     open_cgi += rdahead_window.c_str();
   }
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     open_cgi += "&";
     open_cgi += strongauth_cgi(pid).c_str();
   }
@@ -3990,7 +3989,7 @@ filesystem::unlink(const char* path, uid_t uid, gid_t gid, pid_t pid,
   eos_static_info("path=%s uid=%u, pid=%u", path, uid, pid);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -4046,7 +4045,7 @@ filesystem::rename(const char* oldpath, const char* newpath, uid_t uid,
 
   std::string surl = user_url(uid, gid, pid);
 
-  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) {
+  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) && fuse_shared) {
     surl += '?';
   }
 
@@ -4077,7 +4076,7 @@ filesystem::strongauth_cgi(pid_t pid)
 {
   XrdOucString str = "";
 
-  if (fuse_shared && (use_user_krb5cc || use_user_gsiproxy)) {
+  if (fuse_shared && (credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy)) {
     std::string authmet;
 
     if (gProcCache(pid).HasEntry(pid)) {
@@ -4849,13 +4848,13 @@ filesystem::init(int argc, char* argv[], void* userdata,
   }
 
   // Get parameters about strong authentication
-  use_user_krb5cc = getenv_boolean_flag("EOS_FUSE_USER_KRB5CC", false);
-  use_user_gsiproxy = getenv_boolean_flag("EOS_FUSE_USER_GSIPROXY", false);
-  use_unsafe_krk5 = getenv_boolean_flag("EOS_FUSE_USER_UNSAFEKRB5", false);
-  fallback2nobody = getenv_boolean_flag("EOS_FUSE_FALLBACKTONOBODY", false);
-  tryKrb5First = getenv_boolean_flag("EOS_FUSE_USER_KRB5FIRST", false);
+  credConfig.use_user_krb5cc = getenv_boolean_flag("EOS_FUSE_USER_KRB5CC", false);
+  credConfig.use_user_gsiproxy = getenv_boolean_flag("EOS_FUSE_USER_GSIPROXY", false);
+  credConfig.use_unsafe_krk5 = getenv_boolean_flag("EOS_FUSE_USER_UNSAFEKRB5", false);
+  credConfig.fallback2nobody = getenv_boolean_flag("EOS_FUSE_FALLBACKTONOBODY", false);
+  credConfig.tryKrb5First = getenv_boolean_flag("EOS_FUSE_USER_KRB5FIRST", false);
 
-  if (!use_user_krb5cc && !use_user_gsiproxy) {
+  if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy) {
     if (getenv("EOS_FUSE_SSS_KEYTAB")) {
       setenv("XrdSecPROTOCOL", "sss,unix", 1);
     } else {
@@ -4863,8 +4862,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
     }
   }
 
-  authidmanager.setAuth(use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5,
-                        fallback2nobody, tryKrb5First);
+  authidmanager.setAuth(credConfig);
 
   if (getenv("EOS_FUSE_MODE_OVERLAY")) {
     mode_overlay = (mode_t)strtol(getenv("EOS_FUSE_MODE_OVERLAY"), 0, 8);
@@ -4938,7 +4936,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
   // Get parameters about strong authentication
   link_pidmap = getenv_boolean_flag("EOS_FUSE_PIDMAP", false);
 
-  eos_static_notice("krb5=%d", use_user_krb5cc ? 1 : 0);
+  eos_static_notice("krb5=%d", credConfig.use_user_krb5cc ? 1 : 0);
   pthread_t tid;
   eos_static_notice("starting filesystem");
 

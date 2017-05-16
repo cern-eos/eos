@@ -48,6 +48,24 @@
 #include <unistd.h>
 #include <dirent.h>
 
+class CredentialConfig {
+public:
+  CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
+  use_unsafe_krk5(false), tryKrb5First(false), fallback2nobody(false) {}
+
+  //! Indicates if user krb5cc file should be used for authentication
+  bool use_user_krb5cc;
+  //! Indicates if user gsi proxy should be used for authentication
+  bool use_user_gsiproxy;
+  //! Indicates if in memory krb5 tickets can be used without any safety check
+  bool use_unsafe_krk5;
+  //! Indicates if Krb5 should be tried before Gsi
+  bool tryKrb5First;
+  //! Indicates if unix authentication (as nobody) should be used as a fallback
+  //! if strong authentication is configured and none is found
+  bool fallback2nobody;
+};
+
 //------------------------------------------------------------------------------
 // Class in charge of managing the xroot login (i.e. xroot connection)
 // logins are 8 characters long : ABgE73AA23@myrootserver
@@ -62,21 +80,12 @@
 class AuthIdManager
 {
 public:
-
-  bool use_user_krb5cc;
-  bool use_user_gsiproxy;
-  bool use_unsafe_krk5;
-  bool tryKrb5First;
-  bool fallback2nobody;
+  CredentialConfig credConfig;
 
   void
-  setAuth(bool krb5, bool proxy, bool unsafekrk5, bool fb2unix, bool krb5first)
+  setAuth(const CredentialConfig &cf)
   {
-    use_user_krb5cc = krb5;
-    use_user_gsiproxy = proxy;
-    use_unsafe_krk5 = unsafekrk5;
-    tryKrb5First = krb5first;
-    fallback2nobody = fb2unix;
+    credConfig = cf;
   }
 
   void
@@ -157,8 +166,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   AuthIdManager():
-    use_user_krb5cc(false), use_user_gsiproxy(false), use_unsafe_krk5(false),
-    tryKrb5First(false), fallback2nobody(false), connectionId(0), mCleanupThread()
+    connectionId(0), mCleanupThread()
   {
     resize(proccachenbins);
   }
@@ -182,7 +190,7 @@ protected:
   findCred(CredInfo& credinfo, struct stat& linkstat, struct stat& filestat,
            uid_t uid, pid_t sid, time_t& sst)
   {
-    if (!(use_user_gsiproxy || use_user_krb5cc)) {
+    if (!(credConfig.use_user_gsiproxy || credConfig.use_user_krb5cc)) {
       return false;
     }
 
@@ -198,13 +206,13 @@ protected:
     CredType credtypes[5] = {krb5, krk5, x509, krb5, krk5};
     int sidx = 1, sn = 2;
 
-    if (!use_user_krb5cc && use_user_gsiproxy) {
+    if (!credConfig.use_user_krb5cc && credConfig.use_user_gsiproxy) {
       sidx = 2;
       sn = 1;
-    } else if (use_user_krb5cc && !use_user_gsiproxy) {
+    } else if (credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy) {
       sidx = 0;
       sn = 2;
-    } else if (tryKrb5First) {
+    } else if (credConfig.tryKrb5First) {
       sidx = 0;
       sn = 3;
     } else {
@@ -339,7 +347,7 @@ protected:
   checkKrk5StringSafe(const std::string& krk5Str)
   {
     // TODO: implement here check to be done on in memory krb5 tickets
-    return use_unsafe_krk5;
+    return credConfig.use_unsafe_krk5;
   }
 
   inline uint64_t getNewConId(uid_t uid, gid_t gid, pid_t pid)
@@ -484,7 +492,7 @@ protected:
     }
 
     // check if we are using strong authentication
-    if (!(use_user_krb5cc || use_user_gsiproxy)) {
+    if (!(credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy)) {
       return 0;
     }
 
@@ -521,7 +529,7 @@ protected:
     struct stat filestat, linkstat;
 
     if (!findCred(credinfo, linkstat, filestat, uid, sid, sessionSut)) {
-      if (fallback2nobody) {
+      if (credConfig.fallback2nobody) {
         credinfo.type = nobody;
         credinfo.lmtime = credinfo.lctime = 0;
         eos_static_debug("could not find any strong credential for uid %d pid %d sid %d, falling back on 'nobody'",
@@ -754,8 +762,8 @@ public:
   std::string
   getLogin(uid_t uid, gid_t gid, pid_t pid)
   {
-    return (use_user_krb5cc ||
-            use_user_gsiproxy) ? getXrdLogin(pid) : mapUser(uid, gid, pid, 0);
+    return (credConfig.use_user_krb5cc ||
+            credConfig.use_user_gsiproxy) ? getXrdLogin(pid) : mapUser(uid, gid, pid, 0);
   }
 
 };

@@ -793,16 +793,9 @@ private:
   //! Indicates if mapping between pid and strong authentication is symlinked in
   //! /var/run/eosd/credentials/pidXXX
   bool link_pidmap;
-  //! Indicates if user krb5cc file should be used for authentication
-  bool use_user_krb5cc;
-  //! Indicates if user gsi proxy should be used for authentication
-  bool use_user_gsiproxy;
-//! Indicates if in memory krb5 tickets can be used without any safety check
-  bool use_unsafe_krk5;
-  //! Indicates if unix authentication (as nobody) should be used as a fallback
-  //! if strong authentication is configured and none is found
-  bool fallback2nobody;
-//! Indicates if lazy openning of the file should be used for files open in RO
+  //! Stores all configuration related to credential handling
+  CredentialConfig credConfig;
+  //! Indicates if lazy openning of the file should be used for files open in RO
   bool lazy_open_ro;
   //! Indicates if lazy openning of the file should be used for files open in RW
   bool lazy_open_rw;
@@ -815,7 +808,6 @@ private:
   //! in the open
   bool inline_repair;
   off_t max_inline_repair_size; ///< Define maximum inline repair size
-  bool tryKrb5First; ///< Indicates if Krb5 should be tried before Gsi
   bool do_rdahead; ///< true if readahead is to be enabled, otherwise false
   std::string rdahead_window; ///< size of the readahead window
   int rm_level_protect; ///< number of levels in hierarchy protected against rm -rf
