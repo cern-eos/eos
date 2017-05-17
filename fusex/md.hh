@@ -33,10 +33,12 @@
 #include "kv.hh"
 #include "backend.hh"
 #include "common/Logging.hh"
+#include "common/RWMutex.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 #include <map>
 #include <set>
+#include <deque>
 #include <vector>
 #include <atomic>
 #include <exception>
@@ -46,8 +48,6 @@
 class metad
 {
 public:
-
-  //----------------------------------------------------------------------------
 
   class mdx : public eos::fusex::md
   //----------------------------------------------------------------------------
@@ -61,19 +61,21 @@ public:
       ADD, MV, UPDATE, RM, SETSIZE, LSTORE, NONE
     } ;
 
-    mdx()
+    mdx() : mSync(0)
     {
       setop_add();
       lookup_cnt = 0;
       lock_remote = true;
+      cap_count_reset();
     }
 
-    mdx(fuse_ino_t ino)
+    mdx(fuse_ino_t ino) : mSync(0)
     {
       set_id(ino);
       setop_add();
       lookup_cnt = 0;
       lock_remote = true;
+      cap_count_reset();
     }
 
     mdx& operator=(eos::fusex::md other)
@@ -167,7 +169,7 @@ public:
 
     void cap_inc()
     {
-      // requires to have Locker outside
+      // requires to have Lock outside
       cap_cnt++;
     }
 
@@ -177,20 +179,39 @@ public:
       cap_cnt--;
     }
 
+    void cap_count_reset()
+    {
+      cap_cnt = 0;
+    }
+
     int cap_count()
     {
       return cap_cnt;
     }
 
-    std::vector<struct flock> locktable;
+    std::vector<struct flock> &LockTable()
+    {
+      return locktable;
+    }
 
+    int WaitSync(int ms)
+    {
+      return mSync.WaitMS(ms);
+    }
+
+    void Signal()
+    {
+      mSync.Signal();
+    }
   private:
     XrdSysMutex mLock;
+    XrdSysCondVar mSync;
     md_op op;
     int lookup_cnt;
     int cap_cnt;
     bool lock_remote;
     bool refresh;
+    std::vector<struct flock> locktable;
 
   } ;
 
@@ -255,7 +276,7 @@ public:
 
   //----------------------------------------------------------------------------
 
-  class vmap : public XrdSysMutex
+  class vmap
   //----------------------------------------------------------------------------
   {
   public:
@@ -268,52 +289,22 @@ public:
     {
     }
 
-    void insert(fuse_ino_t a, fuse_ino_t b)
-    {
-      XrdSysMutexHelper mLock(this);
-      fwd_map.erase(bwd_map[b]);
-      fwd_map[a]=b;
-      bwd_map[b]=a;
+    void insert(fuse_ino_t a, fuse_ino_t b);
 
-      /*
-      fprintf(stderr, "============================================\n");
-      for (auto it = fwd_map.begin(); it != fwd_map.end(); it++)
-      {
-        fprintf(stderr, "%16lx <=> %16lx\n", it->first, it->second);
-      }
-      fprintf(stderr, "============================================\n");
-       */
-    }
+    std::string dump();
 
-    void erase_fwd(fuse_ino_t lookup)
-    {
-      XrdSysMutexHelper mLock(this);
-      bwd_map.erase(fwd_map[lookup]);
-      fwd_map.erase(lookup);
-    }
+    void erase_fwd(fuse_ino_t lookup);
+    void erase_bwd(fuse_ino_t lookup);
+    
 
-    void erase_bwd(fuse_ino_t lookup)
-    {
-      XrdSysMutexHelper mLock(this);
-      fwd_map.erase(bwd_map[lookup]);
-      bwd_map.erase(lookup);
-    }
-
-    fuse_ino_t forward(fuse_ino_t lookup)
-    {
-      XrdSysMutexHelper mLock(this);
-      return fwd_map[lookup];
-    }
-
-    fuse_ino_t backward(fuse_ino_t lookup)
-    {
-      XrdSysMutexHelper mLock(this);
-      return bwd_map[lookup];
-    }
-
+    fuse_ino_t forward(fuse_ino_t lookup);
+    fuse_ino_t backward(fuse_ino_t lookup);
+  
   private:
     std::map<fuse_ino_t, fuse_ino_t> fwd_map; // forward map points from remote to local inode
     std::map<fuse_ino_t, fuse_ino_t> bwd_map; // backward map points from local remote inode
+
+    XrdSysMutex mMutex;
   } ;
 
   class pmap : public std::map<fuse_ino_t, shared_md> , public XrdSysMutex
@@ -362,22 +353,27 @@ public:
                   shared_md md,
                   std::string authid);
 
+  int wait_flush(fuse_req_t req,
+                 shared_md md);
+
   void update(fuse_req_t req,
               shared_md md,
-              std::string authid);
+              std::string authid, 
+	      bool localstore=false);
 
   void add(shared_md pmd, shared_md md, std::string authid);
-  void remove(shared_md pmd, shared_md md, std::string authid);
+  void remove(shared_md pmd, shared_md md, std::string authid, bool upstream=true);
   void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
           std::string authid1, std::string authid2);
 
   std::string dump_md(shared_md md);
+  std::string dump_md(eos::fusex::md& md);
   std::string dump_container(eos::fusex::container & cont);
 
   uint64_t apply(fuse_req_t req, eos::fusex::container& cont, bool listing);
 
-  int getlk(fuse_req_t req, shared_md md, struct flock* lock) {return 0;}
-  int setlk(fuse_req_t req, shared_md md, struct flock* lock, int slepp) { return 0;}
+  int getlk(fuse_req_t req, shared_md md, struct flock* lock);
+  int setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep);
 
   bool should_terminate()
   {
@@ -497,6 +493,23 @@ public:
   }
 
   void
+  reset_cap_count(uint64_t ino)
+  {
+    XrdSysMutexHelper mLock(mdmap);
+    auto item = mdmap.find(ino);
+    if ( item != mdmap.end() )
+    {
+      XrdSysMutexHelper iLock(item->second->Locker());
+      item->second->cap_count_reset();
+      eos_static_err("reset cap counter for ino=%lx", ino);
+    }
+    else
+    {
+      eos_static_err("no cap counter change for ino=%lx", ino);
+    }
+  }
+
+  void
   decrease_cap(uint64_t ino)
   {
     XrdSysMutexHelper mLock(mdmap);
@@ -505,11 +518,11 @@ public:
     {
       XrdSysMutexHelper iLock(item->second->Locker());
       item->second->cap_dec();
-      //eos_static_err("decrease cap counter for ino=%lx", ino);
+      eos_static_err("decrease cap counter for ino=%lx", ino);
     }
     else
     {
-      //eos_static_err("no cap counter change for ino=%lx", ino);
+      eos_static_err("no cap counter change for ino=%lx", ino);
     }
   }
 
@@ -521,11 +534,11 @@ public:
     {
       //      XrdSysMutexHelper iLock(item->second->Locker());
       item->second->cap_inc();
-      //eos_static_err("increase cap counter for ino=%lx", ino);
+      eos_static_err("increase cap counter for ino=%lx", ino);
     }
     else
     {
-      //eos_static_err("no cap counter change for ino=%lx", ino);
+      eos_static_err("no cap counter change for ino=%lx", ino);
     }
   }
 
@@ -533,6 +546,52 @@ public:
   {
     return zmq_clientuuid;
   }
+
+  class flushentry
+  {
+  public:
+
+    flushentry(const std::string& aid, mdx::md_op o) : _authid(aid), _op(o)
+    {
+    };
+
+    ~flushentry()
+    {
+    }
+
+    std::string authid() const
+    {
+      return _authid;
+    }
+
+    mdx::md_op op() const
+    {
+      return _op;
+    }
+
+    static std::deque<flushentry> merge(std::deque<flushentry>& f)
+    {
+      return f;
+    }
+
+    static std::string dump(std::deque<flushentry>& e)
+    {
+      std::string out;
+      for (auto it = e.begin(); it != e.end(); ++it)
+      {
+        char line[1024];
+        snprintf(line, sizeof (line), "\nauthid=%s op=%d", it->authid().c_str(), (int) it->op());
+        out += line;
+      }
+      return out;
+    }
+
+  private:
+    std::string _authid;
+    mdx::md_op _op;
+  } ;
+
+  typedef std::deque<flushentry> flushentry_set_t;
 
 private:
   pmap mdmap;
@@ -542,7 +601,8 @@ private:
   vnode_gen next_ino;
 
   XrdSysCondVar mdflush;
-  std::map<uint64_t, std::string> mdqueue; // inode => authid
+
+  std::map<uint64_t, flushentry_set_t> mdqueue; // inode => flushenty
 
   size_t mdqueue_max_backlog;
 

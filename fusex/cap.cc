@@ -66,7 +66,7 @@ cap::capx::dump(bool dense)
     snprintf(sout, sizeof (sout),
              "i=%08lx m=%x c=%s",
              id(), mode(), clientid().c_str()
-            );
+             );
   }
   else
   {
@@ -90,7 +90,54 @@ cap::reset()
 
 /* -------------------------------------------------------------------------- */
 std::string
+/* -------------------------------------------------------------------------- */
+cap::capx::capid(fuse_req_t req, fuse_ino_t ino)
+/* -------------------------------------------------------------------------- */
+{
+  char sid[128];
+  snprintf(sid, sizeof (sid),
+           "%lx:%u:%u@%s",
+           ino,
+           fuse_req_ctx(req)->uid,
+           fuse_req_ctx(req)->gid,
+           EosFuse::Instance().Config().clienthost.c_str()
+           );
+  return sid;
+}
 
+/* -------------------------------------------------------------------------- */
+std::string
+/* -------------------------------------------------------------------------- */
+cap::capx::capid(fuse_ino_t ino, std::string clientid)
+/* -------------------------------------------------------------------------- */
+{
+  char sid[128];
+  snprintf(sid, sizeof (sid),
+           "%lx:%s",
+           ino,
+           clientid.c_str()
+           );
+  return sid;
+}
+
+/* -------------------------------------------------------------------------- */
+std::string
+/* -------------------------------------------------------------------------- */
+cap::capx::getclientid(fuse_req_t req)
+/* -------------------------------------------------------------------------- */
+{
+  char sid[128];
+  snprintf(sid, sizeof (sid),
+           "%u:%u@%s",
+           fuse_req_ctx(req)->uid,
+           fuse_req_ctx(req)->gid,
+           EosFuse::Instance().Config().clienthost.c_str()
+           );
+  return sid;
+}
+
+/* -------------------------------------------------------------------------- */
+std::string
 /* -------------------------------------------------------------------------- */
 cap::ls()
 /* -------------------------------------------------------------------------- */
@@ -99,16 +146,16 @@ cap::ls()
   XrdSysMutexHelper mLock(capmap);
   for (auto it = capmap.begin(); it != capmap.end(); ++it)
   {
-    listing += it->second->dump(true);
+    listing += it->second->dump(false);
     listing += "\n";
   }
-  if (listing.size()>(64*1000))
+  if (listing.size()>(64 * 1000))
   {
-    listing.resize((64*1000));
+    listing.resize((64 * 1000));
     listing +="\n... (truncated) ...\n";
   }
   char csize[32];
-  snprintf(csize,sizeof(csize),"# [ %d caps ]\n", capmap.size());
+  snprintf(csize, sizeof (csize), "# [ %lu caps ]\n", capmap.size());
   listing += csize;
   return listing;
 }
@@ -143,7 +190,7 @@ cap::get(fuse_req_t req,
     cap->set_vtime(0);
     cap->set_vtime_ns(0);
     capmap[cid] = cap;
-    mds->increase_cap(ino);
+    //mds->increase_cap(ino);
     return cap;
   }
 }
@@ -155,11 +202,12 @@ cap::store(fuse_req_t req,
            eos::fusex::cap icap)
 /* -------------------------------------------------------------------------- */
 {
-  std::string cid = cap::capx::capid(req, icap.id());
+
   std::string clientid= cap::capx::getclientid(req);
 
   uint64_t id = mds->vmaps().forward(icap.id());
-
+  std::string cid = cap::capx::capid(req, id); // cid uses the local inode
+  
   XrdSysMutexHelper mLock(capmap);
   if (capmap.count(cid))
   {
@@ -171,12 +219,12 @@ cap::store(fuse_req_t req,
   {
     shared_cap cap = std::make_shared<capx>();
     cap->set_clientid(clientid);
-    cap->set_id(id);
     *cap = icap;
+    cap->set_id(id);
     capmap[cid] = cap;
-    mds->increase_cap(icap.id());
+    //mds->increase_cap(icap.id());
   }
-  eos_static_debug("store inode=[l:%lx r:%lx] capid=%s cap: %s", icap.id(), id, cid.c_str(),
+  eos_static_debug("store inode=[r:%lx l:%lx] capid=%s cap: %s", icap.id(), id, cid.c_str(),
                    capmap[cid]->dump().c_str());
 }
 
@@ -204,13 +252,16 @@ cap::forget(const std::string& cid)
 
   if (inode)
   {
-    kernelcache::inval_inode(inode);
+    if (EosFuse::Instance().Config().options.kernelcache)
+    {
+      kernelcache::inval_inode(inode);
+    }
   }
   return inode;
 }
 
 /* -------------------------------------------------------------------------- */
-void
+std::string
 /* -------------------------------------------------------------------------- */
 cap::imply(shared_cap cap,
            std::string imply_authid,
@@ -229,7 +280,7 @@ cap::imply(shared_cap cap,
 
   // TODO: deal with the influence of mode to the cap itself
   capmap[cid] = implied_cap;
-  return;
+  return cid;
 }
 
 /* -------------------------------------------------------------------------- */

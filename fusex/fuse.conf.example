@@ -11,6 +11,7 @@
     "debug" : "1",
     "lowleveldebug" : "0",
     "debuglevel" : "5",
-    "libfusethreads" : "0"
+    "libfusethreads" : "0",
+    "kernelcache" : "1"
   }
 }]

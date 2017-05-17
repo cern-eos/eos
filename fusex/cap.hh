@@ -70,41 +70,10 @@ public:
       return mLock;
     }
 
-    static std::string capid(fuse_req_t req, fuse_ino_t ino)
-    {
-      char sid[128];
-      snprintf(sid, sizeof (sid),
-               "%lx:%u:%u@%s",
-               ino,
-               fuse_req_ctx(req)->uid,
-               fuse_req_ctx(req)->gid,
-               "localhost"
-               );
-      return sid;
-    }
-    
-     static std::string capid(fuse_ino_t ino, std::string clientid)
-    {
-      char sid[128];
-      snprintf(sid, sizeof (sid),
-               "%lx:%s",
-               ino,
-               clientid.c_str()
-               );
-      return sid;
-    }
-     
-    static std::string getclientid(fuse_req_t req)
-    {
-      char sid[128];
-      snprintf(sid, sizeof (sid),
-               "%u:%u@%s",
-               fuse_req_ctx(req)->uid,
-               fuse_req_ctx(req)->gid,
-               "localhost"
-               );
-      return sid;
-    }
+    static std::string capid(fuse_req_t req, fuse_ino_t ino);
+    static std::string capid(fuse_ino_t ino, std::string clientid);
+    static std::string getclientid(fuse_req_t req);
+  
 
     std::string dump(bool dense=false);
 
@@ -169,7 +138,7 @@ public:
                      mode_t mode
                      );
 
-  void imply(shared_cap cap, std::string imply_authid, mode_t mode, fuse_ino_t inode);
+  std::string imply(shared_cap cap, std::string imply_authid, mode_t mode, fuse_ino_t inode);
   
   fuse_ino_t forget(const std::string& capid);
   

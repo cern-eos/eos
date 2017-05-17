@@ -2,7 +2,7 @@ syntax = "proto3";
 package eos.fusex;
 
 message md {
-  enum OP { GET = 0; SET = 1; DELETE = 2; GETCAP = 3; LS = 4; }
+  enum OP { GET = 0; SET = 1; DELETE = 2; GETCAP = 3; LS = 4; GETLK = 5; SETLK = 6; SETLKW = 7; }
   enum TYPE { MD = 0; MDLS = 1; }
 
   fixed64 id = 1;        //< file/container id
@@ -40,6 +40,8 @@ message md {
   // children id is the physical inode when created on server side 
   cap capability = 32; //< optional response capability
   string implied_authid = 33; //< implied auth id from a create call
+  lock flock = 34; //< file lock information
+  sfixed32 nchildren = 35; //< number of children
 };
 
 message md_map {
@@ -137,16 +139,28 @@ message lease {
   Type type = 1;
   fixed64 md_ino = 2; //< inode number
   string clientid = 3; //< clientid
+  string authid = 4; //< authid
 }
 
+message lock {
+  enum Type { RDLCK = 0; WRLCK = 1; UNLCK = 2; }
+  Type type = 1;   //< type of lock
+  fixed64 start = 2; //< offset of lock area
+  fixed64 len = 3; //< length of lock area
+  fixed64 pid = 4; //< owner of the lock
+  fixed32 err_no = 5; //< errno from locking call
+}
+
+
+
 message response {
-  enum Type { EVICT = 0; ACK = 1; LEASE = 2; }
+  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; }
 
   // Identifies which field is filled in.
   Type type = 1;
-
   // One of the following will be filled in.
   evict evict_ = 2;
   ack ack_ = 3;
   lease lease_ = 4;
+  lock lock_ = 5;
 }

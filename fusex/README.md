@@ -17,7 +17,10 @@ Configuration File
     "debug" : 1,
     "lowleveldebug" : 0,
     "debuglevel" : 6,
-    "libfusethreads" : 0
+    "libfusethreads" : 0,
+    "foreground" : 1, 
+    "kernelcache" : 1,
+    "mkdir-is-sync" : 0,
   }
 }
 ```
@@ -106,15 +109,18 @@ mount -t fuse eosxd /eos/
 umount -f /eos/
 ```
 
-Live Interaction with a FUSE mount
+Client Interaction with a FUSE mount
 ----------------------------------
 
 To change the log configuration do as root:
 
 # setfattr -n system.eos.debug -v info <path>
 # setfattr -n system.eos.debug -v debug <path>
-# setfattr -n system.eos.debug -v notic <path>
+# setfattr -n system.eos.debug -v notice <path>
 
+
+To display the local meta data record do as root
+# getfattr --only-values -n system.eos.md <path>
 
 To display a capability on a path do as root
 # getfattr --only-values -n system.eos.cap <path>
@@ -126,5 +132,51 @@ To drop a capability on a path do as root
 
 To drop all capabilities on a mount do as root
 # setfattr -n system.eos.dropallcap <any-path>
+
+Show all hidden system attributes on a given path
+# getfattr -d -m - <path>
+
+
+Server Interaction with a FUSE mount
+------------------------------------
+
+
+EOS Console [root://localhost] |/eos/dev/fusetest/workspace/senf/> fusex
+usage: fusex ls [-c] [-n] [-z] [-a] [-m] [-s]                        :  print statistics about eosxd fuse clients
+                -c                                                   -  break down by client host
+                -a                                                   -  print all
+                -s                                                   -  print summary for clients
+                -m                                                   -  print in monitoring format <key>=<value>
+
+       fuxex evict <uuid> [<reason>]                                 :  evict a fuse client
+                                                              <uuid> -  uuid of the client to evict
+                                                            <reason> -  optional text shown to the client why he has been evicted
+
+       fusex dropcaps <uuid>                                         :  advice a client to drop all caps
+
+       fusex droplocks <uuid>                                        :  advice a client to drop all locks
+
+       fusex caps [-t | -i | -p [<regexp>] ]                         :  print caps
+                -t                                                   -  sort by expiration time
+                -i                                                   -  sort by inode
+                -p                                                   -  display by path
+                -t|i|p <regexp>>                                     -  display entries matching <regexp> for the used filter type
+examples:
+           fusex caps -i ^0000abcd$                                  :  show caps for inode 0000abcd
+           fusex caps -p ^/eos/$                                     :  show caps for path /eos
+           fusex caps -p ^/eos/caps/                                 :  show all caps in subtree /eos/caps
+
+
+Virtual extended attributes on a FUSE mount
+-------------------------------------------
+
+Display instance name
+# getfattr --only-values -n eos.name /eos/
+
+Display MGM hostname+port
+# getfattr --only-values -n eos.hostport /eos/
+
+Display MGM url
+# getfattr --only-values -n eos.mgmurl /eos/
 
 

@@ -24,6 +24,7 @@
 
 #include "backend.hh"
 #include "cap.hh"
+#include "eosfuse.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
@@ -58,6 +59,78 @@ backend::init(std::string& _hostport, std::string& _remotemountdir)
     mount.erase(mount.length() - 1);
 
   return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+backend::mapErrCode(int retc)
+{
+
+  switch (retc) {
+  case 0:
+    break;
+  case kXR_ArgInvalid:
+    retc = EINVAL;
+    break;
+  case kXR_ArgMissing:
+    retc = EINVAL;
+    break;
+  case kXR_ArgTooLong:
+    retc = E2BIG;
+    break;
+  case kXR_FileNotOpen:
+    retc = EBADF;
+    break;
+  case kXR_FSError:
+    retc = EIO;
+    break;
+  case kXR_InvalidRequest:
+    retc = EEXIST;
+    break;
+  case kXR_IOError:
+    retc = EIO;
+    break;
+  case kXR_NoMemory:
+    retc = ENOMEM;
+    break;
+  case kXR_NoSpace:
+    retc = ENOSPC;
+    break;
+  case kXR_ServerError:
+    retc = EIO;
+    break;
+  case kXR_NotAuthorized:
+    retc = EACCES;
+    break;
+  case kXR_NotFound:
+    retc = ENOENT;
+    break;
+  case kXR_Unsupported:
+    retc = ENOTSUP;
+    break;
+  case kXR_NotFile:
+    retc = EISDIR;
+    break;
+  case kXR_isDirectory:
+    retc = EISDIR;
+    break;
+  case kXR_Cancelled:
+    retc = ECANCELED;
+    break;
+  case kXR_ChkLenErr:
+    retc = ERANGE;
+    break;
+  case kXR_ChkSumErr:
+    retc = ERANGE;
+    break;
+  case kXR_inProgress:
+    retc = EAGAIN;
+    break;
+  default:
+    retc = EIO;
+  }
+  return retc;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -137,10 +210,10 @@ backend::fetchResponse(std::string& requestURL,
   if (!status.IsOK ())
   {
     eos_static_err ("error=status is NOT ok : %s", status.ToString ().c_str ());
-    
+
     if (status.code == XrdCl::errNotFound )
       return ENOENT;
-    
+
     errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
     return errno;
   }
@@ -248,7 +321,7 @@ backend::fetchResponse(std::string& requestURL,
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex* locker)
+backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::URL url ("root://" + hostport);
@@ -263,13 +336,18 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex* locker)
   if (!md->SerializeToString(&mdstream))
   {
     md->clear_authid();
+    md->clear_clientuuid();
+    md->clear_implied_authid();
     eos_static_err("fatal serialization error");
     return EFAULT;
   }
 
+  eos_static_debug("MD:\n%s", EosFuse::Instance().mds.dump_md(*md).c_str());
+
   md->clear_authid();
   md->clear_clientuuid();
-  
+  md->clear_implied_authid();
+
   locker->UnLock();
 
   eos_static_info("proto-serialize unlock");
@@ -304,12 +382,14 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex* locker)
       else
       {
         eos_static_err("protocol error - to short response received");
+        locker->Lock();
         return EIO;
       }
 
       if (responseprefix != "Fusex:")
       {
         eos_static_err("protocol error - fusex: prefix missing in response");
+        locker->Lock();
         return EIO;
       }
       std::string sresponse;
@@ -322,21 +402,141 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex* locker)
       if (!resp.ParseFromString(sresponse) || (resp.type() != resp.ACK))
       {
         eos_static_err("parsing error/wrong response type received");
-	locker->Lock();
+        locker->Lock();
         return EIO;
       }
       if (resp.ack_().code() == resp.ack_().OK)
       {
-	eos_static_info("relock do");
-	locker->Lock();
+        eos_static_info("relock do");
+        locker->Lock();
         md->set_md_ino(resp.ack_().md_ino());
         eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error=%s", md->id(), md->md_ino(),
                          resp.ack_().md_ino(), resp.ack_().transactionid(),
                          resp.ack_().err_msg().c_str());
-	eos_static_info("relock done");
+        eos_static_info("relock done");
         return 0;
       }
       eos_static_err("failed query command for ino=%lx", md->id());
+      locker->Lock();
+      return EIO;
+    }
+    else
+    {
+      eos_static_err("no response retrieved response=%lu response-buffer=%lu",
+                     response, response ? response->GetBuffer() : 0);
+      locker->Lock();
+      return EIO;
+    }
+    locker->Lock();
+    return 0;
+  }
+  else
+  {
+    eos_static_err("query resulted in error url=%s", url.GetURL().c_str());
+    locker->Lock();
+    if ( status.code == XrdCl::errErrorResponse )
+      return mapErrCode(status.errNo);
+    else
+      return EIO;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+backend::doLock(fuse_req_t req,
+                eos::fusex::md& md,
+                XrdSysMutex * locker)
+/* -------------------------------------------------------------------------- */
+{
+  XrdCl::URL url ("root://" + hostport);
+  url.SetPath("/dummy");
+
+
+  md.set_clientuuid(clientuuid);
+
+  std::string mdstream;
+  eos_static_info("proto-serialize");
+  if (!md.SerializeToString(&mdstream))
+  {
+    md.clear_clientuuid();
+    md.clear_flock();
+    eos_static_err("fatal serialization error");
+    return EFAULT;
+  }
+
+  md.clear_clientuuid();
+  md.clear_flock();
+
+  locker->UnLock();
+
+  eos_static_info("proto-serialize unlock");
+  XrdCl::FileSystem fs(url);
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+
+  std::string prefix="/?fusex:";
+  arg.Append(prefix.c_str(), prefix.length());
+
+  arg.Append(mdstream.c_str(), mdstream.length());
+  eos_static_debug("query: url=%s path=%s length=%d", url.GetURL().c_str(), prefix.c_str(), mdstream.length());
+
+  SyncResponseHandler handler;
+  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+  XrdCl::XRootDStatus status = handler.Sync(response);
+
+  eos_static_info("sync-response");
+
+  if (status.IsOK ())
+  {
+    eos_static_debug("response=%s response-size=%d", response->GetBuffer(), response->GetSize());
+    if (response && response->GetBuffer())
+    {
+      std::string responseprefix;
+
+      if (response->GetSize() > 6)
+      {
+        responseprefix.assign(response->GetBuffer(), 6);
+        // retrieve response
+      }
+      else
+      {
+        eos_static_err("protocol error - to short response received");
+        locker->Lock();
+        return EIO;
+      }
+
+      if (responseprefix != "Fusex:")
+      {
+        eos_static_err("protocol error - fusex: prefix missing in response");
+        locker->Lock();
+        return EIO;
+      }
+      std::string sresponse;
+      std::string b64response;
+      b64response.assign(response->GetBuffer() + 6, response->GetSize() - 6);
+      eos::common::SymKey::DeBase64(b64response, sresponse);
+
+
+      eos::fusex::response resp;
+      if (!resp.ParseFromString(sresponse) || (resp.type() != resp.LOCK))
+      {
+        eos_static_err("parsing error/wrong response type received");
+        locker->Lock();
+        return EIO;
+      }
+      if (resp.ack_().code() == resp.ack_().OK)
+      {
+        eos_static_info("relock do");
+        locker->Lock();
+        (*(md.mutable_flock())) = (resp.lock_());
+        eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error=%s", md.id(), md.md_ino(),
+                         resp.ack_().md_ino(), resp.ack_().transactionid(),
+                         resp.ack_().err_msg().c_str());
+        eos_static_info("relock done");
+        return 0;
+      }
+      eos_static_err("failed query command for ino=%lx", md.id());
       locker->Lock();
       return EIO;
     }
@@ -370,7 +570,7 @@ backend::getURL(fuse_req_t req, const std::string & path, std::string op, std::s
   XrdCl::URL::ParamsMap query;
   query["mgm.cmd"] = "fuseX";
   query["mgm.clock"] = "0";
-  query["mgm.path"] = mount + path;
+  query["mgm.path"] = eos::common::StringConversion::curl_escaped(mount + path);
   query["mgm.op"] = op;
   query["mgm.uuid"] = clientuuid;
   query["mgm.cid"] = cap::capx::getclientid(req);

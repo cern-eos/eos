@@ -142,11 +142,11 @@ public:
   symlink(fuse_req_t req, const char *link, fuse_ino_t parent, const char *name);
 
   static void getlk(fuse_req_t req, fuse_ino_t ino,
-                   struct fuse_file_info *fi, struct flock *lock);
+                    struct fuse_file_info *fi, struct flock *lock);
 
   static void setlk(fuse_req_t req, fuse_ino_t ino,
-                   struct fuse_file_info *fi,
-                   struct flock *lock, int sleep) ;
+                    struct fuse_file_info *fi,
+                    struct flock *lock, int sleep) ;
   metad mds;
   data datas;
   cap caps;
@@ -161,51 +161,10 @@ public:
   {
     return fusesession;
   }
-  
-  
+
   fuse_chan* Channel()
   {
     return fusechan;
-  }
-  
-private:
-
-  struct fuse_id
-  {
-    uid_t uid;
-    gid_t gid;
-    pid_t pid;
-
-    fuse_id(fuse_req_t req)
-    {
-      uid = fuse_req_ctx(req)->uid;
-      gid = fuse_req_ctx(req)->gid;
-      pid = fuse_req_ctx(req)->pid;
-    }
-  } ;
-
-  static std::string dump(fuse_id id,
-                          fuse_ino_t ino,
-                          struct fuse_file_info *fi,
-                          int rc)
-  {
-    char s[1024];
-    char ebuf[1024];
-    ebuf[0]=0;
-    if (strerror_r(rc, ebuf, sizeof (ebuf)))
-    {
-      snprintf(ebuf, sizeof (ebuf), "???");
-    }
-
-    snprintf(s, 1024, "rc=%02d uid=%05d gid=%05d pid=%05d ino=%08lx fh=%08lx msg=%s",
-             rc,
-             id.uid,
-             id.gid,
-             id.pid,
-             ino,
-             fi ? fi->fh : 0,
-             "");
-    return s;
   }
 
   typedef struct cfg
@@ -231,9 +190,57 @@ private:
       int debuglevel;
       int libfusethreads;
       int foreground;
+      int kernelcache;
+      int mkdir_is_sync;
     } options_t;
     options_t options;
   } cfg_t;
+
+  cfg_t& Config()
+  {
+    return config;
+  }
+
+private:
+
+  struct fuse_id
+  {
+    uid_t uid;
+    gid_t gid;
+    pid_t pid;
+
+    fuse_id(fuse_req_t req)
+    {
+      uid = fuse_req_ctx(req)->uid;
+      gid = fuse_req_ctx(req)->gid;
+      pid = fuse_req_ctx(req)->pid;
+    }
+  } ;
+
+  static std::string dump(fuse_id id,
+                          fuse_ino_t ino,
+                          struct fuse_file_info *fi,
+                          int rc,
+                          std::string name="")
+  {
+    char s[1024];
+    char ebuf[1024];
+    ebuf[0]=0;
+    if (strerror_r(rc, ebuf, sizeof (ebuf)))
+    {
+      snprintf(ebuf, sizeof (ebuf), "???");
+    }
+
+    snprintf(s, 1024, "rc=%02d uid=%05d gid=%05d pid=%05d ino=%08lx fh=%08lx name=%s",
+             rc,
+             id.uid,
+             id.gid,
+             id.pid,
+             ino,
+             fi ? fi->fh : 0,
+             name.c_str());
+    return s;
+  }
 
   cfg_t config;
 
@@ -255,7 +262,7 @@ private:
 
   struct fuse_session* fusesession;
   struct fuse_chan* fusechan;
-  
+
   std::thread tDumpStatistic;
   std::thread tStatCirculate;
   std::thread tMetaCacheFlush;

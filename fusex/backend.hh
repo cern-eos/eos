@@ -61,6 +61,11 @@ public:
             std::string authid=""
             );
 
+  int doLock(fuse_req_t req, 
+             eos::fusex::md& md,
+             XrdSysMutex* locker);
+  
+  
   int fetchResponse(std::string& url,
                     std::vector<eos::fusex::container>& cont
                     );
@@ -86,5 +91,8 @@ private:
   std::string hostport;
   std::string mount;
   std::string clientuuid;
+  
+  int mapErrCode(int retc);
+  
 } ;
 #endif /* FUSE_BACKEND_HH_ */
