@@ -1541,6 +1541,18 @@ protected:
       }
 
       updateNeeded = true;
+    } else {
+      // Test at lest that we have some free space
+      for (auto it = tree->pFs2Idx->begin(); it != tree->pFs2Idx->end(); ++it) {
+        const SchedTreeBase::tFastTreeIdx& idx = (*it).second;
+        float& freeSpace = tree->pNodes[idx].fsData.totalSpace;
+
+        if (!freeSpace) {
+          tree->pNodes[idx].fsData.mStatus = tree->pNodes[idx].fsData.mStatus &
+                                             ~SchedTreeBase::Available;
+          updateNeeded = true;
+        }
+      }
     }
 
     // do the placement
