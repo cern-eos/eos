@@ -801,7 +801,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   // Write archive JSON header leaving blank the fields for the number of
   // files/dirs and timestamp which will be filled in later on
   arch_ofs << "{"
-           << "\"src\": \"" << "root://" << gOFS->ManagerId << "/" << arch_dir << "\", "
+           << "\"src\": \"" << "root://" << gOFS->MgmOfsAlias << "/" << arch_dir << "\", "
            << "\"dst\": \"" << dst_url << "\", "
            << "\"svc_class\": \"" << gOFS->MgmArchiveSvcClass << "\", "
            << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
