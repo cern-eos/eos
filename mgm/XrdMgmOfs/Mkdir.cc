@@ -436,6 +436,9 @@ XrdMgmOfs::_mkdir (const char *path,
           eosView->updateContainerStore(newdir);
 	  eosView->updateContainerStore(dir);
 
+	  gOFS->FuseXCast(newdir->getId());
+	  gOFS->FuseXCast(dir->getId());
+			  
 	  dir->notifyMTimeChange( gOFS->eosDirectoryService );
 	  newdir->notifyMTimeChange( gOFS->eosDirectoryService );
 
@@ -509,6 +512,9 @@ XrdMgmOfs::_mkdir (const char *path,
     // commit on disk
     eosView->updateContainerStore(newdir);
     eosView->updateContainerStore(dir);
+    gOFS->FuseXCast(newdir->getId());
+    gOFS->FuseXCast(dir->getId());
+
 
     // notify after attribute inheritance
     newdir->notifyMTimeChange( gOFS->eosDirectoryService );

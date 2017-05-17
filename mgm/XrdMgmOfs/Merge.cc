@@ -82,6 +82,7 @@ XrdMgmOfs::merge (
       src_fmd->setCTime(ctime);
       // change the owner of the source file
       eosView->updateFileStore(src_fmd);
+      gOFS->FuseXCast(eos::common::FileId::FidToInode(src_fmd->getId()));
     }
     catch (eos::MDException &e)
     {

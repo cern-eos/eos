@@ -110,6 +110,7 @@ XrdMgmOfs::_chown (const char *path,
       }
       cmd->setCTimeNow();
       eosView->updateContainerStore(cmd);
+      gOFS->FuseXCast(cmd->getId());
       errno = 0;
     }
   }

@@ -958,6 +958,7 @@ XrdMgmOfsFile::open (const char *inpath,
 	    cmd->setMTimeNow();
 	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	    gOFS->eosView->updateContainerStore(cmd);
+	    gOFS->FuseXCast(cmd->getId());
           }
           catch (eos::MDException &e)
           {
@@ -1198,10 +1199,13 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
+	gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
+
 	eos::ContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 	cmd->setMTimeNow();
 	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	gOFS->eosView->updateContainerStore(cmd);
+	gOFS->FuseXCast(cmd->getId());
 
 	if (isCreation || (!fmd->getNumLocation())) 
 	{
@@ -1663,7 +1667,7 @@ XrdMgmOfsFile::open (const char *inpath,
             {
               fmd->addLocation(selectedfs[i]);
             }
-            gOFS->eosView->updateFileStore(fmd);
+            gOFS->eosView->updateFileStore(fmd);	    
           }
           catch (eos::MDException &e)
           {
@@ -2281,6 +2285,7 @@ XrdMgmOfsFile::open (const char *inpath,
           // only update within the resolution of the access tracking
           fmd->setCTimeNow();
           gOFS->eosView->updateFileStore(fmd);
+	  gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
         }
         errno = 0;
       }

@@ -390,6 +390,7 @@ XrdMgmOfs::_rename (const char *old_name,
 	      dir->setMTimeNow();
 	      dir->notifyMTimeChange( gOFS->eosDirectoryService );
 	      eosView->updateContainerStore(dir);
+	      gOFS->FuseXCast(dir->getId());
 	    }
 	  }
 	  else
@@ -405,6 +406,8 @@ XrdMgmOfs::_rename (const char *old_name,
 	      newdir->notifyMTimeChange( gOFS->eosDirectoryService );
 	      eosView->updateContainerStore(dir);
 	      eosView->updateContainerStore(newdir);
+	      gOFS->FuseXCast(dir->getId());
+	      gOFS->FuseXCast(newdir->getId());
 	      file->setName(nPath.GetName());
 	      file->setContainerId(newdir->getId());
 	      if (updateCTime)
@@ -413,6 +416,8 @@ XrdMgmOfs::_rename (const char *old_name,
 	      }
 	      newdir->addFile(file);
 	      eosView->updateFileStore(file);
+	      gOFS->FuseXCast(eos::common::FileId::FidToInode(file->getId()));
+
 	      // adjust the quota
 	      SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(oP.c_str());
 	      SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str());
@@ -593,6 +598,7 @@ XrdMgmOfs::_rename (const char *old_name,
 	      rdir->setMTimeNow();
 	      rdir->notifyMTimeChange( gOFS->eosDirectoryService );
 	      eosView->updateContainerStore(rdir);
+	      gOFS->FuseXCast(dir->getId());
 	    }
 	    else
 	    {
@@ -611,6 +617,7 @@ XrdMgmOfs::_rename (const char *old_name,
 		  gOFS->eosContainerAccounting->RemoveTree(dir, tree_size);
 		}
 		eosView->updateContainerStore(dir);	     
+		gOFS->FuseXCast(dir->getId());
 	      }
 
 	      {
@@ -623,6 +630,7 @@ XrdMgmOfs::_rename (const char *old_name,
 		  rdir->setCTimeNow();
 		}
 		eosView->updateContainerStore(rdir);
+		gOFS->FuseXCast(rdir->getId());
 	      }
 
 	      {
@@ -635,6 +643,7 @@ XrdMgmOfs::_rename (const char *old_name,
 		}
 		newdir->notifyMTimeChange( gOFS->eosDirectoryService );
 		eosView->updateContainerStore(newdir);
+		gOFS->FuseXCast(newdir->getId());
 	      }
 
 

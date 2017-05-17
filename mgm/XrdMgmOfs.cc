@@ -836,3 +836,13 @@ XrdMgmOfs::GetPendingBkps()
 
   return bkps;
 }
+
+
+//------------------------------------------------------------------------------                                               
+// Cast a change message to all fusex clients                                                                                 
+//------------------------------------------------------------------------------                                               
+void 
+XrdMgmOfs::FuseXCast(uint64_t inode)
+{
+  gOFS->zMQ->gFuseServer.Cap().BroadcastReleaseFromExternal(inode);
+}

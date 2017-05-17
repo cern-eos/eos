@@ -122,6 +122,8 @@ add_library (XrdEosMgm MODULE
             txengine/TransferFsDB.cc
             ZMQ.cc
 	    FuseServer.cc FuseServer.hh
+	    fuse-locks/LockTracker.cc
+	    fuse-locks/LockTracker.hh
 	    ${PROTO_SRC} ${PROTO_HEADER}
             Master.cc
             Recycle.cc

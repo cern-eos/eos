@@ -207,6 +207,8 @@ XrdMgmOfs::_chmod (const char *path,
 	  }
 
 	  eosView->updateContainerStore(pcmd);
+	  gOFS->FuseXCast(pcmd->getId());
+
           if (cmd)
           {
 	    Mode &= mask;
@@ -214,6 +216,7 @@ XrdMgmOfs::_chmod (const char *path,
 	    cmd->setCTimeNow();
             // store the in-memory modification time for this directory
             eosView->updateContainerStore(cmd);
+	    gOFS->FuseXCast(cmd->getId());
           }
           if (fmd)
           {
@@ -221,6 +224,7 @@ XrdMgmOfs::_chmod (const char *path,
             Mode &= (S_IRWXU | S_IRWXG | S_IRWXO);
             fmd->setFlags(Mode);
             eosView->updateFileStore(fmd);
+	    gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
           }
           errno = 0;
         }

@@ -34,6 +34,7 @@
 #include <atomic>
 #include <deque>
 #include "mgm/fusex.pb.h"
+#include "mgm/fuse-locks/LockTracker.hh"
 #include "common/Mapping.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <google/protobuf/util/json_util.h>
@@ -118,6 +119,9 @@ public:
     private:
       eos::fusex::heartbeat heartbeat_;
       status_t mState;
+
+      // inode, pid lock map
+      std::map<uint64_t, std::set < pid_t>> mLockPidMap;
     } ;
 
     typedef std::map<std::string, Client> client_map_t;
@@ -155,6 +159,9 @@ public:
                    const std::string& clientid
                    );
 
+    // drop caps of a given client
+    int Dropcaps(const std::string& uuid, std::string& out);
+
   private:
     // lookup client full id to heart beat
     client_map_t mMap;
@@ -165,8 +172,10 @@ public:
     // heartbeat window in seconds
     float mHeartBeatWindow;
 
-    // heartbeat window when to remove entires
+    // heartbeat window when to remove entries
     float mHeartBeatEvictWindow;
+
+
 
     std::atomic<bool> terminate_;
   } ;
@@ -223,7 +232,8 @@ public:
     typedef std::string clientid_t;
     typedef std::pair<uint64_t, authid_t> ino_authid_t;
     typedef std::set<authid_t> authid_set_t;
-    typedef std::map<uint64_t, std::set<std::string>> notify_set_t; // inode=>set(authid_t)
+    typedef std::map<uint64_t, authid_set_t> notify_set_t; // inode=>set(authid_t)
+    typedef std::map<clientid_t, authid_set_t> client_set_t;
 
     void pop()
     {
@@ -250,7 +260,6 @@ public:
         // leave some margin for revoking
         if (cap->vtime() <= (now + 10))
         {
-          fprintf(stderr, "releasing cap %s", cap->authid().c_str());
           mCaps.erase(id);
           mInodeCaps[cap->id()].erase(id);
           if (!mInodeCaps[cap->id()].size())
@@ -278,8 +287,23 @@ public:
 
     int BroadcastRelease(const eos::fusex::md &md); // broad cast triggered by fuse network
     int BroadcastReleaseFromExternal(uint64_t inode); // broad cast triggered non-fuse network
-    
-    std::string Print(std::string option);
+
+    std::string Print(std::string option, std::string filter);
+
+    std::map<authid_t, shared_cap>& GetCaps()
+    {
+      return mCaps;
+    }
+
+    notify_set_t& InodeCaps()
+    {
+      return mInodeCaps;
+    }
+
+    client_set_t& ClientCaps()
+    {
+      return mClientCaps;
+    }
 
   protected:
     // -------------------------------------------------------------------------
@@ -293,12 +317,45 @@ public:
     // -------------------------------------------------------------------------
     // clientid=>list of authid 
     // -------------------------------------------------------------------------
-    std::map<clientid_t, authid_set_t> mClientCaps;
+    client_set_t mClientCaps;
 
     // -------------------------------------------------------------------------
     // inode=>authid_t 
     // -------------------------------------------------------------------------
     notify_set_t mInodeCaps;
+  } ;
+
+  class Lock : XrdSysMutex
+  {
+  public:
+
+    Lock()
+    {
+    }
+
+    virtual ~Lock()
+    {
+    }
+
+    typedef std::map<uint64_t, LockTracker> lockmap_t;
+
+    LockTracker& getLocks(uint64_t id);
+
+    void purgeLocks();
+
+
+    int dropLocks(uint64_t id, pid_t pid);
+
+    int dropLocks(const std::string& owner);
+
+    int lsLocks(const std::string& owner,
+                std::map<uint64_t, std::set<pid_t>> rlocks,
+                std::map<uint64_t, std::set<pid_t>> wlocks);
+
+
+  private:
+    lockmap_t lockmap;
+
   } ;
 
   Clients& Client()
@@ -313,11 +370,18 @@ public:
     return mCaps;
   }
 
+  Lock& Locks()
+  {
+    return mLocks;
+  }
+
   void Print(std::string& out, std::string options="", bool monitoring=false);
 
   bool FillContainerMD(uint64_t id, eos::fusex::md& dir);
   bool FillFileMD(uint64_t id, eos::fusex::md& file);
-  bool FillContainerCAP(uint64_t id, eos::fusex::md& md, eos::common::Mapping::VirtualIdentity* vid);
+  bool FillContainerCAP(uint64_t id, eos::fusex::md& md,
+                        eos::common::Mapping::VirtualIdentity* vid,
+                        std::string reuse_uuid = "");
   Caps::shared_cap ValidateCAP(const eos::fusex::md& md, mode_t mode);
   uint64_t InodeFromCAP(const eos::fusex::md&);
 
@@ -349,7 +413,7 @@ protected:
 
   Clients mClients;
   Caps mCaps;
-
+  Lock mLocks;
 
 private:
 

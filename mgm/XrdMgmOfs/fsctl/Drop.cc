@@ -160,6 +160,7 @@
 	  {
 	    container->setMTimeNow();
 	    gOFS->eosView->updateContainerStore(container);
+	    gOFS->FuseXCast(container->getId());
 	    container->notifyMTimeChange( gOFS->eosDirectoryService );
 	  }
         }

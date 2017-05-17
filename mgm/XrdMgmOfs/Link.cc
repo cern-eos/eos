@@ -253,6 +253,7 @@ XrdMgmOfs::_symlink (const char *source_name,
       dir->setMTimeNow();
       dir->notifyMTimeChange( gOFS->eosDirectoryService );
       eosView->updateContainerStore(dir);
+      gOFS->FuseXCast(dir->getId());
     }
     catch (eos::MDException &e)
     {

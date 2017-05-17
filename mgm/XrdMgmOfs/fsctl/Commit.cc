@@ -266,6 +266,7 @@
                 try
                 {
                   gOFS->eosView->updateFileStore(fmd);
+		  gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
                 }
                 catch (eos::MDException &e)
                 {
@@ -304,6 +305,7 @@
                 try
                 {
                   gOFS->eosView->updateFileStore(fmd);
+		  gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
                 }
                 catch (eos::MDException &e)
                 {
@@ -448,6 +450,7 @@
 	    // update parent mtime
 	    cmd->setMTimeNow();
 	    gOFS->eosView->updateContainerStore(cmd);
+	    gOFS->FuseXCast(cmd->getId());
 	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	  }
         }
@@ -538,6 +541,7 @@
                 versiondir->addFile(versionfmd);
 		versiondir->setMTimeNow();
                 eosView->updateFileStore(versionfmd);
+		gOFS->FuseXCast(eos::common::FileId::FidToInode(versionfmd->getId()));
               }
               catch (eos::MDException &e)
               {
