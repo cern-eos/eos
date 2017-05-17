@@ -4084,6 +4084,14 @@ filesystem::strongauth_cgi(pid_t pid)
       gProcCache(pid).GetAuthMethod(pid, authmet);
     }
 
+    for(size_t i = 0; i < authmet.size(); i++) {
+      if(authmet[i] == '&' || authmet[i] == '=') {
+          eos_static_alert("rejecting credential filename for using forbidden characters: %s", authmet.c_str());
+          str += "xrd.wantprot=unix";
+          goto bye;
+      }
+    }
+
     if (authmet.compare(0, 5, "krb5:") == 0) {
       str += "xrd.k5ccname=";
       str += (authmet.c_str() + 5);
