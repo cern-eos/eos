@@ -203,7 +203,7 @@ eos_unit_test:
   stage: test
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache epel-release
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache epel-release cppunit-devel
     - git submodule update --init --recursive
     - mkdir build
     - cd build

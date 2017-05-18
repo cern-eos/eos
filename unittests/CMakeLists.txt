@@ -23,8 +23,8 @@
 
 set(CMAKE_CXX_STANDARD 14)
 
-include_directories("../googletest-src/googletest/include/")
-include_directories("../googletest-src/googlemock/include/")
+include_directories("${CMAKE_SOURCE_DIR}/googletest-src/googletest/include/")
+include_directories("${CMAKE_SOURCE_DIR}/googletest-src/googlemock/include/")
 include_directories(${CMAKE_SOURCE_DIR}
                     ${XROOTD_INCLUDE_DIRS})
 
