@@ -394,8 +394,8 @@ template<class TDbMapInterface, class TDbLogInterface> class
 //! a time stamp (a size_t), a string representation of the timestamp, a sequence id ( an integer ).
 //! Any modification to the content data can be logged thanks to the DbLog Class.
 /*----------------------------------------------------------------------------*/
-template<class TDbMapInterface, class TDbLogInterface> class DbMapT : public
-  eos::common::LogId
+template<class TDbMapInterface, class TDbLogInterface>
+class DbMapT : public eos::common::LogId
 {
 public:
   // typedefs

@@ -903,8 +903,8 @@ LvDbDbMapInterface::setEntry(const Slice& key, const TvalSlice& val)
       if (pBatched) {
         pDbBatch.Put(key, sval);
       } else {
-        pNDbEntries += (1 - count(
-                          key)); // the key does NOT exist, a new entry will then be created
+        // the key does NOT exist, a new entry will then be created
+        pNDbEntries += (1 - count(key));
         leveldb::Status status = AttachedDb->Put(leveldb::WriteOptions(), key, sval);
         TestLvDbError(status, this);
       }
@@ -925,8 +925,7 @@ LvDbDbMapInterface::removeEntry(const Slice& key, const TvalSlice& val)
 
     if (!pAttachedDbname.empty()) {
       // update the db
-      pNDbEntries -= count(
-                       key); // the key DOES exist, a new entry will then be deleted
+      pNDbEntries -= count(key);
       leveldb::Status status = AttachedDb->Delete(leveldb::WriteOptions(), key);
       TestLvDbError(status, this);
     }
@@ -982,8 +981,8 @@ size_t LvDbDbMapInterface::count(const Slice& key) const
     leveldb::Iterator* it = AttachedDb->NewIterator(leveldb::ReadOptions());
     it->Seek(key);
 
-    if (it->Valid()) {
-      retval = 1;  // the key does NOT exist, a new entry will then be created
+    if (it->Valid() && (it->key().ToString() == key.ToString())) {
+      retval = 1;
     }
 
     delete it;
