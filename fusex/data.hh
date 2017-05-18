@@ -148,6 +148,7 @@ public:
   {
     shared_data data;
     metad::shared_md md;
+    std::string _authid;
     std::atomic<bool> update_mtime_on_flush;
 
     _data_fh(shared_data _data, metad::shared_md _md)
@@ -176,6 +177,16 @@ public:
       return md;
     }
 
+    std::string authid() const
+    {
+      return _authid;
+    }
+    
+    void set_authid(const std::string& authid)
+    {
+      _authid = authid;
+    }
+    
     void set_update()
     {
       update_mtime_on_flush.store(true, std::memory_order_seq_cst);

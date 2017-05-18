@@ -25,6 +25,7 @@
 
 #include "mgm/FuseServer.hh"
 #include "mgm/Acl.hh"
+#include "mgm/Policy.hh"
 #include <thread>
 #include <regex.h>
 #include "common/Logging.hh"
@@ -381,7 +382,7 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
   rsp.mutable_lease_()->set_type(eos::fusex::lease::RELEASECAP);
   rsp.mutable_lease_()->set_md_ino(md_ino);
   rsp.mutable_lease_()->set_clientid(clientid);
-  
+
   std::string rspstream;
   rsp.SerializeToString(&rspstream);
 
@@ -567,7 +568,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md &md)
 
       if (cap->clientid() == refcap->clientid())
         continue;
-      
+
       if (cap->id())
       {
         deletioncaps.insert(*it);
@@ -1187,9 +1188,9 @@ FuseServer::ValidateCAP(const eos::fusex::md& md, mode_t mode)
   // wrong cap - go away
   if ((cap->id() != md.md_ino()) && (cap->id() != md.md_pino()))
   {
-    eos_static_err("wrong cap for authid=%s cap-id=%lx md-ino=%lx md-pino=%lx", 
+    eos_static_err("wrong cap for authid=%s cap-id=%lx md-ino=%lx md-pino=%lx",
                    md.authid().c_str(),
-                   md.md_ino(), 
+                   md.md_ino(),
                    md.md_pino()
                    );
     return 0;
@@ -1316,7 +1317,7 @@ FuseServer::HandleMD(const std::string &id,
       {
         // refresh the cap with the same authid
         FillContainerCAP(md.md_ino(), (*parent)[md.md_ino()], vid,
-                md.authid());
+                         md.authid());
         // store clock
         if (clock)
           *clock = (*parent)[md.md_ino()].clock();
@@ -1442,19 +1443,20 @@ FuseServer::HandleMD(const std::string &id,
       return EPERM;
     }
 
+    enum set_type
+    {
+      CREATE, UPDATE, RENAME, MOVE
+    } ;
+
+    set_type op;
+    uint64_t md_ino=0;
+
     if (S_ISDIR(md.mode()))
     {
-      uint64_t md_ino=0;
+      eos_static_info("ino=%lx pin=%lx authid=%s set-dir", (long) md.md_ino(),
+                      (long) md.md_pino(),
+                      md.authid().c_str());
 
-      enum set_type
-      {
-        CREATE, UPDATE, RENAME, MOVE
-      } ;
-
-      set_type op;
-
-
-      eos_static_info("ino=%lx pin=%lx authid=%s set-dir", (long) md.md_ino(), (long) md.md_pino(), md.authid().c_str());
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       eos::ContainerMD* cmd = 0;
       eos::ContainerMD* pcmd = 0;
@@ -1469,8 +1471,8 @@ FuseServer::HandleMD(const std::string &id,
             // this is a create on top of an existing inode
             return EEXIST;
           }
-          
-          
+
+
           op = UPDATE;
           // dir update
           cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino());
@@ -1492,7 +1494,8 @@ FuseServer::HandleMD(const std::string &id,
           {
             // this indicates a directory rename
             op = RENAME;
-            eos_static_info("rename %s=>%s", cmd->getName().c_str(), md.name().c_str());
+            eos_static_info("rename %s=>%s", cmd->getName().c_str(),
+                            md.name().c_str());
             gOFS->eosView->renameContainer(cmd, md.name());
           }
 
@@ -1504,13 +1507,17 @@ FuseServer::HandleMD(const std::string &id,
         else
         {
           // dir creation
-          op = UPDATE;
+          op = CREATE;
           pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
           cmd = gOFS->eosDirectoryService->createContainer();
           cmd->setName( md.name() );
           md_ino = cmd->getId();
           pcmd->addContainer(cmd);
-          eos_static_info("ino=%lx pino=%lx md-ino=%lx create-dir", (long) md.md_ino(), (long) md.md_pino(), md_ino);
+          eos_static_info("ino=%lx pino=%lx md-ino=%lx create-dir",
+                          (long) md.md_ino(),
+                          (long) md.md_pino(),
+                          md_ino);
+
           if (!Cap().Imply(md_ino, md.authid(), md.implied_authid()))
           {
             eos_static_err("imply failed for new inode %lx", md_ino);
@@ -1578,15 +1585,148 @@ FuseServer::HandleMD(const std::string &id,
 
     if (S_ISREG(md.mode()))
     {
-      eos_static_info("ino=%lx set-file", (long) md.md_ino());
-      if (md.id())
+      eos_static_info("ino=%lx pin=%lx authid=%s file", (long) md.md_ino(),
+                      (long) md.md_pino(),
+                      md.authid().c_str());
+
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      eos::FileMD* fmd = 0;
+      eos::ContainerMD* pcmd = 0;
+      eos::ContainerMD* cpcmd = 0;
+
+
+      uint64_t fid = eos::common::FileId::InodeToFid (md.md_ino());
+      md_ino = md.md_ino();
+
+      try
       {
-        // file update
+        if (md_ino)
+        {
+          // file update
+          op = UPDATE;
+
+          // dir update
+          fmd = gOFS->eosFileService->getFileMD(fid);
+          pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+          if (fmd->getContainerId() != md.md_pino())
+          {
+            // this indicates a file move
+            op = MOVE;
+            eos_static_info("moving %lx => %lx", fmd->getContainerId(), md.md_pino());
+            cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+            cpcmd->removeFile(fmd->getName());
+            gOFS->eosView->updateContainerStore(cpcmd);
+            fmd->setName(md.name());
+            pcmd->addFile(fmd);
+            gOFS->eosView->updateContainerStore(pcmd);
+          }
+
+          if (fmd->getName() != md.name())
+          {
+            // this indicates a directory rename
+            op = RENAME;
+            eos_static_info("rename %s=>%s", fmd->getName().c_str(), md.name().c_str());
+            gOFS->eosView->renameFile(fmd, md.name());
+          }
+          eos_static_info("fid=%lx ino=%lx pino=%lx cpino=%lx update-file",
+                          (long) fid,
+                          (long) md.md_ino(),
+                          (long) md.md_pino(), (long) fmd->getContainerId());
+        }
+        else
+        {
+          // file creation
+          op = CREATE;
+          pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+          unsigned long layoutId = 0;
+          unsigned long forcedFsId = 0;
+          long forcedGroup = 0;
+          XrdOucString space;
+          eos::ContainerMD::XAttrMap attrmap = pcmd->getAttributeMap();
+          XrdOucEnv env;
+
+          // retrieve the layout
+          Policy::GetLayoutAndSpace("fusex",
+                                    attrmap,
+                                    *vid,
+                                    layoutId,
+                                    space,
+                                    env,
+                                    forcedFsId,
+                                    forcedGroup);
+
+
+
+          fmd = gOFS->eosFileService->createFile();
+          fmd->setName( md.name() );
+          fmd->setLayoutId( layoutId );
+          md_ino = eos::common::FileId::FidToInode(fmd->getId());
+          pcmd->addFile(fmd);
+          eos_static_info("ino=%lx pino=%lx md-ino=%lx create-file", (long) md.md_ino(), (long) md.md_pino(), md_ino);
+        }
+
+        fmd->setName(md.name());
+        fmd->setCUid(md.uid());
+        fmd->setCGid(md.gid());
+        fmd->setSize(md.size());
+
+        // for the moment we store 9 bits here
+        fmd->setFlags( md.mode() & (S_IRWXU | S_IRWXG | S_IRWXO) );
+        eos::FileMD::ctime_t ctime;
+        eos::FileMD::ctime_t mtime;
+        ctime.tv_sec = md.ctime();
+        ctime.tv_nsec = md.ctime_ns();
+        mtime.tv_sec = md.mtime();
+        mtime.tv_nsec = md.mtime_ns();
+        fmd->setCTime(ctime);
+        fmd->setMTime(mtime);
+        fmd->clearAttributes();
+        for (auto map = md.attr().begin(); map != md.attr().end(); ++map)
+        {
+          fmd->setAttribute(map->first, map->second);
+        }
+
+        // store the birth time as an extended attribute
+        char btime[256];
+        snprintf(btime, sizeof (btime), "%lu.%lu", md.btime(), md.btime_ns());
+        fmd->setAttribute("sys.eos.btime", btime);
+
+        gOFS->eosFileService->updateStore(fmd);
+
+        eos::fusex::response resp;
+        resp.set_type(resp.ACK);
+        resp.mutable_ack_()->set_code(resp.ack_().OK);
+        resp.mutable_ack_()->set_transactionid(md.reqid());
+        resp.mutable_ack_()->set_md_ino(md_ino);
+        resp.SerializeToString(response);
+
+        if (0)
+        {
+          // broadcast this update around
+          switch ( op ) {
+          case UPDATE:
+          case CREATE:
+          case RENAME:
+          case MOVE:
+            Cap().BroadcastRelease(md);
+            break;
+          }
+        }
       }
-      else
+      catch ( eos::MDException &e )
       {
-        // file creation
+        eos_static_info("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
+                        e.getErrno(),
+                        e.getMessage().str().c_str());
+        eos::fusex::response resp;
+        resp.set_type(resp.ACK);
+        resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
+        resp.mutable_ack_()->set_err_no(e.getErrno());
+        resp.mutable_ack_()->set_err_msg(e.getMessage().str().c_str());
+        resp.mutable_ack_()->set_transactionid(md.reqid());
+        resp.SerializeToString(response);
       }
+      return 0;
     }
 
     if (S_ISLNK(md.mode()))
@@ -1624,8 +1764,65 @@ FuseServer::HandleMD(const std::string &id,
       if (S_ISDIR(md.mode()))
         cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino());
       else
-        fmd = gOFS->eosFileService->getFileMD(md.md_ino());
+        fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(md.md_ino()));
 
+
+      if (S_ISDIR(md.mode()))
+      {
+        // check if this directory is empty
+        if (cmd->getNumContainers() || cmd->getNumFiles())
+        {
+          eos::fusex::response resp;
+          resp.set_type(resp.ACK);
+          resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
+          resp.mutable_ack_()->set_err_no(ENOTEMPTY);
+          resp.mutable_ack_()->set_err_msg("directory not empty");
+          resp.mutable_ack_()->set_transactionid(md.reqid());
+          resp.SerializeToString(response);
+          return 0;
+        }
+        eos_static_info("ino=%lx delete-dir", (long) md.md_ino());
+        pcmd->removeContainer(cmd->getName());
+        gOFS->eosDirectoryService->removeContainer(cmd);
+        pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
+        resp.mutable_ack_()->set_code(resp.ack_().OK);
+        resp.mutable_ack_()->set_transactionid(md.reqid());
+        resp.SerializeToString(response);
+
+        Cap().BroadcastRelease(md);
+
+        return 0;
+      }
+      if (S_ISREG(md.mode()))
+      {
+        eos_static_info("ino=%lx delete-file", (long) md.md_ino());
+        pcmd->removeFile(fmd->getName());
+        fmd->setContainerId(0);
+        fmd->unlinkAllLocations();
+        gOFS->eosFileService->updateStore(fmd);
+        pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
+        resp.mutable_ack_()->set_code(resp.ack_().OK);
+        resp.mutable_ack_()->set_transactionid(md.reqid());
+        resp.SerializeToString(response);
+
+        Cap().BroadcastRelease(md);
+        return 0;
+      }
+      if (S_ISLNK(md.mode()))
+      {
+        eos_static_info("ino=%lx delete-link", (long) md.md_ino());
+        pcmd->removeFile(fmd->getName());
+        fmd->setContainerId(0);
+        fmd->unlinkAllLocations();
+        gOFS->eosFileService->updateStore(fmd);
+        pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
+        resp.mutable_ack_()->set_code(resp.ack_().OK);
+        resp.mutable_ack_()->set_transactionid(md.reqid());
+        resp.SerializeToString(response);
+
+        Cap().BroadcastRelease(md);
+        return 0;
+      }
     }
     catch ( eos::MDException &e )
     {
@@ -1634,63 +1831,9 @@ FuseServer::HandleMD(const std::string &id,
       resp.mutable_ack_()->set_err_msg(e.getMessage().str().c_str());
       resp.mutable_ack_()->set_transactionid(md.reqid());
       resp.SerializeToString(response);
-      return 0;
-    }
-
-    if (S_ISDIR(md.mode()))
-    {
-      // check if this directory is empty
-      if (cmd->getNumContainers() || cmd->getNumFiles())
-      {
-        eos::fusex::response resp;
-        resp.set_type(resp.ACK);
-        resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
-        resp.mutable_ack_()->set_err_no(ENOTEMPTY);
-        resp.mutable_ack_()->set_err_msg("directory not empty");
-        resp.mutable_ack_()->set_transactionid(md.reqid());
-        resp.SerializeToString(response);
-        return 0;
-      }
-      eos_static_info("ino=%lx delete-dir", (long) md.md_ino());
-      pcmd->removeContainer(cmd->getName());
-      gOFS->eosDirectoryService->removeContainer(cmd);
-      pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
-      resp.mutable_ack_()->set_code(resp.ack_().OK);
-      resp.mutable_ack_()->set_transactionid(md.reqid());
-      resp.SerializeToString(response);
-
-      Cap().BroadcastRelease(md);
-
-      return 0;
-    }
-    if (S_ISREG(md.mode()))
-    {
-      eos_static_info("ino=%lx delete-file", (long) md.md_ino());
-      pcmd->removeFile(cmd->getName());
-      fmd->setContainerId(0);
-      fmd->unlinkAllLocations();
-      gOFS->eosFileService->updateStore(fmd);
-      pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
-      resp.mutable_ack_()->set_code(resp.ack_().OK);
-      resp.mutable_ack_()->set_transactionid(md.reqid());
-      resp.SerializeToString(response);
-
-      Cap().BroadcastRelease(md);
-      return 0;
-    }
-    if (S_ISLNK(md.mode()))
-    {
-      eos_static_info("ino=%lx delete-link", (long) md.md_ino());
-      pcmd->removeFile(cmd->getName());
-      fmd->setContainerId(0);
-      fmd->unlinkAllLocations();
-      gOFS->eosFileService->updateStore(fmd);
-      pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
-      resp.mutable_ack_()->set_code(resp.ack_().OK);
-      resp.mutable_ack_()->set_transactionid(md.reqid());
-      resp.SerializeToString(response);
-
-      Cap().BroadcastRelease(md);
+      eos_static_info("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
+                      e.getErrno(),
+                      e.getMessage().str().c_str());
       return 0;
     }
   }

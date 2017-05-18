@@ -488,7 +488,7 @@ metad::get(fuse_req_t req,
     {
       // -----------------------------------------------------------------------
       // if there is none we load the current cached md from the kv store
-      // which also loads all child meta data
+      // which also loads all available child meta data
       // -----------------------------------------------------------------------
 
       md = load_from_kv(ino);
@@ -534,11 +534,28 @@ metad::get(fuse_req_t req,
         eos_static_debug("MD:\n%s", dump_md(md).c_str());
         return md;
       }
+      
+      if (!S_ISDIR(md->mode()))
+      {
+        // files are covered by the CAP of the parent, so if there is a cap 
+        // on the parent we can return this entry right away
+        shared_md pmd = mdmap[md->pid()];
+        if (pmd && pmd->id())
+        {
+          if (pmd->cap_count())
+          {
+            return md;
+          }
+        }
+      }
     }
-    if (!md->pid())
+    
+    if (!md->pid() && !md->deleted())
     {
+     /*
       if ( (md->getop() == md->ADD) ||
           (md->getop() == md->LSTORE) )
+      */
       {
         // this must have been generated locally, we return this entry
         eos_static_info("returning generated entry");
@@ -962,8 +979,8 @@ void
 /* -------------------------------------------------------------------------- */
 metad::update(fuse_req_t req,
               shared_md md,
-              std::string authid, 
-	      bool localstore)
+              std::string authid,
+              bool localstore)
 /* -------------------------------------------------------------------------- */
 {
   mdflush.Lock();
@@ -978,7 +995,7 @@ metad::update(fuse_req_t req,
       mdflush.WaitMS(25);
   }
 
-  flushentry fe(authid, localstore?mdx::LSTORE:mdx::UPDATE);
+  flushentry fe(authid, localstore ? mdx::LSTORE : mdx::UPDATE);
 
   mdqueue[md->id()].push_back(fe);
 
@@ -1058,6 +1075,8 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
     stat.inodes_deleted_ever_inc();
   }
 
+  md->setop_delete();
+  
   if (!upstream)
     return ;
 
@@ -1430,12 +1449,18 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
             md->clear_capability();
 
             md->set_id(ino);
+            /*
+            
             if (!listing)
             {
               p_ino = inomap.forward(md->md_pino());
             }
+         
+             */
+            p_ino = inomap.forward(md->md_pino());
+            
             md->set_pid(p_ino);
-            eos_static_info("store local pino=%08lx for %08x", md->pid(), md->id());
+            eos_static_info("store remote-ino=%08lx local pino=%08lx for %08x", md->md_pino(), md->pid(), md->id());
             // push only into the local KV cache - md was retrieved from upstream
 
             update(req, md, "", true);
@@ -1871,7 +1896,9 @@ void
 metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
 /* -------------------------------------------------------------------------- */
 {
-  fprintf(stderr, "inserting %llx => %llx\n", a, b);
+  eos_static_info("inserting %llx <=> %llx", a, b);
+  //fprintf(stderr, "inserting %llx => %llx\n", a, b);
+  
   XrdSysMutexHelper mLock(mMutex);
   if (bwd_map.count(b))
   {
@@ -1880,7 +1907,7 @@ metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
   fwd_map[a]=b;
   bwd_map[b]=a;
 
-  eos_static_info("%s", dump().c_str());
+  //eos_static_info("%s", dump().c_str());
 
   /*
   fprintf(stderr, "============================================\n");
@@ -1893,7 +1920,7 @@ metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
 }
 
 /* -------------------------------------------------------------------------- */
-std::string 
+std::string
 /* -------------------------------------------------------------------------- */
 metad::vmap::dump()
 /* -------------------------------------------------------------------------- */
@@ -1923,7 +1950,7 @@ metad::vmap::dump()
 }
 
 /* -------------------------------------------------------------------------- */
-void 
+void
 /* -------------------------------------------------------------------------- */
 metad::vmap::erase_fwd(fuse_ino_t lookup)
 /* -------------------------------------------------------------------------- */
@@ -1937,7 +1964,7 @@ metad::vmap::erase_fwd(fuse_ino_t lookup)
 }
 
 /* -------------------------------------------------------------------------- */
-void 
+void
 /* -------------------------------------------------------------------------- */
 metad::vmap::erase_bwd(fuse_ino_t lookup)
 {
@@ -1950,7 +1977,7 @@ metad::vmap::erase_bwd(fuse_ino_t lookup)
 }
 
 /* -------------------------------------------------------------------------- */
-fuse_ino_t 
+fuse_ino_t
 /* -------------------------------------------------------------------------- */
 metad::vmap::forward(fuse_ino_t lookup)
 {
@@ -1959,7 +1986,7 @@ metad::vmap::forward(fuse_ino_t lookup)
 }
 
 /* -------------------------------------------------------------------------- */
-fuse_ino_t 
+fuse_ino_t
 /* -------------------------------------------------------------------------- */
 metad::vmap::backward(fuse_ino_t lookup)
 {

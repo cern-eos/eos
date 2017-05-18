@@ -604,7 +604,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   }
   else
   {
-    cap::shared_cap pcap = Instance().caps.acquire(req, md->pid(),
+    cap::shared_cap pcap = Instance().caps.acquire(req, md->pid()?md->pid():1,
                                                    S_IFDIR | X_OK | R_OK);
     if (pcap->errc())
     {
@@ -654,59 +654,60 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
   cap::shared_cap pcap;
 
   metad::shared_md md;
+  if (!rc)
+  {
+    md = Instance().mds.get(req, ino);
 
-  // retrieve the appropriate cap
+    md->Locker().Lock();
 
-  if (op & FUSE_SET_ATTR_MODE)
-  {
-    // retrieve cap for mode setting
-    pcap = Instance().caps.acquire(req, ino,
-                                   M_OK);
-  }
-  else
-    if ((op & FUSE_SET_ATTR_UID) || (op & FUSE_SET_ATTR_GID))
-  {
-    // retrieve cap for owner setting
-    pcap = Instance().caps.acquire(req, ino,
-                                   C_OK);
-  }
-  else
-    if (op & FUSE_SET_ATTR_SIZE)
-  {
-    // retrieve cap for write
-    pcap = Instance().caps.acquire(req, ino,
-                                   W_OK);
-  }
-  else
-    if ( (op & FUSE_SET_ATTR_ATIME)
-        || (op & FUSE_SET_ATTR_MTIME)
-        || (op & FUSE_SET_ATTR_ATIME_NOW)
-        || (op & FUSE_SET_ATTR_MTIME_NOW)
-        )
-  {
-    // retrieve cap for write
-    pcap = Instance().caps.acquire(req, ino,
-                                   W_OK);
-  }
-
-  if (pcap->errc())
-  {
-    rc = pcap->errc();
-  }
-  else
-  {
-    if (!rc)
+    if (!md->id() || md->deleted())
     {
-      md = Instance().mds.get(req, ino);
+      rc = ENOENT;
+    }
+    else
+    {
 
-      md->Locker().Lock();
+      fuse_ino_t cap_ino =  S_ISDIR(md->mode()) ? ino : md->pid();
 
-      if (!md->id() || md->deleted())
+      if (op & FUSE_SET_ATTR_MODE)
       {
-        rc = ENOENT;
+        // retrieve cap for mode setting
+        pcap = Instance().caps.acquire(req, cap_ino,
+                                       M_OK);
+      }
+      else
+        if ((op & FUSE_SET_ATTR_UID) || (op & FUSE_SET_ATTR_GID))
+      {
+        // retrieve cap for owner setting
+        pcap = Instance().caps.acquire(req, cap_ino,
+                                       C_OK);
+      }
+      else
+        if (op & FUSE_SET_ATTR_SIZE)
+      {
+        // retrieve cap for write
+        pcap = Instance().caps.acquire(req, cap_ino,
+                                       W_OK);
+      }
+      else
+        if ( (op & FUSE_SET_ATTR_ATIME)
+            || (op & FUSE_SET_ATTR_MTIME)
+            || (op & FUSE_SET_ATTR_ATIME_NOW)
+            || (op & FUSE_SET_ATTR_MTIME_NOW)
+            )
+      {
+        // retrieve cap for write
+        pcap = Instance().caps.acquire(req, cap_ino,
+                                       W_OK);
+      }
+
+      if (pcap->errc())
+      {
+        rc = pcap->errc();
       }
       else
       {
+
         if (op & FUSE_SET_ATTR_MODE)
         {
           /*
@@ -833,33 +834,40 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
           EXEC_TIMING_BEGIN("setattr:utimes");
 
+          struct timespec tsnow;
+          eos::common::Timing::GetTimeSpec(tsnow);
           if (op & FUSE_SET_ATTR_ATIME)
           {
             md->set_atime(attr->ATIMESPEC.tv_sec);
             md->set_atime_ns(attr->ATIMESPEC.tv_nsec);
+            md->set_ctime(tsnow.tv_sec);
+            md->set_ctime_ns(tsnow.tv_nsec);
           }
           if (op & FUSE_SET_ATTR_MTIME)
           {
             md->set_mtime(attr->MTIMESPEC.tv_sec);
             md->set_mtime_ns(attr->MTIMESPEC.tv_nsec);
+            md->set_ctime(tsnow.tv_sec);
+            md->set_ctime_ns(tsnow.tv_nsec);
           }
 
           if ( ( op & FUSE_SET_ATTR_ATIME_NOW) ||
               ( op & FUSE_SET_ATTR_MTIME_NOW) )
           {
-            struct timespec tsnow;
-            eos::common::Timing::GetTimeSpec(tsnow);
-
             if (op & FUSE_SET_ATTR_ATIME_NOW)
             {
               md->set_atime(tsnow.tv_sec);
               md->set_atime_ns(tsnow.tv_nsec);
+              md->set_ctime(tsnow.tv_sec);
+              md->set_ctime_ns(tsnow.tv_nsec);
             }
 
             if (op & FUSE_SET_ATTR_MTIME_NOW)
             {
               md->set_mtime(tsnow.tv_sec);
               md->set_mtime_ns(tsnow.tv_nsec);
+              md->set_ctime(tsnow.tv_sec);
+              md->set_ctime_ns(tsnow.tv_nsec);
             }
           }
           EXEC_TIMING_END("setattr:utimes");
@@ -869,54 +877,54 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
         if (op & FUSE_SET_ATTR_SIZE)
         {
           /*
-EACCES Search  permission is denied for a component of the path 
+          EACCES Search  permission is denied for a component of the path 
        prefix, or the named file is not writable by the user.
              
-EFAULT Path points outside the process's allocated address space.
+          EFAULT Path points outside the process's allocated address space.
 
-EFBIG  The argument length is larger than the maximum file size. 
+          EFBIG  The argument length is larger than the maximum file size. 
 
-EINTR  While blocked waiting to complete, the call was interrupted 
+          EINTR  While blocked waiting to complete, the call was interrupted 
        by a signal handler; see fcntl(2) and signal(7).
 
-EINVAL The argument length is negative or larger than the maximum 
+          EINVAL The argument length is negative or larger than the maximum 
        file size.
 
-EIO    An I/O error occurred updating the inode.
+          EIO    An I/O error occurred updating the inode.
 
-EISDIR The named file is a directory.
+          EISDIR The named file is a directory.
 
-ELOOP  Too many symbolic links were encountered in translating the 
+          ELOOP  Too many symbolic links were encountered in translating the 
        pathname.
 
-ENAMETOOLONG
+          ENAMETOOLONG
        A component of a pathname exceeded 255 characters, or an 
        entire pathname exceeded 1023 characters.
 
-ENOENT The named file does not exist.
+          ENOENT The named file does not exist.
 
-ENOTDIR
+          ENOTDIR
        A component of the path prefix is not a directory.
 
-EPERM  The underlying filesystem does not support extending a file 
+          EPERM  The underlying filesystem does not support extending a file 
        beyond its current size.
 
-EROFS  The named file resides on a read-only filesystem.
+          EROFS  The named file resides on a read-only filesystem.
 
-ETXTBSY
+          ETXTBSY
        The file is a pure procedure (shared text) file that is 
        being executed.
 
-For ftruncate() the same errors apply, but instead of things that 
-can be wrong with path, we now have things that  can
-be wrong with the file descriptor, fd:
+          For ftruncate() the same errors apply, but instead of things that 
+          can be wrong with path, we now have things that  can
+          be wrong with the file descriptor, fd:
 
-EBADF  fd is not a valid descriptor.
+          EBADF  fd is not a valid descriptor.
 
-EBADF or EINVAL
+          EBADF or EINVAL
        fd is not open for writing.
 
-EINVAL fd does not reference a regular file.
+          EINVAL fd does not reference a regular file.
            */
 
           ADD_FUSE_STAT("setattr:truncate", req);
@@ -964,6 +972,7 @@ EINVAL fd does not reference a regular file.
     }
   }
 
+
   if (rc)
     fuse_reply_err (req, rc);
   else
@@ -973,7 +982,6 @@ EINVAL fd does not reference a regular file.
     md->convert(e);
     eos_static_info("%s", md->dump(e).c_str());
     fuse_reply_attr (req, &e.attr, e.attr_timeout);
-    md->setop_update();
     Instance().mds.update(req, md, pcap->authid());
     md->Locker().UnLock();
   }
@@ -1810,15 +1818,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
     mode = W_OK;
   }
 
-  // do a parent check
-  cap::shared_cap pcap = Instance().caps.acquire(req, ino,
-                                                 S_IFREG | mode);
 
-  if (pcap->errc())
-  {
-    rc = pcap->errc();
-  }
-  else
   {
     metad::shared_md md;
     md = Instance().mds.get(req, ino);
@@ -1831,6 +1831,16 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
     }
     else
     {
+      // do a parent check
+      cap::shared_cap pcap = Instance().caps.acquire(req, md->pid(),
+                                                     S_IFDIR | mode);
+
+      if (pcap->errc())
+      {
+        rc = pcap->errc();
+      }
+
+
       struct fuse_entry_param e;
       memset(&e, 0, sizeof (e));
       md->convert(e);
@@ -2049,7 +2059,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
         data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id()), md);
 
-        io->md->set_authid(pcap->authid());
+        io->set_authid(pcap->authid());
 
         // attach a datapool object
         fi->fh = (uint64_t) io;
@@ -2303,8 +2313,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       XrdSysMutexHelper mLock(io->md->Locker());
       io->md->set_mtime(tsnow.tv_sec);
       io->md->set_mtime_ns(tsnow.tv_nsec);
-      io->md->setop_update();
-      Instance().mds.update(req, io->md, io->md->authid());
+      Instance().mds.update(req, io->md, io->authid());
     }
   }
 
@@ -2397,27 +2406,18 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
     if ( (size) && (value.size() > size))
     {
-      value.erase(size-4);
+      value.erase(size - 4);
       value += "...";
     }
   }
 
   if (!local_getxattr)
   {
-    // retrieve the appropriate cap
-    pcap = Instance().caps.acquire(req, ino,
-                                   R_OK);
-
-    if (pcap->errc())
-    {
-      rc = pcap->errc();
-    }
-    else
     {
       metad::shared_md md;
-
+      metad::shared_md pmd;
+      
       md = Instance().mds.get(req, ino);
-
       {
         XrdSysMutexHelper mLock(md->Locker());
 
@@ -2488,21 +2488,40 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
               }
               else
               {
-                if (!map.count(key))
+                if (S_ISDIR(md->mode()))
                 {
-                  rc = ENOATTR;
+                  // retrieve the appropriate cap of this inode
+                  pcap = Instance().caps.acquire(req, ino,
+                                                 R_OK);
                 }
                 else
                 {
-                  value = map[key];
-                }
-              }
+                  // retrieve the appropriate cap of the parent inode
+                  pcap = Instance().caps.acquire(req, md->pid(), R_OK);
 
-              if (size != 0 )
-              {
-                if (value.size() > size)
+                }
+                if (pcap->errc())
                 {
-                  rc = ERANGE;
+                  rc = pcap->errc();
+                }
+                else
+                {
+                  if (!map.count(key))
+                  {
+                    rc = ENOATTR;
+                  }
+                  else
+                  {
+                    value = map[key];
+                  }
+                }
+
+                if (size != 0 )
+                {
+                  if (value.size() > size)
+                  {
+                    rc = ERANGE;
+                  }
                 }
               }
             }
@@ -2530,7 +2549,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
-                    dump(id, ino, 0, rc).c_str());
+                    dump(id, ino, 0, rc, xattr_name).c_str());
 }
 
 #ifdef __APPLE__
@@ -2693,7 +2712,6 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
           else
           {
             (*map)[key] = value;
-            md->setop_update();
             Instance().mds.update(req, md, pcap->authid());
           }
         }
@@ -2881,7 +2899,6 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
         else
         {
           (*map).erase(key);
-          md->setop_update();
           Instance().mds.update(req, md, pcap->authid());
         }
       }
