@@ -114,7 +114,7 @@ if test x"${CMAKE_EX}" == x -o ! -x "${CMAKE_EX}"; then
 fi
 
 # Run cmake in package_only mode
-${CMAKE_EX} .. -DPACKAGEONLY=1
+${CMAKE_EX} .. -DPACKAGEONLY=1 -DRELEASE=2
 
 # Build the SRPMs
 make srpm
