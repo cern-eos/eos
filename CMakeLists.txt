@@ -106,6 +106,11 @@ if (NOT CLIENT)
   add_subdirectory(utils)
   add_subdirectory(archive)
   add_subdirectory(auth_plugin)
+
+  if(BUILD_TESTS)
+    add_subdirectory(unittests)
+  endif()
+
 endif()
 
 #-------------------------------------------------------------------------------

@@ -199,6 +199,39 @@ eos_docker:
     - beryl_aquamarine
     - tags
 
+eos_unit_test:
+  stage: test
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y gcc-c++ cmake3 make which git yum-plugin-priorities ccache epel-release
+    - git submodule update --init --recursive
+    - mkdir build
+    - cd build
+    - cmake3 .. -DPACKAGEONLY=1
+    - make srpm
+    - cd ..
+    - source gitlab-ci/export_buildtype.sh 24 build/SRPMS
+    - if [ "$BUILD_TYPE" == "commit" ]; then source gitlab-ci/setup_ccache.sh; else export CCACHE_DISABLE=1; fi
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-7-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
+    - yum-builddep --nogpgcheck -y build/SRPMS/*
+    - rm -rf build
+    - mkdir build
+    - cd build
+    - cmake3 .. -DBUILD_TESTS=1
+    - make eos-unit-tests -j 4
+    - ccache -s
+    - ./unittests/eos-unit-tests
+  cache:
+    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+    paths:
+    - ccache/
+  tags:
+    - docker-cc7
+  only:
+    - master
+    - tags
+
 eos_system_test:
   stage: test
   script:
