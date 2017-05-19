@@ -1857,17 +1857,9 @@ XrdFstOfsFile::close()
     }
     int closerc = 0; // return of the close
     brc = rc; // return before the close
-
-    // TODO (esindril): Review if layOut validity is still needed here
-    if (layOut) {
-      rc |= modified();
-      closerc = layOut->Close();
-      rc |= closerc;
-    } else {
-      rc |= modified();
-      rc |= closeofs();
-    }
-
+    rc |= modified();
+    closerc = layOut->Close();
+    rc |= closerc;
     closed = true;
 
     if (closerc || (isReconstruction && hasReadError)) {
