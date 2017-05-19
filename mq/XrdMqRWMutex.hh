@@ -24,6 +24,7 @@
 #ifndef __XRDMQ_RWMUTEX_HH__
 #define __XRDMQ_RWMUTEX_HH__
 
+#include <exception>
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include <stdio.h>
@@ -41,26 +42,30 @@ public:
   //----------------------------------------------------------------------------
   XrdMqRWMutex()
   {
-    int retc;
+    int retc = 0;
     pthread_rwlockattr_init(&attr);
     wlockid = 0;
 #ifndef __APPLE__
 
-    if (pthread_rwlockattr_setkind_np
-        (&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)) {
-      // TODO: throw a standard exception to make coverity happy
-      throw "pthread_rwlockattr_setkind_np failed";
+    if ((retc = pthread_rwlockattr_setkind_np
+                (&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP))) {
+      fprintf(stderr, "%s Failed to writers priority: %s\n",
+              __FUNCTION__, strerror(retc));
+      std::terminate();
     }
 
-    if (pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED)) {
-      throw "pthread_rwlockattr_setpshared failed";
+    if ((retc = pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED))) {
+      fprintf(stderr, "%s Failed to set process shared mutex: %s\n",
+              __FUNCTION__, strerror(retc));
+      std::terminate();
     }
 
 #endif
 
     if ((retc = pthread_rwlock_init(&rwlock, &attr))) {
-      fprintf(stderr, "LockInit: retc=%d\n", retc);
-      throw "pthread_rwlock_init failed";
+      fprintf(stderr, "%s Failed to initialize rwmutex: %s\n",
+              __FUNCTION__, strerror(retc));
+      std::terminate();
     }
   }
 
@@ -84,20 +89,21 @@ public:
   //----------------------------------------------------------------------------
   void LockRead()
   {
-    int retc;
+    int retc = 0;
 
     if (AtomicGet(wlockid) == (unsigned long long) XrdSysThread::ID()) {
       fprintf(stderr, "MQ === WRITE LOCK FOLLOWED BY READ === TID=%llu OBJECT=%llx\n",
               (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
-      throw "pthread_rwlock_wrlock write then read lock";
+      std::terminate();
     }
 
     // fprintf(stderr,"MQ --- READ  LOCK WANTED    ---- TID=%llu OBJECT=%llx\n",
     // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
 
     if ((retc = pthread_rwlock_rdlock(&rwlock))) {
-      fprintf(stderr, "LockRead: retc=%d\n", retc);
-      throw "pthread_rwlock_rdlock failed";
+      fprintf(stderr, "%s Failed to read-lock: %s\n", __FUNCTION__,
+              strerror(retc));
+      std::terminate();
     }
 
     //fprintf(stderr,"MQ ... READ  LOCK ACQUIRED  .... TID=%llu OBJECT=%llx\n",
@@ -109,11 +115,12 @@ public:
   //----------------------------------------------------------------------------
   void UnLockRead()
   {
-    int retc;
+    int retc = 0;
 
     if ((retc = pthread_rwlock_unlock(&rwlock))) {
-      fprintf(stderr, "UnLockRead: retc=%d\n", retc);
-      throw "pthread_rwlock_unlock failed";
+      fprintf(stderr, "%s Failed to read-unlock: %s\n", __FUNCTION__,
+              strerror(retc));
+      std::terminate();
     }
 
     //fprintf(stderr,"MQ ... READ  LOCK RELEASED  .... TID=%llu OBJECT=%llx\n",
@@ -133,11 +140,12 @@ public:
 
     //fprintf(stderr,"MQ --- WRITE LOCK WANTED    ---- TID=%llu OBJECT=%llx\n",
     //(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
-    int retc;
+    int retc = 0;
 
     if ((retc = pthread_rwlock_wrlock(&rwlock))) {
-      fprintf(stderr, "LockWrite: retc=%d\n", retc);
-      throw "pthread_rwlock_wrlock failed";
+      fprintf(stderr, "%s Failed to write-lock: %s\n", __FUNCTION__,
+              strerror(retc));
+      std::terminate();
     }
 
     AtomicFAZ(wlockid);
@@ -151,11 +159,12 @@ public:
   //----------------------------------------------------------------------------
   void UnLockWrite()
   {
-    int retc;
+    int retc = 0;
 
     if ((retc = pthread_rwlock_unlock(&rwlock))) {
-      fprintf(stderr, "UnLockWrite: retc=%d\n", retc);
-      throw "pthread_rwlock_unlock failed";
+      fprintf(stderr, "%s Failed to write-unlock: %s\n", __FUNCTION__,
+              strerror(retc));
+      std::terminate();
     }
 
     //fprintf(stderr,"MQ --- WRITE LOCK RELEASED  ---- TID=%llu OBJECT=%llx\n",
@@ -179,9 +188,9 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  XrdMqRWMutexWriteLock(XrdMqRWMutex& mutex)
+  XrdMqRWMutexWriteLock(XrdMqRWMutex& mutex):
+    mMutex(&mutex)
   {
-    mMutex = &mutex;
     mMutex->LockWrite();
   }
 
@@ -190,11 +199,7 @@ public:
   //----------------------------------------------------------------------------
   ~XrdMqRWMutexWriteLock()
   {
-    try {
-      mMutex->UnLockWrite();
-    } catch (const char* e) {
-      // ignore exception
-    }
+    mMutex->UnLockWrite();
   }
 
 private:
@@ -211,9 +216,9 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  XrdMqRWMutexReadLock(XrdMqRWMutex& mutex)
+  XrdMqRWMutexReadLock(XrdMqRWMutex& mutex):
+    mMutex(&mutex)
   {
-    mMutex = &mutex;
     mMutex->LockRead();
   }
 
@@ -222,11 +227,7 @@ public:
   //----------------------------------------------------------------------------
   ~XrdMqRWMutexReadLock()
   {
-    try {
-      mMutex->UnLockRead();
-    } catch (const char* e) {
-      // ignore exception
-    }
+    mMutex->UnLockRead();
   }
 
 private:

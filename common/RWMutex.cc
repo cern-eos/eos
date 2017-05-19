@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <exception>
 #include "common/RWMutex.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -110,6 +111,7 @@ pthread_rwlock_t RWMutex::orderChkMgmLock;
 RWMutex::RWMutex():
   mBlocking(false), mRdLockCounter(0), mWrLockCounter(0)
 {
+  int retc = 0;
   // Try to get write lock in 5 seconds, then release quickly and retry
   wlocktime.tv_sec = 5;
   wlocktime.tv_nsec = 0;
@@ -134,18 +136,25 @@ RWMutex::RWMutex():
 #ifndef __APPLE__
 
   // Readers don't go ahead of writers!
-  if (pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP)) {
-    throw "pthread_rwlockattr_setkind_np failed";
+  if ((retc = pthread_rwlockattr_setkind_np(&attr,
+              PTHREAD_RWLOCK_PREFER_WRITER_NP))) {
+    fprintf(stderr, "%s Failed to set writers priority: %s\n", __FUNCTION__,
+            strerror(retc));
+    std::terminate();
   }
 
 #endif
 
-  if (pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED)) {
-    throw "pthread_rwlockattr_setpshared failed";
+  if ((retc = pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED))) {
+    fprintf(stderr, "%s Failed to set process shared mutex: %s\n",
+            __FUNCTION__, strerror(retc));
+    std::terminate();
   }
 
-  if ((pthread_rwlock_init(&rwlock, &attr))) {
-    throw "pthread_rwlock_init failed";
+  if ((retc = pthread_rwlock_init(&rwlock, &attr))) {
+    fprintf(stderr, "%s Failed to initialize mutex: %s\n",
+            __FUNCTION__, strerror(retc));
+    std::terminate();
   }
 }
 
@@ -197,6 +206,7 @@ RWMutex::TimedRdLock(uint64_t timeout_ms)
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
+  int retc = 0;
   struct timespec timeout = {0};
   clock_gettime(CLOCK_REALTIME, &timeout);
 
@@ -207,9 +217,9 @@ RWMutex::TimedRdLock(uint64_t timeout_ms)
   timeout.tv_nsec += (timeout_ms % 1000) * 1000000;
 #ifdef __APPLE__
   // Mac does not support timed mutexes
-  int retc = pthread_rwlock_rdlock(&rwlock);
+  retc = pthread_rwlock_rdlock(&rwlock);
 #else
-  int retc = pthread_rwlock_timedrdlock(&rwlock, &timeout);
+  retc = pthread_rwlock_timedrdlock(&rwlock, &timeout);
 #endif
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
   return retc;
@@ -234,9 +244,12 @@ RWMutex::LockRead()
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
+  int retc = 0;
 
-  if (pthread_rwlock_rdlock(&rwlock)) {
-    throw "pthread_rwlock_rdlock failed";
+  if ((retc = pthread_rwlock_rdlock(&rwlock))) {
+    fprintf(stderr, "%s Failed to read-lock: %s\n", __FUNCTION__,
+            strerror(retc));
+    std::terminate();
   }
 
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
@@ -272,7 +285,7 @@ RWMutex::LockReadCancel()
       } else {
         fprintf(stderr, "=== READ LOCK EXCEPTION == TID=%llu OBJECT=%llx rc=%d\n",
                 (unsigned long long) XrdSysThread::ID(), (unsigned long long) this, rc);
-        throw "pthread_rwlock_timedrdlock failed";
+        std::terminate();
       }
     } else {
       break;
@@ -293,9 +306,12 @@ void
 RWMutex::UnLockRead()
 {
   EOS_RWMUTEX_CHECKORDER_UNLOCK;
+  int retc = 0;
 
-  if (pthread_rwlock_unlock(&rwlock)) {
-    throw "pthread_rwlock_unlock failed";
+  if ((retc = pthread_rwlock_unlock(&rwlock))) {
+    fprintf(stderr, "%s Failed to read-unlock: %s\n", __FUNCTION__,
+            strerror(retc));
+    std::terminate();
   }
 }
 
@@ -307,18 +323,23 @@ RWMutex::LockWrite()
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
+  int retc = 0;
 
   if (mBlocking) {
     // A blocking mutex is just a normal lock for write
-    if (pthread_rwlock_wrlock(&rwlock)) {
-      throw "pthread_rwlock_rdlock failed";
+    if ((retc = pthread_rwlock_wrlock(&rwlock))) {
+      fprintf(stderr, "%s Failed to write-lock: %s\n", __FUNCTION__,
+              strerror(retc));
+      std::terminate();
     }
   } else {
 #ifdef __APPLE__
 
     // Mac does not support timed mutexes
-    if (pthread_rwlock_wrlock(&rwlock)) {
-      throw "pthread_rwlock_rdlock failed";
+    if ((retc = pthread_rwlock_wrlock(&rwlock))) {
+      fprintf(stderr, "%s Failed to write-lock: %s\n", __FUNCTION__,
+              strerror(retc));
+      std::terminate();
     }
 
 #else
@@ -338,7 +359,7 @@ RWMutex::LockWrite()
         if (rc != ETIMEDOUT) {
           fprintf(stderr, "=== WRITE LOCK EXCEPTION == TID=%llu OBJECT=%llx rc=%d\n",
                   (unsigned long long) XrdSysThread::ID(), (unsigned long long) this, rc);
-          throw "pthread_rwlock_wrlock failed";
+          std::terminate();
         } else {
           // fprintf(stderr,"==== WRITE LOCK PENDING ==== TID=%llu OBJECT=%llx\n",
           // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
@@ -365,15 +386,17 @@ void
 RWMutex::UnLockWrite()
 {
   EOS_RWMUTEX_CHECKORDER_UNLOCK;
+  int retc = 0;
 
-  if (pthread_rwlock_unlock(&rwlock)) {
-    throw "pthread_rwlock_unlock failed";
+  if ((retc = pthread_rwlock_unlock(&rwlock))) {
+    fprintf(stderr, "%s Failed to write-unlock: %s\n", __FUNCTION__,
+            strerror(retc));
+    std::terminate();
   }
 
   // fprintf(stderr,"*** WRITE LOCK RELEASED  **** TID=%llu OBJECT=%llx\n",
   // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
 }
-
 
 //------------------------------------------------------------------------------
 // Lock for write but give up after wlocktime
@@ -397,8 +420,12 @@ RWMutex::TimeoutLockWrite()
 void
 RWMutex::InitializeClass()
 {
-  if (pthread_rwlock_init(&orderChkMgmLock, NULL)) {
-    throw "pthread_orderChkMgmLock_init failed";
+  int retc = 0;
+
+  if ((retc = pthread_rwlock_init(&orderChkMgmLock, NULL))) {
+    fprintf(stderr, "%s Failed to initialize order check lock: %s\n",
+            __FUNCTION__, strerror(retc));
+    std::terminate();
   }
 
   rules_static = new RWMutex::rules_t();
@@ -426,7 +453,7 @@ RWMutex::ResetTimingStatistics()
 void
 RWMutex::ResetTimingStatisticsGlobal()
 {
-  // might need a mutex or at least a flag!!!
+  // Might need a mutex or at least a flag!!!
   mRdCumulatedWait_static = mWrCumulatedWait_static = 0;
   mRdMaxWait_static = mWrMaxWait_static = std::numeric_limits<size_t>::min();
   mRdMinWait_static = mWrMinWait_static = std::numeric_limits<long long>::max();
@@ -437,7 +464,7 @@ RWMutex::ResetTimingStatisticsGlobal()
 int
 RWMutex::round(double number)
 {
-  return number < 0.0 ? ceil(number - 0.5) : floor(number + 0.5);
+  return (number < 0.0 ? ceil(number - 0.5) : floor(number + 0.5));
 }
 #endif
 
@@ -512,7 +539,6 @@ RWMutex::GetSamplingRateFromCPUOverhead(const double& overhead)
   RWMutex::sSamplingModulo = (int)(1.0 / samplingRate);
   return samplingRate;
 }
-
 
 //------------------------------------------------------------------------------
 // Reset order checking rules
@@ -1077,14 +1103,10 @@ RWMutex::ResetCheckOrder()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex, bool doit):
-  mDoIt(doit)
+RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex)
 {
   mWrMutex = &mutex;
-
-  if (mDoIt) {
-    mWrMutex->LockWrite();
-  }
+  mWrMutex->LockWrite();
 }
 
 //------------------------------------------------------------------------------
@@ -1092,9 +1114,7 @@ RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex, bool doit):
 //------------------------------------------------------------------------------
 RWMutexWriteLock::~RWMutexWriteLock()
 {
-  if (mDoIt) {
-    mWrMutex->UnLockWrite();
-  }
+  mWrMutex->UnLockWrite();
 }
 
 //------------------------------------------------------------------------------

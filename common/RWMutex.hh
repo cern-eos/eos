@@ -470,8 +470,10 @@ class RWMutexWriteLock
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param mutex mutex to lock for write
   //----------------------------------------------------------------------------
-  RWMutexWriteLock(RWMutex& mutex, bool doit = true);
+  RWMutexWriteLock(RWMutex& mutex);
 
   //----------------------------------------------------------------------------
   //! Destructor
