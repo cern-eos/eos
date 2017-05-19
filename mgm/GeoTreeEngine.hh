@@ -2315,34 +2315,35 @@ public:
   //   true if success false else
   // ---------------------------------------------------------------------------
   bool insertHostIntoPxyGr(FsNode* host , const std::string& proxygroup,
-                           bool lockAddRm, bool lockFsView, bool updateFastStructures = false);
+                           bool lockFsView, bool updateFastStructures = false);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Remove a file system into the GeoTreeEngine
-  // @param fs
-  //   the file system to be removed
-  // @param group
-  //   the group the file system belongs to
-  // @param updateFastStructures
-  //   should the fast structures be updated immediately without waiting for the next time frame
-  // @return
-  //   true if success false else
-  // ---------------------------------------------------------------------------
+  //!
+  //! @param fs the file system to be removed
+  //! @param group the group the file system belongs to
+  //! @param updateFastStructures should the fast structures be updated
+  //!        immediately without waiting for the next time frame
+  //!
+  //! @return true if success false else
+  //!
+  //! @note This method MUST be called with the pAddRmFsMutex locked
+  //----------------------------------------------------------------------------
   bool removeHostFromPxyGr(FsNode* host , const std::string& proxygroup,
-                           bool lockAddRm, bool lockFsView, bool updateFastStructures = true);
+                           bool lockFsView, bool updateFastStructures = true);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Make the GeotreeEngine trees match the proxygroups for given host
-  // @param host
-  //   the host which the proxygroups should be refreshed
-  // @param status
-  //   the names of the proxygroups separated by colons
-  // @param lockFsView
-  //   lock the FsView if true
-  // @param updateFastStructures
-  //   update the fasttrees now without waiting for the next refresh
-  // @return
-  //   true if success false else
+  //!
+  //! @param host the host which the proxygroups should be refreshed
+  //! @param status the names of the proxygroups separated by colons
+  //! @param lockFsView lock the FsView if true
+  //! @param updateFastStructures update the fasttrees now without waiting for
+  //!        the next refresh
+  //!
+  //! @return true if success false else
+  //!
+  //! @note This method MUST be called with the pAddRmFsMutex locked
   // ---------------------------------------------------------------------------
   bool matchHostPxyGr(FsNode* host , const std::string& status, bool lockFsView,
                       bool updateFastStructures = true);

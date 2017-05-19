@@ -4025,10 +4025,8 @@ GeoTreeEngine::showDisabledBranches(const std::string& group,
 
 bool
 GeoTreeEngine::insertHostIntoPxyGr(FsNode* host , const std::string& proxygroup,
-                                   bool lockAddRm, bool lockFsView,
-                                   bool updateFastStruct)
+                                   bool lockFsView, bool updateFastStruct)
 {
-  eos::common::RWMutexWriteLock lock(pAddRmFsMutex, lockAddRm);
   eos::common::FileSystem::host_snapshot_t hsn;
   bool is_new_entry = false;
 
@@ -4246,10 +4244,8 @@ GeoTreeEngine::insertHostIntoPxyGr(FsNode* host , const std::string& proxygroup,
 
 bool
 GeoTreeEngine::removeHostFromPxyGr(FsNode* host , const std::string& proxygroup,
-                                   bool lockAddRm, bool lockFsView,
-                                   bool updateFastStruct)
+                                   bool lockFsView, bool updateFastStruct)
 {
-  eos::common::RWMutexWriteLock lock(pAddRmFsMutex, lockAddRm);
   eos::common::FileSystem::host_snapshot_t hsn;
 
   if (lockFsView) {
@@ -4469,7 +4465,7 @@ bool GeoTreeEngine::matchHostPxyGr(FsNode* host , const std::string& status,
 
   // the remaining proxygroups do not exist in the GeoTreeEngine yet, they are to be added
   for (auto it = finalgroups.begin(); it != finalgroups.end(); it++) {
-    if (!insertHostIntoPxyGr(host, *it, false, lockFsView, updateFastStructures)) {
+    if (!insertHostIntoPxyGr(host, *it, lockFsView, updateFastStructures)) {
       return false;
     }
   }
@@ -4478,7 +4474,7 @@ bool GeoTreeEngine::matchHostPxyGr(FsNode* host , const std::string& status,
     eos_debug("trying to insert proxygroup %s for host %s", it->c_str(),
               url.c_str());
 
-    if (!insertHostIntoPxyGr(host, *it, false, lockFsView, updateFastStructures)) {
+    if (!insertHostIntoPxyGr(host, *it, lockFsView, updateFastStructures)) {
       return false;
     }
 
@@ -4489,7 +4485,7 @@ bool GeoTreeEngine::matchHostPxyGr(FsNode* host , const std::string& status,
     eos_debug("trying to remove proxygroup %s for host %s", it->c_str(),
               url.c_str());
 
-    if (!removeHostFromPxyGr(host, *it, false, lockFsView, updateFastStructures)) {
+    if (!removeHostFromPxyGr(host, *it, lockFsView, updateFastStructures)) {
       return false;
     }
 
