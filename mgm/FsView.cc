@@ -3303,6 +3303,12 @@ BaseView::Print(std::string& out, std::string headerformat,
       for (unsigned int j = 0; j < tagtoken.size(); j++) {
         std::vector<std::string> keyval;
         eos::common::StringConversion::Tokenize(tagtoken[j], keyval, "=");
+
+        if (keyval.size() != 2) {
+          eos_err("failed parsing \"%s\", expected 2 tokens");
+          continue;
+        }
+
         formattags[keyval[0]] = keyval[1];
       }
 
