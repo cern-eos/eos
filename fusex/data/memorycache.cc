@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file data.cc
+//! @file memorycache.cc
 //! @author Andreas-Joachim Peters CERN
-//! @brief meta data handling class
+//! @brief data cache in-memory implementation
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,135 +22,113 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "data.hh"
-#include "kv.hh"
-#include "MacOSXHelper.hh"
+#include "memorycache.hh"
 #include "common/Logging.hh"
-
-#include <iostream>
-#include <sstream>
-
+#include "common/Path.hh"
+#include <unistd.h>
 
 /* -------------------------------------------------------------------------- */
-data::data() : ioflush(0), ioqueue_max_backlog(1000)
+memorycache::memorycache() : ino(0)
 /* -------------------------------------------------------------------------- */
 {
-
+  return;
 }
 
 /* -------------------------------------------------------------------------- */
-data::~data()
+memorycache::memorycache(fuse_ino_t _ino) : ino(_ino)
 /* -------------------------------------------------------------------------- */
 {
-
+  return;
 }
 
 /* -------------------------------------------------------------------------- */
+memorycache::~memorycache()
+/* -------------------------------------------------------------------------- */
+{
+  return;
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+memorycache::attach()
+/* -------------------------------------------------------------------------- */
+{
+  return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+memorycache::detach()
+/* -------------------------------------------------------------------------- */
+{
+  return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+memorycache::unlink()
+/* -------------------------------------------------------------------------- */
+{
+  return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+ssize_t
+/* -------------------------------------------------------------------------- */
+memorycache::pread(void *buf, size_t count, off_t offset)
+{
+  return (ssize_t) readData (buf, offset, count);
+}
+
+ssize_t
+/* -------------------------------------------------------------------------- */
+memorycache::pwrite(const void *buf, size_t count, off_t offset)
+/* -------------------------------------------------------------------------- */
+{
+  return (ssize_t) writeData (buf, offset, count);
+}
+
+ssize_t
+/* -------------------------------------------------------------------------- */
+memorycache::peek_read(char* &buf, size_t count, off_t offset)
+/* -------------------------------------------------------------------------- */
+{
+  return (ssize_t) peekData(buf, offset, count);
+}
+
 void
 /* -------------------------------------------------------------------------- */
-data::init()
+memorycache::release_read()
 /* -------------------------------------------------------------------------- */
 {
-  
+  return releasePeek();
 }
 
 /* -------------------------------------------------------------------------- */
-data::shared_data
+int
 /* -------------------------------------------------------------------------- */
-data::get(fuse_req_t req,
-           fuse_ino_t ino)
+memorycache::truncate(off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(datamap);
-  if (datamap.count(ino))
-  {
-    shared_data io = datamap[ino];
-    return io;
-  }
-  else
-  {
-    std::string mdstream;
-    shared_data io = std::make_shared<datax>();
-    io->set_id(ino);
-    datamap[io->id()] = io;
-    return io;
-  }
+  truncateData(offset);
+  return 0;
+}
+
+int
+/* -------------------------------------------------------------------------- */
+memorycache::sync()
+/* -------------------------------------------------------------------------- */
+{
+  return 0;
 }
 
 /* -------------------------------------------------------------------------- */
-uint64_t
+size_t
 /* -------------------------------------------------------------------------- */
-data::commit(fuse_req_t req,
-              data::shared_data io
-             )
-/* -------------------------------------------------------------------------- */
+memorycache::size()
 {
-  XrdSysMutexHelper mLock(datamap);
-  datamap[io->id()]=io;
-
-  ioflush.Lock();
-
-  while (ioqueue.size() == ioqueue_max_backlog)
-    ioflush.Wait();
-  ioqueue.insert(io->id());
-
-  ioflush.Signal();
-  ioflush.UnLock();
-
-  return io->id();
-}
-
-/* -------------------------------------------------------------------------- */
-void 
-/* -------------------------------------------------------------------------- */
-data::unlink(fuse_ino_t ino)
-/* -------------------------------------------------------------------------- */
-{
-  XrdSysMutexHelper mLock(datamap);
-  if (datamap.count(ino))
-  {
-    datamap[ino]->unlink();
-    datamap.erase(ino);
-    eos_static_info("datacache::unlink size=%lu", datamap.size());
-  }
-  else
-  {
-    shared_data io = std::make_shared<datax>();
-    io->set_id(ino);
-    io->unlink();
-  }
-}
-
-  
-  
-/* -------------------------------------------------------------------------- */
-void
-/* -------------------------------------------------------------------------- */
-data::dataxflush()
-/* -------------------------------------------------------------------------- */
-{
-  while (1)
-  {
-    {
-      ioflush.Lock();
-      while (ioqueue.size() == 0)
-        ioflush.Wait();
-
-      auto it= ioqueue.begin();
-      uint64_t ino = *it;
-      ioqueue.erase(it);
-
-      ioflush.UnLock();
-      {
-        XrdSysMutexHelper mLock(datamap);
-        if (datamap.count(ino))
-        {
-          eos_static_info("datacache::flush ino=%08lx", (unsigned long long) ino);
-
-          shared_data io = datamap[ino];
-          io->flush();
-        }
-      }
-    }
-  }
+  return getSize();
 }

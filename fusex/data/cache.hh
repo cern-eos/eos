@@ -30,6 +30,7 @@
 #include "llfusexx.hh"
 #include "bufferll.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdCl/XrdClFile.hh"
 #include <map>
 #include <string>
 
@@ -65,82 +66,92 @@ public:
 
   virtual size_t size() = 0;
 
-  typedef shared_ptr<cache> shared_file;
+  class io
+  {
+  public:
+
+    io()
+    {
+      _file = 0;
+      _journal = 0;
+      _xrdioro = 0;
+      _xrdiorw = 0;
+      ino = 0;
+    }
+
+    io(fuse_ino_t _ino)
+    {
+      _file = 0;
+      _journal = 0;
+      _xrdioro = 0;
+      _xrdiorw = 0;
+      ino = _ino;
+    }
+
+    ~io()
+    {
+      delete _file;
+      delete _journal;
+      delete _xrdioro;
+      delete _xrdiorw;
+    }
+
+    void set_file(cache* file)
+    {
+      _file = file;
+    }
+
+    void set_journal(cache* journal)
+    {
+      _journal = journal;
+    }
+
+    void set_xrdioro(XrdCl::File* _cl)
+    {
+      _xrdioro = _cl;
+    }
+
+    void set_xrdiorw(XrdCl::File* _cl)
+    {
+      _xrdiorw = _cl;
+    }
+
+    cache* file()
+    {
+      return _file;
+    }
+
+    cache* journal()
+    {
+      return _journal;
+    }
+
+    XrdCl::File* xrdior()
+    {
+      return _xrdioro;
+    }
+
+    XrdCl::File* xrdiow()
+    {
+      return _xrdiorw;
+    }
+
+  private:
+    cache* _file;
+    cache* _journal;
+    XrdCl::File* _xrdioro;
+    XrdCl::File* _xrdiorw;
+    fuse_ino_t ino;
+  } ;
+
+  typedef shared_ptr<cache::io> shared_io;
 
 private:
 
   fuse_ino_t ino;
 } ;
 
-class memorycache : public cache, bufferll
-{
-public:
-  memorycache();
-  memorycache(fuse_ino_t _ino);
-  virtual ~memorycache();
-
-  // base class interface
-  virtual int attach();
-  virtual int detach();
-  virtual int unlink();
-
-  virtual ssize_t pread(void *buf, size_t count, off_t offset);
-  virtual ssize_t peek_read(char* &buf, size_t count, off_t offset);
-  virtual void release_read();
-
-  virtual ssize_t pwrite(const void *buf, size_t count, off_t offset);
-
-  virtual int truncate(off_t);
-  virtual int sync();
-
-  virtual size_t size();
-
-private:
-
-  fuse_ino_t ino;
-} ;
-
-class diskcache : public cache, XrdSysMutex
-{
-public:
-  diskcache();
-  diskcache(fuse_ino_t _ino);
-
-  virtual ~diskcache();
-
-  // base class interface
-  virtual int attach();
-  virtual int detach();
-  virtual int unlink();
-
-  virtual ssize_t pread(void *buf, size_t count, off_t offset);
-  virtual ssize_t peek_read(char* &buf, size_t count, off_t offset);
-  virtual void release_read();
-
-  virtual ssize_t pwrite(const void *buf, size_t count, off_t offset);
-
-  virtual int truncate(off_t);
-  virtual int sync();
-
-  virtual size_t size();
-
-  static int init();
-  
-  int location(std::string &path, bool mkpath=true);
-  
-private:
-
-  fuse_ino_t ino;
-  size_t nattached;
-  int fd;
-  
-  bufferllmanager::shared_buffer buffer;
-  
-  static std::string sLocation;
-  static bufferllmanager sBufferManager; 
-} ;
-
-class cachehandler : public std::map<fuse_ino_t, cache::shared_file>,
+class cachehandler : public std::map<fuse_ino_t, cache::shared_io>,
 public XrdSysMutex
 {
 public:
@@ -158,11 +169,13 @@ public:
   static cachehandler&
   instance()
   {
+
     static cachehandler i;
     return i;
   }
 
-  static cache::shared_file get(fuse_ino_t ino);
+  static cache::shared_io get(fuse_ino_t ino);
+
   static int rm(fuse_ino_t ino);
 
   enum cache_t
@@ -174,7 +187,11 @@ public:
   {
     cache_t type;
     std::string location;
-    int mbsize;
+    uint64_t total_file_cache_size; // total size of the file cache
+    uint64_t per_file_cache_max_size; // per file maximum file cache size
+    uint64_t total_file_journal_size; // total size of the journal cache
+    uint64_t per_file_journal_max_size; // per file maximum journal cache size
+    std::string journal;
   } ;
 
   int init(cacheconfig &config);
@@ -182,11 +199,21 @@ public:
 
   bool inmemory()
   {
+
     return (config.type == cache_t::MEMORY);
   }
 
-  cacheconfig& get_config() {return config;}
-  
+  bool journaled()
+  {
+
+    return (config.journal.length());
+  }
+
+  cacheconfig& get_config()
+  {
+    return config;
+  }
+
 private:
 
   cacheconfig config;

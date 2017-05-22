@@ -13,5 +13,11 @@
     "debuglevel" : "5",
     "libfusethreads" : "0",
     "kernelcache" : "1"
+  },
+  "cache" : {
+    "type" : "disk",
+    "size-mb" : 1000,
+    "location" : "/var/tmp/eosxd-cache/"
+    "journal"  : "/var/tmp/eosxd-journal/"  
   }
 }]

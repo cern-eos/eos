@@ -28,8 +28,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "llfusexx.hh"
-#include "backend.hh"
-#include "md.hh"
+#include "backend/backend.hh"
+#include "md/md.hh"
 #include "fusex/fusex.pb.h"
 
 #include "XrdSys/XrdSysPthread.hh"

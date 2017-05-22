@@ -25,7 +25,7 @@
 
 #include <cppunit/extensions/HelperMacros.h>
 #include <list>
-#include "fusex/interval_tree.hh"
+#include "fusex/data/interval_tree.hh"
 
 #ifndef __EOS_FUSEX_INTERVALTREETEST_HH__
 #define __EOS_FUSEX_INTERVALTREETEST_HH__

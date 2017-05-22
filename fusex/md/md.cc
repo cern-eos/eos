@@ -22,11 +22,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "md.hh"
-#include "kv.hh"
-#include "cap.hh"
-#include "kernelcache.hh"
-#include "MacOSXHelper.hh"
+#include "md/md.hh"
+#include "kv/kv.hh"
+#include "cap/cap.hh"
+#include "md/kernelcache.hh"
+#include "misc/MacOSXHelper.hh"
 #include "common/Logging.hh"
 #include <iostream>
 #include <sstream>
@@ -384,6 +384,7 @@ metad::load_from_kv(fuse_ino_t ino)
 
     for (auto it = md->children().begin(); it != md->children().end(); ++it)
     {
+      eos_static_info("adding child %s ino=%08lx", it->first.c_str(), it->second);
       if (mdmap.count(it->second))
         continue;
 
@@ -413,6 +414,64 @@ metad::load_from_kv(fuse_ino_t ino)
     eos_static_debug("msg=\"no entry in kv store\" inode=%08lx", ino);
   }
   return md;
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+metad::load_mapping_from_kv(fuse_ino_t ino)
+/* -------------------------------------------------------------------------- */
+{
+  // mdmap is locked when this is called !
+  eos_static_debug("ino=%08lx", ino);
+  std::string mdstream;
+  shared_md md = std::make_shared<mdx>();
+  if (!kv::Instance().get(ino, mdstream))
+  {
+    if (!md->ParseFromString(mdstream))
+    {
+      eos_static_err("msg=\"GPB parsing failed\" inode=%08lx", ino);
+    }
+    else
+    {
+      eos_static_debug("msg=\"GPB parsed inode\" inode=%08lx", ino);
+    }
+
+    if (md->md_ino() && ino)
+    {
+      inomap.insert(md->md_ino(), ino);
+    }
+
+    eos_static_info("MD:\n%s", dump_md(md).c_str());
+
+    eos_static_debug("children=%d nchildren=%d", md->children().size(), md->nchildren());
+    for (auto it = md->children().begin(); it != md->children().end(); ++it)
+    {
+      eos_static_info("adding child %s ino=%08lx", it->first.c_str(), it->second);
+
+      shared_md cmd = std::make_shared<mdx>();
+      if (!kv::Instance().get(it->second, mdstream))
+      {
+        if (!cmd->ParseFromString(mdstream))
+        {
+          eos_static_err("msg=\"GPB parsing failed\" inode=%08lx", it->second);
+        }
+        else
+        {
+          eos_static_debug("msg=\"GPB parsed inode\" inode=%08lx", it->second);
+        }
+        if (cmd->md_ino() && ino)
+        {
+          inomap.insert(cmd->md_ino(), it->second);
+        }
+      }
+    }
+  }
+  else
+  {
+    eos_static_debug("msg=\"no entry in kv store\" inode=%08lx", ino);
+  }
+  return;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -483,6 +542,7 @@ metad::get(fuse_req_t req,
       // first we attach to an existing record
       // -----------------------------------------------------------------------
       md = mdmap[ino];
+      eos_static_info("MD:\n%s", dump_md(md).c_str());
     }
     else
     {
@@ -492,6 +552,7 @@ metad::get(fuse_req_t req,
       // -----------------------------------------------------------------------
 
       md = load_from_kv(ino);
+      eos_static_info("loaded from kv ino=%08llx remote-ino=%08llx", md->id(), md->md_ino());
       loaded = true;
     }
   }
@@ -534,7 +595,7 @@ metad::get(fuse_req_t req,
         eos_static_debug("MD:\n%s", dump_md(md).c_str());
         return md;
       }
-      
+
       if (!S_ISDIR(md->mode()))
       {
         // files are covered by the CAP of the parent, so if there is a cap 
@@ -549,13 +610,13 @@ metad::get(fuse_req_t req,
         }
       }
     }
-    
+
     if (!md->pid() && !md->deleted())
     {
-     /*
-      if ( (md->getop() == md->ADD) ||
-          (md->getop() == md->LSTORE) )
-      */
+      /*
+       if ( (md->getop() == md->ADD) ||
+           (md->getop() == md->LSTORE) )
+       */
       {
         // this must have been generated locally, we return this entry
         eos_static_info("returning generated entry");
@@ -1076,7 +1137,7 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
   }
 
   md->setop_delete();
-  
+
   if (!upstream)
     return ;
 
@@ -1458,12 +1519,13 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
          
              */
             p_ino = inomap.forward(md->md_pino());
-            
+
             md->set_pid(p_ino);
             eos_static_info("store remote-ino=%08lx local pino=%08lx for %08x", md->md_pino(), md->pid(), md->id());
             // push only into the local KV cache - md was retrieved from upstream
 
-            update(req, md, "", true);
+            if (map->first != cont.ref_inode_())
+              update(req, md, "", true);
 
             eos_static_debug("store md for local-ino=%08ld remote-ino=%08lx type=%d -", (long) ino, (long) map->first, md->type());
             eos_static_debug("%s", md->dump().c_str());
@@ -1558,6 +1620,11 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       {
         eos_static_debug("listing: %s [%lx]", map->first.c_str(), map->second);
       }
+    }
+    if (pmd)
+    {
+      // store the parent now, after all children are inservted
+      update(req, pmd, "", true);
     }
   }
 
@@ -1773,6 +1840,7 @@ metad::mdcommunicate()
           {
             //eos_static_debug("0MQ receive");
             int size = zmq_msg_recv (&message, z_socket, 0);
+            size=size;
             //eos_static_debug("0MQ size=%d", size);
 
             rc = zmq_getsockopt(z_socket, ZMQ_RCVMORE, &more, &more_size);
@@ -1898,7 +1966,7 @@ metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
 {
   eos_static_info("inserting %llx <=> %llx", a, b);
   //fprintf(stderr, "inserting %llx => %llx\n", a, b);
-  
+
   XrdSysMutexHelper mLock(mMutex);
   if (bwd_map.count(b))
   {
@@ -1928,7 +1996,7 @@ metad::vmap::dump()
   //XrdSysMutexHelper mLock(this);
   std::string sout;
   char stime[1024];
-  snprintf(stime, sizeof (stime), "%lu this=%llx forward=%u backward=%u", time(NULL), this, fwd_map.size(), bwd_map.size());
+  snprintf(stime, sizeof (stime), "%lu this=%llx forward=%lu backward=%lu", time(NULL), (unsigned long long) this, fwd_map.size(), bwd_map.size());
   sout += stime;
   sout += "\n";
 

@@ -34,6 +34,7 @@ include_directories(
   ${JSONCPP_INCLUDE_DIR}
   ${HIREDIS_INCLUDE_DIR}
   ${ZMQ_INCLUDE_DIR}
+  ./
 )
 
 if(CPPUNIT_FOUND)
@@ -60,14 +61,18 @@ add_executable(
   eosxd
   main.cc 
   eosfuse.cc eosfuse.hh 
-  Stat.cc Stat.hh 
-  md.cc md.hh 
-  cap.cc cap.hh
-  data.cc data.hh 
-  kv.cc kv.hh 
-  longstring.cc longstring.hh 
-  cache.cc cache.hh bufferll.hh
-  backend.cc backend.hh
+  stat/Stat.cc stat/Stat.hh 
+  md/md.cc md/md.hh 
+  cap/cap.cc cap/cap.hh
+  data/data.cc data/data.hh 
+  kv/kv.cc kv/kv.hh 
+  misc/longstring.cc misc/longstring.hh 
+  data/cache.cc data/cache.hh data/bufferll.hh
+  data/diskcache.cc data/diskcache.hh
+  data/memorycache.cc data/memorycache.hh
+  data/journalcache.cc data/journalcache.hh
+  data/cachesyncer.cc data/cachesyncer.hh
+  backend/backend.cc backend/backend.hh
   ${PROTO_SRC} ${PROTO_HEADER}
 )
 
@@ -127,11 +132,18 @@ add_executable(
   eosxd3
   main.cc 
   eosfuse.cc eosfuse.hh 
-  Stat.cc Stat.hh 
-  md.cc md.hh 
-  cap.cc cap.hh 
-  kv.cc kv.hh 
-  longstring.cc longstring.hh 
+  stat/Stat.cc stat/Stat.hh 
+  md/md.cc md/md.hh 
+  cap/cap.cc cap/cap.hh
+  data/data.cc data/data.hh 
+  kv/kv.cc kv/kv.hh 
+  misc/longstring.cc misc/longstring.hh 
+  data/cache.cc data/cache.hh data/bufferll.hh
+  data/diskcache.cc data/diskcache.hh
+  data/memorycache.cc data/memorycache.hh
+  data/journalcache.cc data/journalcache.hh
+  data/cachesyncer.cc data/cachesyncer.hh
+  backend/backend.cc backend/backend.hh
   ${PROTO_SRC} ${PROTO_HEADER}
   )
 
@@ -165,16 +177,19 @@ endif()
 #-------------------------------------------------------------------------------
 add_library(
   eosxd-test
-  journalcache.cc
-  cachesyncer.cc
   eosfuse.cc eosfuse.hh 
-  Stat.cc Stat.hh 
-  md.cc md.hh 
-  cap.cc cap.hh
-  data.cc data.hh 
-  kv.cc kv.hh 
-  longstring.cc longstring.hh 
-  cache.cc cache.hh bufferll.hh
+  stat/Stat.cc stat/Stat.hh 
+  md/md.cc md/md.hh 
+  cap/cap.cc cap/cap.hh
+  data/data.cc data/data.hh 
+  kv/kv.cc kv/kv.hh 
+  misc/longstring.cc misc/longstring.hh 
+  data/cache.cc data/cache.hh data/bufferll.hh
+  data/diskcache.cc data/diskcache.hh
+  data/memorycache.cc data/memorycache.hh
+  data/journalcache.cc data/journalcache.hh
+  data/cachesyncer.cc data/cachesyncer.hh
+  backend/backend.cc backend/backend.hh
   ${PROTO_SRC} ${PROTO_HEADER}
 )
 

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file kv.cc
+//! @file data.cc
 //! @author Andreas-Joachim Peters CERN
-//! @brief kv persistency class
+//! @brief meta data handling class
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,247 +22,176 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "kv.hh"
-#include "MacOSXHelper.hh"
+#include "data/data.hh"
+#include "kv/kv.hh"
+#include "misc/MacOSXHelper.hh"
 #include "common/Logging.hh"
-#include "longstring.hh"
-
-
-kv* kv::sKV = 0;
+#include <iostream>
+#include <sstream>
 
 /* -------------------------------------------------------------------------- */
-kv::kv()
+data::data()
 /* -------------------------------------------------------------------------- */
 {
-  sKV = this;
-  mContext=0;
+
 }
 
 /* -------------------------------------------------------------------------- */
-kv::~kv()
+data::~data()
 /* -------------------------------------------------------------------------- */
 {
-  if (mContext)
+
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+data::init()
+/* -------------------------------------------------------------------------- */
+{
+
+}
+
+/* -------------------------------------------------------------------------- */
+data::shared_data
+/* -------------------------------------------------------------------------- */
+data::get(fuse_req_t req,
+          fuse_ino_t ino)
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysMutexHelper mLock(datamap);
+  if (datamap.count(ino))
   {
-    redisFree (mContext);
-    mContext=0;
+    shared_data io = datamap[ino];
+    return io;
   }
-  if (mEventBase)
+  else
   {
-    free(mEventBase);
+    std::string mdstream;
+    shared_data io = std::make_shared<datax>();
+    io->set_id(ino, req);
+    datamap[io->id()] = io;
+    return io;
   }
 }
 
 /* -------------------------------------------------------------------------- */
-int
+void
 /* -------------------------------------------------------------------------- */
-kv::connect(std::string connectionstring, int port)
+data::unlink(fuse_req_t req, fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_info("kv connect");
-  mContext = redisConnect(connectionstring.c_str(), port);
-
-  if (mContext->err)
+  XrdSysMutexHelper mLock(datamap);
+  if (datamap.count(ino))
   {
-    int retc=mContext->err;
-    redisFree(mContext);
-    mContext=0;
-    return retc;
+    datamap[ino]->unlink();
+    datamap.erase(ino);
+    eos_static_info("datacache::unlink size=%lu", datamap.size());
   }
-
-  mAsyncContext = redisAsyncConnect(connectionstring.c_str(), port);
-
-  if (mAsyncContext->err)
+  else
   {
-    int retc=mAsyncContext->err;
-    redisFree(mContext);
-    redisAsyncFree(mAsyncContext);
-    mContext=0;
-    mAsyncContext=0;
-    return retc;
+    shared_data io = std::make_shared<datax>();
+    io->set_id(ino, req);
+    io->unlink();
   }
-
-  mEventBase = event_base_new();
-  eos_static_info("attach event loop");
-  redisLibeventAttach(mAsyncContext, mEventBase);
-
-  eos_static_info("redis@%s:%d connected", connectionstring.c_str(), port);
-  return 0;
 }
 
 /* -------------------------------------------------------------------------- */
-int
+void
 /* -------------------------------------------------------------------------- */
-kv::get(std::string &key, std::string &value)
+data::datax::flush()
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_info("key=%s context=%d", key.c_str(), mContext);
-  int rc=0;
-
-  if (!mContext)
-    return rc;
-
-  redisReply* reply = (redisReply*) redisCommand( mContext, "GET %s", key.c_str());
-  if (reply->type == REDIS_REPLY_ERROR)
-  {
-    rc = -1;
-  }
-
-  if (reply->type == REDIS_REPLY_NIL)
-  {
-    rc = 1;
-  }
-
-  if (reply->type == REDIS_REPLY_STRING)
-  {
-    value.assign(reply->str, reply->len);
-  }
-
-  freeReplyObject(reply);
-
-  return rc;
 }
 
 /* -------------------------------------------------------------------------- */
-int
+int 
 /* -------------------------------------------------------------------------- */
-kv::inc(std::string &key, uint64_t &value)
+data::datax::attach()
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_info("key=%s context=%d", key.c_str(), mContext);
-  int rc=0;
-
-  if (!mContext)
-    return rc;
-
-  redisReply* reply = (redisReply*) redisCommand( mContext, "INCR %s", key.c_str());
-  if (reply->type == REDIS_REPLY_ERROR)
-  {
-    rc = -1;
-  }
-
-  if (reply->type == REDIS_REPLY_NIL)
-  {
-    rc = 1;
-  }
-
-  if (reply->type == REDIS_REPLY_STRING)
-  {
-    std::string svalue;
-    svalue.assign(reply->str, reply->len);
-    value = strtoull(svalue.c_str(), 0, 10);
-  }
-
-  freeReplyObject(reply);
-
-  return rc;
+  return mFile->file()->attach();
 }
 
 /* -------------------------------------------------------------------------- */
-int
-/* -------------------------------------------------------------------------- */
-kv::put(std::string &key, std::string &value)
+int 
+data::datax::detach()
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_info("key=%s context=%d", key.c_str(), mContext);
-  if (!mContext)
-    return 0;
-
-  XrdSysMutexHelper locker(this);
-  redisAsyncCommand(mAsyncContext, 0, 0, "SET %s %b",
-                    key.c_str(),
-                    value.c_str(),
-                    value.length());
-  //event_base_dispatch(mEventBase);
-  event_base_loop(mEventBase, EVLOOP_NONBLOCK);
-  return 0;
+  return mFile->file()->detach();
 }
 
 /* -------------------------------------------------------------------------- */
-int
+int 
 /* -------------------------------------------------------------------------- */
-kv::erase(std::string &key)
+data::datax::unlink()
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_info("key=%s context=%d", key.c_str(), mContext);
-  if (!mContext)
-    return 0;
+  cachehandler::rm(mIno);
+  return mFile->file()->unlink();
+}
 
-  eos_static_info("key=%s", key.c_str());
-  
-  XrdSysMutexHelper locker(this);
-  redisAsyncCommand(mAsyncContext, 0, 0, "DEL %s",
-                    key.c_str());
-  //event_base_dispatch(mEventBase);
-  event_base_loop(mEventBase, EVLOOP_NONBLOCK);
-  return 0;
+// IO bridge interface
+
+/* -------------------------------------------------------------------------- */
+ssize_t 
+/* -------------------------------------------------------------------------- */
+data::datax::pread(void *buf, size_t count, off_t offset)
+/* -------------------------------------------------------------------------- */
+{
+  return mFile->file()->pread(buf, count, offset);
+}
+
+/* -------------------------------------------------------------------------- */
+ssize_t
+/* -------------------------------------------------------------------------- */
+data::datax::pwrite(const void *buf, size_t count, off_t offset)
+/* -------------------------------------------------------------------------- */
+{
+  return mFile->file()->pwrite(buf, count, offset);
+}
+
+/* -------------------------------------------------------------------------- */
+ssize_t 
+/* -------------------------------------------------------------------------- */
+data::datax::peek_pread(char* &buf, size_t count, off_t offset)
+/* -------------------------------------------------------------------------- */
+{
+  return mFile->file()->peek_read(buf, count, offset);
+}
+
+/* -------------------------------------------------------------------------- */
+void 
+/* -------------------------------------------------------------------------- */
+data::datax::release_pread()
+/* -------------------------------------------------------------------------- */
+{
+  return mFile->file()->release_read();
+}
+
+/* -------------------------------------------------------------------------- */
+int 
+/* -------------------------------------------------------------------------- */
+data::datax::truncate(off_t offset)
+/* -------------------------------------------------------------------------- */
+{
+  return mFile->file()->truncate(offset);
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-kv::get(uint64_t key, std::string &value)
+data::datax::sync()
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_info("key=%lld", (unsigned long long) key);
-  char buffer[128];
-  longstring::unsigned_to_decimal (key, buffer);
-  std::string sbuf(buffer);
-  return get(sbuf, value);
+  return mFile->file()->sync();
 }
 
 /* -------------------------------------------------------------------------- */
-int
+size_t 
 /* -------------------------------------------------------------------------- */
-kv::get(std::string &key, uint64_t &value)
-/* -------------------------------------------------------------------------- */
-{
-  std::string lvalue;
-  int rc = get(key, lvalue);
-  if (!rc)
-  {
-    value = strtoull(lvalue.c_str(), 0, 10);
-  }
-  return rc;
-}
-
-/* -------------------------------------------------------------------------- */
-int
-/* -------------------------------------------------------------------------- */
-kv::put(std::string &key, uint64_t &value)
+data::datax::size()
 /* -------------------------------------------------------------------------- */
 {
-  char buffer[128];
-  longstring::unsigned_to_decimal (value, buffer);
-  std::string sbuf(buffer);
-
-  return put(key, sbuf);
-}
-
-int
-/* -------------------------------------------------------------------------- */
-kv::put(uint64_t key, std::string &value)
-/* -------------------------------------------------------------------------- */
-{
-  eos_static_info("key=%lld", (unsigned long long) key);
-  char buffer[128];
-  longstring::unsigned_to_decimal (key, buffer);
-  std::string sbuf(buffer);
-
-  eos_static_info("key=%s", sbuf.c_str());
-  return put(sbuf, value);
-}
-
-int
-/* -------------------------------------------------------------------------- */
-kv::erase(uint64_t key)
-/* -------------------------------------------------------------------------- */
-{
-  eos_static_info("key=%lld", (unsigned long long) key);
-  char buffer[128];
-  longstring::unsigned_to_decimal (key, buffer);
-  std::string sbuf(buffer);
-
-  eos_static_info("key=%s", sbuf.c_str());
-  return erase(sbuf);
+  return mFile->file()->size();
 }

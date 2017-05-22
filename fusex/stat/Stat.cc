@@ -24,7 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "common/StringConversion.hh"
-#include "Stat.hh"
+#include "stat/Stat.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 

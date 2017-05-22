@@ -22,8 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "backend.hh"
-#include "cap.hh"
+#include "backend/backend.hh"
+#include "cap/cap.hh"
 #include "eosfuse.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"

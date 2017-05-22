@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file cache.cc
+//! @file diskcache.cc
 //! @author Andreas-Joachim Peters CERN
-//! @brief data cache in-memory implementation
+//! @brief data cache disk implementation
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,119 +22,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "cache.hh"
+#include "diskcache.hh"
+
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include <unistd.h>
 
-/* -------------------------------------------------------------------------- */
-memorycache::memorycache() : ino(0)
-/* -------------------------------------------------------------------------- */
-{
-  return;
-}
-
-/* -------------------------------------------------------------------------- */
-memorycache::memorycache(fuse_ino_t _ino) : ino(_ino)
-/* -------------------------------------------------------------------------- */
-{
-  return;
-}
-
-/* -------------------------------------------------------------------------- */
-memorycache::~memorycache()
-/* -------------------------------------------------------------------------- */
-{
-  return;
-}
-
-/* -------------------------------------------------------------------------- */
-int
-/* -------------------------------------------------------------------------- */
-memorycache::attach()
-/* -------------------------------------------------------------------------- */
-{
-  return 0;
-}
-
-/* -------------------------------------------------------------------------- */
-int
-/* -------------------------------------------------------------------------- */
-memorycache::detach()
-/* -------------------------------------------------------------------------- */
-{
-  return 0;
-}
-
-/* -------------------------------------------------------------------------- */
-int
-/* -------------------------------------------------------------------------- */
-memorycache::unlink()
-/* -------------------------------------------------------------------------- */
-{
-  return 0;
-}
-
-/* -------------------------------------------------------------------------- */
-ssize_t
-/* -------------------------------------------------------------------------- */
-memorycache::pread(void *buf, size_t count, off_t offset)
-{
-  return (ssize_t) readData (buf, offset, count);
-}
-
-ssize_t
-/* -------------------------------------------------------------------------- */
-memorycache::pwrite(const void *buf, size_t count, off_t offset)
-/* -------------------------------------------------------------------------- */
-{
-  return (ssize_t) writeData (buf, offset, count);
-}
-
-ssize_t
-/* -------------------------------------------------------------------------- */
-memorycache::peek_read(char* &buf, size_t count, off_t offset)
-/* -------------------------------------------------------------------------- */
-{
-  return (ssize_t) peekData(buf, offset, count);
-}
-
-void
-/* -------------------------------------------------------------------------- */
-memorycache::release_read()
-/* -------------------------------------------------------------------------- */
-{
-  return releasePeek();
-}
-
-/* -------------------------------------------------------------------------- */
-int
-/* -------------------------------------------------------------------------- */
-memorycache::truncate(off_t offset)
-/* -------------------------------------------------------------------------- */
-{
-  truncateData(offset);
-  return 0;
-}
-
-int
-/* -------------------------------------------------------------------------- */
-memorycache::sync()
-/* -------------------------------------------------------------------------- */
-{
-  return 0;
-}
-
-/* -------------------------------------------------------------------------- */
-size_t
-/* -------------------------------------------------------------------------- */
-memorycache::size()
-{
-  return getSize();
-}
-
-
 std::string diskcache::sLocation;
+std::string diskcache::sJournal;
 bufferllmanager diskcache::sBufferManager;
 
 /* -------------------------------------------------------------------------- */
@@ -149,7 +44,16 @@ diskcache::init()
   {
     return errno;
   }
+
+  if (config.journal.length())
+  {
+    if (::access(config.journal.c_str(), W_OK))
+    {
+      return errno;
+    }
+  }
   sLocation = config.location;
+  sJournal = config.journal;
   return 0;
 }
 
@@ -209,10 +113,10 @@ diskcache::attach()
     std::string path;
     int rc = location(path);
     if (rc)
-    { 
+    {
       return rc;
     }
-    
+
     // need to open the file
     fd = open(path.c_str(), O_CREAT | O_RDWR, S_IRWXU);
 
@@ -276,7 +180,7 @@ diskcache::peek_read(char* &buf, size_t count, off_t offset)
   if (count > buffer->capacity())
     buffer->reserve(count);
   buf = buffer->ptr();
-  
+
   return ::pread(fd, buf,  count, offset);
 }
 
@@ -332,98 +236,3 @@ diskcache::size()
   }
   return buf.st_size;
 }
-
-/* -------------------------------------------------------------------------- */
-int
-/* -------------------------------------------------------------------------- */
-cachehandler::init(cachehandler::cacheconfig & _config)
-/* -------------------------------------------------------------------------- */
-{
-  config = _config;
-
-  if (config.type == cachehandler::cache_t::INVALID)
-    return EINVAL;
-
-  if (config.type == cachehandler::cache_t::DISK)
-  {
-    if (diskcache::init())
-    {
-
-      fprintf(stderr, "error: cache directory %s cannot be initiazlied - check existance/permissions!\n", config.location.c_str());
-      return EPERM;
-    }
-  }
-  return 0;
-}
-
-/* -------------------------------------------------------------------------- */
-void
-/* -------------------------------------------------------------------------- */
-cachehandler::logconfig()
-{
-  eos_static_warning("data-cache-type        := %s",
-                     (config.type == cachehandler::cache_t::MEMORY) ? "memory" : "disk");
-
-  if (config.type == cachehandler::cache_t::DISK)
-  {
-    eos_static_warning("data-cache-location  := %s",
-                       config.location.c_str());
-
-    if (config.mbsize == 0)
-    {
-      eos_static_warning("data-cache-size      := unlimited");
-    }
-    else
-    {
-
-      eos_static_warning("data-cache-size      := %d MB", config.mbsize);
-    }
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-cache::shared_file  
-/* -------------------------------------------------------------------------- */
-cachehandler::get(fuse_ino_t ino)
-/* -------------------------------------------------------------------------- */
-{
-  XrdSysMutexHelper mLock(instance());
-
-  if (!instance().count(ino))
-  {
-    cache::shared_file entry;
-    if (instance().inmemory())
-    {
-      entry = std::make_shared<memorycache>(ino);
-    }
-    else
-    {
-      entry = std::make_shared<diskcache>(ino);
-    }
-
-    (instance())[ino] =  entry;
-    return entry;
-  }
-  else
-  {
-
-    return (instance())[ino];
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-int
-/* -------------------------------------------------------------------------- */
-cachehandler::rm(fuse_ino_t ino)
-/* -------------------------------------------------------------------------- */
-{
-  XrdSysMutexHelper mLock(instance());
-
-  if (instance().count(ino))
-  {
-    instance().erase(ino);
-  }
-  return 0;
-}
-
-

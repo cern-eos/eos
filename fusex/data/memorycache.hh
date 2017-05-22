@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file kv.hh
+//! @file memorycache.hh
 //! @author Andreas-Joachim Peters CERN
-//! @brief kv persistency class
+//! @brief data cache handling base class
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,55 +22,47 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_KV_HH_
-#define FUSE_KV_HH_
+#ifndef FUSE_MEMORYCACHE_HH_
+#define FUSE_MEMORYCACHE_HH_
 
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "llfusexx.hh"
-#include "fusex/fusex.pb.h"
-#include "hiredis/hiredis.h"
-#include "hiredis/async.h"
+#include "bufferll.hh"
+#include "cache.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include <memory>
 #include <map>
-#include <hiredis/adapters/libevent.h>
-#include <event.h>
+#include <string>
 
-class kv : public XrdSysMutex
+class memorycache : public cache, bufferll
 {
 public:
+  memorycache();
+  memorycache(fuse_ino_t _ino);
+  virtual ~memorycache();
 
-  //----------------------------------------------------------------------------
+  // base class interface
+  virtual int attach();
+  virtual int detach();
+  virtual int unlink();
 
-  //----------------------------------------------------------------------------
-  kv();
-  virtual ~kv();
+  virtual ssize_t pread(void *buf, size_t count, off_t offset);
+  virtual ssize_t peek_read(char* &buf, size_t count, off_t offset);
+  virtual void release_read();
 
-  int connect(std::string connectionstring, int port);
+  virtual ssize_t pwrite(const void *buf, size_t count, off_t offset);
 
-  int get(std::string &key, std::string &value);
-  int get(std::string &key, uint64_t &value);
-  int put(std::string &key, std::string &value);
-  int put(std::string &key, uint64_t &value);
-  int inc(std::string &key, uint64_t &value);
+  virtual int truncate(off_t);
+  virtual int sync();
 
-  int erase(std::string &key);
-
-  int get(uint64_t key, std::string &value);
-  int put(uint64_t key, std::string &value);
-  int erase(uint64_t key);
-
-  static kv* sKV;
-
-  static kv& Instance()
-  {
-    return *sKV;
-  }
+  virtual size_t size();
 
 private:
-  redisContext* mContext;
-  redisAsyncContext* mAsyncContext;
-  struct event_base *mEventBase;
+
+  fuse_ino_t ino;
 } ;
-#endif /* FUSE_KV_HH_ */
+
+
+
+
+#endif /* FUSE_MEMORYCACHE_HH_ */

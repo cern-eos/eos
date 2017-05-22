@@ -7,7 +7,7 @@
 
 
 
-#include "fusex/journalcache.hh"
+#include "fusex/data/journalcache.hh"
 
 #include <stdint.h>
 #include <algorithm>
@@ -45,7 +45,7 @@ class JournalCacheTest : public CppUnit::TestCase
       journalcache::init();
       cachehandler::instance().init( old_config );
       journalcache jc;
-      int rc = jc.attach();
+      uint64_t rc = jc.attach();
       CPPUNIT_ASSERT( !rc );
 
       for( auto offset : offsets )

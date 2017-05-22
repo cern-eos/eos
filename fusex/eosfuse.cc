@@ -23,7 +23,7 @@
  ************************************************************************/
 
 #include "eosfuse.hh"
-#include "MacOSXHelper.hh"
+#include "misc/MacOSXHelper.hh"
 
 #include <string>
 #include <map>
@@ -57,9 +57,9 @@
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
 #include "common/StringConversion.hh"
-#include "md.hh"
-#include "kv.hh"
-#include "cache.hh"
+#include "md/md.hh"
+#include "kv/kv.hh"
+#include "data/cache.hh"
 
 #if ( FUSE_USE_VERSOIN > 28 )
 #include "EosFuseSessionLoop.hh"
@@ -239,8 +239,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     }
 
     cconfig.location = root["cache"]["location"].asString();
-    cconfig.mbsize = root["cache"]["size-mb"].asInt();
-
+    cconfig.journal = root["cache"]["journal"].asString();
+    cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64()*1024*1024;
+    cconfig.total_file_journal_size = root["cache"]["journal-mb"].asUInt64()*1024*1024;
+    cconfig.per_file_cache_max_size = root["cache"]["file-cache-max-kb"].asUInt64()*1024;
+    cconfig.per_file_journal_max_size = root["cache"]["file-journal-max-kb"].asUInt64()*1024;
     int rc = 0;
 
     if ( (rc = cachehandler::instance().init(cconfig)))
@@ -1544,7 +1547,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
       {
         pmd = Instance().mds.get(req, parent);
         Instance().mds.remove(pmd, md, pcap->authid());
-        Instance().datas.unlink(md->id());
+        Instance().datas.unlink(req, md->id());
       }
     }
   }

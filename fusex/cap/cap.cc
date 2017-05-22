@@ -22,10 +22,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "cap.hh"
+#include "cap/cap.hh"
 #include "eosfuse.hh"
-#include "kernelcache.hh"
-#include "MacOSXHelper.hh"
+#include "md/kernelcache.hh"
+#include "misc/MacOSXHelper.hh"
 #include "common/Logging.hh"
 
 cap* cap::sCAP=0;
@@ -94,14 +94,15 @@ std::string
 cap::capx::capid(fuse_req_t req, fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
-  char sid[128];
+  char sid[256];
   snprintf(sid, sizeof (sid),
-           "%lx:%u:%u@%s",
+           "%lx:%u:%u@%s:%s",
            ino,
            fuse_req_ctx(req)->uid,
            fuse_req_ctx(req)->gid,
-           EosFuse::Instance().Config().clienthost.c_str()
-           );
+           EosFuse::Instance().Config().clienthost.c_str(),
+           EosFuse::Instance().Config().name.c_str()
+          );
   return sid;
 }
 
@@ -111,7 +112,7 @@ std::string
 cap::capx::capid(fuse_ino_t ino, std::string clientid)
 /* -------------------------------------------------------------------------- */
 {
-  char sid[128];
+  char sid[256];
   snprintf(sid, sizeof (sid),
            "%lx:%s",
            ino,
@@ -126,12 +127,13 @@ std::string
 cap::capx::getclientid(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
-  char sid[128];
+  char sid[256];
   snprintf(sid, sizeof (sid),
-           "%u:%u@%s",
+           "%u:%u@%s:%s",
            fuse_req_ctx(req)->uid,
            fuse_req_ctx(req)->gid,
-           EosFuse::Instance().Config().clienthost.c_str()
+           EosFuse::Instance().Config().clienthost.c_str(),
+           EosFuse::Instance().Config().name.c_str()
            );
   return sid;
 }

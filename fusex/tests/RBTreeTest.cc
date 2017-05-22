@@ -25,7 +25,7 @@
 #include <cppunit/extensions/HelperMacros.h>
 #include <unistd.h>
 #include <climits>
-#include "fusex/rbtree.hh"
+#include "fusex/data/rbtree.hh"
 
 #ifndef __EOS_FUSEX_RBTREETEST_HH__
 #define __EOS_FUSEX_RBTREETEST_HH__

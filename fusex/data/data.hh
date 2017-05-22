@@ -27,11 +27,12 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#include "cache.hh"
-#include "md.hh"
+#include "data/cache.hh"
+#include "md/md.hh"
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
 #include "common/Logging.hh"
+#include "XrdCl/XrdClFile.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 #include <map>
@@ -64,10 +65,11 @@ public:
       return mLock;
     }
 
-    void set_id( uint64_t ino)
+    void set_id( uint64_t ino, fuse_req_t req)
     {
       XrdSysMutexHelper mLock(Locker());
       mIno = ino;
+      mReq = req;
       mFile = cachehandler::get(ino);
     }
 
@@ -76,70 +78,31 @@ public:
       return mIno;
     }
 
-    void flush()
+    fuse_req_t req () const
     {
+      return mReq;
+
     }
 
-    int attach()
-    {
-      return mFile->attach();
-    }
+    void flush();
+    int attach();
+    int detach();
+    int unlink();
 
-    int detach()
-    {
-      return mFile->detach();
-    }
-    
-    int unlink()
-    {
-      cachehandler::rm(mIno);
-      return mFile->unlink();
-    }
-
-    // IO bridgeinterface
-
-    ssize_t pread(void *buf, size_t count, off_t offset)
-    {
-      return mFile->pread(buf, count, offset);
-    }
-
-    ssize_t pwrite(const void *buf, size_t count, off_t offset)
-    {
-      cache::shared_file lfile = mFile;
-
-      return mFile->pwrite(buf, count, offset);
-    }
-
-    ssize_t peek_pread(char* &buf, size_t count, off_t offset)
-    {
-      return mFile->peek_read(buf, count, offset);
-    }
-
-    void release_pread()
-    {
-      return mFile->release_read();
-    }
-
-    int truncate(off_t offset)
-    {
-      return mFile->truncate(offset);
-    }
-
-    int sync()
-    {
-      return mFile->sync();
-    }
-
-    size_t size()
-    {
-      return mFile->size();
-    }
+    // IO bridge interface
+    ssize_t pread(void *buf, size_t count, off_t offset);
+    ssize_t pwrite(const void *buf, size_t count, off_t offset);
+    ssize_t peek_pread(char* &buf, size_t count, off_t offset);
+    void release_pread();
+    int truncate(off_t offset);
+    int sync();
+    size_t size();
 
   private:
     XrdSysMutex mLock;
     uint64_t mIno;
-    cache::shared_file mFile;
-
+    fuse_req_t mReq;
+    cache::shared_io mFile;
   } ;
 
   typedef std::shared_ptr<datax> shared_data;
@@ -147,6 +110,7 @@ public:
   typedef struct _data_fh
   {
     shared_data data;
+
     metad::shared_md md;
     std::string _authid;
     std::atomic<bool> update_mtime_on_flush;
@@ -181,12 +145,12 @@ public:
     {
       return _authid;
     }
-    
+
     void set_authid(const std::string& authid)
     {
       _authid = authid;
     }
-    
+
     void set_update()
     {
       update_mtime_on_flush.store(true, std::memory_order_seq_cst);
@@ -231,18 +195,11 @@ public:
   uint64_t commit(fuse_req_t req,
                   shared_data io);
 
-  void unlink(fuse_ino_t ino);
-
-  void dataxflush(); // thread pushing into data cache
+  void unlink(fuse_req_t req, fuse_ino_t ino);
 
 
 private:
   dmap datamap;
-
-  XrdSysCondVar ioflush;
-  std::set<uint64_t> ioqueue;
-
-  size_t ioqueue_max_backlog;
 
 } ;
 #endif /* FUSE_DATA_HH_ */

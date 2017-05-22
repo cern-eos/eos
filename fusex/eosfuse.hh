@@ -25,12 +25,12 @@
 #ifndef FUSE_EOSFUSE_HH_
 #define FUSE_EOSFUSE_HH_
 
-#include "Stat.hh"
-#include "md.hh"
-#include "cap.hh"
-#include "data.hh"
-#include "backend.hh"
-#include "kv.hh"
+#include "stat/Stat.hh"
+#include "md/md.hh"
+#include "cap/cap.hh"
+#include "data/data.hh"
+#include "backend/backend.hh"
+#include "kv/kv.hh"
 #include "llfusexx.hh"
 
 #include <string.h>

@@ -30,8 +30,8 @@
 #include <fcntl.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
-#include "kv.hh"
-#include "backend.hh"
+#include "kv/kv.hh"
+#include "backend/backend.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -329,7 +329,8 @@ public:
   void init(backend* _mdbackend);
 
   shared_md load_from_kv(fuse_ino_t ino);
-
+  void load_mapping_from_kv(fuse_ino_t ino);
+  
   bool map_children_to_local(shared_md md);
 
 
