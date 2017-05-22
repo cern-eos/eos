@@ -30,11 +30,6 @@
 #include <numeric>
 #include <cmath>
 /*----------------------------------------------------------------------------*/
-/******************************************************************************
- * NOTE: Added from the XRootD headers and should be removed in the future
- * when this header file is available in the private headers.
- ******************************************************************************/
-#include "XrdOfsTPCInfo.hh"
 #include "common/Logging.hh"
 #include "common/Fmd.hh"
 #include "common/SecEntity.hh"
@@ -44,6 +39,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
+#include "XrdOfs/XrdOfsTPCInfo.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
