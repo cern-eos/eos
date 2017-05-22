@@ -3305,7 +3305,7 @@ BaseView::Print(std::string& out, std::string headerformat,
         eos::common::StringConversion::Tokenize(tagtoken[j], keyval, "=");
 
         if (keyval.size() != 2) {
-          eos_err("failed parsing \"%s\", expected 2 tokens");
+          eos_static_err("failed parsing \"%s\", expected 2 tokens");
           continue;
         }
 
