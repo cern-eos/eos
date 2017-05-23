@@ -190,9 +190,9 @@ eos_docker:
   tags:
     - docker-image-build
   script:
-    - echo "Does this crap work?"
+    - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/eos:${DOCKER_IMAGE_TAG}
+    TO: gitlab-registry.cern.ch/dss/eos:`if [ "$CI_COMMIT_TAG" == "" ]; then echo $CI_PIPELINE_ID; else echo $CI_COMMIT_TAG; fi`
     DOCKER_FILE: eos-docker/Dockerfile
   dependencies:
     - eos_rpm_cc7
