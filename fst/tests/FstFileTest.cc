@@ -331,7 +331,7 @@ ReadAsyncTest()
   std::cerr << "File url: " << file_url << std::endl;
   assert(!(file->fileOpen(SFS_O_RDONLY)));
   // Get file size
-  struct stat buff;
+  struct stat buff = {0};
   assert(!(file->fileStat(&buff)));
   uint64_t file_size = buff.st_size;
   off_t buff_size = 1025 * 4;
