@@ -28,18 +28,18 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS})
 
 add_executable(
-  eos-fst-tests main.cc
+  eos-fst-test main.cc
   MonitorVarPartitionTest.cc MonitorVarPartitionTest.hh
   TestEnv.cc TestEnv.hh
   FstFileTest.hh FstFileTest.cc)
 
 target_link_libraries(
-  eos-fst-tests
+  eos-fst-test
   EosFstIo-Static
   ${XROOTD_SERVER_LIBRARY})
 
 install(
-  TARGETS eos-fst-tests
+  TARGETS eos-fst-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE
