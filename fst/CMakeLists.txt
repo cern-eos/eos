@@ -51,9 +51,7 @@ include_directories(
 #-------------------------------------------------------------------------------
 # Add CppUnit tests if possible
 #-------------------------------------------------------------------------------
-if(CPPUNIT_FOUND)
-  add_subdirectory(tests)
-endif()
+add_subdirectory(tests)
 
 #-------------------------------------------------------------------------------
 # Add XrdCl RAIN plugin library only if explicitly requested by using the
