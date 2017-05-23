@@ -49,9 +49,11 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include)
 
 #-------------------------------------------------------------------------------
-# Add CppUnit tests if possible
+# Add tests if not on MacOSX
 #-------------------------------------------------------------------------------
-add_subdirectory(tests)
+if (NOT MacOSX)
+  add_subdirectory(tests)
+endif ()
 
 #-------------------------------------------------------------------------------
 # Add XrdCl RAIN plugin library only if explicitly requested by using the

@@ -22,18 +22,15 @@
  ************************************************************************/
 
 //! Ugly hack to expose the private functions for testing
-#define protected public
-#define private   public
-#include <fst/layout/RaidMetaLayout.hh>
-#undef protected
-#undef private
 
 #include "FstFileTest.hh"
-
 #include "TestEnv.hh"
-#include <fst/checksum/CRC32C.hh>
+
+#include "fst/layout/RaidMetaLayout.hh"
+#include "fst/checksum/CRC32C.hh"
+#include "fst/layout/RaidDpLayout.hh"
+
 #include <XrdOuc/XrdOucTokenizer.hh>
-#include <fst/layout/RaidDpLayout.hh>
 
 EOSFSTTEST_NAMESPACE_BEGIN
 

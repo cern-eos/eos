@@ -247,6 +247,22 @@ public:
     return mLastErrMsg;
   }
 
+  //----------------------------------------------------------------------------
+  //! Split vector read request into requests for each of the data stripes with
+  //! the offset and length of the new chunks adjusted to the LOCAL file stripe
+  //!
+  //! @param chunkList list of chunks to read from the whole file
+  //! @param sizeHdr header size for local file which needs to be added to the
+  //!        final local offset value
+  //!
+  //! @return vector of ChunkInfo structures containing the readv requests
+  //!         corresponding to each of the stripe files making up the original
+  //!         file.
+  //!
+  //----------------------------------------------------------------------------
+  std::vector<XrdCl::ChunkList> SplitReadV(XrdCl::ChunkList& chunkList,
+                                           uint32_t sizeHdr = 0);
+
 protected:
 
   bool mIsRw; ///< mark for writing
@@ -463,23 +479,6 @@ private:
   //----------------------------------------------------------------------------
   virtual uint64_t
   GetGlobalOff(int stripe_id, uint64_t local_off) = 0;
-
-
-  //----------------------------------------------------------------------------
-  //! Split vector read request into requests for each of the data stripes with
-  //! the offset and length of the new chunks adjusted to the LOCAL file stripe
-  //!
-  //! @param chunkList list of chunks to read from the whole file
-  //! @param sizeHdr header size for local file which needs to be added to the
-  //!        final local offset value
-  //!
-  //! @return vector of ChunkInfo structures containing the readv requests
-  //!         corresponding to each of the stripe files making up the original
-  //!         file.
-  //!
-  //----------------------------------------------------------------------------
-  std::vector<XrdCl::ChunkList> SplitReadV(XrdCl::ChunkList& chunkList,
-      uint32_t sizeHdr = 0);
 
 
   //----------------------------------------------------------------------------

@@ -23,7 +23,7 @@
 
 #include "MonitorVarPartitionTest.hh"
 
-#include <fst/storage/MonitorVarPartition.hh>
+#include "fst/storage/MonitorVarPartition.hh"
 #include <thread>
 
 EOSFSTTEST_NAMESPACE_BEGIN
