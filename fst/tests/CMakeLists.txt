@@ -21,33 +21,26 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+set(CMAKE_CXX_STANDARD 11)
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${OPENSSL_INCLUDE_DIRS}
-  ${CPPUNIT_INCLUDE_DIRS})
+  ${OPENSSL_INCLUDE_DIRS})
 
-#-------------------------------------------------------------------------------
-# EosFstTests library
-#-------------------------------------------------------------------------------
-add_library(
-  EosFstTests MODULE
-  FileTest.cc  FileTest.hh
-  TestEnv.cc   TestEnv.hh
-  VarPartitionMonitorTest.cc VarPartitionMonitorTest.hh
-  ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc
-  ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/CRC32C.hh
-  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc
-  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.hh)
+add_executable(
+  eos-fst-tests main.cc
+  MonitorVarPartitionTest.cc MonitorVarPartitionTest.hh
+  TestEnv.cc TestEnv.hh
+  FstFileTest.hh FstFileTest.cc)
 
 target_link_libraries(
-  EosFstTests
+  eos-fst-tests
   EosFstIo-Static
-  ${XROOTD_SERVER_LIBRARY}
-  ${CPPUNIT_LIBRARIES})
+  ${XROOTD_SERVER_LIBRARY})
 
 install(
-  TARGETS EosFstTests
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+  TARGETS eos-fst-tests
+  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+  PERMISSIONS OWNER_READ OWNER_EXECUTE
+  GROUP_READ GROUP_EXECUTE
+  WORLD_READ WORLD_EXECUTE)

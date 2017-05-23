@@ -5,7 +5,7 @@
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2013 CERN/Switzerland                                  *
+# * Copyright (C) 2017 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -23,20 +23,20 @@
 
 set(CMAKE_CXX_STANDARD 14)
 
-include_directories("${CMAKE_SOURCE_DIR}/googletest-src/googletest/include/")
-include_directories("${CMAKE_SOURCE_DIR}/googletest-src/googlemock/include/")
-include_directories(${CMAKE_SOURCE_DIR}
-                    ${XROOTD_INCLUDE_DIRS})
+include_directories(
+  ${CMAKE_SOURCE_DIR} ${XROOTD_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/googletest-src/googletest/include/
+  ${CMAKE_SOURCE_DIR}/googletest-src/googlemock/include/)
 
-set(SOURCE_FILES fst/XrdFstOssFileTest.cpp
-        ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc ${CMAKE_SOURCE_DIR}/fst/tests/TestEnv.cc
-        ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc)
+set(SOURCE_FILES fst/XrdFstOssFileTest.cc
+  ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc ${CMAKE_SOURCE_DIR}/fst/tests/TestEnv.cc
+  ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc)
 add_executable(eos-unit-tests ${SOURCE_FILES})
 
-set( CMAKE_CXX_FLAGS  "-DGTEST_HAS_TR1_TUPLE=0 -DGTEST_USE_OWN_TR1_TUPLE=0" )
+set( CMAKE_CXX_FLAGS  "-DGTEST_USE_OWN_TR1_TUPLE=0" )
 target_link_libraries(eos-unit-tests gtest gtest_main)
 
 target_link_libraries(
-        eos-unit-tests
-        EosFstIo-Static
-        ${XROOTD_SERVER_LIBRARY})
+  eos-unit-tests
+  EosFstIo-Static
+  ${XROOTD_SERVER_LIBRARY})

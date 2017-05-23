@@ -539,6 +539,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-rain-test
 %{_sbindir}/eoscp-rain-test
 %{_sbindir}/eos-fuse-test
+%{_sbindir}/eos-fst-test
 %{_sbindir}/eos-oc-test
 %{_sbindir}/xrdcpabort
 %{_sbindir}/xrdcpappend
