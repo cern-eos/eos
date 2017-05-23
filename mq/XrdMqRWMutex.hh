@@ -135,7 +135,7 @@ public:
     if (AtomicGet(wlockid) == (unsigned long long) XrdSysThread::ID()) {
       fprintf(stderr, "MQ === WRITE LOCK DOUBLELOCK === TID=%llu OBJECT=%llx\n",
               (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
-      throw "pthread_rwlock_wrlock double lock";
+      std::terminate();
     }
 
     //fprintf(stderr,"MQ --- WRITE LOCK WANTED    ---- TID=%llu OBJECT=%llx\n",

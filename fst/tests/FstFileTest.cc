@@ -38,12 +38,11 @@ EOSFSTTEST_NAMESPACE_BEGIN
 // Write test
 //------------------------------------------------------------------------------
 void
-WriteTest() {
+WriteTest()
+{
   using namespace XrdCl;
-
   std::unique_ptr<File> mFile(new File());
   std::unique_ptr<eos::fst::test::TestEnv> mEnv(new eos::fst::test::TestEnv());
-
   // Initialise
   XRootDStatus status;
   uint32_t file_size = (uint32_t)atoi(mEnv->GetMapping("file_size").c_str());
@@ -84,12 +83,11 @@ WriteTest() {
 // Vector read test
 //------------------------------------------------------------------------------
 void
-ReadVTest() {
+ReadVTest()
+{
   using namespace XrdCl;
-
   std::unique_ptr<File> mFile(new File());
   std::unique_ptr<eos::fst::test::TestEnv> mEnv(new eos::fst::test::TestEnv());
-
   // Initialise
   XRootDStatus status;
   uint32_t file_size = (uint32_t)atoi(mEnv->GetMapping("file_size").c_str());
@@ -180,18 +178,17 @@ ReadVTest() {
 // Split vector read test
 //------------------------------------------------------------------------------
 void
-SplitReadVTest() {
+SplitReadVTest()
+{
   using namespace eos::common;
   using namespace eos::fst;
   unsigned long layout_id = LayoutId::GetId(LayoutId::kRaid6, 1,
-                                            LayoutId::kSevenStripe,
-                                            LayoutId::k1M,
-                                            LayoutId::kCRC32);
+                            LayoutId::kSevenStripe,
+                            LayoutId::k1M,
+                            LayoutId::kCRC32);
   std::unique_ptr<RaidDpLayout> file(new RaidDpLayout(NULL, layout_id, NULL, NULL,
-                                           "root://localhost//dummy"));
-
+                                     "root://localhost//dummy"));
   std::unique_ptr<eos::fst::test::TestEnv> mEnv(new eos::fst::test::TestEnv());
-
   // Create readV request
   int num_datasets = 4;
   char* buff = new char[1024 * 1024];
@@ -224,8 +221,9 @@ SplitReadVTest() {
     }
 
     int indx = 0;
-    std::vector<XrdCl::ChunkList> result = ((RaidMetaLayout*)file.get())->SplitReadV(
-      readV);
+    std::vector<XrdCl::ChunkList> result = ((RaidMetaLayout*)
+                                            file.get())->SplitReadV(
+                                                readV);
 
     // Loop through the answers for each stripe and compare with the correct values
     for (auto it_stripe = result.begin(); it_stripe != result.end(); ++it_stripe) {
@@ -255,7 +253,7 @@ SplitReadVTest() {
       for (auto it_chunk = it_stripe->begin(), it_resp = correct_rdv.begin();
            it_chunk != it_stripe->end(); ++it_chunk, ++it_resp) {
         assert(it_resp->offset == it_chunk->offset);
-        assert (it_resp->length == it_chunk->length);
+        assert(it_resp->length == it_chunk->length);
       }
 
       indx++;
@@ -273,12 +271,11 @@ SplitReadVTest() {
 //! fctl function on the file object
 //----------------------------------------------------------------------------
 void
-DeleteFlagTest() {
+DeleteFlagTest()
+{
   using namespace XrdCl;
-
   std::unique_ptr<File> mFile(new File());
   std::unique_ptr<eos::fst::test::TestEnv> mEnv(new eos::fst::test::TestEnv());
-
   // Fill buffer with random characters
   uint64_t offset = 0;
   uint32_t block_size = 4 * 1024;
@@ -322,9 +319,9 @@ DeleteFlagTest() {
 // Read async test
 //------------------------------------------------------------------------------
 void
-ReadAsyncTest() {
+ReadAsyncTest()
+{
   std::unique_ptr<eos::fst::test::TestEnv> mEnv(new eos::fst::test::TestEnv());
-
   std::string address = "root://root@" + mEnv->GetMapping("server");
   std::string file_path = mEnv->GetMapping("plain_file");
   XrdCl::URL url(address);
@@ -343,11 +340,12 @@ ReadAsyncTest() {
 
   while (offset <= file_size) {
     assert(buff_size == file->fileReadAsync(offset, buffer, buff_size,
-                                             false));
+                                            false));
     offset += buff_size;
   }
 
   assert(file->fileClose());
+  (void) buffer; // make compiler happy
 }
 
 EOSFSTTEST_NAMESPACE_END
