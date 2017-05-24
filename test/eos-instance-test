@@ -1180,6 +1180,29 @@ runtest "### EoscpRaid6  " unix 0 "" eoscp_rain "reeds" "/eos/$EOS_TEST_INSTANCE
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/eoscp_rain_dir"
 
 ################################################################################################################
+# FST tests with plain and raid layouts
+################################################################################################################
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/dev/test/fst/plain"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/dev/test/fst/plain"
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/dev/test/fst/raiddp"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/dev/test/fst/raiddp"
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=plain "/eos/dev/test/fst/plain"
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=adler "/eos/dev/test/fst/plain"
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=1 "/eos/dev/test/fst/plain"
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.space=default "/eos/dev/test/fst/plain"
+runtest "### Attr      " unix 0 "" eos attr set default=raiddp "/eos/dev/test/fst/raiddp"
+
+TMP_FILE_32MB=mktemp
+dd if=/dev/zero count=32 bs=1M | tr '\000' '\001' > $TMP_FILE_32MB
+xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/plain/
+xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/raiddp/
+
+runtest "### Fst      " unix 0 "" eos-fst-test
+
+runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/dev/test/fst"
+################################################################################################################
+
+################################################################################################################
 # FINAL CLEANUP 
 ################################################################################################################
 # --------------------------------------------------------------------------------------------------------------
