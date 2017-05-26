@@ -183,7 +183,7 @@ eos_dmg_macosx:
     - master
     - tags
 
-eos_docker:
+eos_dockerimage_commit:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -197,6 +197,19 @@ eos_docker:
   only:
     - master
     - beryl_aquamarine
+
+eos_dockerimage_tag:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG}
+    DOCKER_FILE: eos-docker/Dockerfile
+  dependencies:
+    - eos_rpm_cc7
+  only:
     - tags
 
 eos_unit_test:
@@ -237,15 +250,14 @@ eos_system_test:
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - ./eos-docker/scripts/remove_unused_images.sh
-    - docker pull gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
-    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
+    - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
     - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
     - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos
     - docker exec -i eos-client-test python /eosclient-tests/microtests/run-ci.py --eosdir /eos/dockertest
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - sudo ./eos-docker/scripts/shutdown_services.sh
-    - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
   tags:
     - shell-with-docker
   dependencies:
@@ -259,12 +271,11 @@ eos_stress_test:
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - ./eos-docker/scripts/remove_unused_images.sh
-    - docker pull gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
-    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
+    - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
     - docker exec -i eos-mgm-test hammer-runner.py --strict-exit-code 1 --gitlab --url eos-mgm-test.eoscluster.cern.ch//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000
     - sudo ./eos-docker/scripts/shutdown_services.sh
-    - docker rmi gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
   tags:
     - eos-stress
   dependencies:
@@ -289,19 +300,6 @@ eos_publish_artifacts:
   only:
     - master
     - beryl_aquamarine
-    - tags
-
-eos_publish_dockerimage_tag:
-  stage: publish
-  script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker pull gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
-    - docker tag gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID} gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG}
-    - docker push gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG}
-    - docker logout $CI_REGISTRY
-  tags:
-    - shell-with-docker
-  only:
     - tags
 
 eos_periodic_coverity:
