@@ -96,6 +96,11 @@ public:
   XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other);// noexcept;
 
   //----------------------------------------------------------------------------
+  //! Move assignment operator
+  //----------------------------------------------------------------------------
+  XrdMqSharedHashEntry& operator =(XrdMqSharedHashEntry&& other);
+
+  //----------------------------------------------------------------------------
   //! Get value
   //!
   //! @return entry value

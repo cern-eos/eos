@@ -121,6 +121,22 @@ XrdMqSharedHashEntry::XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other):
 {}
 
 //------------------------------------------------------------------------------
+// Move assignment operator
+//------------------------------------------------------------------------------
+XrdMqSharedHashEntry&
+XrdMqSharedHashEntry::operator=(XrdMqSharedHashEntry&& other)
+{
+  if (this != &other) {
+    mKey = std::move(other.mKey);
+    mValue = std::move(other.mValue);
+    mChangeId = other.mChangeId;
+    mMtime = other.mMtime;
+  }
+
+  return *this;
+}
+
+//------------------------------------------------------------------------------
 // Get age in milliseconds
 //------------------------------------------------------------------------------
 long long
