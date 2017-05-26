@@ -87,8 +87,15 @@ ProcCommand::Quota()
     }
 
     is_ok = Quota::PrintOut(space, out, -1, pVid->gid, monitor, true);
-    stdOut += out;
     mDoSort = false;
+
+    if (is_ok) {
+      stdOut += out;
+    } else {
+      stdErr += out;
+      retc = EINVAL;
+    }
+
     return SFS_OK;
   }
 
