@@ -32,45 +32,42 @@
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Quota ()
+ProcCommand::Quota()
 {
   using eos::common::Mapping;
   using eos::common::StringConversion;
-
   int errc;
   long id = 0;
   Quota::IdT id_type = Quota::IdT::kUid;
   Quota::Type quota_type = Quota::Type::kUnknown;
   std::string space = "";
 
-  if (pOpaque->Get("mgm.quota.space"))
+  if (pOpaque->Get("mgm.quota.space")) {
     space = pOpaque->Get("mgm.quota.space");
+  }
 
   gOFS->MgmStats.Add("Quota", pVid->uid, pVid->gid, 1);
 
-  if (!space.empty())
-  {
+  if (!space.empty()) {
     // evt. correct the space variable to be a directory path (+/)
     struct stat buf;
     std::string sspace = space;
-    if (sspace[sspace.length() - 1] != '/')
-      sspace += '/';
 
-    if (!gOFS->_stat(sspace.c_str(), &buf, *mError, *pVid, 0))
-    {
+    if (sspace[sspace.length() - 1] != '/') {
+      sspace += '/';
+    }
+
+    if (!gOFS->_stat(sspace.c_str(), &buf, *mError, *pVid, 0)) {
       // this exists, so we rewrite space as asspace
       space = sspace;
     }
   }
 
-  /*
-  if (mSubCmd == "lsuser")
-  {
+  if (mSubCmd == "lsuser") {
     XrdOucString monitoring = pOpaque->Get("mgm.quota.format");
     bool monitor = false;
 
-    if (monitoring == "m")
-    {
+    if (monitoring == "m") {
       monitor = true;
     }
 
@@ -94,23 +91,19 @@ ProcCommand::Quota ()
     mDoSort = false;
     return SFS_OK;
   }
-  */
 
   bool canQuota = false;
 
   if ((!vid.uid) || (Mapping::HasUid(3, vid.uid_list)) ||
-      (Mapping::HasGid(4, vid.gid_list)))
-  {
+      (Mapping::HasGid(4, vid.gid_list))) {
     // root and admin can set quota
     canQuota = true;
-  }
-  else
-  {
+  } else {
     // figure out if the authenticated user is a quota admin
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     eos::IContainerMD::XAttrMap attrmap;
-    if (space[0] != '/')
-    {
+
+    if (space[0] != '/') {
       // take the proc directory
       space = gOFS->MgmProcPath.c_str();
     }
@@ -120,12 +113,9 @@ ProcCommand::Quota ()
     canQuota = acl.CanSetQuota();
   }
 
-  if (canQuota)
-  {
-    if (mSubCmd == "ls")
-    {
+  if (canQuota) {
+    if (mSubCmd == "ls") {
       eos_notice("quota ls");
-
       XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
       XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
       XrdOucString monitoring = pOpaque->Get("mgm.quota.format");
@@ -138,251 +128,211 @@ ProcCommand::Quota ()
       bool translate = true;
 
       if (monitoring == "m") {
-	monitor = true;
+        monitor = true;
       }
 
       if (printid == "n") {
-	translate = false;
+        translate = false;
       }
 
       XrdOucString out1 = "";
       bool is_ok = false;
 
       if ((!uid_sel.length() && (!gid_sel.length()))) {
-	is_ok = Quota::PrintOut(space, out1, -1, -1, monitor, translate);
-      }
-      else {
-	if (uid_sel.length()) {
-	  is_ok = Quota::PrintOut(space, out1, uid, -1, monitor, translate);
-	}
+        is_ok = Quota::PrintOut(space, out1, -1, -1, monitor, translate);
+      } else {
+        if (uid_sel.length()) {
+          is_ok = Quota::PrintOut(space, out1, uid, -1, monitor, translate);
+        }
 
-	if (is_ok && gid_sel.length()) {
-	  XrdOucString out2;
-	  is_ok = Quota::PrintOut(space, out2, -1, gid, monitor, translate);
+        if (is_ok && gid_sel.length()) {
+          XrdOucString out2;
+          is_ok = Quota::PrintOut(space, out2, -1, gid, monitor, translate);
 
-	  if (is_ok) {
-	    out1 += out2.c_str();
-	  } else {
-	    out1 = out2.c_str();
-	  }
-	}
+          if (is_ok) {
+            out1 += out2.c_str();
+          } else {
+            out1 = out2.c_str();
+          }
+        }
       }
 
       if (is_ok) {
-	stdOut = out1.c_str();
+        stdOut = out1.c_str();
       } else {
-	stdOut = "";
-	stdErr = out1.c_str();
-	retc = EINVAL;
+        stdOut = "";
+        stdErr = out1.c_str();
+        retc = EINVAL;
       }
     }
 
-    if (mSubCmd == "set")
-    {
-      if ( (pVid->prot != "sss") || (Mapping::IsLocalhost(*pVid)) )
-      {
-	eos_notice("quota set");
-	std::string msg {""};
-	XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
-	XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
-	XrdOucString svolume = pOpaque->Get("mgm.quota.maxbytes");
-	XrdOucString sinodes = pOpaque->Get("mgm.quota.maxinodes");
+    if (mSubCmd == "set") {
+      if ((pVid->prot != "sss") || (Mapping::IsLocalhost(*pVid))) {
+        eos_notice("quota set");
+        std::string msg {""};
+        XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
+        XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
+        XrdOucString svolume = pOpaque->Get("mgm.quota.maxbytes");
+        XrdOucString sinodes = pOpaque->Get("mgm.quota.maxinodes");
 
-	if (space.empty())
-	{
-	  stdErr = "error: command not properly formatted";
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
+        if (space.empty()) {
+          stdErr = "error: command not properly formatted";
+          retc = EINVAL;
+          return SFS_OK;
+        }
 
-	if (uid_sel.length() && gid_sel.length())
-	{
-	  stdErr = "error: specify either a uid or a gid - not both!";
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
+        if (uid_sel.length() && gid_sel.length()) {
+          stdErr = "error: specify either a uid or a gid - not both!";
+          retc = EINVAL;
+          return SFS_OK;
+        }
 
-	if (uid_sel.length())
-	{
-	  id_type = Quota::IdT::kUid;
-	  id = Mapping::UserNameToUid(uid_sel.c_str(), errc);
-	}
-	else if (gid_sel.length())
-	{
-	  id_type = Quota::IdT::kGid;
-	  id = Mapping::GroupNameToGid(gid_sel.c_str(), errc);
-	}
-	else
-	{
-	  stdErr = "error: no uid/gid specified for quota set";
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
+        if (uid_sel.length()) {
+          id_type = Quota::IdT::kUid;
+          id = Mapping::UserNameToUid(uid_sel.c_str(), errc);
+        } else if (gid_sel.length()) {
+          id_type = Quota::IdT::kGid;
+          id = Mapping::GroupNameToGid(gid_sel.c_str(), errc);
+        } else {
+          stdErr = "error: no uid/gid specified for quota set";
+          retc = EINVAL;
+          return SFS_OK;
+        }
 
-	// Deal with volume quota
-	unsigned long long size = StringConversion::GetSizeFromString(svolume);
+        // Deal with volume quota
+        unsigned long long size = StringConversion::GetSizeFromString(svolume);
 
-	if (svolume.length() && (errno == EINVAL))
-	{
-	  stdErr = "error: the volume quota you specified is not a valid number";
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
-	else if (svolume.length())
-	{
-	  // Set volume quota
-	  if (Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kVolume,
-				       size, msg, retc))
-	  {
-	    stdOut = msg.c_str();
-	  }
-	  else
-	  {
-	    stdErr = msg.c_str();
-	    return SFS_OK;
-	  }
-	}
+        if (svolume.length() && (errno == EINVAL)) {
+          stdErr = "error: the volume quota you specified is not a valid number";
+          retc = EINVAL;
+          return SFS_OK;
+        } else if (svolume.length()) {
+          // Set volume quota
+          if (Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kVolume,
+                                       size, msg, retc)) {
+            stdOut = msg.c_str();
+          } else {
+            stdErr = msg.c_str();
+            return SFS_OK;
+          }
+        }
 
-	// Deal with inode quota
-	unsigned long long inodes = StringConversion::GetSizeFromString(sinodes);
+        // Deal with inode quota
+        unsigned long long inodes = StringConversion::GetSizeFromString(sinodes);
 
-	if (sinodes.length() && (errno == EINVAL))
-	{
-	  stdErr = "error: the inode quota you specified are not a valid number";
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
-	else if (sinodes.length())
-	{
-	  // Set inode quota
-	  if (Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kInode,
-				       inodes, msg, retc))
-	  {
-	    stdOut += msg.c_str();
-	  }
-	  else
-	  {
-	    stdErr += msg.c_str();
-	    return SFS_OK;
-	  }
-	}
+        if (sinodes.length() && (errno == EINVAL)) {
+          stdErr = "error: the inode quota you specified are not a valid number";
+          retc = EINVAL;
+          return SFS_OK;
+        } else if (sinodes.length()) {
+          // Set inode quota
+          if (Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kInode,
+                                       inodes, msg, retc)) {
+            stdOut += msg.c_str();
+          } else {
+            stdErr += msg.c_str();
+            return SFS_OK;
+          }
+        }
 
-	if ((!svolume.length()) && (!sinodes.length()))
-	{
-	  stdErr = "error: max. bytes or max. inodes values have to be defined";
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
-      }
-      else
-      {
-	retc = EPERM;
-	stdErr = "error: you cannot set quota from storage node with 'sss' "
-	  "authentication!";
+        if ((!svolume.length()) && (!sinodes.length())) {
+          stdErr = "error: max. bytes or max. inodes values have to be defined";
+          retc = EINVAL;
+          return SFS_OK;
+        }
+      } else {
+        retc = EPERM;
+        stdErr = "error: you cannot set quota from storage node with 'sss' "
+                 "authentication!";
       }
     }
 
-    if (mSubCmd == "rm")
-    {
+    if (mSubCmd == "rm") {
       eos_notice("quota rm");
-      if ((pVid->prot != "sss") || (Mapping::IsLocalhost(*pVid)) )
-      {
-	int errc;
-	XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
-	XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
 
-	if (space.empty())
-	{
-	  stdErr = "error: command not properly formatted";
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
+      if ((pVid->prot != "sss") || (Mapping::IsLocalhost(*pVid))) {
+        int errc;
+        XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
+        XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
 
-	if (uid_sel.length() && gid_sel.length())
-	{
-	  stdErr = "error: you can either specify a uid or a gid - not both!";
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
+        if (space.empty()) {
+          stdErr = "error: command not properly formatted";
+          retc = EINVAL;
+          return SFS_OK;
+        }
 
-	if (uid_sel.length())
-	{
-	  id_type = Quota::IdT::kUid;
-	  id = Mapping::UserNameToUid(uid_sel.c_str(), errc);
+        if (uid_sel.length() && gid_sel.length()) {
+          stdErr = "error: you can either specify a uid or a gid - not both!";
+          retc = EINVAL;
+          return SFS_OK;
+        }
 
-	  if (errc == EINVAL)
-	  {
-	    stdErr = "error: unable to translate uid=";
-	    stdErr += gid_sel;
-	    retc = EINVAL;
-	    return SFS_OK;
-	  }
-	}
-	else if (gid_sel.length())
-	{
-	  id_type = Quota::IdT::kGid;
-	  id = Mapping::GroupNameToGid(gid_sel.c_str(), errc);
+        if (uid_sel.length()) {
+          id_type = Quota::IdT::kUid;
+          id = Mapping::UserNameToUid(uid_sel.c_str(), errc);
 
-	  if (errc == EINVAL)
-	  {
-	    stdErr = "error: unable to translate gid=";
-	    stdErr += gid_sel;
-	    retc = EINVAL;
-	    return SFS_OK;
-	  }
-	}
-	else
-	{
-	  stdErr = "error: no uid/gid specified for quota remove";
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
+          if (errc == EINVAL) {
+            stdErr = "error: unable to translate uid=";
+            stdErr += gid_sel;
+            retc = EINVAL;
+            return SFS_OK;
+          }
+        } else if (gid_sel.length()) {
+          id_type = Quota::IdT::kGid;
+          id = Mapping::GroupNameToGid(gid_sel.c_str(), errc);
 
-	std::string msg{""};
-	XrdOucString qtype  = pOpaque->Get("mgm.quota.type");
+          if (errc == EINVAL) {
+            stdErr = "error: unable to translate gid=";
+            stdErr += gid_sel;
+            retc = EINVAL;
+            return SFS_OK;
+          }
+        } else {
+          stdErr = "error: no uid/gid specified for quota remove";
+          retc = EINVAL;
+          return SFS_OK;
+        }
 
-	// Get type of quota
-	if (qtype.length() == 0)
-	  quota_type = Quota::Type::kAll;
-	else if (qtype == "inode")
-	  quota_type = Quota::Type::kInode;
-	else if (qtype == "volume")
-	  quota_type = Quota::Type::kVolume;
+        std::string msg{""};
+        XrdOucString qtype  = pOpaque->Get("mgm.quota.type");
 
-	if (quota_type == Quota::Type::kUnknown)
-	{
-	  retc = EINVAL;
-	  stdErr = "error: unknown quota type ";
-	  stdErr += qtype.c_str();
-	}
-	else if (quota_type == Quota::Type::kAll)
-	{
-	  if (Quota::RmQuotaForId(space, id, id_type, msg, retc))
-	    stdOut = msg.c_str();
-	  else
-	    stdErr = msg.c_str();
-	}
-	else
-	{
-	  if (Quota::RmQuotaTypeForId(space, id, id_type, quota_type, msg, retc))
-	    stdOut = msg.c_str();
-	  else
-	    stdErr = msg.c_str();
-	}
-      }
-      else
-      {
-	retc = EPERM;
-	stdErr = "error: you cannot remove quota from a storage node using "
-	  "'sss' authentication!";
+        // Get type of quota
+        if (qtype.length() == 0) {
+          quota_type = Quota::Type::kAll;
+        } else if (qtype == "inode") {
+          quota_type = Quota::Type::kInode;
+        } else if (qtype == "volume") {
+          quota_type = Quota::Type::kVolume;
+        }
+
+        if (quota_type == Quota::Type::kUnknown) {
+          retc = EINVAL;
+          stdErr = "error: unknown quota type ";
+          stdErr += qtype.c_str();
+        } else if (quota_type == Quota::Type::kAll) {
+          if (Quota::RmQuotaForId(space, id, id_type, msg, retc)) {
+            stdOut = msg.c_str();
+          } else {
+            stdErr = msg.c_str();
+          }
+        } else {
+          if (Quota::RmQuotaTypeForId(space, id, id_type, quota_type, msg, retc)) {
+            stdOut = msg.c_str();
+          } else {
+            stdErr = msg.c_str();
+          }
+        }
+      } else {
+        retc = EPERM;
+        stdErr = "error: you cannot remove quota from a storage node using "
+                 "'sss' authentication!";
       }
     }
-  }
-  else
-  {
+  } else {
     retc = EPERM;
     stdErr = "error: you are not a quota administrator!";
   }
+
   return SFS_OK;
 }
 
