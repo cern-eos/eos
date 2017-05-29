@@ -900,7 +900,9 @@ unsigned long long redirect_i2i (unsigned long long inode);
 
  bool getInlineRepair () const { return inline_repair;}
  uint64_t getMaxInlineRepairSize() const { return max_inline_repair_size; }
-  
+
+ pthread_t tCacheCleanup;
+
 protected:
 private:
 
