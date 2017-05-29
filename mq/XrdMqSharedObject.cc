@@ -187,7 +187,8 @@ XrdMqSharedHash::XrdMqSharedHash(const char* subject, const char* bcast_queue,
 //------------------------------------------------------------------------------
 // Move constructor
 //------------------------------------------------------------------------------
-XrdMqSharedHash::XrdMqSharedHash(XrdMqSharedHash&& other)
+XrdMqSharedHash::XrdMqSharedHash(XrdMqSharedHash&& other):
+  mSOM(nullptr)
 {
   *this = std::move(other);
 }
