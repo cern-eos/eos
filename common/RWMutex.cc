@@ -1103,9 +1103,9 @@ RWMutex::ResetCheckOrder()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex)
+RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex):
+  mWrMutex(&mutex)
 {
-  mWrMutex = &mutex;
   mWrMutex->LockWrite();
 }
 
@@ -1124,13 +1124,12 @@ RWMutexWriteLock::~RWMutexWriteLock()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RWMutexReadLock::RWMutexReadLock(RWMutex& mutex, bool allow_cancel)
+RWMutexReadLock::RWMutexReadLock(RWMutex& mutex, bool allow_cancel):
+  mRdMutex(&mutex)
 {
   if (allow_cancel) {
-    mRdMutex = &mutex;
     mRdMutex->LockReadCancel();
   } else {
-    mRdMutex = &mutex;
     mRdMutex->LockRead();
   }
 }
