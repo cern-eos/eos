@@ -139,10 +139,15 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include <dirent.h>
+#include "auth_plugin/ProtoUtils.hh"
 #include "zmq.hpp"
 
 
 USE_EOSMGMNAMESPACE
+
+//! Forward declaration
+class XrdMgmOfsFile;
+class XrdMgmOfsDirectory;
 
 //------------------------------------------------------------------------------
 //! Class implementing atomic meta data commands
@@ -889,6 +894,35 @@ public:
   // ---------------------------------------------------------------------------
   static void* StartMgmFsConfigListener (void *pp);
 
+  //----------------------------------------------------------------------------
+  //! Authentication master thread startup static function                              
+  //!  
+  //! @param pp pointer to the XrdMgmOfs class
+  //!
+  //---------------------------------------------------------------------------- 
+  static void* StartAuthMasterThread(void* pp);
+
+
+  //---------------------------------------------------------------------------- 
+  //! Authentication master thread function - accepts requests from EOS AUTH 
+  //! plugins which he then forwards to worker threads.
+  //---------------------------------------------------------------------------- 
+  void AuthMasterThread();
+
+  //---------------------------------------------------------------------------- 
+  //! Authentication worker thread startup static function
+  //!
+  //! @param pp pointer to the XrdMgmOfs class 
+  //!
+  //----------------------------------------------------------------------------                                                                  
+  static void* StartAuthWorkerThread(void* pp);
+
+  //---------------------------------------------------------------------------- 
+  //! Authentication worker thread function - accepts requests from the master,
+  //! executed the proper action and replies with the result.
+  //----------------------------------------------------------------------------  
+  void AuthWorkerThread();
+
   // ---------------------------------------------------------------------------
   // Signal handler for signal 40 to start profiling the heap
   // ---------------------------------------------------------------------------
@@ -1040,6 +1074,15 @@ public:
   pthread_t deletion_tid; //< Thead Id of the deletion thread
   pthread_t stats_tid; //< Thread Id of the stats thread
   pthread_t fsconfiglistener_tid; //< Thread ID of the fs listener/config change thread
+  pthread_t auth_tid; ///< Thread Id of the authentication thread                                                                                  
+  std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
+  //----------------------------------------------------------------------------
+  // Authentication plugin variables like the ZMQ front end port number and the
+  // number of worker threads available at the MGM
+  //----------------------------------------------------------------------------
+  unsigned int mFrontendPort; ///< frontend port number for incoming requests
+  unsigned int mNumAuthThreads; ///< max number of auth worker threads
+  zmq::context_t* mZmqContext; ///< ZMQ context for all the sockets
 
   //----------------------------------------------------------------------------
   // Class objects
@@ -1078,10 +1121,23 @@ public:
 
  private:
   eos::common::Mapping::VirtualIdentity vid; ///< Virtual identity
+  std::map<std::string, XrdMgmOfsDirectory*>  mMapDirs; ///< uuid to directory obj. mapping 
+  std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping
+  XrdSysMutex mMutexDirs; ///< mutex for protecting the access at the dirs map 
+  XrdSysMutex mMutexFiles; ///< mutex for protecting the access at the files map 
   pthread_t mSubmitterTid; ///< Archive submitter thread
   XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
   std::list<std::string> mPendingBkps; ///< Backup jobs queue
   eos::common::JeMallocHandler mJeMallocHandler; //< manage heap profiling
+
+  //----------------------------------------------------------------------------
+  //! Check that the auth ProtocolBuffer request has not been tampered with 
+  //!
+  //! @param reqProto request ProtocolBuffer from an authentication plugin 
+  //!
+  //! @return true if request is valid, otherwise false 
+  //----------------------------------------------------------------------------
+  bool ValidAuthRequest(eos::auth::RequestProto* reqProto);
 
   //----------------------------------------------------------------------------
   //! Static method to start a thread that will queue, build and submit backup

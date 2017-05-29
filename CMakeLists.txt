@@ -189,6 +189,7 @@ else()
   add_subdirectory (utils)
   add_subdirectory (archive)
   add_subdirectory (selinux)
+  add_subdirectory (auth_plugin)
 
 endif()
 

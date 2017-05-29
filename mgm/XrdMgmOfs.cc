@@ -62,6 +62,7 @@
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 /*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
@@ -157,6 +158,7 @@ XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
   ConfigFN = 0;
   eos::common::LogId();
   eos::common::LogId::SetSingleShotLogId();
+  mZmqContext = new zmq::context_t(1);
 }
 
 //------------------------------------------------------------------------------
@@ -165,6 +167,7 @@ XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
 XrdMgmOfs::~XrdMgmOfs()
 {
   StopArchiveSubmitter();
+  delete mZmqContext;
 }
 
 //------------------------------------------------------------------------------
@@ -213,6 +216,7 @@ XrdMgmOfs::newFile (char *user, int MonID)
 /*----------------------------------------------------------------------------*/
 #include "XrdMgmOfs/Access.cc"
 #include "XrdMgmOfs/Attr.cc"
+#include "XrdMgmOfs/Auth.cc"
 #include "XrdMgmOfs/Chksum.cc"
 #include "XrdMgmOfs/Chmod.cc"
 #include "XrdMgmOfs/Chown.cc"
