@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+
+``V0.3.245 Aquamarine``
+=====================
+- FUSE: fix shutdown crash by properly canceling/joining the cache cleaner thread
+- NS: fix gcc 4.4. compilation problem
+- MGM: reschedule empty files if current replicas are unavilable
+- MGM: add authentication front-end (backport from CITRINE)
+
+
 ``V0.3.244 Aquamarine``
 =====================
 
