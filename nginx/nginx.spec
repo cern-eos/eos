@@ -11,7 +11,7 @@
 
 Name:           eos-nginx
 Version:        1.6.2
-Release:        3
+Release:        4
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>
@@ -141,6 +141,7 @@ export DESTDIR=%{buildroot}
     --without-mail_imap_module          \
     --without-mail_smtp_module          \
     --with-http_auth_request_module     \
+    --with-ipv6                         \
     --add-module=%{_builddir}/spnego-http-auth-nginx-module \
     --add-module=%{_builddir}/nginx-auth-ldap-module \
     --add-module=%{_builddir}/nginx-auth-pam-module 	
