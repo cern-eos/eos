@@ -1339,6 +1339,7 @@ XrdMgmOfsFile::open (const char *inpath,
   std::vector<unsigned int>::const_iterator sfs;
 
   int retc = 0;
+  bool isRecreation = false;
 
   // ---------------------------------------------------------------------------
   if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())) || isInjection)
@@ -1391,6 +1392,25 @@ XrdMgmOfsFile::open (const char *inpath,
     retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
                                   selectedfs, fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
                                   unavailfs);
+
+
+    if ( (retc == ENONET) && (!fmd->getSize()) && (!bookingsize))
+    {
+      const char* containertag = 0;
+      if (attrmap.count("user.tag"))
+      {
+	containertag = attrmap["user.tag"].c_str();
+      }
+
+      isCreation = true;
+      // try placement from scratch by doing a new placement
+      retc = quotaspace->FilePlacement(path, vid, containertag, layoutId,
+				       unavailfs, selectedfs,
+				       open_mode & SFS_O_TRUNC,
+				       forcedGroup,
+				       bookingsize);
+      isRecreation = true;
+    }
 
     if (retc == EXDEV)
     {
@@ -1664,7 +1684,11 @@ XrdMgmOfsFile::open (const char *inpath,
           try
           {
             fmd = gOFS->eosView->getFile(creation_path);
-
+	    
+	    if (isRecreation)
+	    {
+	      fmd->clearLocations();
+	    }
             for (int i = 0; i < (int) selectedfs.size(); i++)
             {
               fmd->addLocation(selectedfs[i]);
