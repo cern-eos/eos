@@ -87,7 +87,7 @@ XrdMqSharedHashEntry::XrdMqSharedHashEntry(const char* key, const char* value):
 }
 
 //------------------------------------------------------------------------------
-// Assignment operator
+// Copy assignment operator
 //------------------------------------------------------------------------------
 XrdMqSharedHashEntry&
 XrdMqSharedHashEntry::operator=(const XrdMqSharedHashEntry& other)
@@ -115,7 +115,6 @@ XrdMqSharedHashEntry::XrdMqSharedHashEntry(const XrdMqSharedHashEntry& other)
 //! Move constructor
 //----------------------------------------------------------------------------
 XrdMqSharedHashEntry::XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other):
-// noexcept:
   mKey(std::move(other.mKey)), mValue(std::move(other.mValue)),
   mChangeId(other.mChangeId), mMtime(other.mMtime)
 {}
@@ -180,11 +179,43 @@ XrdMqSharedHashEntry::Dump(XrdOucString& out)
 //------------------------------------------------------------------------------
 XrdMqSharedHash::XrdMqSharedHash(const char* subject, const char* bcast_queue,
                                  XrdMqSharedObjectManager* som):
-  mType("hash"), mSOM(som),
-  mBroadcastQueue((bcast_queue ? bcast_queue : "")),
-  mSubject((subject ? subject : "")),
-  mIsTransaction(false)
+  mType("hash"), mSOM(som), mSubject((subject ? subject : "")),
+  mIsTransaction(false), mBroadcastQueue((bcast_queue ? bcast_queue : "")),
+  mTransactMutex(new XrdSysMutex()), mStoreMutex(new XrdMqRWMutex())
 {}
+
+//------------------------------------------------------------------------------
+// Move constructor
+//------------------------------------------------------------------------------
+XrdMqSharedHash::XrdMqSharedHash(XrdMqSharedHash&& other)
+{
+  *this = std::move(other);
+}
+
+//------------------------------------------------------------------------------
+// Move assignment operator
+//------------------------------------------------------------------------------
+XrdMqSharedHash&
+XrdMqSharedHash::operator=(XrdMqSharedHash&& other)
+{
+  if (this != &other) {
+    mSOM = nullptr;
+    mTransactMutex.reset(nullptr);
+    mStoreMutex.reset(nullptr);
+    mType = other.mType;
+    std::swap(mSOM, other.mSOM);
+    mSubject = other.mSubject;
+    mIsTransaction = other.mIsTransaction;
+    mBroadcastQueue = other.mBroadcastQueue;
+    std::swap(mStore, other.mStore);
+    std::swap(mDeletions, other.mDeletions);
+    std::swap(mTransactions, other.mTransactions);
+    std::swap(mTransactMutex, other.mTransactMutex);
+    std::swap(mStoreMutex, other.mStoreMutex);
+  }
+
+  return *this;
+}
 
 //------------------------------------------------------------------------------
 // Get size of the hash
@@ -192,7 +223,7 @@ XrdMqSharedHash::XrdMqSharedHash(const char* subject, const char* bcast_queue,
 unsigned int
 XrdMqSharedHash::GetSize()
 {
-  XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
   return (unsigned int) mStore.size();
 }
 
@@ -202,7 +233,7 @@ XrdMqSharedHash::GetSize()
 unsigned long long
 XrdMqSharedHash::GetAgeInMilliSeconds(const char* key)
 {
-  XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
   unsigned long long val  = (mStore.count(key) ?
                              mStore[key].GetAgeInMilliSeconds() : 0);
   return val;
@@ -214,7 +245,7 @@ XrdMqSharedHash::GetAgeInMilliSeconds(const char* key)
 unsigned long long
 XrdMqSharedHash::GetAgeInSeconds(const char* key)
 {
-  XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
   unsigned long long
   val = (mStore.count(key) ? (unsigned long long)
          mStore[key].GetAgeInSeconds() : (unsigned long long) 0);
@@ -229,7 +260,7 @@ XrdMqSharedHash::Get(const std::string& key)
 {
   AtomicInc(sGetCounter);
   std::string value = "";
-  XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
   if (mStore.count(key)) {
     value = mStore[key].GetValue();
@@ -245,7 +276,7 @@ std::vector<std::string>
 XrdMqSharedHash::GetKeys()
 {
   std::vector<std::string> keys;
-  XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
   for (auto it = mStore.begin(); it != mStore.end(); it++) {
     keys.push_back(it->first);
@@ -307,7 +338,7 @@ XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix)
 {
   XrdOucString key;
   std::string out = "";
-  XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
   for (auto it = mStore.begin(); it != mStore.end(); it++) {
     key = it->first.c_str();
@@ -330,7 +361,7 @@ XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix)
 bool
 XrdMqSharedHash::OpenTransaction()
 {
-  mTransactMutex.Lock();
+  mTransactMutex->Lock();
   mTransactions.clear();
   mIsTransaction = true;
   return true;
@@ -358,7 +389,7 @@ XrdMqSharedHash::CloseTransaction()
         txmessage += "&";
         txmessage += XRDMQSHAREDHASH_PAIRS;
         txmessage += "=";
-        XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+        XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
         if ((mStore.count(it->c_str()))) {
           txmessage += "|";
@@ -399,7 +430,7 @@ XrdMqSharedHash::CloseTransaction()
 
   mTransactions.clear();
   mIsTransaction = false;
-  mTransactMutex.UnLock();
+  mTransactMutex->UnLock();
   return retval;
 }
 
@@ -479,11 +510,11 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
 {
   XrdOucString txmessage = "";
   {
-    XrdSysMutexHelper lock(mTransactMutex);
+    XrdSysMutexHelper lock(*mTransactMutex);
     mTransactions.clear();
     mIsTransaction = true;
     {
-      XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+      XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
       for (auto it = mStore.begin(); it != mStore.end(); it++) {
         mTransactions.insert(it->first);
@@ -524,7 +555,7 @@ XrdMqSharedHash::AddTransactionsToEnvString(XrdOucString& out, bool clear_after)
   out += "&";
   out += XRDMQSHAREDHASH_PAIRS;
   out += "=";
-  XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
   for (auto it = mTransactions.begin(); it != mTransactions.end(); it++) {
     if ((mStore.count(it->c_str()))) {
@@ -598,7 +629,7 @@ void
 XrdMqSharedHash::Dump(XrdOucString& out)
 {
   char key_print[64];
-  XrdMqRWMutexReadLock rd_lock(mStoreMutex);
+  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
   for (auto it = mStore.begin(); it != mStore.end(); it++) {
     snprintf(key_print, sizeof(key_print) - 1, "key=%-24s", it->first.c_str());
@@ -616,7 +647,7 @@ bool
 XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
 {
   bool deleted = false;
-  XrdMqRWMutexWriteLock wr_lock(mStoreMutex);
+  XrdMqRWMutexWriteLock wr_lock(*mStoreMutex);
 
   if (mStore.count(key)) {
     mStore.erase(key);
@@ -625,7 +656,7 @@ XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
     if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
       // Emulate transaction for single shot deletions
       if (!mIsTransaction) {
-        mTransactMutex.Lock();
+        mTransactMutex->Lock();
         mTransactions.clear();
       }
 
@@ -667,7 +698,7 @@ XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
 void
 XrdMqSharedHash::Clear(bool broadcast)
 {
-  XrdMqRWMutexWriteLock wr_lock(mStoreMutex);
+  XrdMqRWMutexWriteLock wr_lock(*mStoreMutex);
 
   for (auto it = mStore.begin(); it != mStore.end(); it++) {
     if (mIsTransaction) {
@@ -689,7 +720,7 @@ bool
 XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
 {
   std::string skey = key;
-  mStoreMutex.LockWrite();
+  mStoreMutex->LockWrite();
 
   if (mStore.count(skey) == 0) {
     mStore.insert(std::make_pair(skey, XrdMqSharedHashEntry(key, value)));
@@ -697,7 +728,7 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
     mStore[skey] = XrdMqSharedHashEntry(key, value);
   }
 
-  mStoreMutex.UnLockWrite();
+  mStoreMutex->UnLockWrite();
 
   if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
     bool is_transact = false;
@@ -719,7 +750,7 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
       bool emulate_transact = false;
 
       if (!mIsTransaction) {
-        mTransactMutex.Lock();
+        mTransactMutex->Lock();
         mTransactions.clear();
         emulate_transact = true;
       }
@@ -1026,10 +1057,35 @@ XrdMqSharedHash::Print(std::string& out, std::string format)
 //------------------------------------------------------------------------------
 XrdMqSharedQueue::XrdMqSharedQueue(const char* subject, const char* bcast_queue,
                                    XrdMqSharedObjectManager* som):
-  XrdMqSharedHash(subject, bcast_queue, som)
+  XrdMqSharedHash(subject, bcast_queue, som), mQMutex(new XrdSysMutex()),
+  mLastObjId(0)
 {
   mType = "queue";
-  mLastObjId = 0;
+}
+
+//------------------------------------------------------------------------------
+// Move constructor
+//------------------------------------------------------------------------------
+XrdMqSharedQueue::XrdMqSharedQueue(XrdMqSharedQueue&& other)
+{
+  *this = std::move(other);
+}
+
+//------------------------------------------------------------------------------
+// Move assignment operator
+//------------------------------------------------------------------------------
+XrdMqSharedQueue&
+XrdMqSharedQueue::operator=(XrdMqSharedQueue&& other)
+{
+  if (this != &other) {
+    mQMutex.reset(nullptr);
+    XrdMqSharedHash::operator=(std::move(other));
+    std::swap(mQMutex, other.mQMutex);
+    std::swap(mQueue, other.mQueue);
+    std::swap(mLastObjId, other.mLastObjId);
+  }
+
+  return *this;
 }
 
 //------------------------------------------------------------------------------
@@ -1039,7 +1095,7 @@ bool
 XrdMqSharedQueue::Delete(const std::string& key, bool broadcast)
 {
   if (!key.empty()) {
-    XrdSysMutexHelper lock(mQMutex);
+    XrdSysMutexHelper lock(*mQMutex);
     bool found = false;
 
     for (auto it = mQueue.begin(); it != mQueue.end(); it++) {
@@ -1079,7 +1135,7 @@ std::string
 XrdMqSharedQueue::PopFront()
 {
   std::string value = "";
-  XrdSysMutexHelper lock(mQMutex);
+  XrdSysMutexHelper lock(*mQMutex);
 
   if (!mQueue.empty()) {
     std::string key = mQueue.front();
@@ -1098,7 +1154,7 @@ bool
 XrdMqSharedQueue::SetImpl(const char* key, const char* value, bool broadcast)
 {
   std::string uuid;
-  XrdSysMutexHelper lock(mQMutex);
+  XrdSysMutexHelper lock(*mQMutex);
 
   if (!key || (*key == '\0')) {
     char lld[1024];
@@ -2605,10 +2661,7 @@ XrdMqSharedObjectManager::CreateSharedQueue(const char* subject,
     ListMutex.UnLockWrite();
     return false;
   } else {
-    // TODO (esindril): Review the use of copy constructor
-    //mQueueSubjects.emplace
-    //(std::make_pair(ss, XrdMqSharedQueue(subject, broadcastqueue, som)));
-    mQueueSubjects[ss] = XrdMqSharedQueue(subject, broadcastqueue, som);
+    mQueueSubjects.emplace(ss, XrdMqSharedQueue(subject, broadcastqueue, som));
     ListMutex.UnLockWrite();
 
     if (mEnableQueue) {
@@ -3345,7 +3398,7 @@ XrdMqSharedObjectManager::AddMuxTransactionEnvString(XrdOucString& out)
                                       MuxTransactionType.c_str());
 
     if (hash) {
-      XrdMqRWMutexReadLock lock(hash->mStoreMutex);
+      XrdMqRWMutexReadLock lock(*(hash->mStoreMutex));
 
       // loop over variables
       for (auto it = it_subj->second.begin(); it != it_subj->second.end(); ++it) {

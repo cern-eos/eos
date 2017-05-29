@@ -93,7 +93,7 @@ public:
   //----------------------------------------------------------------------------
   //! Move constructor
   //----------------------------------------------------------------------------
-  XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other);// noexcept;
+  XrdMqSharedHashEntry(XrdMqSharedHashEntry&& other);
 
   //----------------------------------------------------------------------------
   //! Move assignment operator
@@ -198,6 +198,26 @@ public:
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~XrdMqSharedHash() {};
+
+  //----------------------------------------------------------------------------
+  //! Copy constructor
+  //----------------------------------------------------------------------------
+  XrdMqSharedHash(const XrdMqSharedHash& other) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Copy assignment operator
+  //----------------------------------------------------------------------------
+  XrdMqSharedHash& operator =(XrdMqSharedHash& other) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Move constructor
+  //----------------------------------------------------------------------------
+  XrdMqSharedHash(XrdMqSharedHash&& other);
+
+  //----------------------------------------------------------------------------
+  //! Move assignment operator
+  //----------------------------------------------------------------------------
+  XrdMqSharedHash& operator =(XrdMqSharedHash&& other);
 
   //----------------------------------------------------------------------------
   //! Get size of the hash
@@ -404,9 +424,9 @@ public:
   bool CloseTransaction();
 
 protected:
-  std::map<std::string, XrdMqSharedHashEntry> mStore; ///< Underlying map obj.
-  std::string mType; ///< Type of object
+  std::string mType; ///< Type of objec
   XrdMqSharedObjectManager* mSOM; ///< Pointer to shared object manager
+  std::map<std::string, XrdMqSharedHashEntry> mStore; ///< Underlying map obj.
 
   //----------------------------------------------------------------------------
   //! Set entry in hash map - internal implementation
@@ -421,13 +441,15 @@ protected:
   bool SetImpl(const char* key, const char* value,  bool broadcast);
 
 private:
-  std::string mBroadcastQueue; ///< Name of the broadcast queue
   std::string mSubject; ///< Hash subject
   bool mIsTransaction; ///< True if ongoing transaction
+  std::string mBroadcastQueue; ///< Name of the broadcast queue
   std::set<std::string> mDeletions; ///< Set of deletions
-  XrdSysMutex mTransactMutex; ///< Mutex protecting the set of transactions
   std::set<std::string> mTransactions; ///< Set of transactions
-  XrdMqRWMutex mStoreMutex; ///< RW Mutex protecting the mStore object
+  std::unique_ptr<XrdSysMutex>
+  mTransactMutex; ///< Mutex protecting the set of transactions
+  std::unique_ptr<XrdMqRWMutex>
+  mStoreMutex; ///< RW Mutex protecting the mStore object
 
   //----------------------------------------------------------------------------
   //! Construct broadcast env header
@@ -503,7 +525,27 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~XrdMqSharedQueue() {}
+  virtual ~XrdMqSharedQueue() {};
+
+  //----------------------------------------------------------------------------
+  //! Copy constructor
+  //----------------------------------------------------------------------------
+  XrdMqSharedQueue(const XrdMqSharedQueue& other) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Copy assignment operator
+  //----------------------------------------------------------------------------
+  XrdMqSharedQueue& operator =(XrdMqSharedQueue& other) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Move constructor
+  //----------------------------------------------------------------------------
+  XrdMqSharedQueue(XrdMqSharedQueue&& other);
+
+  //----------------------------------------------------------------------------
+  //! Move assignment operator
+  //----------------------------------------------------------------------------
+  XrdMqSharedQueue& operator=(XrdMqSharedQueue&& other);
 
   //----------------------------------------------------------------------------
   //! Delete key entry
@@ -547,7 +589,7 @@ private:
   bool SetImpl(const char* key, const char* value, bool broadcast);
 
 private:
-  XrdSysMutex mQMutex; ///< Mutex protecting the mQueue object
+  std::unique_ptr<XrdSysMutex> mQMutex; ///< Mutex protecting the mQueue object
   std::deque<std::string> mQueue; ///< Underlying queue holding keys
   unsigned long long mLastObjId; ///< Id of the last object added to the queue
 };
