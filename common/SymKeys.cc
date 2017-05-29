@@ -150,29 +150,22 @@ SymKey::HmacSha1 (std::string& key,
   unsigned char* pData = (unsigned char*) data.c_str();
   result.resize(20);
   unsigned char* pResult = (unsigned char*) result.c_str();
-
   ENGINE_load_builtin_engines();
   ENGINE_register_all_complete();
+  HMAC_Init(&ctx, pKey, key_len, EVP_sha1());
 
-  HMAC_CTX_init(&ctx);
-  HMAC_Init_ex(&ctx, pKey, key_len, EVP_sha1(), NULL);
-
-  while (data_len > blockSize)
-  {
+  while (data_len > blockSize) {
     HMAC_Update(&ctx, pData, blockSize);
     data_len -= blockSize;
     pData += blockSize;
   }
 
-  if (data_len)
-  {
+  if (data_len) {
     HMAC_Update(&ctx, pData, data_len);
   }
 
   unsigned int resultSize;
   HMAC_Final(&ctx, pResult, &resultSize);
-  HMAC_CTX_cleanup(&ctx);
-
   return result;
 }
 
