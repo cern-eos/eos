@@ -162,9 +162,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libeosCommonServer.so.0
 %{_libdir}/libeosCommonServer.so
 %{_libdir}/libXrdEosAuth.so
-%{_libdir}/libXrdEosAuthProto.so
-%{_libdir}/libXrdEosAuthProto.so.0
-%{_libdir}/libXrdEosAuthProto.so.%{version}
+%{_libdir}/libEosAuthProto.so
+%{_libdir}/libEosAuthProto.so.0
+%{_libdir}/libEosAuthProto.so.%{version}
 %{_libdir}/libXrdEosFst.so
 %{_libdir}/libEosFstOss.so
 %{_libdir}/libXrdEosMgm.so
