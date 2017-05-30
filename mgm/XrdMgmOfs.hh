@@ -135,13 +135,9 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
-/*----------------------------------------------------------------------------*/
 #include <dirent.h>
-/*----------------------------------------------------------------------------*/
 #include "auth_plugin/ProtoUtils.hh"
-/*----------------------------------------------------------------------------*/
 #include "common/ZMQ.hh"
-/*----------------------------------------------------------------------------*/
 
 USE_EOSMGMNAMESPACE
 
@@ -950,18 +946,15 @@ public:
   bool DeleteExternal(eos::common::FileSystem::fsid_t fsid,
                       unsigned long long fid);
 
-
   // ---------------------------------------------------------------------------
   // Statistics circular buffer thread startup function
   // ---------------------------------------------------------------------------
   static void* StartMgmStats(void* pp);
 
-
   // ---------------------------------------------------------------------------
   // Filesystem error/config listener thread startup function
   // ---------------------------------------------------------------------------
   static void* StartMgmFsConfigListener(void* pp);
-
 
   //----------------------------------------------------------------------------
   //! Authentication master thread startup static function
@@ -971,13 +964,11 @@ public:
   //----------------------------------------------------------------------------
   static void* StartAuthMasterThread(void* pp);
 
-
   //----------------------------------------------------------------------------
   //! Authentication master thread function - accepts requests from EOS AUTH
   //! plugins which he then forwards to worker threads.
   //----------------------------------------------------------------------------
   void AuthMasterThread();
-
 
   //----------------------------------------------------------------------------
   //! Authentication worker thread startup static function
@@ -987,13 +978,11 @@ public:
   //----------------------------------------------------------------------------
   static void* StartAuthWorkerThread(void* pp);
 
-
   //----------------------------------------------------------------------------
   //! Authentication worker thread function - accepts requests from the master,
   //! executed the proper action and replies with the result.
   //----------------------------------------------------------------------------
   void AuthWorkerThread();
-
 
   // ---------------------------------------------------------------------------
   // Signal handler for signal 40 to start profiling the heap

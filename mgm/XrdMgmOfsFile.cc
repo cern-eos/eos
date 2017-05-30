@@ -1128,6 +1128,7 @@ XrdMgmOfsFile::open(const char* inpath,
   std::vector<unsigned int> replacedfs;
   std::vector<unsigned int>::const_iterator sfs;
   int retc = 0;
+  bool isRecreation = false;
 
   // Place a new file
   if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())) ||
@@ -1209,6 +1210,47 @@ XrdMgmOfsFile::open(const char* inpath,
     }
 
     retc = Quota::FileAccess(&acsargs);
+
+    if ((retc == ENONET) && (!fmd->getSize()) && (!bookingsize)) {
+      const char* containertag = 0;
+
+      if (attrmap.count("user.tag")) {
+        containertag = attrmap["user.tag"].c_str();
+      }
+
+      isCreation = true;
+      /// ###############
+      // if the client should go through a firewall entrypoint, try to get it
+      // if the scheduled fs need to be accessed through a dataproxy, try to get it
+      // if any of the two fails, the scheduling operation fails
+      Scheduler::PlacementArguments plctargs;
+      plctargs.alreadyused_filesystems = &selectedfs;
+      plctargs.bookingsize = bookingsize;
+      plctargs.dataproxys = &proxys;
+      plctargs.firewallentpts = &firewalleps;
+      plctargs.forced_scheduling_group_index = forcedGroup;
+      plctargs.grouptag = containertag;
+      plctargs.lid = layoutId;
+      plctargs.inode = (ino64_t) fmd->getId();
+      plctargs.path = path;
+      plctargs.plctTrgGeotag = &targetgeotag;
+      plctargs.plctpolicy = plctplcy;
+      plctargs.selected_filesystems = &selectedfs;
+      std::string spacename = space.c_str();
+      plctargs.spacename = &spacename;
+      plctargs.truncate = open_mode & SFS_O_TRUNC;
+      plctargs.vid = &vid;
+
+      if (!plctargs.isValid()) {
+        // there is something wrong in the arguments of file placement
+        return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
+      }
+
+      retc = Quota::FilePlacement(&plctargs);
+      eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
+               path, retc);
+      isRecreation = true;
+    }
 
     if (retc == EXDEV) {
       // Indicating that the layout requires the replacement of stripes
@@ -1498,6 +1540,10 @@ XrdMgmOfsFile::open(const char* inpath,
 
           try {
             fmd = gOFS->eosView->getFile(creation_path);
+
+            if (isRecreation) {
+              fmd->clearLocations();
+            }
 
             for (int i = 0; i < (int) selectedfs.size(); i++) {
               fmd->addLocation(selectedfs[i]);

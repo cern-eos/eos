@@ -43,11 +43,11 @@ XrdSysMutex SymKey::msMutex;
 //------------------------------------------------------------------------------
 std::string
 SymKey::HmacSha256(std::string& key,
-		   std::string& data,
-		   unsigned int blockSize,
-		   unsigned int resultSize)
+                   std::string& data,
+                   unsigned int blockSize,
+                   unsigned int resultSize)
 {
-  HMAC_CTX *ctx = HMAC_CTX_new();
+  HMAC_CTX* ctx = HMAC_CTX_new();
   std::string result;
   unsigned int data_len = data.length();
   unsigned int key_len = key.length();
@@ -80,7 +80,7 @@ SymKey::HmacSha256(std::string& key,
 
 std::string
 SymKey::Sha256(const std::string& data,
-	       unsigned int blockSize)
+               unsigned int blockSize)
 {
   unsigned int data_len = data.length();
   unsigned char* pData = (unsigned char*) data.c_str();
@@ -126,7 +126,7 @@ SymKey::Sha256(const std::string& data,
 //------------------------------------------------------------------------------
 std::string
 SymKey::HmacSha1(std::string& key,
-		 std::string& data)
+                 std::string& data)
 {
   HMAC_CTX* ctx = HMAC_CTX_new();
   std::string result;
@@ -164,9 +164,9 @@ SymKey::HmacSha1(std::string& key,
 
 std::string
 SymKey::HmacSha256(std::string& key,
-                    std::string& data,
-                    unsigned int blockSize,
-                    unsigned int resultSize)
+                   std::string& data,
+                   unsigned int blockSize,
+                   unsigned int resultSize)
 {
   HMAC_CTX ctx;
   std::string result;
@@ -203,7 +203,7 @@ SymKey::HmacSha256(std::string& key,
 
 std::string
 SymKey::Sha256(const std::string& data,
-                unsigned int blockSize)
+               unsigned int blockSize)
 {
   unsigned int data_len = data.length();
   unsigned char* pData = (unsigned char*) data.c_str();
@@ -229,7 +229,6 @@ SymKey::Sha256(const std::string& data,
     EVP_DigestFinal_ex(md_ctx, pResult, &sz_result);
     EVP_MD_CTX_cleanup(md_ctx);
   }
-
   std::ostringstream oss;
   oss.fill('0');
   oss << std::hex;
@@ -250,8 +249,7 @@ SymKey::Sha256(const std::string& data,
 //------------------------------------------------------------------------------
 
 std::string
-SymKey::HmacSha1(std::string& key,
-                  std::string& data)
+SymKey::HmacSha1(std::string& key, std::string& data)
 {
   HMAC_CTX ctx;
   std::string result;
@@ -292,8 +290,8 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
 {
   BIO* bmem, *b64;
   BUF_MEM* bptr;
-
   b64 = BIO_new(BIO_f_base64());
+
   /* base64 encode */
   if (!b64) {
     return false;
@@ -314,13 +312,11 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
   // retrieve size
   char* dummy;
   long size = BIO_get_mem_data(b64, &dummy);
-
   BIO_get_mem_ptr(b64, &bptr);
 
-  if (bptr->data)
-  {
-    std::string s(bptr->data,size);
-    out=s.c_str();
+  if (bptr->data) {
+    std::string s(bptr->data, size);
+    out = s.c_str();
     // we don't use out.assign() as the buffer does not have null terminating character
   }
 
@@ -471,6 +467,7 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
 
   // check if it exists
   SymKey* existkey = Store.Find(key->GetDigest64());
+
   // if it exists we remove it add it with the new validity time
   // if it exists we remove it add it with the new validity time
   if (existkey) {
@@ -478,7 +475,7 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
   }
 
   Store.Add(key->GetDigest64(), key,
-	    invalidity ? (invalidity + EOSCOMMONSYMKEYS_DELETIONOFFSET) : 0);
+            invalidity ? (invalidity + EOSCOMMONSYMKEYS_DELETIONOFFSET) : 0);
   // point the current key to last added
   currentKey = key;
   Mutex.UnLock();
@@ -511,7 +508,7 @@ SymKeyStore::GetCurrentKey()
   if (currentKey) {
     if (currentKey->IsValid()) {
       return currentKey;
-  }
+    }
   }
 
   return 0;

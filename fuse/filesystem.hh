@@ -77,8 +77,7 @@ public:
 
   filesystem();
 
-  virtual
-  ~filesystem();
+  virtual ~filesystem();
 
   typedef std::vector<unsigned long long> dirlist;
 
@@ -213,14 +212,14 @@ public:
     out += name;
   }
 
-//----------------------------------------------------------------------------
-//! Store an inode/mtime pair
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Store an inode/mtime pair
+  //----------------------------------------------------------------------------
   void store_i2mtime(unsigned long long inode, timespec ts);
 
-//----------------------------------------------------------------------------
-//! Store and test inode/mtime pair
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Store and test inode/mtime pair
+  //----------------------------------------------------------------------------
   bool store_open_i2mtime(unsigned long long inode);
 
   inline void
@@ -781,10 +780,13 @@ public:
   {
     return inline_repair;
   }
+
   uint64_t getMaxInlineRepairSize() const
   {
     return max_inline_repair_size;
   }
+
+  pthread_t tCacheCleanup;
 
 private:
   uint64_t pid_max;

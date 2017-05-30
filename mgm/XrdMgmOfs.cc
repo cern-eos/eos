@@ -206,6 +206,7 @@ XrdMgmOfs::newFile(char* user, int MonID)
 //------------------------------------------------------------------------------
 #include "XrdMgmOfs/Access.cc"
 #include "XrdMgmOfs/Attr.cc"
+#include "XrdMgmOfs/Auth.cc"
 #include "XrdMgmOfs/Chksum.cc"
 #include "XrdMgmOfs/Chmod.cc"
 #include "XrdMgmOfs/Chown.cc"
@@ -232,7 +233,6 @@ XrdMgmOfs::newFile(char* user, int MonID)
 #include "XrdMgmOfs/Touch.cc"
 #include "XrdMgmOfs/Utimes.cc"
 #include "XrdMgmOfs/Version.cc"
-#include "XrdMgmOfs/Auth.cc"
 
 //------------------------------------------------------------------------------
 // Test for stall rule

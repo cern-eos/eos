@@ -747,11 +747,11 @@ void ChangeLogFileMDSvc::initialize()
     pChangeLog->mmap();
     pFollowStart = pChangeLog->scanAllRecords(&scanner);
     pFirstFreeId = scanner.getLargestId() + 1;
-#if __GNUC_PREREQ(4,8)
     time_t start_time = time(0);
-    std::atomic_ulong cnt(0);
     time_t now = start_time;
     uint64_t end = pIdMap.size();
+#if __GNUC_PREREQ(4,8)
+    std::atomic_ulong cnt(0);
     int nthread = std::thread::hardware_concurrency();
 
     if (pIdMap.size() / nthread && getenv("EOS_NS_BOOT_PARALLEL")) {

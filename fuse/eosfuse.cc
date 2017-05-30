@@ -314,6 +314,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       fuse_session_destroy(se);
     }
 
+    XrdSysThread::Cancel(me.fs().tCacheCleanup);
+    XrdSysThread::Join(me.fs().tCacheCleanup, NULL);
     fuse_unmount(local_mount_dir, ch);
   }
 
