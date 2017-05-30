@@ -4976,7 +4976,6 @@ filesystem::init(int argc, char* argv[], void* userdata,
   // Get parameters about strong authentication
   link_pidmap = getenv_boolean_flag("EOS_FUSE_PIDMAP", false);
   eos_static_notice("krb5=%d", credConfig.use_user_krb5cc ? 1 : 0);
-  pthread_t tid;
   eos_static_notice("starting filesystem");
 
   if ((XrdSysThread::Run(&tCacheCleanup, filesystem::CacheCleanup,
