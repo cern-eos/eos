@@ -625,7 +625,7 @@ XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
     return do_encoding;
   }
 
-  eos_info("comp_hmac=%s comp_size=%i, recv_hmac=%s, recv_size=%i key=%s",
+  eos_debug("comp_hmac=%s comp_size=%i, recv_hmac=%s, recv_size=%i key=%s",
            base64hmac.c_str(), base64hmac.length(), recv_hmac.c_str(), recv_hmac.length(), key.c_str());
 
   if (((size_t)base64hmac.length() != recv_hmac.length()) ||
