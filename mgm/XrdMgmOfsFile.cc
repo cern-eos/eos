@@ -1409,6 +1409,8 @@ XrdMgmOfsFile::open (const char *inpath,
 				       open_mode & SFS_O_TRUNC,
 				       forcedGroup,
 				       bookingsize);
+
+      eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d", path, retc);
       isRecreation = true;
     }
 
