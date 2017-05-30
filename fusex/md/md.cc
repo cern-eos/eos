@@ -417,64 +417,6 @@ metad::load_from_kv(fuse_ino_t ino)
 }
 
 /* -------------------------------------------------------------------------- */
-void
-/* -------------------------------------------------------------------------- */
-metad::load_mapping_from_kv(fuse_ino_t ino)
-/* -------------------------------------------------------------------------- */
-{
-  // mdmap is locked when this is called !
-  eos_static_debug("ino=%08lx", ino);
-  std::string mdstream;
-  shared_md md = std::make_shared<mdx>();
-  if (!kv::Instance().get(ino, mdstream))
-  {
-    if (!md->ParseFromString(mdstream))
-    {
-      eos_static_err("msg=\"GPB parsing failed\" inode=%08lx", ino);
-    }
-    else
-    {
-      eos_static_debug("msg=\"GPB parsed inode\" inode=%08lx", ino);
-    }
-
-    if (md->md_ino() && ino)
-    {
-      inomap.insert(md->md_ino(), ino);
-    }
-
-    eos_static_info("MD:\n%s", dump_md(md).c_str());
-
-    eos_static_debug("children=%d nchildren=%d", md->children().size(), md->nchildren());
-    for (auto it = md->children().begin(); it != md->children().end(); ++it)
-    {
-      eos_static_info("adding child %s ino=%08lx", it->first.c_str(), it->second);
-
-      shared_md cmd = std::make_shared<mdx>();
-      if (!kv::Instance().get(it->second, mdstream))
-      {
-        if (!cmd->ParseFromString(mdstream))
-        {
-          eos_static_err("msg=\"GPB parsing failed\" inode=%08lx", it->second);
-        }
-        else
-        {
-          eos_static_debug("msg=\"GPB parsed inode\" inode=%08lx", it->second);
-        }
-        if (cmd->md_ino() && ino)
-        {
-          inomap.insert(cmd->md_ino(), it->second);
-        }
-      }
-    }
-  }
-  else
-  {
-    eos_static_debug("msg=\"no entry in kv store\" inode=%08lx", ino);
-  }
-  return;
-}
-
-/* -------------------------------------------------------------------------- */
 bool
 /* -------------------------------------------------------------------------- */
 metad::map_children_to_local(shared_md pmd)
@@ -542,7 +484,7 @@ metad::get(fuse_req_t req,
       // first we attach to an existing record
       // -----------------------------------------------------------------------
       md = mdmap[ino];
-      eos_static_info("MD:\n%s", dump_md(md).c_str());
+      eos_static_debug("MD:\n%s", dump_md(md).c_str());
     }
     else
     {
@@ -1486,6 +1428,12 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
             md = mdmap[ino];
             mdexist = true;
           }
+          else
+          {
+            md = std::make_shared<mdx>();
+            mdmap[ino] = md;
+            mdexist = true;
+          }
         }
         if (mdexist)
         {
@@ -1495,7 +1443,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
               md->Locker().Lock();
             }
             else
-            {
+            { 
               md->Locker().Lock();
               pmd = md;
             }
@@ -1748,6 +1696,8 @@ metad::mdcflush()
                 {
                   inomap.insert(md->md_ino(), md->id());
                 }
+                md->setop_none();
+                
                 md->Signal();
                 eos_static_info("metacache::flush backend::putMD - stop");
               }
@@ -1968,12 +1918,24 @@ metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
   //fprintf(stderr, "inserting %llx => %llx\n", a, b);
 
   XrdSysMutexHelper mLock(mMutex);
+
+  if (fwd_map.count(a) && fwd_map[a] == b)
+    return;
+
   if (bwd_map.count(b))
   {
     fwd_map.erase(bwd_map[b]);
   }
   fwd_map[a]=b;
   bwd_map[b]=a;
+
+  uint64_t a64 = a;
+  uint64_t b64 = b;
+  if (a != 1 && kv::Instance().put(a64, b64, "l"))
+  {
+    throw std::runtime_error("REDIS backend failure - nextinode");
+  }
+
 
   //eos_static_info("%s", dump().c_str());
 
@@ -2050,7 +2012,25 @@ fuse_ino_t
 metad::vmap::forward(fuse_ino_t lookup)
 {
   XrdSysMutexHelper mLock(mMutex);
-  return fwd_map[lookup];
+
+  fuse_ino_t ino = fwd_map[lookup];
+  
+  if (!ino)
+  {
+    uint64_t a64=lookup;
+    uint64_t b64;
+    if (kv::Instance().get(a64, b64, "l"))
+    {
+      return ino;
+    }
+    else
+    {
+      fwd_map[a64]=b64;
+      bwd_map[b64]=a64;
+      ino = b64;
+    }
+  }
+  return ino;
 }
 
 /* -------------------------------------------------------------------------- */

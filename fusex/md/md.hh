@@ -203,6 +203,17 @@ public:
     {
       mSync.Signal();
     }
+    
+    std::string Cookie() 
+    {
+      char s[256];
+      snprintf(s, sizeof(s), "%16lx:%lu.%lu:%lu", (unsigned long)id(), 
+               (unsigned long) mtime(), 
+               (unsigned long) mtime_ns(), 
+               (unsigned long) size());
+      return s;
+    }
+    
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
@@ -329,7 +340,6 @@ public:
   void init(backend* _mdbackend);
 
   shared_md load_from_kv(fuse_ino_t ino);
-  void load_mapping_from_kv(fuse_ino_t ino);
   
   bool map_children_to_local(shared_md md);
 
