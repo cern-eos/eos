@@ -25,13 +25,13 @@
 #include "journalcache.hh"
 
 #include "common/Path.hh"
-
+#include "common/Logging.hh"
 #include <algorithm>
 #include <iostream>
 
 std::string journalcache::sLocation;
 bufferllmanager journalcache::sBufferManager;
-size_t journalcache::sMaxSize = 10 * 1024 * 1024; // TODO Some dummy default
+size_t journalcache::sMaxSize = 1024 * 1024 * 1024 * 1024ll; // TODO Some dummy default
 
 journalcache::journalcache() : ino( 0 ), cachesize( 0 ), fd( -1 ), nbAttached( 0 )
 {
@@ -77,45 +77,45 @@ int journalcache::read_journal()
   ssize_t entrySize = 0;
 
 
-  while( true )
+  while ( true )
   {
     bytesRead = ::pread( fd, buffer, bufsize, totalBytesRead );
-    if( bytesRead <= 0 ) break;
+    if ( bytesRead <= 0 ) break;
     pos = 0;
 
     do
     {
-      if( entrySize == 0 )
+      if ( entrySize == 0 )
       {
-        header_t *header = reinterpret_cast<header_t*>( buffer + pos );
+        header_t *header = reinterpret_cast<header_t*> ( buffer + pos );
         journal.insert( header->offset, header->offset + header->size, totalBytesRead + pos );
         entrySize = header->size;
-        pos += sizeof( header_t );
+        pos += sizeof ( header_t );
       }
       size_t shift = entrySize > bytesRead - pos ? bytesRead - pos : entrySize;
       pos += shift;
       entrySize -= shift;
     }
-    while( pos < bytesRead );
+    while ( pos < bytesRead );
 
     totalBytesRead += bytesRead;
   }
 
-  if( bytesRead < 0 ) return errno;
+  if ( bytesRead < 0 ) return errno;
 
   return totalBytesRead;
 }
 
-int journalcache::attach()
+int journalcache::attach(std::string& cookie)
 {
   XrdSysMutexHelper lck( mtx );
   if (nbAttached == 0)
   {
     std::string path;
     int rc = location( path );
-    if( rc ) return rc;
+    if ( rc ) return rc;
     fd = open( path.c_str(), O_CREAT | O_RDWR, S_IRWXU );
-    if( fd < 0 )
+    if ( fd < 0 )
       return errno;
     cachesize = read_journal();
   }
@@ -123,11 +123,11 @@ int journalcache::attach()
   return 0;
 }
 
-int journalcache::detach()
+int journalcache::detach(std::string& cookie)
 {
   XrdSysMutexHelper lck( mtx );
   nbAttached--;
-  if( !nbAttached )
+  if ( !nbAttached )
   {
     int rc = close(fd);
     if (rc)
@@ -153,27 +153,27 @@ ssize_t journalcache::pread( void *buf, size_t count, off_t offset )
   auto result = journal.query( offset, offset + count );
 
   // there is not a single interval that overlaps
-  if( result.empty() ) return 0;
+  if ( result.empty() ) return 0;
 
-  char *buffer = reinterpret_cast<char*>( buf );
+  char *buffer = reinterpret_cast<char*> ( buf );
   uint64_t off = offset;
   uint64_t bytesRead = 0;
-  for( auto &itr : result )
+  for ( auto &itr : result )
   {
-    if( itr->low <= off && off < itr->high )
+    if ( itr->low <= off && off < itr->high )
     {
       // read from cache
-      uint64_t cacheoff = itr->value + sizeof( header_t ) + ( off - itr->low );
+      uint64_t cacheoff = itr->value + sizeof ( header_t ) + ( off - itr->low );
       int64_t intervalsize = itr->high - off;
       int64_t bytesLeft = count - bytesRead;
       int64_t bufsize = intervalsize < bytesLeft ? intervalsize : bytesLeft;
       ssize_t ret = ::pread( fd, buffer, bufsize, cacheoff );
-      if( ret < 0 )
+      if ( ret < 0 )
         return -1;
       bytesRead += ret;
       off += ret;
       buffer += ret;
-      if( bytesRead >= count )
+      if ( bytesRead >= count )
         break;
     }
   }
@@ -202,9 +202,9 @@ void journalcache::process_intersection( interval_tree<uint64_t, const void*> &t
 {
   auto result = to_write.query( itr->low, itr->high );
 
-  if( result.empty() ) return;
+  if ( result.empty() ) return;
 
-  if( result.size() > 1 ) throw std::logic_error( "journalcache: overlapping journal entries" );
+  if ( result.size() > 1 ) throw std::logic_error( "journalcache: overlapping journal entries" );
 
   const interval_tree<uint64_t, const void*>::iterator to_wrt = *result.begin();
 
@@ -216,7 +216,7 @@ void journalcache::process_intersection( interval_tree<uint64_t, const void*> &t
   update_t update;
   update.offset = offset_for_update( itr->value, low - itr->low );
   update.size   = high - low;
-  update.buff   = static_cast<const char*>( to_wrt->value ) + ( low - to_wrt->low );
+  update.buff   = static_cast<const char*> ( to_wrt->value ) + ( low - to_wrt->low );
   updates.push_back( update );
 
   // update the 'to write' intervals
@@ -227,17 +227,17 @@ void journalcache::process_intersection( interval_tree<uint64_t, const void*> &t
   to_write.erase( wrtlow, wrthigh );
   // the intersection overlaps with the given
   // interval so there is nothing more to do
-  if( low == wrtlow && high == wrthigh )
+  if ( low == wrtlow && high == wrthigh )
     return;
 
-  if( high < wrthigh )
+  if ( high < wrthigh )
   {
     // the remaining right-hand-side interval
-    const char* buff = static_cast<const char*>( wrtbuff ) + ( high - wrtlow );
+    const char* buff = static_cast<const char*> ( wrtbuff ) + ( high - wrtlow );
     to_write.insert( high, wrthigh, buff );
   }
 
-  if( low > wrtlow )
+  if ( low > wrtlow )
   {
     // the remaining left-hand-side interval
     to_write.insert( wrtlow,  low,  wrtbuff );
@@ -249,10 +249,10 @@ int journalcache::update_cache( std::vector<update_t> &updates )
   // make sure we are updating the cache in ascending order
   std::sort( updates.begin(), updates.end() );
   int rc = 0;
-  for( auto &u : updates )
+  for ( auto &u : updates )
   {
     rc = ::pwrite( fd, u.buff, u.size, u.offset ); // TODO is it safe to assume it will write it all
-    if( rc <= 0 )
+    if ( rc <= 0 )
       return errno;
   }
   return 0;
@@ -260,11 +260,11 @@ int journalcache::update_cache( std::vector<update_t> &updates )
 
 ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
 {
-  if( count <= 0 ) return 0;
+  if ( count <= 0 ) return 0;
 
   write_lock lck( clck );
 
-  while( sMaxSize <= cachesize )
+  while ( sMaxSize <= cachesize )
     clck.write_wait();
 
   interval_tree<uint64_t, const void*> to_write;
@@ -273,17 +273,17 @@ ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
   to_write.insert( offset, offset + count, buf );
 
   auto res = journal.query( offset, offset + count );
-  for( auto itr : res )
+  for ( auto itr : res )
   {
     process_intersection( to_write, itr, updates );
   }
 
   int rc = update_cache( updates );
-  if( rc )
+  if ( rc )
     return -1;
 
   interval_tree<uint64_t, const void*>::iterator itr;
-  for( itr = to_write.begin(); itr != to_write.end(); ++itr ) // TODO this could be replaced with a single pwritev
+  for ( itr = to_write.begin(); itr != to_write.end(); ++itr ) // TODO this could be replaced with a single pwritev
   {
     uint64_t size   = itr->high - itr->low;
 
@@ -293,16 +293,16 @@ ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
 
     iovec iov[2];
     iov[0].iov_base = &header;
-    iov[0].iov_len  = sizeof( header_t );
-    iov[1].iov_base = const_cast<void*>( itr->value );
+    iov[0].iov_len  = sizeof ( header_t );
+    iov[1].iov_base = const_cast<void*> ( itr->value );
     iov[1].iov_len  = size;
 
     rc = ::pwritev( fd, iov, 2, cachesize ); // TODO is it safe to assume it will write it all
-    if( rc <= 0 )
+    if ( rc <= 0 )
       return -1;
 
     journal.insert( itr->low, itr->high, cachesize );
-    cachesize += sizeof( header_t ) + size;
+    cachesize += sizeof ( header_t ) + size;
   }
 
   return count;
@@ -310,9 +310,14 @@ ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
 
 int journalcache::truncate(off_t offset)
 {
-  // TODO I don't really think this should be
-  // truncated manually
-  return ::ftruncate( fd, offset );
+  int rc = 0;
+  write_lock lck( clck );
+  if (offset == 0)
+  {
+    rc = ::ftruncate( fd, offset );
+    journal.clear();
+  }
+  return rc;
 }
 
 int journalcache::sync()
@@ -328,18 +333,24 @@ size_t journalcache::size()
 int journalcache::init()
 {
   cachehandler::cacheconfig config = cachehandler::instance().get_config();
-  if( ::access( config.location.c_str(), W_OK ) )
+  if ( ::access( config.location.c_str(), W_OK ) )
   {
     return errno;
   }
-  sLocation = config.location;
+  sLocation = config.journal;
+
+  if (config.per_file_journal_max_size)
+  {
+    journalcache::sMaxSize = config.per_file_journal_max_size;
+  }
+  eos_static_info("journalcache location %s", sLocation.c_str());
   return 0;
 }
 
 int journalcache::remote_sync( cachesyncer & syncer )
 {
   write_lock lck( clck );
-  int ret = syncer.sync( fd, journal, sizeof( header_t ) );
+  int ret = syncer.sync( fd, journal, sizeof ( header_t ) );
   journal.clear();
   truncate( 0 );
   clck.broadcast();

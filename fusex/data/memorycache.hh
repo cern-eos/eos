@@ -42,8 +42,8 @@ public:
   virtual ~memorycache();
 
   // base class interface
-  virtual int attach();
-  virtual int detach();
+  virtual int attach(std::string& cookie);
+  virtual int detach(std::string& cookie);
   virtual int unlink();
 
   virtual ssize_t pread(void *buf, size_t count, off_t offset);
@@ -57,8 +57,12 @@ public:
 
   virtual size_t size();
 
-private:
+  virtual int set_attr(std::string& key, std::string& value);
+  virtual int attr(std::string key, std::string& value);
 
+private:
+  XrdSysMutex xattrmtx;
+  std::map<std::string, std::string> xattr;
   fuse_ino_t ino;
 } ;
 

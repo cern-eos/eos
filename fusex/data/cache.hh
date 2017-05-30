@@ -51,8 +51,8 @@ public:
   }
 
   // base class interface
-  virtual int attach() = 0;
-  virtual int detach() = 0;
+  virtual int attach(std::string& cookie) = 0;
+  virtual int detach(std::string& cookie) = 0;
   virtual int unlink() = 0;
 
   virtual ssize_t pread(void *buf, size_t count, off_t offset) = 0;
@@ -65,6 +65,20 @@ public:
   virtual int sync() = 0;
 
   virtual size_t size() = 0;
+
+  virtual int set_attr(std::string& key, std::string& value) = 0;
+  virtual int attr(std::string key, std::string& value) = 0;
+
+  virtual int set_cookie(std::string cookie)
+  {
+    std::string ecc = "eos.cache.cookie";
+    return set_attr(ecc , cookie);
+  }
+
+  virtual int cookie(std::string& acookie)
+  {
+    return attr("eos.cache.cookie", acookie);
+  }
 
   class io
   {

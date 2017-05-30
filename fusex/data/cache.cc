@@ -25,6 +25,7 @@
 #include "cache.hh"
 #include "diskcache.hh"
 #include "memorycache.hh"
+#include "journalcache.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
@@ -46,7 +47,16 @@ cachehandler::init(cachehandler::cacheconfig & _config)
     if (diskcache::init())
     {
 
-      fprintf(stderr, "error: cache/journal directory %s or %s cannot be initiazlied - check existance/permissions!\n",
+      fprintf(stderr, "error: cache directory %s or %s cannot be initiazlied - check existance/permissions!\n",
+              config.location.c_str(), config.journal.c_str());
+      return EPERM;
+    }
+  }
+  if (config.journal.length())
+  {
+    if (journalcache::init())
+    {
+      fprintf(stderr, "error: journal directory %s or %s cannot be initiazlied - check existance/permissions!\n",
               config.location.c_str(), config.journal.c_str());
       return EPERM;
     }
@@ -145,8 +155,13 @@ cachehandler::get(fuse_ino_t ino)
       entry->set_file ( new diskcache (ino) );
     }
     
+    if (instance().journaled())
+    {
+      entry->set_journal ( new journalcache(ino) );
+    }
+    
     (instance())[ino] =  entry;
-    return entry;
+    return entry; 
   }
   else
   {

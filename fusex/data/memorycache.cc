@@ -26,6 +26,10 @@
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include <unistd.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <attr/xattr.h>
+
 
 /* -------------------------------------------------------------------------- */
 memorycache::memorycache() : ino(0)
@@ -51,7 +55,7 @@ memorycache::~memorycache()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-memorycache::attach()
+memorycache::attach(std::string& cookie)
 /* -------------------------------------------------------------------------- */
 {
   return 0;
@@ -60,7 +64,7 @@ memorycache::attach()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-memorycache::detach()
+memorycache::detach(std::string& cookie)
 /* -------------------------------------------------------------------------- */
 {
   return 0;
@@ -131,4 +135,32 @@ size_t
 memorycache::size()
 {
   return getSize();
+}
+
+/* -------------------------------------------------------------------------- */
+int 
+/* -------------------------------------------------------------------------- */
+memorycache::set_attr(std::string& key, std::string& value)
+{
+  XrdSysMutexHelper lLock(xattrmtx);
+  
+  xattr[key] = value;
+  return 0;
+}
+  
+/* -------------------------------------------------------------------------- */
+int 
+/* -------------------------------------------------------------------------- */
+memorycache::attr(std::string key, std::string& value)
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysMutexHelper lLock(xattrmtx);
+  
+  if (xattr.count(key))
+  {
+    value = xattr[key];
+    return 0;
+  }
+  errno = ENOATTR;
+  return -1;
 }

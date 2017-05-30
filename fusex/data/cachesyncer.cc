@@ -71,7 +71,7 @@ int cachesyncer::sync( int fd, interval_tree<uint64_t, uint64_t> &journal, size_
       return -1;
     }
 
-    if( bytesRead < size )
+    if( bytesRead < (int)size )
     {
       // TODO handle error
     }

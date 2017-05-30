@@ -52,7 +52,7 @@ public:
   {
   public:
 
-    datax()
+    datax() : mIno(0), mReq(0), mFile(0), mSize(0)
     {
     }
 
@@ -81,12 +81,12 @@ public:
     fuse_req_t req () const
     {
       return mReq;
-
     }
 
     void flush();
-    int attach();
-    int detach();
+    int attach(std::string& cookie);
+    int detach(std::string& cookie);
+    int store_cookie(std::string& cookie);
     int unlink();
 
     // IO bridge interface
@@ -97,12 +97,14 @@ public:
     int truncate(off_t offset);
     int sync();
     size_t size();
+    int cache_invalidate();
 
   private:
     XrdSysMutex mLock;
     uint64_t mIno;
     fuse_req_t mReq;
     cache::shared_io mFile;
+    off_t mSize;
   } ;
 
   typedef std::shared_ptr<datax> shared_data;

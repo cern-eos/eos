@@ -29,7 +29,7 @@
 #include <sys/types.h>
 #include "llfusexx.hh"
 #include "bufferll.hh"
-#include "journalcache.hh"
+#include "cache.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <map>
 #include <string>
@@ -43,8 +43,8 @@ public:
   virtual ~diskcache();
 
   // base class interface
-  virtual int attach();
-  virtual int detach();
+  virtual int attach(std::string& cookie);
+  virtual int detach(std::string& cookie);
   virtual int unlink();
 
   virtual ssize_t pread(void *buf, size_t count, off_t offset);
@@ -58,6 +58,9 @@ public:
 
   virtual size_t size();
 
+  virtual int set_attr(std::string& key, std::string& value);
+  virtual int attr(std::string key, std::string& value);  
+ 
   static int init();
 
   int location(std::string &path, bool mkpath=true);
@@ -68,14 +71,12 @@ private:
   size_t nattached;
   int fd;
 
-  journalcache* journal;
-
   bufferllmanager::shared_buffer buffer;
 
   static std::string sLocation;
-  static std::string sJournal;
 
   static bufferllmanager sBufferManager;
+  static off_t sMaxSize;
 };
 
 #endif /* FUSE_JOURNALCACHE_HH_ */

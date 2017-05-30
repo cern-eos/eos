@@ -37,77 +37,81 @@
 
 class journalcache : public cache
 {
-    struct header_t
+
+  struct header_t
+  {
+    uint64_t offset;
+    uint64_t size;
+  } ;
+
+  struct update_t
+  {
+    off_t  offset;
+    size_t size;
+    const void  *buff;
+
+    bool operator<( const update_t &u ) const
     {
-        uint64_t offset;
-        uint64_t size;
-    };
-
-    struct update_t
-    {
-        off_t  offset;
-        size_t size;
-        const void  *buff;
-
-        bool operator<( const update_t &u ) const
-        {
-          return offset < u.offset;
-        }
-    };
-
-  public:
-
-    journalcache();
-    journalcache( fuse_ino_t _ino );
-    virtual ~journalcache();
-
-    // base class interface
-    virtual int attach();
-    virtual int detach();
-    virtual int unlink();
-
-    virtual ssize_t pread( void *buf, size_t count, off_t offset );
-    virtual ssize_t peek_read( char* &buf, size_t count, off_t offset );
-    virtual void release_read();
-
-    virtual ssize_t pwrite( const void *buf, size_t count, off_t offset );
-
-    virtual int truncate( off_t );
-    virtual int sync();
-
-    virtual size_t size();
-
-    virtual int remote_sync( cachesyncer &syncer );
-
-    static int init();
-
-  private:
-
-    void process_intersection( interval_tree<uint64_t, const void*> &write, interval_tree<uint64_t, uint64_t>::iterator acr, std::vector<update_t> &updates );
-
-    int location( std::string &path, bool mkpath=true );
-
-    static uint64_t offset_for_update( uint64_t offset, uint64_t shift )
-    {
-      return offset + sizeof( header_t ) + shift;
+      return offset < u.offset;
     }
+  } ;
 
-    int update_cache( std::vector<update_t> &updates );
+public:
 
-    int read_journal();
+  journalcache();
+  journalcache( fuse_ino_t _ino );
+  virtual ~journalcache();
 
-    fuse_ino_t                        ino;
-    size_t                            cachesize;
-    int                               fd;
-    // the value is the offset in the cache file
-    interval_tree<uint64_t, uint64_t> journal;
-    size_t                            nbAttached;
-    cachelock                         clck;
-    XrdSysMutex                       mtx;
-    bufferllmanager::shared_buffer    buffer;
-    static bufferllmanager            sBufferManager;
-    static std::string                sLocation;
-    static size_t                     sMaxSize;
-};
+  // base class interface
+  virtual int attach(std::string& cookie);
+  virtual int detach(std::string& cookie);
+  virtual int unlink();
+
+  virtual ssize_t pread( void *buf, size_t count, off_t offset );
+  virtual ssize_t peek_read( char* &buf, size_t count, off_t offset );
+  virtual void release_read();
+
+  virtual ssize_t pwrite( const void *buf, size_t count, off_t offset );
+
+  virtual int truncate( off_t );
+  virtual int sync();
+
+  virtual size_t size();
+
+  virtual int set_attr(std::string& key, std::string& value) {return 0;}
+  virtual int attr(std::string key, std::string& value) {return 0;}
+
+  virtual int remote_sync( cachesyncer &syncer );
+
+  static int init();
+
+private:
+
+  void process_intersection( interval_tree<uint64_t, const void*> &write, interval_tree<uint64_t, uint64_t>::iterator acr, std::vector<update_t> &updates );
+
+  int location( std::string &path, bool mkpath=true );
+
+  static uint64_t offset_for_update( uint64_t offset, uint64_t shift )
+  {
+    return offset + sizeof ( header_t ) + shift;
+  }
+
+  int update_cache( std::vector<update_t> &updates );
+
+  int read_journal();
+
+  fuse_ino_t                        ino;
+  size_t                            cachesize;
+  int                               fd;
+  // the value is the offset in the cache file
+  interval_tree<uint64_t, uint64_t> journal;
+  size_t                            nbAttached;
+  cachelock                         clck;
+  XrdSysMutex                       mtx;
+  bufferllmanager::shared_buffer    buffer;
+  static bufferllmanager            sBufferManager;
+  static std::string                sLocation;
+  static size_t                     sMaxSize;
+} ;
 
 #endif /* FUSEX_JOURNALCACHE_HH_ */

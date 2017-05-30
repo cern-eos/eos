@@ -27,10 +27,12 @@
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include <unistd.h>
+#include <sys/types.h>
+#include <attr/xattr.h>
 
 std::string diskcache::sLocation;
-std::string diskcache::sJournal;
 bufferllmanager diskcache::sBufferManager;
+off_t diskcache::sMaxSize = 1024 * 1024ll;
 
 /* -------------------------------------------------------------------------- */
 int
@@ -45,15 +47,13 @@ diskcache::init()
     return errno;
   }
 
-  if (config.journal.length())
-  {
-    if (::access(config.journal.c_str(), W_OK))
-    {
-      return errno;
-    }
-  }
   sLocation = config.location;
-  sJournal = config.journal;
+
+  if (config.per_file_cache_max_size)
+  {
+    diskcache::sMaxSize = config.per_file_cache_max_size;
+  }
+
   return 0;
 }
 
@@ -104,7 +104,7 @@ diskcache::location(std::string& path, bool mkpath)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::attach()
+diskcache::attach(std::string& acookie)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper lLock(this);
@@ -124,6 +124,21 @@ diskcache::attach()
     {
       return errno;
     }
+
+    std::string ccookie;
+    if (!cookie(ccookie) || (ccookie!=""))
+    {
+      // compare if the cookies are identical, otherwise we truncate to 0
+      if (ccookie != acookie)
+      {
+        if (truncate(0))
+        {
+          char msg[1024];
+          snprintf(msg, sizeof (msg), "failed to truncate to invalidate cache file - ino=%08lx", ino);
+          throw std::runtime_error(msg);
+        }
+      }
+    }
   }
   nattached++;
   return 0;
@@ -132,7 +147,7 @@ diskcache::attach()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::detach()
+diskcache::detach(std::string& cookie)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper lLock(this);
@@ -166,6 +181,16 @@ ssize_t
 diskcache::pread(void *buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
+  // restrict to our local max size cache size
+  if ( offset >= sMaxSize )
+  {
+    return 0;
+  }
+
+  if ( (off_t) (offset + count) > sMaxSize )
+  {
+    count = sMaxSize - offset;
+  }
   return ::pread(fd, buf, count, offset);
 }
 
@@ -176,6 +201,19 @@ diskcache::peek_read(char* &buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
   this->Lock();
+  buffer = sBufferManager.get_buffer();
+
+  // restrict to our local max size cache size
+  if ( (off_t) offset >= sMaxSize )
+  {
+    return 0;
+  }
+
+  if ( (off_t) (offset + count) > sMaxSize )
+  {
+    count = sMaxSize - offset;
+  }
+
   buffer = sBufferManager.get_buffer();
   if (count > buffer->capacity())
     buffer->reserve(count);
@@ -201,6 +239,15 @@ ssize_t
 diskcache::pwrite(const void *buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
+  if ( (off_t) offset >= sMaxSize )
+  {
+    return 0;
+  }
+
+  if ( (off_t) (offset + count) > sMaxSize )
+  {
+    count = sMaxSize - offset;
+  }
   return ::pwrite(fd, buf, count, offset);
 }
 
@@ -210,6 +257,11 @@ int
 diskcache::truncate(off_t offset)
 /* -------------------------------------------------------------------------- */
 {
+  if ( offset >= sMaxSize )
+  {
+    return 0;
+  }
+
   return ::ftruncate(fd, offset);
 }
 
@@ -236,3 +288,41 @@ diskcache::size()
   }
   return buf.st_size;
 }
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+diskcache::set_attr(std::string& key, std::string& value)
+/* -------------------------------------------------------------------------- */
+{
+  if (fd > 0)
+  {
+    return fsetxattr(fd, key.c_str(), value.c_str(), value.size(), 0);
+  }
+  return -1;
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+diskcache::attr(std::string key, std::string& value)
+/* -------------------------------------------------------------------------- */
+{
+  if (fd > 0)
+  {
+    value.resize(4096);
+    size_t n = fgetxattr(fd, key.c_str(), (void*) value.c_str(), value.size());
+    if (n >= 0)
+    {
+      value.resize(n);
+      return 0;
+    }
+    else
+    {
+      value.resize(0);
+      return -1;
+    }
+  }
+  return -1;
+}
+
