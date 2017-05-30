@@ -7,6 +7,10 @@
 Beryl Release Notes
 ===================
 
+``V0.3.247 Aquamarine``
+=====================
+- MGM: fix recycle bin restore function to forbid to recycle files by fxid/pxid which are not in the recycle bin. Allow to explicitly restore a file or directory (they might overlap in the inode space) by prefixing the key with fxid: or pxid:
+
 
 ``V0.3.246 Aquamarine``
 =====================
