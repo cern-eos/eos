@@ -819,33 +819,61 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
     return EINVAL;
   }
 
-  unsigned long long fid = strtoull(key, 0, 16);
+  XrdOucString skey = key;
+  bool force_file = false;
+  bool force_directory = false;
+
+  if (skey.beginswith("fxid:")) {
+    skey.erase(0, 5);
+    force_file = true;
+  }
+
+  if (skey.beginswith("pxid:")) {
+    skey.erase(0, 5);
+    force_directory = true;
+  }
+
+  unsigned long long fid = strtoull(skey.c_str(), 0, 16);
   // convert the hex inode number into decimal and retrieve path name
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> cmd;
   std::string recyclepath;
   XrdOucString repath;
-  //-------------------------------------------
+  XrdOucString rprefix = Recycle::gRecyclingPrefix.c_str();
+  rprefix += "/";
+  rprefix += (int) vid.uid;
+  rprefix += "/";
+  rprefix += (int) vid.gid;
+
+  while (rprefix.replace("//", "/")) {}
+
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-    try {
-      fmd = gOFS->eosFileService->getFileMD(fid);
-      recyclepath = gOFS->eosView->getUri(fmd.get());
-      repath = recyclepath.c_str();
-    } catch (eos::MDException& e) {
+    if (!force_directory) {
+      try {
+        fmd = gOFS->eosFileService->getFileMD(fid);
+        recyclepath = gOFS->eosView->getUri(fmd.get());
+        repath = recyclepath.c_str();
+
+        if (!repath.beginswith(rprefix.c_str())) {
+          stdErr = "error: this is not a file in your recycle bin - try to prefix the key with pxid:<key>\n";
+          return EPERM;
+        }
+      } catch (eos::MDException& e) {}
     }
 
-    if ((!fmd) ||
-        (!repath.beginswith(Recycle::gRecyclingPrefix.c_str()))) {
-      // if the recycling ID does not point to a file in the recycle bin
-      // try if it points to a directory in the recycling bin
+    if (!force_file && !fmd) {
       try {
         cmd = gOFS->eosDirectoryService->getContainerMD(fid);
         recyclepath = gOFS->eosView->getUri(cmd.get());
         repath = recyclepath.c_str();
-      } catch (eos::MDException& e) {
-      }
+
+        if (!repath.beginswith(rprefix.c_str())) {
+          stdErr = "error: this is not a directory in your recycle bin\n";
+          return EPERM;
+        }
+      } catch (eos::MDException& e) {}
     }
 
     if (!recyclepath.length()) {
@@ -854,6 +882,7 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
       return ENOENT;
     }
   }
+
   // reconstruct original file name
   eos::common::Path cPath(recyclepath.c_str());
   XrdOucString originalpath = cPath.GetName();
@@ -905,7 +934,8 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
   if (!gOFS->_stat(oPath.GetPath(), &buf, lError, rootvid, "")) {
     if ((option.find("--force-original-name") == STR_NPOS) &&
         (option.find("-f") == STR_NPOS)) {
-      stdErr += "error: the original path is already existing - use '--force-original-name' or '-f' to put the deleted file/tree back and rename the file/tree in place to <name>.<inode>\n";
+      stdErr += "error: the original path is already existing - use '--force-original-name' "
+                "or '-f' to put the deleted file/tree back and rename the file/tree in place to <name>.<inode>\n";
       return EEXIST;
     } else {
       std::string newold = oPath.GetPath();
