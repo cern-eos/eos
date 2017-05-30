@@ -8,7 +8,7 @@ Beryl Release Notes
 ===================
 
 
-``V0.3.245 Aquamarine``
+``V0.3.246 Aquamarine``
 =====================
 - FUSE: fix shutdown crash by properly canceling/joining the cache cleaner thread
 - NS: fix gcc 4.4. compilation problem
