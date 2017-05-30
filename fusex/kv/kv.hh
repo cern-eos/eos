@@ -57,9 +57,13 @@ public:
 
   int erase(std::string &key);
 
-  int get(uint64_t key, std::string &value);
-  int put(uint64_t key, std::string &value);
-  int erase(uint64_t key);
+  int get(uint64_t key, std::string &value, std::string name_space="i");
+  int put(uint64_t key, std::string &value, std::string name_space="i");
+  
+  int get(uint64_t key, uint64_t &value, std::string name_space="i");
+  int put(uint64_t key, uint64_t &value, std::string name_space="i");
+  
+  int erase(uint64_t key, std::string name_space="i");
 
   static kv* sKV;
 

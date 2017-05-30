@@ -207,13 +207,34 @@ kv::erase(std::string &key)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-kv::get(uint64_t key, std::string &value)
+kv::get(uint64_t key, std::string &value, std::string name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
   char buffer[128];
   longstring::unsigned_to_decimal (key, buffer);
   std::string sbuf(buffer);
+  if (name_space.length())
+  {
+    sbuf = name_space + ":" + sbuf;
+  }  
+  return get(sbuf, value);
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+kv::get(uint64_t key, uint64_t &value, std::string name_space)
+/* -------------------------------------------------------------------------- */
+{
+  eos_static_info("key=%lld", (unsigned long long) key);
+  char buffer[128];
+  longstring::unsigned_to_decimal (key, buffer);
+  std::string sbuf(buffer);
+  if (name_space.length())
+  {
+    sbuf = name_space + ":" + sbuf;
+  }  
   return get(sbuf, value);
 }
 
@@ -247,28 +268,52 @@ kv::put(std::string &key, uint64_t &value)
 
 int
 /* -------------------------------------------------------------------------- */
-kv::put(uint64_t key, std::string &value)
+kv::put(uint64_t key, std::string &value, std::string name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
   char buffer[128];
   longstring::unsigned_to_decimal (key, buffer);
   std::string sbuf(buffer);
-
+  if (name_space.length())
+  {
+    sbuf = name_space + ":" + sbuf;
+  }    
   eos_static_info("key=%s", sbuf.c_str());
   return put(sbuf, value);
 }
 
 int
 /* -------------------------------------------------------------------------- */
-kv::erase(uint64_t key)
+kv::put(uint64_t key, uint64_t &value, std::string name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
   char buffer[128];
   longstring::unsigned_to_decimal (key, buffer);
   std::string sbuf(buffer);
+  if (name_space.length())
+  {
+    sbuf = name_space + ":" + sbuf;
+  }    
+  eos_static_info("key=%s", sbuf.c_str());
+  return put(sbuf, value);
+}
 
+
+int
+/* -------------------------------------------------------------------------- */
+kv::erase(uint64_t key, std::string name_space)
+/* -------------------------------------------------------------------------- */
+{
+  eos_static_info("key=%lld", (unsigned long long) key);
+  char buffer[128];
+  longstring::unsigned_to_decimal (key, buffer);
+  std::string sbuf(buffer);
+if (name_space.length())
+  {
+    sbuf = name_space + ":" + sbuf;
+  }  
   eos_static_info("key=%s", sbuf.c_str());
   return erase(sbuf);
 }
