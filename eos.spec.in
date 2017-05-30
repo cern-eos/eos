@@ -165,6 +165,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libEosAuthProto.so
 %{_libdir}/libEosAuthProto.so.0
 %{_libdir}/libEosAuthProto.so.%{version}
+%{_libdir}/libXrdEosAuth.so
 %{_libdir}/libXrdEosFst.so
 %{_libdir}/libEosFstOss.so
 %{_libdir}/libXrdEosMgm.so
