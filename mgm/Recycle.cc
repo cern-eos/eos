@@ -850,7 +850,26 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
     return EINVAL;
   }
 
-  unsigned long long fid = strtoull(key, 0, 16);
+
+  XrdOucString skey = key;
+
+  bool force_file=false;
+  bool force_directory=false;
+
+
+  if (skey.beginswith("fxid:"))
+  {
+    skey.erase(0,5);
+    force_file = true;
+  }
+
+  if (skey.beginswith("pxid:"))
+  {
+    skey.erase(0,5);
+    force_directory = true;
+  }
+
+  unsigned long long fid = strtoull(skey.c_str(), 0, 16);
 
   //...........................................................................
   // convert the hex inode number into decimal and retrieve path name
@@ -860,34 +879,55 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
   std::string recyclepath;
   XrdOucString repath;
 
+  XrdOucString rprefix = Recycle::gRecyclingPrefix.c_str();
+
+  rprefix += "/";
+  rprefix += (int) vid.uid;
+  rprefix += "/";
+  rprefix += (int) vid.gid;
+
+  while (rprefix.replace("//","/")){}
+
   //-------------------------------------------
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    try
-    {
-      fmd = gOFS->eosFileService->getFileMD(fid);
-      recyclepath = gOFS->eosView->getUri(fmd);
-      repath = recyclepath.c_str();
-    }
-    catch (eos::MDException &e)
-    {
-    }
 
-    if ((!fmd) ||
-        (!repath.beginswith(Recycle::gRecyclingPrefix.c_str())))
+    if (!force_directory)
     {
-      // if the recycling ID does not point to a file in the recycle bin
-      // try if it points to a directory in the recycling bin
       try
       {
-        cmd = gOFS->eosDirectoryService->getContainerMD(fid);
-        recyclepath = gOFS->eosView->getUri(cmd);
-        repath = recyclepath.c_str();
+	fmd = gOFS->eosFileService->getFileMD(fid);
+	recyclepath = gOFS->eosView->getUri(fmd);
+	repath = recyclepath.c_str();
+	if (!repath.beginswith(rprefix.c_str()))
+	{
+	  stdErr = "error: this is not a file in your recycle bin - try to prefix the key with pxid:<key>\n";
+	  return EPERM;
+	}
       }
       catch (eos::MDException &e)
       {
       }
     }
+    
+    if (!force_file && !fmd)
+    {
+      try
+      {
+        cmd = gOFS->eosDirectoryService->getContainerMD(fid);
+        recyclepath = gOFS->eosView->getUri(cmd);
+        repath = recyclepath.c_str();
+	if (!repath.beginswith(rprefix.c_str()))
+	{
+	  stdErr = "error: this is not a directory in your recycle bin\n";
+	  return EPERM;
+	}
+      }
+      catch (eos::MDException &e)
+      {
+      }
+    }
+
     if (!recyclepath.length())
     {
       stdErr = "error: cannot find object referenced by recycle-key=";
