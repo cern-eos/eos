@@ -794,8 +794,6 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
 {
   std::vector<std::string> formattoken;
   bool buildheader = false;
-  std::string conditionkey = "";
-  std::string conditionval = "";
   XrdMqStringConversion::Tokenize(format, formattoken, "|");
   Row row;
   table_mq_data.push_back(row);
@@ -808,14 +806,7 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
     for (unsigned int j = 0; j < tagtoken.size(); ++j) {
       std::vector<std::string> keyval;
       XrdMqStringConversion::Tokenize(tagtoken[j], keyval, "=");
-
-      // TODO (ivan): The conditional filtering is not working any longer.
-      if (keyval.size() == 3) {
-        conditionkey = keyval[1];
-        conditionval = keyval[2];
-      } else {
-        formattags[keyval[0]] = keyval[1];
-      }
+      formattags[keyval[0]] = keyval[1];
     }
 
     if (formattags.count("header") == 1) {
@@ -865,9 +856,6 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
       }
 
       if ((format.find("o") != std::string::npos) && formattags.count("key")) {
-        buildheader = false; // auto disable header
-        // TODO (ivan): When printing in monitoring output, we need to encode
-        // spaces using %20
         table_mq_header.push_back(std::make_tuple(formattags["key"], 10, format));
       }
     }

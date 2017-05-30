@@ -34,14 +34,16 @@ TableFormatterBase::TableFormatterBase()
 //------------------------------------------------------------------------------
 // Generate table
 //------------------------------------------------------------------------------
-std::string TableFormatterBase::GenerateTable(int style)
+std::string TableFormatterBase::GenerateTable(TableFormatterStyle style,
+    const TableString& selections)
 {
   Style(style);
+  bool body_exist = false;
 
   // Generate monitoring information in line (option "-m")
   if (!mHeader.empty() &&
       std::get<2>(mHeader[0]).find("o") != std::string::npos) {
-    GenerateMonitoring();
+    body_exist = GenerateMonitoring();
   }
 
   // Generate classic table (with/without second table)
@@ -49,33 +51,40 @@ std::string TableFormatterBase::GenerateTable(int style)
       std::get<2>(mHeader[0]).find("o") == std::string::npos) {
     WidthCorrection();
     GenerateHeader();
-    GenerateBody();
+    body_exist = GenerateBody(selections);
   }
 
   // Generate string (e.g.second table)
   if (mHeader.empty()) {
-    GenerateBody();
+    body_exist = GenerateBody();
   }
 
-  return mSink.str();
+  if (body_exist) {
+    return mSink.str();
+  } else {
+    return "";
+  }
 }
 
 //------------------------------------------------------------------------------
 // Generate monitoring output
 //------------------------------------------------------------------------------
-void TableFormatterBase::GenerateMonitoring()
+bool TableFormatterBase::GenerateMonitoring()
 {
+  bool body_exist = false;
+
   for (auto& row : mData) {
     if (!row.empty()) {
       for (size_t i = 0, size = mHeader.size(); i < size; ++i) {
-        mSink << std::get<0>(mHeader[i]) << "=";
-        row[i].Print(mSink);
-        mSink << " ";
+        mSink << std::get<0>(mHeader[i]) << "=" << row[i] << " ";
+        body_exist = true;
       }
 
       mSink << "\n";
     }
   }
+
+  return body_exist;
 }
 
 //------------------------------------------------------------------------------
@@ -146,24 +155,39 @@ void TableFormatterBase::GenerateHeader()
 //------------------------------------------------------------------------------
 // Generate table body
 //------------------------------------------------------------------------------
-void TableFormatterBase::GenerateBody()
+bool TableFormatterBase::GenerateBody(const TableString& selections)
 {
   size_t row_size = 0;
   size_t string_size = 0;
+  bool body_exist = false;
+  bool row_exist = true;  //true because alone string
+  bool string_exist = false;
 
   for (auto& row : mData) {
     if (row.empty()) {
       // Generate string
-      if (!mString[string_size].empty()) {
-        // Bottom edge for last table
-        if (row_size > 0 && !mData[row_size - 1].empty())
-          mSink << GenerateSeparator(mBorderBody[3], mBorderBody[4],
-                                     mBorderBody[5], mBorderBody[6])
-                << std::endl;
+      if (!mString[string_size].empty() && row_exist) {
+        if (!mHeader.empty()) {
+          if (row_size > 0 && !mData[row_size - 1].empty()) {
+            // Bottom edge of table, before string
+            mSink << GenerateSeparator(mBorderBody[3], mBorderBody[4],
+                                       mBorderBody[5], mBorderBody[6])
+                  << std::endl;
+            mSink << mString[string_size];
+            body_exist = true;
+            string_exist = true;
+          }
+        }
+        // If we have only string, without table
+        else {
+          mSink << mString[string_size];
+          body_exist = true;
+          string_exist = true;
+        }
+      }
 
-        mSink << mString[string_size];
-      } else {
-        // Generate separator
+      // Generate separator
+      if (body_exist && !string_exist && selections.empty()) {
         mSink << GenerateSeparator(mBorderSep[0], mBorderSep[1],
                                    mBorderSep[2], mBorderSep[3])
               << std::endl;
@@ -172,46 +196,69 @@ void TableFormatterBase::GenerateBody()
       string_size++;
     }
 
-    //Generate rows
+    // Generate rows
     if (!row.empty() && !mHeader.empty()) {
-      if (row_size > 0 && mData[row_size - 1].empty() &&
-          string_size > 0 && !mString[string_size - 1].empty()) {
-        GenerateHeader();
-      }
+      std::stringstream mSink_temp;
 
       for (size_t i = 0, size = mHeader.size(); i < size; ++i) {
         // Left edge
         if (i == 0) {
-          mSink << mBorderBody[0];
+          mSink_temp << mBorderBody[0];
         }
 
         // Generate cell
+        size_t cellspace_width = std::get<1>(mHeader[i]) - row[i].Length();
+
         if (std::get<2>(mHeader[i]).find("-") == std::string::npos) {
-          row[i].Print(mSink, std::get<1>(mHeader[i]) - row[i].Length());
+          row[i].Print(mSink_temp, cellspace_width, 0);
         } else {
-          row[i].Print(mSink, 0, std::get<1>(mHeader[i]) - row[i].Length() +
-                       mBorderBody[1].length());
+          row[i].Print(mSink_temp, 0, cellspace_width + mBorderBody[1].length());
         }
 
         // Right edge of cell
         if (i < size - 1) {
-          mSink << mBorderBody[1];
+          mSink_temp << mBorderBody[1];
         }
       }
 
       // Right edge of row
-      mSink << mBorderBody[2] << std::endl;
+      mSink_temp << mBorderBody[2] << std::endl;
+      // Filter
+      size_t filter_count = 0;
+
+      for (size_t i = 0, size = selections.size(); i < size; ++i)
+        if (mSink_temp.str().find(selections[i]) != std::string::npos) {
+          filter_count++;
+        }
+
+      if (filter_count == selections.size()) {
+        // Generate header if string exist before
+        if (row_size > 0 && mData[row_size - 1].empty() &&
+            string_size > 0 && !mString[string_size - 1].empty() && row_exist) {
+          GenerateHeader();
+        }
+
+        // Generate row
+        mSink << mSink_temp.str();
+        body_exist = true;
+        row_exist = true;
+        string_exist = false;
+      } else {
+        row_exist = false;
+      }
     }
 
     row_size++;
   }
 
   // Bottom edge
-  if (!mHeader.empty() && !mData[mData.size() - 1].empty()) {
+  if (!mHeader.empty() && !string_exist) {
     mSink << GenerateSeparator(mBorderBody[3], mBorderBody[4],
                                mBorderBody[5], mBorderBody[6])
           << std::endl;
   }
+
+  return body_exist;
 }
 
 //------------------------------------------------------------------------------
@@ -271,14 +318,12 @@ void TableFormatterBase::AddString(std::string string)
 
 //------------------------------------------------------------------------------
 // Set table style
-// TODO (ivan): Add style as an enum for easier use in the code when calling
-//              GenerateTAble.
 //------------------------------------------------------------------------------
-void TableFormatterBase::Style(int style)
+void TableFormatterBase::Style(TableFormatterStyle style)
 {
   switch (style) {
-  //DEFAULT
-  case 0: { //Full normal border ("│","┌","┬","┐","├","┼","┤","└","┴","┘","─")
+  // Full normal border [Default] ("│","┌","┬","┐","├","┼","┤","└","┴","┘","─")
+  case FULL: {
     std::string head [11] = {"┌", "┬", "┐", "─",
                              "│", "│", "│",
                              "├", "┴", "┤", "─"
@@ -293,7 +338,8 @@ void TableFormatterBase::Style(int style)
     break;
   }
 
-  case 1: { //Full bold border ("┃","┏","┳","┓","┣","╋","┫","┗","┻","┛","━")
+  // Full bold border ("┃","┏","┳","┓","┣","╋","┫","┗","┻","┛","━")
+  case FULLBOLD: {
     std::string head [11] = {"┏", "┳", "┓", "━",
                              "┃", "┃", "┃",
                              "┣", "┻", "┫", "━"
@@ -308,7 +354,8 @@ void TableFormatterBase::Style(int style)
     break;
   }
 
-  case 2: { //Full double border ("║","╔","╦","╗","╠","╬","╣","╚","╩","╝","═")
+  // Full double border ("║","╔","╦","╗","╠","╬","╣","╚","╩","╝","═")
+  case FULLDOUBLE: {
     std::string head [11] = {"╔", "╦", "╗", "═",
                              "║", "║", "║",
                              "╠", "╩", "╣", "═"
@@ -323,7 +370,8 @@ void TableFormatterBase::Style(int style)
     break;
   }
 
-  case 3: { //Header normal border ("│","┌","┬","┐","├","┼","┤","└","┴","┘","─")
+  // Header normal border ("│","┌","┬","┐","├","┼","┤","└","┴","┘","─")
+  case HEADER: {
     std::string head [11] = {"┌", "┬", "┐", "─",
                              "│", "│", "│",
                              "└", "┴", "┘", "─"
@@ -336,7 +384,8 @@ void TableFormatterBase::Style(int style)
     break;
   }
 
-  case 4: { //Header bold border ("┃","┏","┳","┓","┣","╋","┫","┗","┻","┛","━")
+  // Header bold border ("┃","┏","┳","┓","┣","╋","┫","┗","┻","┛","━")
+  case HEADERBOLD: {
     std::string head [11] = {"┏", "┳", "┓", "━",
                              "┃", "┃", "┃",
                              "┗", "┻", "┛", "━"
@@ -349,7 +398,8 @@ void TableFormatterBase::Style(int style)
     break;
   }
 
-  case 5: { //Header double border ("║","╔","╦","╗","╠","╬","╣","╚","╩","╝","═")
+  // Header double border ("║","╔","╦","╗","╠","╬","╣","╚","╩","╝","═")
+  case HEADERDOUBLE: {
     std::string head [11] = {"╔", "╦", "╗", "═",
                              "║", "║", "║",
                              "╚", "╩", "╝", "═"
@@ -362,7 +412,8 @@ void TableFormatterBase::Style(int style)
     break;
   }
 
-  case 6: { //Minimal style
+  // Minimal style
+  case MINIMAL: {
     std::string head [11] = {" ", "  ", " ", "-",
                              " ", "  ", " ",
                              " ", "  ", " ", "-"
@@ -375,7 +426,8 @@ void TableFormatterBase::Style(int style)
     break;
   }
 
-  case 7: { // Old style
+  // Old style
+  case OLD: {
     std::string head [11] = {"#-", "--", "-", "-",
                              "# ", "# ", "#",
                              "#-", "--", "-", "-"
@@ -388,7 +440,8 @@ void TableFormatterBase::Style(int style)
     break;
   }
 
-  case 8: { // Old style - wide
+  // Old style - wide
+  case OLDWIDE: {
     std::string head [11] = {"#-", "---", "--", "-",
                              "# ", " # ", " #",
                              "#-", "---", "--", "-"

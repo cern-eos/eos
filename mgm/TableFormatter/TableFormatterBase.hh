@@ -64,7 +64,8 @@ public:
   //!
   //! @return string representation of the table
   //----------------------------------------------------------------------------
-  std::string GenerateTable(int style = 0);
+  std::string GenerateTable(TableFormatterStyle style = FULL,
+                            const TableString& selections = TableString());
 
 protected:
   std::stringstream mSink;
@@ -76,12 +77,12 @@ protected:
   //! Set table style. This will set the border, separator and body border
   //! string to be used when generating the table.
   //----------------------------------------------------------------------------
-  void Style(int style);
+  void Style(TableFormatterStyle style);
 
   //----------------------------------------------------------------------------
   //! Generate monitoring output
   //----------------------------------------------------------------------------
-  void GenerateMonitoring();
+  bool GenerateMonitoring();
 
   //----------------------------------------------------------------------------
   //! Generate table header
@@ -91,7 +92,7 @@ protected:
   //----------------------------------------------------------------------------
   //! Generate table body
   //----------------------------------------------------------------------------
-  void GenerateBody();
+  bool GenerateBody(const TableString& selections = TableString());
 
   //----------------------------------------------------------------------------
   //! Generate separator

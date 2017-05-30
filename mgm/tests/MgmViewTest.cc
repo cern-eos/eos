@@ -112,39 +112,19 @@ int main()
   // test the print function
   std::string output = "";
   std::string format1 =
-    "header=1:member=type:width=20:format=-s|sep=   |member=name:width=20:format=-s|sep=   |avg=stat.geotag:width=32:format=s|sep=   |sum=statfs.blocks:width=20:format=-l|sep=   |avg=statfs.blocks:width=20:format=-f |sep=   |sig=statfs.blocks:width=20:format=-f";
+    "header=1:member=type:width=20:format=-s|member=name:width=20:format=-s|avg=stat.geotag:width=32:format=s|sum=statfs.blocks:width=20:format=-l|avg=statfs.blocks:width=20:format=-f |sig=statfs.blocks:width=20:format=-f";
   std::string format2 =
-    "header=1:member=type:width=20:format=+s|sep=   |member=name:width=20:format=+s|sep=   |avg=stat.geotag:width=32:format=s|sep=   |sum=statfs.blocks:width=20:format=+l:unit=B|sep=   |avg=statfs.blocks:width=20:format=+f:unit=B|sep=   |sig=statfs.blocks:width=20:format=+f:unit=B";
+    "header=1:member=type:width=20:format=+s|member=name:width=20:format=+s|avg=stat.geotag:width=32:format=s|sum=statfs.blocks:width=20:format=+l:unit=B|avg=statfs.blocks:width=20:format=+f:unit=B|sig=statfs.blocks:width=20:format=+f:unit=B";
   std::string format3 =
-    "header=1:member=type:width=1:format=os|sep=&|member=name:width=1:format=os|sep=&|avg=stat.geotag:width=1:format=os|sep=&|sum=statfs.blocks:width=1:format=ol|sep=&|avg=statfs.blocks:width=1:format=ol|sep=&|sig=statfs.blocks:width=1:format=ol";
+    "header=1:member=type:width=1:format=os|member=name:width=1:format=os|avg=stat.geotag:width=1:format=os|sum=statfs.blocks:width=1:format=ol|avg=statfs.blocks:width=1:format=ol|sig=statfs.blocks:width=1:format=ol";
   std::string listformat1 =
-    "header=1:key=queuepath:width=30:format=s|sep=   |key=schedgroup:width=10:format=s|sep=   |key=blocks:width=10:format=l|sep=   |key=statfs.wopen:width=10:format=l|sep= |key=stat.geotag:width=16:format=s";
+    "header=1:key=queuepath:width=30:format=s|key=schedgroup:width=10:format=s|key=blocks:width=10:format=l|key=statfs.wopen:width=10:format=l|key=stat.geotag:width=16:format=s";
   std::string listformat2 =
-    "key=queuepath:width=2:format=os|sep=&|key=schedgroup:width=1:format=os|sep=&|key=blocks:width=1:format=os|sep=&|key=statfs.wopen:width=1:format=os";
+    "key=queuepath:width=2:format=os|key=schedgroup:width=1:format=os|key=blocks:width=1:format=os|key=statfs.wopen:width=1:format=os";
   output += "[ next test ]\n";
-  std::vector<std::string> selections;
   TableFormatterBase table1;
-  bool table1_header_exist = false;
-  TableHeader table1_header;
-  TableData table1_data;
-  TableHeader table1_mq_header;
-  TableData table1_mq_data;
-  FsView::gFsView.mSpaceView["default"]->Print(table1_header, table1_data,
-      table1_mq_header, table1_mq_data,
-      format1, "", 2, selections);
-
-  if (!table1_header_exist && !table1_mq_header.empty()) {
-    table1.SetHeader(table1_header);
-    table1_header.clear();
-    table1_header_exist = true;
-  }
-
-  if (table1_header_exist) {
-    table1.AddRows(table1_mq_data);
-    table1_data.clear();
-  }
-
-  output += table1.GenerateTable().c_str();
+  FsView::gFsView.mSpaceView["default"]->Print(table1, format1, "", 2);
+  output += table1.GenerateTable(HEADER).c_str();
   output += "[ next test ]\n";
   FsView::gFsView.PrintSpaces(output, format1, "", 2);
   output += "[ next test ]\n";
@@ -153,27 +133,8 @@ int main()
   FsView::gFsView.PrintNodes(output, format1, "", 2);
   output += "[ next test ]\n";
   TableFormatterBase table2;
-  bool table2_header_exist = false;
-  TableHeader table2_header;
-  TableData table2_data;
-  TableHeader table2_mq_header;
-  TableData table2_mq_data;
-  FsView::gFsView.mSpaceView["default"]->Print(table2_header, table2_data,
-      table2_mq_header, table2_mq_data,
-      format2, "", 2, selections);
-
-  if (!table2_header_exist && !table2_mq_header.empty()) {
-    table2.SetHeader(table2_header);
-    table2_header.clear();
-    table2_header_exist = true;
-  }
-
-  if (table2_header_exist) {
-    table2.AddRows(table2_mq_data);
-    table2_data.clear();
-  }
-
-  output += table2.GenerateTable().c_str();
+  FsView::gFsView.mSpaceView["default"]->Print(table2, format2, "", 2);
+  output += table2.GenerateTable(HEADER).c_str();
   output += "[ next test ]\n";
   FsView::gFsView.PrintSpaces(output, format2, "", 2);
   output += "[ next test ]\n";

@@ -343,7 +343,21 @@ void TableCell::SetValue(double value)
 void TableCell::SetValue(std::string& value)
 {
   if (mSelectedValue == TypeContainingValue::STRING) {
-    mStrValue = value;
+    // " " -> "%20" is for monitoring output
+    if (mFormat.find("o") != std::string::npos) {
+      std::string search = " ";
+      std::string replace = "%20";
+      size_t pos = 0;
+
+      while ((pos = value.find(search, pos)) != std::string::npos) {
+        value.replace(pos, search.length(), replace);
+        pos += replace.length();
+      }
+
+      mStrValue = value;
+    } else {
+      mStrValue = value;
+    }
   }
 }
 
@@ -402,8 +416,13 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
 
   ostream << *sColorVector.begin();
 
+  // Unit
   if (!mUnit.empty()) {
-    ostream << " " << mUnit;
+    if (mFormat.find("o") != std::string::npos) {
+      ostream << "%20" << mUnit;
+    } else {
+      ostream << " " << mUnit;
+    }
   }
 
   // Right space after cellValue
@@ -428,6 +447,7 @@ size_t TableCell::Length()
 {
   size_t ret = 0;
 
+  // Value length
   if (mSelectedValue == TypeContainingValue::UINT) {
     // Get length of unsigned integer value
     unsigned long long int temp = m_ullValue;
@@ -439,10 +459,6 @@ size_t TableCell::Length()
     while (temp != 0) {
       ++ret;
       temp /= 10;
-    }
-
-    if (!mUnit.empty()) {
-      ret += mUnit.length() + 1;
     }
   } else   if (mSelectedValue == TypeContainingValue::INT) {
     // Get length of integer value
@@ -456,24 +472,21 @@ size_t TableCell::Length()
       ++ret;
       temp /= 10;
     }
-
-    if (!mUnit.empty()) {
-      ret += mUnit.length() + 1;
-    }
   } else if (mSelectedValue == TypeContainingValue::DOUBLE) {
     // Get length of double value
     std::stringstream temp;
     temp << std::setprecision(2) << std::fixed << mDoubleValue;
     ret = temp.str().length() ;
-
-    if (!mUnit.empty()) {
-      ret += mUnit.length() + 1;
-    }
   } else if (mSelectedValue == TypeContainingValue::STRING) {
     // Get length of string
     ret = mStrValue.length();
+  }
 
-    if (!mUnit.empty()) {
+  // Unit length
+  if (!mUnit.empty()) {
+    if (mFormat.find("o") != std::string::npos) {
+      ret += mUnit.length() + 3;
+    } else {
       ret += mUnit.length() + 1;
     }
   }

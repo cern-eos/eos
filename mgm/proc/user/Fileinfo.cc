@@ -527,10 +527,10 @@ ProcCommand::FileInfo(const char* path)
             if (filesystem) {
               if (!Monitoring) {
                 std::string format =
-                  "header=1|key=host:width=24:format=s|sep= |sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|sep= |key=stat.geotag:width=24:format=s";
+                  "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format=s|key=path:width=16:format=s|key=stat.boot:width=10:format=s|key=configstatus:width=14:format=s|key=stat.drain:width=12:format=s|key=stat.active:width=8:format=s|key=stat.geotag:width=24:format=s";
 
                 if ((option.find("-proxy")) != STR_NPOS) {
-                  format += "|sep= |key=proxygroup:width=24:format=s";
+                  format += "|key=proxygroup:width=24:format=s";
                 }
 
                 filesystem->Print(table_mq_header, table_mq_data, format);

@@ -321,19 +321,13 @@ public:
   //----------------------------------------------------------------------------
   //! Print the view contents
   //!
-  //! @param table_header table header info
-  //! @param table_data table data info
-  //! @param table_mq_header table header coming from mq object
-  //! @param table_mq_data table data coming from mq object
-  //! @param headerformat header format string
-  //! @param listformat data format string
+  //! @param table table info
+  //! @param table_format format for table from MGM side
+  //! @param table_mq_format format for table from MQ side
   //! @param outdepth ouput depth for geoscheduling
-  //! @param selections output filtering
   //----------------------------------------------------------------------------
-  void Print(TableHeader& table_header, TableData& table_data,
-             TableHeader& table_mq_header, TableData& table_mq_data,
-             std::string headerformat, std::string listformat,
-             unsigned outdepth, std::vector<std::string>& selections);
+  void Print(TableFormatterBase& table, std::string table_format,
+             std::string table_mq_format, unsigned outdepth);
 
   //----------------------------------------------------------------------------
   //! Return a member variable in the view

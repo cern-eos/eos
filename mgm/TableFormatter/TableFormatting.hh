@@ -28,12 +28,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <unordered_map>
 #include <vector>
-#include <utility>
-#include <exception>
-#include <typeinfo>
-#include <queue>
 #include <tuple>
 
 //! Forward declaration
@@ -50,41 +45,53 @@ using TableString = std::vector<std::string>;
 
 enum TableFormatterColor {
   //Normal display
-  DEFAULT     =  0,
-  RED         =  1,
-  GREEN       =  2,
-  YELLOW      =  3,
-  BLUE        =  4,
-  MARGARITA   =  5,
-  CYAN        =  6,
-  WHITE       =  7,
+  DEFAULT      =  0,
+  RED          =  1,
+  GREEN        =  2,
+  YELLOW       =  3,
+  BLUE         =  4,
+  MARGARITA    =  5,
+  CYAN         =  6,
+  WHITE        =  7,
   //Bold display (B...)
-  BDEFAULT    =  8,
-  BRED        =  9,
-  BGREEN      = 10,
-  BYELLOW     = 11,
-  BBLUE       = 12,
-  BMARGARITA  = 13,
-  BCYAN       = 14,
-  BWHITE      = 15,
+  BDEFAULT     =  8,
+  BRED         =  9,
+  BGREEN       = 10,
+  BYELLOW      = 11,
+  BBLUE        = 12,
+  BMARGARITA   = 13,
+  BCYAN        = 14,
+  BWHITE       = 15,
   //Normal display with white BackGround (BG...)
-  BGDEFAULT   = 16,
-  BGRED       = 17,
-  BGGREEN     = 18,
-  BGYELLOW    = 19,
-  BGBLUE      = 20,
-  BGMARGARITA = 21,
-  BGCYAN      = 22,
-  BGWHITE     = 23,
+  BGDEFAULT    = 16,
+  BGRED        = 17,
+  BGGREEN      = 18,
+  BGYELLOW     = 19,
+  BGBLUE       = 20,
+  BGMARGARITA  = 21,
+  BGCYAN       = 22,
+  BGWHITE      = 23,
   //Bold display with white BackGround (BBG...)
-  BBGDEFAULT  = 24,
-  BBGRED      = 25,
-  BBGGREEN    = 26,
-  BBGYELLOW   = 27,
-  BBGBLUE     = 28,
+  BBGDEFAULT   = 24,
+  BBGRED       = 25,
+  BBGGREEN     = 26,
+  BBGYELLOW    = 27,
+  BBGBLUE      = 28,
   BBGMARGARITA = 29,
-  BBGCYAN     = 30,
-  BBGWHITE    = 31
+  BBGCYAN      = 30,
+  BBGWHITE     = 31
+};
+
+enum TableFormatterStyle {
+  FULL         = 0,
+  FULLBOLD     = 1,
+  FULLDOUBLE   = 2,
+  HEADER       = 3,
+  HEADERBOLD   = 4,
+  HEADERDOUBLE = 5,
+  MINIMAL      = 6,
+  OLD          = 7,
+  OLDWIDE      = 8
 };
 
 //------------------------------------------------------------------------------
