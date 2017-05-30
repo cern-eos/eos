@@ -841,9 +841,9 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
   XrdOucString repath;
   XrdOucString rprefix = Recycle::gRecyclingPrefix.c_str();
   rprefix += "/";
-  rprefix += (int) vid.uid;
-  rprefix += "/";
   rprefix += (int) vid.gid;
+  rprefix += "/";
+  rprefix += (int) vid.uid;
 
   while (rprefix.replace("//", "/")) {}
 
