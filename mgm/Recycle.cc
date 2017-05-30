@@ -882,9 +882,9 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
   XrdOucString rprefix = Recycle::gRecyclingPrefix.c_str();
 
   rprefix += "/";
-  rprefix += (int) vid.uid;
-  rprefix += "/";
   rprefix += (int) vid.gid;
+  rprefix += "/";
+  rprefix += (int) vid.uid;
 
   while (rprefix.replace("//","/")){}
 
@@ -902,6 +902,8 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
 	if (!repath.beginswith(rprefix.c_str()))
 	{
 	  stdErr = "error: this is not a file in your recycle bin - try to prefix the key with pxid:<key>\n";
+	  stdErr += rprefix.c_str();
+
 	  return EPERM;
 	}
       }
