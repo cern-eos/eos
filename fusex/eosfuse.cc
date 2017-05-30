@@ -1852,7 +1852,9 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       // attach a datapool object
       fi->fh = (uint64_t) io;
 
-      io->ioctx()->attach();
+      std::string cookie=md->Cookie();
+      
+      io->ioctx()->attach(cookie);
 
       fi->keep_cache = 0;
       fi->direct_io = 0;
@@ -2067,7 +2069,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         // attach a datapool object
         fi->fh = (uint64_t) io;
 
-        io->ioctx()->attach();
+        std::string cookie=md->Cookie();
+        io->ioctx()->attach(cookie);
       }
       eos_static_info("%s", md->dump(e).c_str());
     }
@@ -2211,7 +2214,8 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   {
 
     data::data_fh* io = (data::data_fh*) fi->fh;
-    io->ioctx()->detach();
+    std::string cookie="";
+    io->ioctx()->detach(cookie);
     delete io;
 
   }

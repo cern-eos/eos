@@ -45,7 +45,9 @@ class JournalCacheTest : public CppUnit::TestCase
       journalcache::init();
       cachehandler::instance().init( old_config );
       journalcache jc;
-      uint64_t rc = jc.attach();
+      std::string cookie="";
+     
+      uint64_t rc = jc.attach(cookie);
       CPPUNIT_ASSERT( !rc );
 
       for( auto offset : offsets )
@@ -70,10 +72,10 @@ class JournalCacheTest : public CppUnit::TestCase
         std::copy( str.begin(), str.end(), input.begin() + offset );
       }
 
-      rc = jc.detach();
+      rc = jc.detach(cookie);
       CPPUNIT_ASSERT( !rc );
 
-      rc = jc.attach();
+      rc = jc.attach(cookie);
       CPPUNIT_ASSERT( !rc );
 
       for( int i = 0; i < 100; ++i )
