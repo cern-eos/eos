@@ -145,6 +145,7 @@ Requires: jemalloc
 Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
+Requires: sysvinit-tools
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
 BuildRequires: zeromq3, zeromq3-devel
 %else
@@ -287,6 +288,7 @@ Group: Applications/File
 
 Requires: xrootd-client >= %{xrootd_version}
 Requires: protobuf >= 3.2
+Requires: sysvinit-tools
 
 %description -n eos-client
 The EOS shell client.
@@ -314,6 +316,7 @@ Summary: The EOS fuse client with init.d and mount script
 Group: Applications/File
 Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
 Requires: eos-fuse-sysv = @CPACK_PACKAGE_VERSION@
+Requires: sysvinit-tools
 
 %description -n eos-fuse
 The EOS fuse client bundle.
