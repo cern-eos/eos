@@ -435,18 +435,15 @@ XrdMgmOfs::AuthWorkerThread()
         error.reset(new XrdOucErrInfo());
         error->setErrInfo(file->error.getErrInfo(), file->error.getErrText());
 
-        if ((ret == SFS_REDIRECT) || (ret == SFS_ERROR))
-        {
+        if (ret == SFS_OK) {
+          XrdSysMutexHelper scope_lock(mMutexFiles);
+          //auto result = mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
+          mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
+        } else {
           // Drop the file object since we redirected to the FST node or if
           // there was an error we will not receive a close so we might as well
           // clean it up now
           delete file;
-        }
-        else
-        {
-          XrdSysMutexHelper scope_lock(mMutexFiles);
-          //auto result = mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
-          mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
         }
       }
     }
@@ -469,8 +466,12 @@ XrdMgmOfs::AuthWorkerThread()
       else
       {
         XrdMgmOfsFile* file = iter->second;
-        file->stat(&buf);
-        ret = SFS_OK;
+        ret = file->stat(&buf);
+
+	if (ret == SFS_ERROR) {
+	  error.reset(new XrdOucErrInfo());
+	  error->setErrInfo(file->error.getErrInfo(), file->error.getErrText());
+	}
       }
 
       resp.set_message(&buf, sizeof(struct stat));
@@ -517,7 +518,13 @@ XrdMgmOfs::AuthWorkerThread()
         ret = file->read((XrdSfsFileOffset)req_proto.fileread().offset(),
                          (char*)resp.mutable_message()->c_str(),
                          (XrdSfsXferSize)req_proto.fileread().length());
-        resp.mutable_message()->resize(ret);
+
+	if (ret == SFS_ERROR) {
+	  error.reset(new XrdOucErrInfo());
+	  error->setErrInfo(file->error.getErrInfo(), file->error.getErrText());
+	} else {
+	  resp.mutable_message()->resize(ret);
+	}
       }
     }
     else if (req_proto.type() == RequestProto_OperationType_FILEWRITE)
@@ -587,13 +594,13 @@ XrdMgmOfs::AuthWorkerThread()
     int reply_size = resp.ByteSize();
     zmq::message_t reply(reply_size);
     google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
-
     resp.SerializeToZeroCopyStream(&aos);
     responder.send(reply, ZMQ_NOBLOCK);
 
     // Free memory
-    if (client)
+    if (client) {
       utils::DeleteXrdSecEntity(client);
+    }
   }
 }
 
