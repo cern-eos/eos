@@ -327,7 +327,7 @@ utils::ComputeHMAC(RequestProto*& req)
     return do_encoding;
   }
 
-  fprintf(stderr,"\nhmace=%s key=%s\n", base64hmac.c_str(), key.c_str());
+  // fprintf(stderr,"\nhmac=%s key=%s\n", base64hmac.c_str(), key.c_str());
   // Update the HMAC value
   req->set_hmac(base64hmac.c_str());
   return true;
