@@ -46,7 +46,7 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("server","localhost:1099"));
   mMapParam.insert(std::make_pair("file_path", "/eos/dev/test/auth/file1MB.dat"));
   mMapParam.insert(std::make_pair("file_size", "1048576")); // 1MB
-  mMapParam.insert(std::make_pair("file_chksum", "eos 71e800f1")); 
+  mMapParam.insert(std::make_pair("file_chksum", "adler32 71e800f1"));
   mMapParam.insert(std::make_pair("file_missing", "/eos/dev/test/auth/file_unknown.dat"));
   mMapParam.insert(std::make_pair("file_rename", "/eos/dev/test/auth/file1MB.dat_rename"));
   mMapParam.insert(std::make_pair("dir_name", "/eos/dev/test/auth/"));

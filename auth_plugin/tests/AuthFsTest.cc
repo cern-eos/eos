@@ -491,7 +491,7 @@ AuthFsTest::ChmodTest()
                       Access::Mode::UR | Access::Mode::UW | Access::Mode::UX |
                       Access::Mode::GR | Access::Mode::GW | Access::Mode::GX |
                       Access::Mode::OR | Access::Mode::OW | Access::Mode::OX);
-  CPPUNIT_ASSERT(status.IsError());
+  CPPUNIT_ASSERT(status.IsOK());
 }
 
 
