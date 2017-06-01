@@ -92,6 +92,40 @@ XrdMgmOfs::StartAuthWorkerThread(void *pp)
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Reconnect zmq::socket object
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::ConnectToBackend(zmq::socket_t*& socket)
+{
+  if (socket) {
+    delete socket;
+    socket = 0;
+  }
+
+  socket  = new zmq::socket_t(*mZmqContext, ZMQ_REP);
+
+  // Try to connect to proxy thread - the bind can take a longer time so threfore
+  // keep trying until it is successful
+  bool connected = false;
+  uint8_t tries = 0;
+
+  while (tries <= 5) {
+    try {
+      socket->connect("inproc://authbackend");
+    } catch (zmq::error_t& err) {
+      eos_debug("auth worker connection failed - retry");
+      tries++;
+      sleep(1);
+      continue;
+    }
+
+    connected = true;
+    break;
+  }
+
+  return connected;
+}
 
 //------------------------------------------------------------------------------
 // Authentication worker thread function - accepts requests from the master,
@@ -103,36 +137,15 @@ XrdMgmOfs::AuthWorkerThread()
   using namespace eos::auth;
   int ret;
   eos_static_info("authentication worker thread starting");
-  zmq::socket_t responder(*mZmqContext, ZMQ_REP);
+  zmq::socket_t* responder = 0;
 
-  // Try to connect to proxy thread - the bind can take a longer time so threfore
-  // keep trying until it is successful
-  bool connected = false;
-  uint8_t tries = 0;
-
-  while (tries <= 5)
+  if (!ConnectToBackend(responder))
   {
-    try
-    {
-      responder.connect("inproc://authbackend");
-    }
-    catch (zmq::error_t& err)
-    {
-      eos_static_debug("auth worker connection failed - retry");
-      tries++;
-      sleep(1);
-      continue;
-    }
-
-    connected = true;
-    break;
-  }
-
-  if (!connected)
-  {
-    eos_static_info("kill thread as we could not connect to backend socket");
+    eos_err("kill thread as we could not connect to backend socket");
     return;
   }
+
+  bool done = false;
 
   // Main loop of the worker thread
   while (1)
@@ -140,7 +153,20 @@ XrdMgmOfs::AuthWorkerThread()
     zmq::message_t request;
 
     // Wait for next request
-    responder.recv(&request);
+    try {
+      do {
+	done = responder->recv(&request);
+      } while (!done);
+    } catch (zmq::error_t& e) {
+      eos_err("socket recv error: %s, trying to reset the socket", e.what());
+
+      if (!ConnectToBackend(responder)) {
+	eos_err("kill thread as we could not connect to backend socket");
+	return;
+      }
+
+      continue;
+    }
 
     // Read in the ProtocolBuffer object just received
     std::string msg_recv((char*)request.data(), request.size());
@@ -354,7 +380,13 @@ XrdMgmOfs::AuthWorkerThread()
 	// Fill in particular info for the directory name
 	XrdMgmOfsDirectory* dir = iter->second;
 	mMutexDirs.UnLock();
-	resp.set_message(dir->FName(), strlen(dir->FName()));
+
+	if (dirFName()) {
+	  resp.set_message(dir->FName(), strlen(dir->FName()));
+	} else {
+	  resp.set_message("");
+	}
+
 	ret = SFS_OK;
       }
     }
@@ -489,7 +521,13 @@ XrdMgmOfs::AuthWorkerThread()
       {
 	XrdMgmOfsFile* file = iter->second;
 	mMutexFiles.UnLock();
-	resp.set_message(file->FName());
+
+	if (file->FName()) {
+	  resp.set_message(file->FName());
+	} else {
+	  resp.set_message("");
+	}
+	
 	ret = SFS_OK;
       }
     }
@@ -571,6 +609,11 @@ XrdMgmOfs::AuthWorkerThread()
       continue;
     }
 
+    // Free memory
+    if (client) {
+      utils::DeleteXrdSecEntity(client);
+    }
+
     // Add error object only if it exists
     if (error.get())
     {
@@ -584,13 +627,29 @@ XrdMgmOfs::AuthWorkerThread()
     zmq::message_t reply(reply_size);
     google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
     resp.SerializeToZeroCopyStream(&aos);
-    responder.send(reply, ZMQ_NOBLOCK);
+    // Try to send out the reply
+    bool reset_socket = false;
+    int num_retries = 40;
 
-    // Free memory
-    if (client) {
-      utils::DeleteXrdSecEntity(client);
+    try {
+      do {
+	done = responder->send(reply, ZMQ_NOBLOCK);
+	num_retries--;
+      } while (!done || (num_retries > 0));
+    } catch (zmq::error_t& e) {
+      eos_err("socket error: %s", e.what());
+      reset_socket = true;
+    }
+
+    if ((num_retries <= 0) || reset_socket) {
+      if (!ConnectToBackend(responder)) {
+	eos_err("kill thread as we could not connect to backend socket");
+	return;
+      }
     }
   }
+
+  delete responder;
 }
 
 

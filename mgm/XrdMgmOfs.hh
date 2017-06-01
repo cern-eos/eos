@@ -914,14 +914,23 @@ public:
   //!
   //! @param pp pointer to the XrdMgmOfs class 
   //!
-  //----------------------------------------------------------------------------                                                                  
+  //----------------------------------------------------------------------------
   static void* StartAuthWorkerThread(void* pp);
 
-  //---------------------------------------------------------------------------- 
+  //----------------------------------------------------------------------------
   //! Authentication worker thread function - accepts requests from the master,
   //! executed the proper action and replies with the result.
-  //----------------------------------------------------------------------------  
+  //----------------------------------------------------------------------------
   void AuthWorkerThread();
+
+  //----------------------------------------------------------------------------
+  //! Reconnect zmq::socket object
+  //!
+  //! @param socket zmq socket
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool ConnectToBackend(zmq::socket_t*& socket);
 
   // ---------------------------------------------------------------------------
   // Signal handler for signal 40 to start profiling the heap
