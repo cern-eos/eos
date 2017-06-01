@@ -636,7 +636,7 @@ XrdMgmOfs::AuthWorkerThread()
       do {
 	done = responder->send(reply, ZMQ_NOBLOCK);
 	num_retries--;
-      } while (!done || (num_retries > 0));
+      } while (!done && (num_retries > 0));
     } catch (zmq::error_t& e) {
       eos_err("socket error: %s", e.what());
       reset_socket = true;

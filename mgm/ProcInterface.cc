@@ -637,7 +637,6 @@ ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
   else
   {
     if (mLen - mOffset <= 0) {
-      eos_err("offset=%llu, memory result buffer lenght=%llu", mOffset, mLen);
       return 0;
     }
 
