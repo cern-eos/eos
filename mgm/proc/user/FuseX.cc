@@ -137,7 +137,7 @@ ProcCommand::FuseX ()
       eos::FileMD* fmd = cmd->findFile(schild.c_str());
       if (fmd)
       {
-        inode = fmd->getId();
+        inode = eos::common::FileId::FidToInode(fmd->getId());
       }
       else
       {

@@ -207,7 +207,7 @@ public:
     std::string Cookie() 
     {
       char s[256];
-      snprintf(s, sizeof(s), "%16lx:%lu.%lu:%lu", (unsigned long)id(), 
+      snprintf(s, sizeof(s), "%lx:%lu.%lu:%lu", (unsigned long)id(), 
                (unsigned long) mtime(), 
                (unsigned long) mtime_ns(), 
                (unsigned long) size());
@@ -373,6 +373,8 @@ public:
 	      bool localstore=false);
 
   void add(shared_md pmd, shared_md md, std::string authid);
+  int add_sync(shared_md pmd, shared_md md, std::string authid);
+  
   void remove(shared_md pmd, shared_md md, std::string authid, bool upstream=true);
   void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
           std::string authid1, std::string authid2);

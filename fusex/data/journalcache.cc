@@ -106,7 +106,7 @@ int journalcache::read_journal()
   return totalBytesRead;
 }
 
-int journalcache::attach(std::string& cookie)
+int journalcache::attach(std::string& cookie, bool isRW)
 {
   XrdSysMutexHelper lck( mtx );
   if (nbAttached == 0)

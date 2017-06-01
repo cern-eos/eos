@@ -2,8 +2,8 @@ syntax = "proto3";
 package eos.fusex;
 
 message md {
-  enum OP { GET = 0; SET = 1; DELETE = 2; GETCAP = 3; LS = 4; GETLK = 5; SETLK = 6; SETLKW = 7; }
-  enum TYPE { MD = 0; MDLS = 1; }
+  enum OP { GET = 0; SET = 1; DELETE = 2; GETCAP = 3; LS = 4; GETLK = 5; SETLK = 6; SETLKW = 7;}
+  enum TYPE { MD = 0; MDLS = 1; EXCL = 2;}
 
   fixed64 id = 1;        //< file/container id
   fixed64 pid = 2;       //< parent id

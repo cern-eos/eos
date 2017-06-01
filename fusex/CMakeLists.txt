@@ -72,6 +72,7 @@ add_executable(
   data/memorycache.cc data/memorycache.hh
   data/journalcache.cc data/journalcache.hh
   data/cachesyncer.cc data/cachesyncer.hh
+  data/xrdclproxy.cc data/xrdclproxy.hh
   backend/backend.cc backend/backend.hh
   ${PROTO_SRC} ${PROTO_HEADER}
 )
@@ -143,6 +144,7 @@ add_executable(
   data/memorycache.cc data/memorycache.hh
   data/journalcache.cc data/journalcache.hh
   data/cachesyncer.cc data/cachesyncer.hh
+  data/xrdclproxy.cc data/xrdclproxy.hh
   backend/backend.cc backend/backend.hh
   ${PROTO_SRC} ${PROTO_HEADER}
   )
@@ -189,6 +191,7 @@ add_library(
   data/memorycache.cc data/memorycache.hh
   data/journalcache.cc data/journalcache.hh
   data/cachesyncer.cc data/cachesyncer.hh
+  data/xrdclproxy.cc data/xrdclproxy.hh
   backend/backend.cc backend/backend.hh
   ${PROTO_SRC} ${PROTO_HEADER}
 )

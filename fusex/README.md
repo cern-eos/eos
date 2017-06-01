@@ -21,6 +21,7 @@ Configuration File
     "foreground" : 1, 
     "kernelcache" : 1,
     "mkdir-is-sync" : 0,
+    "create-is-sync" : 0,
   }
 }
 ```

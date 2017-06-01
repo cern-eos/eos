@@ -31,6 +31,7 @@
 #include "bufferll.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "xrdclproxy.hh"
 #include <map>
 #include <string>
 
@@ -51,7 +52,7 @@ public:
   }
 
   // base class interface
-  virtual int attach(std::string& cookie) = 0;
+  virtual int attach(std::string& cookie, bool isRW) = 0;
   virtual int detach(std::string& cookie) = 0;
   virtual int unlink() = 0;
 
@@ -71,13 +72,13 @@ public:
 
   virtual int set_cookie(std::string cookie)
   {
-    std::string ecc = "eos.cache.cookie";
+    std::string ecc = "user.eos.cache.cookie";
     return set_attr(ecc , cookie);
   }
 
   virtual int cookie(std::string& acookie)
   {
-    return attr("eos.cache.cookie", acookie);
+    return attr("user.eos.cache.cookie", acookie);
   }
 
   class io

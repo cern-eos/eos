@@ -192,6 +192,7 @@ public:
       int foreground;
       int kernelcache;
       int mkdir_is_sync;
+      int create_is_sync;
     } options_t;
     options_t options;
   } cfg_t;

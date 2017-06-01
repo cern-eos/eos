@@ -1450,7 +1450,14 @@ FuseServer::HandleMD(const std::string &id,
 
     set_type op;
     uint64_t md_ino=0;
+    bool exclusive = false;
 
+    if (md.type() == md.EXCL)
+    {
+      exclusive = true;
+    }
+
+    
     if (S_ISDIR(md.mode()))
     {
       eos_static_info("ino=%lx pin=%lx authid=%s set-dir", (long) md.md_ino(),
@@ -1464,6 +1471,11 @@ FuseServer::HandleMD(const std::string &id,
 
       try
       {
+        if (md.md_ino() && exclusive)
+        {
+          return EEXIST;
+        }
+
         if (md.md_ino())
         {
           if (md.implied_authid().length())
@@ -1509,6 +1521,13 @@ FuseServer::HandleMD(const std::string &id,
           // dir creation
           op = CREATE;
           pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+
+          if (exclusive && pcmd->findContainer( md.name() ))
+          {
+            // O_EXCL set on creation - 
+            return EEXIST;
+          }
+
           cmd = gOFS->eosDirectoryService->createContainer();
           cmd->setName( md.name() );
           md_ino = cmd->getId();
@@ -1600,6 +1619,11 @@ FuseServer::HandleMD(const std::string &id,
 
       try
       {
+        if (md.md_ino() && exclusive)
+        {
+          return EEXIST;
+        }
+
         if (md_ino)
         {
           // file update
@@ -1638,6 +1662,13 @@ FuseServer::HandleMD(const std::string &id,
           // file creation
           op = CREATE;
           pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+
+          if (exclusive && pcmd->findContainer( md.name() ))
+          {
+            // O_EXCL set on creation - 
+            return EEXIST;
+          }
+
           unsigned long layoutId = 0;
           unsigned long forcedFsId = 0;
           long forcedGroup = 0;

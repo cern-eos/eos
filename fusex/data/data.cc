@@ -107,11 +107,11 @@ data::datax::flush()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::attach(std::string& cookie)
+data::datax::attach(std::string& cookie, bool isRW)
 /* -------------------------------------------------------------------------- */
 {
-  int bcache = mFile->file() ? mFile->file()->attach(cookie) : 0;
-  int jcache = mFile->journal() ? mFile->journal()->attach(cookie) : 0;
+  int bcache = mFile->file() ? mFile->file()->attach(cookie, isRW) : 0;
+  int jcache = mFile->journal() ? mFile->journal()->attach(cookie, isRW) : 0;
 
   if (bcache)
   {
@@ -146,6 +146,7 @@ int
 data::datax::store_cookie(std::string& cookie)
 /* -------------------------------------------------------------------------- */
 {
+  fprintf(stderr,"setting cookie %s\n", cookie.c_str());
   int bc = mFile->file() ? mFile->file()->set_cookie(cookie) : 0;
   int jc = mFile->journal() ? mFile->journal()->set_cookie(cookie) : 0;
   return bc | jc;

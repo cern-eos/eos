@@ -84,7 +84,7 @@ public:
     }
 
     void flush();
-    int attach(std::string& cookie);
+    int attach(std::string& cookie, bool isRW);
     int detach(std::string& cookie);
     int store_cookie(std::string& cookie);
     int unlink();

@@ -168,6 +168,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.foreground = root["options"]["foreground"].asInt();
     config.options.kernelcache = root["options"]["kernelcache"].asInt();
     config.options.mkdir_is_sync = root["options"]["mkdir-is-sync"].asInt();
+    config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
     config.mqtargethost = root["mdzmqtarget"].asString();
@@ -240,8 +241,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
     cconfig.location = root["cache"]["location"].asString();
     cconfig.journal = root["cache"]["journal"].asString();
-    cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64()*1024*1024;
-    cconfig.total_file_journal_size = root["cache"]["journal-mb"].asUInt64()*1024*1024;
+    cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64()*1024 * 1024;
+    cconfig.total_file_journal_size = root["cache"]["journal-mb"].asUInt64()*1024 * 1024;
     cconfig.per_file_cache_max_size = root["cache"]["file-cache-max-kb"].asUInt64()*1024;
     cconfig.per_file_journal_max_size = root["cache"]["file-journal-max-kb"].asUInt64()*1024;
     int rc = 0;
@@ -607,7 +608,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   }
   else
   {
-    cap::shared_cap pcap = Instance().caps.acquire(req, md->pid()?md->pid():1,
+    cap::shared_cap pcap = Instance().caps.acquire(req, md->pid() ? md->pid() : 1,
                                                    S_IFDIR | X_OK | R_OK);
     if (pcap->errc())
     {
@@ -1401,20 +1402,14 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
       if (!rc)
       {
-        Instance().mds.add(pmd, md, pcap->authid());
-
         if (Instance().Config().options.mkdir_is_sync)
         {
-          md->Locker().UnLock();
-          // logic to make mkdir synchronous
-          rc = Instance().mds.wait_flush(req, md);
-
-          if (rc)
-          {
-            cap::Instance().forget(implied_cid);
-            Instance().mds.remove(pmd, md, pcap->authid(), false);
-          }
-          md->Locker().Lock();
+          md->set_type(md->EXCL);
+          rc = Instance().mds.add_sync(pmd, md, pcap->authid());
+        }
+        else
+        {
+          Instance().mds.add(pmd, md, pcap->authid());
         }
         if (!rc)
         {
@@ -1422,6 +1417,10 @@ EROFS  pathname refers to a file on a read-only filesystem.
           md->convert(e);
           md->lookup_inc();
           eos_static_info("%s", md->dump(e).c_str());
+        }
+        else
+        {
+          cap::Instance().forget(implied_cid);
         }
       }
     }
@@ -1853,8 +1852,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       fi->fh = (uint64_t) io;
 
       std::string cookie=md->Cookie();
-      
-      io->ioctx()->attach(cookie);
+
+      io->ioctx()->attach(cookie, (mode == W_OK) );
 
       fi->keep_cache = 0;
       fi->direct_io = 0;
@@ -2039,38 +2038,50 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       md->set_gid(pcap->gid());
       md->set_id(Instance().mds.insert(req, md, pcap->authid()));
 
-      Instance().mds.add(pmd, md, pcap->authid());
-
-      memset(&e, 0, sizeof (e));
-      md->convert(e);
-      md->lookup_inc();
-
-      if (fi)
+      if ( (Instance().Config().options.create_is_sync) ||
+          (fi->flags & O_EXCL) )
       {
-        // -----------------------------------------------------------------------
-        // TODO: for the moment there is no kernel cache used until 
-        // we add top-level management on it
-        // -----------------------------------------------------------------------
-        // FUSE caches the file for reads on the same filedescriptor in the buffer
-        // cache, but the pages are released once this filedescriptor is released.
-        fi->keep_cache = 0;
+        md->set_type(md->EXCL);
+        rc = Instance().mds.add_sync(pmd, md, pcap->authid());
+      }
+      else
+      {
+        Instance().mds.add(pmd, md, pcap->authid());
+      }
 
-        if ( (fi->flags & O_DIRECT) ||
-            (fi->flags & O_SYNC) )
-          fi->direct_io = 1;
+      if (!rc)
+      {
+        memset(&e, 0, sizeof (e));
+        md->convert(e);
+        md->lookup_inc();
 
-        else
-          fi->direct_io = 0;
+        if (fi)
+        {
+          // -----------------------------------------------------------------------
+          // TODO: for the moment there is no kernel cache used until 
+          // we add top-level management on it
+          // -----------------------------------------------------------------------
+          // FUSE caches the file for reads on the same filedescriptor in the buffer
+          // cache, but the pages are released once this filedescriptor is released.
+          fi->keep_cache = 0;
 
-        data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id()), md);
+          if ( (fi->flags & O_DIRECT) ||
+              (fi->flags & O_SYNC) )
+            fi->direct_io = 1;
 
-        io->set_authid(pcap->authid());
+          else
+            fi->direct_io = 0;
 
-        // attach a datapool object
-        fi->fh = (uint64_t) io;
+          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id()), md);
 
-        std::string cookie=md->Cookie();
-        io->ioctx()->attach(cookie);
+          io->set_authid(pcap->authid());
+
+          // attach a datapool object
+          fi->fh = (uint64_t) io;
+
+          std::string cookie=md->Cookie();
+          io->ioctx()->attach(cookie, true);
+        }
       }
       eos_static_info("%s", md->dump(e).c_str());
     }
@@ -2321,6 +2332,9 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       io->md->set_mtime(tsnow.tv_sec);
       io->md->set_mtime_ns(tsnow.tv_nsec);
       Instance().mds.update(req, io->md, io->authid());
+      io->ioctx()->flush();
+      std::string cookie=io->md->Cookie();
+      io->ioctx()->store_cookie(cookie);
     }
   }
 
@@ -2423,7 +2437,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
     {
       metad::shared_md md;
       metad::shared_md pmd;
-      
+
       md = Instance().mds.get(req, ino);
       {
         XrdSysMutexHelper mLock(md->Locker());

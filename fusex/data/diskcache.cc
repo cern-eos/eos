@@ -104,7 +104,7 @@ diskcache::location(std::string& path, bool mkpath)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::attach(std::string& acookie)
+diskcache::attach(std::string& acookie, bool isRW)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper lLock(this);
@@ -311,7 +311,7 @@ diskcache::attr(std::string key, std::string& value)
   if (fd > 0)
   {
     value.resize(4096);
-    size_t n = fgetxattr(fd, key.c_str(), (void*) value.c_str(), value.size());
+    ssize_t n = fgetxattr(fd, key.c_str(), (void*) value.c_str(), value.size());
     if (n >= 0)
     {
       value.resize(n);
