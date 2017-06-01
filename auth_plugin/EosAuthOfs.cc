@@ -181,111 +181,111 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
 
     while ((var = Config.GetMyFirstWord())) {
       if (!strncmp(var, auth_tag.c_str(), auth_tag.length())) {
-        var += auth_tag.length();
-        // Get EOS instance to which we dispatch requests. Note that the port is the one
-        // waiting for authentication requests and not the usual one i.e 1094. The presence
-        // of the mastermgm parameter is mandatory.
-        std::string mgm_instance;
-        std::string option_tag = "mastermgm";
+	var += auth_tag.length();
+	// Get EOS instance to which we dispatch requests. Note that the port is the one
+	// waiting for authentication requests and not the usual one i.e 1094. The presence
+	// of the mastermgm parameter is mandatory.
+	std::string mgm_instance;
+	std::string option_tag = "mastermgm";
 
-        if (!strncmp(var, option_tag.c_str(), option_tag.length())) {
-          if ((val = Config.GetWord())) {
-            mgm_instance = val;
+	if (!strncmp(var, option_tag.c_str(), option_tag.length())) {
+	  if ((val = Config.GetWord())) {
+	    mgm_instance = val;
 
-            if (mgm_instance.find(":") != string::npos) {
-              mBackend1 = std::make_pair(mgm_instance, (zmq::socket_t*)0);
-            }
-          } else {
-            // This parameter is critical
-            error.Emsg("Configure ", "No EOS mastermgm instance provided");
-            NoGo = 1;
-          }
-        }
+	    if (mgm_instance.find(":") != string::npos) {
+	      mBackend1 = std::make_pair(mgm_instance, (zmq::socket_t*)0);
+	    }
+	  } else {
+	    // This parameter is critical
+	    error.Emsg("Configure ", "No EOS mastermgm instance provided");
+	    NoGo = 1;
+	  }
+	}
 
-        // Look for the slavemgm tag
-        option_tag = "slavemgm";
+	// Look for the slavemgm tag
+	option_tag = "slavemgm";
 
-        if (!strncmp(var, option_tag.c_str(), option_tag.length())) {
-          if ((val = Config.GetWord())) {
-            mgm_instance = val;
+	if (!strncmp(var, option_tag.c_str(), option_tag.length())) {
+	  if ((val = Config.GetWord())) {
+	    mgm_instance = val;
 
-            if (mgm_instance.find(":") != string::npos) {
-              mBackend2 = std::make_pair(mgm_instance, (zmq::socket_t*)0);
-            }
-          }
-        }
+	    if (mgm_instance.find(":") != string::npos) {
+	      mBackend2 = std::make_pair(mgm_instance, (zmq::socket_t*)0);
+	    }
+	  }
+	}
 
-        // Get number of sockets in the pool by default 10
-        option_tag = "numsockets";
+	// Get number of sockets in the pool by default 10
+	option_tag = "numsockets";
 
-        if (!strncmp(var, option_tag.c_str(), option_tag.length())) {
-          if (!(val = Config.GetWord())) {
-            error.Emsg("Configure ", "No number of sockets specified");
-          } else {
-            mSizePoolSocket = atoi(val);
-          }
-        }
+	if (!strncmp(var, option_tag.c_str(), option_tag.length())) {
+	  if (!(val = Config.GetWord())) {
+	    error.Emsg("Configure ", "No number of sockets specified");
+	  } else {
+	    mSizePoolSocket = atoi(val);
+	  }
+	}
 
-        // Get log level by default LOG_INFO
-        option_tag = "loglevel";
+	// Get log level by default LOG_INFO
+	option_tag = "loglevel";
 
-        if (!strncmp(var, option_tag.c_str(), option_tag.length())) {
-          if (!(val = Config.GetWord())) {
-            error.Emsg("Config", "argument for debug level invalid set to ERR.");
-            mLogLevel = LOG_INFO;
-          } else {
-            std::string str_val(val);
+	if (!strncmp(var, option_tag.c_str(), option_tag.length())) {
+	  if (!(val = Config.GetWord())) {
+	    error.Emsg("Config", "argument for debug level invalid set to ERR.");
+	    mLogLevel = LOG_INFO;
+	  } else {
+	    std::string str_val(val);
 
-            if (isdigit(str_val[0])) {
-              // The level is given as a number
-              mLogLevel = atoi(val);
-            } else {
-              // The level is given as a string
-              mLogLevel = eos::common::Logging::GetPriorityByString(val);
-            }
+	    if (isdigit(str_val[0])) {
+	      // The level is given as a number
+	      mLogLevel = atoi(val);
+	    } else {
+	      // The level is given as a string
+	      mLogLevel = eos::common::Logging::GetPriorityByString(val);
+	    }
 
-            error.Say("=====> eosauth.loglevel: ",
-                      eos::common::Logging::GetPriorityString(mLogLevel), "");
-          }
+	    error.Say("=====> eosauth.loglevel: ",
+		      eos::common::Logging::GetPriorityString(mLogLevel), "");
+	  }
 
-          // Set the new log level
-          eos::common::Logging::SetLogPriority(mLogLevel);
-        }
+	  // Set the new log level
+	  eos::common::Logging::SetLogPriority(mLogLevel);
+	}
       }
     }
 
     // Check and connect at least to an MGM master
     if (!mBackend1.first.empty()) {
       if ((XrdSysThread::Run(&proxy_tid, EosAuthOfs::StartAuthProxyThread,
-                             static_cast<void*>(this), 0, "Auth Proxy Thread"))) {
-        eos_err("cannot start the authentication proxy thread");
-        NoGo = 1;
+			     static_cast<void*>(this), 0, "Auth Proxy Thread"))) {
+	eos_err("cannot start the authentication proxy thread");
+	NoGo = 1;
       }
 
       // Create a pool of sockets connected to the master proxy service
       for (int i = 0; i < mSizePoolSocket; i++) {
-        // Set socket receive timeout to 5 seconds
-        zmq::socket_t* socket = new zmq::socket_t(*mZmqContext, ZMQ_REQ);
+	// Set socket receive timeout to 5 seconds
+	zmq::socket_t* socket = new zmq::socket_t(*mZmqContext, ZMQ_REQ);
 #if ZMQ_VERSION >= 20200
-        int timeout_mili = 5000;
-        socket->setsockopt(ZMQ_RCVTIMEO, &timeout_mili, sizeof timeout_mili);
+	int timeout_mili = 5000;
+	socket->setsockopt(ZMQ_RCVTIMEO, &timeout_mili, sizeof timeout_mili);
 #endif
-        std::string endpoint = "inproc://proxyfrontend";
+	std::string endpoint = "inproc://proxyfrontend";
 
-        // Try in a loop to connect to the proxyfrontend as it can take a while for
-        // the proxy thread to do the binding, therefore connect can fail
-        while (1) {
-          try {
-            socket->connect(endpoint.c_str());
-          } catch (zmq::error_t& err) {
-            eos_warning("dealing with connect exception, retrying ...");
-            continue;
-          }
+	// Try in a loop to connect to the proxyfrontend as it can take a while for
+	// the proxy thread to do the binding, therefore connect can fail
+	while (1) {
+	  try {
+	    socket->connect(endpoint.c_str());
+	  } catch (zmq::error_t& err) {
+	    eos_warning("dealing with connect exception, retrying ...");
+	    continue;
+	  }
 
-          break;
-        }
+	  break;
+	}
 
-        mPoolSocket.push(socket);
+	mPoolSocket.push(socket);
       }
     } else {
       eos_err("No master MGM specified e.g. eos.master.cern.ch:15555");
@@ -333,8 +333,8 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
   }
 
   eos_notice("AUTH_HOST=%s AUTH_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s SYMKEY=%s",
-             mManagerIp.c_str(), myPort, VERSION, RELEASE, keytabcks.c_str(),
-             symkey.c_str());
+	     mManagerIp.c_str(), myPort, VERSION, RELEASE, keytabcks.c_str(),
+	     symkey.c_str());
 
   if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0)) {
     eos_crit("unable to store the created symmetric key %s", symkey.c_str());
@@ -370,7 +370,7 @@ EosAuthOfs::AuthProxyThread()
   // Connect sockets facing the MGM nodes - master and slave
   std::ostringstream sstr;
   mBackend1 = std::make_pair(mBackend1.first,
-                             new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
+			     new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
   sstr << "tcp://" << mBackend1.first;
   mBackend1.second->connect(sstr.str().c_str());
   OfsEroute.Say("=====> connected to master MGM: ", mBackend1.first.c_str());
@@ -379,7 +379,7 @@ EosAuthOfs::AuthProxyThread()
   if (!mBackend2.first.empty()) {
     sstr.str("");
     mBackend2 = std::make_pair(mBackend2.first,
-                               new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
+			       new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
     sstr << "tcp://" << mBackend2.first;
     mBackend2.second->connect(sstr.str().c_str());
     OfsEroute.Say("=====> connected to slave MGM: ", mBackend2.first.c_str());
@@ -424,32 +424,32 @@ EosAuthOfs::AuthProxyThread()
       eos_debug("got frontend event");
 
       while (true) {
-        if (!mFrontend->recv(&msg)) {
-          eos_err("error while recv on frontend");
-          return;
-        }
+	if (!mFrontend->recv(&msg)) {
+	  eos_err("error while recv on frontend");
+	  return;
+	}
 
-        try {
-          moresz = sizeof more;
-          mFrontend->getsockopt(ZMQ_RCVMORE, &more, &moresz);
-        } catch (zmq::error_t& err) {
-          eos_err("exception in getsockopt");
-          return;
-        }
+	try {
+	  moresz = sizeof more;
+	  mFrontend->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+	} catch (zmq::error_t& err) {
+	  eos_err("exception in getsockopt");
+	  return;
+	}
 
-        // Send request to the current master MGM
-        {
-          XrdSysMutexHelper scop_lock(mMutexMaster);
+	// Send request to the current master MGM
+	{
+	  XrdSysMutexHelper scop_lock(mMutexMaster);
 
-          if (!mMaster->send(msg, more ? ZMQ_SNDMORE : 0)) {
-            eos_err("error while sending to master");
-            return;
-          }
-        }
+	  if (!mMaster->send(msg, more ? ZMQ_SNDMORE : 0)) {
+	    eos_err("error while sending to master");
+	    return;
+	  }
+	}
 
-        if (more == 0) {
-          break;
-        }
+	if (more == 0) {
+	  break;
+	}
       }
     }
 
@@ -458,28 +458,28 @@ EosAuthOfs::AuthProxyThread()
       eos_debug("got mBackend1 event");
 
       while (true) {
-        if (!mBackend1.second->recv(&msg)) {
-          eos_err("error while recv on mBackend1");
-          return;
-        }
+	if (!mBackend1.second->recv(&msg)) {
+	  eos_err("error while recv on mBackend1");
+	  return;
+	}
 
-        moresz = sizeof more;
+	moresz = sizeof more;
 
-        try {
-          mBackend1.second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
-        } catch (zmq::error_t& err) {
-          eos_err("exception in getsockopt");
-          return;
-        }
+	try {
+	  mBackend1.second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+	} catch (zmq::error_t& err) {
+	  eos_err("exception in getsockopt");
+	  return;
+	}
 
-        if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0)) {
-          eos_err("error while send to frontend(1)");
-          return;
-        }
+	if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0)) {
+	  eos_err("error while send to frontend(1)");
+	  return;
+	}
 
-        if (more == 0) {
-          break;
-        }
+	if (more == 0) {
+	  break;
+	}
       }
     }
 
@@ -488,28 +488,28 @@ EosAuthOfs::AuthProxyThread()
       eos_debug("got mBackend2 event");
 
       while (true) {
-        if (!mBackend2.second->recv(&msg)) {
-          eos_err("error while recv on mBackend2");
-          return;
-        }
+	if (!mBackend2.second->recv(&msg)) {
+	  eos_err("error while recv on mBackend2");
+	  return;
+	}
 
-        moresz = sizeof more;
+	moresz = sizeof more;
 
-        try {
-          mBackend2.second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
-        } catch (zmq::error_t& err) {
-          eos_err("exception in getsockopt");
-          return;
-        }
+	try {
+	  mBackend2.second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+	} catch (zmq::error_t& err) {
+	  eos_err("exception in getsockopt");
+	  return;
+	}
 
-        if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0)) {
-          eos_err("error while send to frontend(2)");
-          return;
-        }
+	if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0)) {
+	  eos_err("error while send to frontend(2)");
+	  return;
+	}
 
-        if (more == 0) {
-          break;
-        }
+	if (more == 0) {
+	  break;
+	}
       }
     }
   }
@@ -541,16 +541,16 @@ EosAuthOfs::newFile(char* user, int MonID)
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::stat(const char* path,
-                 struct stat* buf,
-                 XrdOucErrInfo& error,
-                 const XrdSecEntity* client,
-                 const char* opaque)
+		 struct stat* buf,
+		 XrdOucErrInfo& error,
+		 const XrdSecEntity* client,
+		 const char* opaque)
 {
   int retc = SFS_ERROR;
   eos_debug("stat path=%s", path);
   // Create request object
   RequestProto* req_proto = utils::GetStatRequest(RequestProto_OperationType_STAT,
-                            path, error, client, opaque);
+			    path, error, client, opaque);
 
   // Compute HMAC for request object
   if (!utils::ComputeHMAC(req_proto)) {
@@ -570,15 +570,15 @@ EosAuthOfs::stat(const char* path,
       retc = resp_stat->response();
 
       if (resp_stat->has_error()) {
-        error.setErrInfo(resp_stat->error().code(),
-                         resp_stat->error().message().c_str());
+	error.setErrInfo(resp_stat->error().code(),
+			 resp_stat->error().message().c_str());
       }
 
       // We retrieve the struct stat if response is ok
       if ((retc == SFS_OK) && resp_stat->has_message()) {
-        buf = static_cast<struct stat*>(memcpy((void*)buf,
-                                               resp_stat->message().c_str(),
-                                               sizeof(struct stat)));
+	buf = static_cast<struct stat*>(memcpy((void*)buf,
+					       resp_stat->message().c_str(),
+					       sizeof(struct stat)));
       }
 
       delete resp_stat;
@@ -597,16 +597,16 @@ EosAuthOfs::stat(const char* path,
 //--------------------------------------------------------------------------
 int
 EosAuthOfs::stat(const char* path,
-                 mode_t& mode,
-                 XrdOucErrInfo& error,
-                 const XrdSecEntity* client,
-                 const char* opaque)
+		 mode_t& mode,
+		 XrdOucErrInfo& error,
+		 const XrdSecEntity* client,
+		 const char* opaque)
 {
   int retc = SFS_ERROR;
   eos_debug("statm path=%s", path);
   RequestProto* req_proto = utils::GetStatRequest(
-                              RequestProto_OperationType_STATM,
-                              path, error, client, opaque);
+			      RequestProto_OperationType_STATM,
+			      path, error, client, opaque);
 
   // Compute HMAC for request object
   if (!utils::ComputeHMAC(req_proto)) {
@@ -626,13 +626,13 @@ EosAuthOfs::stat(const char* path,
       retc = resp_stat->response();
 
       if (resp_stat->has_error()) {
-        error.setErrInfo(resp_stat->error().code(),
-                         resp_stat->error().message().c_str());
+	error.setErrInfo(resp_stat->error().code(),
+			 resp_stat->error().message().c_str());
       }
 
       // We retrieve the open mode if response if ok
       if ((retc == SFS_OK) && resp_stat->has_message()) {
-        memcpy((void*)&mode, resp_stat->message().c_str(), sizeof(mode_t));
+	memcpy((void*)&mode, resp_stat->message().c_str(), sizeof(mode_t));
       }
 
       delete resp_stat;
@@ -651,9 +651,9 @@ EosAuthOfs::stat(const char* path,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::fsctl(const int cmd,
-                  const char* args,
-                  XrdOucErrInfo& error,
-                  const XrdSecEntity* client)
+		  const char* args,
+		  XrdOucErrInfo& error,
+		  const XrdSecEntity* client)
 {
   int retc = SFS_ERROR;
   eos_debug("fsctl with cmd=%i, args=%s", cmd, args);
@@ -669,7 +669,7 @@ EosAuthOfs::fsctl(const int cmd,
     rType[1] = 'r';
     rType[2] = '\0';
     sprintf(locResp, "[::%s]:%d ", (char*) gOFS->mManagerIp.c_str(),
-            gOFS->mPort);
+	    gOFS->mPort);
     error.setErrInfo(strlen(locResp) + 3, (const char**) Resp, 2);
     return SFS_DATA;
   }
@@ -694,8 +694,8 @@ EosAuthOfs::fsctl(const int cmd,
       retc = resp_fsctl1->response();
 
       if (resp_fsctl1->has_error()) {
-        error.setErrInfo(resp_fsctl1->error().code(),
-                         resp_fsctl1->error().message().c_str());
+	error.setErrInfo(resp_fsctl1->error().code(),
+			 resp_fsctl1->error().message().c_str());
       }
 
       delete resp_fsctl1;
@@ -714,9 +714,9 @@ EosAuthOfs::fsctl(const int cmd,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::FSctl(const int cmd,
-                  XrdSfsFSctl& args,
-                  XrdOucErrInfo& error,
-                  const XrdSecEntity* client)
+		  XrdSfsFSctl& args,
+		  XrdOucErrInfo& error,
+		  const XrdSecEntity* client)
 {
   int retc = SFS_ERROR;
   eos_debug("FSctl with cmd=%i", cmd);
@@ -740,8 +740,8 @@ EosAuthOfs::FSctl(const int cmd,
       retc = resp_fsctl2->response();
 
       if (resp_fsctl2->has_error()) {
-        error.setErrInfo(resp_fsctl2->error().code(),
-                         resp_fsctl2->error().message().c_str());
+	error.setErrInfo(resp_fsctl2->error().code(),
+			 resp_fsctl2->error().message().c_str());
       }
 
       delete resp_fsctl2;
@@ -760,15 +760,15 @@ EosAuthOfs::FSctl(const int cmd,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::chmod(const char* path,
-                  XrdSfsMode mode,
-                  XrdOucErrInfo& error,
-                  const XrdSecEntity* client,
-                  const char* opaque)
+		  XrdSfsMode mode,
+		  XrdOucErrInfo& error,
+		  const XrdSecEntity* client,
+		  const char* opaque)
 {
   int retc = SFS_ERROR;
   eos_debug("chmod path=%s mode=%o", path, mode);
   RequestProto* req_proto = utils::GetChmodRequest(path, mode, error, client,
-                            opaque);
+			    opaque);
 
   // Compute HMAC for request object
   if (!utils::ComputeHMAC(req_proto)) {
@@ -788,8 +788,8 @@ EosAuthOfs::chmod(const char* path,
       retc = resp_chmod->response();
 
       if (resp_chmod->has_error()) {
-        error.setErrInfo(resp_chmod->error().code(),
-                         resp_chmod->error().message().c_str());
+	error.setErrInfo(resp_chmod->error().code(),
+			 resp_chmod->error().message().c_str());
       }
 
       delete resp_chmod;
@@ -808,16 +808,16 @@ EosAuthOfs::chmod(const char* path,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::chksum(csFunc func,
-                   const char* csName,
-                   const char* path,
-                   XrdOucErrInfo& error,
-                   const XrdSecEntity* client,
-                   const char* opaque)
+		   const char* csName,
+		   const char* path,
+		   XrdOucErrInfo& error,
+		   const XrdSecEntity* client,
+		   const char* opaque)
 {
   int retc = SFS_ERROR;
   eos_debug("chksum path=%s csName=%s", path, csName);
   RequestProto* req_proto = utils::GetChksumRequest(func, csName, path, error,
-                            client, opaque);
+			    client, opaque);
 
   // Compute HMAC for request object
   if (!utils::ComputeHMAC(req_proto)) {
@@ -838,8 +838,8 @@ EosAuthOfs::chksum(csFunc func,
       eos_debug("chksum retc=%i", retc);
 
       if (resp_chksum->has_error()) {
-        error.setErrInfo(resp_chksum->error().code(),
-                         resp_chksum->error().message().c_str());
+	error.setErrInfo(resp_chksum->error().code(),
+			 resp_chksum->error().message().c_str());
       }
 
       delete resp_chksum;
@@ -858,10 +858,10 @@ EosAuthOfs::chksum(csFunc func,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::exists(const char* path,
-                   XrdSfsFileExistence& exists_flag,
-                   XrdOucErrInfo& error,
-                   const XrdSecEntity* client,
-                   const char* opaque)
+		   XrdSfsFileExistence& exists_flag,
+		   XrdOucErrInfo& error,
+		   const XrdSecEntity* client,
+		   const char* opaque)
 {
   int retc = SFS_ERROR;
   eos_debug("exists path=%s", path);
@@ -886,12 +886,12 @@ EosAuthOfs::exists(const char* path,
       eos_debug("exists retc=%i", retc);
 
       if (resp_exists->has_error()) {
-        error.setErrInfo(resp_exists->error().code(),
-                         resp_exists->error().message().c_str());
+	error.setErrInfo(resp_exists->error().code(),
+			 resp_exists->error().message().c_str());
       }
 
       if (resp_exists->has_message()) {
-        exists_flag = (XrdSfsFileExistence)atoi(resp_exists->message().c_str());
+	exists_flag = (XrdSfsFileExistence)atoi(resp_exists->message().c_str());
       }
 
       delete resp_exists;
@@ -914,15 +914,15 @@ EosAuthOfs::exists(const char* path,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::mkdir(const char* path,
-                  XrdSfsMode mode,  // Ignored in EOS if it has a parent dir
-                  XrdOucErrInfo& error,
-                  const XrdSecEntity* client,
-                  const char* opaque)
+		  XrdSfsMode mode,  // Ignored in EOS if it has a parent dir
+		  XrdOucErrInfo& error,
+		  const XrdSecEntity* client,
+		  const char* opaque)
 {
   int retc = SFS_ERROR;
   eos_debug("mkdir path=%s mode=%o", path, mode);
   RequestProto* req_proto = utils::GetMkdirRequest(path, mode, error, client,
-                            opaque);
+			    opaque);
 
   // Compute HMAC for request object
   if (!utils::ComputeHMAC(req_proto)) {
@@ -943,8 +943,8 @@ EosAuthOfs::mkdir(const char* path,
       eos_debug("mkdir retc=%i", retc);
 
       if (resp_mkdir->has_error()) {
-        error.setErrInfo(resp_mkdir->error().code(),
-                         resp_mkdir->error().message().c_str());
+	error.setErrInfo(resp_mkdir->error().code(),
+			 resp_mkdir->error().message().c_str());
       }
 
       delete resp_mkdir;
@@ -963,9 +963,9 @@ EosAuthOfs::mkdir(const char* path,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::remdir(const char* path,
-                   XrdOucErrInfo& error,
-                   const XrdSecEntity* client,
-                   const char* opaque)
+		   XrdOucErrInfo& error,
+		   const XrdSecEntity* client,
+		   const char* opaque)
 {
   int retc = SFS_ERROR;
   eos_debug("remdir path=%s", path);
@@ -990,8 +990,8 @@ EosAuthOfs::remdir(const char* path,
       eos_debug("remdir retc=%i", retc);
 
       if (resp_remdir->has_error()) {
-        error.setErrInfo(resp_remdir->error().code(),
-                         resp_remdir->error().message().c_str());
+	error.setErrInfo(resp_remdir->error().code(),
+			 resp_remdir->error().message().c_str());
       }
 
       delete resp_remdir;
@@ -1010,9 +1010,9 @@ EosAuthOfs::remdir(const char* path,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::rem(const char* path,
-                XrdOucErrInfo& error,
-                const XrdSecEntity* client,
-                const char* opaque)
+		XrdOucErrInfo& error,
+		const XrdSecEntity* client,
+		const char* opaque)
 {
   int retc = SFS_ERROR;
   eos_debug("rem path=%s", path);
@@ -1037,8 +1037,8 @@ EosAuthOfs::rem(const char* path,
       eos_debug("rem retc=%i", retc);
 
       if (resp_rem->has_error()) {
-        error.setErrInfo(resp_rem->error().code(),
-                         resp_rem->error().message().c_str());
+	error.setErrInfo(resp_rem->error().code(),
+			 resp_rem->error().message().c_str());
       }
 
       delete resp_rem;
@@ -1057,16 +1057,16 @@ EosAuthOfs::rem(const char* path,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::rename(const char* oldName,
-                   const char* newName,
-                   XrdOucErrInfo& error,
-                   const XrdSecEntity* client,
-                   const char* opaqueO,
-                   const char* opaqueN)
+		   const char* newName,
+		   XrdOucErrInfo& error,
+		   const XrdSecEntity* client,
+		   const char* opaqueO,
+		   const char* opaqueN)
 {
   int retc = SFS_ERROR;
   eos_debug("rename oldname=%s newname=%s", oldName, newName);
   RequestProto* req_proto = utils::GetRenameRequest(oldName, newName, error,
-                            client, opaqueO, opaqueN);
+			    client, opaqueO, opaqueN);
 
   // Compute HMAC for request object
   if (!utils::ComputeHMAC(req_proto)) {
@@ -1087,8 +1087,8 @@ EosAuthOfs::rename(const char* oldName,
       eos_debug("rename retc=%i", retc);
 
       if (resp_rename->has_error()) {
-        error.setErrInfo(resp_rename->error().code(),
-                         resp_rename->error().message().c_str());
+	error.setErrInfo(resp_rename->error().code(),
+			 resp_rename->error().message().c_str());
       }
 
       delete resp_rename;
@@ -1107,8 +1107,8 @@ EosAuthOfs::rename(const char* oldName,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::prepare(XrdSfsPrep& pargs,
-                    XrdOucErrInfo& error,
-                    const XrdSecEntity* client)
+		    XrdOucErrInfo& error,
+		    const XrdSecEntity* client)
 {
   int retc = SFS_ERROR;
   eos_debug("prepare");
@@ -1133,8 +1133,8 @@ EosAuthOfs::prepare(XrdSfsPrep& pargs,
       eos_debug("prepare retc=%i", retc);
 
       if (resp_prepare->has_error()) {
-        error.setErrInfo(resp_prepare->error().code(),
-                         resp_prepare->error().message().c_str());
+	error.setErrInfo(resp_prepare->error().code(),
+			 resp_prepare->error().message().c_str());
       }
 
       delete resp_prepare;
@@ -1153,15 +1153,15 @@ EosAuthOfs::prepare(XrdSfsPrep& pargs,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::truncate(const char* path,
-                     XrdSfsFileOffset fileOffset,
-                     XrdOucErrInfo& error,
-                     const XrdSecEntity* client,
-                     const char* opaque)
+		     XrdSfsFileOffset fileOffset,
+		     XrdOucErrInfo& error,
+		     const XrdSecEntity* client,
+		     const char* opaque)
 {
   int retc = SFS_ERROR;
   eos_debug("truncate");
   RequestProto* req_proto = utils::GetTruncateRequest(path, fileOffset, error,
-                            client, opaque);
+			    client, opaque);
 
   // Compute HMAC for request object
   if (!utils::ComputeHMAC(req_proto)) {
@@ -1182,8 +1182,8 @@ EosAuthOfs::truncate(const char* path,
       eos_debug("truncate retc=%i", retc);
 
       if (resp_truncate->has_error()) {
-        error.setErrInfo(resp_truncate->error().code(),
-                         resp_truncate->error().message().c_str());
+	error.setErrInfo(resp_truncate->error().code(),
+			 resp_truncate->error().message().c_str());
       }
 
       delete resp_truncate;
@@ -1215,7 +1215,7 @@ EosAuthOfs::getStats(char* buff, int blen)
 //------------------------------------------------------------------------------
 bool
 EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
-                                google::protobuf::Message* message)
+				google::protobuf::Message* message)
 {
   // Send the request
   bool sent = false;
@@ -1239,15 +1239,52 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
 // Get ProtocolBuffer response object using ZMQ
 //------------------------------------------------------------------------------
 google::protobuf::Message*
-EosAuthOfs::GetResponse(zmq::socket_t* socket)
+EosAuthOfs::GetResponse(zmq::socket_t*& socket)
 {
+  int num_retries = 40; // 2 min = 40 * 5 sec
+  bool done = false;
+  bool reset_socket = false;
   zmq::message_t reply;
   ResponseProto* resp = static_cast<ResponseProto*>(0);
-  bool done = socket->recv(&reply);
+
+  try {
+    do {
+      done = socket->recv(&reply);
+      num_retries--;
+    } while (!done && (num_retries > 0));
+  } catch (zmq::error_t& e) {
+    eos_err("socket error: %s", e.what());
+    reset_socket = true;
+  }
+
+  // We waited 2 min for a response or a fatal error occurent - then we throw
+  //  away the socket and create a new one
+  if ((num_retries <= 0) || reset_socket) {
+    eos_err("discard current socket and create a new one");
+    delete socket;
+    socket = new zmq::socket_t(*mZmqContext, ZMQ_REQ);
+#if ZMQ_VERSION >= 20200
+    int timeout_mili = 5000;
+    socket->setsockopt(ZMQ_RCVTIMEO, &timeout_mili, sizeof timeout_mili);
+#endif
+    std::string endpoint = "inproc://proxyfrontend";
+
+    // Try in a loop to connect to the proxyfrontend as it can take a while for
+    // the proxy thread to do the binding, therefore connect can fail
+    while (1) {
+      try {
+	socket->connect(endpoint.c_str());
+      } catch (zmq::error_t& err) {
+	eos_warning("dealing with connect exception, retrying ...");
+	continue;
+      }
+      break;
+    }
+  }
 
   if (done) {
     std::string resp_str = std::string(static_cast<char*>(reply.data()),
-                                       reply.size());
+				       reply.size());
     resp = new ResponseProto();
     resp->ParseFromString(resp_str);
 
@@ -1256,22 +1293,22 @@ EosAuthOfs::GetResponse(zmq::socket_t* socket)
     // switch and we need to update the socket to which requests are sent.
     if (resp->response() == SFS_REDIRECT) {
       if (resp->has_error()) {
-        std::ostringstream sstr;
-        sstr << resp->error().message();
-        std::string redirect_host = sstr.str();
+	std::ostringstream sstr;
+	sstr << resp->error().message();
+	std::string redirect_host = sstr.str();
 
-        // Update the master MGM instance
-        if (UpdateMaster(redirect_host)) {
-          eos_debug("successfully update the master MGM to: %s", redirect_host.c_str());
-          resp->set_response(SFS_STALL);
-        } else {
-          eos_warning("redirect host:%s is not among our known MGM nodes -  "
-                      "failed update master MGM; it migth well be an FST node",
-                      redirect_host.c_str());
-        }
+	// Update the master MGM instance
+	if (UpdateMaster(redirect_host)) {
+	  eos_debug("successfully update the master MGM to: %s", redirect_host.c_str());
+	  resp->set_response(SFS_STALL);
+	} else {
+	  eos_warning("redirect host:%s is not among our known MGM nodes -  "
+		      "failed update master MGM; it migth well be an FST node",
+		      redirect_host.c_str());
+	}
       } else {
-        eos_err("redirect message without error information - change to error");
-        resp->set_response(SFS_ERROR);
+	eos_err("redirect message without error information - change to error");
+	resp->set_response(SFS_ERROR);
       }
     }
   } else {
