@@ -260,7 +260,8 @@ EosAuthOfsFile::FName()
   // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
-  return (retc ? static_cast<const char*>(0) : mName.c_str());
+  return (retc ? static_cast<const char*>(0) :
+	  (mName.empty() ? static_cast<const char*>(0) :mName.c_str()));
 }
 
 
