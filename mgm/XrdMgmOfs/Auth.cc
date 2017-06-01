@@ -142,6 +142,7 @@ XrdMgmOfs::AuthWorkerThread()
   if (!ConnectToBackend(responder))
   {
     eos_err("kill thread as we could not connect to backend socket");
+    delete responder;
     return;
   }
 
@@ -381,7 +382,7 @@ XrdMgmOfs::AuthWorkerThread()
 	XrdMgmOfsDirectory* dir = iter->second;
 	mMutexDirs.UnLock();
 
-	if (dirFName()) {
+	if (dir->FName()) {
 	  resp.set_message(dir->FName(), strlen(dir->FName()));
 	} else {
 	  resp.set_message("");
@@ -527,7 +528,7 @@ XrdMgmOfs::AuthWorkerThread()
 	} else {
 	  resp.set_message("");
 	}
-	
+
 	ret = SFS_OK;
       }
     }
@@ -644,6 +645,7 @@ XrdMgmOfs::AuthWorkerThread()
     if ((num_retries <= 0) || reset_socket) {
       if (!ConnectToBackend(responder)) {
 	eos_err("kill thread as we could not connect to backend socket");
+	delete responder;
 	return;
       }
     }
