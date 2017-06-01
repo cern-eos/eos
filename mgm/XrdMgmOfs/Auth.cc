@@ -74,7 +74,7 @@ XrdMgmOfs::AuthMasterThread ()
   zmq_device(ZMQ_QUEUE, &frontend, &backend);
 #else
   zmq::proxy(static_cast<void*>(frontend),static_cast<void*>(backend),
-             static_cast<void*>(0));
+	     static_cast<void*>(0));
 #endif
 
   eos_static_info("successfully started auth master thread");
@@ -165,7 +165,7 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.stat().error()));
       client = utils::GetXrdSecEntity(req_proto.stat().client());
       ret = gOFS->stat(req_proto.stat().path().c_str(), &buf,
-                       *error.get(), client, req_proto.stat().opaque().c_str());
+		       *error.get(), client, req_proto.stat().opaque().c_str());
 
       // Fill in particular info for stat request
       resp.set_message(&buf, sizeof(struct stat));
@@ -178,7 +178,7 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.stat().error()));
       client = utils::GetXrdSecEntity(req_proto.stat().client());
       ret = gOFS->stat(req_proto.stat().path().c_str(), mode,
-                       *error.get(), client, req_proto.stat().opaque().c_str());
+		       *error.get(), client, req_proto.stat().opaque().c_str());
 
       // Fill in particular info for stat request
       resp.set_message(&mode, sizeof(mode_t));
@@ -190,7 +190,7 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.fsctl1().error()));
       client = utils::GetXrdSecEntity(req_proto.fsctl1().client());
       ret = gOFS->fsctl(req_proto.fsctl1().cmd(), req_proto.fsctl1().args().c_str(),
-                        *error.get(), client);
+			*error.get(), client);
       eos_debug("fsctl error msg: %s", error->getErrText());
     }
     else if (req_proto.type() == RequestProto_OperationType_FSCTL2)
@@ -214,7 +214,7 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.chmod().error()));
       client = utils::GetXrdSecEntity(req_proto.chmod().client());
       ret = gOFS->chmod(req_proto.chmod().path().c_str(), (XrdSfsMode)req_proto.chmod().mode(),
-                        *error.get(), client, req_proto.chmod().opaque().c_str());
+			*error.get(), client, req_proto.chmod().opaque().c_str());
       eos_debug("chmod error msg: %s", error->getErrText());
     }
     else if (req_proto.type() == RequestProto_OperationType_CHKSUM)
@@ -223,10 +223,10 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.chksum().error()));
       client = utils::GetXrdSecEntity(req_proto.chksum().client());
       ret = gOFS->chksum((csFunc) req_proto.chksum().func(),
-                         req_proto.chksum().csname().c_str(),
-                         req_proto.chksum().path().c_str(),
-                         *error.get(), client,
-                         req_proto.chksum().opaque().c_str());
+			 req_proto.chksum().csname().c_str(),
+			 req_proto.chksum().path().c_str(),
+			 *error.get(), client,
+			 req_proto.chksum().opaque().c_str());
       eos_debug("chksum error msg: %s", error->getErrText());
     }
     else if (req_proto.type() == RequestProto_OperationType_EXISTS)
@@ -236,8 +236,8 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.exists().error()));
       client = utils::GetXrdSecEntity(req_proto.exists().client());
       ret = gOFS->exists(req_proto.exists().path().c_str(),
-                         exists_flag, *error.get(), client,
-                         req_proto.exists().opaque().c_str());
+			 exists_flag, *error.get(), client,
+			 req_proto.exists().opaque().c_str());
 
       // Set the status of the exists for the request
       std::ostringstream sstr;
@@ -251,8 +251,8 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.mkdir().error()));
       client = utils::GetXrdSecEntity(req_proto.mkdir().client());
       ret = gOFS->mkdir(req_proto.mkdir().path().c_str(),
-                        (XrdSfsMode)req_proto.mkdir().mode(),
-                        *error.get(), client, req_proto.mkdir().opaque().c_str(),0);
+			(XrdSfsMode)req_proto.mkdir().mode(),
+			*error.get(), client, req_proto.mkdir().opaque().c_str(),0);
       eos_debug("mkdir error msg: %s", error->getErrText());
     }
     else if (req_proto.type() == RequestProto_OperationType_REMDIR)
@@ -261,7 +261,7 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.remdir().error()));
       client = utils::GetXrdSecEntity(req_proto.remdir().client());
       ret = gOFS->remdir(req_proto.remdir().path().c_str(),
-                         *error.get(), client, req_proto.remdir().opaque().c_str());
+			 *error.get(), client, req_proto.remdir().opaque().c_str());
       eos_debug("remdir error msg: %s", error->getErrText());
     }
     else if (req_proto.type() == RequestProto_OperationType_REM)
@@ -270,7 +270,7 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.rem().error()));
       client = utils::GetXrdSecEntity(req_proto.rem().client());
       ret = gOFS->rem(req_proto.rem().path().c_str(),
-                      *error.get(), client, req_proto.rem().opaque().c_str());
+		      *error.get(), client, req_proto.rem().opaque().c_str());
       eos_debug("rem error msg: %s", error->getErrText());
     }
     else if (req_proto.type() == RequestProto_OperationType_RENAME)
@@ -279,10 +279,10 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.rename().error()));
       client = utils::GetXrdSecEntity(req_proto.rename().client());
       ret = gOFS->rename(req_proto.rename().oldname().c_str(),
-                         req_proto.rename().newname().c_str(),
-                         *error.get(), client,
-                         req_proto.rename().opaqueo().c_str(),
-                         req_proto.rename().opaquen().c_str());
+			 req_proto.rename().newname().c_str(),
+			 *error.get(), client,
+			 req_proto.rename().opaqueo().c_str(),
+			 req_proto.rename().opaquen().c_str());
       eos_debug("rename error msg: %s", error->getErrText());
     }
     else if (req_proto.type() == RequestProto_OperationType_PREPARE)
@@ -301,172 +301,169 @@ XrdMgmOfs::AuthWorkerThread()
       error.reset(utils::GetXrdOucErrInfo(req_proto.truncate().error()));
       client = utils::GetXrdSecEntity(req_proto.truncate().client());
       ret = gOFS->truncate(req_proto.truncate().path().c_str(),
-                           (XrdSfsFileOffset)req_proto.truncate().fileoffset(),
-                           *error.get(), client,
-                           req_proto.truncate().opaque().c_str());
+			   (XrdSfsFileOffset)req_proto.truncate().fileoffset(),
+			   *error.get(), client,
+			   req_proto.truncate().opaque().c_str());
       eos_debug("truncate error msg: %s", error->getErrText());
     }
     else if (req_proto.type() == RequestProto_OperationType_DIROPEN)
     {
       // dir open request
+      mMutexDirs.Lock();
       if (mMapDirs.count(req_proto.diropen().uuid()))
       {
-        eos_debug("dir:%s is already in mapping", req_proto.diropen().name().c_str());
-        ret = SFS_OK;
+	mMutexDirs.UnLock();
+	eos_debug("dir:%s is already in mapping", req_proto.diropen().name().c_str());
+	ret = SFS_OK;
       }
       else
       {
-        XrdMgmOfsDirectory* dir = static_cast<XrdMgmOfsDirectory*>(
-            gOFS->newDir((char*)req_proto.diropen().user().c_str(),
-                         req_proto.diropen().monid()));
+	mMutexDirs.UnLock();
+	XrdMgmOfsDirectory* dir = static_cast<XrdMgmOfsDirectory*>(
+	    gOFS->newDir((char*)req_proto.diropen().user().c_str(),
+			 req_proto.diropen().monid()));
 
-        client = utils::GetXrdSecEntity(req_proto.diropen().client());
-        ret = dir->open(req_proto.diropen().name().c_str(), client,
-                        req_proto.diropen().opaque().c_str());
+	client = utils::GetXrdSecEntity(req_proto.diropen().client());
+	ret = dir->open(req_proto.diropen().name().c_str(), client,
+			req_proto.diropen().opaque().c_str());
 
-        if (ret == SFS_OK)
-        {
-          XrdSysMutexHelper scope_lock(mMutexDirs);
-          //auto result = mMapDirs.insert(std::make_pair(req_proto.diropen().uuid(), dir));
-          mMapDirs.insert(std::make_pair(req_proto.diropen().uuid(), dir));
-        }
-        else
-        {
-          delete dir;
-        }
+	if (ret == SFS_OK)
+	{
+	  XrdSysMutexHelper scope_lock(mMutexDirs);
+	  mMapDirs.insert(std::make_pair(req_proto.diropen().uuid(), dir));
+	}
+	else
+	{
+	  delete dir;
+	}
       }
     }
     else if (req_proto.type() == RequestProto_OperationType_DIRFNAME)
     {
       // get directory name
-      auto iter = mMapDirs.end();
-      {
-        XrdSysMutexHelper scope_lock(mMutexDirs);
-        iter = mMapDirs.find(req_proto.dirfname().uuid());
-      }
+      mMutexDirs.Lock();
+      auto iter = mMapDirs.find(req_proto.dirfname().uuid());
 
       if (iter == mMapDirs.end())
       {
-        eos_err("directory not found in map for reading the name");
-        ret = SFS_ERROR;
+	mMutexDirs.UnLock();
+	eos_err("directory not found in map for reading the name");
+	ret = SFS_ERROR;
       }
       else {
-        // Fill in particular info for the directory name
-        XrdMgmOfsDirectory* dir = iter->second;
-        resp.set_message(dir->FName(), strlen(dir->FName()));
-        ret = SFS_OK;
+	// Fill in particular info for the directory name
+	XrdMgmOfsDirectory* dir = iter->second;
+	mMutexDirs.UnLock();
+	resp.set_message(dir->FName(), strlen(dir->FName()));
+	ret = SFS_OK;
       }
     }
     else if (req_proto.type() == RequestProto_OperationType_DIRREAD)
     {
       // read next entry from directory
-      auto iter = mMapDirs.end();
-      {
-        XrdSysMutexHelper scope_lock(mMutexDirs);
-        iter = mMapDirs.find(req_proto.dirread().uuid());
-      }
+      mMutexDirs.Lock();
+      auto iter =  mMapDirs.find(req_proto.dirread().uuid());
 
       if (iter == mMapDirs.end())
       {
-        eos_err("directory not found in map for reading next entry");
-        ret = SFS_ERROR;
+	mMutexDirs.UnLock();
+	eos_err("directory not found in map for reading next entry");
+	ret = SFS_ERROR;
       }
       else {
-        XrdMgmOfsDirectory* dir = iter->second;
-        const char* entry = dir->nextEntry();
-        // Fill in particular info for next entry request
-        if (entry)
-        {
-          resp.set_message(entry, strlen(entry));
-          ret = SFS_OK;
-        }
-        else
-        {
-          // If no more entries send SFS_ERROR
-          ret = SFS_ERROR;
-        }
+	XrdMgmOfsDirectory* dir = iter->second;
+	mMutexDirs.UnLock();
+	const char* entry = dir->nextEntry();
+	// Fill in particular info for next entry request
+	if (entry)
+	{
+	  resp.set_message(entry, strlen(entry));
+	  ret = SFS_OK;
+	}
+	else
+	{
+	  // If no more entries send SFS_ERROR
+	  ret = SFS_ERROR;
+	}
       }
     }
     else if (req_proto.type() == RequestProto_OperationType_DIRCLOSE)
     {
       // close directory
-      auto iter = mMapDirs.end();
-      {
-        XrdSysMutexHelper scope_lock(mMutexDirs);
-        iter = mMapDirs.find(req_proto.dirclose().uuid());
-      }
+      mMutexDirs.Lock();
+      auto iter = mMapDirs.find(req_proto.dirclose().uuid());
 
       if (iter == mMapDirs.end())
       {
-        eos_err("directory not found in map for closing it");
-        ret = SFS_ERROR;
+	mMutexDirs.UnLock();
+	eos_err("directory not found in map for closing it");
+	ret = SFS_ERROR;
       }
       else {
-        // close directory and remove from mapping
-        XrdMgmOfsDirectory* dir = iter->second;
-        {
-          XrdSysMutex scope_lock(mMutexDirs);
-          mMapDirs.erase(iter);
-        }
-        dir->close();
-        delete dir;
-        ret = SFS_OK;
+	// close directory and remove from mapping
+	XrdMgmOfsDirectory* dir = iter->second;
+	mMapDirs.erase(iter);
+	mMutexDirs.UnLock();
+	dir->close();
+	delete dir;
+	ret = SFS_OK;
       }
     }
     else if (req_proto.type() == RequestProto_OperationType_FILEOPEN)
     {
+      mMutexFiles.Lock();
       if (mMapFiles.count(req_proto.fileopen().uuid()))
       {
-        eos_debug("file:%s is already in mapping", req_proto.fileopen().name().c_str());
-        ret = SFS_OK;
+	mMutexFiles.UnLock();
+	eos_debug("file:%s is already in mapping", req_proto.fileopen().name().c_str());
+	ret = SFS_OK;
       }
       else
       {
-        // file open request
-        XrdMgmOfsFile* file = static_cast<XrdMgmOfsFile*>(
-            gOFS->newFile((char*)req_proto.fileopen().user().c_str(),
-                          req_proto.fileopen().monid()));
+	// file open request
+	mMutexFiles.UnLock();
+	XrdMgmOfsFile* file = static_cast<XrdMgmOfsFile*>(
+	    gOFS->newFile((char*)req_proto.fileopen().user().c_str(),
+			  req_proto.fileopen().monid()));
 
-        client = utils::GetXrdSecEntity(req_proto.fileopen().client());
-        ret = file->open(req_proto.fileopen().name().c_str(),
-                         req_proto.fileopen().openmode(),
-                         (mode_t) req_proto.fileopen().createmode(),
-                         client, req_proto.fileopen().opaque().c_str());
-        error.reset(new XrdOucErrInfo());
-        error->setErrInfo(file->error.getErrInfo(), file->error.getErrText());
+	client = utils::GetXrdSecEntity(req_proto.fileopen().client());
+	ret = file->open(req_proto.fileopen().name().c_str(),
+			 req_proto.fileopen().openmode(),
+			 (mode_t) req_proto.fileopen().createmode(),
+			 client, req_proto.fileopen().opaque().c_str());
+	error.reset(new XrdOucErrInfo());
+	error->setErrInfo(file->error.getErrInfo(), file->error.getErrText());
 
-        if (ret == SFS_OK) {
-          XrdSysMutexHelper scope_lock(mMutexFiles);
-          //auto result = mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
-          mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
-        } else {
-          // Drop the file object since we redirected to the FST node or if
-          // there was an error we will not receive a close so we might as well
-          // clean it up now
-          delete file;
-        }
+	if (ret == SFS_OK) {
+	  XrdSysMutexHelper scope_lock(mMutexFiles);
+	  mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
+	} else {
+	  // Drop the file object since we redirected to the FST node or if
+	  // there was an error we will not receive a close so we might as well
+	  // clean it up now
+	  delete file;
+	}
       }
     }
     else if (req_proto.type() == RequestProto_OperationType_FILESTAT)
     {
       // file stat request
       struct stat buf;
-      auto iter = mMapFiles.end();
-      {
-        XrdSysMutexHelper scope_lock(mMutexFiles);
-        iter = mMapFiles.find(req_proto.filestat().uuid());
-      }
+      mMutexFiles.Lock();
+      auto iter =  mMapFiles.find(req_proto.filestat().uuid());
 
       if (iter == mMapFiles.end())
       {
-        eos_err("file not found in map for stat");
-        memset(&buf, 0, sizeof(struct stat));
-        ret = SFS_ERROR;
+	mMutexFiles.UnLock();
+	eos_err("file not found in map for stat");
+	memset(&buf, 0, sizeof(struct stat));
+	ret = SFS_ERROR;
       }
       else
       {
-        XrdMgmOfsFile* file = iter->second;
-        ret = file->stat(&buf);
+	XrdMgmOfsFile* file = iter->second;
+	mMutexFiles.UnLock();
+	ret = file->stat(&buf);
 
 	if (ret == SFS_ERROR) {
 	  error.reset(new XrdOucErrInfo());
@@ -479,45 +476,43 @@ XrdMgmOfs::AuthWorkerThread()
     else if (req_proto.type() == RequestProto_OperationType_FILEFNAME)
     {
       // file fname request
-      auto iter = mMapFiles.end();
-      {
-        XrdSysMutexHelper scope_lock(mMutexFiles);
-        iter = mMapFiles.find(req_proto.filefname().uuid());
-      }
+      mMutexFiles.Lock();
+      auto iter = mMapFiles.find(req_proto.filefname().uuid());
 
       if (iter == mMapFiles.end())
       {
-        eos_err("file not found in map for fname call");
-        ret = SFS_ERROR;
+	mMutexFiles.UnLock();
+	eos_err("file not found in map for fname call");
+	ret = SFS_ERROR;
       }
       else
       {
-        XrdMgmOfsFile* file = iter->second;
-        resp.set_message(file->FName());
-        ret = SFS_OK;
+	XrdMgmOfsFile* file = iter->second;
+	mMutexFiles.UnLock();
+	resp.set_message(file->FName());
+	ret = SFS_OK;
       }
     }
     else if (req_proto.type() == RequestProto_OperationType_FILEREAD)
     {
       // file read request
-      auto iter = mMapFiles.end();
-      {
-        XrdSysMutexHelper scope_lock(mMutexFiles);
-        iter = mMapFiles.find(req_proto.fileread().uuid());
-      }
+      mMutexFiles.Lock();
+      auto iter =  mMapFiles.find(req_proto.fileread().uuid());
 
       if (iter == mMapFiles.end())
       {
-        eos_err("file not found in map for read");
-        ret = 0;
+	mMutexFiles.UnLock();
+	eos_err("file not found in map for read");
+	ret = 0;
       }
       else
       {
-        XrdMgmOfsFile* file = iter->second;
-        resp.mutable_message()->resize(req_proto.fileread().length());
-        ret = file->read((XrdSfsFileOffset)req_proto.fileread().offset(),
-                         (char*)resp.mutable_message()->c_str(),
-                         (XrdSfsXferSize)req_proto.fileread().length());
+	XrdMgmOfsFile* file = iter->second;
+	mMutexFiles.UnLock();
+	resp.mutable_message()->resize(req_proto.fileread().length());
+	ret = file->read((XrdSfsFileOffset)req_proto.fileread().offset(),
+			 (char*)resp.mutable_message()->c_str(),
+			 (XrdSfsXferSize)req_proto.fileread().length());
 
 	if (ret == SFS_ERROR) {
 	  error.reset(new XrdOucErrInfo());
@@ -530,50 +525,44 @@ XrdMgmOfs::AuthWorkerThread()
     else if (req_proto.type() == RequestProto_OperationType_FILEWRITE)
     {
       // file write request
-      auto iter = mMapFiles.end();
-      {
-        XrdSysMutexHelper scope_lock(mMutexFiles);
-        iter = mMapFiles.find(req_proto.filewrite().uuid());
-      }
+      mMutexFiles.Lock();
+      auto iter = mMapFiles.find(req_proto.filewrite().uuid());
 
       if (iter == mMapFiles.end())
       {
-        eos_err("file not found in map for write");
-        ret = 0;
+	mMutexFiles.UnLock();
+	eos_err("file not found in map for write");
+	ret = 0;
       }
       else
       {
-        XrdMgmOfsFile* file = iter->second;
-        ret = file->write(req_proto.filewrite().offset(),
-                          req_proto.filewrite().buff().c_str(),
-                          req_proto.filewrite().length());
+	XrdMgmOfsFile* file = iter->second;
+	mMutexFiles.UnLock();
+	ret = file->write(req_proto.filewrite().offset(),
+			  req_proto.filewrite().buff().c_str(),
+			  req_proto.filewrite().length());
       }
     }
     else if (req_proto.type() == RequestProto_OperationType_FILECLOSE)
     {
       // close file
-      auto iter = mMapFiles.end();
-      {
-        XrdSysMutexHelper scope_lock(mMutexFiles);
-        iter = mMapFiles.find(req_proto.fileclose().uuid());
-      }
+      mMutexFiles.Lock();
+      auto iter = mMapFiles.find(req_proto.fileclose().uuid());
 
       if (iter == mMapFiles.end())
       {
-        eos_err("file not found in map for closing it");
-        ret = SFS_ERROR;
+	mMutexFiles.UnLock();
+	eos_err("file not found in map for closing it");
+	ret = SFS_ERROR;
       }
       else
       {
-        // close file and remove from mapping
-        XrdMgmOfsFile* file = iter->second;
-        {
-          XrdSysMutex scope_lock(mMutexFiles);
-          mMapFiles.erase(iter);
-        }
-
-        ret = file->close();
-        delete file;
+	// close file and remove from mapping
+	XrdMgmOfsFile* file = iter->second;
+	mMapFiles.erase(iter);
+	mMutexFiles.UnLock();
+	ret = file->close();
+	delete file;
       }
     }
     else
@@ -624,7 +613,7 @@ XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
   std::string comp_hmac = eos::common::SymKey::HmacSha1(key, smsg);
   XrdOucString base64hmac;
   bool do_encoding = eos::common::SymKey::Base64Encode((char*)comp_hmac.c_str(),
-                                                       comp_hmac.length(), base64hmac);
+						       comp_hmac.length(), base64hmac);
 
   if (!do_encoding)
   {
@@ -633,13 +622,13 @@ XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
   }
 
   eos_debug("comp_hmac=%s comp_size=%i, recv_hmac=%s, recv_size=%i key=%s",
-           base64hmac.c_str(), base64hmac.length(), recv_hmac.c_str(), recv_hmac.length(), key.c_str());
+	   base64hmac.c_str(), base64hmac.length(), recv_hmac.c_str(), recv_hmac.length(), key.c_str());
 
   if (((size_t)base64hmac.length() != recv_hmac.length()) ||
       strncmp(base64hmac.c_str(), recv_hmac.c_str(), base64hmac.length()))
   {
     eos_err("computed HMAC different from the received one, this message"
-            "has been tampered with ... ");
+	    "has been tampered with ... ");
     return false;
   }
 
