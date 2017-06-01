@@ -631,10 +631,16 @@ ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
     {
       eos_err("seek to %llu failed\n", mOffset);
     }
+
     return 0;
   }
   else
   {
+    if (mLen - mOffset <= 0) {
+      eos_err("offset=%llu, memory result buffer lenght=%llu", mOffset, mLen);
+      return 0;
+    }
+
     // memory based results go here ...
     if (((unsigned int) blen <= (mLen - mOffset)))
     {
