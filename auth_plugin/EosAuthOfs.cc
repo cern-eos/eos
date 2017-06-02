@@ -1237,11 +1237,49 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
 // Get ProtocolBuffer response object using ZMQ
 //------------------------------------------------------------------------------
 google::protobuf::Message*
-EosAuthOfs::GetResponse(zmq::socket_t* socket)
+EosAuthOfs::GetResponse(zmq::socket_t*& socket)
 {
+  int num_retries = 40; // 2 min = 40 * 5 sec
+  bool done = false;
+  bool reset_socket = false;
   zmq::message_t reply;
   ResponseProto* resp = static_cast<ResponseProto*>(0);
-  bool done = socket->recv(&reply);
+
+  try {
+    do {
+      done = socket->recv(&reply);
+      num_retries--;
+    } while (!done && (num_retries > 0));
+  } catch (zmq::error_t& e) {
+    eos_err("socket error: %s", e.what());
+    reset_socket = true;
+  }
+
+  // We waited 2 min for a response or a fatal error occurent - then we throw
+  //  away the socket and create a new one
+  if ((num_retries <= 0) || reset_socket) {
+    eos_err("discard current socket and create a new one");
+    delete socket;
+    socket = new zmq::socket_t(*mZmqContext, ZMQ_REQ);
+#if ZMQ_VERSION >= 20200
+    int timeout_mili = 5000;
+    socket->setsockopt(ZMQ_RCVTIMEO, &timeout_mili, sizeof timeout_mili);
+#endif
+    std::string endpoint = "inproc://proxyfrontend";
+
+    // Try in a loop to connect to the proxyfrontend as it can take a while for
+    // the proxy thread to do the binding, therefore connect can fail
+    while (1) {
+      try {
+        socket->connect(endpoint.c_str());
+      } catch (zmq::error_t& err) {
+        eos_warning("dealing with connect exception, retrying ...");
+        continue;
+      }
+
+      break;
+    }
+  }
 
   if (done) {
     std::string resp_str = std::string(static_cast<char*>(reply.data()),

@@ -43,14 +43,16 @@ EOSAUTHTEST_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 TestEnv::TestEnv()
 {
-  mMapParam.insert(std::make_pair("server","localhost:1099"));
+  mMapParam.insert(std::make_pair("server", "localhost:1099"));
   mMapParam.insert(std::make_pair("file_path", "/eos/dev/test/auth/file1MB.dat"));
   mMapParam.insert(std::make_pair("file_size", "1048576")); // 1MB
-  mMapParam.insert(std::make_pair("file_chksum", "eos 71e800f1")); 
-  mMapParam.insert(std::make_pair("file_missing", "/eos/dev/test/auth/file_unknown.dat"));
-  mMapParam.insert(std::make_pair("file_rename", "/eos/dev/test/auth/file1MB.dat_rename"));
+  mMapParam.insert(std::make_pair("file_chksum", "adler32 71e800f1"));
+  mMapParam.insert(std::make_pair("file_missing",
+                                  "/eos/dev/test/auth/file_unknown.dat"));
+  mMapParam.insert(std::make_pair("file_rename",
+                                  "/eos/dev/test/auth/file1MB.dat_rename"));
   mMapParam.insert(std::make_pair("dir_name", "/eos/dev/test/auth/"));
-  mMapParam.insert(std::make_pair("dir_new", "/eos/dev/test/auth/dummy"));  
+  mMapParam.insert(std::make_pair("dir_new", "/eos/dev/test/auth/dummy"));
 }
 
 
@@ -71,8 +73,7 @@ TestEnv::SetMapping(const std::string& key, const std::string& value)
 {
   auto pair_res = mMapParam.insert(std::make_pair(key, value));
 
-  if (!pair_res.second)
-  {
+  if (!pair_res.second) {
     std::cerr << "Mapping already exists, key=" << key
               << " value=" << value << std::endl;
   }
@@ -87,10 +88,11 @@ TestEnv::GetMapping(const std::string& key) const
 {
   auto iter = mMapParam.find(key);
 
-  if (iter != mMapParam.end())
+  if (iter != mMapParam.end()) {
     return iter->second;
-  else
+  } else {
     return std::string("");
+  }
 }
 
 EOSAUTHTEST_NAMESPACE_END

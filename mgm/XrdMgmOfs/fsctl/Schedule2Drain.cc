@@ -96,7 +96,7 @@
             fmd->removeLocation(it->second.first);
             gOFS->eosView->updateFileStore(fmd.get());
             eos_info("msg=\"drained(unlinked) atomic upload file\" fxid=%llx source-fsid=%u "
-            "target-fsid=%u", it->first, it->second.first, it->second.second);
+                     "target-fsid=%u", it->first, it->second.first, it->second.second);
           } else {
             eos_warning("msg=\"unexpected file in zero-move list with size!=0 and not atomic path - skipping\"");
           }
@@ -417,17 +417,18 @@
                               fid, source_fsid, locationfs[fsindex], target_fsid);
               XrdOucString replica_source_capability = "";
               XrdOucString sizestring;
+              unsigned long long target_lid = lid & 0xffffff0f;
 
-		unsigned long long target_lid = lid & 0xffffff0f;
-		if (!eos::common::LayoutId::GetBlockChecksum(lid))
-		{
-		  // mask block checksums (e.g. for replica layouts)                                                               
-		  target_lid &= 0xf0ffffff;
-		}
+              if (eos::common::LayoutId::GetBlockChecksum(lid) ==
+                  eos::common::LayoutId::kNone) {
+                // mask block checksums (e.g. for replica layouts)
+                target_lid &= 0xf0ffffff;
+              }
 
               replica_source_capability += "mgm.access=read";
               replica_source_capability += "&mgm.lid=";
-                replica_source_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) target_lid);
+              replica_source_capability += eos::common::StringConversion::GetSizeString(
+                                             sizestring, (unsigned long long) target_lid);
               // make's it a plain replica
               replica_source_capability += "&mgm.cid=";
               replica_source_capability += eos::common::StringConversion::GetSizeString(
@@ -462,7 +463,8 @@
               XrdOucString target_capability = "";
               target_capability += "mgm.access=write";
               target_capability += "&mgm.lid=";
-                target_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) target_lid);
+              target_capability += eos::common::StringConversion::GetSizeString(sizestring,
+                                   (unsigned long long) target_lid);
               // make's it a plain replica
               target_capability += "&mgm.source.lid=";
               target_capability += eos::common::StringConversion::GetSizeString(sizestring,

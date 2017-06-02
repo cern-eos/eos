@@ -33,29 +33,29 @@
 
 
 //------------------------------------------------------------------------------
-//! AuthFsTest class 
+//! AuthFsTest class
 //------------------------------------------------------------------------------
 class AuthFsTest: public CppUnit::TestCase
 {
   CPPUNIT_TEST_SUITE(AuthFsTest);
-    CPPUNIT_TEST(StatTest);
-    CPPUNIT_TEST(StatFailTest);
-    CPPUNIT_TEST(TruncateTest);
-    CPPUNIT_TEST(StatVFSTest);
-    CPPUNIT_TEST(RenameTest);
-    CPPUNIT_TEST(ChksumTest);
-    CPPUNIT_TEST(MkRemDirTest);
-    CPPUNIT_TEST(ChmodTest);
-    CPPUNIT_TEST(PrepareTest);
-    CPPUNIT_TEST(RemTest);
-    CPPUNIT_TEST(FSctlTest);
-    CPPUNIT_TEST(fsctlTest);
-    CPPUNIT_TEST(DirListTest);
-    CPPUNIT_TEST(ProcCommandTest);
+  CPPUNIT_TEST(StatTest);
+  CPPUNIT_TEST(StatFailTest);
+  CPPUNIT_TEST(TruncateTest);
+  CPPUNIT_TEST(StatVFSTest);
+  CPPUNIT_TEST(RenameTest);
+  CPPUNIT_TEST(ChksumTest);
+  CPPUNIT_TEST(MkRemDirTest);
+  CPPUNIT_TEST(ChmodTest);
+  CPPUNIT_TEST(PrepareTest);
+  CPPUNIT_TEST(RemTest);
+  CPPUNIT_TEST(FSctlTest);
+  CPPUNIT_TEST(fsctlTest);
+  CPPUNIT_TEST(DirListTest);
+  CPPUNIT_TEST(ProcCommandTest);
   CPPUNIT_TEST_SUITE_END();
 
- public:
-  
+public:
+
   //----------------------------------------------------------------------------
   //! setUp function called before each test is done
   //----------------------------------------------------------------------------
@@ -65,12 +65,12 @@ class AuthFsTest: public CppUnit::TestCase
   //! tearDown function after each test is done
   //----------------------------------------------------------------------------
   void tearDown(void);
-   
+
   //----------------------------------------------------------------------------
   //! File stat test
   //----------------------------------------------------------------------------
   void StatTest();
-  
+
   //----------------------------------------------------------------------------
   //! File stat test
   //----------------------------------------------------------------------------
@@ -141,8 +141,8 @@ class AuthFsTest: public CppUnit::TestCase
   //----------------------------------------------------------------------------
   void ProcCommandTest();
 
-  
- private:
+
+private:
 
   XrdCl::FileSystem* mFs; ///< XrdCl::FileSystem instance used in the tests
   eos::auth::test::TestEnv* mEnv; ///< testing envirionment object
@@ -163,7 +163,6 @@ AuthFsTest::setUp()
   std::string address = "root://root@" + mEnv->GetMapping("server");
   XrdCl::URL url(address);
   CPPUNIT_ASSERT(url.IsValid());
-  
   mFs = new XrdCl::FileSystem(url);
   CPPUNIT_ASSERT(mFs);
 }
@@ -187,7 +186,7 @@ AuthFsTest::tearDown()
 void
 AuthFsTest::StatTest()
 {
-  XrdCl::StatInfo *stat = 0;
+  XrdCl::StatInfo* stat = 0;
   uint64_t file_size = atoi(mEnv->GetMapping("file_size").c_str());
   std::string file_path = mEnv->GetMapping("file_path");
   XrdCl::XRootDStatus status = mFs->Stat(file_path, stat);
@@ -206,7 +205,7 @@ AuthFsTest::StatTest()
 void
 AuthFsTest::StatFailTest()
 {
-  XrdCl::StatInfo *stat = 0;
+  XrdCl::StatInfo* stat = 0;
   std::string file_path = mEnv->GetMapping("file_missing");
   XrdCl::XRootDStatus status = mFs->Stat(file_path, stat);
   CPPUNIT_ASSERT(!status.IsOK());
@@ -255,9 +254,8 @@ AuthFsTest::RenameTest()
   std::string rename_path = mEnv->GetMapping("file_rename");
   XrdCl::XRootDStatus status = mFs->Mv(file_path, rename_path);
   CPPUNIT_ASSERT(status.IsOK());
-
-  // Stat the renamed file 
-  XrdCl::StatInfo *stat = 0;
+  // Stat the renamed file
+  XrdCl::StatInfo* stat = 0;
   status = mFs->Stat(rename_path, stat);
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(stat);
@@ -265,11 +263,9 @@ AuthFsTest::RenameTest()
   CPPUNIT_ASSERT(stat->TestFlags(XrdCl::StatInfo::IsReadable)) ;
   delete stat;
   stat = 0;
-
   // Rename back to initial file name
   status = mFs->Mv(rename_path, file_path);
   CPPUNIT_ASSERT(status.IsOK());
-
   // Stat again the initial file name
   status = mFs->Stat(file_path, stat);
   CPPUNIT_ASSERT(status.IsOK());
@@ -293,18 +289,15 @@ AuthFsTest::RemTest()
   std::string address = "root://root@" + mEnv->GetMapping("server") + "/";
   XrdCl::URL url(address);
   CPPUNIT_ASSERT(url.IsValid());
-
   // Construct the file path
   std::string file_path = mEnv->GetMapping("dir_name") + "/to_delete.dat";
   std::string file_url = address + file_path;
-
   // Fill 1MB buffer with random content
   int buff_size = atoi(mEnv->GetMapping("file_size").c_str());
   char* buffer = new char[buff_size];
   std::fstream urand("/dev/urandom");
   urand.read(buffer, buff_size);
   urand.close();
-
   // Create and write a 1MB file
   File file;
   CPPUNIT_ASSERT(file.Open(file_url, OpenFlags::Delete | OpenFlags::Update,
@@ -312,7 +305,6 @@ AuthFsTest::RemTest()
   CPPUNIT_ASSERT(file.Write(0, buff_size, buffer).IsOK());
   CPPUNIT_ASSERT(file.Sync().IsOK());
   CPPUNIT_ASSERT(file.Close().IsOK());
-
   // Delete the newly created file
   CPPUNIT_ASSERT(mFs->Rm(file_path).IsOK());
   delete[] buffer;
@@ -332,7 +324,7 @@ AuthFsTest::PrepareTest()
   file_list.push_back(file_path);
   Buffer* response = 0;
   XRootDStatus status = mFs->Prepare(file_list, PrepareFlags::Flags::WriteMode,
-                                     3, response );
+                                     3, response);
   CPPUNIT_ASSERT(status.IsOK());
   delete response;
 }
@@ -351,7 +343,6 @@ AuthFsTest::MkRemDirTest()
                       Access::Mode::GR | Access::Mode::OR;
   XRootDStatus status = mFs->MkDir(dir_path, flags, mode);
   CPPUNIT_ASSERT(status.IsOK());
-
   // Delete the newly created directory
   status = mFs->RmDir(dir_path);
   CPPUNIT_ASSERT(status.IsOK());
@@ -369,33 +360,28 @@ AuthFsTest::fsctlTest()
   Buffer* response = 0;
   Buffer arg;
   arg.FromString("/");
-
   // SFS_FSCTL_STATLS is supported
   XRootDStatus status = mFs->Query(QueryCode::Code::Space, arg, response);
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(response->GetSize());
   delete response;
   response = 0;
-
   // This calls getStats() on the EosAutOfs
   status = mFs->Query(QueryCode::Code::Stats, arg, response);
   CPPUNIT_ASSERT(status.IsOK());
   delete response;
   response = 0;
-
   // This is not supported - should return an error
   status = mFs->Query(QueryCode::Code::XAttr, arg, response);
   CPPUNIT_ASSERT(status.IsError());
   delete response;
   response = 0;
-
   // Test xattr query which calls fsctl with cmd = SFS_FSCTL_STATXS on the
   // server side which is not supported in EOS
   status = mFs->Query(QueryCode::Code::XAttr, arg, response);
   CPPUNIT_ASSERT(status.IsError());
   delete response;
   response = 0;
-
   // Test Locate which calls fsctl with cmd = SFS_FSCTL_LOCATE on the server size
   std::string file_path = mEnv->GetMapping("file_path");
   LocationInfo* location;
@@ -419,14 +405,12 @@ AuthFsTest::FSctlTest()
   using namespace XrdCl;
   Buffer* response = 0;
   Buffer arg;
-
   // SFS_FSCTL_PLUGIN not supported - we expect an error
   XRootDStatus status = mFs->Query(QueryCode::Code::Opaque, arg, response);
   CPPUNIT_ASSERT(status.IsError());
   arg.Release();
   delete response;
   response = 0;
-
   // Do stat on a file - which is an SFS_FSCTL_PLUGIO and is supported
   std::ostringstream sstr;
   sstr << "/?mgm.pcmd=stat&mgm.path=" << mEnv->GetMapping("file_path");
@@ -467,37 +451,33 @@ AuthFsTest::ChmodTest()
   using namespace XrdCl;
   std::string dir_path = mEnv->GetMapping("dir_new");
   std::string file_path = mEnv->GetMapping("file_path");
-
   //Create dummy directory
   MkDirFlags::Flags flags = MkDirFlags::Flags::MakePath;
   Access::Mode mode = Access::Mode::UR | Access::Mode::UW |
                       Access::Mode::GR | Access::Mode::OR;
   XRootDStatus status = mFs->MkDir(dir_path, flags, mode);
   CPPUNIT_ASSERT(status.IsOK());
-
   // Chmod dir
   status = mFs->ChMod(dir_path,
                       Access::Mode::UR | Access::Mode::UW | Access::Mode::UX |
                       Access::Mode::GR | Access::Mode::GW | Access::Mode::GX |
                       Access::Mode::OR | Access::Mode::OW | Access::Mode::OX);
   CPPUNIT_ASSERT(status.IsOK());
-
   // Delete the newly created directory
   status = mFs->RmDir(dir_path);
   CPPUNIT_ASSERT(status.IsOK());
-
   // Chmod file
   status = mFs->ChMod(file_path,
                       Access::Mode::UR | Access::Mode::UW | Access::Mode::UX |
                       Access::Mode::GR | Access::Mode::GW | Access::Mode::GX |
                       Access::Mode::OR | Access::Mode::OW | Access::Mode::OX);
-  CPPUNIT_ASSERT(status.IsError());
+  CPPUNIT_ASSERT(status.IsOK());
 }
 
 
 //------------------------------------------------------------------------------
 // Directory listing test - the initial directory should contain only the
-// initial test file: file1MB.dat 
+// initial test file: file1MB.dat
 //------------------------------------------------------------------------------
 void
 AuthFsTest::DirListTest()
@@ -524,17 +504,14 @@ AuthFsTest::ProcCommandTest()
   std::string address = "root://root@" + mEnv->GetMapping("server") + "/";
   XrdCl::URL url(address);
   CPPUNIT_ASSERT(url.IsValid());
-  
   // Construct the file path
   std::string command = "mgm.cmd=fs&mgm.subcmd=ls&eos.ruid=0&eos.rgid=0";
   std::string file_path = "/proc/admin/?" + command;
   std::string file_url = address + file_path + command;
-
   // Open the file for reading - which triggers the command to be executed and
   // then we just need to read the result of the command from the same file
   File file;
   CPPUNIT_ASSERT(file.Open(file_url, OpenFlags::Read).IsOK());
-
   // Prepare buffer which contains the result
   std::string output("");
   uint64_t offset = 0;
@@ -542,15 +519,13 @@ AuthFsTest::ProcCommandTest()
   char buffer[4096 + 1];
   XRootDStatus status = file.Read(offset, 4096, buffer, nread);
 
-  while (status.IsOK() && (nread > 0))
-  {
+  while (status.IsOK() && (nread > 0)) {
     buffer[nread] = '\0';
     output += buffer;
     offset += nread;
-    status = file.Read(offset, 4096, buffer, nread);    
+    status = file.Read(offset, 4096, buffer, nread);
   }
 
   CPPUNIT_ASSERT(output.length());
   CPPUNIT_ASSERT(file.Close().IsOK());
 }
-

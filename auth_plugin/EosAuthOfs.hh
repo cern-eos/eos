@@ -295,7 +295,7 @@ private:
   //!         delete the obtained object
   //!
   //--------------------------------------------------------------------------
-  google::protobuf::Message* GetResponse(zmq::socket_t* socket);
+  google::protobuf::Message* GetResponse(zmq::socket_t*& socket);
 
   //--------------------------------------------------------------------------
   //! Update the socket pointing to the master MGM instance

@@ -216,7 +216,6 @@ ProcCommand::ProcCommand()
   stdJson = "";
   retc = 0;
   mResultStream = "";
-  mOffset = 0;
   mLen = 0;
   pVid = 0;
   path = "";
@@ -427,7 +426,6 @@ ProcCommand::open(const char* inpath,
   stdErr = "";
   retc = 0;
   mResultStream = "";
-  mOffset = 0;
   mLen = 0;
   mDoSort = true;
   XrdOucString encoding = pOpaque->Get("mgm.enc");
@@ -590,7 +588,7 @@ ProcCommand::open(const char* inpath,
 /*----------------------------------------------------------------------------*/
 /**
  * read a part of the result stream produced during open
- * @param mOffset offset where to start
+ * @param boff offset where to start
  * @param buff buffer to store stream
  * @param blen len to return
  * @return number of bytes read
@@ -598,29 +596,33 @@ ProcCommand::open(const char* inpath,
 
 /*----------------------------------------------------------------------------*/
 int
-ProcCommand::read(XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
+ProcCommand::read(XrdSfsFileOffset boff, char* buff, XrdSfsXferSize blen)
 {
   if (fresultStream) {
     // file based results go here ...
-    if ((fseek(fresultStream, mOffset, 0)) == 0) {
+    if ((fseek(fresultStream, boff, 0)) == 0) {
       size_t nread = fread(buff, 1, blen, fresultStream);
 
       if (nread > 0) {
         return nread;
       }
     } else {
-      eos_err("seek to %llu failed\n", mOffset);
+      eos_err("seek to %llu failed\n", boff);
     }
 
     return 0;
   } else {
+    if (mLen - boff <= 0) {
+      return 0;
+    }
+
     // memory based results go here ...
-    if (((unsigned int) blen <= (mLen - mOffset))) {
-      memcpy(buff, mResultStream.c_str() + mOffset, blen);
+    if (((unsigned int) blen <= (mLen - boff))) {
+      memcpy(buff, mResultStream.c_str() + boff, blen);
       return blen;
     } else {
-      memcpy(buff, mResultStream.c_str() + mOffset, (mLen - mOffset));
-      return (mLen - mOffset);
+      memcpy(buff, mResultStream.c_str() + boff, (mLen - boff));
+      return (mLen - boff);
     }
   }
 }
@@ -889,7 +891,6 @@ ProcCommand::MakeResult()
     }
 
     mLen = mResultStream.length();
-    mOffset = 0;
   } else {
     // --------------------------------------------------------------------------
     // file based results CANNOT be sorted and don't have mFuseFormat

@@ -65,40 +65,39 @@ EosAuthOfsFile::open(const char* fileName,
   int retc = SFS_ERROR;
   eos_debug("file open name=%s opaque=%s", fileName, opaque);
   mName = fileName;
-
   // Save file pointer value which is used as a key on the MGM instance
   std::ostringstream sstr;
   // Add the current machine's IP to the uuid in order to avoid collisions in case
-  // we have multiple auth plugins connecting to the same MGM node 
+  // we have multiple auth plugins connecting to the same MGM node
   sstr << gOFS->mManagerIp << ":" << this;
   RequestProto* req_proto = utils::GetFileOpenRequest(sstr.str(), fileName,
-                                   openMode, createMode, client, opaque,
-                                   error.getErrUser(), error.getErrMid());
+                            openMode, createMode, client, opaque,
+                            error.getErrUser(), error.getErrMid());
 
   // Compute HMAC for request object
-  if (!utils::ComputeHMAC(req_proto))
-  {
+  if (!utils::ComputeHMAC(req_proto)) {
     eos_err("error HMAC file open");
     delete req_proto;
     return retc;
   }
-  
+
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
 
-  if (gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    ResponseProto* resp_open = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+  if (gOFS->SendProtoBufRequest(socket, req_proto)) {
+    ResponseProto* resp_open = static_cast<ResponseProto*>(gOFS->GetResponse(
+                                 socket));
 
-    if (resp_open)
-    {
+    if (resp_open) {
       retc = resp_open->response();
       eos_debug("got response for file open request: %i", retc);
-      
-      if (resp_open->has_error())
-        error.setErrInfo(resp_open->error().code(), resp_open->error().message().c_str());
-      
+
+      if (resp_open->has_error()) {
+        error.setErrInfo(resp_open->error().code(),
+                         resp_open->error().message().c_str());
+      }
+
       delete resp_open;
     }
   }
@@ -126,36 +125,33 @@ EosAuthOfsFile::read(XrdSfsFileOffset offset,
   RequestProto* req_proto = utils::GetFileReadRequest(sstr.str(), offset, length);
 
   // Compute HMAC for request object
-  if (!utils::ComputeHMAC(req_proto))
-  {
+  if (!utils::ComputeHMAC(req_proto)) {
     eos_err("error HMAC file read");
     delete req_proto;
     return retc;
   }
- 
+
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
 
-  if (gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    ResponseProto* resp_fread = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+  if (gOFS->SendProtoBufRequest(socket, req_proto)) {
+    ResponseProto* resp_fread = static_cast<ResponseProto*>(gOFS->GetResponse(
+                                  socket));
 
-    if (resp_fread)
-    {
+    if (resp_fread) {
       retc = resp_fread->response();
 
-      if (retc && resp_fread->has_message())
-      {
+      if (retc && resp_fread->has_message()) {
         buffer = static_cast<char*>(memcpy((void*)buffer,
                                            resp_fread->message().c_str(),
                                            resp_fread->message().length()));
       }
-      
+
       delete resp_fread;
     }
   }
-  
+
   // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
@@ -176,32 +172,31 @@ EosAuthOfsFile::write(XrdSfsFileOffset offset,
   std::ostringstream sstr;
   sstr << gOFS->mManagerIp << ":" << this;
   eos_debug("fptr=%s, off=%li, len=%i", sstr.str().c_str(), offset, length);
-  RequestProto* req_proto = utils::GetFileWriteRequest(sstr.str(), offset, buffer, length);
-  
+  RequestProto* req_proto = utils::GetFileWriteRequest(sstr.str(), offset, buffer,
+                            length);
+
   // Compute HMAC for request object
-  if (!utils::ComputeHMAC(req_proto))
-  {
+  if (!utils::ComputeHMAC(req_proto)) {
     eos_err("error HMAC file write");
     delete req_proto;
     return retc;
   }
-  
+
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
 
-  if (gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    ResponseProto* resp_fwrite = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+  if (gOFS->SendProtoBufRequest(socket, req_proto)) {
+    ResponseProto* resp_fwrite = static_cast<ResponseProto*>(gOFS->GetResponse(
+                                   socket));
 
-    if (resp_fwrite)
-    {
+    if (resp_fwrite) {
       retc = resp_fwrite->response();
       eos_debug("got response for file write request");
       delete resp_fwrite;
     }
   }
- 
+
   // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
@@ -223,44 +218,40 @@ EosAuthOfsFile::FName()
   RequestProto* req_proto = utils::GetFileFnameRequest(sstr.str());
 
   // Compute HMAC for request object
-  if (!utils::ComputeHMAC(req_proto))
-  {
+  if (!utils::ComputeHMAC(req_proto)) {
     eos_err("error HMAC file name");
     delete req_proto;
     return static_cast<const char*>(0);
   }
-  
+
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
 
-  if (gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    ResponseProto* resp_fname = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+  if (gOFS->SendProtoBufRequest(socket, req_proto)) {
+    ResponseProto* resp_fname = static_cast<ResponseProto*>(gOFS->GetResponse(
+                                  socket));
 
-    if (resp_fname)
-    {
+    if (resp_fname) {
       retc = resp_fname->response();
       eos_debug("got response for filefname request");
-      
-      if (retc == SFS_OK)
-      {
+
+      if (retc == SFS_OK) {
         eos_debug("file fname is: %s", resp_fname->message().c_str());
         mName = resp_fname->message();
-      }
-      else
-      { 
+      } else {
         eos_debug("file fname not found or error on server side");
       }
-      
+
       delete resp_fname;
     }
   }
- 
+
   // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
-  return (retc ? static_cast<const char*>(0) : mName.c_str());
+  return (retc ? static_cast<const char*>(0) :
+          (mName.empty() ? static_cast<const char*>(0) : mName.c_str()));
 }
 
 
@@ -278,8 +269,7 @@ EosAuthOfsFile::stat(struct stat* buf)
   RequestProto* req_proto = utils::GetFileStatRequest(sstr.str());
 
   // Compute HMAC for request object
-  if (!utils::ComputeHMAC(req_proto))
-  {
+  if (!utils::ComputeHMAC(req_proto)) {
     eos_err("error HMAC file stat");
     delete req_proto;
     return retc;
@@ -289,12 +279,11 @@ EosAuthOfsFile::stat(struct stat* buf)
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
 
-  if (gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    ResponseProto* resp_fstat = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+  if (gOFS->SendProtoBufRequest(socket, req_proto)) {
+    ResponseProto* resp_fstat = static_cast<ResponseProto*>(gOFS->GetResponse(
+                                  socket));
 
-    if (resp_fstat)
-    {
+    if (resp_fstat) {
       retc = resp_fstat->response();
       buf = static_cast<struct stat*>(memcpy((void*)buf,
                                              resp_fstat->message().c_str(),
@@ -302,13 +291,11 @@ EosAuthOfsFile::stat(struct stat* buf)
       eos_debug("got response for fstat request: %i", retc);
       delete resp_fstat;
     }
-  }
-  else
-  {
+  } else {
     eos_err("file stat - unable to send request");
     memset(buf, 0, sizeof(struct stat));
   }
-  
+
   // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
@@ -330,29 +317,27 @@ EosAuthOfsFile::close()
   RequestProto* req_proto = utils::GetFileCloseRequest(sstr.str());
 
   // Compute HMAC for request object
-  if (!utils::ComputeHMAC(req_proto))
-  {
+  if (!utils::ComputeHMAC(req_proto)) {
     eos_err("error HMAC file close");
     delete req_proto;
     return retc;
   }
-  
+
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
 
-  if (gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    ResponseProto* resp_close = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+  if (gOFS->SendProtoBufRequest(socket, req_proto)) {
+    ResponseProto* resp_close = static_cast<ResponseProto*>(gOFS->GetResponse(
+                                  socket));
 
-    if (resp_close)
-    {
+    if (resp_close) {
       retc = resp_close->response();
       eos_debug("got response for file close request: %i", retc);
       delete resp_close;
     }
   }
-  
+
   // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
@@ -380,7 +365,9 @@ EosAuthOfsFile::fctl(int, const char*, XrdOucErrInfo&)
 int
 EosAuthOfsFile::getMmap(void** Addr, off_t& Size)
 {
-  if (Addr) Addr = 0;
+  if (Addr) {
+    Addr = 0;
+  }
 
   Size = 0;
   return SFS_OK;
@@ -474,10 +461,11 @@ EosAuthOfsFile::Emsg(const char* pfx,
   char* etext, buffer[4096], unkbuff[64];
 
   // Get the reason for the error
-  if (ecode < 0) ecode = -ecode;
+  if (ecode < 0) {
+    ecode = -ecode;
+  }
 
-  if (!(etext = strerror(ecode)))
-  {
+  if (!(etext = strerror(ecode))) {
     sprintf(unkbuff, "reason unknown (%d)", ecode);
     etext = unkbuff;
   }
@@ -485,7 +473,6 @@ EosAuthOfsFile::Emsg(const char* pfx,
   // Format the error message
   snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
   eos_err("Unable to %s %s; %s", op, target, etext);
-
   // Place the error message in the error object and return
   einfo.setErrInfo(ecode, buffer);
   return SFS_ERROR;
