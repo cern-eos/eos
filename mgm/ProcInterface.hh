@@ -299,7 +299,7 @@ private:
   XrdOucString mComment; //< comment issued by the user for the proc comamnd
   time_t mExecTime; //< execution time measured for the proc command
 
-  size_t mLen; //< len of the result stream
+  ssize_t mLen; //< len of the result stream
   bool mAdminCmd; // < indicates an admin command
   bool mUserCmd; //< indicates a user command
 
