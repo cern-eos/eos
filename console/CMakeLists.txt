@@ -126,6 +126,14 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
+set_target_properties(
+  eos PROPERTIES
+  INSTALL_RPATH "${XROOTD_CL_LIBRARY};${XROOTD_POSIX_LIBRARY};${XROOTD_UTILS_LIBRARY}"
+  SKIP_RPATH FALSE
+  SKIP_BUILD_RPATH  FALSE
+  BUILD_WITH_INSTALL_RPATH TRUE
+  INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 add_executable(eosdropboxd dropbox/eosdropboxd.cc)
 
 if(Linux)
