@@ -542,7 +542,7 @@ XrdMgmOfs::AuthWorkerThread()
       {
 	mMutexFiles.UnLock();
 	eos_err("file not found in map for read");
-	ret = 0;
+	ret = SFS_ERROR;
       }
       else
       {
@@ -571,7 +571,7 @@ XrdMgmOfs::AuthWorkerThread()
       {
 	mMutexFiles.UnLock();
 	eos_err("file not found in map for write");
-	ret = 0;
+	ret = SFS_ERROR;
       }
       else
       {

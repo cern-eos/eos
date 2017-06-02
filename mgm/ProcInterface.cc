@@ -616,12 +616,12 @@ ProcCommand::open (const char* inpath, const char* info,
 // Read a part of the result stream produced during open
 //------------------------------------------------------------------------------
 int
-ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
+ProcCommand::read (XrdSfsFileOffset boff, char* buff, XrdSfsXferSize blen)
 {
   if (fresultStream)
   {
     // file based results go here ...
-    if ((fseek(fresultStream, mOffset, 0)) == 0)
+    if ((fseek(fresultStream, boff, 0)) == 0)
     {
       size_t nread = fread(buff, 1, blen, fresultStream);
       if (nread > 0)
@@ -629,27 +629,27 @@ ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
     }
     else
     {
-      eos_err("seek to %llu failed\n", mOffset);
+      eos_err("seek to %llu failed\n", boff);
     }
 
     return 0;
   }
   else
   {
-    if (mLen - mOffset <= 0) {
+    if (mLen - boff <= 0) {
       return 0;
     }
 
     // memory based results go here ...
-    if (((unsigned int) blen <= (mLen - mOffset)))
+    if (((unsigned int) blen <= (mLen - boff)))
     {
-      memcpy(buff, mResultStream.c_str() + mOffset, blen);
+      memcpy(buff, mResultStream.c_str() + boff, blen);
       return blen;
     }
     else
     {
-      memcpy(buff, mResultStream.c_str() + mOffset, (mLen - mOffset));
-      return (mLen - mOffset);
+      memcpy(buff, mResultStream.c_str() + boff, (mLen - boff));
+      return (mLen - boff);
     }
   }
 }
