@@ -73,7 +73,6 @@ ProcCommand::Fuse ()
       retc = -retc;
       mResultStream += retc;
       mLen = mResultStream.length();
-      mOffset = 0;
       return SFS_OK;
     }
 
@@ -252,7 +251,6 @@ ProcCommand::Fuse ()
     delete inodir;
     eos_debug("returning resultstream %s", mResultStream.c_str());
     mLen = mResultStream.length();
-    mOffset = 0;
   }
   return SFS_OK;
 }

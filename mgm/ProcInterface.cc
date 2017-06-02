@@ -209,7 +209,6 @@ ProcCommand::ProcCommand ()
   stdJson = "";
   retc = 0;
   mResultStream = "";
-  mOffset = 0;
   mLen = 0;
   pVid = 0;
   path = "";
@@ -387,7 +386,6 @@ ProcCommand::open (const char* inpath, const char* info,
   stdErr = "";
   retc = 0;
   mResultStream = "";
-  mOffset = 0;
   mLen = 0;
   mDoSort = true;
 
@@ -915,7 +913,6 @@ ProcCommand::MakeResult ()
       eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
     }
     mLen = mResultStream.length();
-    mOffset = 0;
   }
   else
   {
