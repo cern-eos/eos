@@ -187,8 +187,7 @@ S3Handler::VerifySignature ()
   eos_static_debug("s2sign=%s key=%s", string2sign.c_str(), secure_key.c_str());
 
   // get hmac sha1 hash
-  std::string hmac1 = eos::common::SymKey::HmacSha1(secure_key,
-                                                    string2sign);
+  std::string hmac1 = eos::common::SymKey::HmacSha1(string2sign, secure_key.c_str());
 
   XrdOucString b64mac1;
   // base64 encode the hash
@@ -210,8 +209,7 @@ S3Handler::VerifySignature ()
     newstring2sign.replace(GetPath().c_str(), encodedPath.c_str());
     string2sign = newstring2sign.c_str();
 
-    hmac1 = eos::common::SymKey::HmacSha1(secure_key,
-                                          string2sign);
+    hmac1 = eos::common::SymKey::HmacSha1(string2sign, secure_key.c_str());
 
     b64mac1 = "";
     eos::common::SymKey::Base64Encode((char*) hmac1.c_str(), hmac1.size(), b64mac1);
