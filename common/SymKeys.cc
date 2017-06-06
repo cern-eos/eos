@@ -121,47 +121,11 @@ SymKey::Sha256(const std::string& data,
   return result;
 }
 
-//------------------------------------------------------------------------------
-// Compute the HMAC SHA-1 value according to AWS standard
-//------------------------------------------------------------------------------
-std::string
-SymKey::HmacSha1(std::string& key,
-                 std::string& data)
-{
-  HMAC_CTX* ctx = HMAC_CTX_new();
-  std::string result;
-  unsigned int blockSize = 64;
-  unsigned int data_len = data.length();
-  unsigned int key_len = key.length();
-  unsigned char* pKey = (unsigned char*) key.c_str();
-  unsigned char* pData = (unsigned char*) data.c_str();
-  result.resize(20);
-  unsigned char* pResult = (unsigned char*) result.c_str();
-  ENGINE_load_builtin_engines();
-  ENGINE_register_all_complete();
-  HMAC_Init_ex(ctx, pKey, key_len, EVP_sha1(), NULL);
-
-  while (data_len > blockSize) {
-    HMAC_Update(ctx, pData, blockSize);
-    data_len -= blockSize;
-    pData += blockSize;
-  }
-
-  if (data_len) {
-    HMAC_Update(ctx, pData, data_len);
-  }
-
-  unsigned int resultSize;
-  HMAC_Final(ctx, pResult, &resultSize);
-  HMAC_CTX_free(ctx);
-  return result;
-}
 #else
 
 //------------------------------------------------------------------------------
 // Compute the HMAC SHA-256 value
 //------------------------------------------------------------------------------
-
 std::string
 SymKey::HmacSha256(std::string& key,
                    std::string& data,
@@ -196,11 +160,9 @@ SymKey::HmacSha256(std::string& key,
   return result;
 }
 
-
 //------------------------------------------------------------------------------
 // Compute the SHA256 value
 //------------------------------------------------------------------------------
-
 std::string
 SymKey::Sha256(const std::string& data,
                unsigned int blockSize)
@@ -243,11 +205,11 @@ SymKey::Sha256(const std::string& data,
   return result;
 }
 
+#endif
 
 //------------------------------------------------------------------------------
 // Compute the HMAC SHA-1 value according to AWS standard
 //------------------------------------------------------------------------------
-
 std::string
 SymKey::HmacSha1(std::string& data, const char* key)
 {
@@ -268,11 +230,10 @@ SymKey::HmacSha1(std::string& data, const char* key)
   result.resize(result_size + 1);
   return result;
 }
-#endif
+
 //------------------------------------------------------------------------------
 // Base64 encoding function
 //------------------------------------------------------------------------------
-
 bool
 SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
 {
@@ -312,11 +273,9 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
   return true;
 }
 
-
 //------------------------------------------------------------------------------
 // Base64 decoding function
 //------------------------------------------------------------------------------
-
 bool
 SymKey::Base64Decode(XrdOucString& in, char*& out, unsigned int& outlen)
 {
@@ -389,27 +348,22 @@ SymKey::DeBase64(XrdOucString& in, XrdOucString& out)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-
 SymKeyStore::SymKeyStore()
 {
   currentKey = 0;
 }
 
-
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
 SymKeyStore::~SymKeyStore()
 {
   // empty
 }
 
-
 //------------------------------------------------------------------------------
 // Set a key providing its base64 encoded representation and validity
 //------------------------------------------------------------------------------
-
 SymKey*
 SymKeyStore::SetKey64(const char* inkey64, time_t invalidity)
 {
@@ -437,7 +391,6 @@ SymKeyStore::SetKey64(const char* inkey64, time_t invalidity)
 //------------------------------------------------------------------------------
 // Set a key providing it's binary representation and validity
 //------------------------------------------------------------------------------
-
 SymKey*
 SymKeyStore::SetKey(const char* inkey, time_t invalidity)
 {
@@ -470,11 +423,9 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
   return key;
 }
 
-
 //------------------------------------------------------------------------------
 // Retrieve key by keydigest in base64 format
 //------------------------------------------------------------------------------
-
 SymKey*
 SymKeyStore::GetKey(const char* inkeydigest64)
 {
@@ -485,11 +436,9 @@ SymKeyStore::GetKey(const char* inkeydigest64)
   return key;
 }
 
-
 //------------------------------------------------------------------------------
 // Retrieve last added valid key from the store
 //------------------------------------------------------------------------------
-
 SymKey*
 SymKeyStore::GetCurrentKey()
 {
@@ -502,5 +451,4 @@ SymKeyStore::GetCurrentKey()
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
