@@ -34,54 +34,54 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-        char s3_rfc3986[256] = {0};
+char s3_rfc3986[256] = {0};
 char s3_html5[256] = {0};
 
 void
-s3_uri_encode (unsigned char *s, char *enc, char *tb)
+s3_uri_encode(unsigned char* s, char* enc, char* tb)
 {
-  for (; *s; s++)
-  {
-    if (tb[*s]) sprintf(enc, "%c", tb[*s]);
-    else sprintf(enc, "%%%02X", *s);
+  for (; *s; s++) {
+    if (tb[*s]) {
+      sprintf(enc, "%c", tb[*s]);
+    } else {
+      sprintf(enc, "%%%02X", *s);
+    }
+
     while (*++enc);
   }
 }
 
-S3Store *S3Handler::mS3Store = 0;
+S3Store* S3Handler::mS3Store = 0;
 
 /*----------------------------------------------------------------------------*/
-S3Handler::S3Handler (eos::common::Mapping::VirtualIdentity *vid) :
-eos::common::ProtocolHandler (vid)
+S3Handler::S3Handler(eos::common::Mapping::VirtualIdentity* vid) :
+  eos::common::ProtocolHandler(vid)
 {
   mIsS3 = false;
   mId = mSignature = mHost = mContentMD5 = mContentType = mUserAgent = "";
   mHttpMethod = mPath = mQuery = mBucket = mDate = "";
   mVirtualHost = false;
 
-  if (!mS3Store)
-  {
+  if (!mS3Store) {
     // create the store if it does not exist yet
     mS3Store = new S3Store(gOFS->MgmProcPath.c_str());
 
     // initialize encoding table
-    for (int i = 0; i < 256; i++)
-    {
+    for (int i = 0; i < 256; i++) {
       s3_rfc3986[i] = isalnum(i) || i == '-' || i == '.' || i == '_'
-              || i == '@'
-              ? i : 0;
+                      || i == '@'
+                      ? i : 0;
       s3_html5[i] = isalnum(i) || i == '*' || i == '-' || i == '.' || i == '_'
-              ? i : (i == ' ') ? '+' : 0;
+                    ? i : (i == ' ') ? '+' : 0;
     }
   }
 }
 
 XrdOucString
-S3Handler::EncodeURI (const char* uri)
+S3Handler::EncodeURI(const char* uri)
 {
-
   XrdOucString nUri;
-  char enc[ (strlen(uri) + 1) * 3];
+  char enc[(strlen(uri) + 1) * 3];
   s3_uri_encode((unsigned char*) uri, enc, s3_rfc3986);
   XrdOucString lUri = enc;
   return lUri;
@@ -89,57 +89,55 @@ S3Handler::EncodeURI (const char* uri)
 
 /*----------------------------------------------------------------------------*/
 bool
-S3Handler::Matches (const std::string &method, HeaderMap &headers)
+S3Handler::Matches(const std::string& method, HeaderMap& headers)
 {
-  if (headers.count("authorization"))
-  {
-    if (headers["authorization"].substr(0, 3) == "AWS")
-    {
+  if (headers.count("authorization")) {
+    if (headers["authorization"].substr(0, 3) == "AWS") {
       eos_static_debug("msg=\"matched S3 protocol for request\"");
       return true;
     }
   }
+
   return false;
 }
 
 /*----------------------------------------------------------------------------*/
 void
-S3Handler::HandleRequest (eos::common::HttpRequest *request)
+S3Handler::HandleRequest(eos::common::HttpRequest* request)
 {
   eos_static_debug("msg=\"handling s3 request\"");
-  eos::common::HttpResponse *response = 0;
-
+  eos::common::HttpResponse* response = 0;
   // Parse the headers
   ParseHeader(request);
-
   // Refresh the data store
   mS3Store->Refresh();
 
-  if (VerifySignature())
-  {
+  if (VerifySignature()) {
     request->AddEosApp();
     int meth = ParseMethodString(request->GetMethod());
-    switch (meth)
-    {
-      case GET:
-        response = Get(request);
-        break;
-      case HEAD:
-        response = Head(request);
-        break;
-      case PUT:
-        response = Put(request);
-        break;
-      case DELETE:
-        response = Delete(request);
-        break;
-      default:
-        response = new eos::common::PlainHttpResponse();
-        response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
+
+    switch (meth) {
+    case GET:
+      response = Get(request);
+      break;
+
+    case HEAD:
+      response = Head(request);
+      break;
+
+    case PUT:
+      response = Put(request);
+      break;
+
+    case DELETE:
+      response = Delete(request);
+      break;
+
+    default:
+      response = new eos::common::PlainHttpResponse();
+      response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
     }
-  }
-  else
-  {
+  } else {
     response = RestErrorResponse(response->FORBIDDEN,
                                  "SignatureDoesNotMatch", "", GetBucket(), "");
   }
@@ -149,16 +147,14 @@ S3Handler::HandleRequest (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 bool
-S3Handler::VerifySignature ()
+S3Handler::VerifySignature()
 {
-  if (!mS3Store->GetKeys().count(GetId()))
-  {
+  if (!mS3Store->GetKeys().count(GetId())) {
     eos_static_err("msg=\"no such account\" id=%s", GetId().c_str());
     return false;
   }
 
   std::string secure_key = mS3Store->GetKeys()[GetId()];
-
   std::string string2sign = GetHttpMethod();
   string2sign += "\n";
   string2sign += GetContentMD5();
@@ -169,27 +165,22 @@ S3Handler::VerifySignature ()
   string2sign += "\n";
   string2sign += GetCanonicalizedAmzHeaders();
 
-
-  if (GetBucket().length())
-  {
+  if (GetBucket().length()) {
     string2sign += "/";
     string2sign += GetBucket();
   };
 
   string2sign += GetPath();
 
-  if (ExtractSubResource().length())
-  {
+  if (ExtractSubResource().length()) {
     string2sign += "?";
     string2sign += GetSubResource();
   }
 
   eos_static_debug("s2sign=%s key=%s", string2sign.c_str(), secure_key.c_str());
-
   // get hmac sha1 hash
-  std::string hmac1 = eos::common::SymKey::HmacSha1(secure_key,
-                                                    string2sign);
-
+  std::string hmac1 = eos::common::SymKey::HmacSha1(string2sign,
+                      secure_key.c_str());
   XrdOucString b64mac1;
   // base64 encode the hash
   eos::common::SymKey::Base64Encode((char*) hmac1.c_str(), hmac1.size(), b64mac1);
@@ -197,8 +188,7 @@ S3Handler::VerifySignature ()
   eos_static_debug("in_signature=%s out_signature=%s\n",
                    GetSignature().c_str(), verify_signature.c_str());
 
-  if (verify_signature != GetSignature())
-  {
+  if (verify_signature != GetSignature()) {
     // --------------------------------------------------------------------------
     // try if the non-bucket path needs '/' encoded as '%2F' as done by Cyberduck
     // e.g. /<bucket>/<path-without-slash-inthe-beginnging>
@@ -209,10 +199,7 @@ S3Handler::VerifySignature ()
     XrdOucString newstring2sign = string2sign.c_str();
     newstring2sign.replace(GetPath().c_str(), encodedPath.c_str());
     string2sign = newstring2sign.c_str();
-
-    hmac1 = eos::common::SymKey::HmacSha1(secure_key,
-                                          string2sign);
-
+    hmac1 = eos::common::SymKey::HmacSha1(string2sign, secure_key.c_str());
     b64mac1 = "";
     eos::common::SymKey::Base64Encode((char*) hmac1.c_str(), hmac1.size(), b64mac1);
     verify_signature = b64mac1.c_str();
@@ -221,46 +208,39 @@ S3Handler::VerifySignature ()
                      GetSignature().c_str(), verify_signature.c_str());
     return (verify_signature == GetSignature());
   }
+
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-S3Handler::Get (eos::common::HttpRequest *request)
+S3Handler::Get(eos::common::HttpRequest* request)
 {
-  eos::common::HttpResponse *response = 0;
+  eos::common::HttpResponse* response = 0;
 
-  if (GetBucket() == "")
-  {
+  if (GetBucket() == "") {
     response = mS3Store->ListBuckets(GetId());
-  }
-  else
-  {
-    if (GetPath() == "/")
-    {
+  } else {
+    if (GetPath() == "/") {
       response = mS3Store->ListBucket(GetBucket(), GetQuery());
-    }
-    else
-    {
+    } else {
       response = mS3Store->GetObject(request, GetId(), GetBucket(), GetPath(),
                                      GetQuery());
     }
   }
+
   return response;
 }
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-S3Handler::Head (eos::common::HttpRequest *request)
+S3Handler::Head(eos::common::HttpRequest* request)
 {
-  eos::common::HttpResponse *response = 0;
+  eos::common::HttpResponse* response = 0;
 
-  if (GetPath() == "/")
-  {
+  if (GetPath() == "/") {
     response = mS3Store->HeadBucket(GetId(), GetBucket(), GetDate());
-  }
-  else
-  {
+  } else {
     response = mS3Store->HeadObject(GetId(), GetBucket(), GetPath(), GetDate());
   }
 
@@ -269,9 +249,9 @@ S3Handler::Head (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-S3Handler::Put (eos::common::HttpRequest *request)
+S3Handler::Put(eos::common::HttpRequest* request)
 {
-  eos::common::HttpResponse *response = 0;
+  eos::common::HttpResponse* response = 0;
   response = mS3Store->PutObject(request, GetId(), GetBucket(), GetPath(),
                                  GetQuery());
   return response;
@@ -279,9 +259,9 @@ S3Handler::Put (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-S3Handler::Delete (eos::common::HttpRequest *request)
+S3Handler::Delete(eos::common::HttpRequest* request)
 {
-  eos::common::HttpResponse *response = 0;
+  eos::common::HttpResponse* response = 0;
   response = mS3Store->DeleteObject(request, GetId(), GetBucket(), GetPath());
   return response;
 }

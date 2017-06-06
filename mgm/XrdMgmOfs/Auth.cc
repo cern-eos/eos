@@ -573,8 +573,7 @@ XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
     return false;
   }
 
-  std::string key = eos::common::gSymKeyStore.GetCurrentKey()->GetKey64();
-  std::string comp_hmac = eos::common::SymKey::HmacSha1(key, smsg);
+  std::string comp_hmac = eos::common::SymKey::HmacSha1(smsg);
   XrdOucString base64hmac;
   bool do_encoding = eos::common::SymKey::Base64Encode((char*)comp_hmac.c_str(),
                      comp_hmac.length(), base64hmac);
@@ -585,8 +584,8 @@ XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
   }
 
   eos_debug("comp_hmac=%s comp_size=%i, recv_hmac=%s, recv_size=%i key=%s",
-            base64hmac.c_str(), base64hmac.length(), recv_hmac.c_str(), recv_hmac.length(),
-            key.c_str());
+            base64hmac.c_str(), base64hmac.length(), recv_hmac.c_str(),
+            recv_hmac.length(), eos::common::gSymKeyStore.GetCurrentKey()->GetKey64());
 
   if (((size_t)base64hmac.length() != recv_hmac.length()) ||
       strncmp(base64hmac.c_str(), recv_hmac.c_str(), base64hmac.length())) {
