@@ -720,9 +720,6 @@ output_result(XrdOucEnv* result, bool highlighting)
 
   if (highlighting && global_highlighting) {
     // color replacements
-    rstdout.replace("online", "\033[1monline\033[0m");
-    rstdout.replace("offline", "\033[47;31m\e[5moffline\033[0m");
-    rstdout.replace("unknown", "\033[47;31m\e[5munknown\033[0m");
     rstdout.replace(" ok", "\033[49;32m ok\033[0m");
     rstdout.replace("warning", "\033[49;33mwarning\033[0m");
     rstdout.replace("exceeded", "\033[49;31mexceeded\033[0m");

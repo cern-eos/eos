@@ -206,6 +206,8 @@ bool TableFormatterBase::GenerateBody(const TableString& selections)
           mSink_temp << mBorderBody[0];
         }
 
+        // Change color of cell
+        row[i].SetColor(ChangeColor(std::get<0>(mHeader[i]), row[i].Str()));
         // Generate cell
         size_t cellspace_width = std::get<1>(mHeader[i]) - row[i].Length();
 
@@ -314,6 +316,25 @@ void TableFormatterBase::AddString(std::string string)
 {
   mData.emplace_back();
   mString.push_back(string);
+}
+
+//------------------------------------------------------------------------------
+// Set cell color
+//------------------------------------------------------------------------------
+TableFormatterColor TableFormatterBase::ChangeColor(std::string header,
+    std::string value)
+{
+  if (header == "status" || header == "active") {
+    if (value == "online") {
+      return BWHITE;
+    }
+
+    if (value == "offline" || value == "unknown") {
+      return BBGRED;
+    }
+  }
+
+  return DEFAULT;
 }
 
 //------------------------------------------------------------------------------

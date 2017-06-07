@@ -61,6 +61,7 @@ public:
   //! Generate table
   //!
   //! @param style of the table
+  //! @param selections of the table
   //!
   //! @return string representation of the table
   //----------------------------------------------------------------------------
@@ -72,6 +73,14 @@ protected:
   TableHeader mHeader;
   TableData mData;
   TableString mString;
+
+  //----------------------------------------------------------------------------
+  //! Set cell color
+  //!
+  //! @param header name
+  //! @param value of cell
+  //----------------------------------------------------------------------------
+  TableFormatterColor ChangeColor(std::string header, std::string value);
 
   //----------------------------------------------------------------------------
   //! Set table style. This will set the border, separator and body border

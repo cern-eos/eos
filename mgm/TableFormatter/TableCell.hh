@@ -58,15 +58,10 @@ public:
   TableCell(std::string& value, std::string format, std::string unit = "",
             TableFormatterColor col = TableFormatterColor::DEFAULT);
 
-  //----------------------------------------------------------------------------
-  //! Set value of the table cell data (convert into K,M,G,T,P,E scale).
-  //! Implementled with guards to prevent the cell having any other value then
-  //! the one initially set.
-  //----------------------------------------------------------------------------
-  void SetValue(unsigned long long int value);
-  void SetValue(long long int value);
-  void SetValue(double value);
-  void SetValue(std::string& value);
+  //------------------------------------------------------------------------------
+  //! Set color of cell
+  //------------------------------------------------------------------------------
+  void SetColor(TableFormatterColor color);
 
   //----------------------------------------------------------------------------
   //! Print table cell to stream. Needed to dump data into a stringstream or
@@ -78,6 +73,7 @@ public:
   //----------------------------------------------------------------------------
   void Print(std::ostream& ostream, size_t width_left = 0,
              size_t width_right = 0) const;
+  std::string Str();
 
   //----------------------------------------------------------------------------
   //! Calculate print width of table cell
@@ -85,6 +81,16 @@ public:
   size_t Length();
 
 protected:
+  //----------------------------------------------------------------------------
+  //! Set value of the table cell data (convert into K,M,G,T,P,E scale).
+  //! Implementled with guards to prevent the cell having any other value then
+  //! the one initially set.
+  //----------------------------------------------------------------------------
+  void SetValue(unsigned long long int value);
+  void SetValue(long long int value);
+  void SetValue(double value);
+  void SetValue(std::string& value);
+
   //----------------------------------------------------------------------------
   //! Store value for cell
   //----------------------------------------------------------------------------
@@ -98,10 +104,8 @@ protected:
   //----------------------------------------------------------------------------
   //! Color of the cell
   //----------------------------------------------------------------------------
-  void Init();
   TableFormatterColor mColor;
-  static std::vector<std::string> sColorVector;
-  std::vector<std::string> TableFormatterColorContainer = {
+  std::vector<std::string> sColorVector = {
     "\33[0m",
     "\33[31m", "\33[32m", "\33[33m", "\33[34m", "\33[35m", "\33[36m",  "\33[37m",
     "\33[1;0m",

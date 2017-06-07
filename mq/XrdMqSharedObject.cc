@@ -793,7 +793,6 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
                        std::string format)
 {
   std::vector<std::string> formattoken;
-  bool buildheader = false;
   XrdMqStringConversion::Tokenize(format, formattoken, "|");
   Row row;
   table_mq_data.push_back(row);
@@ -809,11 +808,7 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
       formattags[keyval[0]] = keyval[1];
     }
 
-    if (formattags.count("header") == 1) {
-      buildheader = true;
-    }
-
-    if (formattags.count("width") && formattags.count("format")) {
+    if (formattags.count("format")) {
       unsigned int width = atoi(formattags["width"].c_str());
       std::string format = formattags["format"];
       std::string unit = formattags["unit"];
@@ -842,21 +837,19 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
             TableCell(GetDouble(formattags["key"].c_str()), format, unit));
         }
 
-        if (buildheader) {
-          XrdOucString name = formattags["key"].c_str();
+        // Build header
+        XrdOucString name = formattags["key"].c_str();
+
+        if (format.find("o") == std::string::npos) {  //only for table output
           name.replace("stat.", "");
           name.replace("stat.statfs.", "");
 
           if (formattags.count("tag")) {
             name = formattags["tag"].c_str();
           }
-
-          table_mq_header.push_back(std::make_tuple(name.c_str(), width, format));
         }
-      }
 
-      if ((format.find("o") != std::string::npos) && formattags.count("key")) {
-        table_mq_header.push_back(std::make_tuple(formattags["key"], 10, format));
+        table_mq_header.push_back(std::make_tuple(name.c_str(), width, format));
       }
     }
   }

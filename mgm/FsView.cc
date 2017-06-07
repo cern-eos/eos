@@ -912,22 +912,22 @@ FsView::GetNodeFormat(std::string option)
 {
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|member=hostport:width=1:format=os|member=status:width=1:format=os|member=cfg.status:width=1:format=os|member=cfg.txgw:width=1:format=os|member=heartbeatdelta:width=1:format=os|member=nofs:width=1:format=ol|avg=stat.disk.load:width=1:format=of|sig=stat.disk.load:width=1:format=of|sum=stat.disk.readratemb:width=1:format=ol|sum=stat.disk.writeratemb:width=1:format=ol|sum=stat.net.ethratemib:width=1:format=ol|sum=stat.net.inratemib:width=1:format=ol|sum=stat.net.outratemib:width=1:format=ol|sum=stat.ropen:width=1:format=ol|sum=stat.wopen:width=1:format=ol|sum=stat.statfs.freebytes:width=1:format=ol|sum=stat.statfs.usedbytes:width=1:format=ol|sum=stat.statfs.capacity:width=1:format=ol|sum=stat.usedfiles:width=1:format=ol|sum=stat.statfs.ffree:width=1:format=ol|sum=stat.statfs.fused:width=1:format=ol|sum=stat.statfs.files:width=1:format=ol|sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running|member=stat.gw.queued:width=1:format=os:tag=stat.gw.queued|member=cfg.stat.sys.vsize:width=1:format=ol|member=cfg.stat.sys.rss:width=1:format=ol|member=cfg.stat.sys.threads:width=1:format=ol|member=cfg.stat.sys.sockets:width=1:format=os|member=cfg.stat.sys.eos.version:width=1:format=os|member=cfg.stat.sys.kernel:width=1:format=os|member=cfg.stat.sys.eos.start:width=1:format=os|member=cfg.stat.sys.uptime:width=1:format=os|sum=stat.disk.iops?configstatus@rw:width=1:format=ol|sum=stat.disk.bw?configstatus@rw:width=1:format=ol|member=cfg.stat.geotag:width=1:format=os|member=cfg.gw.rate:width=1:format=os|member=cfg.gw.ntx:width=1:format=os";
+    return "member=type:format=os|member=hostport:format=os|member=status:format=os|member=cfg.status:format=os|member=cfg.txgw:format=os|member=heartbeatdelta:format=os|member=nofs:format=ol|avg=stat.disk.load:format=of|sig=stat.disk.load:format=of|sum=stat.disk.readratemb:format=ol|sum=stat.disk.writeratemb:format=ol|sum=stat.net.ethratemib:format=ol|sum=stat.net.inratemib:format=ol|sum=stat.net.outratemib:format=ol|sum=stat.ropen:format=ol|sum=stat.wopen:format=ol|sum=stat.statfs.freebytes:format=ol|sum=stat.statfs.usedbytes:format=ol|sum=stat.statfs.capacity:format=ol|sum=stat.usedfiles:format=ol|sum=stat.statfs.ffree:format=ol|sum=stat.statfs.fused:format=ol|sum=stat.statfs.files:format=ol|sum=stat.balancer.running:format=ol:tag=stat.balancer.running|sum=stat.drainer.running:format=ol:tag=stat.drainer.running|member=stat.gw.queued:format=os:tag=stat.gw.queued|member=cfg.stat.sys.vsize:format=ol|member=cfg.stat.sys.rss:format=ol|member=cfg.stat.sys.threads:format=ol|member=cfg.stat.sys.sockets:format=os|member=cfg.stat.sys.eos.version:format=os|member=cfg.stat.sys.kernel:format=os|member=cfg.stat.sys.eos.start:format=os|member=cfg.stat.sys.uptime:format=os|sum=stat.disk.iops?configstatus@rw:format=ol|sum=stat.disk.bw?configstatus@rw:format=ol|member=cfg.stat.geotag:format=os|member=cfg.gw.rate:format=os|member=cfg.gw.ntx:format=os";
   }
 
   if (option == "io") {
     // io format
-    return "header=1:member=hostport:width=32:format=sS|member=cfg.stat.geotag:width=16:format=s|avg=stat.disk.load:width=10:format=f:tag=diskload|sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sum=stat.ropen:width=6:format=l:tag=ropen|sum=stat.wopen:width=6:format=l:tag=wopen|sum=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|sum=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|sum=stat.usedfiles:width=12:format=+f:tag=used-files|sum=stat.statfs.files:width=11:format=+f:tag=max-files|sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sum=stat.drainer.running:width=10:format=l:tag=drain-shd|member=inqueue:width=10:format=s:tag=gw-queue|sum=stat.disk.iops?configstatus@rw:width=6:format=l:tag=iops|sum=stat.disk.bw?configstatus@rw:width=9:format=+l:unit=MB:tag=bw|";
+    return "header=1:member=hostport:width=32:format=-sS|member=cfg.stat.geotag:width=16:format=s|avg=stat.disk.load:width=10:format=f:tag=diskload|sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sum=stat.ropen:width=6:format=l:tag=ropen|sum=stat.wopen:width=6:format=l:tag=wopen|sum=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|sum=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|sum=stat.usedfiles:width=12:format=+f:tag=used-files|sum=stat.statfs.files:width=11:format=+f:tag=max-files|sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sum=stat.drainer.running:width=10:format=l:tag=drain-shd|member=inqueue:width=10:format=s:tag=gw-queue|sum=stat.disk.iops?configstatus@rw:width=6:format=l:tag=iops|sum=stat.disk.bw?configstatus@rw:width=9:format=+l:unit=MB:tag=bw|";
   }
 
   if (option == "sys") {
     // system format
-    return "header=1:member=hostport:width=32:format=sS|member=cfg.stat.geotag:width=16:format=s|member=cfg.stat.sys.vsize:width=12:format=+l|tag=vsize|member=cfg.stat.sys.rss:width=12:format=+l:tag=rss|member=cfg.stat.sys.threads:width=12:format=+l:tag=threads|member=cfg.stat.sys.sockets:width=10:format=s:tag=sockets|member=cfg.stat.sys.eos.version:width=12:format=s:tag=eos|member=cfg.stat.sys.kernel:width=30:format=s:tag=kernel version|member=cfg.stat.sys.eos.start:width=32:format=s:tag=start|member=cfg.stat.sys.uptime:width=80:format=s:tag=uptime";
+    return "header=1:member=hostport:width=32:format=-sS|member=cfg.stat.geotag:width=16:format=s|member=cfg.stat.sys.vsize:width=12:format=+l|tag=vsize|member=cfg.stat.sys.rss:width=12:format=+l:tag=rss|member=cfg.stat.sys.threads:width=12:format=+l:tag=threads|member=cfg.stat.sys.sockets:width=10:format=s:tag=sockets|member=cfg.stat.sys.eos.version:width=12:format=s:tag=eos|member=cfg.stat.sys.kernel:width=30:format=s:tag=kernel version|member=cfg.stat.sys.eos.start:width=32:format=s:tag=start|member=cfg.stat.sys.uptime:width=80:format=s:tag=uptime";
   }
 
   if (option == "fsck") {
     // fsck format
-    return "header=1:member=hostport:width=32:format=sS|sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orph)|sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sum=stat.fsck.rep_missing_n:width=12:format=l:tag=e(miss)|sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sum=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
+    return "header=1:member=hostport:width=32:format=-sS|sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orph)|sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sum=stat.fsck.rep_missing_n:width=12:format=l:tag=e(miss)|sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sum=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   }
 
   if (option == "l") {
@@ -949,36 +949,36 @@ FsView::GetFileSystemFormat(std::string option)
 {
   if (option == "m") {
     // monitoring format
-    return "key=host:width=1:format=os|key=port:width=1:format=os|key=id:width=1:format=os|key=uuid:width=1:format=os|key=path:width=1:format=os|key=schedgroup:width=1:format=os|key=stat.boot:width=1:format=os|key=configstatus:width=1:format=os|key=headroom:width=1:format=os|key=stat.errc:width=1:format=os|key=stat.errmsg:width=1:format=oqs|key=stat.disk.load:width=1:format=of|key=stat.disk.readratemb:width=1:format=ol|key=stat.disk.writeratemb:width=1:format=ol|key=stat.net.ethratemib:width=1:format=ol|key=stat.net.inratemib:width=1:format=ol|key=stat.net.outratemib:width=1:format=ol|key=stat.ropen:width=1:format=ol|key=stat.wopen:width=1:format=ol|key=stat.statfs.freebytes:width=1:format=ol|key=stat.statfs.usedbytes:width=1:format=ol|key=stat.statfs.capacity:width=1:format=ol|key=stat.usedfiles:width=1:format=ol|key=stat.statfs.ffree:width=1:format=ol|key=stat.statfs.fused:width=1:format=ol|key=stat.statfs.files:width=1:format=ol|key=stat.drain:width=1:format=os|key=stat.drainprogress:width=1:format=ol:tag=progress|key=stat.drainfiles:width=1:format=ol|key=stat.drainbytesleft:width=1:format=ol|key=stat.drainretry:width=1:format=ol|key=graceperiod:width=1:format=ol|key=stat.timeleft:width=1:format=ol|key=stat.active:width=1:format=os|key=scaninterval:width=1:format=os|key=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|key=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running|key=stat.disk.iops:width=1:format=ol|key=stat.disk.bw:width=1:format=of|key=stat.geotag:width=1:format=os|key=stat.health:width=1:format=os|key=stat.health.redundancy_factor:width=1:format=os|key=stat.health.drives_failed:width=1:format=os|key=stat.health.drives_total:width=1:format=os|key=stat.health.indicator:width=1:format=os";
+    return "key=host:format=os|key=port:format=os|key=id:format=os|key=uuid:format=os|key=path:format=os|key=schedgroup:format=os|key=stat.boot:format=os|key=configstatus:format=os|key=headroom:format=os|key=stat.errc:format=os|key=stat.errmsg:format=oqs|key=stat.disk.load:format=of|key=stat.disk.readratemb:format=ol|key=stat.disk.writeratemb:format=ol|key=stat.net.ethratemib:format=ol|key=stat.net.inratemib:format=ol|key=stat.net.outratemib:format=ol|key=stat.ropen:format=ol|key=stat.wopen:format=ol|key=stat.statfs.freebytes:format=ol|key=stat.statfs.usedbytes:format=ol|key=stat.statfs.capacity:format=ol|key=stat.usedfiles:format=ol|key=stat.statfs.ffree:format=ol|key=stat.statfs.fused:format=ol|key=stat.statfs.files:format=ol|key=stat.drain:format=os|key=stat.drainprogress:format=ol:tag=progress|key=stat.drainfiles:format=ol|key=stat.drainbytesleft:format=ol|key=stat.drainretry:format=ol|key=graceperiod:format=ol|key=stat.timeleft:format=ol|key=stat.active:format=os|key=scaninterval:format=os|key=stat.balancer.running:format=ol:tag=stat.balancer.running|key=stat.drainer.running:format=ol:tag=stat.drainer.running|key=stat.disk.iops:format=ol|key=stat.disk.bw:format=of|key=stat.geotag:format=os|key=stat.health:format=os|key=stat.health.redundancy_factor:format=os|key=stat.health.drives_failed:format=os|key=stat.health.drives_total:format=os|key=stat.health.indicator:format=os";
   }
 
   if (option == "io") {
     // io format
-    return "header=1:key=hostport:width=32:format=s|key=id:width=5:format=s|key=schedgroup:width=16:format=s|key=stat.geotag:width=16:format=s|key=stat.disk.load:width=10:format=f:tag=diskload|key=stat.disk.readratemb:width=12:format=+f:tag=diskr-MB/s|key=stat.disk.writeratemb:width=12:format=+f:tag=diskw-MB/s|key=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|key=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|key=stat.ropen:width=6:format=l:tag=ropen|key=stat.wopen:width=6:format=l:tag=wopen|key=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|key=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|key=stat.usedfiles:width=12:format=+f:tag=used-files|key=stat.statfs.files:width=11:format=+f:tag=max-files|key=stat.balancer.running:width=10:format=l:tag=bal-shd|key=stat.drainer.running:width=14:format=l:tag=drain-shd|key=stat.drainer:width=12:format=s:tag=drainpull|key=stat.disk.iops:width=6:format=l:tag=iops|key=stat.disk.bw:width=9:format=+l:unit=MB:tag=bw";
+    return "header=1:key=hostport:width=32:format=-s|key=id:width=6:format=s|key=schedgroup:width=16:format=s|key=stat.geotag:width=16:format=s|key=stat.disk.load:width=10:format=f:tag=diskload|key=stat.disk.readratemb:width=12:format=+f:tag=diskr-MB/s|key=stat.disk.writeratemb:width=12:format=+f:tag=diskw-MB/s|key=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|key=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|key=stat.ropen:width=6:format=l:tag=ropen|key=stat.wopen:width=6:format=l:tag=wopen|key=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|key=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|key=stat.usedfiles:width=12:format=+f:tag=used-files|key=stat.statfs.files:width=11:format=+f:tag=max-files|key=stat.balancer.running:width=10:format=l:tag=bal-shd|key=stat.drainer.running:width=14:format=l:tag=drain-shd|key=stat.drainer:width=12:format=s:tag=drainpull|key=stat.disk.iops:width=6:format=l:tag=iops|key=stat.disk.bw:width=9:format=+l:unit=MB:tag=bw";
   }
 
   if (option == "fsck") {
     // fsck format
-    return "header=1:key=hostport:width=32:format=s|key=id:width=6:format=s|key=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|key=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|key=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|key=stat.fsck.orphans_n:width=12:format=l:tag=e(orph)|key=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|key=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|key=stat.fsck.rep_missing_n:width=12:format=l:tag=e(miss)|key=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|key=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|key=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|key=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
+    return "header=1:key=hostport:width=32:format=-s|key=id:width=6:format=s|key=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|key=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|key=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|key=stat.fsck.orphans_n:width=12:format=l:tag=e(orph)|key=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|key=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|key=stat.fsck.rep_missing_n:width=12:format=l:tag=e(miss)|key=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|key=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|key=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|key=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   }
 
   if (option == "d") {
     // drain format
-    return "header=1:key=host:width=24:format=S:condition=stat.drain=!nodrain|key=port:width=4:format=-s|key=id:width=6:format=s|key=path:width=32:format=s|key=stat.drain:width=12:format=s|key=stat.drainprogress:width=12:format=l:tag=progress|key=stat.drainfiles:width=12:format=+l:tag=files|key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left:unit=B|key=stat.timeleft:width=11:format=l:tag=timeleft|key=stat.drainretry:width=6:format=l:tag=retry|key=stat.wopen:width=6:format=l:tag=wopen";
+    return "header=1:key=host:width=24:format=-S:condition=stat.drain=!nodrain|key=port:width=4:format=s|key=id:width=6:format=s|key=path:width=32:format=s|key=stat.drain:width=12:format=s|key=stat.drainprogress:width=12:format=l:tag=progress|key=stat.drainfiles:width=12:format=+l:tag=files|key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left:unit=B|key=stat.timeleft:width=11:format=l:tag=timeleft|key=stat.drainretry:width=6:format=l:tag=retry|key=stat.wopen:width=6:format=l:tag=wopen";
   }
 
   if (option == "l") {
     // long format
-    return "header=1:key=host:width=24:format=-S|key=port:width=5:format=s|key=id:width=6:format=s|key=uuid:width=36:format=s|key=path:width=32:format=s|key=schedgroup:width=16:format=s|key=headroom:width=10:format=+f|key=stat.boot:width=12:format=s|key=configstatus:width=14:format=s|key=stat.drain:width=12:format=s|key=stat.active:width=8:format=s|key=scaninterval:width=14:format=s|key=stat.health:width=16:format=s";
+    return "header=1:key=host:width=24:format=-S|key=port:width=4:format=s|key=id:width=6:format=s|key=uuid:width=36:format=s|key=path:width=32:format=s|key=schedgroup:width=16:format=s|key=headroom:width=10:format=+f|key=stat.boot:width=12:format=s|key=configstatus:width=14:format=s|key=stat.drain:width=12:format=s|key=stat.active:width=8:format=s|key=scaninterval:width=14:format=s|key=stat.health:width=16:format=s";
   }
 
   if (option == "e") {
     // error format
-    return "header=1:key=host:width=24:format=S:condition=stat.errc=!0|key=id:width=6:format=s|key=path:width=32:format=s|key=stat.boot:width=12:format=s|key=configstatus:width=14:format=s|key=stat.drain:width=12:format=s|key=stat.errc:width=3:format=s|key=stat.errmsg:width=0:format=s";
+    return "header=1:key=host:width=24:format=-S:condition=stat.errc=!0|key=id:width=6:format=s|key=path:width=32:format=s|key=stat.boot:width=12:format=s|key=configstatus:width=14:format=s|key=stat.drain:width=12:format=s|key=stat.errc:width=3:format=s|key=stat.errmsg:width=0:format=s";
   }
 
   // default format
-  return "header=1:key=host:width=24:format=S|key=port:width=4:format=-s|key=id:width=6:format=s|key=path:width=32:format=s|key=schedgroup:width=16:format=s|key=stat.geotag:width=16:format=s|key=stat.boot:width=12:format=s|key=configstatus:width=14:format=s|key=stat.drain:width=12:format=s|key=stat.active:width=8:format=s|key=stat.health:width=16:format=s";
+  return "header=1:key=host:width=24:format=-S|key=port:width=4:format=s|key=id:width=6:format=s|key=path:width=32:format=s|key=schedgroup:width=16:format=s|key=stat.geotag:width=16:format=s|key=stat.boot:width=12:format=s|key=configstatus:width=14:format=s|key=stat.drain:width=12:format=s|key=stat.active:width=8:format=s|key=stat.health:width=16:format=s";
 }
 
 //------------------------------------------------------------------------------
@@ -991,15 +991,15 @@ FsView::GetSpaceFormat(std::string option)
 {
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|member=name:width=1:format=os|member=cfg.groupsize:width=1:format=ol|member=cfg.groupmod:width=1:format=ol|member=nofs:width=1:format=ol|avg=stat.disk.load:width=1:format=of|sig=stat.disk.load:width=1:format=of|sum=stat.disk.readratemb:width=1:format=ol|sum=stat.disk.writeratemb:width=1:format=ol|sum=stat.net.ethratemib:width=1:format=ol|sum=stat.net.inratemib:width=1:format=ol|sum=stat.net.outratemib:width=1:format=ol|sum=stat.ropen:width=1:format=ol|sum=stat.wopen:width=1:format=ol|sum=stat.statfs.usedbytes:width=1:format=ol|sum=stat.statfs.freebytes:width=1:format=ol|sum=stat.statfs.capacity:width=1:format=ol|sum=stat.usedfiles:width=1:format=ol|sum=stat.statfs.ffiles:width=1:format=ol|sum=stat.statfs.files:width=1:format=ol|sum=stat.statfs.capacity?configstatus@rw:width=1:format=ol|sum=<n>?configstatus@rw:width=1:format=ol|member=cfg.quota:width=1:format=os|member=cfg.nominalsize:width=1:format=ol|member=cfg.balancer:width=1:format=os|member=cfg.balancer.threshold:width=1:format=ol|sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running|sum=stat.disk.iops?configstatus@rw:width=1:format=ol|sum=stat.disk.bw?configstatus@rw:width=1:format=ol";
+    return "member=type:format=os|member=name:format=os|member=cfg.groupsize:format=ol|member=cfg.groupmod:format=ol|member=nofs:format=ol|avg=stat.disk.load:format=of|sig=stat.disk.load:format=of|sum=stat.disk.readratemb:format=ol|sum=stat.disk.writeratemb:format=ol|sum=stat.net.ethratemib:format=ol|sum=stat.net.inratemib:format=ol|sum=stat.net.outratemib:format=ol|sum=stat.ropen:format=ol|sum=stat.wopen:format=ol|sum=stat.statfs.usedbytes:format=ol|sum=stat.statfs.freebytes:format=ol|sum=stat.statfs.capacity:format=ol|sum=stat.usedfiles:format=ol|sum=stat.statfs.ffiles:format=ol|sum=stat.statfs.files:format=ol|sum=stat.statfs.capacity?configstatus@rw:format=ol|sum=<n>?configstatus@rw:format=ol|member=cfg.quota:format=os|member=cfg.nominalsize:format=ol|member=cfg.balancer:format=os|member=cfg.balancer.threshold:format=ol|sum=stat.balancer.running:format=ol:tag=stat.balancer.running|sum=stat.drainer.running:format=ol:tag=stat.drainer.running|sum=stat.disk.iops?configstatus@rw:format=ol|sum=stat.disk.bw?configstatus@rw:format=ol";
   }
 
   if (option == "io") {
-    return "header=1:member=name:width=10:format=s|avg=stat.geotag:width=32:format=s|avg=stat.disk.load:width=10:format=f:tag=diskload|sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sum=stat.ropen:width=6:format=l:tag=ropen|sum=stat.wopen:width=6:format=l:tag=wopen|sum=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|sum=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|sum=stat.usedfiles:width=12:format=+f:tag=used-files|sum=stat.statfs.files:width=11:format=+f:tag=max-files|sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
+    return "header=1:member=name:width=10:format=-s|avg=stat.geotag:width=32:format=s|avg=stat.disk.load:width=10:format=f:tag=diskload|sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sum=stat.ropen:width=6:format=l:tag=ropen|sum=stat.wopen:width=6:format=l:tag=wopen|sum=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|sum=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|sum=stat.usedfiles:width=12:format=+f:tag=used-files|sum=stat.statfs.files:width=11:format=+f:tag=max-files|sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
   }
 
   if (option == "fsck") {
-    return "header=1:member=name:width=10:format=s|avg=stat.geotag:width=32:format=s|sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orph)|sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sum=stat.fsck.rep_missing_n:width=12:format=l:tag=e(miss)|sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sum=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
+    return "header=1:member=name:width=10:format=-s|avg=stat.geotag:width=32:format=s|sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orph)|sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sum=stat.fsck.rep_missing_n:width=12:format=l:tag=e(miss)|sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sum=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   }
 
   if (option == "l") {
@@ -1020,7 +1020,7 @@ FsView::GetGroupFormat(std::string option)
 {
   if (option == "m") {
     // monitoring format
-    return "member=type:width=1:format=os|member=name:width=1:format=os|member=cfg.status:width=1:format=os|member=nofs:width=1:format=os|avg=stat.disk.load:width=1:format=of|sig=stat.disk.load:width=1:format=of|sum=stat.disk.readratemb:width=1:format=ol|sum=stat.disk.writeratemb:width=1:format=ol|sum=stat.net.ethratemib:width=1:format=ol|sum=stat.net.inratemib:width=1:format=ol|sum=stat.net.outratemib:width=1:format=ol|sum=stat.ropen:width=1:format=ol|sum=stat.wopen:width=1:format=ol|sum=stat.statfs.usedbytes:width=1:format=ol|sum=stat.statfs.freebytes:width=1:format=ol|sum=stat.statfs.capacity:width=1:format=ol|sum=stat.usedfiles:width=1:format=ol|sum=stat.statfs.ffree:width=1:format=ol|sum=stat.statfs.files:width=1:format=ol|maxdev=stat.statfs.filled:width=1:format=of|avg=stat.statfs.filled:width=1:format=of|sig=stat.statfs.filled:width=1:format=of|member=cfg.stat.balancing:width=1:format=os:tag=stat.balancing|sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running";
+    return "member=type:format=os|member=name:format=os|member=cfg.status:format=os|member=nofs:format=os|avg=stat.disk.load:format=of|sig=stat.disk.load:format=of|sum=stat.disk.readratemb:format=ol|sum=stat.disk.writeratemb:format=ol|sum=stat.net.ethratemib:format=ol|sum=stat.net.inratemib:format=ol|sum=stat.net.outratemib:format=ol|sum=stat.ropen:format=ol|sum=stat.wopen:format=ol|sum=stat.statfs.usedbytes:format=ol|sum=stat.statfs.freebytes:format=ol|sum=stat.statfs.capacity:format=ol|sum=stat.usedfiles:format=ol|sum=stat.statfs.ffree:format=ol|sum=stat.statfs.files:format=ol|maxdev=stat.statfs.filled:format=of|avg=stat.statfs.filled:format=of|sig=stat.statfs.filled:format=of|member=cfg.stat.balancing:format=os:tag=stat.balancing|sum=stat.balancer.running:format=ol:tag=stat.balancer.running|sum=stat.drainer.running:format=ol:tag=stat.drainer.running";
   }
 
   if (option == "io") {
@@ -1034,7 +1034,7 @@ FsView::GetGroupFormat(std::string option)
   }
 
   // default format
-  return "header=1:member=type:width=10:format=-s|member=name:width=16:format=-s|member=cfg.status:width=12:format=s|avg=stat.geotag:width=32:format=s|sum=<n>?*@*:width=6:format=l:tag=N(fs)|maxdev=stat.statfs.filled:width=12:format=f:unit=p|avg=stat.statfs.filled:width=12:format=f:unit=p|sig=stat.statfs.filled:width=12:format=f:unit=p|member=cfg.stat.balancing:width=10:format=-s|sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
+  return "header=1:member=type:width=10:format=-s|member=name:width=16:format=s|member=cfg.status:width=12:format=s|avg=stat.geotag:width=32:format=s|sum=<n>?*@*:width=6:format=l:tag=N(fs)|maxdev=stat.statfs.filled:width=12:format=f:unit=p|avg=stat.statfs.filled:width=12:format=f:unit=p|sig=stat.statfs.filled:width=12:format=f:unit=p|member=cfg.stat.balancing:width=10:format=s|sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
 }
 
 //------------------------------------------------------------------------------
@@ -3161,7 +3161,6 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
   }
 
   std::vector<std::string> formattoken;
-  bool buildheader = false;
   class DoubleAggregatedStats : public std::map<std::string, DoubleAggregator*>
   {
     BaseView* pThis;
@@ -3231,7 +3230,6 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
   TableData table_mq_data;
 
   for (unsigned int l = 0; l < nLines; l++) {
-    buildheader = false;
     table_data.emplace_back();
 
     for (unsigned int i = 0; i < formattoken.size(); i++) {
@@ -3251,19 +3249,12 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
         formattags[keyval[0]] = keyval[1];
       }
 
-      if (formattags.count("header")) {
-        // Add the desired seperator
-        if (formattags.count("header") == 1 && l == 0) {
-          buildheader = true;
-        }
-      }
-
       // To save display space, we don't print out members with geodepth option
       if (outdepth > 0 && formattags.count("member")) {
         continue;
       }
 
-      if (formattags.count("width") && formattags.count("format")) {
+      if (formattags.count("format")) {
         std::string header = "";
         unsigned int width = atoi(formattags["width"].c_str());
         std::string format = formattags["format"];
@@ -3291,8 +3282,10 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
             table_data.back().push_back(TableCell(member, format));
           }
 
-          if (buildheader) {
-            XrdOucString pkey = formattags["member"].c_str();
+          // Header
+          XrdOucString pkey = formattags["member"].c_str();
+
+          if ((format.find("o") == std::string::npos)) { //for table output
             pkey.replace("stat.statfs.", "");
             pkey.replace("stat.", "");
             pkey.replace("cfg.", "");
@@ -3300,9 +3293,9 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
             if (formattags.count("tag")) {
               pkey = formattags["tag"].c_str();
             }
-
-            header = pkey.c_str();
           }
+
+          header = pkey.c_str();
         }
 
         // Sum printout
@@ -3317,8 +3310,10 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
                         format, unit));
           }
 
-          if (buildheader) {
-            XrdOucString pkey = formattags["sum"].c_str();
+          // Header
+          XrdOucString pkey = formattags["sum"].c_str();
+
+          if ((format.find("o") == std::string::npos)) {
             pkey.replace("stat.statfs.", "");
             pkey.replace("stat.", "");
             pkey.replace("cfg.", "");
@@ -3330,9 +3325,13 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
             } else {
               header = formattags["tag"].c_str();
             }
+          } else { //for monitoring output
+            header = "sum.";
+            header += pkey.c_str();
           }
         }
 
+        // Avg printout
         if (formattags.count("avg")) {
           if (formattags["avg"] == "stat.geotag") {
             if (outdepth) {
@@ -3341,13 +3340,17 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
               table_data.back().push_back(
                 TableCell((*longStats["lastHeartBeat"]->getGeoTags())[l].c_str(),
                           format));
+              // Header
+              XrdOucString pkey = formattags["avg"].c_str();
 
-              if (buildheader) {
-                XrdOucString pkey = formattags["avg"].c_str();
+              if ((format.find("o") == std::string::npos)) {
                 pkey.replace("stat.statfs.", "");
                 pkey.replace("stat.", "");
                 pkey.replace("cfg.", "");
                 header = pkey.c_str();
+              } else { //for monitoring output
+                header = "avg.";
+                header += pkey.c_str();
               }
             }
           } else { // If not geotag special case
@@ -3361,8 +3364,10 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
                           format, unit));
             }
 
-            if (buildheader) {
-              XrdOucString pkey = formattags["avg"].c_str();
+            // Header
+            XrdOucString pkey = formattags["avg"].c_str();
+
+            if ((format.find("o") == std::string::npos)) {
               pkey.replace("stat.statfs.", "");
               pkey.replace("stat.", "");
               pkey.replace("cfg.", "");
@@ -3374,10 +3379,14 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
               } else {
                 header = formattags["tag"].c_str();
               }
+            } else { //for monitoring output
+              header = "avg.";
+              header += pkey.c_str();
             }
           } // end not geotag case
         }
 
+        // Sig printout
         if (formattags.count("sig")) {
           if (!outdepth) {
             table_data.back().push_back(
@@ -3389,8 +3398,10 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
                         format, unit));
           }
 
-          if (buildheader) {
-            XrdOucString pkey = formattags["sig"].c_str();
+          // Header
+          XrdOucString pkey = formattags["sig"].c_str();
+
+          if ((format.find("o") == std::string::npos)) {
             pkey.replace("stat.statfs.", "");
             pkey.replace("stat.", "");
             pkey.replace("cfg.", "");
@@ -3402,9 +3413,13 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
             } else {
               header = formattags["tag"].c_str();
             }
+          } else { //for monitoring output
+            header = "sig.";
+            header += pkey.c_str();
           }
         }
 
+        // MaxDev printout
         if (formattags.count("maxdev")) {
           if (!outdepth) {
             table_data.back().push_back(
@@ -3416,8 +3431,10 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
                         format, unit));
           }
 
-          if (buildheader) {
-            XrdOucString pkey = formattags["maxdev"].c_str();
+          // Header
+          XrdOucString pkey = formattags["maxdev"].c_str();
+
+          if ((format.find("o") == std::string::npos)) {
             pkey.replace("stat.statfs.", "");
             pkey.replace("stat.", "");
             pkey.replace("cfg.", "");
@@ -3429,36 +3446,13 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
             } else {
               header = formattags["tag"].c_str();
             }
-          }
-        }
-
-        if ((format.find("o") != std::string::npos)) {
-          if (formattags.count("member")) {
-            header = formattags["member"].c_str();
-          }
-
-          if (formattags.count("sum")) {
-            header = "sum.";
-            header += formattags["sum"].c_str();
-          }
-
-          if (formattags.count("avg")) {
-            header = "avg.";
-            header += formattags["avg"].c_str();
-          }
-
-          if (formattags.count("sig")) {
-            header = "sig.";
-            header += formattags["sig"].c_str();
-          }
-
-          if (formattags.count("maxdev")) {
+          } else { //for monitoring output
             header = "dev.";
-            header += formattags["maxdev"].c_str();
+            header += pkey.c_str();
           }
         }
 
-        //Build header
+        // Build header
         if (!header.empty()) {
           table_header.push_back(std::make_tuple(header, width, format));
         }

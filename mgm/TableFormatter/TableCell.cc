@@ -23,8 +23,6 @@
 
 #include "TableCell.hh"
 
-std::vector<std::string> TableCell::sColorVector;
-
 //------------------------------------------------------------------------------
 // Constructor for unsigned int data
 //------------------------------------------------------------------------------
@@ -32,8 +30,6 @@ TableCell::TableCell(unsigned int value, std::string format,
                      std::string unit, TableFormatterColor col)
   : mFormat(format), mUnit(unit), mColor(col)
 {
-  Init();
-
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::UINT;
     SetValue((unsigned long long int)value);
@@ -58,8 +54,6 @@ TableCell::TableCell(unsigned long long int value, std::string format,
                      std::string unit, TableFormatterColor col)
   : mFormat(format), mUnit(unit), mColor(col)
 {
-  Init();
-
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::UINT;
     SetValue(value);
@@ -84,8 +78,6 @@ TableCell::TableCell(int value, std::string format,
                      std::string unit, TableFormatterColor col)
   : mFormat(format), mUnit(unit), mColor(col)
 {
-  Init();
-
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::INT;
     SetValue((long long int)value);
@@ -110,8 +102,6 @@ TableCell::TableCell(long long int value, std::string format,
                      std::string unit, TableFormatterColor col)
   : mFormat(format), mUnit(unit), mColor(col)
 {
-  Init();
-
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::INT;
     SetValue(value);
@@ -136,8 +126,6 @@ TableCell::TableCell(float value, std::string format,
                      std::string unit, TableFormatterColor col)
   : mFormat(format), mUnit(unit), mColor(col)
 {
-  Init();
-
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::INT;
     SetValue((long long int)value);
@@ -162,8 +150,6 @@ TableCell::TableCell(double value, std::string format,
                      std::string unit, TableFormatterColor col)
   : mFormat(format), mUnit(unit), mColor(col)
 {
-  Init();
-
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::INT;
     SetValue((long long int)value);
@@ -189,7 +175,6 @@ TableCell::TableCell(const char* value, std::string format,
   : mFormat(format), mUnit(unit), mColor(col),
     mSelectedValue(TypeContainingValue::STRING)
 {
-  Init();
   std::string value_temp(value);
   SetValue(value_temp);
 }
@@ -202,17 +187,16 @@ TableCell::TableCell(std::string& value, std::string format,
   : mFormat(format), mUnit(unit), mColor(col),
     mSelectedValue(TypeContainingValue::STRING)
 {
-  Init();
   SetValue(value);
 }
 
 //------------------------------------------------------------------------------
-// Color of cell
+// Set color of cell
 //------------------------------------------------------------------------------
-void TableCell::Init()
+void TableCell::SetColor(TableFormatterColor color)
 {
-  if (sColorVector.empty()) {
-    sColorVector = TableFormatterColorContainer;
+  if (color != DEFAULT) {
+    mColor = color;
   }
 }
 
@@ -429,6 +413,26 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
   if (width_right) {
     ostream.width(width_right);
   }
+}
+
+//------------------------------------------------------------------------------
+// Print value of tablecell in string, without unit and without color
+//------------------------------------------------------------------------------
+std::string TableCell::Str()
+{
+  std::stringstream ostream;
+
+  if (mSelectedValue == TypeContainingValue::UINT) {
+    ostream << m_ullValue;
+  } else if (mSelectedValue == TypeContainingValue::INT) {
+    ostream << m_llValue;
+  } else if (mSelectedValue == TypeContainingValue::DOUBLE) {
+    ostream << std::setprecision(2) << std::fixed << mDoubleValue;
+  } else if (mSelectedValue == TypeContainingValue::STRING) {
+    ostream << mStrValue;
+  }
+
+  return ostream.str();
 }
 
 //------------------------------------------------------------------------------
