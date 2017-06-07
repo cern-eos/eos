@@ -32,7 +32,7 @@ option(BUILD_TESTS "Build CppUnit tests" OFF)
 set(KINETICIO_URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz")
 set(KINETICIO_URL_MD5 "ae1a538939ee26984d4e20f96bedb2c2")
 
-if (NOT PACKAGEONLY)
+if(NOT PACKAGEONLY)
   if(Linux)
     find_package(glibc REQUIRED)
     find_package(attr REQUIRED)
@@ -56,6 +56,18 @@ if (NOT PACKAGEONLY)
   find_package(Sphinx)
   find_package(kineticio COMPONENTS headers)
   find_package(SparseHash REQUIRED)
+
+  # NOTE: Hack to link to protobuf static libraries. There is no automatic
+  # detection for the protobuf static library in the default CMake module
+  # for Protobuf.
+  # TODO: This should be removed once protobuf-3 comes by default from the
+  # operating system and is not built by us. We currently link all eos
+  # libraries and binaries against the static version so that we don't need
+  # the protobuf package during installation.
+  if(PROTOBUF_FOUND)
+    message(WARNING "Forcing the use the static protobuf libraries!")
+    set(PROTOBUF_LIBRARY "/usr/lib64/libprotobuf.a;-lpthread")
+  endif()
 
   if(EXISTS "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
     set(KINETICIO_URL "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
