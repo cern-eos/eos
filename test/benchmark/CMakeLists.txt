@@ -58,7 +58,7 @@ target_link_libraries(
   eos-benchmark
   EosFstIo-Static
   ${XROOTD_CL_LIBRARY}
-  ${PROTOBUF_LIBRARIES}
+  ${PROTOBUF_LIBRARY}
   ${UUID_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 

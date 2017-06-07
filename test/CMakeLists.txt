@@ -87,7 +87,7 @@ target_link_libraries(
   EosFstIo-Static
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_SERVER_LIBRARY}
-  ${PROTOBUF_LIBRARIES}
+  ${PROTOBUF_LIBRARY}
   ${KINETIC_LIBRARIES})
 
 target_link_libraries(

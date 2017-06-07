@@ -100,7 +100,7 @@ add_library(
 target_link_libraries(
    EosAuthProto PUBLIC
    eosCommon
-   ${PROTOBUF_LIBRARIES})
+   ${PROTOBUF_LIBRARY})
 
 #-------------------------------------------------------------------------------
 # EosAuthOfs library

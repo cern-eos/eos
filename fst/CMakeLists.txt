@@ -219,7 +219,7 @@ target_link_libraries(
   ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
-  ${PROTOBUF_LIBRARIES})
+  ${PROTOBUF_LIBRARY})
 
 set_target_properties(
   EosFstIo PROPERTIES
@@ -473,7 +473,7 @@ target_link_libraries(
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${DAVIX_LIBRARIES}
-  ${PROTOBUF_LIBRARIES}
+  ${PROTOBUF_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
