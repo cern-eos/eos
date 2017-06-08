@@ -144,8 +144,7 @@ DrainTransferJob::DoIt ()
     properties.Set("force", true);
     properties.Set("posc", false);
     properties.Set("coerce", false);
-    std::string source = mSourcePath.c_str();
-    std::string target = source;
+    XrdOucString source, target = "";
     //target to get from the 
     std::string cgi;
     cgi += "&eos.app=drainer";
@@ -160,7 +159,7 @@ DrainTransferJob::DoIt ()
     url_src.SetProtocol("root");
     url_src.SetHostName(source_snapshot.mHost.c_str());
     url_src.SetPort(stoi(source_snapshot.mPort));
-    url_src.SetUserName("root");
+    url_src.SetUserName("daemon");
     //layour id
     unsigned long long target_lid = lid & 0xffffff0f; 
     if (eos::common::LayoutId::GetBlockChecksum(lid) == eos::common::LayoutId::kNone)
@@ -179,7 +178,7 @@ DrainTransferJob::DoIt ()
     source_params+= "&mgm.uid=1";
     source_params+= "&mgm.gid=1";
     source_params+= "&mgm.path=";
-    source_params+= source.c_str();
+    source_params+= mSourcePath.c_str();
     source_params+= "&mgm.manager=";
     source_params+= gOFS->ManagerId.c_str(); 
     eos::common::FileId::Fid2Hex(mFileId, hexfid);
@@ -199,18 +198,16 @@ DrainTransferJob::DoIt ()
     source_params+=source_snapshot.mHostPort.c_str();
     source_params+="&eos.app=drainer";
     source_params+="&eos.ruid=0&eos.rgid=0";
-    source_params+="&source.url=root://";
-    source_params+= source_snapshot.mHostPort.c_str();
-    source_params+= "//replicate:";
-    source_params+= hexfid.c_str();
 
-    url_src.SetParams(source_params.c_str());
-    url_src.SetPath(source);
+    // build source 
+    source+=  mSourcePath.c_str();
+    target = source;
+    
     XrdCl::URL url_trg;
     url_trg.SetProtocol("root");
     url_trg.SetHostName(target_snapshot.mHost.c_str());
-    url_src.SetPort(stoi(target_snapshot.mPort));
-    url_trg.SetUserName("root");
+    url_trg.SetPort(stoi(target_snapshot.mPort));
+    url_trg.SetUserName("daemon");
     url_trg.SetParams(cgi);
 
     XrdOucString target_params ="";
@@ -236,7 +233,7 @@ DrainTransferJob::DoIt ()
     target_params+= "&mgm.uid=1";
     target_params+= "&mgm.gid=1";
     target_params+= "&mgm.path=";
-    target_params+= source.c_str();
+    target_params+= mSourcePath.c_str();
     target_params+= "&mgm.manager=";
     target_params+= gOFS->ManagerId.c_str(); 
     target_params+= "&mgm.fid=";
@@ -255,36 +252,79 @@ DrainTransferJob::DoIt ()
     target_params+= "&mgm.bookingsize=";
     target_params+= eos::common::StringConversion::GetSizeString(sizestring,
                                    size);
-    target_params+= "&target.url=root://";
-    target_params+= target_snapshot.mHostPort.c_str();
-    target_params+= "//replicate:";
-    target_params+= hexfid.c_str();
     
-    url_trg.SetParams(target_params.c_str());
+    // issue a replica_source_capability
+    XrdOucEnv insource_capability(source_params.c_str());
+    XrdOucEnv intarget_capability(target_params.c_str());
+       
+    XrdOucEnv* source_capabilityenv = 0;
 
-    url_trg.SetPath(target);
-    properties.Set("source", url_src);
-    properties.Set("target", url_trg);
-    properties.Set("sourceLimit", (uint16_t) 1);
-    properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
-    properties.Set("parallelChunks", (uint8_t) 1);
-    XrdCl::CopyProcess lCopyProcess;
-    lCopyProcess.AddJob(properties, &result);
-    XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
-    eos_static_info("[tpc]: %s=>%s %s",
+    XrdOucEnv* target_capabilityenv = 0;
+     
+    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+    
+    int caprc = 0;
+
+    if ((caprc = gCapabilityEngine.Create(&insource_capability,
+                                          source_capabilityenv,
+                                          symkey, gOFS->mCapabilityValidity)) ||
+       (caprc = gCapabilityEngine.Create(&intarget_capability, 
+ 					  target_capabilityenv,
+                                          symkey, gOFS->mCapabilityValidity))) {
+                
+               //eos_thread_err("unable to create source/target capability - errno=%u", caprc);
+               //report error
+    } else {
+      int caplen = 0;
+      XrdOucString source_cap = source_capabilityenv->Env(caplen);
+      XrdOucString target_cap = target_capabilityenv->Env(caplen);
+      
+      source_cap += "&source.url=root://";
+      source_cap += source_snapshot.mHostPort.c_str();
+      source_cap += "//replicate:";
+      source_cap += hexfid;
+      target_cap += "&target.url=root://";
+      target_cap += target_snapshot.mHostPort.c_str();
+      target_cap += "//replicate:";
+      target_cap += hexfid;
+    
+      url_src.SetParams(source_cap.c_str());
+      url_src.SetPath(source.c_str());
+  
+      url_trg.SetParams(target_cap.c_str());
+      url_trg.SetPath(target.c_str());
+
+      properties.Set("source", url_src);
+      properties.Set("target", url_trg);
+
+      properties.Set("sourceLimit", (uint16_t) 1);
+      properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
+      properties.Set("parallelChunks", (uint8_t) 1);
+      XrdCl::CopyProcess lCopyProcess;
+      lCopyProcess.AddJob(properties, &result);
+      XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
+      eos_static_info("[tpc]: %s=>%s %s",
                     url_src.GetURL().c_str(),
                     url_trg.GetURL().c_str(),
                     lTpcPrepareStatus.ToStr().c_str());
 
-    if (lTpcPrepareStatus.IsOK()) {
-        XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
-        eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
-        success = lTpcStatus.IsOK();
-    } else {
+      if (lTpcPrepareStatus.IsOK()) {
+          XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
+          eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
+          success = lTpcStatus.IsOK();
+      } else {
         //we should report the error
+     }
+    }
+    if (source_capabilityenv) {
+          delete source_capabilityenv;
+      }
+
+    if (target_capabilityenv) {
+          delete target_capabilityenv;
     }
     delete this;
-
+    
 }
 
 EOSMGMNAMESPACE_END

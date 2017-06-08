@@ -31,6 +31,7 @@
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "Xrd/XrdScheduler.hh"
+#include <memory>
 
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
@@ -67,7 +68,7 @@ private:
   /// thread id of the draing job
   pthread_t mThread;
 
-  XrdScheduler* gScheduler; 
+  shared_ptr<XrdScheduler> gScheduler; 
 
 public:
 
@@ -82,7 +83,7 @@ public:
   {
 
     //create the scheduler for Drain Job;
-    gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, 128, 64);
+    gScheduler = shared_ptr<XrdScheduler> (new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, 128, 64));
     gScheduler->Start();
 
     mThread = 0;
