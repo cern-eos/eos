@@ -647,7 +647,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
 
     if (sticky_owner) {
-      eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+      eos_info("msg=\"client acting as directory owner\" path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
                path, vid.uid, vid.gid, d_uid, d_gid);
       vid.uid = d_uid;
       vid.gid = d_gid;
