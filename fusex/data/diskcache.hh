@@ -59,12 +59,13 @@ public:
   virtual size_t size();
 
   virtual int set_attr(std::string& key, std::string& value);
-  virtual int attr(std::string key, std::string& value);  
- 
+  virtual int attr(std::string key, std::string& value);
+
   static int init();
 
   int location(std::string &path, bool mkpath=true);
 
+  static off_t sMaxSize;
 private:
 
   fuse_ino_t ino;
@@ -76,7 +77,7 @@ private:
   static std::string sLocation;
 
   static bufferllmanager sBufferManager;
-  static off_t sMaxSize;
-};
+  
+} ;
 
 #endif /* FUSE_JOURNALCACHE_HH_ */

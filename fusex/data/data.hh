@@ -40,6 +40,7 @@
 #include <atomic>
 #include <exception>
 #include <stdexcept>
+#include "common/Logging.hh"
 
 class data
 {
@@ -47,12 +48,16 @@ public:
 
   //----------------------------------------------------------------------------
 
-  class datax
+  class datax : public LogId
   //----------------------------------------------------------------------------
   {
   public:
 
-    datax() : mIno(0), mReq(0), mFile(0), mSize(0)
+    datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0), mPrefetchHandler(0)
+    {
+    }
+
+    datax(metad::shared_md md) : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(md), mPrefetchHandler(0)
     {
     }
 
@@ -71,6 +76,9 @@ public:
       mIno = ino;
       mReq = req;
       mFile = cachehandler::get(ino);
+      char lid[64];
+      snprintf(lid, sizeof (lid), "logid:inode:%016lx", ino);
+      SetLogId(lid);
     }
 
     uint64_t id () const
@@ -85,9 +93,14 @@ public:
 
     void flush();
     int attach(std::string& cookie, bool isRW);
-    int detach(std::string& cookie);
+    int detach(std::string& cookie, bool isRW);
     int store_cookie(std::string& cookie);
     int unlink();
+
+    void set_remote(const std::string& hostport,
+                    const std::string& basename,
+                    const uint64_t md_ino,
+                    const uint64_t md_pino);
 
     // IO bridge interface
     ssize_t pread(void *buf, size_t count, off_t offset);
@@ -98,6 +111,22 @@ public:
     int sync();
     size_t size();
     int cache_invalidate();
+    void prefetch();
+
+    // ref counting for this object
+
+    void attach()
+    {
+      XrdSysMutexHelper lLock(mLock);
+      mAttached++;
+    }
+
+    bool detach()
+    {
+      XrdSysMutexHelper lLock(mLock);
+      return (--mAttached);
+    }
+
 
   private:
     XrdSysMutex mLock;
@@ -105,6 +134,14 @@ public:
     fuse_req_t mReq;
     cache::shared_io mFile;
     off_t mSize;
+    std::string mRemoteUrl;
+    std::string mBaseName;
+    uint64_t mRemoteInode;
+    uint64_t mRemoteParentInode;
+    size_t mAttached;
+    metad::shared_md mMd;
+    XrdCl::Proxy::read_handler mPrefetchHandler;
+
   } ;
 
   typedef std::shared_ptr<datax> shared_data;
@@ -114,13 +151,15 @@ public:
     shared_data data;
 
     metad::shared_md md;
+    bool rw;
     std::string _authid;
     std::atomic<bool> update_mtime_on_flush;
 
-    _data_fh(shared_data _data, metad::shared_md _md)
+    _data_fh(shared_data _data, metad::shared_md _md, bool _rw)
     {
       data = _data;
       md = _md;
+      rw = _rw;
       update_mtime_on_flush.store(false, std::memory_order_seq_cst);
     }
 
@@ -128,9 +167,9 @@ public:
     {
     }
 
-    static struct _data_fh* Instance(shared_data io, metad::shared_md md)
+    static struct _data_fh* Instance(shared_data io, metad::shared_md md, bool rw)
     {
-      return new struct _data_fh(io, md);
+      return new struct _data_fh(io, md, rw);
     }
 
     shared_data ioctx()
@@ -192,7 +231,11 @@ public:
   void init();
 
   shared_data get(fuse_req_t req,
-                  fuse_ino_t ino);
+                  fuse_ino_t ino,
+                  metad::shared_md m);
+
+  void release(fuse_req_t req,
+               fuse_ino_t ino);
 
   uint64_t commit(fuse_req_t req,
                   shared_data io);

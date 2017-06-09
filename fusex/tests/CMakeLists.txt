@@ -32,7 +32,9 @@ add_library(
   EosFuseXTests SHARED
   RBTreeTest.cc
   IntervalTreeTest.cc 
-  JournalCacheTest.cc)
+  JournalCacheTest.cc
+  XrdClProxyTest.cc
+)
   
 target_link_libraries(
   EosFuseXTests 

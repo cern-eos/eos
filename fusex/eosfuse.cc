@@ -960,7 +960,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
               }
               else
               {
-                data::shared_data io = Instance().datas.get(req, md->id());
+                data::shared_data io = Instance().datas.get(req, md->id(), md);
                 rc = io->truncate(attr->st_size);
 
                 if (!rc)
@@ -1847,12 +1847,17 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       memset(&e, 0, sizeof (e));
       md->convert(e);
 
-      data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id()), md);
+      data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, (mode == W_OK));
       // attach a datapool object
       fi->fh = (uint64_t) io;
 
       std::string cookie=md->Cookie();
 
+      io->ioctx()->set_remote(Instance().Config().hostport,
+                                  md->name(), 
+                                  md->md_ino(),
+                                  md->md_pino());
+      
       io->ioctx()->attach(cookie, (mode == W_OK) );
 
       fi->keep_cache = 0;
@@ -2072,7 +2077,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           else
             fi->direct_io = 0;
 
-          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id()), md);
+          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, true);
 
           io->set_authid(pcap->authid());
 
@@ -2080,6 +2085,12 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           fi->fh = (uint64_t) io;
 
           std::string cookie=md->Cookie();
+          
+          io->ioctx()->set_remote(Instance().Config().hostport,
+                                  md->name(), 
+                                  md->md_ino(),
+                                  md->md_pino());
+          
           io->ioctx()->attach(cookie, true);
         }
       }
@@ -2226,9 +2237,9 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
     data::data_fh* io = (data::data_fh*) fi->fh;
     std::string cookie="";
-    io->ioctx()->detach(cookie);
+    io->ioctx()->detach(cookie, io->rw);
     delete io;
-
+    Instance().datas.release(req, ino);
   }
   EXEC_TIMING_END(__func__);
 

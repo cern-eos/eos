@@ -121,12 +121,12 @@ public:
       _journal = journal;
     }
 
-    void set_xrdioro(XrdCl::File* _cl)
+    void set_xrdioro(XrdCl::Proxy* _cl)
     {
       _xrdioro = _cl;
     }
 
-    void set_xrdiorw(XrdCl::File* _cl)
+    void set_xrdiorw(XrdCl::Proxy* _cl)
     {
       _xrdiorw = _cl;
     }
@@ -141,12 +141,12 @@ public:
       return _journal;
     }
 
-    XrdCl::File* xrdior()
+    XrdCl::Proxy* xrdioro()
     {
       return _xrdioro;
     }
 
-    XrdCl::File* xrdiow()
+    XrdCl::Proxy* xrdiorw()
     {
       return _xrdiorw;
     }
@@ -154,8 +154,8 @@ public:
   private:
     cache* _file;
     cache* _journal;
-    XrdCl::File* _xrdioro;
-    XrdCl::File* _xrdiorw;
+    XrdCl::Proxy* _xrdioro;
+    XrdCl::Proxy* _xrdiorw;
     fuse_ino_t ino;
   } ;
 
