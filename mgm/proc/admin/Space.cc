@@ -517,6 +517,8 @@ ProcCommand::Space()
                 (key == "balancer.node.ntx") ||
                 (key == "drainer.node.rate") ||
                 (key == "drainer.node.ntx") ||
+                (key == "drainer.maxdrainingfs") ||
+                (key == "drainer.nretries") ||
                 (key == "converter") ||
                 (key == "lru") ||
                 (key == "lru.interval") ||

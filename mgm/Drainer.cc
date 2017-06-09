@@ -79,11 +79,14 @@ bool
 Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
 {
     //check the status of the given FS and if it's already in the map for drain FS
-    const char* fsId = env.Get("mgm.drain.fsid");
-    eos_notice("fs to drain=%s ", fsId);
+    const char* fsIdString = env.Get("mgm.drain.fsid");
+ 
+    eos::common::FileSystem::fsid_t fsId = atoi(fsIdString);
+     
+    eos_notice("fs to drain=%d ", fsId);
 
 
-    auto it_fs = FsView::gFsView.mIdView.find(atoi(fsId));
+    auto it_fs = FsView::gFsView.mIdView.find(fsId);
 
     if (it_fs == FsView::gFsView.mIdView.end()){
         err = "error: the given FS does not exist";
@@ -91,10 +94,9 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
 
     }
 
-    FileSystem::fsstatus_t configstatus = it_fs->second->GetConfigStatus();
+    FileSystem::fsstatus_t status = it_fs->second->GetDrainStatus();
 
-    if (((configstatus == eos::common::FileSystem::kDrain)
-         || (configstatus == eos::common::FileSystem::kDrainDead))) {
+    if (status != eos::common::FileSystem::kNoDrain ) {
 
         err = "error: the given FS is already under draining ";
         return false;
@@ -112,7 +114,7 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
 
     //start the drain
     DrainMapPair::first_type s(fsId);
-    DrainMapPair::second_type d(new DrainFS(atoi(fsId)));
+    DrainMapPair::second_type d(new DrainFS(fsId));
      
     mDrainMutex.Lock();
     mDrainFS.insert(std::make_pair(s, d));
@@ -130,6 +132,62 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
 bool
 Drainer::StopFSDrain(XrdOucEnv& env, XrdOucString& err)
 {
+    //getting the fs id
+    const char* fsIdString = env.Get("mgm.drain.fsid");
+    eos::common::FileSystem::fsid_t fsId = atoi(fsIdString);
+    
+    eos_notice("fs to stop draining=%d ", fsId);
+
+    auto it_fs = FsView::gFsView.mIdView.find(fsId);
+
+    if (it_fs == FsView::gFsView.mIdView.end()){
+        err = "error: the given FS does not exist";
+        return false;
+    }
+    auto it_drainfs = mDrainFS.find(fsId);
+
+    if (it_drainfs == mDrainFS.end()){
+        //fs is not drainin
+        err = "error: a central FS drain has not started for the given FS ";
+        return false;
+    }
+
+    (*it_drainfs).second->DrainStop();
+    return true;
+  
+}
+
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Clear FS from the given map
+ *     
+ * ----------------------------------------------------------------------------*/
+bool
+Drainer::ClearFSDrain(XrdOucEnv& env, XrdOucString& err)
+{
+    //getting the fs id
+    const char* fsIdString = env.Get("mgm.drain.fsid");
+    eos::common::FileSystem::fsid_t fsId = atoi(fsIdString);
+    //
+    eos_notice("fs to clear=%d ", fsId);
+    //
+    auto it_fs = FsView::gFsView.mIdView.find(fsId);
+    //
+    if (it_fs == FsView::gFsView.mIdView.end()){
+        err = "error: the given FS does not exist";
+        return false;
+    }
+    auto it_drainfs = mDrainFS.find(fsId);
+    if (it_drainfs == mDrainFS.end()){
+        //fs is not draining
+        err = "error: the given FS is not drained or under drained";
+        return false;
+    }
+    mDrainMutex.Lock();
+    mDrainFS.erase(it_drainfs);
+    mDrainMutex.UnLock();
+
     return true;
 }
 
@@ -139,8 +197,44 @@ Drainer::StopFSDrain(XrdOucEnv& env, XrdOucString& err)
  *   
  *----------------------------------------------------------------------------*/
 bool
-Drainer::GetDrainStatus(XrdOucString& out, XrdOucString& err,  std::string& fsid)
+Drainer::GetDrainStatus(XrdOucEnv& env,XrdOucString& out, XrdOucString& err)
 {
+    mDrainMutex.Lock();
+    if (mDrainFS.size() > 0 ){
+       out+=  "Status of the drain activities on the System:\n";
+     } else {
+       out+=  "No Drain activities are recorded on the System:\n";
+       mDrainMutex.UnLock();
+       return true;
+     }
+
+    auto it_drainfs = mDrainFS.begin();
+    
+    while (it_drainfs != mDrainFS.end()){
+      //fs is already draining
+      out+= "Drain Status for FS with ID: ";
+      out+= std::to_string((*it_drainfs).first).c_str();
+      out+= " => ";
+      out+= FileSystem::GetDrainStatusAsString((*it_drainfs).second->GetDrainStatus());
+      out+= "\n";
+       
+      std::vector<shared_ptr<DrainTransferJob>> jobs;
+      jobs = (*it_drainfs).second->GetJobs(DrainTransferJob::Failed);
+      
+      out+= "\tFailed Draining Files:\n";
+      auto it_jobs = jobs.begin(); 
+      
+      while (it_jobs != jobs.end()){
+        out+= "\tFile Id: ";
+        out+= std::to_string((*it_jobs)->GetFileId()).c_str();
+        out+= "\n";
+        it_jobs++;
+      }
+
+      it_drainfs++;
+      
+    }
+    mDrainMutex.UnLock();
     return true;
 }
 
@@ -162,7 +256,7 @@ void*
 Drainer::Drain()
 /*----------------------------------------------------------------------------*/
 /**
- * @brief eternal loop trying to run conversion jobs
+ * @brief lunch Drainer Thread // TO CHECK IF WE NEED TO HAVE A THREAD HERE 
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -191,12 +285,32 @@ Drainer::Drain()
     XrdSysTimer sleeper;
     sleeper.Snooze(10);
 
+    XrdSysThread::SetCancelOff();
+    //load conf
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+    {
+      auto space = FsView::gFsView.mSpaceView.begin();
+      while (space != FsView::gFsView.mSpaceView.end()) {
+        int maxdrainingfs = 0;
+        std::string spacename = space->second->GetMember("name");
+        if (FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxdrainingfs")==""){
+          FsView::gFsView.mSpaceView[spacename]->SetConfigMember("drainer.maxdrainingfs", "0", true, "/eos/*/mgm");
+        }else {
+          maxdrainingfs = stoi(FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxdrainingfs"));
+        }
+        //get the space configuration
+        mDrainingFSMutex.Lock();
+        std::pair<int, int> pair = std::make_pair(0, maxdrainingfs);
+        drainingFSMap.insert(std::make_pair(spacename,pair));
+        mDrainingFSMutex.UnLock();
+        space++;
+      }
+    }
     // ---------------------------------------------------------------------------
     // loop forever until cancelled
     // ---------------------------------------------------------------------------
     while (1) {
       eos_static_debug("Drainer running");
-  wait:
       XrdSysThread::SetCancelOn();
       // Let some time pass or wait for a notification
       XrdSysTimer sleeper;

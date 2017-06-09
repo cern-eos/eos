@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_DRAINTRANSFER_HH__
-#define __EOSMGM_DRAINTRANSFER_HH__
+#ifndef __EOSMGM_DRAINTRANSFERJOB_HH__
+#define __EOSMGM_DRAINTRANSFERJOB_HH__
 /*----------------------------------------------------------------------------*/
 #include <pthread.h>
 /*----------------------------------------------------------------------------*/
@@ -37,7 +37,6 @@
 #include "Xrd/XrdScheduler.hh"
 #include <vector>
 #include <string>
-#include <deque>
 #include <cstring>
 
 
@@ -62,17 +61,12 @@ EOSMGMNAMESPACE_BEGIN
  * source file id and the destination filesystem
  */
 /*----------------------------------------------------------------------------*/
-class DrainTransferJob : XrdJob
+class DrainTransferJob : XrdJob, public eos::common::LogId 
 {
-private:
-  /// file id for the given file to transfer
-  eos::common::FileId::fileid_t mFileId;
-  /// destination fs
-  eos::common::FileSystem::fsid_t mfsIdSource, mfsIdTarget;
-
-  std::string mSourcePath; 
-
 public:
+  
+  enum Status { OK, Running, Failed };
+
 
   // ---------------------------------------------------------------------------
   /**
@@ -83,7 +77,7 @@ public:
 
   DrainTransferJob (eos::common::FileId::fileid_t fileId, 
                               eos::common::FileSystem::fsid_t fsIdS,
-                              eos::common::FileSystem::fsid_t fsIdT) {
+                              eos::common::FileSystem::fsid_t fsIdT=0) {
     mFileId = fileId;
     mfsIdSource = fsIdS;
     mfsIdTarget = fsIdT;
@@ -95,8 +89,26 @@ public:
   virtual ~DrainTransferJob (); 
 
   void DoIt();
+  
+  inline DrainTransferJob::Status GetStatus() { return mStatus;}
 
+  void SetTargetFS(eos::common::FileSystem::fsid_t fsIdT);
 
+  inline eos::common::FileId::fileid_t GetFileId() { return mFileId;}
+
+  inline eos::common::FileSystem::fsid_t GetSourceFS() { return mfsIdSource;}
+
+  inline eos::common::FileSystem::fsid_t GetTargetFS() { return mfsIdTarget;}
+ 
+  inline void SetStatus(DrainTransferJob::Status status) {  mStatus= status;}
+
+private:
+  /// file id for the given file to transfer
+  eos::common::FileId::fileid_t mFileId;
+  // destination fs
+  eos::common::FileSystem::fsid_t mfsIdSource, mfsIdTarget;
+  std::string mSourcePath;
+  Status mStatus;
 };
 
 EOSMGMNAMESPACE_END

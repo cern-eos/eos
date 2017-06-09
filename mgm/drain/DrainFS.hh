@@ -31,7 +31,10 @@
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "mgm/FsView.hh"
 #include <memory>
+#include "mgm/drain/DrainTransferJob.hh"
+#include <exception>
 
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
@@ -40,9 +43,9 @@ extern XrdOucTrace gMgmOfsTrace;
 /*----------------------------------------------------------------------------*/
 /**
  * @file DrainFS.hh
- * 
+ *
  * @brief Class implementing a thread following a filesystem drain.
- * 
+ *
  */
 
 /*----------------------------------------------------------------------------*/
@@ -54,23 +57,15 @@ EOSMGMNAMESPACE_BEGIN
  * @brief Class implementing the draining of a filesystem
  */
 /*----------------------------------------------------------------------------*/
-class DrainFS: public eos::common::LogId  {
-private:
-  /// file system id of the draining filesystem
-  eos::common::FileSystem::fsid_t mFsId;
-
-  /// space where the filesystem resides
-  std::string mSpace;
-
-  /// group where the filesystem resides
-  std::string mGroup;
-
-  /// thread id of the draing job
-  pthread_t mThread;
-
-  shared_ptr<XrdScheduler> gScheduler; 
+class DrainFS: public eos::common::LogId
+{
 
 public:
+
+  inline eos::common::FileSystem::eDrainStatus GetDrainStatus()
+  {
+    return drainStatus;
+  };
 
   // ---------------------------------------------------------------------------
   /**
@@ -79,47 +74,99 @@ public:
    */
   // ---------------------------------------------------------------------------
 
-  DrainFS (eos::common::FileSystem::fsid_t ifsid)
+  DrainFS(eos::common::FileSystem::fsid_t ifsid)
   {
-
-    //create the scheduler for Drain Job;
-    gScheduler = shared_ptr<XrdScheduler> (new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, 128, 64));
+    //create the scheduler for Drain Job; the max number of workers should be parametrized
+    gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, 10, 5);
     gScheduler->Start();
-
     mThread = 0;
     mFsId = ifsid;
-    XrdSysThread::Run (&mThread,
-                       DrainFS::StaticThreadProc,
-                       static_cast<void *> (this),
-                       XRDSYSTHREAD_HOLD,
-                       "DrainFS Thread");
+
+    if (FsView::gFsView.mIdView.count(mFsId)) {
+      fs = FsView::gFsView.mIdView[mFsId];
+    } else {
+      throw std::exception();
+    }
+
+    XrdSysThread::Run(&mThread,
+                      DrainFS::StaticThreadProc,
+                      static_cast<void*>(this),
+                      XRDSYSTHREAD_HOLD,
+                      "DrainFS Thread");
   }
 
   // ---------------------------------------------------------------------------
   // Destructor
   // ---------------------------------------------------------------------------
-  virtual ~DrainFS ();
+  virtual ~DrainFS();
 
   // ---------------------------------------------------------------------------
-  // reset all drain counter
+  // set initial drain counters and status
   // ---------------------------------------------------------------------------
-  void ResetCounter ();
+  void SetInitialCounters();
 
   // ---------------------------------------------------------------------------
   // static thread startup function
   // ---------------------------------------------------------------------------
-  static void* StaticThreadProc (void*);
+  static void* StaticThreadProc(void*);
 
   // ---------------------------------------------------------------------------
   // thread loop implementing the drain job
   // ---------------------------------------------------------------------------
-  void* Drain ();
+  void* Drain();
 
   // ---------------------------------------------------------------------------
-  // set the space defined drain variables on each node participating in the 
-  // draining e.g. transfer rate & parallel transfers
+  // Stop the Drain activities
+  // --------------------------------------------------------------------------
+  void DrainStop();
+
   // ---------------------------------------------------------------------------
-  void SetSpaceNode ();
+  // get the space defined drain variables
+  // ---------------------------------------------------------------------------
+  void GetSpaceConfiguration();
+
+  // ---------------------------------------------------------------------------
+  // select a FS as a draining target using GeoTreeEngine
+  // ---------------------------------------------------------------------------
+  eos::common::FileSystem::fsid_t SelectTargetFS(DrainTransferJob& job);
+
+  // ---------------------------------------------------------------------------
+  // get the list of  Jobs filter by status
+  // ---------------------------------------------------------------------------
+  std::vector<shared_ptr<DrainTransferJob>> GetJobs(DrainTransferJob::Status
+                                         status);
+
+  void CompleteDrain() ;
+
+private:
+  /// file system id of the draining filesystem
+  eos::common::FileSystem::fsid_t mFsId;
+
+  eos::common::FileSystem* fs;
+
+  pthread_t mThread;
+
+  // space where the filesystem resides
+  std::string mSpace;
+
+  //group where the filesystem resides
+  std::string mGroup;
+
+  XrdScheduler*   gScheduler;
+
+  //list of DrainTransferJob to run
+  std::vector<shared_ptr<DrainTransferJob>> drainJobs;
+
+  XrdSysMutex drainJobsMutex;
+
+  eos::common::FileSystem::eDrainStatus drainStatus;
+
+  bool drainStop = false;
+
+  //the numbers of retries
+
+  int nretries = 0;
+
 };
 
 EOSMGMNAMESPACE_END

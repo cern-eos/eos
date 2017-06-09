@@ -43,8 +43,8 @@ DrainTransferJob::~DrainTransferJob ()
  * 
 /----------------------------------------------------------------------------*/
 {
+  eos_notice("Destroying transfer job");
 }
-
 void
 DrainTransferJob::DoIt ()
 /*----------------------------------------------------------------------------*/
@@ -69,7 +69,11 @@ DrainTransferJob::DoIt ()
   XrdOucString sourceSize;
   long unsigned int lid = 0;
   unsigned long long cid = 0;
-  
+  XrdOucEnv* source_capabilityenv = 0;
+  XrdOucEnv* target_capabilityenv = 0;
+
+  //set status to running
+  mStatus = Status::Running;
   {
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
@@ -103,10 +107,12 @@ DrainTransferJob::DoIt ()
 
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      eos_static_err("fid=%016x errno=%d msg=\"%s\"\n",
+      eos_notice("fid=%016x errno=%d msg=\"%s\"\n",
                      mFileId, e.getErrno(), e.getMessage().str().c_str());
-      }
+      mStatus = Status::Failed;
+      return;
     }
+  }
 
     eos::common::FileSystem::fs_snapshot target_snapshot;
     eos::common::FileSystem::fs_snapshot source_snapshot;
@@ -120,7 +126,9 @@ DrainTransferJob::DoIt ()
       target_fs = FsView::gFsView.mIdView[mfsIdTarget];
    
       if (!target_fs) {
-      //should report some error
+         eos_notice("Target fs not found");
+         mStatus = Status::Failed;
+         return;
       }
       
       source_fs->SnapShotFileSystem(source_snapshot);
@@ -128,7 +136,6 @@ DrainTransferJob::DoIt ()
       
     }
 
-    bool success = false;
 
     // Prepare the TPC copy job
     XrdCl::PropertyList properties;
@@ -155,6 +162,7 @@ DrainTransferJob::DoIt ()
       cgi += "&eos.checksum=";
       cgi += sourceChecksum.c_str();
     }
+ 
     XrdCl::URL url_src;
     url_src.SetProtocol("root");
     url_src.SetHostName(source_snapshot.mHost.c_str());
@@ -256,10 +264,6 @@ DrainTransferJob::DoIt ()
     // issue a replica_source_capability
     XrdOucEnv insource_capability(source_params.c_str());
     XrdOucEnv intarget_capability(target_params.c_str());
-       
-    XrdOucEnv* source_capabilityenv = 0;
-
-    XrdOucEnv* target_capabilityenv = 0;
      
     eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
     
@@ -272,10 +276,11 @@ DrainTransferJob::DoIt ()
  					  target_capabilityenv,
                                           symkey, gOFS->mCapabilityValidity))) {
                 
-               //eos_thread_err("unable to create source/target capability - errno=%u", caprc);
-               //report error
+      eos_notice("unable to create source/target capability - errno=%u", caprc);
+      mStatus = Status::Failed;
     } else {
       int caplen = 0;
+     
       XrdOucString source_cap = source_capabilityenv->Env(caplen);
       XrdOucString target_cap = target_capabilityenv->Env(caplen);
       
@@ -300,22 +305,33 @@ DrainTransferJob::DoIt ()
       properties.Set("sourceLimit", (uint16_t) 1);
       properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
       properties.Set("parallelChunks", (uint8_t) 1);
+      //create the process job
       XrdCl::CopyProcess lCopyProcess;
       lCopyProcess.AddJob(properties, &result);
+      
       XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
-      eos_static_info("[tpc]: %s=>%s %s",
+    
+      eos_notice("[tpc]: %s=>%s %s",
                     url_src.GetURL().c_str(),
                     url_trg.GetURL().c_str(),
                     lTpcPrepareStatus.ToStr().c_str());
 
       if (lTpcPrepareStatus.IsOK()) {
-          XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
-          eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
-          success = lTpcStatus.IsOK();
+        XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
+        eos_notice("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
+        if (!lTpcStatus.IsOK()) {
+           eos_notice("Failed to run the Drain Job %s",lTpcPrepareStatus.ToStr().c_str() );
+           mStatus = Status::Failed;
+        } else {
+           eos_notice("Drain Job completed Succesfully");
+           mStatus = Status::OK;
+        }
       } else {
-        //we should report the error
+        eos_notice("Failed to prepare the Drain job %s",lTpcPrepareStatus.ToStr().c_str() );
+        mStatus = Status::Failed;
      }
     }
+
     if (source_capabilityenv) {
           delete source_capabilityenv;
       }
@@ -323,9 +339,10 @@ DrainTransferJob::DoIt ()
     if (target_capabilityenv) {
           delete target_capabilityenv;
     }
-    delete this;
-    
 }
+
+void DrainTransferJob::SetTargetFS(eos::common::FileSystem::fsid_t fsIdT)
+{ mfsIdTarget = fsIdT; }
 
 EOSMGMNAMESPACE_END
 

@@ -29,6 +29,7 @@
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "mgm/drain/DrainFS.hh"
+#include "mgm/drain/DrainTransferJob.hh"
 /* -------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
 /* -------------------------------------------------------------------------- */
@@ -57,34 +58,40 @@ EOSMGMNAMESPACE_BEGIN
 */
 
 /*----------------------------------------------------------------------------*/
-class Drainer: public eos::common::LogId {
+class Drainer: public eos::common::LogId
+{
 private:
   /// thread id
   pthread_t mThread;
 
   /// DrainFS thread map (maps DrainFS threads  with their fs )
-  typedef std::pair<std::string, shared_ptr<eos::mgm::DrainFS>> DrainMapPair;
+  typedef std::pair<eos::common::FileSystem::fsid_t, shared_ptr<eos::mgm::DrainFS>>
+      DrainMapPair;
   typedef std::map<DrainMapPair::first_type, DrainMapPair::second_type> DrainMap;
-  
+
+  //contains per space the number of draining file systems and the max allowed
+  std::map<std::string, std::pair<int, int>> drainingFSMap;
+
   DrainMap  mDrainFS;
 
-  XrdSysMutex mDrainMutex;  
+  XrdSysMutex mDrainMutex, mDrainingFSMutex;
+
 public:
 
   // ---------------------------------------------------------------------------
-  // Constructor 
+  // Constructor
   // ---------------------------------------------------------------------------
-  Drainer ();
+  Drainer();
 
   // ---------------------------------------------------------------------------
   // Destructor
   // ---------------------------------------------------------------------------
-  ~Drainer ();
+  ~Drainer();
 
   // ---------------------------------------------------------------------------
   // thread stop function
   // ---------------------------------------------------------------------------
-  void Stop ();
+  void Stop();
 
   // ---------------------------------------------------------------------------
   //   Start Draining the given FS
@@ -94,16 +101,21 @@ public:
   // ---------------------------------------------------------------------------
   //   Stop Draining the given FS
   // ---------------------------------------------------------------------------
-  bool StopFSDrain(XrdOucEnv& , XrdOucString& );
+  bool StopFSDrain(XrdOucEnv&, XrdOucString&);
+
+  // ---------------------------------------------------------------------------
+  //  Clear the Draining info for the given FS
+  //-- ------------------------------------------------------------------------
+  bool ClearFSDrain(XrdOucEnv&, XrdOucString&);
 
   // ---------------------------------------------------------------------------
   //   Get Draining status ( global or specific to a fsid)
   // ---------------------------------------------------------------------------
-  bool GetDrainStatus(XrdOucString& , XrdOucString& , std::string& fsid);
+  bool GetDrainStatus(XrdOucEnv&, XrdOucString&, XrdOucString&);
   // --------------------------------------------
   // Service thread static startup function
   // ---------------------------------------------------------------------------
-  static void* StaticDrainer (void*);
+  static void* StaticDrainer(void*);
   //
 
   void* Drain(void);

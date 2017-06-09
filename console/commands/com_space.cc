@@ -502,6 +502,10 @@ com_space_usage:
   fprintf(stdout,
           "       space config <space-name> space.drainer.node.ntx=<#>          : configure the number of parallel draining transfers per node           [ default=2 (streams) ]\n");
   fprintf(stdout,
+          "       space config <space-name> space.drainer.maxdrainingfs=<#>     : configure the max number of draining filesystems                       [ default=0 (no limit) ]\n");
+    fprintf(stdout,
+          "       space config <space-name> space.drainer.nretries=<#>          : configure the number of retry for the draining process                 [ default=1  ]\n");
+  fprintf(stdout,
           "       space config <space-name> space.lru=on|off                    : enable/disable the LRU policy engine [default=off]\n");
   fprintf(stdout,
           "       space config <space-name> space.lru.interval=<sec>            : configure the default lru scan interval\n");

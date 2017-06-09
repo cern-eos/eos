@@ -29,29 +29,30 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Drain()
 {
-   if (mSubCmd == "start") {
-     if (pVid->uid == 0) {
-       eos_notice("drain start");
-       if (!gOFS->DrainerEngine->StartFSDrain(*pOpaque, stdErr)) {
-        retc = errno;
-       } else {
-        stdOut = "success: drain successfully started!";
-       }
+  if (mSubCmd == "start") {
+    if (pVid->uid == 0) {
+      eos_notice("drain start");
 
-     } else {
-       retc = EPERM;
-       stdErr = "error: you have to take role 'root' to execute this command";  
-     }
+      if (!gOFS->DrainerEngine->StartFSDrain(*pOpaque, stdErr)) {
+        retc = errno;
+      } else {
+        stdOut = "success: drain successfully started!";
+      }
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
   }
 
   if (mSubCmd == "stop") {
     if (pVid->uid == 0) {
       eos_notice("drain stop");
+
       if (!gOFS->DrainerEngine->StopFSDrain(*pOpaque, stdErr)) {
         retc = errno;
-       } else {
-        stdOut = "success: drain successfully started!";
-       }
+      } else {
+        stdOut = "success: drain successfully stopped!";
+      }
     } else {
       retc = EPERM;
       stdErr = "error: you have to take role 'root' to execute this command";
@@ -59,21 +60,40 @@ ProcCommand::Drain()
   }
 
   if (mSubCmd == "status") {
-     if ((pVid->uid == 0)) {
-       eos_notice("drain status");
-       XrdOucString status = "";
-       std::string fsid = pOpaque->Get("mgm.fs.id");
-       if (!gOFS->DrainerEngine->GetDrainStatus(status, stdErr,fsid)) {
+    if ((pVid->uid == 0)) {
+      eos_notice("drain status");
+      XrdOucString status;
+
+      if (!gOFS->DrainerEngine->GetDrainStatus(*pOpaque, status, stdErr)) {
         retc = errno;
-       } else {
+      } else {
         stdOut += status;
-       }
-     //call to get the status of the drain
-     } else {
-        retc = EPERM;
-        stdErr = "error: you have to take role 'root' to execute this command";
       }
+
+      //call to get the status of the drain
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
     }
+  }
+
+  if (mSubCmd == "clear") {
+    if ((pVid->uid == 0)) {
+      eos_notice("drain status");
+      XrdOucString status;
+
+      if (!gOFS->DrainerEngine->ClearFSDrain(*pOpaque, stdErr)) {
+        retc = errno;
+      } else {
+        stdOut += status;
+      }
+
+      //call to get the status of the drain
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
 
   return SFS_OK;
 }
