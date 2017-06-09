@@ -390,7 +390,7 @@ XrdMgmOfs::_attr_set (const char *path,
     else
     {
       // check permissions in case of user attributes
-      if (dh && Key.beginswith("user.") && (vid.uid != dh->getCUid())
+      if (dh && !Key.beginswith("sys.") && (vid.uid != dh->getCUid())
           && (!vid.sudoer))
       {
         errno = EPERM;
@@ -438,7 +438,7 @@ XrdMgmOfs::_attr_set (const char *path,
       else
       {
 	// check permissions in case of user attributes
-	if (fmd && Key.beginswith("user.") && (vid.uid != fmd->getCUid())
+	if (fmd && !Key.beginswith("sys.") && (vid.uid != fmd->getCUid())
 	    && (!vid.sudoer))
 	{
 	  errno = EPERM;
