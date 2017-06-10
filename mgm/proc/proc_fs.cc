@@ -28,9 +28,90 @@
 #include "common/Path.hh"
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
 
 EOSMGMNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Get type of entity used in a fs mv operation.
+//------------------------------------------------------------------------------
+EntityType get_entity_type(const std::string& input, XrdOucString& stdOut,
+                           XrdOucString& stdErr)
+{
+  std::ostringstream oss;
+  EntityType ret = EntityType::UNKNOWN;
+  size_t pos = input.find('.');
+
+  if (pos == std::string::npos) {
+    if (input.find_first_not_of("0123456789") == std::string::npos) {
+      // This is an fs id
+      errno = 0;
+      (void) strtol(input.c_str(), nullptr, 10);
+
+      if (errno) {
+        eos_static_err("input fsid: %s must be a numeric value", input.c_str());
+        oss << "fsid: " << input << " must be a numeric value";
+        stdErr = oss.str().c_str();
+      } else {
+        ret = EntityType::FS;
+      }
+    } else {
+      // This is a space
+      ret = EntityType::SPACE;
+    }
+  } else {
+    // This is group definition, make sure the space and group tokens are correct
+    std::string space = input.substr(0, pos);
+    std::string group = input.substr(pos + 1);
+
+    if (space.find_first_not_of("0123456789") == std::string::npos) {
+      eos_static_err("input space.group: %s must contain a string value for space",
+                     input.c_str());
+      oss << "space.group: " << input << " must contain a string value for space";
+      stdErr = oss.str().c_str();
+    } else {
+      // Group must be a numeric value
+      if (group.find_first_not_of("0123456789") != std::string::npos) {
+        eos_static_err("input space.group: %s must contain a numeric value for group",
+                       input.c_str());
+        oss << "space.group: " << input << " must contain a numeric value for group";
+        stdErr = oss.str().c_str();
+      } else {
+        ret = EntityType::GROUP;
+      }
+    }
+  }
+
+  return ret;
+}
+
+//------------------------------------------------------------------------------
+// Get operation type based on the input entity types
+//------------------------------------------------------------------------------
+MvOpType get_operation_type(const std::string& in1, const std::string& in2,
+                            XrdOucString& stdOut, XrdOucString& stdErr)
+{
+  // Do them individually to get proper error messages
+  EntityType in1_type = get_entity_type(in1, stdOut, stdErr);
+
+  if (in1_type == EntityType::UNKNOWN) {
+    return MvOpType::UNKNOWN;
+  }
+
+  EntityType in2_type = get_entity_type(in2, stdOut, stdErr);
+
+  if (in2_type == EntityType::UNKNOWN) {
+    return MvOpType::UNKNOWN;
+  }
+
+  if (((in1_type == EntityType::FS) && (in2_type == EntityType::SPACE)) ||
+      ((in1_type == EntityType::FS) && (in2_type == EntityType::GROUP)) ||
+      ((in1_type == EntityType::GROUP) && (in2_type == EntityType::SPACE)) ||
+      ((in1_type == EntityType::SPACE) && (in2_type == EntityType::SPACE))) {
+    return static_cast<MvOpType>((in1_type << 2) | in2_type);
+  }
+
+  return MvOpType::UNKNOWN;
+}
 
 //------------------------------------------------------------------------------
 // Dump metadata information
@@ -592,7 +673,7 @@ proc_fs_target(std::string target_group)
       continue;
     }
 
-    int groupfilesystems = it->second->SumLongLong("<n>?configstatus@rw", false);
+    int groupfilesystems = it->second->SumLongLong("nofs", false);
 
     if (groupfilesystems < minfs) {
       mingroups.clear();
@@ -862,329 +943,402 @@ proc_fs_mv_bestgroup(FileSystem* fs, std::string space)
 // Move a filesystem/group/space to a group/space
 //------------------------------------------------------------------------------
 int
-proc_fs_mv(std::string& sfsid, std::string& space, XrdOucString& stdOut,
+proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
            XrdOucString& stdErr, std::string& tident,
            eos::common::Mapping::VirtualIdentity& vid_in)
 {
   int retc = 0;
-  eos::common::FileSystem::fsid_t fsid = 0;
-  eos::common::FileSystem::fs_snapshot_t snapshot;
-  FileSystem* fs = 0;
-  bool best_grp_exists = false;
-  bool check_node = false;
-  // Check if space has specified group and get group and spece
-  std::string space_space = space.substr(0, space.find("."));
-  std::string space_group = "";
-  bool space_group_exist = false;
+  MvOpType operation = get_operation_type(src, dst, stdOut, stdErr);
+  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
-  if (space.find(".") != std::string::npos) {
-    space_group_exist = true;
-    space_group = space.substr(space.find(".") + 1);
-  }
+  switch (operation) {
+  case MvOpType::FS_2_GROUP:
+    retc = proc_mv_fs_group(FsView::gFsView, src, dst, stdOut, stdErr);
+    break;
 
-  // Check if space is correctly specified
-  if (space_space.find_first_not_of("0123456789") == std::string::npos) {
+  case MvOpType::FS_2_SPACE:
+    retc = proc_mv_fs_space(FsView::gFsView, src, dst, stdOut, stdErr);
+    break;
+
+  case MvOpType::GRP_2_SPACE:
+    retc = proc_mv_grp_space(FsView::gFsView, src, dst, stdOut, stdErr);
+    break;
+
+  case MvOpType::SPC_2_SPACE:
+    retc = proc_mv_space_space(FsView::gFsView, src, dst, stdOut, stdErr);
+    break;
+
+  default:
+    stdErr = "error: operation not supported";
     retc = EINVAL;
-    stdErr = "error: Space ";
-    stdErr += space_space.c_str();
-    stdErr += " is number. Space can't be created only with number.";
-    return retc;
+    break;
   }
 
-  // Check if group is correctly specified
-  if (space_group_exist &&
-      space_group.find_first_not_of("0123456789") != std::string::npos) {
-    retc = EINVAL;
-    stdErr = "error: Group ";
-    stdErr += space_group.c_str();
-    stdErr += " is not a number and doesn't exist in space ";
-    stdErr += space_space.c_str();
-    return retc;
+  return retc;
+}
+
+//------------------------------------------------------------------------------
+// Move a filesystem to a group
+//------------------------------------------------------------------------------
+int proc_mv_fs_group(FsView& fs_view, const std::string& src,
+                     const std::string& dst, XrdOucString& stdOut,
+                     XrdOucString& stdErr)
+{
+  using eos::mgm::FsView;
+  using eos::mgm::FileSystem;
+  int pos = dst.find('.');
+  eos::common::FileSystem::fsid_t fsid = atoi(src.c_str());
+  std::string space = dst.substr(0, pos);
+  std::string group = dst.substr(pos + 1);
+  int grp_size = 0;
+  int grp_mod = 0;
+  std::ostringstream oss;
+  // Check if space exists and get groupsize and groupmod
+  auto it_space = fs_view.mSpaceView.find(space);
+
+  if (it_space != fs_view.mSpaceView.end()) {
+    grp_size = std::atoi(it_space->second->GetConfigMember("groupsize").c_str());
+    grp_mod = std::atoi(it_space->second->GetConfigMember("groupmod").c_str());
+  } else {
+    eos_static_err("requested space %s does not exist", space.c_str());
+    oss << "error: space " << space << " does not exist" << std::endl;
+    stdErr = oss.str().c_str();
+    return EINVAL;
   }
 
-  // Get groupsize and groupmode for space and check if space exist
-  bool space_exist = false;
-  int space_groupsize = 0;
-  int space_groupmode = 0;
-  {
-    // Lock FsView::ViewMutex
-    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+  // Get this filesystem
+  FileSystem* fs = nullptr;
 
-    for (auto item = FsView::gFsView.mSpaceView.begin();
-         item != FsView::gFsView.mSpaceView.end(); ++item) {
-      if (item->first == space_space) {
-        space_groupsize = std::atoi(item->second->GetConfigMember("groupsize").c_str());
-        space_groupmode = std::atoi(item->second->GetConfigMember("groupmod").c_str());
-        space_exist = true;
+  if (fs_view.mIdView.count(fsid)) {
+    fs = fs_view.mIdView[fsid];
+  } else {
+    eos_static_err("no such fsid: %i", fsid);
+    oss << "error: no such fsid: " << fsid << std::endl;
+    stdErr = oss.str().c_str();
+    return EINVAL;
+  }
+
+  // Get the target group
+  auto const iter = fs_view.mGroupView.find(dst);
+
+  if (iter != fs_view.mGroupView.end()) {
+    FsGroup* grp = iter->second;
+    int grp_num_fs = grp->SumLongLong("nofs", false);
+
+    // Check that we can still add file systems to this group
+    if (grp_num_fs > grp_mod) {
+      eos_static_err("reached maximum number of fs for group: %s", dst.c_str());
+      oss << "error: reached maximum number of file systems for group"
+          << dst.c_str() << std::endl;
+      stdErr = oss.str().c_str();
+      return EINVAL;
+    }
+
+    // Check that there is no other file system from the same node in this group
+    bool is_forbidden = false;
+    std::string qnode;
+    std::string fs_qnode = fs->GetQueue();
+
+    for (auto it = grp->begin(); it != grp->end(); ++it) {
+      qnode = fs_view.mIdView[*it]->GetQueue();
+
+      if (fs_qnode == qnode) {
+        is_forbidden = true;
         break;
       }
     }
 
-    // Move ID to space
-    // Check if first parameter (sfsid) is ID or Space
-    if (sfsid.find_first_not_of("0123456789") == std::string::npos) {
-      fsid = std::atoi(sfsid.c_str());
-
-      if (!fsid) {
-        // This is not a filesystem id, but a space where to pick one. Now
-        // we look in the target space, where we need urgently a filesystem.
-        space = proc_fs_target(space);
-        // Look for a suitable source filesystem
-        fs = proc_fs_source(sfsid, space);
-      } else {
-        // Get this filesystem
-        if (FsView::gFsView.mIdView.count(fsid)) {
-          fs = FsView::gFsView.mIdView[fsid];
-        }
-      }
-
-      if (!fs) {
-        if (fsid) {
-          retc = ENOENT;
-          stdErr = "error: There is no filesystem with id ";
-          stdErr += (int) fsid;
-        } else {
-          retc = EINVAL;
-          stdErr = "error: Can't move according to your request";
-        }
-
-        return retc;
-      }
-
-      // Find the best group
-      std::string best = proc_fs_mv_bestgroup(fs, space);
-      space = best.substr(0, best.find(".."));
-      space_space = space.substr(0, space.find("."));
-      space_group = space.substr(space.find(".") + 1);
-      std::string space2 = best.substr(best.find("..") + 2);
-      best_grp_exists = (space2.substr(0, space2.find(".")) == "1") ? true : false;
-      check_node = (space2.substr(space2.find(".") + 1) == "1") ? true : false;
-
-      if (!space_exist) {
-        if (std::atoi(space_group.c_str()) < space_groupmode ||
-            std::atoi(space_group.c_str()) == 0) {
-          if (FsView::gFsView.MoveGroup(fs, space)) {
-            retc = 0;
-            stdOut += "success: Filesystem ";
-            stdOut += (int) fs->GetId();
-            stdOut += " moved to created space ";
-            stdOut += space.c_str();
-          }
-        } else {
-          retc = EIO;
-          stdErr = "error: You can't create space ";
-          stdErr += space_space.c_str();
-          stdErr += " with group ";
-          stdErr += space_group.c_str();
-          stdErr += ". Please try with 'fs mv ";
-          stdErr += (int) fs->GetId();
-          stdErr += " ";
-          stdErr += space_space.c_str();
-          stdErr += "' or with 'fs mv ";
-          stdErr += (int) fs->GetId();
-          stdErr += " ";
-          stdErr += space_space.c_str();
-          stdErr += ".0'";
-        }
-      } else {
-        fs->SnapShotFileSystem(snapshot);
-
-        if (best_grp_exists && !check_node) {
-          if (FsView::gFsView.MoveGroup(fs, space)) {
-            retc = 0;
-            stdOut += "success: Filesystem ";
-            stdOut += (int) fs->GetId();
-            stdOut += " moved to space ";
-            stdOut += space.c_str();
-          }
-        }
-
-        if (!best_grp_exists) {
-          retc = EIO;
-          stdErr = "error: Filesystem ";
-          stdErr += (int) snapshot.mId;
-          stdErr += " can't be moved to space ";
-          stdErr += space.c_str();
-          stdErr += ".\nSpace ";
-          stdErr += space.c_str();
-          stdErr += " is full or not defined. You can change groupsize (";
-          stdErr += space_groupsize;
-          stdErr += ") and groupmode (";
-          stdErr += space_groupmode;
-          stdErr += ") with:'space define <space-name> [<groupsize> "
-                    "[<groupmode>]]'";
-        }
-
-        if (check_node) {
-          retc = EIO;
-          stdErr = "error: There is already filesystem from ";
-          stdErr += snapshot.mHostPort.c_str();
-          stdErr += " node in the group ";
-          stdErr += space.c_str();
-        }
-      }
+    if (is_forbidden) {
+      eos_static_err("group %s already contains an fs from the same node");
+      oss << "error: group " << dst << " already contains a file system from "
+          << "the same node" << std::endl;
+      stdErr = oss.str().c_str();
+      return EINVAL;
     }
-    // Move space to space
-    else {
-      if (sfsid == space) {
-        retc = EINVAL;
-        stdErr = "error: Can't move space ";
-        stdErr += sfsid.c_str();
-        stdErr += " to space ";
-        stdErr += space.c_str();
-      } else {
-        bool fsid_exist = false;
-        // Loop through all IDs in space or in specified group (first parameter)
-        std::map<std::string, std::vector<FileSystem*>> fsid_list;
+  } else {
+    if (dst != "spare") {
+      // A new group will be created, check that it respects the groupsize param
+      int grp_indx = atoi(group.c_str());
 
-        for (auto item = FsView::gFsView.mIdView.begin();
-             item != FsView::gFsView.mIdView.end(); ++item) {
-          item->second->SnapShotFileSystem(snapshot);
-          fsid_list[snapshot.mGroup].push_back(item->second);
-        }
-
-        for (auto item = fsid_list.begin(); item != fsid_list.end(); ++item) {
-          if ((item->first == sfsid) ||
-              (item->first.substr(0, item->first.find(".")) == sfsid)) {
-            for (auto item2 = item->second.begin(); item2 != item->second.end(); ++item2) {
-              (*item2)->SnapShotFileSystem(snapshot);
-              best_grp_exists = false;
-              fsid_exist = true;
-              std::string sfsid2 = std::to_string((long long int)snapshot.mId);
-              fsid = std::atoi(sfsid2.c_str());
-              fs = FsView::gFsView.mIdView[fsid];
-
-              // If we don't have specified a group in the space
-              if (!space_group_exist && space.find(".") != string::npos) {
-                space.resize(space.find("."));
-              }
-
-              // Find the best group
-              std::string best = proc_fs_mv_bestgroup(fs, space);
-              space = best.substr(0, best.find(".."));
-              space_space = space.substr(0, space.find("."));
-              space_group = space.substr(space.find(".") + 1);
-              std::string space2 = best.substr(best.find("..") + 2);
-              best_grp_exists = (space2.substr(0, space2.find(".")) == "1") ? true : false;
-              check_node = (space2.substr(space2.find(".") + 1) == "1") ? true : false;
-              // Get groupsize and groupmode for space and check if space exist.
-              space_exist = false;
-
-              for (auto item = FsView::gFsView.mSpaceView.begin();
-                   item != FsView::gFsView.mSpaceView.end(); ++item) {
-                if (item->first == space_space) {
-                  space_groupsize = std::atoi(item->second->GetConfigMember("groupsize").c_str());
-                  space_groupmode = std::atoi(item->second->GetConfigMember("groupmod").c_str());
-                  space_exist = true;
-                }
-              }
-
-              // Messages
-              if (!space_exist) {
-                if (std::atoi(space_group.c_str()) < space_groupmode ||
-                    std::atoi(space_group.c_str()) == 0) {
-                  if (FsView::gFsView.MoveGroup(fs, space)) {
-                    stdOut += "ID=";
-                    stdOut += (int) fs->GetId();
-                    stdOut += "\tsuccess: Filesystem ";
-                    stdOut += (int) fs->GetId();
-                    stdOut += " moved to created space ";
-                    stdOut += space.c_str();
-                    stdOut += "\n";
-                  }
-                } else {
-                  retc = EIO;
-                  stdErr = "error: You can't create space ";
-                  stdErr += space_space.c_str();
-                  stdErr += " with group ";
-                  stdErr += space_group.c_str();
-                  stdErr += ". Please try with 'fs mv ";
-                  stdErr += sfsid.c_str();
-                  stdErr += " ";
-                  stdErr += space_space.c_str();
-                  stdErr += "' or with 'fs mv ";
-                  stdErr += sfsid.c_str();
-                  stdErr += " ";
-                  stdErr += space_space.c_str();
-                  stdErr += ".0'.\n";
-                }
-              } else {
-                fs->SnapShotFileSystem(snapshot);
-
-                if (!check_node && best_grp_exists) {
-                  if (FsView::gFsView.MoveGroup(fs, space)) {
-                    stdOut += "ID=";
-                    stdOut += (int) fs->GetId();
-                    stdOut += "\tsuccess: Filesystem ";
-                    stdOut += (int) fs->GetId();
-                    stdOut += " moved to space ";
-                    stdOut += space.c_str();
-                    stdOut += "\n";
-                  }
-                }
-
-                if ((!check_node && !best_grp_exists) ||
-                    (check_node && !space_group_exist)) {
-                  retc = EIO;
-                  stdErr += "ID=";
-                  stdErr += (int) fs->GetId();
-                  stdErr += "\t\error: Filesystem ";
-                  stdErr += (int) snapshot.mId;
-                  stdErr += " can't be moved to space ";
-                  stdErr += space.c_str();
-                  stdErr += "\n";
-                }
-
-                if (check_node && space_group_exist) {
-                  retc = EIO;
-                  stdErr += "ID=";
-                  stdErr += (int) fs->GetId();
-                  stdErr += "\terror: Filesystem ";
-                  stdErr += (int) snapshot.mId;
-                  stdErr += " can't be moved to space ";
-                  stdErr += space.c_str();
-                  stdErr += ". There is already filesystem from ";
-                  stdErr += snapshot.mHostPort.c_str();
-                  stdErr += " node in group ";
-                  stdErr += space.c_str();
-                  stdErr += "\n";
-                }
-              }
-            }
-
-            // Break, if we move filesystems from specified group
-            if (sfsid.find(".") != string::npos) {
-              break;
-            }
-          }
-        }
-
-        if (retc == EIO) {
-          stdErr += "Space ";
-
-          if (!space_group_exist) {
-            stdErr += space_space.c_str();
-          } else {
-            stdErr += space.c_str();
-          }
-
-          stdErr += " is full or not defined. You can change groupsize (";
-          stdErr += space_groupsize;
-          stdErr += ") and groupmode (";
-          stdErr += space_groupmode;
-          stdErr += ") with: 'space define <space-name> [<groupsize> "
-                    "[<groupmode>]]'";
-        }
-
-        if (!fsid_exist) {
-          retc = EIO;
-          stdErr += "error: No filesystem exists in space ";
-          stdErr += sfsid.c_str();
-        }
+      if (grp_indx >= grp_size) {
+        eos_static_err("group %s is not respecting the groupsize value of %i",
+                       dst.c_str(), grp_size);
+        oss << "error: group " << dst.c_str() << " is not respecting the groupsize"
+            << " value of " << grp_size << " for this space" << std::endl;
+        stdErr = oss.str().c_str();
+        return EINVAL;
       }
+
+      eos_static_debug("group %s will be created", dst.c_str());
+    } else {
+      // This is a special case when we "park" file systems in the spare space
+      eos_static_debug("fsid %s will be \"parked\" in space spare", src.c_str());
     }
   }
-  return retc;
+
+  if (fs_view.MoveGroup(fs, dst)) {
+    oss << "success: filesystem " << (int) fs->GetId() << " moved to group "
+        << dst << std::endl;
+    stdOut = oss.str().c_str();
+  } else {
+    eos_static_err("failed to move fsid: %i to group: %s", fsid, dst.c_str());
+    oss << "error: failed to move filesystem " << fsid << " to group "
+        << dst << std::endl;
+    stdErr = oss.str().c_str();
+    return EINVAL;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Move a filesystem to a space
+//------------------------------------------------------------------------------
+int proc_mv_fs_space(FsView& fs_view, const std::string& src,
+                     const std::string& dst, XrdOucString& stdOut,
+                     XrdOucString& stdErr)
+{
+  using eos::mgm::FsView;
+  using eos::common::FileSystem;
+  std::ostringstream oss;
+  // Check if file system is not already in this space
+  FileSystem::fsid_t fsid = strtol(src.c_str(), nullptr, 10);
+  FileSystem::fs_snapshot snapshot;
+  FileSystem* fs = nullptr;
+
+  if (fs_view.mIdView.count(fsid)) {
+    fs = fs_view.mIdView[fsid];
+  } else {
+    eos_static_err("no such fsid: %i", fsid);
+    oss << "error: no such fsid: " << fsid << std::endl;
+    stdErr = oss.str().c_str();
+    return EINVAL;
+  }
+
+  if (fs->SnapShotFileSystem(snapshot)) {
+    if (snapshot.mSpace == dst) {
+      oss << "success:: file system " << src << " is already in space " << dst
+          << std::endl;
+      stdOut = oss.str().c_str();
+      return 0;
+    }
+  } else {
+    eos_static_err("failed to snapshot fsid: %s", src.c_str());
+    oss << "error: failed to snapshot fsid: " << src << std::endl;
+    stdErr = oss.str().c_str();
+    return EINVAL;
+  }
+
+  auto it_space = fs_view.mSpaceView.find(dst);
+
+  if (it_space == fs_view.mSpaceView.end()) {
+    eos_static_info("creating space %s", dst.c_str());
+    FsSpace* new_space = new FsSpace(dst.c_str());
+    fs_view.mSpaceView[dst] = new_space;
+    it_space = fs_view.mSpaceView.find(dst);
+  }
+
+  int grp_size = std::atoi(
+                   it_space->second->GetConfigMember("groupsize").c_str());
+
+  if ((dst == "spare") && grp_size) {
+    eos_static_err("space \"spare\" must have groupsize 0");
+    oss << "error: space \"spare\" must have groupsize 0. Please update the "
+        << "space configuration using \"eos space define <space> <size> <mod>"
+        << std::endl;
+    stdErr = oss.str().c_str();
+    stdOut.erase();
+    return EINVAL;
+  }
+
+  std::list<std::string> sorted_grps;
+
+  if (grp_size) {
+    sorted_grps = proc_sort_groups_by_priority(fs_view, dst);
+    std::set<std::string> set_grps(sorted_grps.begin(), sorted_grps.end());
+    // If any of the possible groups in this space are not yet created then we
+    // add them with the highest priority
+    std::string node;
+
+    for (int i = 0; i < grp_size; i++) {
+      node = dst;
+      node += ".";
+      node += std::to_string(i);
+
+      if (set_grps.find(node) == set_grps.end()) {
+        sorted_grps.push_front(node);
+      }
+    }
+  } else {
+    // Special case for spare space which doesn't have groups
+    sorted_grps.push_back("spare");
+  }
+
+  bool done = false;
+
+  for (auto grp : sorted_grps) {
+    if (proc_mv_fs_group(fs_view, src, grp, stdOut, stdErr) == 0) {
+      done = true;
+      break;
+    }
+  }
+
+  if (!done) {
+    eos_static_err("failed to add fs %s to space %s", src.c_str(), dst.c_str());
+    std::ostringstream oss;
+    oss << "error: failed to add file system " << src.c_str() << " to space "
+        << dst.c_str() << " - no suitable group found" << std::endl;
+    stdOut.erase();
+    stdErr = oss.str().c_str();
+    return EINVAL;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Sort the groups in a space by priority - the first ones are the ones that
+// are most suitable to add a new file system to them.
+//------------------------------------------------------------------------------
+std::list<std::string> proc_sort_groups_by_priority(FsView& fs_view,
+    const std::string& space)
+{
+  using eos::mgm::FsView;
+  struct cmp_grp_less {
+    bool operator()(FsGroup* a, FsGroup* b)
+    {
+      return (a->SumLongLong("nofs", false) < b->SumLongLong("nofs", false));
+    }
+  };
+  std::list<FsGroup*> grps; // first - highest priority, last - lowest
+
+  // Get all groups belonging to the current space
+  for (auto it = fs_view.mGroupView.begin();
+       it != fs_view.mGroupView.end(); ++it) {
+    if (it->first.find(space) == 0) {
+      grps.push_back(it->second);
+    }
+  }
+
+  grps.sort(cmp_grp_less());
+  std::list<std::string> name_grps;
+
+  for (auto && grp : grps) {
+    name_grps.push_back(grp->mName);
+  }
+
+  return name_grps;
+}
+
+//------------------------------------------------------------------------------
+// Move a group to a space
+//------------------------------------------------------------------------------
+int proc_mv_grp_space(FsView& fs_view, const std::string& src,
+                      const std::string& dst, XrdOucString& stdOut,
+                      XrdOucString& stdErr)
+{
+  using eos::mgm::FsView;
+  std::string sfsid;
+  std::ostringstream oss;
+  std::list<std::string> failed_fs; // file systems that couldn't be moved
+  auto it_grp = fs_view.mGroupView.find(src);
+
+  if (it_grp == fs_view.mGroupView.end()) {
+    eos_static_err("group %s does not exist", src.c_str());
+    oss << "error: group " << src << " does not exist";
+    stdErr = oss.str().c_str();
+    return EINVAL;
+  }
+
+  FsGroup* grp = it_grp->second;
+
+  for (auto it = grp->begin(); it != grp->end(); ++it) {
+    sfsid = std::to_string(*it);
+
+    if (proc_mv_fs_space(fs_view, sfsid, dst, stdOut, stdErr)) {
+      failed_fs.push_back(sfsid);
+    }
+  }
+
+  if (!failed_fs.empty()) {
+    oss << "warning: the following file systems could not be moved ";
+
+    for (auto && elem : failed_fs) {
+      oss << elem << " ";
+    }
+
+    oss << std::endl;
+    stdOut.erase();
+    stdErr = oss.str().c_str();;
+    return EINVAL;
+  } else {
+    oss << "success: all file systems in group " << src << " have been "
+        << "moved to space " << dst << std::endl;
+    stdOut = oss.str().c_str();
+    stdErr.erase();
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Move space to space
+//------------------------------------------------------------------------------
+int proc_mv_space_space(FsView& fs_view, const std::string& src,
+                        const std::string& dst, XrdOucString& stdOut,
+                        XrdOucString& stdErr)
+{
+  using eos::mgm::FsView;
+  std::string sfsid;
+  std::ostringstream oss;
+  std::list<std::string> failed_fs; // file systems that couldn't be moved
+  auto it_space1 = fs_view.mSpaceView.find(src);
+
+  if (it_space1 == fs_view.mSpaceView.end()) {
+    eos_static_err("space %s does not exist", src.c_str());
+    oss << "error: space " << src << " does not exist";
+    stdErr = oss.str().c_str();
+    return EINVAL;
+  }
+
+  auto it_space2 = fs_view.mSpaceView.find(dst);
+
+  if (it_space2 == fs_view.mSpaceView.end()) {
+    eos_static_err("space %s does not exist", dst.c_str());
+    oss << "error: space " << dst << " does not exist";
+    stdErr = oss.str().c_str();
+    return EINVAL;
+  }
+
+  FsSpace* space1 = it_space1->second;
+
+  for (auto it = space1->begin(); it != space1->end(); ++it) {
+    sfsid = std::to_string(*it);
+
+    if (proc_mv_fs_space(fs_view, sfsid, dst, stdOut, stdErr)) {
+      failed_fs.push_back(sfsid);
+    }
+  }
+
+  if (!failed_fs.empty()) {
+    oss << "warning: the following file systems could not be moved ";
+
+    for (auto && elem : failed_fs) {
+      oss << elem << " ";
+    }
+
+    oss << std::endl;
+    stdOut.erase();
+    stdErr = oss.str().c_str();;
+    return EINVAL;
+  } else {
+    oss << "success: all file systems in space " << src << " have been "
+        << " moved to space " << dst << std::endl;
+    stdOut = oss.str().c_str();
+    stdErr.erase();
+  }
+
+  return 0;
 }
 
 //------------------------------------------------------------------------------

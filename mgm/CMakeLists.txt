@@ -36,6 +36,10 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src)
 
+if(BUILD_TESTS)
+  add_subdirectory(tests)
+endif()
+
 #-------------------------------------------------------------------------------
 # XrdEosMgm library
 #-------------------------------------------------------------------------------

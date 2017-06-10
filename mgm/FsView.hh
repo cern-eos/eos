@@ -451,7 +451,6 @@ public:
   Converter* mConverter; ///< Threaded object running layout conversion jobs
   GroupBalancer* mGroupBalancer; ///< Threaded object running group balancing
   GeoBalancer* mGeoBalancer; ///< Threaded object running geotag balancing
-
 #endif
 
   //! Set when a configuration gets loaded to avoid overwriting of the loaded
@@ -871,7 +870,8 @@ public:
 class FsView : public eos::common::LogId
 {
 private:
-
+  pthread_t hbthread; ///< Thread ID of the heartbeat thread
+  bool mIsHeartbeatOn; ///< True if heartbeat thread is running
   //! Next free filesystem ID if a new one has to be registered
   eos::common::FileSystem::fsid_t NextFsId;
 
@@ -1059,8 +1059,6 @@ public:
   //----------------------------------------------------------------------------
   void Reset();
 
-  pthread_t hbthread; ///< Thread ID of the heartbeat thread
-
   //----------------------------------------------------------------------------
   //! Static thread startup function
   //----------------------------------------------------------------------------
@@ -1073,16 +1071,24 @@ public:
 
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param start_heartbeat control wheather heartbeat thread is started - for
+  //!                        testing purposes
   //----------------------------------------------------------------------------
-  FsView()
+  FsView(bool start_heartbeat = true):
+    mIsHeartbeatOn(false)
   {
     MgmConfigQueueName = "";
 #ifndef EOSMGMFSVIEWTEST
     ConfEngine = 0;
 #endif
-    XrdSysThread::Run(&hbthread, FsView::StaticHeartBeatCheck,
-                      static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                      "HeartBeat Thread");
+
+    if (start_heartbeat) {
+      mIsHeartbeatOn = true;
+      XrdSysThread::Run(&hbthread, FsView::StaticHeartBeatCheck,
+                        static_cast<void*>(this), XRDSYSTHREAD_HOLD,
+                        "HeartBeat Thread");
+    }
   };
 
   //----------------------------------------------------------------------------
@@ -1090,10 +1096,9 @@ public:
   //----------------------------------------------------------------------------
   void StopHeartBeat()
   {
-    if (hbthread) {
+    if (mIsHeartbeatOn) {
       XrdSysThread::Cancel(hbthread);
       XrdSysThread::Join(hbthread, 0);
-      hbthread = 0;
     }
   };
 
