@@ -65,9 +65,14 @@ if(NOT PACKAGEONLY)
   # libraries and binaries against the static version so that we don't need
   # the protobuf package during installation.
   if (Linux)
-    if(PROTOBUF_FOUND)
-      message(WARNING "Forcing the use the static protobuf libraries!")
-      set(PROTOBUF_LIBRARY "/usr/lib64/libprotobuf.a;-lpthread")
+    message(STATUS "Info OS: ${CMAKE_SYSTEM}")
+    string(FIND ${CMAKE_SYSTEM} ".fc27" POS)
+    # If it's not Fedora 27 then we link statically protobuf
+    if (${POS} EQUAL -1)
+      if(PROTOBUF_FOUND)
+        message(WARNING "Forcing the use the static protobuf libraries!")
+        set(PROTOBUF_LIBRARY "/usr/lib64/libprotobuf.a;-lpthread")
+      endif()
     endif()
   endif()
 
