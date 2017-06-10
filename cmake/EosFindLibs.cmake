@@ -64,9 +64,11 @@ if(NOT PACKAGEONLY)
   # operating system and is not built by us. We currently link all eos
   # libraries and binaries against the static version so that we don't need
   # the protobuf package during installation.
-  if(PROTOBUF_FOUND)
-    message(WARNING "Forcing the use the static protobuf libraries!")
-    set(PROTOBUF_LIBRARY "/usr/lib64/libprotobuf.a;-lpthread")
+  if (Linux)
+    if(PROTOBUF_FOUND)
+      message(WARNING "Forcing the use the static protobuf libraries!")
+      set(PROTOBUF_LIBRARY "/usr/lib64/libprotobuf.a;-lpthread")
+    endif()
   endif()
 
   if(EXISTS "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
