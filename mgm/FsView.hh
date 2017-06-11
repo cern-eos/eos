@@ -1076,7 +1076,7 @@ public:
   //!                        testing purposes
   //----------------------------------------------------------------------------
   FsView(bool start_heartbeat = true):
-    mIsHeartbeatOn(false)
+    mIsHeartbeatOn(false), NextFsId(0)
   {
     MgmConfigQueueName = "";
 #ifndef EOSMGMFSVIEWTEST
