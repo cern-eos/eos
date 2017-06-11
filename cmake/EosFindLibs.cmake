@@ -65,8 +65,12 @@ if(NOT PACKAGEONLY)
   # libraries and binaries against the static version so that we don't need
   # the protobuf package during installation.
   if (Linux)
-    message(STATUS "Info OS: ${CMAKE_SYSTEM}")
-    string(FIND ${CMAKE_SYSTEM} ".fc27" POS)
+    execute_process(
+      COMMAND "rpm" "-qa"
+      COMMAND "grep" "protobuf-devel"
+      OUTPUT_VARIABLE PB_PKG)
+    message(STATUS "Protobuf pkg: ${PB_PKG}")
+    string(FIND "${PB_PKG}" ".fc27" POS)
     # If it's not Fedora 27 then we link statically protobuf
     if (${POS} EQUAL -1)
       if(PROTOBUF_FOUND)
