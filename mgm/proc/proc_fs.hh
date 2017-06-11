@@ -77,43 +77,6 @@ int proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
                 eos::common::Mapping::VirtualIdentity& vid_in);
 
 //------------------------------------------------------------------------------
-//! Find a filesystem in the source_group which in not part of the target_group
-//!
-//! @param source_group
-//! @param target_group
-//!
-//! @return file system object if found, otherwise null
-//------------------------------------------------------------------------------
-FileSystem* proc_fs_source(std::string source_group, std::string target_group);
-
-//------------------------------------------------------------------------------
-//! Find best suited scheduling group for a new filesystem
-//!
-//! @param target_group can be a space or a space and group specification
-//!
-//! @return space and group where filesystem can be added. If none found then
-//!         a random one is returned
-//------------------------------------------------------------------------------
-std::string proc_fs_target(std::string target_group);
-
-//------------------------------------------------------------------------------
-//! Move filesystem to the best group possible in the required space.
-//!
-//! @param fs filesystem object
-//! @param space space name
-//!
-//! @return group where the filesystem can be moved
-//------------------------------------------------------------------------------
-std::string proc_fs_mv_bestgroup(FileSystem* fs, std::string space);
-
-//------------------------------------------------------------------------------
-//! Move a filesystem
-//------------------------------------------------------------------------------
-int proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
-               XrdOucString& stdErr, std::string& tident,
-               eos::common::Mapping::VirtualIdentity& vid_in);
-
-//------------------------------------------------------------------------------
 //! Remove a filesystem
 //!
 //! @param nodename
@@ -145,7 +108,6 @@ int proc_fs_dropdeletion(std::string& id, XrdOucString& stdOut,
                          XrdOucString& stdErr, std::string& tident,
                          eos::common::Mapping::VirtualIdentity& vid_in);
 
-
 //------------------------------------------------------------------------------
 //! Get type of entity. It can either be a filesyste, an eos group or an eos
 //! space.
@@ -171,6 +133,35 @@ EntityType get_entity_type(const std::string& input, XrdOucString& stdOut,
 //------------------------------------------------------------------------------
 MvOpType get_operation_type(const std::string& in1, const std::string& in2,
                             XrdOucString& stdOut, XrdOucString& stdErr);
+
+//------------------------------------------------------------------------------
+//! Move a filesystem operation
+//!
+//! @param src file system/group/space to move
+//! @param dst destination
+//! @param stdOut output string
+//! @param stdErr error output string
+//!
+//! @return 0 if successful, otherwise error code
+//------------------------------------------------------------------------------
+int proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
+               XrdOucString& stdErr, std::string& tident,
+               eos::common::Mapping::VirtualIdentity& vid_in);
+
+
+//------------------------------------------------------------------------------
+//! Check if a file system can be moved. It needs to be active and in RW mode.
+//! @node needs to be called with FsView::ViewMutex locked
+//!
+//! @param fs file system object
+//! @param dst destination
+//! @param stdOut output string
+//! @param stdErr error output string
+//!
+//! @return true if can be moved, otherwise false
+//------------------------------------------------------------------------------
+bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
+                    XrdOucString& stdOut, XrdOucString& stdErr);
 
 //------------------------------------------------------------------------------
 //! Move a filesystem to a group
