@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # File: CMakeLists.txt
-# Author: Jozsef Makai <jmakai@cern.ch> CERN
+# Author: Elvin-Alin Sindrilaru <esindril at cern dot ch>
 # ----------------------------------------------------------------------
 
 # ************************************************************************
@@ -20,27 +20,25 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-
-set(CMAKE_CXX_STANDARD 14)
-
-add_subdirectory(common)
-
 include_directories(
-  ${CMAKE_SOURCE_DIR} ${XROOTD_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/googletest-src/googletest/include/
-  ${CMAKE_SOURCE_DIR}/googletest-src/googlemock/include/)
+  ${CMAKE_SOURCE_DIR}
+  ${CPPUNIT_INCLUDE_DIRS}
+  ${XROOTD_INCLUDE_DIRS}
+  "${gtest_SOURCE_DIR}/include"
+  "${gmock_SOURCE_DIR}/include")
 
-set(SOURCE_FILES
-  fst/XrdFstOssFileTest.cc
-  ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
-  ${CMAKE_SOURCE_DIR}/fst/tests/TestEnv.cc
-  ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc)
-add_executable(eos-unit-tests ${SOURCE_FILES})
+#-------------------------------------------------------------------------------
+# Timing tests
+#-------------------------------------------------------------------------------
+add_executable(
+  test_time
+  TimingTest.cc)
 
-set( CMAKE_CXX_FLAGS  "-DGTEST_USE_OWN_TR1_TUPLE=0" )
-target_link_libraries(eos-unit-tests gtest gtest_main)
+target_compile_definitions(test_time PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
 
 target_link_libraries(
-  eos-unit-tests
-  EosFstIo-Static
-  ${XROOTD_SERVER_LIBRARY})
+  test_time
+  gtest
+  gmock_main
+  ${XROOTD_UTILS_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
