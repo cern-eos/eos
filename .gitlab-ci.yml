@@ -3,6 +3,7 @@ stages:
   - build:dockerimage
   - test
   - publish
+  - clean
 
 before_script:
   - source gitlab-ci/export_branch.sh
@@ -294,13 +295,25 @@ eos_publish_artifacts:
     - source gitlab-ci/export_buildtype.sh 24 cc7_artifacts
     - if [ "$BUILD_TYPE" == "tag" ]; then ./gitlab-ci/store_artifacts.sh ${BRANCH} ${BUILD_TYPE} /mnt/eos_repositories/eos; fi
     - sudo -u stci -H ./gitlab-ci/store_artifacts.sh ${BRANCH} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
-    - sudo -u stci -H ./gitlab-ci/remove_old_artifacts.sh
   tags:
     - docker-cc7
   only:
     - master
     - beryl_aquamarine
     - tags
+    
+eos_clean_artifacts:
+  stage: clean
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sssd-client sudo createrepo
+    - sudo -u stci -H ./gitlab-ci/remove_old_artifacts.sh
+  tags:
+    - docker-cc7
+  allow_failure: true
+  only:
+    - triggers
+
 
 eos_periodic_coverity:
   stage: build:rpm
