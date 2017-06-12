@@ -133,7 +133,6 @@ ProcCommand::Ls()
             stdOut += "\n";
           } else {
             // yeah ... that is actually castor code ;-)
-            char t_creat[14];
             char ftype[8];
             unsigned int ftype_v[7];
             char fmode[10];
@@ -235,7 +234,7 @@ ProcCommand::Ls()
                 }
               }
 
-              strftime(t_creat, 13, "%b %d %H:%M", t_tm);
+              std::string t_creat = eos::common::Timing::ToLsFormat(t_tm);
               char lsline[4096];
               XrdOucString dirmarker = "";
 
@@ -262,13 +261,15 @@ ProcCommand::Ls()
                         (int) buf.st_nlink,
                         suid.c_str(), sgid.c_str(),
                         eos::common::StringConversion::GetSizeString(sizestring,
-                            (unsigned long long) buf.st_size), t_creat, val, dirmarker.c_str());
+                            (unsigned long long) buf.st_size),
+                        t_creat.c_str(), val, dirmarker.c_str());
               else
                 sprintf(lsline, "%s %3d %-8.8s %-8.8s %12s %s %s%s", modestr,
                         (int) buf.st_nlink,
                         suid.c_str(), sgid.c_str(),
                         eos::common::StringConversion::GetReadableSizeString(sizestring,
-                            (unsigned long long) buf.st_size, ""), t_creat, val, dirmarker.c_str());
+                            (unsigned long long) buf.st_size, ""),
+                        t_creat.c_str(), val, dirmarker.c_str());
 
               if ((option.find("l")) != STR_NPOS) {
                 stdOut += lsline;

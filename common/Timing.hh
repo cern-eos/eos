@@ -334,6 +334,9 @@ public:
     return ts;
   }
 
+  //----------------------------------------------------------------------------
+  //! Covert time to UTC (Coordinated Universal Time)
+  //----------------------------------------------------------------------------
   static
   std::string utctime(time_t ttime)
   {
@@ -356,6 +359,55 @@ public:
             wday_name[utc.tm_wday], utc.tm_mday, mon_name[utc.tm_mon],
             1900 + utc.tm_year, utc.tm_hour, utc.tm_min, utc.tm_sec);
     return std::string(result);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Format time value for display when doing "ls -l"
+  //----------------------------------------------------------------------------
+  static
+  std::string ToLsFormat(struct tm* tm)
+  {
+    static char const* long_time_format[2] = {
+      /* strftime format for non-recent files (older than 6 months), in
+         -l output.  This should contain the year, month and day (at
+         least), in an order that is understood by people in your
+         locale's territory.  Please try to keep the number of used
+         screen columns small, because many people work in windows with
+         only 80 columns.  But make this as wide as the other string
+         below, for recent files.  */
+      /* TRANSLATORS: ls output needs to be aligned for ease of reading,
+         so be wary of using variable width fields from the locale.
+         Note %b is handled specially by ls and aligned correctly.
+         Note also that specifying a width as in %5b is erroneous as strftime
+         will count bytes rather than characters in multibyte locales.  */
+      "%b %e  %Y",
+      /* strftime format for recent files (younger than 6 months), in -l
+         output.  This should contain the month, day and time (at
+         least), in an order that is understood by people in your
+         locale's territory.  Please try to keep the number of used
+         screen columns small, because many people work in windows with
+         only 80 columns.  But make this as wide as the other string
+         above, for non-recent files.  */
+      /* TRANSLATORS: ls output needs to be aligned for ease of reading,
+         so be wary of using variable width fields from the locale.
+         Note %b is handled specially by ls and aligned correctly.
+         Note also that specifying a width as in %5b is erroneous as strftime
+         will count bytes rather than characters in multibyte locales.  */
+      "%b %e %H:%M"
+    };
+    time_t when_time = mktime(tm);
+    time_t current_time = time(0);
+    /* Consider a time to be recent if it is within the past six months.
+       A Gregorian year has 365.2425 * 24 * 60 * 60 == 31556952 seconds
+       on the average.  Write this value as an integer constant to
+       avoid floating point hassles.  */
+    int recent = ((difftime(current_time, when_time) >= (31556952 / 2)) ? 0 : 1);
+    size_t max_len = 64;
+    std::string out(max_len, '\0');
+    size_t len = strftime(const_cast<char*>(out.c_str()), max_len,
+                          long_time_format[recent], tm);
+    out.resize(len + 1);
+    return out;
   }
 };
 
