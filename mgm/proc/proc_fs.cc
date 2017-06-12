@@ -705,13 +705,12 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
     }
 
     // File system must be in RW mode and active for the move to work
-    bool is_rw = ((fs->GetConfigStatus() >= eos::common::FileSystem::kRW) ?
-                  true : false);
+    bool is_empty = (fs->GetConfigStatus() == eos::common::FileSystem::kEmpty);
     bool is_active = (fs->GetActiveStatus() == eos::common::FileSystem::kOnline);
 
-    if (!(is_rw && is_active)) {
-      eos_static_err("fsid %i is not in rw mode or is not active");
-      oss << "error: file system " << snapshot.mId << " is not in rw mode or "
+    if (!(is_empty && is_active)) {
+      eos_static_err("fsid %i is not empty or is not active");
+      oss << "error: file system " << snapshot.mId << " is not empty or "
           << "is not active" << std::endl;
       stdErr = oss.str().c_str();
       return false;
