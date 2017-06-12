@@ -876,21 +876,20 @@ com_fs_usage:
           "            <schedgroup>                        : scheduling group where the filesystem should be inserted ... default is 'default'\n");
   fprintf(stdout,
           "            <status>                            : file system status after the insert ... default is 'off', in most cases should be 'rw'\n");
-  fprintf(stdout, "fs mv <src-fsid|src-space> <dst-schedgroup|dst-space> :\n");
   fprintf(stdout,
-          "                                                  move a filesystem into a different scheduling group\n");
+          "fs mv <src_fsid|src_group|src_space> <dst_group|dst_space> :\n");
   fprintf(stdout,
-          "            <src-fsid>                          : source filesystem id\n");
+          "                                                  move filesystem(s) into different scheduling group or space\n");
   fprintf(stdout,
-          "            <src-space>                         : source space\n");
+          "            <src_fsid>                          : source filesystem id\n");
   fprintf(stdout,
-          "            <dst-schedgroup>                    : destination scheduling group\n");
+          "            <src_group>                         : source scheduling group - all filesystems from group are moved\n");
   fprintf(stdout,
-          "            <dst-space>                         : destination space\n");
+          "            <src_space>                         : source space - all filesystems from space are moved\n");
   fprintf(stdout,
-          "If the source is a <space> a filesystem will be chosen to fit into the destionation group or space.\n");
+          "            <dst_group>                         : destination scheduling group\n");
   fprintf(stdout,
-          "If the target is a <space> : a scheduling group is auto-selected where the filesystem can be placed.\n\n");
+          "            <dst_space>                         : destination space - best match scheduling group is auto-selected \n");
   fprintf(stdout,
           "fs config <host>:<port><path>|<fsid>|<uuid> <key>=<value> :\n");
   fprintf(stdout,
@@ -908,7 +907,7 @@ com_fs_usage:
   fprintf(stdout,
           "                                    off         : filesystem set disabled\n");
   fprintf(stdout,
-          "                                    empty       : filesystem is set to empty - possible only if there are no files stored anymore");
+          "                                    empty       : filesystem is set to empty - possible only if there are no files stored anymore\n\n");
   fprintf(stdout, "fs config <fsid> headroom=<size>\n");
   fprintf(stdout,
           "                    <size> can be (>0)[BMGT]    : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)\n");
