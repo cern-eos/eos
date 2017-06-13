@@ -801,7 +801,8 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
     }
 
     if (is_forbidden) {
-      eos_static_err("group %s already contains an fs from the same node");
+      eos_static_err("group %s already contains an fs from the same node",
+                     dst.c_str());
       oss << "error: group " << dst << " already contains a file system from "
           << "the same node" << std::endl;
       stdErr = oss.str().c_str();
