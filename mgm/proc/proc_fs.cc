@@ -771,45 +771,45 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
   }
 
   // Get the target group
-  auto const iter = fs_view.mGroupView.find(dst);
+  if (dst != "spare") {
+    auto const iter = fs_view.mGroupView.find(dst);
 
-  if (iter != fs_view.mGroupView.end()) {
-    FsGroup* grp = iter->second;
-    int grp_num_fs = grp->SumLongLong("nofs", false);
+    if (iter != fs_view.mGroupView.end()) {
+      FsGroup* grp = iter->second;
+      int grp_num_fs = grp->SumLongLong("nofs", false);
 
-    // Check that we can still add file systems to this group
-    if (grp_num_fs > grp_mod) {
-      eos_static_err("reached maximum number of fs for group: %s", dst.c_str());
-      oss << "error: reached maximum number of file systems for group"
-          << dst.c_str() << std::endl;
-      stdErr = oss.str().c_str();
-      return EINVAL;
-    }
-
-    // Check that there is no other file system from the same node in this group
-    bool is_forbidden = false;
-    std::string qnode;
-    std::string fs_qnode = fs->GetQueue();
-
-    for (auto it = grp->begin(); it != grp->end(); ++it) {
-      qnode = fs_view.mIdView[*it]->GetQueue();
-
-      if (fs_qnode == qnode) {
-        is_forbidden = true;
-        break;
+      // Check that we can still add file systems to this group
+      if (grp_num_fs > grp_mod) {
+        eos_static_err("reached maximum number of fs for group: %s", dst.c_str());
+        oss << "error: reached maximum number of file systems for group"
+            << dst.c_str() << std::endl;
+        stdErr = oss.str().c_str();
+        return EINVAL;
       }
-    }
 
-    if (is_forbidden) {
-      eos_static_err("group %s already contains an fs from the same node",
-                     dst.c_str());
-      oss << "error: group " << dst << " already contains a file system from "
-          << "the same node" << std::endl;
-      stdErr = oss.str().c_str();
-      return EINVAL;
-    }
-  } else {
-    if (dst != "spare") {
+      // Check that there is no other file system from the same node in this group
+      bool is_forbidden = false;
+      std::string qnode;
+      std::string fs_qnode = fs->GetQueue();
+
+      for (auto it = grp->begin(); it != grp->end(); ++it) {
+        qnode = fs_view.mIdView[*it]->GetQueue();
+
+        if (fs_qnode == qnode) {
+          is_forbidden = true;
+          break;
+        }
+      }
+
+      if (is_forbidden) {
+        eos_static_err("group %s already contains an fs from the same node",
+                       dst.c_str());
+        oss << "error: group " << dst << " already contains a file system from "
+            << "the same node" << std::endl;
+        stdErr = oss.str().c_str();
+        return EINVAL;
+      }
+    } else {
       // A new group will be created, check that it respects the groupsize param
       int grp_indx = atoi(group.c_str());
 
@@ -823,10 +823,10 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
       }
 
       eos_static_debug("group %s will be created", dst.c_str());
-    } else {
-      // This is a special case when we "park" file systems in the spare space
-      eos_static_debug("fsid %s will be \"parked\" in space spare", src.c_str());
     }
+  } else {
+    // This is a special case when we "park" file systems in the spare space
+    eos_static_debug("fsid %s will be \"parked\" in space spare", src.c_str());
   }
 
   if (fs_view.MoveGroup(fs, dst)) {
@@ -936,7 +936,6 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
 
   return 0;
 }
-
 //------------------------------------------------------------------------------
 // Sort the groups in a space by priority - the first ones are the ones that
 // are most suitable to add a new file system to them.
@@ -970,7 +969,6 @@ std::list<std::string> proc_sort_groups_by_priority(FsView& fs_view,
 
   return name_grps;
 }
-
 //------------------------------------------------------------------------------
 // Move a group to a space
 //------------------------------------------------------------------------------
@@ -1025,7 +1023,6 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
 
   return 0;
 }
-
 //------------------------------------------------------------------------------
 // Move space to space
 //------------------------------------------------------------------------------
@@ -1089,7 +1086,6 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
 
   return 0;
 }
-
 //------------------------------------------------------------------------------
 // Remove filesystem
 //------------------------------------------------------------------------------
@@ -1183,7 +1179,6 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 
   return retc;
 }
-
 //-------------------------------------------------------------------------------
 // Clean unlinked files from filesystem
 //-------------------------------------------------------------------------------
@@ -1223,5 +1218,4 @@ proc_fs_dropdeletion(std::string& id, XrdOucString& stdOut,
 
   return retc;
 }
-
 EOSMGMNAMESPACE_END
