@@ -524,6 +524,15 @@ ProcCommand::FileInfo(const char* path)
               filesystem = FsView::gFsView.mIdView[*lociter];
             }
 
+            // For the fullpath option we output the physical location of the
+            // replicas
+            XrdOucString fullpath;
+
+            if ((option.find("-fullpath")) != STR_NPOS) {
+              eos::common::FileId::FidPrefix2FullPath(
+                hexfidstring.c_str(), filesystem->GetPath().c_str(), fullpath);
+            }
+
             if (filesystem) {
               if (!Monitoring) {
                 std::string format =
@@ -538,10 +547,15 @@ ProcCommand::FileInfo(const char* path)
                 // Build header
                 if (!table_mq_header.empty()) {
                   TableHeader table_mq_header_temp;
-                  table_mq_header_temp.push_back(std::make_tuple("No.", 4, "s"));
-                  table_mq_header_temp.push_back(std::make_tuple("fs-id", 6, "s"));
+                  table_mq_header_temp.push_back(std::make_tuple("no.", 3, "-l"));
+                  table_mq_header_temp.push_back(std::make_tuple("fs-id", 6, "l"));
                   std::copy(table_mq_header.begin(), table_mq_header.end(),
                             std::back_inserter(table_mq_header_temp));
+
+                  if ((option.find("-fullpath")) != STR_NPOS) {
+                    table_mq_header_temp.push_back(std::make_tuple("physical location", 18, "s"));
+                  }
+
                   table_mq.SetHeader(table_mq_header_temp);
                   table_mq_header_exist = true;
                 }
@@ -558,6 +572,10 @@ ProcCommand::FileInfo(const char* path)
 
                       for (auto& cell : row) {
                         table_mq_data_temp.back().push_back(cell);
+                      }
+
+                      if ((option.find("-fullpath")) != STR_NPOS) {
+                        table_mq_data_temp.back().push_back(TableCell(fullpath.c_str(), "s"));
                       }
                     }
                   }
@@ -622,20 +640,8 @@ ProcCommand::FileInfo(const char* path)
                 stdOut += "fsid=";
                 stdOut += location.c_str();
                 stdOut += " ";
-              }
 
-              if ((option.find("-fullpath")) != STR_NPOS) {
-                // for the fullpath option we output the full storage path for each replica
-                XrdOucString fullpath;
-                eos::common::FileId::FidPrefix2FullPath(hexfidstring.c_str(),
-                                                        filesystem->GetPath().c_str(), fullpath);
-
-                if (!Monitoring) {
-                  stdOut.erase(stdOut.length() - 1);
-                  stdOut += " ";
-                  stdOut += fullpath;
-                  stdOut += "\n";
-                } else {
+                if ((option.find("-fullpath")) != STR_NPOS) {
                   stdOut += "fullpath=";
                   stdOut += fullpath;
                   stdOut += " ";
@@ -652,7 +658,7 @@ ProcCommand::FileInfo(const char* path)
             i++;
           }
 
-          stdOut += table_mq.GenerateTable().c_str();
+          stdOut += table_mq.GenerateTable(HEADER).c_str();
           eos::IFileMD::LocationVector unlink_vect = fmd_copy->getUnlinkedLocations();
 
           for (lociter = unlink_vect.begin(); lociter != unlink_vect.end(); ++lociter) {
