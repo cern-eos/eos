@@ -125,8 +125,7 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-set(EOS_RPATH
-  "${XROOTD_CL_LIBRARY};${XROOTD_POSIX_LIBRARY};${XROOTD_UTILS_LIBRARY};${XROOTD_DL_LIBRARIES}")
+set(EOS_RPATH "/usr/lib64/")
 
 set_target_properties(
   eos PROPERTIES
