@@ -34,13 +34,6 @@ EOSFSTNAMESPACE_BEGIN
 void
 Storage::Trim()
 {
-  // this thread trim's the SQLITE DB every 30 days
-  while (1) {
-    // sleep for a month
-    XrdSysTimer sleeper;
-    sleeper.Snooze(30 * 86400);
-    gFmdDbMapHandler.TrimDB();
-  }
 }
 
 EOSFSTNAMESPACE_END

@@ -25,7 +25,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/ScanDir.hh"
 #include "fst/txqueue/TransferQueue.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/FmdAttributeHandler.hh"
 
 #ifdef __APPLE__
 #define O_DIRECT 0
@@ -70,10 +70,6 @@ FileSystem::~FileSystem()
 
   delete mFileIO;
 
-  // ----------------------------------------------------------------------------
-  // we call the FmdSqliteHandler shutdown function for this filesystem
-  // ----------------------------------------------------------------------------
-  gFmdDbMapHandler.ShutdownDB(GetId());
   // ----------------------------------------------------------------------------
   // @todo we accept this tiny memory leak to be able to let running
   // transfers callback their queue
@@ -206,8 +202,15 @@ FileSystem::CleanTransactions()
         }
 
         if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen)) {
-          FmdHelper* fMd = 0;
-          fMd = gFmdDbMapHandler.LocalGetFmd(fileid, GetId(), 0, 0, 0, 0, true);
+          FmdHelper* fMd = nullptr;
+          try {
+            Fmd fmd = gFmdAttributeHandler.FmdAttrGet(fstPath.c_str());
+            fMd = new FmdHelper(fileid, GetId());
+            fMd->Replicate(fmd);
+            eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
+          } catch (fmd_attribute_error& error) {
+            fMd = nullptr;
+          }
 
           if (fMd) {
             size_t valid_loc;
@@ -284,7 +287,7 @@ FileSystem::SyncTransactions(const char* manager)
         unsigned long long fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
 
         // try to sync this file from the MGM
-        if (gFmdDbMapHandler.ResyncMgm(GetId(), fid, manager)) {
+        if (gFmdAttributeHandler.ResyncMgm(fstPath.c_str(), GetId(), fid, manager)) {
           eos_static_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) GetId(),
                           fid);
         } else {

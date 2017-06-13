@@ -17,9 +17,12 @@
  ************************************************************************/
 
 #pragma once
+
 #include "fst/Namespace.hh"
 #include "proto/FmdBase.pb.h"
 #include "common/FileSystem.hh"
+#include "common/LayoutId.hh"
+#include "common/StringConversion.hh"
 #include "common/Logging.hh"
 
 EOSFSTNAMESPACE_BEGIN

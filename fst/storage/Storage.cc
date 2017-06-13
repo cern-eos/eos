@@ -28,6 +28,8 @@
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
 #include "fst/txqueue/TransferQueue.hh"
+#include "fst/FmdAttributeHandler.hh"
+#include "fst/Fmd.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
@@ -451,7 +453,7 @@ Storage::Boot(FileSystem* fs)
       }
     }
 
-    if (!gFmdDbMapHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
+    if (!gFmdAttributeHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(EFAULT, "cannot resync the DB from local disk");
       return;
@@ -472,22 +474,11 @@ Storage::Boot(FileSystem* fs)
   if (resyncmgm) {
     eos_info("msg=\"start mgm synchronisation\" fsid=%lu", (unsigned long) fsid);
 
-    if (gOFS.mQcl) {
-      // Resync meta data connecting directly to QuarkDB
-      eos_info("msg=\"synchronizing from QuarkDB backend\"");
-
-      if (!gFmdDbMapHandler.ResyncAllFromQdb(gOFS.mQdbMembers, fsid)) {
-        fs->SetStatus(eos::common::FileSystem::kBootFailure);
-        fs->SetError(EFAULT, "cannot resync meta data from QuarkDB");
-        return;
-      }
-    } else {
-      // Resync the MGM meta data using dumpmd
-      if (!gFmdDbMapHandler.ResyncAllMgm(fsid, manager.c_str())) {
-        fs->SetStatus(eos::common::FileSystem::kBootFailure);
-        fs->SetError(EFAULT, "cannot resync the mgm meta data");
-        return;
-      }
+    // Resync the MGM meta data
+    if (!gFmdAttributeHandler.ResyncAllMgm(fsid, manager.c_str())) {
+      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetError(EFAULT, "cannot resync the mgm meta data");
+      return;
     }
 
     eos_info("msg=\"finished mgm synchronization\" fsid=%lu", (unsigned long) fsid);

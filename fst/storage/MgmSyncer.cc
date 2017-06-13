@@ -24,8 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/FmdDbMap.hh"
-
+#include "fst/FmdAttributeHandler.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -106,7 +105,7 @@ Storage::MgmSyncer()
 
       if (!isopenforwrite) {
         // now do the consistency check
-        if (gFmdDbMapHandler.ResyncMgm(fmd.fsid(), fmd.fid(), manager.c_str())) {
+        if (gFmdAttributeHandler.ResyncMgm(fmd.fsid(), fmd.fid(), manager.c_str())) {
           eos_static_debug("msg=\"resync ok\" fsid=%lu fid=%llx",
                            (unsigned long) fmd.fsid(), fmd.fid());
           gOFS.WrittenFilesQueueMutex.Lock();

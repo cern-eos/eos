@@ -1087,6 +1087,47 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Map SFS-like open flags to POSIX open flags
+  //!
+  //! @param sfsFlags SFS-like open flags
+  //!
+  //! @return posix open flags
+  //!
+  //----------------------------------------------------------------------------
+
+  static int
+  MapFlagsSfs2Posix(XrdSfsFileOpenMode sfsFlags)
+  {
+    int oflags = O_RDONLY; // 0x0000
+
+    if (sfsFlags & SFS_O_CREAT) {
+      oflags |= O_CREAT;
+    }
+
+    if (sfsFlags & SFS_O_RDWR) {
+      oflags |= O_RDWR;
+    }
+
+    if (sfsFlags & SFS_O_TRUNC) {
+      oflags |= O_TRUNC;
+    }
+
+    if (sfsFlags & SFS_O_WRONLY) {
+      oflags |= O_WRONLY;
+    }
+
+    if (sfsFlags & SFS_O_RDWR) {
+      oflags |= O_APPEND;
+    }
+
+    // !!!
+    // Could also forward O_EXLC as XrdCl::OpenFlags::Flags::New but there is
+    // no corresponding flag in SFS
+    // !!!
+    return oflags;
+  }
+
+  //----------------------------------------------------------------------------
   //! Map SFS-like open flags to XrdCl open flags
   //!
   //! @param flags_sfs SFS open flags

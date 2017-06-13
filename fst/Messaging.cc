@@ -28,7 +28,7 @@
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/FmdAttributeHandler.hh"
 
 
 EOSFSTNAMESPACE_BEGIN
@@ -181,13 +181,16 @@ Messaging::Process(XrdMqMessage* newmessage)
       eos_err("dropping resync fsid=%lu fid=%llu", (unsigned long) fsid,
               (unsigned long long) fid);
     } else {
-      if (!fid) {
-        eos_warning("deleting fmd for fsid=%lu fid=%llu", (unsigned long) fsid,
-                    (unsigned long long) fid);
-        gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
-      } else {
-        FmdHelper* fMd = 0;
-        fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, 0, 0, 0, 0, true);
+      if (fid) {
+        FmdHelper* fMd = nullptr;
+        try {
+          Fmd fmd = gFmdAttributeHandler.FmdAttrGet(fid, fsid, &action);
+          fMd = new FmdHelper(fid, fsid);
+          fMd->Replicate(fmd);
+          eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
+        } catch (fmd_attribute_error& error) {
+          fMd = nullptr;
+        }
 
         if (fMd) {
           // force a resync of meta data from the MGM

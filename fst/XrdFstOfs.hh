@@ -115,6 +115,12 @@ public:
   //----------------------------------------------------------------------------
   virtual ~XrdFstOfs();
 
+  //! Retrieves the local prefix for a given environment object and file system.
+  //! @param env the environment object pointer
+  //! @param fsid the id of the file system
+  //! @return the local prefix of the file system or the file
+  XrdOucString getLocalPrefix(XrdOucEnv* env, unsigned long fsid);
+
   //----------------------------------------------------------------------------
   //! Get new OFS directory object
   //!

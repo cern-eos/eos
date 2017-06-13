@@ -321,6 +321,8 @@ set(XRDEOSFST_SRCS
   # File metadata interface
   Fmd.cc               Fmd.hh
   FmdDbMap.cc          FmdDbMap.hh
+  FmdClient.cc         FmdClient.hh
+  FmdAttributeHandler.cc  FmdAttributeHandler.hh
 
   # HTTP interface
   http/HttpServer.cc    http/HttpServer.hh

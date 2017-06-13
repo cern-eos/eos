@@ -23,6 +23,7 @@
 
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/io/local/FsIo.hh"
+#include "common/LayoutId.hh"
 #ifndef __APPLE__
 #include <xfs/xfs.h>
 #include <attr/xattr.h>
@@ -68,6 +69,8 @@ int
 FsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque,
                uint16_t timeout)
 {
+  flags = mFilePath.front() == '/' ? eos::common::LayoutId::MapFlagsSfs2Posix(flags) : flags;
+
   mFd = ::open(mFilePath.c_str(), flags, mode);
 
   if (mFd > 0) {

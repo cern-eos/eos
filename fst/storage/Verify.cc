@@ -31,7 +31,7 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/Verify.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/FmdAttributeHandler.hh"
 #include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -99,11 +99,19 @@ Storage::Verify()
     XrdOucString fstPath = "";
     eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
                                             verifyfile->localPrefix.c_str(), fstPath);
+
+    FileIo* io = eos::fst::FileIoPluginHelper::GetIoObject(fstPath.c_str());
+
     {
-      FmdHelper* fMd = 0;
-      fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0,
-                                         0,
-                                         true);
+      FmdHelper* fMd = nullptr;
+      try {
+        Fmd fmd = gFmdAttributeHandler.FmdAttrGet(io);
+        fMd = new FmdHelper(verifyfile->fId, verifyfile->fsId);
+        fMd->Replicate(fmd);
+        eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
+      } catch (fmd_attribute_error& error) {
+        fMd = nullptr;
+      }
 
       if (fMd) {
         // force a resync of meta data from the MGM
@@ -114,7 +122,7 @@ Storage::Verify()
         delete fMd;
       }
     }
-    FileIo* io = eos::fst::FileIoPluginHelper::GetIoObject(fstPath.c_str());
+
     // get current size on disk
     struct stat statinfo;
     int open_rc = -1;
@@ -131,9 +139,16 @@ Storage::Verify()
 
     // even if the stat failed, we run this code to tag the file as is ...
     // attach meta data
-    FmdHelper* fMd = 0;
-    fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0,
-                                       verifyfile->commitFmd, true);
+    FmdHelper* fMd = nullptr;
+    try {
+      Fmd fmd = gFmdAttributeHandler.FmdAttrGet(io);
+      fMd = new FmdHelper(verifyfile->fId, verifyfile->fsId);
+      fMd->Replicate(fmd);
+      eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
+    } catch (fmd_attribute_error& error) {
+      fMd = nullptr;
+    }
+
     bool localUpdate = false;
 
     if (!fMd) {
@@ -251,14 +266,20 @@ Storage::Verify()
 
         eos::common::Path cPath(verifyfile->path.c_str());
 
-        // commit local
-        if (localUpdate && (!gFmdDbMapHandler.Commit(fMd))) {
-          eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit "
-                         "to local MD storage failed", verifyfile->fId,
+        bool saveSucceeded = true;
+        try{
+          gFmdAttributeHandler.FmdAttrSet(io, fMd->mProtoFmd);
+        } catch (fmd_attribute_error& error) {
+          saveSucceeded = false;
+        }
+
+        if (localUpdate && !saveSucceeded) {
+          eos_static_err("unable to verify file id=%llu on fs=%u path=%s - save "
+                         "to MD attribute failed", verifyfile->fId,
                          verifyfile->fsId, fstPath.c_str());
         } else {
           if (localUpdate) {
-            eos_static_info("commited verified meta data locally id=%llu on fs=%u path=%s",
+            eos_static_info("saved verified meta data locally id=%llu on fs=%u path=%s",
                             verifyfile->fId, verifyfile->fsId, fstPath.c_str());
           }
 

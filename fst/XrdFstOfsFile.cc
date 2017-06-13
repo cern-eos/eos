@@ -34,6 +34,7 @@
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/storage/FileSystem.hh"
 #include "authz/XrdCapability.hh"
+#include "fst/FmdAttributeHandler.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 
@@ -616,19 +617,9 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
+  fsid = atoi(sfsid ? sfsid : "0");
   // Extract the local path prefix from the broadcasted configuration!
-  if (openOpaque->Get("mgm.fsprefix")) {
-    localPrefix = openOpaque->Get("mgm.fsprefix");
-    localPrefix.replace("#COL#", ":");
-  } else {
-    // Extract the local path prefix from the broadcasted configuration!
-    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
-    fsid = atoi(sfsid ? sfsid : "0");
-
-    if (fsid && gOFS.Storage->mFileSystemsMap.count(fsid)) {
-      localPrefix = gOFS.Storage->mFileSystemsMap[fsid]->GetPath().c_str();
-    }
-  }
+  localPrefix = gOFS.getLocalPrefix(openOpaque, fsid);
 
   // Attention: the localprefix implementation does not work for gateway machines
   if (!localPrefix.length()) {
@@ -890,36 +881,53 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   SetLogId(logId, vid, tident);
   eos_info("fstpath=%s", fstPath.c_str());
-  fMd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW, isRepairRead);
 
-  if ((!fMd) || gOFS.Simulate_FMD_open_error) {
-    if (!gOFS.Simulate_FMD_open_error) {
-      // Get the layout object
-      if (gFmdDbMapHandler.ResyncMgm(fsid, fileid, RedirectManager.c_str())) {
-        eos_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
-        fMd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
-      } else {
-        eos_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) fsid,
-                fileid);
-      }
+  if(!isCreation) {
+    try {
+      Fmd fmd = gFmdAttributeHandler.FmdAttrGet(layOut->GetFileIo());
+      fMd = new FmdHelper(fileid, fsid);
+      fMd->Replicate(fmd);
+      eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
+    } catch (fmd_attribute_error& error) {
+      fMd = nullptr;
     }
 
     if ((!fMd) || gOFS.Simulate_FMD_open_error) {
-      if ((!isRW) || (layOut->IsEntryServer() && (!isReplication))) {
-        eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
-        eos_warning("failed to get FMD record return recoverable error ENOENT(kXR_NotFound)");
-
-        if (hasCreationMode) {
-          // clean-up before re-bouncing
-          dropall(fileid, path, RedirectManager.c_str());
+      if (!gOFS.Simulate_FMD_open_error) {
+        // Get the layout object
+        if (gFmdAttributeHandler.ResyncMgm(layOut->GetFileIo(), fsid, fileid, RedirectManager.c_str())) {
+          eos_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
+          try {
+            Fmd fmd = gFmdAttributeHandler.FmdAttrGet(layOut->GetFileIo());
+            fMd = new FmdHelper(fileid, fsid);
+            fMd->Replicate(fmd);
+            eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
+          } catch (fmd_attribute_error& error) {
+            fMd = nullptr;
+          }
+        } else {
+          eos_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) fsid,
+                  fileid);
         }
+      }
 
-        // Return an error that can be recovered at the MGM
-        return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
-      } else {
-        eos_crit("no fmd for fileid %llu on filesystem %lu", fileid,
-                 (unsigned long long) fsid);
-        return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
+      if ((!fMd) || gOFS.Simulate_FMD_open_error) {
+        if ((!isRW) || (layOut->IsEntryServer() && (!isReplication))) {
+          eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
+          eos_warning("failed to get FMD record return recoverable error ENOENT(kXR_NotFound)");
+
+          if (hasCreationMode) {
+            // clean-up before re-bouncing
+            dropall(fileid, path, RedirectManager.c_str());
+          }
+
+          // Return an error that can be recovered at the MGM
+          return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
+        } else {
+          eos_crit("no fmd for fileid %llu on filesystem %lu", fileid,
+                   (unsigned long long) fsid);
+          return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
+        }
       }
     }
   }
@@ -1548,9 +1556,13 @@ XrdFstOfsFile::close()
     }
   }
 
+  if(fMd == nullptr){
+    fMd = new FmdHelper(fileid, fsid);
+  }
+
   // We enter the close logic only once since there can be an explicit close or
   // a close via the destructor
-  if (opened && (!closed) && fMd) {
+  if (opened && (!closed)) {
     // Check if the file close comes from a client disconnect e.g. the destructor
     XrdOucString hexstring = "";
     eos::common::FileId::Fid2Hex(fMd->mProtoFmd.fid(), hexstring);
@@ -1714,6 +1726,7 @@ XrdFstOfsFile::close()
           if ((statinfo.st_size == 0) || haswrite) {
             // Update size
             closeSize = statinfo.st_size;
+
             fMd->mProtoFmd.set_size(statinfo.st_size);
             fMd->mProtoFmd.set_disksize(statinfo.st_size);
             fMd->mProtoFmd.set_mgmsize(0xfffffffffff1ULL); // now again undefined
@@ -1723,7 +1736,6 @@ XrdFstOfsFile::close()
             fMd->mProtoFmd.set_locations(""); // reset locations
             fMd->mProtoFmd.set_filecxerror(0);
             fMd->mProtoFmd.set_blockcxerror(0);
-            fMd->mProtoFmd.set_locations(""); // reset locations
             fMd->mProtoFmd.set_filecxerror(0);
             fMd->mProtoFmd.set_blockcxerror(0);
             fMd->mProtoFmd.set_mtime(statinfo.st_mtime);
@@ -1748,13 +1760,21 @@ XrdFstOfsFile::close()
               fMd->mProtoFmd.set_gid(atoi(capOpaque->Get("mgm.source.rgid")));
             }
 
-            // Commit local
+            // save meta data
             try {
               if (!gFmdDbMapHandler.Commit(fMd)) {
                 eos_err("unabel to commit meta data to local database");
                 (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "
                                  "commit meta data", Path.c_str());
               }
+              try{
+                gFmdAttributeHandler.FmdAttrSet(layOut->GetFileIo(), fMd->fMd);
+              } catch (fmd_attribute_error& error) {
+                eos_err("unable to commit meta data to local database");
+                (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "
+                  "commit meta data", Path.c_str());
+              }
+
             } catch (const std::length_error& e) {}
 
             // Commit to central mgm cache

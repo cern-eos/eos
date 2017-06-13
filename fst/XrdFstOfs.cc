@@ -25,6 +25,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/FmdAttributeHandler.hh"
 #include "fst/FmdDbMap.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
@@ -1239,11 +1240,6 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     }
   }
 
-  if (!gFmdDbMapHandler.LocalDeleteFmd(fid, fsid)) {
-    eos_notice("unable to delete fmd for fid %llu on filesystem %lu", fid, fsid);
-    return gOFS.Emsg(epname, error, EIO, "delete file meta data ", fstPath.c_str());
-  }
-
   return SFS_OK;
 }
 
@@ -1346,8 +1342,16 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
-      FmdHelper* fmd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, 0, 0, 0, false,
-                       true);
+
+      FmdHelper* fmd = nullptr;
+      try {
+        Fmd fMd = gFmdAttributeHandler.FmdAttrGet(path.c_str());
+        fmd = new FmdHelper(fileid, fsid);
+        fmd->Replicate(fMd);
+        eos_info("user.eos.fmd=%s", fMd.DebugString().c_str());
+      } catch (fmd_attribute_error& error) {
+        fmd = nullptr;
+      }
 
       if (!fmd) {
         eos_static_err("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
@@ -1493,8 +1497,7 @@ XrdFstOfs::chksum(XrdSfsFileSystem::csFunc Func, const char* csName,
 // Wait for ongoing IO operations to finish
 //------------------------------------------------------------------------------
 bool
-XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
-{
+XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout) {
   bool all_done = true;
   std::chrono::seconds check_interval(5);
   auto deadline = std::chrono::steady_clock::now() + timeout;
@@ -1530,6 +1533,24 @@ XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
   }
 
   return all_done;
+}
+
+XrdOucString XrdFstOfs::getLocalPrefix(XrdOucEnv* env, unsigned long fsid) {
+  XrdOucString localPrefix;
+
+  if (env != nullptr && env->Get("mgm.fsprefix")) {
+    localPrefix = env->Get("mgm.fsprefix");
+    localPrefix.replace("#COL#", ":");
+  } else {
+    // Extract the local path prefix from the broadcasted configuration!
+    eos::common::RWMutexReadLock lock(gOFS.Storage->fsMutex);
+
+    if (fsid && gOFS.Storage->fileSystemsMap.count(fsid)) {
+      localPrefix = gOFS.Storage->fileSystemsMap[fsid]->GetPath().c_str();
+    }
+  }
+
+  return localPrefix;
 }
 
 EOSFSTNAMESPACE_END
