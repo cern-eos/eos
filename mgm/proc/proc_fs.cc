@@ -979,7 +979,6 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
                       XrdOucString& stdErr)
 {
   using eos::mgm::FsView;
-  std::string sfsid;
   std::ostringstream oss;
   std::list<std::string> failed_fs; // file systems that couldn't be moved
   auto it_grp = fs_view.mGroupView.find(src);
@@ -991,11 +990,16 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
     return EINVAL;
   }
 
+  // Get all file systems from the group since iterators will be invalidated
+  // when we start moving them to the new destination
   FsGroup* grp = it_grp->second;
+  std::list<std::string> lst_fsids;
 
   for (auto it = grp->begin(); it != grp->end(); ++it) {
-    sfsid = std::to_string(*it);
+    lst_fsids.push_back(std::to_string(*it));
+  }
 
+  for (auto sfsid : lst_fsids) {
     if (proc_mv_fs_space(fs_view, sfsid, dst, stdOut, stdErr)) {
       failed_fs.push_back(sfsid);
     }
@@ -1030,7 +1034,6 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
                         XrdOucString& stdErr)
 {
   using eos::mgm::FsView;
-  std::string sfsid;
   std::ostringstream oss;
   std::list<std::string> failed_fs; // file systems that couldn't be moved
   auto it_space1 = fs_view.mSpaceView.find(src);
@@ -1051,11 +1054,16 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
     return EINVAL;
   }
 
+  // Get all file systems from the space since iterators will be invalidated
+  // when we start moving them to the new destination
   FsSpace* space1 = it_space1->second;
+  std::list<std::string> lst_fsids;
 
   for (auto it = space1->begin(); it != space1->end(); ++it) {
-    sfsid = std::to_string(*it);
+    lst_fsids.push_back(std::to_string(*it));
+  }
 
+  for (auto sfsid : lst_fsids) {
     if (proc_mv_fs_space(fs_view, sfsid, dst, stdOut, stdErr)) {
       failed_fs.push_back(sfsid);
     }
