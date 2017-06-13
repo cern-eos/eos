@@ -212,8 +212,8 @@ public:
   public:
     const_iterator operator++(int);
     const_iterator operator--(int);
-    const_iterator operator++();
-    const_iterator operator--();
+    const_iterator& operator++();
+    const_iterator& operator--();
     const eos::common::FileSystem::fsid_t& operator*() const;
     operator const eos::common::FileSystem::fsid_t* () const;
     const const_iterator& operator= (const const_iterator& it);
