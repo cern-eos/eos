@@ -738,15 +738,17 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
   eos::common::FileSystem::fsid_t fsid = atoi(src.c_str());
   std::string space = dst.substr(0, pos);
   std::string group = dst.substr(pos + 1);
-  int grp_size = 0;
-  int grp_mod = 0;
+  size_t grp_size = 0;
+  size_t grp_mod = 0;
   std::ostringstream oss;
   // Check if space exists and get groupsize and groupmod
   auto it_space = fs_view.mSpaceView.find(space);
 
   if (it_space != fs_view.mSpaceView.end()) {
-    grp_size = std::atoi(it_space->second->GetConfigMember("groupsize").c_str());
-    grp_mod = std::atoi(it_space->second->GetConfigMember("groupmod").c_str());
+    grp_size = std::strtoul(it_space->second->GetConfigMember("groupsize").c_str(),
+                            nullptr, 10);
+    grp_mod = std::strtoul(it_space->second->GetConfigMember("groupmod").c_str(),
+                           nullptr, 10);
   } else {
     eos_static_err("requested space %s does not exist", space.c_str());
     oss << "error: space " << space << " does not exist" << std::endl;
@@ -776,10 +778,10 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
 
     if (iter != fs_view.mGroupView.end()) {
       FsGroup* grp = iter->second;
-      int grp_num_fs = grp->SumLongLong("nofs", false);
+      size_t grp_num_fs = grp->size();
 
       // Check that we can still add file systems to this group
-      if (grp_num_fs > grp_mod) {
+      if (grp_num_fs > grp_size) {
         eos_static_err("reached maximum number of fs for group: %s", dst.c_str());
         oss << "error: reached maximum number of file systems for group"
             << dst.c_str() << std::endl;
@@ -810,14 +812,14 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
         return EINVAL;
       }
     } else {
-      // A new group will be created, check that it respects the groupsize param
-      int grp_indx = atoi(group.c_str());
+      // A new group will be created, check that it respects the groupmod param
+      size_t grp_indx = std::strtoul(group.c_str(), nullptr, 10);
 
-      if (grp_indx >= grp_size) {
-        eos_static_err("group %s is not respecting the groupsize value of %i",
-                       dst.c_str(), grp_size);
-        oss << "error: group " << dst.c_str() << " is not respecting the groupsize"
-            << " value of " << grp_size << " for this space" << std::endl;
+      if (grp_indx >= grp_mod) {
+        eos_static_err("group %s is not respecting the groupmod value of %u",
+                       dst.c_str(), grp_mod);
+        oss << "error: group " << dst.c_str() << " is not respecting the groupmod"
+            << " value of " << grp_mod << " for this space" << std::endl;
         stdErr = oss.str().c_str();
         return EINVAL;
       }
@@ -881,10 +883,12 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
 
   int grp_size = std::atoi(it_space->second->GetConfigMember
                            ("groupsize").c_str());
+  int grp_mod = std::atoi(it_space->second->GetConfigMember
+                          ("groupmod").c_str());
 
-  if ((dst == "spare") && grp_size) {
-    eos_static_err("space \"spare\" must have groupsize 0");
-    oss << "error: space \"spare\" must have groupsize 0. Please update the "
+  if ((dst == "spare") && grp_mod) {
+    eos_static_err("space \"spare\" must have groupmod 0");
+    oss << "error: space \"spare\" must have groupmod 0. Please update the "
         << "space configuration using \"eos space define <space> <size> <mod>"
         << std::endl;
     stdErr = oss.str().c_str();
@@ -894,22 +898,8 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
 
   std::list<std::string> sorted_grps;
 
-  if (grp_size) {
-    sorted_grps = proc_sort_groups_by_priority(fs_view, dst);
-    std::set<std::string> set_grps(sorted_grps.begin(), sorted_grps.end());
-    // If any of the possible groups in this space are not yet created then we
-    // add them with the highest priority
-    std::string node;
-
-    for (int i = 0; i < grp_size; i++) {
-      node = dst;
-      node += ".";
-      node += std::to_string(i);
-
-      if (set_grps.find(node) == set_grps.end()) {
-        sorted_grps.push_front(node);
-      }
-    }
+  if (grp_mod) {
+    sorted_grps = proc_sort_groups_by_priority(fs_view, dst, grp_size, grp_mod);
   } else {
     // Special case for spare space which doesn't have groups
     sorted_grps.push_back("spare");
@@ -940,34 +930,52 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
 // Sort the groups in a space by priority - the first ones are the ones that
 // are most suitable to add a new file system to them.
 //------------------------------------------------------------------------------
-std::list<std::string> proc_sort_groups_by_priority(FsView& fs_view,
-    const std::string& space)
+std::list<std::string>
+proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
+                             size_t grp_size, size_t grp_mod)
 {
   using eos::mgm::FsView;
-  struct cmp_grp_less {
+  struct cmp_grp {
     bool operator()(FsGroup* a, FsGroup* b)
     {
-      return (a->SumLongLong("nofs", false) < b->SumLongLong("nofs", false));
+      return (a->size() < b->size());
     }
   };
+  // All groups in space are possible candidats
   std::list<FsGroup*> grps; // first - highest priority, last - lowest
+  std::set<std::string> set_grps;
+  std::string node;
 
-  // Get all groups belonging to the current space
+  for (std::uint32_t  i = 0; i < grp_mod; ++i) {
+    node = space;
+    node += ".";
+    node += std::to_string(i);
+    set_grps.insert(node);
+  }
+
+  // Get all groups belonging to the current space and that have less than the
+  // max number of file systems
   for (auto it = fs_view.mGroupView.begin();
        it != fs_view.mGroupView.end(); ++it) {
     if (it->first.find(space) == 0) {
-      grps.push_back(it->second);
+      set_grps.erase(it->first);
+
+      if (it->second->size() <= grp_size) {
+        grps.push_back(it->second);
+      }
     }
   }
 
-  grps.sort(cmp_grp_less());
-  std::list<std::string> name_grps;
+  grps.sort(cmp_grp());
+  // Any groups left in the initial set represent completely new groups
+  // without any file systems i.e highest priority
+  std::list<std::string> ret_grps(set_grps.begin(), set_grps.end());
 
   for (auto && grp : grps) {
-    name_grps.push_back(grp->mName);
+    ret_grps.push_back(grp->mName);
   }
 
-  return name_grps;
+  return ret_grps;
 }
 //------------------------------------------------------------------------------
 // Move a group to a space

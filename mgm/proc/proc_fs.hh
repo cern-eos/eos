@@ -233,11 +233,14 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
 //!
 //! @param fs_view file system view handler
 //! @param space space from which to sort the groups
+//! @param grp_size maxium number of file systems per group
+//! @param grp_mod maxium number of groups in current space
 //!
 //! @return sorted list of groups with the most desirable one in the beginning
 //------------------------------------------------------------------------------
 std::list<std::string>
-proc_sort_groups_by_priority(FsView& fs_view, const std::string& space);
+proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
+                             size_t grp_size, size_t grp_mod);
 
 EOSMGMNAMESPACE_END
 #endif
