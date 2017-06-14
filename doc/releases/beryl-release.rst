@@ -7,6 +7,17 @@
 Beryl Release Notes
 ===================
 
+``V0.3.256 Aquamarine``
+=====================
+
+- MGM/CONSOLE: revive 'file layout' command and 'find -layoutstripes'
+
+``V0.3.255 Aquamarine``
+=====================
+- MGM: treat attributes not prefixed as sys. like user. attributes (don't allow to set them if we are not the object owner)
+- MGM: many bug fixes/improvements in the AUTH service
+
+
 ``V0.3.248 Aquamarine``
 =====================
 - MGM: fix recycle bin restore function to forbid to recycle files by fxid/pxid which are not in the recycle bin. Allow to explicitly restore a file or directory (they might overlap in the inode space) by prefixing the key with fxid: or pxid:

@@ -210,6 +210,7 @@ ProcCommand::File()
             }
           } else {
             retc = errno;
+            stdErr += "error: no such file";
           }
 
           gOFS->eosViewRWMutex.UnLockWrite();
