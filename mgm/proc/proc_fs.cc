@@ -698,7 +698,7 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
     } else {
       if (snapshot.mSpace == dst) {
         oss << "error:: file system " << snapshot.mId << " is already in "
-            << "space "  << dst << std::endl;
+            << "space " << dst << std::endl;
         stdOut = oss.str().c_str();
         return false;
       }
@@ -709,7 +709,7 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
     bool is_active = (fs->GetActiveStatus() == eos::common::FileSystem::kOnline);
 
     if (!(is_empty && is_active)) {
-      eos_static_err("fsid %i is not empty or is not active");
+      eos_static_err("fsid %i is not empty or is not active", snapshot.mId);
       oss << "error: file system " << snapshot.mId << " is not empty or "
           << "is not active" << std::endl;
       stdErr = oss.str().c_str();
