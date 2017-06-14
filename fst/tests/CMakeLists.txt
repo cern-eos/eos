@@ -29,9 +29,14 @@ include_directories(
 
 add_executable(
   eos-fst-test main.cc
-  MonitorVarPartitionTest.cc MonitorVarPartitionTest.hh
-  TestEnv.cc TestEnv.hh
-  FstFileTest.hh FstFileTest.cc)
+  TestEnv.cc
+  MonitorVarPartitionTest.cc
+  FstFileTest.cc
+  ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc
+  ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
+  ${CMAKE_SOURCE_DIR}/fst/checksum/CRC32C.hh
+  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc
+  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.hh)
 
 target_link_libraries(
   eos-fst-test
