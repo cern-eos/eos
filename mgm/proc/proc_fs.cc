@@ -960,7 +960,7 @@ proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
     if (it->first.find(space) == 0) {
       set_grps.erase(it->first);
 
-      if (it->second->size() <= grp_size) {
+      if (it->second->size() < grp_size) {
         grps.push_back(it->second);
       }
     }
