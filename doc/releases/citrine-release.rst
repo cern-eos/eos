@@ -17,6 +17,33 @@ This is the first release targeted for clients to use EOS with XRootD >= 4.2.X.
 It is merged from the Aquamarine Version 0.3.130. Main difference to Aquamarine
 is the use of XRootD 4 and the new tree-based scheduling algorithm.
 
+``v4.1.24 Citrine``
++++++++++++++++++++
+
+Bugfix
+++++++
+* [EOS-162] - RFE: auto-refill spaces from "spare", up to "nominalsize"
+* [EOS-455] - RFE: drop either fid: or fxid:, use the other consistently
+* [EOS-1299] - MGM node and fs printout with long hostname
+* [EOS-1716] - MGM: typo/missing whitespace in "client acting as directory owner" message
+* [EOS-1859] - PPS crash while listing space
+* [EOS-1877] - eos file drop does not accept fid:XXXX
+* [EOS-1881] - List quota info not working anymore on EOSLHCB
+* Fix fsck bug mixing information from different types of issues
+
+Task
++++++
+* [EOS-1851] - mount.eos assumes sysv or systemd present
+
+Improvement
++++++++++++
+* [EOS-1875] - RFE: isolate eos client from LD_LIBRARY_PATH via RPATH
+
+Support
++++++++
+* [EOS-1064] - get the year information for EOS file
+
+
 ``v4.1.23 Citrine``
 +++++++++++++++++++
 
