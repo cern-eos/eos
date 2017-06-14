@@ -529,9 +529,9 @@ com_space_usage:
           "       space define <space-name> [<groupsize> [<groupmod>]]          : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
-          "                                                                       => <groupsize>=0 means, that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n");
+          "                                                                       => <groupsize>=0 means that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n");
   fprintf(stdout,
-          "                                                                       => <groupmod> defines the maximun number of filesystems per node\n");
+          "                                                                       => <groupmod> maximum number of groups in the space, which should be at least equal to the maximun number of filesystems per node\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "       space reset <space-name>  [--egroup|mapping|drain|scheduledrain|schedulebalance] \n");
