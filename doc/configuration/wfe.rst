@@ -13,16 +13,16 @@ The workflow engine allows to create chained workflows e.g. one workflow can tri
 
 .. epigraph::
 
-   ======== ==================================================================================================
+   ============== ==================================================================================================
    Event    Description
-   ======== ==================================================================================================
-   open     event is triggered at the MGM when a 'file open' 
-            - if the return of an open call is ENONET a workflow defined stall time is returned 
-   prepare  event is triggered at the MGM when a 'prepare' is issued 
-   closer   event is triggered via the MGM when a read-open file is closed on an FST. 
-   closew   event is triggered via the MGM when a write-open file is closed on an FST
-   delete   event is triggered at the MGM when a file has been deleted
-   ======== ============================================================================ =====================
+   ============== ==================================================================================================
+   open           event is triggered at the MGM when a 'file open' 
+                  - if the return of an open call is ENONET a workflow defined stall time is returned 
+   sync::prepare  event is triggered at the MGM when a 'prepare' is issued 
+   closer         event is triggered via the MGM when a read-open file is closed on an FST. 
+   closew         event is triggered via the MGM when a write-open file is closed on an FST
+   sync::delete   event is triggered at the MGM when a file has been deleted
+   ============== ==================================================================================================
 
 Currently the workflow engine implements two action targets. The **bash:shell** target is a powerful target.
 It allows you to execute any shell command as a workflow. This target provides a large set of template parameters
@@ -284,6 +284,20 @@ The existing queues are described here:
    =========================== ========================================================================================
 
 
+Synchronous workflows
+``````````````````````
+
+The **deletion** and **prepare** workflow are synchronous workflows which are executed in-line. They are stored and tracked as asynchronous workflows in the proc filesystem. The emitted event on deletion is **sync::delete**, the emitted event on prepare is **sync::prepare**. 
+
+Workflow log and return codes
+-----------------------------
+
+The return codes and log information is tagged on the virtual directory entries in the proc filesystem as extended attributes:
+
+.. code-block:: bash
+
+   sys.wfe.retc=<return code value>
+   sys.wfe.log=<message describing the result of running the workflow>
 
 
 
