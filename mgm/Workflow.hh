@@ -68,6 +68,9 @@ public:
 
   std::string getCGICloseR(std::string workflow);
 
+
+  bool IsSync() {return (mEvent.substr(0,6) == "sync::");}
+
   void Reset()
   {
     mPath = "";
@@ -78,7 +81,7 @@ public:
     mAction = "";
   }
 
-  bool Create(eos::common::Mapping::VirtualIdentity& vid);
+  int Create(eos::common::Mapping::VirtualIdentity& vid);
 
   bool Attach(const char* path);
 

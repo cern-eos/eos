@@ -44,8 +44,8 @@ Workflow::Trigger(std::string event, std::string workflow,
   eos_static_info("event=\"%s\" workflow=\"%s\"", event.c_str(),
                   workflow.c_str());
   errno = 0;
-
-  if ((event == "open") || (event == "prepare")) {
+  if ((event == "open")) 
+  {
     std::string key = "sys.workflow.";
     key += event;
     key += ".";
@@ -56,10 +56,12 @@ Workflow::Trigger(std::string event, std::string workflow,
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      bool ok = Create(vid);
+      int retc = Create(vid);
 
-      if (ok) {
-        if ((workflow == "enonet")) {
+      if (!retc) 
+      {
+        if ((workflow == "enonet")) 
+        {
           std::string stallkey = key + ".stall";
 
           if ((*mAttr).count(stallkey)) {
@@ -68,24 +70,31 @@ Workflow::Trigger(std::string event, std::string workflow,
             return stalltime;
           }
         }
-
         return 0;
       }
-
-      errno = EIO;
+      errno = retc;
       return -1;
     } else {
       errno = ENOKEY;
     }
   } else {
     std::string key = "sys.workflow." + event + "." + workflow;
+    eos_static_info("key=%s %d %d", key.c_str(), mAttr, (*mAttr).count(key));
 
     if (mAttr && (*mAttr).count(key)) {
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      return Create(vid);
-    } else {
+      int retc = Create(vid);
+      if (retc)
+      {
+	errno = retc;
+	return -1;
+      }
+      return 0;
+    }
+    else
+    {
       errno = ENOKEY;
     }
   }
@@ -132,13 +141,26 @@ Workflow::Attach(const char* path)
 }
 
 /*----------------------------------------------------------------------------*/
-bool
+int
 Workflow::Create(eos::common::Mapping::VirtualIdentity& vid)
 {
+  int retc = 0;
   WFE::Job job(mFid, vid);
   time_t t = time(0);
   job.AddAction(mAction, mEvent, t, mWorkflow, "q");
-  return (job.Save("q") ? false : true);
+  retc = job.Save("q", t);
+  if (retc)
+  {
+    eos_static_err("failed to save");
+    return retc;
+  }
+
+  if (job.IsSync())
+  { 
+    eos_static_info("running synchronous workflow");
+    return job.DoIt(true);
+  }
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/

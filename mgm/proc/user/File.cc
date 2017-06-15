@@ -698,10 +698,12 @@ ProcCommand::File()
                         &lClient) != SFS_DATA) {
           stdErr += "error: unable to run workflow '";
           stdErr += event.c_str();
-          stdErr += "'";
+          stdErr += "' : ";
+	  stdErr += mError->getErrText();
+	  
           retc = errno;
         } else {
-          stdOut += "success: trgggered workflow  '";
+          stdOut += "success: triggered workflow  '";
           stdOut += event.c_str();
           stdOut += "' on '";
           stdOut += spath.c_str();

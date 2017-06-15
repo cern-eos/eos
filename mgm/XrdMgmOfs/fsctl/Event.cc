@@ -174,12 +174,17 @@
   {
     if (errno == ENOKEY) {
       // there is no workflow defined
-      return Emsg(epname, error, EINVAL,
-                  "trigger workflow - there is workflow define for this <workflow>.<event>",
-                  env.Env(envlen));
-    } else {
-      return Emsg(epname, error, EIO, "trigger workflow - internal error",
-                  env.Env(envlen));
+      return Emsg(epname, error, EINVAL, "trigger workflow - there is no workflow defined for this <workflow>.<event>",
+		  env.Env(envlen));
+    }
+    else
+    {
+      if (!workflow.IsSync())
+	return Emsg(epname, error, EIO, "trigger workflow - internal error",
+		    env.Env(envlen));
+      else
+	return Emsg(epname, error, errno, "trigger workflow - synchronous workflow failed",
+		    env.Env(envlen));
     }
   }
 

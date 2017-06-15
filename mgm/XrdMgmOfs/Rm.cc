@@ -52,13 +52,13 @@ XrdMgmOfs::rem(const char* inpath,
   const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
-  EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
   XrdOucEnv env(ininfo);
   AUTHORIZE(client, &env, AOP_Delete, "remove", inpath, error);
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -252,6 +252,29 @@ XrdMgmOfs::_rem(const char* path,
     try {
       if (!simulate) {
         eos_info("unlinking from view %s", path);
+
+	Workflow workflow;
+	// eventually trigger a workflow
+	workflow.Init(&attrmap, path, fid);
+
+	int ret_wfe = 0;
+	errno = 0;
+	gOFS->eosViewRWMutex.UnLockWrite();
+
+	if (((ret_wfe = workflow.Trigger("sync::delete", "default", vid)) < 0) && (errno == ENOKEY)) {
+	  eos_info("msg=\"no workflow defined for delete\"");
+	} else {
+	  eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+	}
+
+	gOFS->eosViewRWMutex.LockWrite();	
+	if (ret_wfe && errno!=ENOKEY)
+	{
+	  eos::MDException e( errno );
+	  e.getMessage() << "Deletion workflow failed";
+	  throw e;
+	}
+
         gOFS->eosView->unlinkFile(path);
         // Reload file object that was modifed in the unlinkFile method
         // TODO: this can be dropped if you use the unlinkFile which takes
@@ -363,18 +386,6 @@ XrdMgmOfs::_rem(const char* path,
   if (errno) {
     return Emsg(epname, error, errno, "remove", path);
   } else {
-    Workflow workflow;
-    // eventually trigger a workflow
-    workflow.Init(&attrmap);
-    workflow.SetFile(path, fid);
-    int ret_wfe = 0;
-
-    if ((ret_wfe = workflow.Trigger("delete", "default", vid)) < 0) {
-      eos_debug("msg=\"no workflow defined for delete\"");
-    } else {
-      eos_debug("msg=\"workflow trigger returned\" retc=%d", ret_wfe);
-    }
-
     eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u",
              doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);
     return SFS_OK;

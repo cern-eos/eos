@@ -405,7 +405,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
     XrdOucEnv prep_env(prep_info.c_str());
     prep_info = cmd.c_str();
     prep_info += "&";
-    prep_info += "&mgm.event=prepare";
+    prep_info += "&mgm.event=sync::prepare";
     prep_info += "&mgm.workflow=";
 
     if (prep_env.Get("eos.workflow")) {

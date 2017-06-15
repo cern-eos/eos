@@ -57,8 +57,7 @@ private:
   eos::common::Mapping::VirtualIdentity mRootVid; //< we operate with the root vid
   XrdOucErrInfo mError; //< XRootD error object
 
-  static XrdSysMutex
-  gQueueChangeMutex; //< whenever a load/save/delete is executed it uses this mutex
+  static XrdSysMutex gQueueChangeMutex; //< whenever a load/save/delete is executed it uses this mutex
 
   mutable XrdSysMutex mActiveJobsMutex;
 
@@ -176,17 +175,21 @@ public:
     // ---------------------------------------------------------------------------
     // Job execution function
     // ---------------------------------------------------------------------------
-    void DoIt();
+    void DoIt() { DoIt(false); return ;}
+
+    int  DoIt(bool issync=false);
 
     // -------------------------------------------------------------------------
     // persistency related methods
     // -------------------------------------------------------------------------
-    int Save(std::string queue, time_t when = 0, int action = 0, int retry = 0);
+    int Save(std::string queue, time_t& when, int action = 0, int retry = 0);
 
     int Load(std::string path2entry);
 
-    int Move(std::string from_queue, std::string to_queue, time_t when = 0,
+    int Move(std::string from_queue, std::string to_queue, time_t& when,
              int retry = 0);
+
+    int Results(std::string queue, int retc, XrdOucString log, time_t when);
 
     int Delete(std::string queue);
 
@@ -216,6 +219,8 @@ public:
       mDescription += eos::common::StringConversion::GetSizeString(tst,
                       (unsigned long long) mFid);
     }
+
+    bool IsSync() {return (mActions[0].mEvent.substr(0,6) == "sync::");}
 
     std::vector<Action> mActions;
     eos::common::FileId::fileid_t mFid;
