@@ -43,6 +43,10 @@ target_link_libraries(
   EosFstIo-Static
   ${XROOTD_SERVER_LIBRARY})
 
+target_compile_definitions(
+  eos-fst-test PRIVATE
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+
 install(
   TARGETS eos-fst-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}

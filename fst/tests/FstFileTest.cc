@@ -21,15 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//! Ugly hack to expose the private functions for testing
-
 #include "FstFileTest.hh"
 #include "TestEnv.hh"
-
 #include "fst/layout/RaidMetaLayout.hh"
 #include "fst/checksum/CRC32C.hh"
 #include "fst/layout/RaidDpLayout.hh"
-
 #include <XrdOuc/XrdOucTokenizer.hh>
 
 EOSFSTTEST_NAMESPACE_BEGIN
