@@ -98,7 +98,16 @@ ProcCommand::Rm()
       filter.replace("*", ".*");
       filter_temp += filter;
       filter_temp += "$";
-      regcomp(&(regex_filter), filter_temp.c_str(), REG_EXTENDED | REG_NEWLINE);
+      int reg_rc = regcomp(&(regex_filter), filter_temp.c_str(),
+                           REG_EXTENDED | REG_NEWLINE);
+
+      if (reg_rc) {
+        stdErr += "error: failed to compile filter regex ";
+        stdErr += filter_temp.c_str();
+        retc = EINVAL;
+        return SFS_OK;
+      }
+
       XrdMgmOfsDirectory dir;
       // list the path and match against filter
       int listrc = dir.open(spath.c_str(), *pVid, (const char*) 0);

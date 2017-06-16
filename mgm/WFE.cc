@@ -277,20 +277,22 @@ WFE::WFEr()
                     mDoneSignal.Wait(10);
 
                     if ((lWFEntx - GetActiveJobs()) <= 0) {
+                      delete job;
                       break;
                     }
                   }
                 }
 
-		if (!job->IsSync())
-		{
-		  // use the shared scheduler for asynchronous jobs
-		  XrdSysMutexHelper sLock(gSchedulerMutex);
-		  gScheduler->Schedule((XrdJob*) job);
-		  IncActiveJobs();
-		  eos_static_info("msg=\"scheduled workflow\" job=\"%s\"",
-				  job->mDescription.c_str());
-		}
+                if (!job->IsSync()) {
+                  // use the shared scheduler for asynchronous jobs
+                  XrdSysMutexHelper sLock(gSchedulerMutex);
+                  gScheduler->Schedule((XrdJob*) job);
+                  IncActiveJobs();
+                  eos_static_info("msg=\"scheduled workflow\" job=\"%s\"",
+                                  job->mDescription.c_str());
+                } else {
+                  delete job;
+                }
               }
             }
           }
@@ -446,9 +448,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
 
   XrdOucString tst;
   workflowpath += eos::common::StringConversion::GetSizeString(tst,
-							       (unsigned long long) when);
-
-
+                  (unsigned long long) when);
   workflowpath += ":";
   workflowpath += entry;
   workflowpath += ":";
@@ -617,7 +617,7 @@ WFE::Job::Move(std::string from_queue, std::string to_queue, time_t& when,
 }
 
 /*----------------------------------------------------------------------------*/
-int 
+int
 /*----------------------------------------------------------------------------*/
 WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
 /*----------------------------------------------------------------------------*/
@@ -635,8 +635,7 @@ WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
   eos::common::FileId::Fid2Hex(mFid, hexfid);
   entry = hexfid.c_str();
   eos_static_info("workflowdir=\"%s\" entry=%s", workflowdir.c_str(),
-		  entry.c_str());
-
+                  entry.c_str());
   XrdOucErrInfo lError;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
@@ -647,25 +646,22 @@ WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
                   &buf,
                   lError,
                   rootvid,
-                  "")) 
-  {
-      eos_static_err("msg=\"failed to find the workflow dir\" path=\"%s\"",
-                     workflowdir.c_str());
-      return -1;
+                  "")) {
+    eos_static_err("msg=\"failed to find the workflow dir\" path=\"%s\"",
+                   workflowdir.c_str());
+    return -1;
   }
 
   // write a workflow file
   std::string workflowpath = workflowdir;
-  
   XrdOucString tst;
   workflowpath += eos::common::StringConversion::GetSizeString(tst,
-							       (unsigned long long) when);
+                  (unsigned long long) when);
   workflowpath += ":";
   workflowpath += entry;
   workflowpath += ":";
   workflowpath += mActions[0].mEvent;
   mWorkflowPath = workflowpath;
-
   XrdOucString sretc;
   sretc += retc;
 
@@ -674,10 +670,9 @@ WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
                       rootvid,
                       0,
                       "sys.wfe.retc",
-                      sretc.c_str()))
-  {
+                      sretc.c_str())) {
     eos_static_err("msg=\"failed to store workflow return code\" path=\"%s\" retc=\"%s\"",
-		   workflowpath.c_str(),
+                   workflowpath.c_str(),
                    sretc.c_str());
     return -1;
   }
@@ -687,14 +682,12 @@ WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
                       rootvid,
                       0,
                       "sys.wfe.log",
-                      log.c_str()))
-  {
+                      log.c_str())) {
     eos_static_err("msg=\"failed to store workflow log\" path=\"%s\" log=\"%s\"",
                    workflowpath.c_str(),
                    log.c_str());
     return -1;
   }
-
 
   return SFS_OK;
 }
@@ -770,7 +763,6 @@ WFE::Job::DoIt(bool issync)
   XrdOucErrInfo lError;
   eos::common::Mapping::Root(lRootVid);
   eos_static_info("queue=\"%s\"", mActions[0].mQueue.c_str());
-
   int retc = 0;
   time_t storetime = 0;
 
@@ -813,17 +805,17 @@ WFE::Job::DoIt(bool issync)
         if (rc.exit_code) {
           eos_static_err("msg=\"failed to send workflow notification mail\" job=\"%s\"",
                          mDescription.c_str());
-	  storetime = 0;
+          storetime = 0;
           Move("q", "e", storetime);
-	  XrdOucString log = "failed to send workflow notification mail";
-	  Results("e", -1, log, storetime);
+          XrdOucString log = "failed to send workflow notification mail";
+          Results("e", -1, log, storetime);
         } else {
           eos_static_info("msg=\"done notification\" job=\"%s\"",
                           mDescription.c_str());
-	  storetime = 0;
+          storetime = 0;
           Move("q", "d", storetime);
-	  XrdOucString log = "notified by email";
-	  Results("d", 0, log, storetime);
+          XrdOucString log = "notified by email";
+          Results("d", 0, log, storetime);
         }
       } else if (method == "bash") {
         std::string executable;
@@ -1461,7 +1453,7 @@ WFE::Job::DoIt(bool issync)
 
             if (!format_error) {
               eos::common::ShellCmd cmd(bashcmd.c_str());
-	      storetime = (time_t) mActions[0].mTime;
+              storetime = (time_t) mActions[0].mTime;
               Move(mActions[0].mQueue, "r", storetime, mRetry);
               eos_static_info("shell-cmd=\"%s\"", bashcmd.c_str());
               eos::common::cmd_status rc = cmd.wait(1800);
@@ -1531,7 +1523,7 @@ WFE::Job::DoIt(bool issync)
                 xstart++;
               }
 
-	      retc = rc.exit_code;
+              retc = rc.exit_code;
 
               if (rc.exit_code) {
                 eos_static_err("msg=\"failed to run bash workflow\" job=\"%s\" retc=%d",
@@ -1555,32 +1547,32 @@ WFE::Job::DoIt(bool issync)
                   }
 
                   if (!IsSync() && (mRetry < retry)) {
-		    storetime = (time_t) mActions[0].mTime + delay;
+                    storetime = (time_t) mActions[0].mTime + delay;
                     // can retry
                     Move("r", "e", storetime, ++mRetry);
-		    XrdOucString log = "scheduled for retry";
-		    Results("e", EAGAIN , log, storetime);
+                    XrdOucString log = "scheduled for retry";
+                    Results("e", EAGAIN , log, storetime);
                   } else {
-		    storetime = (time_t) mActions[0].mTime;
+                    storetime = (time_t) mActions[0].mTime;
                     // can not retry
                     Move("r", "f", storetime, mRetry);
-		    XrdOucString log = "workflow failed without possibility to retry";
-		    Results("f", rc.exit_code , log, storetime);
+                    XrdOucString log = "workflow failed without possibility to retry";
+                    Results("f", rc.exit_code , log, storetime);
                   }
                 } else {
-		  storetime = 0;
+                  storetime = 0;
                   // can not retry
                   Move("r", "f", storetime);
-		  XrdOucString log = "workflow failed without possibility to retry";
-		  Results("f", rc.exit_code , log, storetime);
+                  XrdOucString log = "workflow failed without possibility to retry";
+                  Results("f", rc.exit_code , log, storetime);
                 }
               } else {
                 eos_static_info("msg=\"done bash workflow\" job=\"%s\"",
                                 mDescription.c_str());
-		storetime = 0;
+                storetime = 0;
                 Move("r", "d", storetime);
-		XrdOucString log = "workflow succeeded";
-		Results("d", rc.exit_code , log, storetime);
+                XrdOucString log = "workflow succeeded";
+                Results("d", rc.exit_code , log, storetime);
               }
 
               // scan for result tags referencing the workflow path
@@ -1633,37 +1625,37 @@ WFE::Job::DoIt(bool issync)
                 xstart++;
               }
             } else {
-	      retc = EINVAL;
-	      storetime = 0;
+              retc = EINVAL;
+              storetime = 0;
               // cannot retry
               Move(mActions[0].mQueue, "f", storetime);
-	      XrdOucString log = "workflow failed to invalid arguments";
-	      Results("f", retc , log, storetime);
+              XrdOucString log = "workflow failed to invalid arguments";
+              Results("f", retc , log, storetime);
             }
-	  } else {
-	    storetime = 0;
-	    retc = EINVAL;
+          } else {
+            storetime = 0;
+            retc = EINVAL;
             gOFS->eosViewRWMutex.UnLockRead();
             eos_static_err("msg=\"failed to run bash workflow - file gone\" job=\"%s\"",
                            mDescription.c_str());
             Move(mActions[0].mQueue, "g", storetime);
-	    XrdOucString log = "workflow failed to invalid arguments - file is gone";
-	    Results("g", retc , log, storetime);
+            XrdOucString log = "workflow failed to invalid arguments - file is gone";
+            Results("g", retc , log, storetime);
           }
         } else {
-	  storetime = 0;
-	  retc = EINVAL;
+          storetime = 0;
+          retc = EINVAL;
           eos_static_err("msg=\"failed to run bash workflow - executable name modifies path\" job=\"%s\"",
                          mDescription.c_str());
           Move(mActions[0].mQueue, "g", storetime);
         }
       } else {
-	storetime = 0;
+        storetime = 0;
         eos_static_err("msg=\"moving unkown workflow\" job=\"%s\"",
                        mDescription.c_str());
         Move(mActions[0].mQueue, "g", storetime);
-	XrdOucString log = "workflow is not known";
-	Results("g", EINVAL , log, storetime);
+        XrdOucString log = "workflow is not known";
+        Results("g", EINVAL , log, storetime);
       }
     } else {
       storetime = 0;
@@ -1673,17 +1665,16 @@ WFE::Job::DoIt(bool issync)
       Move(mActions[0].mQueue, "g", storetime);
       XrdOucString log = "workflow illegal";
       Results("g", retc , log, storetime);
-
     }
   } else {
     //Delete(mActions[0].mQueue);
   }
 
-  if (!IsSync())
-  {
+  if (!IsSync()) {
     gOFS->WFEd.GetSignal()->Signal();
     gOFS->WFEd.DecActiveJobs();
   }
+
   return retc;
 }
 

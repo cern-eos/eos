@@ -28,7 +28,8 @@
 //------------------------------------------------------------------------------
 TableCell::TableCell(unsigned int value, std::string format,
                      std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col)
+  : mFormat(format), mUnit(unit), mColor(col),
+    mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::UINT;
@@ -52,7 +53,8 @@ TableCell::TableCell(unsigned int value, std::string format,
 //------------------------------------------------------------------------------
 TableCell::TableCell(unsigned long long int value, std::string format,
                      std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col)
+  : mFormat(format), mUnit(unit), mColor(col),
+    mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::UINT;
@@ -76,7 +78,8 @@ TableCell::TableCell(unsigned long long int value, std::string format,
 //------------------------------------------------------------------------------
 TableCell::TableCell(int value, std::string format,
                      std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col)
+  : mFormat(format), mUnit(unit), mColor(col),
+    mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::INT;
@@ -100,7 +103,8 @@ TableCell::TableCell(int value, std::string format,
 //------------------------------------------------------------------------------
 TableCell::TableCell(long long int value, std::string format,
                      std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col)
+  : mFormat(format), mUnit(unit), mColor(col),
+    mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::INT;
@@ -124,7 +128,8 @@ TableCell::TableCell(long long int value, std::string format,
 //------------------------------------------------------------------------------
 TableCell::TableCell(float value, std::string format,
                      std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col)
+  : mFormat(format), mUnit(unit), mColor(col),
+    mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::INT;
@@ -148,7 +153,8 @@ TableCell::TableCell(float value, std::string format,
 //------------------------------------------------------------------------------
 TableCell::TableCell(double value, std::string format,
                      std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col)
+  : mFormat(format), mUnit(unit), mColor(col),
+    mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
     mSelectedValue = TypeContainingValue::INT;
@@ -393,7 +399,9 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
   } else if (mSelectedValue == TypeContainingValue::INT) {
     ostream << m_llValue;
   } else if (mSelectedValue == TypeContainingValue::DOUBLE) {
+    auto flags = ostream.flags();
     ostream << std::setprecision(2) << std::fixed << mDoubleValue;
+    ostream.flags(flags);
   } else if (mSelectedValue == TypeContainingValue::STRING) {
     ostream << mStrValue;
   }
@@ -427,7 +435,9 @@ std::string TableCell::Str()
   } else if (mSelectedValue == TypeContainingValue::INT) {
     ostream << m_llValue;
   } else if (mSelectedValue == TypeContainingValue::DOUBLE) {
+    auto flags = ostream.flags();
     ostream << std::setprecision(2) << std::fixed << mDoubleValue;
+    ostream.flags(flags);
   } else if (mSelectedValue == TypeContainingValue::STRING) {
     ostream << mStrValue;
   }
@@ -479,7 +489,9 @@ size_t TableCell::Length()
   } else if (mSelectedValue == TypeContainingValue::DOUBLE) {
     // Get length of double value
     std::stringstream temp;
+    auto flags = temp.flags();
     temp << std::setprecision(2) << std::fixed << mDoubleValue;
+    temp.flags(flags);
     ret = temp.str().length() ;
   } else if (mSelectedValue == TypeContainingValue::STRING) {
     // Get length of string

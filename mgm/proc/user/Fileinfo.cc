@@ -524,16 +524,16 @@ ProcCommand::FileInfo(const char* path)
               filesystem = FsView::gFsView.mIdView[*lociter];
             }
 
-            // For the fullpath option we output the physical location of the
-            // replicas
-            XrdOucString fullpath;
-
-            if ((option.find("-fullpath")) != STR_NPOS) {
-              eos::common::FileId::FidPrefix2FullPath(
-                hexfidstring.c_str(), filesystem->GetPath().c_str(), fullpath);
-            }
-
             if (filesystem) {
+              // For the fullpath option we output the physical location of the
+              // replicas
+              XrdOucString fullpath;
+
+              if ((option.find("-fullpath")) != STR_NPOS) {
+                eos::common::FileId::FidPrefix2FullPath(
+                  hexfidstring.c_str(), filesystem->GetPath().c_str(), fullpath);
+              }
+
               if (!Monitoring) {
                 std::string format =
                   "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format=s|key=path:width=16:format=s|key=stat.boot:width=10:format=s|key=configstatus:width=14:format=s|key=stat.drain:width=12:format=s|key=stat.active:width=8:format=s|key=stat.geotag:width=24:format=s";
