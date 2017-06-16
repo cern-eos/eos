@@ -10,7 +10,8 @@ echo -n  `date +%s` `date`  >> $tmplogfile
 echo " $bn $*" >> $tmplogfile
 
 exec > >(tee -a $tmplogfile)
-exec 2> >(tee -a $tmplogfile)
+exec 2> >(tee -a $tmplogfile >&2)
+
 eval $* 
 retc=$?
 echo "retc=$retc" >> $tmplogfile
