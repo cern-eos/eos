@@ -7,6 +7,11 @@
 Beryl Release Notes
 ===================
 
+``V0.3.257 Aquamarine``
+=====================
+
+- FST: protect against 0 pointer access if not local fmd is available for a scanned file
+
 ``V0.3.256 Aquamarine``
 =====================
 
