@@ -56,7 +56,7 @@ BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: redhat-rpm-config
-BuildRequires: protobuf >= 3.2, protobuf-devel >= 3.2, protobuf-compiler >= 3.2, protobuf-static >= 3.2
+BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
@@ -145,6 +145,7 @@ Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
 Requires: sysvinit-tools
+Requires: protobuf3
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
 BuildRequires: zeromq3, zeromq3-devel
 %else
@@ -287,6 +288,7 @@ Group: Applications/File
 
 Requires: xrootd-client >= %{xrootd_version}
 Requires: sysvinit-tools
+Requires: protobuf3 >= 3.3
 
 %description -n eos-client
 The EOS shell client.
