@@ -77,12 +77,8 @@
   oc_max,
   oc_uuid);
 
-  // -----------------------------------------------------------------------
-  // indicate when the last chunk of a chunked OC upload
-  // has been committed
-  // -----------------------------------------------------------------------
+  // Indicate when the last chunk of a chunked OC upload has been committed
   bool ocdone = false;
-
   char* checksum = env.Get("mgm.checksum");
   char binchecksum[SHA_DIGEST_LENGTH];
   memset(binchecksum, 0, sizeof(binchecksum));
@@ -124,9 +120,7 @@
     unsigned long mtime = strtoul(amtime, 0, 10);
     unsigned long mtimens = strtoul(amtimensec, 0, 10);
     {
-      // ---------------------------------------------------------------
-      // check that the file system is still allowed to accept replica's
-      // ---------------------------------------------------------------
+      // Check that the file system is still allowed to accept replica's
       eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
       eos::mgm::FileSystem* fs = 0;
 
@@ -135,21 +129,14 @@
       }
 
       if ((!fs) || (fs->GetConfigStatus() < eos::common::FileSystem::kDrain)) {
-        eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d oc-uuid=%s",
-                       fs ? eos::common::FileSystem::GetConfigStatusAsString(fs->GetConfigStatus()) :
-                       "deleted",
-                       spath,
-                       asize,
-                       afid,
-                       afsid,
-                       dropfsid,
-                       checksum,
-                       amtime,
-                       amtimensec,
-                       occhunk,
-                       oc_n,
-                       oc_max,
-                       oc_uuid.c_str());
+        eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit "
+                       "path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s"
+                       " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "
+                       "oc-uuid=%s", (fs ? eos::common::FileSystem::GetConfigStatusAsString(
+                                        fs->GetConfigStatus()) :
+                                      "deleted"), spath, asize, afid, afsid,
+                       dropfsid, checksum, amtime, amtimensec, occhunk, oc_n,
+                       oc_max, oc_uuid.c_str());
         return Emsg(epname, error, EIO,
                     "commit file metadata - filesystem is in non-operational state [EIO]", "");
       }
@@ -158,13 +145,16 @@
     checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
 
     if (checksum) {
-      eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d  oc-n=%d oc-max=%d oc-uuid=%s",
-                      spath, asize, afid, afsid, dropfsid, checksum, amtime, amtimensec, occhunk,
-                      oc_n, oc_max, oc_uuid.c_str());
-    } else {
-      eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu mtime=%s mtime.nsec=%s oc-chunk=%d  oc-n=%d oc-max=%d oc-uuid=%s",
-                      spath, asize, afid, afsid, dropfsid, amtime, amtimensec, occhunk, oc_n, oc_max,
+      eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu"
+                      " checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d  oc-n=%d "
+                      "oc-max=%d oc-uuid=%s", spath, asize, afid, afsid, dropfsid,
+                      checksum, amtime, amtimensec, occhunk, oc_n, oc_max,
                       oc_uuid.c_str());
+    } else {
+      eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu "
+                      "mtime=%s mtime.nsec=%s oc-chunk=%d  oc-n=%d oc-max=%d oc-uuid=%s",
+                      spath, asize, afid, afsid, dropfsid, amtime, amtimensec, occhunk,
+                      oc_n, oc_max, oc_uuid.c_str());
     }
 
     // get the file meta data if exists
@@ -173,9 +163,7 @@
     eos::IContainerMD::id_t cid = 0;
     std::string fmdname;
     {
-      // ---------------------------------------------------------------------
-      // keep the lock order View=>Namespace=>Quota
-      // ---------------------------------------------------------------------
+      // Keep the lock order View=>Namespace=>Quota
       eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
       XrdOucString emsg = "";
 
@@ -395,9 +383,8 @@
           eos_thread_info("subcmd=commit max-chunks=%d commited-chunks=%d", oc_max,
                           fmd->getFlags());
 
-	  // The last chunk terminates all
-          if (oc_max == (oc_n + 1))
-          {
+          // The last chunk terminates all
+          if (oc_max == (oc_n + 1)) {
             // we are done with chunked upload, remove the flags counter
             fmd->setFlags((S_IRWXU | S_IRWXG | S_IRWXO));
             ocdone = true;
@@ -422,7 +409,9 @@
         mt.tv_nsec = mtimens;
 
         if (isUpdate && mtime) {
-          // update the modification time only if the file contents changed and mtime != 0 (FUSE clients will commit mtime=0 to indicated that they call utimes anyway
+          // Update the modification time only if the file contents changed and
+          // mtime != 0 (FUSE clients will commit mtime=0 to indicated that they
+          // call utimes anyway
           fmd->setMTime(mt);
         }
 
@@ -457,8 +446,8 @@
       std::string dname;
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
-      std::string delete_path =
-        ""; // path of a previous version existing before an atomic/versioning upload
+      // Path of a previous version existing before an atomic/versioning upload
+      std::string delete_path = "";
       eos_thread_info("commitsize=%d n1=%s n2=%s occhunk=%d ocdone=%d", commitsize,
                       fmdname.c_str(), atomic_path.GetName(), occhunk, ocdone);
 
@@ -506,7 +495,8 @@
         {
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
-          // we have to de-atomize the fmd name here e.g. make the temporary atomic name a persistent name
+          // We have to de-atomize the fmd name here e.g. make the temporary
+          // atomic name a persistent name
           try {
             dir = eosView->getContainer(dname);
             fmd = gOFS->eosFileService->getFileMD(fid);
@@ -524,21 +514,25 @@
                 versiondir->addFile(versionfmd.get());
                 versiondir->setMTimeNow();
                 eosView->updateFileStore(versionfmd.get());
+                // Update the ownership and mode of the new file to the original
+                // one
+                fmd->setCUid(versionfmd->getCUid());
+                fmd->setCGid(versionfmd->getCGid());
+                fmd->setFlags(versionfmd->getFlags());
+                eosView->updateFileStore(fmd.get());
               } catch (eos::MDException& e) {
                 errno = e.getErrno();
                 eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                                e.getErrno(), e.getMessage().str().c_str());
               }
-
-              // move to a new directory
             }
 
             std::shared_ptr<eos::IFileMD> pfmd;
 
-            // rename the temporary upload path to the final path
+            // Rename the temporary upload path to the final path
             if ((pfmd = dir->findFile(atomic_path.GetName()))) {
               eos_thread_info("msg=\"found final path\" %s", atomic_path.GetName());
-              // if the target exists we swap the two and then delete the
+              // If the target exists we swap the two and then delete the
               // previous one
               delete_path = fmd->getName();
               delete_path += ".delete";
