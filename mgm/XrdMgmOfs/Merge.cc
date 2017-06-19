@@ -27,14 +27,9 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::merge (
-                  const char* src,
-                  const char* dst,
-                  XrdOucErrInfo &error,
-                  eos::common::Mapping::VirtualIdentity & vid
-                  )
+XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
+                 eos::common::Mapping::VirtualIdentity& vid)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief merge one file into another one
@@ -52,26 +47,21 @@ XrdMgmOfs::merge (
   std::shared_ptr<eos::IFileMD> src_fmd;
   std::shared_ptr<eos::IFileMD> dst_fmd;
 
-  if (!src || !dst)
-  {
-    return Emsg("merge", error, EINVAL, "merge source into destination path - source or target missing");
+  if (!src || !dst) {
+    return Emsg("merge", error, EINVAL,
+                "merge source into destination path - source or target missing");
   }
 
   std::string src_path = src;
   std::string dst_path = dst;
-
   {
     eos::common::RWMutexWriteLock(gOFS->eosViewRWMutex);
-    try
-    {
+
+    try {
       src_fmd = gOFS->eosView->getFile(src_path);
       dst_fmd = gOFS->eosView->getFile(dst_path);
-      
-      // -------------------------------------------------------------------------
-      // inherit some core meta data, the checksum must be right by construction,
+      // Inherit some core meta data, the checksum must be right by construction,
       // so we don't copy it
-      // -------------------------------------------------------------------------
-      
       // inherit the previous ownership
       src_fmd->setCUid(dst_fmd->getCUid());
       src_fmd->setCGid(dst_fmd->getCGid());
@@ -81,32 +71,25 @@ XrdMgmOfs::merge (
       src_fmd->setCTime(ctime);
       // change the owner of the source file
       eosView->updateFileStore(src_fmd.get());
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("caught exception %d %s\n",
-		e.getErrno(),
-		e.getMessage().str().c_str());
+                e.getErrno(),
+                e.getMessage().str().c_str());
     }
   }
-
   int rc = SFS_OK;
 
-  if (src_fmd && dst_fmd)
-  {
+  if (src_fmd && dst_fmd) {
     // remove the destination file
     rc |= gOFS->_rem(dst_path.c_str(), error, rootvid, "");
-
     // rename the source to destination
     rc |= gOFS->_rename(src_path.c_str(), dst_path.c_str(), error, rootvid, "",
                         "", true, false);
-  }
-  else
-  {
-
+  } else {
     return Emsg("merge", error, EINVAL, "merge source into destination path - "
                 "cannot get file meta data ", src_path.c_str());
   }
+
   return rc;
 }

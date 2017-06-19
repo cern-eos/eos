@@ -105,9 +105,7 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
       *versionedpath = versionpath.c_str();
     }
   }
-  // -----------------------------------------------------
-  // check if .version directory exists, if not create it
-  // -----------------------------------------------------
+  // Check if .version directory exists, if not create it
   struct stat buf;
 
   if (gOFS->_stat(vpath.c_str(), &buf, error, fidvid, 0, 0)) {

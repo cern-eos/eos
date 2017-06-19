@@ -111,14 +111,14 @@ XrdMgmOfs::_access(const char* path,
     fuid = fh->getCUid();
     fgid = fh->getCGid();
   } catch (eos::MDException& e) {
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
               e.getMessage().str().c_str());
   }
 
   try {
     dh = gOFS->eosView->getContainer(cPath.GetPath());
   } catch (eos::MDException& e) {
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
               e.getMessage().str().c_str());
   }
 

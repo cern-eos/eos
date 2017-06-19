@@ -651,11 +651,7 @@ ProcCommand::File()
       }
 
       // check that we have write permission on path
-      if (gOFS->_access(spath.c_str(),
-                        W_OK,
-                        *mError,
-                        *pVid,
-                        "")) {
+      if (gOFS->_access(spath.c_str(), W_OK, *mError, *pVid, "")) {
         stdErr += "error: ";
         stdErr += mError->getErrText();
         retc = errno;
@@ -699,8 +695,7 @@ ProcCommand::File()
           stdErr += "error: unable to run workflow '";
           stdErr += event.c_str();
           stdErr += "' : ";
-	  stdErr += mError->getErrText();
-	  
+          stdErr += mError->getErrText();
           retc = errno;
         } else {
           stdOut += "success: triggered workflow  '";
@@ -819,9 +814,7 @@ ProcCommand::File()
       }
     }
 
-    // -------------------------------------------------------------------------
-    // third-party copy files/directories
-    // -------------------------------------------------------------------------
+    // Third-party copy files/directories
     if (mSubCmd == "copy") {
       cmdok = true;
       XrdOucString src = spath;
@@ -860,42 +853,28 @@ ProcCommand::File()
 
           int dstat = gOFS->_stat(dst.c_str(), &dstbuf, *mError, *pVid, "");
 
-          if ((option.find("f") == STR_NPOS) &&
-              !dstat) {
+          if ((option.find("f") == STR_NPOS) && !dstat) {
             // there is no force flag and the target exists
             stdErr += "error: the target file exists - use '-f' to force the copy";
             retc = EEXIST;
           } else {
             // check source and destination access
-            if (gOFS->_access(src.c_str(),
-                              R_OK,
-                              *mError,
-                              *pVid,
-                              "") ||
-                gOFS->_access(dst.c_str(),
-                              W_OK,
-                              *mError,
-                              *pVid,
-                              ""
-                             )) {
+            if (gOFS->_access(src.c_str(), R_OK, *mError, *pVid, "") ||
+                gOFS->_access(dst.c_str(), W_OK, *mError, *pVid, "")) {
               stdErr += "error: ";
               stdErr += mError->getErrText();
               retc = errno;
             } else {
               std::vector<std::string> lCopySourceList;
               std::vector<std::string> lCopyTargetList;
-              // ---------------------------------------------------------------
-              // if this is a directory create a list of files to copy
-              // ---------------------------------------------------------------
+              // If this is a directory create a list of files to copy
               std::map < std::string, std::set < std::string >> found;
 
               if (S_ISDIR(srcbuf.st_mode) && S_ISDIR(dstbuf.st_mode)) {
                 if (!gOFS->_find(src.c_str(), *mError, stdErr, *pVid, found)) {
-                  // -----------------------------------------------------------
-                  // add all to the copy source,target list ...
-                  // -----------------------------------------------------------
+                  // Add all to the copy source,target list ...
                   for (auto dirit = found.begin(); dirit != found.end(); dirit++) {
-                    // loop over dirs and add all the files
+                    // Loop over dirs and add all the files
                     for (auto fileit = dirit->second.begin(); fileit != dirit->second.end();
                          fileit++) {
                       std::string src_path = dirit->first;
@@ -918,17 +897,13 @@ ProcCommand::File()
                   stdErr += "error: find failed";
                 }
               } else {
-                // -------------------------------------------------------------
-                // add a single file to the copy list
-                // -------------------------------------------------------------
+                // Add a single file to the copy list
                 lCopySourceList.push_back(src.c_str());
                 lCopyTargetList.push_back(dst.c_str());
               }
 
               for (size_t i = 0; i < lCopySourceList.size(); i++) {
-                // ---------------------------------------------------------------
-                // setup a TPC job
-                // ---------------------------------------------------------------
+                // Setup a TPC job
                 XrdCl::PropertyList properties;
                 XrdCl::PropertyList result;
 
@@ -1875,9 +1850,7 @@ ProcCommand::File()
       }
     }
 
-    // -------------------------------------------------------------------------
-    // purge versions of a file
-    // -------------------------------------------------------------------------
+    // Purge versions of a file
     if (mSubCmd == "purge") {
       cmdok = true;
       XrdOucString max_count = pOpaque->Get("mgm.purge.version");
@@ -1914,9 +1887,7 @@ ProcCommand::File()
       Cmd.close();
     }
 
-    // -------------------------------------------------------------------------
-    // create a new version of a file
-    // -------------------------------------------------------------------------
+    // Create a new version of a file
     if (mSubCmd == "version") {
       cmdok = true;
       XrdOucString max_count = pOpaque->Get("mgm.purge.version");
@@ -1935,7 +1906,6 @@ ProcCommand::File()
         }
       }
 
-      // stat this file
       struct stat buf;
 
       if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, "")) {
@@ -1945,8 +1915,8 @@ ProcCommand::File()
         return SFS_OK;
       }
 
+      // Third party copy the file to a temporary name
       ProcCommand Cmd;
-      // third party copy the file to a temporary name
       eos::common::Path atomicPath(spath.c_str());
       XrdOucString info;
       info += "&mgm.cmd=file&mgm.subcmd=copy&mgm.file.target=";
@@ -1977,7 +1947,7 @@ ProcCommand::File()
           }
         }
 
-        // everything worked well
+        // Everything worked well
         stdOut = "info: created new version of '";
         stdOut += spath.c_str();
         stdOut += "'";
@@ -1990,9 +1960,7 @@ ProcCommand::File()
       }
     }
 
-    // -------------------------------------------------------------------------
-    // list or grab version(s) of a file
-    // -------------------------------------------------------------------------
+    // List or grab version(s) of a file
     if (mSubCmd == "versions") {
       cmdok = true;
       XrdOucString grab = pOpaque->Get("mgm.grab.version");
@@ -2021,8 +1989,6 @@ ProcCommand::File()
         eos::common::Path vpath(spath.c_str());
         struct stat buf;
         struct stat vbuf;
-
-        // stat this file
 
         if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, "")) {
           stdErr = "error; unable to stat path=";
