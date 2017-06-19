@@ -463,7 +463,7 @@ ScanDir::CheckFile (const char* filepath)
 
 		// call the autorepair method on the MGM - but not for opphaned or unregistered files
 		// if the MGM has autorepair disabled it won't do anything
-		if ( !orphaned &&
+		if ( fmd && !orphaned &&
 		     (!(fmd->fMd.layouterror & eos::common::LayoutId::kUnregistered)) )
 		{
 		  gFmdSqliteHandler.CallAutoRepair(manager.c_str(), fid);
