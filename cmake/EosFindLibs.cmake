@@ -47,7 +47,6 @@ if(NOT PACKAGEONLY)
   find_package(readline REQUIRED)
   find_package(CURL REQUIRED)
   find_package(uuid REQUIRED)
-  find_package(Protobuf REQUIRED)
   find_package(openssl REQUIRED)
   find_package(ncurses REQUIRED)
   find_package(leveldb REQUIRED)
@@ -56,36 +55,16 @@ if(NOT PACKAGEONLY)
   find_package(Sphinx)
   find_package(kineticio COMPONENTS headers)
   find_package(SparseHash REQUIRED)
+  find_package(Protobuf3 REQUIRED)
 
-  # NOTE: Hack to link to protobuf static libraries. There is no automatic
-  # detection for the protobuf static library in the default CMake module
-  # for Protobuf.
-  # TODO: This should be removed once protobuf-3 comes by default from the
-  # operating system and is not built by us. We currently link all eos
-  # libraries and binaries against the static version so that we don't need
-  # the protobuf package during installation.
-  if (Linux)
-    execute_process(
-      COMMAND "rpm" "-qa"
-      COMMAND "grep" "protobuf-devel"
-      OUTPUT_VARIABLE PB_PKG)
-    message(STATUS "Protobuf pkg: ${PB_PKG}")
-    string(FIND "${PB_PKG}" ".fc27" POS)
-    # If it's not Fedora 27 then we link statically protobuf
-    if (${POS} EQUAL -1)
-      if(PROTOBUF_FOUND)
-        message(STATUS "CPU architecture: ${CMAKE_SYSTEM_PROCESSOR}")
-        string(COMPARE EQUAL "${CMAKE_SYSTEM_PROCESSOR}" "x86_64" POS)
-        if (${POS})
-          message(WARNING "Forcing the use the static protobuf libraries for x86_64 arch!")
-          set(PROTOBUF_LIBRARY "/usr/lib64/libprotobuf.a;-lpthread")
-        else()
-          message(WARNING "Forcing the use the static protobuf libraries for x686 arch!")
-          set(PROTOBUF_LIBRARY "/usr/lib/libprotobuf.a;-lpthread")
-        endif()
-      endif()
-    endif()
-  endif()
+  # Protobuf3 needs to be added to the RPATH of the libraries and binaries
+  # built since it's not installed in the normal system location
+  set(CMAKE_SKIP_RPATH FALSE)
+  set(CMAKE_SKIP_BUILD_RPATH FALSE)
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+  get_filename_component(EOS_PROTOBUF_RPATH ${PROTOBUF_LIBRARY} DIRECTORY)
+  set(CMAKE_INSTALL_RPATH "${EOS_PROTOBUF_RPATH}")
 
   if(EXISTS "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
     set(KINETICIO_URL "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
