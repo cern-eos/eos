@@ -29,10 +29,12 @@
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdSys/XrdSysLogger.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
-XrdPosixXrootd posixsingleton;
 #include "fst/FmdClient.hh"
 #include <setjmp.h>
+
+#ifdef __APPLE__
+#define ENONET 64
+#endif
 
 //------------------------------------------------------------------------------
 // Implemented commands
