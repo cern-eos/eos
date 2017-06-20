@@ -24,7 +24,6 @@
 #ifndef __EOS_CONSOLE_MAIN_HH__
 #define __EOS_CONSOLE_MAIN_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
 #include "common/Fmd.hh"
 #include "common/Logging.hh"
@@ -38,10 +37,7 @@
 #endif
 
 #include "mq/XrdMqTiming.hh"
-
 #include "console/RegexUtil.hh"
-
-/*----------------------------------------------------------------------------*/
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -51,7 +47,6 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdSys/XrdSysSemWait.hh"
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -72,10 +67,8 @@
 #include <deque>
 #include <map>
 #include <math.h>
-/*----------------------------------------------------------------------------*/
 
 extern const char* abspath(const char* in);
-
 extern XrdOucString pwd;
 extern XrdOucString rstdout;
 extern XrdOucString rstderr;
@@ -84,9 +77,7 @@ extern XrdOucString group_role;
 extern XrdOucString serveruri;
 extern XrdOucString global_comment;
 extern XrdOucString pwdfile;
-
 extern void exit_handler(int a);
-
 extern int global_retc;
 extern bool global_highlighting;
 extern bool interactive;
@@ -98,7 +89,6 @@ extern bool pipemode;
 extern bool runpipe;
 extern bool ispipe;
 extern bool json;
-
 extern XrdOucEnv* client_user_command(XrdOucString& in);
 extern XrdOucEnv* client_admin_command(XrdOucString& in);
 extern int output_result(XrdOucEnv* result, bool highlighting = true);
@@ -106,19 +96,16 @@ extern void command_result_stdout_to_vector(std::vector<std::string>&
     string_vector);
 extern XrdOucEnv* CommandEnv;
 
-/* A structure which contains information on the commands this program
-   can understand. */
-
-typedef int
-CFunction(char*);
-
+typedef int CFunction(char*);
+//! Structure which contains information on the commands this program
+//! understands.
 typedef struct {
   char* name; /* User printable name of the function. */
   CFunction* func; /* Function to call to do the job. */
   char* doc; /* Documentation for this function.  */
 } COMMAND;
 
-/* Help filter function */
+// Help filter function
 extern int wants_help(const char* arg1);
 extern COMMAND commands[];
 extern int done;
@@ -127,7 +114,32 @@ XrdOucString cleanPath(const std::string& pathToHandle);
 void addHelpOptionRecursively(ConsoleCliCommand* command);
 bool checkHelpAndErrors(ConsoleCliCommand* command);
 
-bool RegWrap(XrdOucString& path, const std::string& key);
+//------------------------------------------------------------------------------
+//! Check if input matches pattern and extact the file id if possible
+//!
+//! @param input input string which can also be a path
+//! @param pattern regular expression fxid:<hex_id> | fid: <dec_id>
+//!
+//! @return truen if input matches pattern, false otherwise
+//------------------------------------------------------------------------------
+bool RegWrapDenominator(XrdOucString& input, const std::string& key);
+
+//------------------------------------------------------------------------------
+//! Extract file id specifier if input is in one of the following formats:
+//! fxid:<hex_id> | fid:<dec_id>
+//!
+//! @param input input following the above format or an actual path
+//!
+//! @return true if path is given as a file id specifier, otherwise false
+//------------------------------------------------------------------------------
 bool Path2FileDenominator(XrdOucString& path);
 
+//------------------------------------------------------------------------------
+//! Check if MGM is online and reachable
+//!
+//! @url uri where to connect to the MGM
+//!
+//! @return true if MGM is online, otherwise false
+//------------------------------------------------------------------------------
+bool CheckMgmOnline(const std::string& uri);
 #endif

@@ -34,9 +34,9 @@ XrdPosixXrootd posixsingleton;
 #include "fst/FmdClient.hh"
 #include <setjmp.h>
 
-// ----------------------------------------------------------------------------
-// - Implemented Commands                                                     -
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Implemented commands
+//------------------------------------------------------------------------------
 extern int com_access(char*);
 extern int com_acl(char*);
 extern int com_archive(char*);
@@ -97,9 +97,9 @@ extern int com_vst(char*);
 extern int com_whoami(char*);
 extern int com_who(char*);
 
-// ----------------------------------------------------------------------------
-// - Global Variables                                                         -
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Global variables
+//------------------------------------------------------------------------------
 XrdOucString serveruri = "";
 XrdOucString historyfile = "";
 XrdOucString pwdfile = "";
@@ -127,16 +127,14 @@ bool json = false;
 eos::common::IoPipe iopipe;
 int retcfd = 0;
 
-XrdOucEnv* CommandEnv =
-  0; // this is a pointer to the result of client_admin... or client_user.... = it get's invalid when the output_result function is called
-
-
+// Pointer to the result of client_admin... or client_user.... = it gets
+// invalid when the output_result function is called.
+XrdOucEnv* CommandEnv = 0;
 static sigjmp_buf sigjump_buf;
 
-// ----------------------------------------------------------------------------
-// - Exit handler
-// ----------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Exit handler
+//------------------------------------------------------------------------------
 void
 exit_handler(int a)
 {
@@ -151,10 +149,9 @@ exit_handler(int a)
   exit(-1);
 }
 
-// ----------------------------------------------------------------------------
-// - Jump handler
-// ----------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Jump handler
+//------------------------------------------------------------------------------
 void
 jump_handler(int a)
 {
@@ -274,9 +271,9 @@ COMMAND commands[] = {
   { (char*) 0, (int (*)(char*))0, (char*) 0}
 };
 
-// ----------------------------------------------------------------------------
-// - Forward Declarations
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Forward declarations
+//------------------------------------------------------------------------------
 char* stripwhite(char* string);
 COMMAND* find_command(char* command);
 char** EOSConsole_completion(const char* text, int start, int intend);
@@ -301,7 +298,10 @@ dupstr(char* s)
   return (r);
 }
 
-/* Switches stdin,stdout,stderr to pipe mode where we are a persistant communication daemon for a the eospipe command forwarding commands */
+//------------------------------------------------------------------------------
+// Switches stdin,stdout,stderr to pipe mode where we are a persistant
+// communication daemon for a the eospipe command forwarding commands.
+//------------------------------------------------------------------------------
 bool
 startpipe()
 {
@@ -346,10 +346,9 @@ startpipe()
 }
 
 
-// ----------------------------------------------------------------------------
-// - Interface to Readline Completion
-// ----------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Interface to readline completion
+//------------------------------------------------------------------------------
 /* Tell the GNU Readline library how to complete.  We want to try to complete
    on command names if this is the first word in the line, or on filenames
    if not. */
@@ -938,10 +937,9 @@ valid_argument(char* caller, char* arg)
   return (1);
 }
 
-// ----------------------------------------------------------------------------
-// - Load and apply the last used directory
-// ----------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Load and apply the last used directory
+//------------------------------------------------------------------------------
 void
 read_pwdfile()
 {
@@ -954,10 +952,9 @@ read_pwdfile()
   }
 }
 
-// ----------------------------------------------------------------------------
-// - Colour Definitions
-// ----------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Colour definitions
+//------------------------------------------------------------------------------
 std::string textnormal("\001\033[0m\002");
 std::string textblack("\001\033[49;30m\002");
 std::string textred("\001\033[49;31m\002");
@@ -969,9 +966,9 @@ std::string textblue("\001\033[49;34m\002");
 std::string textbold("\001\033[1m\002");
 std::string textunbold("\001\033[0m\002");
 
-// ----------------------------------------------------------------------------
-// - Usage Information
-// ----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Usage Information
+//------------------------------------------------------------------------------
 
 void
 usage()
@@ -1037,13 +1034,13 @@ usage()
   fprintf(stderr, "Report bugs to eos-dev@cern.ch\n");
 }
 
-// ----------------------------------------------------------------------------
-// - Main Executable
-// ----------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Main executable
+//------------------------------------------------------------------------------
 int
 main(int argc, char* argv[])
 {
+  bool checked_mgm = false;
   char* line, *s;
   serveruri = (char*) "root://localhost";
 
@@ -1186,6 +1183,13 @@ main(int argc, char* argv[])
       serveruri = argv[argindex];
       argindex++;
       in1 = argv[argindex];
+      checked_mgm = true;
+
+      if (!CheckMgmOnline(serveruri.c_str())) {
+        std::cerr << "error: MGM " << serveruri.c_str()
+                  << " not online/reachable" << std::endl;
+        exit(ENONET);
+      }
     }
 
     if (in1.length()) {
@@ -1254,8 +1258,7 @@ main(int argc, char* argv[])
           cmdline.erase(cmdline.length() - 1, 1);
         }
 
-        // here we can use the 'eospipe' mechanism if allowed
-
+        // Here we can use the 'eospipe' mechanism if allowed
         if (runpipe) {
           cmdline += "\n";
           // put the eos daemon into batch mode
@@ -1299,8 +1302,16 @@ main(int argc, char* argv[])
     }
   }
 
-  /* by default select the root role if we are root@localhost */
+  // Make sure to check the MGM is reachable
+  if (!checked_mgm) {
+    if (!CheckMgmOnline(serveruri.c_str())) {
+      std::cerr << "error: MGM " << serveruri.c_str()
+                << " not online/reachable" << std::endl;
+      exit(ENONET);
+    }
+  }
 
+  // By default select the root role if we are root@localhost
   if ((!selectedrole) && (!getuid()) &&
       (serveruri.beginswith("root://localhost"))) {
     // we are root, we always select also the root role by default
@@ -1334,7 +1345,7 @@ main(int argc, char* argv[])
   if (interactive) {
     fprintf(stderr,
             "# ---------------------------------------------------------------------------\n");
-    fprintf(stderr, "# EOS  Copyright (C) 2011 CERN/Switzerland\n");
+    fprintf(stderr, "# EOS  Copyright (C) 2011-2017 CERN/Switzerland\n");
     fprintf(stderr,
             "# This program comes with ABSOLUTELY NO WARRANTY; for details type `license'.\n");
     fprintf(stderr,
@@ -1380,7 +1391,7 @@ main(int argc, char* argv[])
   // load the last used current working directory
   read_pwdfile();
 
-  /* Loop reading and executing lines until the user quits. */
+  // Loop reading and executing lines until the user quits.
   for (; done == 0;) {
     char prompt[4096];
 
@@ -1416,9 +1427,8 @@ main(int argc, char* argv[])
       break;
     }
 
-    /* Remove leading and trailing whitespace from the line.
-       Then, if there is anything left, add it to the history list
-       and execute it. */
+    // Remove leading and trailing whitespace from the line. Then, if there
+    // is anything left, add it to the history list and execute it.
     s = stripwhite(line);
 
     if (*s) {
@@ -1460,11 +1470,9 @@ main(int argc, char* argv[])
   exit(0);
 }
 
-
-// ----------------------------------------------------------------------------
-// - Command Line Execution Function
-// ----------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Command line execution function
+//------------------------------------------------------------------------------
 int
 execute_line(char* line)
 {
@@ -1489,7 +1497,7 @@ execute_line(char* line)
     }
   }
 
-  /* Isolate the command word. */
+  // Isolate the command word.
   i = 0;
 
   while (line[i] && (line[i] == ' ')) {
@@ -1514,18 +1522,19 @@ execute_line(char* line)
     return (-1);
   }
 
-  /* Get argument to command, if any. */
+  // Get argument to command, if any.
   while (line[i] == ' ') {
     i++;
   }
 
   word = line + i;
-  /* Call the function. */
   return ((*(command->func))(word));
 }
 
-/* Look up NAME as the name of a command, and return a pointer to that
-   command.  Return a 0 pointer if NAME isn't a command name. */
+//------------------------------------------------------------------------------
+// Look up NAME as the name of a command, and return a pointer to that command.
+// Return a 0 pointer if NAME isn't a command name.
+//------------------------------------------------------------------------------
 COMMAND*
 find_command(char* name)
 {
@@ -1539,8 +1548,10 @@ find_command(char* name)
   return ((COMMAND*) 0);
 }
 
-/* Strip whitespace from the start and end of STRING.  Return a pointer
-   into STRING. */
+//------------------------------------------------------------------------------
+// Strip whitespace from the start and end of STRING.  Return a pointer to
+// STRING.
+//------------------------------------------------------------------------------
 char*
 stripwhite(char* string)
 {
@@ -1563,31 +1574,55 @@ stripwhite(char* string)
   return s;
 }
 
-bool RegWrapDenominator(XrdOucString& path, const std::string& key)
+//------------------------------------------------------------------------------
+// Check if input matches pattern and extact the file id if possible
+//------------------------------------------------------------------------------
+bool RegWrapDenominator(XrdOucString& input, const std::string& key)
 {
   try {
     RegexUtil reg;
     reg.SetRegex(key);
-    reg.SetOrigin(path.c_str());
+    reg.SetOrigin(input.c_str());
     reg.initTokenizerMode();
     std::string temp = reg.Match();
     auto pos = temp.find(':');
     temp = std::string(temp.begin() + pos + 1, temp.end());
-    path = XrdOucString(temp.c_str());
+    input = XrdOucString(temp.c_str());
     return true;
-  } catch (std::string e) {
+  } catch (std::string& e) {
     return false;
   }
 }
 
-bool Path2FileDenominator(XrdOucString& path)
+//------------------------------------------------------------------------------
+// Extract file id specifier if input is in one of the following formats:
+// fxid:<hex_id> | fid:<dec_id>
+//------------------------------------------------------------------------------
+bool Path2FileDenominator(XrdOucString& input)
 {
-  if (RegWrapDenominator(path, "fxid:[a-fA-F0-9]+$")) {
-    std::string temp = std::to_string(strtoull(path.c_str(), 0, 16));
-    path = XrdOucString(temp.c_str());
+  if (RegWrapDenominator(input, "fxid:[a-fA-F0-9]+$")) {
+    std::string temp = std::to_string(strtoull(input.c_str(), 0, 16));
+    input = XrdOucString(temp.c_str());
     return true;
   }
 
-  return RegWrapDenominator(path, "fid:[0-9]+$");
+  return RegWrapDenominator(input, "fid:[0-9]+$");
 }
 
+//------------------------------------------------------------------------------
+// Check if MGM is online and reachable
+//------------------------------------------------------------------------------
+bool CheckMgmOnline(const std::string& uri)
+{
+  uint16_t timeout = 10;
+  XrdCl::URL url(uri);
+
+  if (!url.IsValid()) {
+    std::cerr << "error: " << uri << " not a valid URL" << std::endl;
+    return false;
+  }
+
+  XrdCl::FileSystem fs(url);
+  XrdCl::XRootDStatus status = fs.Ping(timeout);
+  return status.IsOK();
+}
