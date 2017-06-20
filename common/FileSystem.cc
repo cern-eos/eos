@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: FileSystem.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -27,19 +27,9 @@
 
 EOSCOMMONNAMESPACE_BEGIN;
 
-/*----------------------------------------------------------------------------*/
-//! Constructor
-/*----------------------------------------------------------------------------*/
-/**
- * Constructor of a filesystem object.
- *
- * @param queuepath Named Queue to specify the receiver filesystem of modifications e.g. /eos/<host:port>/fst/<path>
- * @param queue     Named Queue to specify the reciever of modifications e.g. /eos/<host:port>/fst
- * @param som       Handle to the shared obejct manager to store filesystem key-value pairs
- * @param bc2mgm    If true we broad cast to the management server
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 FileSystem::FileSystem(const char* queuepath, const char* queue,
                        XrdMqSharedObjectManager* som, bool bc2mgm)
 {
@@ -157,13 +147,9 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Destructor
- *
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 FileSystem::~FileSystem()
 {
   XrdSysMutexHelper cLock(mConstructorLock);
@@ -186,16 +172,9 @@ FileSystem::~FileSystem()
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Return the given status as a string
- *
- * @param status status to convert into a string
- *
- * @return string representation of status
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return the given status as a string
+//------------------------------------------------------------------------------
 const char*
 FileSystem::GetStatusAsString(int status)
 {
@@ -226,16 +205,9 @@ FileSystem::GetStatusAsString(int status)
   return "unknown";
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Return given drain status as a string
- *
- * @param status drain status to convert into a string
- *
- * @return string representation of drain status
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return given drain status as a string
+//------------------------------------------------------------------------------
 const char*
 FileSystem::GetDrainStatusAsString(int status)
 {
@@ -274,16 +246,9 @@ FileSystem::GetDrainStatusAsString(int status)
   return "unknown";
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Return given configuration status as a string
- *
- * @param status configuration status
- *
- * @return string representation of configuration status
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return given configuration status as a string
+//------------------------------------------------------------------------------
 const char*
 FileSystem::GetConfigStatusAsString(int status)
 {
@@ -322,16 +287,9 @@ FileSystem::GetConfigStatusAsString(int status)
   return "unknown";
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Get the status from a string representation
- *
- * @param ss string representation of status
- *
- * @return status as int
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get the status from a string representation
+//------------------------------------------------------------------------------
 int
 FileSystem::GetStatusFromString(const char* ss)
 {
@@ -367,16 +325,9 @@ FileSystem::GetStatusFromString(const char* ss)
 }
 
 
-/*----------------------------------------------------------------------------*/
-/**
- * Return configuration status from a string representation
- *
- * @param ss string representation of configuration status
- *
- * @return configuration status as int
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return configuration status from a string representation
+//------------------------------------------------------------------------------
 int
 FileSystem::GetConfigStatusFromString(const char* ss)
 {
@@ -419,16 +370,9 @@ FileSystem::GetConfigStatusFromString(const char* ss)
   return kUnknown;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Return drains status from string representation
- *
- * @param ss string representation of drain status
- *
- * @return drain status as int
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return drains status from string representation
+//------------------------------------------------------------------------------
 int
 FileSystem::GetDrainStatusFromString(const char* ss)
 {
@@ -471,16 +415,9 @@ FileSystem::GetDrainStatusFromString(const char* ss)
   return kNoDrain;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Return active status from a string representation
- *
- * @param ss string representation of active status
- *
- * @return active status as fsactive_t
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return active status from a string representation
+//------------------------------------------------------------------------------
 FileSystem::fsactive_t
 FileSystem::GetActiveStatusFromString(const char* ss)
 {
@@ -499,30 +436,18 @@ FileSystem::GetActiveStatusFromString(const char* ss)
   return kOffline;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Return boot request string
- *
- *
- * @return boot request string
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return boot request string
+//------------------------------------------------------------------------------
 const char*
 FileSystem::GetAutoBootRequestString()
 {
   return "mgm.cmd=bootreq";
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Return register request string
- *
- *
- * @return register request string
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return register request string
+//------------------------------------------------------------------------------
 const char*
 FileSystem::GetRegisterRequestString()
 {
@@ -530,11 +455,8 @@ FileSystem::GetRegisterRequestString()
 }
 
 //------------------------------------------------------------------------------
-//! Store a configuration key-val pair. Internally these keys are prefixed
-//! with 'stat.'
-//!
-//! para, key key string
-//! @param val value string
+// Store a configuration key-val pair. Internally these keys are prefixed
+// with 'stat.'
 //------------------------------------------------------------------------------
 void
 FileSystem::CreateConfig(std::string& key, std::string& val)
@@ -546,17 +468,9 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   val = mHash->SerializeWithFilter("stat.");
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Snapshots all variables of a filesystem into a snapsthot struct
- *
- * @param fs Snapshot struct to be filled
- * @param dolock Indicates if the shared hash representing the filesystme has to be locked or not
- *
- * @return true if successful - false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Snapshots all variables of a filesystem into a snapsthot struct
+//------------------------------------------------------------------------------
 bool
 FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 {
@@ -711,20 +625,13 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Snapshots all variables of a filesystem into a snapsthot struct
- *
- * @param fs Snapshot struct to be filled
- * @param dolock Indicates if the shared hash representing the filesystme has to be locked or not
- *
- * @return true if successful - false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Snapshots all variables of a filesystem into a snapsthot struct
+//------------------------------------------------------------------------------
 bool
 FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
-                         const std::string& queue, FileSystem::host_snapshot_t& host, bool dolock)
+                         const std::string& queue,
+                         FileSystem::host_snapshot_t& host, bool dolock)
 {
   if (dolock) {
     som->HashMutex.LockRead();
@@ -769,17 +676,9 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Store a given statfs struct into the hash representation
- *
- * @param statfs struct to read
- *
- * @return true if successful otherwise false
- *
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Store a given statfs struct into the hash representation
+//------------------------------------------------------------------------------
 bool
 FileSystem::SetStatfs(struct statfs* statfs)
 {
@@ -803,17 +702,9 @@ FileSystem::SetStatfs(struct statfs* statfs)
   return success;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Try if one can reserve <bookingspace> in this filesystem.
- *
- * @param fs Snapshot of the filesystem.
- * @param bookingsize Size to be reserved
- *
- * @return true if there is enough space - false if not
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Try to reserve <bookingspace> on the current filesystem
+//------------------------------------------------------------------------------
 bool
 FileSystem::ReserveSpace(fs_snapshot_t& fs, unsigned long long bookingsize)
 {
@@ -831,17 +722,9 @@ FileSystem::ReserveSpace(fs_snapshot_t& fs, unsigned long long bookingsize)
   }
 }
 
-
-/*----------------------------------------------------------------------------*/
-/**
- * Check if the filesystem has a valid heartbeat
- *
- * @param fs Snapshot of the filesystem
- *
- * @return true if filesystem got a heartbeat during the last 300 seconds - otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Check if the filesystem has a valid heartbeat
+//------------------------------------------------------------------------------
 bool
 FileSystem::HasHeartBeat(fs_snapshot_t& fs)
 {
@@ -856,11 +739,4 @@ FileSystem::HasHeartBeat(fs_snapshot_t& fs)
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
-
 EOSCOMMONNAMESPACE_END;
-
-
-
-
-

@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: SyncAll.hh
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,13 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   SyncAll.hh
- * 
- * @brief  Class setting filedescriptor flags to CLOEXEC
- *  
- */
-
 #ifndef __EOSCOMMON__CLOEXEC__HH
 #define __EOSCOMMON__CLOEXEC__HH
 
@@ -39,21 +32,25 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-//! Static Class to sync(+close) all file descriptors
-//! 
+//------------------------------------------------------------------------------
+//! Static class to sync(+close) all file descriptors
+//!
 //! Example
 //! eos::common::SyncAll::All();
-/*----------------------------------------------------------------------------*/
-class SyncAll {
+//------------------------------------------------------------------------------
+class SyncAll
+{
 public:
-  static void All() {
-    for (size_t i = getdtablesize(); i --> 3;) {
+  static void All()
+  {
+    for (size_t i = getdtablesize(); i-- > 3;) {
       fsync(i);
     }
   }
-  static void AllandClose() {
-    for (size_t i = getdtablesize(); i --> 3;) {
+
+  static void AllandClose()
+  {
+    for (size_t i = getdtablesize(); i-- > 3;) {
       fsync(i);
       close(i);
     }
@@ -61,5 +58,4 @@ public:
 };
 
 EOSCOMMONNAMESPACE_END
- 
 #endif

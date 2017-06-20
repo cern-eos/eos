@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: XrdMqMessaging.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,14 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mq/XrdMqMessaging.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 
 XrdMqClient XrdMqMessaging::gMessageClient;
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Start listener thread
+//------------------------------------------------------------------------------
 void*
 XrdMqMessaging::Start(void* pp)
 {
@@ -36,14 +36,15 @@ XrdMqMessaging::Start(void* pp)
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Method executed by listener thread
+//------------------------------------------------------------------------------
 void
 XrdMqMessaging::Listen()
 {
   while (1) {
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
 
-    //    if (newmessage) newmessage->Print();
     if (newmessage && SharedObjectManager) {
       XrdOucString error;
       bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
@@ -62,7 +63,6 @@ XrdMqMessaging::Listen()
     }
   }
 }
-
 
 
 //------------------------------------------------------------------------------
@@ -96,6 +96,14 @@ XrdMqMessaging::XrdMqMessaging(const char* url,
 }
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+XrdMqMessaging::~XrdMqMessaging()
+{
+  StopListener();
+}
+
+//------------------------------------------------------------------------------
 // Start the listener thread
 //------------------------------------------------------------------------------
 bool XrdMqMessaging::StartListenerThread()
@@ -114,7 +122,9 @@ bool XrdMqMessaging::StartListenerThread()
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Stop listner thread
+//------------------------------------------------------------------------------
 void
 XrdMqMessaging::StopListener()
 {
@@ -126,22 +136,17 @@ XrdMqMessaging::StopListener()
 
   gMessageClient.Unsubscribe();
 }
-/*----------------------------------------------------------------------------*/
 
 
-XrdMqMessaging::~XrdMqMessaging()
-{
-  StopListener();
-}
-
-/*----------------------------------------------------------------------------*/
-
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 bool
 XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue,
-                                    XrdOucString broadcasttargetqueues, XrdOucString& msgbody,
-                                    XrdOucString& responses, unsigned long waittime)
+                                    XrdOucString broadcasttargetqueues,
+                                    XrdOucString& msgbody,
+                                    XrdOucString& responses,
+                                    unsigned long waittime)
 {
   XrdMqClient MessageClient(broadcastresponsequeue.c_str());
 
@@ -191,4 +196,3 @@ XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue,
 
   return true;
 }
-/*----------------------------------------------------------------------------*/

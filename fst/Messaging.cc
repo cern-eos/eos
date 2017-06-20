@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: Messaging.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,17 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/XrdFstOfs.hh"
 
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Listen for incoming messages
+//------------------------------------------------------------------------------
 void
 Messaging::Listen()
 {
@@ -39,7 +38,6 @@ Messaging::Listen()
     XrdSysThread::SetCancelOff();
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
 
-    //    if (newmessage) newmessage->Print(); -> don't print them, too much output
     if (newmessage) {
       Process(newmessage);
       delete newmessage;
@@ -54,7 +52,9 @@ Messaging::Listen()
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Process incomming messages
+//------------------------------------------------------------------------------
 void
 Messaging::Process(XrdMqMessage* newmessage)
 {
@@ -63,10 +63,8 @@ Messaging::Process(XrdMqMessage* newmessage)
   XrdOucString cmd = action.Get("mgm.cmd");
   XrdOucString subcmd = action.Get("mgm.subcmd");
 
-  /* ********************************************************************** */
-  /* shared object communaction point                                       */
+  // Shared object communication point
   if (SharedObjectManager) {
-    // parse as shared object manager message
     XrdOucString error = "";
     bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
 
@@ -80,8 +78,6 @@ Messaging::Process(XrdMqMessage* newmessage)
       return;
     }
   }
-
-  /* ********************************************************************** */
 
   if (cmd == "debug") {
     gOFS.SetDebug(action);

@@ -862,7 +862,7 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
             lines.c_str(), tag.c_str());
   } else {
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-  
+
     if ((g_logging.GetPriorityByString(tag.c_str())) == -1) {
       eos_err("mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice");
     } else {
