@@ -1071,7 +1071,6 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
   eos_static_debug("metacache::sync ino=%08lx authid=%s op=%d", md->id(), authid.c_str(), (int) op);
 
   md->set_operation(md->SET);
-
   eos_static_info("metacache::sync backend::putMD - start");
 
   // push to backend
@@ -1205,10 +1204,14 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
     p2md->set_nchildren(p2md->nchildren() + 1);
     p1md->set_mtime(ts.tv_sec);
     p1md->set_mtime_ns(ts.tv_sec);
+    p1md->clear_pmtime();
+    p1md->clear_pmtime_ns();
     p1md->set_ctime(ts.tv_sec);
     p1md->set_ctime_ns(ts.tv_nsec);
     p2md->set_mtime(ts.tv_sec);
     p2md->set_mtime_ns(ts.tv_sec);
+    p2md->clear_pmtime();
+    p2md->clear_pmtime_ns();
     p2md->set_ctime(ts.tv_sec);
     p2md->set_ctime_ns(ts.tv_nsec);
     md->set_name(newname);
@@ -1226,6 +1229,8 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
 
   md->set_mtime(ts.tv_sec);
   md->set_mtime_ns(ts.tv_sec);
+  md->clear_pmtime();
+  md->clear_pmtime_ns();
   md->set_ctime(ts.tv_sec);
   md->set_ctime_ns(ts.tv_nsec);
 
@@ -1749,6 +1754,7 @@ metad::mdcflush()
               else
                 md->set_operation(md->SET);
 
+              md->set_type(md->MD);
               if (((op == metad::mdx::ADD) ||
                   (op == metad::mdx::UPDATE) ||
                   (op == metad::mdx::RM)) &&

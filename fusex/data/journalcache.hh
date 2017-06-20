@@ -63,7 +63,7 @@ public:
   virtual ~journalcache();
 
   // base class interface
-  virtual int attach(std::string& cookie, bool isRW);
+  virtual int attach(fuse_req_t req, std::string& cookie, bool isRW);
   virtual int detach(std::string& cookie);
   virtual int unlink();
 
@@ -85,7 +85,12 @@ public:
 
   static int init();
 
-private:
+  virtual bool fits(size_t count) { return ( sMaxSize >= (cachesize+count));} 
+  virtual bool halffull(size_t count) { return ( sMaxSize/2 <= cachesize );}
+  
+  virtual int reset();
+  
+  private:
 
   void process_intersection( interval_tree<uint64_t, const void*> &write, interval_tree<uint64_t, uint64_t>::iterator acr, std::vector<update_t> &updates );
 

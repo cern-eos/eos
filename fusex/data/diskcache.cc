@@ -104,7 +104,7 @@ diskcache::location(std::string& path, bool mkpath)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::attach(std::string& acookie, bool isRW)
+diskcache::attach(fuse_req_t req, std::string& acookie, bool isRW)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper lLock(this);
@@ -124,22 +124,29 @@ diskcache::attach(std::string& acookie, bool isRW)
     {
       return errno;
     }
+  }
 
-    std::string ccookie;
-    if (!cookie(ccookie) || (ccookie!=""))
+  std::string ccookie;
+  if (!cookie(ccookie) || (ccookie != ""))
+  {
+    // compare if the cookies are identical, otherwise we truncate to 0
+    if (ccookie != acookie)
     {
-      // compare if the cookies are identical, otherwise we truncate to 0
-      if (ccookie != acookie)
+      if (truncate(0))
       {
-        if (truncate(0))
-        {
-          char msg[1024];
-          snprintf(msg, sizeof (msg), "failed to truncate to invalidate cache file - ino=%08lx", ino);
-          throw std::runtime_error(msg);
-        }
+        char msg[1024];
+        snprintf(msg, sizeof (msg), "failed to truncate to invalidate cache file - ino=%08lx", ino);
+        throw std::runtime_error(msg);
+
       }
+      set_cookie(acookie);
     }
   }
+  else
+  {
+    set_cookie(acookie);
+  }
+
   nattached++;
   return 0;
 }
@@ -147,7 +154,7 @@ diskcache::attach(std::string& acookie, bool isRW)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::detach(std::string& cookie)
+diskcache::detach(std::string & cookie)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper lLock(this);
@@ -214,7 +221,7 @@ diskcache::peek_read(char* &buf, size_t count, off_t offset)
     count = sMaxSize - offset;
   }
 
-  buffer = sBufferManager.get_buffer();
+
   if (count > buffer->capacity())
     buffer->reserve(count);
   buf = buffer->ptr();
@@ -292,12 +299,16 @@ diskcache::size()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::set_attr(std::string& key, std::string& value)
+diskcache::set_attr(std::string& key, std::string & value)
 /* -------------------------------------------------------------------------- */
 {
   if (fd > 0)
   {
-    return fsetxattr(fd, key.c_str(), value.c_str(), value.size(), 0);
+    int rc = fsetxattr(fd, key.c_str(), value.c_str(), value.size(), 0);
+    if (rc && errno == ENOTSUP)
+    {
+      throw std::runtime_error("diskcache has no xattr support");
+    }
   }
   return -1;
 }
@@ -305,7 +316,7 @@ diskcache::set_attr(std::string& key, std::string& value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::attr(std::string key, std::string& value)
+diskcache::attr(std::string key, std::string & value)
 /* -------------------------------------------------------------------------- */
 {
   if (fd > 0)

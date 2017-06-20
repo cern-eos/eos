@@ -29,7 +29,7 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
-
+#include "llfusexx.hh"
 #include "common/Logging.hh"
 
 #include <memory>
@@ -39,7 +39,7 @@
 namespace XrdCl
 {
 
-  class Proxy : public XrdCl::File
+  class Proxy : public XrdCl::File, public eos::common::LogId
   {
   public:
     // ---------------------------------------------------------------------- //
@@ -145,9 +145,34 @@ namespace XrdCl
     {
       return offset / XReadAheadNom*XReadAheadNom;
     }
+
+    void set_id( uint64_t ino, fuse_req_t req)
+    {
+      mIno = ino;
+      mReq = req;
+      char lid[64];
+      snprintf(lid, sizeof (lid), "logid:ino:%016lx", ino);
+      SetLogId(lid);
+    }
+
+    uint64_t id () const
+    {
+      return mIno;
+    }
+
+    fuse_req_t req () const
+    {
+      return mReq;
+    }
+
     // ---------------------------------------------------------------------- //
 
-    Proxy() : XOpenAsyncHandler(this), XCloseAsyncHandler(this), XOpenAsyncCond(0), XWriteAsyncCond(0), XReadAsyncCond(0)
+    Proxy() : XOpenAsyncHandler(this),
+    XCloseAsyncHandler(this),
+    XOpenAsyncCond(0),
+    XWriteAsyncCond(0),
+    XReadAsyncCond(0),
+    mReq(0), mIno(0)
     {
       XrdSysCondVarHelper lLock(XOpenAsyncCond);
       set_state(CLOSED);
@@ -533,6 +558,8 @@ namespace XrdCl
 
     XrdSysMutex mAttachedMutex;
     size_t mAttached;
+    fuse_req_t mReq;
+    uint64_t mIno;
   } ;
 }
 

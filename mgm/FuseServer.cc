@@ -362,7 +362,7 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
     }
     if (!cap2delete.size())
     {
-      out += " <no caps held>";
+      out += " <no caps held>\n";
     }
   }
   return 0;
@@ -1457,7 +1457,7 @@ FuseServer::HandleMD(const std::string &id,
       exclusive = true;
     }
 
-    
+
     if (S_ISDIR(md.mode()))
     {
       eos_static_info("ino=%lx pin=%lx authid=%s set-dir", (long) md.md_ino(),
@@ -1561,11 +1561,25 @@ FuseServer::HandleMD(const std::string &id,
           cmd->setAttribute(map->first, map->second);
         }
 
-        // store the birth time as an extended attribute
-        char btime[256];
-        snprintf(btime, sizeof (btime), "%lu.%lu", md.btime(), md.btime_ns());
-        cmd->setAttribute("sys.eos.btime", btime);
+        if (op == CREATE)
+        {
+          // store the birth time as an extended attribute
+          char btime[256];
+          snprintf(btime, sizeof (btime), "%lu.%lu", md.btime(), md.btime_ns());
+          cmd->setAttribute("sys.eos.btime", btime);
+        }
 
+        if (op != UPDATE && md.pmtime())
+        {
+          // store the new modification time for the parent
+          eos::ContainerMD::ctime_t pmtime;
+          pmtime.tv_sec = md.pmtime();
+          pmtime.tv_nsec = md.pmtime_ns();
+          pcmd->setMTime(pmtime);
+          gOFS->eosDirectoryService->updateStore(pcmd);
+          pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
+        }
+        
         gOFS->eosDirectoryService->updateStore(cmd);
 
         eos::fusex::response resp;

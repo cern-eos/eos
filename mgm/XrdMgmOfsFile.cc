@@ -236,7 +236,7 @@ XrdMgmOfsFile::open (const char *inpath,
   MAYSTALL;
   MAYREDIRECT;
 
-  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
+  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) || (spath.beginswith("ino:"))))
   {
     //-------------------------------------------
     // reference by fid+fsid                                                                                                                                                                                           
@@ -252,7 +252,12 @@ XrdMgmOfsFile::open (const char *inpath,
       spath.replace("fxid:", "");
       fid = strtoull(spath.c_str(), 0, 16);
     }
-
+    if (spath.beginswith("ino:"))
+    {
+      spath.replace("ino:","");
+      fid = strtoull(spath.c_str(), 0, 16);
+      fid = eos::common::FileId::InodeToFid(fid);
+    }
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
@@ -1345,7 +1350,7 @@ XrdMgmOfsFile::open (const char *inpath,
   int retc = 0;
 
   // ---------------------------------------------------------------------------
-  if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())) || isInjection)
+  if (isCreation || (!fmd->getNumLocation()) || isInjection)
   {
     // -------------------------------------------------------------------------
     // place a new file

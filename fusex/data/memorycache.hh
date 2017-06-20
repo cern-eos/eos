@@ -42,7 +42,7 @@ public:
   virtual ~memorycache();
 
   // base class interface
-  virtual int attach(std::string& cookie, bool isRW);
+  virtual int attach(fuse_req_t req, std::string& cookie, bool isRW);
   virtual int detach(std::string& cookie);
   virtual int unlink();
 

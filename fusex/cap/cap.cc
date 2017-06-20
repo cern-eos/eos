@@ -236,22 +236,23 @@ fuse_ino_t
 cap::forget(const std::string& cid)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(capmap);
   fuse_ino_t inode=0;
-
-  if (capmap.count(cid))
   {
-    eos_static_debug("forget capid=%s cap: %s", cid.c_str(),
-                     capmap[cid]->dump().c_str());
-    shared_cap cap = capmap[cid];
-    inode = cap->id();
-    capmap.erase(cid);
+    XrdSysMutexHelper mLock(capmap);
+    
+    if (capmap.count(cid))
+    {
+      eos_static_debug("forget capid=%s cap: %s", cid.c_str(),
+		       capmap[cid]->dump().c_str());
+      shared_cap cap = capmap[cid];
+      inode = cap->id();
+      capmap.erase(cid);
+    }
+    else
+    {
+      eos_static_debug("forget capid=%s cap: ENOENT", cid.c_str());
+    }
   }
-  else
-  {
-    eos_static_debug("forget capid=%s cap: ENOENT", cid.c_str());
-  }
-
   if (inode)
   {
     if (EosFuse::Instance().Config().options.kernelcache)

@@ -43,7 +43,7 @@ public:
   virtual ~diskcache();
 
   // base class interface
-  virtual int attach(std::string& cookie, bool isRW);
+  virtual int attach(fuse_req_t req, std::string& cookie, bool isRW);
   virtual int detach(std::string& cookie);
   virtual int unlink();
 
@@ -65,6 +65,8 @@ public:
 
   int location(std::string &path, bool mkpath=true);
 
+  virtual off_t prefetch_size() { return sMaxSize; }
+  
   static off_t sMaxSize;
 private:
 

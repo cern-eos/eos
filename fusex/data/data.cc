@@ -29,6 +29,8 @@
 #include <iostream>
 #include <sstream>
 
+bufferllmanager data::datax::sBufferManager;
+
 /* -------------------------------------------------------------------------- */
 data::data()
 /* -------------------------------------------------------------------------- */
@@ -72,6 +74,7 @@ data::get(fuse_req_t req,
     shared_data io = std::make_shared<datax>(md);
     io->set_id(ino, req);
     datamap[io->id()] = io;
+    io->attach();
     return io;
   }
 }
@@ -105,7 +108,7 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
   XrdSysMutexHelper mLock(datamap);
   if (datamap.count(ino))
   {
-    datamap[ino]->unlink();
+    datamap[ino]->unlink(req);
     datamap.erase(ino);
     eos_static_info("datacache::unlink size=%lu", datamap.size());
   }
@@ -113,7 +116,7 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
   {
     shared_data io = std::make_shared<datax>();
     io->set_id(ino, req);
-    io->unlink();
+    io->unlink(req);
   }
 }
 
@@ -123,18 +126,20 @@ void
 data::datax::flush()
 /* -------------------------------------------------------------------------- */
 {
+  // here we need to hand of the responsability to indicate centrally a flush operation
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::attach(std::string& cookie, bool isRW)
+data::datax::attach(fuse_req_t freq, std::string& cookie, bool isRW)
 /* -------------------------------------------------------------------------- */
 {
-  eos_info("cookie=%s isrw=%d md-size=%d", cookie.c_str(), isRW, mMd->size());
+  eos_info("cookie=%s isrw=%d md-size=%d %s", cookie.c_str(), isRW, mMd->size(),
+           mRemoteUrl.c_str());
 
-  int bcache = mFile->file() ? mFile->file()->attach(cookie, isRW) : 0;
-  int jcache = mFile->journal() ? mFile->journal()->attach(cookie, isRW) : 0;
+  int bcache = mFile->file() ? mFile->file()->attach(freq, cookie, isRW) : 0;
+  int jcache = mFile->journal() ? mFile->journal()->attach(freq, cookie, isRW) : 0;
 
   if (bcache)
   {
@@ -152,27 +157,35 @@ data::datax::attach(std::string& cookie, bool isRW)
 
   if (isRW)
   {
-    if (!mFile->xrdiorw())
+    if (!mFile->xrdiorw(freq))
     {
       // attach an rw io object
-      mFile->set_xrdiorw(new XrdCl::Proxy());
-      mFile->xrdiorw()->attach();
-
+      mFile->set_xrdiorw(freq, new XrdCl::Proxy());
+      mFile->xrdiorw(freq)->attach();
+      mFile->xrdiorw(freq)->set_id(id(), req());
       XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update;
       XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::UX;
-      mFile->xrdiorw()->OpenAsync(mRemoteUrl.c_str(), targetFlags, mode, 0);
+      mFile->xrdiorw(freq)->OpenAsync(mRemoteUrl.c_str(), targetFlags, mode, 0);
+    }
+    else
+    {
+      mFile->xrdiorw(freq)->attach();
     }
   }
   else
   {
-    if (!mFile->xrdioro() && !mFile->xrdiorw())
+    if (!mFile->xrdioro(freq))
     {
-      mFile->set_xrdioro(new XrdCl::Proxy());
-      mFile->xrdioro()->attach();
-
+      mFile->set_xrdioro(freq, new XrdCl::Proxy());
+      mFile->xrdioro(freq)->attach();
+      mFile->xrdioro(freq)->set_id(id(), req());
       XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Read;
-      XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::UX;
-      mFile->xrdioro()->OpenAsync(mRemoteUrl.c_str(), targetFlags, mode, 0);
+      XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UX;
+      mFile->xrdioro(freq)->OpenAsync(mRemoteUrl.c_str(), targetFlags, mode, 0);
+    }
+    else
+    {
+      mFile->xrdioro(freq)->attach();
     }
   }
 
@@ -180,82 +193,121 @@ data::datax::attach(std::string& cookie, bool isRW)
 }
 
 /* -------------------------------------------------------------------------- */
-void
+bool
 /* -------------------------------------------------------------------------- */
-data::datax::prefetch()
+data::datax::prefetch(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
-  eos_info("");
+  eos_info("handler=%d file=%lx size=%lu md-size=%lu", mPrefetchHandler ? 1 : 0,
+           mFile ? mFile->file() : 0,
+           mFile ? mFile->file() ? mFile->file()->size() : 0 : 0,
+           mMd->size());
   XrdSysMutexHelper lLock(mLock);
 
   if (!mPrefetchHandler && mFile->file() && !mFile->file()->size() && mMd->size())
   {
-    XrdCl::Proxy* proxy = mFile->xrdioro() ? mFile->xrdioro() : mFile->xrdiorw();
+    XrdCl::Proxy* proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
 
     if (proxy)
     {
+      XrdCl::XRootDStatus status;
       // send an async read request
-      mPrefetchHandler = proxy->ReadAsyncPrepare(0, mFile->file()->sMaxSize);
-      if (!proxy->PreReadAsync(0, mFile->file()->sMaxSize, handler, 0).IsOK())
-        mPrefetchHandler = 0;
-
-      if (proxy->WaitRead(mPrefetchHandler).IsOK())
+      mPrefetchHandler = proxy->ReadAsyncPrepare(0, mFile->file()->prefetch_size());
+      status = proxy->PreReadAsync(0, mFile->file()->prefetch_size(), mPrefetchHandler, 0);
+      if (!status.IsOK())
       {
-        if (mPrefetchHandler->vbuffer().size() == mMd->size())
+        eos_err("pre-fetch failed error=%s", status.ToStr().c_str());
+        mPrefetchHandler = 0;
+      }
+    }
+  }
+  return mPrefetchHandler ? true : false;
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+data::datax::WaitPrefetch(fuse_req_t req)
+/* -------------------------------------------------------------------------- */
+{
+  eos_info("");
+  XrdSysMutexHelper lLock(mLock);
+  if (mPrefetchHandler)
+  {
+    XrdCl::Proxy* proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+
+    if (mPrefetchHandler && proxy)
+    {
+      XrdCl::XRootDStatus status = proxy->WaitRead(mPrefetchHandler);
+      if (status.IsOK())
+      {
+        eos_err("pre-read done with size=%lu md-size=%lu", mPrefetchHandler->vbuffer().size(), mMd->size());
+        if ((mPrefetchHandler->vbuffer().size() == mMd->size()) && mFile->file())
         {
-          mFile->file()->pwrite(mPrefetchHandler->buffer(), 0, mPrefetchHandler->vbuffer().size());
+          ssize_t nwrite = mFile->file()->pwrite(mPrefetchHandler->buffer(), mPrefetchHandler->vbuffer().size(), 0);
+          eos_info("nwb=%lu to local cache", nwrite);
         }
+      }
+      else
+      {
+        eos_err("pre-read failed error=%s", status.ToStr().c_str());
       }
     }
   }
 }
 
 /* -------------------------------------------------------------------------- */
-void
-/* -------------------------------------------------------------------------- */
-data::datax::WaitPrefetch()
-/* -------------------------------------------------------------------------- */
-{
-  XrdSysMutexHelper lLock(mLock);
-  if (!mPrefetchhandler)
-  {
-    XrdCl::Proxy* proxy = mFile->xrdioro() ? mFile->xrdioro() : mFile->xrdiorw();
-    if (proxy)
-    {
-
-    }
-  }
-}
-
-/* -------------------------------------------------------------------------- */
 int
-data::datax::detach(std::string& cookie, bool isRW)
+data::datax::detach(fuse_req_t req, std::string& cookie, bool isRW)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("cookie=%s isrw=%d", cookie.c_str(), isRW);
 
   int bcache = mFile->file() ? mFile->file()->detach(cookie) : 0;
   int jcache = mFile->journal() ? mFile->journal()->detach(cookie) : 0;
+  int xio = 0;
 
   if (isRW)
   {
-    if (mFile->xrdiorw())
-      mFile->xrdiorw()->detach();
+    if (mFile->xrdiorw(req))
+    {
+      mFile->xrdiorw(req)->detach();
+      if (!mFile->xrdiorw(req)->attached())
+      {
+        XrdCl::XRootDStatus status = mFile->xrdiorw(req)->CloseAsync(0);
+        if (!status.IsOK())
+        {
+          eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
+          xio = -1;
+          errno = EREMOTEIO;
+        }
+      }
+    }
   }
   else
   {
-    if (mFile->xrdioro())
-      mFile->xrdioro()->detach();
-    else if (mFile->xrdiorw())
-      mFile->xrdiorw()->detach();
+    if (mFile->xrdioro(req))
+    {
+      mFile->xrdioro(req)->detach();
+      if (!mFile->xrdioro(req)->attached())
+      {
+        XrdCl::XRootDStatus status = mFile->xrdioro(req)->CloseAsync(0);
+        if (!status.IsOK())
+        {
+          eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
+          xio = -1;
+          errno = EREMOTEIO;
+        }
+      }
+    }
   }
-  return bcache | jcache;
+  return bcache | jcache | xio;
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::store_cookie(std::string& cookie)
+data::datax::store_cookie(std::string & cookie)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("cookie=%s", cookie.c_str());
@@ -267,7 +319,7 @@ data::datax::store_cookie(std::string& cookie)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::unlink()
+data::datax::unlink(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("");
@@ -282,76 +334,245 @@ data::datax::unlink()
 /* -------------------------------------------------------------------------- */
 ssize_t
 /* -------------------------------------------------------------------------- */
-data::datax::pread(void *buf, size_t count, off_t offset)
+data::datax::pread(fuse_req_t req, void *buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  {
-    // XrdSysMutexHelper lLock(mLock);
-    if (mPrefetchHandler)
-    {
+  eos_info("offset=%llu count=%lu", offset, count);
+  mLock.Lock();
 
+  // read from file start cache
+  ssize_t br = mFile->file()->pread(buf, count, offset);
+
+  if (br < 0)
+  {
+    return br;
+  }
+
+  if (br == (ssize_t) count)
+  {
+    return br;
+  }
+
+  if (mFile->file() && (offset < mFile->file()->prefetch_size()))
+  {
+    mLock.UnLock();
+    if (prefetch(req))
+    {
+      WaitPrefetch(req);
+      mLock.Lock();
+      ssize_t br = mFile->file()->pread(buf, count, offset);
+
+      if (br < 0)
+        return br;
+
+      if (br == (ssize_t) count)
+        return br;
+    }
+    else
+    {
+      mLock.Lock();
     }
   }
-  eos_info("offset=%llu count=%lu", offset, count);
-  ssize_t br = mFile->file()->pread(buf, count, offset);
-  if (br < 0)
-    return br;
-  ssize_t jr = mFile->journal() ? mFile->journal()->pread(buf, count, offset) : 0;
-  if (jr < 0)
-    return jr;
 
-  return br + jr;
+  // read from journal cache
+  ssize_t jr = mFile->journal() ? mFile->journal()->pread((char*) buf + br, count - br, offset + br) : 0;
+
+  if (jr < 0)
+  {
+    mLock.UnLock();
+    return jr;
+  }
+
+  if ( (br + jr) == (ssize_t) count)
+  {
+    mLock.UnLock();
+    return (br + jr);
+  }
+
+  // read the missing part remote
+  XrdCl::Proxy* proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+
+  if (proxy)
+  {
+    uint32_t bytesRead=0;
+    if (proxy->Read( offset + br + jr,
+                    count - br - jr,
+                    (char*) buf + br + jr,
+                    bytesRead).IsOK())
+    {
+      mLock.UnLock();
+      return (br + jr + bytesRead);
+    }
+    else
+    {
+      mLock.UnLock();
+      // IO error
+      return -1;
+    }
+  }
+  mLock.UnLock();
+  return -1;
 }
 
 /* -------------------------------------------------------------------------- */
 ssize_t
 /* -------------------------------------------------------------------------- */
-data::datax::pwrite(const void *buf, size_t count, off_t offset)
+data::datax::pwrite(fuse_req_t req, const void *buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
+  XrdSysMutexHelper lLock(mLock);
+
   eos_info("offset=%llu count=%lu", offset, count);
   ssize_t dw = mFile->file()->pwrite(buf, count, offset);
   if (dw < 0)
     return dw;
   else
   {
+    if (!mFile->journal()->fits(count))
+    {
+      bool journal_recovery = false;
+      // collect all writes in flight
+      for (auto it = mFile->get_xrdiorw().begin();
+           it != mFile->get_xrdiorw().end(); ++it)
+      {
+        XrdCl::XRootDStatus status = it->second->WaitWrite();
+        if (!status.IsOK())
+        {
+          journal_recovery = true;
+        }
+      }
+
+      if (journal_recovery)
+      {
+        eos_err("journal-flushing failed");
+        errno = EREMOTEIO ;
+        return -1;
+      }
+      else
+      {
+        // truncate the journal
+        if (mFile->journal()->reset())
+        {
+          char msg[1024];
+          snprintf(msg, sizeof (msg), "journal reset failed - ino=%08lx", id());
+          throw std::runtime_error(msg);
+        }
+      }
+    }
+
+    // now there is space to write for us
     ssize_t jw = mFile->journal()->pwrite(buf, count, offset);
     if (jw < 0)
     {
       return jw;
     }
     dw = jw;
+
+    // send an asynchronous upstream write
+    XrdCl::Proxy::write_handler handler =
+            mFile->xrdiorw(req)->WriteAsyncPrepare(count);
+
+    XrdCl::XRootDStatus status =
+            mFile->xrdiorw(req)->WriteAsync(offset, count, buf, handler, 0);
+
+    if (!status.IsOK())
+    {
+      eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
+      // TODO: we can recover this later
+      errno = EREMOTEIO;
+      return -1;
+    }
   }
 
   if ( (off_t) (offset + count) > mSize)
   {
     mSize = count + offset;
   }
+  eos_info("offset=%llu count=%lu result=%d", offset, count, dw);
   return dw;
 }
 
 /* -------------------------------------------------------------------------- */
 ssize_t
 /* -------------------------------------------------------------------------- */
-data::datax::peek_pread(char* &buf, size_t count, off_t offset)
+data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("offset=%llu count=%lu", offset, count);
-  ssize_t br = mFile->file()->peek_read(buf, count, offset);
 
-  ssize_t jr = mFile->journal() ? mFile->journal()->peek_read(buf, count, offset) : 0;
+  mLock.Lock();
 
-  eos_static_debug("br=%lld jr=%lld", br, jr);
+  buffer = sBufferManager.get_buffer();
+
+  if (count > buffer->capacity())
+    buffer->reserve(count);
+
+  buf = buffer->ptr();
+
+  ssize_t br = mFile->file()->pread(buf, count, offset);
+
   if (br < 0)
+  {
+    mLock.UnLock();
     return br;
+  }
+
+  if ( (br == (ssize_t) count) || (br == (ssize_t) mMd->size()) )
+  {
+    mLock.UnLock();
+    return br;
+  }
+
+  if (mFile->file() && (offset < mFile->file()->prefetch_size()))
+  {
+    mLock.UnLock();
+    if (prefetch(req))
+    {
+      WaitPrefetch(req);
+      mLock.Lock();
+      ssize_t br = mFile->file()->pread(buf, count, offset);
+
+      if (br < 0)
+        return br;
+
+      if (br == (ssize_t) count)
+        return br;
+    }
+    else
+    {
+      mLock.Lock();
+    }
+  }
+
+  ssize_t jr = mFile->journal() ? mFile->journal()->pread(buf, count, offset) : 0;
 
   if (jr < 0)
     return jr;
 
-  if (br == (ssize_t) count)
-    return br;
+  if ( (br + jr) == (ssize_t) count)
+    return (br + jr);
 
-  return br + jr;
+  // read the missing part remote
+  XrdCl::Proxy * proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+
+  if (proxy)
+  {
+    uint32_t bytesRead=0;
+    if (proxy->Read( offset + br + jr,
+                    count - br - jr,
+                    (char*) buf + br + jr,
+                    bytesRead).IsOK())
+    {
+      return (br + jr + bytesRead);
+    }
+    else
+    {
+      // IO error
+
+      return -1;
+    }
+  }
+  return -1;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -360,18 +581,18 @@ void
 data::datax::release_pread()
 /* -------------------------------------------------------------------------- */
 {
+
   eos_info("");
-  mFile->file()->release_read();
-  if (mFile->journal())
-  {
-    mFile->journal()->release_read();
-  }
+  sBufferManager.put_buffer(buffer);
+  buffer.reset();
+  mLock.UnLock();
+  return;
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::truncate(off_t offset)
+data::datax::truncate(fuse_req_t req, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("offset=%llu", offset);
@@ -383,6 +604,7 @@ data::datax::truncate(off_t offset)
 
   if (offset > mSize)
   {
+
     mSize = offset;
   }
   return dt | jt;
@@ -394,9 +616,29 @@ int
 data::datax::sync()
 /* -------------------------------------------------------------------------- */
 {
+
   eos_info("");
   int ds = mFile->file()->sync();
   int js = mFile->journal() ? mFile->journal()->sync() : 0;
+
+  bool journal_recovery = false;
+
+  for (auto it = mFile->get_xrdiorw().begin();
+       it != mFile->get_xrdiorw().end(); ++it)
+  {
+    XrdCl::XRootDStatus status = it->second->WaitWrite();
+    if (!status.IsOK())
+    {
+      journal_recovery = true;
+    }
+  }
+
+  if (journal_recovery)
+  {
+    eos_err("journal-flushing failed");
+    errno = EREMOTEIO ;
+    return -1;
+  }
   return ds | js;
 }
 
@@ -408,6 +650,7 @@ data::datax::size()
 {
   eos_info("");
   off_t dsize = mFile->file()->size();
+
   if ( mSize > dsize )
     return mSize;
   return dsize;
@@ -419,6 +662,7 @@ int
 data::datax::cache_invalidate()
 /* -------------------------------------------------------------------------- */
 {
+
   eos_info("");
   XrdSysMutexHelper lLock(mLock);
   // truncate the block cache
@@ -441,7 +685,7 @@ data::datax::set_remote(const std::string& hostport,
   eos_info("");
   mRemoteUrl = "root://";
   mRemoteUrl += hostport;
-  mRemoteUrl += "/";
+  mRemoteUrl += "//fusex-open";
   mRemoteUrl += "?eos.lfn=";
   if (md_ino)
   {
@@ -458,5 +702,22 @@ data::datax::set_remote(const std::string& hostport,
     mRemoteUrl += pino;
     mRemoteUrl += "/";
     mRemoteUrl += basename;
+  }
+  mRemoteUrl += "&eos.app=fuse&mgm.mtime=0";
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+data::dmap::closeflush()
+/* -------------------------------------------------------------------------- */
+{
+  while (1)
+  {
+    {
+      eos_static_debug("");
+      XrdSysTimer sleeper;
+      sleeper.Wait(1000);
+    }
   }
 }

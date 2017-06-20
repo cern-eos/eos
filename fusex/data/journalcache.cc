@@ -106,7 +106,7 @@ int journalcache::read_journal()
   return totalBytesRead;
 }
 
-int journalcache::attach(std::string& cookie, bool isRW)
+int journalcache::attach(fuse_req_t req, std::string& cookie, bool isRW)
 {
   XrdSysMutexHelper lck( mtx );
   if (nbAttached == 0)
@@ -355,4 +355,13 @@ int journalcache::remote_sync( cachesyncer & syncer )
   truncate( 0 );
   clck.broadcast();
   return ret;
+}
+
+int journalcache::reset()
+{
+  write_lock lck( clck );
+  journal.clear();
+  int retc = truncate( 0 );
+  clck.broadcast();
+  return retc;
 }

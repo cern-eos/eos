@@ -52,7 +52,7 @@ public:
   }
 
   // base class interface
-  virtual int attach(std::string& cookie, bool isRW) = 0;
+  virtual int attach(fuse_req_t req, std::string& cookie, bool isRW) = 0;
   virtual int detach(std::string& cookie) = 0;
   virtual int unlink() = 0;
 
@@ -66,6 +66,11 @@ public:
   virtual int sync() = 0;
 
   virtual size_t size() = 0;
+
+  virtual off_t prefetch_size()
+  {
+    return 0;
+  }
 
   virtual int set_attr(std::string& key, std::string& value) = 0;
   virtual int attr(std::string key, std::string& value) = 0;
@@ -89,8 +94,7 @@ public:
     {
       _file = 0;
       _journal = 0;
-      _xrdioro = 0;
-      _xrdiorw = 0;
+
       ino = 0;
     }
 
@@ -98,8 +102,7 @@ public:
     {
       _file = 0;
       _journal = 0;
-      _xrdioro = 0;
-      _xrdiorw = 0;
+
       ino = _ino;
     }
 
@@ -107,8 +110,16 @@ public:
     {
       delete _file;
       delete _journal;
-      delete _xrdioro;
-      delete _xrdiorw;
+
+      // delete all proxy objects
+      for (auto it=_xrdioro.begin(); it != _xrdioro.end(); ++it)
+      {
+        delete it->second;
+      }
+      for (auto it=_xrdiorw.begin(); it != _xrdiorw.end(); ++it)
+      {
+        delete it->second;
+      }
     }
 
     void set_file(cache* file)
@@ -121,14 +132,14 @@ public:
       _journal = journal;
     }
 
-    void set_xrdioro(XrdCl::Proxy* _cl)
+    void set_xrdioro(fuse_req_t req, XrdCl::Proxy* _cl)
     {
-      _xrdioro = _cl;
+      _xrdioro["default"] = _cl;
     }
 
-    void set_xrdiorw(XrdCl::Proxy* _cl)
+    void set_xrdiorw(fuse_req_t req, XrdCl::Proxy* _cl)
     {
-      _xrdiorw = _cl;
+      _xrdiorw["default"] = _cl;
     }
 
     cache* file()
@@ -141,25 +152,51 @@ public:
       return _journal;
     }
 
-    XrdCl::Proxy* xrdioro()
+    XrdCl::Proxy* xrdioro(fuse_req_t req)
     {
-      return _xrdioro;
+      return _xrdioro["default"];
     }
 
-    XrdCl::Proxy* xrdiorw()
+    XrdCl::Proxy* xrdiorw(fuse_req_t req)
+    {
+      return _xrdiorw["default"];
+    }
+
+    std::map<std::string, XrdCl::Proxy*>& get_xrdiorw()
     {
       return _xrdiorw;
+    }
+    
+    std::map<std::string, XrdCl::Proxy*>& get_xrdioro()
+    {
+      return _xrdioro;
     }
 
   private:
     cache* _file;
     cache* _journal;
-    XrdCl::Proxy* _xrdioro;
-    XrdCl::Proxy* _xrdiorw;
+
+    std::map<std::string, XrdCl::Proxy*> _xrdioro;
+    std::map<std::string, XrdCl::Proxy*> _xrdiorw;
     fuse_ino_t ino;
   } ;
 
   typedef shared_ptr<cache::io> shared_io;
+
+  virtual bool fits(ssize_t count)
+  {
+    return true;
+  }
+
+  virtual bool halffull(size_t count)
+  {
+    return false;
+  }
+
+  virtual int reset()
+  {
+    return 0;
+  }
 
 private:
 

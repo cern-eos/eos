@@ -40,6 +40,7 @@ XrdCl::Proxy::Write( uint64_t         offset,
                     uint16_t         timeout)
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("offset=%lu size=%u", offset, size);
   XRootDStatus status = WaitOpen();
   if (!status.IsOK())
     return status;
@@ -55,11 +56,13 @@ XrdCl::Proxy::Read( uint64_t  offset,
                    uint16_t  timeout)
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("offset=%lu size=%u", offset, size);
   XRootDStatus status = WaitOpen();
+
   if (!status.IsOK())
     return status;
 
-  eos_static_debug("----: read: offset=%lu size=%u", offset, size);
+  eos_debug("----: read: offset=%lu size=%u", offset, size);
   int readahead_window_hit = 0;
 
   uint64_t current_offset = offset;
@@ -85,7 +88,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
         off_t match_offset;
         uint32_t match_size;
 
-        eos_static_debug("----: eval offset=%lu chunk-offset=%lu", offset, it->second->offset());
+        eos_debug("----: eval offset=%lu chunk-offset=%lu", offset, it->second->offset());
         if (it->second->matches(current_offset, current_size, match_offset, match_size))
         {
           readahead_window_hit++;
@@ -104,9 +107,9 @@ XrdCl::Proxy::Read( uint64_t  offset,
               continue;
             }
 
-            eos_static_debug("----: prefetched offset=%lu m-offset=%lu current-size=%u m-size=%u dim=%ld", current_offset, match_offset, current_size, match_size, (char*) buffer - (char*) pbuffer);
+            eos_debug("----: prefetched offset=%lu m-offset=%lu current-size=%u m-size=%u dim=%ld", current_offset, match_offset, current_size, match_size, (char*) buffer - (char*) pbuffer);
             // just copy what we have
-            eos_static_debug("----: out-buffer=%lx in-buffer=%lx in-buffer-size=%lu", (long unsigned int) buffer, (long unsigned int) it->second->buffer(), it->second->vbuffer().size());
+            eos_debug("----: out-buffer=%lx in-buffer=%lx in-buffer-size=%lu", (long unsigned int) buffer, (long unsigned int) it->second->buffer(), it->second->vbuffer().size());
 
 
             memcpy(buffer, it->second->buffer() + match_offset - it->second->offset(), match_size);
@@ -126,10 +129,10 @@ XrdCl::Proxy::Read( uint64_t  offset,
         }
         else
         {
-          eos_static_debug("----: considering chunk address=%lx offset=%ld", it->first, it->second->offset());
+          eos_debug("----: considering chunk address=%lx offset=%ld", it->first, it->second->offset());
           if (!it->second->successor(offset, size))
           {
-            eos_static_debug("----: delete chunk address=%lx offset=%ld", it->first, it->second->offset());
+            eos_debug("----: delete chunk address=%lx offset=%ld", it->first, it->second->offset());
             while ( !it->second->done() )
               it->second->ReadCondVar().WaitMS(25);
             // remove this chunk
@@ -181,10 +184,10 @@ XrdCl::Proxy::Read( uint64_t  offset,
       }
 
       off_t align_offset = aligned_offset( ChunkRMap().size() ? offset + XReadAheadNom : offset);
-      eos_static_debug("----: pre-fetch window=%lu pf-offset=%lu,",
-                       XReadAheadNom,
-                       (unsigned long) align_offset
-                       );
+      eos_debug("----: pre-fetch window=%lu pf-offset=%lu,",
+                XReadAheadNom,
+                (unsigned long) align_offset
+                );
 
       if (ChunkRMap().count(align_offset))
       {
@@ -214,7 +217,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
     {
       if (rbytes_read)
       {
-        eos_static_debug("----: postfetched offset=%lu size=%u rbytes=%d", current_offset, current_size, rbytes_read);
+        eos_debug("----: postfetched offset=%lu size=%u rbytes=%d", current_offset, current_size, rbytes_read);
       }
       bytesRead+=rbytes_read;
     }
@@ -237,6 +240,7 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
                         uint16_t         timeout)
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("url=%s flags=%x mode=%x", url.c_str(), (int) flags, (int) mode);
   XrdSysCondVarHelper lLock(OpenCondVar());
 
   if ( state() == OPENING )
@@ -273,11 +277,9 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
   ((XrdCl::File*)(this))->EnableWriteRecovery(false);
    */
 
-  XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
-  XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
   XrdCl::XRootDStatus status = Open(url.c_str(),
-                                    flags_xrdcl,
-                                    mode_xrdcl,
+                                    flags,
+                                    mode,
                                     &XOpenAsyncHandler,
                                     timeout);
   set_state(OPENING);
@@ -293,6 +295,7 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
                                                         XrdCl::HostList * hostList)
 /* -------------------------------------------------------------------------- */
 {
+  eos_static_debug("");
   // response is nullptr
   delete hostList;
 
@@ -309,7 +312,8 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
   }
 
   proxy()->OpenCondVar().Signal();
-  delete this;
+  delete status;
+  delete response;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -318,6 +322,7 @@ XRootDStatus
 XrdCl::Proxy::CloseAsync(uint16_t         timeout)
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("");
   // don't close files attached by several clients
   if (mAttached > 1)
     return XRootDStatus();
@@ -337,10 +342,11 @@ XRootDStatus
 XrdCl::Proxy::Close(uint16_t         timeout)
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("");
   // don't close files attached by several clients
   if (mAttached > 1)
     return XRootDStatus();
-  
+
   WaitOpen();
   Collect();
   XrdSysCondVarHelper lLock(OpenCondVar());
@@ -357,6 +363,7 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
                                                  XrdCl::AnyObject * response)
 /* -------------------------------------------------------------------------- */
 {
+  eos_static_debug("");
   XrdSysCondVarHelper lLock(mProxy->OpenCondVar());
   if (!status->IsOK())
   {
@@ -379,6 +386,7 @@ XRootDStatus
 XrdCl::Proxy::WaitClose()
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("");
   Collect();
   XrdSysCondVarHelper lLock(OpenCondVar());
 
@@ -394,6 +402,7 @@ XRootDStatus
 XrdCl::Proxy::WaitOpen()
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("");
   XrdSysCondVarHelper lLock(OpenCondVar());
 
   while (state () == OPENING)
@@ -409,6 +418,7 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
                                                  XrdCl::AnyObject * response)
 /* -------------------------------------------------------------------------- */
 {
+  eos_static_debug("");
   XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
   if (!status->IsOK())
   {
@@ -427,6 +437,7 @@ XrdCl::Proxy::write_handler
 XrdCl::Proxy::WriteAsyncPrepare(uint32_t size)
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("");
   write_handler dst = std::make_shared<WriteAsyncHandler>(this, size);
   XrdSysCondVarHelper lLock(WriteCondVar());
   ChunkMap()[(uint64_t) dst.get()] = dst;
@@ -443,12 +454,20 @@ XrdCl::Proxy::WriteAsync( uint64_t         offset,
                          uint16_t         timeout)
 /* -------------------------------------------------------------------------- */
 {
-
+  eos_debug("");
   handler->copy(buffer, size);
 
-  return Write(static_cast<uint64_t> (offset),
-               static_cast<uint32_t> (size),
-               handler->buffer(), handler.get(), timeout);
+  XRootDStatus status = Write(static_cast<uint64_t> (offset),
+                              static_cast<uint32_t> (size),
+                              handler->buffer(), handler.get(), timeout);
+
+  if (!status.IsOK())
+  {
+    // remove failing requests
+    XrdSysCondVarHelper lLock(WriteCondVar());
+    ChunkMap().erase((uint64_t) handler.get());
+  }
+  return status;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -457,15 +476,16 @@ XRootDStatus
 XrdCl::Proxy::WaitWrite()
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("");
   XrdSysCondVarHelper lLock(WriteCondVar());
 
   while ( ChunkMap().size() )
   {
 
-    eos_static_debug("     [..] map-size=%lu", ChunkMap().size());
+    eos_debug("     [..] map-size=%lu", ChunkMap().size());
     WriteCondVar().WaitMS(1000);
   }
-  eos_static_debug(" [..] map-size=%lu", ChunkMap().size());
+  eos_debug(" [..] map-size=%lu", ChunkMap().size());
   return XOpenState;
 }
 
@@ -475,7 +495,7 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
                                                 XrdCl::AnyObject * response)
 /* -------------------------------------------------------------------------- */
 {
-
+  eos_static_debug("");
   XrdSysCondVarHelper lLock(ReadCondVar());
   mStatus = *status;
   if (status->IsOK())
@@ -506,7 +526,7 @@ XrdCl::Proxy::read_handler
 XrdCl::Proxy::ReadAsyncPrepare(off_t offset, uint32_t size)
 /* -------------------------------------------------------------------------- */
 {
-
+  eos_debug("");
   read_handler src = std::make_shared<ReadAsyncHandler>(this, offset, size);
   XrdSysCondVarHelper lLock(ReadCondVar());
   ChunkRMap()[(uint64_t) src->offset()] = src;
@@ -523,6 +543,11 @@ XrdCl::Proxy::PreReadAsync( uint64_t         offset,
                            uint16_t          timeout)
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("");
+  XRootDStatus status = WaitOpen();
+
+  if (!status.IsOK())
+    return status;
 
   return File::Read(static_cast<uint64_t> (offset),
                     static_cast<uint32_t> (size),
@@ -535,6 +560,7 @@ XRootDStatus
 XrdCl::Proxy::WaitRead(read_handler handler)
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("");
   XrdSysCondVarHelper lLock(handler->ReadCondVar());
 
   while ( !handler->done() )
@@ -542,7 +568,7 @@ XrdCl::Proxy::WaitRead(read_handler handler)
 
     handler->ReadCondVar().WaitMS(1000);
   }
-  eos_static_debug(" [..] read-size=%lu", handler->vbuffer().size());
+  eos_debug(" [..] read-size=%lu", handler->vbuffer().size());
   return handler->Status();
 }
 
@@ -555,6 +581,7 @@ XrdCl::Proxy::ReadAsync(read_handler handler,
                         uint32_t & bytesRead)
 /* -------------------------------------------------------------------------- */
 {
+  eos_debug("");
   XRootDStatus status = WaitRead(handler);
   if (!status.IsOK())
     return status;
@@ -571,6 +598,7 @@ XrdCl::Proxy::attach()
 {
   XrdSysMutexHelper lLock(mAttachedMutex);
   mAttached++;
+  eos_debug("attached=%u", mAttached);
   return;
 }
 
@@ -582,6 +610,7 @@ XrdCl::Proxy::detach()
 {
   XrdSysMutexHelper lLock(mAttachedMutex);
   mAttached--;
+  eos_debug("attached=%u", mAttached);
   return;
 }
 
@@ -591,7 +620,9 @@ bool
 XrdCl::Proxy::attached()
 /* -------------------------------------------------------------------------- */
 {
+
   XrdSysMutexHelper lLock(mAttachedMutex);
+  
   return mAttached ? true : false;
 }
 

@@ -55,7 +55,7 @@ memorycache::~memorycache()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-memorycache::attach(std::string& cookie, bool isRW)
+memorycache::attach(fuse_req_t req, std::string& cookie, bool isRW)
 /* -------------------------------------------------------------------------- */
 {
   return 0;

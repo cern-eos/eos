@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include "data/cache.hh"
 #include "md/md.hh"
+#include "bufferll.hh"
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
 #include "common/Logging.hh"
@@ -40,7 +41,7 @@
 #include <atomic>
 #include <exception>
 #include <stdexcept>
-#include "common/Logging.hh"
+#include <thread>
 
 class data
 {
@@ -77,7 +78,7 @@ public:
       mReq = req;
       mFile = cachehandler::get(ino);
       char lid[64];
-      snprintf(lid, sizeof (lid), "logid:inode:%016lx", ino);
+      snprintf(lid, sizeof (lid), "logid:ino:%016lx", ino);
       SetLogId(lid);
     }
 
@@ -91,11 +92,13 @@ public:
       return mReq;
     }
 
+    cache_shared_io file() {return mFile;}
+    
     void flush();
-    int attach(std::string& cookie, bool isRW);
-    int detach(std::string& cookie, bool isRW);
+    int attach(fuse_req_t req, std::string& cookie, bool isRW);
+    int detach(fuse_req_t req, std::string& cookie, bool isRW);
     int store_cookie(std::string& cookie);
-    int unlink();
+    int unlink(fuse_req_t req);
 
     void set_remote(const std::string& hostport,
                     const std::string& basename,
@@ -103,15 +106,16 @@ public:
                     const uint64_t md_pino);
 
     // IO bridge interface
-    ssize_t pread(void *buf, size_t count, off_t offset);
-    ssize_t pwrite(const void *buf, size_t count, off_t offset);
-    ssize_t peek_pread(char* &buf, size_t count, off_t offset);
+    ssize_t pread(fuse_req_t req, void *buf, size_t count, off_t offset);
+    ssize_t pwrite(fuse_req_t req, const void *buf, size_t count, off_t offset);
+    ssize_t peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset);
     void release_pread();
-    int truncate(off_t offset);
+    int truncate(fuse_req_t req, off_t offset);
     int sync();
     size_t size();
     int cache_invalidate();
-    void prefetch();
+    bool prefetch(fuse_req_t req);
+    void WaitPrefetch(fuse_req_t req);
 
     // ref counting for this object
 
@@ -142,6 +146,8 @@ public:
     metad::shared_md mMd;
     XrdCl::Proxy::read_handler mPrefetchHandler;
 
+    bufferllmanager::shared_buffer buffer;
+    static bufferllmanager sBufferManager;
   } ;
 
   typedef std::shared_ptr<datax> shared_data;
@@ -217,11 +223,19 @@ public:
 
     dmap()
     {
+      tCloseFlush = std::thread(&dmap::closeflush, this);
     }
 
     virtual ~dmap()
     {
+      pthread_cancel(tCloseFlush.native_handle());
+      tCloseFlush.join();
     }
+
+    void closeflush(); // thread for delayed asynchronous close
+
+  private:
+    std::thread tCloseFlush;
   } ;
 
   data();
@@ -241,7 +255,6 @@ public:
                   shared_data io);
 
   void unlink(fuse_req_t req, fuse_ino_t ino);
-
 
 private:
   dmap datamap;
