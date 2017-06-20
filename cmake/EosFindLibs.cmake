@@ -55,16 +55,20 @@ if(NOT PACKAGEONLY)
   find_package(Sphinx)
   find_package(kineticio COMPONENTS headers)
   find_package(SparseHash REQUIRED)
-  find_package(Protobuf3 REQUIRED)
 
-  # Protobuf3 needs to be added to the RPATH of the libraries and binaries
-  # built since it's not installed in the normal system location
-  set(CMAKE_SKIP_RPATH FALSE)
-  set(CMAKE_SKIP_BUILD_RPATH FALSE)
-  set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-  get_filename_component(EOS_PROTOBUF_RPATH ${PROTOBUF_LIBRARY} DIRECTORY)
-  set(CMAKE_INSTALL_RPATH "${EOS_PROTOBUF_RPATH}")
+  if (Linux)
+    find_package(Protobuf3 REQUIRED)
+    # Protobuf3 needs to be added to the RPATH of the libraries and binaries
+    # built since it's not installed in the normal system location
+    set(CMAKE_SKIP_RPATH FALSE)
+    set(CMAKE_SKIP_BUILD_RPATH FALSE)
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+    get_filename_component(EOS_PROTOBUF_RPATH ${PROTOBUF_LIBRARY} DIRECTORY)
+    set(CMAKE_INSTALL_RPATH "${EOS_PROTOBUF_RPATH}")
+  else ()
+    find_package(Protobuf REQUIRED)
+  endif()
 
   if(EXISTS "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
     set(KINETICIO_URL "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
