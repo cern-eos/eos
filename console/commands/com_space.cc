@@ -468,9 +468,9 @@ com_space(char* arg1)
   return (0);
 com_space_usage:
   fprintf(stdout,
-          "usage: space ls                                                  : list spaces\n");
+          "usage: space ls                                                      : list spaces\n");
   fprintf(stdout,
-          "usage: space ls [-s|-g <depth>] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>. <space> is a substring match and can be a comma seperated list\n");
+          "usage: space ls [-s|-g <depth>] [-m|-l|--io|--fsck] [<space>]        : list in all spaces or select only <space>. <space> is a substring match and can be a comma seperated list\n");
   fprintf(stdout,
           "                                                                  -s : silent mode\n");
   fprintf(stdout,
@@ -514,7 +514,7 @@ com_space_usage:
   fprintf(stdout,
           "       space config <space-name> space.graceperiod=<sec>             : configure the default grace  period if not defined on a filesystem (see fs for details)\n");
   fprintf(stdout,
-          "       space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)");
+          "       space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)\n");
   fprintf(stdout,
           "                                                                       => size can be given also like 10T, 20G, 2P ... without space before the unit \n");
   fprintf(stdout,
@@ -533,8 +533,6 @@ com_space_usage:
   fprintf(stdout,
           "                                                                       => <groupmod> maximum number of groups in the space, which should be at least equal to the maximun number of filesystems per node\n");
   fprintf(stdout, "\n");
-  fprintf(stdout,
-          "       space reset <space-name>  [--egroup|mapping|drain|scheduledrain|schedulebalance] \n");
   fprintf(stdout,
           "       space node-set <space-name> <node.key> <file-name>            : store the contents of <file-name> into the node configuration variable <node.key> visibile to all FSTs\n");
   fprintf(stdout,
@@ -555,7 +553,25 @@ com_space_usage:
   fprintf(stdout,
           "       space reset <space-name>  [--egroup|mapping|drain|scheduledrain|schedulebalance|ns|nsfilesystemview|nsfilemap|nsdirectorymap] \n");
   fprintf(stdout,
-          "                                                                     : reset a space e.g. recompute the drain state machine\n");
+          "                                                                     : reset different space attributes\n");
+  fprintf(stdout,
+          "                                                            --egroup : clear cached egroup information\n");
+  fprintf(stdout,
+          "                                                           --mapping : clear all user/group uid/gid caches\n");
+  fprintf(stdout,
+          "                                                             --drain : reset draining\n");
+  fprintf(stdout,
+          "                                                     --scheduledrain : reset drain scheduling map\n");
+  fprintf(stdout,
+          "                                                   --schedulebalance : reset balance scheduling map\n");
+  fprintf(stdout,
+          "                                                                --ns : resize all namespace maps\n");
+  fprintf(stdout,
+          "                                                  --nsfilesystemview : resize namespace filesystem view\n");
+  fprintf(stdout,
+          "                                                         --nsfilemap : resize namespace file map\n");
+  fprintf(stdout,
+          "                                                    --nsdirectorymap : resize namespace directory map\n");
   fprintf(stdout,
           "       space status <space-name> [-m]                                : print's all defined variables for space\n");
   fprintf(stdout,
