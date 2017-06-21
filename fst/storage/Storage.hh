@@ -249,6 +249,15 @@ public:
   bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
                   std::string uuid, bool failenoid = false, bool failnouuid = false);
   bool GetFsidFromLabel(std::string path, eos::common::FileSystem::fsid_t& fsid);
+
+  //----------------------------------------------------------------------------
+  //! Get file system id from the configured filesystem vector
+  //!
+  //! @param path file system mount point
+  //! @param fsid returned file system id
+  //!
+  //! @return true if fsid found, otherwise false
+  //----------------------------------------------------------------------------
   bool GetFsidFromPath(std::string path, eos::common::FileSystem::fsid_t& fsid);
 };
 

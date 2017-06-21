@@ -2338,7 +2338,7 @@ FsView::PrintNodes(std::string& out, std::string table_format,
     it->second->Print(table, table_format, table_mq_format, outdepth);
   }
 
-  out =  table.GenerateTable(HEADER, selections).c_str();
+  out = table.GenerateTable(HEADER, selections).c_str();
 }
 
 #ifndef EOSMGMFSVIEWTEST

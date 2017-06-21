@@ -60,7 +60,8 @@ public:
   //----------------------------------------------------------------------------
   MonitorVarPartition(double threshold, int time, std::string path) :
     mSpaceThreshold(threshold), mIntervalMicroSec(time * 1000 * 1000),
-    mPath(path), mRunning(true) {
+    mPath(path), mRunning(true)
+  {
   }
 
   //----------------------------------------------------------------------------
@@ -74,7 +75,8 @@ public:
   //! @param fss list of FSTs that needs to be updated
   //! @param mtx FST status mutex
   //----------------------------------------------------------------------------
-  void Monitor(FSs& fss, eos::common::RWMutex& mtx) {
+  void Monitor(FSs& fss, eos::common::RWMutex& mtx)
+  {
     eos_info("FST Partition Monitor activated ...");
     struct statvfs buf;
     char buffer[256];
@@ -82,9 +84,9 @@ public:
     while (mRunning) {
       // Get info about filesystem where mPath is located
       if (statvfs(mPath.c_str(), &buf) == -1) {
-	char* errorMessage = strerror_r(errno, buffer, 256);
-	eos_err("statvfs failed, error=\"%s\" ", errorMessage);
-	continue;
+        char* errorMessage = strerror_r(errno, buffer, 256);
+        eos_err("statvfs failed, error=\"%s\" ", errorMessage);
+        continue;
       }
 
       // Calculating precentage of free space left while ignoring fragment
@@ -96,12 +98,11 @@ public:
                  "mode - please take action", mPath.c_str());
         eos::common::RWMutexReadLock lock(mtx);
 
-	for (auto fs = fss.begin(); fs != fss.end(); ++fs) {
-	  //Check if filesystem is already in readonly mode
-	  if ((*fs)->GetConfigStatus() != eos::common::FileSystem::eConfigStatus::kRO) {
-	    (*fs)->SetConfigStatus(eos::common::FileSystem::eConfigStatus::kRO);
-	  }
-	}
+        for (auto fs = fss.begin(); fs != fss.end(); ++fs) {
+          if ((*fs)->GetConfigStatus() != eos::common::FileSystem::eConfigStatus::kRO) {
+            (*fs)->SetConfigStatus(eos::common::FileSystem::eConfigStatus::kRO);
+          }
+        }
       }
 
       usleep(mIntervalMicroSec);
@@ -111,7 +112,8 @@ public:
   //----------------------------------------------------------------------------
   //! Switch off monitoring
   //----------------------------------------------------------------------------
-  void StopMonitoring() {
+  void StopMonitoring()
+  {
     mRunning = false;
   }
 };

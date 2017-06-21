@@ -751,14 +751,13 @@ Storage::GetFsidFromLabel(std::string path,
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get file system id from the configured filesystem vector
+//------------------------------------------------------------------------------
 bool
 Storage::GetFsidFromPath(std::string path,
                          eos::common::FileSystem::fsid_t& fsid)
 {
-  //----------------------------------------------------------------
-  //! return the file system id from the configured filesystem vector
-  //----------------------------------------------------------------
   eos::common::RWMutexReadLock lock(fsMutex);
   fsid = 0;
 
