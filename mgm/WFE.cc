@@ -340,8 +340,12 @@ WFE::WFEr()
       time_t now = time(NULL);
       eos_static_info("msg=\"clean old workflows\"");
       XrdMgmOfsDirectory dir;
-      // TODO: maybe check the return value ?!
-      (void)dir.open(gOFS->MgmProcWorkflowPath.c_str(), mRootVid, "");
+
+      if (dir.open(gOFS->MgmProcWorkflowPath.c_str(), mRootVid, "") != SFS_OK) {
+        eos_static_err("msg=\"failed to open proc workflow directory\"");
+        continue;
+      }
+
       const char* entry;
 
       while ((entry = dir.nextEntry())) {
@@ -379,7 +383,7 @@ WFE::WFEr()
 
       cleanuptime = now + 3600;
     }
-  };
+  }
 
   return 0;
 }
