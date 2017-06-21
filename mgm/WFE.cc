@@ -335,8 +335,8 @@ WFE::WFEr()
         }
       }
     }
-
-    if (!cleanuptime || (cleanuptime < time(NULL))) {
+    
+    if (gOFS->MgmMaster.IsMaster() && (!cleanuptime || (cleanuptime < time(NULL)))) {
       time_t now = time(NULL);
       eos_static_info("msg=\"clean old workflows\"");
       XrdMgmOfsDirectory dir;
