@@ -28,16 +28,14 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Storage::Cleaner ()
+Storage::Cleaner()
 {
   eos_static_info("Start Cleaner ...");
-
   std::string nodeconfigqueue = "";
-
   const char* val = 0;
+
   // we have to wait that we know our node config queue
-  while (!(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str()))
-  {
+  while (!(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
     XrdSysTimer sleeper;
     sleeper.Snooze(5);
     eos_static_info("Snoozing ...");
@@ -45,38 +43,32 @@ Storage::Cleaner ()
 
   nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
 
-  while (1)
-  {
+  while (1) {
     eos_static_notice("msg=\"cleaning transactions\"");
     XrdOucString manager;
     {
       XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
       manager = eos::fst::Config::gConfig.Manager.c_str();
     }
-
     unsigned int nfs = 0;
     {
-      eos::common::RWMutexReadLock lock(fsMutex);
-      nfs = fileSystemsVector.size();
+      eos::common::RWMutexReadLock lock(mFsMutex);
+      nfs = mFsVect.size();
     }
 
-    if (manager.length()) 
-    {
-      for (unsigned int i = 0; i < nfs; i++)
-      {
-	eos::common::RWMutexReadLock lock(fsMutex);
-	if (i < fileSystemsVector.size())
-	{	
-	  if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted) 
-	    {
-	      if (fileSystemsVector[i]->SyncTransactions(manager.c_str()))
-		fileSystemsVector[i]->CleanTransactions();
-	    }
-	}
+    if (manager.length()) {
+      for (unsigned int i = 0; i < nfs; i++) {
+        eos::common::RWMutexReadLock lock(mFsMutex);
+
+        if (i < mFsVect.size()) {
+          if (mFsVect[i]->GetStatus() == eos::common::FileSystem::kBooted) {
+            if (mFsVect[i]->SyncTransactions(manager.c_str())) {
+              mFsVect[i]->CleanTransactions();
+            }
+          }
+        }
       }
-    }
-    else
-    {
+    } else {
       eos_static_err("msg=\"don't know the manager name\"");
     }
 

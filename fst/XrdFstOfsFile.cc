@@ -595,11 +595,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     localPrefix.replace("#COL#", ":");
   } else {
     // Extract the local path prefix from the broadcasted configuration!
-    eos::common::RWMutexReadLock lock(gOFS.Storage->fsMutex);
+    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
     fsid = atoi(sfsid ? sfsid : "0");
 
-    if (fsid && gOFS.Storage->fileSystemsMap.count(fsid)) {
-      localPrefix = gOFS.Storage->fileSystemsMap[fsid]->GetPath().c_str();
+    if (fsid && gOFS.Storage->mFileSystemsMap.count(fsid)) {
+      localPrefix = gOFS.Storage->mFileSystemsMap[fsid]->GetPath().c_str();
     }
   }
 
@@ -927,9 +927,9 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if ((!rc) && isCreation && bookingsize) {
     // check if the file system is full
-    XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+    XrdSysMutexHelper(gOFS.Storage->mFsFullMapMutex);
 
-    if (gOFS.Storage->fileSystemFullMap[fsid]) {
+    if (gOFS.Storage->mFsFullMap[fsid]) {
       if (layOut->IsEntryServer() && (!isReplication)) {
         writeErrorFlag = kOfsDiskFullError;
         layOut->Remove();
@@ -1933,15 +1933,15 @@ XrdFstOfsFile::close()
     // Check if the target filesystem has been put into some non-operational mode
     // in the meanwhile, it makes no sense to try to commit in this case
     {
-      eos::common::RWMutexReadLock lock(gOFS.Storage->fsMutex);
+      eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
 
-      if (gOFS.Storage->fileSystemsMap.count(fsid) &&
-          gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus() <
+      if (gOFS.Storage->mFileSystemsMap.count(fsid) &&
+          gOFS.Storage->mFileSystemsMap[fsid]->GetConfigStatus() <
           eos::common::FileSystem::kDrain) {
         eos_notice("msg=\"failing transfer because filesystem has non-"
                    "operational state\" path=%s state=%s", Path.c_str(),
                    eos::common::FileSystem::GetConfigStatusAsString
-                   (gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus()));
+                   (gOFS.Storage->mFileSystemsMap[fsid]->GetConfigStatus()));
         deleteOnClose = true;
       }
     }
@@ -2379,8 +2379,8 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset,
       // Check if the file system is full
       bool isfull = false;
       {
-        XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
-        isfull = gOFS.Storage->fileSystemFullMap[fsid];
+        XrdSysMutexHelper(gOFS.Storage->mFsFullMapMutex);
+        isfull = gOFS.Storage->mFsFullMap[fsid];
       }
 
       if (isfull) {

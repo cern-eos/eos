@@ -35,31 +35,36 @@ struct MockFileSystem {
 
   MockFileSystem() : status(eos::common::FileSystem::kRW) {}
 
-  void SetConfigStatus(fsstatus_t status) {
+  void SetConfigStatus(fsstatus_t status)
+  {
     this->status = status;
   }
 
-  fsstatus_t GetConfigStatus(bool cached = false) {
+  fsstatus_t GetConfigStatus(bool cached = false)
+  {
     return this->status;
   }
 };
 
-using VarMonitorT = eos::fst::MonitorVarPartition<std::vector<MockFileSystem *>>;
+using VarMonitorT = eos::fst::MonitorVarPartition<std::vector<MockFileSystem*>>;
 
-class TestContext {
+class TestContext
+{
 public:
-  eos::common::RWMutex fsMutex;
-  std::vector<MockFileSystem *> fsVector;
+  eos::common::RWMutex mFsMutex;
+  std::vector<MockFileSystem*> fsVector;
   VarMonitorT monitor;
   std::thread monitor_thread;
   std::ofstream fill;
   static constexpr std::int32_t mMonitorInterval = 1;
 
-  static void StartFstPartitionMonitor(TestContext* storage) {
-    storage->monitor.Monitor(storage->fsVector, storage->fsMutex);
+  static void StartFstPartitionMonitor(TestContext* storage)
+  {
+    storage->monitor.Monitor(storage->fsVector, storage->mFsMutex);
   }
 
-  TestContext() : monitor(10., TestContext::mMonitorInterval, "/mnt/var_test/") {
+  TestContext() : monitor(10., TestContext::mMonitorInterval, "/mnt/var_test/")
+  {
     // Init partition
     system("mkdir -p /mnt/var_test");
     system("mount -t tmpfs -o size=100m tmpfs /mnt/var_test/");
@@ -73,7 +78,8 @@ public:
     this->monitor_thread = std::thread(TestContext::StartFstPartitionMonitor, this);
   }
 
-  virtual ~TestContext() {
+  virtual ~TestContext()
+  {
     // Cleaning
     delete this->fsVector[0];
     delete this->fsVector[1];
@@ -88,9 +94,9 @@ public:
 };
 
 void
-VarPartitionMonitoringTest() {
+VarPartitionMonitoringTest()
+{
   TestContext context;
-
   // Fill partition to more than 90%
   std::string megabyte_line(1024 * 1024, 'a');
 
@@ -100,50 +106,50 @@ VarPartitionMonitoringTest() {
 
   // Wait and check
   usleep(TestContext::mMonitorInterval * 1000 * 1000);
-  context.fsMutex.LockRead();
+  context.mFsMutex.LockRead();
 
   for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
     assert(eos::common::FileSystem::kRO == (*fs)->GetConfigStatus());
   }
 
-  context.fsMutex.UnLockRead();
+  context.mFsMutex.UnLockRead();
   // Setting status of filesystems to RW.
-  context.fsMutex.LockWrite();
+  context.mFsMutex.LockWrite();
 
   for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
     (*fs)->SetConfigStatus(eos::common::FileSystem::kRW);
   }
 
-  context.fsMutex.UnLockWrite();
+  context.mFsMutex.UnLockWrite();
   // Check if status is returned to readonly
   usleep(context.mMonitorInterval * 1000 * 1000);
-  context.fsMutex.LockRead();
+  context.mFsMutex.LockRead();
 
   for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
     assert(eos::common::FileSystem::kRO == (*fs)->GetConfigStatus());
   }
 
-  context.fsMutex.UnLockRead();
+  context.mFsMutex.UnLockRead();
   // Close and delete file,
   context.fill.close();
   system("rm -f /mnt/var_test/fill.temp");
   // Setting status of filesystems to RW
-  context.fsMutex.LockWrite();
+  context.mFsMutex.LockWrite();
 
   for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
     (*fs)->SetConfigStatus(eos::common::FileSystem::kRW);
   }
 
-  context.fsMutex.UnLockWrite();
+  context.mFsMutex.UnLockWrite();
   // Check if status is returned to readonly
   usleep(TestContext::mMonitorInterval * 1000 * 1000);
-  context.fsMutex.LockRead();
+  context.mFsMutex.LockRead();
 
   for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
     assert(eos::common::FileSystem::kRW == (*fs)->GetConfigStatus());
   }
 
-  context.fsMutex.UnLockRead();
+  context.mFsMutex.UnLockRead();
 }
 
 EOSFSTTEST_NAMESPACE_END

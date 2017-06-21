@@ -36,8 +36,9 @@ std::int32_t VarPartitionMonitorTest::mMonitorInterval = 1; // 1 second
 //------------------------------------------------------------------------------
 void* VarPartitionMonitorTest::StartFstPartitionMonitor(void* pp)
 {
-  VarPartitionMonitorTest* storage = reinterpret_cast<VarPartitionMonitorTest*>(pp);
-  storage->monitor.Monitor(storage->fsVector, storage->fsMutex);
+  VarPartitionMonitorTest* storage = reinterpret_cast<VarPartitionMonitorTest*>
+                                     (pp);
+  storage->monitor.Monitor(storage->fsVector, storage->mFsMutex);
   return 0;
 }
 
@@ -64,7 +65,7 @@ void VarPartitionMonitorTest::setUp(void)
   fill.open("/mnt/var_test/fill.temp");
   // Start monitoring.
   this->monitor_thread =
-      std::thread(VarPartitionMonitorTest::StartFstPartitionMonitor, this);
+    std::thread(VarPartitionMonitorTest::StartFstPartitionMonitor, this);
 }
 
 //------------------------------------------------------------------------------
@@ -81,50 +82,50 @@ void VarPartitionMonitorTest::VarMonitorTest()
 
   // Wait and check
   usleep(mMonitorInterval * 1000 * 1000);
-  fsMutex.LockRead();
+  mFsMutex.LockRead();
 
   for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
     CPPUNIT_ASSERT((*fs)->GetConfigStatus() == eos::common::FileSystem::kRO);
   }
 
-  fsMutex.UnLockRead();
+  mFsMutex.UnLockRead();
   // Setting status of filesystems to RW.
-  fsMutex.LockWrite();
+  mFsMutex.LockWrite();
 
   for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
     (*fs)->SetConfigStatus(eos::common::FileSystem::kRW);
   }
 
-  fsMutex.UnLockWrite();
+  mFsMutex.UnLockWrite();
   // Check if status is returned to readonly
   usleep(mMonitorInterval * 1000 * 1000);
-  fsMutex.LockRead();
+  mFsMutex.LockRead();
 
   for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
     CPPUNIT_ASSERT((*fs)->GetConfigStatus() == eos::common::FileSystem::kRO);
   }
 
-  fsMutex.UnLockRead();
+  mFsMutex.UnLockRead();
   // Close and delete file,
   fill.close();
   system("rm /mnt/var_test/fill.temp");
   // Setting status of filesystems to RW
-  fsMutex.LockWrite();
+  mFsMutex.LockWrite();
 
   for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
     (*fs)->SetConfigStatus(eos::common::FileSystem::kRW);
   }
 
-  fsMutex.UnLockWrite();
+  mFsMutex.UnLockWrite();
   // Check if status is returned to readonly
   usleep(mMonitorInterval * 1000 * 1000);
-  fsMutex.LockRead();
+  mFsMutex.LockRead();
 
   for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
     CPPUNIT_ASSERT((*fs)->GetConfigStatus() == eos::common::FileSystem::kRW);
   }
 
-  fsMutex.UnLockRead();
+  mFsMutex.UnLockRead();
 }
 
 //------------------------------------------------------------------------------

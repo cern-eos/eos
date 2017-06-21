@@ -157,19 +157,10 @@ Messaging::Process(XrdMqMessage* newmessage)
     XrdOucEnv* capOpaque = &action;
     int envlen = 0;
     eos_debug("opaque is %s", capOpaque->Env(envlen));
-    Verify* newverify = Verify::Create(capOpaque);
+    Verify* new_verify = Verify::Create(capOpaque);
 
-    if (newverify) {
-      gOFS.Storage->verificationsMutex.Lock();
-
-      if (gOFS.Storage->verifications.size() < 1000000) {
-        eos_info("scheduling verification %s", capOpaque->Get("mgm.fid"));
-        gOFS.Storage->verifications.push(newverify);
-      } else {
-        eos_err("verify list has already 1 Mio. entries - discarding verify message");
-      }
-
-      gOFS.Storage->verificationsMutex.UnLock();
+    if (new_verify) {
+      gOFS.Storage->PushVerification(new_verify);
     } else {
       eos_err("Cannot create a verify entry - illegal opaque information");
     }

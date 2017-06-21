@@ -38,10 +38,10 @@ Storage::Scrub()
   eos_static_info("Creating Scrubbing pattern ...");
 
   for (int i = 0; i < 1024 * 1024 / 8; i += 2) {
-    scrubPattern[0][i] = 0xaaaa5555aaaa5555ULL;
-    scrubPattern[0][i + 1] = 0x5555aaaa5555aaaaULL;
-    scrubPattern[1][i] = 0x5555aaaa5555aaaaULL;
-    scrubPattern[1][i + 1] = 0xaaaa5555aaaa5555ULL;
+    mScrubPattern[0][i] = 0xaaaa5555aaaa5555ULL;
+    mScrubPattern[0][i + 1] = 0x5555aaaa5555aaaaULL;
+    mScrubPattern[1][i] = 0x5555aaaa5555aaaaULL;
+    mScrubPattern[1][i + 1] = 0xaaaa5555aaaa5555ULL;
   }
 
   eos_static_info("Start Scrubbing ...");
@@ -51,36 +51,36 @@ Storage::Scrub()
     time_t start = time(0);
     unsigned int nfs = 0;
     {
-      eos::common::RWMutexReadLock lock(fsMutex);
-      nfs = fileSystemsVector.size();
+      eos::common::RWMutexReadLock lock(mFsMutex);
+      nfs = mFsVect.size();
       eos_static_debug("FileSystem Vector %u", nfs);
     }
 
     for (unsigned int i = 0; i < nfs; i++) {
-      fsMutex.LockRead();
+      mFsMutex.LockRead();
 
-      if (i < fileSystemsVector.size()) {
-        std::string path = fileSystemsVector[i]->GetPath();
+      if (i < mFsVect.size()) {
+        std::string path = mFsVect[i]->GetPath();
 
-        if (!fileSystemsVector[i]->GetStatfs()) {
-          fsMutex.UnLockRead();
+        if (!mFsVect[i]->GetStatfs()) {
+          mFsMutex.UnLockRead();
           eos_static_info("GetStatfs failed");
           continue;
         }
 
         unsigned long long free =
-          fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_bfree;
+          mFsVect[i]->GetStatfs()->GetStatfs()->f_bfree;
         unsigned long long blocks =
-          fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_blocks;
+          mFsVect[i]->GetStatfs()->GetStatfs()->f_blocks;
         // disable direct IO for ZFS filesystems
-        bool direct_io = (fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_type !=
+        bool direct_io = (mFsVect[i]->GetStatfs()->GetStatfs()->f_type !=
                           0x2fc12fc1);
-        unsigned long id = fileSystemsVector[i]->GetId();
+        unsigned long id = mFsVect[i]->GetId();
         eos::common::FileSystem::fsstatus_t bootstatus =
-          fileSystemsVector[i]->GetStatus();
+          mFsVect[i]->GetStatus();
         eos::common::FileSystem::fsstatus_t configstatus =
-          fileSystemsVector[i]->GetConfigStatus();
-        fsMutex.UnLockRead();
+          mFsVect[i]->GetConfigStatus();
+        mFsMutex.UnLockRead();
 
         if (!id) {
           continue;
@@ -89,10 +89,10 @@ Storage::Scrub()
         // check if there is a lable on the disk and if the configuration shows the same fsid
         if ((bootstatus == eos::common::FileSystem::kBooted) &&
             (configstatus >= eos::common::FileSystem::kRO) &&
-            (!CheckLabel(fileSystemsVector[i]->GetPath(), fileSystemsVector[i]->GetId(),
-                         fileSystemsVector[i]->GetString("uuid"), true))) {
-          fileSystemsVector[i]->BroadcastError(EIO,
-                                               "filesystem seems to be not mounted anymore");
+            (!CheckLabel(mFsVect[i]->GetPath(), mFsVect[i]->GetId(),
+                         mFsVect[i]->GetString("uuid"), true))) {
+          mFsVect[i]->BroadcastError(EIO,
+                                     "filesystem seems to be not mounted anymore");
           continue;
         }
 
@@ -113,16 +113,16 @@ Storage::Scrub()
 
         if (ScrubFs(path.c_str(), free, blocks, id, direct_io)) {
           // filesystem has errors!
-          fsMutex.LockRead();
+          mFsMutex.LockRead();
 
-          if ((i < fileSystemsVector.size()) && fileSystemsVector[i]) {
-            fileSystemsVector[i]->BroadcastError(EIO, "filesystem probe error detected");
+          if ((i < mFsVect.size()) && mFsVect[i]) {
+            mFsVect[i]->BroadcastError(EIO, "filesystem probe error detected");
           }
 
-          fsMutex.UnLockRead();
+          mFsMutex.UnLockRead();
         }
       } else {
-        fsMutex.UnLockRead();
+        mFsMutex.UnLockRead();
       }
     }
 
@@ -137,7 +137,9 @@ Storage::Scrub()
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Scrub filesystem
+//------------------------------------------------------------------------------
 int
 Storage::ScrubFs(const char* path, unsigned long long free,
                  unsigned long long blocks, unsigned long id, bool direct_io)
@@ -190,7 +192,7 @@ Storage::ScrubFs(const char* path, unsigned long long free,
         eos_static_debug("rshift is %d", rshift);
 
         for (int i = 0; i < MB; i++) {
-          int nwrite = write(ff, scrubPattern[rshift], 1024 * 1024);
+          int nwrite = write(ff, mScrubPattern[rshift], 1024 * 1024);
 
           if (nwrite != (1024 * 1024)) {
             eos_static_crit("Unable to write all needed bytes for scrubfile %s",
@@ -219,7 +221,7 @@ Storage::ScrubFs(const char* path, unsigned long long free,
       int eberrors = 0;
 
       for (int i = 0; i < MB; i++) {
-        int nread = read(ff, scrubPatternVerify, 1024 * 1024);
+        int nread = read(ff, mScrubPatternVerify, 1024 * 1024);
 
         if (nread != (1024 * 1024)) {
           eos_static_crit("Unable to read all needed bytes from scrubfile %s",
@@ -228,13 +230,13 @@ Storage::ScrubFs(const char* path, unsigned long long free,
           break;
         }
 
-        unsigned long long* ref = (unsigned long long*) scrubPattern[0];
-        unsigned long long* cmp = (unsigned long long*) scrubPatternVerify;
+        unsigned long long* ref = (unsigned long long*) mScrubPattern[0];
+        unsigned long long* cmp = (unsigned long long*) mScrubPatternVerify;
 
         // do a quick check
         for (int b = 0; b < MB * 1024 / 8; b++) {
           if ((*ref != *cmp)) {
-            ref = (unsigned long long*) scrubPattern[1];
+            ref = (unsigned long long*) mScrubPattern[1];
 
             if (*(ref) == *cmp) {
               // ok - pattern shifted

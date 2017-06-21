@@ -21,23 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Wait until the configuration queue is defined
+//------------------------------------------------------------------------------
 void
 Storage::WaitConfigQueue(std::string& nodeconfigqueue)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief wait until the configuration queue is defined
- * @param nodeconfigqueue configuration queue for our FST
- */
-/*----------------------------------------------------------------------------*/
+
 {
   const char* val = 0;
 
@@ -107,14 +101,14 @@ Storage::GetScheduledDrainJobs(unsigned long long totalscheduled,
   unsigned int nfs = 0;
   unsigned long long nscheduled = 0;
   {
-    eos::common::RWMutexReadLock lock(fsMutex);
-    nfs = fileSystemsVector.size();
+    eos::common::RWMutexReadLock lock(mFsMutex);
+    nfs = mFsVect.size();
     totalexecuted = 0;
 
     // sum up the current execution state e.g. number of jobs taken from the queue
     for (unsigned int s = 0; s < nfs; s++) {
-      if (s < fileSystemsVector.size()) {
-        totalexecuted += fileSystemsVector[s]->GetDrainQueue()->GetDone();
+      if (s < mFsVect.size()) {
+        totalexecuted += mFsVect[s]->GetDrainQueue()->GetDone();
       }
     }
 
@@ -193,50 +187,50 @@ Storage::GetFileSystemInDrainMode(std::vector<unsigned int>& drainfsvector,
 {
   unsigned int nfs = 0;
   {
-    eos::common::RWMutexReadLock lock(fsMutex);
-    nfs = fileSystemsVector.size();
+    eos::common::RWMutexReadLock lock(mFsMutex);
+    nfs = mFsVect.size();
   }
 
   for (unsigned int i = 0; i < nfs; i++) {
     unsigned int index = (i + cycler) % nfs;
-    eos::common::RWMutexReadLock lock(fsMutex);
+    eos::common::RWMutexReadLock lock(mFsMutex);
 
-    if (index < fileSystemsVector.size()) {
-      std::string path = fileSystemsVector[index]->GetPath();
-      unsigned long id = fileSystemsVector[index]->GetId();
+    if (index < mFsVect.size()) {
+      std::string path = mFsVect[index]->GetPath();
+      unsigned long id = mFsVect[index]->GetId();
       eos_static_debug("FileSystem %lu |%s|", id,
-                       fileSystemsVector[index]->GetString("stat.drainer").c_str());
+                       mFsVect[index]->GetString("stat.drainer").c_str());
 
       // check if this filesystem has to 'schedule2drain'
-      if (fileSystemsVector[index]->GetString("stat.drainer") != "on") {
+      if (mFsVect[index]->GetString("stat.drainer") != "on") {
         // nothing to do here
         continue;
       }
 
       // store our notification condition variable
-      fileSystemsVector[index]->
+      mFsVect[index]->
       GetDrainQueue()->SetJobEndCallback(&drainJobNotification);
 
       // configure the proper rates and slots
-      if (fileSystemsVector[index]->GetDrainQueue()->GetBandwidth() != ratetx) {
+      if (mFsVect[index]->GetDrainQueue()->GetBandwidth() != ratetx) {
         // modify the bandwidth setting for this queue
-        fileSystemsVector[index]->GetDrainQueue()->SetBandwidth(ratetx);
+        mFsVect[index]->GetDrainQueue()->SetBandwidth(ratetx);
       }
 
-      if (fileSystemsVector[index]->GetDrainQueue()->GetSlots() != nparalleltx) {
+      if (mFsVect[index]->GetDrainQueue()->GetSlots() != nparalleltx) {
         // modify slot settings for this queue
-        fileSystemsVector[index]->GetDrainQueue()->SetSlots(nparalleltx);
+        mFsVect[index]->GetDrainQueue()->SetSlots(nparalleltx);
       }
 
       eos::common::FileSystem::fsstatus_t bootstatus =
-        fileSystemsVector[index]->GetStatus();
+        mFsVect[index]->GetStatus();
       eos::common::FileSystem::fsstatus_t configstatus =
-        fileSystemsVector[index]->GetConfigStatus();
+        mFsVect[index]->GetConfigStatus();
       // check if the filesystem is full
       bool full = false;
       {
-        XrdSysMutexHelper(fileSystemFullMapMutex);
-        full = fileSystemFullWarnMap[id];
+        XrdSysMutexHelper(mFsFullMapMutex);
+        full = mFsFullWarnMap[id];
       }
 
       if ((bootstatus != eos::common::FileSystem::kBooted) ||
@@ -270,8 +264,8 @@ Storage::GetDrainJob(unsigned int index)
 /*----------------------------------------------------------------------------*/
 {
   unsigned long long freebytes =
-    fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
-  unsigned long id = fileSystemsVector[index]->GetId();
+    mFsVect[index]->GetLongLong("stat.statfs.freebytes");
+  unsigned long id = mFsVect[index]->GetId();
   XrdOucErrInfo error;
   XrdOucString managerQuery = "/?";
   managerQuery += "mgm.pcmd=schedule2drain";
@@ -385,7 +379,7 @@ Storage::Drainer()
     // ************************************************************************>
     // read lock the file system vector from now on
     {
-      eos::common::RWMutexReadLock lock(fsMutex);
+      eos::common::RWMutexReadLock lock(mFsMutex);
 
       if (!GetFileSystemInDrainMode(drainfsindex,
                                     cycler,

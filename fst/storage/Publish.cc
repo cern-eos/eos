@@ -146,7 +146,7 @@ Storage::Publish()
 
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
-      eos::common::RWMutexReadLock lock(fsMutex);
+      eos::common::RWMutexReadLock lock(mFsMutex);
       static time_t last_consistency_stats = 0;
       static time_t next_consistency_stats = 0;
 
@@ -154,13 +154,13 @@ Storage::Publish()
         eos_static_err("cannot open mux transaction");
       } else {
         // copy out statfs info
-        for (size_t i = 0; i < fileSystemsVector.size(); i++) {
-          if (!fileSystemsVector[i]) {
+        for (size_t i = 0; i < mFsVect.size(); i++) {
+          if (!mFsVect[i]) {
             eos_static_err("found 0 vector in filesystems vector %u", i);
             continue;
           }
 
-          if (!(fsid = fileSystemsVector[i]->GetId())) {
+          if (!(fsid = mFsVect[i]->GetId())) {
             // during the boot phase we can find a filesystem without ID
             continue;
           }
@@ -229,21 +229,21 @@ Storage::Publish()
           std::map<std::string, size_t>::const_iterator isit;
           bool success = true;
 
-          if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted) {
+          if (mFsVect[i]->GetStatus() == eos::common::FileSystem::kBooted) {
             if (next_consistency_stats < now) {
               eos_static_debug("msg=\"publish consistency stats\"");
               last_consistency_stats = now;
-              XrdSysMutexHelper ISLock(fileSystemsVector[i]->InconsistencyStatsMutex);
+              XrdSysMutexHelper ISLock(mFsVect[i]->InconsistencyStatsMutex);
               gFmdDbMapHandler.GetInconsistencyStatistics(fsid,
-                  *fileSystemsVector[i]->GetInconsistencyStats(),
-                  *fileSystemsVector[i]->GetInconsistencySets());
+                  *mFsVect[i]->GetInconsistencyStats(),
+                  *mFsVect[i]->GetInconsistencySets());
 
-              for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin();
-                   isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++) {
+              for (isit = mFsVect[i]->GetInconsistencyStats()->begin();
+                   isit != mFsVect[i]->GetInconsistencyStats()->end(); isit++) {
                 //eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
                 std::string sname = "stat.fsck.";
                 sname += isit->first;
-                success &= fileSystemsVector[i]->SetLongLong(sname.c_str(), isit->second);
+                success &= mFsVect[i]->SetLongLong(sname.c_str(), isit->second);
               }
             }
           }
@@ -251,21 +251,21 @@ Storage::Publish()
           eos::common::Statfs* statfs = 0;
 
           // call the update function which stores into the filesystem shared hash
-          if ((statfs = fileSystemsVector[i]->GetStatfs())) {
+          if ((statfs = mFsVect[i]->GetStatfs())) {
             // call the update function which stores into the filesystem shared hash
-            if (!fileSystemsVector[i]->SetStatfs(statfs->GetStatfs())) {
+            if (!mFsVect[i]->SetStatfs(statfs->GetStatfs())) {
               eos_static_err("cannot SetStatfs on filesystem %s",
-                             fileSystemsVector[i]->GetPath().c_str());
+                             mFsVect[i]->GetPath().c_str());
             }
           }
 
           // Copy out net info
-          success &= fileSystemsVector[i]->SetDouble("stat.net.ethratemib",
-                     netspeed / (8 * 1024 * 1024));
-          success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib",
-                     fstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
-          success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib",
-                     fstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
+          success &= mFsVect[i]->SetDouble("stat.net.ethratemib",
+                                           netspeed / (8 * 1024 * 1024));
+          success &= mFsVect[i]->SetDouble("stat.net.inratemib",
+                                           mFstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
+          success &= mFsVect[i]->SetDouble("stat.net.outratemib",
+                                           mFstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
           // Set current load stats, io-target specific implementation may override
           // fst load implementation
           {
@@ -274,43 +274,43 @@ Storage::Publish()
             double diskload;
             std::map<std::string, std::string> iostats;
 
-            if (fileSystemsVector[i]->getFileIOStats(iostats)) {
+            if (mFsVect[i]->getFileIOStats(iostats)) {
               readratemb = strtod(iostats["read-mb-second"].c_str(), 0);
               writeratemb = strtod(iostats["write-mb-second"].c_str(), 0);
               diskload = strtod(iostats["load"].c_str(), 0);
             } else {
-              readratemb = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
-                                               "readSectors") * 512.0 / 1000000.0;
-              writeratemb = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
-                                                "writeSectors") * 512.0 / 1000000.0;
-              diskload = fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
-                                             "millisIO") / 1000.0;
+              readratemb = mFstLoad.GetDiskRate(mFsVect[i]->GetPath().c_str(),
+                                                "readSectors") * 512.0 / 1000000.0;
+              writeratemb = mFstLoad.GetDiskRate(mFsVect[i]->GetPath().c_str(),
+                                                 "writeSectors") * 512.0 / 1000000.0;
+              diskload = mFstLoad.GetDiskRate(mFsVect[i]->GetPath().c_str(),
+                                              "millisIO") / 1000.0;
             }
 
-            success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", readratemb);
-            success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb",
-                       writeratemb);
-            success &= fileSystemsVector[i]->SetDouble("stat.disk.load", diskload);
+            success &= mFsVect[i]->SetDouble("stat.disk.readratemb", readratemb);
+            success &= mFsVect[i]->SetDouble("stat.disk.writeratemb",
+                                             writeratemb);
+            success &= mFsVect[i]->SetDouble("stat.disk.load", diskload);
           }
           // copy out net info
           {
             // File system implementation may override standard implementation
             std::map<std::string, std::string> health;
 
-            if (!fileSystemsVector[i]->getHealth(health)) {
-              health = fstHealth.getDiskHealth(fileSystemsVector[i]->GetPath().c_str());
+            if (!mFsVect[i]->getHealth(health)) {
+              health = mFstHealth.getDiskHealth(mFsVect[i]->GetPath().c_str());
             }
 
-            success &= fileSystemsVector[i]->SetString("stat.health",
-                       (health.count("summary") ? health["summary"].c_str() : "N/A"));
-            success &= fileSystemsVector[i]->SetLongLong("stat.health.indicator",
-                       strtoll(health["indicator"].c_str(), 0, 10));
-            success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_total",
-                       strtoll(health["drives_total"].c_str(), 0, 10));
-            success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_failed",
-                       strtoll(health["drives_failed"].c_str(), 0, 10));
-            success &= fileSystemsVector[i]->SetLongLong("stat.health.redundancy_factor",
-                       strtoll(health["redundancy_factor"].c_str(), 0, 10));
+            success &= mFsVect[i]->SetString("stat.health",
+                                             (health.count("summary") ? health["summary"].c_str() : "N/A"));
+            success &= mFsVect[i]->SetLongLong("stat.health.indicator",
+                                               strtoll(health["indicator"].c_str(), 0, 10));
+            success &= mFsVect[i]->SetLongLong("stat.health.drives_total",
+                                               strtoll(health["drives_total"].c_str(), 0, 10));
+            success &= mFsVect[i]->SetLongLong("stat.health.drives_failed",
+                                               strtoll(health["drives_failed"].c_str(), 0, 10));
+            success &= mFsVect[i]->SetLongLong("stat.health.redundancy_factor",
+                                               strtoll(health["redundancy_factor"].c_str(), 0, 10));
           }
           long long r_open = 0;
           long long w_open = 0;
@@ -319,48 +319,48 @@ Storage::Publish()
             r_open = (long long) gOFS.ROpenFid[fsid].size();
             w_open = (long long) gOFS.WOpenFid[fsid].size();
           }
-          success &= fileSystemsVector[i]->SetLongLong("stat.ropen", r_open);
-          success &= fileSystemsVector[i]->SetLongLong("stat.wopen", w_open);
-          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.freebytes",
-                     fileSystemsVector[i]->GetLongLong("stat.statfs.bfree") *
-                     fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
-          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.usedbytes",
-                     (fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") -
-                      fileSystemsVector[i]->GetLongLong("stat.statfs.bfree")) *
-                     fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
-          success &= fileSystemsVector[i]->SetDouble("stat.statfs.filled",
-                     100.0 * ((fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") -
-                               fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))) /
-                     (1 + fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")));
-          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.capacity",
-                     fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") *
-                     fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
-          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused",
-                     (fileSystemsVector[i]->GetLongLong("stat.statfs.files") -
-                      fileSystemsVector[i]->GetLongLong("stat.statfs.ffree")) *
-                     fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
+          success &= mFsVect[i]->SetLongLong("stat.ropen", r_open);
+          success &= mFsVect[i]->SetLongLong("stat.wopen", w_open);
+          success &= mFsVect[i]->SetLongLong("stat.statfs.freebytes",
+                                             mFsVect[i]->GetLongLong("stat.statfs.bfree") *
+                                             mFsVect[i]->GetLongLong("stat.statfs.bsize"));
+          success &= mFsVect[i]->SetLongLong("stat.statfs.usedbytes",
+                                             (mFsVect[i]->GetLongLong("stat.statfs.blocks") -
+                                              mFsVect[i]->GetLongLong("stat.statfs.bfree")) *
+                                             mFsVect[i]->GetLongLong("stat.statfs.bsize"));
+          success &= mFsVect[i]->SetDouble("stat.statfs.filled",
+                                           100.0 * ((mFsVect[i]->GetLongLong("stat.statfs.blocks") -
+                                               mFsVect[i]->GetLongLong("stat.statfs.bfree"))) /
+                                           (1 + mFsVect[i]->GetLongLong("stat.statfs.blocks")));
+          success &= mFsVect[i]->SetLongLong("stat.statfs.capacity",
+                                             mFsVect[i]->GetLongLong("stat.statfs.blocks") *
+                                             mFsVect[i]->GetLongLong("stat.statfs.bsize"));
+          success &= mFsVect[i]->SetLongLong("stat.statfs.fused",
+                                             (mFsVect[i]->GetLongLong("stat.statfs.files") -
+                                              mFsVect[i]->GetLongLong("stat.statfs.ffree")) *
+                                             mFsVect[i]->GetLongLong("stat.statfs.bsize"));
           {
             eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
             FmdSqliteWriteLock vlock(fsid);
-            success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles",
-                       (long long)(gFmdDbMapHandler.dbmap.count(fsid) ?
-                                   gFmdDbMapHandler.dbmap[fsid]->size() : 0));
+            success &= mFsVect[i]->SetLongLong("stat.usedfiles",
+                                               (long long)(gFmdDbMapHandler.dbmap.count(fsid) ?
+                                                   gFmdDbMapHandler.dbmap[fsid]->size() : 0));
           }
-          success &= fileSystemsVector[i]->SetString("stat.boot",
-                     fileSystemsVector[i]->GetStatusAsString(fileSystemsVector[i]->GetStatus()));
-          success &= fileSystemsVector[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
+          success &= mFsVect[i]->SetString("stat.boot",
+                                           mFsVect[i]->GetStatusAsString(mFsVect[i]->GetStatus()));
+          success &= mFsVect[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
           struct timeval tvfs;
           gettimeofday(&tvfs, &tz);
           size_t nowms = tvfs.tv_sec * 1000 + tvfs.tv_usec / 1000;
-          success &= fileSystemsVector[i]->SetLongLong("stat.publishtimestamp", nowms);
-          success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running",
-                     fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
-          success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running",
-                     fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());
-          success &= fileSystemsVector[i]->SetLongLong("stat.disk.iops",
-                     fileSystemsVector[i]->getIOPS());
-          success &= fileSystemsVector[i]->SetDouble("stat.disk.bw",
-                     fileSystemsVector[i]->getSeqBandwidth()); // in MB
+          success &= mFsVect[i]->SetLongLong("stat.publishtimestamp", nowms);
+          success &= mFsVect[i]->SetLongLong("stat.drainer.running",
+                                             mFsVect[i]->GetDrainQueue()->GetRunningAndQueued());
+          success &= mFsVect[i]->SetLongLong("stat.balancer.running",
+                                             mFsVect[i]->GetBalanceQueue()->GetRunningAndQueued());
+          success &= mFsVect[i]->SetLongLong("stat.disk.iops",
+                                             mFsVect[i]->getIOPS());
+          success &= mFsVect[i]->SetDouble("stat.disk.bw",
+                                           mFsVect[i]->getSeqBandwidth()); // in MB
           {
             // we have to set something which is not empty to update the value
             if (!r_open_hotfiles.length()) {
@@ -372,14 +372,14 @@ Storage::Publish()
             }
 
             // Copy out hot file list
-            success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles",
-                       r_open_hotfiles.c_str());
-            success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles",
-                       w_open_hotfiles.c_str());
+            success &= mFsVect[i]->SetString("stat.ropen.hotfiles",
+                                             r_open_hotfiles.c_str());
+            success &= mFsVect[i]->SetString("stat.wopen.hotfiles",
+                                             w_open_hotfiles.c_str());
           }
           {
-            long long fbytes = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
-            XrdSysMutexHelper(fileSystemFullMapMutex);
+            long long fbytes = mFsVect[i]->GetLongLong("stat.statfs.freebytes");
+            XrdSysMutexHelper(mFsFullMapMutex);
             // stop the writers if it get's critical under 5 GB space
             int full_gb = 5;
 
@@ -388,22 +388,22 @@ Storage::Publish()
             }
 
             if ((fbytes < full_gb * 1024ll * 1024ll * 1024ll)) {
-              fileSystemFullMap[fsid] = true;
+              mFsFullMap[fsid] = true;
             } else {
-              fileSystemFullMap[fsid] = false;
+              mFsFullMap[fsid] = false;
             }
 
             if ((fbytes < 1024ll * 1024ll * 1024ll) ||
-                (fbytes <= fileSystemsVector[i]->GetLongLong("headroom"))) {
-              fileSystemFullWarnMap[fsid] = true;
+                (fbytes <= mFsVect[i]->GetLongLong("headroom"))) {
+              mFsFullWarnMap[fsid] = true;
             } else {
-              fileSystemFullWarnMap[fsid] = false;
+              mFsFullWarnMap[fsid] = false;
             }
           }
 
           if (!success) {
             eos_static_err("cannot set net parameters on filesystem %s",
-                           fileSystemsVector[i]->GetPath().c_str());
+                           mFsVect[i]->GetPath().c_str());
           }
         }
 
@@ -436,9 +436,9 @@ Storage::Publish()
                        (g_logging.gPriorityLevel)).c_str());
             // copy out net info
             hash->Set("stat.net.ethratemib", netspeed / (8 * 1024 * 1024));
-            hash->Set("stat.net.inratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),
+            hash->Set("stat.net.inratemib", mFstLoad.GetNetRate(lEthernetDev.c_str(),
                       "rxbytes") / 1024.0 / 1024.0);
-            hash->Set("stat.net.outratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),
+            hash->Set("stat.net.outratemib", mFstLoad.GetNetRate(lEthernetDev.c_str(),
                       "txbytes") / 1024.0 / 1024.0);
             struct timeval tvfs;
             gettimeofday(&tvfs, &tz);

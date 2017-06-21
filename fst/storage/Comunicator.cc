@@ -142,15 +142,15 @@ Storage::Communicator()
                           event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
         }
 
-        eos::common::RWMutexWriteLock lock(fsMutex);
+        eos::common::RWMutexWriteLock lock(mFsMutex);
         FileSystem* fs = 0;
 
-        if (!(fileSystems.count(queue.c_str()))) {
+        if (!(mQueue2FsMap.count(queue.c_str()))) {
           fs = new FileSystem(queue.c_str(), Config::gConfig.FstQueue.c_str(),
                               &gOFS.ObjectManager);
-          fileSystems[queue.c_str()] = fs;
-          fileSystemsVector.push_back(fs);
-          fileSystemsMap[fs->GetId()] = fs;
+          mQueue2FsMap[queue.c_str()] = fs;
+          mFsVect.push_back(fs);
+          mFileSystemsMap[fs->GetId()] = fs;
           eos_static_info("setting up filesystem %s", queue.c_str());
           fs->SetStatus(eos::common::FileSystem::kDown);
         }
@@ -384,7 +384,7 @@ Storage::Communicator()
               try {
                 KineticLib::access()->reloadConfiguration();
 
-                for (auto fs_it = fileSystemsVector.cbegin(); fs_it != fileSystemsVector.cend();
+                for (auto fs_it = mFsVect.cbegin(); fs_it != mFsVect.cend();
                      fs_it++) {
                   (*fs_it)->condReloadFileIo("kinetic");
                 }
@@ -395,9 +395,9 @@ Storage::Communicator()
             }
           }
         } else {
-          fsMutex.LockRead();
+          mFsMutex.LockRead();
 
-          if ((fileSystems.count(queue.c_str()))) {
+          if ((mQueue2FsMap.count(queue.c_str()))) {
             eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),
                             key.c_str());
             gOFS.ObjectManager.HashMutex.LockRead();
@@ -408,50 +408,50 @@ Storage::Communicator()
                 unsigned int fsid = hash->GetUInt(key.c_str());
                 gOFS.ObjectManager.HashMutex.UnLockRead();
 
-                if ((!fileSystemsMap.count(fsid)) ||
-                    (fileSystemsMap[fsid] != fileSystems[queue.c_str()])) {
-                  fsMutex.UnLockRead();
-                  fsMutex.LockWrite();
+                if ((!mFileSystemsMap.count(fsid)) ||
+                    (mFileSystemsMap[fsid] != mQueue2FsMap[queue.c_str()])) {
+                  mFsMutex.UnLockRead();
+                  mFsMutex.LockWrite();
                   // setup the reverse lookup by id
-                  fileSystemsMap[fsid] = fileSystems[queue.c_str()];
+                  mFileSystemsMap[fsid] = mQueue2FsMap[queue.c_str()];
                   eos_static_info("setting reverse lookup for fsid %u", fsid);
-                  fsMutex.UnLockWrite();
-                  fsMutex.LockRead();
+                  mFsMutex.UnLockWrite();
+                  mFsMutex.LockRead();
                 }
 
                 // check if we are autobooting
                 if (eos::fst::Config::gConfig.autoBoot &&
-                    (fileSystems[queue.c_str()]->GetStatus() <= eos::common::FileSystem::kDown) &&
-                    (fileSystems[queue.c_str()]->GetConfigStatus() >
+                    (mQueue2FsMap[queue.c_str()]->GetStatus() <= eos::common::FileSystem::kDown) &&
+                    (mQueue2FsMap[queue.c_str()]->GetConfigStatus() >
                      eos::common::FileSystem::kOff)) {
                   // start a boot thread
-                  RunBootThread(fileSystems[queue.c_str()]);
+                  RunBootThread(mQueue2FsMap[queue.c_str()]);
                 }
               } else {
                 if (key == "bootsenttime") {
                   gOFS.ObjectManager.HashMutex.UnLockRead();
 
                   // this is a request to (re-)boot a filesystem
-                  if (fileSystems.count(queue.c_str())) {
-                    if ((fileSystems[queue.c_str()]->GetInternalBootStatus() ==
+                  if (mQueue2FsMap.count(queue.c_str())) {
+                    if ((mQueue2FsMap[queue.c_str()]->GetInternalBootStatus() ==
                          eos::common::FileSystem::kBooted)) {
-                      if (fileSystems[queue.c_str()]->GetLongLong("bootcheck")) {
+                      if (mQueue2FsMap[queue.c_str()]->GetLongLong("bootcheck")) {
                         eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'",
-                                        queue.c_str(), fileSystems[queue.c_str()]->GetStatus(),
-                                        fileSystems[queue.c_str()]->GetLongLong("bootcheck"));
-                        RunBootThread(fileSystems[queue.c_str()]);
+                                        queue.c_str(), mQueue2FsMap[queue.c_str()]->GetStatus(),
+                                        mQueue2FsMap[queue.c_str()]->GetLongLong("bootcheck"));
+                        RunBootThread(mQueue2FsMap[queue.c_str()]);
                       } else {
                         eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'",
-                                        queue.c_str(), fileSystems[queue.c_str()]->GetStatus(),
-                                        fileSystems[queue.c_str()]->GetLongLong("bootcheck"));
-                        fileSystems[queue.c_str()]->SetStatus(eos::common::FileSystem::kBooted);
+                                        queue.c_str(), mQueue2FsMap[queue.c_str()]->GetStatus(),
+                                        mQueue2FsMap[queue.c_str()]->GetLongLong("bootcheck"));
+                        mQueue2FsMap[queue.c_str()]->SetStatus(eos::common::FileSystem::kBooted);
                       }
                     } else {
                       eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'",
-                                      queue.c_str(), fileSystems[queue.c_str()]->GetStatus(),
-                                      fileSystems[queue.c_str()]->GetLongLong("bootcheck"));
+                                      queue.c_str(), mQueue2FsMap[queue.c_str()]->GetStatus(),
+                                      mQueue2FsMap[queue.c_str()]->GetLongLong("bootcheck"));
                       // start a boot thread;
-                      RunBootThread(fileSystems[queue.c_str()]);
+                      RunBootThread(mQueue2FsMap[queue.c_str()]);
                     }
                   } else {
                     eos_static_err("got boot time update on not existant filesystem %s",
@@ -461,12 +461,12 @@ Storage::Communicator()
                   if (key == "scaninterval") {
                     gOFS.ObjectManager.HashMutex.UnLockRead();
 
-                    if (fileSystems.count(queue.c_str())) {
+                    if (mQueue2FsMap.count(queue.c_str())) {
                       time_t interval = (time_t)
-                                        fileSystems[queue.c_str()]->GetLongLong("scaninterval");
+                                        mQueue2FsMap[queue.c_str()]->GetLongLong("scaninterval");
 
                       if (interval > 0) {
-                        fileSystems[queue.c_str()]->RunScanner(&fstLoad, interval);
+                        mQueue2FsMap[queue.c_str()]->RunScanner(&mFstLoad, interval);
                       }
                     }
                   } else {
@@ -483,7 +483,7 @@ Storage::Communicator()
                            queue.c_str(), key.c_str());
           }
 
-          fsMutex.UnLockRead();
+          mFsMutex.UnLockRead();
         }
 
         gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();

@@ -43,11 +43,13 @@ struct MockFileSystem {
 
   MockFileSystem() : status(eos::common::FileSystem::kRW) {}
 
-  void SetConfigStatus(fsstatus_t status) {
+  void SetConfigStatus(fsstatus_t status)
+  {
     this->status = status;
   }
 
-  fsstatus_t GetConfigStatus(bool cached = false) {
+  fsstatus_t GetConfigStatus(bool cached = false)
+  {
     return this->status;
   }
 };
@@ -63,7 +65,7 @@ class VarPartitionMonitorTest : public CppUnit::TestCase
   CPPUNIT_TEST(VarMonitorTest);
   CPPUNIT_TEST_SUITE_END();
 
-  eos::common::RWMutex fsMutex;
+  eos::common::RWMutex mFsMutex;
   std::vector<MockFileSystem*> fsVector;
   VarMonitorT monitor;
   std::thread monitor_thread;

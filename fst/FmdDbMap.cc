@@ -160,7 +160,7 @@ bool
 FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexWriteLock lock(Mutex);
-  eos_info("%s DB shutdown for fsid=%lu\n",
+  eos_info("%s DB shutdown for fsid=%lu",
            eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
 
   if (dbmap.count(fsid)) {
@@ -188,7 +188,7 @@ bool
 FmdDbMapHandler::MarkCleanDB(eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexWriteLock lock(Mutex);
-  eos_info("%s DB mark clean for fsid=%lu\n",
+  eos_info("%s DB mark clean for fsid=%lu",
            eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
 
   if (dbmap.count(fsid)) {

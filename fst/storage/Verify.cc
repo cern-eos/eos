@@ -44,20 +44,20 @@ Storage::Verify()
 
   // This thread unlinks stored files
   while (1) {
-    verificationsMutex.Lock();
+    mVerifyMutex.Lock();
 
-    if (!verifications.size()) {
-      verificationsMutex.UnLock();
+    if (!mVerifications.size()) {
+      mVerifyMutex.UnLock();
       sleep(1);
       continue;
     }
 
-    eos::fst::Verify* verifyfile = verifications.front();
+    eos::fst::Verify* verifyfile = mVerifications.front();
 
     if (verifyfile) {
       eos_static_debug("got %llu\n", (unsigned long long) verifyfile);
-      verifications.pop();
-      runningVerify = verifyfile;
+      mVerifications.pop();
+      mRunningVerify = verifyfile;
       {
         XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
 
@@ -73,20 +73,20 @@ Storage::Verify()
               open_w_out[verifyfile->fId] = now + 60;
             }
 
-            verifications.push(verifyfile);
-            verificationsMutex.UnLock();
+            mVerifications.push(verifyfile);
+            mVerifyMutex.UnLock();
             continue;
           }
         }
       }
     } else {
       eos_static_debug("got nothing");
-      verificationsMutex.UnLock();
-      runningVerify = 0;
+      mVerifyMutex.UnLock();
+      mRunningVerify = 0;
       continue;
     }
 
-    verificationsMutex.UnLock();
+    mVerifyMutex.UnLock();
     eos_static_debug("verifying File Id=%x on Fs=%u", verifyfile->fId,
                      verifyfile->fsId);
     // verify the file
@@ -320,7 +320,7 @@ Storage::Verify()
       io->fileClose();
     }
 
-    runningVerify = 0;
+    mRunningVerify = 0;
 
     if (verifyfile) {
       delete verifyfile;

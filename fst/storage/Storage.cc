@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: Storage.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/Config.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
@@ -34,27 +33,39 @@
 #include "common/ShellCmd.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "MonitorVarPartition.hh"
-/*----------------------------------------------------------------------------*/
 #include <google/dense_hash_map>
 #include <math.h>
-/*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOss.hh"
 #include "XrdSys/XrdSysTimer.hh"
-/*----------------------------------------------------------------------------*/
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Create new Storage object
+//------------------------------------------------------------------------------
+Storage*
+Storage::Create(const char* meta_dir)
+{
+  Storage* storage = new Storage(meta_dir);
+
+  if (storage->IsZombie()) {
+    delete storage;
+    return 0;
+  }
+
+  return storage;
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Storage::Storage(const char* metadirectory)
+Storage::Storage(const char* meta_dir)
 {
   SetLogId("FstOfsStorage");
-  // make metadir
   XrdOucString mkmetalogdir = "mkdir -p ";
-  mkmetalogdir += metadirectory;
+  mkmetalogdir += meta_dir;
   mkmetalogdir += " >& /dev/null";
   int rc = system(mkmetalogdir.c_str());
 
@@ -62,9 +73,8 @@ Storage::Storage(const char* metadirectory)
     rc = 0;
   }
 
-  // own the directory
   mkmetalogdir = "chown -R daemon.daemon ";
-  mkmetalogdir += metadirectory;
+  mkmetalogdir += meta_dir;
   mkmetalogdir += " >& /dev/null";
   rc = system(mkmetalogdir.c_str());
 
@@ -72,18 +82,17 @@ Storage::Storage(const char* metadirectory)
     rc = 0;
   }
 
-  metaDirectory = metadirectory;
+  mMetaDir = meta_dir;
 
-  // check if the meta directory is accessible
-  if (access(metadirectory, R_OK | W_OK | X_OK)) {
-    eos_crit("cannot access meta data directory %s", metadirectory);
-    zombie = true;
+  // Check if the meta directory is accessible
+  if (access(meta_dir, R_OK | W_OK | X_OK)) {
+    eos_crit("cannot access meta data directory %s", meta_dir);
+    mZombie = true;
   }
 
-  zombie = false;
-  // start threads
+  mZombie = false;
   pthread_t tid;
-  // we need page aligned addresses for direct IO
+  // We need page aligned addresses for direct IO
   long pageval = sysconf(_SC_PAGESIZE);
 
   if (pageval < 0) {
@@ -91,9 +100,9 @@ Storage::Storage(const char* metadirectory)
     exit(-1);
   }
 
-  if (posix_memalign((void**) &scrubPattern[0], pageval, 1024 * 1024) ||
-      posix_memalign((void**) &scrubPattern[1], pageval, 1024 * 1024) ||
-      posix_memalign((void**) &scrubPatternVerify, pageval, 1024 * 1024)) {
+  if (posix_memalign((void**) &mScrubPattern[0], pageval, 1024 * 1024) ||
+      posix_memalign((void**) &mScrubPattern[1], pageval, 1024 * 1024) ||
+      posix_memalign((void**) &mScrubPatternVerify, pageval, 1024 * 1024)) {
     eos_crit("cannot allocate memory aligned scrub buffer");
     exit(-1);
   }
@@ -104,147 +113,147 @@ Storage::Storage(const char* metadirectory)
                               static_cast<void*>(this),
                               0, "Scrubber"))) {
     eos_crit("cannot start scrubber thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  XrdSysMutexHelper tsLock(ThreadSetMutex);
-  ThreadSet.insert(tid);
+  XrdSysMutexHelper tsLock(mThreadsMutex);
+  mThreadSet.insert(tid);
   eos_info("starting trim thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsTrim,
                               static_cast<void*>(this),
                               0, "Meta Store Trim"))) {
     eos_crit("cannot start trimming theread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting deletion thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsRemover,
                               static_cast<void*>(this),
                               0, "Data Store Remover"))) {
     eos_crit("cannot start deletion theread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting report thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsReport,
                               static_cast<void*>(this),
                               0, "Report Thread"))) {
     eos_crit("cannot start report thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting error report thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsErrorReport,
                               static_cast<void*>(this),
                               0, "Error Report Thread"))) {
     eos_crit("cannot start error report thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting verification thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsVerify,
                               static_cast<void*>(this),
                               0, "Verify Thread"))) {
     eos_crit("cannot start verify thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting filesystem communication thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsCommunicator,
                               static_cast<void*>(this),
                               0, "Communicator Thread"))) {
     eos_crit("cannot start communicator thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting daemon supervisor thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartDaemonSupervisor,
                               static_cast<void*>(this),
                               0, "Supervisor Thread"))) {
     eos_crit("cannot start supervisor thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting filesystem publishing thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsPublisher,
                               static_cast<void*>(this),
                               0, "Publisher Thread"))) {
     eos_crit("cannot start publisher thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting filesystem balancer thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsBalancer,
                               static_cast<void*>(this),
                               0, "Balancer Thread"))) {
     eos_crit("cannot start balancer thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting filesystem drainer thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsDrainer,
                               static_cast<void*>(this),
                               0, "Drainer Thread"))) {
     eos_crit("cannot start drainer thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting filesystem transaction cleaner thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsCleaner,
                               static_cast<void*>(this),
                               0, "Cleaner Thread"))) {
     eos_crit("cannot start cleaner thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("starting mgm synchronization thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
                               static_cast<void*>(this),
                               0, "MgmSyncer Thread"))) {
     eos_crit("cannot start mgm syncer thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   // Starting FstPartitionMonitor
-  eos_info("Starting /var partition monitor thread ...");
+  eos_info("starting /var/ partition monitor thread ...");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartVarPartitionMonitor,
                               static_cast<void*>(this),
                               0, "Var Partition Monitor"))) {
     eos_crit("Cannot start Var Partition Monitor thread");
-    zombie = true;
+    mZombie = true;
   }
 
-  ThreadSet.insert(tid);
+  mThreadSet.insert(tid);
   eos_info("enabling net/io load monitor");
-  fstLoad.Monitor();
+  mFstLoad.Monitor();
   eos_info("enabling local disk S.M.A.R.T attribute monitor");
-  fstHealth.Monitor();
-  // create gw queue
+  mFstHealth.Monitor();
+  // Create gw queue
   XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
   std::string n = eos::fst::Config::gConfig.FstQueue.c_str();
   n += "/gw";
@@ -272,18 +281,35 @@ Storage::~Storage()
   delete mGwQueue;
 }
 
-/*----------------------------------------------------------------------------*/
-Storage*
-Storage::Create(const char* metadirectory)
+//------------------------------------------------------------------------------
+// Shutdown all helper threads
+//------------------------------------------------------------------------------
+void
+Storage::ShutdownThreads()
 {
-  Storage* storage = new Storage(metadirectory);
+  XrdSysMutexHelper scope_lock(mThreadsMutex);
 
-  if (storage->IsZombie()) {
-    delete storage;
-    return 0;
+  for (auto it = mThreadSet.begin(); it != mThreadSet.end(); it++) {
+    eos_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
+    XrdSysThread::Cancel(*it);
   }
+}
 
-  return storage;
+//------------------------------------------------------------------------------
+// Push new verification job to the queue if the maximum number of pending
+// verifications is not exceeded.
+//------------------------------------------------------------------------------
+void
+Storage::PushVerification(eos::fst::Verify* entry)
+{
+  XrdSysMutexHelper scope_lock(mVerifyMutex);
+
+  if (mVerifications.size() < 1000000) {
+    mVerifications.push(entry);
+    entry->Show();
+  } else {
+    eos_err("verify list has already 1 Mio. entries - discarding verify message");
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -341,9 +367,7 @@ Storage::Boot(FileSystem* fs)
     return;
   }
 
-  // --------------------
-  // exclude remote disks
-  // --------------------
+  // Exclude remote disks
   if (fs->GetPath()[0] == '/') {
     // test if we have rw access
     struct stat buf;
@@ -393,7 +417,7 @@ Storage::Boot(FileSystem* fs)
   gOFS.WOpenFid[fsid].set_deleted_key(0);
   gOFS.OpenFidMutex.UnLock();
   XrdOucString dbfilename;
-  gFmdDbMapHandler.CreateDBFileName(metaDirectory.c_str(), dbfilename);
+  gFmdDbMapHandler.CreateDBFileName(mMetaDir.c_str(), dbfilename);
 
   // attach to the SQLITE DB
   if (!gFmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid)) {
@@ -467,7 +491,7 @@ Storage::Boot(FileSystem* fs)
     gFmdDbMapHandler.MarkCleanDB(fsid);
   }
 
-  // Check if there is a lable on the disk and if the configuration shows the
+  // Check if there is a label on the disk and if the configuration shows the
   // same fsid + uuid
   if (!CheckLabel(fs->GetPath(), fsid, uuid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -487,7 +511,7 @@ Storage::Boot(FileSystem* fs)
   std::string transactionDirectory = fs->GetPath();
 
   if (fs->GetPath()[0] != '/') {
-    transactionDirectory = metaDirectory.c_str();
+    transactionDirectory = mMetaDir.c_str();
     transactionDirectory += "/.eostransaction";
     transactionDirectory += "-";
     transactionDirectory += (int) fs->GetId();
@@ -544,6 +568,297 @@ Storage::Boot(FileSystem* fs)
   return;
 }
 
+//------------------------------------------------------------------------------
+// Start scurbber thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsScrub(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Scrub();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start fmd DB trimmer thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsTrim(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Trim();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start remover thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsRemover(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Remover();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start reporter thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsReport(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Report();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start error reporter thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsErrorReport(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->ErrorReport();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start verification thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsVerify(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Verify();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start communicator thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsCommunicator(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Communicator();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start supervisor thread doing automatic restart if needed
+//------------------------------------------------------------------------------
+void*
+Storage::StartDaemonSupervisor(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Supervisor();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start publisher thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsPublisher(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Publish();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start balancer thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsBalancer(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Balancer();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start drainer thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsDrainer(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Drainer();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start cleaner thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsCleaner(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->Cleaner();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start mgm syncer thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartMgmSyncer(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->MgmSyncer();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start /var/ monitoring thread
+//------------------------------------------------------------------------------
+void* Storage::StartVarPartitionMonitor(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  MonitorVarPartition<std::vector<FileSystem*>> mon(5., 30, "/var/");
+  mon.Monitor(storage->mFsVect, storage->mFsMutex);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start boot thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartBoot(void* pp)
+{
+  if (pp) {
+    BootThreadInfo* info = (BootThreadInfo*) pp;
+    info->storage->Boot(info->filesystem);
+    // Remove from the set containing the ids of booting filesystems
+    XrdSysMutexHelper bootLock(info->storage->mBootingMutex);
+    info->storage->mBootingSet.erase(info->filesystem->GetId());
+    XrdSysMutexHelper tsLock(info->storage->mThreadsMutex);
+    info->storage->mThreadSet.erase(XrdSysThread::ID());
+    delete info;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Run boot thread for specified filesystem
+//------------------------------------------------------------------------------
+bool
+Storage::RunBootThread(FileSystem* fs)
+{
+  bool retc = false;
+
+  if (fs) {
+    XrdSysMutexHelper bootLock(mBootingMutex);
+
+    // Check if this filesystem is currently already booting
+    if (mBootingSet.count(fs->GetId())) {
+      eos_warning("discard boot request: filesytem fsid=%lu is currently booting",
+                  (unsigned long) fs->GetId());
+      return retc;
+    } else {
+      // Insert into the set of booting filesystems
+      mBootingSet.insert(fs->GetId());
+    }
+
+    BootThreadInfo* info = new BootThreadInfo;
+
+    if (info) {
+      info->storage = this;
+      info->filesystem = fs;
+      pthread_t tid;
+
+      if ((XrdSysThread::Run(&tid, Storage::StartBoot, static_cast<void*>(info),
+                             0, "Booter"))) {
+        eos_crit("cannot start boot thread");
+        mBootingSet.erase(fs->GetId());
+      } else {
+        retc = true;
+        XrdSysMutexHelper tsLock(mThreadsMutex);
+        mThreadSet.insert(tid);
+        eos_notice("msg=\"started boot thread\" fsid=%ld",
+                   (unsigned long) info->filesystem->GetId());
+      }
+    }
+  }
+
+  return retc;
+}
+
+//------------------------------------------------------------------------------
+// Open transaction operation
+//------------------------------------------------------------------------------
+bool
+Storage::OpenTransaction(unsigned int fsid, unsigned long long fid)
+{
+  FileSystem* fs = mFileSystemsMap[fsid];
+
+  if (fs) {
+    return fs->OpenTransaction(fid);
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Close transaction operation
+//------------------------------------------------------------------------------
+bool
+Storage::CloseTransaction(unsigned int fsid, unsigned long long fid)
+{
+  FileSystem* fs = mFileSystemsMap[fsid];
+
+  if (fs) {
+    return fs->CloseTransaction(fid);
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Add deletion to the list of pending ones
+//------------------------------------------------------------------------------
+void
+Storage::AddDeletion(std::unique_ptr<Deletion> del)
+{
+  XrdSysMutexHelper scope_lock(mDeletionsMutex);
+  mListDeletions.push_front(std::move(del));
+}
+
+//------------------------------------------------------------------------------
+// Get deletion object removing it from the list
+//------------------------------------------------------------------------------
+std::unique_ptr<Deletion>
+Storage::GetDeletion()
+{
+  std::unique_ptr<Deletion> del;
+  XrdSysMutexHelper scope_lock(mDeletionsMutex);
+
+  if (mListDeletions.size()) {
+    del.swap(mListDeletions.back());
+    mListDeletions.pop_back();
+  }
+
+  return del;
+}
+
+//------------------------------------------------------------------------------
+// Get number of pending deletions
+//------------------------------------------------------------------------------
+size_t
+Storage::GetNumDeletions()
+{
+  size_t total = 0;
+  XrdSysMutexHelper scope_lock(mDeletionsMutex);
+
+  for (auto it = mListDeletions.cbegin(); it != mListDeletions.cend(); ++it) {
+    total += (*it)->fIdVector.size();
+  }
+
+  return total;
+}
 
 //------------------------------------------------------------------------------
 // Writes file system label files .eosfsid .eosuuid according to config (if
@@ -605,12 +920,12 @@ Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
 }
 
 //------------------------------------------------------------------------------
-//! Checks that the label on the filesystem is the same as the configuration
+// Checks that the label on the filesystem matches the one in the config
 //------------------------------------------------------------------------------
 bool
 Storage::CheckLabel(std::string path,
                     eos::common::FileSystem::fsid_t fsid,
-                    std::string uuid, bool failenoid, bool failenouuid)
+                    std::string uuid, bool fail_noid, bool fail_nouuid)
 {
   // exclude remote disks
   if (path[0] != '/') {
@@ -649,7 +964,7 @@ Storage::CheckLabel(std::string path,
       ckfsid = atoi(ssfid);
     }
   } else {
-    if (failenoid) {
+    if (fail_noid) {
       return false;
     }
   }
@@ -684,352 +999,16 @@ Storage::CheckLabel(std::string path,
       ckuuid = suuid;
     }
   } else {
-    if (failenouuid) {
+    if (fail_nouuid) {
       return false;
     }
   }
 
-  // fprintf(stderr,"%d <=> %d %s <=> %s\n", fsid, ckfsid, ckuuid.c_str(),
-  // uuid.c_str());
-  // coverity[TAINTED_SCALAR]
   if ((fsid != ckfsid) || (ckuuid != uuid)) {
     return false;
   }
 
   return true;
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-Storage::GetFsidFromLabel(std::string path,
-                          eos::common::FileSystem::fsid_t& fsid)
-{
-  //----------------------------------------------------------------
-  //! return the file system id from the filesystem fsid label file
-  //----------------------------------------------------------------
-  XrdOucString fsidfile = path.c_str();
-  fsidfile += "/.eosfsid";
-  struct stat buf;
-  fsid = 0;
-
-  if (!stat(fsidfile.c_str(), &buf)) {
-    int fd = open(fsidfile.c_str(), O_RDONLY);
-
-    if (fd < 0) {
-      return false;
-    } else {
-      char ssfid[32];
-      memset(ssfid, 0, sizeof(ssfid));
-      int nread = read(fd, ssfid, sizeof(ssfid) - 1);
-
-      if (nread < 0) {
-        close(fd);
-        return false;
-      }
-
-      close(fd);
-
-      // for safety
-      if (nread < (int)(sizeof(ssfid) - 1)) {
-        ssfid[nread] = 0;
-      } else {
-        ssfid[31] = 0;
-      }
-
-      if (ssfid[strnlen(ssfid, sizeof(ssfid)) - 1] == '\n') {
-        ssfid[strnlen(ssfid, sizeof(ssfid)) - 1] = 0;
-      }
-
-      fsid = atoi(ssfid);
-    }
-  }
-
-  if (fsid) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get file system id from the configured filesystem vector
-//------------------------------------------------------------------------------
-bool
-Storage::GetFsidFromPath(std::string path,
-                         eos::common::FileSystem::fsid_t& fsid)
-{
-  eos::common::RWMutexReadLock lock(fsMutex);
-  fsid = 0;
-
-  for (unsigned int i = 0; i < fileSystemsVector.size(); i++) {
-    if (fileSystemsVector[i]->GetPath() == path) {
-      fsid = fileSystemsVector[i]->GetId();
-      break;
-    }
-  }
-
-  if (fsid) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsScrub(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Scrub();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsTrim(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Trim();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsRemover(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Remover();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsReport(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Report();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsErrorReport(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->ErrorReport();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsVerify(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Verify();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsCommunicator(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Communicator();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartDaemonSupervisor(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Supervisor();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsPublisher(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Publish();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsBalancer(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Balancer();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsDrainer(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Drainer();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartFsCleaner(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Cleaner();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartMgmSyncer(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->MgmSyncer();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void* Storage::StartVarPartitionMonitor(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  MonitorVarPartition<std::vector<FileSystem*>> mon(5., 30, "/var/");
-  mon.Monitor(storage->fileSystemsVector, storage->fsMutex);
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-Storage::StartBoot(void* pp)
-{
-  if (pp) {
-    BootThreadInfo* info = (BootThreadInfo*) pp;
-    info->storage->Boot(info->filesystem);
-    // remove from the set containing the ids of booting filesystems
-    XrdSysMutexHelper bootLock(info->storage->BootSetMutex);
-    info->storage->BootSet.erase(info->filesystem->GetId());
-    XrdSysMutexHelper tsLock(info->storage->ThreadSetMutex);
-    info->storage->ThreadSet.erase(XrdSysThread::ID());
-    delete info;
-  }
-
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-Storage::RunBootThread(FileSystem* fs)
-{
-  bool retc = false;
-
-  if (fs) {
-    XrdSysMutexHelper bootLock(BootSetMutex);
-
-    // check if this filesystem is currently already booting
-    if (BootSet.count(fs->GetId())) {
-      eos_warning("discard boot request: filesytem fsid=%lu is currently booting",
-                  (unsigned long) fs->GetId());
-      return false;
-    } else {
-      // insert into the set of booting filesystems
-      BootSet.insert(fs->GetId());
-    }
-
-    BootThreadInfo* info = new BootThreadInfo;
-
-    if (info) {
-      info->storage = this;
-      info->filesystem = fs;
-      pthread_t tid;
-
-      if ((XrdSysThread::Run(&tid, Storage::StartBoot, static_cast<void*>(info),
-                             0, "Booter"))) {
-        eos_crit("cannot start boot thread");
-        retc = false;
-        BootSet.erase(fs->GetId());
-      } else {
-        retc = true;
-        XrdSysMutexHelper tsLock(ThreadSetMutex);
-        ThreadSet.insert(tid);
-        eos_notice("msg=\"started boot thread\" fsid=%ld",
-                   (unsigned long) info->filesystem->GetId());
-      }
-    }
-  }
-
-  return retc;
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-Storage::OpenTransaction(unsigned int fsid, unsigned long long fid)
-{
-  FileSystem* fs = fileSystemsMap[fsid];
-
-  if (fs) {
-    return fs->OpenTransaction(fid);
-  }
-
-  return false;
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-Storage::CloseTransaction(unsigned int fsid, unsigned long long fid)
-{
-  FileSystem* fs = fileSystemsMap[fsid];
-
-  if (fs) {
-    return fs->CloseTransaction(fid);
-  }
-
-  return false;
-}
-
-//------------------------------------------------------------------------------
-// Add deletion to the list of pending ones
-//------------------------------------------------------------------------------
-void
-Storage::AddDeletion(std::unique_ptr<Deletion> del)
-{
-  XrdSysMutexHelper scope_lock(mDeletionsMutex);
-  mListDeletions.push_front(std::move(del));
-}
-
-//------------------------------------------------------------------------------
-// Get deletion object removing it from the list
-//------------------------------------------------------------------------------
-std::unique_ptr<Deletion>
-Storage::GetDeletion()
-{
-  std::unique_ptr<Deletion> del;
-  XrdSysMutexHelper scope_lock(mDeletionsMutex);
-
-  if (mListDeletions.size()) {
-    del.swap(mListDeletions.back());
-    mListDeletions.pop_back();
-  }
-
-  return del;
-}
-
-//------------------------------------------------------------------------------
-// Get number of pending deletions
-//------------------------------------------------------------------------------
-size_t
-Storage::GetNumDeletions()
-{
-  size_t total = 0;
-  XrdSysMutexHelper scope_lock(mDeletionsMutex);
-
-  for (auto it = mListDeletions.cbegin(); it != mListDeletions.cend(); ++it) {
-    total += (*it)->fIdVector.size();
-  }
-
-  return total;
 }
 
 EOSFSTNAMESPACE_END

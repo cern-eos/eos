@@ -60,7 +60,11 @@ public:
 
   unsigned int verifyRate;
 
-  Verify (unsigned long long fid, unsigned long fsid, const char* localprefix, const char* managerid, const char* inopaque, const char* incontainer, unsigned long incid, unsigned long inlid, const char* inpath, bool inComputeChecksum, bool inCommitChecksum, bool inCommitSize, bool inCommitFmd, unsigned int inVerifyRate)
+  Verify(unsigned long long fid, unsigned long fsid, const char* localprefix,
+         const char* managerid, const char* inopaque, const char* incontainer,
+         unsigned long incid, unsigned long inlid, const char* inpath,
+         bool inComputeChecksum, bool inCommitChecksum, bool inCommitSize,
+         bool inCommitFmd, unsigned int inVerifyRate)
   {
     fId = fid;
     fsId = fsid;
@@ -79,7 +83,7 @@ public:
   }
 
   static Verify*
-  Create (XrdOucEnv* capOpaque)
+  Create(XrdOucEnv* capOpaque)
   {
     // decode the opaque tags
     const char* localprefix = 0;
@@ -94,20 +98,17 @@ public:
     bool commitChecksum = false;
     bool commitSize = false;
     bool commitFmd = false;
-
-
     const char* sfsid = 0;
     const char* smanager = 0;
     unsigned long long fid = 0;
-
     unsigned long fsid = 0;
     unsigned long cid = 0;
     unsigned long lid = 0;
-
     unsigned int verifyRate = 0;
 
-    if (!capOpaque)
+    if (!capOpaque) {
       return 0;
+    }
 
     localprefix = capOpaque->Get("mgm.localprefix");
     hexfid = capOpaque->Get("mgm.fid");
@@ -119,56 +120,59 @@ public:
     path = capOpaque->Get("mgm.path");
     layout = capOpaque->Get("mgm.lid");
 
-    if (capOpaque->Get("mgm.verify.compute.checksum"))
-    {
+    if (capOpaque->Get("mgm.verify.compute.checksum")) {
       computeChecksum = atoi(capOpaque->Get("mgm.verify.compute.checksum"));
     }
 
-    if (capOpaque->Get("mgm.verify.commit.checksum"))
-    {
+    if (capOpaque->Get("mgm.verify.commit.checksum")) {
       commitChecksum = atoi(capOpaque->Get("mgm.verify.commit.checksum"));
     }
 
-    if (capOpaque->Get("mgm.verify.commit.size"))
-    {
+    if (capOpaque->Get("mgm.verify.commit.size")) {
       commitSize = atoi(capOpaque->Get("mgm.verify.commit.size"));
     }
 
-    if (capOpaque->Get("mgm.verify.commit.fmd"))
-    {
+    if (capOpaque->Get("mgm.verify.commit.fmd")) {
       commitFmd = atoi(capOpaque->Get("mgm.verify.commit.fmd"));
     }
 
-    if (capOpaque->Get("mgm.verify.rate"))
-    {
+    if (capOpaque->Get("mgm.verify.rate")) {
       verifyRate = atoi(capOpaque->Get("mgm.verify.rate"));
     }
 
     // permission check
-    if (access != "verify")
+    if (access != "verify") {
       return 0;
+    }
 
-    if (!localprefix || !hexfid.length() || !sfsid || !smanager || !layout || !scid)
-    {
+    if (!localprefix || !hexfid.length() || !sfsid || !smanager || !layout ||
+        !scid) {
       return 0;
     }
 
     cid = strtoul(scid, 0, 10);
     lid = strtoul(layout, 0, 10);
-
     int envlen = 0;
-
     fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
     fsid = atoi(sfsid);
-    return new Verify(fid, fsid, localprefix, smanager, capOpaque->Env(envlen), container, cid, lid, path, computeChecksum, commitChecksum, commitSize, commitFmd, verifyRate);
+    return new Verify(fid, fsid, localprefix, smanager, capOpaque->Env(envlen),
+                      container, cid, lid, path, computeChecksum, commitChecksum, commitSize,
+                      commitFmd, verifyRate);
   };
 
-  ~Verify () { };
+  ~Verify() { };
 
+  //----------------------------------------------------------------------------
+  //! Display information about current verification job
+  //----------------------------------------------------------------------------
   void
-  Show (const char* show = "")
+  Show(const char* show = "")
   {
-    eos_static_info("Verify File Id=%llu on Fs=%u Path=%s ComputeChecksum=%d CommitChecksum=%d CommitSize=%d CommitFmd=%d VerifyRate=%d %s", fId, fsId, path.c_str(), computeChecksum, commitChecksum, commitSize, commitFmd, verifyRate, show);
+    eos_static_info("Verify fid=%llu on fs=%u path=%s compute_checksum=%d "
+                    "commit_checksum=%d commit_size=%d commit_fmd=%d "
+                    "verify_rate=%d %s", fId, fsId, path.c_str(),
+                    computeChecksum, commitChecksum, commitSize, commitFmd,
+                    verifyRate, show);
   }
 };
 

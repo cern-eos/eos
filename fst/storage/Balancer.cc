@@ -81,8 +81,8 @@ Storage::GetScheduledBalanceJobs(unsigned long long totalscheduled,
   unsigned int nfs = 0;
   unsigned long long nscheduled = 0;
   {
-    eos::common::RWMutexReadLock lock(fsMutex);
-    nfs = fileSystemsVector.size();
+    eos::common::RWMutexReadLock lock(mFsMutex);
+    nfs = mFsVect.size();
     totalexecuted = 0;
 
     // sum up the current execution state e.g.
@@ -90,8 +90,8 @@ Storage::GetScheduledBalanceJobs(unsigned long long totalscheduled,
 
     // sum up the current execution state e.g. number of jobs taken from the queue
     for (unsigned int s = 0; s < nfs; s++) {
-      if (s < fileSystemsVector.size()) {
-        totalexecuted += fileSystemsVector[s]->GetBalanceQueue()->GetDone();
+      if (s < mFsVect.size()) {
+        totalexecuted += mFsVect[s]->GetBalanceQueue()->GetDone();
       }
     }
 
@@ -166,25 +166,25 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
 {
   unsigned int nfs = 0;
   {
-    eos::common::RWMutexReadLock lock(fsMutex);
-    nfs = fileSystemsVector.size();
+    eos::common::RWMutexReadLock lock(mFsMutex);
+    nfs = mFsVect.size();
   }
   cycler++;
 
   for (unsigned int i = 0; i < nfs; i++) {
     unsigned int index = (i + cycler) % nfs;
-    eos::common::RWMutexReadLock lock(fsMutex);
+    eos::common::RWMutexReadLock lock(mFsMutex);
 
-    if (index < fileSystemsVector.size()) {
-      std::string path = fileSystemsVector[index]->GetPath();
-      unsigned long id = fileSystemsVector[index]->GetId();
+    if (index < mFsVect.size()) {
+      std::string path = mFsVect[index]->GetPath();
+      unsigned long id = mFsVect[index]->GetId();
       eos_static_debug("FileSystem %lu ", id);
       double nominal =
-        fileSystemsVector[index]->GetDouble("stat.nominal.filled");
+        mFsVect[index]->GetDouble("stat.nominal.filled");
       double filled =
-        fileSystemsVector[index]->GetDouble("stat.statfs.filled");
+        mFsVect[index]->GetDouble("stat.statfs.filled");
       double threshold =
-        fileSystemsVector[index]->GetDouble("stat.balance.threshold");
+        mFsVect[index]->GetDouble("stat.balance.threshold");
 
       if ((!nominal) || (fabs(filled - threshold) >= nominal)) {
         // we are more full than we should be , we are not a target
@@ -192,29 +192,29 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
       }
 
       // store our notification condition variable
-      fileSystemsVector[index]->
+      mFsVect[index]->
       GetBalanceQueue()->SetJobEndCallback(&balanceJobNotification);
 
       // configure the proper rates and slots
-      if (fileSystemsVector[index]->GetBalanceQueue()->GetBandwidth() != ratetx) {
+      if (mFsVect[index]->GetBalanceQueue()->GetBandwidth() != ratetx) {
         // modify the bandwidth setting for this queue
-        fileSystemsVector[index]->GetBalanceQueue()->SetBandwidth(ratetx);
+        mFsVect[index]->GetBalanceQueue()->SetBandwidth(ratetx);
       }
 
-      if (fileSystemsVector[index]->GetBalanceQueue()->GetSlots() != nparalleltx) {
+      if (mFsVect[index]->GetBalanceQueue()->GetSlots() != nparalleltx) {
         // modify slot settings for this queue
-        fileSystemsVector[index]->GetBalanceQueue()->SetSlots(nparalleltx);
+        mFsVect[index]->GetBalanceQueue()->SetSlots(nparalleltx);
       }
 
       eos::common::FileSystem::fsstatus_t bootstatus =
-        fileSystemsVector[index]->GetStatus();
+        mFsVect[index]->GetStatus();
       eos::common::FileSystem::fsstatus_t configstatus =
-        fileSystemsVector[index]->GetConfigStatus();
+        mFsVect[index]->GetConfigStatus();
       // check if the filesystem is full
       bool full = false;
       {
-        XrdSysMutexHelper(fileSystemFullMapMutex);
-        full = fileSystemFullWarnMap[id];
+        XrdSysMutexHelper(mFsFullMapMutex);
+        full = mFsFullWarnMap[id];
       }
 
       if ((bootstatus != eos::common::FileSystem::kBooted) ||
@@ -250,8 +250,8 @@ Storage::GetBalanceJob(unsigned int index)
 /*----------------------------------------------------------------------------*/
 {
   unsigned long long freebytes =
-    fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
-  unsigned long id = fileSystemsVector[index]->GetId();
+    mFsVect[index]->GetLongLong("stat.statfs.freebytes");
+  unsigned long id = mFsVect[index]->GetId();
   XrdOucErrInfo error;
   XrdOucString managerQuery = "/?";
   managerQuery += "mgm.pcmd=schedule2balance";
@@ -363,7 +363,7 @@ Storage::Balancer()
     // ************************************************************************>
     // read lock the file system vector from now on
     {
-      eos::common::RWMutexReadLock lock(fsMutex);
+      eos::common::RWMutexReadLock lock(mFsMutex);
 
       if (!GetFileSystemInBalanceMode(balancefsindex,
                                       cycler,
