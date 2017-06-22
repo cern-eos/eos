@@ -143,6 +143,20 @@ ProcCommand::Attr()
                 }
               }
 
+              // Check if the origin exists and is a directory
+              if (key == "sys.attr.link") {
+                try {
+                  auto cmd = gOFS->eosView->getContainer(val.c_str());
+                } catch (eos::MDException& e) {
+                  std::ostringstream oss;
+                  oss << "error: " << val.c_str()
+                      << " must be an existing directory" << std::endl;
+                  stdErr = oss.str().c_str();
+                  retc = EINVAL;
+                  return SFS_OK;
+                }
+              }
+
               if (gOFS->_attr_set(foundit->first.c_str(), *mError, *pVid, (const char*) 0,
                                   key.c_str(), val.c_str())) {
                 stdErr += "error: unable to set attribute in file/directory ";

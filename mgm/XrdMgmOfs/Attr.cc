@@ -266,7 +266,9 @@ XrdMgmOfs::_attr_ls(const char* path,
       }
     } catch (eos::MDException& e) {
       dh.reset();
-      errno = e.getErrno();
+      std::string msg = map["sys.attr.link"];
+      msg += " - not found";
+      map["sys.attr.link"] = msg;
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                 e.getMessage().str().c_str());
     }
