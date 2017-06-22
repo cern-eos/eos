@@ -55,6 +55,7 @@
 #include <stdlib.h>
 #include <sstream>
 #include <attr/xattr.h>
+#include <thread>
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
@@ -114,21 +115,22 @@ XrdFstOfs::XrdFstOfs() :
   Messaging = 0;
   Storage = 0;
   TransferScheduler = 0;
+  TpcMap.resize(2);
+  TpcMap[0].set_deleted_key(""); // readers
+  TpcMap[1].set_deleted_key(""); // writers
 
   if (!getenv("EOS_NO_SHUTDOWN")) {
-    // Add Shutdown handler
+    // Add shutdown handler
     (void) signal(SIGINT, xrdfstofs_shutdown);
     (void) signal(SIGTERM, xrdfstofs_shutdown);
     (void) signal(SIGQUIT, xrdfstofs_shutdown);
+    // Add graceful shutdown handler
+    (void) signal(SIGUSR1, xrdfstofs_graceful_shutdown);
     // Add SEGV handler
     (void) signal(SIGSEGV, xrdfstofs_stacktrace);
     (void) signal(SIGABRT, xrdfstofs_stacktrace);
     (void) signal(SIGBUS, xrdfstofs_stacktrace);
   }
-
-  TpcMap.resize(2);
-  TpcMap[0].set_deleted_key(""); // readers
-  TpcMap[1].set_deleted_key(""); // writers
 }
 
 //------------------------------------------------------------------------------
@@ -141,9 +143,8 @@ XrdFstOfs::~XrdFstOfs()
   }
 }
 
-
 //------------------------------------------------------------------------------
-// Get a new OFS directory object
+// Get a new OFS directory object - not implemented
 //-----------------------------------------------------------------------------
 XrdSfsDirectory*
 XrdFstOfs::newDir(char* user, int MonID)
@@ -190,7 +191,7 @@ XrdFstOfs::xrdfstofs_stacktrace(int sig)
 }
 
 //------------------------------------------------------------------------------
-// OFS shutdown procedure
+// FST shutdown procedure
 //------------------------------------------------------------------------------
 void
 XrdFstOfs::xrdfstofs_shutdown(int sig)
@@ -222,16 +223,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
 
   XrdSysTimer sleeper;
   sleeper.Wait(1000);
-  {
-    XrdSysMutexHelper(gOFS.Storage->ThreadSetMutex);
-
-    for (auto it = gOFS.Storage->ThreadSet.begin();
-         it != gOFS.Storage->ThreadSet.end(); it++) {
-      eos_static_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
-      XrdSysThread::Cancel(*it);
-      // XrdSysThread::Join( *it, 0 );
-    }
-  }
+  gOFS.Storage->ShutdownThreads();
   eos_static_warning("op=shutdown msg=\"stop messaging\"");
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
   gFmdDbMapHandler.Shutdown();
@@ -247,6 +239,78 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   (void) signal(SIGINT,  SIG_IGN);
   (void) signal(SIGTERM, SIG_IGN);
   (void) signal(SIGQUIT, SIG_IGN);
+  kill(getpid(), 9);
+}
+
+//------------------------------------------------------------------------------
+// FST "graceful" shutdown procedure
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
+{
+  using namespace eos::common;
+  eos_static_info("entering the \"graceful\" shutdown procedure");
+  pid_t watchdog;
+  static XrdSysMutex grace_shutdown_mtx;
+  grace_shutdown_mtx.Lock();
+  {
+    XrdSysMutexHelper sLock(sShutdownMutex);
+    sShutdown = true;
+  }
+  const char* swait = getenv("EOS_GRACEFUL_SHUTDOWN_TIMEOUT");
+  std::int64_t wait = (swait ? std::strtol(swait, nullptr, 10) : 390);
+
+  if (!(watchdog = fork())) {
+    XrdSysTimer sleeper;
+    sleeper.Snooze(wait);
+    SyncAll::AllandClose();
+    sleeper.Snooze(15);
+    fprintf(stderr, "@@@@@@ 00:00:00 %s %li seconds\"\n",
+            "op=shutdown msg=\"shutdown timedout after ", wait);
+    kill(getppid(), 9);
+    fprintf(stderr, "@@@@@@ 00:00:00 %s", "op=shutdown status=forced-complete");
+    kill(getpid(), 9);
+  }
+
+  // Stop any communication - this will also stop scheduling to this node
+  eos_static_warning("op=shutdown msg=\"stop messaging\"");
+
+  if (gOFS.Messaging) {
+    gOFS.Messaging->StopListener();
+  }
+
+  // Wait for 60 seconds heartbeat timeout (see mgm/FsView) + 30 seconds
+  // for in-flight redirections
+  eos_static_warning("op=shutdown msg=\"wait 90 seconds for configuration "
+                     "propagation\"");
+  std::chrono::seconds config_timeout(60 + 30);
+  std::this_thread::sleep_for(config_timeout);
+  std::chrono::seconds io_timeout((std::int64_t)(wait * 0.9));
+
+  if (gOFS.WaitForOngoingIO(io_timeout)) {
+    eos_static_warning("op=shutdown msg=\"successful graceful IO shutdown\"");
+  } else {
+    eos_static_err("op=shutdown msg=\"failed graceful IO shutdown\"");
+  }
+
+  XrdSysTimer sleeper;
+  sleeper.Wait(1000);
+  gOFS.Storage->ShutdownThreads();
+  eos_static_warning("op=shutdown msg=\"shutdown fmddbmap handler\"");
+  gFmdDbMapHandler.Shutdown();
+  kill(watchdog, 9);
+  int wstatus = 0;
+  ::wait(&wstatus);
+  eos_static_warning("op=shutdown status=dbmapclosed");
+  // Sync & close all file descriptors
+  SyncAll::AllandClose();
+  eos_static_warning("op=shutdown status=completed");
+  // harakiri - yes!
+  (void) signal(SIGABRT, SIG_IGN);
+  (void) signal(SIGINT,  SIG_IGN);
+  (void) signal(SIGTERM, SIG_IGN);
+  (void) signal(SIGQUIT, SIG_IGN);
+  (void) signal(SIGUSR1, SIG_IGN);
   kill(getpid(), 9);
 }
 
@@ -423,7 +487,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   // Create our wildcard broadcast name
   eos::fst::Config::gConfig.FstQueueWildcard = eos::fst::Config::gConfig.FstQueue;
   eos::fst::Config::gConfig.FstQueueWildcard += "/*";
-  // create our wildcard config broadcast name
+  // Create our wildcard config broadcast name
   eos::fst::Config::gConfig.FstConfigQueueWildcard = "*/";
   eos::fst::Config::gConfig.FstConfigQueueWildcard += mHostName;
   eos::fst::Config::gConfig.FstConfigQueueWildcard += ":";
@@ -434,7 +498,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   eos::fst::Config::gConfig.FstGwQueueWildcard += ":";
   eos::fst::Config::gConfig.FstGwQueueWildcard += myPort;
   eos::fst::Config::gConfig.FstGwQueueWildcard += "/fst/gw/txqueue/txq";
-  // Set Logging parameters
+  // Set logging parameters
   XrdOucString unit = "fst@";
   unit += mHostName;
   unit += ":";
@@ -443,7 +507,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   g_logging.SetLogPriority(LOG_INFO);
   g_logging.SetUnit(unit.c_str());
-  // get the XRootD log directory
+  // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
 
@@ -929,14 +993,14 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
   } else {
     stdOut = "";
     // loop over filesystems
-    eos::common::RWMutexReadLock(gOFS.Storage->fsMutex);
+    eos::common::RWMutexReadLock(gOFS.Storage->mFsMutex);
     std::vector <eos::fst::FileSystem*>::const_iterator it;
 
-    for (unsigned int i = 0; i < gOFS.Storage->fileSystemsVector.size(); i++) {
+    for (unsigned int i = 0; i < gOFS.Storage->mFsVect.size(); i++) {
       XrdSysMutexHelper ISLock(
-        gOFS.Storage->fileSystemsVector[i]->InconsistencyStatsMutex);
+        gOFS.Storage->mFsVect[i]->InconsistencyStatsMutex);
       std::map<std::string, std::set<eos::common::FileId::fileid_t> >* icset =
-        gOFS.Storage->fileSystemsVector[i]->GetInconsistencySets();
+        gOFS.Storage->mFsVect[i]->GetInconsistencySets();
       std::map<std::string, std::set<eos::common::FileId::fileid_t> >::const_iterator
       icit;
 
@@ -947,13 +1011,13 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
             ((tag == "*") || ((tag.find(icit->first.c_str()) != STR_NPOS)))) {
           char stag[4096];
           eos::common::FileSystem::fsid_t fsid =
-            gOFS.Storage->fileSystemsVector[i]->GetId();
+            gOFS.Storage->mFsVect[i]->GetId();
           snprintf(stag, sizeof(stag) - 1, "%s@%lu", icit->first.c_str(),
                    (unsigned long) fsid);
           stdOut += stag;
           std::set<eos::common::FileId::fileid_t>::const_iterator fit;
 
-          if (gOFS.Storage->fileSystemsVector[i]->GetStatus() !=
+          if (gOFS.Storage->mFsVect[i]->GetStatus() !=
               eos::common::FileSystem::kBooted) {
             // we don't report filesystems which are not booted!
             continue;
@@ -1388,6 +1452,49 @@ XrdFstOfs::chksum(XrdSfsFileSystem::csFunc Func, const char* csName,
   }
 
   return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
+}
+
+//------------------------------------------------------------------------------
+// Wait for ongoing IO operations to finish
+//------------------------------------------------------------------------------
+bool
+XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
+{
+  bool all_done = true;
+  std::chrono::seconds check_interval(5);
+  auto deadline = std::chrono::system_clock::now() + timeout;
+
+  while (std::chrono::system_clock::now() <= deadline) {
+    all_done = true;
+    {
+      XrdSysMutexHelper scope_lock(OpenFidMutex);
+
+      for (auto it = WOpenFid.begin(); it != WOpenFid.end(); ++it) {
+        if (it->second.size() != 0) {
+          all_done = false;
+          eos_info("waiting for write IO operations to finish");
+          break;
+        }
+      }
+
+      if (all_done) {
+        for (auto it = ROpenFid.begin(); it != ROpenFid.end(); ++it) {
+          if (it->second.size() != 0) {
+            all_done = false;
+            eos_info("waiting for read IO operations to finish");
+            break;
+          }
+        }
+      }
+
+      if (all_done) {
+        break;
+      }
+    }
+    std::this_thread::sleep_for(check_interval);
+  }
+
+  return all_done;
 }
 
 EOSFSTNAMESPACE_END

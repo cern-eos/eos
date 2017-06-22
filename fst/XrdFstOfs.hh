@@ -91,6 +91,14 @@ public:
   static void xrdfstofs_stacktrace(int sig);
 
   //----------------------------------------------------------------------------
+  //! FST "graceful" shutdown procedure. The FST will wait for a configurable
+  //! amount of time for readers and writers before shutting down.
+  //!
+  //! @param sig signal to trigger this handler
+  //----------------------------------------------------------------------------
+  static void xrdfstofs_graceful_shutdown(int sig);
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   XrdFstOfs();
@@ -293,6 +301,16 @@ public:
   //! Function dealing with plugin calls
   //----------------------------------------------------------------------------
   int FSctl(int, XrdSfsFSctl&, XrdOucErrInfo&, const XrdSecEntity*);
+
+  //----------------------------------------------------------------------------
+  //! Wait for ongoing IO operations to finish
+  //!
+  //! @param timeout maximum timeout you're willing to wait
+  //!
+  //! @return true if all operations finished within the timeout, otherwise
+  //!         false
+  //----------------------------------------------------------------------------
+  bool WaitForOngoingIO(std::chrono::seconds timeout);
 
   //----------------------------------------------------------------------------
   //! Allows to switch on error simulation in the OFS stack
