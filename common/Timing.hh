@@ -204,16 +204,17 @@ public:
     Timing* p = this->next;
     Timing* n;
     cerr << std::endl;
+    size_t cnt=0;
     while ((n = p->next))
     {
-
-      sprintf(msg, "                                        [%12s] %12s<=>%-12s : %.03f\n", maintag.c_str(), p->tag.c_str(), n->tag.c_str(), (float) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
+      cnt++;
+      sprintf(msg, " #%04lu : %s::%-20s %.03f ms\n", cnt, maintag.c_str(), n->tag.c_str(), (float) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
       cerr << msg;
       p = n;
     }
     n = p;
     p = this->next;
-    sprintf(msg, "                                        =%12s= %12s<=>%-12s : %.03f\n", maintag.c_str(), p->tag.c_str(), n->tag.c_str(), (float) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
+    sprintf(msg, " #==== : %s::%-20s %.03f ms\n", maintag.c_str(), "total", (float) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
     cerr << msg;
   }
 
