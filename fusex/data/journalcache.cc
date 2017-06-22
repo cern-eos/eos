@@ -352,7 +352,7 @@ int journalcache::remote_sync( cachesyncer & syncer )
   write_lock lck( clck );
   int ret = syncer.sync( fd, journal, sizeof ( header_t ) );
   journal.clear();
-  truncate( 0 );
+  ret |= ::ftruncate( fd, 0 );
   clck.broadcast();
   return ret;
 }
@@ -361,7 +361,7 @@ int journalcache::reset()
 {
   write_lock lck( clck );
   journal.clear();
-  int retc = truncate( 0 );
+  int retc = ::ftruncate( fd,  0 );
   clck.broadcast();
   return retc;
 }

@@ -214,6 +214,8 @@ public:
       return s;
     }
     
+    std::set<std::string>& get_todelete() { return todelete; }
+    
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
@@ -223,7 +225,7 @@ public:
     bool lock_remote;
     bool refresh;
     std::vector<struct flock> locktable;
-
+    std::set<std::string> todelete;
   } ;
 
   typedef std::shared_ptr<mdx> shared_md;
@@ -617,6 +619,9 @@ private:
 
   std::map<uint64_t, flushentry_set_t> mdqueue; // inode => flushenty
 
+  // std::map<uint64_t, size_t> mdqueue; // inode, counter of mds to flush
+  // std::deque<flushentry> mdflushqueue; // linear queue with all entries to flush
+  
   size_t mdqueue_max_backlog;
 
   // ZMQ objects

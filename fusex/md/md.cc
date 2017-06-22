@@ -208,6 +208,7 @@ metad::lookup(fuse_req_t req,
       // --------------------------------------------------
       // if we have a cap amd we listed this directory, we trust the child information  
       // --------------------------------------------------
+
       if (pmd->children().count(name))
       {
         inode = pmd->children().at(name);
@@ -217,6 +218,12 @@ metad::lookup(fuse_req_t req,
         if (pmd->type() == pmd->MDLS)
         {
           // no entry - TODO return a NULLMD object instead of creating it all the time
+          md = std::make_shared<mdx>();
+          return md;
+        }
+        if (pmd->get_todelete().count(name))
+        {
+          // if this has been deleted, we just say this
           md = std::make_shared<mdx>();
           return md;
         }
@@ -506,7 +513,7 @@ metad::get(fuse_req_t req,
     md = std::make_shared<mdx>();
   }
 
-  if (!md->id() || loaded)
+  if (!md || !md->id() || loaded)
   {
     // -------------------------------------------------------------------------
     // there is no local meta data available, this can only be found upstream
@@ -553,7 +560,8 @@ metad::get(fuse_req_t req,
       }
     }
 
-    if (!md->pid() && !md->deleted())
+    // if (!md->pid() && !md->deleted)
+    if (!md->pid())
     {
       /*
        if ( (md->getop() == md->ADD) ||
@@ -713,7 +721,7 @@ metad::get(fuse_req_t req,
       // we make sure, that the meta data record is attached to the local parent
       if (pmd->id())
       {
-        if (!pmd->children().count(md->name()))
+        if (!pmd->children().count(md->name()) && !md->deleted())
         {
           eos_static_info("attaching %s [%lx] to %s [%lx]", md->name().c_str(), md->id(), pmd->name().c_str(), pmd->id());
           // persist this hierarchical dependency
@@ -1143,6 +1151,7 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
     XrdSysMutexHelper mLock(pmd->Locker());
     (*map).erase(md->name());
     pmd->set_nchildren(pmd->nchildren() - 1);
+    pmd->get_todelete().insert(md->name());
   }
 
   if (!md->deleted())
@@ -1456,6 +1465,11 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
         md = std::make_shared<mdx>();
         mdmap[ino] = md;
       }
+      eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
+      if (md->deleted())
+      {
+        return 0;
+      }
       {
         *md = cont.md_();
         eos_static_debug("store md for local-ino=%08lx remote-ino=%08lx -", (long) ino, (long) md_ino);
@@ -1754,6 +1768,13 @@ metad::mdcflush()
               else
                 md->set_operation(md->SET);
 
+              if ((op != metad::mdx::RM) && md->deleted())
+              {
+                // if the md was deleted in the meanwhile does not need to 
+                // push it remote, since the response creates a race condition
+                md->Locker().UnLock();
+                continue;
+              }
               md->set_type(md->MD);
               if (((op == metad::mdx::ADD) ||
                   (op == metad::mdx::UPDATE) ||
@@ -1777,8 +1798,11 @@ metad::mdcflush()
                 {
                   inomap.insert(md->md_ino(), md->id());
                 }
-                md->setop_none();
 
+                if (md->getop() != md->RM)
+                {
+                  md->setop_none();
+                }
                 md->Signal();
                 eos_static_info("metacache::flush backend::putMD - stop");
               }
@@ -1810,8 +1834,23 @@ metad::mdcflush()
             }
             if (removeentry)
             {
-              XrdSysMutexHelper mmLock(mdmap);
-              mdmap.erase(removeentry);
+              shared_md pmd;
+              eos_static_info("removing entry ino=%08lx", removeentry);
+              {
+                XrdSysMutexHelper mmLock(mdmap);
+                if (mdmap.count(md->pid()))
+                {
+                  pmd = mdmap[md->pid()];
+                }
+                mdmap.erase(removeentry);
+              }
+              {
+                if (pmd)
+                {
+                  XrdSysMutexHelper mmLock(pmd->Locker());
+                  pmd->get_todelete().erase(md->name());
+                }
+              }
             }
           }
         }

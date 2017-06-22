@@ -25,7 +25,6 @@
 #include "xrdclproxy.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
-#include "common/LayoutId.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 
 using namespace XrdCl;
@@ -277,12 +276,14 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
   ((XrdCl::File*)(this))->EnableWriteRecovery(false);
    */
 
+  set_state(OPENING);
+
   XrdCl::XRootDStatus status = Open(url.c_str(),
                                     flags,
                                     mode,
                                     &XOpenAsyncHandler,
                                     timeout);
-  set_state(OPENING);
+
 
   return XOpenState;
 }
@@ -296,8 +297,7 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
-  // response is nullptr
-  delete hostList;
+
 
   XrdSysCondVarHelper lLock(proxy()->OpenCondVar());
   if (status->IsOK())
@@ -312,6 +312,8 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
   }
 
   proxy()->OpenCondVar().Signal();
+  
+  delete hostList;
   delete status;
   delete response;
 }
@@ -409,6 +411,50 @@ XrdCl::Proxy::WaitOpen()
     OpenCondVar().WaitMS(25);
 
   return XOpenState;
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::IsOpening()
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysCondVarHelper lLock(OpenCondVar());
+  eos_debug("state=%d", state());
+  return (state () == OPENING) ? true : false;
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::IsClosing()
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysCondVarHelper lLock(OpenCondVar());
+  eos_debug("state=%d", state());
+  return (state () == CLOSING) ? true : false;
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::IsOpen()
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysCondVarHelper lLock(OpenCondVar());
+  eos_debug("state=%d", state());
+  return (state () == OPENED) ? true : false;
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::IsClosed()
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysCondVarHelper lLock(OpenCondVar());
+  eos_debug("state=%d", state());
+  return ( (state () == CLOSED) || (state () == CLOSEFAILED) ) ? true : false;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -622,7 +668,7 @@ XrdCl::Proxy::attached()
 {
 
   XrdSysMutexHelper lLock(mAttachedMutex);
-  
+
   return mAttached ? true : false;
 }
 

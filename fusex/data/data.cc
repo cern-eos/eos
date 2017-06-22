@@ -24,6 +24,8 @@
 
 #include "data/data.hh"
 #include "kv/kv.hh"
+#include "data/cachesyncer.hh"
+#include "data/journalcache.hh"
 #include "misc/MacOSXHelper.hh"
 #include "common/Logging.hh"
 #include <iostream>
@@ -90,11 +92,7 @@ data::release(fuse_req_t req,
   if (datamap.count(ino))
   {
     shared_data io = datamap[ino];
-    if (!io->detach()) // object ref counting
-    {
-      // remove from the map
-      datamap.erase(ino);
-    }
+    io->detach();
     return;
   }
 }
@@ -109,6 +107,8 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
   if (datamap.count(ino))
   {
     datamap[ino]->unlink(req);
+    // put the unlinked inode in a high bucket, will be removed by the flush thread
+    datamap[ino + 0xffffffff] = datamap[ino];
     datamap.erase(ino);
     eos_static_info("datacache::unlink size=%lu", datamap.size());
   }
@@ -121,12 +121,87 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
 }
 
 /* -------------------------------------------------------------------------- */
-void
+int
 /* -------------------------------------------------------------------------- */
-data::datax::flush()
+data::datax::flush(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
-  // here we need to hand of the responsability to indicate centrally a flush operation
+  eos_info("");
+  XrdSysMutexHelper lLock(mLock);
+
+  if ( (ssize_t)mFile->journal()->size() > (ssize_t)mFile->file()->prefetch_size())
+  {
+    if (mWaitForOpen)
+    {
+      if (journalflush(req))
+      {
+        return -1;
+      }
+      mWaitForOpen = false;
+    }
+  }
+  else
+  {
+    // attache for the asynchronous thread
+    std::string cookie("flusher");
+    mFile->journal()->attach(req, cookie, true);
+  }
+  eos_info("retc=0");
+  return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+data::datax::journalflush(fuse_req_t req)
+/* -------------------------------------------------------------------------- */
+{
+  // call this with a mLock locked
+  eos_info("");
+
+  // we have to push the journal now
+  if (!mFile->xrdiorw(req)->WaitOpen().IsOK())
+  {
+    eos_err("async journal-cache-wait-open failed - ino=%08lx", id());
+    return -1;
+  }
+  eos_info("syncing cache");
+  cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(req)));
+  if (((journalcache*) mFile->journal())->remote_sync(cachesync))
+  {
+    eos_err("async journal-cache-sync failed - ino=%08lx", id());
+    return -1;
+  }
+
+  eos_info("retc=0");
+  return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+data::datax::journalflush(std::string cid)
+/* -------------------------------------------------------------------------- */
+{
+  // call this with a mLock locked
+  eos_info("");
+
+  // we have to push the journal now
+  if (!mFile->xrdiorw(cid)->WaitOpen().IsOK())
+  {
+    eos_err("async journal-cache-wait-open failed - ino=%08lx", id());
+    return -1;
+  }
+  eos_info("syncing cache");
+  cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(cid)));
+  if (((journalcache*) mFile->journal())->remote_sync(cachesync))
+  {
+    eos_err("async journal-cache-sync failed - ino=%08lx", id());
+    return -1;
+  }
+
+  eos_info("retc=0");
+  return 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -272,16 +347,6 @@ data::datax::detach(fuse_req_t req, std::string& cookie, bool isRW)
     if (mFile->xrdiorw(req))
     {
       mFile->xrdiorw(req)->detach();
-      if (!mFile->xrdiorw(req)->attached())
-      {
-        XrdCl::XRootDStatus status = mFile->xrdiorw(req)->CloseAsync(0);
-        if (!status.IsOK())
-        {
-          eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
-          xio = -1;
-          errno = EREMOTEIO;
-        }
-      }
     }
   }
   else
@@ -289,16 +354,6 @@ data::datax::detach(fuse_req_t req, std::string& cookie, bool isRW)
     if (mFile->xrdioro(req))
     {
       mFile->xrdioro(req)->detach();
-      if (!mFile->xrdioro(req)->attached())
-      {
-        XrdCl::XRootDStatus status = mFile->xrdioro(req)->CloseAsync(0);
-        if (!status.IsOK())
-        {
-          eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
-          xio = -1;
-          errno = EREMOTEIO;
-        }
-      }
     }
   }
   return bcache | jcache | xio;
@@ -430,32 +485,40 @@ data::datax::pwrite(fuse_req_t req, const void *buf, size_t count, off_t offset)
   {
     if (!mFile->journal()->fits(count))
     {
-      bool journal_recovery = false;
-      // collect all writes in flight
-      for (auto it = mFile->get_xrdiorw().begin();
-           it != mFile->get_xrdiorw().end(); ++it)
+      if (flush(req))
       {
-        XrdCl::XRootDStatus status = it->second->WaitWrite();
-        if (!status.IsOK())
-        {
-          journal_recovery = true;
-        }
-      }
-
-      if (journal_recovery)
-      {
-        eos_err("journal-flushing failed");
-        errno = EREMOTEIO ;
         return -1;
       }
-      else
+
+      if (!mWaitForOpen)
       {
-        // truncate the journal
-        if (mFile->journal()->reset())
+        bool journal_recovery = false;
+        // collect all writes in flight
+        for (auto it = mFile->get_xrdiorw().begin();
+             it != mFile->get_xrdiorw().end(); ++it)
         {
-          char msg[1024];
-          snprintf(msg, sizeof (msg), "journal reset failed - ino=%08lx", id());
-          throw std::runtime_error(msg);
+          XrdCl::XRootDStatus status = it->second->WaitWrite();
+          if (!status.IsOK())
+          {
+            journal_recovery = true;
+          }
+        }
+
+        if (journal_recovery)
+        {
+          eos_err("journal-flushing failed");
+          errno = EREMOTEIO ;
+          return -1;
+        }
+        else
+        {
+          // truncate the journal
+          if (mFile->journal()->reset())
+          {
+            char msg[1024];
+            snprintf(msg, sizeof (msg), "journal reset failed - ino=%08lx", id());
+            throw std::runtime_error(msg);
+          }
         }
       }
     }
@@ -468,19 +531,26 @@ data::datax::pwrite(fuse_req_t req, const void *buf, size_t count, off_t offset)
     }
     dw = jw;
 
-    // send an asynchronous upstream write
-    XrdCl::Proxy::write_handler handler =
-            mFile->xrdiorw(req)->WriteAsyncPrepare(count);
-
-    XrdCl::XRootDStatus status =
-            mFile->xrdiorw(req)->WriteAsync(offset, count, buf, handler, 0);
-
-    if (!status.IsOK())
+    if (!mFile->xrdiorw(req)->IsOpening())
     {
-      eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
-      // TODO: we can recover this later
-      errno = EREMOTEIO;
-      return -1;
+      // send an asynchronous upstream write
+      XrdCl::Proxy::write_handler handler =
+              mFile->xrdiorw(req)->WriteAsyncPrepare(count);
+
+      XrdCl::XRootDStatus status =
+              mFile->xrdiorw(req)->WriteAsync(offset, count, buf, handler, 0);
+
+      if (!status.IsOK())
+      {
+        eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
+        // TODO: we can recover this later
+        errno = EREMOTEIO;
+        return -1;
+      }
+    }
+    else
+    {
+      mWaitForOpen = true;
     }
   }
 
@@ -709,13 +779,97 @@ data::datax::set_remote(const std::string& hostport,
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-data::dmap::closeflush()
+data::dmap::ioflush()
 /* -------------------------------------------------------------------------- */
 {
   while (1)
   {
     {
       eos_static_debug("");
+
+      std::vector<shared_data> data;
+      {
+        // avoid mutex contention
+        XrdSysMutexHelper mLock(this);
+
+        for (auto it = this->begin(); it != this->end(); ++it)
+        {
+          data.push_back(it->second);
+        }
+      }
+
+      for (auto it = data.begin(); it != data.end(); ++it)
+      {
+        if (!(*it)->attached())
+        {
+          // files which are detached might need an upstream sync
+          bool repeat = true;
+          while (repeat)
+          {
+            for (auto fit = (*it)->file()->get_xrdiorw().begin();
+                 fit != (*it)->file()->get_xrdiorw().end(); ++fit)
+            {
+              if (fit->second->IsOpening() || fit->second->IsClosing())
+              {
+                eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->state(), fit->second->IsClosed());
+                // skip files which are opening or closing
+                continue;
+              }
+              if (fit->second->IsOpen())
+              {
+                eos_static_info("flushing journal for req=%s", fit->first.c_str());
+                XrdSysMutexHelper lLock( (*it)->Locker());
+                // flush the journal
+                (*it)->journalflush(fit->first);
+                // detach from the journal
+                std::string cookie("flusher");
+                (*it)->file()->journal()->detach(cookie);
+                fit->second->CloseAsync();
+              }
+
+              if (fit->second->IsClosed())
+              {
+                eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->state(), fit->second->IsClosed());
+                delete fit->second;
+                (*it)->file()->get_xrdiorw().erase(fit);
+                break;
+              }
+            }
+            repeat = false;
+          }
+        }
+        if ( !(*it)->file()->get_xrdiorw().size())
+        {
+          eos_static_info("deleting shared_data id=%08lx", (*it)->id());
+          XrdSysMutexHelper mLock(this);
+          this->erase((*it)->id());
+        }
+      }
+
+      /*
+      if (!mFile->xrdiorw(req)->attached())
+      {
+      XrdCl::XRootDStatus status = mFile->xrdiorw(req)->CloseAsync(0);
+      if (!status.IsOK())
+      {
+      eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
+      xio = -1;
+      errno = EREMOTEIO;
+      }
+      }
+
+      if (!mFile->xrdioro(req)->attached())
+      {
+      XrdCl::XRootDStatus status = mFile->xrdioro(req)->CloseAsync(0);
+      if (!status.IsOK())
+      {
+      eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
+      xio = -1;
+      errno = EREMOTEIO;
+      }
+      }
+       */
+
       XrdSysTimer sleeper;
       sleeper.Wait(1000);
     }

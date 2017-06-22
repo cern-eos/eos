@@ -121,7 +121,7 @@ public:
         delete it->second;
       }
     }
-
+    
     void set_file(cache* file)
     {
       _file = file;
@@ -162,6 +162,16 @@ public:
       return _xrdiorw["default"];
     }
 
+    XrdCl::Proxy* xrdioro(std::string& id)
+    {
+      return _xrdioro[id];
+    }
+
+    XrdCl::Proxy* xrdiorw(std::string& id)
+    {
+      return _xrdiorw[id];
+    }
+    
     std::map<std::string, XrdCl::Proxy*>& get_xrdiorw()
     {
       return _xrdiorw;

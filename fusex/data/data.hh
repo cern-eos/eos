@@ -54,11 +54,11 @@ public:
   {
   public:
 
-    datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0), mPrefetchHandler(0)
+    datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0), mPrefetchHandler(0), mWaitForOpen(false)
     {
     }
 
-    datax(metad::shared_md md) : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(md), mPrefetchHandler(0)
+    datax(metad::shared_md md) : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(md), mPrefetchHandler(0), mWaitForOpen(false)
     {
     }
 
@@ -92,9 +92,14 @@ public:
       return mReq;
     }
 
-    cache_shared_io file() {return mFile;}
-    
-    void flush();
+    cache::shared_io file()
+    {
+      return mFile;
+    }
+
+    int flush(fuse_req_t req);
+    int journalflush(fuse_req_t req);
+    int journalflush(std::string cid);
     int attach(fuse_req_t req, std::string& cookie, bool isRW);
     int detach(fuse_req_t req, std::string& cookie, bool isRW);
     int store_cookie(std::string& cookie);
@@ -131,6 +136,11 @@ public:
       return (--mAttached);
     }
 
+    bool attached()
+    {
+      XrdSysMutexHelper lLock(mLock);
+      return mAttached ? true : false;
+    }
 
   private:
     XrdSysMutex mLock;
@@ -148,6 +158,7 @@ public:
 
     bufferllmanager::shared_buffer buffer;
     static bufferllmanager sBufferManager;
+    bool mWaitForOpen;
   } ;
 
   typedef std::shared_ptr<datax> shared_data;
@@ -223,19 +234,19 @@ public:
 
     dmap()
     {
-      tCloseFlush = std::thread(&dmap::closeflush, this);
+      tIOFlush = std::thread(&dmap::ioflush, this);
     }
 
     virtual ~dmap()
     {
-      pthread_cancel(tCloseFlush.native_handle());
-      tCloseFlush.join();
+      pthread_cancel(tIOFlush.native_handle());
+      tIOFlush.join();
     }
 
-    void closeflush(); // thread for delayed asynchronous close
+    void ioflush(); // thread for delayed asynchronous close
 
   private:
-    std::thread tCloseFlush;
+    std::thread tIOFlush;
   } ;
 
   data();
@@ -258,6 +269,5 @@ public:
 
 private:
   dmap datamap;
-
 } ;
 #endif /* FUSE_DATA_HH_ */

@@ -6,7 +6,7 @@
  */
 
 #include "cachesyncer.hh"
-
+#include "bufferll.hh"
 #include <unistd.h>
 
 #include <XrdCl/XrdClXRootDResponses.hh>
@@ -55,19 +55,23 @@ class CollectiveHandler : public XrdCl::ResponseHandler
 
 int cachesyncer::sync( int fd, interval_tree<uint64_t, uint64_t> &journal, size_t offshift )
 {
+  if (!journal.size())
+    return 0;
+  
   CollectiveHandler handler( journal.size() );
 
+  bufferll buffer;
+  
   for( auto itr = journal.begin(); itr != journal.end(); ++itr )
   {
     off_t  cacheoff = itr->value + offshift;
     size_t size   = itr->high - itr->low;
-    char  *buffer = new char[size];
-    int bytesRead = pread( fd, buffer, size, cacheoff );
+    buffer.resize(size);
+    int bytesRead = pread( fd, buffer.ptr(), size, cacheoff );
 
     if( bytesRead < 0 )
     {
       // TODO handle error
-      delete[] buffer;
       return -1;
     }
 
@@ -77,8 +81,7 @@ int cachesyncer::sync( int fd, interval_tree<uint64_t, uint64_t> &journal, size_
     }
 
     // do async write
-    XrdCl::XRootDStatus st = file.Write( itr->low, size, buffer, &handler );
-    delete[] buffer;
+    XrdCl::XRootDStatus st = file.Write( itr->low, size, buffer.ptr(), &handler );
     if( !st.IsOK() )
     {
       handler.Report( new XrdCl::XRootDStatus( st ) );

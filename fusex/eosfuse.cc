@@ -2353,7 +2353,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       io->md->set_mtime(tsnow.tv_sec);
       io->md->set_mtime_ns(tsnow.tv_nsec);
       Instance().mds.update(req, io->md, io->authid());
-      io->ioctx()->flush();
+      io->ioctx()->flush(req);
       std::string cookie=io->md->Cookie();
       io->ioctx()->store_cookie(cookie);
     }

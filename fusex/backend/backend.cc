@@ -367,11 +367,15 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
 
   eos_static_info("sync-response");
 
+  eos_static_debug("response-size=%d",
+                   response->GetSize());
   if (status.IsOK ())
   {
-    eos_static_debug("response=%s response-size=%d", response->GetBuffer(), response->GetSize());
     if (response && response->GetBuffer())
     {
+      // eos_static_debug("response=%s response-size=%d",
+      // response->GetBuffer(),
+      //        response->GetSize());
       std::string responseprefix;
 
       if (response->GetSize() > 6)
@@ -382,6 +386,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
       else
       {
         eos_static_err("protocol error - to short response received");
+        delete response;
         locker->Lock();
         return EIO;
       }
@@ -389,6 +394,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
       if (responseprefix != "Fusex:")
       {
         eos_static_err("protocol error - fusex: prefix missing in response");
+        delete response;
         locker->Lock();
         return EIO;
       }
@@ -402,6 +408,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
       if (!resp.ParseFromString(sresponse) || (resp.type() != resp.ACK))
       {
         eos_static_err("parsing error/wrong response type received");
+        delete response;
         locker->Lock();
         return EIO;
       }
@@ -414,9 +421,11 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
                          resp.ack_().md_ino(), resp.ack_().transactionid(),
                          resp.ack_().err_msg().c_str());
         eos_static_info("relock done");
+        delete response;
         return 0;
       }
       eos_static_err("failed query command for ino=%lx", md->id());
+      delete response;
       locker->Lock();
       return EIO;
     }
@@ -424,6 +433,8 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
     {
       eos_static_err("no response retrieved response=%lu response-buffer=%lu",
                      response, response ? response->GetBuffer() : 0);
+      if (response)
+        delete response;
       locker->Lock();
       return EIO;
     }
