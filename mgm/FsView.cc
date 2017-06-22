@@ -1034,7 +1034,7 @@ FsView::GetGroupFormat(std::string option)
   }
 
   // default format
-  return "header=1:member=type:width=10:format=-s|member=name:width=16:format=s|member=cfg.status:width=12:format=s|avg=stat.geotag:width=32:format=s|sum=<n>?*@*:width=6:format=l:tag=N(fs)|maxdev=stat.statfs.filled:width=12:format=f:unit=p|avg=stat.statfs.filled:width=12:format=f:unit=p|sig=stat.statfs.filled:width=12:format=f:unit=p|member=cfg.stat.balancing:width=10:format=s|sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
+  return "header=1:member=type:width=10:format=-s|member=name:width=16:format=s|member=cfg.status:width=12:format=s|avg=stat.geotag:width=32:format=s|sum=<n>?*@*:width=6:format=l:tag=N(fs)|maxdev=stat.statfs.filled:width=12:format=f|avg=stat.statfs.filled:width=12:format=f|sig=stat.statfs.filled:width=12:format=f|member=cfg.stat.balancing:width=10:format=s|sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
 }
 
 //------------------------------------------------------------------------------
