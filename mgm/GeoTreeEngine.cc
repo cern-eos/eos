@@ -144,10 +144,10 @@ bool GeoTreeEngine::forceRefreshSched()
     it->second->slowTreeModified = true;
   }
 
-  // mark all fs needing a refresh for all the watched attributes
+  // mark all proxy needing a refresh for all the watched attributes
   // => PROXYGROUPS
   for (auto it = pPxyQueue2PxyId.begin(); it != pPxyQueue2PxyId.end(); it++) {
-    gNotificationsBufferFs[it->first] = (~0);
+    gNotificationsBufferProxy[it->first] = (~0);
   }
 
   for (auto it = pPxyGrp2DpTME.begin(); it != pPxyGrp2DpTME.end(); it++) {
