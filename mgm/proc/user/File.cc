@@ -361,11 +361,8 @@ ProcCommand::File()
               }
             } else {
               // rain layouts only resync meta data records
-              int lretc = gOFS->_verifystripe(spath.c_str(),
-                                              *mError,
-                                              vid,
-                                              (unsigned long) * it,
-                                              option);
+              int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
+                                              (unsigned long) * it, option);
 
               if (!lretc) {
                 stdOut += "success: sending verify to fsid= ";
@@ -384,12 +381,8 @@ ProcCommand::File()
           // not registered replica
           // -------------------------------------------------------------------
           if (acceptfsid && (!acceptfound)) {
-            int lretc = gOFS->_verifystripe(spath.c_str(),
-                                            *mError,
-                                            vid,
-                                            (unsigned long) acceptfsid,
-                                            option
-                                           );
+            int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
+                                            (unsigned long) acceptfsid, option);
 
             if (!lretc) {
               stdOut += "success: sending forced verify to fsid= ";

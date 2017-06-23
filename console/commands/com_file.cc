@@ -511,11 +511,13 @@ com_file(char* arg1)
       goto com_file_usage;
     }
 
-    XrdOucString option[6];
+    const char* opt;
+    std::vector<std::string> options;
     in += "&mgm.subcmd=verify";
     in += "&mgm.path=";
     in += path;
 
+    // TODO: all this is silly and should be properly re-written
     if (fsid1.length()) {
       if ((fsid1 != "-checksum") && (fsid1 != "-commitchecksum") &&
           (fsid1 != "-commitsize") && (fsid1 != "-commitfmd") && (fsid1 != "-rate")) {
@@ -527,53 +529,40 @@ com_file(char* arg1)
         in += fsid1;
 
         if (fsid2.length()) {
-          option[0] = fsid2;
-          option[1] = subtokenizer.GetToken();
-          option[2] = subtokenizer.GetToken();
-          option[3] = subtokenizer.GetToken();
-          option[4] = subtokenizer.GetToken();
-          option[5] = subtokenizer.GetToken();
+          options.push_back(fsid2.c_str());
+          options.push_back(fsid3.c_str());
+
+          while ((opt = subtokenizer.GetToken())) {
+            options.push_back(opt);
+            opt = 0;
+          }
         }
       } else {
-        option[0] = fsid1;
-        option[1] = fsid2;
-        option[2] = subtokenizer.GetToken();
-        option[3] = subtokenizer.GetToken();
-        option[4] = subtokenizer.GetToken();
-        option[5] = subtokenizer.GetToken();
+        options.push_back(fsid1.c_str());
+        options.push_back(fsid3.c_str());
+        options.push_back(fsid3.c_str());
+
+        while ((opt = subtokenizer.GetToken())) {
+          options.push_back(opt);
+          opt = 0;
+        }
       }
     }
 
-    for (int i = 0; i < 6; i++) {
-      if (option[i].length()) {
-        if (option[i] == "-checksum") {
+    for (auto& elem : options) {
+      if (elem.length()) {
+        if (elem == "-checksum") {
           in += "&mgm.file.compute.checksum=1";
+        } else if (elem == "-commitchecksum") {
+          in += "&mgm.file.commit.checksum=1";
+        } else if (elem == "-commitsize") {
+          in += "&mgm.file.commit.size=1";
+        } else if (elem == "-commitfmd") {
+          in += "&mgm.file.commit.fmd=1";
+        } else if (elem == "-rate") {
+          in += "&mgm.file.verify.rate=";
         } else {
-          if (option[i] == "-commitchecksum") {
-            in += "&mgm.file.commit.checksum=1";
-          } else {
-            if (option[i] == "-commitsize") {
-              in += "&mgm.file.commit.size=1";
-            } else {
-              if (option[i] == "-commitfmd") {
-                in += "&mgm.file.commit.fmd=1";
-              } else {
-                if (option[i] == "-rate") {
-                  in += "&mgm.file.verify.rate=";
-
-                  if ((i == 5) || (!option[i + 1].length())) {
-                    goto com_file_usage;
-                  }
-
-                  in += option[i + 1];
-                  i++;
-                  continue;
-                } else {
-                  goto com_file_usage;
-                }
-              }
-            }
-          }
+          goto com_file_usage;
         }
       }
     }
@@ -1000,4 +989,3 @@ com_file_usage:
   global_retc = EINVAL;
   return (0);
 }
-
