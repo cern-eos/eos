@@ -300,6 +300,9 @@ XrdMgmOfs::InitializeFileView()
 
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
+
+  //force refresh the GeoTreeEngine info at the end of the mgm booting process
+  gGeoTreeEngine.forceRefresh();
   return 0;
 }
 
