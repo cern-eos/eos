@@ -409,7 +409,7 @@ ScanDir::CheckFile(const char* filepath)
                 // Call the autorepair method on the MGM - but not for orphaned
                 // or unregistered filed. If MGM autorepair is disabled then it
                 // doesn't do anything.
-                if (!orphaned &&
+                if (fmd && !orphaned &&
                     (!(fmd->fMd.layouterror() & eos::common::LayoutId::kUnregistered))) {
                   gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
                 }
