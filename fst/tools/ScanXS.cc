@@ -25,16 +25,12 @@
 #include "fst/ScanDir.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 
-#include "fst/FmdDbMap.hh"
-
 #include "fst/Config.hh"
 #include "common/LayoutId.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
-
-eos::fst::FmdDbMapHandler gFmdDbMapHandler; // needed for compilation
 eos::fst::Config eos::fst::Config::gConfig; // needed for compilation
 
 /*----------------------------------------------------------------------------*/

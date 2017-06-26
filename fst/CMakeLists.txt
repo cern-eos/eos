@@ -425,6 +425,10 @@ add_executable(eos-adler32
   checksum/Adler.cc
   checksum/CheckSum.cc)
 
+add_executable(
+  eos-file-fmdattribute-scan
+  FmdAttributeScanMain.cc)
+
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.cc)
@@ -453,6 +457,9 @@ target_link_libraries(eos-scan-fs PRIVATE
 
 target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
 
+target_link_libraries(eos-file-fmdattribute-scan PRIVATE
+  XrdEosFst-Shared)
+
 install(PROGRAMS
   tools/eosfstregister
   tools/eosfstinfo
@@ -463,6 +470,7 @@ install(PROGRAMS
 install(TARGETS
   eos-ioping eos-adler32
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
+  eos-file-fmdattribute-scan
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 endif()

@@ -241,7 +241,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   gOFS.Storage->ShutdownThreads();
   eos_static_warning("op=shutdown msg=\"stop messaging\"");
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
-  gFmdDbMapHandler.Shutdown();
+//  gFmdDbMapHandler.Shutdown();
   kill(watchdog, 9);
   int wstatus = 0;
   wait(&wstatus);
@@ -1348,7 +1348,6 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         Fmd fMd = gFmdAttributeHandler.FmdAttrGet(path.c_str());
         fmd = new FmdHelper(fileid, fsid);
         fmd->Replicate(fMd);
-        eos_info("user.eos.fmd=%s", fMd.DebugString().c_str());
       } catch (fmd_attribute_error& error) {
         fmd = nullptr;
       }

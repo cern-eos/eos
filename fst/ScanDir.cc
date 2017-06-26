@@ -399,16 +399,15 @@ ScanDir::CheckFile(const char* filepath) {
           if (fid && !errno) {
             // check if we have this file in the local DB, if not, we
             // resync first the disk and then the mgm meta data
-            //FmdHelper* fmd = gFmdDbMapHandler.GetFmd(fid, fsId, 0, 0, false, true);
 
-            FmdHelper* fmd = nullptr;
+            std::unique_ptr<FmdHelper> fmd = nullptr;
             try {
               Fmd fMd = gFmdAttributeHandler.FmdAttrGet(io.get());
-              fmd = new FmdHelper(fid, fsId);
+              fmd.reset(new FmdHelper(fid, fsId));
               fmd->Replicate(fMd);
               eos_info("user.eos.fmd=%s", fMd.DebugString().c_str());
             } catch (fmd_attribute_error& error) {
-              fmd = nullptr;
+              fmd.reset(nullptr);
             }
 
             bool orphaned = false;
@@ -431,14 +430,13 @@ ScanDir::CheckFile(const char* filepath) {
               gFmdAttributeHandler.ResyncDisk(filePath.c_str(), fsId, false);
               eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%lx", fsId, fid);
               bool resynced = gFmdAttributeHandler.ResyncMgm(io.get(), fsId, fid, manager.c_str());
-              //fmd = gFmdDbMapHandler.GetFmd(fid, fsId, 0, 0, 0, false, true);
+
               try {
                 Fmd fMd = gFmdAttributeHandler.FmdAttrGet(io.get());
-                fmd = new FmdHelper(fid, fsId);
+                fmd.reset(new FmdHelper(fid, fsId));
                 fmd->Replicate(fMd);
-                eos_info("user.eos.fmd=%s", fMd.DebugString().c_str());
               } catch (fmd_attribute_error& error) {
-                fmd = nullptr;
+                fmd.reset(nullptr);
               }
 
               if (resynced && fmd) {
@@ -462,9 +460,6 @@ ScanDir::CheckFile(const char* filepath) {
                             oname);
                   }
                 }
-
-                delete fmd;
-                fmd = nullptr;
               }
 
               // Call the autorepair method on the MGM - but not for orphaned
@@ -474,10 +469,6 @@ ScanDir::CheckFile(const char* filepath) {
                   (!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
                 gFmdClient.CallAutoRepair(manager.c_str(), fid);
               }
-            }
-
-            if (fmd) {
-              delete fmd;
             }
           }
         }

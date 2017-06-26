@@ -187,7 +187,6 @@ Messaging::Process(XrdMqMessage* newmessage)
           Fmd fmd = gFmdAttributeHandler.FmdAttrGet(fid, fsid, &action);
           fMd = new FmdHelper(fid, fsid);
           fMd->Replicate(fmd);
-          eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
         } catch (fmd_attribute_error& error) {
           fMd = nullptr;
         }

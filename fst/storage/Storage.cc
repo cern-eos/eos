@@ -424,35 +424,14 @@ Storage::Boot(FileSystem* fs)
     gOFS.WNoDeleteOnCloseFid[fsid].set_deleted_key(0);
   }
 
-  // Attach to the local DB
-  if (!gFmdDbMapHandler.SetDBFile(mMetaDir.c_str(), fsid)) {
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
-                 "for details");
-    return;
-  }
-
-  bool is_dirty = gFmdDbMapHandler.IsDirty(fsid);
   bool fast_boot = (!getenv("EOS_FST_NO_FAST_BOOT")) ||
                    (strcmp(getenv("EOS_FST_NO_FAST_BOOT"), "1"));
-  bool resyncmgm = ((is_dirty) ||
-                    (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
-  bool resyncdisk = ((is_dirty) ||
-                     (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
+  bool resyncmgm = (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync);
+  bool resyncdisk = (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced);
   eos_info("msg=\"start disk synchronisation\"");
-  // Resync the DB - indicate the flag to keep the DP dirty
-  gFmdDbMapHandler.StayDirty(fsid, true);
 
   // Sync only local disks
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
-    if (resyncmgm) {
-      if (!gFmdDbMapHandler.ResetDB(fsid)) {
-        fs->SetStatus(eos::common::FileSystem::kBootFailure);
-        fs->SetError(EFAULT, "cannot clean DB on local disk");
-        return;
-      }
-    }
-
     if (!gFmdAttributeHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(EFAULT, "cannot resync the DB from local disk");
@@ -487,13 +466,13 @@ Storage::Boot(FileSystem* fs)
              (unsigned long) fsid);
   }
 
-  // Indicate the flag to unset the DB dirty flag at shutdown
-  gFmdDbMapHandler.StayDirty(fsid, false);
-
-  // Allows fast boot the next time
-  if (fast_boot) {
-    gFmdDbMapHandler.MarkCleanDB(fsid);
-  }
+  // indicate the flag to unset the DB dirty flag at shutdown
+//  gFmdDbMapHandler.StayDirty(fsid, false);
+//
+//  // allows fast boot the next time
+//  if (fast_boot) {
+//    gFmdDbMapHandler.MarkCleanDB(fsid);
+//  }
 
   // Check if there is a label on the disk and if the configuration shows the
   // same fsid + uuid

@@ -108,7 +108,6 @@ Storage::Verify()
         Fmd fmd = gFmdAttributeHandler.FmdAttrGet(io);
         fMd = new FmdHelper(verifyfile->fId, verifyfile->fsId);
         fMd->Replicate(fmd);
-        eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
       } catch (fmd_attribute_error& error) {
         fMd = nullptr;
       }
@@ -144,7 +143,6 @@ Storage::Verify()
       Fmd fmd = gFmdAttributeHandler.FmdAttrGet(io);
       fMd = new FmdHelper(verifyfile->fId, verifyfile->fsId);
       fMd->Replicate(fmd);
-      eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
     } catch (fmd_attribute_error& error) {
       fMd = nullptr;
     }

@@ -39,7 +39,7 @@ Fmd FmdAttributeHandler::FmdAttrGet(FileIo* fileIo) const {
   int result = fileIo->attrGet(FmdAttributeHandler::fmdAttrName, fmdAttrValue);
 
   if(result != 0){
-    throw fmd_attribute_error {"Meta data attribute is not present for file."};
+    throw fmd_attribute_error {std::string("Meta data attribute is not present for file: ") + fileIo->GetPath()};
   }
 
   Fmd fmd;
@@ -60,6 +60,7 @@ Fmd FmdAttributeHandler::FmdAttrGet(eos::common::FileId::fileid_t fid, eos::comm
 }
 
 void FmdAttributeHandler::FmdAttrSet(FileIo* fileIo, const Fmd& fmd) const {
+  eos_info("fmd=%s", fmd.DebugString().c_str());
   int result = fileIo->attrSet(FmdAttributeHandler::fmdAttrName, fmd.SerializePartialAsString());
 
   if(result != 0){
@@ -96,28 +97,51 @@ void FmdAttributeHandler::CreateFileAndSetFmd(FileIo* fileIo, Fmd& fmd, eos::com
 
 bool FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsid_t fsid,
                                     eos::common::FileId::fileid_t fid, const char* manager) const {
-  struct Fmd fMd;
-  FmdHelper::Reset(fMd);
-  int rc = fmdClient->GetMgmFmd(manager, fid, fMd);
+  struct Fmd fmd;
+  bool fmdUpdated = false;
 
-  if (rc == ENODATA) {
-    eos_warning("no such file on MGM for fid=%llu", fid);
-    return false;
+  try {
+    // get local fmd object if possible and update that to not to lose information
+    fmd = FmdAttrGet(fileIo);
+  } catch (fmd_attribute_error& error) {
+    FmdHelper::Reset(fmd);
+    // we have to set the fsid locally
+    fmd.set_fsid(fsid);
+    fmdUpdated = true;
   }
 
+  Fmd oldFmd = fmd;
+
+  int rc = fmdClient->GetMgmFmd(manager, fid, fmd);
+
   if (rc == 0) {
-    // define layouterrors
-    fMd.set_layouterror(FmdHelper::LayoutError(fsid, fMd.lid(), fMd.locations()));
+    if(!fmdUpdated){
+      fmdUpdated = isFmdUpdated(oldFmd, fmd);
+
+      if(!fmdUpdated){
+        eos_info("meta data is up to date for fid=%llu", fid);
+        return true;
+      }
+    }
+
+    // define layout errors
+    fmd.set_layouterror(FmdHelper::LayoutError(fsid, fmd.lid(), fmd.locations()));
 
     try {
-      CreateFileAndSetFmd(fileIo, fMd, fsid);
+      CreateFileAndSetFmd(fileIo, fmd, fsid);
     } catch (...) {
-      eos_err("failed to get/create fmd for fid=%08llx", fMd.fid());
+      eos_err("failed to get/create fmd for fid=%08llx", fmd.fid());
       return false;
     }
 
   } else {
-    eos_err("failed to retrieve MGM fmd for fid=%08llx", fid);
+    if (rc == ENODATA) {
+      eos_warning("no such file on MGM for fid=%llu", fid);
+    }
+    else {
+      eos_err("failed to retrieve MGM fmd for fid=%08llx", fid);
+    }
+
     return false;
   }
 
@@ -263,7 +287,10 @@ bool FmdAttributeHandler::ResyncDisk(const char* path, eos::common::FileSystem::
           }
         }
 
-        Fmd fmd = FmdAttrGet(io.get());
+        Fmd fmd;
+        try {
+          fmd = FmdAttrGet(io.get());
+        } catch (fmd_attribute_error& error) {}
 
         fmd.set_disksize(disksize);
         // fix the reference value from disk
@@ -277,16 +304,16 @@ bool FmdAttributeHandler::ResyncDisk(const char* path, eos::common::FileSystem::
         fmd.set_blockcxerror((blockcxError == "1") ? 1 : 0);
 
         if (flaglayouterror) {
-          // if the mgm sync is run afterwards, every disk file is by construction an
-          // orphan, until it is synced from the mgm
+          /* if the mgm sync is run afterwards, every disk file is by construction an
+             orphan, until it is synced from the mgm */
           fmd.set_layouterror(eos::common::LayoutId::kOrphan);
         }
 
         try {
           FmdAttrSet(io.get(), fmd);
         } catch (fmd_attribute_error& error) {
-          eos_err("failed to update %s DB for fsid=%lu fid=%08llx",
-                  eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid, fid);
+          eos_err("failed to update file meta data for fsid=%lu fid=%08llx",
+                  (unsigned long) fsid, fid);
           retc = false;
         }
       }
@@ -366,6 +393,20 @@ XrdOucString FmdAttributeHandler::fullPathOfFile(eos::common::FileId::fileid_t f
   XrdOucString filePath;
   eos::common::FileId::FidPrefix2FullPath(hexId.c_str(), gOFS.getLocalPrefix(env, fsid).c_str(), filePath);
   return filePath;
+}
+
+inline bool FmdAttributeHandler::isFmdUpdated(const Fmd& oldFmd, const Fmd& newFmd) const {
+  return (oldFmd.fid() != newFmd.fid() ||
+          oldFmd.cid() != newFmd.cid() ||
+          oldFmd.ctime() != newFmd.ctime() ||
+          oldFmd.ctime_ns() != newFmd.ctime_ns() ||
+          oldFmd.mtime() != newFmd.mtime() ||
+          oldFmd.mtime_ns() != newFmd.mtime_ns() ||
+          oldFmd.size() != newFmd.size() ||
+          oldFmd.checksum() != newFmd.checksum() ||
+          oldFmd.lid() != newFmd.lid() ||
+          oldFmd.uid() != newFmd.uid() ||
+          oldFmd.gid() != newFmd.gid());
 }
 
 EOSFSTNAMESPACE_END

@@ -35,12 +35,11 @@ protected:
   static constexpr auto fmdAttrName = "user.eos.fmd"; //! file meta data attribute name constant
   FmdClient* const fmdClient = nullptr; //! client for meta data operations
 
-  std::map<eos::common::FileSystem::fsid_t, bool> isDirty;
-  std::map<eos::common::FileSystem::fsid_t, bool> stayDirty;
-
   std::map<eos::common::FileSystem::fsid_t, bool> isSyncing;
 
   void CreateFileAndSetFmd(FileIo* fileIo, Fmd& fmd, eos::common::FileSystem::fsid_t fsid) const;
+
+  inline bool isFmdUpdated(const Fmd& oldFmd, const Fmd& newFmd) const;
 
   XrdOucString fullPathOfFile(eos::common::FileId::fileid_t fid,
                               eos::common::FileSystem::fsid_t fsid,

@@ -887,7 +887,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       Fmd fmd = gFmdAttributeHandler.FmdAttrGet(layOut->GetFileIo());
       fMd = new FmdHelper(fileid, fsid);
       fMd->Replicate(fmd);
-      eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
     } catch (fmd_attribute_error& error) {
       fMd = nullptr;
     }
@@ -901,7 +900,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
             Fmd fmd = gFmdAttributeHandler.FmdAttrGet(layOut->GetFileIo());
             fMd = new FmdHelper(fileid, fsid);
             fMd->Replicate(fmd);
-            eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
           } catch (fmd_attribute_error& error) {
             fMd = nullptr;
           }
@@ -1736,8 +1734,6 @@ XrdFstOfsFile::close()
             fMd->mProtoFmd.set_locations(""); // reset locations
             fMd->mProtoFmd.set_filecxerror(0);
             fMd->mProtoFmd.set_blockcxerror(0);
-            fMd->mProtoFmd.set_filecxerror(0);
-            fMd->mProtoFmd.set_blockcxerror(0);
             fMd->mProtoFmd.set_mtime(statinfo.st_mtime);
 #ifdef __APPLE__
             fMd->mProtoFmd.set_mtime_ns(0);
@@ -1747,7 +1743,7 @@ XrdFstOfsFile::close()
             // Set the container id
             fMd->mProtoFmd.set_cid(cid);
 
-            // For replicat's set the original uid/gid/lid values
+            // For replica's set the original uid/gid/lid values
             if (capOpaque->Get("mgm.source.lid")) {
               fMd->mProtoFmd.set_lid(strtoul(capOpaque->Get("mgm.source.lid"), 0, 10));
             }
@@ -1760,21 +1756,23 @@ XrdFstOfsFile::close()
               fMd->mProtoFmd.set_gid(atoi(capOpaque->Get("mgm.source.rgid")));
             }
 
+            struct timeval tv;
+            struct timezone tz;
+            gettimeofday(&tv, &tz);
+            fMd->mProtoFmd.set_mtime(tv.tv_sec);
+            fMd->mProtoFmd.set_atime(tv.tv_sec);
+            fMd->mProtoFmd.set_mtime_ns(tv.tv_usec * 1000);
+            fMd->mProtoFmd.set_atime_ns(tv.tv_usec * 1000);
+
             // save meta data
             try {
-              if (!gFmdDbMapHandler.Commit(fMd)) {
-                eos_err("unabel to commit meta data to local database");
-                (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "
-                                 "commit meta data", Path.c_str());
-              }
               try{
-                gFmdAttributeHandler.FmdAttrSet(layOut->GetFileIo(), fMd->fMd);
+                gFmdAttributeHandler.FmdAttrSet(layOut->GetFileIo(), fMd->mProtoFmd);
               } catch (fmd_attribute_error& error) {
-                eos_err("unable to commit meta data to local database");
+                eos_err("unable to save meta data to file");
                 (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "
                   "commit meta data", Path.c_str());
               }
-
             } catch (const std::length_error& e) {}
 
             // Commit to central mgm cache

@@ -70,7 +70,6 @@ FileSystem::~FileSystem()
 
   delete mFileIO;
 
-  // ----------------------------------------------------------------------------
   // @todo we accept this tiny memory leak to be able to let running
   // transfers callback their queue
   // -> we don't delete them here!
@@ -207,7 +206,6 @@ FileSystem::CleanTransactions()
             Fmd fmd = gFmdAttributeHandler.FmdAttrGet(fstPath.c_str());
             fMd = new FmdHelper(fileid, GetId());
             fMd->Replicate(fmd);
-            eos_info("user.eos.fmd=%s", fmd.DebugString().c_str());
           } catch (fmd_attribute_error& error) {
             fMd = nullptr;
           }
