@@ -164,24 +164,55 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     return false;
   }
 
-  XrdOucString fullpath = mConfigDir;
-  fullpath += name;
-  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
+  // Check if there is any full/partial update config file
   struct stat info;
+  std::ostringstream oss;
+  oss << mConfigDir << name << EOSMGMCONFIGENGINE_EOS_SUFFIX;
+  XrdOucString full_path = oss.str().c_str();
+  oss << ".tmp";
+  std::string tmp_path = oss.str();
+  oss << ".partial";
+  std::string tmp_partial = oss.str();
+
+  // Remove any left-over partial update configuration file
+  if (stat(tmp_partial.c_str(), &info) == 0) {
+    eos_notice("removed partial update config file: %s", tmp_partial.c_str());
+
+    if (remove(tmp_partial.c_str())) {
+      eos_err("failed to remove %s", tmp_partial.c_str());
+      oss.str("");
+      oss << "error: failed to remove " << tmp_partial;
+      err = oss.str().c_str();
+      return false;
+    }
+  }
+
+  // Save any full update configuration file as THE configuration file
+  if (stat(tmp_path.c_str(), &info) == 0) {
+    eos_notice("rename %s to %s", tmp_path.c_str(), full_path.c_str());
+
+    if (rename(tmp_path.c_str(), full_path.c_str())) {
+      eos_err("failed to renmae %s to %s", tmp_path.c_str(), full_path.c_str());
+      oss.str("");
+      oss << "error: failed to rename " << tmp_path << " to " << full_path;
+      err = oss.str().c_str();
+      return false;
+    }
+  }
 
   // If default configuration file not found then create it
-  if (stat(fullpath.c_str(), &info) == -1) {
-    if ((errno == ENOENT) && fullpath.endswith("default.eoscf")) {
-      int fd = creat(fullpath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+  if (stat(full_path.c_str(), &info) == -1) {
+    if ((errno == ENOENT) && full_path.endswith("default.eoscf")) {
+      int fd = creat(full_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 
       if (fd == -1) {
         err = "error: failed to create file ";
-        err += fullpath.c_str();
+        err += full_path.c_str();
         return false;
       } else {
         if (fchown(fd, DAEMONUID, DAEMONGID) == 1) {
           err = "error: failed to chown file ";
-          err += fullpath.c_str();
+          err += full_path.c_str();
           (void) close(fd);
           return false;
         }
@@ -191,14 +222,14 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     }
   }
 
-  if (::access(fullpath.c_str(), R_OK)) {
+  if (::access(full_path.c_str(), R_OK)) {
     err = "error: unable to open config file ";
-    err += fullpath.c_str();
+    err += full_path.c_str();
     return false;
   }
 
   ResetConfig();
-  ifstream infile(fullpath.c_str());
+  ifstream infile(full_path.c_str());
   std::string s;
   XrdOucString allconfig = "";
 
@@ -250,11 +281,14 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
 }
 
 //------------------------------------------------------------------------------
-// Store the current configuration to a given file or Redis
+// Store the current configuration to a given file or Redis. This method must
+// be executed by one thread at a time.
 //------------------------------------------------------------------------------
 bool
 FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 {
+  static XrdSysMutex sMutex;
+  XrdSysMutexHelper scope_lock(sMutex);
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
   bool autosave = (bool)env.Get("mgm.config.autosave");
@@ -294,13 +328,18 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     return false;
   }
 
-  XrdOucString fullpath = mConfigDir;
-  XrdOucString halfpath = mConfigDir;
-  fullpath += name;
-  halfpath += name;
-  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
+  std::string bkp_path;
+  std::ostringstream oss;
+  oss << mConfigDir << name;
+  std::string half_path = oss.str();
+  oss << EOSMGMCONFIGENGINE_EOS_SUFFIX;
+  std::string full_path = oss.str();
+  oss << ".tmp";
+  std::string tmp_path = oss.str();
+  oss << ".partial";
+  std::string tmp_partial = oss.str();
 
-  if (!::access(fullpath.c_str(), R_OK)) {
+  if (!::access(full_path.c_str(), R_OK)) {
     if (!force) {
       errno = EEXIST;
       err = "error: a configuration file with name \"";
@@ -308,39 +347,35 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
       err += "\" exists already!";
       return false;
     } else {
-      char backupfile[4096];
+      oss.str("");
       struct stat st;
 
-      if (stat(fullpath.c_str(), &st)) {
-        err = "error: cannot stat the config file with name \"";
-        err += name;
-        err += "\"";
+      if (stat(full_path.c_str(), &st)) {
+        oss << "error: cannot stat the config file with name \"" <<  name << "\"";
+        err = oss.str().c_str();
         return false;
       }
 
       if (autosave) {
-        sprintf(backupfile, "%s.autosave.%lu%s", halfpath.c_str(), st.st_mtime,
-                EOSMGMCONFIGENGINE_EOS_SUFFIX);
+        oss << half_path << ".autosave." << st.st_mtime <<
+            EOSMGMCONFIGENGINE_EOS_SUFFIX;
       } else {
-        sprintf(backupfile, "%s.backup.%lu%s", halfpath.c_str(), st.st_mtime,
-                EOSMGMCONFIGENGINE_EOS_SUFFIX);
+        oss << half_path << ".backup." << st.st_mtime << EOSMGMCONFIGENGINE_EOS_SUFFIX;
       }
 
-      if (rename(fullpath.c_str(), backupfile)) {
-        err = "error: unable to move existing config file to backup version!";
-        return false;
-      }
+      bkp_path = oss.str();
     }
   }
 
-  std::ofstream outfile(fullpath.c_str());
+  // Create partial update file
+  std::ofstream tmp_fstream(tmp_partial);
 
-  if (outfile.is_open()) {
+  if (tmp_fstream.is_open()) {
     XrdOucString config = "";
     XrdOucEnv env("");
 
     if (comment) {
-      // we store comments as "<unix-tst> <date> <comment>"
+      // Store comments as "<unix-tst> <date> <comment>"
       XrdOucString esccomment = comment;
       XrdOucString configkey = "";
       time_t now = time(0);
@@ -363,12 +398,42 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     }
 
     DumpConfig(config, env);
-    outfile << config.c_str();
-    outfile.close();
+    tmp_fstream << config.c_str();
+    tmp_fstream.flush();
+    tmp_fstream.close();
+
+    // Rename *.tmp.partial to *.tmp to signal that we have a proper/full dump
+    if (rename(tmp_partial.c_str(), tmp_path.c_str())) {
+      eos_err("failed rename %s to $%s", tmp_partial.c_str(), tmp_path.c_str());
+      oss.str("");
+      oss << "error: faile to rename " << tmp_partial << " to " << tmp_path;
+      err = oss.str().c_str();
+      return false;
+    }
   } else {
-    err = "error: failed to save configuration file with name \"";
+    err = "error: failed to save temporary configuration file with name \"";
     err += name;
     err += "\"!";
+    return false;
+  }
+
+  // Do backup if required
+  if (!bkp_path.empty()) {
+    if (rename(full_path.c_str(), bkp_path.c_str())) {
+      eos_err("failed rename %s to %s", full_path.c_str(), bkp_path.c_str());
+      oss.str("");
+      oss << "error: faield to rename " << full_path << " to " << bkp_path;
+      err = oss.str().c_str();
+      return false;
+    }
+  }
+
+  // Update the current configuration file
+  if (rename(tmp_path.c_str(), full_path.c_str())) {
+    eos_err("failed rename %s to %s", full_path.c_str(), bkp_path.c_str());
+    oss.str("");
+    oss << "error: faield to rename " << full_path << " to " << bkp_path;
+    err = oss.str().c_str();
     return false;
   }
 
@@ -442,13 +507,13 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
       continue;
     }
 
-    char fullpath[8192];
-    sprintf(fullpath, "%s/%s", mConfigDir.c_str(), dp->d_name);
+    char full_path[8192];
+    sprintf(full_path, "%s/%s", mConfigDir.c_str(), dp->d_name);
     sprintf(allstat[i].filename, "%s", dp->d_name);
     eos_debug("stat on %s\n", dp->d_name);
 
-    if (stat(fullpath, &(allstat[i].buf))) {
-      eos_err("cannot stat after readdir file %s", fullpath);
+    if (stat(full_path, &(allstat[i].buf))) {
+      eos_err("cannot stat after readdir file %s", full_path);
     }
 
     i++;
@@ -512,10 +577,10 @@ void
 FileConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
                                const char* cfg_fn)
 {
-  XrdOucString fullpath = mConfigDir;
-  fullpath += cfg_fn;
-  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
-  std::ifstream infile(fullpath.c_str());
+  XrdOucString full_path = mConfigDir;
+  full_path += cfg_fn;
+  full_path += EOSMGMCONFIGENGINE_EOS_SUFFIX;
+  std::ifstream infile(full_path.c_str());
   std::string sline;
   XrdOucString line;
   bool filtered;
