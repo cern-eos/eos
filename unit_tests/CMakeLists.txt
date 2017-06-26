@@ -26,6 +26,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=0")
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
+  ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIRS}
@@ -57,7 +58,7 @@ set(FST_UT_SRCS
   fst/XrdFstOfsFileTest.cc
   fst/HealthTest.cc)
 
-set(FST_UT_SRC
+set(FST_UT_SRCS
   fst/XrdFstOssFileTest.cc
   fst/FmdAttributeHandlerTest.cc
   ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
