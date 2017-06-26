@@ -152,126 +152,120 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
     int fsid = atoi(fsidst.c_str());
     eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
 
-    try {
-      std::shared_ptr<eos::IFileMD> fmd;
+    std::shared_ptr<eos::IFileMD> fmd;
 
-      /* empty list in case of unavailable file lists */
-      eos::IFsView::FileList emptyFileList;
-      eos::IFsView::FileList& filelist = emptyFileList; // empty by default
+    /* empty list in case of unavailable file lists */
+    eos::IFsView::FileList emptyFileList;
+    eos::IFsView::FileList& filelist = emptyFileList; // empty by default
+    try {
+      filelist = gOFS->eosFsView->getFileList(fsid);
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_static_err("Couldn't retrieve file list. Error code: %d, message: %s",
+                     e.getErrno(), e.getMessage().str().c_str());
+    }
+
+    for (auto it = filelist.begin(); it != filelist.end(); ++it) {
       try {
-        filelist = gOFS->eosFsView->getFileList(fsid);
+        fmd = gOFS->eosFileService->getFileMD(*it);
+
+        if (fmd) {
+          entries++;
+
+          if ((!dumppath) && (!dumpfid) && (!dumpsize)) {
+            std::string env;
+            fmd->getEnv(env, true);
+            XrdOucString senv = env.c_str();
+
+            if (senv.endswith("checksum=")) {
+              senv.replace("checksum=", "checksum=none");
+            }
+
+            stdOut += senv.c_str();
+
+            if (monitor) {
+              std::string fullpath = gOFS->eosView->getUri(fmd.get());
+              eos::common::Path cPath(fullpath.c_str());
+              stdOut += "&container=";
+              XrdOucString safepath = cPath.GetParentPath();
+
+              while (safepath.replace("&", "#AND#")) {}
+
+              stdOut += safepath;
+            }
+
+            stdOut += "\n";
+          } else {
+            if (dumppath) {
+              std::string fullpath = gOFS->eosView->getUri(fmd.get());
+              XrdOucString safepath = fullpath.c_str();
+
+              while (safepath.replace("&", "#AND#")) {}
+
+              stdOut += "path=";
+              stdOut += safepath.c_str();
+            }
+
+            if (dumpfid) {
+              if (dumppath) {
+                stdOut += " ";
+              }
+
+              char sfid[40];
+              snprintf(sfid, 40, "fid=%llu", (unsigned long long) fmd->getId());
+              stdOut += sfid;
+            }
+
+            if (dumpsize) {
+              if (dumppath || dumpfid) {
+                stdOut += " ";
+              }
+
+              char ssize[40];
+              snprintf(ssize, 40, "size=%llu", (unsigned long long) fmd->getSize());
+              stdOut += ssize;
+            }
+
+            stdOut += "\n";
+          }
+        }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_static_err("Couldn't retrieve file list. Error code: %d, message: %s",
+        eos_static_err("Couldn't retrieve meta data for file id: %u. Error code: %d, message: %s",
+                           *it, e.getErrno(), e.getMessage().str().c_str());
+      }
+    }
+
+    if (monitor) {
+      // Also add files which have yet to be unlinked
+      eos::IFsView::FileList& unlinked = emptyFileList; // empty by default
+      try {
+        unlinked = gOFS->eosFsView->getUnlinkedFileList(fsid);
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        eos_static_err("Couldn't retrieve unlinked file list. Error code: %d, message: %s",
                        e.getErrno(), e.getMessage().str().c_str());
       }
 
-      for (auto it = filelist.begin(); it != filelist.end(); ++it) {
+      for (auto it = unlinked.begin(); it != unlinked.end(); ++it) {
         try {
           fmd = gOFS->eosFileService->getFileMD(*it);
-
-          if (fmd) {
-            entries++;
-
-            if ((!dumppath) && (!dumpfid) && (!dumpsize)) {
-              std::string env;
-              fmd->getEnv(env, true);
-              XrdOucString senv = env.c_str();
-
-              if (senv.endswith("checksum=")) {
-                senv.replace("checksum=", "checksum=none");
-              }
-
-              stdOut += senv.c_str();
-
-              if (monitor) {
-                std::string fullpath = gOFS->eosView->getUri(fmd.get());
-                eos::common::Path cPath(fullpath.c_str());
-                stdOut += "&container=";
-                XrdOucString safepath = cPath.GetParentPath();
-
-                while (safepath.replace("&", "#AND#")) {}
-
-                stdOut += safepath;
-              }
-
-              stdOut += "\n";
-            } else {
-              if (dumppath) {
-                std::string fullpath = gOFS->eosView->getUri(fmd.get());
-                XrdOucString safepath = fullpath.c_str();
-
-                while (safepath.replace("&", "#AND#")) {}
-
-                stdOut += "path=";
-                stdOut += safepath.c_str();
-              }
-
-              if (dumpfid) {
-                if (dumppath) {
-                  stdOut += " ";
-                }
-
-                char sfid[40];
-                snprintf(sfid, 40, "fid=%llu", (unsigned long long) fmd->getId());
-                stdOut += sfid;
-              }
-
-              if (dumpsize) {
-                if (dumppath || dumpfid) {
-                  stdOut += " ";
-                }
-
-                char ssize[40];
-                snprintf(ssize, 40, "size=%llu", (unsigned long long) fmd->getSize());
-                stdOut += ssize;
-              }
-
-              stdOut += "\n";
-            }
-          }
         } catch (eos::MDException& e) {
           errno = e.getErrno();
           eos_static_err("Couldn't retrieve meta data for file id: %u. Error code: %d, message: %s",
                              *it, e.getErrno(), e.getMessage().str().c_str());
         }
-      }
 
-      if (monitor) {
-        // Also add files which have yet to be unlinked
-        eos::IFsView::FileList& unlinked = emptyFileList; // empty by default
-        try {
-          unlinked = gOFS->eosFsView->getUnlinkedFileList(fsid);
-        } catch (eos::MDException& e) {
-          errno = e.getErrno();
-          eos_static_err("Couldn't retrieve unlinked file list. Error code: %d, message: %s",
-                         e.getErrno(), e.getMessage().str().c_str());
-        }
-
-        for (auto it = unlinked.begin(); it != unlinked.end(); ++it) {
-          try {
-            fmd = gOFS->eosFileService->getFileMD(*it);
-          } catch (eos::MDException& e) {
-            errno = e.getErrno();
-            eos_static_err("Couldn't retrieve meta data for file id: %u. Error code: %d, message: %s",
-                               *it, e.getErrno(), e.getMessage().str().c_str());
-          }
-
-          if (fmd) {
-            entries++;
-            std::string env;
-            fmd->getEnv(env, true);
-            XrdOucString senv = env.c_str();
-            senv.replace("checksum=&", "checksum=none&");
-            stdOut += senv.c_str();
-            stdOut += "&container=-\n";
-          }
+        if (fmd) {
+          entries++;
+          std::string env;
+          fmd->getEnv(env, true);
+          XrdOucString senv = env.c_str();
+          senv.replace("checksum=&", "checksum=none&");
+          stdOut += senv.c_str();
+          stdOut += "&container=-\n";
         }
       }
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      eos_static_debug("caught exception %d %s\n", e.getErrno(),
-                       e.getMessage().str().c_str());
     }
   }
 
