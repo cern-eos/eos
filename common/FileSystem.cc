@@ -532,7 +532,8 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
                          mHash->Get("configstatus").c_str());
     fs.mDrainStatus = GetDrainStatusFromString(mHash->Get("stat.drain").c_str());
     fs.mActiveStatus = GetActiveStatusFromString(mHash->Get("stat.active").c_str());
-    fs.mHeadRoom = mHash->GetLongLong("headroom");
+    //headroom can be configured as KMGTP so the string should be properly converted
+    fs.mHeadRoom = StringConversion::GetSizeFromString(mHash->Get("headroom"));
     fs.mErrCode = (unsigned int) mHash->GetLongLong("stat.errc");
     fs.mBootSentTime = (time_t) mHash->GetLongLong("stat.bootsenttime");
     fs.mBootDoneTime = (time_t) mHash->GetLongLong("stat.bootdonetime");
