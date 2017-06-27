@@ -3,7 +3,7 @@
   "hostport" : "localhost:1094",
   "remotedir" : "/eos/",
   "localdir" : "/eos/",
-  "mdcachehost" : "localhost",
+  "mdcachehost" : "",
   "mdcacheport" : 6379,
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
@@ -12,7 +12,8 @@
     "lowleveldebug" : "0",
     "debuglevel" : "5",
     "libfusethreads" : "0",
-    "kernelcache" : "1"
+    "md-kernelcache" : "1",
+    "data-kernelcache" : "1",
   },
   "cache" : {
     "type" : "disk",
