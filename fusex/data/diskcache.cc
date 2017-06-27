@@ -108,10 +108,11 @@ diskcache::attach(fuse_req_t req, std::string& acookie, bool isRW)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper lLock(this);
+  int rc = 0;
   if (nattached == 0)
   {
     std::string path;
-    int rc = location(path);
+    rc = location(path);
     if (rc)
     {
       return rc;
@@ -122,7 +123,7 @@ diskcache::attach(fuse_req_t req, std::string& acookie, bool isRW)
 
     if (fd < 0)
     {
-      return errno;
+      return -errno;
     }
   }
 
@@ -141,6 +142,7 @@ diskcache::attach(fuse_req_t req, std::string& acookie, bool isRW)
 
       }
       set_cookie(acookie);
+      rc = EKEYEXPIRED;
     }
   }
   else
@@ -149,7 +151,7 @@ diskcache::attach(fuse_req_t req, std::string& acookie, bool isRW)
   }
 
   nattached++;
-  return 0;
+  return rc;
 }
 
 /* -------------------------------------------------------------------------- */

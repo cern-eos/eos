@@ -269,12 +269,13 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
   }
 
   // Disable recovery on read and write
-  SetProperty("ReadRecovery", "false");
-  SetProperty("WriteRecovery", "false");
-  /*
+#if kXR_PROTOCOLVERSION == 0x00000297
   ((XrdCl::File*)(this))->EnableReadRecovery(false);
   ((XrdCl::File*)(this))->EnableWriteRecovery(false);
-   */
+#else
+  SetProperty("ReadRecovery", "false");
+  SetProperty("WriteRecovery", "false");
+#endif
 
   set_state(OPENING);
 

@@ -221,14 +221,14 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, bool isRW)
   int bcache = mFile->file() ? mFile->file()->attach(freq, cookie, isRW) : 0;
   int jcache = mFile->journal() ? mFile->journal()->attach(freq, cookie, isRW) : 0;
 
-  if (bcache)
+  if (bcache< 0)
   {
     char msg[1024];
     snprintf(msg, sizeof (msg), "attach to cache failed - ino=%08lx", id());
     throw std::runtime_error(msg);
   }
 
-  if (jcache)
+  if (jcache< 0)
   {
     char msg[1024];
     snprintf(msg, sizeof (msg), "attach to journal failed - ino=%08lx", id());
