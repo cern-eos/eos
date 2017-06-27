@@ -98,7 +98,7 @@ namespace llfusexx
    operations.lookup = &T::lookup;
    operations.setattr = &T::setattr;
    operations.opendir = &T::opendir;
-   operations.access = &T::access;
+   //   operations.access = &T::access;
    operations.readdir = &T::readdir;
    operations.mkdir = &T::mkdir;
    operations.unlink = &T::unlink;
