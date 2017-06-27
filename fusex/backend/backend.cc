@@ -368,7 +368,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
   eos_static_info("sync-response");
 
   eos_static_debug("response-size=%d",
-                   response->GetSize());
+                   response?response->GetSize():0);
   if (status.IsOK ())
   {
     if (response && response->GetBuffer())
