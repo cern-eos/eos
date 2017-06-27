@@ -298,7 +298,6 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
 {
   eos_static_debug("");
 
-
   XrdSysCondVarHelper lLock(proxy()->OpenCondVar());
   if (status->IsOK())
   {
@@ -315,7 +314,7 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
   
   delete hostList;
   delete status;
-  delete response;
+  if (response) delete response;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -327,7 +326,10 @@ XrdCl::Proxy::CloseAsync(uint16_t         timeout)
   eos_debug("");
   // don't close files attached by several clients
   if (mAttached > 1)
+  {
+    eos_debug("still attached");
     return XRootDStatus();
+  }
 
   WaitOpen();
   XrdSysCondVarHelper lLock(OpenCondVar());
@@ -457,6 +459,15 @@ XrdCl::Proxy::IsClosed()
   return ( (state () == CLOSED) || (state () == CLOSEFAILED) ) ? true : false;
 }
 
+bool
+
+XrdCl::Proxy::IsWaitWrite()
+{
+  XrdSysCondVarHelper lLock(OpenCondVar());
+  eos_debug("state=%d", state());
+  return (state () == WAITWRITE) ? true : false;
+}
+
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
@@ -533,6 +544,18 @@ XrdCl::Proxy::WaitWrite()
   }
   eos_debug(" [..] map-size=%lu", ChunkMap().size());
   return XOpenState;
+}
+
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::OutstandingWrites()
+/* -------------------------------------------------------------------------- */
+{
+  eos_debug("");
+  XrdSysCondVarHelper lLock(WriteCondVar());
+  return ChunkMap().size()?true:false;
 }
 
 void

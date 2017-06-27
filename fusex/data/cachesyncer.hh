@@ -14,20 +14,26 @@
 
 class cachesyncer
 {
-  public:
+public:
 
-    /**
-     * We expect a file that has been already opened
-     */
-    cachesyncer( XrdCl::File &file ) : file( file ) { }
+  /**
+   * We expect a file that has been already opened
+   */
+  cachesyncer( XrdCl::File &file ) : file( file )
+  {
+  }
 
-    virtual ~cachesyncer() { }
+  virtual ~cachesyncer()
+  {
+  }
 
-    int sync( int fd, interval_tree<uint64_t, uint64_t> &journal, size_t offshift );
+  int sync( int fd, interval_tree<uint64_t, uint64_t> &journal,
+           size_t offshift,
+           off_t truncatesize=0 );
 
-  private:
+private:
 
-    XrdCl::File &file;
-};
+  XrdCl::File &file;
+} ;
 
 #endif /* FUSEX_CACHESYNCER_HH_ */

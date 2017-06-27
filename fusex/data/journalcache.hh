@@ -77,6 +77,7 @@ public:
   virtual int sync();
 
   virtual size_t size();
+  virtual ssize_t get_truncatesize() { XrdSysMutexHelper lck( mtx ); return truncatesize; } 
 
   virtual int set_attr(std::string& key, std::string& value) {return 0;}
   virtual int attr(std::string key, std::string& value) {return 0;}
@@ -107,6 +108,7 @@ public:
 
   fuse_ino_t                        ino;
   size_t                            cachesize;
+  ssize_t                            truncatesize;
   int                               fd;
   // the value is the offset in the cache file
   interval_tree<uint64_t, uint64_t> journal;

@@ -33,12 +33,12 @@ std::string journalcache::sLocation;
 bufferllmanager journalcache::sBufferManager;
 size_t journalcache::sMaxSize = 1024 * 1024 * 1024 * 1024ll; // TODO Some dummy default
 
-journalcache::journalcache() : ino( 0 ), cachesize( 0 ), fd( -1 ), nbAttached( 0 )
+journalcache::journalcache() : ino( 0 ), cachesize( 0 ), truncatesize( -1 ), fd( -1 ), nbAttached( 0 )
 {
 
 }
 
-journalcache::journalcache( fuse_ino_t ino ) : ino( ino ), cachesize( 0 ), fd( -1 ), nbAttached( 0 )
+journalcache::journalcache( fuse_ino_t ino ) : ino( ino ), cachesize( 0 ), truncatesize( -1 ), fd( -1 ), nbAttached( 0 )
 {
 
 }
@@ -129,6 +129,7 @@ int journalcache::detach(std::string& cookie)
   nbAttached--;
   if ( !nbAttached )
   {
+    fprintf(stderr,"journalcache::detaching fd=%d\n", fd);
     int rc = close(fd);
     if (rc)
       return errno;
@@ -177,6 +178,17 @@ ssize_t journalcache::pread( void *buf, size_t count, off_t offset )
         break;
     }
   }
+  if ( (truncatesize != -1) && ( (ssize_t) offset >= truncatesize ))
+  {
+    // offset after truncation mark
+    return 0;
+  }
+  if ( (truncatesize != -1) && ( (ssize_t) (offset + bytesRead) > truncatesize) )
+  {
+    // read over truncation size
+    return (truncatesize - offset);
+  }
+
   return bytesRead;
 }
 
@@ -305,6 +317,11 @@ ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
     cachesize += sizeof ( header_t ) + size;
   }
 
+  if ( (truncatesize != -1) && ((ssize_t) (offset + count) > truncatesize))
+  {
+    // journal written after last truncation size
+    truncatesize = offset + count;
+  }
   return count;
 }
 
@@ -312,10 +329,16 @@ int journalcache::truncate(off_t offset)
 {
   int rc = 0;
   write_lock lck( clck );
-  if (offset == 0)
+  if (offset)
   {
-    rc = ::ftruncate( fd, offset );
+    truncatesize = offset;
+  }
+  else
+  {
+    truncatesize = 0;
     journal.clear();
+    cachesize = 0;
+    ::ftruncate( fd, 0 );
   }
   return rc;
 }
@@ -350,9 +373,14 @@ int journalcache::init()
 int journalcache::remote_sync( cachesyncer & syncer )
 {
   write_lock lck( clck );
-  int ret = syncer.sync( fd, journal, sizeof ( header_t ) );
-  journal.clear();
-  ret |= ::ftruncate( fd, 0 );
+  int ret = syncer.sync( fd, journal, sizeof ( header_t ), truncatesize );
+  if (!ret)
+  {
+    journal.clear();
+    fprintf(stderr,"journalcache::remote_sync ret=%d truncatesize=%ld\n", ret, truncatesize);
+    ret |= ::ftruncate( fd, 0 );
+    fprintf(stderr,"journalcache::remote_sync ret=%d errno=%d\n", ret, errno);
+  }
   clck.broadcast();
   return ret;
 }

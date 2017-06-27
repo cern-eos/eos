@@ -32,7 +32,7 @@
 
 std::string diskcache::sLocation;
 bufferllmanager diskcache::sBufferManager;
-off_t diskcache::sMaxSize = 1024 * 1024ll;
+off_t diskcache::sMaxSize = 2 * 1024 * 1024ll;
 
 /* -------------------------------------------------------------------------- */
 int
@@ -127,11 +127,12 @@ diskcache::attach(fuse_req_t req, std::string& acookie, bool isRW)
   }
 
   std::string ccookie;
-  if (!cookie(ccookie) || (ccookie != ""))
+  if ((!nattached) && ((!cookie(ccookie) || (ccookie != ""))))
   {
     // compare if the cookies are identical, otherwise we truncate to 0
     if (ccookie != acookie)
     {
+      fprintf(stderr,"diskcache::attach truncating for cookie: %s <=> %s\n", ccookie.c_str(), acookie.c_str());
       if (truncate(0))
       {
         char msg[1024];
@@ -246,6 +247,7 @@ ssize_t
 diskcache::pwrite(const void *buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
+  fprintf(stderr,"diskcache::pwrite %lu %lu\n", count, offset);
   if ( (off_t) offset >= sMaxSize )
   {
     return 0;
@@ -264,9 +266,10 @@ int
 diskcache::truncate(off_t offset)
 /* -------------------------------------------------------------------------- */
 {
+  fprintf(stderr,"diskcache::truncate %lu\n", offset);
   if ( offset >= sMaxSize )
   {
-    return 0;
+    return ::ftruncate(fd, sMaxSize);
   }
 
   return ::ftruncate(fd, offset);

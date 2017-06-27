@@ -47,7 +47,7 @@ cachehandler::init(cachehandler::cacheconfig & _config)
     if (diskcache::init())
     {
 
-      fprintf(stderr, "error: cache directory %s or %s cannot be initiazlied - check existance/permissions!\n",
+      fprintf(stderr, "error: cache directory %s or %s cannot be initialized - check existance/permissions!\n",
               config.location.c_str(), config.journal.c_str());
       return EPERM;
     }
@@ -56,7 +56,7 @@ cachehandler::init(cachehandler::cacheconfig & _config)
   {
     if (journalcache::init())
     {
-      fprintf(stderr, "error: journal directory %s or %s cannot be initiazlied - check existance/permissions!\n",
+      fprintf(stderr, "error: journal directory %s or %s cannot be initialized - check existance/permissions!\n",
               config.location.c_str(), config.journal.c_str());
       return EPERM;
     }

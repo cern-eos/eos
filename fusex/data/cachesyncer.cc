@@ -16,76 +16,89 @@
 
 class CollectiveHandler : public XrdCl::ResponseHandler
 {
-  public:
+public:
 
-    CollectiveHandler( size_t count ) : count( count ), sem( 0 ), result( true ) { }
+  CollectiveHandler( size_t count ) : count( count ), sem( 0 ), result( true )
+  {
+  }
 
-    virtual void HandleResponse( XrdCl::XRootDStatus *status, XrdCl::AnyObject *response )
-    {
-      Report( status );
-    }
+  virtual void HandleResponse( XrdCl::XRootDStatus *status, XrdCl::AnyObject *response )
+  {
+    Report( status );
+  }
 
-    void Wait()
-    {
-      sem.Wait();
-    }
+  void Wait()
+  {
+    sem.Wait();
+  }
 
-    void Report( XrdCl::XRootDStatus *status )
-    {
-      XrdSysMutexHelper scope( mtx );
-      result &= status->IsOK();
-      delete status;
-      --count;
-      if( count == 0 )
-        sem.Post();
-    }
+  void Report( XrdCl::XRootDStatus *status)
+  {
+    XrdSysMutexHelper scope( mtx );
+    result &= status->IsOK();
+    delete status;
+    --count;
+    if ( count == 0 )
+      sem.Post();
+  }
 
-    bool WasSuccessful()
-    {
-      return result;
-    }
+  bool WasSuccessful()
+  {
+    return result;
+  }
 
-  private:
+private:
 
-    size_t          count;
-    XrdSysMutex     mtx;
-    XrdSysSemaphore sem;
-    bool            result;
-};
+  size_t          count;
+  XrdSysMutex     mtx;
+  XrdSysSemaphore sem;
+  bool            result;
+} ;
 
-int cachesyncer::sync( int fd, interval_tree<uint64_t, uint64_t> &journal, size_t offshift )
+int cachesyncer::sync( int fd, interval_tree<uint64_t,
+                      uint64_t> &journal,
+                      size_t offshift,
+                      off_t truncatesize)
 {
-  if (!journal.size())
+  if (!journal.size() && (truncatesize == -1))
     return 0;
-  
-  CollectiveHandler handler( journal.size() );
 
-  bufferll buffer;
-  
-  for( auto itr = journal.begin(); itr != journal.end(); ++itr )
+  CollectiveHandler handler( journal.size() + ((truncatesize != -1)?1:0));
+
+  std::map<size_t, bufferll> bufferm;
+
+  size_t i=0;
+  for ( auto itr = journal.begin(); itr != journal.end(); ++itr )
   {
     off_t  cacheoff = itr->value + offshift;
     size_t size   = itr->high - itr->low;
-    buffer.resize(size);
-    int bytesRead = pread( fd, buffer.ptr(), size, cacheoff );
+    bufferm[i].resize(size);
+    int bytesRead = pread( fd, bufferm[i].ptr(), size, cacheoff );
 
-    if( bytesRead < 0 )
+    if ( bytesRead < 0 )
     {
       // TODO handle error
       return -1;
     }
 
-    if( bytesRead < (int)size )
+    if ( bytesRead < (int) size )
     {
       // TODO handle error
     }
-
     // do async write
-    XrdCl::XRootDStatus st = file.Write( itr->low, size, buffer.ptr(), &handler );
-    if( !st.IsOK() )
+    XrdCl::XRootDStatus st = file.Write( itr->low, size, bufferm[i].ptr(), &handler );
+    if ( !st.IsOK() )
     {
       handler.Report( new XrdCl::XRootDStatus( st ) );
     }
+    i++;
+  }
+
+  // there might be a truncate call after the writes to be applied
+  if (truncatesize != -1)
+  {
+    XrdCl::XRootDStatus st = file.Truncate( truncatesize );
+    handler.Report ( new XrdCl::XRootDStatus( st ) );
   }
 
   handler.Wait();

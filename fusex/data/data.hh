@@ -142,6 +142,10 @@ public:
       return mAttached ? true : false;
     }
 
+    bool attached_nolock()
+    {
+      return mAttached ? true : false;
+    }
   private:
     XrdSysMutex mLock;
     uint64_t mIno;
