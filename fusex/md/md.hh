@@ -203,19 +203,22 @@ public:
     {
       mSync.Signal();
     }
-    
-    std::string Cookie() 
+
+    std::string Cookie()
     {
       char s[256];
-      snprintf(s, sizeof(s), "%lx:%lu.%lu:%lu", (unsigned long)id(), 
-               (unsigned long) mtime(), 
-               (unsigned long) mtime_ns(), 
+      snprintf(s, sizeof (s), "%lx:%lu.%lu:%lu", (unsigned long) id(),
+               (unsigned long) mtime(),
+               (unsigned long) mtime_ns(),
                (unsigned long) size());
       return s;
     }
-    
-    std::set<std::string>& get_todelete() { return todelete; }
-    
+
+    std::set<std::string>& get_todelete()
+    {
+      return todelete;
+    }
+
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
@@ -308,11 +311,11 @@ public:
 
     void erase_fwd(fuse_ino_t lookup);
     void erase_bwd(fuse_ino_t lookup);
-    
+
 
     fuse_ino_t forward(fuse_ino_t lookup);
     fuse_ino_t backward(fuse_ino_t lookup);
-  
+
   private:
     std::map<fuse_ino_t, fuse_ino_t> fwd_map; // forward map points from remote to local inode
     std::map<fuse_ino_t, fuse_ino_t> bwd_map; // backward map points from local remote inode
@@ -342,7 +345,7 @@ public:
   void init(backend* _mdbackend);
 
   shared_md load_from_kv(fuse_ino_t ino);
-  
+
   bool map_children_to_local(shared_md md);
 
 
@@ -371,12 +374,12 @@ public:
 
   void update(fuse_req_t req,
               shared_md md,
-              std::string authid, 
-	      bool localstore=false);
+              std::string authid,
+              bool localstore=false);
 
   void add(shared_md pmd, shared_md md, std::string authid);
   int add_sync(shared_md pmd, shared_md md, std::string authid);
-  
+
   void remove(shared_md pmd, shared_md md, std::string authid, bool upstream=true);
   void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
           std::string authid1, std::string authid2);
@@ -566,7 +569,7 @@ public:
   {
   public:
 
-    flushentry(const std::string& aid, mdx::md_op o) : _authid(aid), _op(o)
+    flushentry(const uint64_t id, const std::string& aid, mdx::md_op o) : _id(id), _authid(aid), _op(o)
     {
     };
 
@@ -584,24 +587,27 @@ public:
       return _op;
     }
 
+    uint64_t id() const
+    {
+      return _id;
+    }
+
     static std::deque<flushentry> merge(std::deque<flushentry>& f)
     {
       return f;
     }
 
-    static std::string dump(std::deque<flushentry>& e)
+    static std::string dump(flushentry& e)
     {
       std::string out;
-      for (auto it = e.begin(); it != e.end(); ++it)
-      {
-        char line[1024];
-        snprintf(line, sizeof (line), "\nauthid=%s op=%d", it->authid().c_str(), (int) it->op());
-        out += line;
-      }
+      char line[1024];
+      snprintf(line, sizeof (line), "authid=%s op=%d id=%lu", e.authid().c_str(), (int) e.op(), e.id());
+      out += line;
       return out;
     }
 
   private:
+    uint64_t _id;
     std::string _authid;
     mdx::md_op _op;
   } ;
@@ -617,11 +623,9 @@ private:
 
   XrdSysCondVar mdflush;
 
-  std::map<uint64_t, flushentry_set_t> mdqueue; // inode => flushenty
+  std::map<uint64_t, size_t> mdqueue;  // inode, counter of mds to flush
+  std::deque<flushentry> mdflushqueue; // linear queue with all entries to flush
 
-  // std::map<uint64_t, size_t> mdqueue; // inode, counter of mds to flush
-  // std::deque<flushentry> mdflushqueue; // linear queue with all entries to flush
-  
   size_t mdqueue_max_backlog;
 
   // ZMQ objects

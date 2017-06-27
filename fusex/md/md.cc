@@ -304,7 +304,7 @@ metad::mdx::convert(struct fuse_entry_param &e)
   e.attr.MTIMESPEC.tv_nsec=mtime_ns();
   e.attr.CTIMESPEC.tv_sec=ctime();
   e.attr.CTIMESPEC.tv_nsec=ctime_ns();
-  if (EosFuse::Instance().Config().options.kernelcache)
+  if (EosFuse::Instance().Config().options.md_kernelcache)
   {
     e.attr_timeout=3600.0;
     e.entry_timeout=3600.0;
@@ -614,7 +614,20 @@ metad::get(fuse_req_t req,
     thecase = 2;
     if (pmd)
     {
-      XrdSysMutexHelper mdLock(pmd->Locker());
+      // prevent resyning when we have deletions pending
+      /*while (1)
+      {
+        XrdSysMutexHelper mdLock(pmd->Locker());
+        if (pmd->WaitSync(1))
+        {
+          if (pmd->get_todelete().size())
+            continue;
+
+          break;
+        }
+      }
+       */
+
       if (pmd->md_ino())
       {
         rc = mdbackend->getMD(req, pmd->md_ino(), name, contv, listing);
@@ -637,6 +650,19 @@ metad::get(fuse_req_t req,
     thecase = 3;
     if (md->md_ino())
     {
+      // prevent resyncing when we have deletions pending
+      /* while (1)
+      {
+        XrdSysMutexHelper mdLock(md->Locker());
+        if (md->WaitSync(1))
+        {
+          if (md->get_todelete().size())
+            continue;
+
+          break;
+        }
+      }
+       */
       eos_static_info("ino=%08lx type=%d", md->md_ino(), md->type());
       rc = mdbackend->getMD(req, md->md_ino(), listing ? ( (md->type() != md->MDLS) ? 0 : md->clock()) : md->clock(), contv, listing);
     }
@@ -1006,11 +1032,12 @@ metad::update(fuse_req_t req,
       mdflush.WaitMS(25);
   }
 
-  flushentry fe(authid, localstore ? mdx::LSTORE : mdx::UPDATE);
+  flushentry fe(md->id(), authid, localstore ? mdx::LSTORE : mdx::UPDATE);
 
-  mdqueue[md->id()].push_back(fe);
+  mdqueue[md->id()]++;
+  mdflushqueue.push_back(fe);
 
-  eos_static_info("added ino=%lx authid=%s queue-size=%u local-store=%d", md->id(), flushentry::dump(mdqueue[md->id()]).c_str(), mdqueue.size(), localstore);
+  eos_static_info("added ino=%lx flushentry=%s queue-size=%u local-store=%d", md->id(), flushentry::dump(fe).c_str(), mdqueue.size(), localstore);
 
   mdflush.Signal();
   mdflush.UnLock();
@@ -1036,6 +1063,7 @@ metad::add(metad::shared_md pmd, metad::shared_md md, std::string authid)
     (*map)[md->name()] = md->id();
     pmd->set_nlink(1);
     pmd->set_nchildren(pmd->nchildren() + 1);
+    pmd->get_todelete().erase(md->name());
     pid = pmd->id();
   }
 
@@ -1053,11 +1081,13 @@ metad::add(metad::shared_md pmd, metad::shared_md md, std::string authid)
   while (mdqueue.size() == mdqueue_max_backlog)
     mdflush.WaitMS(25);
 
-  flushentry fe(authid, mdx::ADD);
-  mdqueue[id].push_back(fe);
+  flushentry fe(id, authid, mdx::ADD);
+  mdqueue[id]++;
+  mdflushqueue.push_back(fe);
 
-  flushentry fep(authid, mdx::LSTORE);
-  mdqueue[pid].push_back(fep);
+  flushentry fep(pid, authid, mdx::LSTORE);
+  mdqueue[pid]++;
+  mdflushqueue.push_back(fep);
 
   mdflush.Signal();
   mdflush.UnLock();
@@ -1080,6 +1110,25 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
 
   md->set_operation(md->SET);
   eos_static_info("metacache::sync backend::putMD - start");
+
+  while (1)
+  {
+    // wait that the parent is leaving the mdqueue
+    mdflush.Lock();
+    if (mdqueue.count(pmd->id()))
+    {
+      mdflush.UnLock();
+      eos_static_info("waiting for parent directory to be synced upstream parent-ino= %lx ino=%lx",
+                      md->id(), pmd->id());
+      XrdSysTimer delay;
+      delay.Wait(25);
+    }
+    else
+    {
+      mdflush.UnLock();
+      break;
+    }
+  }
 
   // push to backend
   if ((rc = mdbackend->putMD(&(*md), authid, &(md->Locker()))))
@@ -1120,6 +1169,7 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
     (*map)[md->name()] = md->id();
     pmd->set_nlink(1);
     pmd->set_nchildren(pmd->nchildren() + 1);
+    pmd->get_todelete().erase(md->name());
   }
 
   mdflush.Lock();
@@ -1129,8 +1179,9 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
   while (mdqueue.size() == mdqueue_max_backlog)
     mdflush.WaitMS(25);
 
-  flushentry fep(authid, mdx::LSTORE);
-  mdqueue[pmd->id()].push_back(fep);
+  flushentry fep(pmd->id(), authid, mdx::LSTORE);
+  mdqueue[pmd->id()]++;
+  mdflushqueue.push_back(fep);
 
   mdflush.Signal();
   mdflush.UnLock();
@@ -1166,16 +1217,18 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
   if (!upstream)
     return ;
 
-  flushentry fe(authid, mdx::RM);
-  flushentry fep(authid, mdx::LSTORE);
+  flushentry fe(md->id(), authid, mdx::RM);
+  flushentry fep(pmd->id(), authid, mdx::LSTORE);
 
   mdflush.Lock();
 
   while (mdqueue.size() == mdqueue_max_backlog)
     mdflush.WaitMS(25);
 
-  mdqueue[pmd->id()].push_back(fep);
-  mdqueue[md->id()].push_back(fe);
+  mdqueue[pmd->id()]++;
+  mdflushqueue.push_back(fep);
+  mdqueue[md->id()]++;
+  mdflushqueue.push_back(fe);
 
   stat.inodes_backlog_store(mdqueue.size());
 
@@ -1194,7 +1247,8 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
   auto map1 = p1md->mutable_children();
   auto map2 = p2md->mutable_children();
 
-  eos_static_debug("child=%s parent=%s newparent=%s inode=%08lx", md->name().c_str(),
+  eos_static_debug("child=%s new-name=%s parent=%s newparent=%s inode=%08lx", md->name().c_str(),
+                   newname.c_str(),
                    p1md->name().c_str(), p2md->name().c_str(), md->id());
 
   XrdSysMutexHelper mLock(md->Locker());
@@ -1226,6 +1280,7 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
     md->set_name(newname);
     md->set_pid(p2md->id());
     md->set_md_pino(p2md->md_ino());
+    p1md->get_todelete().insert(md->name()); // make it known as deleted
   }
   else
   {
@@ -1233,7 +1288,9 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
     XrdSysMutexHelper m1Lock(p1md->Locker());
     (*map2)[newname] = md->id();
     (*map1).erase(md->name());
+    p1md->get_todelete().insert(md->name()); // make it known as deleted
     md->set_name(newname);
+    
   }
 
   md->set_mtime(ts.tv_sec);
@@ -1248,18 +1305,20 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
   while (mdqueue.size() == mdqueue_max_backlog)
     mdflush.WaitMS(25);
 
-  flushentry fe1(authid1, mdx::UPDATE);
-  mdqueue[p1md->id()].push_back(fe1);
+  flushentry fe1(p1md->id(), authid1, mdx::UPDATE);
+  mdqueue[p1md->id()]++;
+  mdflushqueue.push_back(fe1);
 
   if (p1md->id() != p2md->id())
   {
-    flushentry fe2(authid2, mdx::UPDATE);
-    mdqueue[p2md->id()].push_back(fe2);
+    flushentry fe2(p2md->id(), authid2, mdx::UPDATE);
+    mdqueue[p2md->id()]++;
+    mdflushqueue.push_back(fe2);
   }
-  flushentry fe(authid2, mdx::UPDATE);
+  flushentry fe(md->id(), authid2, mdx::UPDATE);
 
-  mdqueue[md->id()].push_back(fe);
-
+  mdqueue[md->id()]++;
+  mdflushqueue.push_back(fe);
   stat.inodes_backlog_store(mdqueue.size());
 
   mdflush.Signal();
@@ -1452,24 +1511,36 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
   {
     uint64_t md_ino = cont.md_().md_ino();
     uint64_t ino = inomap.forward(md_ino);
-    if (ino)
+
+    //    if (ino)
+    if (1)
     {
-      XrdSysMutexHelper mLock(mdmap);
-      if (mdmap.count(ino))
       {
-        md = mdmap[ino];
+        XrdSysMutexHelper mLock(mdmap);
+        if (mdmap.count(ino))
+        {
+          md = mdmap[ino];
+        }
+        else
+        {
+          std::string mdstream;
+          md = std::make_shared<mdx>();
+          mdmap[ino] = md;
+        }
+        eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
+        if (md->deleted())
+        {
+          return 0;
+        }
       }
-      else
+
+      md->Locker().Lock();
+      if (!ino)
       {
-        std::string mdstream;
-        md = std::make_shared<mdx>();
-        mdmap[ino] = md;
+        uint64_t new_ino = insert(req, md, md->authid());
+        ino = new_ino;
       }
-      eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
-      if (md->deleted())
-      {
-        return 0;
-      }
+
       {
         *md = cont.md_();
         eos_static_debug("store md for local-ino=%08lx remote-ino=%08lx -", (long) ino, (long) md_ino);
@@ -1483,8 +1554,10 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       assert(p_ino != 0);
       md->set_pid(p_ino);
       md->set_id(ino);
+      md->get_todelete().clear();
       eos_static_info("store local pino=%08lx for %08x", md->pid(), md->id());
       update(req, md, "", true);
+      md->Locker().UnLock();
       return ino;
     }
     else
@@ -1532,8 +1605,10 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
         if (mdexist)
         {
           {
+            bool child=false;
             if (map->first != cont.ref_inode_())
             {
+              child = true;
               md->Locker().Lock();
             }
             else
@@ -1548,9 +1623,19 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
               cap_received = map->second.capability();
             }
 
-            *md = map->second;
+            if (child)
+            {
+              // don't overwrite the child counter if we know this md record
+              int children = md->nchildren();
+              *md = map->second;
+              md->set_nchildren(children);
+            }
+            else
+            {
+              *md = map->second;
+            }
             md->clear_capability();
-
+            md->get_todelete().clear();
             md->set_id(ino);
             /*
             
@@ -1688,168 +1773,178 @@ void
 metad::mdcflush()
 /* -------------------------------------------------------------------------- */
 {
+  uint64_t lastflushid=0;
   while (1)
   {
     {
       mdflush.Lock();
+
+      if (mdqueue.count(lastflushid))
+      {
+        // remove entries from the mdqueue, if their ref count is 0
+        if (!mdqueue[lastflushid])
+        {
+          mdqueue.erase(lastflushid);
+        }
+      }
 
       stat.inodes_backlog_store(mdqueue.size());
 
       while (mdqueue.size() == 0)
         mdflush.Wait();
 
-      auto it= mdqueue.begin();
-      uint64_t ino = it->first;
+      // TODO: add an optimzation to merge requests in the queue
+      auto it= mdflushqueue.begin();
+      uint64_t ino = it->id();
+      std::string authid = it->authid();
+      mdx::md_op op = it->op();
 
-      // take the flush set for a given inode and merge them
-      flushentry_set_t flushset = flushentry::merge(it->second);
 
-      eos_static_info("metacache::flush ino=%lx queue-size=%u", ino, mdqueue.size());
-      eos_static_info("metacache::flush %s", flushentry::dump(flushset).c_str());
+      lastflushid = ino;
 
-      mdqueue.erase(it);
+      eos_static_info("metacache::flush ino=%lx flushqueue-size=%u", ino, mdflushqueue.size());
+      eos_static_info("metacache::flush %s", flushentry::dump(*it).c_str());
+
+      mdflushqueue.erase(it);
+      mdqueue[it->id()]--;
       mdflush.UnLock();
 
-      for (auto fit = flushset.begin(); fit != flushset.end(); ++fit)
+
+
+      eos_static_debug("metacache::flush ino=%08lx authid=%s op=%d", ino, authid.c_str(), (int) op);
       {
-        flushentry entry = *fit;
-        std::string authid = entry.authid();
-
-        mdx::md_op op = entry.op();
-        eos_static_debug("metacache::flush ino=%08lx authid=%s op=%d", ino, authid.c_str(), (int) op);
+        shared_md md;
         {
-          shared_md md;
+          XrdSysMutexHelper mLock(mdmap);
+
+          if (should_terminate())
+            return;
+
+          if (mdmap.count(ino))
           {
-            XrdSysMutexHelper mLock(mdmap);
+            eos_static_info("metacache::flush ino=%08lx", (unsigned long long) ino);
 
-            if (should_terminate())
-              return;
-
-            if (mdmap.count(ino))
+            md = mdmap[ino];
+            if (!md->md_pino())
             {
-              eos_static_info("metacache::flush ino=%08lx", (unsigned long long) ino);
-
-              md = mdmap[ino];
-              if (!md->md_pino())
+              // when creating objects locally faster than pushed upstream
+              // we might not know the remote parent id when we insert a local
+              // creation request
+              if (mdmap.count(md->pid()))
               {
-                // when creating objects locally faster than pushed upstream
-                // we might not know the remote parent id when we insert a local
-                // creation request
-                if (mdmap.count(md->pid()))
+                uint64_t md_pino = mdmap[md->pid()]->md_ino();
+                if (md_pino)
                 {
-                  uint64_t md_pino = mdmap[md->pid()]->md_ino();
-                  if (md_pino)
-                  {
-                    eos_static_crit("metacache::flush providing parent inode %08lx to %08lx", md->id(), md_pino);
-                    md->set_md_pino(md_pino);
-                  }
-                  else
-                  {
-                    eos_static_crit("metacache::flush ino=%08lx parent remote inode not known", (unsigned long long) ino);
-                  }
-                }
-              }
-            }
-            else
-            {
-              continue;
-            }
-          }
-          if (md->id())
-          {
-            uint64_t removeentry=0;
-            {
-              md->Locker().Lock();
-
-              int rc = 0;
-
-              if (op == metad::mdx::RM)
-                md->set_operation(md->DELETE);
-              else
-                md->set_operation(md->SET);
-
-              if ((op != metad::mdx::RM) && md->deleted())
-              {
-                // if the md was deleted in the meanwhile does not need to 
-                // push it remote, since the response creates a race condition
-                md->Locker().UnLock();
-                continue;
-              }
-              md->set_type(md->MD);
-              if (((op == metad::mdx::ADD) ||
-                  (op == metad::mdx::UPDATE) ||
-                  (op == metad::mdx::RM)) &&
-                  md->id() != 1)
-              {
-                eos_static_info("metacache::flush backend::putMD - start");
-
-                // push to backend
-                if ((rc = mdbackend->putMD(&(*md), authid, &(md->Locker()))))
-                {
-                  eos_static_err("metacache::flush backend::putMD failed rc=%d", rc);
-                  // ---------------------------------------------------------------
-                  // in this case we always clean this MD record to force a refresh
-                  // ---------------------------------------------------------------
-                  inomap.erase_bwd(md->id());
-                  //removeentry=md->id();
-                  md->set_err(rc);
+                  eos_static_crit("metacache::flush providing parent inode %08lx to %08lx", md->id(), md_pino);
+                  md->set_md_pino(md_pino);
                 }
                 else
                 {
-                  inomap.insert(md->md_ino(), md->id());
-                }
-
-                if (md->getop() != md->RM)
-                {
-                  md->setop_none();
-                }
-                md->Signal();
-                eos_static_info("metacache::flush backend::putMD - stop");
-              }
-
-              if ( (op == metad::mdx::ADD) || (op == metad::mdx::UPDATE) || (op == metad::mdx::LSTORE) )
-              {
-                std::string mdstream;
-                md->SerializeToString(&mdstream);
-                md->Locker().UnLock();
-                kv::Instance().put(ino, mdstream);
-              }
-              else
-              {
-                md->Locker().UnLock();
-                if (op == metad::mdx::RM)
-                {
-                  kv::Instance().erase(ino);
-                  // this step is coupled to the forget function, since we cannot
-                  // forget an entry if we didn't process the outstanding KV changes
-                  stat.inodes_deleted_dec();
-                  if (md->lookup_dec(1))
-                  {
-                    // forget this inode
-                    removeentry = ino;
-                    stat.inodes_dec();
-                  }
+                  eos_static_crit("metacache::flush ino=%08lx parent remote inode not known", (unsigned long long) ino);
                 }
               }
             }
-            if (removeentry)
+          }
+          else
+          {
+            continue;
+          }
+        }
+        if (md->id())
+        {
+          uint64_t removeentry=0;
+          {
+            md->Locker().Lock();
+
+            int rc = 0;
+
+            if (op == metad::mdx::RM)
+              md->set_operation(md->DELETE);
+            else
+              md->set_operation(md->SET);
+
+            if ((op != metad::mdx::RM) && md->deleted())
             {
-              shared_md pmd;
-              eos_static_info("removing entry ino=%08lx", removeentry);
+              // if the md was deleted in the meanwhile does not need to 
+              // push it remote, since the response creates a race condition
+              md->Locker().UnLock();
+              continue;
+            }
+            md->set_type(md->MD);
+            if (((op == metad::mdx::ADD) ||
+                (op == metad::mdx::UPDATE) ||
+                (op == metad::mdx::RM)) &&
+                md->id() != 1)
+            {
+              eos_static_info("metacache::flush backend::putMD - start");
+
+              // push to backend
+              if ((rc = mdbackend->putMD(&(*md), authid, &(md->Locker()))))
               {
-                XrdSysMutexHelper mmLock(mdmap);
-                if (mdmap.count(md->pid()))
-                {
-                  pmd = mdmap[md->pid()];
-                }
-                mdmap.erase(removeentry);
+                eos_static_err("metacache::flush backend::putMD failed rc=%d", rc);
+                // ---------------------------------------------------------------
+                // in this case we always clean this MD record to force a refresh
+                // ---------------------------------------------------------------
+                inomap.erase_bwd(md->id());
+                //removeentry=md->id();
+                md->set_err(rc);
               }
+              else
               {
-                if (pmd)
+                inomap.insert(md->md_ino(), md->id());
+              }
+
+              if (md->getop() != md->RM)
+              {
+                md->setop_none();
+              }
+              md->Signal();
+              eos_static_info("metacache::flush backend::putMD - stop");
+            }
+
+            if ( (op == metad::mdx::ADD) || (op == metad::mdx::UPDATE) || (op == metad::mdx::LSTORE) )
+            {
+              std::string mdstream;
+              md->SerializeToString(&mdstream);
+              md->Locker().UnLock();
+              kv::Instance().put(ino, mdstream);
+            }
+            else
+            {
+              md->Locker().UnLock();
+              if (op == metad::mdx::RM)
+              {
+                kv::Instance().erase(ino);
+                // this step is coupled to the forget function, since we cannot
+                // forget an entry if we didn't process the outstanding KV changes
+                stat.inodes_deleted_dec();
+                if (md->lookup_dec(1))
                 {
-                  XrdSysMutexHelper mmLock(pmd->Locker());
-                  pmd->get_todelete().erase(md->name());
+                  // forget this inode
+                  removeentry = ino;
+                  stat.inodes_dec();
                 }
+              }
+            }
+          }
+          if (removeentry)
+          {
+            shared_md pmd;
+            eos_static_info("removing entry ino=%08lx", removeentry);
+            {
+              XrdSysMutexHelper mmLock(mdmap);
+              if (mdmap.count(md->pid()))
+              {
+                pmd = mdmap[md->pid()];
+              }
+              mdmap.erase(removeentry);
+            }
+            {
+              if (pmd)
+              {
+                XrdSysMutexHelper mmLock(pmd->Locker());
+                pmd->get_todelete().erase(md->name());
+                pmd->Signal();
               }
             }
           }
@@ -1979,7 +2074,7 @@ metad::mdcommunicate()
 
                   if (md && md->id())
                   {
-                    if (EosFuse::Instance().Config().options.kernelcache)
+                    if (EosFuse::Instance().Config().options.md_kernelcache)
                     {
                       eos_static_info("invalidate direct children ino=%08lx", ino);
                       for (auto it = md->children().begin(); it != md->children().end(); ++it)
