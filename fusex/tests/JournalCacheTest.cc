@@ -48,7 +48,7 @@ class JournalCacheTest : public CppUnit::TestCase
       std::string cookie="";
      
       fuse_req_t req;
-      
+      req = 0;
       uint64_t rc = jc.attach(req, cookie, true);
       CPPUNIT_ASSERT( !rc );
 
@@ -91,6 +91,13 @@ class JournalCacheTest : public CppUnit::TestCase
         CPPUNIT_ASSERT( rc == size );
         CPPUNIT_ASSERT( input.substr( offset, size ) == std::string( buffer.begin(), buffer.end() ) );
       }
+      
+      size_t truncsize = 100;
+      rc = jc.truncate(truncsize);
+      CPPUNIT_ASSERT( !rc );
+      std::vector<char> buffer( chunk_size );
+      rc = jc.pread( buffer.data(), chunk_size, 0);
+      CPPUNIT_ASSERT( rc == truncsize );
     }
 
   private:
