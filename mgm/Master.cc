@@ -1858,6 +1858,14 @@ Master::BootNamespace()
               "via EOS_NS_DIR_SIZE && EOS_NS_FILE_SIZE in /etc/sysconfig/eos\"");
   }
 
+  if (gOFS->ContainerMDDictionary != "") {
+    contSettings["dictionary_path"] = gOFS->ContainerMDDictionary;
+  }
+
+  if (gOFS->FileMDDictionary != "") {
+    fileSettings["dictionary_path"] = gOFS->FileMDDictionary;
+  }
+
   contSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
   fileSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
   contSettings["changelog_path"] += "/directories.";

@@ -23,7 +23,7 @@ sec.protocol krb5 host/<host>@CERN.CH
 # GSI authentication
 #sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1 -exppxy:/var/eos/auth/gsi#<uid>
 
-sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1 
+sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1
 
 ###########################################################
 sec.protbind localhost.localdomain unix sss
@@ -43,13 +43,13 @@ mgmofs.broker root://localhost:1097//eos/
 
 mgmofs.instance eosdev
 
-# configuration, namespace , transfer and authentication export directory 
+# configuration, namespace , transfer and authentication export directory
 mgmofs.configdir /var/eos/config
 mgmofs.metalog /var/eos/md
 mgmofs.txdir /var/eos/tx
 mgmofs.authdir /var/eos/auth
 mgmofs.archivedir /var/eos/archive
-	
+
 # report store path
 mgmofs.reportstorepath /var/eos/report
 
@@ -70,10 +70,10 @@ mgmofs.cfgredishost localhost
 #mgmofs.alias eosdev.cern.ch
 
 #-------------------------------------------------------------------------------
-# Configuration for the authentication plugin EosAuth 
-#------------------------------------------------------------------------------- 
-# Set the number of authentication worker threads running on the MGM 
-#mgmofs.auththreads 10 
+# Configuration for the authentication plugin EosAuth
+#-------------------------------------------------------------------------------
+# Set the number of authentication worker threads running on the MGM
+#mgmofs.auththreads 10
 
 # Set the front end port number for incoming authentication requests
 #mgmofs.authport 15555
@@ -95,3 +95,9 @@ mgmofs.fstgw someproxy.cern.ch:3001
 # Set the namespace plugin implementation
 #-------------------------------------------------------------------------------
 mgmofs.nslib /usr/lib64/libEosNsInMemory.so
+
+#-------------------------------------------------------------------------------
+# Set ZSTD dictionary for FileMD and ContainerMD (de)compression
+#-------------------------------------------------------------------------------
+dict.filemd /var/eos/filemd.dict
+dict.containermd /var/eos/containermd.dict

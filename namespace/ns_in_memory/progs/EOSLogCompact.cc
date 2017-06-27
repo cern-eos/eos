@@ -107,9 +107,11 @@ int main(int argc, char** argv)
   //----------------------------------------------------------------------------
   // Check the commandline parameters
   //----------------------------------------------------------------------------
-  if (argc != 3) {
+  if ((argc != 3 && argc != 5) ||
+      (argc == 5 && std::string(argv[3]) != "--dict")) {
     std::cerr << "Usage:" << std::endl;
-    std::cerr << "  " << argv[0] << " old_log_file new_log_file";
+    std::cerr << "  " << argv[0];
+    std::cerr << " old_log_file new_log_file [--dict dictionary_file]";
     std::cerr << std::endl;
     return 1;
   }
@@ -121,8 +123,14 @@ int main(int argc, char** argv)
   eos::LogCompactingStats stats;
 
   try {
-    eos::LogManager::compactLog(std::string(argv[1]), std::string(argv[2]),
-                                stats, &feedback);
+    if (argc == 5) {
+      eos::LogManager::compactLog(std::string(argv[1]), std::string(argv[2]),
+                                  stats, &feedback, std::string(argv[4]));
+    } else {
+      eos::LogManager::compactLog(std::string(argv[1]), std::string(argv[2]),
+                                  stats, &feedback);
+    }
+
     eos::DataHelper::copyOwnership(std::string(argv[2]), std::string(argv[1]));
   } catch (eos::MDException& e) {
     std::cerr << std::endl;

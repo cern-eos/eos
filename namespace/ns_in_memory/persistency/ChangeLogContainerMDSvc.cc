@@ -843,6 +843,20 @@ void ChangeLogContainerMDSvc::configure(
   if (it != config.end() && it->second == "true") {
     pAutoRepair = true;
   }
+
+  if (getenv("EOS_NS_COMPRESSION")) {
+    if (std::string(getenv("EOS_NS_COMPRESSION")) == "true") {
+      it = config.find("dictionary_path");
+
+      if (it != config.end()) {
+        pChangeLog->setDictionary(it->second);
+      } else {
+        MDException e(EINVAL);
+        e.getMessage() << "ContainerMD dictionary_path not specified" ;
+        throw e;
+      }
+    }
+  }
 }
 
 //----------------------------------------------------------------------------

@@ -394,6 +394,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmOfsVstBrokerUrl = "";
   MgmArchiveDstUrl = "";
   MgmArchiveSvcClass = "default";
+  FileMDDictionary = "";
+  ContainerMDDictionary = "";
   eos::common::StringConversion::InitLookupTables();
 
   if (getenv("EOS_VST_BROKER_URL")) {
@@ -1096,6 +1098,30 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           } else {
             Eroute.Say("=====> mgmofs.authport: ", val, "");
             mFrontendPort = atoi(val);
+          }
+        }
+      }
+
+      if (!strncmp(var, "dict.", 5)) {
+        var += 5;
+
+        if (!strcmp("filemd", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for dict.filemd missing.");
+            NoGo = 1;
+          } else {
+            FileMDDictionary = val;
+            Eroute.Say("=====> dict.filemd: ", val, "");
+          }
+        }
+
+        if (!strcmp("containermd", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for dict.containermd missing.");
+            NoGo = 1;
+          } else {
+            ContainerMDDictionary = val;
+            Eroute.Say("=====> dict.containermd: ", val, "");
           }
         }
       }

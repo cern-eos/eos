@@ -47,6 +47,7 @@
 
 #define CHANGELOG_MAGIC 0x45434847
 #define RECORD_MAGIC    0x4552
+#define COMPRESSED_RECORD_MAGIC    0x4553
 
 namespace eos
 {
@@ -358,10 +359,9 @@ uint64_t ChangeLogFile::storeRecord(char type, Buffer& record)
   //--------------------------------------------------------------------------
   // Initialize the data and calculate the checksum
   //--------------------------------------------------------------------------
-  uint16_t size   = record.size();
   uint64_t offset = ::lseek(pFd, 0, SEEK_END);
   uint64_t seq    = 0;
-  uint16_t magic  = RECORD_MAGIC;
+  uint16_t magic;
   uint32_t opts   = type; // occupy the first byte (little endian)
   // the rest is unused for the moment
   uint32_t chkSum = DataHelper::computeCRC32(&seq, 8);
@@ -369,9 +369,17 @@ uint64_t ChangeLogFile::storeRecord(char type, Buffer& record)
   chkSum = DataHelper::updateCRC32(chkSum,
                                    record.getDataPtr(),
                                    record.getSize());
-  //--------------------------------------------------------------------------
+
+  if (pCompress) {
+    // Record compression
+    pZstd.compress(record);
+    magic  = COMPRESSED_RECORD_MAGIC;
+  } else {
+    magic  = RECORD_MAGIC;
+  }
+
+  uint16_t size   = record.size();
   // Store the data
-  //--------------------------------------------------------------------------
   iovec vec[7];
   vec[0].iov_base = &magic;
   vec[0].iov_len = 2;
@@ -432,7 +440,7 @@ uint8_t ChangeLogFile::readRecord(uint64_t offset, Buffer& record, bool cache)
   type    = (uint8_t*)(buffer + 16);
 
   // Check the consistency
-  if (*magic != RECORD_MAGIC) {
+  if (*magic != RECORD_MAGIC && *magic != COMPRESSED_RECORD_MAGIC) {
     MDException ex(EFAULT);
     ex.getMessage() << "Read: Record's magic number is wrong at offset: " << offset;
     throw ex;
@@ -450,6 +458,15 @@ uint8_t ChangeLogFile::readRecord(uint64_t offset, Buffer& record, bool cache)
 
   record.grabData(record.size() - 4, &chkSum2, 4);
   record.resize(*size);
+
+  if (*magic == COMPRESSED_RECORD_MAGIC) {
+    // Record decompression
+    pZstd.decompress(record);
+  }
+
+  if (pScanningRecords == true) {
+    pOldDataSize = *size;
+  }
 
   // Check the checksum only if this is not a conversion from in-memory to
   // quarkdb.
@@ -495,7 +512,7 @@ uint8_t ChangeLogFile::readMappedRecord(uint64_t offset, Buffer& record,
   type    = (uint8_t*)(buffer + 16);
 
   // Check the consistency
-  if (*magic != RECORD_MAGIC) {
+  if (*magic != RECORD_MAGIC && *magic != COMPRESSED_RECORD_MAGIC) {
     MDException ex(EFAULT);
     ex.getMessage() << "Read: Record's magic number is wrong at offset: " << offset;
     throw ex;
@@ -505,6 +522,15 @@ uint8_t ChangeLogFile::readMappedRecord(uint64_t offset, Buffer& record,
   record.setDataPtr(pData + offset + 20, *size + 4);
   record.grabData(record.getSize() - 4, &chkSum2, 4);
   record.setDataPtr(pData + offset + 20, *size);
+
+  if (*magic == COMPRESSED_RECORD_MAGIC) {
+    // Record decompression
+    pZstd.decompress(record);
+  }
+
+  if (pScanningRecords == true) {
+    pOldDataSize = *size;
+  }
 
   // Check the checksum
   if (checksum) {
@@ -620,6 +646,7 @@ uint64_t ChangeLogFile::scanAllRecordsAtOffset(ILogRecordScanner* scanner,
   std::string fname = pFileName;
   fname.erase(0, pFileName.rfind("/") + 1);
   bool checksum = true;
+  pScanningRecords = true;
 
   if (getenv("EOS_NS_BOOT_NOCRC32")) {
     checksum = false;
@@ -637,9 +664,11 @@ uint64_t ChangeLogFile::scanAllRecordsAtOffset(ILogRecordScanner* scanner,
       }
 
       proceed = scanner->processRecord(offset, type, data);
-      offset += data.getSize();
+      offset += pOldDataSize;
       offset += 24;
     } catch (MDException& e) {
+      std::cerr << std::endl;
+      std::cerr << "Error: " << e.what() << std::endl;
       readerror = true;
     }
 
@@ -715,6 +744,7 @@ uint64_t ChangeLogFile::scanAllRecordsAtOffset(ILogRecordScanner* scanner,
     }
   }
 
+  pScanningRecords = false;
   now = time(0);
   fprintf(stderr, "ALERT    [ %-64s ] finished in %ds\n", fname.c_str(),
           (int)(now - start_time));
@@ -992,7 +1022,7 @@ off_t guessSize(int fd, off_t offset, Buffer& buffer, off_t startHint = 0)
 //----------------------------------------------------------------------------
 static off_t reconstructRecord(int fd, off_t offset,
                                off_t fsize, Buffer& buffer, uint8_t& type,
-                               LogRepairStats& stats)
+                               LogRepairStats& stats, ZStandard& zstd)
 {
   uint16_t* magic;
   uint16_t  size;
@@ -1042,7 +1072,7 @@ static off_t reconstructRecord(int fd, off_t offset,
   //--------------------------------------------------------------------------
   bool wrongMagic = false;
 
-  if (*magic != RECORD_MAGIC) {
+  if (*magic != RECORD_MAGIC && *magic != COMPRESSED_RECORD_MAGIC) {
     wrongMagic = true;
   }
 
@@ -1051,9 +1081,18 @@ static off_t reconstructRecord(int fd, off_t offset,
   //--------------------------------------------------------------------------
   bool okChecksum1 = true;
   bool okChecksum2 = true;
-  uint32_t crc = DataHelper::updateCRC32(crcHead,
-                                         buffer.getDataPtr(),
-                                         buffer.getSize());
+  uint32_t crc;
+
+  if (*magic == COMPRESSED_RECORD_MAGIC) {
+    //------------------------------------------------------------------------
+    // Decompress record temporarily to update CRC32
+    //------------------------------------------------------------------------
+    crc = zstd.updateCRC32(buffer, crcHead);
+  } else {
+    crc = DataHelper::updateCRC32(crcHead,
+                                  buffer.getDataPtr(),
+                                  buffer.getSize());
+  }
 
   if (*chkSum1 != crc) {
     okChecksum1 = false;
@@ -1106,9 +1145,15 @@ static off_t reconstructRecord(int fd, off_t offset,
     //------------------------------------------------------------------------
     okChecksum1 = true;
     okChecksum2 = true;
-    crc = DataHelper::updateCRC32(crcHead,
-                                  buffer.getDataPtr(),
-                                  buffer.getSize());
+
+    if (*magic == COMPRESSED_RECORD_MAGIC) {
+      // Decompress record temporarily to update CRC32
+      crc = zstd.updateCRC32(buffer, crcHead);
+    } else {
+      crc = DataHelper::updateCRC32(crcHead,
+                                    buffer.getDataPtr(),
+                                    buffer.getSize());
+    }
 
     if (*chkSum1 != crc) {
       okChecksum1 = false;
@@ -1141,7 +1186,8 @@ static off_t reconstructRecord(int fd, off_t offset,
 void ChangeLogFile::repair(const std::string&  filename,
                            const std::string&  newFilename,
                            LogRepairStats&     stats,
-                           ILogRepairFeedback* feedback)
+                           ILogRepairFeedback* feedback,
+                           const std::string&  dictionary)
 {
   time_t startTime = time(0);
   //--------------------------------------------------------------------------
@@ -1174,6 +1220,13 @@ void ChangeLogFile::repair(const std::string&  filename,
   }
 
   ChangeLogFile output;
+  ZStandard zstd;
+
+  if (!dictionary.empty()) {
+    output.setDictionary(dictionary);
+    zstd.setDDict(dictionary);
+  }
+
   output.open(newFilename, Create, contentFlag);
   //--------------------------------------------------------------------------
   // Reconstructing...
@@ -1190,7 +1243,7 @@ void ChangeLogFile::repair(const std::string&  filename,
     // Reconstruct the header at the offset
     //------------------------------------------------------------------------
     off_t newOffset = reconstructRecord(fd, offset, fsize, buff, type,
-                                        stats);
+                                        stats, zstd);
     ++stats.scanned;
 
     //------------------------------------------------------------------------

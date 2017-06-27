@@ -25,7 +25,8 @@ include_directories(
  ${CMAKE_SOURCE_DIR}
  ${CMAKE_SOURCE_DIR}/namespace/
  ${SPARSEHASH_INCLUDE_DIR}
- ${XROOTD_INCLUDE_DIR})
+ ${ZSTD_INCLUDE_DIRS}
+ ${XROOTD_INCLUDE_DIRS})
 
 if(CPPUNIT_FOUND)
   add_subdirectory(tests)
@@ -51,6 +52,8 @@ add_library(
   persistency/ChangeLogFileMDSvc.cc
   persistency/LogManager.hh
   persistency/LogManager.cc
+  persistency/TrainDictionary.hh
+  persistency/TrainDictionary.cc
 
   views/HierarchicalView.cc     views/HierarchicalView.hh
   accounting/QuotaStats.cc      accounting/QuotaStats.hh
@@ -77,6 +80,7 @@ add_library(EosNsInMemory MODULE $<TARGET_OBJECTS:EosNsInMemory-Objects>)
 target_link_libraries(
   EosNsInMemory
   EosNsCommon
+  ${ZSTD_LIBRARY}
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${XROOTD_UTILS_LIBRARY}
@@ -92,6 +96,7 @@ if (Linux)
   target_link_libraries(
     EosNsInMemory-Static PUBLIC
     EosNsCommon-Static
+    ${ZSTD_LIBRARY}
     ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}
     ${XROOTD_UTILS_LIBRARY}
@@ -104,12 +109,14 @@ if (Linux)
 
   add_executable(eos-log-compact progs/EOSLogCompact.cc)
   add_executable(eos-log-repair  progs/EOSLogRepair.cc)
+  add_executable(eos-log-train   progs/EOSLogTrainDictionary.cc)
 
   target_link_libraries(eos-log-compact EosNsInMemory-Static)
   target_link_libraries(eos-log-repair EosNsInMemory-Static)
+  target_link_libraries(eos-log-train EosNsInMemory-Static)
 
   install(
-    TARGETS eos-log-compact eos-log-repair EosNsInMemory-Static
+    TARGETS eos-log-compact eos-log-repair eos-log-train EosNsInMemory-Static
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

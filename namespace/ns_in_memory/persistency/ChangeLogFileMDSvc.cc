@@ -1089,6 +1089,20 @@ void ChangeLogFileMDSvc::configure(
   if (it != config.end()) {
     pResSize = strtoull(it->second.c_str(), 0, 10);
   }
+
+  if (getenv("EOS_NS_COMPRESSION")) {
+    if (std::string(getenv("EOS_NS_COMPRESSION")) == "true") {
+      it = config.find("dictionary_path");
+
+      if (it != config.end()) {
+        pChangeLog->setDictionary(it->second);
+      } else {
+        MDException e(EINVAL);
+        e.getMessage() << "FileMD dictionary_path not specified" ;
+        throw e;
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

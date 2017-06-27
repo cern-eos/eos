@@ -56,10 +56,9 @@ public:
   //------------------------------------------------------------------------
   //! Copy constructor
   //------------------------------------------------------------------------
-  Buffer(const Buffer& other)
+  Buffer(const Buffer& other):
+    data(0), len(0)
   {
-    data = 0;
-    len = 0;
     *this = other;
   };
 
@@ -151,7 +150,7 @@ public:
   //------------------------------------------------------------------------
   void putData(const void* ptr, size_t dataSize)
   {
-    if (!data) {
+    if (data == 0) {
       size_t currSize = size();
       resize(currSize + dataSize);
       memcpy(&operator[](currSize), ptr, dataSize);
@@ -163,7 +162,7 @@ public:
   }
 
   //------------------------------------------------------------------------
-  //! Add data
+  //! Grab data
   //------------------------------------------------------------------------
   uint16_t grabData(uint16_t offset, void* ptr, size_t dataSize) const
   {

@@ -32,6 +32,7 @@
 #include "namespace/MDException.hh"
 #include "namespace/utils/Buffer.hh"
 #include "namespace/utils/Descriptor.hh"
+#include "namespace/utils/ZStandard.hh"
 
 namespace eos
 {
@@ -119,7 +120,8 @@ public:
   //------------------------------------------------------------------------
   ChangeLogFile():
     pFd(-1), pInotifyFd(-1), pWatchFd(-1), pIsOpen(false), pVersion(0),
-    pUserFlags(0), pSeqNumber(0), pContentFlag(0), pData(0), pDataLen(0)
+    pUserFlags(0), pSeqNumber(0), pContentFlag(0), pData(0), pDataLen(0),
+    pCompress(false), pScanningRecords(false), pOldDataSize(0)
   {
     pReadCache = {0};
     pthread_mutex_init(&pWarningMessagesMutex, 0);
@@ -236,11 +238,13 @@ public:
   //! @param feedback    instance of a feedback class to determine reactions
   //!                    to problems
   //! @param stats       placeholder for the statistics
+  //! @param dictionary  ZSTD dictionary for records (de)compression
   //------------------------------------------------------------------------
   static void repair(const std::string&  filename,
                      const std::string&  newFilename,
                      LogRepairStats&     stats,
-                     ILogRepairFeedback* feedback);
+                     ILogRepairFeedback* feedback,
+                     const std::string&  dictionary = "");
 
   //------------------------------------------------------------------------
   //! Get the offset of the next record
@@ -323,6 +327,12 @@ public:
   //------------------------------------------------------------------------
   void munmap();
 
+  void setDictionary(const std::string dictionaryPath)
+  {
+    pZstd.setDicts(dictionaryPath);
+    pCompress = true;
+  }
+
 private:
 
   //------------------------------------------------------------------------
@@ -397,20 +407,24 @@ private:
   //------------------------------------------------------------------------
   // Data members
   //------------------------------------------------------------------------
-  int      pFd;
-  int      pInotifyFd;
-  int      pWatchFd;
-  bool     pIsOpen;
-  uint8_t  pVersion;
-  uint8_t  pUserFlags;
-  uint64_t pSeqNumber;
-  uint16_t pContentFlag;
+  int       pFd;
+  int       pInotifyFd;
+  int       pWatchFd;
+  bool      pIsOpen;
+  uint8_t   pVersion;
+  uint8_t   pUserFlags;
+  uint64_t  pSeqNumber;
+  uint16_t  pContentFlag;
   std::string pFileName;
   std::vector<std::string> pWarningMessages;
   pthread_mutex_t pWarningMessagesMutex;
   read_cache_t pReadCache;
-  char*    pData; ///< mmap pointer
-  off_t    pDataLen; ///< mmap length
+  char*     pData; ///< mmap pointer
+  off_t     pDataLen; ///< mmap length
+  bool      pCompress;
+  bool      pScanningRecords;
+  size_t    pOldDataSize;
+  ZStandard pZstd;
 };
 }
 

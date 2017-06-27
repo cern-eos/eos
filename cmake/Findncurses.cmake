@@ -30,7 +30,6 @@ if( MacOSX )
     NCURSES_LIBRARY
     NCURSES_INCLUDE_DIR)
 
-
   mark_as_advanced(
     NCURSES_LIBRARY
     NCURSES_INCLUDE_DIR)

@@ -1171,6 +1171,8 @@ public:
   eos::common::RWMutex eosViewRWMutex; ///< rw namespace mutex
   XrdOucString
   MgmMetaLogDir; //  Directory containing the meta data (change) log files
+  std::string FileMDDictionary;
+  std::string ContainerMDDictionary;
 
   // ---------------------------------------------------------------------------
   // thread variables

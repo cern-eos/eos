@@ -89,7 +89,8 @@ public:
   static void compactLog(const std::string&      oldLogName,
                          const std::string&      newLogName,
                          LogCompactingStats&     stats,
-                         ILogCompactingFeedback* feedback);
+                         ILogCompactingFeedback* feedback,
+                         const std::string&      dictionary = "");
 };
 }
 

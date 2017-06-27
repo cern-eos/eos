@@ -21,7 +21,9 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CPPUNIT_INCLUDE_DIRS})
+include_directories(
+  ${ZSTD_INCLUDE_DIRS}
+  ${CPPUNIT_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # EosNsInMemoryTests library
@@ -41,6 +43,7 @@ add_library(
 
 target_link_libraries(
   EosNsInMemoryTests PUBLIC
+  ${ZSTD_LIBRARY}
   ${Z_LIBRARY}
   ${CPPUNIT_LIBRARIES}
   EosNsInMemory-Static)

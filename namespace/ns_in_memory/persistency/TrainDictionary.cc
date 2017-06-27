@@ -17,18 +17,20 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   Manager for change log files
+// author: Branko Blagojević <branko.blagojevic@comtrade.com>
+// desc:   ZSTD dictionary training utility
 //------------------------------------------------------------------------------
 
-#include "namespace/ns_in_memory/persistency/LogManager.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
+#include <fstream>
+#include <iomanip>
 #include "common/Murmur3.hh"
 #include <google/sparse_hash_map>
 #include <google/dense_hash_map>
-#include <iomanip>
-#include <limits>
+
+#include "namespace/ns_in_memory/persistency/TrainDictionary.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
+
+#define MAX_DICT_SIZE 110*(1<<10) /* maximal dictionary size */
 
 namespace
 {
@@ -38,27 +40,17 @@ namespace
 typedef google::dense_hash_map<uint64_t, uint64_t,
         Murmur3::MurmurHasher<uint64_t>,
         Murmur3::eqstr> RecordMap;
-class CompactingScanner: public eos::ILogRecordScanner
+
+class TrainingScanner: public eos::ILogRecordScanner
 {
 public:
-  //------------------------------------------------------------------------
-  // Constructor
-  //------------------------------------------------------------------------
-  CompactingScanner(RecordMap&                   map,
-                    eos::ILogCompactingFeedback* feedback,
-                    eos::LogCompactingStats&     stats,
-                    time_t                      time):
-    pMap(map), pFeedback(feedback), pStats(stats), pTime(time) {}
+  TrainingScanner(RecordMap& map):
+    pMap(map)
+  {}
 
-  //------------------------------------------------------------------------
-  // Got through the records
-  //------------------------------------------------------------------------
   virtual bool processRecord(uint64_t offset, char type,
                              const eos::Buffer& buffer)
   {
-    //----------------------------------------------------------------------
-    // Check the buffer
-    //----------------------------------------------------------------------
     if (buffer.size() < 8) {
       eos::MDException ex;
       ex.getMessage() << "Record at 0x" << std::setbase(16) << offset;
@@ -68,68 +60,25 @@ public:
 
     uint64_t id;
     buffer.grabData(0, &id, 8);
-    ++pStats.recordsTotal;
-
-    //----------------------------------------------------------------------
-    // Update
-    //----------------------------------------------------------------------
-    if (type == eos::UPDATE_RECORD_MAGIC) {
-      pMap[id] = offset;
-      ++pStats.recordsUpdated;
-    }
-
-    //----------------------------------------------------------------------
-    // Deleteion
-    //----------------------------------------------------------------------
-    if (type == eos::DELETE_RECORD_MAGIC) {
-      pMap.erase(id);
-      ++pStats.recordsDeleted;
-    }
-
-    //----------------------------------------------------------------------
-    // Report progress
-    //----------------------------------------------------------------------
-    pStats.timeElapsed = time(0) - pTime;
-
-    if (pFeedback)
-      pFeedback->reportProgress(pStats,
-                                eos::ILogCompactingFeedback::InitialScan);
-
+    pMap[id] = offset;
     return true;
   }
 
 private:
   RecordMap&                   pMap;
-  eos::ILogCompactingFeedback* pFeedback;
-  eos::LogCompactingStats&     pStats;
-  time_t                       pTime;
 };
 }
 
 namespace eos
 {
-//----------------------------------------------------------------------------
-// Compact the old log and write a new one, this works only for logs
-//----------------------------------------------------------------------------
-void LogManager::compactLog(const std::string&      oldLogName,
-                            const std::string&      newLogName,
-                            LogCompactingStats&     stats,
-                            ILogCompactingFeedback* feedback,
-                            const std::string&      dictionary)
+void TrainDictionary::train(const std::string logfile,
+                            const std::string dictionary)
 {
   //--------------------------------------------------------------------------
-  // Open the files
+  // Open the input file
   //--------------------------------------------------------------------------
   ChangeLogFile inputFile;
-  ChangeLogFile outputFile;
-
-  if (!dictionary.empty()) {
-    inputFile.setDictionary(dictionary);
-    outputFile.setDictionary(dictionary);
-  }
-
-  inputFile.open(oldLogName,  ChangeLogFile::ReadOnly);
-  outputFile.open(newLogName, ChangeLogFile::Create, inputFile.getContentFlag());
+  inputFile.open(logfile,  ChangeLogFile::ReadOnly);
 
   if (inputFile.getContentFlag() != FILE_LOG_MAGIC &&
       inputFile.getContentFlag() != CONTAINER_LOG_MAGIC) {
@@ -140,21 +89,14 @@ void LogManager::compactLog(const std::string&      oldLogName,
   }
 
   //--------------------------------------------------------------------------
-  // Scan the file
+  // Scan the input file
   //--------------------------------------------------------------------------
   RecordMap         map;
-  time_t            startTime = time(0);
-  CompactingScanner scanner(map, feedback, stats, startTime);
+  TrainingScanner scanner(map);
   map.set_deleted_key(0);
   map.set_empty_key(std::numeric_limits<uint64_t>::max());
   map.resize(10000000);
   inputFile.scanAllRecords(&scanner);
-  stats.recordsKept = map.size();
-
-  if (feedback) {
-    feedback->reportProgress(stats, ILogCompactingFeedback::CopyPreparation);
-  }
-
   //--------------------------------------------------------------------------
   // Sort all the offsets to avoid random seeks
   //--------------------------------------------------------------------------
@@ -168,27 +110,67 @@ void LogManager::compactLog(const std::string&      oldLogName,
   std::sort(records.begin(), records.end());
   map.clear();
   //--------------------------------------------------------------------------
-  // Copy the records
+  // Changelog reading
   //--------------------------------------------------------------------------
-  std::vector<uint64_t>::iterator recIt;
+  unsigned nbSamples = records.size() / 2;
   Buffer buffer;
+  Buffer samplesBuffer;
+  size_t* samplesSizes = new size_t[nbSamples];
 
-  for (recIt = records.begin(); recIt != records.end(); ++recIt) {
-    uint8_t type = inputFile.readRecord(*recIt, buffer);
-    outputFile.storeRecord(type, buffer);
-    ++stats.recordsWritten;
-    stats.timeElapsed = time(0) - startTime;
+  if (samplesSizes == nullptr) {
+    MDException ex(errno);
+    ex.getMessage() << "Dictionary creation failed: ";
+    ex.getMessage() << "memory allocation failed";
+    throw ex;
+  }
 
-    if (feedback)
-      feedback->reportProgress(stats,
-                               ILogCompactingFeedback::RecordCopying);
+  for (unsigned i = 0; i < nbSamples; i++) {
+    inputFile.readRecord(records[i], buffer);
+    samplesBuffer.putData(buffer.getDataPtr(), buffer.getSize());
+    samplesSizes[i] = buffer.getSize();
   }
 
   //--------------------------------------------------------------------------
-  // Add a compacting stamp
+  // Dictionary creation
   //--------------------------------------------------------------------------
-  outputFile.addCompactionMark();
+  size_t dictBufferCapacity = MAX_DICT_SIZE;
+  char* dictBuffer = new char[dictBufferCapacity];
+
+  if (dictBuffer == nullptr) {
+    MDException ex(errno);
+    ex.getMessage() << "Dictionary creation failed: ";
+    ex.getMessage() << "memory allocation failed";
+    throw ex;
+  }
+
+  size_t dictSize = ZDICT_trainFromBuffer(dictBuffer, dictBufferCapacity,
+                                          samplesBuffer.getDataPtr(),
+                                          (const size_t*)samplesSizes,
+                                          nbSamples);
+  delete[] samplesSizes;
+
+  if (ZDICT_isError(dictSize)) {
+    MDException ex(errno);
+    ex.getMessage() << "Dictionary creation failed: ";
+    ex.getMessage() << ZDICT_getErrorName(dictSize);
+    throw ex;
+  }
+
+  //--------------------------------------------------------------------------
+  // Dictionary saving
+  //--------------------------------------------------------------------------
+  std::ofstream file(dictionary);
+
+  if (file.is_open()) {
+    file.write(dictBuffer, dictSize);
+  } else {
+    MDException ex(errno);
+    ex.getMessage() << "Can't create file for dictionary saving: " << dictionary;
+    throw ex;
+  }
+
+  delete[] dictBuffer;
   inputFile.close();
-  outputFile.close();
 }
+
 }
