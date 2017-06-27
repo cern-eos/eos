@@ -11,7 +11,7 @@ Configuration File
   "remotemountdir" : "/eos/",
   "localmountdir" : "/eos/",
   "statisticfile" : "stats",
-  "mdcachehost" : "localhost",
+  "mdcachehost" : "",
   "mdcacheport" : 6379,
   "options" : {
     "debug" : 1,
@@ -19,9 +19,10 @@ Configuration File
     "debuglevel" : 6,
     "libfusethreads" : 0,
     "foreground" : 1, 
-    "kernelcache" : 1,
-    "mkdir-is-sync" : 0,
-    "create-is-sync" : 0,
+    "md-kernelcache" : 1,
+    "data-kernelcache" : 1,
+    "mkdir-is-sync" : 1,
+    "create-is-sync" : 1,
   }
 }
 ```
