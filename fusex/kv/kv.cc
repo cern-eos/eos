@@ -211,6 +211,9 @@ kv::get(uint64_t key, std::string &value, std::string name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
+  if (!mContext)
+    return ENOENT;
+
   char buffer[128];
   longstring::unsigned_to_decimal (key, buffer);
   std::string sbuf(buffer);
@@ -228,6 +231,9 @@ kv::get(uint64_t key, uint64_t &value, std::string name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
+  if (!mContext)
+    return ENOENT;
+
   char buffer[128];
   longstring::unsigned_to_decimal (key, buffer);
   std::string sbuf(buffer);
@@ -244,6 +250,9 @@ int
 kv::get(std::string &key, uint64_t &value)
 /* -------------------------------------------------------------------------- */
 {
+  if (!mContext)
+    return ENOENT;
+
   std::string lvalue;
   int rc = get(key, lvalue);
   if (!rc)
@@ -259,6 +268,9 @@ int
 kv::put(std::string &key, uint64_t &value)
 /* -------------------------------------------------------------------------- */
 {
+  if (!mContext)
+    return 0;
+
   char buffer[128];
   longstring::unsigned_to_decimal (value, buffer);
   std::string sbuf(buffer);
@@ -272,6 +284,9 @@ kv::put(uint64_t key, std::string &value, std::string name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
+  if (!mContext)
+    return 0;
+
   char buffer[128];
   longstring::unsigned_to_decimal (key, buffer);
   std::string sbuf(buffer);
@@ -289,6 +304,8 @@ kv::put(uint64_t key, uint64_t &value, std::string name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
+  if (!mContext)
+    return 0;
   char buffer[128];
   longstring::unsigned_to_decimal (key, buffer);
   std::string sbuf(buffer);
@@ -307,6 +324,8 @@ kv::erase(uint64_t key, std::string name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
+  if (!mContext)
+    return 0;
   char buffer[128];
   longstring::unsigned_to_decimal (key, buffer);
   std::string sbuf(buffer);
