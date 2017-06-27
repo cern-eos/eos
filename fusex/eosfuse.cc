@@ -166,7 +166,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.debuglevel = root["options"]["debuglevel"].asInt();
     config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
     config.options.foreground = root["options"]["foreground"].asInt();
-    config.options.kernelcache = root["options"]["kernelcache"].asInt();
+    config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
+    config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
     config.options.mkdir_is_sync = root["options"]["mkdir-is-sync"].asInt();
     config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
@@ -179,10 +180,6 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     if (!config.statfilesuffix.length())
     {
       config.statfilesuffix="stats";
-    }
-    if (!config.mdcachehost.length())
-    {
-      config.mdcachehost="localhost";
     }
     if (!config.mdcacheport)
     {
@@ -602,7 +599,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   struct fuse_entry_param e;
 
   metad::shared_md md = Instance().mds.get(req, ino);
-  if (!md->id())
+  if (!md->id() || md->deleted())
   {
     rc = ENOENT;
   }
@@ -657,6 +654,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
   cap::shared_cap pcap;
 
+
   metad::shared_md md;
   if (!rc)
   {
@@ -672,6 +670,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
     {
 
       fuse_ino_t cap_ino =  S_ISDIR(md->mode()) ? ino : md->pid();
+
 
       if (op & FUSE_SET_ATTR_MODE)
       {
@@ -938,35 +937,51 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
           int rc = 0;
 
-          // check for a file
-          cap::shared_cap pcap = Instance().caps.acquire(req, ino,
-                                                         S_IFREG | W_OK);
-
-          if (pcap->errc())
+          if (!md->id() || md->deleted())
           {
-            rc = pcap->errc();
+            rc = ENOENT;
           }
           else
           {
-            if (!md->id() || md->deleted())
+            if ((md->mode() & S_IFDIR))
             {
-              rc = ENOENT;
+              rc = EISDIR;
             }
             else
             {
-              if ((md->mode() & S_IFDIR))
+              if (fi && fi->fh)
               {
-                rc = EISDIR;
+                // ftruncate
+                data::data_fh* io = (data::data_fh*) fi->fh;
+
+                if (io)
+                {
+                  eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
+                  rc |= io->ioctx()->truncate(req, attr->st_size);
+                  rc |= io->ioctx()->flush(req);
+                }
+                else
+                {
+                  rc = EIO;
+                }
               }
               else
               {
-                data::shared_data io = Instance().datas.get(req, md->id(), md);
-                rc = io->truncate(req, attr->st_size);
+                // truncate
 
-                if (!rc)
-                {
-                  md->set_size(attr->st_size);
-                }
+                eos_static_debug("truncate size=%lu", (size_t) attr->st_size);
+                std::string cookie=md->Cookie();
+                data::shared_data io = Instance().datas.get(req, md->id(), md);
+                rc = io->attach(req, cookie, true);
+                eos_static_debug("calling truncate");
+                rc |= io->truncate(req, attr->st_size);
+                rc |= io->flush(req);
+                rc |= io->detach(req, cookie, true);
+                Instance().datas.release(req, md->id());
+              }
+              if (!rc)
+              {
+                md->set_size(attr->st_size);
               }
             }
           }
@@ -1672,6 +1687,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
       }
 
       eos_static_info("link=%d", md->nlink());
+
       if ((!rc) && (md->children().size() || md->nchildren()))
       {
         rc = ENOTEMPTY;
@@ -1679,7 +1695,6 @@ EROFS  pathname refers to a directory on a read-only filesystem.
 
       if (!rc)
       {
-
         pmd = Instance().mds.get(req, parent);
         Instance().mds.remove(pmd, md, pcap->authid());
       }
@@ -1790,7 +1805,15 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
 
   EXEC_TIMING_BEGIN(__func__);
 
-  fuse_reply_err(req, 0);
+  int rc = 0;
+
+  metad::shared_md md = Instance().mds.get(req, ino);
+  if (!md->id())
+  {
+    rc = ENOENT;
+  }
+
+  fuse_reply_err(req, rc);
 
   EXEC_TIMING_END(__func__);
 
@@ -1865,7 +1888,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
       io->ioctx()->attach(req, cookie, (mode == W_OK) );
 
-      fi->keep_cache = 0;
+      fi->keep_cache = Instance().Config().options.data_kernelcache;
       fi->direct_io = 0;
       eos_static_info("%s", md->dump(e).c_str());
     }
@@ -2078,7 +2101,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           // -----------------------------------------------------------------------
           // FUSE caches the file for reads on the same filedescriptor in the buffer
           // cache, but the pages are released once this filedescriptor is released.
-          fi->keep_cache = 0;
+          fi->keep_cache = Instance().Config().options.data_kernelcache;
 
           if ( (fi->flags & O_DIRECT) ||
               (fi->flags & O_SYNC) )
@@ -2199,6 +2222,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
   {
     if (io->ioctx()->pwrite(req, buf, size, off) == -1)
     {
+      eos_static_err("io-error: inode=%lld size=%lld off=%lld buf=%lld",ino, size, off, buf);
       rc = EIO;
     }
     else

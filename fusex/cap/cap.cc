@@ -255,7 +255,7 @@ cap::forget(const std::string& cid)
   }
   if (inode)
   {
-    if (EosFuse::Instance().Config().options.kernelcache)
+    if (EosFuse::Instance().Config().options.md_kernelcache)
     {
       kernelcache::inval_inode(inode);
     }

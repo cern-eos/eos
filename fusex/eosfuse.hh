@@ -190,7 +190,8 @@ public:
       int debuglevel;
       int libfusethreads;
       int foreground;
-      int kernelcache;
+      int md_kernelcache;
+      int data_kernelcache;
       int mkdir_is_sync;
       int create_is_sync;
     } options_t;
