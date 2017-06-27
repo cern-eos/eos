@@ -5,10 +5,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "common/Timing.hh"
+#include "common/ShellCmd.hh"
 
 #define LOOP_1 100
 #define LOOP_2 100
 #define LOOP_4 100
+#define LOOP_6 3
+#define LOOP_7 100
+#define LOOP_8 100
+#define LOOP_9 1000
 
 int main(int argc, char* argv[])
 {
@@ -26,8 +31,9 @@ int main(int argc, char* argv[])
   COMMONTIMING("test-start", &tm);
   struct stat buf;
 
-  if ( (testno>= test_start) && (testno <= test_stop))
+  if ( (testno >= test_start) && (testno <= test_stop))
   {
+    fprintf(stderr, ">>> test %04d\n", testno);
     for (size_t i=0; i < LOOP_1; i++)
     {
       snprintf(name, sizeof (name), "test-same");
@@ -73,8 +79,9 @@ int main(int argc, char* argv[])
 
   // ------------------------------------------------------------------------ //
   testno = 2;
-  if ( (testno>= test_start) && (testno <= test_stop))
+  if ( (testno >= test_start) && (testno <= test_stop))
   {
+    fprintf(stderr, ">>> test %04d\n", testno);
     for (size_t i=0; i < LOOP_2; i++)
     {
       snprintf(name, sizeof (name), "test-mkdir-%04lu", i);
@@ -89,8 +96,9 @@ int main(int argc, char* argv[])
   // ------------------------------------------------------------------------ //
   testno = 3;
 
-  if ( (testno>= test_start) && (testno <= test_stop))
+  if ( (testno >= test_start) && (testno <= test_stop))
   {
+    fprintf(stderr, ">>> test %04d\n", testno);
     for (size_t i=0; i < LOOP_2; i++)
     {
       snprintf(name, sizeof (name), "test-mkdir-%04lu", i);
@@ -105,8 +113,9 @@ int main(int argc, char* argv[])
   // ------------------------------------------------------------------------ //
   testno = 4;
 
-  if ( (testno>= test_start) && (testno <= test_stop))
+  if ( (testno >= test_start) && (testno <= test_stop))
   {
+    fprintf(stderr, ">>> test %04d\n", testno);
     ino = 0;
     for (size_t i=0; i < LOOP_4; i++)
     {
@@ -154,8 +163,9 @@ int main(int argc, char* argv[])
   // ------------------------------------------------------------------------ //
   testno = 5;
 
-  if ( (testno>= test_start) && (testno <= test_stop))
+  if ( (testno >= test_start) && (testno <= test_stop))
   {
+    fprintf(stderr, ">>> test %04d\n", testno);
     for (size_t i=0; i < LOOP_4; i++)
     {
       snprintf(name, sizeof (name), "test-file-%lu", i);
@@ -169,6 +179,129 @@ int main(int argc, char* argv[])
     COMMONTIMING("delete-loop", &tm);
   }
 
+  // ------------------------------------------------------------------------ //
+  testno = 6;
+
+  if ( (testno >= test_start) && (testno <= test_stop))
+  {
+    fprintf(stderr, ">>> test %04d\n", testno);
+    for (size_t i=0; i < LOOP_6; i++)
+    {
+
+      eos::common::ShellCmd makethedir("mkdir -p a/b/c/d/e/f/g/h/i/j/k/1/2/3/4/5/6/7/8/9/0");
+      eos::common::cmd_status rc = makethedir.wait(5);
+      if (rc.exit_code)
+      {
+        fprintf(stderr, "[test=%03d] mkdir -p failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+      eos::common::ShellCmd removethedir("rm -rf a/");
+      rc = removethedir.wait(5);
+      if (rc.exit_code)
+      {
+        fprintf(stderr, "[test=%03d] rm -rf failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+    }
+    COMMONTIMING("mkdir-p-loop", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 7;
+
+  if ( (testno >= test_start) && (testno <= test_stop))
+  {
+    fprintf(stderr, ">>> test %04d\n", testno);
+    for (size_t i=0; i < LOOP_7; i++)
+    {
+      char execline[1024];
+      snprintf(execline, sizeof (execline), "for name in `seq 1 100`; do echo %lu.$name >> append.%d; done", i, LOOP_7);
+      eos::common::ShellCmd appendfile(execline);
+      eos::common::cmd_status rc = appendfile.wait(5);
+      if (rc.exit_code)
+      {
+        fprintf(stderr, "[test=%03d] echo >> failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+    }
+    char execline[1024];
+    snprintf(execline, sizeof (execline), "rm -rf append.%d", LOOP_7);
+    eos::common::ShellCmd removethefile(execline);
+    eos::common::cmd_status rc = removethefile.wait(5);
+    if (rc.exit_code)
+    {
+      fprintf(stderr, "[test=%03d] rm -rf failed \n", testno);
+      exit(testno);
+    }
+    COMMONTIMING("echo-append-loop", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 8;
+
+  if ( (testno >= test_start) && (testno <= test_stop))
+  {
+    fprintf(stderr, ">>> test %04d\n", testno);
+    for (size_t i=0; i < LOOP_8; i++)
+    {
+      char execline[1024];
+      snprintf(execline, sizeof (execline), "cp /etc/passwd pwd1 && mv passwd pwd2 && stat pwd1 || stat pwd2 && mv pwd2 pwd1 && stat pwd2 || stat pwd1 &&  rm -rf pwd1");
+
+      eos::common::ShellCmd renames(execline);
+      eos::common::cmd_status rc = renames.wait(5);
+      if (rc.exit_code)
+      {
+        fprintf(stderr, "[test=%03d] circular-rename failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+    }
+    COMMONTIMING("rename-circular-loop", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 9;
+
+  if ( (testno >= test_start) && (testno <= test_stop))
+  {
+    fprintf(stderr, ">>> test %04d\n", testno);
+    snprintf(name, sizeof (name), "ftruncate");
+    unlink(name);
+    int fd = open(name, O_CREAT|O_RDWR, S_IRWXU);
+    if (fd > 0)
+    {
+      for (size_t i=0; i < LOOP_9; i++)
+      {
+        int rc = ftruncate (fd, i);
+        if (rc)
+        {
+          fprintf(stderr, "[test=%03d] failed ftruncate linear truncate i=%lu rc=%d errno=%d\n", testno, i, rc, errno);
+          exit(testno);
+        }
+        struct stat buf;
+        if (fstat(fd, &buf))
+        {
+          fprintf(stderr, "[test=%03d] failed stat linear truncate i=%lu\n", testno, i);
+          exit(testno);
+        }
+        else
+        {
+          if ( (size_t) buf.st_size != i)
+          {
+            fprintf(stderr, "[test=%03d] falsed size linear truncate i=%lu size=%lu\n", testno, i, buf.st_size);
+            exit(testno);
+          }
+        }
+      }
+      close(fd);
+      if (0 && unlink(name))
+      {
+        fprintf(stderr, "[test=%03d] failed unlink linear truncate \n", testno);
+        exit(testno);
+      }
+    }
+
+    COMMONTIMING("truncate-expand-loop", &tm);
+  }
   tm.Print();
   fprintf(stdout, "realtime = %.02f", tm.RealTime());
 }
