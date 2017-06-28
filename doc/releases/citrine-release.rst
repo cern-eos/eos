@@ -17,6 +17,32 @@ This is the first release targeted for clients to use EOS with XRootD >= 4.2.X.
 It is merged from the Aquamarine Version 0.3.130. Main difference to Aquamarine
 is the use of XRootD 4 and the new tree-based scheduling algorithm.
 
+``v4.1.25 Citrine``
++++++++++++++++++++
+
+Bugfix
+++++++
+* [EOS-542] - eos file version filename version modify the permissions of the file
+* [EOS-1259] - MGM eos node ls display
+* [EOS-1292] - "eos" hangs for 5min without EOS_MGM_URL - give verbose error message instead
+* [EOS-1317] - command to drop/refresh UID / GID cache is not documented?
+* [EOS-1762] - "eos attr link origin target" with a non-existent origin prevents listing of target's atrributes
+* [EOS-1887] - Link back with the dynamic version of protobuf3
+* [EOS-1889] - file verify command fails when specifyng fsid on a one-replica file
+* [EOS-1893] - EOS configuration can end up empty or truncated
+
+New Feature
++++++++++++
+* [EOS-1872] - "Super" graceful FST shutdown
+* There is a new dependency on protobuf3 packages both at build time and run time.
+  These packages can be downloaded from the citrine-depend yum repository:
+  http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/
+
+Improvement
++++++++++++
+* [EOS-1581] - RFE: better error messages from the eos client, remove 'error: errc=0 msg=""'
+
+
 ``v4.1.24 Citrine``
 +++++++++++++++++++
 
