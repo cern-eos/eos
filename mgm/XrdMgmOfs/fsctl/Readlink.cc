@@ -34,7 +34,7 @@
 
   gOFS->MgmStats.Add("Fuse-Readlink", vid.uid, vid.gid, 1);
   
-  XrdOucString link;
+  XrdOucString link="";
 
   int retc = 0;
   if (readlink(spath.c_str(),
