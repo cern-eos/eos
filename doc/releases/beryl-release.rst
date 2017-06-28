@@ -7,6 +7,12 @@
 Beryl Release Notes
 ===================
 
+``V0.3.258 Aquamarine``
+=====================
+
+- MGM: Protect if the namespace throws an exception without setting an error number in the readlink functionality
+
+
 ``V0.3.257 Aquamarine``
 =====================
 

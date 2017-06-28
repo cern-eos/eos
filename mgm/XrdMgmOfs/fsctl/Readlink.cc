@@ -33,27 +33,37 @@
   MAYREDIRECT;
 
   gOFS->MgmStats.Add("Fuse-Readlink", vid.uid, vid.gid, 1);
-  
-  XrdOucString link;
+
+  XrdOucString link = "";
 
   int retc = 0;
+
   if (readlink(spath.c_str(),
-	       error,
-	       link,
-	       client))
+  error,
+  link,
+  client))
   {
     retc = error.getErrInfo();
+
+    if (!retc) {
+      retc = -1;
+    }
   }
 
   XrdOucString response = "readlink: retc=";
   response += retc;
+
   if (!retc)
   {
     response += " ";
-    if(env.Get("eos.encodepath"))
+
+    if (env.Get("eos.encodepath")) {
       link = eos::common::StringConversion::curl_escaped(link.c_str()).c_str();
+    }
+
     response += link.c_str();
   }
+
   error.setErrInfo(response.length() + 1, response.c_str());
   return SFS_DATA;
 }
