@@ -43,6 +43,8 @@
 	       client))
   {
     retc = error.getErrInfo();
+    if (!retc)
+      retc=-1;
   }
 
   XrdOucString response = "readlink: retc=";
