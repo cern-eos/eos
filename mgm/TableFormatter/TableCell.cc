@@ -362,11 +362,11 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
   // Left space before cellValue
   if (width_left) {
     // Because of escape characters - see TableFromatterColorContainer, we need
-    // to add 4 normal display, 5 for bold display, 6 for normal display with
-    // white background etc.
+    // to add 5 colored normal display, 6 for bold display, 7 for bold display
+    // with color etc.
     // Normal display
     if (mColor == TableFormatterColor::DEFAULT) {
-      ostream.width(width_left + 4);
+      ostream.width(width_left);
     } else if (TableFormatterColor::RED <= mColor &&
                mColor <= TableFormatterColor::WHITE) {
       ostream.width(width_left + 5);
