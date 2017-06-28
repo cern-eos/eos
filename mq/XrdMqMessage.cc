@@ -1143,9 +1143,7 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
   encrypted_length = 0;
   EVP_CIPHER_CTX ctx;
   EVP_CIPHER_CTX_init(&ctx);
-  EVP_EncryptInit_ex(&ctx, cipher, 0, 0, 0);
-  EVP_CIPHER_CTX_set_key_length(&ctx, SHA_DIGEST_LENGTH);
-  EVP_EncryptInit_ex(&ctx, 0, 0, (const unsigned char*)key, iv);
+  EVP_EncryptInit_ex(&ctx, cipher, 0, (const unsigned char*)key, iv);
 
   if (!(EVP_EncryptUpdate(&ctx, fast_ptr, (int*)&encrypted_length,
                           (uint_fast8_t*)data, data_length))) {
@@ -1218,9 +1216,7 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
   data_length = 0;
   EVP_CIPHER_CTX ctx;
   EVP_CIPHER_CTX_init(&ctx);
-  EVP_DecryptInit_ex(&ctx, cipher, 0, 0, 0);
-  EVP_CIPHER_CTX_set_key_length(&ctx, SHA_DIGEST_LENGTH);
-  EVP_DecryptInit_ex(&ctx, 0, 0, (const unsigned char*) key, iv);
+  EVP_DecryptInit_ex(&ctx, cipher, 0, (const unsigned char*) key, iv);
   int decrypt_len = 0;
 
   if (!EVP_DecryptUpdate(&ctx, fast_ptr, &decrypt_len,
