@@ -365,7 +365,7 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
     // to add 5 colored normal display, 6 for bold display, 7 for bold display
     // with color etc.
     // Normal display
-    if (mColor == TableFormatterColor::DEFAULT) {
+    if (mColor == TableFormatterColor::NONE) {
       ostream.width(width_left);
     } else if (TableFormatterColor::RED <= mColor &&
                mColor <= TableFormatterColor::WHITE) {
@@ -406,7 +406,9 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
     ostream << mStrValue;
   }
 
-  ostream << *sColorVector.begin();
+  if (mColor != TableFormatterColor::NONE) {
+    ostream << sColorVector[TableFormatterColor::DEFAULT];
+  }
 
   // Unit
   if (!mUnit.empty()) {

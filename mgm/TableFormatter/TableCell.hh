@@ -34,29 +34,29 @@ public:
   //! the current cell
   //----------------------------------------------------------------------------
   TableCell(unsigned int value, std::string format, std::string unit = "",
-            TableFormatterColor col = TableFormatterColor::DEFAULT);
+            TableFormatterColor col = TableFormatterColor::NONE);
 
   TableCell(unsigned long long int value, std::string format,
             std::string unit = "",
-            TableFormatterColor col = TableFormatterColor::DEFAULT);
+            TableFormatterColor col = TableFormatterColor::NONE);
 
   TableCell(int value, std::string format, std::string unit = "",
-            TableFormatterColor col = TableFormatterColor::DEFAULT);
+            TableFormatterColor col = TableFormatterColor::NONE);
 
   TableCell(long long int value, std::string format, std::string unit = "",
-            TableFormatterColor col = TableFormatterColor::DEFAULT);
+            TableFormatterColor col = TableFormatterColor::NONE);
 
   TableCell(float value, std::string format, std::string unit = "",
-            TableFormatterColor col = TableFormatterColor::DEFAULT);
+            TableFormatterColor col = TableFormatterColor::NONE);
 
   TableCell(double value, std::string format, std::string unit = "",
-            TableFormatterColor col = TableFormatterColor::DEFAULT);
+            TableFormatterColor col = TableFormatterColor::NONE);
 
   TableCell(const char* value, std::string format, std::string unit = "",
-            TableFormatterColor col = TableFormatterColor::DEFAULT);
+            TableFormatterColor col = TableFormatterColor::NONE);
 
   TableCell(std::string& value, std::string format, std::string unit = "",
-            TableFormatterColor col = TableFormatterColor::DEFAULT);
+            TableFormatterColor col = TableFormatterColor::NONE);
 
   //------------------------------------------------------------------------------
   //! Set color of cell
@@ -107,6 +107,7 @@ protected:
   TableFormatterColor mColor;
   std::vector<std::string> sColorVector = {
     "",
+    "\33[0m",
     "\33[31m",
     "\33[32m",
     "\33[33m",
@@ -137,7 +138,7 @@ protected:
     "\33[1;47;34m",
     "\33[1;47;35m",
     "\33[1;47;36m",
-    "\33[1;47;37m"
+    "\33[1;47;37m",
   };
 
   //----------------------------------------------------------------------------
