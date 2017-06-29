@@ -30,6 +30,8 @@ Bugfix
 * [EOS-1887] - Link back with the dynamic version of protobuf3
 * [EOS-1889] - file verify command fails when specifyng fsid on a one-replica file
 * [EOS-1893] - EOS configuration can end up empty or truncated
+* [EOS-1888] - FSs wrongly reported as Unavailable by the GeoTreeEngine
+* [EOS-1892] - File copy is scheduled on a full FS
 
 New Feature
 +++++++++++
