@@ -419,13 +419,7 @@ uint8_t ChangeLogFile::readRecord(uint64_t offset, Buffer& record, bool cache)
   }
 
   // Read first part of the record
-  uint16_t* magic;
-  uint16_t* size;
-  uint32_t* chkSum1;
-  uint64_t* seq;
-  uint32_t  chkSum2;
-  uint8_t*  type;
-  char      buffer[20];
+  char buffer[20];
 
   if (pread(pFd, buffer, 20, offset, cache) != 20) {
     MDException ex(errno);
@@ -433,11 +427,11 @@ uint8_t ChangeLogFile::readRecord(uint64_t offset, Buffer& record, bool cache)
     throw ex;
   }
 
-  magic   = (uint16_t*)(buffer);
-  size    = (uint16_t*)(buffer + 2);
-  chkSum1 = (uint32_t*)(buffer + 4);
-  seq     = (uint64_t*)(buffer + 8);
-  type    = (uint8_t*)(buffer + 16);
+  uint16_t* magic   = (uint16_t*)(buffer);
+  uint16_t* size    = (uint16_t*)(buffer + 2);
+  uint32_t* chkSum1 = (uint32_t*)(buffer + 4);
+  uint64_t* seq     = (uint64_t*)(buffer + 8);
+  uint8_t*  type    = (uint8_t*)(buffer + 16);
 
   // Check the consistency
   if (*magic != RECORD_MAGIC && *magic != COMPRESSED_RECORD_MAGIC) {
@@ -456,6 +450,7 @@ uint8_t ChangeLogFile::readRecord(uint64_t offset, Buffer& record, bool cache)
     throw ex;
   }
 
+  uint32_t chkSum2;
   record.grabData(record.size() - 4, &chkSum2, 4);
   record.resize(*size);
 
@@ -497,19 +492,16 @@ uint8_t ChangeLogFile::readMappedRecord(uint64_t offset, Buffer& record,
     throw ex;
   }
 
-  // Read first part of the record
-  uint16_t* magic;
-  uint16_t* size;
-  uint32_t* chkSum1;
-  uint64_t* seq;
-  uint32_t  chkSum2;
-  uint8_t*  type;
-  char*     buffer = pData + offset;
-  magic   = (uint16_t*)(buffer);
-  size    = (uint16_t*)(buffer + 2);
-  chkSum1 = (uint32_t*)(buffer + 4);
-  seq     = (uint64_t*)(buffer + 8);
-  type    = (uint8_t*)(buffer + 16);
+  // Read the record from the mmaped changelog file
+  char*     buffer  = pData + offset;
+  uint16_t* magic   = (uint16_t*)(buffer);
+  uint16_t* size    = (uint16_t*)(buffer + 2);
+  uint32_t* chkSum1 = (uint32_t*)(buffer + 4);
+  uint64_t* seq     = (uint64_t*)(buffer + 8);
+  uint8_t*  type    = (uint8_t*)(buffer + 16);
+  uint32_t* chkSum2 = (uint32_t*)(buffer + 20 + *size);
+  record.clear();
+  record.putData(buffer + 20, *size);
 
   // Check the consistency
   if (*magic != RECORD_MAGIC && *magic != COMPRESSED_RECORD_MAGIC) {
@@ -517,11 +509,6 @@ uint8_t ChangeLogFile::readMappedRecord(uint64_t offset, Buffer& record,
     ex.getMessage() << "Read: Record's magic number is wrong at offset: " << offset;
     throw ex;
   }
-
-  // Read the second part of the buffer
-  record.setDataPtr(pData + offset + 20, *size + 4);
-  record.grabData(record.getSize() - 4, &chkSum2, 4);
-  record.setDataPtr(pData + offset + 20, *size);
 
   if (*magic == COMPRESSED_RECORD_MAGIC) {
     // Record decompression
@@ -538,7 +525,7 @@ uint8_t ChangeLogFile::readMappedRecord(uint64_t offset, Buffer& record,
     crc = DataHelper::updateCRC32(crc, (buffer + 16), 4); // opts
     crc = DataHelper::updateCRC32(crc, record.getDataPtr(), record.getSize());
 
-    if (*chkSum1 != crc || *chkSum1 != chkSum2) {
+    if (*chkSum1 != crc || *chkSum1 != *chkSum2) {
       MDException ex(EFAULT);
       ex.getMessage() << "Read: Record's checksums do not match.";
       throw ex;
