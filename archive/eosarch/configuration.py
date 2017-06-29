@@ -132,6 +132,7 @@ class Configuration(object):
         self.__dict__['LOG_FILE'] = log_file
         self.logger = logging.getLogger(self.__dict__['LOGGER_NAME'])
         formatter = logging.Formatter(log_format)
+        permissions = 0o644;
 
         if timed_rotating:
             self.handler = logging.handlers.TimedRotatingFileHandler(
@@ -139,6 +140,14 @@ class Configuration(object):
         else:
             self.handler = logging.FileHandler(self.__dict__['LOG_FILE'],
                                                encoding="utf-8")
+
+
+        try:
+            os.chmod(self.__dict__['LOG_FILE'], permissions)
+        except OSError as ex:
+            # If we don't have access to change the permissions, we need to
+            # rely on the initial file creator having done the chmod
+            pass
 
         self.handler.setFormatter(formatter)
         self.logger.addHandler(self.handler)
