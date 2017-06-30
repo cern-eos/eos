@@ -1345,7 +1345,7 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
       FmdHelper* fmd = nullptr;
       try {
-        Fmd fMd = gFmdAttributeHandler.FmdAttrGet(path.c_str());
+        Fmd fMd = gFmdAttributeHandler.FmdAttrGet(fileid, fsid, &env);
         fmd = new FmdHelper(fileid, fsid);
         fmd->Replicate(fMd);
       } catch (fmd_attribute_error& error) {
