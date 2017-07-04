@@ -2605,9 +2605,8 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       }
     }
   }
-
+  
   if (keys & sfgDrainer) {
-    if (fs->mDrainerOn) {
       if (ftIdx) {
         setOneStateVarStatusInAllFastTrees(SchedTreeBase::Drainer);
       }
@@ -2615,15 +2614,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       if (stn) {
         stn->pNodeState.mStatus |= SchedTreeBase::Drainer;
       }
-    } else {
-      if (ftIdx) {
-        unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Drainer);
-      }
-
-      if (stn) {
-        stn->pNodeState.mStatus &= ~SchedTreeBase::Drainer;
-      }
-    }
   }
 
   if (keys & (sfgBalthres | sfgFsfilled | sfgNomfilled)) {
