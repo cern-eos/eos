@@ -7,6 +7,12 @@
 Beryl Release Notes
 ===================
 
+``V0.3.259 Aquamarine``
+=====================
+
+- MGM: Don't drop a file if an FST calls a drop replica on a not committed replica
+
+
 ``V0.3.258 Aquamarine``
 =====================
 

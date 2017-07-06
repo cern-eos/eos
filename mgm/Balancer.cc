@@ -300,10 +300,10 @@ Balancer::Balance(void)
 
     FsView::gFsView.ViewMutex.UnLockRead();
     XrdSysThread::SetCancelOn();
+    XrdSysTimer sleeper;
 
     // Wait a while ...
     for (size_t i = 0; i < 10; ++i) {
-      XrdSysTimer sleeper;
       sleeper.Snooze(1);
       XrdSysThread::CancelPoint();
     }
