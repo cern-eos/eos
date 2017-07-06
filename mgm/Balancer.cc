@@ -76,8 +76,8 @@ Balancer::~Balancer ()
 /*----------------------------------------------------------------------------*/
 {
   Stop();
-  if (!gOFS->Shutdown)
-  {
+
+  if (!gOFS->Shutdown) {
     XrdSysThread::Join(mThread, NULL);
   }
 }
@@ -393,12 +393,12 @@ Balancer::Balance (void)
         }
       }
     }
-    XrdSysThread::SetCancelOn();
 
     // hang a little bit around ...
-    for (size_t i = 0; i < 10; i++)
-    {
-      XrdSysTimer sleeper;
+    XrdSysThread::SetCancelOn();
+    XrdSysTimer sleeper;
+
+    for (size_t i = 0; i < 10; i++) {
       sleeper.Snooze(1);
       XrdSysThread::CancelPoint();
     }
