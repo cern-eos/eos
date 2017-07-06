@@ -72,19 +72,20 @@ public:
   //----------------------------------------------------------------------------
   void containerMDChanged(IContainerMD* obj, Action type);
 
-private:
-  //----------------------------------------------------------------------------
-  //! Queue container info for update
-  //!
-  //! @param obj container object
-  //----------------------------------------------------------------------------
-  void QueueForUpdate(IContainerMD* obj);
-
   //----------------------------------------------------------------------------
   //! Propagate updates in the hierarchical structure. Method ran by the
   //! asynchronous thread.
   //----------------------------------------------------------------------------
   void PropagateUpdates();
+
+  //----------------------------------------------------------------------------
+  //! Queue container info for update
+  //!
+  //! @param obj container id
+  //----------------------------------------------------------------------------
+  void QueueForUpdate(IContainerMD::id_t id);
+
+private:
 
   //! Update structure containing a list of the nodes that need an update in
   //! the order that the updates need to be applied and also a map used for

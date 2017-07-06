@@ -33,7 +33,11 @@ SyncTimeAccounting::SyncTimeAccounting(IContainerMDSvc* svc,
   gNsRwMutex(ns_mutex)
 {
   mBatch.resize(2);
-  mThread = std::thread(&SyncTimeAccounting::PropagateUpdates, this);
+
+  // Enable update if update interval is not 0
+  if (mUpdateIntervalSec) {
+    mThread = std::thread(&SyncTimeAccounting::PropagateUpdates, this);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -42,7 +46,10 @@ SyncTimeAccounting::SyncTimeAccounting(IContainerMDSvc* svc,
 SyncTimeAccounting::~SyncTimeAccounting()
 {
   mShutdown = true;
-  mThread.join();
+
+  if (mUpdateIntervalSec) {
+    mThread.join();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -53,7 +60,7 @@ SyncTimeAccounting::containerMDChanged(IContainerMD* obj, Action type)
 {
   switch (type) {
   case IContainerMDChangeListener::MTimeChange:
-    QueueForUpdate(obj);
+    QueueForUpdate(obj->getId());
     break;
 
   default:
@@ -65,19 +72,19 @@ SyncTimeAccounting::containerMDChanged(IContainerMD* obj, Action type)
 // Queue container object for update
 //------------------------------------------------------------------------------
 void
-SyncTimeAccounting::QueueForUpdate(IContainerMD* obj)
+SyncTimeAccounting::QueueForUpdate(IContainerMD::id_t id)
 {
   std::lock_guard<std::mutex> scope_lock(mMutexBatch);
   auto& batch = mBatch[mAccumulateIndx];
-  auto it_map = batch.mMap.find(obj->getId());
+  auto it_map = batch.mMap.find(id);
 
   if (it_map != batch.mMap.end()) {
     auto& it_lst = it_map->second;
     // Move it from current location to the end of the list (most recent)
     batch.mLstUpd.splice(batch.mLstUpd.end(), batch.mLstUpd, it_lst);
   } else {
-    auto it_new = batch.mLstUpd.emplace(batch.mLstUpd.end(), obj->getId());
-    batch.mMap[obj->getId()] = it_new;
+    auto it_new = batch.mLstUpd.emplace(batch.mLstUpd.end(), id);
+    batch.mMap[id] = it_new;
   }
 }
 
@@ -158,7 +165,12 @@ SyncTimeAccounting::PropagateUpdates()
 
     // Clean up the batch
     mBatch[mCommitIndx].Clean();
-    std::this_thread::sleep_for(std::chrono::seconds(mUpdateIntervalSec));
+
+    if (mUpdateIntervalSec) {
+      std::this_thread::sleep_for(std::chrono::seconds(mUpdateIntervalSec));
+    } else {
+      break;
+    }
   }
 }
 

@@ -300,7 +300,6 @@ XrdMgmOfs::InitializeFileView()
 
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
-
   //force refresh the GeoTreeEngine info at the end of the mgm booting process
   gGeoTreeEngine.forceRefresh();
   return 0;
@@ -1213,12 +1212,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // add some alias for the logging
-  // ---------------------------------------------------------------------------
-  // ---------------------------------------------------------------------------
-  // HTTP module
-  // ---------------------------------------------------------------------------
+  // Add some alias for the logging
   g_logging.AddFanOutAlias("HttpHandler", "Http");
   g_logging.AddFanOutAlias("HttpServer", "Http");
   g_logging.AddFanOutAlias("ProtocolHandler", "Http");

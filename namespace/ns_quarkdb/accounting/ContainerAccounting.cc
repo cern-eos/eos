@@ -33,7 +33,11 @@ ContainerAccounting::ContainerAccounting(IContainerMDSvc* svc,
     gNsRwMutex(ns_mutex)
 {
   mBatch.resize(2);
-  mThread = std::thread(&ContainerAccounting::PropagateUpdates, this);
+
+  // If update interval is 0 then we disable async updates
+  if (mUpdateIntervalSec) {
+    mThread = std::thread(&ContainerAccounting::PropagateUpdates, this);
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -42,7 +46,10 @@ ContainerAccounting::ContainerAccounting(IContainerMDSvc* svc,
 ContainerAccounting::~ContainerAccounting()
 {
   mShutdown = true;
-  mThread.join();
+
+  if (mUpdateIntervalSec) {
+    mThread.join();
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -171,7 +178,12 @@ ContainerAccounting::PropagateUpdates()
       }
     }
     batch.mMap.clear();
-    std::this_thread::sleep_for(std::chrono::seconds(mUpdateIntervalSec));
+
+    if (mUpdateIntervalSec) {
+      std::this_thread::sleep_for(std::chrono::seconds(mUpdateIntervalSec));
+    } else {
+      break;
+    }
   }
 }
 

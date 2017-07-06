@@ -559,11 +559,6 @@ protected:
   ContainerMap pSubContainers;
   FileMap      pFiles;
 
-private:
-  // Non-presistent data members
-  mtime_t      pMTime;
-  tmtime_t     pTMTime;
-
 #if __GNUC_PREREQ(4,8)
   // Atomic (thread-safe) types
   std::atomic_ulong pTreeSize;
@@ -572,6 +567,10 @@ private:
   uint64_t     pTreeSize;
 #endif
 
+private:
+  // Non-presistent data members
+  mtime_t      pMTime;
+  tmtime_t     pTMTime;
   IFileMDSvc* pFileSvc; ///< File metadata service
   IContainerMDSvc* pContSvc; ///< Container metadata service
 };

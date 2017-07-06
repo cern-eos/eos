@@ -29,7 +29,10 @@
 #include "namespace/ns_in_memory/ContainerMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "ContainerMd.pb.h"
 #include "common/RWMutex.hh"
 #include <cstdint>
 
@@ -150,7 +153,15 @@ public:
   //----------------------------------------------------------------------------
   void updateInternal();
 
+  //------------------------------------------------------------------------------
+  //! Serialize the object to a std::string buffer
+  //!
+  //! @param buffer output of the serialized object
+  //------------------------------------------------------------------------------
+  void serialize(std::string& buffer);
+
 private:
+  eos::ns::ContainerMdProto mCont; ///< Protobuf container representation
   std::string pFilesKey; ///< Key of hmap holding info about files
   std::string pDirsKey;  ///< Key of hmap holding info about subcontainers
   qclient::QHash pFilesMap; ///< Map of files
@@ -182,6 +193,11 @@ public:
                          ContainerList& nameConflicts);
 
   //----------------------------------------------------------------------------
+  //! Load container object
+  //----------------------------------------------------------------------------
+  void loadContainer(IdMap::iterator& it);
+
+  //----------------------------------------------------------------------------
   //! Get first free container id
   //----------------------------------------------------------------------------
   IContainerMD::id_t getFirstFreeId();
@@ -193,16 +209,21 @@ public:
   //----------------------------------------------------------------------------
   void setQuotaView(ConvertQuotaView* qview);
 
+  //----------------------------------------------------------------------------
+  //! Commit all the container info to the backend.
+  //----------------------------------------------------------------------------
+  void CommitToBackend();
+
 private:
   static std::uint64_t sNumContBuckets; ///< Numnber of buckets power of 2
 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get container bucket
   //!
   //! @param id container id
   //!
   //! @return string representation of the bucket id
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   std::string getBucketKey(IContainerMD::id_t id) const;
 
   IContainerMD::id_t mFirstFreeId; ///< First free container id
@@ -244,8 +265,28 @@ public:
   //----------------------------------------------------------------------------
   void setViews(ConvertQuotaView* qview, ConvertFsView* fsview);
 
+  //----------------------------------------------------------------------------
+  //! Set sync time accounting view
+  //!
+  //! @param synctime sync time object
+  //----------------------------------------------------------------------------
+  inline void setSyncTimeAcc(IContainerMDChangeListener* synctime)
+  {
+    mSyncTimeAcc = dynamic_cast<eos::SyncTimeAccounting*>(synctime);
+  };
+
+  //----------------------------------------------------------------------------
+  //! Set container accounting view
+  //!
+  //! @param contacc container accounting view
+  //----------------------------------------------------------------------------
+  inline void setContainerAcc(IFileMDChangeListener* contacc)
+  {
+    mContAcc = dynamic_cast<eos::ContainerAccounting*>(contacc);
+  };
+
 private:
-  static std::uint64_t sNumFileBuckets; ///< Numnber of buckets power of 2
+  static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
 
   //------------------------------------------------------------------------------
   //! Get file bucket
@@ -261,6 +302,8 @@ private:
   ConvertQuotaView* mConvQView; ///< Quota view object
   ConvertFsView* mConvFsView; ///< Filesystem view object
   std::atomic<std::uint64_t> mCount; ///< Number of files proccessed
+  eos::SyncTimeAccounting* mSyncTimeAcc; ///< Sync time accounting view
+  eos::ContainerAccounting* mContAcc; ///< Subtree size accounting
 };
 
 EOSNSNAMESPACE_END

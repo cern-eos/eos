@@ -40,6 +40,11 @@ EOSNSNAMESPACE_BEGIN
 class ContainerAccounting : public IFileMDChangeListener
 {
 public:
+
+  //! Type of operation that the update comes from. FILE means simple file
+  //! addition/removal and tree means rename on directories.
+  enum class OpType {FILE, TREE};
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -100,19 +105,6 @@ public:
   //----------------------------------------------------------------------------
   void RemoveTree(IContainerMD* obj, int64_t dsize);
 
-private:
-
-  //! Type of operation that the update comes from. FILE means simple file
-  //! addition/removal and tree means rename on directories.
-  enum class OpType {FILE, TREE};
-
-  //! Update structure containin the nodes that need an update. We try to
-  //! optimise the number of updates to the backend by computing the final
-  //! size deltas from a number of individual updates.
-  struct UpdateT {
-    std::unordered_map<IContainerMD::id_t, int64_t> mMap; ///< Map updates
-  };
-
   //----------------------------------------------------------------------------
   //! Queue info for update
   //!
@@ -127,6 +119,15 @@ private:
   //! asynchronous thread.
   //----------------------------------------------------------------------------
   void PropagateUpdates();
+
+private:
+
+  //! Update structure containin the nodes that need an update. We try to
+  //! optimise the number of updates to the backend by computing the final
+  //! size deltas from a number of individual updates.
+  struct UpdateT {
+    std::unordered_map<IContainerMD::id_t, int64_t> mMap; ///< Map updates
+  };
 
   //! Vector of two elements containing the batch which is currently being
   //! accumulated and the batch which is being commited to the namespace by the

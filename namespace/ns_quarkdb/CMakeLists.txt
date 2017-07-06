@@ -142,13 +142,19 @@ install(
 add_executable(
   convert_mem_to_kv
   ConvertMemToKV.cc
+  ${NS_PROTO_SRCS}
+  ${NS_PROTO_HDRS}
+  accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
+  accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 
 target_link_libraries(
   convert_mem_to_kv
   qclient
   eosCommon
-  EosNsInMemory-Static)
+  EosCrc32c-Static
+  EosNsInMemory-Static
+  ${PROTOBUF_LIBRARY})
 
 install(
   TARGETS convert_mem_to_kv

@@ -23,6 +23,9 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/utils/StringConvertion.hh"
+#include "namespace/utils/DataHelper.hh"
+#include "ContainerMd.pb.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
 
 // Static global variable
 static std::string sBkndHost;
@@ -63,6 +66,26 @@ ConvertContainerMD::updateInternal()
   pDirsKey = stringify(pId) + constants::sMapDirsSuffix;
   pFilesMap.setKey(pFilesKey);
   pDirsMap.setKey(pDirsKey);
+  // Populate the protobuf object which is used later or in the serialization
+  // step
+  mCont.set_id(pId);
+  mCont.set_parent_id(pParentId);
+  mCont.set_uid(pCUid);
+  mCont.set_gid(pCGid);
+  // This must be updated when adding files
+  //mCont.set_tree_size(pTreeSize);
+  mCont.set_mode(pMode);
+  mCont.set_flags(pFlags);
+  mCont.set_acl_id(pACLId);
+  mCont.set_name(pName);
+  mCont.set_ctime(&pCTime, sizeof(pCTime));
+  mCont.set_mtime(&pCTime, sizeof(pCTime));
+  mCont.set_stime(&pCTime, sizeof(pCTime));
+  mCont.clear_xattrs();
+
+  for (auto& xattr : pXAttrs) {
+    (*mCont.mutable_xattrs())[xattr.first] = xattr.second;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -115,6 +138,40 @@ ConvertContainerMD::findFile(const std::string& name)
 }
 
 //------------------------------------------------------------------------------
+// Serialize the object to a buffer
+//------------------------------------------------------------------------------
+void
+ConvertContainerMD::serialize(std::string& buffer)
+{
+  // Align the buffer to 4 bytes to efficiently compute the checksum
+  size_t obj_size = mCont.ByteSizeLong();
+  uint32_t align_size = (obj_size + 3) >> 2 << 2;
+  size_t sz = sizeof(align_size);
+  size_t msg_size = align_size + 2 * sz;
+  buffer.resize(msg_size);
+  // Write the checksum value, size of the raw protobuf object and then the
+  // actual protobuf object serialized
+  const char* ptr = buffer.c_str() + 2 * sz;
+  google::protobuf::io::ArrayOutputStream aos((void*)ptr, align_size);
+
+  if (!mCont.SerializeToZeroCopyStream(&aos)) {
+    MDException ex(EIO);
+    ex.getMessage() << "Failed while serializing buffer";
+    throw ex;
+  }
+
+  // Compute the CRC32C checksum
+  uint32_t cksum = DataHelper::computeCRC32C((void*)ptr, align_size);
+  cksum = DataHelper::finalizeCRC32C(cksum);
+  // Point to the beginning to fill in the checksum and size of useful data
+  ptr = buffer.c_str();
+  (void) memcpy((void*)ptr, &cksum, sz);
+  ptr += sz;
+  (void) memcpy((void*)ptr, &obj_size, sz);
+}
+
+
+//------------------------------------------------------------------------------
 //         ************* ConvertContainerMDSvc Class ************
 //------------------------------------------------------------------------------
 
@@ -125,6 +182,21 @@ ConvertContainerMDSvc::ConvertContainerMDSvc():
   ChangeLogContainerMDSvc(), mFirstFreeId(0), mConvQView(nullptr)
 {}
 
+
+//------------------------------------------------------------------------------
+// Load the container
+//------------------------------------------------------------------------------
+void ConvertContainerMDSvc::loadContainer(IdMap::iterator& it)
+{
+  Buffer buffer;
+  pChangeLog->readRecord(it->second.logOffset, buffer);
+  std::shared_ptr<IContainerMD> container =
+    std::make_shared<ConvertContainerMD>(IContainerMD::id_t(0), pFileSvc, this);
+  container->deserialize(buffer);
+  it->second.ptr = container;
+}
+
+
 //------------------------------------------------------------------------------
 // Convert the containers
 //------------------------------------------------------------------------------
@@ -133,25 +205,18 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
     ContainerList& orphans,
     ContainerList& nameConflicts)
 {
-  static std::time_t start = std::time(nullptr);
-  static std::uint64_t count = 0;
-  static std::uint64_t total = getNumContainers();
-  eos::Buffer ebuff;
-  pChangeLog->readRecord(it->second.logOffset, ebuff);
-  std::shared_ptr<IContainerMD> container =
-    std::make_shared<ConvertContainerMD>(IContainerMD::id_t(0), pFileSvc, this);
+  std::shared_ptr<IContainerMD> container = it->second.ptr;
   ConvertContainerMD* tmp_cmd =
     dynamic_cast<ConvertContainerMD*>(container.get());
 
   if (tmp_cmd) {
-    tmp_cmd->deserialize(ebuff);
     tmp_cmd->updateInternal();
   } else {
     std::cerr << __FUNCTION__ << "Error: failed dynamic cast" << std::endl;
     exit(1);
   }
 
-  it->second.ptr = container;
+  it->second.attached = true;
 
   // For non-root containers recreate the parent
   if (container->getId() != container->getParentId()) {
@@ -180,38 +245,68 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
       nameConflicts.push_back(child);
       parent->addContainer(container.get());
     }
-  }
-
-  // Add container to the KV store
-  try {
-    if (getFirstFreeId() <= container->getId()) {
-      mFirstFreeId = container->getId() + 1;
+  } else {
+    // This is not the root container but doesn't have a parrent - add it to
+    // the list of orphans
+    if (container->getId()) {
+      orphans.push_back(container);
+      return;
     }
-
-    ++count;
-    std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
-    std::string sid = stringify(container->getId());
-    qclient::QHash bucket_map(*sQcl, getBucketKey(container->getId()));
-    sAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
-
-    if ((count & sAsyncBatch) == 0) {
-      if (!sAh.WaitForAtLeast(sAsyncBatch)) {
-        std::cerr << __FUNCTION__ << " Got error response from the backend"
-                  << std::endl;
-        exit(1);
-      }
-
-      double rate = (double) count / (std::time(nullptr) - start);
-      std::cout << "Processed " << count << "/" << total << " directories at "
-                << rate << " Hz" << std::endl;
-    }
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container #" << container->getId()
-                   << " failed to contact backend";
-    throw e;
   }
 }
+
+//------------------------------------------------------------------------------
+// Commit all the container info to the backend.
+//------------------------------------------------------------------------------
+void
+ConvertContainerMDSvc::CommitToBackend()
+{
+  std::shared_ptr<IContainerMD> container;
+  static std::uint64_t total = getNumContainers();
+  static std::int64_t count = 0;
+
+  for (auto it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+    container = it->second.ptr;
+
+    // Skip unattached
+    if (!it->second.attached) {
+      std::cerr << __FUNCTION__ << " Skipping unattached container id "
+                << it->first << std::endl;
+      continue;
+    }
+
+    // Add container to the KV store
+    try {
+      if (getFirstFreeId() <= container->getId()) {
+        mFirstFreeId = container->getId() + 1;
+      }
+
+      ++count;
+      std::string buffer;
+      (static_cast<eos::ConvertContainerMD*>(container.get()))->serialize(buffer);
+      std::string sid = stringify(container->getId());
+      qclient::QHash bucket_map(*sQcl, getBucketKey(container->getId()));
+      sAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
+
+      if ((count & sAsyncBatch) == 0) {
+        if (!sAh.WaitForAtLeast(sAsyncBatch)) {
+          std::cerr << __FUNCTION__ << " Got error response from the backend"
+                    << std::endl;
+          exit(1);
+        }
+
+        std::cout << "Processed " << count << "/" << total << " directories "
+                  << std::endl;
+      }
+    } catch (std::runtime_error& qdb_err) {
+      MDException e(ENOENT);
+      e.getMessage() << "Container #" << container->getId()
+                     << " failed to contact backend";
+      throw e;
+    }
+  }
+}
+
 
 //------------------------------------------------------------------------------
 // Set quota view object reference
@@ -255,7 +350,7 @@ ConvertContainerMDSvc::getFirstFreeId()
 //------------------------------------------------------------------------------
 ConvertFileMDSvc::ConvertFileMDSvc():
   ChangeLogFileMDSvc(), mFirstFreeId(0), mConvQView(nullptr),
-  mConvFsView(nullptr), mCount(0)
+  mConvFsView(nullptr), mCount(0), mSyncTimeAcc(nullptr), mContAcc(nullptr)
 {}
 
 //------------------------------------------------------------------------------
@@ -378,6 +473,19 @@ ConvertFileMDSvc::initialize()
       // Populate the FileSystemView and QuotaView
       mConvQView->addQuotaInfo(file.get());
       mConvFsView->addFileInfo(file.get());
+
+      // Propagate mtime and size up the tree
+      if (mSyncTimeAcc && mContAcc) {
+        mSyncTimeAcc->QueueForUpdate(file->getContainerId());
+        mContAcc->QueueForUpdate(file->getContainerId(), file->getSize(),
+                                 eos::ContainerAccounting::OpType::FILE);
+
+        // Update every 1M files
+        if (mCount % 1000000 == 0) {
+          mSyncTimeAcc->PropagateUpdates();
+          mContAcc->PropagateUpdates();
+        }
+      }
     }
   }
 }
@@ -473,7 +581,7 @@ ConvertQuotaView::commitToBackend()
   eos::common::RWMutexReadLock rd_lock(mRWMutex);
 
   // Export the set of quota nodes
-  // TODO: add sadd with multiple entries
+  // TODO (esindril): add sadd with multiple entries
   for (auto& elem : mSetQuotaIds) {
     sAh.Register(set_quotaids.sadd_async(elem), set_quotaids.getClient());
   }
@@ -703,7 +811,15 @@ main(int argc, char* argv[])
     // Initialize the file meta-data service
     std::cout << "Initialize the file meta-data service" << std::endl;
     file_svc->setContMDService(cont_svc.get());
-    file_svc->configure(config_file);
+    // Create views for sync time and tree size propagation
+    eos::common::RWMutex dummy_ns_mutex;
+    eos::IContainerMDChangeListener* sync_view =
+      new eos::SyncTimeAccounting(conv_cont_svc, &dummy_ns_mutex, 0);
+    eos::IFileMDChangeListener* cont_acc =
+      new eos::ContainerAccounting(conv_cont_svc, &dummy_ns_mutex, 0);
+    conv_file_svc->setSyncTimeAcc(sync_view);
+    conv_file_svc->setContainerAcc(cont_acc);
+    conv_file_svc->configure(config_file);
     std::time_t file_start = std::time(nullptr);
     file_svc->initialize();
 
@@ -723,6 +839,9 @@ main(int argc, char* argv[])
     std::chrono::seconds views_duration {std::time(nullptr) - views_start};
     std::cout << "Quota+FsView init: " << views_duration.count() << " seconds" <<
               std::endl;
+    // Commit the directory information to the backend
+    std::cout << "Commit container info to backend: " << std::endl;
+    conv_cont_svc->CommitToBackend();
     // Save the first free file and container id in the meta_hmap - actually it is
     // the last id since we get the first free id by doing a hincrby operation
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};

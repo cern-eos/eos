@@ -343,12 +343,9 @@ private:
   //--------------------------------------------------------------------------
   struct DataInfo {
     DataInfo(): logOffset(0), ptr((IContainerMD*)0), attached(false) {}
-    DataInfo(uint64_t logOffset, std::shared_ptr<IContainerMD> ptr)
-    {
-      this->logOffset = logOffset;
-      this->ptr = ptr;
-      attached = false;
-    }
+    DataInfo(uint64_t log_offset, std::shared_ptr<IContainerMD> ptr):
+      logOffset(log_offset), ptr(ptr), attached(false) {}
+
     uint64_t logOffset;
     std::shared_ptr<IContainerMD> ptr;
     bool attached;
@@ -390,7 +387,7 @@ private:
   //--------------------------------------------------------------------------
   //! Load the container
   //--------------------------------------------------------------------------
-  void loadContainer(IdMap::iterator& it);
+  virtual void loadContainer(IdMap::iterator& it);
 
   //--------------------------------------------------------------------------
   // Recreate the container structure recursively and create the list
