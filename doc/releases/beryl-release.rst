@@ -7,6 +7,16 @@
 Beryl Release Notes
 ===================
 
+``V0.3.261 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- FST: FST: re-establish 'deleteOnClose' functionality broken since 0.3.259
+
+
+
 ``V0.3.260 Aquamarine``
 =======================
 
