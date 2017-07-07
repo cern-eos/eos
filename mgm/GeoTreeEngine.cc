@@ -2293,8 +2293,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     string oldGeoTag = oldNode->pNodeInfo.fullGeotag;
     oldGeoTag = (oldGeoTag.rfind("::") != std::string::npos) ? oldGeoTag.substr(0,
                 oldGeoTag.rfind("::")) : std::string("");
-    eos_debug("geotag change detected : old geotag is %s   new geotag is %s",
-              oldGeoTag.c_str(), newGeoTag.c_str());
 
     //CHECK IF CHANGE ACTUALLY HAPPENED BEFORE ACTUALLY CHANGING SOMETHING
     if (oldGeoTag != newGeoTag) {
@@ -2310,6 +2308,9 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
         entry->slowTreeMutex.UnLockWrite();
         return false;
       }
+
+      eos_debug("geotag change detected : old geotag is %s   new geotag is %s",
+              oldGeoTag.c_str(), newGeoTag.c_str());
 
       entry->slowTreeModified = true;
       entry->fs2SlowTreeNode[fsid] = newNode;
