@@ -332,7 +332,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
 
     if (!gOFS->ObjectNotifier.SubscribesToSubjectAndKey("geotreeengine",
         fs->GetQueuePath(), gWatchedKeys,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification)) {
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification)) {
       eos_crit("error inserting fs %lu into group %s : error subscribing to "
                "shared object notifications", (unsigned long)fsid,
                group->mName.c_str());
@@ -449,7 +449,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
   {
     if (!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine",
         fs->GetQueuePath(), gWatchedKeys,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification)) {
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification)) {
       mapEntry->slowTreeMutex.UnLockWrite();
       eos_crit("error removing fs %lu into group %s : error unsubscribing to "
                "shared object notifications", (unsigned long)fsid,
@@ -4168,7 +4168,7 @@ GeoTreeEngine::insertHostIntoPxyGr(FsNode* host , const std::string& proxygroup,
     if (gQueue2NotifType.count(hsn.mQueue) == 0 &&
         !gOFS->ObjectNotifier.SubscribesToSubjectAndKey
         ("geotreeengine", hsn.mQueue, gWatchedKeysGw,
-         XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification)) {
+         XrdMqSharedObjectChangeNotifier::kMqSubjectModification)) {
       mapEntry->slowTreeMutex.UnLockWrite();
       eos_crit("error inserting host %s into proxygroup %s : error subscribing "
                "to shared object notifications", url.c_str(), proxygroup.c_str());
@@ -4295,7 +4295,7 @@ GeoTreeEngine::removeHostFromPxyGr(FsNode* host , const std::string& proxygroup,
       1) { // this is the proxygroup for this host, no need to get notifications anymore
     if (!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine", queue,
         gWatchedKeysGw,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification)) {
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification)) {
       mapEntry->slowTreeMutex.UnLockWrite();
       eos_crit("error removing host %s into proxygroup %s : error unsubscribing"
                " to shared object notifications", url.c_str(), proxygroup.c_str());
