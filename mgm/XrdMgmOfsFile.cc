@@ -1689,7 +1689,7 @@ XrdMgmOfsFile::open (const char *inpath,
 	    
 	    if (isRecreation)
 	    {
-	      fmd->clearLocations();
+	      fmd->unlinkAllLocations();
 	    }
             for (int i = 0; i < (int) selectedfs.size(); i++)
             {
