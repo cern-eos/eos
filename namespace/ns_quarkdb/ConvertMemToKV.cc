@@ -841,14 +841,21 @@ main(int argc, char* argv[])
               std::endl;
     // Commit the directory information to the backend
     std::cout << "Commit container info to backend: " << std::endl;
-    conv_cont_svc->CommitToBackend();
+
+    try {
+      conv_cont_svc->CommitToBackend();
+    } catch (eos::MDException& e) {
+      std::cerr << "Exception thrown: " << e.what() << std::endl;
+      return 1;
+    }
+
     // Save the first free file and container id in the meta_hmap - actually it is
     // the last id since we get the first free id by doing a hincrby operation
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
     meta_map.hset(eos::constants::sFirstFreeFid, file_svc->getFirstFreeId() - 1);
     meta_map.hset(eos::constants::sFirstFreeCid, cont_svc->getFirstFreeId() - 1);
   } catch (std::runtime_error& e) {
-    std::cerr << e.what() << std::endl;
+    std::cerr << "Exception thrown: " << e.what() << std::endl;
     return 1;
   }
 
