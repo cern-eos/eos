@@ -225,28 +225,29 @@ Storage::Publish()
               }
             }
           }
-          // Retrieve Statistics from the local db
-          std::map<std::string, size_t>::const_iterator isit;
+          
+          // Retrieve Statistics from the SQLITE DB
+//          std::map<std::string, size_t>::const_iterator isit;
           bool success = true;
 
-          if (mFsVect[i]->GetStatus() == eos::common::FileSystem::kBooted) {
-            if (next_consistency_stats < now) {
-              eos_static_debug("msg=\"publish consistency stats\"");
-              last_consistency_stats = now;
-              XrdSysMutexHelper ISLock(mFsVect[i]->InconsistencyStatsMutex);
-              gFmdDbMapHandler.GetInconsistencyStatistics(fsid,
-                  *mFsVect[i]->GetInconsistencyStats(),
-                  *mFsVect[i]->GetInconsistencySets());
-
-              for (isit = mFsVect[i]->GetInconsistencyStats()->begin();
-                   isit != mFsVect[i]->GetInconsistencyStats()->end(); isit++) {
-                //eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
-                std::string sname = "stat.fsck.";
-                sname += isit->first;
-                success &= mFsVect[i]->SetLongLong(sname.c_str(), isit->second);
-              }
-            }
-          }
+//          if (mFsVect[i]->GetStatus() == eos::common::FileSystem::kBooted) {
+//            if (next_consistency_stats < now) {
+//              eos_static_debug("msg=\"publish consistency stats\"");
+//              last_consistency_stats = now;
+//              XrdSysMutexHelper ISLock(mFsVect[i]->InconsistencyStatsMutex);
+//              gFmdDbMapHandler.GetInconsistencyStatistics(fsid,
+//                  *mFsVect[i]->GetInconsistencyStats(),
+//                  *mFsVect[i]->GetInconsistencySets());
+//
+//              for (isit = mFsVect[i]->GetInconsistencyStats()->begin();
+//                   isit != mFsVect[i]->GetInconsistencyStats()->end(); isit++) {
+//                //eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
+//                std::string sname = "stat.fsck.";
+//                sname += isit->first;
+//                success &= mFsVect[i]->SetLongLong(sname.c_str(), isit->second);
+//              }
+//            }
+//          }
 
           eos::common::Statfs* statfs = 0;
 

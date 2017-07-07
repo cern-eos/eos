@@ -27,7 +27,6 @@
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
-#include "common/StringConversion.hh"
 #include "common/Mapping.hh"
 #include "mgm/Fsck.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -58,6 +57,8 @@ Fsck::~Fsck()
   if (mRunning) {
     Stop(false);
   }
+
+  delete mInconsistencies;
 }
 
 //------------------------------------------------------------------------------
@@ -1558,6 +1559,146 @@ Fsck::ResetErrorMaps()
   eFsUnavail.clear();
   eFsDark.clear();
   eTimeStamp = time(NULL);
+}
+
+std::map<std::string, std::map<unsigned long long, std::list<unsigned long long>>>*
+Fsck::RetrieveInconsistencies() {
+  cerr << "Called RetrieveInconsistencies" << endl;
+  auto inconPtr = new std::map<std::string, std::map<unsigned long long, std::list<unsigned long long>>>{};
+  for(auto& inconsistency : XrdMgmOfs::MgmFsckDirs) {
+    auto inconsistentFilesMap = std::map<unsigned long long, std::list<unsigned long long>>{};
+
+    std::string incContPath = std::string(gOFS->MgmProcFsckPath.c_str()) + "/" + inconsistency;
+    auto container = gOFS->eosView->getContainer(incContPath);
+    for(auto& fsid : container->getNameContainers()) {
+      auto con =  gOFS->eosView->getContainer(incContPath + "/" + fsid);
+      auto fidList = std::list<unsigned long long>{};
+      for(auto& fid : con->getNameFiles()) {
+        cerr << "inconsistency: " << inconsistency << ", fsid:" << fsid << ", fid:" << fid << endl;
+        fidList.emplace_back(stoull(fid));
+      }
+      inconsistentFilesMap[stoull(fsid)] = std::move(fidList);
+    }
+
+    (*inconPtr)[inconsistency] = std::move(inconsistentFilesMap);
+  }
+
+  return inconPtr;
+}
+
+void
+Fsck::UpdateInconsistenciesIfNeeded() {
+  bool isInvalid = false;
+  {
+    XrdSysRWLockHelper lock(mIncMutex, true);
+    isInvalid = mInconsistencies == nullptr;
+  }
+
+  auto now = std::chrono::steady_clock::now();
+  if(std::chrono::duration_cast<std::chrono::minutes>(now - mUpdatedAt).count() >= mInvalidAfter || isInvalid) {
+    {
+      XrdSysMutexHelper updateLock(mIncUpdateMutex);
+      if(mIsUpdatingInconsistencies) {
+        return;
+      }
+      else {
+        mIsUpdatingInconsistencies = true;
+      }
+    }
+
+    auto updatedInconsistencies = RetrieveInconsistencies();
+    if(updatedInconsistencies != nullptr){
+      XrdSysRWLockHelper lock(mIncMutex, false);
+      delete mInconsistencies;
+      mInconsistencies = updatedInconsistencies;
+      mUpdatedAt = std::move(now);
+    }
+
+    XrdSysMutexHelper updateLock(mIncUpdateMutex);
+    mIsUpdatingInconsistencies = false;
+  }
+}
+
+void
+Fsck::Stat(XrdOucString& out) {
+  UpdateInconsistenciesIfNeeded();
+
+  std::ostringstream outBuff;
+  XrdSysRWLockHelper lock(mIncMutex, true);
+
+  auto fsNumber = mInconsistencies->empty() ? 0 : mInconsistencies->begin()->second.size();
+  outBuff << "Filesystems checked: " << fsNumber << endl;
+
+  for(auto& inconsistency : XrdMgmOfs::MgmFsckDirs) {
+    outBuff << inconsistency << ": ";
+    auto count = 0ul;
+    for(auto& pair : (*mInconsistencies)[inconsistency]) {
+      count += pair.second.size();
+    }
+    outBuff << count << endl;
+  }
+
+  out = outBuff.str().c_str();
+}
+
+void
+Fsck::ReportNew(XrdOucString& out, XrdOucString option) {
+  UpdateInconsistenciesIfNeeded();
+
+  auto fileNameDisplayFunc = [](unsigned long long fid, unsigned long long fsid) {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    try {
+      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
+      return "\"" + gOFS->eosView->getUri(fmd.get()) + "\"";
+    } catch (eos::MDException& e) {
+      return std::string("\"undefined\"");
+    }
+  };
+
+  auto fileFidFsidDisplayFunc = [](unsigned long long fid, unsigned long long fsid) {
+    std::ostringstream displayBuff;
+    displayBuff << "{fsid: " << fsid << ", fid: " << fid << "}";
+    return displayBuff.str();
+  };
+
+  auto fileFidDisplayFunc = [](unsigned long long fid, unsigned long long fsid) {
+    return std::to_string(fid);
+  };
+
+  bool printlfn = (option.find("l") != STR_NPOS);
+  bool perfsid = (option.find("a") != STR_NPOS);
+
+  std::ostringstream outBuff;
+  XrdSysRWLockHelper lock(mIncMutex, true);
+
+  const char* separator;
+  for(auto& inconsistency : XrdMgmOfs::MgmFsckDirs) {
+    outBuff << inconsistency << endl;
+    for(auto& pair : (*mInconsistencies)[inconsistency]) {
+      if (!pair.second.empty()) {
+        separator = "";
+        if(perfsid){
+          outBuff << "fsid=" << pair.first << ", n=" << pair.second.size() << endl;
+          for(auto& fid : pair.second) {
+            auto fileDisplay = printlfn ? fileNameDisplayFunc(fid, pair.first) : fileFidDisplayFunc(fid, pair.first);
+            outBuff << separator << std::move(fileDisplay);
+            separator = ",";
+          }
+        }
+        else {
+          for(auto& fid : pair.second) {
+            auto fileDisplay = printlfn ? fileNameDisplayFunc(fid, pair.first) : fileFidFsidDisplayFunc(fid, pair.first);
+            outBuff << separator << std::move(fileDisplay);
+            separator = ",";
+          }
+        }
+        outBuff << endl;
+      }
+    }
+    outBuff << endl;
+  }
+
+  out = outBuff.str().c_str();
 }
 
 EOSMGMNAMESPACE_END

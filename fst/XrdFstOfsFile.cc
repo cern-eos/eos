@@ -900,6 +900,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
             Fmd fmd = gFmdAttributeHandler.FmdAttrGet(layOut->GetFileIo());
             fMd = new FmdHelper(fileid, fsid);
             fMd->Replicate(fmd);
+            gFmdAttributeHandler.ReportFmdInconsistency(fmd);
           } catch (fmd_attribute_error& error) {
             fMd = nullptr;
           }

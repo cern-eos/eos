@@ -32,6 +32,7 @@
 #include <stdarg.h>
 #include <map>
 #include <set>
+#include <chrono>
 
 //------------------------------------------------------------------------------
 //! @file Fsck.hh
@@ -136,9 +137,15 @@ public:
   //----------------------------------------------------------------------------
   void* Check();
 
+  void Stat(XrdOucString& out);
+
+  void ReportNew(XrdOucString& out, XrdOucString option);
+
 private:
   XrdOucString mLog; ///< In-memory FSCK log
   XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
+  XrdSysRWLock mIncMutex; ///< Mutex protecting the in-memory inconsistencies
+  XrdSysMutex mIncUpdateMutex; ///< Mutex protecting the updating flag
   XrdOucString mEnabled; ///< True if collection thread is active
   int mInterval; ///< Interval in min between two FSCK collection loops
   pthread_t mThread; ///< Collection thread id
@@ -158,10 +165,19 @@ private:
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsDark;
   time_t eTimeStamp; ///< Timestamp of collection
 
+  std::chrono::time_point<std::chrono::steady_clock> mUpdatedAt = std::chrono::steady_clock::now();
+  std::map<std::string, std::map<unsigned long long, std::list<unsigned long long>>>* mInconsistencies = nullptr;
+  bool mIsUpdatingInconsistencies = false;
+  static constexpr auto mInvalidAfter = 2;
+
   //----------------------------------------------------------------------------
   //! Reset all collected errors in the error map
   //----------------------------------------------------------------------------
   void ResetErrorMaps();
+
+  std::map<std::string, std::map<unsigned long long, std::list<unsigned long long>>>* RetrieveInconsistencies();
+
+  void UpdateInconsistenciesIfNeeded();
 };
 
 EOSMGMNAMESPACE_END

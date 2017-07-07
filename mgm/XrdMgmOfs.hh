@@ -912,6 +912,15 @@ public:
             eos::common::Mapping::VirtualIdentity& vid
            );
 
+  //! @brief Creates a fsck file entry for an inconsistent file
+  //! @param fid id of the file
+  //! @param fsid file system of the file
+  //! @param inconsistency type of the inconsistency
+  //! @return
+  int fsck(const XrdOucString& fid,
+           const XrdOucString& fsid,
+           const XrdOucString& inconsistency);
+
   // ---------------------------------------------------------------------------
   // create a versioned file
   // ---------------------------------------------------------------------------
@@ -1222,6 +1231,10 @@ public:
   //------------------------------------------------------------------------------
   static int32_t DiscoverPlatformServices(const char* svc_name, void* opaque);
 
+  void CreateContainer(const XrdOucString& containerPath);
+
+  void RemoveContainer(const XrdOucString& containerPath);
+
   //----------------------------------------------------------------------------
   // Configuration variables
   //----------------------------------------------------------------------------
@@ -1257,6 +1270,9 @@ public:
   XrdOucString MgmProcWorkflowPath; ///< Directory with worflows
   XrdOucString MgmProcLockPath; ///< Directory with client locks
   XrdOucString MgmProcDelegationPath; ///< Directory with client delegations
+  XrdOucString MgmProcFsckPath; ///< Directory for fsck statistics
+  ///< Fsck statistics subdirectories
+  static const std::set<std::string> MgmFsckDirs;
   //! Full path to the master indication proc file
   XrdOucString MgmProcMasterPath;
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
@@ -1539,6 +1555,15 @@ private:
   //! Stop the submitted thread and join
   //------------------------------------------------------------------------------
   void StopArchiveSubmitter();
+
+  //------------------------------------------------------------------------------
+  //! Cast a change message to all fusex clients
+  //!
+  //! @param inode input innode
+  //------------------------------------------------------------------------------
+  void FuseXCast(uint64_t inode);
+
+  void CreateFileWithSize(const XrdOucString& filePath, unsigned int size);
 };
 
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

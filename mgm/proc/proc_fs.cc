@@ -654,6 +654,12 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
       }
     }
 
+    if (retc == 0) {
+      for(auto& fsckDir : XrdMgmOfs::MgmFsckDirs) {
+        gOFS->CreateContainer(gOFS->MgmProcFsckPath + "/" + fsckDir.c_str() + "/" + std::to_string(fsid).c_str());
+      }
+    }
+
     // ========> ViewMutex WRITEUnLOCK
     FsView::gFsView.ViewMutex.UnLockWrite();
   }
@@ -1207,6 +1213,12 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
     stdErr += id.c_str();
     stdErr += " ";
     retc = EINVAL;
+  }
+
+  if (retc == 0) {
+    for(auto& fsckDir : XrdMgmOfs::MgmFsckDirs) {
+      gOFS->RemoveContainer(gOFS->MgmProcFsckPath + "/" + fsckDir.c_str() + "/" + std::to_string(fsid).c_str());
+    }
   }
 
   return retc;

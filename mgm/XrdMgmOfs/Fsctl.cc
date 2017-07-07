@@ -404,6 +404,12 @@ XrdMgmOfs::FSctl(const int cmd,
       return SFS_DATA;
     }
 
+    if(execmd == "fsck") {
+      if(gOFS->fsck(env.Get("mgm.file.id"), env.Get("mgm.file.fsid"), env.Get("mgm.file.inconsistency")) == SFS_OK) {
+        return SFS_DATA;
+      }
+    }
+
     eos_thread_err("No implementation for %s", execmd.c_str());
   }
 

@@ -148,6 +148,7 @@ XrdMgmOfs::InitializeFileView()
         procpathreconnect += "/reconnect";
         XrdOucString procpathmaster = MgmProcPath;
         procpathmaster += "/master";
+
         XrdOucErrInfo error;
         eos::common::Mapping::VirtualIdentity vid;
         eos::common::Mapping::Root(vid);
@@ -1571,6 +1572,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmProcLockPath += "/lock";
   MgmProcDelegationPath = MgmProcPath;
   MgmProcDelegationPath += "/delegation";
+  MgmProcFsckPath = MgmProcPath;
+  MgmProcFsckPath += "/fsck";
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
   instancepath += subpath;
   // Initialize user mapping
@@ -1801,6 +1804,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         return 1;
       }
     }
+
+    CreateContainer(MgmProcFsckPath);
+    for (auto& fsckDir : XrdMgmOfs::MgmFsckDirs) {
+      CreateContainer(MgmProcFsckPath + "/" + fsckDir.c_str());
+    }
+
+    // Set also the archiverd ZMQ endpoint were client requests are sent
+    std::ostringstream oss;
+    oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
+    mArchiveEndpoint = oss.str();
   }
 
   // Set also the archiverd ZMQ endpoint were client requests are sent

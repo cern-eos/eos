@@ -424,8 +424,6 @@ Storage::Boot(FileSystem* fs)
     gOFS.WNoDeleteOnCloseFid[fsid].set_deleted_key(0);
   }
 
-  bool fast_boot = (!getenv("EOS_FST_NO_FAST_BOOT")) ||
-                   (strcmp(getenv("EOS_FST_NO_FAST_BOOT"), "1"));
   bool resyncmgm = (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync);
   bool resyncdisk = (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced);
   eos_info("msg=\"start disk synchronisation\"");
@@ -465,14 +463,6 @@ Storage::Boot(FileSystem* fs)
     eos_info("msg=\"skip mgm resynchronization - had clean shutdown\" fsid=%lu",
              (unsigned long) fsid);
   }
-
-  // indicate the flag to unset the DB dirty flag at shutdown
-//  gFmdDbMapHandler.StayDirty(fsid, false);
-//
-//  // allows fast boot the next time
-//  if (fast_boot) {
-//    gFmdDbMapHandler.MarkCleanDB(fsid);
-//  }
 
   // Check if there is a label on the disk and if the configuration shows the
   // same fsid + uuid

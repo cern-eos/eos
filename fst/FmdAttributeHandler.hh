@@ -39,9 +39,9 @@ protected:
 
   void CreateFileAndSetFmd(FileIo* fileIo, Fmd& fmd, eos::common::FileSystem::fsid_t fsid) const;
 
-  inline bool isFmdUpdated(const Fmd& oldFmd, const Fmd& newFmd) const;
+  inline bool IsFmdUpdated(const Fmd& oldFmd, const Fmd& newFmd) const;
 
-  XrdOucString fullPathOfFile(eos::common::FileId::fileid_t fid,
+  XrdOucString FullPathOfFile(eos::common::FileId::fileid_t fid,
                               eos::common::FileSystem::fsid_t fsid,
                               XrdOucEnv* env = nullptr) const;
 
@@ -123,25 +123,32 @@ public:
 
   bool ResyncDisk(const char* path, eos::common::FileSystem::fsid_t fsid, bool flaglayouterror) const;
 
-  bool ResyncAllDisk(const char* path, eos::common::FileSystem::fsid_t fsid,  bool flaglayouterror);
+  bool ResyncAllDisk(const char* path, eos::common::FileSystem::fsid_t fsid, bool flaglayouterror);
+
+  void ReportFmdInconsistency(const std::string& filePath, eos::common::FileId::fileid_t fid,
+                              eos::common::FileSystem::fsid_t fsid) const;
+
+  void ReportFmdInconsistency(const Fmd& fmd) const;
 
   //! Constructor to create the handler object
   //! \param fmdClient pointer to the \see FmdClient object, default value is the globally available client object
-  explicit FmdAttributeHandler(FmdClient* fmdClient = &gFmdClient): fmdClient(fmdClient) {}
+  explicit FmdAttributeHandler(FmdClient* fmdClient = &gFmdClient) : fmdClient(fmdClient) {}
 
   virtual ~FmdAttributeHandler() {};
 
-  FmdAttributeHandler (FmdAttributeHandler&) = delete;
+  FmdAttributeHandler(FmdAttributeHandler&) = delete;
 
-  FmdAttributeHandler& operator= (FmdAttributeHandler&) = delete;
+  FmdAttributeHandler&
+  operator=(FmdAttributeHandler&) = delete;
 
-  FmdAttributeHandler (FmdAttributeHandler&&) = delete;
+  FmdAttributeHandler(FmdAttributeHandler&&) = delete;
 
-  FmdAttributeHandler& operator= (FmdAttributeHandler&&) = delete;
+  FmdAttributeHandler&
+  operator=(FmdAttributeHandler&&) = delete;
 };
 
 struct fmd_attribute_error : public std::runtime_error {
-  explicit fmd_attribute_error(const std::string& message) : std::runtime_error {message} {}
+  explicit fmd_attribute_error(const std::string& message) : std::runtime_error{message} {}
 };
 
 extern FmdAttributeHandler gFmdAttributeHandler;

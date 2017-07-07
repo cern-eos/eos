@@ -90,6 +90,7 @@ XrdSysError* XrdMgmOfs::eDest;
 XrdOucTrace gMgmOfsTrace(&gMgmOfsEroute);
 const char* XrdMgmOfs::gNameSpaceState[] = {"down", "booting", "booted", "failed", "compacting"};
 XrdMgmOfs* gOFS = 0;
+const std::set<std::string> XrdMgmOfs::MgmFsckDirs = {"m_cx_diff", "rep_diff_n", "d_mem_sz_diff", "unreg_n"};
 
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem, MgmOfs);
@@ -770,8 +771,7 @@ XrdMgmOfs::DiscoverPlatformServices(const char* svc_name, void* opaque)
 // Cast a change message to all fusex clients
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::FuseXCast(uint64_t inode)
-{
+XrdMgmOfs::FuseXCast(uint64_t inode) {
   gOFS->zMQ->gFuseServer.Cap().BroadcastReleaseFromExternal(inode);
 }
 
@@ -779,8 +779,58 @@ XrdMgmOfs::FuseXCast(uint64_t inode)
 //! Check if name space is booted
 //----------------------------------------------------------------------------
 bool
-XrdMgmOfs::IsNsBooted() const
-{
+XrdMgmOfs::IsNsBooted() const {
   XrdSysMutexHelper lock(InitializationMutex);
   return Initialized == kBooted;
+}
+
+void
+XrdMgmOfs::CreateFileWithSize(const XrdOucString& filePath, unsigned int size) {
+  std::shared_ptr<eos::IFileMD> fmd;
+
+  try {
+    fmd = eosView->getFile(filePath.c_str());
+    fmd.reset();
+  } catch (eos::MDException& e) {
+    fmd = eosView->createFile(filePath.c_str(), 0, 0);
+  }
+
+  if (fmd) {
+    fmd->setSize(size);
+    eosView->updateFileStore(fmd.get());
+  }
+}
+
+void
+XrdMgmOfs::CreateContainer(const XrdOucString& containerPath) {
+  try {
+    eosView->getContainer(containerPath.c_str());
+  } catch (eos::MDException& e) {
+    eosView->createContainer(containerPath.c_str(), true);
+  }
+}
+
+void
+XrdMgmOfs::RemoveContainer(const XrdOucString& containerPath) {
+  try {
+    eosView->removeContainer(containerPath.c_str(), true);
+  } catch (eos::MDException& e) {}
+}
+
+int
+XrdMgmOfs::fsck(const XrdOucString& fid, const XrdOucString& fsid, const XrdOucString& inconsistency) {
+  XrdOucString filePath = MgmProcFsckPath + "/" + inconsistency + "/" + fsid + "/" + fid;
+  std::shared_ptr<eos::IFileMD> fmd;
+  try {
+    fmd = eosView->getFile(filePath.c_str());
+  } catch (eos::MDException& e) {
+    fmd = eosView->createFile(filePath.c_str(), 0, 0);
+  }
+
+  if(fmd) {
+    return SFS_OK;
+  }
+  else {
+    return SFS_ERROR;
+  }
 }

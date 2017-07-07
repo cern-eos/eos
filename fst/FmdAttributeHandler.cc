@@ -34,11 +34,12 @@ EOSFSTNAMESPACE_BEGIN
 
 FmdAttributeHandler gFmdAttributeHandler{&gFmdClient};
 
-Fmd FmdAttributeHandler::FmdAttrGet(FileIo* fileIo) const {
+Fmd
+FmdAttributeHandler::FmdAttrGet(FileIo* fileIo) const {
   std::string fmdAttrValue;
   int result = fileIo->attrGet(FmdAttributeHandler::fmdAttrName, fmdAttrValue);
 
-  if(result != 0){
+  if (result != 0) {
     throw fmd_attribute_error {std::string("Meta data attribute is not present for file: ") + fileIo->GetPath()};
   }
 
@@ -48,41 +49,47 @@ Fmd FmdAttributeHandler::FmdAttrGet(FileIo* fileIo) const {
   return fmd;
 }
 
-Fmd FmdAttributeHandler::FmdAttrGet(const std::string& filePath) const {
+Fmd
+FmdAttributeHandler::FmdAttrGet(const std::string& filePath) const {
   FsIo fsIo{filePath};
   return FmdAttrGet(&fsIo);
 }
 
-Fmd FmdAttributeHandler::FmdAttrGet(eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
-                                    XrdOucEnv* env) const {
-  FsIo fsIo{fullPathOfFile(fid, fsid, env).c_str()};
+Fmd
+FmdAttributeHandler::FmdAttrGet(eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
+                                XrdOucEnv* env) const {
+  FsIo fsIo{FullPathOfFile(fid, fsid, env).c_str()};
   return FmdAttrGet(&fsIo);
 }
 
-void FmdAttributeHandler::FmdAttrSet(FileIo* fileIo, const Fmd& fmd) const {
+void
+FmdAttributeHandler::FmdAttrSet(FileIo* fileIo, const Fmd& fmd) const {
   eos_info("fmd=%s", fmd.DebugString().c_str());
   int result = fileIo->attrSet(FmdAttributeHandler::fmdAttrName, fmd.SerializePartialAsString());
 
-  if(result != 0){
+  if (result != 0) {
     throw fmd_attribute_error {"Could not set meta data attribute for the file."};
   }
 }
 
-void FmdAttributeHandler::FmdAttrSet(const Fmd& fmd, eos::common::FileId::fileid_t fid,
-                                     eos::common::FileSystem::fsid_t fsid, XrdOucEnv* env) const {
-  FsIo fsIo{fullPathOfFile(fid, fsid, env).c_str()};
+void
+FmdAttributeHandler::FmdAttrSet(const Fmd& fmd, eos::common::FileId::fileid_t fid,
+                                eos::common::FileSystem::fsid_t fsid, XrdOucEnv* env) const {
+  FsIo fsIo{FullPathOfFile(fid, fsid, env).c_str()};
   FmdAttrSet(&fsIo, fmd);
 }
 
-void FmdAttributeHandler::FmdAttrDelete(FileIo* fileIo) const {
-  if(fileIo->attrDelete(FmdAttributeHandler::fmdAttrName) != 0){
+void
+FmdAttributeHandler::FmdAttrDelete(FileIo* fileIo) const {
+  if (fileIo->attrDelete(FmdAttributeHandler::fmdAttrName) != 0) {
     throw fmd_attribute_error {"Could not delete meta data attribute for the file."};
   }
 }
 
-void FmdAttributeHandler::CreateFileAndSetFmd(FileIo* fileIo, Fmd& fmd, eos::common::FileSystem::fsid_t fsid) const {
+void
+FmdAttributeHandler::CreateFileAndSetFmd(FileIo* fileIo, Fmd& fmd, eos::common::FileSystem::fsid_t fsid) const {
   // check if it exists on disk
-  if(fileIo->fileExists() != 0) {
+  if (fileIo->fileExists() != 0) {
     FsIo fsIo(fileIo->GetPath());
     fsIo.fileOpen(SFS_O_CREAT | SFS_O_RDWR);
     fsIo.fileClose();
@@ -95,8 +102,9 @@ void FmdAttributeHandler::CreateFileAndSetFmd(FileIo* fileIo, Fmd& fmd, eos::com
   FmdAttrSet(fileIo, fmd);
 }
 
-bool FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsid_t fsid,
-                                    eos::common::FileId::fileid_t fid, const char* manager) const {
+bool
+FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsid_t fsid,
+                               eos::common::FileId::fileid_t fid, const char* manager) const {
   struct Fmd fmd;
   bool fmdUpdated = false;
 
@@ -115,10 +123,10 @@ bool FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsi
   int rc = fmdClient->GetMgmFmd(manager, fid, fmd);
 
   if (rc == 0) {
-    if(!fmdUpdated){
-      fmdUpdated = isFmdUpdated(oldFmd, fmd);
+    if (!fmdUpdated) {
+      fmdUpdated = IsFmdUpdated(oldFmd, fmd);
 
-      if(!fmdUpdated){
+      if (!fmdUpdated) {
         eos_info("meta data is up to date for fid=%llu", fid);
         return true;
       }
@@ -137,8 +145,7 @@ bool FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsi
   } else {
     if (rc == ENODATA) {
       eos_warning("no such file on MGM for fid=%llu", fid);
-    }
-    else {
+    } else {
       eos_err("failed to retrieve MGM fmd for fid=%08llx", fid);
     }
 
@@ -148,18 +155,21 @@ bool FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsi
   return true;
 }
 
-bool FmdAttributeHandler::ResyncMgm(const std::string& filePath, eos::common::FileSystem::fsid_t fsid,
-                                    eos::common::FileId::fileid_t fid, const char* manager) const {
+bool
+FmdAttributeHandler::ResyncMgm(const std::string& filePath, eos::common::FileSystem::fsid_t fsid,
+                               eos::common::FileId::fileid_t fid, const char* manager) const {
   FsIo fsIo{filePath};
   return ResyncMgm(&fsIo, fsid, fid, manager);
 }
 
-bool FmdAttributeHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid,
-                                    const char* manager) const {
-  return ResyncMgm(fullPathOfFile(fid, fsid).c_str(), fsid, fid, manager);
+bool
+FmdAttributeHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid,
+                               const char* manager) const {
+  return ResyncMgm(FullPathOfFile(fid, fsid).c_str(), fsid, fid, manager);
 }
 
-bool FmdAttributeHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char* manager) {
+bool
+FmdAttributeHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char* manager) {
 
   XrdOucString consolestring = "/proc/admin/?&mgm.format=fuse&mgm.cmd=fs&"
     "mgm.subcmd=dumpmd&mgm.dumpmd.storetime=1&mgm.dumpmd.option=m&mgm.fsid=";
@@ -200,7 +210,7 @@ bool FmdAttributeHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, con
   while (std::getline(inFile, dumpentry)) {
     cnt++;
     eos_debug("line=%s", dumpentry.c_str());
-    std::unique_ptr<XrdOucEnv> env { new XrdOucEnv(dumpentry.c_str()) };
+    std::unique_ptr<XrdOucEnv> env{new XrdOucEnv(dumpentry.c_str())};
 
     if (env != nullptr) {
       struct Fmd fMd;
@@ -209,7 +219,7 @@ bool FmdAttributeHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, con
       if (fmdClient->EnvMgmToFmdSqlite(*env, fMd)) {
         fMd.set_layouterror(FmdHelper::LayoutError(fsid, fMd.lid(), fMd.locations()));
 
-        XrdOucString filePath = fullPathOfFile(fMd.fid(), fsid, env.get());
+        XrdOucString filePath = FullPathOfFile(fMd.fid(), fsid, env.get());
 
         try {
           FsIo fsIo{filePath.c_str()};
@@ -234,8 +244,9 @@ bool FmdAttributeHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, con
   return true;
 }
 
-bool FmdAttributeHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_t fsid,
-                                     bool flaglayouterror) const {
+bool
+FmdAttributeHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_t fsid,
+                                bool flaglayouterror) const {
   bool retc = true;
   eos::common::Path cPath(path);
   eos::common::FileId::fileid_t fid = eos::common::FileId::Hex2Fid(cPath.GetName());
@@ -326,8 +337,9 @@ bool FmdAttributeHandler::ResyncDisk(const char* path, eos::common::FileSystem::
   return retc;
 }
 
-bool FmdAttributeHandler::ResyncAllDisk(const char* path, eos::common::FileSystem::fsid_t fsid,
-                                        bool flaglayouterror) {
+bool
+FmdAttributeHandler::ResyncAllDisk(const char* path, eos::common::FileSystem::fsid_t fsid,
+                                   bool flaglayouterror) {
   char** paths = (char**) calloc(2, sizeof(char*));
 
   if (!paths) {
@@ -385,9 +397,10 @@ bool FmdAttributeHandler::ResyncAllDisk(const char* path, eos::common::FileSyste
   return true;
 }
 
-XrdOucString FmdAttributeHandler::fullPathOfFile(eos::common::FileId::fileid_t fid,
-                                                 eos::common::FileSystem::fsid_t fsid,
-                                                 XrdOucEnv* env) const {
+XrdOucString
+FmdAttributeHandler::FullPathOfFile(eos::common::FileId::fileid_t fid,
+                                    eos::common::FileSystem::fsid_t fsid,
+                                    XrdOucEnv* env) const {
   XrdOucString hexId;
   eos::common::FileId::Fid2Hex(fid, hexId);
   XrdOucString filePath;
@@ -395,7 +408,8 @@ XrdOucString FmdAttributeHandler::fullPathOfFile(eos::common::FileId::fileid_t f
   return filePath;
 }
 
-inline bool FmdAttributeHandler::isFmdUpdated(const Fmd& oldFmd, const Fmd& newFmd) const {
+inline bool
+FmdAttributeHandler::IsFmdUpdated(const Fmd& oldFmd, const Fmd& newFmd) const {
   return (oldFmd.fid() != newFmd.fid() ||
           oldFmd.cid() != newFmd.cid() ||
           oldFmd.ctime() != newFmd.ctime() ||
@@ -407,6 +421,78 @@ inline bool FmdAttributeHandler::isFmdUpdated(const Fmd& oldFmd, const Fmd& newF
           oldFmd.lid() != newFmd.lid() ||
           oldFmd.uid() != newFmd.uid() ||
           oldFmd.gid() != newFmd.gid());
+}
+
+void
+FmdAttributeHandler::ReportFmdInconsistency(const std::string& filePath, eos::common::FileId::fileid_t fid,
+                                            eos::common::FileSystem::fsid_t fsid) const {
+  Fmd fmd;
+  try {
+    fmd = FmdAttrGet(filePath);
+  } catch (fmd_attribute_error& error) {
+    eos_err("Could not get meta data for fid=%llu, fsid=%llu", fid, fsid);
+    return;
+  }
+
+  ReportFmdInconsistency(fmd);
+}
+
+void
+FmdAttributeHandler::ReportFmdInconsistency(const Fmd& fmd) const {
+  auto fid = fmd.fid();
+  auto fsid = fmd.fsid();
+
+  XrdOucString fsckOpaque = "/?mgm.pcmd=fsck&mgm.file.id=";
+  fsckOpaque += std::to_string(fid).c_str();
+  fsckOpaque += "&mgm.file.fsid=";
+  fsckOpaque += std::to_string(fsid).c_str();
+  XrdOucErrInfo error;
+
+  if (fmd.layouterror() & eos::common::LayoutId::kUnregistered) {
+    XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=unreg_n";
+    error.Reset();
+    int rc = gOFS.CallManager(&error, "/", nullptr, opaqueWithInconsistency);
+    if(rc != 0) {
+      eos_err("Could not report unreg_n inconsistency to mgm for fid: %llu, fsid: %llu. Error: %s",
+              fid, fsid, error.getErrText());
+    }
+  }
+
+  if (fmd.layouterror() & eos::common::LayoutId::kReplicaWrong) {
+    XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=rep_diff_n";
+    error.Reset();
+    int rc = gOFS.CallManager(&error, "/", nullptr, opaqueWithInconsistency);
+    if(rc != 0) {
+      eos_err("Could not report rep_diff_n inconsistency to mgm for fid: %llu, fsid: %llu. Error: %s",
+              fid, fsid, error.getErrText());
+    }
+  }
+
+  if (!fmd.layouterror()) {
+    if (fmd.size() && fmd.mgmchecksum().length() && (fmd.mgmchecksum() != fmd.checksum())) {
+      XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=m_cx_diff";
+      error.Reset();
+      int rc = gOFS.CallManager(&error, "/", nullptr, opaqueWithInconsistency);
+      if(rc != 0) {
+        eos_err("Could not report m_cx_diff inconsistency to mgm for fid: %llu, fsid: %llu. Error: %s",
+                fid, fsid, error.getErrText());
+      }
+    }
+  }
+
+  if (fmd.disksize() != 0xfffffffffff1ULL) {
+    if (fmd.size() != 0xfffffffffff1ULL) {
+      if (fmd.size() != fmd.disksize()) {
+        XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=d_mem_sz_diff";
+        error.Reset();
+        int rc = gOFS.CallManager(&error, "/", nullptr, opaqueWithInconsistency);
+        if(rc != 0) {
+          eos_err("Could not report d_mem_sz_diff inconsistency to mgm for fid: %llu, fsid: %llu. Error: %s",
+                  fid, fsid, error.getErrText());
+        }
+      }
+    }
+  }
 }
 
 EOSFSTNAMESPACE_END
