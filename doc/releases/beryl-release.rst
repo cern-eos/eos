@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.262 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- MGM: fix computation of wake-up time for the recycle bin - old code slept too long before waking up
+
 ``V0.3.261 Aquamarine``
 =======================
 
