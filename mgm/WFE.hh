@@ -64,6 +64,9 @@ private:
   /// this are all jobs which are queued and didn't run yet
   size_t mActiveJobs;
 
+  /// indicates if the job is still in the initial 'q' queue or has been scheduled to avoid rescheduling
+  bool mScheduled;
+
   /// condition variabl to get signalled for a done job
   XrdSysCondVar mDoneSignal;
 
@@ -222,6 +225,10 @@ public:
 
     bool IsSync() {return (mActions[0].mEvent.substr(0,6) == "sync::");}
 
+    bool IsScheduled() { return mScheduled; }
+    bool SetScheduled() { mScheduled=true; } 
+    bool SetUnscheduled() { mScheduled=false; } 
+    
     std::vector<Action> mActions;
     eos::common::FileId::fileid_t mFid;
     std::string mDescription;

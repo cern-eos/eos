@@ -286,10 +286,14 @@ WFE::WFEr()
                 if (!job->IsSync()) {
                   // use the shared scheduler for asynchronous jobs
                   XrdSysMutexHelper sLock(gSchedulerMutex);
-                  gScheduler->Schedule((XrdJob*) job);
-                  IncActiveJobs();
-                  eos_static_info("msg=\"scheduled workflow\" job=\"%s\"",
-                                  job->mDescription.c_str());
+		  time_t storetime = 0;
+		  // move job into the scheduled queue
+		  job->Move("q","s", storetime);
+		  job->mActions[0].mQueue = "s";
+		  gScheduler->Schedule((XrdJob*) job);
+		  IncActiveJobs();
+		  eos_static_info("msg=\"scheduled workflow\" job=\"%s\"",
+				  job->mDescription.c_str());
                 } else {
                   delete job;
                 }
@@ -359,7 +363,7 @@ WFE::WFEr()
         time_t tst = eos::common::Timing::Day_to_UnixTimestamp(when);
 
         if (!tst || (tst < (now - lKeepTime))) {
-          eos_static_info("msg=\"cleaninig\" dir=\"%s\"", entry);
+          eos_static_info("msg=\"cleaning\" dir=\"%s\"", entry);
           ProcCommand Cmd;
           XrdOucString info;
           XrdOucString out;
@@ -372,7 +376,7 @@ WFE::WFEr()
           Cmd.AddOutput(out, err);
 
           if (err.length()) {
-            eos_static_err("msg=\"cleaining failed\" errmsg=\"%s\"", err.c_str());
+            eos_static_err("msg=\"cleaning failed\" errmsg=\"%s\"", err.c_str());
           } else {
             eos_static_info("msg=\"cleaned\" dri=\"%s\"");
           }
@@ -770,7 +774,7 @@ WFE::Job::DoIt(bool issync)
   int retc = 0;
   time_t storetime = 0;
 
-  if (mActions[0].mQueue == "q" || mActions[0].mQueue == "e") {
+  if (mActions[0].mQueue == "s" || mActions[0].mQueue == "e") {
     if (eos::common::StringConversion::SplitKeyValue(mActions[0].mAction, method,
         args, ":")) {
       if (method == "mail") {
