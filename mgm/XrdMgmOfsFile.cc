@@ -1542,7 +1542,7 @@ XrdMgmOfsFile::open(const char* inpath,
             fmd = gOFS->eosView->getFile(creation_path);
 
             if (isRecreation) {
-              fmd->clearLocations();
+              fmd->unlinkAllLocations();
             }
 
             for (int i = 0; i < (int) selectedfs.size(); i++) {

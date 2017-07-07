@@ -293,6 +293,7 @@ Recycle::Recycler()
               dirl1.close();
             }
           } else {
+            snoozetime = 0; // this will be redefined by the oldest entry time
             auto it = lDeletionMap.begin();
             time_t now = time(NULL);
 
@@ -394,30 +395,31 @@ Recycle::Recycler()
                   it = lDeletionMap.begin();
                 }
               } else {
-                //...............................................................
-                // this entry has still to be kept
-                //...............................................................
-                snoozetime = (it->first + lKeepTime) - now;
+                // This entry has still to be kept
+                if (!snoozetime) {
+                  // define the sleep period from the oldest entry
+                  snoozetime = it->first + lKeepTime - now;
 
-                if (snoozetime < gRecyclingPollTime) {
-                  //.............................................................
-                  // avoid to activate this thread too many times, 5 minutess
-                  // resolution is perfectly fine
-                  //.............................................................
-                  snoozetime = gRecyclingPollTime;
-                }
+                  if (snoozetime < gRecyclingPollTime) {
+                    // avoid to activate this thread too many times, 5 minutes
+                    // resolution is perfectly fine
+                    snoozetime = gRecyclingPollTime;
+                  }
 
-                if (snoozetime > lKeepTime) {
-                  eos_static_warning("msg=\"snooze time exceeds keeptime\" snooze-time=%llu keep-time=%llu",
-                                     snoozetime, lKeepTime);
-                  //.............................................................
-                  // that is sort of strange but let's have a fix for that
-                  //.............................................................
-                  snoozetime = lKeepTime;
+                  if (snoozetime > lKeepTime) {
+                    eos_static_warning("msg=\"snooze time exceeds keeptime\" snooze-time=%llu keep-time=%llu",
+                                       snoozetime, lKeepTime);
+                    // That is sort of strange but let's have a fix for that
+                    snoozetime = lKeepTime;
+                  }
                 }
 
                 it++;
               }
+            }
+
+            if (!snoozetime) {
+              snoozetime = gRecyclingPollTime;
             }
           }
         } else {
