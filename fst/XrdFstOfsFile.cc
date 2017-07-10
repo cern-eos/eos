@@ -1639,6 +1639,12 @@ XrdFstOfsFile::close()
         // Set the file to be deleted
         deleteOnClose = true;
         layOut->Remove();
+
+        if (layOut->IsEntryServer()) {
+          capOpaqueString += "&mgm.dropall=1";
+        }
+
+        // Delete the replica in the MGM
         int rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),
                                   capOpaque->Get("mgm.manager"), capOpaqueString);
 

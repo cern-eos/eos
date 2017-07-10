@@ -13,6 +13,14 @@ Beryl Release Notes
 Bug Fixes
 +++++++++
 
+- FST: re-establish 2nd path of 'deleteOnClose' functionality broken since 0.3.295
+
+``V0.3.262 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
 - MGM: fix computation of wake-up time for the recycle bin - old code slept too long before waking up
 
 ``V0.3.261 Aquamarine``
@@ -21,7 +29,7 @@ Bug Fixes
 Bug Fixes
 +++++++++
 
-- FST: FST: re-establish 'deleteOnClose' functionality broken since 0.3.259
+- FST: re-establish 'deleteOnClose' functionality broken since 0.3.295
 
 
 
