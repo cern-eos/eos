@@ -119,6 +119,9 @@ public:
   //
 
   void* Drain(void);
+
+  bool UpdateSpaceStats(eos::common::FileSystem*, bool);
+
 };
 
 EOSMGMNAMESPACE_END

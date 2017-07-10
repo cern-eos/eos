@@ -2218,6 +2218,7 @@ void* GeoTreeEngine::startFsChangeListener(void* pp)
 void GeoTreeEngine::listenFsChange()
 {
   gUpdaterStarted = true;
+
   gOFS->ObjectNotifier.BindCurrentThread("geotreeengine");
 
   if (!gOFS->ObjectNotifier.StartNotifyCurrentThread()) {

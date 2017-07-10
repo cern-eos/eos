@@ -84,14 +84,14 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
     eos::common::FileSystem::fsid_t fsId = atoi(fsIdString);
      
     eos_notice("fs to drain=%d ", fsId);
-
-
+    
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    
     auto it_fs = FsView::gFsView.mIdView.find(fsId);
 
     if (it_fs == FsView::gFsView.mIdView.end()){
         err = "error: the given FS does not exist";
         return false;
-
     }
 
     FileSystem::fsstatus_t status = it_fs->second->GetDrainStatus();
@@ -102,16 +102,19 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
         return false;
     }
 
-
     auto it_drainfs = mDrainFS.find(fsId);
 
     if (it_drainfs != mDrainFS.end()){
         //fs is already draining
         err = "error: a central FS drain has already started for the given FS ";
         return false;
-
     }
 
+    if (!UpdateSpaceStats(it_fs->second,true)) {
+      err = "error: maximum number of draing fs for the given space reached";	
+      return false;
+    }
+    
     //start the drain
     DrainMapPair::first_type s(fsId);
     DrainMapPair::second_type d(new DrainFS(fsId));
@@ -137,6 +140,8 @@ Drainer::StopFSDrain(XrdOucEnv& env, XrdOucString& err)
     eos::common::FileSystem::fsid_t fsId = atoi(fsIdString);
     
     eos_notice("fs to stop draining=%d ", fsId);
+
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
     auto it_fs = FsView::gFsView.mIdView.find(fsId);
 
@@ -172,6 +177,9 @@ Drainer::ClearFSDrain(XrdOucEnv& env, XrdOucString& err)
     //
     eos_notice("fs to clear=%d ", fsId);
     //
+    //
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
     auto it_fs = FsView::gFsView.mIdView.find(fsId);
     //
     if (it_fs == FsView::gFsView.mIdView.end()){
@@ -184,6 +192,11 @@ Drainer::ClearFSDrain(XrdOucEnv& env, XrdOucString& err)
         err = "error: the given FS is not drained or under drained";
         return false;
     }
+
+    if (!UpdateSpaceStats(it_fs->second,false)) {
+      return false;
+    }
+
     mDrainMutex.Lock();
     mDrainFS.erase(it_drainfs);
     mDrainMutex.UnLock();
@@ -199,12 +212,10 @@ Drainer::ClearFSDrain(XrdOucEnv& env, XrdOucString& err)
 bool
 Drainer::GetDrainStatus(XrdOucEnv& env,XrdOucString& out, XrdOucString& err)
 {
-    mDrainMutex.Lock();
     if (mDrainFS.size() > 0 ){
        out+=  "Status of the drain activities on the System:\n";
      } else {
-       out+=  "No Drain activities are recorded on the System:\n";
-       mDrainMutex.UnLock();
+       out+=  "No Drain activities are recorded on the System.\n";
        return true;
      }
 
@@ -234,7 +245,6 @@ Drainer::GetDrainStatus(XrdOucEnv& env,XrdOucString& out, XrdOucString& err)
       it_drainfs++;
       
     }
-    mDrainMutex.UnLock();
     return true;
 }
 
@@ -287,16 +297,18 @@ Drainer::Drain()
 
     XrdSysThread::SetCancelOff();
     //load conf
-    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     {
-      auto space = FsView::gFsView.mSpaceView.begin();
-      while (space != FsView::gFsView.mSpaceView.end()) {
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+    
+    auto space = FsView::gFsView.mSpaceView.begin();
+    while (space != FsView::gFsView.mSpaceView.end()) {
         int maxdrainingfs = 0;
         std::string spacename = space->second->GetMember("name");
-        if (FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxdrainingfs")==""){
-          FsView::gFsView.mSpaceView[spacename]->SetConfigMember("drainer.maxdrainingfs", "0", true, "/eos/*/mgm");
-        }else {
+        if (FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxdrainingfs")!= "" ) {
           maxdrainingfs = stoi(FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxdrainingfs"));
+        }
+	else { 
+          FsView::gFsView.mSpaceView[spacename]->SetConfigMember("drainer.maxdrainingfs", "10", true, "/eos/*/mgm");
         }
         //get the space configuration
         mDrainingFSMutex.Lock();
@@ -319,6 +331,37 @@ Drainer::Drain()
     }
 
     return 0;
+}
+
+bool
+Drainer::UpdateSpaceStats(eos::common::FileSystem* fs , bool isDrainStart)
+{
+    eos::common::FileSystem::fs_snapshot_t drain_snapshot;
+    fs->SnapShotFileSystem(drain_snapshot, false);
+
+    //check space conf to see if we reached the max configured drain fs
+    mDrainingFSMutex.Lock();
+    if (drainingFSMap.count(drain_snapshot.mSpace)) {
+      int running = drainingFSMap[drain_snapshot.mSpace].first;
+      int max = drainingFSMap[drain_snapshot.mSpace].second;
+
+      if (isDrainStart) {
+        if (running == max) {
+          mDrainingFSMutex.UnLock();
+          return false;
+        }
+        else {
+          std::pair<int, int> pair = std::make_pair(++running, max);
+          drainingFSMap.insert(std::make_pair(drain_snapshot.mSpace,pair));
+        }
+      }
+      else {
+         std::pair<int, int> pair = std::make_pair(--running, max);
+         drainingFSMap.insert(std::make_pair(drain_snapshot.mSpace,pair));
+      }
+    } 
+    mDrainingFSMutex.UnLock();
+    return true;
 }
 
 EOSMGMNAMESPACE_END

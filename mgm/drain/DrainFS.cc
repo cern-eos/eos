@@ -185,7 +185,6 @@ DrainFS::Drain (void)
   size_t kLoop = gOFS->MgmMaster.GetServiceDelay();
   if (!kLoop)
     kLoop = 60;
-  //kLoop = 1;
 
   for (size_t k = 0; k < kLoop; k++)
   {
@@ -441,8 +440,6 @@ DrainFS::SelectTargetFS( DrainTransferJob &job)
       return 0;
     }
 
-  eos_notice("Group: %d", group->GetIndex());
-  eos_notice("NFilesystem: %d", nfilesystems);
   auto repl = existingReplicas.begin();
   while( repl != existingReplicas.end()) {
     eos_notice("existing replicas: %d", *repl);
@@ -454,9 +451,6 @@ DrainFS::SelectTargetFS( DrainTransferJob &job)
     geo++;
    }
 
-  eos_notice("Size: %d", fmd->getSize());
-  eos_notice("collocatedfs: %d", ncollocatedfs);
-  
   bool res = gGeoTreeEngine.placeNewReplicasOneGroup(
                       group, nfilesystems,
                       newReplicas,
