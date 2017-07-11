@@ -148,7 +148,11 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid)
   WFE::Job job(mFid, vid);
   time_t t = time(0);
   job.AddAction(mAction, mEvent, t, mWorkflow, "q");
-  retc = job.Save("q", t);
+  if (job.IsSync())
+    retc = job.Save("s", t);
+  else
+    retc = job.Save("q", t);
+
   if (retc)
   {
     eos_static_err("failed to save");
