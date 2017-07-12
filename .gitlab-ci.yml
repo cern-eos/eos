@@ -313,6 +313,7 @@ eos_clean_artifacts:
   allow_failure: true
   only:
     - triggers
+    - schedules
 
 
 eos_periodic_coverity:
@@ -334,6 +335,7 @@ eos_periodic_coverity:
   allow_failure: true
   only:
     - triggers
+    - schedules
 
 eos_cppcheck_sonar:
   stage: build:rpm
