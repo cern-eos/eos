@@ -784,7 +784,7 @@ Fsck::GenerateJsonReport(const std::set<std::string>& inconsistencies, bool perf
           outBuff << "      \"files\": " << "[";
           for (auto& fid : pair.second) {
             auto fileDisplay = printlfn ? fileNameDisplayFunc(fid) : fileFidDisplayFunc(fid);
-            outBuff << separator << std::move(fileDisplay);
+            outBuff << separator << fileDisplay;
             separator = ",";
           }
           outBuff << "]" << endl << "    }";
@@ -836,6 +836,7 @@ Fsck::GenerateTextReport(const std::set<std::string>& inconsistencies, bool perf
           }
           outBuff << endl;
         }
+        outBuff << endl;
       }
     }
     else {
