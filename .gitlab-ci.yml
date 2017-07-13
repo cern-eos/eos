@@ -312,8 +312,8 @@ eos_clean_artifacts:
     - docker-cc7
   allow_failure: true
   only:
+    - triggers
     - schedules
-
 
 eos_periodic_coverity:
   stage: build:rpm
@@ -333,6 +333,7 @@ eos_periodic_coverity:
     - coverity
   allow_failure: true
   only:
+    - triggers
     - schedules
 
 eos_cppcheck_sonar:
