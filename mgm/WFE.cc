@@ -814,14 +814,14 @@ WFE::Job::DoIt(bool issync)
           eos_static_err("msg=\"failed to send workflow notification mail\" job=\"%s\"",
                          mDescription.c_str());
           storetime = 0;
-          Move("q", "e", storetime);
+          Move("s", "f", storetime);
           XrdOucString log = "failed to send workflow notification mail";
-          Results("e", -1, log, storetime);
+          Results("f", -1, log, storetime);
         } else {
           eos_static_info("msg=\"done notification\" job=\"%s\"",
                           mDescription.c_str());
           storetime = 0;
-          Move("q", "d", storetime);
+          Move("s", "d", storetime);
           XrdOucString log = "notified by email";
           Results("d", 0, log, storetime);
         }
