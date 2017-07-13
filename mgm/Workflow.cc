@@ -147,11 +147,18 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid)
   int retc = 0;
   WFE::Job job(mFid, vid);
   time_t t = time(0);
+
   job.AddAction(mAction, mEvent, t, mWorkflow, "q");
   if (job.IsSync())
+  {
+    job.AddAction(mAction, mEvent, t, mWorkflow, "s");
     retc = job.Save("s", t);
+  }
   else
+  {
+    job.AddAction(mAction, mEvent, t, mWorkflow, "q");
     retc = job.Save("q", t);
+  }
 
   if (retc)
   {
