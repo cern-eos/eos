@@ -43,31 +43,11 @@ com_fsck(char* arg1)
     goto com_fsck_usage;
   }
 
-  if ((cmd != "stat") && (cmd != "enable") && (cmd != "disable") &&
-      (cmd != "report") && (cmd != "repair")) {
+  if ((cmd != "stat") && (cmd != "report") && (cmd != "repair")) {
     goto com_fsck_usage;
   }
 
   in = "mgm.cmd=fsck&";
-
-  if (cmd == "enable") {
-    XrdOucString interval = subtokenizer.GetToken();
-
-    if (interval.length() && ((atoi(interval.c_str())) <= 0)) {
-      goto com_fsck_usage;
-    }
-
-    in += "mgm.subcmd=enable";
-
-    if (interval.length()) {
-      in += "&mgm.fsck.interval=";
-      in += interval.c_str();
-    }
-  }
-
-  if (cmd == "disable") {
-    in += "mgm.subcmd=disable";
-  }
 
   if (cmd == "stat") {
     in += "mgm.subcmd=stat";
@@ -137,12 +117,6 @@ com_fsck(char* arg1)
 com_fsck_usage:
   fprintf(stdout,
           "usage: fsck stat                                                  :  print status of consistency check\n");
-  fprintf(stdout,
-          "       fsck enable [<interval>]                                   :  enable fsck\n");
-  fprintf(stdout,
-          "                                                       <interval> :  check interval in minutes - default 30 minutes");
-  fprintf(stdout,
-          "       fsck disable                                               :  disable fsck\n");
   fprintf(stdout,
           "       fsck report [-h] [-a] [-i] [-l] [--json] [--error <tag> ]  :  report consistency check results");
   fprintf(stdout,

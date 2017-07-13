@@ -90,7 +90,8 @@ XrdSysError* XrdMgmOfs::eDest;
 XrdOucTrace gMgmOfsTrace(&gMgmOfsEroute);
 const char* XrdMgmOfs::gNameSpaceState[] = {"down", "booting", "booted", "failed", "compacting"};
 XrdMgmOfs* gOFS = 0;
-const std::set<std::string> XrdMgmOfs::MgmFsckDirs = {"m_cx_diff", "rep_diff_n", "d_mem_sz_diff", "unreg_n"};
+const std::set<std::string> XrdMgmOfs::MgmFsckDirs = {"m_cx_diff", "rep_diff_n", "d_mem_sz_diff", "unreg_n",
+                                                      "orphans_n", "rep_missing_n", "d_cx_diff","m_mem_sz_diff"};
 
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem, MgmOfs);
@@ -819,18 +820,22 @@ XrdMgmOfs::RemoveContainer(const XrdOucString& containerPath) {
 
 int
 XrdMgmOfs::fsck(const XrdOucString& fid, const XrdOucString& fsid, const XrdOucString& inconsistency) {
-  XrdOucString filePath = MgmProcFsckPath + "/" + inconsistency + "/" + fsid + "/" + fid;
-  std::shared_ptr<eos::IFileMD> fmd;
+  XrdOucString dirPath = MgmProcFsckPath + "/" + inconsistency + "/" + fsid + "/";
+  std::ostringstream filePathStream;
+  filePathStream << dirPath << fid;
+
   try {
-    fmd = eosView->getFile(filePath.c_str());
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    eosView->getFile(filePathStream.str());
   } catch (eos::MDException& e) {
-    fmd = eosView->createFile(filePath.c_str(), 0, 0);
+    try {
+      eos::common::RWMutexReadLock wlock(gOFS->eosViewRWMutex);
+      CreateContainer(dirPath);
+      eosView->createFile(filePathStream.str(), 0, 0);
+    } catch (eos::MDException& e) {
+      return SFS_ERROR;
+    }
   }
 
-  if(fmd) {
-    return SFS_OK;
-  }
-  else {
-    return SFS_ERROR;
-  }
+  return SFS_OK;
 }

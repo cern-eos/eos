@@ -384,7 +384,6 @@ IConfigEngine::ApplyConfig(XrdOucString& err)
     FsSpace::gDisableDefaults = false;
   }
   Access::ApplyAccessConfig();
-  gOFS->FsCheck.ApplyFsckConfig();
   gOFS->IoStats->ApplyIostatConfig();
   gTransferEngine.ApplyTransferEngineConfig();
 

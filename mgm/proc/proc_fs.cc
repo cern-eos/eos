@@ -655,6 +655,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
     }
 
     if (retc == 0) {
+      eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
       for(auto& fsckDir : XrdMgmOfs::MgmFsckDirs) {
         gOFS->CreateContainer(gOFS->MgmProcFsckPath + "/" + fsckDir.c_str() + "/" + std::to_string(fsid).c_str());
       }
@@ -1216,6 +1217,7 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
   }
 
   if (retc == 0) {
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
     for(auto& fsckDir : XrdMgmOfs::MgmFsckDirs) {
       gOFS->RemoveContainer(gOFS->MgmProcFsckPath + "/" + fsckDir.c_str() + "/" + std::to_string(fsid).c_str());
     }

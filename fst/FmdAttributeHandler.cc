@@ -448,6 +448,16 @@ FmdAttributeHandler::ReportFmdInconsistency(const Fmd& fmd) const {
   fsckOpaque += std::to_string(fsid).c_str();
   XrdOucErrInfo error;
 
+  if (fmd.layouterror() & eos::common::LayoutId::kOrphan) {
+    XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=orphans_n";
+    error.Reset();
+    int rc = gOFS.CallManager(&error, "/", nullptr, opaqueWithInconsistency);
+    if(rc != 0) {
+      eos_err("Could not report orphans_n inconsistency to mgm for fid: %llu, fsid: %llu. Error: %s",
+              fid, fsid, error.getErrText());
+    }
+  }
+
   if (fmd.layouterror() & eos::common::LayoutId::kUnregistered) {
     XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=unreg_n";
     error.Reset();
@@ -468,6 +478,16 @@ FmdAttributeHandler::ReportFmdInconsistency(const Fmd& fmd) const {
     }
   }
 
+  if (fmd.layouterror() & eos::common::LayoutId::kMissing) {
+    XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=rep_missing_n";
+    error.Reset();
+    int rc = gOFS.CallManager(&error, "/", nullptr, opaqueWithInconsistency);
+    if(rc != 0) {
+      eos_err("Could not report rep_missing_n inconsistency to mgm for fid: %llu, fsid: %llu. Error: %s",
+              fid, fsid, error.getErrText());
+    }
+  }
+
   if (!fmd.layouterror()) {
     if (fmd.size() && fmd.mgmchecksum().length() && (fmd.mgmchecksum() != fmd.checksum())) {
       XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=m_cx_diff";
@@ -478,18 +498,38 @@ FmdAttributeHandler::ReportFmdInconsistency(const Fmd& fmd) const {
                 fid, fsid, error.getErrText());
       }
     }
+
+    if (fmd.size() && fmd.diskchecksum().length() && (fmd.diskchecksum() != fmd.checksum())) {
+      XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=d_cx_diff";
+      error.Reset();
+      int rc = gOFS.CallManager(&error, "/", nullptr, opaqueWithInconsistency);
+      if(rc != 0) {
+        eos_err("Could not report d_cx_diff inconsistency to mgm for fid: %llu, fsid: %llu. Error: %s",
+                fid, fsid, error.getErrText());
+      }
+    }
   }
 
-  if (fmd.disksize() != 0xfffffffffff1ULL) {
-    if (fmd.size() != 0xfffffffffff1ULL) {
-      if (fmd.size() != fmd.disksize()) {
-        XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=d_mem_sz_diff";
-        error.Reset();
-        int rc = gOFS.CallManager(&error, "/", nullptr, opaqueWithInconsistency);
-        if(rc != 0) {
-          eos_err("Could not report d_mem_sz_diff inconsistency to mgm for fid: %llu, fsid: %llu. Error: %s",
-                  fid, fsid, error.getErrText());
-        }
+  if (fmd.disksize() != 0xfffffffffff1ULL && fmd.size() != 0xfffffffffff1ULL) {
+    if (fmd.size() != fmd.disksize()) {
+      XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=d_mem_sz_diff";
+      error.Reset();
+      int rc = gOFS.CallManager(&error, "/", nullptr, opaqueWithInconsistency);
+      if(rc != 0) {
+        eos_err("Could not report d_mem_sz_diff inconsistency to mgm for fid: %llu, fsid: %llu. Error: %s",
+                fid, fsid, error.getErrText());
+      }
+    }
+  }
+
+  if (fmd.disksize() != 0xfffffffffff1ULL && fmd.size() != 0xfffffffffff1ULL) {
+    if (fmd.size() != fmd.mgmsize()) {
+      XrdOucString opaqueWithInconsistency = fsckOpaque + "&mgm.file.inconsistency=m_mem_sz_diff";
+      error.Reset();
+      int rc = gOFS.CallManager(&error, "/", nullptr, opaqueWithInconsistency);
+      if(rc != 0) {
+        eos_err("Could not report m_mem_sz_diff inconsistency to mgm for fid: %llu, fsid: %llu. Error: %s",
+                fid, fsid, error.getErrText());
       }
     }
   }

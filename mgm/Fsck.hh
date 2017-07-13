@@ -52,16 +52,6 @@ EOSMGMNAMESPACE_BEGIN
 class Fsck
 {
 public:
-  //! Key used in the configuration engine to store the enable status
-  static const char* gFsckEnabled;
-  //! Key used in the configuration engine to store the check interval
-  static const char* gFsckInterval;
-
-  //----------------------------------------------------------------------------
-  //! Static thread startup function
-  //----------------------------------------------------------------------------
-  static void* StaticCheck(void*);
-
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -73,34 +63,6 @@ public:
   ~Fsck();
 
   //----------------------------------------------------------------------------
-  //! Start the collection thread
-  //!
-  //! @param interval check interval in minutes
-  //----------------------------------------------------------------------------
-  bool Start(int interval = 0);
-
-  //----------------------------------------------------------------------------
-  //! Stop the collection thread
-  //----------------------------------------------------------------------------
-  bool Stop(bool store = true);
-
-  //----------------------------------------------------------------------------
-  //! FSCK interface usage output
-  //----------------------------------------------------------------------------
-  bool Usage(XrdOucString& out, XrdOucString& err);
-
-  //----------------------------------------------------------------------------
-  //! Print function to display FSCK results
-  //----------------------------------------------------------------------------
-  void PrintOut(XrdOucString& out, XrdOucString option = "");
-
-  //----------------------------------------------------------------------------
-  //! Method to create a report
-  //----------------------------------------------------------------------------
-  bool Report(XrdOucString& out, XrdOucString& err, XrdOucString option = "",
-              XrdOucString selection = "");
-
-  //----------------------------------------------------------------------------
   //! Method ot issue a repair action
   //!
   //! @param out return of the action output
@@ -109,75 +71,29 @@ public:
   //----------------------------------------------------------------------------
   bool Repair(XrdOucString& out, XrdOucString& err, XrdOucString option = "");
 
-  //----------------------------------------------------------------------------
-  //! Clear the in-memory log
-  //----------------------------------------------------------------------------
-  void ClearLog();
-
-  //----------------------------------------------------------------------------
-  //! Write a log message to the in-memory log
-  //!
-  //! @param overwrite if true overwrites the last message
-  //!@param msg variable length list of printf like format string and args
-  //----------------------------------------------------------------------------
-  void Log(bool overwrite, const char* msg, ...);
-
-  //----------------------------------------------------------------------------
-  //! Apply the FSCK configuration stored in the configuration engine
-  //----------------------------------------------------------------------------
-  void ApplyFsckConfig();
-
-  //----------------------------------------------------------------------------
-  //! Store the FSCK configuration to the configuration engine
-  //----------------------------------------------------------------------------
-  bool StoreFsckConfig();
-
-  //----------------------------------------------------------------------------
-  //! FSCK thread loop function
-  //----------------------------------------------------------------------------
-  void* Check();
-
   void Stat(XrdOucString& out);
 
-  void ReportNew(XrdOucString& out, XrdOucString option);
+  void Report(XrdOucString& out, XrdOucString option, const XrdOucString& selection);
 
 private:
-  XrdOucString mLog; ///< In-memory FSCK log
-  XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   XrdSysRWLock mIncMutex; ///< Mutex protecting the in-memory inconsistencies
   XrdSysMutex mIncUpdateMutex; ///< Mutex protecting the updating flag
-  XrdOucString mEnabled; ///< True if collection thread is active
-  int mInterval; ///< Interval in min between two FSCK collection loops
-  pthread_t mThread; ///< Collection thread id
-  bool mRunning; ///< True if collection thread is currently running
-  XrdSysMutex eMutex; ///< Mutex protecting all eX... map objects
-  //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
-  std::map<std::string,
-      std::map<eos::common::FileSystem::fsid_t,
-      std::set <eos::common::FileId::fileid_t> > > eFsMap;
-  //! Error summary map storing "<error-name>"=>[fid1,fid2,fid3...]"
-  std::map<std::string, std::set <eos::common::FileId::fileid_t> > eMap;
-  std::map<std::string, unsigned long long > eCount;
-  //! Unavailable filesystems map
-  std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsUnavail;
-  //! Dark filesystem map - filesystems referenced by a file bu not configured
-  //! in the filesystem view
-  std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsDark;
-  time_t eTimeStamp; ///< Timestamp of collection
 
   std::chrono::time_point<std::chrono::steady_clock> mUpdatedAt = std::chrono::steady_clock::now();
-  std::map<std::string, std::map<unsigned long long, std::list<unsigned long long>>>* mInconsistencies = nullptr;
+  std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::list<eos::common::FileId::fileid_t>>>* mInconsistencies = nullptr;
   bool mIsUpdatingInconsistencies = false;
   static constexpr auto mInvalidAfter = 2;
 
-  //----------------------------------------------------------------------------
-  //! Reset all collected errors in the error map
-  //----------------------------------------------------------------------------
-  void ResetErrorMaps();
-
-  std::map<std::string, std::map<unsigned long long, std::list<unsigned long long>>>* RetrieveInconsistencies();
+  std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::list<eos::common::FileId::fileid_t>>>* RetrieveInconsistencies();
 
   void UpdateInconsistenciesIfNeeded();
+
+  std::string GenerateJsonReport(const std::set<std::string>& inconsistencies, bool perfsid, bool printlfn);
+
+  std::string GenerateTextReport(const std::set<std::string>& inconsistencies, bool perfsid, bool printlfn);
+
+  void RemoveFsckFile(const string& inconsistency, eos::common::FileSystem::fsid_t fsid,
+                      eos::common::FileId::fileid_t fid);
 };
 
 EOSMGMNAMESPACE_END

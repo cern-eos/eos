@@ -30,31 +30,13 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Fsck()
 {
- if (pVid->uid == 0) {
-   if (mSubCmd == "disable") {
-     if (gOFS->FsCheck.Stop()) {
-       stdOut += "success: disabled fsck";
-     } else {
-       stdErr += "error: fsck was already disabled";
-     }
-   }
-   if (mSubCmd == "enable") {
-     if (gOFS->FsCheck.Start()) {
-       stdOut += "success: enabled fsck";
-     } else {
-       stdErr += "error: fsck was already enabled - to change the <interval> settings stop it first";
-     }
-   }
-   if (mSubCmd == "report") {
-     XrdOucString option = "";
-     XrdOucString mSelection = "";
-     option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
-     mSelection = pOpaque->Get("mgm.fsck.selection") ? pOpaque->Get("mgm.fsck.selection") : "";
-     gOFS->FsCheck.ReportNew(stdOut, option);
-//     if (gOFS->FsCheck.Report(stdOut, stdErr, option, mSelection))
-//       retc = 0;
-//     else
-//       retc = EINVAL;
+ if (pVid->uid == 0)
+ {
+   if (mSubCmd == "report")
+   {
+     auto option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
+     XrdOucString selection = pOpaque->Get("mgm.fsck.selection") ? pOpaque->Get("mgm.fsck.selection") : "";
+     gOFS->FsCheck.Report(stdOut, option, selection);
    }
  }
 
@@ -62,7 +44,6 @@ ProcCommand::Fsck()
  {
    XrdOucString option = ""; // not used for the moment
    eos_info("fsck stat");
-//   gOFS->FsCheck.PrintOut(stdOut, option);
    gOFS->FsCheck.Stat(stdOut);
  }
  return SFS_OK;

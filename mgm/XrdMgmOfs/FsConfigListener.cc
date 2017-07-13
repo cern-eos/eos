@@ -156,10 +156,6 @@ XrdMgmOfs::FsConfigListener()
                   if (skey.beginswith("iostat:")) {
                     gOFS->IoStats->ApplyIostatConfig();
                   }
-
-                  if (skey.beginswith("fsck")) {
-                    gOFS->FsCheck.ApplyFsckConfig();
-                  }
                 } else {
                   eos_info("Call SetConfig %s %s", key.c_str(), value.c_str());
                   gOFS->ConfEngine->SetConfigValue(0,
