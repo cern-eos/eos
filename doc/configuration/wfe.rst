@@ -13,16 +13,16 @@ The workflow engine allows to create chained workflows e.g. one workflow can tri
 
 .. epigraph::
 
-   ======== ==================================================================================================
-   Event    Description
-   ======== ==================================================================================================
-   open     event is triggered at the MGM when a 'file open' 
-            - if the return of an open call is ENONET a workflow defined stall time is returned 
-   prepare  event is triggered at the MGM when a 'prepare' is issued 
-   closer   event is triggered via the MGM when a read-open file is closed on an FST. 
-   closew   event is triggered via the MGM when a write-open file is closed on an FST
-   delete   event is triggered at the MGM when a file has been deleted
-   ======== ============================================================================ =====================
+   ============== ==================================================================================================
+   Event          Description
+   ============== ==================================================================================================
+   open           event is triggered at the MGM when a 'file open' 
+                  - if the return of an open call is ENONET a workflow defined stall time is returned 
+   sync::prepare  event is triggered at the MGM when a 'prepare' is issued (synchronous event)
+   closer         event is triggered via the MGM when a read-open file is closed on an FST. 
+   closew         event is triggered via the MGM when a write-open file is closed on an FST
+   sync::delete   event is triggered at the MGM when a file has been deleted (synchronous event)
+   ============== ==================================================================================================
 
 Currently the workflow engine implements two action targets. The **bash:shell** target is a powerful target.
 It allows you to execute any shell command as a workflow. This target provides a large set of template parameters
@@ -274,7 +274,8 @@ The existing queues are described here:
    =========================== ========================================================================================
    Queue                       Description
    =========================== ========================================================================================
-   ../q/..                     all triggered workflows appear first in this queue
+   ../q/..                     all triggered asynchronous workflows appear first in this queue
+   ../s/..                     scheduled asynchronous workflows and triggered synchronous workflows appear in this queue
    ../r/..                     running workflows appear in this queue
    ../e/..                     failed workflows with retry policy appear here
    ../f/..                     failed workflows without retry appear here
