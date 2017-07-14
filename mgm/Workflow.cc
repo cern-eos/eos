@@ -148,7 +148,6 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid)
   WFE::Job job(mFid, vid);
   time_t t = time(0);
 
-  job.AddAction(mAction, mEvent, t, mWorkflow, "q");
   if (job.IsSync())
   {
     job.AddAction(mAction, mEvent, t, mWorkflow, "s");
