@@ -178,7 +178,6 @@ Balancer::Balance(void)
         if ((dev = (*git)->MaxAbsDeviation("stat.statfs.filled", false)) >
             SpaceDifferenceThreshold) {
           avg = (*git)->AverageDouble("stat.statfs.filled", false);
-
           if (has_drainjob) {
             (*git)->SetConfigMember("stat.balancing", "drainwait", false,
                                     "", true);
@@ -238,7 +237,7 @@ Balancer::Balance(void)
             if (fs) {
               std::string isset = fs->GetString("stat.nominal.filled");
               fsdev = fs->GetDouble("stat.nominal.filled");
-
+              fsdev = fabs(fsdev);
               if ((fsdev > 0) || (!isset.length())) {
                 // 0.0 indicates, that we are perfectly filled
                 // (or the balancing is disabled)
