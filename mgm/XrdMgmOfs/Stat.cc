@@ -188,6 +188,10 @@ XrdMgmOfs::_stat(const char* path,
       }
 
       buf->st_nlink = fmd->getNumLocation();
+      if (fmd->hasLocation(EOS_TAPE_FSID))
+      {
+	buf->st_mode |= EOS_TAPE_MODE_T;
+      }
     }
 
     buf->st_uid = fmd->getCUid();
