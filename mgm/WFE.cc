@@ -290,6 +290,10 @@ WFE::WFEr()
 		  // move job into the scheduled queue
 		  job->Move("q","s", storetime);
 		  job->mActions[0].mQueue = "s";
+		  job->mActions[0].mTime = storetime;
+		  XrdOucString tst;
+		  job->mActions[0].mWhen = eos::common::StringConversion::GetSizeString(tst,
+									    (unsigned long long) storetime);
 		  gScheduler->Schedule((XrdJob*) job);
 		  IncActiveJobs();
 		  eos_static_info("msg=\"scheduled workflow\" job=\"%s\"",
@@ -420,8 +424,8 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   XrdOucString hexfid;
   eos::common::FileId::Fid2Hex(mFid, hexfid);
   entry = hexfid.c_str();
-  eos_static_info("workflowdir=\"%s\" retry=%d when=%u", workflowdir.c_str(),
-                  retry, when);
+  eos_static_info("workflowdir=\"%s\" retry=%d when=%u job-time=%s", workflowdir.c_str(),
+                  retry, when, mActions[action].mWhen.c_str());
   XrdOucErrInfo lError;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);

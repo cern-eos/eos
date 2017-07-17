@@ -220,7 +220,7 @@ public:
                       (unsigned long long) mFid);
     }
 
-    bool IsSync() {return (mActions[0].mEvent.substr(0,6) == "sync::");}
+    bool IsSync(std::string event="" ) {return ( (event.length()?event.substr(0,6):mActions[0].mEvent.substr(0,6)) == "sync::");}
 
     
     std::vector<Action> mActions;
