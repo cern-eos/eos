@@ -37,6 +37,10 @@
 
 EOSCOMMONNAMESPACE_BEGIN;
 
+
+#define EOS_TAPE_FSID 65535
+#define EOS_TAPE_MODE_T (0x10000000ll)
+
 class TransferQueue;
 
 //------------------------------------------------------------------------------
