@@ -108,8 +108,7 @@ ProcCommand::Ls()
         return SFS_OK;
       }
 
-      if (option.find("y"))
-      {
+      if ((option.find("y")) != STR_NPOS) {
 	showbackendstatus = true;
 	option += "l";
       }
