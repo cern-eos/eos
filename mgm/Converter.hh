@@ -132,7 +132,10 @@ public:
   //----------------------------------------------------------------------------
   void DecActiveJobs()
   {
-    mActiveJobs--;
+    if (mActiveJobs) {
+      mActiveJobs--;
+    }
+
     PublishActiveJobs();
   }
 
