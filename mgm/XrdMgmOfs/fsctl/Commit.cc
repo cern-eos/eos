@@ -324,17 +324,12 @@
         // just attach a new replica or if we have a change of the contents
         bool isUpdate = false;
         {
-          eos::common::Path eos_path {spath};
-          std::string dir_path = eos_path.GetParentPath();
           std::shared_ptr<eos::IContainerMD> dir;
 
           try {
-            dir = eosView->getContainer(dir_path);
-            // Get symlink free dir
-            dir_path = eosView->getUri(dir.get());
-            dir = eosView->getContainer(dir_path);
+            dir = gOFS->eosDirectoryService->getContainerMD(cid);
           } catch (eos::MDException& e) {
-            eos_thread_err("parent=%s not found", dir_path.c_str());
+            eos_thread_err("parent_id=%llu not found", cid);
             gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
             return Emsg(epname, error, EIDRM,
                         "commit file, parent contrainer removed [EIDRM]", "");

@@ -1010,14 +1010,7 @@ XrdMgmOfsFile::open(const char* inpath,
         gOFS->eosView->updateContainerStore(cmd.get());
 
         if (isCreation || (!fmd->getNumLocation())) {
-          std::string uri = gOFS->eosView->getUri(fmd.get());
-          eos::common::Path eos_path {uri.c_str()};
-          std::string dir_path = eos_path.GetParentPath();
-          std::shared_ptr<eos::IContainerMD> dir = gOFS->eosView->getContainer(dir_path);
-          // Get symlink free dir
-          dir_path = gOFS->eosView->getUri(dir.get());
-          dir = gOFS->eosView->getContainer(dir_path);
-          eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(dir.get());
+          eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
 
           if (ns_quota) {
             ns_quota->addFile(fmd.get());
