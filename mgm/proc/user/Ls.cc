@@ -48,7 +48,6 @@ ProcCommand::Ls()
   XrdOucString option = pOpaque->Get("mgm.option");
   bool showbackendstatus = false;
 
-
   if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'ls'";
     retc = EINVAL;
@@ -109,10 +108,10 @@ ProcCommand::Ls()
       }
 
       if ((option.find("y")) != STR_NPOS) {
-	showbackendstatus = true;
-	option += "l";
+        showbackendstatus = true;
+        option += "l";
       }
-	
+
       if (!listrc) {
         const char* val;
 
@@ -145,8 +144,7 @@ ProcCommand::Ls()
             char fmode[10];
             int fmode_v[9];
             char modestr[11];
-	    std::string backendstatus;
-
+            std::string backendstatus;
             strcpy(ftype, "pcdb-ls");
             ftype_v[0] = S_IFIFO;
             ftype_v[1] = S_IFCHR;
@@ -216,16 +214,15 @@ ProcCommand::Ls()
                 modestr[9] = '+';
               }
 
-	      if (showbackendstatus)
-	      {
-		// to be extended later to display in-flight status
-		char sbst[256];
-		snprintf(sbst,sizeof(sbst), "d%lu::t%llu ", (buf.st_mode & EOS_TAPE_MODE_T)?
-			 buf.st_nlink-1 : buf.st_nlink, buf.st_mode & EOS_TAPE_MODE_T ? 1: 0 );
-		char sbsts[256];
-		snprintf(sbsts, sizeof(sbsts), "%-9s", sbst);
-		backendstatus = sbsts;
-	      }
+              if (showbackendstatus) {
+                // to be extended later to display in-flight status
+                char sbst[256];
+                snprintf(sbst, sizeof(sbst), "d%lu::t%i ", (buf.st_mode & EOS_TAPE_MODE_T) ?
+                         buf.st_nlink - 1 : buf.st_nlink, (buf.st_mode & EOS_TAPE_MODE_T ? 1 : 0));
+                char sbsts[256];
+                snprintf(sbsts, sizeof(sbsts), "%-9s", sbst);
+                backendstatus = sbsts;
+              }
 
               if (translateids) {
                 {
@@ -277,14 +274,16 @@ ProcCommand::Ls()
               }
 
               if ((option.find("h")) == STR_NPOS)
-                sprintf(lsline, "%s%s %3d %-8.8s %-8.8s %12s %s %s%s", backendstatus.c_str(), modestr,
+                sprintf(lsline, "%s%s %3d %-8.8s %-8.8s %12s %s %s%s", backendstatus.c_str(),
+                        modestr,
                         (int) buf.st_nlink,
                         suid.c_str(), sgid.c_str(),
                         eos::common::StringConversion::GetSizeString(sizestring,
                             (unsigned long long) buf.st_size),
                         t_creat.c_str(), val, dirmarker.c_str());
               else
-                sprintf(lsline, "%s%s %3d %-8.8s %-8.8s %12s %s %s%s", backendstatus.c_str(), modestr,
+                sprintf(lsline, "%s%s %3d %-8.8s %-8.8s %12s %s %s%s", backendstatus.c_str(),
+                        modestr,
                         (int) buf.st_nlink,
                         suid.c_str(), sgid.c_str(),
                         eos::common::StringConversion::GetReadableSizeString(sizestring,
