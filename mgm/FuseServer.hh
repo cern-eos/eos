@@ -159,6 +159,12 @@ public:
                    const std::string& clientid
                    );
 
+    // send MD after update
+    int SendMD( const eos::fusex::md &md, 
+		const std::string& uuid,
+		const std::string& clientid
+		);
+
     // drop caps of a given client
     int Dropcaps(const std::string& uuid, std::string& out);
 
@@ -287,7 +293,7 @@ public:
 
     int BroadcastRelease(const eos::fusex::md &md); // broad cast triggered by fuse network
     int BroadcastReleaseFromExternal(uint64_t inode); // broad cast triggered non-fuse network
-
+    int BroadcastMD(const eos::fusex::md &md); // broad cast changed md around
     std::string Print(std::string option, std::string filter);
 
     std::map<authid_t, shared_cap>& GetCaps()

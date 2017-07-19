@@ -403,6 +403,39 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
 }
 
 /*----------------------------------------------------------------------------*/
+int
+FuseServer::Clients::SendMD( const eos::fusex::md &md,
+			     const std::string& uuid,
+			     const std::string& clientid
+			     )
+/*----------------------------------------------------------------------------*/
+{
+  // prepare update message 
+  eos::fusex::response rsp;
+  rsp.set_type(rsp.MD);
+  *(rsp.mutable_md_()) = md; 
+  rsp.mutable_md_()->set_type(eos::fusex::md::MD);
+
+  std::string rspstream;
+  rsp.SerializeToString(&rspstream);
+
+  XrdSysMutexHelper lLock(this);
+
+  if (!mUUIDView.count(uuid))
+  {
+    return ENOENT;
+  }
+
+  std::string id = mUUIDView[uuid];
+
+  eos_static_info("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
+                  uuid.c_str(), clientid.c_str(), md.md_ino());
+
+  gOFS->zMQ->task->reply(id, rspstream);
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
 void
 FuseServer::Clients::HandleStatistics(const std::string identity, const eos::fusex::statistics& stats)
 /*----------------------------------------------------------------------------*/
@@ -566,6 +599,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md &md)
       if (cap->authid() == refcap->authid())
         continue;
 
+      // skip identical client mounts!
       if (cap->clientid() == refcap->clientid())
         continue;
 
@@ -582,6 +616,50 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md &md)
     {
       eos_static_info("auto-remove-cap authid=%s", it->c_str());
       mInodeCaps[refcap->id()].erase(*it);
+    }
+  }
+  return 0;
+}
+
+int
+FuseServer::Caps::BroadcastMD(const eos::fusex::md &md)
+{
+  FuseServer::Caps::shared_cap refcap = Get(md.authid());
+
+  XrdSysMutexHelper lock(this);
+
+  eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
+                  refcap->id(),
+                  refcap->clientid().c_str(),
+                  refcap->clientuuid().c_str(),
+                  refcap->authid().c_str());
+
+  if (mInodeCaps.count(refcap->id()))
+  {
+    for (auto it = mInodeCaps[refcap->id()].begin();
+         it != mInodeCaps[refcap->id()].end(); ++it)
+    {
+      shared_cap cap;
+      // loop over all caps for that inode
+      if (mCaps.count(*it))
+        cap = mCaps[*it];
+      else
+        continue;
+
+      // skip our own cap!
+      if (cap->authid() == refcap->authid())
+        continue;
+
+      // skip identical client mounts, the have it anyway!
+      if (cap->clientid() == refcap->clientid())
+        continue;
+
+      if (cap->id())
+      {
+        gOFS->zMQ->gFuseServer.Client().SendMD(md,
+					       cap->clientuuid(),
+					       cap->clientid());
+      }
     }
   }
   return 0;
@@ -971,6 +1049,7 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md & file)
     if (fmd->isLink())
     {
       file.set_mode(fmd->getFlags() | S_IFLNK );
+      file.set_target(fmd->getLink());
     }
     else
     {
@@ -1661,7 +1740,7 @@ FuseServer::HandleMD(const std::string &id,
 
           if (fmd->getName() != md.name())
           {
-            // this indicates a directory rename
+            // this indicates a file rename
             op = RENAME;
             eos_static_info("rename %s=>%s", fmd->getName().c_str(), md.name().c_str());
             gOFS->eosView->renameFile(fmd, md.name());
@@ -1745,18 +1824,15 @@ FuseServer::HandleMD(const std::string &id,
         resp.mutable_ack_()->set_md_ino(md_ino);
         resp.SerializeToString(response);
 
-        if (0)
-        {
-          // broadcast this update around
-          switch ( op ) {
-          case UPDATE:
-          case CREATE:
-          case RENAME:
-          case MOVE:
-            Cap().BroadcastRelease(md);
-            break;
-          }
-        }
+	// broadcast this update around
+	switch ( op ) {
+	case UPDATE:
+	case CREATE:
+	case RENAME:
+	case MOVE:
+	  Cap().BroadcastMD(md);
+	  break;
+	}
       }
       catch ( eos::MDException &e )
       {
@@ -1777,14 +1853,77 @@ FuseServer::HandleMD(const std::string &id,
     if (S_ISLNK(md.mode()))
     {
       eos_static_info("ino=%lx set-link", (long) md.md_ino());
-      if (md.id())
+
+      eos::FileMD* fmd = 0;
+      eos::ContainerMD* pcmd = 0;
+
+      try 
       {
-        // link update
+	// link creation
+	op = CREATE;
+	pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+	
+	if ( pcmd->findContainer( md.name() ))
+	{
+	  // O_EXCL set on creation - 
+	  return EEXIST;
+	}
+	
+	fmd = gOFS->eosFileService->createFile();
+	
+	fmd->setName( md.name() );
+	fmd->setLink( md.target() );
+	fmd->setLayoutId( 0 );
+	md_ino = eos::common::FileId::FidToInode(fmd->getId());
+	pcmd->addFile(fmd);
+	eos_static_info("ino=%lx pino=%lx md-ino=%lx create-link", (long) md.md_ino(), (long) md.md_pino(), md_ino);
+	
+	fmd->setCUid(md.uid());
+	fmd->setCGid(md.gid());
+	fmd->setSize( 1 );
+	
+	fmd->setFlags( md.mode() & (S_IRWXU | S_IRWXG | S_IRWXO) );
+	
+	eos::FileMD::ctime_t ctime;
+	eos::FileMD::ctime_t mtime;
+	ctime.tv_sec = md.ctime();
+	ctime.tv_nsec = md.ctime_ns();
+	mtime.tv_sec = md.mtime();
+	mtime.tv_nsec = md.mtime_ns();
+	fmd->setCTime(ctime);
+	fmd->setMTime(mtime);
+	fmd->clearAttributes();
+	
+	// store the birth time as an extended attribute
+	char btime[256];
+	snprintf(btime, sizeof (btime), "%lu.%lu", md.btime(), md.btime_ns());
+	fmd->setAttribute("sys.eos.btime", btime);
+	
+	gOFS->eosFileService->updateStore(fmd);
+	
+	eos::fusex::response resp;
+	resp.set_type(resp.ACK);
+	resp.mutable_ack_()->set_code(resp.ack_().OK);
+	resp.mutable_ack_()->set_transactionid(md.reqid());
+	resp.mutable_ack_()->set_md_ino(md_ino);
+	resp.SerializeToString(response);
+
+	Cap().BroadcastRelease(md);
       }
-      else
+      catch ( eos::MDException &e )
       {
-        // link creation
+        eos_static_info("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
+                        e.getErrno(),
+                        e.getMessage().str().c_str());
+        eos::fusex::response resp;
+        resp.set_type(resp.ACK);
+        resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
+        resp.mutable_ack_()->set_err_no(e.getErrno());
+        resp.mutable_ack_()->set_err_msg(e.getMessage().str().c_str());
+        resp.mutable_ack_()->set_transactionid(md.reqid());
+        resp.SerializeToString(response);
       }
+      return 0;
     }
   }
 
