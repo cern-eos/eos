@@ -344,7 +344,7 @@ public:
 
     if (stat(GetParentPath(), &buf))
     {
-      for (int i = GetSubPathSize(); i >= 0; i--)
+      for (int i = GetSubPathSize()-1; i >= 0; i--)
       {
         // go backwards until the directory exists
         if (!stat(GetSubPath(i), &buf))
