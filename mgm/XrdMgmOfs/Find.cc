@@ -108,8 +108,8 @@ XrdMgmOfs::_find(const char* path,
     if (Access::gStallUserGroup) {
       std::string usermatchfiles = "rate:user:";
       usermatchfiles += vid.uid_string;
-      usermatchfiles += "FindFiles";
       usermatchfiles += ":";
+      usermatchfiles += "FindFiles";
       std::string groupmatchfiles = "rate:group:";
       groupmatchfiles += vid.gid_string;
       groupmatchfiles += ":";
@@ -128,8 +128,8 @@ XrdMgmOfs::_find(const char* path,
 
       std::string usermatchdirs = "rate:user:";
       usermatchdirs += vid.uid_string;
-      usermatchdirs += "FindDirs";
       usermatchdirs += ":";
+      usermatchdirs += "FindDirs";
       std::string groupmatchdirs = "rate:group:";
       groupmatchdirs += vid.gid_string;
       groupmatchdirs += ":";
