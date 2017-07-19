@@ -490,8 +490,8 @@ printSizes(const std::map<std::string, GroupSize*>* sizes)
   std::map<std::string, GroupSize*>::const_iterator it;
 
   for (it = sizes->cbegin(); it != sizes->cend(); it++)
-    eos_static_info("group=%s average=%.02f", (*it).first.c_str(),
-                    (double)(*it).second->filled() * 100.0);
+    eos_static_debug("group=%s average=%.02f", (*it).first.c_str(),
+                     (double)(*it).second->filled() * 100.0);
 }
 
 /*----------------------------------------------------------------------------*/
