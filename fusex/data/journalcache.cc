@@ -134,6 +134,7 @@ int journalcache::detach(std::string& cookie)
     if (rc)
       return errno;
     journal.clear();
+    unlink();
   }
   return 0;
 }

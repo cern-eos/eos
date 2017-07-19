@@ -156,7 +156,7 @@ message lock {
 
 
 message response {
-  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; }
+  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; }
 
   // Identifies which field is filled in.
   Type type = 1;
@@ -165,4 +165,5 @@ message response {
   ack ack_ = 3;
   lease lease_ = 4;
   lock lock_ = 5;
+  md md_ = 6;
 }

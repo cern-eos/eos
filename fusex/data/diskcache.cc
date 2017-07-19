@@ -315,6 +315,7 @@ diskcache::set_attr(std::string& key, std::string & value)
       throw std::runtime_error("diskcache has no xattr support");
     }
   }
+  fprintf(stderr,"set_attr key=%s val=%s fd=%d\n", key.c_str(), value.c_str(), fd);
   return -1;
 }
 

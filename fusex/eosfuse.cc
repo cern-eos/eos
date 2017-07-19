@@ -41,7 +41,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
 #include <sys/types.h>
 #ifdef __APPLE__
 #include <sys/xattr.h>
@@ -446,25 +445,35 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     }
 
 
-
-    // C++11 is poor for threading 
-    pthread_cancel(tDumpStatistic.native_handle());
-    pthread_cancel(tStatCirculate.native_handle());
-    pthread_cancel(tMetaCacheFlush.native_handle());
-    pthread_cancel(tMetaCommunicate.native_handle());
-    pthread_cancel(tCapFlush.native_handle());
-
-    tDumpStatistic.join();
-    tStatCirculate.join();
-    tMetaCacheFlush.join();
-    tMetaCommunicate.join();
-    tCapFlush.join();
-
-    mds.terminate();
-
     eos_static_warning("eosdx stopped version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
     eos_static_warning("********************************************************************************");
 
+#if ( __GNUC_MINOR__ == 8 ) && ( __GNUC_PATCHLEVEL__ == 2 )
+    {
+      fuse_unmount(local_mount_dir, fusechan);
+      pthread_kill(tDumpStatistic.native_handle(),9);
+      pthread_kill(tStatCirculate.native_handle(),9);
+      pthread_kill(tMetaCacheFlush.native_handle(),9);
+      pthread_kill(tMetaCommunicate.native_handle(),9);
+      pthread_kill(tCapFlush.native_handle(),9);
+    }
+#else
+    {
+      // C++11 is poor for threading 
+      pthread_cancel(tDumpStatistic.native_handle());
+      pthread_cancel(tStatCirculate.native_handle());
+      pthread_cancel(tMetaCacheFlush.native_handle());
+      pthread_cancel(tMetaCommunicate.native_handle());
+      pthread_cancel(tCapFlush.native_handle());
+      
+      tDumpStatistic.join();
+      tStatCirculate.join();
+      tMetaCacheFlush.join();
+      tMetaCommunicate.join();
+      tCapFlush.join();
+    }
+#endif
+    mds.terminate();
     fuse_unmount(local_mount_dir, fusechan);
   }
   return err ? 1 : 0;
@@ -473,17 +482,43 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
+EosFuse::umounthandler(int sig, siginfo_t *si, void *unused)
+/* -------------------------------------------------------------------------- */
+{
+  eos_static_warning("sighandler received signal %d - emitting signal 2", sig);
+  kill (getpid(), 2);
+}
+
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
 EosFuse::init(void *userdata, struct fuse_conn_info *conn)
 /* -------------------------------------------------------------------------- */
 {
-
   eos_static_debug("");
+  struct sigaction sa;
+
+  sa.sa_flags = SA_SIGINFO;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_sigaction = EosFuse::umounthandler;
+  if (sigaction(SIGSEGV, &sa, NULL) == -1)
+  {
+    char msg[1024];
+    snprintf(msg, sizeof (msg), "failed to install SEGV handler");
+    throw std::runtime_error(msg);
+  }
+  if (sigaction(SIGABRT, &sa, NULL) == -1)
+  {
+    char msg[1024];
+    snprintf(msg, sizeof (msg), "failed to install SEGV handler");
+    throw std::runtime_error(msg);
+  }
 }
 
 void
 EosFuse::destroy(void *userdata)
 {
-
   eos_static_debug("");
 }
 
@@ -497,6 +532,7 @@ EosFuse::DumpStatistic()
   XrdSysTimer sleeper;
   char ino_stat[16384];
   time_t start_time = time(NULL);
+
   while (1)
   {
     eos::common::LinuxMemConsumption::linux_mem_t mem;
@@ -2069,7 +2105,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       md->set_btime_ns(ts.tv_nsec);
       // need to update the parent mtime
       md->set_pmtime(ts.tv_sec);
-      md->set_pmtime_ns(ts.tv_sec);
+      md->set_pmtime_ns(ts.tv_nsec);
       pmd->set_mtime(ts.tv_sec);
       pmd->set_mtime_ns(ts.tv_nsec);
       md->set_uid(pcap->uid());

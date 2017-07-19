@@ -111,6 +111,7 @@ public:
       delete _file;
       delete _journal;
 
+      fprintf(stderr,">>> deleting xrdio object\n");
       // delete all proxy objects
       for (auto it=_xrdioro.begin(); it != _xrdioro.end(); ++it)
       {

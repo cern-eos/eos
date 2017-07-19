@@ -27,5 +27,6 @@ int
 main (int argc, char *argv[])
 {
   EosFuse& eosfuse = EosFuse::instance();
+
   return eosfuse.run(argc, argv, NULL);
 }

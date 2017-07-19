@@ -28,7 +28,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 
-
 Stat* Stat::sStat=0;
 
 /*----------------------------------------------------------------------------*/
@@ -1111,6 +1110,7 @@ void
 Stat::Circulate ()
 {
   // empty the circular buffer and extract some Mq statistic values
+
   while (1)
   {
     XrdSysTimer sleeper;

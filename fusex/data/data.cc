@@ -92,7 +92,10 @@ data::release(fuse_req_t req,
   if (datamap.count(ino))
   {
     shared_data io = datamap[ino];
-    io->detach();
+    if (!io->detach())
+    {  
+      cachehandler::rm(ino);
+    }
     return;
   }
 }
@@ -143,10 +146,13 @@ data::datax::flush(fuse_req_t req)
   }
   else
   {
-    eos_debug("attaching to journal\n");
-    // attach for the asynchronous thread
-    std::string cookie("flusher");
-    mFile->journal()->attach(req, cookie, true);
+    if (mFile->journal()->size())
+    {
+      eos_debug("attaching to journal\n");
+      // attach for the asynchronous thread
+      std::string cookie("flusher");
+      mFile->journal()->attach(req, cookie, true);
+    }
   }
   eos_info("retc=0");
   return 0;
@@ -360,9 +366,11 @@ int
 data::datax::detach(fuse_req_t req, std::string& cookie, bool isRW)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper lLock(mLock);
   eos_info("cookie=%s isrw=%d", cookie.c_str(), isRW);
 
+  int rflush = flush(req);
+
+  XrdSysMutexHelper lLock(mLock);
   int bcache = mFile->file() ? mFile->file()->detach(cookie) : 0;
   int jcache = mFile->journal() ? mFile->journal()->detach(cookie) : 0;
   int xio = 0;
@@ -382,7 +390,7 @@ data::datax::detach(fuse_req_t req, std::string& cookie, bool isRW)
       mFile->xrdioro(req)->detach();
     }
   }
-  return bcache | jcache | xio;
+  return rflush | bcache | jcache | xio;
 }
 
 /* -------------------------------flus------------------------------------------- */

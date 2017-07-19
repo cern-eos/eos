@@ -33,6 +33,7 @@
 #include "kv/kv.hh"
 #include "llfusexx.hh"
 
+#include <signal.h>
 #include <string.h>
 #include <string>
 #include <thread>
@@ -52,6 +53,8 @@ public:
   virtual ~EosFuse();
 
   int run(int argc, char* argv[], void *userdata);
+
+  static void umounthandler(int sig, siginfo_t *si, void *unused);
 
   static void init(void *userdata, struct fuse_conn_info *conn);
 
