@@ -25,6 +25,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Policy.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 /*----------------------------------------------------------------------------*/
 #include <errno.h>
 /*----------------------------------------------------------------------------*/
@@ -118,11 +119,9 @@ SpaceQuota::GetQuotaStatus(unsigned long long is, unsigned long long avail)
 //------------------------------------------------------------------------------
 // Get current quota value as percentage of the available one
 //------------------------------------------------------------------------------
-const char*
-SpaceQuota::GetQuotaPercentage(unsigned long long is, unsigned long long avail,
-                               XrdOucString& spercentage)
+const float
+SpaceQuota::GetQuotaPercentage(unsigned long long is, unsigned long long avail)
 {
-  char percentage[1024];
   float fp = avail ? (100.0 * is / avail) : 100.0;
 
   if (fp > 100.0) {
@@ -133,9 +132,7 @@ SpaceQuota::GetQuotaPercentage(unsigned long long is, unsigned long long avail,
     fp = 0;
   }
 
-  sprintf(percentage, "%.02f", fp);
-  spercentage = percentage;
-  return spercentage.c_str();
+  return fp;
 }
 
 //------------------------------------------------------------------------------
@@ -447,10 +444,8 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
                      bool monitoring, bool translate_ids)
 {
   using eos::common::StringConversion;
-  char headerline[4096];
   // Make a map containing once all the defined uid's and gid's
-  std::set<unsigned long> set_uids, set_gids;
-  XrdOucString header;
+  std::vector<std::pair<std::string, unsigned>> uids, gids;
   {
     XrdSysMutexHelper scope_lock(mMutex);
 
@@ -463,10 +458,10 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
       if ((UnIndex(it->first) >= kUserBytesIs)
           && (UnIndex(it->first) <= kUserFilesTarget)) {
         eos_static_debug("adding %llx to print list ", UnIndex(it->first));
-        unsigned long ugid = (it->first) & 0xffffffff;
+        unsigned long uid = (it->first) & 0xffffffff;
 
         // uid selection filter
-        if ((uid_sel >= 0) && (ugid != (unsigned long) uid_sel)) {
+        if ((uid_sel >= 0) && (uid != (unsigned long) uid_sel)) {
           continue;
         }
 
@@ -475,15 +470,27 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
           continue;
         }
 
-        set_uids.insert(ugid);
+        // Translate IDs
+        std::string name = std::to_string(uid).c_str();
+
+        if (translate_ids) {
+          if (gid_sel == Quota::gProjectId) {
+            name = "project";
+          } else {
+            int errc = 0;
+            name = eos::common::Mapping::GidToGroupName(uid, errc);
+          }
+        }
+
+        uids.push_back(std::make_pair(name.c_str(), uid));
       }
 
       if ((UnIndex(it->first) >= kGroupBytesIs)
           && (UnIndex(it->first) <= kGroupFilesTarget)) {
-        unsigned long ugid = (it->first) & 0xffffffff;
+        unsigned long gid = (it->first) & 0xffffffff;
 
         // uid selection filter
-        if ((gid_sel >= 0) && (ugid != (unsigned long) gid_sel)) {
+        if ((gid_sel >= 0) && (gid != (unsigned long) gid_sel)) {
           continue;
         }
 
@@ -492,354 +499,380 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
           continue;
         }
 
-        set_gids.insert(ugid);
+        // Translate IDs
+        std::string name = std::to_string(gid).c_str();
+
+        if (translate_ids) {
+          if (gid_sel == Quota::gProjectId) {
+            name = "project";
+          } else {
+            int errc = 0;
+            name = eos::common::Mapping::GidToGroupName(gid, errc);
+          }
+        }
+
+        gids.push_back(std::make_pair(name.c_str(), gid));
       }
     }
   }
-  std::vector<unsigned long> uids(set_uids.begin(), set_uids.end());
-  std::vector<unsigned long> gids(set_gids.begin(), set_gids.end());
-  // Sort the uids and gids
+  // Sort and erase duplicated the uids and gids
   std::sort(uids.begin(), uids.end());
+  uids.erase(std::unique(uids.begin(), uids.end()), uids.end());
   std::sort(gids.begin(), gids.end());
+  gids.erase(std::unique(gids.begin(), gids.end()), gids.end());
   eos_static_debug("sorted");
 
   for (unsigned int i = 0; i < uids.size(); ++i) {
-    eos_static_debug("sort %d %d", i, uids[i]);
+    eos_static_debug("sort %d %d", i, uids[i].second);
   }
 
   for (unsigned int i = 0; i < gids.size(); ++i) {
-    eos_static_debug("sort %d %d", i, gids[i]);
-  }
-
-  // Uid and gid output lines
-  std::vector <std::string> uidout;
-  std::vector <std::string> gidout;
-
-  if (!monitoring) {
-    header += "# ___________________________________________________________"
-              "____________________________________\n";
-    sprintf(headerline, "# ==> Quota Node: %-16s\n", pPath.c_str());
-    header += headerline;
-    header += "# ___________________________________________________________"
-              "____________________________________\n";
+    eos_static_debug("sort %d %d", i, gids[i].second);
   }
 
   // Print the header for selected uid/gid's only if there is something to print
   // If we have a full listing we print even empty quota nodes (=header only)
-  if (((uid_sel < 0) && (gid_sel < 0)) || !uids.empty() || !gids.empty()) {
-    output += header;
+  if (!monitoring) {
+    if (((uid_sel < 0) && (gid_sel < 0)) || !uids.empty() || !gids.empty()) {
+      output += "\n┏━> Quota Node: ";
+      output += pPath.c_str();
+      output += "\n";
+    }
   }
+
+  //! Quota node - Users
+  TableFormatterBase table_user;
 
   if (!uids.empty()) {
     // Table header
     if (!monitoring) {
-      sprintf(headerline, "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s "
-              "%-10s %-10s\n", GetTagCategory(kUserBytesIs), GetTagName(kUserBytesIs),
-              GetTagName(kUserLogicalBytesIs), GetTagName(kUserFilesIs),
-              GetTagName(kUserBytesTarget), GetTagName(kUserLogicalBytesTarget),
-              GetTagName(kUserFilesTarget), "filled[%]", "vol-status", "ino-status");
-      output += headerline;
+      table_user.SetHeader({
+        std::make_tuple(GetTagCategory(kUserBytesIs), 10, "-s"),
+        std::make_tuple(GetTagName(kUserBytesIs), 10, "+l"),
+        std::make_tuple(GetTagName(kUserLogicalBytesIs), 10, "+l"),
+        std::make_tuple(GetTagName(kUserFilesIs), 10, "+l"),
+        std::make_tuple(GetTagName(kUserBytesTarget), 10, "+l"),
+        std::make_tuple(GetTagName(kUserLogicalBytesTarget), 10, "+l"),
+        std::make_tuple(GetTagName(kUserFilesTarget), 10, "+l"),
+        std::make_tuple("filled[%]", 10, "f"),
+        std::make_tuple("vol-status", 10, "s"),
+        std::make_tuple("ino-status", 10, "s")
+      });
+    } else {
+      table_user.SetHeader({
+        std::make_tuple("quota", 0, "os"),
+        std::make_tuple("uid", 0, "os"),
+        std::make_tuple("space", 0, "os"),
+        std::make_tuple("usedbytes", 0, "ol"),
+        std::make_tuple("usedlogicalbytes", 0, "ol"),
+        std::make_tuple("usedfiles", 0, "ol"),
+        std::make_tuple("maxbytes", 0, "ol"),
+        std::make_tuple("maxlogicalbytes", 0, "ol"),
+        std::make_tuple("maxfiles", 0, "ol"),
+        std::make_tuple("percentageusedbytes", 0, "of"),
+        std::make_tuple("statusbytes", 0, "os"),
+        std::make_tuple("statusfiles", 0, "os")
+      });
     }
-  }
 
-  for (unsigned int lid = 0; lid < uids.size(); lid++) {
-    eos_static_debug("loop with id=%d", lid);
-    XrdOucString value1 = "";
-    XrdOucString value2 = "";
-    XrdOucString value3 = "";
-    XrdOucString value4 = "";
-    XrdOucString value5 = "";
-    XrdOucString value6 = "";
-    XrdOucString id = "";
-    id += std::to_string((long long unsigned int)uids[lid]).c_str();
+    for (auto it : uids) {
+      std::string name = it.first.c_str();
+      unsigned int id = it.second;
+      eos_static_debug("loop with id=%d", id);
+      TableData table_data;
+      table_data.emplace_back();
 
-    if (translate_ids) {
-      if (gid_sel == Quota::gProjectId) {
-        id = "project";
+      if (!monitoring) {
+        table_data.back().push_back(TableCell(name.c_str(), "-s"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserBytesIs, id), "+l", "B"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserLogicalBytesIs, id), "+l", "B"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserFilesIs, id), "+l"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserBytesTarget, id), "+l", "B"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserBytesTarget, id) / mLayoutSizeFactor, "+l", "B"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserFilesTarget, id), "+l"));
+        table_data.back().push_back(TableCell(GetQuotaPercentage(
+                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "f", "%"));
+        table_data.back().push_back(TableCell(GetQuotaStatus(
+                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "s"));
+        table_data.back().push_back(TableCell(GetQuotaStatus(
+                                                GetQuota(kUserFilesIs, id), GetQuota(kUserFilesTarget, id)), "s"));
       } else {
-        int errc = 0;
-        std::string username = eos::common::Mapping::UidToUserName(uids[lid], errc);
-        char uidlimit[16];
-
-        if (username.length()) {
-          snprintf(uidlimit, 11, "%s", username.c_str());
-          id = uidlimit;
-        }
+        table_data.back().push_back(TableCell("node", "os"));
+        table_data.back().push_back(TableCell(name.c_str(), "os"));
+        table_data.back().push_back(TableCell(pPath.c_str(), "os"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserBytesIs, id), "ol"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserLogicalBytesIs, id), "ol"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserFilesIs, id), "ol"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserBytesTarget, id), "ol"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserBytesTarget, id) / mLayoutSizeFactor, "ol"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kUserFilesTarget, id), "ol"));
+        table_data.back().push_back(TableCell(GetQuotaPercentage(
+                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "of"));
+        table_data.back().push_back(TableCell(GetQuotaStatus(
+                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "os"));
+        table_data.back().push_back(TableCell(GetQuotaStatus(
+                                                GetQuota(kUserFilesIs, id), GetQuota(kUserFilesTarget, id)), "os"));
       }
-    }
 
-    XrdOucString percentage = "";
-
-    if (!monitoring) {
-      sprintf(headerline,
-              "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
-              StringConversion::GetReadableSizeString(value1,
-                  GetQuota(kUserBytesIs, uids[lid]), "B"),
-              StringConversion::GetReadableSizeString(value2,
-                  GetQuota(kUserLogicalBytesIs, uids[lid]), "B"),
-              StringConversion::GetReadableSizeString(value3,
-                  GetQuota(kUserFilesIs, uids[lid]), "-"),
-              StringConversion::GetReadableSizeString(value4,
-                  GetQuota(kUserBytesTarget, uids[lid]), "B"),
-              StringConversion::GetReadableSizeString(value5,
-                  (long long)(GetQuota(kUserBytesTarget, uids[lid]) / mLayoutSizeFactor),
-                  "B"),
-              StringConversion::GetReadableSizeString(value6,
-                  GetQuota(kUserFilesTarget, uids[lid]), "-"),
-              GetQuotaPercentage(GetQuota(kUserBytesIs, uids[lid]),
-                                 GetQuota(kUserBytesTarget, uids[lid]), percentage),
-              GetQuotaStatus(GetQuota(kUserBytesIs, uids[lid]),
-                             GetQuota(kUserBytesTarget, uids[lid])),
-              GetQuotaStatus(GetQuota(kUserFilesIs, uids[lid]),
-                             GetQuota(kUserFilesTarget, uids[lid])));
-    } else {
-      sprintf(headerline, "quota=node uid=%s space=%s usedbytes=%llu "
-              "usedlogicalbytes=%llu usedfiles=%llu maxbytes=%llu "
-              "maxlogicalbytes=%llu maxfiles=%llu percentageusedbytes=%s "
-              "statusbytes=%s statusfiles=%s\n", id.c_str(), pPath.c_str(),
-              GetQuota(kUserBytesIs, uids[lid]),
-              GetQuota(kUserLogicalBytesIs, uids[lid]),
-              GetQuota(kUserFilesIs, uids[lid]),
-              GetQuota(kUserBytesTarget, uids[lid]),
-              (unsigned long long)(GetQuota(kUserBytesTarget,
-                                            uids[lid]) / mLayoutSizeFactor),
-              GetQuota(kUserFilesTarget, uids[lid]),
-              GetQuotaPercentage(GetQuota(kUserBytesIs, uids[lid]),
-                                 GetQuota(kUserBytesTarget, uids[lid]), percentage),
-              GetQuotaStatus(GetQuota(kUserBytesIs, uids[lid]),
-                             GetQuota(kUserBytesTarget, uids[lid])),
-              GetQuotaStatus(GetQuota(kUserFilesIs, uids[lid]),
-                             GetQuota(kUserFilesTarget, uids[lid])));
-    }
-
-    if (!translate_ids) {
-      output += headerline;
-    } else {
-      uidout.push_back(headerline);
-    }
-  }
-
-  if (translate_ids) {
-    std::sort(uidout.begin(), uidout.end());
-
-    for (size_t i = 0; i < uidout.size(); i++) {
-      output += uidout[i].c_str();
-    }
-  }
-
-  if (!gids.empty()) {
-    // group loop
-    if (!monitoring) {
-      output += "# ........................................................."
-                "......................................\n";
-      sprintf(headerline,
-              "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
-              GetTagCategory(kGroupBytesIs), GetTagName(kGroupBytesIs),
-              GetTagName(kGroupLogicalBytesIs), GetTagName(kGroupFilesIs),
-              GetTagName(kGroupBytesTarget), GetTagName(kGroupLogicalBytesTarget),
-              GetTagName(kGroupFilesTarget), "filled[%]", "vol-status", "ino-status");
-      output += headerline;
-    }
-  }
-
-  for (unsigned int lid = 0; lid < gids.size(); lid++) {
-    eos_static_debug("loop with id=%d", lid);
-    XrdOucString value1 = "";
-    XrdOucString value2 = "";
-    XrdOucString value3 = "";
-    XrdOucString value4 = "";
-    XrdOucString value5 = "";
-    XrdOucString value6 = "";
-    XrdOucString id = "";
-    id += std::to_string((long long unsigned int)gids[lid]).c_str();
-
-    if (translate_ids) {
-      if (gid_sel == Quota::gProjectId) {
-        id = "project";
-      } else {
-        int errc = 0;
-        std::string groupname = eos::common::Mapping::GidToGroupName(gids[lid],
-                                errc);
-        char gidlimit[16];
-
-        if (groupname.length()) {
-          snprintf(gidlimit, 11, "%s", groupname.c_str());
-          id = gidlimit;
-        }
-      }
-    }
-
-    XrdOucString percentage = "";
-
-    if (!monitoring) {
-      sprintf(headerline,
-              "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
-              StringConversion::GetReadableSizeString(value1,
-                  GetQuota(kGroupBytesIs, gids[lid]), "B"),
-              StringConversion::GetReadableSizeString(value2,
-                  GetQuota(kGroupLogicalBytesIs, gids[lid]), "B"),
-              StringConversion::GetReadableSizeString(value3,
-                  GetQuota(kGroupFilesIs, gids[lid]), "-"),
-              StringConversion::GetReadableSizeString(value4,
-                  GetQuota(kGroupBytesTarget, gids[lid]), "B"),
-              StringConversion::GetReadableSizeString(value5,
-                  (long long)(GetQuota(kGroupBytesTarget, gids[lid]) / mLayoutSizeFactor),
-                  "B"),
-              StringConversion::GetReadableSizeString(value6,
-                  GetQuota(kGroupFilesTarget, gids[lid]), "-"),
-              GetQuotaPercentage(GetQuota(kGroupBytesIs, gids[lid]),
-                                 GetQuota(kGroupBytesTarget, gids[lid]), percentage),
-              GetQuotaStatus(GetQuota(kGroupBytesIs, gids[lid]),
-                             GetQuota(kGroupBytesTarget, gids[lid])),
-              GetQuotaStatus(GetQuota(kGroupFilesIs, gids[lid]),
-                             GetQuota(kGroupFilesTarget, gids[lid])));
-    } else {
-      sprintf(headerline,
-              "quota=node gid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
-              "usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
-              "percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
-              id.c_str(), pPath.c_str(),
-              GetQuota(kGroupBytesIs, gids[lid]),
-              GetQuota(kGroupLogicalBytesIs, gids[lid]),
-              GetQuota(kGroupFilesIs, gids[lid]),
-              GetQuota(kGroupBytesTarget, gids[lid]),
-              (unsigned long long)(GetQuota(kGroupBytesTarget,
-                                            gids[lid]) / mLayoutSizeFactor),
-              GetQuota(kGroupFilesTarget, gids[lid]),
-              GetQuotaPercentage(GetQuota(kGroupBytesIs, gids[lid]),
-                                 GetQuota(kGroupBytesTarget, gids[lid]), percentage),
-              GetQuotaStatus(GetQuota(kGroupBytesIs, gids[lid]),
-                             GetQuota(kGroupBytesTarget, gids[lid])),
-              GetQuotaStatus(GetQuota(kGroupFilesIs, gids[lid]),
-                             GetQuota(kGroupFilesTarget, gids[lid])));
-    }
-
-    if (!translate_ids) {
-      output += headerline;
-    } else {
-      gidout.push_back(headerline);
-    }
-  }
-
-  if (translate_ids) {
-    std::sort(gidout.begin(), gidout.end());
-
-    for (size_t i = 0; i < gidout.size(); i++) {
-      output += gidout[i].c_str();
+      table_user.AddRows(table_data);
     }
   }
 
   if ((uid_sel < 0) && (gid_sel < 0)) {
-    if (!monitoring) {
-      output += "# ---------------------------------------------------------"
-                "-------------------------------------------------\n";
-      output += "# ==> Summary\n";
-    }
+    output += table_user.GenerateTable(HEADER).c_str();
+  } else {
+    output += table_user.GenerateTable(HEADER_QUOTA).c_str();
+  }
 
-    XrdOucString value1 = "";
-    XrdOucString value2 = "";
-    XrdOucString value3 = "";
-    XrdOucString value4 = "";
-    XrdOucString value5 = "";
-    XrdOucString value6 = "";
-    XrdOucString id = "ALL";
-    XrdOucString percentage = "";
+  //! Quota node - Group
+  TableFormatterBase table_group;
 
+  if (!gids.empty()) {
+    // group loop
     if (!monitoring) {
-      sprintf(headerline,
-              "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
-              GetTagCategory(kAllUserBytesIs), GetTagName(kAllUserBytesIs),
-              GetTagName(kAllUserLogicalBytesIs), GetTagName(kAllUserFilesIs),
-              GetTagName(kAllUserBytesTarget), GetTagName(kAllUserLogicalBytesTarget),
-              GetTagName(kAllUserFilesTarget), "filled[%]", "vol-status", "ino-status");
-      output += headerline;
-      sprintf(headerline,
-              "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
-              StringConversion::GetReadableSizeString(value1,
-                  GetQuota(kAllUserBytesIs, 0), "B"),
-              StringConversion::GetReadableSizeString(value2,
-                  GetQuota(kAllUserLogicalBytesIs, 0), "B"),
-              StringConversion::GetReadableSizeString(value3,
-                  GetQuota(kAllUserFilesIs, 0), "-"),
-              StringConversion::GetReadableSizeString(value4,
-                  GetQuota(kAllUserBytesTarget, 0), "B"),
-              StringConversion::GetReadableSizeString(value5,
-                  GetQuota(kAllUserLogicalBytesTarget, 0), "B"),
-              StringConversion::GetReadableSizeString(value6,
-                  GetQuota(kAllUserFilesTarget, 0), "-"),
-              GetQuotaPercentage(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget,
-                                 0), percentage),
-              GetQuotaStatus(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)),
-              GetQuotaStatus(GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)));
+      table_group.SetHeader({
+        std::make_tuple(GetTagCategory(kGroupBytesIs), 10, "-s"),
+        std::make_tuple(GetTagName(kGroupBytesIs), 10, "+l"),
+        std::make_tuple(GetTagName(kGroupLogicalBytesIs), 10, "+l"),
+        std::make_tuple(GetTagName(kGroupFilesIs), 10, "+l"),
+        std::make_tuple(GetTagName(kGroupBytesTarget), 10, "+l"),
+        std::make_tuple(GetTagName(kGroupLogicalBytesTarget), 10, "+l"),
+        std::make_tuple(GetTagName(kGroupFilesTarget), 10, "+l"),
+        std::make_tuple("filled[%]", 10, "f"),
+        std::make_tuple("vol-status", 10, "s"),
+        std::make_tuple("ino-status", 10, "s")
+      });
     } else {
-      sprintf(headerline,
-              "quota=node uid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
-              "usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
-              "percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
-              id.c_str(), pPath.c_str(),
-              GetQuota(kAllUserBytesIs, 0),
-              GetQuota(kAllUserLogicalBytesIs, 0),
-              GetQuota(kAllUserFilesIs, 0),
-              GetQuota(kAllUserBytesTarget, 0),
-              GetQuota(kAllUserLogicalBytesTarget, 0),
-              GetQuota(kAllUserFilesTarget, 0),
-              GetQuotaPercentage(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget,
-                                 0), percentage),
-              GetQuotaStatus(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)),
-              GetQuotaStatus(GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)));
+      table_group.SetHeader({
+        std::make_tuple("quota", 0, "os"),
+        std::make_tuple("gid", 0, "os"),
+        std::make_tuple("space", 0, "os"),
+        std::make_tuple("usedbytes", 0, "ol"),
+        std::make_tuple("usedlogicalbytes", 0, "ol"),
+        std::make_tuple("usedfiles", 0, "ol"),
+        std::make_tuple("maxbytes", 0, "ol"),
+        std::make_tuple("maxlogicalbytes", 0, "ol"),
+        std::make_tuple("maxfiles", 0, "ol"),
+        std::make_tuple("percentageusedbytes", 0, "of"),
+        std::make_tuple("statusbytes", 0, "os"),
+        std::make_tuple("statusfiles", 0, "os")
+      });
     }
 
-    output += headerline;
+    for (auto it : gids) {
+      std::string name = it.first.c_str();
+      unsigned int id = it.second;
+      eos_static_debug("loop with id=%d", id);
+      TableData table_data;
+      table_data.emplace_back();
 
+      if (!monitoring) {
+        table_data.back().push_back(TableCell(name.c_str(), "-s"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupBytesIs, id), "+l", "B"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupLogicalBytesIs, id), "+l", "B"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupFilesIs, id), "+l"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupBytesTarget, id), "+l", "B"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupBytesTarget, id) / mLayoutSizeFactor, "+l", "B"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupFilesTarget, id), "+l"));
+        table_data.back().push_back(TableCell(GetQuotaPercentage(
+                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "f", "%"));
+        table_data.back().push_back(TableCell(GetQuotaStatus(
+                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "s"));
+        table_data.back().push_back(TableCell(GetQuotaStatus(
+                                                GetQuota(kGroupFilesIs, id), GetQuota(kGroupFilesTarget, id)), "s"));
+      } else {
+        table_data.back().push_back(TableCell("node", "os"));
+        table_data.back().push_back(TableCell(name.c_str(), "os"));
+        table_data.back().push_back(TableCell(pPath.c_str(), "os"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupBytesIs, id), "ol"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupLogicalBytesIs, id), "ol"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupFilesIs, id), "ol"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupBytesTarget, id), "ol"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupBytesTarget, id) / mLayoutSizeFactor, "ol"));
+        table_data.back().push_back(TableCell(
+                                      GetQuota(kGroupFilesTarget, id), "ol"));
+        table_data.back().push_back(TableCell(GetQuotaPercentage(
+                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "of"));
+        table_data.back().push_back(TableCell(GetQuotaStatus(
+                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "os"));
+        table_data.back().push_back(TableCell(GetQuotaStatus(
+                                                GetQuota(kGroupFilesIs, id), GetQuota(kGroupFilesTarget, id)), "os"));
+      }
+
+      table_group.AddRows(table_data);
+    }
+  }
+
+  if ((uid_sel < 0) && (gid_sel < 0)) {
+    output += table_group.GenerateTable(HEADER).c_str();
+  } else {
+    output += table_group.GenerateTable(HEADER_QUOTA).c_str();
+  }
+
+  //! Quota node - Summary
+  if ((uid_sel < 0) && (gid_sel < 0)) {
     if (!monitoring) {
-      sprintf(headerline,
-              "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
-              GetTagCategory(kAllGroupBytesIs), GetTagName(kAllGroupBytesIs),
-              GetTagName(kAllGroupLogicalBytesIs), GetTagName(kAllGroupFilesIs),
-              GetTagName(kAllGroupBytesTarget), GetTagName(kAllGroupLogicalBytesTarget),
-              GetTagName(kAllGroupFilesTarget), "filled[%]", "vol-status", "ino-status");
-      output += headerline;
-      sprintf(headerline,
-              "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
-              StringConversion::GetReadableSizeString(value1,
-                  GetQuota(kAllGroupBytesIs, 0), "B"),
-              StringConversion::GetReadableSizeString(value2,
-                  GetQuota(kAllGroupLogicalBytesIs, 0), "B"),
-              StringConversion::GetReadableSizeString(value3,
-                  GetQuota(kAllGroupFilesIs, 0), "-"),
-              StringConversion::GetReadableSizeString(value4,
-                  GetQuota(kAllGroupBytesTarget, 0), "B"),
-              StringConversion::GetReadableSizeString(value5,
-                  GetQuota(kAllGroupLogicalBytesTarget, 0), "B"),
-              StringConversion::GetReadableSizeString(value6,
-                  GetQuota(kAllGroupFilesTarget, 0), "-"),
-              GetQuotaPercentage(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
-                                 0), percentage),
-              GetQuotaStatus(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
-                             0)),
-              GetQuotaStatus(GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget,
-                             0)));
+      TableFormatterBase table_summary;
+      table_summary.SetHeader({
+        std::make_tuple("summary", 10, "-s"),
+        std::make_tuple(GetTagName(kAllUserBytesIs), 10, "+l"),
+        std::make_tuple(GetTagName(kAllUserLogicalBytesIs), 10, "+l"),
+        std::make_tuple(GetTagName(kAllUserFilesIs), 10, "+l"),
+        std::make_tuple(GetTagName(kAllUserBytesTarget), 10, "+l"),
+        std::make_tuple(GetTagName(kAllUserLogicalBytesTarget), 10, "+l"),
+        std::make_tuple(GetTagName(kAllUserFilesTarget), 10, "+l"),
+        std::make_tuple("filled[%]", 10, "f"),
+        std::make_tuple("vol-status", 10, "s"),
+        std::make_tuple("ino-status", 10, "s")
+      });
+      TableData table_data;
+      table_data.emplace_back();
+      table_data.back().push_back(TableCell("All users", "-s"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserBytesIs, 0), "+l", "B"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserLogicalBytesIs, 0), "+l", "B"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserFilesIs, 0), "+l"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserBytesTarget, 0), "+l", "B"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserLogicalBytesTarget, 0), "+l", "B"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserFilesTarget, 0), "+l"));
+      table_data.back().push_back(TableCell(GetQuotaPercentage(
+                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "f", "%"));
+      table_data.back().push_back(TableCell(GetQuotaStatus(
+                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "s"));
+      table_data.back().push_back(TableCell(GetQuotaStatus(
+                                              GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)), "s"));
+      table_data.emplace_back();
+      table_data.back().push_back(TableCell("All groups", "-ls"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupBytesIs, 0), "+l", "B"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupLogicalBytesIs, 0), "+l", "B"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupFilesIs, 0), "+l"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupBytesTarget, 0), "+l", "B"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupLogicalBytesTarget, 0), "+l", "B"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupFilesTarget, 0), "+l"));
+      table_data.back().push_back(TableCell(GetQuotaPercentage(
+                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "f", "%"));
+      table_data.back().push_back(TableCell(GetQuotaStatus(
+                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "s"));
+      table_data.back().push_back(TableCell(GetQuotaStatus(
+                                              GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget, 0)), "s"));
+      table_summary.AddRows(table_data);
+      output += table_summary.GenerateTable(HEADER_QUOTA).c_str();
     } else {
-      sprintf(headerline,
-              "quota=node gid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
-              "usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
-              "percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
-              id.c_str(), pPath.c_str(),
-              GetQuota(kAllGroupBytesIs, 0),
-              GetQuota(kAllGroupLogicalBytesIs, 0),
-              GetQuota(kAllGroupFilesIs, 0),
-              GetQuota(kAllGroupBytesTarget, 0),
-              GetQuota(kAllGroupLogicalBytesTarget, 0),
-              GetQuota(kAllGroupFilesTarget, 0),
-              GetQuotaPercentage(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
-                                 0), percentage),
-              GetQuotaStatus(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
-                             0)),
-              GetQuotaStatus(GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget,
-                             0)));
+      TableFormatterBase table_summary_user;
+      table_summary_user.SetHeader({
+        std::make_tuple("quota", 0, "os"),
+        std::make_tuple("uid", 0, "os"),
+        std::make_tuple("space", 0, "os"),
+        std::make_tuple("usedbytes", 0, "ol"),
+        std::make_tuple("usedlogicalbytes", 0, "ol"),
+        std::make_tuple("usedfiles", 0, "ol"),
+        std::make_tuple("maxbytes", 0, "ol"),
+        std::make_tuple("maxlogicalbytes", 0, "ol"),
+        std::make_tuple("maxfiles", 0, "ol"),
+        std::make_tuple("percentageusedbytes", 0, "of"),
+        std::make_tuple("statusbytes", 0, "os"),
+        std::make_tuple("statusfiles", 0, "os")
+      });
+      TableData table_data;
+      table_data.emplace_back();
+      table_data.back().push_back(TableCell("node", "os"));
+      table_data.back().push_back(TableCell("ALL", "os"));
+      table_data.back().push_back(TableCell(pPath.c_str(), "os"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserBytesIs, 0), "ol"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserLogicalBytesIs, 0), "ol"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserFilesIs, 0), "ol"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserBytesTarget, 0), "ol"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserLogicalBytesTarget, 0), "ol"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllUserFilesTarget, 0), "ol"));
+      table_data.back().push_back(TableCell(GetQuotaPercentage(
+                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "of"));
+      table_data.back().push_back(TableCell(GetQuotaStatus(
+                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "os"));
+      table_data.back().push_back(TableCell(GetQuotaStatus(
+                                              GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)), "os"));
+      table_summary_user.AddRows(table_data);
+      output += table_summary_user.GenerateTable().c_str();
+      TableFormatterBase table_summary_group;
+      table_summary_group.SetHeader({
+        std::make_tuple("quota", 0, "os"),
+        std::make_tuple("gid", 0, "os"),
+        std::make_tuple("space", 0, "os"),
+        std::make_tuple("usedbytes", 0, "ol"),
+        std::make_tuple("usedlogicalbytes", 0, "ol"),
+        std::make_tuple("usedfiles", 0, "ol"),
+        std::make_tuple("maxbytes", 0, "ol"),
+        std::make_tuple("maxlogicalbytes", 0, "ol"),
+        std::make_tuple("maxfiles", 0, "ol"),
+        std::make_tuple("percentageusedbytes", 0, "of"),
+        std::make_tuple("statusbytes", 0, "os"),
+        std::make_tuple("statusfiles", 0, "os")
+      });
+      table_data.clear();
+      table_data.emplace_back();
+      table_data.back().push_back(TableCell("node", "os"));
+      table_data.back().push_back(TableCell("ALL", "os"));
+      table_data.back().push_back(TableCell(pPath.c_str(), "os"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupBytesIs, 0), "ol"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupLogicalBytesIs, 0), "ol"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupFilesIs, 0), "ol"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupBytesTarget, 0), "ol"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupLogicalBytesTarget, 0), "ol"));
+      table_data.back().push_back(TableCell(
+                                    GetQuota(kAllGroupFilesTarget, 0), "ol"));
+      table_data.back().push_back(TableCell(GetQuotaPercentage(
+                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "of"));
+      table_data.back().push_back(TableCell(GetQuotaStatus(
+                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "os"));
+      table_data.back().push_back(TableCell(GetQuotaStatus(
+                                              GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget, 0)), "os"));
+      table_summary_group.AddRows(table_data);
+      output += table_summary_group.GenerateTable().c_str();
     }
-
-    output += headerline;
   }
 }
 

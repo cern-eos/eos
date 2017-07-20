@@ -324,6 +324,7 @@ void TableFormatterBase::AddString(std::string string)
 TableFormatterColor TableFormatterBase::ChangeColor(std::string header,
     std::string value)
 {
+  // Colors for "fs ls", "node ls" and for "fileinfo"
   if (header == "status" || header == "active") {
     if (value == "online") {
       return BWHITE;
@@ -331,6 +332,21 @@ TableFormatterColor TableFormatterBase::ChangeColor(std::string header,
 
     if (value == "offline" || value == "unknown") {
       return BBGRED;
+    }
+  }
+
+  // Colors for "quota ls"
+  if (header == "vol-status" || header == "ino-status") {
+    if (value == "ok") {
+      return BGREEN;
+    }
+
+    if (value == "warning") {
+      return BYELLOW;
+    }
+
+    if (value == "exceeded") {
+      return BRED;
     }
   }
 
@@ -399,6 +415,22 @@ void TableFormatterBase::Style(TableFormatterStyle style)
                             };
     std::string sep [4]   = {" ", "-", " ", "-"};
     std::string body [7]  = {" ", " ", " "};
+    std::copy(head, head + 11, mBorderHead);
+    std::copy(sep, sep + 4, mBorderSep);
+    std::copy(body, body + 7, mBorderBody);
+    break;
+  }
+
+  // Header normal border for quota ls
+  case HEADER_QUOTA: {
+    std::string head [11] = {"┌", "┬", "┐", "─",
+                             "│", "│", "│",
+                             "└", "┴", "┘", "─"
+                            };
+    std::string sep [4]   = {" ", "-", " ", "-"};
+    std::string body [7]  = {" ", " ", " ",
+                             "┗", "━", "┛", "━"
+                            };
     std::copy(head, head + 11, mBorderHead);
     std::copy(sep, sep + 4, mBorderSep);
     std::copy(body, body + 7, mBorderBody);

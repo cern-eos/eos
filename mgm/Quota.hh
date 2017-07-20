@@ -244,13 +244,11 @@ private:
   //!
   //! @param is current quota value
   //! @param avail available quota value
-  //! @param spercentage (out) string representation of the percentage
   //!
   //! @return string representation of the percentage value
   //----------------------------------------------------------------------------
-  const char*
-  GetQuotaPercentage(unsigned long long is, unsigned long long avail,
-                     XrdOucString& spercentage);
+  const float
+  GetQuotaPercentage(unsigned long long is, unsigned long long avail);
 
   //----------------------------------------------------------------------------
   //! Get quota status

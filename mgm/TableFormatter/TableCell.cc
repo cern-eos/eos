@@ -212,30 +212,14 @@ void TableCell::SetColor(TableFormatterColor color)
 void TableCell::SetValue(unsigned long long int value)
 {
   if (mSelectedValue == TypeContainingValue::UINT) {
-    //Convert value into K,M,G,T,P,E scale
-    if (mFormat.find("+") != std::string::npos && value != 0) {
-      if (value >= 1000ll * 1000 * 1000 * 1000 * 1000 * 1000) {
-        mUnit.insert(0, "E");
-        value /= 1000ll * 1000 * 1000 * 1000 * 1000 * 1000;
-      } else if (value >= 1000ll * 1000 * 1000 * 1000 * 1000) {
-        mUnit.insert(0, "P");
-        value /= 1000ll * 1000 * 1000 * 1000 * 1000;
-      } else if (value >= 1000ll * 1000 * 1000 * 1000) {
-        mUnit.insert(0, "T");
-        value /= 1000ll * 1000 * 1000 * 1000;
-      } else if (value >= 1000ll * 1000 * 1000) {
-        mUnit.insert(0, "G");
-        value /= 1000ll * 1000 * 1000;
-      } else if (value >= 1000ll * 1000) {
-        mUnit.insert(0, "M");
-        value /= 1000ll * 1000;
-      } else if (value >= 1000ll) {
-        mUnit.insert(0, "K");
-        value /= 1000ll;
-      }
+    // If convert unsigned int value into K,M,G,T,P,E scale,
+    // we convert unsigned int value to double
+    if (mFormat.find("+") != std::string::npos && value >= 1000) {
+      mSelectedValue = TypeContainingValue::DOUBLE;
+      SetValue((double)value);
+    } else {
+      m_ullValue = value;
     }
-
-    m_ullValue = value;
   }
 }
 
@@ -245,41 +229,15 @@ void TableCell::SetValue(unsigned long long int value)
 void TableCell::SetValue(long long int value)
 {
   if (mSelectedValue == TypeContainingValue::INT) {
-    //Convert value into K,M,G,T,P,E scale
-    if (mFormat.find("+") != std::string::npos && value != 0) {
-      bool value_negative = false;
-
-      if (value < 0) {
-        value *= -1;
-        value_negative = true;
-      }
-
-      if (value >= 1000ll * 1000 * 1000 * 1000 * 1000 * 1000) {
-        mUnit.insert(0, "E");
-        value /= 1000ll * 1000 * 1000 * 1000 * 1000 * 1000;
-      } else if (value >= 1000ll * 1000 * 1000 * 1000 * 1000) {
-        mUnit.insert(0, "P");
-        value /= 1000ll * 1000 * 1000 * 1000 * 1000;
-      } else if (value >= 1000ll * 1000 * 1000 * 1000) {
-        mUnit.insert(0, "T");
-        value /= 1000ll * 1000 * 1000 * 1000;
-      } else if (value >= 1000ll * 1000 * 1000) {
-        mUnit.insert(0, "G");
-        value /= 1000ll * 1000 * 1000;
-      } else if (value >= 1000ll * 1000) {
-        mUnit.insert(0, "M");
-        value /= 1000ll * 1000;
-      } else if (value >= 1000ll) {
-        mUnit.insert(0, "K");
-        value /= 1000ll;
-      }
-
-      if (value_negative) {
-        value *= -1;
-      }
+    // If convert int value into K,M,G,T,P,E scale,
+    // we convert int value to double
+    if (mFormat.find("+") != std::string::npos &&
+        (value >= 1000 || value <= -1000)) {
+      mSelectedValue = TypeContainingValue::DOUBLE;
+      SetValue((double)value);
+    } else {
+      m_llValue = value;
     }
-
-    m_llValue = value;
   }
 }
 

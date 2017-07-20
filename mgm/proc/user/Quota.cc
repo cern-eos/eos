@@ -73,24 +73,28 @@ ProcCommand::Quota()
 
     eos_notice("quota ls (user)");
     XrdOucString out = "";
-
-    if (!monitor) {
-      stdOut += "By user ...\n";
-    }
-
     bool is_ok = Quota::PrintOut(space, out, pVid->uid, -1, monitor, true);
-    stdOut += out;
-    out = "";
 
-    if (!monitor) {
-      stdOut += "By group ...\n";
+    if (is_ok && out != "") {
+      if (!monitor) {
+        stdOut += "\nBy user:";
+        stdOut += out;
+      } else {
+        stdOut += out;
+      }
     }
 
+    out = "";
     is_ok = Quota::PrintOut(space, out, -1, pVid->gid, monitor, true);
     mDoSort = false;
 
-    if (is_ok) {
-      stdOut += out;
+    if (is_ok && out != "") {
+      if (!monitor) {
+        stdOut += "\nBy group:";
+        stdOut += out;
+      } else {
+        stdOut += out;
+      }
     } else {
       stdErr += out;
       retc = EINVAL;

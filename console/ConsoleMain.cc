@@ -721,9 +721,6 @@ output_result(XrdOucEnv* result, bool highlighting)
 
   if (highlighting && global_highlighting) {
     // color replacements
-    rstdout.replace(" ok", "\033[49;32m ok\033[0m");
-    rstdout.replace("warning", "\033[49;33mwarning\033[0m");
-    rstdout.replace("exceeded", "\033[49;31mexceeded\033[0m");
     rstdout.replace("[booted]", "\033[1m[booted]\033[0m");
     rstdout.replace("[down]", "\033[49;31m[down]\033[0m");
     rstdout.replace("[failed]", "\033[49;31m[failed]\033[0m");
