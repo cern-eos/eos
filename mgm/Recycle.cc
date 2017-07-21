@@ -305,6 +305,7 @@ Recycle::Recycler ()
           }
           else
           {
+	    snoozetime = 0; // this will be redefined by the oldest entry time
             auto it = lDeletionMap.begin();
             time_t now = time(NULL);
             while (it != lDeletionMap.end())
@@ -419,26 +420,36 @@ Recycle::Recycler ()
                 //...............................................................
                 // this entry has still to be kept
                 //...............................................................
-                snoozetime = (it->first + lKeepTime) - now;
-                if (snoozetime < gRecyclingPollTime)
-                {
-                  //.............................................................
-                  // avoid to activate this thread too many times, 5 minutess
-                  // resolution is perfectly fine
-                  //.............................................................
-                  snoozetime = gRecyclingPollTime;
-                }
-                if (snoozetime > lKeepTime)
-                {
-                  eos_static_warning("msg=\"snooze time exceeds keeptime\" snooze-time=%llu keep-time=%llu", snoozetime, lKeepTime);
-                  //.............................................................
-                  // that is sort of strange but let's have a fix for that
-                  //.............................................................
-                  snoozetime = lKeepTime;
-                }
+
+		if (!snoozetime)
+		{
+		  // define the sleep period from the oldest entry
+		  snoozetime = it->first + lKeepTime -now;
+		  
+		  if (snoozetime < gRecyclingPollTime)
+		  {
+		    //.............................................................
+		    // avoid to activate this thread too many times, 5 minutes
+		    // resolution is perfectly fine
+		    //.............................................................
+		    snoozetime = gRecyclingPollTime;
+		  }
+		  if (snoozetime > lKeepTime)
+		  {
+		    eos_static_warning("msg=\"snooze time exceeds keeptime\" snooze-time=%llu keep-time=%llu", snoozetime, lKeepTime);
+		    //.............................................................
+		    // that is sort of strange but let's have a fix for that
+		    //.............................................................
+		    snoozetime = lKeepTime;
+		  }
+		}
                 it++;
               }
             }
+	    if (!snoozetime)
+	    {
+	      snoozetime = gRecyclingPollTime;
+	    }
           }
         }
         else
@@ -763,6 +774,7 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
 		  stdOut += "... (truncated after 1G of output)\n";
 		  retc = E2BIG;
 		  stdErr += "warning: list too long - truncated after 1GB of output!\n";
+		  return;
 		}
                 stdOut += sline;
                 stdOut += "\n";
@@ -849,7 +861,26 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
     return EINVAL;
   }
 
-  unsigned long long fid = strtoull(key, 0, 16);
+
+  XrdOucString skey = key;
+
+  bool force_file=false;
+  bool force_directory=false;
+
+
+  if (skey.beginswith("fxid:"))
+  {
+    skey.erase(0,5);
+    force_file = true;
+  }
+
+  if (skey.beginswith("pxid:"))
+  {
+    skey.erase(0,5);
+    force_directory = true;
+  }
+
+  unsigned long long fid = strtoull(skey.c_str(), 0, 16);
 
   //...........................................................................
   // convert the hex inode number into decimal and retrieve path name
@@ -859,34 +890,57 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
   std::string recyclepath;
   XrdOucString repath;
 
+  XrdOucString rprefix = Recycle::gRecyclingPrefix.c_str();
+
+  rprefix += "/";
+  rprefix += (int) vid.gid;
+  rprefix += "/";
+  rprefix += (int) vid.uid;
+
+  while (rprefix.replace("//","/")){}
+
   //-------------------------------------------
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    try
-    {
-      fmd = gOFS->eosFileService->getFileMD(fid);
-      recyclepath = gOFS->eosView->getUri(fmd);
-      repath = recyclepath.c_str();
-    }
-    catch (eos::MDException &e)
-    {
-    }
 
-    if ((!fmd) ||
-        (!repath.beginswith(Recycle::gRecyclingPrefix.c_str())))
+    if (!force_directory)
     {
-      // if the recycling ID does not point to a file in the recycle bin
-      // try if it points to a directory in the recycling bin
       try
       {
-        cmd = gOFS->eosDirectoryService->getContainerMD(fid);
-        recyclepath = gOFS->eosView->getUri(cmd);
-        repath = recyclepath.c_str();
+	fmd = gOFS->eosFileService->getFileMD(fid);
+	recyclepath = gOFS->eosView->getUri(fmd);
+	repath = recyclepath.c_str();
+	if (!repath.beginswith(rprefix.c_str()))
+	{
+	  stdErr = "error: this is not a file in your recycle bin - try to prefix the key with pxid:<key>\n";
+	  stdErr += rprefix.c_str();
+
+	  return EPERM;
+	}
       }
       catch (eos::MDException &e)
       {
       }
     }
+    
+    if (!force_file && !fmd)
+    {
+      try
+      {
+        cmd = gOFS->eosDirectoryService->getContainerMD(fid);
+        recyclepath = gOFS->eosView->getUri(cmd);
+        repath = recyclepath.c_str();
+	if (!repath.beginswith(rprefix.c_str()))
+	{
+	  stdErr = "error: this is not a directory in your recycle bin\n";
+	  return EPERM;
+	}
+      }
+      catch (eos::MDException &e)
+      {
+      }
+    }
+
     if (!recyclepath.length())
     {
       stdErr = "error: cannot find object referenced by recycle-key=";

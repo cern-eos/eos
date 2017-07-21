@@ -145,8 +145,12 @@
 	}
 
         // Finally delete the record if all replicas are dropped
-        if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation()))
-        {
+        if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())
+	    && (drop_all || updatestore))
+	{
+	  // however we should only remove the file from the namespace, if there was indeed a replica to be dropped,
+	  // otherwise we get unlinked files if the secondary replica fails to write but the machine can call the MGM
+
           if (quotanode)
           {
             // If we were still attached to a container, we can now detach
@@ -154,7 +158,7 @@
             quotanode->removeFile(fmd);
           }
 
-          gOFS->eosView->removeFile(fmd);
+	  gOFS->eosView->removeFile(fmd);
 
 	  if (container)
 	  {

@@ -7,10 +7,145 @@
 Beryl Release Notes
 ===================
 
+``V0.3.262 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- FST: re-establish 2nd path of 'deleteOnClose' functionality broken since 0.3.295
+
+``V0.3.262 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- MGM: fix computation of wake-up time for the recycle bin - old code slept too long before waking up
+
+``V0.3.261 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- FST: re-establish 'deleteOnClose' functionality broken since 0.3.295
+
+
+
+``V0.3.260 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- MGM: call 'unlinkAllLocations' instead of 'clearLocations' when trying to re-place an empty already placed file, which didn't reomve entries from the filesystem view leaving files forever undrainable
+
+``V0.3.259 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- MGM: Don't drop a file if an FST calls a drop replica on a not committed replica
+
+
+``V0.3.258 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- MGM: Protect if the namespace throws an exception without setting an error number in the readlink functionality
+
+
+``V0.3.257 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- FST: protect against 0 pointer access if not local fmd is available for a scanned file
+
+``V0.3.256 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- MGM/CONSOLE: revive 'file layout' command and 'find -layoutstripes'
+
+``V0.3.255 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- MGM: treat attributes not prefixed as sys. like user. attributes (don't allow to set them if we are not the object owner)
+- MGM: many bug fixes/improvements in the AUTH service
+
+
+``V0.3.248 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- MGM: fix recycle bin restore function to forbid to recycle files by fxid/pxid which are not in the recycle bin. Allow to explicitly restore a file or directory (they might overlap in the inode space) by prefixing the key with fxid: or pxid:
+
+
+``V0.3.246 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- FUSE: fix shutdown crash by properly canceling/joining the cache cleaner thread
+- NS: fix gcc 4.4. compilation problem
+- MGM: reschedule empty files if current replicas are unavilable
+- MGM: add authentication front-end (backport from CITRINE)
+
+
+``V0.3.244 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- FST: don't block Fmd access for an unitialized filecxerror value (after Resync was called and filecxerror=-1)
+
+
+``V0.3.243 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- NS: fix memory allocation bug in Buffer class
+
+
+``V0.3.242 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- FST: fix logical error when to call auto-repair (don't call it for unregsistered files)
+- FUSE: fix double response when returning entries from internal directory cache
+- MGM: fix protection when listing too large recycle bins with 'recycle ls' (> 1Gb output)
+
+``V0.3.241 Aquamarine``
+=====================
+
+Bug Fixes
++++++++++
+
+- FUSE: fix memory leak in opendir function not cleaning dirbuf struct
+
 ``V0.3.240 Aquamarine``
 =====================
 
-Buf Fixes
+Bug Fixes
 +++++++++
 
 - FST: implement fdellocate function for non-XFS detected filesystems (which used posix_fallocate)
@@ -18,7 +153,7 @@ Buf Fixes
 ``V0.3.239 Aquamarine``
 =====================
 
-Buf Fixes
+Bug Fixes
 +++++++++
 
 - NS: fix resolution of multiple ../ path changes like ../../XYZ
@@ -27,7 +162,7 @@ Buf Fixes
 ``V0.3.238 Aquamarine``
 =====================
 
-Buf Fixes
+Bug Fixes
 +++++++++
 
 - FST: avoid SEGV during startup when calling RemoveGhostEntries (.eosscan exists on data path)
@@ -51,7 +186,7 @@ New Feature
 ``V0.3.236 Aquamarine``
 =====================
 
-Buf Fixes
+Bug Fixes
 +++++++++
 
 - NS: set 'pData' pointer to 0 in munmap function to switch back to traditional read function

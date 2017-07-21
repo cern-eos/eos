@@ -28,6 +28,16 @@
         compress
 }
 
+/var/log/eos/auth[0-9]/xrdlog.auth[0-9] {
+        missingok
+        daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
 /var/log/eos/fst/xrdlog.fst {
 	missingok
 	daily

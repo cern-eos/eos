@@ -138,41 +138,23 @@ SymKey::Sha256 (const std::string& data,
 //------------------------------------------------------------------------------
 
 std::string
-SymKey::HmacSha1 (std::string& key,
-                  std::string& data)
+SymKey::HmacSha1 (std::string& data, const char* key)
 {
-  HMAC_CTX ctx;
-  std::string result;
-  unsigned int blockSize = 64;
+  std::string result(EVP_MAX_MD_SIZE, '\0');
+  unsigned int result_size = 0;
   unsigned int data_len = data.length();
-  unsigned int key_len = key.length();
-  unsigned char* pKey = (unsigned char*) key.c_str();
+
+  // If no key specifed used the default key provided by the SymKeyStore
+  if (!key) {
+    key = gSymKeyStore.GetCurrentKey()->GetKey64();
+  }
+
+  unsigned int key_len = strlen(key);
   unsigned char* pData = (unsigned char*) data.c_str();
-  result.resize(20);
   unsigned char* pResult = (unsigned char*) result.c_str();
-
-  ENGINE_load_builtin_engines();
-  ENGINE_register_all_complete();
-
-  HMAC_CTX_init(&ctx);
-  HMAC_Init_ex(&ctx, pKey, key_len, EVP_sha1(), NULL);
-
-  while (data_len > blockSize)
-  {
-    HMAC_Update(&ctx, pData, blockSize);
-    data_len -= blockSize;
-    pData += blockSize;
-  }
-
-  if (data_len)
-  {
-    HMAC_Update(&ctx, pData, data_len);
-  }
-
-  unsigned int resultSize;
-  HMAC_Final(&ctx, pResult, &resultSize);
-  HMAC_CTX_cleanup(&ctx);
-
+  pResult = HMAC(EVP_sha1(), (void*)key, key_len, pData, data_len,
+		 pResult, &result_size);
+  result.resize(result_size + 1);
   return result;
 }
 

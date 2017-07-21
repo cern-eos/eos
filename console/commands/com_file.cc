@@ -408,6 +408,21 @@ com_file (char* arg1)
     }
   }
 
+  if (cmd == "layout")   
+  {     
+    if (!path.length())       
+      goto com_file_usage;     
+    in += "&mgm.subcmd=layout";     
+    in += "&mgm.path=";     
+    in += path;     
+    if (fsid1 != "-stripes")       
+      goto com_file_usage;     
+    if (!fsid2.length())       
+      goto com_file_usage;     
+    in += "&mgm.file.layout.stripes=";    
+    in += fsid2;   
+  }
+
   if (cmd == "tag")
   {
     if (!path.length())

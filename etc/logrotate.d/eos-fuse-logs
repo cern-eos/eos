@@ -1,4 +1,4 @@
-/var/log/eos/fuse/fuse.log {
+/var/log/eos/fuse/*.log {
 	missingok
 	daily
         copytruncate

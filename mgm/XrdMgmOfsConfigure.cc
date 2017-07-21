@@ -1144,6 +1144,27 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
           gMgmOfsTrace.What = trval;
         }
+
+	if (!strcmp("auththreads", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for number of auth threads is invalid.");
+            NoGo = 1;
+          } else {
+            Eroute.Say("=====> mgmofs.auththreads: ", val, "");
+            mNumAuthThreads = atoi(val);
+          }
+	}
+
+        // Configure frontend port number on which clients submit requests                                                                         
+	if (!strcmp("authport", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for frontend port invalid.");
+            NoGo = 1;
+          } else {
+            Eroute.Say("=====> mgmofs.authport: ", val, "");
+            mFrontendPort = atoi(val);
+          }
+        }
       }
     }
   }
@@ -2221,6 +2242,31 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       (void) signal(SIGBUS, xrdmgmofs_stacktrace);
     }
   }
+
+  if (mNumAuthThreads && mFrontendPort) {
+    eos_info("starting the authentication master thread");
+
+    if ((XrdSysThread::Run(&auth_tid, XrdMgmOfs::StartAuthMasterThread,
+                           static_cast<void*>(this), 0, "Auth Master Thread"))) {
+      eos_crit("cannot start the authentication master thread");
+      NoGo = 1;
+    }
+
+    eos_info("starting the authentication worker threads");
+
+    for (unsigned int i = 0; i < mNumAuthThreads; i++) {
+      pthread_t worker_tid;
+
+      if ((XrdSysThread::Run(&worker_tid, XrdMgmOfs::StartAuthWorkerThread,
+                             static_cast<void*>(this), 0, "Auth Worker Thread"))) {
+        eos_crit("cannot start the authentication thread %i", i);
+        NoGo = 1;
+      }
+
+      mVectTid.push_back(worker_tid);
+    }
+  }
+
 
   XrdSysTimer sleeper;
   sleeper.Wait(200);

@@ -42,10 +42,10 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Buffer( unsigned size = 512 )
+      Buffer( unsigned size = 512 ):
+	data(0), len(0)
       {
         reserve( size );
-	data = 0;
       }
 
       //------------------------------------------------------------------------
@@ -66,9 +66,13 @@ namespace eos
       //------------------------------------------------------------------------
       Buffer &operator = ( const Buffer &other )
       {
-	if (!data)
+	if (this != &other) 
+	{
+	  data = 0;
+	  len = 0;
 	  resize( other.getSize() );
-        memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
+	  memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
+	}
         return *this;
       };
 

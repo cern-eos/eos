@@ -34,6 +34,7 @@ include_directories( ../
 		     ${ZMQ_INCLUDE_DIRS}
 		     ${JSONCPP_INCLUDE_DIR}
 		     ${PROTOBUF_INCLUDE_DIRS}
+		     ${CMAKE_BINARY_DIR}/auth_plugin/
 )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} 
@@ -143,11 +144,19 @@ add_library (XrdEosMgm MODULE
             Features.cc
             )
 
+#-------------------------------------------------------------------------------
+# Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
+# are generated when we try to build XrdEosMgm
+#-------------------------------------------------------------------------------
+add_dependencies(XrdEosMgm EosAuthProto)
+
+
 target_link_libraries( XrdEosMgm
                        XrdCl                XrdPosix
                        XrdUtils             
                        eosCommon            eosCommonServer
                        eosNamespace-Static  eosCapability-Static
+		       EosAuthProto
                        XrdMqClient-Static 
                        crypto               dl
 		       ${LDAP_LIBRARIES}    ${NCURSES_LIBRARIES} 
@@ -167,6 +176,7 @@ target_link_libraries ( testmgmview
                         XrdCl             XrdUtils
                         eosCommon         eosCommonServer
                         XrdMqClient-Static eosCapability-Static
+			EosAuthProto
                         crypto            ${NCURSES_LIBRARIES}
                         dl                
 			${ZMQ_LIBRARIES}  ${Z_LIBRARIES}

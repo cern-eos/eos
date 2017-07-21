@@ -123,7 +123,7 @@ public:
   //----------------------------------------------------------------------------
   //! Read a part of the result stream created during open
   //!
-  //! @param mOffset offset where to start
+  //! @param boff offset where to start
   //! @param buff buffer to store stream
   //! @param blen len to return
   //!
@@ -301,8 +301,7 @@ private:
   XrdOucString mComment; //< comment issued by the user for the proc comamnd
   time_t mExecTime; //< execution time measured for the proc command
 
-  size_t mLen; //< len of the result stream
-  off_t mOffset; //< offset from where to read in the result stream
+  ssize_t mLen; //< len of the result stream
   bool mAdminCmd; // < indicates an admin command
   bool mUserCmd; //< indicates a user command
 

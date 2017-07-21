@@ -1,0 +1,16 @@
+syntax = "proto2";
+package eos.auth;
+
+import "XrdOucErrInfo.proto";
+import "XrdSecEntity.proto";
+
+//------------------------------------------------------------------------------
+// Remdir request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message RemdirProto {
+  required string path = 1;
+  required XrdOucErrInfoProto error = 2;
+  required XrdSecEntityProto client = 3;
+  optional string opaque = 4 [default = ""];
+}

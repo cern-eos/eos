@@ -213,7 +213,7 @@ Egroup::Member (std::string &username, std::string & egroupname)
 	if (rc != LDAP_SUCCESS) 
         {
 	  eos_static_warning("member=false user=\"%s\" e-group=\"%s\" "
-			     "cachetime=<stall-information> "
+			     "cachetime=<stale-information> "
 			     "msg=\"ldap query failed or timed out\"",
 			     username.c_str(),
 			     egroupname.c_str());
@@ -463,14 +463,14 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
     if (isMember)
     {
       eos_static_warning("member=true user=\"%s\" e-group=\"%s\" "
-                         "cachetime=<stale-information",
+                         "cachetime=<stale-information>",
                          username.c_str(),
                          egroupname.c_str());
     }
     else
     {
       eos_static_warning("member=false user=\"%s\" e-group=\"%s\" "
-                         "cachetime=<stale-information",
+                         "cachetime=<stale-information>",
                          username.c_str(),
                          egroupname.c_str());
     }

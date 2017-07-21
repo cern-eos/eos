@@ -1348,6 +1348,7 @@ XrdMgmOfsFile::open (const char *inpath,
   std::vector<unsigned int>::const_iterator sfs;
 
   int retc = 0;
+  bool isRecreation = false;
 
   // ---------------------------------------------------------------------------
   if (isCreation || (!fmd->getNumLocation()) || isInjection)
@@ -1400,6 +1401,27 @@ XrdMgmOfsFile::open (const char *inpath,
     retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
                                   selectedfs, fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
                                   unavailfs);
+
+
+    if ( (retc == ENONET) && (!fmd->getSize()) && (!bookingsize))
+    {
+      const char* containertag = 0;
+      if (attrmap.count("user.tag"))
+      {
+	containertag = attrmap["user.tag"].c_str();
+      }
+
+      isCreation = true;
+      // try placement from scratch by doing a new placement
+      retc = quotaspace->FilePlacement(path, vid, containertag, layoutId,
+				       unavailfs, selectedfs,
+				       open_mode & SFS_O_TRUNC,
+				       forcedGroup,
+				       bookingsize);
+
+      eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d", path, retc);
+      isRecreation = true;
+    }
 
     if (retc == EXDEV)
     {
@@ -1661,18 +1683,29 @@ XrdMgmOfsFile::open (const char *inpath,
         // we do the same for chunked/parallel uploads
         // ---------------------------------------------------------------------
         {
+	  // get an empty file checksum
+
+	  std::string binchecksum = eos::common::LayoutId::GetEmptyFileChecksum(layoutId);
+	  eos::Buffer cx;
+	  cx.putData(binchecksum.c_str(), binchecksum.size());
+
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           // -------------------------------------------------------------------
 
           try
           {
             fmd = gOFS->eosView->getFile(creation_path);
-
+	    
+	    if (isRecreation)
+	    {
+	      fmd->unlinkAllLocations();
+	    }
             for (int i = 0; i < (int) selectedfs.size(); i++)
             {
               fmd->addLocation(selectedfs[i]);
             }
-            gOFS->eosView->updateFileStore(fmd);	    
+	    fmd->setChecksum(cx);
+            gOFS->eosView->updateFileStore(fmd);
           }
           catch (eos::MDException &e)
           {

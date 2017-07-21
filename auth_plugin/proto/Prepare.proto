@@ -1,0 +1,16 @@
+syntax = "proto2";
+package eos.auth;
+
+import "XrdOucErrInfo.proto";
+import "XrdSecEntity.proto";
+import "XrdSfsPrep.proto";
+
+//------------------------------------------------------------------------------
+// Prepare request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message PrepareProto {
+  required XrdSfsPrepProto pargs = 1;
+  required XrdOucErrInfoProto error = 2;
+  required XrdSecEntityProto client = 3;
+}

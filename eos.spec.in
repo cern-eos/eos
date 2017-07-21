@@ -38,6 +38,7 @@ BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: redhat-rpm-config
 BuildRequires: jsoncpp, jsoncpp-devel
+BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 
 %if %{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
@@ -160,6 +161,10 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libeosCommonServer.so.%{version}
 %{_libdir}/libeosCommonServer.so.0
 %{_libdir}/libeosCommonServer.so
+%{_libdir}/libEosAuthOfs.so
+%{_libdir}/libEosAuthProto.so
+%{_libdir}/libEosAuthProto.so.0
+%{_libdir}/libEosAuthProto.so.%{version}
 %{_libdir}/libXrdEosAuth.so
 %{_libdir}/libXrdEosFst.so
 %{_libdir}/libEosFstOss.so
@@ -176,6 +181,7 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) %{_sysconfdir}/xrd.cf.sync
 %config(noreplace) %{_sysconfdir}/xrd.cf.fed
 %config(noreplace) %{_sysconfdir}/xrd.cf.prefix
+%config(noreplace) %{_sysconfdir}/xrd.cf.auth
 %config(noreplace) %{_sysconfdir}/sysconfig/eos.example
 %{_sysconfdir}/rc.d/init.d/eos
 %{_sysconfdir}/rc.d/init.d/eosha
