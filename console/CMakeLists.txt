@@ -125,7 +125,7 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-set(EOS_RPATH "/usr/lib64/")
+set(EOS_RPATH "/usr/lib64/;/lib64/")
 
 set_target_properties(
   eos PROPERTIES
