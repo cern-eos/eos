@@ -196,6 +196,10 @@ eos_nginx_cc7:
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
   tags:
     - docker-cc7
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - nginx/RPMS
   when: manual
   environment:
     name: nginx-cc7-prod
