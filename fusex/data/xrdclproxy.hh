@@ -62,16 +62,19 @@ namespace XrdCl
 
     // ---------------------------------------------------------------------- //
     bool IsClosed();
-    
+
     // ---------------------------------------------------------------------- //
     XRootDStatus WaitWrite();
 
     // ---------------------------------------------------------------------- //
     bool IsWaitWrite();
-    
+
     // ---------------------------------------------------------------------- //
     bool OutstandingWrites();
-    
+
+    // ---------------------------------------------------------------------- //
+    bool HadFailures(std::string &message);
+
     // ---------------------------------------------------------------------- //
     XRootDStatus Write( uint64_t         offset,
                        uint32_t         size,
@@ -104,6 +107,9 @@ namespace XrdCl
     XRootDStatus Close(uint16_t         timeout = 0);
 
     // ---------------------------------------------------------------------- //
+    bool HadFailures();
+
+    // ---------------------------------------------------------------------- //
 
     enum OPEN_STATE
     {
@@ -122,6 +128,11 @@ namespace XrdCl
       return open_state;
     }
 
+    XRootDStatus write_state()
+    {
+      return XWriteState;
+    }
+
     void set_state(OPEN_STATE newstate, XRootDStatus* xs=0)
     {
       // lock XOpenAsyncCond from outside
@@ -135,9 +146,8 @@ namespace XrdCl
 
     double state_age()
     {
-      return ((double) eos::common::Timing::GetCoarseAgeInNs(&open_state_time, 0)/1000000000.0);
+      return ((double) eos::common::Timing::GetCoarseAgeInNs(&open_state_time, 0) / 1000000000.0);
     }
-
 
     void set_writestate(XRootDStatus* xs)
     {

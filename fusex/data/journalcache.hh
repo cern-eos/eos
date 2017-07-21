@@ -44,19 +44,24 @@ class journalcache : public cache
     uint64_t size;
   } ;
 
-  struct update_t
+public:
+
+  struct chunk_t
   {
+    chunk_t() : offset( 0 ), size( 0 ), buff( 0 ) { }         
+    
+    chunk_t( off_t offset, size_t size, const void *buff) : offset( offset ), size( size ), buff( buff ) { }
+
     off_t  offset;
     size_t size;
     const void  *buff;
 
-    bool operator<( const update_t &u ) const
+    bool operator<( const chunk_t &u ) const
     {
       return offset < u.offset;
     }
   } ;
 
-public:
 
   journalcache();
   journalcache( fuse_ino_t _ino );
@@ -90,10 +95,14 @@ public:
   virtual bool halffull(size_t count) { return ( sMaxSize/2 <= cachesize );}
   
   virtual int reset();
+
+  virtual int rescue(std::string& location);
+  
+  std::vector<chunk_t> get_chunks( off_t offset, size_t size );
   
   private:
 
-  void process_intersection( interval_tree<uint64_t, const void*> &write, interval_tree<uint64_t, uint64_t>::iterator acr, std::vector<update_t> &updates );
+  void process_intersection( interval_tree<uint64_t, const void*> &write, interval_tree<uint64_t, uint64_t>::iterator acr, std::vector<chunk_t> &updates );
 
   int location( std::string &path, bool mkpath=true );
 
@@ -102,7 +111,7 @@ public:
     return offset + sizeof ( header_t ) + shift;
   }
 
-  int update_cache( std::vector<update_t> &updates );
+  int update_cache( std::vector<chunk_t> &updates );
 
   int read_journal();
 

@@ -133,7 +133,7 @@ diskcache::attach(fuse_req_t req, std::string& acookie, bool isRW)
     // compare if the cookies are identical, otherwise we truncate to 0
     if (ccookie != acookie)
     {
-      fprintf(stderr,"diskcache::attach truncating for cookie: %s <=> %s\n", ccookie.c_str(), acookie.c_str());
+      fprintf(stderr, "diskcache::attach truncating for cookie: %s <=> %s\n", ccookie.c_str(), acookie.c_str());
       if (truncate(0))
       {
         char msg[1024];
@@ -191,6 +191,7 @@ ssize_t
 diskcache::pread(void *buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
+  fprintf(stderr, "diskcache::pread %lu %lu\n", count, offset);
   // restrict to our local max size cache size
   if ( offset >= sMaxSize )
   {
@@ -249,7 +250,7 @@ ssize_t
 diskcache::pwrite(const void *buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  fprintf(stderr,"diskcache::pwrite %lu %lu\n", count, offset);
+  fprintf(stderr, "diskcache::pwrite %lu %lu\n", count, offset);
   if ( (off_t) offset >= sMaxSize )
   {
     return 0;
@@ -268,7 +269,7 @@ int
 diskcache::truncate(off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  fprintf(stderr,"diskcache::truncate %lu\n", offset);
+  fprintf(stderr, "diskcache::truncate %lu\n", offset);
   if ( offset >= sMaxSize )
   {
     return ::ftruncate(fd, sMaxSize);
@@ -315,7 +316,7 @@ diskcache::set_attr(std::string& key, std::string & value)
       throw std::runtime_error("diskcache has no xattr support");
     }
   }
-  fprintf(stderr,"set_attr key=%s val=%s fd=%d\n", key.c_str(), value.c_str(), fd);
+  fprintf(stderr, "set_attr key=%s val=%s fd=%d\n", key.c_str(), value.c_str(), fd);
   return -1;
 }
 
@@ -343,3 +344,21 @@ diskcache::attr(std::string key, std::string & value)
   return -1;
 }
 
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+diskcache::rescue(std::string& rescue_location)
+/* -------------------------------------------------------------------------- */
+{
+  std::string path;
+  int rc = location(path);
+  if (!rescue_location.length())
+  {
+    rescue_location = path;
+    rescue_location += ".recover";
+  }
+  if (!rc)
+    return ::rename(path.c_str(), rescue_location.c_str());
+  else
+    return rc;
+}

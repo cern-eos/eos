@@ -63,6 +63,8 @@ public:
 
   static int init();
 
+  virtual int rescue(std::string& location);
+  
   int location(std::string &path, bool mkpath=true);
 
   virtual off_t prefetch_size() { return sMaxSize; }

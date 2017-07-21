@@ -154,14 +154,14 @@ cachehandler::get(fuse_ino_t ino)
     {
       entry->set_file ( new diskcache (ino) );
     }
-    
+
     if (instance().journaled())
     {
       entry->set_journal ( new journalcache(ino) );
     }
-    
+
     (instance())[ino] =  entry;
-    return entry; 
+    return entry;
   }
   else
   {

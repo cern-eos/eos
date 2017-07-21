@@ -46,6 +46,18 @@ journalcache::journalcache( fuse_ino_t ino ) : ino( ino ), cachesize( 0 ), trunc
 journalcache::~journalcache()
 {
 
+  if (fd > 0)
+  {
+    fprintf(stderr, "journalcache::~journalcache closing fd=%d\n", fd);
+    int rc = close(fd);
+    if (rc)
+    {
+      throw std::logic_error( "journalcache::~journalcache fd close failed" );
+    }
+    journal.clear();
+    unlink();
+    fd=-1;
+  }
 }
 
 int journalcache::location( std::string &path, bool mkpath )
@@ -109,7 +121,7 @@ int journalcache::read_journal()
 int journalcache::attach(fuse_req_t req, std::string& cookie, bool isRW)
 {
   XrdSysMutexHelper lck( mtx );
-  if (nbAttached == 0)
+  if ((nbAttached == 0) && (fd == -1))
   {
     std::string path;
     int rc = location( path );
@@ -127,15 +139,6 @@ int journalcache::detach(std::string& cookie)
 {
   XrdSysMutexHelper lck( mtx );
   nbAttached--;
-  if ( !nbAttached )
-  {
-    fprintf(stderr,"journalcache::detaching fd=%d\n", fd);
-    int rc = close(fd);
-    if (rc)
-      return errno;
-    journal.clear();
-    unlink();
-  }
   return 0;
 }
 
@@ -146,6 +149,21 @@ int journalcache::unlink()
   if (!rc)
     rc = ::unlink(path.c_str());
   return rc;
+}
+
+int journalcache::rescue(std::string& rescue_location)
+{
+  std::string path;
+  int rc = location(path);
+  if (!rescue_location.length())
+  {
+    rescue_location = path;
+    rescue_location += ".recover";
+  }
+  if (!rc)
+    return ::rename(path.c_str(), rescue_location.c_str());
+  else
+    return rc;
 }
 
 ssize_t journalcache::pread( void *buf, size_t count, off_t offset )
@@ -211,7 +229,7 @@ void journalcache::release_read()
   return;
 }
 
-void journalcache::process_intersection( interval_tree<uint64_t, const void*> &to_write, interval_tree<uint64_t, uint64_t>::iterator itr, std::vector<update_t> &updates )
+void journalcache::process_intersection( interval_tree<uint64_t, const void*> &to_write, interval_tree<uint64_t, uint64_t>::iterator itr, std::vector<chunk_t> &updates )
 {
   auto result = to_write.query( itr->low, itr->high );
 
@@ -226,7 +244,7 @@ void journalcache::process_intersection( interval_tree<uint64_t, const void*> &t
   uint64_t high = std::min( to_wrt->high, itr->high );
 
   // update
-  update_t update;
+  chunk_t update;
   update.offset = offset_for_update( itr->value, low - itr->low );
   update.size   = high - low;
   update.buff   = static_cast<const char*> ( to_wrt->value ) + ( low - to_wrt->low );
@@ -257,7 +275,7 @@ void journalcache::process_intersection( interval_tree<uint64_t, const void*> &t
   }
 }
 
-int journalcache::update_cache( std::vector<update_t> &updates )
+int journalcache::update_cache( std::vector<chunk_t> &updates )
 {
   // make sure we are updating the cache in ascending order
   std::sort( updates.begin(), updates.end() );
@@ -281,7 +299,7 @@ ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
     clck.write_wait();
 
   interval_tree<uint64_t, const void*> to_write;
-  std::vector<update_t> updates;
+  std::vector<chunk_t> updates;
 
   to_write.insert( offset, offset + count, buf );
 
@@ -378,9 +396,9 @@ int journalcache::remote_sync( cachesyncer & syncer )
   if (!ret)
   {
     journal.clear();
-    fprintf(stderr,"journalcache::remote_sync ret=%d truncatesize=%ld\n", ret, truncatesize);
+    fprintf(stderr, "journalcache::remote_sync ret=%d truncatesize=%ld\n", ret, truncatesize);
     ret |= ::ftruncate( fd, 0 );
-    fprintf(stderr,"journalcache::remote_sync ret=%d errno=%d\n", ret, errno);
+    fprintf(stderr, "journalcache::remote_sync ret=%d errno=%d\n", ret, errno);
   }
   clck.broadcast();
   return ret;
@@ -393,4 +411,27 @@ int journalcache::reset()
   int retc = ::ftruncate( fd,  0 );
   clck.broadcast();
   return retc;
+}
+
+std::vector<journalcache::chunk_t> journalcache::get_chunks( off_t offset, size_t size )
+{
+  read_lock lck( clck );
+
+  auto result = journal.query( offset, offset + size );
+
+  std::vector<chunk_t> ret;
+
+  for ( auto &itr : result )
+  {
+    uint64_t off = (off_t) itr->low < (off_t) offset ? offset : itr->low;
+    uint64_t count = itr->high < offset + size ? itr->high - off : offset + size - off;
+    uint64_t cacheoff = itr->value + sizeof ( header_t ) + ( off - itr->low );
+    std::unique_ptr<char[] > buffer( new char[count] );
+    ssize_t rc = ::pread( fd, buffer.get(), count, cacheoff );
+    if ( rc < 0 )
+      return ret;
+    ret.push_back( chunk_t( off, count, buffer.release() ) );
+  }
+
+  return ret;
 }

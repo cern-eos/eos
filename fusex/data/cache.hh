@@ -86,6 +86,11 @@ public:
     return attr("user.eos.cache.cookie", acookie);
   }
 
+  virtual int rescue(std::string& location)
+  {
+    return 0;
+  }
+  
   class io
   {
   public:

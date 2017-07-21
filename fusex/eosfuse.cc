@@ -451,11 +451,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 #if ( __GNUC_MINOR__ == 8 ) && ( __GNUC_PATCHLEVEL__ == 2 )
     {
       fuse_unmount(local_mount_dir, fusechan);
-      pthread_kill(tDumpStatistic.native_handle(),9);
-      pthread_kill(tStatCirculate.native_handle(),9);
-      pthread_kill(tMetaCacheFlush.native_handle(),9);
-      pthread_kill(tMetaCommunicate.native_handle(),9);
-      pthread_kill(tCapFlush.native_handle(),9);
+      pthread_kill(tDumpStatistic.native_handle(), 9);
+      pthread_kill(tStatCirculate.native_handle(), 9);
+      pthread_kill(tMetaCacheFlush.native_handle(), 9);
+      pthread_kill(tMetaCommunicate.native_handle(), 9);
+      pthread_kill(tCapFlush.native_handle(), 9);
     }
 #else
     {
@@ -465,7 +465,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       pthread_cancel(tMetaCacheFlush.native_handle());
       pthread_cancel(tMetaCommunicate.native_handle());
       pthread_cancel(tCapFlush.native_handle());
-      
+
       tDumpStatistic.join();
       tStatCirculate.join();
       tMetaCacheFlush.join();
@@ -486,9 +486,9 @@ EosFuse::umounthandler(int sig, siginfo_t *si, void *unused)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_warning("sighandler received signal %d - emitting signal 2", sig);
+  signal(SIGSEGV, SIG_DFL);
   kill (getpid(), 2);
 }
-
 
 /* -------------------------------------------------------------------------- */
 void
@@ -1912,6 +1912,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       md->convert(e);
 
       data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, (mode == W_OK));
+      io->set_authid(pcap->authid());
+
       // attach a datapool object
       fi->fh = (uint64_t) io;
 
@@ -1924,7 +1926,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
       bool outdated = (io->ioctx()->attach(req, cookie, (mode == W_OK) ) == EKEYEXPIRED);
 
-      fi->keep_cache = outdated?0:Instance().Config().options.data_kernelcache;
+      fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
       fi->direct_io = 0;
       eos_static_info("%s", md->dump(e).c_str());
     }
@@ -2258,7 +2260,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
   {
     if (io->ioctx()->pwrite(req, buf, size, off) == -1)
     {
-      eos_static_err("io-error: inode=%lld size=%lld off=%lld buf=%lld",ino, size, off, buf);
+      eos_static_err("io-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size, off, buf);
       rc = EIO;
     }
     else
@@ -2342,7 +2344,14 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 
   fuse_id id(req);
 
-  fuse_reply_err (req, rc);
+  if (datasync)
+  {
+    flush(req, ino, fi);
+  }
+  else
+  {
+    fuse_reply_err (req, rc);
+  }
 
   EXEC_TIMING_END(__func__);
 

@@ -14,6 +14,7 @@
 #define LOOP_7 100
 #define LOOP_8 100
 #define LOOP_9 1000
+#define LOOP_10 10000
 
 int main(int argc, char* argv[])
 {
@@ -293,7 +294,7 @@ int main(int argc, char* argv[])
         }
       }
       close(fd);
-      if (0 && unlink(name))
+      if (unlink(name))
       {
         fprintf(stderr, "[test=%03d] failed unlink linear truncate \n", testno);
         exit(testno);
@@ -302,6 +303,76 @@ int main(int argc, char* argv[])
 
     COMMONTIMING("truncate-expand-loop", &tm);
   }
+
+  // ------------------------------------------------------------------------ //
+  testno = 10;
+
+  if ( (testno >= test_start) && (testno <= test_stop))
+  {
+    
+    snprintf(name, sizeof (name), "fjournal");
+    unlink(name);    
+
+    int fd = open(name, O_CREAT|O_RDWR, S_IRWXU);
+    for (int i = 0; i< LOOP_10; i+=2)
+    {
+      ssize_t nwrite = pwrite(fd, &i, 4, (i*4) + (2*1024*1024));
+      if (nwrite != 4)
+      {
+	fprintf(stderr, "[test=%03d] failed linear(1) write i=%d\n", testno, i);
+	exit(testno);
+      }
+    }
+    for (int i = 0; i< LOOP_10; i+=2)
+    {
+      int v;
+      ssize_t nread = pread(fd, &v, 4, (i*4) + (2*1024*1024));
+      if (nread != 4)
+      {
+	fprintf(stderr, "[test=%03d] failed linear read i=%d\n", testno, i);
+	exit(testno);
+      }
+      if (v != i)
+      {
+	fprintf(stderr, "[test=%03d] inconsistent(1) read i=%d != v=%d\n", testno, i, v);
+	exit(testno);
+      }
+    }
+    fdatasync(fd);
+    
+    for (int i = 1; i< LOOP_10; i+=2)
+    {
+      ssize_t nwrite = pwrite(fd, &i, 4, i*4 + 2*1024*1024);
+      if (nwrite != 4)
+      {
+	fprintf(stderr, "[test=%03d] failed linear(2) write i=%d\n", testno, i);
+	exit(testno);
+      }
+    }
+    for (int i = 0; i< LOOP_10; i+=1)
+    {
+      int v;
+      ssize_t nread = pread(fd, &v, 4, i*4 + 2*1024*1024);
+      if (nread != 4)
+      {
+	fprintf(stderr, "[test=%03d] failed linear read i=%d\n", testno, i);
+	exit(testno);
+      }
+      if (v != i)
+      {
+	fprintf(stderr, "[test=%03d] inconsistent(2) read i=%d != v=%d\n", testno, i, v);
+	exit(testno);
+      }
+    }
+
+    fdatasync(fd);
+    close(fd);
+    
+    unlink(name);
+
+    COMMONTIMING("journal-cache-timing", &tm);
+  }
+
   tm.Print();
   fprintf(stdout, "realtime = %.02f", tm.RealTime());
 }

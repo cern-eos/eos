@@ -92,6 +92,7 @@ mTpcThreadStatus(EINVAL)
   ETag = "";
   mForcedMtime = 1;
   mForcedMtime_ms = 0;
+  mFusex = false;
   isOCchunk = 0;
   mTimeout = getenv("EOS_FST_STREAM_TIMEOUT")?strtoul(getenv("EOS_FST_STREAM_TIMEOUT"),0,10):msDefaultTimeout;
 }
@@ -289,6 +290,12 @@ XrdFstOfsFile::open (const char* path,
     mForcedMtime_ms = 0;
   }
 
+  if ((val = tmpOpaque.Get("mgm.fusex")))
+  {
+    // mgm.fusex=1 the commit function suppressed to broadcast the file close
+    // to the fusex network
+    mFusex = true;
+  }
   if (eos::common::OwnCloud::isChunkUpload(tmpOpaque))
   {
     // tag as an OC chunk upload
@@ -1975,6 +1982,11 @@ XrdFstOfsFile::close ()
 	    capOpaqueFile += "&mgm.mtime_ns=";
 	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (mForcedMtime!=1) ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns);
 
+            if (mFusex)
+            {
+              capOpaqueFile += "&mgm.fusex=1";
+            }
+            
 	    if (haswrite) 
 	    {
 	      capOpaqueFile += "&mgm.modified=1";

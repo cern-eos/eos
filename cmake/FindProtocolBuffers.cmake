@@ -171,7 +171,7 @@ FUNCTION(PROTOBUF_GENERATE_CPP SRCS HDRS)
 ENDFUNCTION()
 
 FIND_PATH(PROTOBUF_INCLUDE_DIR google/protobuf/service.h
-          PATHS "${PROTOBUF_ROOT}/include")
+          PATHS "${PROTOBUF_ROOT}/protobuf3/include")
 
 # Google's provided vcproj files generate libraries with a "lib"
 # prefix on Windows
@@ -181,18 +181,18 @@ IF(WIN32)
 ENDIF()
 
 FIND_LIBRARY(PROTOBUF_LIBRARY NAMES protobuf
-             PATHS "${PROTOBUF_ROOT}/bin"
-                   "${PROTOBUF_ROOT}/lib"
+             PATHS "${PROTOBUF_ROOT}/bin/protobuf3/"
+                   "${PROTOBUF_ROOT}/lib64/protobuf3/"
              DOC "The Google Protocol Buffers Library"
 )
 
 FIND_LIBRARY(PROTOBUF_PROTOC_LIBRARY NAMES protoc
-             PATHS "${PROTOBUF_ROOT}/bin"
-                   "${PROTOBUF_ROOT}/lib"
+             PATHS "${PROTOBUF_ROOT}/bin/protobuf3/"
+                   "${PROTOBUF_ROOT}/lib64/protobuf3/"
              DOC "The Google Protocol Buffers Compiler Library"
 )
 
-FIND_PROGRAM(PROTOBUF_PROTOC_EXECUTABLE NAMES protoc
+FIND_PROGRAM(PROTOBUF_PROTOC_EXECUTABLE NAMES protoc3
              PATHS "${PROTOBUF_ROOT}/bin"
              DOC "The Google Protocol Buffers Compiler"
 )

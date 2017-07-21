@@ -312,7 +312,7 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
   }
 
   proxy()->OpenCondVar().Signal();
-  
+
   delete hostList;
   delete status;
   if (response) delete response;
@@ -469,6 +469,30 @@ XrdCl::Proxy::IsWaitWrite()
   return (state () == WAITWRITE) ? true : false;
 }
 
+bool
+XrdCl::Proxy::HadFailures(std::string &message)
+{
+  bool ok=true;
+  XrdSysCondVarHelper lLock(OpenCondVar());
+  if ( state () == CLOSEFAILED)
+  {
+    message = "file close failed";
+    ok = false;
+  }
+  if ( state () == FAILED)
+  {
+    message = "file open failed";
+    ok = false;
+  }
+  if ( !write_state().IsOK())
+  {
+    message = "file writing failed";
+    ok = false;
+  }
+  eos_debug("state=%d had-failures=%d", state(), ok);
+  return !ok;
+}
+
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
@@ -547,7 +571,6 @@ XrdCl::Proxy::WaitWrite()
   return XOpenState;
 }
 
-
 /* -------------------------------------------------------------------------- */
 bool
 /* -------------------------------------------------------------------------- */
@@ -556,7 +579,7 @@ XrdCl::Proxy::OutstandingWrites()
 {
   eos_debug("");
   XrdSysCondVarHelper lLock(WriteCondVar());
-  return ChunkMap().size()?true:false;
+  return ChunkMap().size() ? true : false;
 }
 
 void

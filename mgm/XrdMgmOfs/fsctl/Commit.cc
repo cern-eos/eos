@@ -57,6 +57,7 @@
   XrdOucString areconstruction = env.Get("mgm.reconstruction");
   XrdOucString aocchunk = env.Get("mgm.occhunk");
   XrdOucString aismodified = env.Get("mgm.modified");
+  XrdOucString afusex = env.Get("mgm.fusex");
 
   bool verifychecksum = (averifychecksum == "1");
   bool commitchecksum = (acommitchecksum == "1");
@@ -65,7 +66,7 @@
   bool replication = (areplication == "1");
   bool reconstruction = (areconstruction == "1");
   bool modified = (aismodified == "1");
-
+  bool fusex = (afusex == "1");
   int envlen;
   int oc_n = 0;
   int oc_max = 0;
@@ -266,7 +267,8 @@
                 try
                 {
                   gOFS->eosView->updateFileStore(fmd);
-		  gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
+		  // this call is not be needed, since it is just a new replica location
+ 		  // gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
                 }
                 catch (eos::MDException &e)
                 {
@@ -305,7 +307,8 @@
                 try
                 {
                   gOFS->eosView->updateFileStore(fmd);
-		  gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
+		  // this call is not be needed, since it is just a new replica location
+		  //gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
                 }
                 catch (eos::MDException &e)
                 {
@@ -450,7 +453,12 @@
 	    // update parent mtime
 	    cmd->setMTimeNow();
 	    gOFS->eosView->updateContainerStore(cmd);
-	    //gOFS->FuseXCast(cmd->getId());
+	    // broadcast to the fusex network only if the change has been triggered outside 
+	    // the fusex client network e.g. xrdcp etc. 
+	    if (!fusex) 
+	    {
+	      gOFS->FuseXCast(cmd->getId());
+	    }
 	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	  }
         }

@@ -8,7 +8,6 @@
 
 
 #include "fusex/data/journalcache.hh"
-
 #include <stdint.h>
 #include <algorithm>
 #include <vector>
@@ -90,6 +89,15 @@ class JournalCacheTest : public CppUnit::TestCase
         rc = jc.pread( buffer.data(), size, offset );
         CPPUNIT_ASSERT( rc == size );
         CPPUNIT_ASSERT( input.substr( offset, size ) == std::string( buffer.begin(), buffer.end() ) );
+
+	std::string tmp;
+	tmp.reserve( size );
+	auto chunks = jc.get_chunks( offset, size );
+	for( auto chunk : chunks )
+	{
+	  tmp += std::string( reinterpret_cast<const char*>( chunk.buff ), chunk.size );
+	}
+	CPPUNIT_ASSERT( input.substr( offset, size ) == tmp );
       }
       
       size_t truncsize = 100;

@@ -136,6 +136,11 @@ public:
       return (--mAttached);
     }
 
+    bool detach_nolock()
+    {
+      return (--mAttached);
+    }
+    
     bool attached()
     {
       XrdSysMutexHelper lLock(mLock);
@@ -144,7 +149,9 @@ public:
 
     bool attached_nolock()
     {
-      return mAttached ? true : false;
+      // the flush daemon itself is attached, so if there is no client anymore
+      // the counter eq 1
+      return (mAttached>1) ? true : false;
     }
   private:
     XrdSysMutex mLock;
