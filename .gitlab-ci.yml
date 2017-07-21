@@ -188,18 +188,18 @@ eos_nginx_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo
     - cd nginx
     - ./makesrpm.sh
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-7/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH
+    - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
+    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
   tags:
     - docker-cc7
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - nginx/RPMS
   when: manual
   environment:
     name: nginx-cc7-prod
@@ -208,12 +208,16 @@ eos_nginx_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sssd-client sudo createrepo
     - cd nginx
     - ./makesrpm.sh
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-6/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH
+    - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
+    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
   tags:
     - docker-slc6
   when: manual
@@ -224,12 +228,16 @@ eos_apmon_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo
     - cd ApMon
     - ./maketar.sh
     - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
     - yum-builddep --nogpgcheck -y rpmbuild/SRPMS/eos-apmon-*.src.rpm
     - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-7/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH
+    - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm $STORAGE_PATH
+    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
   tags:
     - docker-cc7
   when: manual
