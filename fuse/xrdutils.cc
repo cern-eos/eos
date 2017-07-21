@@ -88,6 +88,15 @@ XrdCl::XRootDStatus xrdreq_retryonnullbuf(XrdCl::FileSystem& fs,
         sleeper.Wait(10000); // 10 seconds
         continue;
       }
+
+      if (getenv("EOS_FUSE_RETRY_SOCKET_ERROR") &&
+          (status.code == XrdCl::errSocketError)) {
+        eos_static_info("retry on socket error after timeout");
+        retrycount = 0;
+        sleeper.Wait(10000); // 10 seconds
+        continue;
+      }
+      
     }
 
     errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
