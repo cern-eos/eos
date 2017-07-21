@@ -13,7 +13,7 @@
 
 Name:           eos-nginx
 Version:        1.6.2
-Release:        4
+Release:        5
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>
@@ -279,6 +279,8 @@ fi
 %attr(-,%{nginx_user},%{nginx_group}) %dir %{nginx_logdir}
 
 %changelog
+* Fri Jul 21 2017 Andrea Manzi <amanzi@cern.h>
+- bump release number
 * Tue Feb 28 2017 Andrea Manzi <amanzi@cern.h>
 - added systemd support
 - fix deps on el7
