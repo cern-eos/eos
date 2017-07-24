@@ -133,10 +133,6 @@ XrdFstOfs::XrdFstOfs() :
     (void) signal(SIGQUIT, xrdfstofs_shutdown);
     // Add graceful shutdown handler
     (void) signal(SIGUSR1, xrdfstofs_graceful_shutdown);
-    // Add SEGV handler
-    (void) signal(SIGSEGV, xrdfstofs_stacktrace);
-    (void) signal(SIGABRT, xrdfstofs_stacktrace);
-    (void) signal(SIGBUS, xrdfstofs_stacktrace);
   }
 
   // Initialize the google sparse hash maps
