@@ -2263,7 +2263,7 @@ XrdFstOfsFile::close ()
         OpaqueString += hexstring;
 
         // If deleteOnClose at the gateway then we drop all replicas
-        if (layOut->IsEntryServer())
+        if (layOut->IsEntryServer() && (!isReplication))
         {
           OpaqueString += "&mgm.dropall=1";
         }
