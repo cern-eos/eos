@@ -99,7 +99,6 @@ git clone https://github.com/stnoonan/spnego-http-auth-nginx-module \
 rm -rf %{_builddir}/nginx-auth-ldap-module
 git clone https://github.com/kvspb/nginx-auth-ldap.git \
           %{_builddir}/nginx-auth-ldap-module
-( cd %{_builddir}/nginx-auth-ldap-module; git checkout 66d69ef70cb3008ddb3decc3db5b0a94211dc007 )
 
 rm -rf %{_builddir}/nginx-auth-pam-module
 curl http://web.iti.upv.es/~sto/nginx/ngx_http_auth_pam_module-1.3.tar.gz -o - | tar xvzf - -C %{_builddir}/
