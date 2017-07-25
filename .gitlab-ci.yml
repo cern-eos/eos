@@ -73,7 +73,7 @@ eos_rpm_slc6:
     - cp -R build/SRPMS slc6_artifacts
     - cp -R build/RPMS slc6_artifacts
   cache:
-    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+    key: "$CI_JOB_NAME/$CI_COMMIT_REF_NAME"
     paths:
     - ccache/
   artifacts:
@@ -108,7 +108,7 @@ eos_rpm_fedora_rawhide:
     - cp -R build/SRPMS fcrawhide_artifacts
     - cp -R build/RPMS fcrawhide_artifacts
   cache:
-    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+    key: "$CI_JOB_NAME/$CI_COMMIT_REF_NAME"
     paths:
     - ccache/
   artifacts:
@@ -143,7 +143,7 @@ eos_rpm_fedora_25:
     - cp -R build/SRPMS fcold_artifacts
     - cp -R build/RPMS fcold_artifacts
   cache:
-    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+    key: "$CI_JOB_NAME/$CI_COMMIT_REF_NAME"
     paths:
     - ccache/
   artifacts:
