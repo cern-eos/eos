@@ -35,7 +35,7 @@ eos_rpm_cc7:
     # TODO: this repository needs to be removed in the future
     - echo -e '[eos-depend-afs]\nname=EOS dependencies on AFS\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/el-7-x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> eos-docker/eos.repo
   cache:
-    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+    key: "$CI_JOB_NAME/$CI_COMMIT_REF_NAME"
     paths:
     - ccache/
   artifacts:
