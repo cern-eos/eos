@@ -1783,7 +1783,7 @@ XrdFstOfsFile::close ()
       deleteOnClose = true;
       layOut->Remove();
 
-      if (layOut->IsEntryServer())
+      if (layOut->IsEntryServer() && (!isReplication))
       {
 	capOpaqueString += "&mgm.dropall=1";
       }
@@ -1884,7 +1884,7 @@ XrdFstOfsFile::close ()
         deleteOnClose = true;
         layOut->Remove();
 
-	if (layOut->IsEntryServer())
+	if (layOut->IsEntryServer() && (!isReplication))
 	{
 	  capOpaqueString += "&mgm.dropall=1";
 	}
