@@ -135,6 +135,12 @@ public:
   // ---------------------------------------------------------------------------
   std::vector<shared_ptr<DrainTransferJob>> GetJobs(DrainTransferJob::Status
                                          status);
+  
+  // ---------------------------------------------------------------------------
+  // get thef jobs count for the given status
+  // ---------------------------------------------------------------------------
+
+  int CountJobs(DrainTransferJob::Status status);
 
   void CompleteDrain() ;
 
@@ -163,9 +169,9 @@ private:
 
   bool drainStop = false;
 
-  //the numbers of retries
+  //the max numbers of retries
 
-  int nretries = 0;
+  int maxretries = 0;
 
 };
 

@@ -113,30 +113,37 @@ DrainTransferJob::DoIt ()
       return;
     }
   }
-
-    eos::common::FileSystem::fs_snapshot target_snapshot;
-    eos::common::FileSystem::fs_snapshot source_snapshot;
-    eos::common::FileSystem* target_fs = 0;
-    eos::common::FileSystem* source_fs = 0;
-
-    {
-      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+  
+  eos::common::FileSystem::fs_snapshot target_snapshot;
+  eos::common::FileSystem::fs_snapshot source_snapshot;
+  eos::common::FileSystem* target_fs = 0;
+  eos::common::FileSystem* source_fs = 0;
+  {
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
       
-      source_fs = FsView::gFsView.mIdView[mfsIdSource];
-      target_fs = FsView::gFsView.mIdView[mfsIdTarget];
+    source_fs = FsView::gFsView.mIdView[mfsIdSource];
+    target_fs = FsView::gFsView.mIdView[mfsIdTarget];
    
-      if (!target_fs) {
-         eos_notice("Target fs not found");
-         mStatus = Status::Failed;
-         return;
-      }
-      
-      source_fs->SnapShotFileSystem(source_snapshot);
-      target_fs->SnapShotFileSystem(target_snapshot);
-      
+    if (!target_fs) {
+       eos_notice("Target fs not found");
+       mStatus = Status::Failed;
+       return;
     }
-
-
+      
+    source_fs->SnapShotFileSystem(source_snapshot);
+    target_fs->SnapShotFileSystem(target_snapshot);
+      
+  }
+  if (((eos::common::LayoutId::GetLayoutType(lid) ==
+     eos::common::LayoutId::kRaidDP) ||
+     (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive)
+     ||
+     (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6)) &&
+     source_snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead) {
+     //we should run a third party copy with reconstructions  
+  }
+  else
+  {
     // Prepare the TPC copy job
     XrdCl::PropertyList properties;
     XrdCl::PropertyList result;
@@ -339,6 +346,7 @@ DrainTransferJob::DoIt ()
     if (target_capabilityenv) {
           delete target_capabilityenv;
     }
+  }
 }
 
 void DrainTransferJob::SetTargetFS(eos::common::FileSystem::fsid_t fsIdT)

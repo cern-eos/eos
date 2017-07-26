@@ -65,7 +65,7 @@ class DrainTransferJob : XrdJob, public eos::common::LogId
 {
 public:
   
-  enum Status { OK, Running, Failed };
+  enum Status { OK, Running, Failed, Ready};
 
 
   // ---------------------------------------------------------------------------
