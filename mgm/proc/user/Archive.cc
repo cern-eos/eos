@@ -774,8 +774,7 @@ ProcCommand::ArchiveExecuteCmd(const::string& cmd)
 {
   int retc = 0;
   int sock_linger = 0;
-  zmq::context_t zmq_ctx(1);
-  zmq::socket_t socket(zmq_ctx, ZMQ_REQ);
+  zmq::socket_t socket(*(gOFS->mZmqContext), ZMQ_REQ);
 #if ZMQ_VERSION >= 20200
   int sock_timeout = 1500; // 1,5s
   socket.setsockopt(ZMQ_RCVTIMEO, &sock_timeout, sizeof(sock_timeout));
@@ -788,7 +787,7 @@ ProcCommand::ArchiveExecuteCmd(const::string& cmd)
   }
   catch (zmq::error_t& zmq_err)
   {
-    eos_static_err("connect to archiver failed");
+    eos_static_err("connect to archiver failed: %s", zmq_err.what());
     stdErr = "error: connect to archiver failed";
     retc = EINVAL;
   }
