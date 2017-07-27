@@ -7,7 +7,23 @@
 Beryl Release Notes
 ===================
 
-``V0.3.262 Aquamarine``
+``V0.3.264 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- [EOS-1936] - EOS ATLAS lost file due to balancing
+- ARCHIVE: Fix archive endpoint which was constructed only if the MGM node was a master.
+           This approach fails when we have a master slave failover as we never set up
+           the archive endpoint for the slave. Use the same ZMQ contect for both the
+           archive and authentication services.
+- FUSE: Make configurable the maximum number of retries in case a synchronous
+        open operation fails.
+- DOC: update documentatino of wfe's
+
+
+``V0.3.263 Aquamarine``
 =======================
 
 Bug Fixes
