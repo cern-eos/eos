@@ -1790,14 +1790,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         return 1;
       }
     }
-
-    // Set also the archiverd ZMQ endpoint were client requests are sent
-    std::ostringstream oss;
-    oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
-    mArchiveEndpoint = oss.str();
   }
 
-  //-------------------------------------------
+  // Set also the archiverd ZMQ endpoint were client requests are sent
+  std::ostringstream oss;
+  oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
+  mArchiveEndpoint = oss.str();
   XrdMqSharedHash* hash = 0;
 
   // Disable some features if we are only a redirector

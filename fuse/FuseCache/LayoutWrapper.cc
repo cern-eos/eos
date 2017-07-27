@@ -629,29 +629,34 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
     std::string _lasturl, _path(path);
     size_t pos, _pos(0);
-    size_t n_retry = 0 ;
+    uint64_t count_retry = 0;
+    uint64_t max_retries = 100;
+    char* smax_retries = getenv("EOS_FUSE_OPEN_MAX_RETRIES");
+
+    if (smax_retries) {
+      max_retries = strtol(smax_retries, NULL, 0);
+    }
 
     while (retry) {
-      eos_static_debug("Sync-open path=%s opaque=%s", _path.c_str(),
-                       sopaque.c_str());
+      eos_static_debug("Sync-open path=%s opaque=%s", _path.c_str(), sopaque.c_str());
       mFile->Redirect(_path.c_str());
 
       // Do synchronous open
       if ((retc = mFile->Open(flags, mode, sopaque.c_str()))) {
-        eos_static_debug("Sync-open got errNo=%d errCode=%d",
-                         static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
-                         static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrCode());
+        eos_static_err("Sync-open got errNo=%d errCode=%d",
+                       static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
+                       static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrCode());
 
         if (static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() == 3005) {
-          n_retry++;
+          count_retry++;
 
-          if (n_retry < 100) {
+          if (count_retry < max_retries) {
             XrdSysTimer sleeper;
             sleeper.Wait(10);
-            eos_static_debug("retrying attempt=%d", n_retry);
+            eos_static_debug("retrying attempt=%d", count_retry);
             continue;
           } else {
-            eos_static_err("giving up retrying after attempt=%d", n_retry);
+            eos_static_err("giving up retrying after attempt=%d", count_retry);
             break;
           }
         } else {
