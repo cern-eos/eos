@@ -92,6 +92,7 @@ Requires:      systemd
 %else
 Requires: chkconfig
 Requires: initscripts
+Requires: sysvinit-tools
 %endif
 
 %description
@@ -144,7 +145,6 @@ Requires: jemalloc
 Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
-Requires: sysvinit-tools
 Requires: protobuf3
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
 BuildRequires: zeromq3, zeromq3-devel
