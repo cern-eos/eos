@@ -1186,13 +1186,6 @@ void ChangeLogFileMDSvc::removeFile(IFileMD* obj)
 }
 
 //------------------------------------------------------------------------------
-// Remove object from the store
-//------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::removeFile(FileMD::id_t fileId)
-{
-}
-
-//------------------------------------------------------------------------------
 // Add file listener
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvc::addChangeListener(IFileMDChangeListener* listener)
