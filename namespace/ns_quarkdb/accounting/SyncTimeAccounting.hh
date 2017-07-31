@@ -112,7 +112,7 @@ private:
   uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates
   uint8_t mCommitIndx; ///< Index of the batch committing updates
   std::thread mThread; ///< Thread updating the namespace
-  bool mShutdown; ///< Flag to shutdown async thread
+  std::atomic<bool> mShutdown; ///< Flag to shutdown async thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< Container meta-data service
   eos::common::RWMutex* gNsRwMutex; ///< Global(MGM) namespace RW mutex
