@@ -410,9 +410,7 @@ uint8_t ChangeLogFile::readRecord(uint64_t offset, Buffer& record, bool cache)
     throw ex;
   }
 
-  //--------------------------------------------------------------------------
   // Read first part of the record
-  //--------------------------------------------------------------------------
   uint16_t* magic;
   uint16_t* size;
   uint32_t* chkSum1;
@@ -433,18 +431,14 @@ uint8_t ChangeLogFile::readRecord(uint64_t offset, Buffer& record, bool cache)
   seq     = (uint64_t*)(buffer + 8);
   type    = (uint8_t*)(buffer + 16);
 
-  //--------------------------------------------------------------------------
   // Check the consistency
-  //--------------------------------------------------------------------------
   if (*magic != RECORD_MAGIC) {
     MDException ex(EFAULT);
     ex.getMessage() << "Read: Record's magic number is wrong at offset: " << offset;
     throw ex;
   }
 
-  //--------------------------------------------------------------------------
   // Read the second part of the buffer
-  //--------------------------------------------------------------------------
   record.resize(*size + 4, 0);
 
   if (pread(pFd, record.getDataPtr(), *size + 4, offset + 20,
@@ -456,17 +450,19 @@ uint8_t ChangeLogFile::readRecord(uint64_t offset, Buffer& record, bool cache)
 
   record.grabData(record.size() - 4, &chkSum2, 4);
   record.resize(*size);
-  //--------------------------------------------------------------------------
-  // Check the checksum
-  //--------------------------------------------------------------------------
-  uint32_t crc = DataHelper::computeCRC32(seq, 8);
-  crc = DataHelper::updateCRC32(crc, (buffer + 16), 4); // opts
-  crc = DataHelper::updateCRC32(crc, record.getDataPtr(), record.getSize());
 
-  if (*chkSum1 != crc || *chkSum1 != chkSum2) {
-    MDException ex(EFAULT);
-    ex.getMessage() << "Read: Record's checksums do not match.";
-    throw ex;
+  // Check the checksum only if this is not a conversion from in-memory to
+  // quarkdb.
+  if (getenv("EOS_NS_CONVERT_NOCRC32") == 0) {
+    uint32_t crc = DataHelper::computeCRC32(seq, 8);
+    crc = DataHelper::updateCRC32(crc, (buffer + 16), 4); // opts
+    crc = DataHelper::updateCRC32(crc, record.getDataPtr(), record.getSize());
+
+    if (*chkSum1 != crc || *chkSum1 != chkSum2) {
+      MDException ex(EFAULT);
+      ex.getMessage() << "Read: Record's checksums do not match.";
+      throw ex;
+    }
   }
 
   return *type;
@@ -484,9 +480,7 @@ uint8_t ChangeLogFile::readMappedRecord(uint64_t offset, Buffer& record,
     throw ex;
   }
 
-  //--------------------------------------------------------------------------
   // Read first part of the record
-  //--------------------------------------------------------------------------
   uint16_t* magic;
   uint16_t* size;
   uint32_t* chkSum1;
@@ -500,25 +494,19 @@ uint8_t ChangeLogFile::readMappedRecord(uint64_t offset, Buffer& record,
   seq     = (uint64_t*)(buffer + 8);
   type    = (uint8_t*)(buffer + 16);
 
-  //--------------------------------------------------------------------------
   // Check the consistency
-  //--------------------------------------------------------------------------
   if (*magic != RECORD_MAGIC) {
     MDException ex(EFAULT);
     ex.getMessage() << "Read: Record's magic number is wrong at offset: " << offset;
     throw ex;
   }
 
-  //--------------------------------------------------------------------------
   // Read the second part of the buffer
-  //--------------------------------------------------------------------------
   record.setDataPtr(pData + offset + 20, *size + 4);
   record.grabData(record.getSize() - 4, &chkSum2, 4);
   record.setDataPtr(pData + offset + 20, *size);
 
-  //--------------------------------------------------------------------------
   // Check the checksum
-  //--------------------------------------------------------------------------
   if (checksum) {
     uint32_t crc = DataHelper::computeCRC32(seq, 8);
     crc = DataHelper::updateCRC32(crc, (buffer + 16), 4); // opts

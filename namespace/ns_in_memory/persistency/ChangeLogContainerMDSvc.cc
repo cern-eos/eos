@@ -656,10 +656,10 @@ void ChangeLogContainerMDSvc::initialize()
 
           if (progress == 0) {
             fprintf(stderr, "PROGRESS [ %-64s ] %02u%% estimate none \n",
-                    "container-attach", (unsigned int)progress);
+                    "container-load", (unsigned int)progress);
           } else {
             fprintf(stderr, "PROGRESS [ %-64s ] %02u%% estimate %3.02fs\n",
-                    "container-attach", (unsigned int)progress, estimate);
+                    "container-load", (unsigned int)progress, estimate);
           }
 
           progress += 2;
