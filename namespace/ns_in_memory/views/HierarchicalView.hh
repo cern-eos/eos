@@ -249,12 +249,6 @@ namespace eos
       //------------------------------------------------------------------------
       virtual void renameFile( IFileMD *file, const std::string &newName );
 
-      //------------------------------------------------------------------------
-      //! Absolute Path sanitizing all '/../' and '/./' entries
-      //------------------------------------------------------------------------
-      virtual void absPath(std::string &path);
-
-
     private:
       std::shared_ptr<IContainerMD> findLastContainer(
 	 std::vector<char*> &elements, size_t end,size_t &index,

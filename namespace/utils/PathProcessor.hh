@@ -82,6 +82,52 @@ namespace eos
         if( beg != cursor )
           elements.push_back( beg );
       }
+
+      //------------------------------------------------------------------------
+      //! Absolute Path sanitizing all '/../' and '/./' entries
+      //------------------------------------------------------------------------
+      static void absPath(std::string& mypath)
+      {
+        std::string path = mypath;
+        std::string abspath;
+        size_t rpos = 4096;
+        size_t bppos;
+
+        // remove /../ from front
+        while ((bppos = path.find("/../")) != std::string::npos) {
+          size_t spos = path.rfind("/", bppos - 1);
+
+          if (spos != std::string::npos) {
+            path.erase(bppos, 4);
+            path.erase(spos + 1, bppos - spos - 1);
+          } else {
+            path = "/";
+            break;
+          }
+        }
+
+        while ((rpos = path.rfind("/", rpos)) != std::string::npos) {
+          rpos--;
+          std::string tp = path.substr(rpos + 1);
+          path.erase(rpos + 1);
+
+          if (tp == "/") {
+            continue;
+          }
+
+          if (tp == "/.") {
+            continue;
+          }
+
+          abspath.insert(0, tp);
+
+          if (rpos <= 0) {
+            break;
+          }
+        }
+
+        mypath = abspath;
+      }
   };
 }
 

@@ -250,11 +250,6 @@ public:
   //----------------------------------------------------------------------------
   virtual void renameFile(IFileMD* file, const std::string& newName);
 
-  //----------------------------------------------------------------------------
-  //! Absolute Path sanitizing all '/../' and '/./' entries
-  //----------------------------------------------------------------------------
-  virtual void absPath(std::string& mypath);
-
 private:
   //----------------------------------------------------------------------------
   //! Get last existing container in the provided path
