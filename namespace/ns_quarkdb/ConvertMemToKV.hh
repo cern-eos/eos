@@ -160,6 +160,13 @@ public:
   //------------------------------------------------------------------------------
   void serialize(std::string& buffer);
 
+  //------------------------------------------------------------------------------
+  //! Commit map of subcontainer to the backend
+  //!
+  //! @return future holding the redis reply object
+  //------------------------------------------------------------------------------
+  qclient::AsyncResponseType commitSubcontainers(qclient::QClient* qclient);
+
 private:
   eos::ns::ContainerMdProto mCont; ///< Protobuf container representation
   std::string pFilesKey; ///< Key of hmap holding info about files

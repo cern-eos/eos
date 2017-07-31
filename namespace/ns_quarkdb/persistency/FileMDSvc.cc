@@ -213,7 +213,7 @@ FileMDSvc::getNumFiles()
 
   // Wait for all responses and sum up the results
   (void) ah.Wait();
-  std::vector<long long int> resp = ah.GetResponses();
+  std::list<long long int> resp = ah.GetResponses();
   num_files = std::accumulate(resp.begin(), resp.end(), (long long int)0);
   return num_files;
 }

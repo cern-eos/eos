@@ -83,7 +83,7 @@ QuotaNode::addFile(const IFileMD* file)
   pAh.Register(pGidMap.hincrby_async(field, 1), pGidMap.getClient());
 
   if (!pAh.Wait()) {
-    std::vector<long long int> resp = pAh.GetResponses();
+    std::list<long long int> resp = pAh.GetResponses();
 
     for (auto& r : resp) {
       if (r == -ECOMM) {
@@ -125,7 +125,7 @@ QuotaNode::removeFile(const IFileMD* file)
   pAh.Register(pGidMap.hincrby_async(field, -1), pGidMap.getClient());
 
   if (!pAh.Wait()) {
-    std::vector<long long int> resp = pAh.GetResponses();
+    std::list<long long int> resp = pAh.GetResponses();
 
     for (auto& r : resp) {
       if (r == -ECOMM) {

@@ -18,6 +18,7 @@
 
 #include "namespace/ns_quarkdb/ConvertMemToKV.hh"
 #include "common/LayoutId.hh"
+#include "common/Parallel.hh"
 #include "namespace/Constants.hh"
 #include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
@@ -30,7 +31,7 @@
 // Static global variable
 static std::string sBkndHost;
 static std::uint32_t sBkndPort;
-static long long int sAsyncBatch = 128 * 256 - 1;
+static long long int sAsyncBatch = 256 * 256 - 1;
 static qclient::QClient* sQcl;
 static qclient::AsyncHandler sAh;
 
@@ -94,16 +95,6 @@ ConvertContainerMD::updateInternal()
 void
 ConvertContainerMD::addContainer(eos::IContainerMD* container)
 {
-  try {
-    sAh.Register(pDirsMap.hset_async(container->getName(), container->getId()),
-                 pDirsMap.getClient());
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(EINVAL);
-    e.getMessage() << "Failed to add subcontainer #" << container->getId()
-                   << " or KV-backend connection error";
-    throw e;
-  }
-
   pSubContainers[container->getName()] = container->getId();
 }
 
@@ -113,6 +104,7 @@ ConvertContainerMD::addContainer(eos::IContainerMD* container)
 void
 ConvertContainerMD::addFile(eos::IFileMD* file)
 {
+  /*
   try {
     sAh.Register(pFilesMap.hset_async(file->getName(), file->getId()),
                  pFilesMap.getClient());
@@ -122,7 +114,7 @@ ConvertContainerMD::addFile(eos::IFileMD* file)
                    << " KV-backend conntection error";
     throw e;
   }
-
+  */
   std::lock_guard<std::mutex> scope_lock(mMutexFiles);
   pFiles[file->getName()] = file->getId();
 }
@@ -168,6 +160,23 @@ ConvertContainerMD::serialize(std::string& buffer)
   (void) memcpy((void*)ptr, &cksum, sz);
   ptr += sz;
   (void) memcpy((void*)ptr, &obj_size, sz);
+}
+
+//------------------------------------------------------------------------------
+// Commit map of subcontainer to the backend
+//------------------------------------------------------------------------------
+qclient::AsyncResponseType
+ConvertContainerMD::commitSubcontainers(qclient::QClient* qclient)
+{
+  std::vector<std::string> cmd {"HMSET", pDirsKey};
+  cmd.resize(pFiles.size() * 2 + 2);
+
+  for (auto& elem : pSubContainers) {
+    cmd.push_back(elem.first);
+    cmd.push_back(stringify(elem.second));
+  }
+
+  return qclient::AsyncResponseType(qclient->execute(cmd), std::move(cmd));
 }
 
 
@@ -246,7 +255,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
       parent->addContainer(container.get());
     }
   } else {
-    // This is not the root container but doesn't have a parrent - add it to
+    // This is not the root container but doesn't have a parent - add it to
     // the list of orphans
     if (container->getId()) {
       orphans.push_back(container);
@@ -261,50 +270,81 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 void
 ConvertContainerMDSvc::CommitToBackend()
 {
-  std::shared_ptr<IContainerMD> container;
+  std::mutex mutex;
   static std::uint64_t total = getNumContainers();
-  static std::int64_t count = 0;
+  int nthreads = std::thread::hardware_concurrency();
+  int chunk = pIdMap.size() / nthreads;
+  int last_chunk = chunk + pIdMap.size() - (chunk * nthreads);
+  eos::common::Parallel::For(0, nthreads, [&](int i) {
+    std::int64_t count = 0;
+    qclient::AsyncHandler async_handler;
+    eos::ConvertContainerMD* conv_cont = nullptr;
+    std::shared_ptr<IContainerMD> container;
+    IdMap::iterator it = pIdMap.begin();
+    std::advance(it, i * chunk);
+    qclient::QClient qclient{"localhost", 6379, true, true};
+    int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
 
-  for (auto it = pIdMap.begin(); it != pIdMap.end(); ++it) {
-    container = it->second.ptr;
-
-    // Skip unattached
-    if (!it->second.attached) {
-      std::cerr << __FUNCTION__ << " Skipping unattached container id "
-                << it->first << std::endl;
-      continue;
-    }
-
-    // Add container to the KV store
-    try {
-      if (getFirstFreeId() <= container->getId()) {
-        mFirstFreeId = container->getId() + 1;
+    for (int n = 0; n < max_elem; ++n) {
+      // Skip unattached
+      if (!it->second.attached) {
+        std::cerr << __FUNCTION__ << " Skipping unattached container id "
+                  << it->first << std::endl;
+        ++it;
+        continue;
       }
 
-      ++count;
-      std::string buffer;
-      (static_cast<eos::ConvertContainerMD*>(container.get()))->serialize(buffer);
-      std::string sid = stringify(container->getId());
-      qclient::QHash bucket_map(*sQcl, getBucketKey(container->getId()));
-      sAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
+      container = it->second.ptr;
+      conv_cont = static_cast<eos::ConvertContainerMD*>(container.get());
+      ++it;
 
-      if ((count & sAsyncBatch) == 0) {
-        if (!sAh.WaitForAtLeast(sAsyncBatch)) {
-          std::cerr << __FUNCTION__ << " Got error response from the backend"
-                    << std::endl;
-          exit(1);
+      // Add container to the KV store
+      try {
+        {
+          std::lock_guard<std::mutex> lock(mutex);
+
+          if (getFirstFreeId() <= container->getId()) {
+            mFirstFreeId = container->getId() + 1;
+          }
+        }
+        ++count;
+        std::string buffer;
+        conv_cont->serialize(buffer);
+        std::string sid = stringify(container->getId());
+        qclient::QHash bucket_map(qclient, getBucketKey(container->getId()));
+        async_handler.Register(bucket_map.hset_async(sid, buffer),
+                               bucket_map.getClient());
+
+        // Commit subcontainers only if not empty otherwise the hmset command
+        // will fail.
+        if (container->getNumContainers()) {
+          async_handler.Register(conv_cont->commitSubcontainers(&qclient), &qclient);
         }
 
-        std::cout << "Processed " << count << "/" << total << " directories "
-                  << std::endl;
+        if ((count & sAsyncBatch) == 0) {
+          if (!async_handler.WaitForAtLeast(sAsyncBatch)) {
+            std::cerr << __FUNCTION__ << " Got error response from the backend"
+                      << std::endl;
+            exit(1);
+          }
+
+          std::cout << "Processed " << count << "/" << total << " directories "
+                    << std::endl;
+        }
+      } catch (std::runtime_error& qdb_err) {
+        MDException e(ENOENT);
+        e.getMessage() << "Container #" << container->getId()
+                       << " failed to contact backend";
+        throw e;
       }
-    } catch (std::runtime_error& qdb_err) {
-      MDException e(ENOENT);
-      e.getMessage() << "Container #" << container->getId()
-                     << " failed to contact backend";
-      throw e;
     }
-  }
+
+    // Wait for any other replies
+    if (!async_handler.Wait()) {
+      std::cerr << "ERROR: Failed to commit to backend" << std::endl;
+      exit(1);
+    }
+  });
 }
 
 
@@ -579,13 +619,8 @@ ConvertQuotaView::commitToBackend()
 {
   qclient::QSet set_quotaids(*sQcl, quota::sSetQuotaIds);
   eos::common::RWMutexReadLock rd_lock(mRWMutex);
-
   // Export the set of quota nodes
-  // TODO (esindril): add sadd with multiple entries
-  for (auto& elem : mSetQuotaIds) {
-    sAh.Register(set_quotaids.sadd_async(elem), set_quotaids.getClient());
-  }
-
+  sAh.Register(set_quotaids.sadd_async(mSetQuotaIds), set_quotaids.getClient());
   mSetQuotaIds.clear();
   // Export the actual quota information
   std::string uid_key, gid_key;
@@ -756,6 +791,26 @@ main(int argc, char* argv[])
     return 1;
   }
 
+  // Disable CRC32 computation for entries since we know they should be fine
+  // as we've just compacted the changelogs.
+  if (setenv("EOS_NS_BOOT_NOCRC32", "1", 1)) {
+    std::cerr << "ERROR: failed to set EOS_NS_BOOT_NOCRC32 env variable"
+              << std::endl;
+    return 1;
+  }
+
+  if (setenv("EOS_NS_CONVERT_NOCRC32", "1", 1)) {
+    std::cerr << "ERROR: failed to set EOS_NS_CONVERT_NOCRC32 env variable"
+              << std::endl;
+    return 1;
+  }
+
+  if (setenv("EOS_NS_BOOT_PARALLEL", "1", 1)) {
+    std::cerr << "ERROR: failed to set EOS_NS_BOOT_PARALLEL env variable"
+              << std::endl;
+    return 1;
+  }
+
   try {
     std::string file_chlog(argv[1]);
     std::string dir_chlog(argv[2]);
@@ -805,9 +860,26 @@ main(int argc, char* argv[])
     conv_file_svc->setViews(quota_view.get(), fs_view.get());
     std::time_t cont_start = std::time(nullptr);
     cont_svc->initialize();
+
+    if (!sAh.Wait()) {
+      std::cerr << "ERROR: Failed to initialize container service" << std::endl;
+      return 1;
+    }
+
+    try {
+      conv_cont_svc->CommitToBackend();
+    } catch (eos::MDException& e) {
+      std::cerr << "Exception thrown: " << e.what() << std::endl;
+      return 1;
+    }
+
     std::chrono::seconds cont_duration {std::time(nullptr) - cont_start};
-    std::cout << "Container init: " << cont_duration.count() << " seconds" <<
-              std::endl;
+    double rate = (double)cont_svc->getNumContainers() / cont_duration.count();
+    std::cout << "Container init: " << cont_svc->getNumContainers()
+              << " containers in " << cont_duration.count() << " seconds at "
+              << rate << " Hz" << std::endl;
+    // return 0;
+    //==========================================================================
     // Initialize the file meta-data service
     std::cout << "Initialize the file meta-data service" << std::endl;
     file_svc->setContMDService(cont_svc.get());
