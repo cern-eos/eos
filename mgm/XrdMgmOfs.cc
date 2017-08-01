@@ -354,6 +354,12 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
+
+  // simply reply OK if it's not a workflow
+  if(info.empty()) {
+    return SFS_OK;
+  }
+
   std::string cmd = "mgm.pcmd=event";
 
   if (!(pargs.opts & Prep_STAGE)) {
@@ -362,6 +368,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
 
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
+
   int retc = SFS_OK;
 
   // check that all files exist
