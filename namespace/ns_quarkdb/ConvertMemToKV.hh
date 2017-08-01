@@ -26,6 +26,7 @@
 #define __EOS_NS_CONVERTMEMTOKV_HH__
 
 #include "namespace/Namespace.hh"
+#include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/ns_in_memory/ContainerMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
@@ -33,6 +34,7 @@
 #include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "ContainerMd.pb.h"
+#include "FileMd.pb.h"
 #include "common/RWMutex.hh"
 #include <cstdint>
 
@@ -110,11 +112,43 @@ public:
 private:
   std::set<std::string> mFileNoReplica; ///< Set of files with no replica
   //! Map of file system ids to set of file replicas and set of unlinked file ids
-  std::map<std::string, std::pair<std::set<std::string>,
-      std::set<std::string> > > mFsView;
+  std::map<std::string,
+      std::pair<std::set<std::string>, std::set<std::string> > > mFsView;
   std::mutex mMutex; ///< Mutex protecting access tot he map and set
 };
 
+
+//------------------------------------------------------------------------------
+//! Class ConvertFileMD
+//------------------------------------------------------------------------------
+class ConvertFileMD: public eos::FileMD
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ConvertFileMD(id_t id, IFileMDSvc* fileMDSvc);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~ConvertFileMD() {};
+
+  //----------------------------------------------------------------------------
+  //! Update internal protobuf object.
+  //----------------------------------------------------------------------------
+  void updateInternal();
+
+  //----------------------------------------------------------------------------
+  //! Serialize the object to a std::string buffer
+  //!
+  //! @param buffer output of the serialized object
+  //----------------------------------------------------------------------------
+  void serialize(std::string& buffer);
+
+private:
+  eos::ns::FileMdProto mFile; ///< Protobuf file representation
+};
 
 //------------------------------------------------------------------------------
 //! Class ConvertContainerMD
@@ -153,19 +187,26 @@ public:
   //----------------------------------------------------------------------------
   void updateInternal();
 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Serialize the object to a std::string buffer
   //!
   //! @param buffer output of the serialized object
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void serialize(std::string& buffer);
 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Commit map of subcontainer to the backend
   //!
   //! @return future holding the redis reply object
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   qclient::AsyncResponseType commitSubcontainers(qclient::QClient* qclient);
+
+  //----------------------------------------------------------------------------
+  //! Commit map of files to the backend
+  //!
+  //! @return future holding the redis reply object
+  //----------------------------------------------------------------------------
+  qclient::AsyncResponseType commitFiles(qclient::QClient* qclient);
 
 private:
   eos::ns::ContainerMdProto mCont; ///< Protobuf container representation
@@ -173,7 +214,6 @@ private:
   std::string pDirsKey;  ///< Key of hmap holding info about subcontainers
   qclient::QHash pFilesMap; ///< Map of files
   qclient::QHash pDirsMap; ///< Map of dirs
-  std::mutex mMutexFiles; ///< Mutex protecting access to the files map
 };
 
 
@@ -219,7 +259,16 @@ public:
   //----------------------------------------------------------------------------
   //! Commit all the container info to the backend.
   //----------------------------------------------------------------------------
-  void CommitToBackend();
+  void commitToBackend();
+
+  //----------------------------------------------------------------------------
+  //! Update store - this method should be empty as it's called from the
+  //! accounting views and this should not trigger any action.
+  //----------------------------------------------------------------------------
+  void updateStore(IContainerMD* cont)
+  {
+    // empty on purpose
+  }
 
 private:
   static std::uint64_t sNumContBuckets; ///< Numnber of buckets power of 2

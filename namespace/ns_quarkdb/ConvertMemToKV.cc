@@ -41,6 +41,83 @@ std::uint64_t ConvertContainerMDSvc::sNumContBuckets = 128 * 1024;
 std::uint64_t ConvertFileMDSvc::sNumFileBuckets = 1024 * 1024;
 
 //------------------------------------------------------------------------------
+//           ************* ConvertFileMD Class ************
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+ConvertFileMD::ConvertFileMD(id_t id, IFileMDSvc* fileMDSvc):
+  eos::FileMD(id, fileMDSvc)
+{}
+
+//------------------------------------------------------------------------------
+// Update internal state
+//------------------------------------------------------------------------------
+void
+ConvertFileMD::updateInternal()
+{
+  mFile.set_id(pId);
+  mFile.set_cont_id(pContainerId);
+  mFile.set_uid(pCUid);
+  mFile.set_gid(pCGid);
+  mFile.set_size(pSize);
+  mFile.set_layout_id(pLayoutId);
+  mFile.set_flags(pFlags);
+  mFile.set_name(pName);
+  mFile.set_link_name(pLinkName);
+  mFile.set_ctime(&pCTime, sizeof(pCTime));
+  mFile.set_mtime(&pMTime, sizeof(pMTime));
+  mFile.set_checksum(pChecksum.getDataPtr(), pChecksum.getSize());
+
+  for (auto& loc : pLocation) {
+    mFile.add_locations(loc);
+  }
+
+  for (auto& unlinked : pUnlinkedLocation) {
+    mFile.add_unlink_locations(unlinked);
+  }
+
+  for (auto& xattr : pXAttrs) {
+    (*mFile.mutable_xattrs())[xattr.first] = xattr.second;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Serialize the object to a std::string buffer
+//------------------------------------------------------------------------------
+void
+ConvertFileMD::serialize(std::string& buffer)
+{
+  // Align the buffer to 4 bytes to efficiently compute the checksum
+  size_t obj_size = mFile.ByteSizeLong();
+  uint32_t align_size = (obj_size + 3) >> 2 << 2;
+  size_t sz = sizeof(align_size);
+  size_t msg_size = align_size + 2 * sz;
+  buffer.resize(msg_size);
+  // Write the checksum value, size of the raw protobuf object and then the
+  // actual protobuf object serialized
+  const char* ptr = buffer.c_str() + 2 * sz;
+  google::protobuf::io::ArrayOutputStream aos((void*)ptr, align_size);
+
+  if (!mFile.SerializeToZeroCopyStream(&aos)) {
+    MDException ex(EIO);
+    ex.getMessage() << "Failed while serializing buffer";
+    throw ex;
+  }
+
+  // Compute the CRC32C checkusm
+  uint32_t cksum = DataHelper::computeCRC32C((void*)ptr, align_size);
+  cksum = DataHelper::finalizeCRC32C(cksum);
+  // Point to the beginning to fill in the checksum and size of useful data
+  ptr = buffer.c_str();
+  (void) memcpy((void*)ptr, &cksum, sz);
+  ptr += sz;
+  (void) memcpy((void*)ptr, &obj_size, sz);
+}
+
+
+//------------------------------------------------------------------------------
 //           ************* ConvertContainerMD Class ************
 //------------------------------------------------------------------------------
 
@@ -104,18 +181,6 @@ ConvertContainerMD::addContainer(eos::IContainerMD* container)
 void
 ConvertContainerMD::addFile(eos::IFileMD* file)
 {
-  /*
-  try {
-    sAh.Register(pFilesMap.hset_async(file->getName(), file->getId()),
-                 pFilesMap.getClient());
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(EINVAL);
-    e.getMessage() << "File #" << file->getId() << " already exists or"
-                   << " KV-backend conntection error";
-    throw e;
-  }
-  */
-  std::lock_guard<std::mutex> scope_lock(mMutexFiles);
   pFiles[file->getName()] = file->getId();
 }
 
@@ -125,7 +190,6 @@ ConvertContainerMD::addFile(eos::IFileMD* file)
 std::shared_ptr<IFileMD>
 ConvertContainerMD::findFile(const std::string& name)
 {
-  std::lock_guard<std::mutex> scop_lock(mMutexFiles);
   return eos::ContainerMD::findFile(name);
 }
 
@@ -169,16 +233,32 @@ qclient::AsyncResponseType
 ConvertContainerMD::commitSubcontainers(qclient::QClient* qclient)
 {
   std::vector<std::string> cmd {"HMSET", pDirsKey};
-  cmd.resize(pFiles.size() * 2 + 2);
+  cmd.reserve(pSubContainers.size() * 2 + 2);
 
   for (auto& elem : pSubContainers) {
     cmd.push_back(elem.first);
     cmd.push_back(stringify(elem.second));
   }
 
-  return qclient::AsyncResponseType(qclient->execute(cmd), std::move(cmd));
+  return std::make_pair(qclient->execute(cmd), std::move(cmd));
 }
 
+//------------------------------------------------------------------------------
+// Commit map of files to the backend
+//------------------------------------------------------------------------------
+qclient::AsyncResponseType
+ConvertContainerMD::commitFiles(qclient::QClient* qclient)
+{
+  std::vector<std::string> cmd {"HMSET", pFilesKey};
+  cmd.reserve(pFiles.size() * 2 + 2);
+
+  for (auto& elem : pFiles) {
+    cmd.push_back(elem.first);
+    cmd.push_back(stringify(elem.second));
+  }
+
+  return std::make_pair(qclient->execute(cmd), std::move(cmd));
+}
 
 //------------------------------------------------------------------------------
 //         ************* ConvertContainerMDSvc Class ************
@@ -268,7 +348,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 // Commit all the container info to the backend.
 //------------------------------------------------------------------------------
 void
-ConvertContainerMDSvc::CommitToBackend()
+ConvertContainerMDSvc::commitToBackend()
 {
   std::mutex mutex;
   static std::uint64_t total = getNumContainers();
@@ -315,14 +395,18 @@ ConvertContainerMDSvc::CommitToBackend()
         async_handler.Register(bucket_map.hset_async(sid, buffer),
                                bucket_map.getClient());
 
-        // Commit subcontainers only if not empty otherwise the hmset command
-        // will fail.
-        if (container->getNumContainers()) {
+        // Commit subcontainers and files only if not empty otherwise the hmset
+        // command  will fail.
+        if (conv_cont->getNumContainers()) {
           async_handler.Register(conv_cont->commitSubcontainers(&qclient), &qclient);
         }
 
+        if (conv_cont->getNumFiles()) {
+          async_handler.Register(conv_cont->commitFiles(&qclient), &qclient);
+        }
+
         if ((count & sAsyncBatch) == 0) {
-          if (!async_handler.WaitForAtLeast(sAsyncBatch)) {
+          if (!async_handler.Wait()) {
             std::cerr << __FUNCTION__ << " Got error response from the backend"
                       << std::endl;
             exit(1);
@@ -456,7 +540,7 @@ ConvertFileMDSvc::initialize()
     }
 
     // Unpack the serialized buffers
-    std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
+    std::shared_ptr<IFileMD> file = std::make_shared<ConvertFileMD>(0, this);
 
     if (eos::FileMD* tmp_fmd = dynamic_cast<FileMD*>(file.get())) {
       tmp_fmd->deserialize(*elem.second.buffer);
@@ -478,9 +562,19 @@ ConvertFileMDSvc::initialize()
 
     // Add file to the KV store
     try {
-      std::string buffer(elem.second.buffer->getDataPtr(),
-                         elem.second.buffer->getSize());
+      std::string buffer;
       std::string sid = stringify(file->getId());
+      ConvertFileMD* conv_fmd = dynamic_cast<ConvertFileMD*>(file.get());
+
+      if (!conv_fmd) {
+        std::cerr << __FUNCTION__ << " Failed dynamic cast to ConvertFileMD"
+                  << std::endl;
+        exit(1);
+      }
+
+      conv_fmd->updateInternal();
+      conv_fmd->serialize(buffer);
+      // TODO: use different clients
       qclient::QHash bucket_map(*sQcl, getBucketKey(file->getId()));
       sAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
     } catch (std::runtime_error& qdb_err) {
@@ -711,8 +805,10 @@ ConvertFsView::commitToBackend()
   std::string key, val;
   qclient::QSet fs_set(*sQcl, "");
   std::list<std::string> lst_elem;
+  std::int64_t count {0};
 
   for (const auto& fs_elem : mFsView) {
+    ++count;
     key = fsview::sSetFsIds;
     val = stringify(fs_elem.first);
     fs_set.setKey(key);
@@ -724,11 +820,7 @@ ConvertFsView::commitToBackend()
     if (fs_elem.second.first.size()) {
       lst_elem.clear();
       lst_elem.assign(fs_elem.second.first.begin(), fs_elem.second.first.end());
-
-      if (fs_set.sadd(lst_elem) != (long long int)lst_elem.size()) {
-        std::cerr << "Error whlie doing bulk sadd operations!" << std::endl;
-        exit(1);
-      }
+      sAh.Register(fs_set.sadd_async(lst_elem), fs_set.getClient());
     }
 
     key = val + fsview::sUnlinkedSuffix;
@@ -737,9 +829,15 @@ ConvertFsView::commitToBackend()
     if (fs_elem.second.second.size()) {
       lst_elem.clear();
       lst_elem.assign(fs_elem.second.second.begin(), fs_elem.second.second.end());
+      sAh.Register(fs_set.sadd_async(lst_elem), fs_set.getClient());
+    }
 
-      if (fs_set.sadd(lst_elem) != (long long int)lst_elem.size()) {
-        std::cerr << "Error whlie doing bulk sadd operations!" << std::endl;
+    if ((count & sAsyncBatch) == 0) {
+      count = 0;
+
+      if (!sAh.Wait()) {
+        std::cerr << __FUNCTION__ << " Got error response from the backend"
+                  << std::endl;
         exit(1);
       }
     }
@@ -748,11 +846,7 @@ ConvertFsView::commitToBackend()
   fs_set.setKey(fsview::sNoReplicaPrefix);
   lst_elem.clear();
   lst_elem.assign(mFileNoReplica.begin(), mFileNoReplica.end());
-
-  if (fs_set.sadd(lst_elem) != (long long int)lst_elem.size()) {
-    std::cerr << "Error whlie doing bulk sadd operations!" << std::endl;
-    exit(1);
-  }
+  sAh.Register(fs_set.sadd_async(lst_elem), fs_set.getClient());
 
   // Wait for all in-flight async requests
   if (!sAh.Wait()) {
@@ -866,20 +960,15 @@ main(int argc, char* argv[])
       return 1;
     }
 
-    try {
-      conv_cont_svc->CommitToBackend();
-    } catch (eos::MDException& e) {
-      std::cerr << "Exception thrown: " << e.what() << std::endl;
-      return 1;
+    std::chrono::seconds cont_duration {std::time(nullptr) - cont_start};
+
+    if (cont_duration.count()) {
+      double rate = (double)cont_svc->getNumContainers() / cont_duration.count();
+      std::cout << "Container init: " << cont_svc->getNumContainers()
+                << " containers in " << cont_duration.count() << " seconds at ~"
+                << rate << " Hz" << std::endl;
     }
 
-    std::chrono::seconds cont_duration {std::time(nullptr) - cont_start};
-    double rate = (double)cont_svc->getNumContainers() / cont_duration.count();
-    std::cout << "Container init: " << cont_svc->getNumContainers()
-              << " containers in " << cont_duration.count() << " seconds at "
-              << rate << " Hz" << std::endl;
-    // return 0;
-    //==========================================================================
     // Initialize the file meta-data service
     std::cout << "Initialize the file meta-data service" << std::endl;
     file_svc->setContMDService(cont_svc.get());
@@ -908,19 +997,24 @@ main(int argc, char* argv[])
     std::time_t views_start = std::time(nullptr);
     quota_view->commitToBackend();
     fs_view->commitToBackend();
-    std::chrono::seconds views_duration {std::time(nullptr) - views_start};
-    std::cout << "Quota+FsView init: " << views_duration.count() << " seconds" <<
-              std::endl;
+    std::time_t views_end = std::time(nullptr);
+    std::chrono::seconds views_duration {views_end - views_start};
+    std::cout << "Quota+FsView init: " << views_duration.count() << " seconds"
+              << std::endl;
     // Commit the directory information to the backend
     std::cout << "Commit container info to backend: " << std::endl;
 
     try {
-      conv_cont_svc->CommitToBackend();
+      conv_cont_svc->commitToBackend();
     } catch (eos::MDException& e) {
       std::cerr << "Exception thrown: " << e.what() << std::endl;
       return 1;
     }
 
+    std::chrono::seconds cont_commit{std::time(nullptr) - views_end};
+    std::cout << "Container init: " << cont_svc->getNumContainers()
+              << " containers in " << cont_commit.count() << " seconds"
+              << std::endl;
     // Save the first free file and container id in the meta_hmap - actually it is
     // the last id since we get the first free id by doing a hincrby operation
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
