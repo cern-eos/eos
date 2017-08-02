@@ -176,7 +176,7 @@ XrdMgmOfs::_remdir(const char* path,
   if ((dh->getFlags() && eos::QUOTA_NODE_FLAG) && (vid.uid)) {
     errno = EADDRINUSE;
     eos_err("%s is a quota node - deletion canceled", path);
-    return Emsg(epname, error, errno, "rmdir", path);
+    return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
   }
 
   if (!simulate) {
