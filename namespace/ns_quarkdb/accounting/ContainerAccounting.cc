@@ -92,7 +92,7 @@ ContainerAccounting::AddTree(IContainerMD* obj, int64_t dsize)
 void
 ContainerAccounting::RemoveTree(IContainerMD* obj, int64_t dsize)
 {
-  QueueForUpdate(obj->getId(), dsize, OpType::TREE);
+  QueueForUpdate(obj->getId(), -dsize, OpType::TREE);
 }
 
 
