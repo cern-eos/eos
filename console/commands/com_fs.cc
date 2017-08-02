@@ -905,6 +905,8 @@ com_fs_usage:
   fprintf(stdout,
           "                                    drain       : filesystem set in drain mode\n");
   fprintf(stdout,
+          "                                    draindead   : filesystem set in drain mode and the filesystem is considered as unusable for any read\n");
+  fprintf(stdout,
           "                                    off         : filesystem set disabled\n");
   fprintf(stdout,
           "                                    empty       : filesystem is set to empty - possible only if there are no files stored anymore\n\n");
