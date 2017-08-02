@@ -99,6 +99,7 @@ ProcCommand::Attr()
                                  true, true)) {
                 stdErr += "error: unable to list attributes of ";
                 stdErr += foundit->first.c_str();
+                stdErr += "\n";
                 retc = errno;
               } else {
                 eos::IContainerMD::XAttrMap::const_iterator it;
@@ -167,6 +168,7 @@ ProcCommand::Attr()
                   stdErr += mError->getErrText();
                 }
 
+                stdErr += "\n";
                 retc = errno;
               } else {
                 stdOut += "success: set attribute ";
@@ -196,6 +198,7 @@ ProcCommand::Attr()
                 stdErr += key;
                 stdErr += " in file/directory ";
                 stdErr += foundit->first.c_str();
+                stdErr += "\n";
                 retc = errno;
               } else {
                 stdOut += key;
@@ -212,6 +215,7 @@ ProcCommand::Attr()
                 stdErr += key;
                 stdErr += "' in file/directory ";
                 stdErr += foundit->first.c_str();
+                stdErr += "\n";
                 retc = errno;
               } else {
                 stdOut += "success: removed attribute '";
@@ -234,6 +238,7 @@ ProcCommand::Attr()
               if (retc) {
                 stdErr += "error: unable to list attributes in file/directory ";
                 stdErr += foundit->first.c_str();
+                stdErr += "\n";
                 retc = errno;
               } else {
                 XrdOucString partialStdOut;
