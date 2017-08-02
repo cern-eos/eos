@@ -378,7 +378,7 @@ ProcCommand::FileInfo(const char* path)
             size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd_copy->getLayoutId());
 
             for (unsigned int i = 0; i < cxlen; i++) {
-              char hb[3];
+              char hb[4];
               sprintf(hb, "%02x ", (unsigned char)(fmd_copy->getChecksum().getDataPadded(i)));
               stdOut += hb;
             }
