@@ -230,19 +230,18 @@ Scheduler::FilePlacement (const char* path, //< path to place
       double netweight = (1.0 - ((snapshot.mNetEthRateMiB) ? (snapshot.mNetInRateMiB / snapshot.mNetEthRateMiB) : 0.0));
       double netoutweight = (1.0 - ((snapshot.mNetEthRateMiB) ? (snapshot.mNetOutRateMiB / snapshot.mNetEthRateMiB) : 0.0));
       weight *= ((netweight > 0) ? sqrt(netweight) : 0);
-      if (weight < 0.1)
-      {
+
+      if (weight < 0.1) {
         weight = 0.1;
       }
 
-      if (netoutweight < 0.05)
-      {
-        eos_static_info("msg=\"skipping node with overloaded eth-out\"");
+      if (netoutweight < 0.05) {
+        eos_static_info("msg=\"skipping node: %s with overloaded eth-out\"",
+			snapshot.mHost.c_str());
 	fsit++;
 	
 	// create cycling
-	if (fsit == (*git)->end())
-	{
+	if (fsit == (*git)->end()) {
 	  fsit = (*git)->begin();
 	}
         continue;
