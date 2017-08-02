@@ -7,6 +7,24 @@
 Beryl Release Notes
 ===================
 
+``V0.3.265 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+- Fix issue in EOSATLAS where files where disappearing from the namespace after being confirmed
+  to the client. This is correlated which exceptionally long scheduling times (~ 5min). This in
+  turn is due to the scheduling not finding a suitable node to place the file. When this happens
+  the default XRootD client will try to recover the initial open requests and this leads to a
+  race condition.
+- [EOS-1948] - FST crash with "terminate called after throwing an instance of 'std::bad_alloc'"
+- [EOS-1949] - Strange correlated crash in EOSATLAS
+
+Improvement
++++++++++++
+- [EOS-1947] - Improve error message when trying to delete a directory attached to a quota node
+
+
 ``V0.3.264 Aquamarine``
 =======================
 
