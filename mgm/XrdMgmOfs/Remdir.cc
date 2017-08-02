@@ -218,7 +218,7 @@ XrdMgmOfs::_remdir (const char *path,
   {
     errno = EADDRINUSE;
     eos_err("%s is a quota node - deletion canceled", path);
-    return Emsg(epname, error, errno, "rmdir", path);
+    return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
   }
 
   if (!simulate)

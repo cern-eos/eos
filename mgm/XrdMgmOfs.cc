@@ -466,11 +466,10 @@ XrdMgmOfs::Emsg (const char *pfx,
     etext = unkbuff;
   }
 
+  // ---------------------------------------------------------------------------
   // Format the error message
-  //
-
-
-  snprintf(buffer, sizeof (buffer), "Unable to %s %s; %s", op, target, etext);
+  // ---------------------------------------------------------------------------
+  snprintf(buffer, sizeof(buffer), "Unable to %s %s", op, target);
 
   if ((ecode == EIDRM) || (ecode == ENODATA))
   {

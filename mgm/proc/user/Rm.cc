@@ -291,13 +291,15 @@ ProcCommand::Rm ()
             std::string fspath = rfoundit->first.c_str();
             if (fspath == "/")
               continue;
-            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0))
-            {
-	      if (errno != ENOENT) {
-		stdErr += "error: unable to remove directory :";
-		stdErr += rfoundit->first.c_str();
-		retc = errno;
-	      }
+
+            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0)) {
+              if (errno != ENOENT) {
+                stdErr += "error: unable to remove directory : ";
+                stdErr += rfoundit->first.c_str();
+                stdErr += "; reason: ";
+                stdErr += mError->getErrText();
+                retc = errno;
+              }
             }
           }
         }
