@@ -96,16 +96,15 @@ Storage::MgmSyncer ()
 
       bool isopenforwrite = false;
 
-      // check if someone is still writing on that file
-      gOFS.OpenFidMutex.Lock();
-      if (gOFS.WOpenFid[fmd.fsid].count(fmd.fid))
       {
-        if (gOFS.WOpenFid[fmd.fsid][fmd.fid] > 0)
-        {
-          isopenforwrite = true;
-        }
+	// Check if someone is still writing on that file
+	XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
+	if (gOFS.WOpenFid[fmd.fsid].count(fmd.fid)) {
+	  if (gOFS.WOpenFid[fmd.fsid][fmd.fid] > 0) {
+	    isopenforwrite = true;
+	  }
+	}
       }
-      gOFS.OpenFidMutex.UnLock();
 
       if (!isopenforwrite)
       {

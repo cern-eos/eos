@@ -1022,16 +1022,16 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
 
           for (fit = icit->second.begin(); fit != icit->second.end(); fit++)
           {
-            // don't report files which are currently write-open
-            XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+	    {
+	      // Don't report files which are currently write-open
+	      XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
 
-            if (gOFS.WOpenFid[fsid].count(*fit))
-            {
-              if (gOFS.WOpenFid[fsid][*fit] > 0)
-              {
-                continue;
-              }
-            }
+	      if (gOFS.WOpenFid[fsid].count(*fit)) {
+		if (gOFS.WOpenFid[fsid][*fit] > 0) {
+		  continue;
+		}
+	      }
+	    }
 
             // loop over all fids
             char sfid[4096];
@@ -1439,29 +1439,28 @@ void
 XrdFstOfs::OpenFidString (unsigned long fsid, XrdOucString& outstring)
 {
   outstring = "";
-  OpenFidMutex.Lock();
-  google::sparse_hash_map<unsigned long long, unsigned int>::const_iterator idit;
   int nopen = 0;
+  google::sparse_hash_map<unsigned long long, unsigned int>::const_iterator idit;
+  XrdSysMutexHelper scope_lock(OpenFidMutex);
 
-  for (idit = ROpenFid[fsid].begin(); idit != ROpenFid[fsid].end(); ++idit)
-  {
-    if (idit->second > 0)
+  for (idit = ROpenFid[fsid].begin(); idit != ROpenFid[fsid].end(); ++idit) {
+    if (idit->second > 0) {
       nopen += idit->second;
+    }
   }
 
   outstring += "&statfs.ropen=";
   outstring += nopen;
   nopen = 0;
 
-  for (idit = WOpenFid[fsid].begin(); idit != WOpenFid[fsid].end(); ++idit)
-  {
-    if (idit->second > 0)
+  for (idit = WOpenFid[fsid].begin(); idit != WOpenFid[fsid].end(); ++idit) {
+    if (idit->second > 0) {
       nopen += idit->second;
+    }
   }
 
   outstring += "&statfs.wopen=";
   outstring += nopen;
-  OpenFidMutex.UnLock();
 }
 
 int
