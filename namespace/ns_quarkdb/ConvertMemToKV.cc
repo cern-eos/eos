@@ -269,8 +269,26 @@ ConvertContainerMD::commitFiles(qclient::QClient* qclient)
 //------------------------------------------------------------------------------
 ConvertContainerMDSvc::ConvertContainerMDSvc():
   ChangeLogContainerMDSvc(), mFirstFreeId(0), mConvQView(nullptr)
-{}
+{
+  int num_mutexes = std::thread::hardware_concurrency();
 
+  while (num_mutexes > 0) {
+    --num_mutexes;
+    mMutexPool.push_back(new std::mutex());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+ConvertContainerMDSvc::~ConvertContainerMDSvc()
+{
+  for (auto& elem : mMutexPool) {
+    delete elem;
+  }
+
+  mMutexPool.clear();
+}
 
 //------------------------------------------------------------------------------
 // Load the container
@@ -350,10 +368,10 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 void
 ConvertContainerMDSvc::commitToBackend()
 {
-  std::mutex mutex;
-  static std::uint64_t total = getNumContainers();
+  std::mutex mutex_free_id;
+  std::uint64_t total = pIdMap.size();
   int nthreads = std::thread::hardware_concurrency();
-  int chunk = pIdMap.size() / nthreads;
+  int chunk = total / nthreads;
   int last_chunk = chunk + pIdMap.size() - (chunk * nthreads);
   eos::common::Parallel::For(0, nthreads, [&](int i) {
     std::int64_t count = 0;
@@ -381,7 +399,7 @@ ConvertContainerMDSvc::commitToBackend()
       // Add container to the KV store
       try {
         {
-          std::lock_guard<std::mutex> lock(mutex);
+          std::lock_guard<std::mutex> lock(mutex_free_id);
 
           if (getFirstFreeId() <= container->getId()) {
             mFirstFreeId = container->getId() + 1;
@@ -466,6 +484,17 @@ ConvertContainerMDSvc::getFirstFreeId()
 }
 
 //------------------------------------------------------------------------------
+// Get mutex corresponding to container id
+//------------------------------------------------------------------------------
+std::mutex*
+ConvertContainerMDSvc::GetContMutex(IContainerMD::id_t id)
+{
+  int indx = id % mMutexPool.size();
+  return mMutexPool[indx];
+}
+
+
+//------------------------------------------------------------------------------
 //         ************* ConvertFileMDSvc Class ************
 //------------------------------------------------------------------------------
 
@@ -498,6 +527,7 @@ ConvertFileMDSvc::getBucketKey(IContainerMD::id_t id) const
 void
 ConvertFileMDSvc::initialize()
 {
+  std::mutex mutex_free_id;
   pIdMap.resize(pResSize);
 
   if (pContSvc == nullptr) {
@@ -512,114 +542,138 @@ ConvertFileMDSvc::initialize()
   FileMDScanner scanner(pIdMap, pSlaveMode);
   pFollowStart = pChangeLog->scanAllRecords(&scanner);
   std::uint64_t total = pIdMap.size();
-  std::time_t start = std::time(nullptr);
-
+  int nthreads = std::thread::hardware_concurrency();
+  int chunk = total / nthreads;
+  int last_chunk = chunk + pIdMap.size() - (chunk * nthreads);
+  auto start = std::time(nullptr);
   // Recreate the files
-  for (auto && elem : pIdMap) {
-    ++mCount;
+  eos::common::Parallel::For(0, nthreads, [&](int i) {
+    std::int64_t count = 0;
+    qclient::AsyncHandler async_handler;
+    IdMap::iterator it = pIdMap.begin();
+    std::advance(it, i * chunk);
+    qclient::QClient qclient {"localhost", 6379, true, true};
+    int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
 
-    if ((mCount & sAsyncBatch) == 0) {
-      if (!sAh.WaitForAtLeast(sAsyncBatch)) {
-        std::cerr << __FUNCTION__ << " Got error response from the backend"
-                  << std::endl;
-        exit(1);
+    for (int n = 0; n < max_elem; ++n) {
+      ++count;
+
+      if ((count & sAsyncBatch) == 0) {
+        if (!sAh.WaitForAtLeast(sAsyncBatch)) {
+          std::cerr << __FUNCTION__ << " Got error response from the backend"
+                    << std::endl;
+          exit(1);
+        }
       }
 
-      // Get the rate
-      auto now = std::time(nullptr);
+      // Unpack the serialized buffers
+      std::shared_ptr<IFileMD> file = std::make_shared<ConvertFileMD>(0, this);
 
-      if (now != (std::time_t)(-1)) {
-        std::chrono::seconds duration(now - start);
+      if (eos::FileMD* tmp_fmd = dynamic_cast<FileMD*>(file.get())) {
+        tmp_fmd->deserialize(*(it->second.buffer));
+      }
 
-        if (duration.count()) {
-          double rate = (double)mCount / duration.count();
-          std::cout << "Processed " << mCount << "/" << total << " files at "
-                    << rate << " Hz" << std::endl;
+      // Attach to the hierarchy
+      if (file->getContainerId() == 0) {
+        ++it;
+        continue;
+      }
+
+      {
+        // Update the first free id
+        std::lock_guard<std::mutex> scope_lock(mutex_free_id);
+
+        if (getFirstFreeId() <= file->getId()) {
+          mFirstFreeId = file->getId() + 1;
+        }
+      }
+
+      // Add file to the KV store
+      try {
+        std::string buffer;
+        std::string sid = stringify(file->getId());
+        ConvertFileMD* conv_fmd = dynamic_cast<ConvertFileMD*>(file.get());
+
+        if (!conv_fmd) {
+          std::cerr << __FUNCTION__ << " Failed dynamic cast to ConvertFileMD"
+                    << std::endl;
+          exit(1);
+        }
+
+        conv_fmd->updateInternal();
+        conv_fmd->serialize(buffer);
+        qclient::QHash bucket_map(qclient, getBucketKey(file->getId()));
+        async_handler.Register(bucket_map.hset_async(sid, buffer),
+                               bucket_map.getClient());
+      } catch (std::runtime_error& qdb_err) {
+        MDException e(ENOENT);
+        e.getMessage() << "File #" << file->getId() << " failed to contact backend";
+        throw e;
+      }
+
+      // Free the memory used by the buffer
+      delete it->second.buffer;
+      it->second.buffer = nullptr;
+      std::shared_ptr<IContainerMD> cont;
+
+      try {
+        cont = pContSvc->getContainerMD(file->getContainerId());
+      } catch (MDException& e) {
+        cont = nullptr;
+      }
+
+      if (!cont) {
+        attachBroken("orphans", file.get());
+        ++it;
+        continue;
+      }
+
+      ++it;
+      // Get mutex for current container
+      std::mutex* mtx = static_cast<ConvertContainerMDSvc*>(pContSvc)
+                        ->GetContMutex(cont->getId());
+      mtx->lock();
+
+      if (cont->findFile(file->getName())) {
+        attachBroken("name_conflicts", file.get());
+        mtx->unlock();
+      } else {
+        cont->addFile(file.get());
+        mtx->unlock();
+        // Populate the FileSystemView and QuotaView
+        mConvQView->addQuotaInfo(file.get());
+        mConvFsView->addFileInfo(file.get());
+
+        // Propagate mtime and size up the tree
+        if (mSyncTimeAcc && mContAcc) {
+          mSyncTimeAcc->QueueForUpdate(file->getContainerId());
+          mContAcc->QueueForUpdate(file->getContainerId(), file->getSize(),
+                                   eos::ContainerAccounting::OpType::FILE);
+
+          // Update every 1M files
+          if (count % 1000000 == 0) {
+            mSyncTimeAcc->PropagateUpdates();
+            mContAcc->PropagateUpdates();
+          }
         }
       }
     }
 
-    // Unpack the serialized buffers
-    std::shared_ptr<IFileMD> file = std::make_shared<ConvertFileMD>(0, this);
-
-    if (eos::FileMD* tmp_fmd = dynamic_cast<FileMD*>(file.get())) {
-      tmp_fmd->deserialize(*elem.second.buffer);
+    // Wait for any other replies
+    if (!async_handler.Wait()) {
+      std::cerr << "ERROR: Failed to commit to backend" << std::endl;
+      exit(1);
     }
+  });
+  // Get the rate
+  auto finish = std::time(nullptr);
 
-    // Attach to the hierarchy
-    if (file->getContainerId() == 0) {
-      continue;
-    }
+  if (finish != (std::time_t)(-1)) {
+    std::chrono::seconds duration(finish - start);
 
-    {
-      // Update the first free id
-      std::lock_guard<std::mutex> scope_lock(mMutexFreeId);
-
-      if (getFirstFreeId() <= file->getId()) {
-        mFirstFreeId = file->getId() + 1;
-      }
-    }
-
-    // Add file to the KV store
-    try {
-      std::string buffer;
-      std::string sid = stringify(file->getId());
-      ConvertFileMD* conv_fmd = dynamic_cast<ConvertFileMD*>(file.get());
-
-      if (!conv_fmd) {
-        std::cerr << __FUNCTION__ << " Failed dynamic cast to ConvertFileMD"
-                  << std::endl;
-        exit(1);
-      }
-
-      conv_fmd->updateInternal();
-      conv_fmd->serialize(buffer);
-      // TODO: use different clients
-      qclient::QHash bucket_map(*sQcl, getBucketKey(file->getId()));
-      sAh.Register(bucket_map.hset_async(sid, buffer), bucket_map.getClient());
-    } catch (std::runtime_error& qdb_err) {
-      MDException e(ENOENT);
-      e.getMessage() << "File #" << file->getId() << " failed to contact backend";
-      throw e;
-    }
-
-    // Free the memory used by the buffer
-    delete elem.second.buffer;
-    elem.second.buffer = nullptr;
-    std::shared_ptr<IContainerMD> cont;
-
-    try {
-      cont = pContSvc->getContainerMD(file->getContainerId());
-    } catch (MDException& e) {
-      cont = nullptr;
-    }
-
-    if (!cont) {
-      attachBroken("orphans", file.get());
-      continue;
-    }
-
-    if (cont->findFile(file->getName())) {
-      attachBroken("name_conflicts", file.get());
-      continue;
-    } else {
-      cont->addFile(file.get());
-      // Populate the FileSystemView and QuotaView
-      mConvQView->addQuotaInfo(file.get());
-      mConvFsView->addFileInfo(file.get());
-
-      // Propagate mtime and size up the tree
-      if (mSyncTimeAcc && mContAcc) {
-        mSyncTimeAcc->QueueForUpdate(file->getContainerId());
-        mContAcc->QueueForUpdate(file->getContainerId(), file->getSize(),
-                                 eos::ContainerAccounting::OpType::FILE);
-
-        // Update every 1M files
-        if (mCount % 1000000 == 0) {
-          mSyncTimeAcc->PropagateUpdates();
-          mContAcc->PropagateUpdates();
-        }
-      }
+    if (duration.count()) {
+      double rate = (double)total / duration.count();
+      std::cout << "Processed files at " << rate << " Hz" << std::endl;
     }
   }
 }
@@ -925,6 +979,7 @@ main(int argc, char* argv[])
       }
     }
 
+    std::time_t start = std::time(nullptr);
     std::unique_ptr<eos::IFileMDSvc> file_svc(new eos::ConvertFileMDSvc());
     std::unique_ptr<eos::IContainerMDSvc> cont_svc(
       new eos::ConvertContainerMDSvc());
@@ -1015,6 +1070,8 @@ main(int argc, char* argv[])
     std::cout << "Container init: " << cont_svc->getNumContainers()
               << " containers in " << cont_commit.count() << " seconds"
               << std::endl;
+    std::chrono::seconds full_duration {std::time(nullptr) - start};
+    std::cout << "Conversion duration: " << full_duration.count() << std::endl;
     // Save the first free file and container id in the meta_hmap - actually it is
     // the last id since we get the first free id by doing a hincrby operation
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};

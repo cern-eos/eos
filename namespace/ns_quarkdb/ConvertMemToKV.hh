@@ -231,7 +231,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ConvertContainerMDSvc() {};
+  virtual ~ConvertContainerMDSvc();
 
   //----------------------------------------------------------------------------
   //! Recreate the container in the KV store
@@ -270,6 +270,15 @@ public:
     // empty on purpose
   }
 
+  //----------------------------------------------------------------------------
+  //! Get mutex corresponding to container id
+  //!
+  //! @param id container id used for determining the mutex to be used
+  //!
+  //! @return mutex object
+  //----------------------------------------------------------------------------
+  std::mutex* GetContMutex(IContainerMD::id_t id);
+
 private:
   static std::uint64_t sNumContBuckets; ///< Numnber of buckets power of 2
 
@@ -284,6 +293,7 @@ private:
 
   IContainerMD::id_t mFirstFreeId; ///< First free container id
   ConvertQuotaView* mConvQView; ///< Quota view object
+  std::vector<std::mutex*> mMutexPool; ///< Pool of mutexes
 };
 
 
@@ -353,7 +363,6 @@ private:
   //------------------------------------------------------------------------------
   std::string getBucketKey(IContainerMD::id_t id) const;
 
-  std::mutex mMutexFreeId; ///< Mutex protecting access to first free id value
   IFileMD::id_t mFirstFreeId; ///< First free file id
   ConvertQuotaView* mConvQView; ///< Quota view object
   ConvertFsView* mConvFsView; ///< Filesystem view object
