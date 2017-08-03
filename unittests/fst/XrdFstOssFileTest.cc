@@ -21,14 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//! Ugly hack to expose the private functions for testing
-#define protected public
-#define private   public
-
+#define IN_TEST_HARNESS
 #include <fst/XrdFstOssFile.hh>
-
-#undef protected
-#undef private
+#undef IN_TEST_HARNESS
 
 #include <gtest/gtest.h>
 #include <fst/tests/TestEnv.hh>

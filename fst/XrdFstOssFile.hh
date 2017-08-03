@@ -104,7 +104,7 @@ public:
   //--------------------------------------------------------------------------
   //! Vector read
   //!
-  //! @param readV generic data structure for vector reads 
+  //! @param readV generic data structure for vector reads
   //! @param n number of individual reads in the vector request
   //!
   //! @return is successful total number of bytes read, otherwise -ESPIPE
@@ -194,13 +194,16 @@ public:
   virtual int Close (long long* retsz = 0);
 
 private:
- 
   XrdOucString mPath; ///< path of the file
   bool mIsRW; ///< mark if opened for rw operations
   XrdSysRWLock* mRWLockXs; ///< rw lock for the block xs
   CheckSum* mBlockXs; ///< block xs object
   char* mPieceStart; ///< start piece aligned to the blockxs offset
   char* mPieceEnd; ///< end piece aligned to the blockxs offset
+
+#ifdef IN_TEST_HARNESS
+public:
+#endif
 
   //--------------------------------------------------------------------------
   //! Align request to the blockchecksum offset so that the whole request is
@@ -215,7 +218,6 @@ private:
   //!
   //--------------------------------------------------------------------------
   std::vector<XrdOucIOVec> AlignBuffer(void* buffer, off_t offset, size_t length);
-
 };
 
 EOSFSTNAMESPACE_END
