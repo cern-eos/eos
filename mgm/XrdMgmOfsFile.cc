@@ -1642,9 +1642,9 @@ XrdMgmOfsFile::open (const char *inpath,
 
 	try {
 	  eos::common::RWMutexReadLock rd_lock(gOFS->eosViewRWMutex);
-	  eos::FileMD* fmd = gOFS->eosView->getFile(path);
+	  eos::FileMD* tmp_fmd = gOFS->eosView->getFile(path);
 
-	  if (fmd->getNumLocation() == 0) {
+	  if (tmp_fmd->getNumLocation() == 0) {
 	    do_remove = true;
 	  }
 	}
