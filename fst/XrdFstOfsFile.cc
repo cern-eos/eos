@@ -663,15 +663,15 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (Path.beginswith("/replicate:")) {
     bool isopenforwrite = false;
-    gOFS.OpenFidMutex.Lock();
+    {
+      XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
 
-    if (gOFS.WOpenFid[fsid].count(fileid)) {
-      if (gOFS.WOpenFid[fsid][fileid] > 0) {
-        isopenforwrite = true;
+      if (gOFS.WOpenFid[fsid].count(fileid)) {
+        if (gOFS.WOpenFid[fsid][fileid] > 0) {
+          isopenforwrite = true;
+        }
       }
     }
-
-    gOFS.OpenFidMutex.UnLock();
 
     if (isopenforwrite) {
       eos_err("forbid to open replica - file %s is opened in RW mode", Path.c_str());
@@ -685,15 +685,15 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // Check if this is an open for HTTP
   if ((!isRW) && ((std::string(client->tident) == "http"))) {
     bool isopenforwrite = false;
-    gOFS.OpenFidMutex.Lock();
+    {
+      XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
 
-    if (gOFS.WOpenFid[fsid].count(fileid)) {
-      if (gOFS.WOpenFid[fsid][fileid] > 0) {
-        isopenforwrite = true;
+      if (gOFS.WOpenFid[fsid].count(fileid)) {
+        if (gOFS.WOpenFid[fsid][fileid] > 0) {
+          isopenforwrite = true;
+        }
       }
     }
-
-    gOFS.OpenFidMutex.UnLock();
 
     if (isopenforwrite) {
       eos_err("forbid to open replica for synchronization - file %s is opened "
@@ -1070,15 +1070,13 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (!rc) {
     opened = true;
-    gOFS.OpenFidMutex.Lock();
+    XrdSysMutexHelper scop_lock(gOFS.OpenFidMutex);
 
     if (isRW) {
       gOFS.WOpenFid[fsid][fileid]++;
     } else {
       gOFS.ROpenFid[fsid][fileid]++;
     }
-
-    gOFS.OpenFidMutex.UnLock();
   } else {
     // If we have local errors in open we don't disable a filesystem -
     // this is done by the Scrub thread if necessary!
@@ -1245,20 +1243,21 @@ XrdFstOfsFile::modified()
 
   // Check if the file could have been changed in the meanwhile ...
   if (fileExists && isReplication && (!isRW)) {
-    gOFS.OpenFidMutex.Lock();
+    {
+      XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
 
-    if (gOFS.WOpenFid[fsid].count(fileid)) {
-      if (gOFS.WOpenFid[fsid][fileid] > 0) {
-        eos_err("file is now open for writing - discarding replication "
-                "[wopen=%d]", gOFS.WOpenFid[fsid][fileid]);
-        gOFS.Emsg("closeofs", error, EIO, "guarantee correctness - "
-                  "file has been opened for writing during replication",
-                  Path.c_str());
-        rc = SFS_ERROR;
+      if (gOFS.WOpenFid[fsid].count(fileid)) {
+        if (gOFS.WOpenFid[fsid][fileid] > 0) {
+          eos_err("file is now open for writing - discarding replication "
+                  "[wopen=%d]", gOFS.WOpenFid[fsid][fileid]);
+          gOFS.Emsg("closeofs", error, EIO,
+                    "guarantee correctness - "
+                    "file has been opened for writing during replication",
+                    Path.c_str());
+          rc = SFS_ERROR;
+        }
       }
     }
-
-    gOFS.OpenFidMutex.UnLock();
 
     if ((statinfo.st_mtime != updateStat.st_mtime)) {
       eos_err("file has been modified during replication");
@@ -1439,16 +1438,16 @@ XrdFstOfsFile::verifychecksum()
     } else {
       // This is a read with checksum check, compare with fMD
       bool isopenforwrite = false;
-      gOFS.OpenFidMutex.Lock();
+      // If the file is currently opened for write we don't check checksums!
+      {
+        XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
 
-      // if the file is currently open to be written we don't check checksums!
-      if (gOFS.WOpenFid[fsid].count(fileid)) {
-        if (gOFS.WOpenFid[fsid][fileid] > 0) {
-          isopenforwrite = true;
+        if (gOFS.WOpenFid[fsid].count(fileid)) {
+          if (gOFS.WOpenFid[fsid][fileid] > 0) {
+            isopenforwrite = true;
+          }
         }
       }
-
-      gOFS.OpenFidMutex.UnLock();
 
       if (isopenforwrite) {
         eos_info("(read)  disabling checksum check: file is currently written");
@@ -1893,34 +1892,35 @@ XrdFstOfsFile::close()
       }
     }
 
-    gOFS.OpenFidMutex.Lock();
+    {
+      XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
 
-    if (isRW) {
-      if ((isInjection || isCreation || IsChunkedUpload()) && (!rc) &&
-          (gOFS.WOpenFid[fMd->fMd.fsid()][fMd->fMd.fid()] > 1)) {
-        // indicate that this file was closed properly and disable further delete on close
-        gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid()][fMd->fMd.fid()] = true;
+      if (isRW) {
+        if ((isInjection || isCreation || IsChunkedUpload()) && (!rc) &&
+            (gOFS.WOpenFid[fMd->fMd.fsid()][fMd->fMd.fid()] > 1)) {
+          // indicate that this file was closed properly and disable further delete on close
+          gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid()][fMd->fMd.fid()] = true;
+        }
+
+        gOFS.WOpenFid[fMd->fMd.fsid()][fMd->fMd.fid()]--;
+      } else {
+        gOFS.ROpenFid[fMd->fMd.fsid()][fMd->fMd.fid()]--;
       }
 
-      gOFS.WOpenFid[fMd->fMd.fsid()][fMd->fMd.fid()]--;
-    } else {
-      gOFS.ROpenFid[fMd->fMd.fsid()][fMd->fMd.fid()]--;
+      if (gOFS.WOpenFid[fMd->fMd.fsid()][fMd->fMd.fid()] <= 0) {
+        gOFS.WOpenFid[fMd->fMd.fsid()].erase(fMd->fMd.fid());
+        gOFS.WOpenFid[fMd->fMd.fsid()].resize(0);
+        // When the last writer is gone we can remove the prohibiting entry
+        gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid()].erase(fMd->fMd.fid());
+        gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid()].resize(0);
+      }
+
+      if (gOFS.ROpenFid[fMd->fMd.fsid()][fMd->fMd.fid()] <= 0) {
+        gOFS.ROpenFid[fMd->fMd.fsid()].erase(fMd->fMd.fid());
+        gOFS.ROpenFid[fMd->fMd.fsid()].resize(0);
+      }
     }
 
-    if (gOFS.WOpenFid[fMd->fMd.fsid()][fMd->fMd.fid()] <= 0) {
-      gOFS.WOpenFid[fMd->fMd.fsid()].erase(fMd->fMd.fid());
-      gOFS.WOpenFid[fMd->fMd.fsid()].resize(0);
-      // If this was a write of the last writer we had the lock and we release it
-      gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid()].erase(fMd->fMd.fid());
-      gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid()].resize(0);
-    }
-
-    if (gOFS.ROpenFid[fMd->fMd.fsid()][fMd->fMd.fid()] <= 0) {
-      gOFS.ROpenFid[fMd->fMd.fsid()].erase(fMd->fMd.fid());
-      gOFS.ROpenFid[fMd->fMd.fsid()].resize(0);
-    }
-
-    gOFS.OpenFidMutex.UnLock();
     gettimeofday(&closeTime, &tz);
 
     if (!deleteOnClose) {
@@ -1958,8 +1958,8 @@ XrdFstOfsFile::close()
       }
     }
     {
-      // check if the delete on close has been prohibited for this file id
-      XrdSysMutexHelper aLock(gOFS.OpenFidMutex);
+      // Check if the delete on close has been prohibited for this file id
+      XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
 
       if (gOFS.WNoDeleteOnCloseFid[fsid].count(fileid)) {
         eos_notice("msg=\"prohibiting delete on close since we had a "

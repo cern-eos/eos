@@ -131,6 +131,14 @@ XrdFstOfs::XrdFstOfs() :
     (void) signal(SIGABRT, xrdfstofs_stacktrace);
     (void) signal(SIGBUS, xrdfstofs_stacktrace);
   }
+
+  // Initialize the google sparse hash maps
+  gOFS.ROpenFid.clear_deleted_key();
+  gOFS.ROpenFid.set_deleted_key(0);
+  gOFS.WOpenFid.clear_deleted_key();
+  gOFS.WOpenFid.set_deleted_key(0);
+  gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
+  gOFS.WNoDeleteOnCloseFid.set_deleted_key(0);
 }
 
 //------------------------------------------------------------------------------
@@ -1024,7 +1032,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
           }
 
           for (fit = icit->second.begin(); fit != icit->second.end(); fit++) {
-            // don't report files which are currently write-open
+            // Don't report files which are currently write-open
             XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
 
             if (gOFS.WOpenFid[fsid].count(*fit)) {

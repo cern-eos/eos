@@ -7,7 +7,41 @@
 Beryl Release Notes
 ===================
 
-``V0.3.262 Aquamarine``
+``V0.3.265 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+- Fix issue in EOSATLAS where files where disappearing from the namespace after being confirmed
+  to the client. This is correlated which exceptionally long scheduling times (~ 5min). This in
+  turn is due to the scheduling not finding a suitable node to place the file. When this happens
+  the default XRootD client will try to recover the initial open requests and this leads to a
+  race condition.
+- [EOS-1948] - FST crash with "terminate called after throwing an instance of 'std::bad_alloc'"
+- [EOS-1949] - Strange correlated crash in EOSATLAS
+
+Improvement
++++++++++++
+- [EOS-1947] - Improve error message when trying to delete a directory attached to a quota node
+
+
+``V0.3.264 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- [EOS-1936] - EOS ATLAS lost file due to balancing
+- ARCHIVE: Fix archive endpoint which was constructed only if the MGM node was a master.
+           This approach fails when we have a master slave failover as we never set up
+           the archive endpoint for the slave. Use the same ZMQ contect for both the
+           archive and authentication services.
+- FUSE: Make configurable the maximum number of retries in case a synchronous
+        open operation fails.
+- DOC: update documentatino of wfe's
+
+
+``V0.3.263 Aquamarine``
 =======================
 
 Bug Fixes

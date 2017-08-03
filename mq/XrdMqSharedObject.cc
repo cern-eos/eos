@@ -2864,10 +2864,18 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 
         if (ftag == XRDMQSHAREDHASH_DELETE) {
           error = "delete: don't know this subject";
+
+          if (subjectlist.size() > 0) {
+            error += subjectlist[0].c_str();
+          }
         }
 
         if (ftag == XRDMQSHAREDHASH_REMOVE) {
           error = "remove: don't know this subject";
+
+          if (subjectlist.size() > 0) {
+            error += subjectlist[0].c_str();
+          }
         }
 
         HashMutex.UnLockRead();

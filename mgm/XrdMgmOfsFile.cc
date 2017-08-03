@@ -1488,14 +1488,28 @@ XrdMgmOfsFile::open(const char* inpath,
 
       gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1);
     } else {
+      // Remove the created file from the namespace as root since somebody could
+      // have a no-delete ACL. Do this only if there are no replicas already
+      // attached to the file md entry. If there are, this means the current
+      // thread was blocked in scheduling and a retry of the client went
+      // through successfully. If we delete the entry we end up with data lost.
       if (isCreation) {
-        // ---------------------------------------------------------------------
-        // we will remove the created file in the namespace as root
-        // since somebody could have a no-delete ACL
-        // ---------------------------------------------------------------------
-        eos::common::Mapping::VirtualIdentity vidroot;
-        eos::common::Mapping::Root(vidroot);
-        gOFS->_rem(cPath.GetPath(), error, vidroot, 0, false, false);
+        bool do_remove = false;
+
+        try {
+          eos::common::RWMutexReadLock rd_lock(gOFS->eosViewRWMutex);
+          auto tmp_fmd = gOFS->eosView->getFile(path);
+
+          if (tmp_fmd->getNumLocation() == 0) {
+            do_remove = true;
+          }
+        } catch (eos::MDException& e) {}
+
+        if (do_remove) {
+          eos::common::Mapping::VirtualIdentity vidroot;
+          eos::common::Mapping::Root(vidroot);
+          gOFS->_rem(cPath.GetPath(), error, vidroot, 0, false, false, false);
+        }
       }
 
       gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);

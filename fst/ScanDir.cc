@@ -211,7 +211,7 @@ ScanDir::CheckFile(const char* filepath)
   if (bgThread) {
     eos::common::Path cPath(filePath.c_str());
     eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
-    // check if somebody is still writing on that file and skip in that case
+    // Check if somebody is still writing on that file and skip in that case
     XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
 
     if (gOFS.WOpenFid[fsId].count(fid)) {
@@ -257,7 +257,7 @@ ScanDir::CheckFile(const char* filepath)
         if (bgThread) {
           eos::common::Path cPath(filePath.c_str());
           eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
-          // check if somebody is again writing on that file and skip in that case
+          // Check if somebody is again writing on that file and skip in that case
           XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
 
           if (gOFS.WOpenFid[fsId].count(fid)) {
