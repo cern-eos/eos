@@ -236,7 +236,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
       }
 
       if (netoutweight < 0.05) {
-        eos_static_info("msg=\"skipping node: %s with overloaded eth-out\"",
+        eos_static_notice("msg=\"skipping node: %s with overloaded eth-out\"",
 			snapshot.mHost.c_str());
 	fsit++;
 	
