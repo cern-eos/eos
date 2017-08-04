@@ -1,0 +1,19 @@
+Source: eos
+Maintainer: Jozsef Makai <jozsef.makai@cern.ch>
+Section: misc
+Priority: optional
+Standards-Version: 3.9.3
+Build-Depends: debhelper (>= 10), cmake (>=3.3.0), libfuse-dev, libattr1-dev, libmicrohttpd-dev, xfslibs-dev, libcurl4-openssl-dev, libleveldb-dev, libzmq3-dev, libsparsehash-dev, libprotobuf-dev (>=3.0.0), protobuf-compiler (>=3.0.0), libprotobuf10 (>=3.0.0), libsystemd-dev
+Homepage: http://eos.web.cern.ch/
+Vcs-Git: https://gitlab.cern.ch/dss/eos.git
+Vcs-Browser: https://gitlab.cern.ch/dss/eos
+
+Package: eos-client
+Architecture: any
+Depends: ${misc:Depends}, libprotobuf10 (>=3.0.0), systemd
+Description: EOS client package
+
+Package: eos-fuse
+Architecture: any
+Depends: ${misc:Depends}, systemd, fuse, policycoreutils
+Description: EOS FUSE package

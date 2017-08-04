@@ -1,0 +1,7 @@
+usr/bin/eos
+usr/bin/eosdropboxd
+usr/bin/eoscp
+usr/lib/libXrdMqClient.so.*
+usr/lib/libXrdMqClient.so
+usr/lib/libeosCommon.so.*
+usr/lib/libeosCommon.so

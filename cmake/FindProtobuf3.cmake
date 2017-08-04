@@ -8,13 +8,13 @@
 # PROTOBUF_DIR may be defined as a hint for where to look
 
 find_program(PROTOBUF_PROTOC_EXECUTABLE
-  NAMES protoc3
+  NAMES protoc3 protoc
   DOC "Version 3 of The Google Protocol Buffers Compiler")
 message(STATUS "protoc is at ${PROTOBUF_PROTOC_EXECUTABLE} ")
 
 find_path(PROTOBUF_INCLUDE_DIR
   google/protobuf/message.h
-  PATHS /usr/include/protobuf3
+  PATHS /usr/include/protobuf3 /usr/include
   HINTS ${PROTOBUF_DIR}
   NO_DEFAULT_PATH)
 set(PROTOBUF_INCLUDE_DIRS ${PROTOBUF_INCLUDE_DIR})
@@ -22,7 +22,7 @@ message(STATUS "PROTOBUF_INCLUDE_DIRS=${PROTOBUF_INCLUDE_DIRS}")
 
 find_library(PROTOBUF_LIBRARY
   NAME protobuf
-  PATHS /usr/lib64/protobuf3 /usr/lib/protobuf3
+  PATHS /usr/lib64/protobuf3 /usr/lib/protobuf3 /usr/lib/x86_64-linux-gnu
   HINTS ${PROTOBUF_DIR}
   NO_DEFAULT_PATH)
 set(PROTOBUF_LIBRARIES ${PROTOBUF_LIBRARY})
