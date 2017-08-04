@@ -23,9 +23,8 @@
 
 # Check if we are on a Debian system
 if(EXISTS "/etc/debian_version")
-  set ( DISTRIBUTION "Debian" )
+	set ( DEBIAN 1 )
 endif()
-
 
 install(
   FILES eos.keytab
@@ -56,7 +55,7 @@ if(EXISTS ${SYSTEMD_DIR})
  install(DIRECTORY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
 
  # TODO (esindril): Uncomment (or undebian) this when systemd support is enabled for fuse
- if(${DISTRIBUTION} STREQUAL "Debian")
+ if(DEBIAN)
    install(
      FILES sysconfig/eosd_env.example
      DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)

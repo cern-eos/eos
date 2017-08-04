@@ -9,6 +9,7 @@ usr/share/selinux/targeted/eosfuse.pp
 usr/share/selinux/mls/eosfuse.pp
 usr/share/selinux/strict/eosfuse.pp
 etc/sysconfig/eosd_env.example
+etc/sysconfig/eos_env.example
 usr/sbin/eos_start_pre.sh
 usr/lib/systemd/system/eosd@.service
 var/log/eos/
