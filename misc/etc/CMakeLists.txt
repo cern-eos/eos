@@ -23,7 +23,7 @@
 
 # Check if we are on a Debian system
 if(EXISTS "/etc/debian_version")
-	set ( DEBIAN 1 )
+  set ( DEBIAN 1 )
 endif()
 
 install(
