@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_quarkdb/ConvertMemToKV.hh"
+#include "namespace/ns_quarkdb/tools/ConvertMemToKV.hh"
 #include "common/LayoutId.hh"
 #include "common/Parallel.hh"
 #include "namespace/Constants.hh"
@@ -30,7 +30,7 @@
 
 // Static global variable
 static std::string sBkndHost;
-static std::uint32_t sBkndPort;
+static std::int32_t sBkndPort;
 static long long int sAsyncBatch = 256 * 256 - 1;
 static qclient::QClient* sQcl;
 static qclient::AsyncHandler sAh;
@@ -144,13 +144,12 @@ ConvertContainerMD::updateInternal()
   pDirsKey = stringify(pId) + constants::sMapDirsSuffix;
   pFilesMap.setKey(pFilesKey);
   pDirsMap.setKey(pDirsKey);
-  // Populate the protobuf object which is used later or in the serialization
-  // step
+  // Populate the protobuf object which is used in the serialization step
   mCont.set_id(pId);
   mCont.set_parent_id(pParentId);
   mCont.set_uid(pCUid);
   mCont.set_gid(pCGid);
-  // This must be updated when adding files
+  // This is updated when adding files
   //mCont.set_tree_size(pTreeSize);
   mCont.set_mode(pMode);
   mCont.set_flags(pFlags);
@@ -164,33 +163,6 @@ ConvertContainerMD::updateInternal()
   for (auto& xattr : pXAttrs) {
     (*mCont.mutable_xattrs())[xattr.first] = xattr.second;
   }
-}
-
-//------------------------------------------------------------------------------
-// Add container to the KV store
-//------------------------------------------------------------------------------
-void
-ConvertContainerMD::addContainer(eos::IContainerMD* container)
-{
-  pSubContainers[container->getName()] = container->getId();
-}
-
-//------------------------------------------------------------------------------
-// Add file to container in the KV store
-//------------------------------------------------------------------------------
-void
-ConvertContainerMD::addFile(eos::IFileMD* file)
-{
-  pFiles[file->getName()] = file->getId();
-}
-
-//------------------------------------------------------------------------------
-// Find file
-//------------------------------------------------------------------------------
-std::shared_ptr<IFileMD>
-ConvertContainerMD::findFile(const std::string& name)
-{
-  return eos::ContainerMD::findFile(name);
 }
 
 //------------------------------------------------------------------------------
@@ -303,7 +275,6 @@ void ConvertContainerMDSvc::loadContainer(IdMap::iterator& it)
   it->second.ptr = container;
 }
 
-
 //------------------------------------------------------------------------------
 // Convert the containers
 //------------------------------------------------------------------------------
@@ -339,8 +310,8 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
     }
 
     std::shared_ptr<IContainerMD> parent = parentIt->second.ptr;
-    std::shared_ptr<IContainerMD> child = parent->findContainer(
-                                            container->getName());
+    std::shared_ptr<IContainerMD> child =
+      parent->findContainer(container->getName());
 
     if (!child) {
       parent->addContainer(container.get());
@@ -363,7 +334,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 }
 
 //------------------------------------------------------------------------------
-// Commit all the container info to the backend.
+// Commit all the container info to the backend
 //------------------------------------------------------------------------------
 void
 ConvertContainerMDSvc::commitToBackend()
@@ -373,6 +344,7 @@ ConvertContainerMDSvc::commitToBackend()
   int nthreads = std::thread::hardware_concurrency();
   int chunk = total / nthreads;
   int last_chunk = chunk + pIdMap.size() - (chunk * nthreads);
+  // Parallel loop
   eos::common::Parallel::For(0, nthreads, [&](int i) {
     std::int64_t count = 0;
     qclient::AsyncHandler async_handler;
@@ -380,7 +352,7 @@ ConvertContainerMDSvc::commitToBackend()
     std::shared_ptr<IContainerMD> container;
     IdMap::iterator it = pIdMap.begin();
     std::advance(it, i * chunk);
-    qclient::QClient qclient{"localhost", 6379, true, true};
+    qclient::QClient qclient{sBkndHost, sBkndPort, true, true};
     int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
 
     for (int n = 0; n < max_elem; ++n) {
@@ -503,7 +475,7 @@ ConvertContainerMDSvc::GetContMutex(IContainerMD::id_t id)
 //------------------------------------------------------------------------------
 ConvertFileMDSvc::ConvertFileMDSvc():
   ChangeLogFileMDSvc(), mFirstFreeId(0), mConvQView(nullptr),
-  mConvFsView(nullptr), mCount(0), mSyncTimeAcc(nullptr), mContAcc(nullptr)
+  mConvFsView(nullptr), mSyncTimeAcc(nullptr), mContAcc(nullptr)
 {}
 
 //------------------------------------------------------------------------------
@@ -552,7 +524,7 @@ ConvertFileMDSvc::initialize()
     qclient::AsyncHandler async_handler;
     IdMap::iterator it = pIdMap.begin();
     std::advance(it, i * chunk);
-    qclient::QClient qclient {"localhost", 6379, true, true};
+    qclient::QClient qclient {sBkndHost, sBkndPort, true, true};
     int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
 
     for (int n = 0; n < max_elem; ++n) {
@@ -564,6 +536,9 @@ ConvertFileMDSvc::initialize()
                     << std::endl;
           exit(1);
         }
+
+        std::cout << "Tid: " << std::this_thread::get_id() << " processed "
+                  << count << "/" << total << " directories " << std::endl;
       }
 
       // Unpack the serialized buffers

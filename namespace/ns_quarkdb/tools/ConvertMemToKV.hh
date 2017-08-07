@@ -164,22 +164,31 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ConvertContainerMD() {};
+  virtual ~ConvertContainerMD() {}
 
   //----------------------------------------------------------------------------
   //! Add container
   //----------------------------------------------------------------------------
-  void addContainer(IContainerMD* container) override;
+  void addContainer(IContainerMD* container) override
+  {
+    pSubContainers[container->getName()] = container->getId();
+  }
 
   //----------------------------------------------------------------------------
   //! Add file
   //----------------------------------------------------------------------------
-  void addFile(IFileMD* file) override;
+  void addFile(IFileMD* file) override
+  {
+    pFiles[file->getName()] = file->getId();
+  }
 
   //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
-  std::shared_ptr<IFileMD> findFile(const std::string& name) override;
+  std::shared_ptr<IFileMD> findFile(const std::string& name) override
+  {
+    return eos::ContainerMD::findFile(name);
+  }
 
   //----------------------------------------------------------------------------
   //! Update the name of the directories and files hmap based on the id of the
@@ -366,7 +375,6 @@ private:
   IFileMD::id_t mFirstFreeId; ///< First free file id
   ConvertQuotaView* mConvQView; ///< Quota view object
   ConvertFsView* mConvFsView; ///< Filesystem view object
-  std::atomic<std::uint64_t> mCount; ///< Number of files proccessed
   eos::SyncTimeAccounting* mSyncTimeAcc; ///< Sync time accounting view
   eos::ContainerAccounting* mContAcc; ///< Subtree size accounting
 };

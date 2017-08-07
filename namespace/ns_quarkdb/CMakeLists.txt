@@ -141,7 +141,7 @@ install(
 #-------------------------------------------------------------------------------
 add_executable(
   convert_mem_to_kv
-  ConvertMemToKV.cc
+  tools/ConvertMemToKV.cc
   ${NS_PROTO_SRCS}
   ${NS_PROTO_HDRS}
   accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
