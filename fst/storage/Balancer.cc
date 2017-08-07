@@ -226,10 +226,7 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
         continue;
       }
 
-      eos_static_info("id=%u nparalleltx=%llu",
-                      id,
-                      nparalleltx
-                     );
+      eos_static_info("id=%u nparalleltx=%llu", id, nparalleltx);
       // add this filesystem to the vector of balancing filesystems
       balancefsvector.push_back(index);
     }

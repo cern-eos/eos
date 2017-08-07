@@ -538,7 +538,7 @@ ConvertFileMDSvc::initialize()
         }
 
         std::cout << "Tid: " << std::this_thread::get_id() << " processed "
-                  << count << "/" << total << " directories " << std::endl;
+                  << count << "/" << total << " files " << std::endl;
       }
 
       // Unpack the serialized buffers
