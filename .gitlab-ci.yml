@@ -44,9 +44,8 @@ eos_rpm_cc7:
   tags:
     - docker-cc7
   only:
-    - master
+    - branches
     - tags
-    - beryl_aquamarine
 
 eos_rpm_slc6:
   stage: build:rpm
@@ -81,9 +80,8 @@ eos_rpm_slc6:
   tags:
     - docker-slc6
   only:
-    - master
+    - branches
     - tags
-    - beryl_aquamarine
 
 eos_rpm_fedora_rawhide:
   stage: build:rpm
@@ -117,7 +115,7 @@ eos_rpm_fedora_rawhide:
     - docker-fc_rawhide
   allow_failure: true
   only:
-    - master
+    - branches
     - tags
 
 eos_rpm_fedora_26:
@@ -152,7 +150,7 @@ eos_rpm_fedora_26:
     - docker-fc25
   allow_failure: true
   only:
-    - master
+    - branches
     - tags
 
 eos_dmg_macosx:
@@ -179,9 +177,9 @@ eos_dmg_macosx:
     - macosx-shell
   allow_failure: true
   only:
-    - master
+    - branches
     - tags
-    
+
 eos_nginx_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -201,7 +199,7 @@ eos_nginx_cc7:
   when: manual
   environment:
     name: nginx-cc7-prod
-    
+
 eos_nginx_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
@@ -221,7 +219,7 @@ eos_nginx_slc6:
   when: manual
   environment:
     name: nginx-slc6-prod
-    
+
 eos_apmon_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -254,8 +252,7 @@ eos_dockerimage_commit:
   dependencies:
     - eos_rpm_cc7
   only:
-    - master
-    - beryl_aquamarine
+    - branches
 
 eos_dockerimage_tag:
   stage: build:dockerimage
@@ -301,7 +298,7 @@ eos_unit_test:
   tags:
     - docker-cc7
   only:
-    - master
+    - branches
     - tags
 
 eos_system_test:
@@ -322,7 +319,7 @@ eos_system_test:
   dependencies:
     - eos_rpm_cc7
   only:
-    - master
+    - branches
     - tags
 
 eos_stress_test:
@@ -341,7 +338,7 @@ eos_stress_test:
     - eos_rpm_cc7
   allow_failure: true
   only:
-    - master
+    - branches
     - tags
 
 eos_publish_artifacts:
@@ -357,9 +354,8 @@ eos_publish_artifacts:
     - docker-cc7
   only:
     - master
-    - beryl_aquamarine
     - tags
-    
+
 eos_clean_artifacts:
   stage: clean
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -404,5 +400,4 @@ eos_cppcheck_sonar:
   allow_failure: true
   only:
     - master
-    - beryl_aquamarine
     - tags
