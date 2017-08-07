@@ -151,15 +151,13 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
   } else {
     int fsid = atoi(fsidst.c_str());
     eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-
     std::shared_ptr<eos::IFileMD> fmd;
-
     /* empty list in case of unavailable file lists */
     eos::IFsView::FileList emptyFileList;
     emptyFileList.set_empty_key(0xffffffffffffffffll);
     emptyFileList.set_deleted_key(0);
+    eos::IFsView::FileList filelist = emptyFileList; // empty by default
 
-    eos::IFsView::FileList& filelist = emptyFileList; // empty by default
     try {
       filelist = gOFS->eosFsView->getFileList(fsid);
     } catch (eos::MDException& e) {
@@ -243,6 +241,7 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
     if (monitor) {
       // Also add files which have yet to be unlinked
       eos::IFsView::FileList& unlinked = emptyFileList; // empty by default
+
       try {
         unlinked = gOFS->eosFsView->getUnlinkedFileList(fsid);
       } catch (eos::MDException& e) {
@@ -372,8 +371,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
 
               // Check if this filesystem is really empty
               try {
-                const eos::IFsView::FileList& filelist = gOFS->eosFsView->getFileList(
-                      fs->GetId());
+                eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fs->GetId());
 
                 if (filelist.size()) {
                   isempty = false;

@@ -433,7 +433,7 @@ Fsck::Check(void)
 
       for (size_t nfsid = 1; nfsid < nfilesystems; nfsid++) {
         try {
-          const eos::IFsView::FileList& filelist =  gOFS->eosFsView->getFileList(nfsid);
+          eos::IFsView::FileList filelist =  gOFS->eosFsView->getFileList(nfsid);
 
           if (filelist.size()) {
             // Check if this exists in the gFsView
