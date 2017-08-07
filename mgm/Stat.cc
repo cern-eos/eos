@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/Mapping.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -539,7 +540,7 @@ Stat::GetExec(const char* tag, double& deviation)
 {
   double avg = 0;
   deviation = 0;
-    
+
   if (StatExec.count(tag)) {
     std::deque<float>::const_iterator it;
     double sum = 0;
@@ -659,148 +660,173 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   avg = GetTotalExec(sig);
 
   if (!monitoring) {
-    sprintf(outline, "%-8s %-32s %3.02f +- %3.02f\n", "ALL", "Execution Time", avg,
+    sprintf(outline, "%-8s %-32s %3.02f ± %3.02f\n", "ALL", "Execution Time", avg,
             sig);
-    out += outline;
-    out += "# -----------------------------------------------------------------------------------------------------------\n";
-    sprintf(outline, "%-8s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s", "who",
-            "command", "sum", "5s", "1min", "5min", "1h", "exec(ms)", "sigma(ms)");
-    out += outline;
-    out += "\n";
-    out += "# -----------------------------------------------------------------------------------------------------------\n";
   } else {
     sprintf(outline,
             "uid=all gid=all total.exec.avg=%.02f total.exec.sigma=%.02f\n", avg, sig);
-    out += outline;
+  }
+
+  out += outline;
+  std::string na = !monitoring ? "-NA-" : "NA";
+  std::string format_s = !monitoring ? "s" : "os";
+  std::string format_ss = !monitoring ? "-s" : "os";
+  std::string format_l = !monitoring ? "+l" : "ol";
+  std::string format_f = !monitoring ? "f" : "of";
+  std::string format_ff = !monitoring ? "±f" : "of";
+  //! Specification for all users and groups
+  TableFormatterBase table_all;
+
+  if (!monitoring) {
+    table_all.SetHeader({
+      std::make_tuple("who", 3, format_ss),
+      std::make_tuple("command", 24, format_s),
+      std::make_tuple("sum", 8, format_l),
+      std::make_tuple("5s", 8, format_f),
+      std::make_tuple("1min", 8, format_f),
+      std::make_tuple("5min", 8, format_f),
+      std::make_tuple("1h", 8, format_f),
+      std::make_tuple("exec(ms)", 8, format_f),
+      std::make_tuple("sigma(ms)", 8, format_ff)
+    });
+  } else {
+    table_all.SetHeader({
+      std::make_tuple("uid", 0, format_ss),
+      std::make_tuple("gid", 0, format_s),
+      std::make_tuple("cmd", 0, format_s),
+      std::make_tuple("total", 0, format_l),
+      std::make_tuple("5s", 0, format_f),
+      std::make_tuple("60s", 0, format_f),
+      std::make_tuple("300s", 0, format_f),
+      std::make_tuple("3600s", 0, format_f),
+      std::make_tuple("exec", 0, format_f),
+      std::make_tuple("execsig", 0, format_ff)
+    });
   }
 
   for (it = tags.begin(); it != tags.end(); ++it) {
     const char* tag = it->c_str();
-    char a5[1024];
-    char a60[1024];
-    char a300[1024];
-    char a3600[1024];
-    char aexec[1024];
-    char aexecsig[1024];
-    double avg = 0;
-    double sig = 0;
+    double avg = 0, sig = 0;
     avg = GetExec(tag, sig);
-    sprintf(a5, "%3.02f", GetTotalAvg5(tag));
-    sprintf(a60, "%3.02f", GetTotalAvg60(tag));
-    sprintf(a300, "%3.02f", GetTotalAvg300(tag));
-    sprintf(a3600, "%3.02f", GetTotalAvg3600(tag));
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell("all", format_ss));
 
-    if (avg) {
-      sprintf(aexec, "%3.02f", avg);
-    } else {
-      sprintf(aexec, "-NA-");
+    if (monitoring) {
+      table_data.back().push_back(TableCell("all", format_s));
     }
 
-    if (sig) {
-      sprintf(aexecsig, "%3.02f", sig);
+    table_data.back().push_back(TableCell(tag, format_s));
+    table_data.back().push_back(TableCell(GetTotal(tag), format_l));
+    table_data.back().push_back(TableCell(GetTotalAvg5(tag), format_f));
+    table_data.back().push_back(TableCell(GetTotalAvg60(tag), format_f));
+    table_data.back().push_back(TableCell(GetTotalAvg300(tag), format_f));
+    table_data.back().push_back(TableCell(GetTotalAvg3600(tag), format_f));
+
+    if (avg || monitoring) {
+      table_data.back().push_back(TableCell(avg, format_f));
     } else {
-      sprintf(aexecsig, "-NA-");
+      table_data.back().push_back(TableCell(na, format_s));
     }
 
-    if (!monitoring) {
-      sprintf(outline, "ALL        %-32s %12llu %8s %8s %8s %8s %8s +- %-10s\n", tag,
-              GetTotal(tag), a5, a60, a300, a3600, aexec, aexecsig);
+    if (sig || monitoring) {
+      table_data.back().push_back(TableCell(sig, format_ff));
     } else {
-      sprintf(outline,
-              "uid=all gid=all cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s exec=%f execsig=%f\n",
-              tag, GetTotal(tag), a5, a60, a300, a3600, avg, sig);
+      table_data.back().push_back(TableCell(na, format_s));
     }
 
-    out += outline;
+    table_all.AddRows(table_data);
   }
 
-  for (it = tags_ext.begin(); it != tags_ext.end(); ++it) {
-    const char* tag = it->c_str();
-    double nsample;
-    const char na[9] = "NA";
-    char n5[1024], a5[1024], m5[1024], M5[1024];
-    char n60[1024], a60[1024], m60[1024], M60[1024];
-    char n300[1024], a300[1024], m300[1024], M300[1024];
-    char n3600[1024], a3600[1024], m3600[1024], M3600[1024];
+  if (details) {
+    for (it = tags_ext.begin(); it != tags_ext.end(); ++it) {
+      const char* tag = it->c_str();
+      TableData table_data_spl, table_data_min, table_data_avg, table_data_max;
+      table_data_spl.emplace_back();
+      table_data_min.emplace_back();
+      table_data_avg.emplace_back();
+      table_data_max.emplace_back();
+      table_data_spl.back().push_back(TableCell("all", format_ss));
+      table_data_min.back().push_back(TableCell("all", format_ss));
+      table_data_avg.back().push_back(TableCell("all", format_ss));
+      table_data_max.back().push_back(TableCell("all", format_ss));
 
-    if ((nsample = GetTotalNExt5(tag)) < 1) {
-      strcpy(a5, na);
-      strcpy(m5, na);
-      strcpy(M5, na);
-      sprintf(n5, "%6.01e", nsample);
-    } else {
-      sprintf(n5, "%6.01e", nsample);
-      sprintf(a5, "%6.01e", GetTotalAvgExt5(tag));
-      sprintf(m5, "%6.01e", GetTotalMinExt5(tag));
-      sprintf(M5, "%6.01e", GetTotalMaxExt5(tag));
-    }
-
-    if ((nsample = GetTotalNExt60(tag)) < 1) {
-      strcpy(a60, na);
-      strcpy(m60, na);
-      strcpy(M60, na);
-      sprintf(n60, "%6.01e", nsample);
-    } else {
-      sprintf(n60, "%6.01e", nsample);
-      sprintf(a60, "%6.01e", GetTotalAvgExt60(tag));
-      sprintf(m60, "%6.01e", GetTotalMinExt60(tag));
-      sprintf(M60, "%6.01e", GetTotalMaxExt60(tag));
-    }
-
-    if ((nsample = GetTotalNExt300(tag)) < 1) {
-      strcpy(a300, na);
-      strcpy(m300, na);
-      strcpy(M300, na);
-      sprintf(n300, "%6.01e", nsample);
-    } else {
-      sprintf(n300, "%6.01e", nsample);
-      sprintf(a300, "%6.01e", GetTotalAvgExt300(tag));
-      sprintf(m300, "%6.01e", GetTotalMinExt300(tag));
-      sprintf(M300, "%6.01e", GetTotalMaxExt300(tag));
-    }
-
-    if ((nsample = GetTotalNExt3600(tag)) < 1) {
-      strcpy(a3600, na);
-      strcpy(m3600, na);
-      strcpy(M3600, na);
-      sprintf(n3600, "%6.01e", nsample);
-    } else {
-      sprintf(n3600, "%6.01e", GetTotalNExt3600(tag));
-      sprintf(a3600, "%6.01e", GetTotalAvgExt3600(tag));
-      sprintf(m3600, "%6.01e", GetTotalMinExt3600(tag));
-      sprintf(M3600, "%6.01e", GetTotalMaxExt3600(tag));
-    }
-
-    if (details) {
-      if (!monitoring) {
-        sprintf(outline, "ALL        %-32s %12s %8s %8s %8s %8s\n", tag, "spl", n5, n60,
-                n300, n3600);
-        out += outline;
-        sprintf(outline, "ALL        %-32s %12s %8s %8s %8s %8s\n", tag, "min", m5, m60,
-                m300, m3600);
-        out += outline;
-        sprintf(outline, "ALL        %-32s %12s %8s %8s %8s %8s\n", tag, "avg", a5, a60,
-                a300, a3600);
-        out += outline;
-        sprintf(outline, "ALL        %-32s %12s %8s %8s %8s %8s\n", tag, "max", M5, M60,
-                M300, M3600);
-        out += outline;
-      } else {
-        sprintf(outline, "uid=all gid=all cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                tag, n5, n60, n300, n3600);
-        out += outline;
-        sprintf(outline, "uid=all gid=all cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                tag, m5, m60, m300, m3600);
-        out += outline;
-        sprintf(outline, "uid=all gid=all cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                tag, a5, a60, a300, a3600);
-        out += outline;
-        sprintf(outline, "uid=all gid=all cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                tag, M5, M60, M300, M3600);
-        out += outline;
+      if (monitoring) {
+        table_data_spl.back().push_back(TableCell("all", format_s));
+        table_data_min.back().push_back(TableCell("all", format_s));
+        table_data_avg.back().push_back(TableCell("all", format_s));
+        table_data_max.back().push_back(TableCell("all", format_s));
       }
+
+      std::string tag_spl = tag, tag_min = tag, tag_avg = tag, tag_max = tag;
+      tag_spl += ":spl";
+      tag_min += ":min";
+      tag_avg += ":avg";
+      tag_max += ":max";
+      table_data_spl.back().push_back(TableCell(tag_spl, format_s));
+      table_data_min.back().push_back(TableCell(tag_min, format_s));
+      table_data_avg.back().push_back(TableCell(tag_avg, format_s));
+      table_data_max.back().push_back(TableCell(tag_max, format_s));
+      table_data_spl.back().push_back(TableCell("", "", "", true));
+      table_data_min.back().push_back(TableCell("", "", "", true));
+      table_data_avg.back().push_back(TableCell("", "", "", true));
+      table_data_max.back().push_back(TableCell("", "", "", true));
+      table_data_spl.back().push_back(TableCell(GetTotalNExt5(tag), format_f));
+
+      if (GetTotalNExt5(tag) < 1) {
+        table_data_min.back().push_back(TableCell(na, format_s));
+        table_data_avg.back().push_back(TableCell(na, format_s));
+        table_data_max.back().push_back(TableCell(na, format_s));
+      } else {
+        table_data_min.back().push_back(TableCell(GetTotalMinExt5(tag), format_f));
+        table_data_avg.back().push_back(TableCell(GetTotalAvgExt5(tag), format_f));
+        table_data_max.back().push_back(TableCell(GetTotalMaxExt5(tag), format_f));
+      }
+
+      table_data_spl.back().push_back(TableCell(GetTotalNExt60(tag), format_f));
+
+      if (GetTotalNExt60(tag) < 1) {
+        table_data_min.back().push_back(TableCell(na, format_s));
+        table_data_avg.back().push_back(TableCell(na, format_s));
+        table_data_max.back().push_back(TableCell(na, format_s));
+      } else {
+        table_data_min.back().push_back(TableCell(GetTotalMinExt60(tag), format_f));
+        table_data_avg.back().push_back(TableCell(GetTotalAvgExt60(tag), format_f));
+        table_data_max.back().push_back(TableCell(GetTotalMaxExt60(tag), format_f));
+      }
+
+      table_data_spl.back().push_back(TableCell(GetTotalNExt300(tag), format_f));
+
+      if (GetTotalNExt300(tag) < 1) {
+        table_data_min.back().push_back(TableCell(na, format_s));
+        table_data_avg.back().push_back(TableCell(na, format_s));
+        table_data_max.back().push_back(TableCell(na, format_s));
+      } else {
+        table_data_min.back().push_back(TableCell(GetTotalMinExt300(tag), format_f));
+        table_data_avg.back().push_back(TableCell(GetTotalAvgExt300(tag), format_f));
+        table_data_max.back().push_back(TableCell(GetTotalMaxExt300(tag), format_f));
+      }
+
+      table_data_spl.back().push_back(TableCell(GetTotalNExt3600(tag), format_f));
+
+      if (GetTotalNExt3600(tag) < 1) {
+        table_data_min.back().push_back(TableCell(na, format_s));
+        table_data_avg.back().push_back(TableCell(na, format_s));
+        table_data_max.back().push_back(TableCell(na, format_s));
+      } else {
+        table_data_min.back().push_back(TableCell(GetTotalMinExt3600(tag), format_f));
+        table_data_avg.back().push_back(TableCell(GetTotalAvgExt3600(tag), format_f));
+        table_data_max.back().push_back(TableCell(GetTotalMaxExt3600(tag), format_f));
+      }
+
+      table_all.AddRows(table_data_spl);
+      table_all.AddRows(table_data_min);
+      table_all.AddRows(table_data_avg);
+      table_all.AddRows(table_data_max);
     }
   }
+
+  out += table_all.GenerateTable(HEADER).c_str();
 
   if (details) {
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg > >::iterator
@@ -859,317 +885,276 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     }
 
     Mutex.Lock();
+    //! User statistic
+    TableFormatterBase table_user;
 
     if (!monitoring) {
-      out += "# -----------------------------------------------------------------------------------------------------------\n";
+      table_user.SetHeader({
+        std::make_tuple("user", 5, format_ss),
+        std::make_tuple("command", 24, format_s),
+        std::make_tuple("sum", 8, format_l),
+        std::make_tuple("5s", 8, format_f),
+        std::make_tuple("1min", 8, format_f),
+        std::make_tuple("5min", 8, format_f),
+        std::make_tuple("1h", 8, format_f)
+      });
+    } else {
+      table_user.SetHeader({
+        std::make_tuple("uid", 0, format_ss),
+        std::make_tuple("cmd", 0, format_s),
+        std::make_tuple("total", 0, format_l),
+        std::make_tuple("5s", 0, format_f),
+        std::make_tuple("60s", 0, format_f),
+        std::make_tuple("300s", 0, format_f),
+        std::make_tuple("3600s", 0, format_f)
+      });
     }
 
-    std::vector <std::string> uidout;
-    std::vector <std::string> gidout;
+    std::vector<std::tuple<int, std::string, std::string, unsigned long long,
+        double, double, double, double>> table_data;
+    std::vector<std::tuple<int, std::string, std::string, double, double,
+        double, double, double, double, double, double, double, double,
+        double, double, double, double, double, double>> table_data_ext;
 
     for (tuit = StatAvgUid.begin(); tuit != StatAvgUid.end(); tuit++) {
       google::sparse_hash_map<uid_t, StatAvg>::iterator it;
 
       for (it = tuit->second.begin(); it != tuit->second.end(); ++it) {
-        char a5[1024];
-        char a60[1024];
-        char a300[1024];
-        char a3600[1024];
-        sprintf(a5, "%3.02f", it->second.GetAvg5());
-        sprintf(a60, "%3.02f", it->second.GetAvg60());
-        sprintf(a300, "%3.02f", it->second.GetAvg300());
-        sprintf(a3600, "%3.02f", it->second.GetAvg3600());
-        char identifier[1024];
+        std::string username;
 
         if (numerical) {
-          snprintf(identifier, 1023, "uid=%d", it->first);
+          username = std::to_string(it->first);
         } else {
-          std::string username = umap.count(it->first) ? umap[it->first] :
-                                 eos::common::StringConversion::GetSizeString(username,
-                                     (unsigned long long)it->first);
-
-          if (monitoring) {
-            snprintf(identifier, 1023, "uid=%s", username.c_str());
-          } else {
-            snprintf(identifier, 1023, "%s", username.c_str());
-          }
+          username = umap.count(it->first) ? umap[it->first] :
+                     eos::common::StringConversion::GetSizeString(username,
+                         (unsigned long long)it->first);
         }
 
-        if (!monitoring) {
-          sprintf(outline, "%-10s %-32s %12llu %8s %8s %8s %8s\n", identifier,
-                  tuit->first.c_str(), StatsUid[tuit->first.c_str()][it->first], a5, a60, a300,
-                  a3600);
-        } else {
-          sprintf(outline, "%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                  identifier, tuit->first.c_str(), StatsUid[tuit->first.c_str()][it->first], a5,
-                  a60, a300, a3600);
-        }
-
-        uidout.push_back(outline);
+        table_data.push_back(std::make_tuple(0, username,
+                                             tuit->first.c_str(), StatsUid[tuit->first.c_str()][it->first],
+                                             it->second.GetAvg5(), it->second.GetAvg60(),
+                                             it->second.GetAvg300(), it->second.GetAvg3600()));
       }
     }
-
-    std::sort(uidout.begin(), uidout.end());
-    std::vector<std::string>::iterator sit;
-
-    for (sit = uidout.begin(); sit != uidout.end(); sit++) {
-      out += sit->c_str();
-    }
-
-    uidout.clear();
 
     for (tuit_ext = StatExtUid.begin(); tuit_ext != StatExtUid.end(); tuit_ext++) {
       google::sparse_hash_map<uid_t, StatExt>::iterator it;
 
       for (it = tuit_ext->second.begin(); it != tuit_ext->second.end(); ++it) {
-        const char* tag = tuit_ext->first.c_str();
-        double nsample;
-        const char na[9] = "NA";
-        char n5[1024], a5[1024], m5[1024], M5[1024];
-        char n60[1024], a60[1024], m60[1024], M60[1024];
-        char n300[1024], a300[1024], m300[1024], M300[1024];
-        char n3600[1024], a3600[1024], m3600[1024], M3600[1024];
-
-        if ((nsample = it->second.GetN5()) < 1) {
-          strcpy(a5, na);
-          strcpy(m5, na);
-          strcpy(M5, na);
-          sprintf(n5, "%6.01e", nsample);
-        } else {
-          sprintf(n5, "%6.01e", nsample);
-          sprintf(a5, "%6.01e", it->second.GetAvg5());
-          sprintf(m5, "%6.01e", it->second.GetMin5());
-          sprintf(M5, "%6.01e", it->second.GetMax5());
-        }
-
-        if ((nsample = it->second.GetN60()) < 1) {
-          strcpy(a60, na);
-          strcpy(m60, na);
-          strcpy(M60, na);
-          sprintf(n60, "%6.01e", nsample);
-        } else {
-          sprintf(n60, "%6.01e", nsample);
-          sprintf(a60, "%6.01e", it->second.GetAvg60());
-          sprintf(m60, "%6.01e", it->second.GetMin60());
-          sprintf(M60, "%6.01e", it->second.GetMax60());
-        }
-
-        if ((nsample = it->second.GetN300()) < 1) {
-          strcpy(a300, na);
-          strcpy(m300, na);
-          strcpy(M300, na);
-          sprintf(n300, "%6.01e", nsample);
-        } else {
-          sprintf(n300, "%6.01e", nsample);
-          sprintf(a300, "%6.01e", it->second.GetAvg300());
-          sprintf(m300, "%6.01e", it->second.GetMin300());
-          sprintf(M300, "%6.01e", it->second.GetMax300());
-        }
-
-        if ((nsample = it->second.GetN3600()) < 1) {
-          strcpy(a3600, na);
-          strcpy(m3600, na);
-          strcpy(M3600, na);
-          sprintf(n3600, "%6.01e", nsample);
-        } else {
-          sprintf(n3600, "%6.01e", nsample);
-          sprintf(a3600, "%6.01e", it->second.GetAvg3600());
-          sprintf(m3600, "%6.01e", it->second.GetMin3600());
-          sprintf(M3600, "%6.01e", it->second.GetMax3600());
-        }
-
-        char identifier[1024];
+        std::string username;
 
         if (numerical) {
-          snprintf(identifier, 1023, "uid=%d", it->first);
+          username = std::to_string(it->first);
         } else {
-          std::string username = umap.count(it->first) ? umap[it->first] :
-                                 eos::common::StringConversion::GetSizeString(username,
-                                     (unsigned long long)it->first);
-
-          if (monitoring) {
-            snprintf(identifier, 1023, "uid=%s", username.c_str());
-          } else {
-            snprintf(identifier, 1023, "%s", username.c_str());
-          }
+          username = umap.count(it->first) ? umap[it->first] :
+                     eos::common::StringConversion::GetSizeString(username,
+                         (unsigned long long)it->first);
         }
 
-        if (!monitoring) {
-          sprintf(outline, "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "spl",
-                  n5, n60, n300, n3600);
-          out += outline;
-          sprintf(outline, "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "min",
-                  m5, m60, m300, m3600);
-          out += outline;
-          sprintf(outline, "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "avg",
-                  a5, a60, a300, a3600);
-          out += outline;
-          sprintf(outline, "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "max",
-                  M5, M60, M300, M3600);
-          out += outline;
-        } else {
-          sprintf(outline, "%s cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
-                  tag, n5, n60, n300, n3600);
-          out += outline;
-          sprintf(outline, "%s cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
-                  tag, m5, m60, m300, m3600);
-          out += outline;
-          sprintf(outline, "%s cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
-                  tag, a5, a60, a300, a3600);
-          out += outline;
-          sprintf(outline, "%s cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
-                  tag, M5, M60, M300, M3600);
-          out += outline;
-        }
+        table_data_ext.push_back(std::make_tuple(
+                                   0, username, tuit_ext->first.c_str(),
+                                   it->second.GetN5(), it->second.GetAvg5(),
+                                   it->second.GetMin5(), it->second.GetMax5(),
+                                   it->second.GetN60(), it->second.GetAvg60(),
+                                   it->second.GetMin60(), it->second.GetMax60(),
+                                   it->second.GetN300(), it->second.GetAvg300(),
+                                   it->second.GetMin300(), it->second.GetMax300(),
+                                   it->second.GetN3600(), it->second.GetAvg3600(),
+                                   it->second.GetMin3600(), it->second.GetMax3600()
+                                 ));
       }
     }
 
-    std::sort(uidout.begin(), uidout.end());
-
-    for (sit = uidout.begin(); sit != uidout.end(); sit++) {
-      out += sit->c_str();
-    }
+    //! Group statistic
+    TableFormatterBase table_group;
 
     if (!monitoring) {
-      out += "# --------------------------------------------------------------------------------------\n";
+      table_group.SetHeader({
+        std::make_tuple("group", 5, format_ss),
+        std::make_tuple("command", 24, format_s),
+        std::make_tuple("sum", 8, format_l),
+        std::make_tuple("5s", 8, format_f),
+        std::make_tuple("1min", 8, format_f),
+        std::make_tuple("5min", 8, format_f),
+        std::make_tuple("1h", 8, format_f)
+      });
+    } else {
+      table_group.SetHeader({
+        std::make_tuple("gid", 0, format_ss),
+        std::make_tuple("cmd", 0, format_s),
+        std::make_tuple("total", 0, format_l),
+        std::make_tuple("5s", 0, format_f),
+        std::make_tuple("60s", 0, format_f),
+        std::make_tuple("300s", 0, format_f),
+        std::make_tuple("3600s", 0, format_f)
+      });
     }
 
     for (tgit = StatAvgGid.begin(); tgit != StatAvgGid.end(); tgit++) {
       google::sparse_hash_map<gid_t, StatAvg>::iterator it;
 
       for (it = tgit->second.begin(); it != tgit->second.end(); ++it) {
-        char a5[1024];
-        char a60[1024];
-        char a300[1024];
-        char a3600[1024];
-        sprintf(a5, "%3.02f", it->second.GetAvg5());
-        sprintf(a60, "%3.02f", it->second.GetAvg60());
-        sprintf(a300, "%3.02f", it->second.GetAvg300());
-        sprintf(a3600, "%3.02f", it->second.GetAvg3600());
-        char identifier[1024];
+        std::string groupname;
 
         if (numerical) {
-          snprintf(identifier, 1023, "gid=%d", it->first);
+          groupname = std::to_string(it->first);
         } else {
-          std::string groupname = gmap.count(it->first) ? gmap[it->first] :
-                                  eos::common::StringConversion::GetSizeString(groupname,
-                                      (unsigned long long)it->first);
-
-          if (monitoring) {
-            snprintf(identifier, 1023, "gid=%s", groupname.c_str());
-          } else {
-            snprintf(identifier, 1023, "%s", groupname.c_str());
-          }
+          groupname = gmap.count(it->first) ? gmap[it->first] :
+                      eos::common::StringConversion::GetSizeString(groupname,
+                          (unsigned long long)it->first);
         }
 
-        if (!monitoring) {
-          sprintf(outline, "%-10s %-32s %12llu %8s %8s %8s %8s\n", identifier,
-                  tgit->first.c_str(), StatsGid[tgit->first.c_str()][it->first], a5, a60, a300,
-                  a3600);
-        } else {
-          sprintf(outline, "%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                  identifier, tgit->first.c_str(), StatsUid[tgit->first.c_str()][it->first], a5,
-                  a60, a300, a3600);
-        }
-
-        gidout.push_back(outline);
+        table_data.push_back(std::make_tuple(1, groupname,
+                                             tgit->first.c_str(), StatsGid[tgit->first.c_str()][it->first],
+                                             it->second.GetAvg5(), it->second.GetAvg60(),
+                                             it->second.GetAvg300(), it->second.GetAvg3600()));
       }
     }
-
-    std::sort(gidout.begin(), gidout.end());
-
-    for (sit = gidout.begin(); sit != gidout.end(); sit++) {
-      out += sit->c_str();
-    }
-
-    gidout.clear();
 
     for (tgit_ext = StatExtGid.begin(); tgit_ext != StatExtGid.end(); tgit_ext++) {
       google::sparse_hash_map<gid_t, StatExt>::iterator it;
 
       for (it = tgit_ext->second.begin(); it != tgit_ext->second.end(); ++it) {
-        double nsample;
-        const char na[9] = "NA";
-        char n5[1024], a5[1024], m5[1024], M5[1024];
-        char n60[1024], a60[1024], m60[1024], M60[1024];
-        char n300[1024], a300[1024], m300[1024], M300[1024];
-        char n3600[1024], a3600[1024], m3600[1024], M3600[1024];
-
-        if ((nsample = it->second.GetN5()) < 1) {
-          strcpy(a5, na);
-          strcpy(m5, na);
-          strcpy(M5, na);
-          sprintf(n5, "%6.01e", nsample);
-        } else {
-          sprintf(n5, "%6.01e", nsample);
-          sprintf(a5, "%6.01e", it->second.GetAvg5());
-          sprintf(m5, "%6.01e", it->second.GetMin5());
-          sprintf(M5, "%6.01e", it->second.GetMax5());
-        }
-
-        if ((nsample = it->second.GetN60()) < 1) {
-          strcpy(a60, na);
-          strcpy(m60, na);
-          strcpy(M60, na);
-          sprintf(n60, "%6.01e", nsample);
-        } else {
-          sprintf(n60, "%6.01e", nsample);
-          sprintf(a60, "%6.01e", it->second.GetAvg60());
-          sprintf(m60, "%6.01e", it->second.GetMin60());
-          sprintf(M60, "%6.01e", it->second.GetMax60());
-        }
-
-        if ((nsample = it->second.GetN300()) < 1) {
-          strcpy(a300, na);
-          strcpy(m300, na);
-          strcpy(M300, na);
-          sprintf(n300, "%6.01e", nsample);
-        } else {
-          sprintf(n300, "%6.01e", nsample);
-          sprintf(a300, "%6.01e", it->second.GetAvg300());
-          sprintf(m300, "%6.01e", it->second.GetMin300());
-          sprintf(M300, "%6.01e", it->second.GetMax300());
-        }
-
-        if ((nsample = it->second.GetN3600()) < 1) {
-          strcpy(a3600, na);
-          strcpy(m3600, na);
-          strcpy(M3600, na);
-          sprintf(n3600, "%6.01e", nsample);
-        } else {
-          sprintf(n3600, "%6.01e", nsample);
-          sprintf(a3600, "%6.01e", it->second.GetAvg3600());
-          sprintf(m3600, "%6.01e", it->second.GetMin3600());
-          sprintf(M3600, "%6.01e", it->second.GetMax3600());
-        }
-
-        char identifier[1024];
+        std::string groupname;
 
         if (numerical) {
-          snprintf(identifier, 1023, "gid=%d", it->first);
+          groupname = std::to_string(it->first);
         } else {
-          std::string groupname = gmap.count(it->first) ? gmap[it->first] :
-                                  eos::common::StringConversion::GetSizeString(groupname,
-                                      (unsigned long long)it->first);
+          groupname = gmap.count(it->first) ? gmap[it->first] :
+                      eos::common::StringConversion::GetSizeString(groupname,
+                          (unsigned long long)it->first);
+        }
 
-          if (monitoring) {
-            snprintf(identifier, 1023, "gid=%s", groupname.c_str());
+        table_data_ext.push_back(std::make_tuple(
+                                   1, groupname, tgit_ext->first.c_str(),
+                                   it->second.GetN5(), it->second.GetAvg5(),
+                                   it->second.GetMin5(), it->second.GetMax5(),
+                                   it->second.GetN60(), it->second.GetAvg60(),
+                                   it->second.GetMin60(), it->second.GetMax60(),
+                                   it->second.GetN300(), it->second.GetAvg300(),
+                                   it->second.GetMin300(), it->second.GetMax300(),
+                                   it->second.GetN3600(), it->second.GetAvg3600(),
+                                   it->second.GetMin3600(), it->second.GetMax3600()
+                                 ));
+      }
+    }
+
+    // Data sorting
+    std::sort(table_data.begin(), table_data.end());
+    std::sort(table_data_ext.begin(), table_data_ext.end());
+
+    // Output user and group statistic
+    for (int i = 0; i <= 1; i++) {
+      for (auto it : table_data) {
+        if (std::get<0>(it) == i) {
+          TableData table_data_sorted;
+          table_data_sorted.emplace_back();
+          table_data_sorted.back().push_back(TableCell(std::get<1>(it), format_ss));
+          table_data_sorted.back().push_back(TableCell(std::get<2>(it), format_s));
+          table_data_sorted.back().push_back(TableCell(std::get<3>(it), format_l));
+          table_data_sorted.back().push_back(TableCell(std::get<4>(it), format_f));
+          table_data_sorted.back().push_back(TableCell(std::get<5>(it), format_f));
+          table_data_sorted.back().push_back(TableCell(std::get<6>(it), format_f));
+          table_data_sorted.back().push_back(TableCell(std::get<7>(it), format_f));
+
+          if (i == 0) {
+            table_user.AddRows(table_data_sorted);
+          } else if (i == 1) {
+            table_group.AddRows(table_data_sorted);
+          }
+        }
+      }
+
+      for (auto it : table_data_ext) {
+        if (std::get<0>(it) == i) {
+          TableData table_data_spl, table_data_min, table_data_avg, table_data_max;
+          table_data_spl.emplace_back();
+          table_data_min.emplace_back();
+          table_data_avg.emplace_back();
+          table_data_max.emplace_back();
+          table_data_spl.back().push_back(TableCell(std::get<1>(it), format_ss));
+          table_data_min.back().push_back(TableCell(std::get<1>(it), format_ss));
+          table_data_avg.back().push_back(TableCell(std::get<1>(it), format_ss));
+          table_data_max.back().push_back(TableCell(std::get<1>(it), format_ss));
+          std::string tag = std::get<2>(it);
+          std::string tag_spl = tag, tag_min = tag, tag_avg = tag, tag_max = tag;
+          tag_spl += ":spl";
+          tag_min += ":min";
+          tag_avg += ":avg";
+          tag_max += ":max";
+          table_data_spl.back().push_back(TableCell(tag_spl, format_s));
+          table_data_min.back().push_back(TableCell(tag_min, format_s));
+          table_data_avg.back().push_back(TableCell(tag_avg, format_s));
+          table_data_max.back().push_back(TableCell(tag_max, format_s));
+          table_data_spl.back().push_back(TableCell("", "", "", true));
+          table_data_min.back().push_back(TableCell("", "", "", true));
+          table_data_avg.back().push_back(TableCell("", "", "", true));
+          table_data_max.back().push_back(TableCell("", "", "", true));
+          table_data_spl.back().push_back(TableCell(std::get<3>(it), format_f));
+
+          if (std::get<3>(it) < 1) {
+            table_data_min.back().push_back(TableCell(na, format_s));
+            table_data_avg.back().push_back(TableCell(na, format_s));
+            table_data_max.back().push_back(TableCell(na, format_s));
           } else {
-            snprintf(identifier, 1023, "%s", groupname.c_str());
+            table_data_min.back().push_back(TableCell(std::get<4>(it), format_f));
+            table_data_avg.back().push_back(TableCell(std::get<5>(it), format_f));
+            table_data_max.back().push_back(TableCell(std::get<6>(it), format_f));
+          }
+
+          table_data_spl.back().push_back(TableCell(std::get<7>(it), format_f));
+
+          if (std::get<7>(it) < 1) {
+            table_data_min.back().push_back(TableCell(na, format_s));
+            table_data_avg.back().push_back(TableCell(na, format_s));
+            table_data_max.back().push_back(TableCell(na, format_s));
+          } else {
+            table_data_min.back().push_back(TableCell(std::get<8>(it), format_f));
+            table_data_avg.back().push_back(TableCell(std::get<9>(it), format_f));
+            table_data_max.back().push_back(TableCell(std::get<10>(it), format_f));
+          }
+
+          table_data_spl.back().push_back(TableCell(std::get<11>(it), format_f));
+
+          if (std::get<11>(it) < 1) {
+            table_data_min.back().push_back(TableCell(na, format_s));
+            table_data_avg.back().push_back(TableCell(na, format_s));
+            table_data_max.back().push_back(TableCell(na, format_s));
+          } else {
+            table_data_min.back().push_back(TableCell(std::get<12>(it), format_f));
+            table_data_avg.back().push_back(TableCell(std::get<13>(it), format_f));
+            table_data_max.back().push_back(TableCell(std::get<14>(it), format_f));
+          }
+
+          table_data_spl.back().push_back(TableCell(std::get<15>(it), format_f));
+
+          if (std::get<15>(it) < 1) {
+            table_data_min.back().push_back(TableCell(na, format_s));
+            table_data_avg.back().push_back(TableCell(na, format_s));
+            table_data_max.back().push_back(TableCell(na, format_s));
+          } else {
+            table_data_min.back().push_back(TableCell(std::get<16>(it), format_f));
+            table_data_avg.back().push_back(TableCell(std::get<17>(it), format_f));
+            table_data_max.back().push_back(TableCell(std::get<18>(it), format_f));
+          }
+
+          if (i == 0) {
+            table_user.AddRows(table_data_spl);
+            table_user.AddRows(table_data_min);
+            table_user.AddRows(table_data_avg);
+            table_user.AddRows(table_data_max);
+          } else if (i == 1) {
+            table_group.AddRows(table_data_spl);
+            table_group.AddRows(table_data_min);
+            table_group.AddRows(table_data_avg);
+            table_group.AddRows(table_data_max);
           }
         }
       }
     }
 
-    std::sort(gidout.begin(), gidout.end());
-
-    for (sit = gidout.begin(); sit != gidout.end(); sit++) {
-      out += sit->c_str();
-    }
-
-    if (!monitoring) {
-      out += "# --------------------------------------------------------------------------------------\n";
-    }
+    out += table_user.GenerateTable(HEADER).c_str();
+    out += table_group.GenerateTable(HEADER).c_str();
   }
 
   Mutex.UnLock();

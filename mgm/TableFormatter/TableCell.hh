@@ -33,29 +33,36 @@ public:
   //! Different types of constructors depending on the type of value added to
   //! the current cell
   //----------------------------------------------------------------------------
-  TableCell(unsigned int value, std::string format, std::string unit = "",
+  TableCell(unsigned int value, std::string format,
+            std::string unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
   TableCell(unsigned long long int value, std::string format,
-            std::string unit = "",
+            std::string unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
-  TableCell(int value, std::string format, std::string unit = "",
+  TableCell(int value, std::string format,
+            std::string unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
-  TableCell(long long int value, std::string format, std::string unit = "",
+  TableCell(long long int value, std::string format,
+            std::string unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
-  TableCell(float value, std::string format, std::string unit = "",
+  TableCell(float value, std::string format,
+            std::string unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
-  TableCell(double value, std::string format, std::string unit = "",
+  TableCell(double value, std::string format,
+            std::string unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
-  TableCell(const char* value, std::string format, std::string unit = "",
+  TableCell(const char* value, std::string format,
+            std::string unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
-  TableCell(std::string& value, std::string format, std::string unit = "",
+  TableCell(std::string& value, std::string format,
+            std::string unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
   //------------------------------------------------------------------------------
@@ -79,6 +86,7 @@ public:
   //! Calculate print width of table cell
   //----------------------------------------------------------------------------
   size_t Length();
+  bool Empty();
 
 protected:
   //----------------------------------------------------------------------------
@@ -100,6 +108,7 @@ protected:
   std::string mStrValue = "";
   std::string mFormat;
   std::string mUnit;
+  bool mEmpty;
 
   //----------------------------------------------------------------------------
   //! Color of the cell

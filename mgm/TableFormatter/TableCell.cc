@@ -27,8 +27,8 @@
 // Constructor for unsigned int data
 //------------------------------------------------------------------------------
 TableCell::TableCell(unsigned int value, std::string format,
-                     std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col),
+                     std::string unit, bool empty, TableFormatterColor col)
+  : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
@@ -52,8 +52,8 @@ TableCell::TableCell(unsigned int value, std::string format,
 // Constructor for unsigned long long int data
 //------------------------------------------------------------------------------
 TableCell::TableCell(unsigned long long int value, std::string format,
-                     std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col),
+                     std::string unit, bool empty, TableFormatterColor col)
+  : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
@@ -77,8 +77,8 @@ TableCell::TableCell(unsigned long long int value, std::string format,
 // Constructor for int data
 //------------------------------------------------------------------------------
 TableCell::TableCell(int value, std::string format,
-                     std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col),
+                     std::string unit, bool empty, TableFormatterColor col)
+  : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
@@ -102,8 +102,8 @@ TableCell::TableCell(int value, std::string format,
 // Constructor for long long int data
 //------------------------------------------------------------------------------
 TableCell::TableCell(long long int value, std::string format,
-                     std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col),
+                     std::string unit, bool empty, TableFormatterColor col)
+  : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
@@ -127,8 +127,8 @@ TableCell::TableCell(long long int value, std::string format,
 // Constructor for float data
 //------------------------------------------------------------------------------
 TableCell::TableCell(float value, std::string format,
-                     std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col),
+                     std::string unit, bool empty, TableFormatterColor col)
+  : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
@@ -152,8 +152,8 @@ TableCell::TableCell(float value, std::string format,
 // Constructor for double data
 //------------------------------------------------------------------------------
 TableCell::TableCell(double value, std::string format,
-                     std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col),
+                     std::string unit, bool empty, TableFormatterColor col)
+  : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
   if (mFormat.find("l") != std::string::npos) {
@@ -177,8 +177,8 @@ TableCell::TableCell(double value, std::string format,
 // Constructor for char* data
 //------------------------------------------------------------------------------
 TableCell::TableCell(const char* value, std::string format,
-                     std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col),
+                     std::string unit, bool empty, TableFormatterColor col)
+  : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::STRING)
 {
   std::string value_temp(value);
@@ -189,8 +189,8 @@ TableCell::TableCell(const char* value, std::string format,
 // Constructor for string data
 //------------------------------------------------------------------------------
 TableCell::TableCell(std::string& value, std::string format,
-                     std::string unit, TableFormatterColor col)
-  : mFormat(format), mUnit(unit), mColor(col),
+                     std::string unit, bool empty, TableFormatterColor col)
+  : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::STRING)
 {
   SetValue(value);
@@ -319,6 +319,11 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
 
   // Left space before cellValue
   if (width_left) {
+    // Because of prefix
+    if (mFormat.find("±") != std::string::npos) {
+      width_left += 3;
+    }
+
     // Because of escape characters - see TableFromatterColorContainer, we need
     // to add 5 colored normal display, 6 for bold display, 7 for bold display
     // with color etc.
@@ -346,6 +351,15 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
     } else if (TableFormatterColor::BBGRED <= mColor &&
                mColor <= TableFormatterColor::BBGWHITE) {
       ostream.width(width_left + 10);
+    }
+  }
+
+  // Prefix "±"
+  if (mFormat.find("±") != std::string::npos) {
+    if (mFormat.find("o") != std::string::npos) {
+      ostream << "±%20" ;
+    } else {
+      ostream << "± ";
     }
   }
 
@@ -415,6 +429,14 @@ std::ostream& operator<<(std::ostream& stream, const TableCell& cell)
 }
 
 //------------------------------------------------------------------------------
+// if we don't need print for this cell (for monitoring option)
+//------------------------------------------------------------------------------
+bool TableCell::Empty()
+{
+  return mEmpty;
+}
+
+//------------------------------------------------------------------------------
 // Calculating print width of table cell
 //------------------------------------------------------------------------------
 size_t TableCell::Length()
@@ -458,13 +480,14 @@ size_t TableCell::Length()
     ret = mStrValue.length();
   }
 
+  // Prefix "±"
+  if (mFormat.find("±") != std::string::npos) {
+    ret += 2;
+  }
+
   // Unit length
   if (!mUnit.empty()) {
-    if (mFormat.find("o") != std::string::npos) {
-      ret += mUnit.length() + 3;
-    } else {
-      ret += mUnit.length() + 1;
-    }
+    ret += mUnit.length() + 1;
   }
 
   return ret;

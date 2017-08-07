@@ -75,9 +75,11 @@ bool TableFormatterBase::GenerateMonitoring()
 
   for (auto& row : mData) {
     if (!row.empty()) {
-      for (size_t i = 0, size = mHeader.size(); i < size; ++i) {
-        mSink << std::get<0>(mHeader[i]) << "=" << row[i] << " ";
-        body_exist = true;
+      for (size_t i = 0, size = row.size(); i < size; ++i) {
+        if (!row[i].Empty()) {
+          mSink << std::get<0>(mHeader[i]) << "=" << row[i] << " ";
+          body_exist = true;
+        }
       }
 
       mSink << "\n";
@@ -200,7 +202,7 @@ bool TableFormatterBase::GenerateBody(const TableString& selections)
     if (!row.empty() && !mHeader.empty()) {
       std::stringstream mSink_temp;
 
-      for (size_t i = 0, size = mHeader.size(); i < size; ++i) {
+      for (size_t i = 0, size = row.size(); i < size; ++i) {
         // Left edge
         if (i == 0) {
           mSink_temp << mBorderBody[0];
@@ -270,7 +272,7 @@ void TableFormatterBase::WidthCorrection()
 {
   for (auto& row : mData) {
     if (!row.empty())
-      for (size_t i = 0, size = mHeader.size(); i < size; i++) {
+      for (size_t i = 0, size = row.size(); i < size; i++) {
         if (std::get<1>(mHeader[i]) < std::get<0>(mHeader[i]).length()) {
           std::get<1>(mHeader[i]) = std::get<0>(mHeader[i]).length();
         }
