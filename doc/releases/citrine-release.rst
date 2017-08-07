@@ -17,6 +17,31 @@ This is the first release targeted for clients to use EOS with XRootD >= 4.2.X.
 It is merged from the Aquamarine Version 0.3.130. Main difference to Aquamarine
 is the use of XRootD 4 and the new tree-based scheduling algorithm.
 
+
+``v4.1.26 Citrine``
++++++++++++++++++++
+
+Bug
++++
+* [EOS-558] - "eos fileinfo" should better indicate non-active machines
+* [EOS-1895] - MGM Crash when the groupscheduler can't place file
+* [EOS-1897] - /var/log/eos/archive/eosarchived.log is world-writeable, should not
+* [EOS-1906] - Incorrect GeoTree engine information
+* [EOS-1936] - EOS ATLAS lost file due to balancing
+
+Story
++++++
+* [EOS-1919] - Bug visible when creating YUM repositories on the FUSE mount in CITRINE instances
+
+Improvement
+++++++++++++
+* [EOS-1159] - renaming a "quota node" directory gets rid of the quota setting?
+* [EOS-1345] - documentation update - eos fs help
+* [EOS-1875] - RFE: isolate eos client from LD_LIBRARY_PATH via RPATH
+
+* Plus all the fixes from the 0.3.264 and 0.3.265 release form the bery_aquamarine branch.
+
+
 ``v4.1.25 Citrine``
 +++++++++++++++++++
 
