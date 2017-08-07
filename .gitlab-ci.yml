@@ -43,9 +43,6 @@ eos_rpm_cc7:
     - eos-docker/
   tags:
     - docker-cc7
-  only:
-    - branches
-    - tags
 
 eos_rpm_slc6:
   stage: build:rpm
@@ -79,9 +76,6 @@ eos_rpm_slc6:
     - slc6_artifacts/
   tags:
     - docker-slc6
-  only:
-    - branches
-    - tags
 
 eos_rpm_fedora_rawhide:
   stage: build:rpm
@@ -114,9 +108,6 @@ eos_rpm_fedora_rawhide:
   tags:
     - docker-fc_rawhide
   allow_failure: true
-  only:
-    - branches
-    - tags
 
 eos_rpm_fedora_26:
   stage: build:rpm
@@ -149,9 +140,6 @@ eos_rpm_fedora_26:
   tags:
     - docker-fc25
   allow_failure: true
-  only:
-    - branches
-    - tags
 
 eos_dmg_macosx:
   stage: build:rpm
@@ -176,9 +164,6 @@ eos_dmg_macosx:
   tags:
     - macosx-shell
   allow_failure: true
-  only:
-    - branches
-    - tags
 
 eos_nginx_cc7:
   stage: build:rpm
@@ -297,9 +282,6 @@ eos_unit_test:
     - ccache/
   tags:
     - docker-cc7
-  only:
-    - branches
-    - tags
 
 eos_system_test:
   stage: test
@@ -318,9 +300,6 @@ eos_system_test:
     - shell-with-docker
   dependencies:
     - eos_rpm_cc7
-  only:
-    - branches
-    - tags
 
 eos_stress_test:
   stage: test
@@ -337,9 +316,6 @@ eos_stress_test:
   dependencies:
     - eos_rpm_cc7
   allow_failure: true
-  only:
-    - branches
-    - tags
 
 eos_publish_artifacts:
   stage: publish
