@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.266 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- Avoid recreating block-xs files in balancing and draining due to wrong mask used
+
 ``V0.3.265 Aquamarine``
 =======================
 
