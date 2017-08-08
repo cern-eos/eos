@@ -13,7 +13,8 @@ Beryl Release Notes
 Bug Fixes
 +++++++++
 
-- Avoid recreating block-xs files in balancing and draining due to wrong mask used
+- MGM: avoid recreating block-xs files in balancing and draining due to wrong mask used
+- MGM: avoid increasing number of replicas when balancing very empty groups
 
 ``V0.3.265 Aquamarine``
 =======================
