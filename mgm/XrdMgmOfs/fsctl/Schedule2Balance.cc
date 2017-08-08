@@ -416,6 +416,8 @@
                 fullcapability += source_cap;
                 fullcapability += target_cap;
 
+		ScheduledToBalanceFid[fid] = time(NULL) + 3600;
+
 		XrdOucString response = "submitted";
 		error.setErrInfo(response.length() + 1, response.c_str());
 
