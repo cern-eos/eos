@@ -421,6 +421,8 @@ Recycle::Recycler ()
                 // this entry has still to be kept
                 //...............................................................
 
+		eos_static_info("oldest entry: %lld sec to deletion", it->first+lKeepTime - now);
+
 		if (!snoozetime)
 		{
 		  // define the sleep period from the oldest entry
