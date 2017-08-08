@@ -460,7 +460,7 @@
 		if (eos::common::LayoutId::GetBlockChecksum(lid) == eos::common::LayoutId::kNone)
 		{
 		  // mask block checksums (e.g. for replica layouts)                                                               
-		  target_lid &= 0xf0ffffff;
+		  target_lid &= 0xff0fffff;
 		}
 
                 replica_source_capability += "mgm.access=read";
