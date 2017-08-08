@@ -626,7 +626,7 @@ ConvertFileMDSvc::initialize()
                                    eos::ContainerAccounting::OpType::FILE);
 
           // Update every 1M files
-          if (count % 1000000 == 0) {
+          if ((count % 1000000 == 0) && (i == 0)) {
             mSyncTimeAcc->PropagateUpdates();
             mContAcc->PropagateUpdates();
           }
