@@ -1020,9 +1020,9 @@ main(int argc, char* argv[])
                   file_path.erase(qpos);
                 }
 
-                for (int i = 0; i < nsrc; i++) {
+                for (int j = 0; j < nsrc; j++) {
                   tag = "pio.";
-                  tag += i;
+                  tag += j;
                   stripe_path = "root://";
                   stripe_path += openOpaque->Get(tag.c_str());
                   stripe_path += "/";
@@ -1049,7 +1049,7 @@ main(int argc, char* argv[])
                   src_type.push_back(RAID_ACCESS);
 
                   if (verbose || debug) {
-                    fprintf(stdout, "[eoscp] src<%d>=%s [%s]\n", i,
+                    fprintf(stdout, "[eoscp] src<%d>=%s [%s]\n", j,
                             src_location.back().second.c_str(), src_location.back().first.c_str());
                   }
                 }
@@ -1534,8 +1534,8 @@ main(int argc, char* argv[])
           flags = SFS_O_RDONLY;
         }
 
-        for (int i = 0; i < nsrc; i++) {
-          location = src_location[i].first + src_location[i].second;
+        for (int j = 0; j < nsrc; j++) {
+          location = src_location[j].first + src_location[j].second;
           vectUrl.push_back(location);
         }
 
@@ -1748,8 +1748,8 @@ main(int argc, char* argv[])
         std::vector<std::string> vectUrl;
         flags = SFS_O_CREAT | SFS_O_WRONLY;
 
-        for (int i = 0; i < ndst; i++) {
-          location = dst_location[i].first + dst_location[i].second;
+        for (int j = 0; j < ndst; j++) {
+          location = dst_location[j].first + dst_location[j].second;
           vectUrl.push_back(location);
         }
 
@@ -1816,7 +1816,6 @@ main(int argc, char* argv[])
             exit(-EEXIST);
           }
 
-          //TODO: add timeout for all XrdIo operations
           retc = file->fileOpen(SFS_O_RDWR, st[i].st_mode, "");
         } else {
           retc = file->fileOpen(SFS_O_CREAT | SFS_O_RDWR,
