@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Stop only if it's a final remove, otherwise manual restart needed
+if [ -z "$2" ]; then
+  systemctl stop eosd@* > /dev/null 2>&1 || :
+fi
