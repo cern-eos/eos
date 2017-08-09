@@ -3,7 +3,6 @@ usr/bin/eosfusebind
 sbin/mount.eos
 usr/lib/tmpfiles.d/eosd.conf
 etc/logrotate.d/eos-fuse-logs
-etc/fuse.conf
 etc/fuse.conf.eos
 usr/share/selinux/targeted/eosfuse.pp
 usr/share/selinux/mls/eosfuse.pp
