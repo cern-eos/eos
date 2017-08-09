@@ -527,7 +527,7 @@ main(int argc, char* argv[])
   extern int optind;
 
   while ((c = getopt(argc, argv,
-                     "nshdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0")) != -1) {
+                     "nshxdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
