@@ -386,7 +386,7 @@ ConvertContainerMDSvc::commitToBackend()
                                bucket_map.getClient());
 
         // Commit subcontainers and files only if not empty otherwise the hmset
-        // command  will fail.
+        // command will fail
         if (conv_cont->getNumContainers()) {
           async_handler.Register(conv_cont->commitSubcontainers(&qclient), &qclient);
         }
@@ -531,7 +531,7 @@ ConvertFileMDSvc::initialize()
       ++count;
 
       if ((count & sAsyncBatch) == 0) {
-        if (!sAh.WaitForAtLeast(sAsyncBatch)) {
+        if (!async_handler.WaitForAtLeast(sAsyncBatch)) {
           std::cerr << __FUNCTION__ << " Got error response from the backend"
                     << std::endl;
           exit(1);
