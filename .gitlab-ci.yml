@@ -76,6 +76,7 @@ eos_rpm_slc6:
     - slc6_artifacts/
   tags:
     - docker-slc6
+  allow_failure: true
 
 eos_rpm_fedora_rawhide:
   stage: build:rpm
