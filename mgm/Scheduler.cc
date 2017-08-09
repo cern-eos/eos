@@ -75,8 +75,23 @@ Scheduler::FilePlacement (const char* path, //< path to place
   bool hasgeolocation = false;
   bool exact_match = true;
   bool config_exact_match = false;
+  bool config_skip_overloaded = false;
+  float  config_minimum_weight = 0.1;
 
   int geo_entry_fsid = 0;
+
+  config_skip_overloaded = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("scheduler.skip.overloaded") == "on");
+
+  config_minimum_weight = strtof (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("scheduler.min.weight"));
+  if ( config_minimum_weight < 0.1)
+  {
+    config_minimum_weight = 0.1;
+  }
+
+  if ( config_minimum_weigth > 1.0)
+  {
+    config_minimum_weigth = 1.0;
+  }
 
   if (vid.geolocation.length())
   {
@@ -142,7 +157,8 @@ Scheduler::FilePlacement (const char* path, //< path to place
   // we can loop over all existing scheduling views twice, once with exact match, then once without
   for (unsigned int groupindex = 0; groupindex < (2*FsView::gFsView.mSpaceGroupView[spacename].size()); groupindex++)
   {
-    eos_static_info("group-index=%d max-index=%d exact-match=%d config-exact-match=%d", groupindex, FsView::gFsView.mSpaceGroupView[spacename].size(), exact_match, config_exact_match);
+    eos_static_info("group-index=%d max-index=%d exact-match=%d config-exact-match=%d config-skip-overloaded=%d config-min-weight=%.1f", groupindex, FsView::gFsView.mSpaceGroupView[spacename].size(), exact_match, config_exact_match, config_skip_overloaded, config_minimum_weight);
+
     if (groupindex >= FsView::gFsView.mSpaceGroupView[spacename].size())
     {
       if (!config_exact_match)
@@ -231,11 +247,11 @@ Scheduler::FilePlacement (const char* path, //< path to place
       double netoutweight = (1.0 - ((snapshot.mNetEthRateMiB) ? (snapshot.mNetOutRateMiB / snapshot.mNetEthRateMiB) : 0.0));
       weight *= ((netweight > 0) ? sqrt(netweight) : 0);
 
-      if (weight < 0.1) {
-        weight = 0.1;
+      if (weight < config_minimum_weight) {
+        weight = config_minimum_weight;
       }
 
-      if (netoutweight < 0.05) {
+      if (config_skip_overloaded && (netoutweight < 0.05)) {
         eos_static_notice("msg=\"skipping node: %s with overloaded eth-out\"",
 			snapshot.mHost.c_str());
 	fsit++;
@@ -464,6 +480,13 @@ Scheduler::FilePlacement (const char* path, //< path to place
 
     if (forced_scheduling_group_index >= 0)
     {
+      if (!config_exact_match && exact_match)
+      {
+	// retry this group without forcing an exact matching geo location to deal with group which are only in 
+	// one geo location
+	exact_match = 0;
+	continue;
+      }
       // in this case we leave, the requested one was tried and we finish here
       break;
     }
@@ -711,8 +734,8 @@ Scheduler::FileAccess (
             else
             {
               // this is a protection to get atleast something selected even if the weights are small
-              if (weight > 0.1)
-                weight = 0.1;
+              if (weight > config_minimum_weight)
+                weight = config_minimum_weight;
             }
           }
 
