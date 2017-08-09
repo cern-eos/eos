@@ -2320,9 +2320,9 @@ main(int argc, char* argv[])
       break;
 
     case XRD_ACCESS:
-      status = static_cast<eos::fst::FileIo*>(dst_handler[i].second)->fileClose();
+      retc = static_cast<eos::fst::FileIo*>(dst_handler[i].second)->fileClose();
 
-      if (!status.IsOK()) {
+      if (retc) {
         fprintf(stderr, "error: %s\n", status.ToStr().c_str());
         exit(-EIO);
       }
