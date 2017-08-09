@@ -82,15 +82,15 @@ Scheduler::FilePlacement (const char* path, //< path to place
 
   config_skip_overloaded = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("scheduler.skip.overloaded") == "on");
 
-  config_minimum_weight = strtof (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("scheduler.min.weight"));
+  config_minimum_weight = strtof (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("scheduler.min.weight").c_str(),0);
   if ( config_minimum_weight < 0.1)
   {
     config_minimum_weight = 0.1;
   }
 
-  if ( config_minimum_weigth > 1.0)
+  if ( config_minimum_weight > 1.0)
   {
-    config_minimum_weigth = 1.0;
+    config_minimum_weight = 1.0;
   }
 
   if (vid.geolocation.length())
@@ -734,8 +734,8 @@ Scheduler::FileAccess (
             else
             {
               // this is a protection to get atleast something selected even if the weights are small
-              if (weight > config_minimum_weight)
-                weight = config_minimum_weight;
+              if (weight > 0.1)
+                weight = 0.1;
             }
           }
 
