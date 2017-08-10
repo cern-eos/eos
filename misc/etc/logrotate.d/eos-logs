@@ -1,8 +1,8 @@
-/var/eos/tx/transfer-archive.log {
+/var/log/eos/tx/transfer-archive.log {
 	missingok
 	daily
 	copytruncate
-	create 755 root root
+	create 755 daemon daemon
 	dateext
 	rotate 200
 	compress

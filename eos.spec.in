@@ -244,6 +244,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %dir %attr(700,daemon,daemon) /var/eos/wfe
 %dir %attr(700,daemon,daemon) /var/eos/wfe/bash/
 %dir %attr(755,daemon,daemon) /var/log/eos
+%dir %attr(755,daemon,daemon) /var/log/eos/tx
 %attr(555,daemon,daemon) /var/eos/html/error.html
 %attr(555,daemon,daemon) /var/eos/wfe/bash/shell
 

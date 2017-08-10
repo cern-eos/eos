@@ -59,7 +59,7 @@ TransferFsDB::Init(const char* dbpath)
   XrdSysMutexHelper lock(Lock);
   XrdOucString dpath = dbpath;
   dpath += "/transfers.sql";
-  XrdOucString archivepath = dbpath;
+  XrdOucString archivepath = "/var/log/eos/tx";
   archivepath += "/transfer-archive.log";
 
   while (dpath.replace("//", "/")) {
