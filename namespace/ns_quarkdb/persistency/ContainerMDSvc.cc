@@ -125,7 +125,7 @@ ContainerMDSvc::createContainer()
 {
   try {
     // Get the first free container id
-    uint64_t free_id = mMetaMap.hincrby(constants::sLastUsedCid, 1);
+    uint64_t free_id = inodeProvider.reserve();
     std::shared_ptr<IContainerMD> cont{new ContainerMD(
         free_id, pFileSvc, static_cast<IContainerMDSvc*>(this))};
     return mContainerCache.put(cont->getId(), cont);
