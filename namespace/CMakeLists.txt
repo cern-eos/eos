@@ -22,10 +22,13 @@
 # ************************************************************************
 
 #-------------------------------------------------------------------------------
-# EosNsCommon library sources
+# EosNsCommon-Sources library
 #-------------------------------------------------------------------------------
-set(
-  EOS_NS_COMMON_SRCS
+include_directories(${CMAKE_SOURCE_DIR})
+
+add_library(
+  EosNsCommon-Sources STATIC
+
   MDException.hh
   Constants.cc
 
@@ -45,9 +48,13 @@ set(
   utils/TestHelpers.cc
   utils/Buffer.hh)
 
+set_target_properties(
+  EosNsCommon-Sources
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE True)
+
 add_library(
-  EosNsCommon SHARED
-  ${EOS_NS_COMMON_SRCS})
+  EosNsCommon SHARED)
 
 target_include_directories(
   EosNsCommon PUBLIC
@@ -57,6 +64,7 @@ target_include_directories(
 
 target_link_libraries(
   EosNsCommon PUBLIC
+  EosNsCommon-Sources
   ${Z_LIBRARY} fmt)
 
 set_target_properties(
@@ -75,8 +83,7 @@ install(
 #-------------------------------------------------------------------------------
 if (Linux)
   add_library(
-    EosNsCommon-Static STATIC
-    ${EOS_NS_COMMON_SRCS})
+    EosNsCommon-Static STATIC)
 
   target_include_directories(
     EosNsCommon-Static PUBLIC
@@ -86,6 +93,7 @@ if (Linux)
 
   target_link_libraries(
     EosNsCommon-Static PUBLIC
+    EosNsCommon-Sources
     ${Z_LIBRARY_STATIC} fmt)
 
   set_target_properties(
