@@ -1256,7 +1256,7 @@ EosAuthOfs::GetResponse(zmq::socket_t*& socket)
 
       if (!done) {
 	eos_err("ptr_socket=%p, num_retries=%i failed receive", socket,
-		num-retries);
+		num_retries);
       }
     } while (!done && (num_retries > 0));
   } catch (zmq::error_t& e) {
