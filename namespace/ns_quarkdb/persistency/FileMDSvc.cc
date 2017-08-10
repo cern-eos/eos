@@ -76,6 +76,8 @@ FileMDSvc::initialize()
   mMetaMap.setClient(*pQcl);
   mDirtyFidBackend.setKey(constants::sSetCheckFiles);
   mDirtyFidBackend.setClient(*pQcl);
+
+  inodeProvider.configure(mMetaMap, constants::sLastUsedFid);
 }
 
 //------------------------------------------------------------------------------
@@ -124,8 +126,7 @@ std::shared_ptr<IFileMD>
 FileMDSvc::createFile()
 {
   try {
-    // Get first available file id
-    uint64_t free_id = mMetaMap.hincrby(constants::sLastUsedFid, 1);
+    uint64_t free_id = inodeProvider.reserve();
     std::shared_ptr<IFileMD> file{new FileMD(free_id, this)};
     file = mFileCache.put(free_id, file);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
@@ -418,14 +419,7 @@ FileMDSvc::flushDirtySet(IFileMD::id_t id, bool force)
 IFileMD::id_t
 FileMDSvc::getFirstFreeId()
 {
-  id_t id = 0;
-  std::string sval = mMetaMap.hget(constants::sLastUsedFid);
-
-  if (!sval.empty()) {
-    id = std::stoull(sval);
-  }
-
-  return id + 1;
+  return inodeProvider.getFirstFreeId();
 }
 
 EOSNSNAMESPACE_END

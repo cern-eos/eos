@@ -25,6 +25,7 @@
 #define __EOS_NS_FILE_MD_SVC_HH__
 
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 
@@ -191,6 +192,7 @@ private:
   std::string pBkendHost; ///< Backend intance host
   qclient::QClient* pQcl; ///< QClient object
   qclient::QHash mMetaMap ; ///< Map holding metainfo about the namespace
+  NextInodeProvider inodeProvider; ///< Provides next free inode
   qclient::QSet mDirtyFidBackend; ///< Set of "dirty" files
   std::set<std::string> mFlushFidSet; ///< Modified fids which are consistent
   LRU<IFileMD::id_t, IFileMD> mFileCache; ///< Local cache of file objects

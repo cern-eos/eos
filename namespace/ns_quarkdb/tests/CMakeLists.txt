@@ -31,7 +31,9 @@ include_directories(
 #-------------------------------------------------------------------------------
 add_executable(
   test_metadata
-  MetadataTests.cc)
+  MetadataTests.cc
+  NextInodeProviderTest.cc
+)
 
 target_link_libraries(
   test_metadata

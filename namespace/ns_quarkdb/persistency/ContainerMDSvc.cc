@@ -73,6 +73,8 @@ ContainerMDSvc::initialize()
                    << "metadata service";
     throw e;
   }
+
+  inodeProvider.configure(mMetaMap, constants::sLastUsedCid);
 }
 
 //----------------------------------------------------------------------------
@@ -314,14 +316,7 @@ ContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
 IContainerMD::id_t
 ContainerMDSvc::getFirstFreeId()
 {
-  id_t id = 0;
-  std::string sval = mMetaMap.hget(constants::sLastUsedCid);
-
-  if (!sval.empty()) {
-    id = std::stoull(sval);
-  }
-
-  return id + 1;
+  return inodeProvider.getFirstFreeId();
 }
 
 EOSNSNAMESPACE_END

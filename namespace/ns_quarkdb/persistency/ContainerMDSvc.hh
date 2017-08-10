@@ -28,6 +28,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
+#include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include <list>
 #include <map>
@@ -174,6 +175,7 @@ private:
   IFileMDSvc* pFileSvc;      ///< File metadata service
   qclient::QClient* pQcl;    ///< QClient object
   qclient::QHash mMetaMap ;  ///< Map holding metainfo about the namespace
+  NextInodeProvider inodeProvider; ///< provides next free inode
   std::string pBkndHost;     ///< Backend host
   uint32_t pBkndPort;        ///< Backend port
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;

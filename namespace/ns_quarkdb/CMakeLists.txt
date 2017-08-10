@@ -63,10 +63,9 @@ set(EOS_NS_QDB_SRCS
   LRU.hh
 
   ${NS_PROTO_SRCS}       ${NS_PROTO_HDRS}
-  persistency/ContainerMDSvc.hh
-  persistency/ContainerMDSvc.cc
-  persistency/FileMDSvc.hh
-  persistency/FileMDSvc.cc
+  persistency/ContainerMDSvc.cc      persistency/ContainerMDSvc.hh
+  persistency/FileMDSvc.cc           persistency/FileMDSvc.hh
+  persistency/NextInodeProvider.cc   persistency/NextInodeProvider.hh
 
   views/HierarchicalView.cc          views/HierarchicalView.hh
   accounting/QuotaStats.cc           accounting/QuotaStats.hh
