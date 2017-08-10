@@ -1264,8 +1264,8 @@ EosAuthOfs::GetResponse(zmq::socket_t*& socket)
     reset_socket = true;
   }
 
-  // We waited 2 min for a response or a fatal error occurent - then we throw
-  //  away the socket and create a new one
+  // We time out while waiting for a response or a fatal error occurent -
+  // then we throw away the socket and create a new one
   if ((num_retries <= 0) || reset_socket) {
     eos_err("discard current socket and create a new one");
     delete socket;
