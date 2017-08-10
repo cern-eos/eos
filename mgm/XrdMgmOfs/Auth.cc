@@ -606,7 +606,7 @@ XrdMgmOfs::AuthWorkerThread()
     }
     else
     {
-      eos_debug("no such operation supported");
+      eos_err("no such operation supported");
       continue;
     }
 
