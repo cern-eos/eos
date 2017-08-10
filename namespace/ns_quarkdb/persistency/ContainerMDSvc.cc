@@ -321,7 +321,7 @@ ContainerMDSvc::getFirstFreeId()
     id = std::stoull(sval);
   }
 
-  return id;
+  return id + 1;
 }
 
 EOSNSNAMESPACE_END
