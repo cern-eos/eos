@@ -125,7 +125,7 @@ FileMDSvc::createFile()
 {
   try {
     // Get first available file id
-    uint64_t free_id = mMetaMap.hincrby(constants::sFirstFreeFid, 1);
+    uint64_t free_id = mMetaMap.hincrby(constants::sLastUsedFid, 1);
     std::shared_ptr<IFileMD> file{new FileMD(free_id, this)};
     file = mFileCache.put(free_id, file);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
@@ -419,7 +419,7 @@ IFileMD::id_t
 FileMDSvc::getFirstFreeId()
 {
   id_t id = 0;
-  std::string sval = mMetaMap.hget(constants::sFirstFreeFid);
+  std::string sval = mMetaMap.hget(constants::sLastUsedFid);
 
   if (!sval.empty()) {
     id = std::stoull(sval);

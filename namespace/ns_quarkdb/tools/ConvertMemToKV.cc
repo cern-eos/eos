@@ -1050,8 +1050,8 @@ main(int argc, char* argv[])
     // Save the first free file and container id in the meta_hmap - actually it is
     // the last id since we get the first free id by doing a hincrby operation
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
-    meta_map.hset(eos::constants::sFirstFreeFid, file_svc->getFirstFreeId() - 1);
-    meta_map.hset(eos::constants::sFirstFreeCid, cont_svc->getFirstFreeId() - 1);
+    meta_map.hset(eos::constants::sLastUsedFid, file_svc->getFirstFreeId() - 1);
+    meta_map.hset(eos::constants::sLastUsedCid, cont_svc->getFirstFreeId() - 1);
   } catch (std::runtime_error& e) {
     std::cerr << "Exception thrown: " << e.what() << std::endl;
     return 1;

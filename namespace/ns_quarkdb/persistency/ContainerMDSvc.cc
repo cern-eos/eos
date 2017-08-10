@@ -123,7 +123,7 @@ ContainerMDSvc::createContainer()
 {
   try {
     // Get the first free container id
-    uint64_t free_id = mMetaMap.hincrby(constants::sFirstFreeCid, 1);
+    uint64_t free_id = mMetaMap.hincrby(constants::sLastUsedCid, 1);
     std::shared_ptr<IContainerMD> cont{new ContainerMD(
         free_id, pFileSvc, static_cast<IContainerMDSvc*>(this))};
     return mContainerCache.put(cont->getId(), cont);
@@ -315,7 +315,7 @@ IContainerMD::id_t
 ContainerMDSvc::getFirstFreeId()
 {
   id_t id = 0;
-  std::string sval = mMetaMap.hget(constants::sFirstFreeCid);
+  std::string sval = mMetaMap.hget(constants::sLastUsedCid);
 
   if (!sval.empty()) {
     id = std::stoull(sval);
