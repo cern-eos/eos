@@ -22,6 +22,7 @@
 # ************************************************************************
 
 include_directories(
+ ${CMAKE_SOURCE_DIR}
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
@@ -52,11 +53,12 @@ set_source_files_properties(
 #-----------------------------------------------------------------------------
 add_subdirectory(qclient)
 
-#-----------------------------------------------------------------------------
-# EosNsQuarkdb library sources
-#-----------------------------------------------------------------------------
-set(EOS_NS_QDB_SRCS
-  NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh
+#-------------------------------------------------------------------------------
+# EosNsQuarkdb-Sources library
+#-------------------------------------------------------------------------------
+add_library(
+  EosNsQuarkdb-Sources STATIC
+
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
   BackendClient.cc       BackendClient.hh
@@ -71,21 +73,23 @@ set(EOS_NS_QDB_SRCS
   accounting/QuotaStats.cc           accounting/QuotaStats.hh
   accounting/FileSystemView.cc       accounting/FileSystemView.hh
   accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
-  accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
+  accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh)
 
-  ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
-  ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc
-  ${CMAKE_SOURCE_DIR}/common/RWMutex.cc)
+set_target_properties(
+  EosNsQuarkdb-Sources
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE True)
 
 #-------------------------------------------------------------------------------
 # EosNsQuarkdb library
 #-------------------------------------------------------------------------------
 add_library(
   EosNsQuarkdb MODULE
-  ${EOS_NS_QDB_SRCS})
+  NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
 target_link_libraries(
   EosNsQuarkdb
+  EosNsQuarkdb-Sources
   EosNsCommon
   eosCommon
   EosCrc32c-Static
@@ -103,10 +107,11 @@ target_link_libraries(
 if (Linux)
   add_library(
     EosNsQuarkdb-Static STATIC
-    ${EOS_NS_QDB_SRCS})
+    NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
   target_link_libraries(
     EosNsQuarkdb-Static
+    EosNsQuarkdb-Sources
     EosNsCommon-Static
     eosCommon-Static
     EosCrc32c-Static
