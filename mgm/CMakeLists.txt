@@ -42,9 +42,17 @@ if(BUILD_TESTS)
 endif()
 
 #-------------------------------------------------------------------------------
-# XrdEosMgm library
+# XrdEosMgm-Objects library
 #-------------------------------------------------------------------------------
-set(XRDEOSMGM_SRCS
+set(QDB_CLIENT "")
+if (HIREDIS_FOUND)
+  set(QDB_CLIENT ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
+endif()
+
+
+add_library(
+  XrdEosMgm-Objects OBJECT
+
   Access.cc
   IConfigEngine.cc
   FileConfigEngine.cc
@@ -135,13 +143,19 @@ set(XRDEOSMGM_SRCS
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc
   TableFormatter/TableFormatterBase.cc
-  TableFormatter/TableCell.cc)
+  TableFormatter/TableCell.cc
+  ${QDB_CLIENT})
 
-if (HIREDIS_FOUND)
-  list(APPEND XRDEOSMGM_SRCS ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
-endif()
+target_compile_definitions(
+  XrdEosMgm-Objects PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
 
-add_library(XrdEosMgm MODULE ${XRDEOSMGM_SRCS})
+add_library(XrdEosMgm MODULE $<TARGET_OBJECTS:XrdEosMgm-Objects> )
+
+set_target_properties(
+  XrdEosMgm-Objects
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
 # Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
@@ -232,7 +246,7 @@ target_link_libraries(
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------
 if(CPPUNIT_FOUND AND HIREDIS_FOUND AND Linux)
-  add_library(XrdEosMgm-Static STATIC ${XRDEOSMGM_SRCS})
+  add_library(XrdEosMgm-Static STATIC $<TARGET_OBJECTS:XrdEosMgm-Objects> )
 
   target_compile_definitions(
     XrdEosMgm-Static PUBLIC
