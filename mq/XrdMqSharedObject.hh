@@ -26,7 +26,6 @@
 
 #include "mq/XrdMqClient.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysSemWait.hh"
 #include "common/RWMutex.hh"
 #include "common/StringConversion.hh"
@@ -40,6 +39,7 @@
 #include <sys/types.h>
 #include <regex.h>
 #include "mgm/TableFormatter/TableCell.hh"
+#include <atomic>
 
 #define XRDMQSHAREDHASH_CMD       "mqsh.cmd"
 #define XRDMQSHAREDHASH_UPDATE    "mqsh.cmd=update"
@@ -181,9 +181,9 @@ class XrdMqSharedHash
 {
   friend class XrdMqSharedObjectManager;
 public:
-  static unsigned long long sSetCounter; ///< Counter for set operations
-  static unsigned long long sSetNLCounter; ///< Counter for set no-lock operations
-  static unsigned long long sGetCounter; ///< Counter for get operations
+  static std::atomic<unsigned long long> sSetCounter; ///< Counter for set operations
+  static std::atomic<unsigned long long> sSetNLCounter; ///< Counter for set no-lock operations
+  static std::atomic<unsigned long long> sGetCounter; ///< Counter for get operations
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -1107,7 +1107,7 @@ bool
 XrdMqSharedHash::Set(const char* key, T&& value, bool broadcast)
 {
   std::string svalue = eos::common::StringConversion::stringify(value);
-  AtomicInc(sSetCounter);
+  sSetCounter++;
 
   if (svalue.empty()) {
     fprintf(stderr, "Error: key=%s uses an empty value!\n", key);

@@ -1185,9 +1185,9 @@ Stat::Circulate()
     sleeper.Wait(512);
     // --------------------------------------------
     // mq statistics extraction
-    l1tmp = AtomicGet(XrdMqSharedHash::sSetCounter);
-    l2tmp = AtomicGet(XrdMqSharedHash::sSetNLCounter);
-    l3tmp = AtomicGet(XrdMqSharedHash::sGetCounter);
+    l1tmp = XrdMqSharedHash::sSetCounter.load();
+    l2tmp = XrdMqSharedHash::sSetNLCounter.load();
+    l3tmp = XrdMqSharedHash::sGetCounter.load();
 #ifdef EOS_INSTRUMENTED_RWMUTEX
     // fsview statistics extraction
     view1tmp = FsView::gFsView.ViewMutex.GetReadLockCounter();

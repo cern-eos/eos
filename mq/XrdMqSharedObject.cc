@@ -36,9 +36,9 @@ bool XrdMqSharedObjectManager::sDebug = 0;
 bool XrdMqSharedObjectManager::sBroadcast = true;
 
 // Static counters
-unsigned long long XrdMqSharedHash::sSetCounter = 0;
-unsigned long long XrdMqSharedHash::sSetNLCounter = 0;
-unsigned long long XrdMqSharedHash::sGetCounter = 0;
+std::atomic<unsigned long long> XrdMqSharedHash::sSetCounter {0};
+std::atomic<unsigned long long> XrdMqSharedHash::sSetNLCounter = {0};
+std::atomic<unsigned long long> XrdMqSharedHash::sGetCounter = {0};
 
 __thread XrdMqSharedObjectChangeNotifier::Subscriber*
 XrdMqSharedObjectChangeNotifier::tlSubscriber = NULL;
@@ -259,7 +259,7 @@ XrdMqSharedHash::GetAgeInSeconds(const char* key)
 std::string
 XrdMqSharedHash::Get(const std::string& key)
 {
-  AtomicInc(sGetCounter);
+  sGetCounter++;
   std::string value = "";
   XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
