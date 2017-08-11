@@ -34,74 +34,7 @@ add_library(
   EosConsoleTests SHARED
   ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
-  AclCommandTest.cc AclCommandTest.hh
-  HealthCommandTest.cc HealthCommandTest.hh
-  RegexUtilTest.cc RegexUtilTest.hh
-  ConsoleTableOutputTest.cc ConsoleTableOutputTest.hh
-  ${CMAKE_SOURCE_DIR}/console/ConsoleMain.cc
-  ${CMAKE_SOURCE_DIR}/console/ConsolePipe.cc
-  ${CMAKE_SOURCE_DIR}/console/RegexUtil.cc
-  ${CMAKE_SOURCE_DIR}/console/MgmExecute.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/AclCommand.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/HealthCommand.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_access.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_acl.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_archive.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_attr.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_backup.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_cd.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_chmod.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_chown.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_clear.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_config.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_console.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_cp.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_debug.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_dropbox.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_file.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_find.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_fs.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_fsck.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_fuse.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_geosched.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_health.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_group.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_info.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_io.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_kinetic.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_json.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_license.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_ln.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_ls.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_map.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_member.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_mkdir.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_motd.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_mv.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_node.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_ns.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_print.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_pwd.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_quit.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_quota.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_reconnect.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_recycle.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_rm.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_rmdir.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_role.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_rtlog.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_silent.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_space.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_stat.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_test.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_timing.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_touch.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_transfer.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_version.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_vid.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_vst.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_whoami.cc
-  ${CMAKE_SOURCE_DIR}/console/commands/com_who.cc)
+  $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
 target_link_libraries(
   EosConsoleTests

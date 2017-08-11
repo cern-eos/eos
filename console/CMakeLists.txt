@@ -37,16 +37,18 @@ endif()
 #-------------------------------------------------------------------------------
 # eos executable
 #-------------------------------------------------------------------------------
-add_executable(
-  eos
+add_library(
+  EosConsoleCommands-Objects OBJECT
+
   ConsoleMain.cc  ConsoleMain.hh
   ConsolePipe.cc  ConsolePipe.hh
-  ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
-  ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
-  commands/AclCommand.cc commands/AclCommand.hh
-  commands/HealthCommand.cc commands/HealthCommand.hh
+
   RegexUtil.cc RegexUtil.hh
   MgmExecute.cc MgmExecute.hh
+
+  commands/AclCommand.cc commands/AclCommand.hh
+  commands/HealthCommand.cc commands/HealthCommand.hh
+
   commands/com_access.cc
   commands/com_acl.cc
   commands/com_archive.cc
@@ -105,6 +107,21 @@ add_executable(
   commands/com_vst.cc
   commands/com_whoami.cc
   commands/com_who.cc)
+
+target_compile_definitions(
+  EosConsoleCommands-Objects PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+
+set_target_properties(
+  EosConsoleCommands-Objects
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+add_executable(
+  eos
+  ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
+  ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
+  $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated
