@@ -49,7 +49,6 @@ if (HIREDIS_FOUND)
   set(QDB_CLIENT ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 endif()
 
-
 add_library(
   XrdEosMgm-Objects OBJECT
 
@@ -145,6 +144,8 @@ add_library(
   TableFormatter/TableFormatterBase.cc
   TableFormatter/TableCell.cc
   ${QDB_CLIENT})
+
+add_dependencies(XrdEosMgm-Objects EosAuthProto)
 
 target_compile_definitions(
   XrdEosMgm-Objects PUBLIC
