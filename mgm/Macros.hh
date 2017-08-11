@@ -162,7 +162,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   }
 
 // -----------------------------------------------------------------------------
-//! ENONET Stall Macro
+//! ENETUNREACH Stall Macro
 // -----------------------------------------------------------------------------
 #define MAYSTALL_ENETUNREACH { if (gOFS->IsStall) {			\
       XrdOucString stallmsg="";						\
