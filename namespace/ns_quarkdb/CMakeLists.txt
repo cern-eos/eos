@@ -54,10 +54,10 @@ set_source_files_properties(
 add_subdirectory(qclient)
 
 #-------------------------------------------------------------------------------
-# EosNsQuarkdb-Sources library
+# EosNsQuarkdb-Objects library
 #-------------------------------------------------------------------------------
 add_library(
-  EosNsQuarkdb-Sources STATIC
+  EosNsQuarkdb-Objects OBJECT
 
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
@@ -76,7 +76,7 @@ add_library(
   accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh)
 
 set_target_properties(
-  EosNsQuarkdb-Sources
+  EosNsQuarkdb-Objects
   PROPERTIES
   POSITION_INDEPENDENT_CODE True)
 
@@ -85,11 +85,11 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 add_library(
   EosNsQuarkdb MODULE
+  $<TARGET_OBJECTS:EosNsQuarkdb-Objects>
   NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
 target_link_libraries(
   EosNsQuarkdb
-  EosNsQuarkdb-Sources
   EosNsCommon
   eosCommon
   EosCrc32c-Static
@@ -107,11 +107,11 @@ target_link_libraries(
 if (Linux)
   add_library(
     EosNsQuarkdb-Static STATIC
+    $<TARGET_OBJECTS:EosNsQuarkdb-Objects>
     NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
   target_link_libraries(
     EosNsQuarkdb-Static
-    EosNsQuarkdb-Sources
     EosNsCommon-Static
     eosCommon-Static
     EosCrc32c-Static

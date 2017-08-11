@@ -35,7 +35,7 @@ endif(CPPUNIT_FOUND)
 # EosNsInMemory-Sources library
 #-----------------------------------------------------------------------------
 add_library(
-  EosNsInMemory-Sources STATIC
+  EosNsInMemory-Objects OBJECT
 
   NsInMemoryPlugin.cc    NsInMemoryPlugin.hh
   FileMD.cc              FileMD.hh
@@ -62,22 +62,20 @@ add_library(
   ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
 target_compile_definitions(
-  EosNsInMemory-Sources PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+  EosNsInMemory-Objects PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 set_target_properties(
-  EosNsInMemory-Sources
+  EosNsInMemory-Objects
   PROPERTIES
   POSITION_INDEPENDENT_CODE True)
 
 #-------------------------------------------------------------------------------
 # EosNsInMemory library
 #-------------------------------------------------------------------------------
-add_library(
-  EosNsInMemory MODULE)
+add_library(EosNsInMemory MODULE $<TARGET_OBJECTS:EosNsInMemory-Objects>)
 
 target_link_libraries(
   EosNsInMemory
-  EosNsInMemory-Sources
   EosNsCommon
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
@@ -89,12 +87,10 @@ target_link_libraries(
 # EosNsInMemory-Static library
 #-------------------------------------------------------------------------------
 if (Linux)
-  add_library(
-    EosNsInMemory-Static STATIC)
+  add_library(EosNsInMemory-Static STATIC $<TARGET_OBJECTS:EosNsInMemory-Objects>)
 
   target_link_libraries(
     EosNsInMemory-Static PUBLIC
-    EosNsInMemory-Sources
     EosNsCommon-Static
     ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}

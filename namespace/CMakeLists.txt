@@ -27,7 +27,7 @@
 include_directories(${CMAKE_SOURCE_DIR})
 
 add_library(
-  EosNsCommon-Sources STATIC
+  EosNsCommon-Objects OBJECT
 
   MDException.hh
   Constants.cc
@@ -49,12 +49,11 @@ add_library(
   utils/Buffer.hh)
 
 set_target_properties(
-  EosNsCommon-Sources
+  EosNsCommon-Objects
   PROPERTIES
   POSITION_INDEPENDENT_CODE True)
 
-add_library(
-  EosNsCommon SHARED)
+add_library(EosNsCommon SHARED $<TARGET_OBJECTS:EosNsCommon-Objects> )
 
 target_include_directories(
   EosNsCommon PUBLIC
@@ -64,7 +63,6 @@ target_include_directories(
 
 target_link_libraries(
   EosNsCommon PUBLIC
-  EosNsCommon-Sources
   ${Z_LIBRARY} fmt)
 
 set_target_properties(
@@ -82,8 +80,7 @@ install(
 # EosNsCommon-Static library
 #-------------------------------------------------------------------------------
 if (Linux)
-  add_library(
-    EosNsCommon-Static STATIC)
+  add_library(EosNsCommon-Static STATIC $<TARGET_OBJECTS:EosNsCommon-Objects> )
 
   target_include_directories(
     EosNsCommon-Static PUBLIC
@@ -93,7 +90,6 @@ if (Linux)
 
   target_link_libraries(
     EosNsCommon-Static PUBLIC
-    EosNsCommon-Sources
     ${Z_LIBRARY_STATIC} fmt)
 
   set_target_properties(
