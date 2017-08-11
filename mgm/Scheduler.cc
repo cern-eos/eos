@@ -525,7 +525,9 @@ Scheduler::FilePlacement (const char* path, //< path to place
   }
 }
 
-/* ------------------------------------------------------------------------- */
+//------------------------------------------------------------------------------
+// Read(/write) access routine
+//------------------------------------------------------------------------------
 int
 Scheduler::FileAccess (
                        eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
@@ -541,19 +543,10 @@ Scheduler::FileAccess (
                        eos::common::FileSystem::fsstatus_t min_fsstatus //< defines minimum filesystem state to allow filesystem selection
                        )
 {
-  //! -------------------------------------------------------------
-  //! the read(/write) access routine
-  //! -------------------------------------------------------------
-
-
   // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
-
   int returnCode = 0;
 
-  // --------------------------------------------------------------------------------
-  // ! PLAIN Layout Scheduler
-  // --------------------------------------------------------------------------------
-
+  // PLAIN Layout Scheduler
   if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain)
   {
     // we have one or more replica's ... find the best place to schedule this IO
@@ -601,7 +594,7 @@ Scheduler::FileAccess (
           }
 
           // we are off the wire
-          return ENONET;
+          return ENETUNREACH;
         }
       }
       else
@@ -618,7 +611,7 @@ Scheduler::FileAccess (
         }
         else
         {
-          return ENONET;
+          return ENETUNREACH;
         }
       }
     }
@@ -665,7 +658,7 @@ Scheduler::FileAccess (
       if (!filesystem)
       {
         if (isRW)
-          return ENONET;
+          return ENETUNREACH;
         else
           continue;
       }
@@ -706,7 +699,7 @@ Scheduler::FileAccess (
           }
 
           // we are off the wire
-          return ENONET;
+          return ENETUNREACH;
         }
       }
       else
@@ -715,7 +708,8 @@ Scheduler::FileAccess (
             (snapshot.mConfigStatus >= min_fsstatus) &&
             (snapshot.mErrCode == 0) && // this we probably don't need 
             (snapshot.mActiveStatus) &&
-	    ( (!tried_cgi.length()) || ( tried_cgi.find(snapshot.mHost+",") == std::string::npos) )) // filesystem host is not in the tried list
+	    // filesystem host is not in the tried list
+	    ( (!tried_cgi.length()) || ( tried_cgi.find(snapshot.mHost+",") == std::string::npos) ))
         {
           availablefs.insert(snapshot.mId);
 
@@ -769,7 +763,9 @@ Scheduler::FileAccess (
             eos_static_info("msg=\"enforcing local replica access\" client=\"%s\"", vid.host.c_str());
           }
 
-          eos_static_debug("weight=%f netweight=%f renorm=%f disk-geotag=%s client-geotag=%s id=%d utilization=%f\n", weight, netweight, renorm, snapshot.mGeoTag.c_str(), vid.geolocation.c_str(), snapshot.mId, snapshot.mDiskUtilization);
+          eos_static_debug("weight=%f netweight=%f renorm=%f disk-geotag=%s client-geotag=%s id=%d utilization=%f\n",
+			   weight, netweight, renorm, snapshot.mGeoTag.c_str(), vid.geolocation.c_str(),
+			   snapshot.mId, snapshot.mDiskUtilization);
         }
         else
         {
@@ -788,7 +784,7 @@ Scheduler::FileAccess (
     // -----------------------------------------------------------------------
     if (availablefs.size() < eos::common::LayoutId::GetMinOnlineReplica(lid))
     {
-      return ENONET;
+      return ENETUNREACH;
     }
 
     if ((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
@@ -834,11 +830,11 @@ Scheduler::FileAccess (
         eos_static_crit("fatal inconsistency in scheduling - file system missing after selection of forced fsid");
         return EIO;
       }
-      return ENONET;
+
+      return ENETUNREACH;
     }
 
-    if (!renorm)
-    {
+    if (!renorm) {
       renorm = 1.0;
     }
 
@@ -847,7 +843,7 @@ Scheduler::FileAccess (
     // -----------------------------------------------------------------------
     if (!availablefs.size())
     {
-      return ENONET;
+      return ENETUNREACH;
     }
 
     // -----------------------------------------------------------------------
@@ -882,7 +878,8 @@ Scheduler::FileAccess (
     for (wit = availablefsweightsort.rbegin(); wit != availablefsweightsort.rend(); wit++)
     {
       float randomacceptor = (0.999999 * random() / RAND_MAX);
-      eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u exact-match=%d", randomacceptor, renorm, wit->first, wit->first / renorm, wit->second, exact_match);
+      eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u exact-match=%d",
+		       randomacceptor, renorm, wit->first, wit->first / renorm, wit->second, exact_match);
 
       if (exact_match || ((wit->first / renorm) > randomacceptor))
       {
