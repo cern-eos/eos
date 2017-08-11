@@ -203,6 +203,9 @@ set_target_properties(
   EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
+target_compile_definitions(
+EosFstIo-Objects PUBLIC -DHAVE_ATOMICS=1)
+
 add_library(EosFstIo SHARED $<TARGET_OBJECTS:EosFstIo-Objects>)
 
 target_link_libraries(
