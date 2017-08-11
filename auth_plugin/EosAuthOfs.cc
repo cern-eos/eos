@@ -1243,7 +1243,9 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
 google::protobuf::Message*
 EosAuthOfs::GetResponse(zmq::socket_t*& socket)
 {
-  int num_retries = 60; // 5 min = 60 * 5 sec
+  // It makes no sense to wait more than 1 min since the XRootD client will
+  // timeout by default after 60 seconds.
+  int num_retries = 12; // 1 min = 12 * 5 sec
   bool done = false;
   bool reset_socket = false;
   zmq::message_t reply;
