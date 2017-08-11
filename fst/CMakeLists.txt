@@ -158,10 +158,11 @@ set_target_properties(
 target_link_libraries(jerasure-static PRIVATE gf-complete-static)
 
 #-------------------------------------------------------------------------------
-# EosFstIo library
+# EosFstIo-Sources library
 #-------------------------------------------------------------------------------
-set(
-  EOSFSTIO_SRCS
+add_library(
+  EosFstIo-Sources STATIC
+
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS}
 
@@ -198,10 +199,15 @@ set(
   layout/RaidDpLayout.cc             layout/RaidDpLayout.hh
   layout/ReedSLayout.cc              layout/ReedSLayout.hh)
 
-add_library(EosFstIo SHARED ${EOSFSTIO_SRCS})
+set_target_properties(
+  EosFstIo-Sources PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+add_library(EosFstIo SHARED)
 
 target_link_libraries(
   EosFstIo PUBLIC
+  EosFstIo-Sources
   eosCommon
   EosPluginManager-Static
   EosCrc32c-Static
@@ -242,12 +248,11 @@ endif()
 # EosFstIo-Static library
 #-------------------------------------------------------------------------------
 add_library(
-  EosFstIo-Static STATIC
-  ${EOSFSTIO_SRCS}
-  io/FileIoPlugin.hh  io/FileIoPlugin.cc)
+  EosFstIo-Static STATIC)
 
 target_link_libraries(
   EosFstIo-Static PUBLIC
+  EosFstIo-Sources
   eosCommon-Static
   EosPluginManager-Static
   EosCrc32c-Static

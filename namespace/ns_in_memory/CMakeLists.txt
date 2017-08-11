@@ -32,9 +32,11 @@ if(CPPUNIT_FOUND)
 endif(CPPUNIT_FOUND)
 
 #-----------------------------------------------------------------------------
-# EosNsInMemory library sources
+# EosNsInMemory-Sources library
 #-----------------------------------------------------------------------------
-set(EOS_NS_MEMORY_SRCS
+add_library(
+  EosNsInMemory-Sources STATIC
+
   NsInMemoryPlugin.cc    NsInMemoryPlugin.hh
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
@@ -59,18 +61,23 @@ set(EOS_NS_MEMORY_SRCS
   ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
   ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
+target_compile_definitions(
+  EosNsInMemory-Sources PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+
+set_target_properties(
+  EosNsInMemory-Sources
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE True)
+
 #-------------------------------------------------------------------------------
 # EosNsInMemory library
 #-------------------------------------------------------------------------------
 add_library(
-  EosNsInMemory MODULE
-  ${EOS_NS_MEMORY_SRCS})
-
-target_compile_definitions(
-  EosNsInMemory PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+  EosNsInMemory MODULE)
 
 target_link_libraries(
   EosNsInMemory
+  EosNsInMemory-Sources
   EosNsCommon
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
@@ -83,16 +90,11 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 if (Linux)
   add_library(
-    EosNsInMemory-Static STATIC
-    ${EOS_NS_MEMORY_SRCS}
-    progs/EOSLogCompact.cc
-    progs/EOSLogRepair.cc)
-
-  target_compile_definitions(
-    EosNsInMemory-Static PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+    EosNsInMemory-Static STATIC)
 
   target_link_libraries(
     EosNsInMemory-Static PUBLIC
+    EosNsInMemory-Sources
     EosNsCommon-Static
     ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}
