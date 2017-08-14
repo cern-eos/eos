@@ -380,6 +380,7 @@ eos_publish_debian_artifacts:
     - docker-ubuntu
   dependencies:
     - eos_deb_ubuntu_artful
+  allow_failure: true
   only:
     - master
     - tags
