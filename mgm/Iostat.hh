@@ -25,6 +25,7 @@
 #define __EOSMGM_IOSTAT__HH__
 
 #include "mgm/Namespace.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "mq/XrdMqClient.hh"
 #include "common/Logging.hh"
 #include "common/FileId.hh"

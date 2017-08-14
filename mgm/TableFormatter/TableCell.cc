@@ -382,6 +382,11 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
     ostream << sColorVector[TableFormatterColor::DEFAULT];
   }
 
+  // Postfix "."
+  if (mFormat.find(".") != std::string::npos) {
+    ostream << ".";
+  }
+
   // Unit
   if (!mUnit.empty()) {
     if (mFormat.find("o") != std::string::npos) {
@@ -483,6 +488,11 @@ size_t TableCell::Length()
   // Prefix "±"
   if (mFormat.find("±") != std::string::npos) {
     ret += 2;
+  }
+
+  // Postfix "."
+  if (mFormat.find(".") != std::string::npos) {
+    ret += 1;
   }
 
   // Unit length

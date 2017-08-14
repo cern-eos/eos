@@ -487,8 +487,11 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
                  bool domain, bool apps, XrdOucString option)
 {
   Mutex.Lock();
+  std::string format_s = !monitoring ? "s" : "os";
+  std::string format_ss = !monitoring ? "-s" : "os";
+  std::string format_l = !monitoring ? "+l" : "ol";
+  std::string format_ll = !monitoring ? "l." : "ol";
   std::vector<std::string> tags;
-  std::vector<std::string>::iterator it;
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator
   tit;
 
@@ -497,487 +500,434 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
   }
 
   std::sort(tags.begin(), tags.end());
-  char outline[1024];
 
   if (summary) {
+    TableFormatterBase table;
+
     if (!monitoring) {
-      out += "# -----------------------------------------------------------------------------------------------------------\n";
-      sprintf(outline, "%-10s %-32s %-9s %8s %8s %8s %8s", "who", "io value", "sum",
-              "1min", "5min", "1h", "24h");
-      out += outline;
-      out += "\n";
-      out += "# -----------------------------------------------------------------------------------------------------------\n";
+      table.SetHeader({
+        std::make_tuple("who", 3, format_ss),
+        std::make_tuple("io value", 24, format_s),
+        std::make_tuple("sum", 8, format_l),
+        std::make_tuple("1min", 8, format_l),
+        std::make_tuple("5min", 8, format_l),
+        std::make_tuple("1h", 8, format_l),
+        std::make_tuple("24h", 8, format_l)
+      });
+    } else {
+      table.SetHeader({
+        std::make_tuple("uid", 0, format_ss),
+        std::make_tuple("gid", 0, format_s),
+        std::make_tuple("measurement", 0, format_s),
+        std::make_tuple("total", 0, format_l),
+        std::make_tuple("60s", 0, format_l),
+        std::make_tuple("300s", 0, format_l),
+        std::make_tuple("3600s", 0, format_l),
+        std::make_tuple("86400s", 0, format_l)
+      });
     }
 
-    for (it = tags.begin(); it != tags.end(); ++it) {
-      const char* tag = it->c_str();
-      char a60[1024];
-      char a300[1024];
-      char a3600[1024];
-      char a86400[1024];
-      snprintf(a60, 1023, "%3.02f", GetTotalAvg60(tag));
-      snprintf(a300, 1023, "%3.02f", GetTotalAvg300(tag));
-      snprintf(a3600, 1023, "%3.02f", GetTotalAvg3600(tag));
-      snprintf(a86400, 1023, "%3.02f", GetTotalAvg86400(tag));
+    for (auto it : tags) {
+      const char* tag = it.c_str();
+      TableData table_data;
+      table_data.emplace_back();
+      table_data.back().push_back(TableCell("all", format_ss));
 
-      if (!monitoring) {
-        XrdOucString sizestring;
-        XrdOucString sa1;
-        XrdOucString sa2;
-        XrdOucString sa3;
-        XrdOucString sa4;
-        sprintf(outline, "ALL        %-32s %10s %8s %8s %8s %8s\n", tag,
-                eos::common::StringConversion::GetReadableSizeString(sizestring, GetTotal(tag),
-                    ""), eos::common::StringConversion::GetReadableSizeString(sa1,
-                        GetTotalAvg60(tag), ""),
-                eos::common::StringConversion::GetReadableSizeString(sa2, GetTotalAvg300(tag),
-                    ""), eos::common::StringConversion::GetReadableSizeString(sa3,
-                        GetTotalAvg3600(tag), ""),
-                eos::common::StringConversion::GetReadableSizeString(sa4, GetTotalAvg86400(tag),
-                    ""));
-      } else {
-        sprintf(outline,
-                "uid=all gid=all measurement=%s total=%llu 60s=%s 300s=%s 3600s=%s 86400s=%s\n",
-                tag, GetTotal(tag), a60, a300, a3600, a86400);
+      if (monitoring) {
+        table_data.back().push_back(TableCell("all", format_s));
       }
 
-      out += outline;
+      table_data.back().push_back(TableCell(tag, format_s));
+      table_data.back().push_back(TableCell(GetTotal(tag), format_l));
+      table_data.back().push_back(TableCell(GetTotalAvg60(tag), format_l));
+      table_data.back().push_back(TableCell(GetTotalAvg300(tag), format_l));
+      table_data.back().push_back(TableCell(GetTotalAvg3600(tag), format_l));
+      table_data.back().push_back(TableCell(GetTotalAvg86400(tag), format_l));
+      table.AddRows(table_data);
     }
 
+    out += table.GenerateTable(HEADER).c_str();
+    //! UDP Popularity Broadcast Target
     {
       XrdSysMutexHelper mLock(BroadcastMutex);
-      std::set<std::string>::const_iterator it;
 
       if (mUdpPopularityTarget.size()) {
+        TableFormatterBase table_udp;
+
         if (!monitoring) {
-          out += "# -----------------------------------------------------------------------------------------------------------\n";
-          out += "# UDP Popularity Broadcast Target\n";
+          table_udp.SetHeader({
+            std::make_tuple("UDP Popularity Broadcast Target", 32, format_ss)
+          });
+        } else {
+          table_udp.SetHeader({ std::make_tuple("udptarget", 0, format_ss) });
         }
 
-        for (it = mUdpPopularityTarget.begin(); it != mUdpPopularityTarget.end();
-             it++) {
-          if (!monitoring) {
-            out += it->c_str();
-            out += "\n";
-          } else {
-            out += "udptarget=";
-            out += it->c_str();
-            out += "\n";
-          }
+        for (auto it : mUdpPopularityTarget) {
+          TableData table_data;
+          table_data.emplace_back();
+          table_data.back().push_back(TableCell(it.c_str(), format_ss));
+          table_udp.AddRows(table_data);
         }
+
+        out += table_udp.GenerateTable(HEADER).c_str();
       }
     }
   }
 
   if (details) {
-    if (!monitoring) {
-      out += "# -----------------------------------------------------------------------------------------------------------\n";
-    }
-
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg > >::iterator
     tuit;
     google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, IostatAvg > >::iterator
     tgit;
-    std::vector <std::string> uidout;
-    std::vector <std::string> gidout;
+    std::vector<std::tuple<std::string, std::string, unsigned long long,
+        double, double, double, double>> uidout, gidout;
+    //! User statistic
+    TableFormatterBase table_user;
+
+    if (!monitoring) {
+      table_user.SetHeader({
+        std::make_tuple("user", 4, format_ss),
+        std::make_tuple("io value", 24, format_s),
+        std::make_tuple("sum", 8, format_l),
+        std::make_tuple("1min", 8, format_l),
+        std::make_tuple("5min", 8, format_l),
+        std::make_tuple("1h", 8, format_l),
+        std::make_tuple("24h", 8, format_l)
+      });
+    } else {
+      table_user.SetHeader({
+        std::make_tuple("uid", 0, format_ss),
+        std::make_tuple("measurement", 0, format_s),
+        std::make_tuple("total", 0, format_l),
+        std::make_tuple("60s", 0, format_l),
+        std::make_tuple("300s", 0, format_l),
+        std::make_tuple("3600s", 0, format_l),
+        std::make_tuple("86400s", 0, format_l)
+      });
+    }
 
     for (tuit = IostatAvgUid.begin(); tuit != IostatAvgUid.end(); tuit++) {
       google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
 
       for (it = tuit->second.begin(); it != tuit->second.end(); ++it) {
-        char a60[1024];
-        char a300[1024];
-        char a3600[1024];
-        char a86400[1024];
-        snprintf(a60, 1023, "%3.02f", it->second.GetAvg60());
-        snprintf(a300, 1023, "%3.02f", it->second.GetAvg300());
-        snprintf(a3600, 1023, "%3.02f", it->second.GetAvg3600());
-        snprintf(a86400, 1023, "%3.02f", it->second.GetAvg86400());
-        char identifier[1024];
+        std::string username;
 
         if (numerical) {
-          snprintf(identifier, 1023, "uid=%d", it->first);
+          username = std::to_string(it->first);
         } else {
           int terrc = 0;
-          std::string username = eos::common::Mapping::UidToUserName(it->first, terrc);
-
-          if (monitoring) {
-            snprintf(identifier, 1023, "uid=%s", username.c_str());
-          } else {
-            snprintf(identifier, 1023, "%s", username.c_str());
-          }
+          username = eos::common::Mapping::UidToUserName(it->first, terrc);
         }
 
-        if (!monitoring) {
-          XrdOucString sizestring;
-          XrdOucString sa1;
-          XrdOucString sa2;
-          XrdOucString sa3;
-          XrdOucString sa4;
-          sprintf(outline, "%-10s  %-32s %8s %8s %8s %8s %8s\n", identifier,
-                  tuit->first.c_str(), eos::common::StringConversion::GetReadableSizeString(
-                    sizestring, IostatUid[tuit->first.c_str()][it->first], ""),
-                  eos::common::StringConversion::GetReadableSizeString(sa1, it->second.GetAvg60(),
-                      ""), eos::common::StringConversion::GetReadableSizeString(sa2,
-                          it->second.GetAvg300(), ""),
-                  eos::common::StringConversion::GetReadableSizeString(sa3,
-                      it->second.GetAvg3600(), ""),
-                  eos::common::StringConversion::GetReadableSizeString(sa4,
-                      it->second.GetAvg86400(), ""));
-        } else {
-          sprintf(outline,
-                  "%s gid=all measurement=%s total=%llu 60s=%s 300s=%s 3600s=%s 86400s=%s\n",
-                  identifier, tuit->first.c_str(), IostatUid[tuit->first.c_str()][it->first], a60,
-                  a300, a3600, a86400);
-        }
-
-        uidout.push_back(outline);
+        uidout.push_back(std::make_tuple(username,
+                                         tuit->first.c_str(), IostatUid[tuit->first.c_str()][it->first],
+                                         it->second.GetAvg60(), it->second.GetAvg300(),
+                                         it->second.GetAvg3600(), it->second.GetAvg86400()));
       }
     }
 
     std::sort(uidout.begin(), uidout.end());
-    std::vector<std::string>::iterator sit;
 
-    for (sit = uidout.begin(); sit != uidout.end(); sit++) {
-      out += sit->c_str();
+    for (auto it : uidout) {
+      TableData table_data;
+      table_data.emplace_back();
+      table_data.back().push_back(TableCell(std::get<0>(it), format_ss));
+      table_data.back().push_back(TableCell(std::get<1>(it), format_s));
+      table_data.back().push_back(TableCell(std::get<2>(it), format_l));
+      table_data.back().push_back(TableCell(std::get<3>(it), format_l));
+      table_data.back().push_back(TableCell(std::get<4>(it), format_l));
+      table_data.back().push_back(TableCell(std::get<5>(it), format_l));
+      table_data.back().push_back(TableCell(std::get<6>(it), format_l));
+      table_user.AddRows(table_data);
     }
 
-    if (!monitoring) {
-      out += "# --------------------------------------------------------------------------------------\n";
-    }
+    out += table_user.GenerateTable(HEADER).c_str();
+    //! Group statistic
+    TableFormatterBase table_group;
 
     if (!monitoring) {
-      out += "# --------------------------------------------------------------------------------------\n";
+      table_group.SetHeader({
+        std::make_tuple("group", 5, format_ss),
+        std::make_tuple("io value", 24, format_s),
+        std::make_tuple("sum", 8, format_l),
+        std::make_tuple("1min", 8, format_l),
+        std::make_tuple("5min", 8, format_l),
+        std::make_tuple("1h", 8, format_l),
+        std::make_tuple("24h", 8, format_l)
+      });
+    } else {
+      table_group.SetHeader({
+        std::make_tuple("gid", 0, format_ss),
+        std::make_tuple("measurement", 0, format_s),
+        std::make_tuple("total", 0, format_l),
+        std::make_tuple("60s", 0, format_l),
+        std::make_tuple("300s", 0, format_l),
+        std::make_tuple("3600s", 0, format_l),
+        std::make_tuple("86400s", 0, format_l)
+      });
     }
 
     for (tgit = IostatAvgGid.begin(); tgit != IostatAvgGid.end(); tgit++) {
       google::sparse_hash_map<gid_t, IostatAvg>::iterator it;
 
       for (it = tgit->second.begin(); it != tgit->second.end(); ++it) {
-        char a60[1024];
-        char a300[1024];
-        char a3600[1024];
-        char a86400[1024];
-        snprintf(a60, 1023, "%3.02f", it->second.GetAvg60());
-        snprintf(a300, 1023, "%3.02f", it->second.GetAvg300());
-        snprintf(a3600, 1023, "%3.02f", it->second.GetAvg3600());
-        snprintf(a86400, 1023, "%3.02f", it->second.GetAvg86400());
-        char identifier[1024];
+        std::string groupname;
 
         if (numerical) {
-          snprintf(identifier, 1023, "gid=%d", it->first);
+          groupname = std::to_string(it->first);
         } else {
           int terrc = 0;
-          std::string groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
-
-          if (monitoring) {
-            snprintf(identifier, 1023, "gid=%s", groupname.c_str());
-          } else {
-            snprintf(identifier, 1023, "%s", groupname.c_str());
-          }
+          groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
         }
 
-        if (!monitoring) {
-          XrdOucString sizestring;
-          XrdOucString sa1;
-          XrdOucString sa2;
-          XrdOucString sa3;
-          XrdOucString sa4;
-          sprintf(outline, "%-10s  %-32s %8s %8s %8s %8s %8s\n", identifier,
-                  tgit->first.c_str(), eos::common::StringConversion::GetReadableSizeString(
-                    sizestring, IostatGid[tgit->first.c_str()][it->first], ""),
-                  eos::common::StringConversion::GetReadableSizeString(sa1, it->second.GetAvg60(),
-                      ""), eos::common::StringConversion::GetReadableSizeString(sa2,
-                          it->second.GetAvg300(), ""),
-                  eos::common::StringConversion::GetReadableSizeString(sa3,
-                      it->second.GetAvg3600(), ""),
-                  eos::common::StringConversion::GetReadableSizeString(sa4,
-                      it->second.GetAvg86400(), ""));
-        } else {
-          sprintf(outline,
-                  "%s gid=all measurement=%s total=%llu 60s=%s 300s=%s 3600s=%s 86400s=%s\n",
-                  identifier, tgit->first.c_str(), IostatGid[tgit->first.c_str()][it->first], a60,
-                  a300, a3600, a86400);
-        }
-
-        gidout.push_back(outline);
+        gidout.push_back(std::make_tuple(groupname,
+                                         tgit->first.c_str(), IostatGid[tgit->first.c_str()][it->first],
+                                         it->second.GetAvg60(), it->second.GetAvg300(),
+                                         it->second.GetAvg3600(), it->second.GetAvg86400()));
       }
     }
 
     std::sort(gidout.begin(), gidout.end());
 
-    for (sit = gidout.begin(); sit != gidout.end(); sit++) {
-      out += sit->c_str();
+    for (auto it : gidout) {
+      TableData table_data;
+      table_data.emplace_back();
+      table_data.back().push_back(TableCell(std::get<0>(it), format_ss));
+      table_data.back().push_back(TableCell(std::get<1>(it), format_s));
+      table_data.back().push_back(TableCell(std::get<2>(it), format_l));
+      table_data.back().push_back(TableCell(std::get<3>(it), format_l));
+      table_data.back().push_back(TableCell(std::get<4>(it), format_l));
+      table_data.back().push_back(TableCell(std::get<5>(it), format_l));
+      table_data.back().push_back(TableCell(std::get<6>(it), format_l));
+      table_group.AddRows(table_data);
     }
 
-    if (!monitoring) {
-      out += "# --------------------------------------------------------------------------------------\n";
-    }
+    out += table_group.GenerateTable(HEADER).c_str();
   }
 
   if (top) {
+    TableFormatterBase table;
+
+    if (!monitoring) {
+      table.SetHeader({
+        std::make_tuple("io value", 18, format_ss),
+        std::make_tuple("ranking by", 10, format_s),
+        std::make_tuple("rank", 8, format_ll),
+        std::make_tuple("who", 4, format_s),
+        std::make_tuple("sum", 8, format_l)
+      });
+    } else {
+      table.SetHeader({
+        std::make_tuple("measurement", 0, format_ss),
+        std::make_tuple("rank", 0, format_ll),
+        std::make_tuple("uid", 0, format_s),
+        std::make_tuple("gid", 0, format_s),
+        std::make_tuple("counter", 0, format_l)
+      });
+    }
+
+    std::vector<std::string>::iterator it;
+
     for (it = tags.begin(); it != tags.end(); ++it) {
-      if (!monitoring) {
-        out += "# --------------------------------------------------------------------------------------\n";
-        out += "# top IO list by user name: ";
-        out += it->c_str();
-        out += "\n";
-        out += "# --------------------------------------------------------------------------------------\n";
-      }
+      std::vector <std::tuple<unsigned long long, uid_t>> uidout, gidout;
+      table.AddSeparator();
 
-      std::vector <std::string> uidout;
-      std::vector <std::string> gidout;
-      std::vector<std::string>::reverse_iterator sit;
-      google::sparse_hash_map<uid_t, unsigned long long>::iterator tuit;
-
-      for (tuit = IostatUid[*it].begin(); tuit != IostatUid[*it].end(); tuit++) {
-        sprintf(outline, "%020llu|%u\n", tuit->second, tuit->first);
-        uidout.push_back(outline);
+      // by uid name
+      for (auto sit : IostatUid[*it]) {
+        uidout.push_back(std::make_tuple(sit.second, sit.first));
       }
 
       std::sort(uidout.begin(), uidout.end());
+      std::reverse(uidout.begin(), uidout.end());
       int topplace = 0;
 
-      for (sit = uidout.rbegin(); sit != uidout.rend(); sit++) {
+      for (auto sit : uidout) {
         topplace++;
-        std::string counter = sit->c_str();
-        std::string suid = sit->c_str();
-        XrdOucString stopplace = "";
-        XrdOucString sizestring = "";
-        stopplace += (int) topplace;
-        counter.erase(sit->find("|"));
-        suid.erase(0, sit->find("|") + 1);
-        uid_t uid = atoi(suid.c_str());
-        char identifier[1024];
+        uid_t uid = std::get<1>(sit);
+        unsigned long long counter = std::get<0>(sit);
+        std::string username;
 
         if (numerical) {
-          if (!monitoring) {
-            snprintf(identifier, 1023, "uid=%d", uid);
-          } else {
-            snprintf(identifier, 1023, "%d", uid);
-          }
+          username = std::to_string(uid);
         } else {
           int terrc = 0;
-          std::string username = eos::common::Mapping::UidToUserName(uid, terrc);
-          snprintf(identifier, 1023, "%s", username.c_str());
+          username = eos::common::Mapping::UidToUserName(uid, terrc);
         }
+
+        TableData table_data;
+        table_data.emplace_back();
+        table_data.back().push_back(TableCell(it->c_str(), format_ss));
 
         if (!monitoring) {
-          sprintf(outline, "[ %-16s ] %4s. %-10s %s\n", it->c_str(), stopplace.c_str(),
-                  identifier, eos::common::StringConversion::GetReadableSizeString(sizestring,
-                      strtoull(counter.c_str(), 0, 10), ""));
-        } else {
-          sprintf(outline, "measurement=%s rank=%d uid=%s counter=%s\n", it->c_str(),
-                  topplace, identifier, counter.c_str());
+          table_data.back().push_back(TableCell("user", format_s));
         }
 
-        out += outline;
+        table_data.back().push_back(TableCell(topplace, format_ll));
+        table_data.back().push_back(TableCell(username, format_s));
+
+        if (monitoring) {
+          table_data.back().push_back(TableCell("", "", "", true));
+        }
+
+        table_data.back().push_back(TableCell(counter, format_l));
+        table.AddRows(table_data);
       }
 
       // by gid name
-
-      if (!monitoring) {
-        out += "# --------------------------------------------------------------------------------------\n";
-        out += "# top IO list by group name: ";
-        out += it->c_str();
-        out += "\n";
-        out += "# --------------------------------------------------------------------------------------\n";
-      }
-
-      google::sparse_hash_map<gid_t, unsigned long long>::iterator tgit;
-
-      for (tgit = IostatGid[*it].begin(); tgit != IostatGid[*it].end(); tgit++) {
-        sprintf(outline, "%020llu|%u\n", tgit->second, tgit->first);
-        gidout.push_back(outline);
+      for (auto sit : IostatGid[*it]) {
+        gidout.push_back(std::make_tuple(sit.second, sit.first));
       }
 
       std::sort(gidout.begin(), gidout.end());
+      std::reverse(gidout.begin(), gidout.end());
       topplace = 0;
 
-      for (sit = gidout.rbegin(); sit != gidout.rend(); sit++) {
+      for (auto sit : gidout) {
         topplace++;
-        std::string counter = sit->c_str();
-        std::string suid = sit->c_str();
-        XrdOucString stopplace = "";
-        XrdOucString sizestring = "";
-        stopplace += (int) topplace;
-        counter.erase(sit->find("|"));
-        suid.erase(0, sit->find("|") + 1);
-        uid_t uid = atoi(suid.c_str());
-        char identifier[1024];
+        uid_t gid = std::get<1>(sit);
+        unsigned long long counter = std::get<0>(sit);
+        std::string groupname;
 
         if (numerical) {
-          if (!monitoring) {
-            snprintf(identifier, 1023, "gid=%d", uid);
-          } else {
-            snprintf(identifier, 1023, "%d", uid);
-          }
+          groupname = std::to_string(gid);
         } else {
           int terrc = 0;
-          std::string groupname = eos::common::Mapping::GidToGroupName(uid, terrc);
-          snprintf(identifier, 1023, "%s", groupname.c_str());
+          groupname = eos::common::Mapping::GidToGroupName(gid, terrc);
         }
+
+        TableData table_data;
+        table_data.emplace_back();
+        table_data.back().push_back(TableCell(it->c_str(), format_ss));
 
         if (!monitoring) {
-          sprintf(outline, "[ %-16s ] %4s. %-10s %s\n", it->c_str(), stopplace.c_str(),
-                  identifier, eos::common::StringConversion::GetReadableSizeString(sizestring,
-                      strtoull(counter.c_str(), 0, 10), ""));
-        } else {
-          sprintf(outline, "measurement=%s rank=%d gid=%s counter=%s\n", it->c_str(),
-                  topplace, identifier, counter.c_str());
+          table_data.back().push_back(TableCell("group", format_s));
         }
 
-        out += outline;
+        table_data.back().push_back(TableCell(topplace, format_ll));
+
+        if (monitoring) {
+          table_data.back().push_back(TableCell("", "", "", true));
+        }
+
+        table_data.back().push_back(TableCell(groupname, format_s));
+        table_data.back().push_back(TableCell(counter, format_l));
+        table.AddRows(table_data);
       }
     }
+
+    out += table.GenerateTable(HEADER).c_str();
   }
 
   if (domain) {
-    XrdOucString sizestring;
-    XrdOucString sa1;
-    XrdOucString sa2;
-    XrdOucString sa3;
-    XrdOucString sa4;
+    TableFormatterBase table;
 
     if (!monitoring) {
-      out += "# --------------------------------------------------------------------------------------\n";
-      out += "# IO by domain/node name: \n";
-      out += "# --------------------------------------------------------------------------------------\n";
-      sprintf(outline, "%-10s %-32s %9s %8s %8s %8s %8s\n", "io", "domain", "",
-              "1min", "5min", "1h", "24h");
-      out += outline;
-      out += "# --------------------------------------------------------------------------------------\n";
+      table.SetHeader({
+        std::make_tuple("io", 3, format_ss),
+        std::make_tuple("domain", 24, format_s),
+        std::make_tuple("1min", 8, format_l),
+        std::make_tuple("5min", 8, format_l),
+        std::make_tuple("1h", 8, format_l),
+        std::make_tuple("24h", 8, format_l)
+      });
+    } else {
+      table.SetHeader({
+        std::make_tuple("measurement", 0, format_ss),
+        std::make_tuple("domain", 0, format_s),
+        std::make_tuple("60s", 0, format_l),
+        std::make_tuple("300s", 0, format_l),
+        std::make_tuple("3600s", 0, format_l),
+        std::make_tuple("86400s", 0, format_l)
+      });
     }
 
     // IO out bytes
     google::sparse_hash_map<std::string, IostatAvg>::iterator it;
 
     for (it = IostatAvgDomainIOrb.begin(); it != IostatAvgDomainIOrb.end(); it++) {
-      if (!monitoring) {
-        sprintf(outline, "%-10s %-32s %9s %8s %8s %8s %8s\n", "OUT", it->first.c_str(),
-                ""
-                , eos::common::StringConversion::GetReadableSizeString(sa1,
-                    (unsigned long long) it->second.GetAvg60(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa2,
-                    (unsigned long long) it->second.GetAvg300(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa3,
-                    (unsigned long long) it->second.GetAvg3600(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa4,
-                    (unsigned long long) it->second.GetAvg86400(), ""));
-      } else {
-        sprintf(outline,
-                "measurement=%s domain=\"%s\" 60s=%llu 300s=%llu 3600s=%llu 86400s=%llu\n",
-                "domain_io_out", it->first.c_str(), (unsigned long long) it->second.GetAvg60(),
-                (unsigned long long) it->second.GetAvg300(),
-                (unsigned long long) it->second.GetAvg3600(),
-                (unsigned long long) it->second.GetAvg86400());
-      }
-
-      out += outline;
-    }
-
-    if (!monitoring) {
-      out += "\n";
+      TableData table_data;
+      table_data.emplace_back();
+      std::string name = !monitoring ? "out" : "domain_io_out";
+      table_data.back().push_back(TableCell(name, format_ss));
+      table_data.back().push_back(TableCell(it->first.c_str(), format_s));
+      table_data.back().push_back(TableCell(it->second.GetAvg60(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg300(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg3600(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg86400(), format_l));
+      table.AddRows(table_data);
     }
 
     // IO in bytes
     for (it = IostatAvgDomainIOwb.begin(); it != IostatAvgDomainIOwb.end(); it++) {
-      if (!monitoring) {
-        sprintf(outline, "%-10s %-32s %9s %8s %8s %8s %8s\n", "IN", it->first.c_str(),
-                ""
-                , eos::common::StringConversion::GetReadableSizeString(sa1,
-                    (unsigned long long) it->second.GetAvg60(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa2,
-                    (unsigned long long) it->second.GetAvg300(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa3,
-                    (unsigned long long) it->second.GetAvg3600(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa4,
-                    (unsigned long long) it->second.GetAvg86400(), ""));
-      } else {
-        sprintf(outline,
-                "measurement=%s domain=\"%s\" 60s=%llu 300s=%llu 3600s=%llu 86400s=%llu\n",
-                "domain_io_in", it->first.c_str(), (unsigned long long) it->second.GetAvg60(),
-                (unsigned long long) it->second.GetAvg300(),
-                (unsigned long long) it->second.GetAvg3600(),
-                (unsigned long long) it->second.GetAvg86400());
-      }
-
-      out += outline;
+      TableData table_data;
+      table_data.emplace_back();
+      std::string name = !monitoring ? "in" : "domain_io_in";
+      table_data.back().push_back(TableCell(name, format_ss));
+      table_data.back().push_back(TableCell(it->first.c_str(), format_s));
+      table_data.back().push_back(TableCell(it->second.GetAvg60(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg300(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg3600(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg86400(), format_l));
+      table.AddRows(table_data);
     }
+
+    out += table.GenerateTable(HEADER).c_str();
   }
 
   if (apps) {
-    XrdOucString sizestring;
-    XrdOucString sa1;
-    XrdOucString sa2;
-    XrdOucString sa3;
-    XrdOucString sa4;
+    TableFormatterBase table;
 
     if (!monitoring) {
-      out += "# --------------------------------------------------------------------------------------\n";
-      out += "# IO by application name: \n";
-      out += "# --------------------------------------------------------------------------------------\n";
-      sprintf(outline, "%-10s %-32s %9s %8s %8s %8s %8s\n", "io", "application", "",
-              "1min", "5min", "1h", "24h");
-      out += outline;
-      out += "# --------------------------------------------------------------------------------------\n";
+      table.SetHeader({
+        std::make_tuple("io", 3, format_ss),
+        std::make_tuple("application", 24, format_s),
+        std::make_tuple("1min", 8, format_l),
+        std::make_tuple("5min", 8, format_l),
+        std::make_tuple("1h", 8, format_l),
+        std::make_tuple("24h", 8, format_l)
+      });
+    } else {
+      table.SetHeader({
+        std::make_tuple("measurement", 0, format_ss),
+        std::make_tuple("application", 0, format_s),
+        std::make_tuple("60s", 0, format_l),
+        std::make_tuple("300s", 0, format_l),
+        std::make_tuple("3600s", 0, format_l),
+        std::make_tuple("86400s", 0, format_l)
+      });
     }
 
     // IO out bytes
     google::sparse_hash_map<std::string, IostatAvg>::iterator it;
 
     for (it = IostatAvgAppIOrb.begin(); it != IostatAvgAppIOrb.end(); it++) {
-      if (!monitoring) {
-        sprintf(outline, "%-10s %-32s %9s %8s %8s %8s %8s\n", "OUT", it->first.c_str(),
-                ""
-                , eos::common::StringConversion::GetReadableSizeString(sa1,
-                    (unsigned long long) it->second.GetAvg60(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa2,
-                    (unsigned long long) it->second.GetAvg300(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa3,
-                    (unsigned long long) it->second.GetAvg3600(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa4,
-                    (unsigned long long) it->second.GetAvg86400(), ""));
-      } else {
-        sprintf(outline,
-                "measurement=%s app=\"%s\" 60s=%llu 300s=%llu 3600s=%llu 86400s=%llu\n",
-                "app_io_out", it->first.c_str(), (unsigned long long) it->second.GetAvg60(),
-                (unsigned long long) it->second.GetAvg300(),
-                (unsigned long long) it->second.GetAvg3600(),
-                (unsigned long long) it->second.GetAvg86400());
-      }
-
-      out += outline;
-    }
-
-    if (!monitoring) {
-      out += "\n";
+      TableData table_data;
+      table_data.emplace_back();
+      std::string name = !monitoring ? "out" : "app_io_out";
+      table_data.back().push_back(TableCell(name, format_ss));
+      table_data.back().push_back(TableCell(it->first.c_str(), format_s));
+      table_data.back().push_back(TableCell(it->second.GetAvg60(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg300(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg3600(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg86400(), format_l));
+      table.AddRows(table_data);
     }
 
     // IO in bytes
     for (it = IostatAvgAppIOwb.begin(); it != IostatAvgAppIOwb.end(); it++) {
-      if (!monitoring) {
-        sprintf(outline, "%-10s %-32s %9s %8s %8s %8s %8s\n", "IN", it->first.c_str(),
-                ""
-                , eos::common::StringConversion::GetReadableSizeString(sa1,
-                    (unsigned long long) it->second.GetAvg60(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa2,
-                    (unsigned long long) it->second.GetAvg300(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa3,
-                    (unsigned long long) it->second.GetAvg3600(), "")
-                , eos::common::StringConversion::GetReadableSizeString(sa4,
-                    (unsigned long long) it->second.GetAvg86400(), ""));
-      } else {
-        sprintf(outline,
-                "measurement=%s app=\"%s\" 60s=%llu 300s=%llu 3600s=%llu 86400s=%llu\n",
-                "app_io_in", it->first.c_str(), (unsigned long long) it->second.GetAvg60(),
-                (unsigned long long) it->second.GetAvg300(),
-                (unsigned long long) it->second.GetAvg3600(),
-                (unsigned long long) it->second.GetAvg86400());
-      }
-
-      out += outline;
+      TableData table_data;
+      table_data.emplace_back();
+      std::string name = !monitoring ? "in" : "app_io_in";
+      table_data.back().push_back(TableCell(name, format_ss));
+      table_data.back().push_back(TableCell(it->first.c_str(), format_s));
+      table_data.back().push_back(TableCell(it->second.GetAvg60(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg300(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg3600(), format_l));
+      table_data.back().push_back(TableCell(it->second.GetAvg86400(), format_l));
+      table.AddRows(table_data);
     }
+
+    out += table.GenerateTable(HEADER).c_str();
   }
 
   Mutex.UnLock();
@@ -1040,6 +990,14 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
     hotfiles = true;
   }
 
+  std::string format_s = !monitoring ? "s" : "os";
+  std::string format_ss = !monitoring ? "-s" : "os";
+  std::string format_l = !monitoring ? "l" : "ol";
+  std::string format_ll = !monitoring ? "-l." : "ol";
+  std::string format_lll = !monitoring ? "+l" : "ol";
+  std::string unit = !monitoring ? "B" : "";
+
+  //! The 'hotfiles' which are the files with highest number of present file opens
   if (hotfiles) {
     eos::common::RWMutexReadLock rLock(FsView::gFsView.ViewMutex);
     // print the hotfiles report
@@ -1048,7 +1006,26 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
     std::vector<std::string> w_open_vector;
     std::string key;
     std::string val;
-    char outline[4096];
+    TableFormatterBase table;
+
+    if (!monitoring) {
+      table.SetHeader({
+        std::make_tuple("type", 5, format_ss),
+        std::make_tuple("heat", 5, format_s),
+        std::make_tuple("fs", 5, format_s),
+        std::make_tuple("host", 24, format_s),
+        std::make_tuple("path", 24, format_ss)
+      });
+    } else {
+      table.SetHeader({
+        std::make_tuple("measurement", 0, format_ss),
+        std::make_tuple("access", 0, format_s),
+        std::make_tuple("heat", 0, format_s),
+        std::make_tuple("fsid", 0, format_l),
+        std::make_tuple("path", 0, format_ss),
+        std::make_tuple("fxid", 0, format_s)
+      });
+    }
 
     for (auto it = FsView::gFsView.mIdView.begin();
          it != FsView::gFsView.mIdView.end(); it++) {
@@ -1085,114 +1062,105 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
       std::string host = FsView::gFsView.mIdView[it->first]->GetString("host");
       std::string path = "";
       std::string id = FsView::gFsView.mIdView[it->first]->GetString("id");
+      std::vector<std::tuple<std::string, std::string, std::string,
+          std::string, std::string>> data;
+      std::vector<std::tuple<std::string, std::string, std::string,
+          long long unsigned, std::string, std::string>> data_monitoring;
 
-      if (monitoring) {
-        // monitoring format
-        for (size_t i = 0; i < r_open_vector.size(); i++) {
-          eos::common::StringConversion::SplitKeyValue(r_open_vector[i], key, val);
-          {
-            unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
-            eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+      // Get information for read
+      for (size_t i = 0; i < r_open_vector.size(); i++) {
+        eos::common::StringConversion::SplitKeyValue(r_open_vector[i], key, val);
+        int rank = 0;
 
-            try {
-              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
-            } catch (eos::MDException& e) {
-              path = "<undef>";
-            }
-          }
-          snprintf(outline, sizeof(outline) - 1,
-                   "measurement=hotfile access=read heat=%s fsid=%d path=%s fxid=%s\n",
-                   key.c_str(), it->first, path.c_str(), val.c_str());
-          out += outline;
+        if (key.c_str()) {
+          rank = atoi(key.c_str());
         }
 
-        for (size_t i = 0; i < w_open_vector.size(); i++) {
-          eos::common::StringConversion::SplitKeyValue(w_open_vector[i], key, val);
-          {
-            unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
-            eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+        {
+          unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
+          eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
 
-            try {
-              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
-            } catch (eos::MDException& e) {
-              path = "<undef>";
-            }
+          try {
+            path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
+          } catch (eos::MDException& e) {
+            path = "<undef>";
           }
-          snprintf(outline, sizeof(outline) - 1,
-                   "measurement=hotfile access=write heat=%s fsid=%d host=%s path=%s fxid=%s\n",
-                   key.c_str(), it->first, host.c_str(), path.c_str(), val.c_str());
-          out += outline;
+        }
+
+        if (rank > 1) {
+          data.push_back(std::make_tuple(
+                           "read", key.c_str(), id.c_str(), host.c_str(), path.c_str()));
+        }
+
+        data_monitoring.push_back(std::make_tuple(
+                                    "hotfile", "read", key.c_str(), it->first, path.c_str(), val.c_str()));
+      }
+
+      // Get information for write
+      for (size_t i = 0; i < w_open_vector.size(); i++) {
+        eos::common::StringConversion::SplitKeyValue(w_open_vector[i], key, val);
+        int rank = 0;
+
+        if (key.c_str()) {
+          rank = atoi(key.c_str());
+        }
+
+        {
+          unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
+          eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+
+          try {
+            path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
+          } catch (eos::MDException& e) {
+            path = "<undef>";
+          }
+        }
+
+        if (rank > 1) {
+          data.push_back(std::make_tuple(
+                           "write", key.c_str(), id.c_str(), host.c_str(), path.c_str()));
+        }
+
+        data_monitoring.push_back(std::make_tuple(
+                                    "hotfile", "write", key.c_str(), it->first, path.c_str(), val.c_str()));
+      }
+
+      // Sort and output
+      if (!monitoring) {
+        std::sort(data.begin(), data.end());
+
+        for (auto it : data) {
+          TableData table_data;
+          table_data.emplace_back();
+          table_data.back().push_back(TableCell(std::get<0>(it), format_ss));
+          table_data.back().push_back(TableCell(std::get<1>(it), format_s));
+          table_data.back().push_back(TableCell(std::get<2>(it), format_s));
+          table_data.back().push_back(TableCell(std::get<3>(it), format_s));
+          table_data.back().push_back(TableCell(std::get<4>(it), format_ss));
+          table.AddRows(table_data);
         }
       } else {
-        // human readable format
-        for (size_t i = 0; i < r_open_vector.size(); i++) {
-          eos::common::StringConversion::SplitKeyValue(r_open_vector[i], key, val);
-          int rank = 0;
+        std::sort(data_monitoring.begin(), data_monitoring.end());
 
-          if (key.c_str()) {
-            rank = atoi(key.c_str());
-          }
-
-          {
-            unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
-            eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
-
-            try {
-              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
-            } catch (eos::MDException& e) {
-              path = "<undef>";
-            }
-          }
-
-          if (rank > 1) {
-            snprintf(outline, sizeof(outline) - 1, "%5s %5s %5s %24s %s\n", "read",
-                     key.c_str(), id.c_str(), host.c_str(), path.c_str());
-            out += outline;
-          }
-        }
-
-        for (size_t i = 0; i < w_open_vector.size(); i++) {
-          eos::common::StringConversion::SplitKeyValue(w_open_vector[i], key, val);
-          int rank = 0;
-
-          if (key.c_str()) {
-            rank = atoi(key.c_str());
-          }
-
-          {
-            unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
-            eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
-
-            try {
-              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
-            } catch (eos::MDException& e) {
-              path = "<undef>";
-            }
-          }
-
-          if (rank > 1) {
-            snprintf(outline, sizeof(outline) - 1, "%5s %5s %5s %24s %s\n", "write",
-                     key.c_str(), id.c_str(), host.c_str(), path.c_str());
-            out += outline;
-          }
+        for (auto it : data_monitoring) {
+          TableData table_data;
+          table_data.emplace_back();
+          table_data.back().push_back(TableCell(std::get<0>(it), format_ss));
+          table_data.back().push_back(TableCell(std::get<1>(it), format_s));
+          table_data.back().push_back(TableCell(std::get<2>(it), format_s));
+          table_data.back().push_back(TableCell(std::get<3>(it), format_l));
+          table_data.back().push_back(TableCell(std::get<4>(it), format_ss));
+          table_data.back().push_back(TableCell(std::get<5>(it), format_s));
+          table.AddRows(table_data);
         }
       }
     }
 
-    if (!monitoring) {
-      eos::common::StringConversion::SortLines(out);
-      out.insert("# --------------------------------------------------------------------------------------\n",
-                 0);
-      snprintf(outline, sizeof(outline) - 1, "%5s #%3s %5s %24s %s\n", "type", "heat",
-               "fs", "host", "path");
-      out.insert(outline, 0);
-      out.insert("# --------------------------------------------------------------------------------------\n",
-                 0);
-    }
-
+    out += table.GenerateTable(HEADER).c_str();
     return;
   }
 
+  //! Namespace IO ranking (popularity)
   for (size_t pbin = 0; pbin < days; pbin++) {
     PopularityMutex.Lock();
     size_t sbin = (IOSTAT_POPULARITY_HISTORY_DAYS + popularitybin - pbin) %
@@ -1206,111 +1174,137 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
     std::sort(popularity_nread.begin(), popularity_nread.end(),
               PopularityCmp_nread());
     std::sort(popularity_rb.begin(), popularity_rb.end(), PopularityCmp_rb());
-    XrdOucString marker = "<today>";
+    XrdOucString marker = "\n┏━> Today\n";
 
-    if (pbin == 1) {
-      marker = "<yesterday>";
+    switch (pbin) {
+    case 1:
+      marker = "\n┏━> Yesterday\n";
+      break;
+
+    case 2:
+      marker = "\n┏━> 2 days ago\n";
+      break;
+
+    case 3:
+      marker = "\n┏━> 3 days ago\n";
+      break;
+
+    case 4:
+      marker = "\n┏━> 4 days ago\n";
+      break;
+
+    case 5:
+      marker = "\n┏━> 5 days ago\n";
+      break;
+
+    case 6:
+      marker = "\n┏━> 6 days ago\n";
     }
-
-    if (pbin == 2) {
-      marker = "<2 days ago>";
-    }
-
-    if (pbin == 3) {
-      marker = "<3 days ago>";
-    }
-
-    if (pbin == 4) {
-      marker = "<4 days ago>";
-    }
-
-    if (pbin == 5) {
-      marker = "<5 days ago>";
-    }
-
-    if (pbin == 6) {
-      marker = "<6 days ago>";
-    }
-
-    std::vector<popularity_t>::const_iterator popit;
 
     if (bycount) {
+      TableFormatterBase table;
+
       if (!monitoring) {
-        char outline[4096];
-        out += "# --------------------------------------------------------------------------------------\n";
-        snprintf(outline, sizeof(outline) - 1, "%-6s %-14s %-14s %-64s\n", "rank",
-                 "by(read count)", "read bytes", "path");
-        out += outline;
-        out += "# --------------------------------------------------------------------------------------\n";
+        table.SetHeader({
+          std::make_tuple("rank", 5, format_ll),
+          std::make_tuple("by(read count)", 12, format_s),
+          std::make_tuple("read bytes", 10, format_lll),
+          std::make_tuple("path", 24, format_ss),
+        });
+      } else {
+        table.SetHeader({
+          std::make_tuple("measurement", 0, format_ss),
+          std::make_tuple("time", 0, format_lll),
+          std::make_tuple("rank", 0, format_ll),
+          std::make_tuple("nread", 0, format_lll),
+          std::make_tuple("rb", 0, format_lll),
+          std::make_tuple("path", 0, format_ss)
+        });
       }
 
       size_t cnt = 0;
 
-      for (popit = popularity_nread.begin(); popit != popularity_nread.end();
-           popit++) {
+      for (auto it : popularity_nread) {
         cnt++;
 
         if (cnt > limit) {
           break;
         }
 
-        char line[4096];
-        char nr[256];
-        snprintf(nr, sizeof(nr) - 1, "%u", popit->second.nread);
+        TableData table_data;
+        table_data.emplace_back();
 
         if (monitoring) {
-          snprintf(line, sizeof(line) - 1,
-                   "measurement=popularitybyaccess time=%u rank=%d nread=%u rb=%llu path=%s\n",
-                   (unsigned int) tmarker, (int) cnt, popit->second.nread, popit->second.rb,
-                   popit->first.c_str());
-        } else {
-          XrdOucString sizestring;
-          snprintf(line, sizeof(line) - 1, "%06d nread=%-7s rb=%-10s %-64s\n", (int) cnt,
-                   nr, eos::common::StringConversion::GetReadableSizeString(sizestring,
-                       popit->second.rb, "B"), popit->first.c_str());
+          table_data.back().push_back(TableCell("popularitybyaccess", format_ss));
+          table_data.back().push_back(TableCell((unsigned) tmarker, format_lll));
         }
 
-        out += line;
+        table_data.back().push_back(TableCell((int) cnt, format_ll));
+        table_data.back().push_back(TableCell(it.second.nread, format_lll));
+        table_data.back().push_back(TableCell(it.second.rb, format_lll, unit));
+        table_data.back().push_back(TableCell(it.first.c_str(), format_s));
+        table.AddRows(table_data);
+      }
+
+      if (cnt > 0) {
+        out += !monitoring ? marker : "";
+        out += table.GenerateTable(HEADER).c_str();
       }
     }
 
     if (bybytes) {
+      TableFormatterBase table;
+
       if (!monitoring) {
-        char outline[4096];
-        out += "# --------------------------------------------------------------------------------------\n";
-        snprintf(outline, sizeof(outline) - 1, "%-6s %-14s %-14s %-64s\n", "rank",
-                 "by(read bytes)", "read count", "path");
-        out += outline;
-        out += "# --------------------------------------------------------------------------------------\n";
+        table.SetHeader({
+          std::make_tuple("rank", 5, format_ll),
+          std::make_tuple("by(read bytes)", 12, format_s),
+          std::make_tuple("read count", 10, format_lll),
+          std::make_tuple("path", 24, format_ss),
+        });
+      } else {
+        table.SetHeader({
+          std::make_tuple("measurement", 0, format_ss),
+          std::make_tuple("time", 0, format_lll),
+          std::make_tuple("rank", 0, format_ll),
+          std::make_tuple("nread", 0, format_lll),
+          std::make_tuple("rb", 0, format_lll),
+          std::make_tuple("path", 0, format_ss)
+        });
       }
 
       size_t cnt = 0;
 
-      for (popit = popularity_rb.begin(); popit != popularity_rb.end(); popit++) {
+      for (auto it : popularity_rb) {
         cnt++;
 
         if (cnt > limit) {
           break;
         }
 
-        char line[4096];
-        char nr[256];
-        snprintf(nr, sizeof(nr) - 1, "%u", popit->second.nread);
+        TableData table_data;
+        table_data.emplace_back();
 
         if (monitoring) {
-          snprintf(line, sizeof(line) - 1,
-                   "measurement=popularitybyvolume time=%u rank=%d nread=%u rb=%llu path=%s\n",
-                   (unsigned int) tmarker, (int) cnt, popit->second.nread, popit->second.rb,
-                   popit->first.c_str());
-        } else {
-          XrdOucString sizestring;
-          snprintf(line, sizeof(line) - 1, "%06d rb=%-10s nread=%-7s %-64s\n", (int) cnt,
-                   eos::common::StringConversion::GetReadableSizeString(sizestring,
-                       popit->second.rb, "B"), nr, popit->first.c_str());
+          table_data.back().push_back(TableCell("popularitybyvolume", format_ss));
+          table_data.back().push_back(TableCell((unsigned) tmarker, format_lll));
         }
 
-        out += line;
+        table_data.back().push_back(TableCell((int) cnt, format_ll));
+
+        if (!monitoring) {
+          table_data.back().push_back(TableCell(it.second.rb, format_lll, unit));
+          table_data.back().push_back(TableCell(it.second.nread, format_lll));
+        } else {
+          table_data.back().push_back(TableCell(it.second.nread, format_lll));
+          table_data.back().push_back(TableCell(it.second.rb, format_lll, unit));
+        }
+
+        table_data.back().push_back(TableCell(it.first.c_str(), format_s));
+        table.AddRows(table_data);
       }
+
+      out += table.GenerateTable(HEADER_QUOTA).c_str();
     }
 
     PopularityMutex.UnLock();
