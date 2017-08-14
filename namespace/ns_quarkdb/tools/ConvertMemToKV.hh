@@ -110,10 +110,10 @@ public:
   void commitToBackend();
 
 private:
-  std::set<std::string> mFileNoReplica; ///< Set of files with no replica
+  std::list<std::string> mFileNoReplica; ///< Set of files with no replica
   //! Map of file system ids to set of file replicas and set of unlinked file ids
   std::map<std::string,
-      std::pair<std::set<std::string>, std::set<std::string> > > mFsView;
+      std::pair<std::list<std::string>, std::list<std::string> > > mFsView;
   std::mutex mMutex; ///< Mutex protecting access tot he map and set
 };
 

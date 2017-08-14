@@ -741,7 +741,6 @@ void
 ConvertQuotaView::commitToBackend()
 {
   qclient::QSet set_quotaids(*sQcl, quota::sSetQuotaIds);
-  eos::common::RWMutexReadLock rd_lock(mRWMutex);
   // Export the set of quota nodes
   sAh.Register(set_quotaids.sadd_async(mSetQuotaIds), set_quotaids.getClient());
   mSetQuotaIds.clear();
@@ -809,7 +808,7 @@ ConvertFsView::addFileInfo(IFileMD* file)
     // Store fsid if it doesn't exist
     selem = stringify(elem);
     // First is the set of replica file ids
-    mFsView[selem].first.insert(stringify(file->getId()));
+    mFsView[selem].first.push_back(stringify(file->getId()));
   }
 
   IFileMD::LocationVector unlink_vect = file->getUnlinkedLocations();
@@ -817,11 +816,11 @@ ConvertFsView::addFileInfo(IFileMD* file)
   for (const auto& elem : unlink_vect) {
     selem = stringify(elem);
     // Second is the set of unlinked file ids
-    mFsView[selem].second.insert(stringify(file->getId()));
+    mFsView[selem].second.push_back(stringify(file->getId()));
   }
 
   if ((file->getNumLocation() == 0) && (file->getNumUnlinkedLocation() == 0)) {
-    mFileNoReplica.insert(stringify(file->getId()));
+    mFileNoReplica.push_back(stringify(file->getId()));
   }
 }
 
@@ -833,7 +832,6 @@ ConvertFsView::commitToBackend()
 {
   std::string key, val;
   qclient::QSet fs_set(*sQcl, "");
-  std::list<std::string> lst_elem;
   std::int64_t count {0};
 
   for (const auto& fs_elem : mFsView) {
@@ -847,18 +845,14 @@ ConvertFsView::commitToBackend()
     fs_set.setKey(key);
 
     if (fs_elem.second.first.size()) {
-      lst_elem.clear();
-      lst_elem.assign(fs_elem.second.first.begin(), fs_elem.second.first.end());
-      sAh.Register(fs_set.sadd_async(lst_elem), fs_set.getClient());
+      sAh.Register(fs_set.sadd_async(fs_elem.second.first), fs_set.getClient());
     }
 
     key = val + fsview::sUnlinkedSuffix;
     fs_set.setKey(key);
 
     if (fs_elem.second.second.size()) {
-      lst_elem.clear();
-      lst_elem.assign(fs_elem.second.second.begin(), fs_elem.second.second.end());
-      sAh.Register(fs_set.sadd_async(lst_elem), fs_set.getClient());
+      sAh.Register(fs_set.sadd_async(fs_elem.second.second), fs_set.getClient());
     }
 
     if ((count & sAsyncBatch) == 0) {
@@ -873,9 +867,7 @@ ConvertFsView::commitToBackend()
   }
 
   fs_set.setKey(fsview::sNoReplicaPrefix);
-  lst_elem.clear();
-  lst_elem.assign(mFileNoReplica.begin(), mFileNoReplica.end());
-  sAh.Register(fs_set.sadd_async(lst_elem), fs_set.getClient());
+  sAh.Register(fs_set.sadd_async(mFileNoReplica), fs_set.getClient());
 
   // Wait for all in-flight async requests
   if (!sAh.Wait()) {
@@ -1025,11 +1017,17 @@ main(int argc, char* argv[])
     std::cout << "File init: " << file_duration.count() << " seconds" << std::endl;
     std::cout << "Commit quota and file system view ..." << std::endl;
     std::time_t views_start = std::time(nullptr);
+    // Commit the quota view information
     quota_view->commitToBackend();
+    std::time_t quota_end = std::time(nullptr);
+    std::chrono::seconds quota_duration {quota_end - views_start};
+    std::cout << "Quota init: " << quota_duration.count() << " seconds"
+              << std::endl;
+    // Commit the file system view information
     fs_view->commitToBackend();
-    std::time_t views_end = std::time(nullptr);
-    std::chrono::seconds views_duration {views_end - views_start};
-    std::cout << "Quota+FsView init: " << views_duration.count() << " seconds"
+    std::time_t fsview_end = std::time(nullptr);
+    std::chrono::seconds fsview_duration {fsview_end - quota_end};
+    std::cout << "FsView init: " << fsview_duration.count() << " seconds"
               << std::endl;
     // Commit the directory information to the backend
     std::cout << "Commit container info to backend: " << std::endl;
@@ -1041,7 +1039,7 @@ main(int argc, char* argv[])
       return 1;
     }
 
-    std::chrono::seconds cont_commit{std::time(nullptr) - views_end};
+    std::chrono::seconds cont_commit{std::time(nullptr) - fsview_end};
     std::cout << "Container init: " << cont_svc->getNumContainers()
               << " containers in " << cont_commit.count() << " seconds"
               << std::endl;
