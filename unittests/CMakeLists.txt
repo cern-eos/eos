@@ -37,7 +37,7 @@ set(SOURCE_FILES
   ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc)
 add_executable(eos-unit-tests ${SOURCE_FILES})
 
-set( CMAKE_CXX_FLAGS  "-DGTEST_USE_OWN_TR1_TUPLE=0" )
+set( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=0" )
 target_link_libraries(eos-unit-tests gtest gtest_main)
 
 target_link_libraries(
