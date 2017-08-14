@@ -61,7 +61,7 @@ leveldb leveldb-devel zlib zlib-devel libattr libattr-devel libuuid libuuid-deve
 xfsprogs xfsprogs-devel sparsehash sparsehash-devel e2fsprogs e2fsprogs-devel \
 libmicrohttpd libmicrohttpd-devel openssl openssl-devel openssl-static \
 ncurses ncurses-devel ncurses-static protobuf-devel cppunit-devel openldap-devel \
-hiredis-devel zeromq-devel jsoncpp-devel xrootd xrootd-server-devel xrootd-client-devel
+hiredis-devel zeromq-devel jsoncpp-devel xrootd xrootd-server-devel xrootd-client-devel \
 xrootd-private-devel cppzmq-devel libcurl-devel
 ```
 
@@ -75,7 +75,7 @@ git submodule update --init --recursive
 mkdir build
 cd build
 # Run CMake
-cmake ..
+cmake3 ..
 # Build
 make -j 4
 ```
