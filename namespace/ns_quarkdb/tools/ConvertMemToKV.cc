@@ -343,7 +343,7 @@ ConvertContainerMDSvc::commitToBackend()
   std::uint64_t total = pIdMap.size();
   int nthreads = std::thread::hardware_concurrency();
   int chunk = total / nthreads;
-  int last_chunk = chunk + pIdMap.size() - (chunk * nthreads);
+  int last_chunk = chunk + total - (chunk * nthreads);
   // Parallel loop
   eos::common::Parallel::For(0, nthreads, [&](int i) {
     std::int64_t count = 0;
@@ -830,53 +830,71 @@ ConvertFsView::addFileInfo(IFileMD* file)
 void
 ConvertFsView::commitToBackend()
 {
-  std::string key, val;
-  qclient::QSet fs_set(*sQcl, "");
-  std::int64_t count {0};
+  std::uint64_t total = mFsView.size();
+  int nthreads = std::thread::hardware_concurrency();
+  int chunk = total / nthreads;
+  int last_chunk = chunk + total - (chunk * nthreads);
+  // Parallel loop
+  eos::common::Parallel::For(0, nthreads, [&](int i) {
+    std::int64_t count {0};
+    std::string key, val;
+    qclient::AsyncHandler async_handler;
+    qclient::QClient qclient{sBkndHost, sBkndPort, true, true};
+    qclient::QSet fs_set(qclient, "");
+    int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
+    auto it = mFsView.begin();
+    std::advance(it, i * chunk);
 
-  for (const auto& fs_elem : mFsView) {
-    ++count;
-    key = fsview::sSetFsIds;
-    val = stringify(fs_elem.first);
-    fs_set.setKey(key);
-    sAh.Register(fs_set.sadd_async(val), fs_set.getClient());
-    // Add file to corresponding fs file set
-    key = val + fsview::sFilesSuffix;
-    fs_set.setKey(key);
+    for (int n = 0; n < max_elem; ++n) {
+      ++count;
+      key = fsview::sSetFsIds;
+      val = stringify(it->first);
+      fs_set.setKey(key);
+      async_handler.Register(fs_set.sadd_async(val), fs_set.getClient());
+      // Add file to corresponding fs file set
+      key = val + fsview::sFilesSuffix;
+      fs_set.setKey(key);
 
-    if (fs_elem.second.first.size()) {
-      sAh.Register(fs_set.sadd_async(fs_elem.second.first), fs_set.getClient());
+      if (it->second.first.size()) {
+        async_handler.Register(fs_set.sadd_async(it->second.first), fs_set.getClient());
+      }
+
+      key = val + fsview::sUnlinkedSuffix;
+      fs_set.setKey(key);
+
+      if (it->second.second.size()) {
+        async_handler.Register(fs_set.sadd_async(it->second.second),
+                               fs_set.getClient());
+      }
+
+      if ((count & sAsyncBatch) == 0) {
+        count = 0;
+
+        if (!async_handler.Wait()) {
+          std::cerr << __FUNCTION__ << " Got error response from the backend"
+                    << std::endl;
+          exit(1);
+        }
+      }
+
+      ++it;
     }
 
-    key = val + fsview::sUnlinkedSuffix;
-    fs_set.setKey(key);
+    // Only the first thread will commit this
+    if (i == 0) {
+      fs_set.setKey(fsview::sNoReplicaPrefix);
+      async_handler.Register(fs_set.sadd_async(mFileNoReplica), fs_set.getClient());
 
-    if (fs_elem.second.second.size()) {
-      sAh.Register(fs_set.sadd_async(fs_elem.second.second), fs_set.getClient());
-    }
-
-    if ((count & sAsyncBatch) == 0) {
-      count = 0;
-
-      if (!sAh.Wait()) {
+      // Wait for all in-flight async requests
+      if (!async_handler.Wait()) {
         std::cerr << __FUNCTION__ << " Got error response from the backend"
                   << std::endl;
         exit(1);
+      } else {
+        std::cout << "FileSystem view successfully commited" << std::endl;
       }
     }
-  }
-
-  fs_set.setKey(fsview::sNoReplicaPrefix);
-  sAh.Register(fs_set.sadd_async(mFileNoReplica), fs_set.getClient());
-
-  // Wait for all in-flight async requests
-  if (!sAh.Wait()) {
-    std::cerr << __FUNCTION__ << " Got error response from the backend"
-              << std::endl;
-    exit(1);
-  } else {
-    std::cout << "FileSystem view successfully commited" << std::endl;
-  }
+  });
 }
 
 EOSNSNAMESPACE_END
