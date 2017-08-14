@@ -24,9 +24,9 @@
 /*----------------------------------------------------------------------------*/
 /**
  * @file   XrdMgmOfsFile.hh
- * 
+ *
  * @brief  XRootD OFS plugin class implementing file meta data handling of EOS
- * 
+ *
  * Many functions in the MgmOfs interface take CGI parameters. The supported
  * CGI parameter are:
  * "eos.ruid" - uid role the client wants
@@ -36,12 +36,12 @@
  * "eos.lfn" - use this name as path name not the path parameter (used by prefix
  * redirector MGM's ...
  * "eos.bookingsize" - reserve the requested bytes in a file placement
- * "eos.cli.access=pio" - ask for a parallel open (changes the response of an 
+ * "eos.cli.access=pio" - ask for a parallel open (changes the response of an
  * open for RAIN layouts)
  * "eos.app" - set the application name reported by monitoring
  * "eos.targetsize" - expected size of a file to be uploaded
  * "eos.blockchecksum=ignore" - disable block checksum verification
- * 
+ *
  */
 /*----------------------------------------------------------------------------*/
 
@@ -49,7 +49,7 @@
 #define __EOSMGM_MGMOFSFILE__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "common/Mapping.hh"  
+#include "common/Mapping.hh"
 #include "common/Logging.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/ProcInterface.hh"
@@ -73,9 +73,9 @@ class XrdMgmOfsFile : public XrdSfsFile, eos::common::LogId
 {
 public:
   bool isZeroSizeFile; //< true if the file has 0 size
-  
+
   // ---------------------------------------------------------------------------
-  // open a file 
+  // open a file
   // ---------------------------------------------------------------------------
   int open (const char *fileName,
             XrdSfsFileOpenMode openMode,
@@ -95,7 +95,7 @@ public:
   const char *
   FName ()
   {
-    return fname;
+    return fileName.c_str();
   }
 
 
@@ -154,7 +154,7 @@ public:
   int sync (XrdSfsAio *aiop);
 
   // ---------------------------------------------------------------------------
-  // file stat 
+  // file stat
   // ---------------------------------------------------------------------------
   int stat (struct stat *buf);
 
@@ -196,7 +196,6 @@ public:
   XrdMgmOfsFile (char *user = 0, int MonID = 0) : XrdSfsFile (user, MonID)
   {
     oh = 0;
-    fname = 0;
     openOpaque = 0;
     eos::common::Mapping::Nobody (vid);
     fileId = 0;
@@ -214,7 +213,7 @@ public:
 private:
 
   int oh; //< file handle
-  char *fname; //< file name
+  std::string fileName; //< file name
   XrdOucEnv *openOpaque; //< opaque info given with 'open'
   unsigned long fileId; //< file id
   ProcCommand* procCmd; //< proc command object if a proc command was 'opened'

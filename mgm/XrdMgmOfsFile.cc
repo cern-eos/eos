@@ -2313,11 +2313,6 @@ XrdMgmOfsFile::close()
 {
   oh = -1;
 
-  if (fname) {
-    free(fname);
-    fname = 0;
-  }
-
   if (procCmd) {
     procCmd->close();
     return SFS_OK;
@@ -2356,7 +2351,7 @@ XrdMgmOfsFile::read(XrdSfsFileOffset offset,
 #if _FILE_OFFSET_BITS!=64
 
   if (offset > 0x000000007fffffff) {
-    return Emsg(epname, error, EFBIG, "read", fname);
+    return Emsg(epname, error, EFBIG, "read", fileName.c_str());
   }
 
 #endif
@@ -2365,7 +2360,7 @@ XrdMgmOfsFile::read(XrdSfsFileOffset offset,
     return procCmd->read(offset, buff, blen);
   }
 
-  return Emsg(epname, error, EOPNOTSUPP, "read", fname);
+  return Emsg(epname, error, EOPNOTSUPP, "read", fileName.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2386,7 +2381,7 @@ XrdMgmOfsFile::read(XrdSfsAio* aiop)
 
   // Execute this request in a synchronous fashion
   //
-  return Emsg(epname, error, EOPNOTSUPP, "read", fname);
+  return Emsg(epname, error, EOPNOTSUPP, "read", fileName.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2408,11 +2403,11 @@ XrdMgmOfsFile::write(XrdSfsFileOffset offset,
 #if _FILE_OFFSET_BITS!=64
 
   if (offset > 0x000000007fffffff) {
-    return Emsg(epname, error, EFBIG, "write", fname);
+    return Emsg(epname, error, EFBIG, "write", fileName.c_str());
   }
 
 #endif
-  return Emsg(epname, error, EOPNOTSUPP, "write", fname);
+  return Emsg(epname, error, EOPNOTSUPP, "write", fileName.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2428,7 +2423,7 @@ XrdMgmOfsFile::write(XrdSfsAio* aiop)
 {
   static const char* epname = "write";
   // Execute this request in a synchronous fashion
-  return Emsg(epname, error, EOPNOTSUPP, "write", fname);
+  return Emsg(epname, error, EOPNOTSUPP, "write", fileName.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2458,7 +2453,7 @@ XrdMgmOfsFile::stat(struct stat* buf)
     return procCmd->stat(buf);
   }
 
-  return Emsg(epname, error, EOPNOTSUPP, "stat", fname);
+  return Emsg(epname, error, EOPNOTSUPP, "stat", fileName.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2473,7 +2468,7 @@ XrdMgmOfsFile::sync()
 /*----------------------------------------------------------------------------*/
 {
   static const char* epname = "sync";
-  return Emsg(epname, error, EOPNOTSUPP, "sync", fname);
+  return Emsg(epname, error, EOPNOTSUPP, "sync", fileName.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2490,7 +2485,7 @@ XrdMgmOfsFile::sync(XrdSfsAio* aiop)
   static const char* epname = "sync";
   // Execute this request in a synchronous fashion
   //
-  return Emsg(epname, error, EOPNOTSUPP, "sync", fname);
+  return Emsg(epname, error, EOPNOTSUPP, "sync", fileName.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2509,11 +2504,11 @@ XrdMgmOfsFile::truncate(XrdSfsFileOffset flen)
 #if _FILE_OFFSET_BITS!=64
 
   if (flen > 0x000000007fffffff) {
-    return Emsg(epname, error, EFBIG, "truncate", fname);
+    return Emsg(epname, error, EFBIG, "truncate", fileName.c_str());
   }
 
 #endif
-  return Emsg(epname, error, EOPNOTSUPP, "truncate", fname);
+  return Emsg(epname, error, EOPNOTSUPP, "truncate", fileName.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
