@@ -397,6 +397,24 @@ eos_clean_artifacts:
     - triggers
     - schedules
 
+eos_clean_debian_artifacts:
+  stage: clean
+  image: ubuntu:artful
+  script:
+    - apt-get update
+    - apt-get install -y sudo apt-utils sssd
+    - mkdir /home/stci
+    - chown -R stci:def-cg /home/stci
+    - chmod -R 700 /home/stci
+    - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
+    - sudo -u stci -H ./gitlab-ci/remove_old_artifacts_debian.sh
+  tags:
+    - docker-ubuntu
+  allow_failure: true
+  only:
+    - triggers
+    - schedules
+
 eos_periodic_coverity:
   stage: build:rpm
   script:
