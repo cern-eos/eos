@@ -235,7 +235,7 @@ private:
     unsigned long long rb;
   };
 
-  size_t IostatLastPopularityBin; // this points to the bin which was last used in IostatPopularity
+  std::atomic<size_t> IostatLastPopularityBin; // this points to the bin which was last used in IostatPopularity
 
   google::sparse_hash_map<std::string, struct Popularity>
     IostatPopularity[ IOSTAT_POPULARITY_HISTORY_DAYS ];
