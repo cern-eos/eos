@@ -21,9 +21,7 @@
 //! @brief Retrieve the next free container / file inode.
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_NEXT_INODE_PROVIDER_HH__
-#define __EOS_NS_NEXT_INODE_PROVIDER_HH__
-
+#pragma once
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
@@ -31,24 +29,43 @@
 
 EOSNSNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Class NextInodeProvider
+//------------------------------------------------------------------------------
 class NextInodeProvider
 {
 public:
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   NextInodeProvider();
-  void configure(qclient::QHash &hash, const std::string &field);
 
+  //----------------------------------------------------------------------------
+  //! Configuration method
+  //!
+  //! @param hash hash object to be used
+  //! @param filed filed that we use to get the first free id
+  //----------------------------------------------------------------------------
+  void configure(qclient::QHash& hash, const std::string& field);
+
+  //----------------------------------------------------------------------------
+  //! Get first free id
+  //----------------------------------------------------------------------------
   int64_t getFirstFreeId();
-  int64_t reserve();
-private:
-  std::mutex mtx;
-  qclient::QHash *pHash; ///< qclient hash - no ownership
-  std::string pField;
 
-  int64_t nextId;
-  int64_t blockEnd;
-  int64_t stepIncrease;
+  //----------------------------------------------------------------------------
+  //! Method used for reseving a batch of ids and return the first free one
+  //----------------------------------------------------------------------------
+  int64_t reserve();
+
+private:
+  std::mutex mMtx;
+  qclient::QHash* pHash; ///< qclient hash - no ownership
+  std::string pField;
+  int64_t mNextId;
+  int64_t mBlockEnd;
+  int64_t mStepIncrease;
 };
 
 EOSNSNAMESPACE_END
-
-#endif

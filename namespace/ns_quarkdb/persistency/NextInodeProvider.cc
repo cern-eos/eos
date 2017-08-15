@@ -27,14 +27,18 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 NextInodeProvider::NextInodeProvider()
-   : pHash(nullptr), pField(""), nextId(0), blockEnd(-1), stepIncrease(1) {
+  : pHash(nullptr), pField(""), mNextId(0), mBlockEnd(-1), mStepIncrease(1)
+{
 }
 
+//------------------------------------------------------------------------------
+// Get first free id
+//------------------------------------------------------------------------------
+int64_t NextInodeProvider::getFirstFreeId()
+{
+  std::lock_guard<std::mutex> lock(mMtx);
 
-int64_t NextInodeProvider::getFirstFreeId() {
-  std::lock_guard<std::mutex> lock(mtx);
-
-  if(blockEnd < nextId) {
+  if (mBlockEnd < mNextId) {
     id_t id = 0;
     std::string sval = pHash->hget(pField);
 
@@ -45,33 +49,40 @@ int64_t NextInodeProvider::getFirstFreeId() {
     return id + 1;
   }
 
-  return nextId;
+  return mNextId;
 }
 
+//------------------------------------------------------------------------------
 // The hash contains the current largest *reserved* inode we've seen so far.
 // To obtain the next free one, we increment that counter and return its value.
 // We reserve inodes by blocks to avoid roundtrips to the db, increasing the
 // block-size slowly up to 200 so as to avoid wasting lots of inodes if the MGM
 // is unstable and restarts often.
-int64_t NextInodeProvider::reserve() {
-  std::lock_guard<std::mutex> lock(mtx);
+//------------------------------------------------------------------------------
+int64_t NextInodeProvider::reserve()
+{
+  std::lock_guard<std::mutex> lock(mMtx);
 
-  if(blockEnd < nextId) {
-    blockEnd = pHash->hincrby(pField, stepIncrease);
-    nextId = blockEnd - stepIncrease + 1;
+  if (mBlockEnd < mNextId) {
+    mBlockEnd = pHash->hincrby(pField, mStepIncrease);
+    mNextId = mBlockEnd - mStepIncrease + 1;
 
     // Increase step for next round
-    if(stepIncrease <= 200) {
-      stepIncrease++;
+    if (mStepIncrease <= 200) {
+      mStepIncrease++;
     }
   }
 
-  return nextId++;
+  return mNextId++;
 }
 
-void NextInodeProvider::configure(qclient::QHash& hash, const std::string &field) {
-  std::lock_guard<std::mutex> lock(mtx);
-
+//------------------------------------------------------------------------------
+// Configure hash and field
+//------------------------------------------------------------------------------
+void NextInodeProvider::configure(qclient::QHash& hash,
+                                  const std::string& field)
+{
+  std::lock_guard<std::mutex> lock(mMtx);
   pHash = &hash;
   pField = field;
 }
