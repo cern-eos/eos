@@ -149,7 +149,7 @@ public:
       std::terminate();
     }
 
-    wlockid = XrdSysThread::ID();
+    wlockid.store(XrdSysThread::ID());
     //fprintf(stderr,"MQ === WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",
     //(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
   }
