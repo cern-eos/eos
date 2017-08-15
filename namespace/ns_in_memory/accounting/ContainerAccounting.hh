@@ -56,12 +56,12 @@ class ContainerAccounting : public IFileMDChangeListener
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
   //----------------------------------------------------------------------------
-  virtual void fileMDChanged(IFileMDChangeListener::Event* e);
+  virtual void fileMDChanged(IFileMDChangeListener::Event* e) override;
 
   //----------------------------------------------------------------------------
   //! Notify me about files when recovering from changelog
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj) {}
+  virtual void fileMDRead(IFileMD* obj) override {}
 
   //----------------------------------------------------------------------------
   //! Recheck the current file object and make any modifications necessary so
@@ -71,17 +71,17 @@ class ContainerAccounting : public IFileMDChangeListener
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool fileMDCheck(IFileMD* file) { return true; }
+  virtual bool fileMDCheck(IFileMD* file) override { return true; }
 
   //----------------------------------------------------------------------------
   //! Add tree - TODO(esindril): review this
   //----------------------------------------------------------------------------
-  void AddTree( IContainerMD* obj , int64_t dsize );
+  void AddTree( IContainerMD* obj , int64_t dsize ) override;
 
   //----------------------------------------------------------------------------
   //! Remove tree - TODO(esindril): review this
   //----------------------------------------------------------------------------
-  void RemoveTree( IContainerMD* obj , int64_t dsize );
+  void RemoveTree( IContainerMD* obj , int64_t dsize ) override;
 
  private:
 

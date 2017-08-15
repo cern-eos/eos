@@ -50,7 +50,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByUser(uid_t uid)
+  uint64_t getUsedSpaceByUser(uid_t uid) override
   {
     return pUserUsage[uid].space;
   }
@@ -58,7 +58,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByGroup(gid_t gid)
+  uint64_t getUsedSpaceByGroup(gid_t gid) override
   {
     return pGroupUsage[gid].space;
   }
@@ -66,7 +66,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByUser(uid_t uid)
+  uint64_t getPhysicalSpaceByUser(uid_t uid) override
   {
     return pUserUsage[uid].physicalSpace;
   }
@@ -74,7 +74,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByGroup(gid_t gid)
+  uint64_t getPhysicalSpaceByGroup(gid_t gid) override
   {
     return pGroupUsage[gid].physicalSpace;
   }
@@ -82,7 +82,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getNumFilesByUser(uid_t uid)
+  uint64_t getNumFilesByUser(uid_t uid) override
   {
     return pUserUsage[uid].files;
   }
@@ -90,7 +90,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getNumFilesByGroup(gid_t gid)
+  uint64_t getNumFilesByGroup(gid_t gid) override
   {
     return pGroupUsage[gid].files;
   }
@@ -146,17 +146,17 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Account a new file, adjust the size using the size mapping function
   //----------------------------------------------------------------------------
-  void addFile(const IFileMD* file);
+  void addFile(const IFileMD* file) override;
 
   //----------------------------------------------------------------------------
   //! Remove a file, adjust the size using the size mapping function
   //----------------------------------------------------------------------------
-  void removeFile(const IFileMD* file);
+  void removeFile(const IFileMD* file) override;
 
   //----------------------------------------------------------------------------
   //! Meld in another quota node
   //----------------------------------------------------------------------------
-  void meld(const IQuotaNode* node);
+  void meld(const IQuotaNode* node) override;
 
   //----------------------------------------------------------------------------
   //! Get the set of uids for which information is stored in the current quota
@@ -164,7 +164,7 @@ class QuotaNode: public IQuotaNode
   //!
   //! @return set of uids
   //----------------------------------------------------------------------------
-  std::vector<unsigned long> getUids();
+  std::vector<unsigned long> getUids() override;
 
   //----------------------------------------------------------------------------
   //! Get the set of gids for which information is stored in the current quota
@@ -172,7 +172,7 @@ class QuotaNode: public IQuotaNode
   //!
   //! @return set of gids
   //----------------------------------------------------------------------------
-  std::vector<unsigned long> getGids();
+  std::vector<unsigned long> getGids() override;
 
   UserMap pUserUsage;
   GroupMap pGroupUsage;
@@ -200,22 +200,22 @@ class QuotaStats: public IQuotaStats
   //!
   //! @return set of quota node ids
   //----------------------------------------------------------------------------
-  std::set<std::string> getAllIds();
+  std::set<std::string> getAllIds() override;
 
   //----------------------------------------------------------------------------
   //! Get a quota node associated to the container id
   //----------------------------------------------------------------------------
-  IQuotaNode* getQuotaNode(IContainerMD::id_t nodeId);
+  IQuotaNode* getQuotaNode(IContainerMD::id_t nodeId) override;
 
   //----------------------------------------------------------------------------
   //! Register a new quota node
   //----------------------------------------------------------------------------
-  IQuotaNode* registerNewNode(IContainerMD::id_t nodeId) throw(MDException);
+  IQuotaNode* registerNewNode(IContainerMD::id_t nodeId) throw(MDException) override;
 
   //----------------------------------------------------------------------------
   //! Remove quota node
   //----------------------------------------------------------------------------
-  void removeNode(IContainerMD::id_t nodeId) throw(MDException);
+  void removeNode(IContainerMD::id_t nodeId) throw(MDException) override;
 
 private:
   std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes

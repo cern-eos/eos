@@ -50,7 +50,7 @@ class SyncTimeAccounting : public IContainerMDChangeListener
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
   //----------------------------------------------------------------------------
-  void containerMDChanged(IContainerMD* obj, Action type);
+  void containerMDChanged(IContainerMD* obj, Action type) override;
 
  private:
   IContainerMDSvc* pContainerMDSvc;

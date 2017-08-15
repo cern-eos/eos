@@ -84,53 +84,53 @@ public:
   //----------------------------------------------------------------------------
   //! Initizlize the file service
   //----------------------------------------------------------------------------
-  virtual void initialize();
+  virtual void initialize() override;
 
   //----------------------------------------------------------------------------
   //! Make a transition from slave to master
   //----------------------------------------------------------------------------
-  virtual void slave2Master(std::map<std::string, std::string>& config);
+  virtual void slave2Master(std::map<std::string, std::string>& config) override;
 
   //----------------------------------------------------------------------------
   //! Switch the namespace to read-only mode
   //----------------------------------------------------------------------------
-  virtual void makeReadOnly();
+  virtual void makeReadOnly() override;
 
   //----------------------------------------------------------------------------
   //! Configure the file service
   //----------------------------------------------------------------------------
-  virtual void configure(const std::map<std::string, std::string>& config);
+  virtual void configure(const std::map<std::string, std::string>& config) override;
 
   //----------------------------------------------------------------------------
   //! Finalize the file service
   //----------------------------------------------------------------------------
-  virtual void finalize();
+  virtual void finalize() override;
 
   //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //----------------------------------------------------------------------------
-  virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id);
+  virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id) override;
 
   //----------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id
   //----------------------------------------------------------------------------
-  virtual std::shared_ptr<IFileMD> createFile();
+  virtual std::shared_ptr<IFileMD> createFile() override;
 
   //----------------------------------------------------------------------------
   //! Update the file metadata in the backing store after the FileMD object
   //! has been changed
   //----------------------------------------------------------------------------
-  virtual void updateStore(IFileMD* obj);
+  virtual void updateStore(IFileMD* obj) override;
 
   //----------------------------------------------------------------------------
   //! Remove object from the store
   //----------------------------------------------------------------------------
-  virtual void removeFile(IFileMD* obj);
+  virtual void removeFile(IFileMD* obj) override;
 
   //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
-  virtual uint64_t getNumFiles()
+  virtual uint64_t getNumFiles() override
   {
     return pIdMap.size();
   }
@@ -139,17 +139,17 @@ public:
   //! Add file listener that will be notified about all of the changes in
   //! the store
   //----------------------------------------------------------------------------
-  virtual void addChangeListener(IFileMDChangeListener* listener);
+  virtual void addChangeListener(IFileMDChangeListener* listener) override;
 
   //----------------------------------------------------------------------------
   //! Visit all the files
   //----------------------------------------------------------------------------
-  virtual void visit(IFileVisitor* visitor);
+  virtual void visit(IFileVisitor* visitor) override;
 
   //----------------------------------------------------------------------------
   //! Notify the listeners about the change
   //----------------------------------------------------------------------------
-  virtual void notifyListeners(IFileMDChangeListener::Event* event)
+  virtual void notifyListeners(IFileMDChangeListener::Event* event) override
   {
     ListenerList::iterator it;
 
@@ -168,7 +168,7 @@ public:
   //! @return                compacting information that needs to be passed
   //!                        to other functions
   //----------------------------------------------------------------------------
-  void* compactPrepare(const std::string& newLogFileName);
+  void* compactPrepare(const std::string& newLogFileName) override;
 
   //----------------------------------------------------------------------------
   //! Do the compacting.
@@ -179,7 +179,7 @@ public:
   //!
   //! @param  compactingData state information returned by compactPrepare
   //----------------------------------------------------------------------------
-  void compact(void*& compactingData);
+  void compact(void*& compactingData) override;
 
   //----------------------------------------------------------------------------
   //! Commit the compacting infomrmation.
@@ -192,12 +192,12 @@ public:
   //!                       and modified by Compact
   //! @param autorepair     indicate that broken records should be skipped
   //----------------------------------------------------------------------------
-  void compactCommit(void* compactingData, bool autorepair = false);
+  void compactCommit(void* compactingData, bool autorepair = false) override;
 
   //----------------------------------------------------------------------------
   //! Register slave lock
   //----------------------------------------------------------------------------
-  void setSlaveLock(LockHandler* slaveLock)
+  void setSlaveLock(LockHandler* slaveLock) override
   {
     pSlaveLock = slaveLock;
   }
@@ -292,7 +292,7 @@ public:
   //!
   //! @param quota_stats object implementing the IQuotaStats interface
   //----------------------------------------------------------------------------
-  void setQuotaStats(IQuotaStats* quota_stats);
+  void setQuotaStats(IQuotaStats* quota_stats) override;
 
   //----------------------------------------------------------------------------
   //! Get id map reservation size
@@ -307,17 +307,17 @@ public:
   //!
   //! @return vector of warning messages
   //----------------------------------------------------------------------------
-  std::vector<std::string> getWarningMessages();
+  std::vector<std::string> getWarningMessages() override;
 
   //----------------------------------------------------------------------------
   //! Clear changelog warning messages
   //----------------------------------------------------------------------------
-  void clearWarningMessages();
+  void clearWarningMessages() override;
 
   //------------------------------------------------------------------------
   //! Get first free file id
   //------------------------------------------------------------------------
-  IFileMD::id_t getFirstFreeId()
+  IFileMD::id_t getFirstFreeId() override
   {
     return pFirstFreeId;
   }
@@ -325,7 +325,7 @@ public:
   //------------------------------------------------------------------------
   //! Resize container service map
   //------------------------------------------------------------------------
-  void resize()
+  void resize() override
   {
     pIdMap.resize(0);
   }

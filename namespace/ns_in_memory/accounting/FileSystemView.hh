@@ -52,12 +52,12 @@ public:
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
   //----------------------------------------------------------------------------
-  virtual void fileMDChanged(IFileMDChangeListener::Event* e);
+  virtual void fileMDChanged(IFileMDChangeListener::Event* e) override;
 
   //----------------------------------------------------------------------------
   //! Notify me about files when recovering from changelog
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj);
+  virtual void fileMDRead(IFileMD* obj) override;
 
   //----------------------------------------------------------------------------
   //! Recheck the current file object and make any modifications necessary so
@@ -67,7 +67,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool fileMDCheck(IFileMD* obj)
+  virtual bool fileMDCheck(IFileMD* obj) override
   {
     return true;
   }
@@ -76,13 +76,13 @@ public:
   //! Return reference to a list of files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  FileList getFileList(IFileMD::location_t location);
+  FileList getFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Return reference to a list of unlinked files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  FileList getUnlinkedFileList(IFileMD::location_t location);
+  FileList getUnlinkedFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Clear unlinked files for filesystem
@@ -91,12 +91,12 @@ public:
   //!
   //! @return True if cleanup done successfully, otherwise false.
   //----------------------------------------------------------------------------
-  bool clearUnlinkedFileList(IFileMD::location_t location);
+  bool clearUnlinkedFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get number of file systems
   //----------------------------------------------------------------------------
-  size_t getNumFileSystems()
+  size_t getNumFileSystems() override
   {
     return pFiles.size();
   }
@@ -105,16 +105,7 @@ public:
   //! Get list of files without replicas
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  FileList getNoReplicasFileList()
-  {
-    return pNoReplicas;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  const FileList getNoReplicasFileList() const
+  FileList getNoReplicasFileList() override
   {
     return pNoReplicas;
   }
@@ -122,27 +113,27 @@ public:
   //----------------------------------------------------------------------------
   //! Initizalie
   //----------------------------------------------------------------------------
-  void initialize();
+  void initialize() override;
 
   //----------------------------------------------------------------------------
   //! Finalize
   //----------------------------------------------------------------------------
-  void finalize();
+  void finalize() override;
 
   //----------------------------------------------------------------------------
   //! Shrink maps
   //----------------------------------------------------------------------------
-  void shrink();
+  void shrink() override;
 
   //----------------------------------------------------------------------------
   //! Add tree
   //----------------------------------------------------------------------------
-  void AddTree(IContainerMD* obj, int64_t dsize) {};
+  void AddTree(IContainerMD* obj, int64_t dsize) override {};
 
   //----------------------------------------------------------------------------
   //! Remove tree
   //----------------------------------------------------------------------------
-  void RemoveTree(IContainerMD* obj, int64_t dsize) {};
+  void RemoveTree(IContainerMD* obj, int64_t dsize) override {};
 
 private:
   std::vector<FileList> pFiles;

@@ -90,22 +90,22 @@ public:
   //--------------------------------------------------------------------------
   //! Initizlize the container service
   //--------------------------------------------------------------------------
-  virtual void initialize();
+  virtual void initialize() override;
 
   //--------------------------------------------------------------------------
   //! Configure the container service
   //--------------------------------------------------------------------------
-  virtual void configure(const std::map<std::string, std::string>& config);
+  virtual void configure(const std::map<std::string, std::string>& config) override;
 
   //--------------------------------------------------------------------------
   //! Finalize the container service
   //--------------------------------------------------------------------------
-  virtual void finalize();
+  virtual void finalize() override;
 
   //----------------------------------------------------------------------------
   //! Set file metadata service
   //----------------------------------------------------------------------------
-  virtual void setFileMDService(IFileMDSvc* file_svc)
+  virtual void setFileMDService(IFileMDSvc* file_svc) override
   {
     pFileSvc = file_svc;
   }
@@ -113,34 +113,34 @@ public:
   //--------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
   //--------------------------------------------------------------------------
-  virtual std::shared_ptr<IContainerMD> getContainerMD(IContainerMD::id_t id);
+  virtual std::shared_ptr<IContainerMD> getContainerMD(IContainerMD::id_t id) override;
 
   //--------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //--------------------------------------------------------------------------
-  virtual std::shared_ptr<IContainerMD> createContainer();
+  virtual std::shared_ptr<IContainerMD> createContainer() override;
 
   //--------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the
   //! ContainerMD object has been changed
   //--------------------------------------------------------------------------
-  virtual void updateStore(IContainerMD* obj);
+  virtual void updateStore(IContainerMD* obj) override;
 
   //--------------------------------------------------------------------------
   //! Remove object from the store
   //--------------------------------------------------------------------------
-  virtual void removeContainer(IContainerMD* obj);
+  virtual void removeContainer(IContainerMD* obj) override;
 
   //--------------------------------------------------------------------------
   //! Remove object from the store
   //--------------------------------------------------------------------------
-  virtual void removeContainer(IContainerMD::id_t containerId);
+  void removeContainer(IContainerMD::id_t containerId);
 
   //--------------------------------------------------------------------------
   //! Get number of containers
   //--------------------------------------------------------------------------
-  virtual uint64_t getNumContainers()
+  virtual uint64_t getNumContainers() override
   {
     return pIdMap.size();
   }
@@ -149,7 +149,7 @@ public:
   //! Add file listener that will be notified about all of the changes in
   //! the store
   //--------------------------------------------------------------------------
-  virtual void addChangeListener(IContainerMDChangeListener* listener);
+  virtual void addChangeListener(IContainerMDChangeListener* listener) override;
 
   //--------------------------------------------------------------------------
   //! Prepare for online compacting.
@@ -161,7 +161,7 @@ public:
   //! @return                compacting information that needs to be passed
   //!                        to other functions
   //--------------------------------------------------------------------------
-  void* compactPrepare(const std::string& newLogFileName);
+  void* compactPrepare(const std::string& newLogFileName) override;
 
   //--------------------------------------------------------------------------
   //! Do the compacting.
@@ -172,7 +172,7 @@ public:
   //!
   //! @param  compactingData state information returned by compactPrepare
   //--------------------------------------------------------------------------
-  void compact(void*& compactingData);
+  void compact(void*& compactingData) override;
 
   //--------------------------------------------------------------------------
   //! Commit the compacting infomrmation.
@@ -185,22 +185,22 @@ public:
   //!                       and modified by Compact
   //! @param autorepair     indicates to skip broken records
   //--------------------------------------------------------------------------
-  void compactCommit(void* compactingData, bool autorepair = false);
+  void compactCommit(void* compactingData, bool autorepair = false) override;
 
   //--------------------------------------------------------------------------
   //! Make a transition from slave to master
   // -----------------------------------------------------------------------
-  virtual void slave2Master(std::map<std::string, std::string>& config);
+  virtual void slave2Master(std::map<std::string, std::string>& config) override;
 
   //--------------------------------------------------------------------------
   //! Switch the namespace to read-only mode
   //--------------------------------------------------------------------------
-  virtual void makeReadOnly();
+  virtual void makeReadOnly() override;
 
   //--------------------------------------------------------------------------
   //! Register slave lock
   //--------------------------------------------------------------------------
-  void setSlaveLock(LockHandler* slaveLock)
+  void setSlaveLock(LockHandler* slaveLock) override
   {
     pSlaveLock = slaveLock;
   }

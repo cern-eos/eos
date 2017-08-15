@@ -72,7 +72,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get file id
   //----------------------------------------------------------------------------
-  id_t getId() const
+  id_t getId() const override
   {
     return pId;
   }
@@ -80,7 +80,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
-  void getCTime(ctime_t& ctime) const
+  void getCTime(ctime_t& ctime) const override
   {
     ctime.tv_sec = pCTime.tv_sec;
     ctime.tv_nsec = pCTime.tv_nsec;
@@ -89,7 +89,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set creation time
   //----------------------------------------------------------------------------
-  void setCTime(ctime_t ctime)
+  void setCTime(ctime_t ctime) override
   {
     pCTime.tv_sec = ctime.tv_sec;
     pCTime.tv_nsec = ctime.tv_nsec;
@@ -98,7 +98,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set creation time to now
   //----------------------------------------------------------------------------
-  void setCTimeNow()
+  void setCTimeNow() override
   {
 #ifdef __APPLE__
     struct timeval tv;
@@ -113,7 +113,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get modification time
   //----------------------------------------------------------------------------
-  void getMTime(ctime_t& mtime) const
+  void getMTime(ctime_t& mtime) const override
   {
     mtime.tv_sec = pMTime.tv_sec;
     mtime.tv_nsec = pMTime.tv_nsec;
@@ -122,7 +122,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set modification time
   //----------------------------------------------------------------------------
-  void setMTime(ctime_t mtime)
+  void setMTime(ctime_t mtime) override
   {
     pMTime.tv_sec = mtime.tv_sec;
     pMTime.tv_nsec = mtime.tv_nsec;
@@ -131,7 +131,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set modification time to now
   //----------------------------------------------------------------------------
-  void setMTimeNow()
+  void setMTimeNow() override
   {
 #ifdef __APPLE__
     struct timeval tv;
@@ -146,7 +146,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get size
   //----------------------------------------------------------------------------
-  uint64_t getSize() const
+  uint64_t getSize() const override
   {
     return pSize;
   }
@@ -154,12 +154,12 @@ public:
   //----------------------------------------------------------------------------
   //! Set size - 48 bytes will be used
   //----------------------------------------------------------------------------
-  void setSize(uint64_t size);
+  void setSize(uint64_t size) override;
 
   //----------------------------------------------------------------------------
   //! Get tag
   //----------------------------------------------------------------------------
-  IContainerMD::id_t getContainerId() const
+  IContainerMD::id_t getContainerId() const override
   {
     return pContainerId;
   }
@@ -167,7 +167,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set tag
   //----------------------------------------------------------------------------
-  void setContainerId(IContainerMD::id_t containerId)
+  void setContainerId(IContainerMD::id_t containerId) override
   {
     pContainerId = containerId;
   }
@@ -175,7 +175,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get checksum
   //----------------------------------------------------------------------------
-  const Buffer getChecksum() const
+  const Buffer getChecksum() const override
   {
     return pChecksum;
   }
@@ -185,7 +185,7 @@ public:
   //! WARNING: you have to supply enough bytes to compare with the checksum
   //! stored in the object!
   //----------------------------------------------------------------------------
-  bool checksumMatch(const void* checksum) const
+  bool checksumMatch(const void* checksum) const override
   {
     return !memcmp(checksum, pChecksum.getDataPtr(), pChecksum.getSize());
   }
@@ -193,7 +193,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set checksum
   //----------------------------------------------------------------------------
-  void setChecksum(const Buffer& checksum)
+  void setChecksum(const Buffer& checksum) override
   {
     pChecksum = checksum;
   }
@@ -201,7 +201,7 @@ public:
   //----------------------------------------------------------------------------
   //! Clear checksum
   //----------------------------------------------------------------------------
-  void clearChecksum(uint8_t size = 20)
+  void clearChecksum(uint8_t size = 20) override
   {
     char zero = 0;
 
@@ -216,7 +216,7 @@ public:
   //! @param checksum address of a memory location string the checksum
   //! @param size     size of the checksum in bytes
   //----------------------------------------------------------------------------
-  void setChecksum(const void* checksum, uint8_t size)
+  void setChecksum(const void* checksum, uint8_t size) override
   {
     pChecksum.clear();
     pChecksum.putData(checksum, size);
@@ -225,7 +225,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get name
   //----------------------------------------------------------------------------
-  const std::string getName() const
+  const std::string getName() const override
   {
     return pName;
   }
@@ -233,7 +233,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set name
   //----------------------------------------------------------------------------
-  void setName(const std::string& name)
+  void setName(const std::string& name) override
   {
     pName = name;
   }
@@ -241,17 +241,17 @@ public:
   //----------------------------------------------------------------------------
   //! Add location
   //----------------------------------------------------------------------------
-  void addLocation(location_t location);
+  void addLocation(location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get vector with all the locations
   //----------------------------------------------------------------------------
-  LocationVector getLocations() const;
+  LocationVector getLocations() const override;
 
   //----------------------------------------------------------------------------
   //! Get location
   //----------------------------------------------------------------------------
-  location_t getLocation(unsigned int index)
+  location_t getLocation(unsigned int index) override
   {
     if (index < pLocation.size()) {
       return pLocation[index];
@@ -263,37 +263,37 @@ public:
   //----------------------------------------------------------------------------
   //! replace location by index
   //----------------------------------------------------------------------------
-  void replaceLocation(unsigned int index, location_t newlocation);
+  void replaceLocation(unsigned int index, location_t newlocation) override;
 
   //----------------------------------------------------------------------------
   //! Remove location that was previously unlinked
   //----------------------------------------------------------------------------
-  void removeLocation(location_t location);
+  void removeLocation(location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Remove all locations that were previously unlinked
   //----------------------------------------------------------------------------
-  void removeAllLocations();
+  void removeAllLocations() override;
 
   //----------------------------------------------------------------------------
   //! Get vector with all unlinked locations
   //----------------------------------------------------------------------------
-  LocationVector getUnlinkedLocations() const;
+  LocationVector getUnlinkedLocations() const override;
 
   //----------------------------------------------------------------------------
   //! Unlink location
   //----------------------------------------------------------------------------
-  void unlinkLocation(location_t location);
+  void unlinkLocation(location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Unlink all locations
   //----------------------------------------------------------------------------
-  void unlinkAllLocations();
+  void unlinkAllLocations() override;
 
   //----------------------------------------------------------------------------
   //! Clear unlinked locations without notifying the listeners
   //----------------------------------------------------------------------------
-  void clearUnlinkedLocations()
+  void clearUnlinkedLocations() override
   {
     pUnlinkedLocation.clear();
   }
@@ -301,7 +301,7 @@ public:
   //----------------------------------------------------------------------------
   //! Test the unlinkedlocation
   //----------------------------------------------------------------------------
-  bool hasUnlinkedLocation(location_t location)
+  bool hasUnlinkedLocation(location_t location) override
   {
     for (unsigned int i = 0; i < pUnlinkedLocation.size(); i++) {
       if (pUnlinkedLocation[i] == location) {
@@ -315,7 +315,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get number of unlinked locations
   //----------------------------------------------------------------------------
-  size_t getNumUnlinkedLocation() const
+  size_t getNumUnlinkedLocation() const override
   {
     return pUnlinkedLocation.size();
   }
@@ -323,7 +323,7 @@ public:
   //----------------------------------------------------------------------------
   //! Clear locations without notifying the listeners
   //----------------------------------------------------------------------------
-  void clearLocations()
+  void clearLocations() override
   {
     pLocation.clear();
   }
@@ -331,7 +331,7 @@ public:
   //----------------------------------------------------------------------------
   //! Test the location
   //----------------------------------------------------------------------------
-  bool hasLocation(location_t location)
+  bool hasLocation(location_t location) override
   {
     for (unsigned int i = 0; i < pLocation.size(); i++) {
       if (pLocation[i] == location) {
@@ -345,7 +345,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get number of location
   //----------------------------------------------------------------------------
-  size_t getNumLocation() const
+  size_t getNumLocation() const override
   {
     return pLocation.size();
   }
@@ -353,7 +353,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get uid
   //----------------------------------------------------------------------------
-  uid_t getCUid() const
+  uid_t getCUid() const override
   {
     return pCUid;
   }
@@ -361,7 +361,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set uid
   //----------------------------------------------------------------------------
-  void setCUid(uid_t uid)
+  void setCUid(uid_t uid) override
   {
     pCUid = uid;
   }
@@ -369,7 +369,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get gid
   //----------------------------------------------------------------------------
-  gid_t getCGid() const
+  gid_t getCGid() const override
   {
     return pCGid;
   }
@@ -377,7 +377,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set gid
   //----------------------------------------------------------------------------
-  void setCGid(gid_t gid)
+  void setCGid(gid_t gid) override
   {
     pCGid = gid;
   }
@@ -385,7 +385,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get layout
   //----------------------------------------------------------------------------
-  layoutId_t getLayoutId() const
+  layoutId_t getLayoutId() const override
   {
     return pLayoutId;
   }
@@ -393,7 +393,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set layout
   //----------------------------------------------------------------------------
-  void setLayoutId(layoutId_t layoutId)
+  void setLayoutId(layoutId_t layoutId) override
   {
     pLayoutId = layoutId;
   }
@@ -401,7 +401,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get flags
   //----------------------------------------------------------------------------
-  uint16_t getFlags() const
+  uint16_t getFlags() const override
   {
     return pFlags;
   }
@@ -409,7 +409,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get the n-th flag
   //----------------------------------------------------------------------------
-  bool getFlag(uint8_t n)
+  bool getFlag(uint8_t n) override
   {
     return pFlags & (0x0001 << n);
   }
@@ -417,7 +417,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set flags
   //----------------------------------------------------------------------------
-  void setFlags(uint16_t flags)
+  void setFlags(uint16_t flags) override
   {
     pFlags = flags;
   }
@@ -425,7 +425,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set the n-th flag
   //----------------------------------------------------------------------------
-  void setFlag(uint8_t n, bool flag)
+  void setFlag(uint8_t n, bool flag) override
   {
     if (flag) {
       pFlags |= (1 << n);
@@ -437,12 +437,12 @@ public:
   //----------------------------------------------------------------------------
   //! Env Representation
   //----------------------------------------------------------------------------
-  void getEnv(std::string& env, bool escapeAnd = false);
+  void getEnv(std::string& env, bool escapeAnd = false) override;
 
   //----------------------------------------------------------------------------
   //! Set the FileMDSvc object
   //----------------------------------------------------------------------------
-  void setFileMDSvc(IFileMDSvc* fileMDSvc)
+  void setFileMDSvc(IFileMDSvc* fileMDSvc) override
   {
     pFileMDSvc = fileMDSvc;
   }
@@ -450,7 +450,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get the FileMDSvc object
   //----------------------------------------------------------------------------
-  virtual IFileMDSvc* getFileMDSvc()
+  virtual IFileMDSvc* getFileMDSvc() override
   {
     return pFileMDSvc;
   }
@@ -458,17 +458,17 @@ public:
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  void serialize(Buffer& buffer);
+  void serialize(Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
-  void deserialize(const Buffer& buffer);
+  void deserialize(const Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
   //! Get symbolic link
   //----------------------------------------------------------------------------
-  std::string getLink() const
+  std::string getLink() const override
   {
     return pLinkName;
   }
@@ -476,7 +476,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set symbolic link
   //----------------------------------------------------------------------------
-  void setLink(std::string link_name)
+  void setLink(std::string link_name) override
   {
     pLinkName = link_name;
   }
@@ -484,7 +484,7 @@ public:
   //----------------------------------------------------------------------------
   //! Check if symbolic link
   //----------------------------------------------------------------------------
-  bool isLink() const
+  bool isLink() const override
   {
     return pLinkName.length() ? true : false;
   }
@@ -492,7 +492,7 @@ public:
   //----------------------------------------------------------------------------
   //! Add extended attribute
   //----------------------------------------------------------------------------
-  void setAttribute(const std::string& name, const std::string& value)
+  void setAttribute(const std::string& name, const std::string& value) override
   {
     pXAttrs[name] = value;
   }
@@ -500,7 +500,7 @@ public:
   //----------------------------------------------------------------------------
   //! Remove attribute
   //----------------------------------------------------------------------------
-  void removeAttribute(const std::string& name)
+  void removeAttribute(const std::string& name) override
   {
     XAttrMap::iterator it = pXAttrs.find(name);
 
@@ -512,7 +512,7 @@ public:
   //----------------------------------------------------------------------------
   //! Check if the attribute exist
   //----------------------------------------------------------------------------
-  bool hasAttribute(const std::string& name) const
+  bool hasAttribute(const std::string& name) const override
   {
     return pXAttrs.find(name) != pXAttrs.end();
   }
@@ -520,7 +520,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return number of attributes
   //----------------------------------------------------------------------------
-  size_t numAttributes() const
+  size_t numAttributes() const override
   {
     return pXAttrs.size();
   }
@@ -528,7 +528,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get the attribute
   //----------------------------------------------------------------------------
-  std::string getAttribute(const std::string& name) const
+  std::string getAttribute(const std::string& name) const override
   {
     XAttrMap::const_iterator it = pXAttrs.find(name);
 
@@ -546,7 +546,7 @@ public:
   //!
   //! @return std::map containing all the extended attributes
   //----------------------------------------------------------------------------
-  eos::IFileMD::XAttrMap getAttributes() const;
+  eos::IFileMD::XAttrMap getAttributes() const override;
 
 protected:
   //----------------------------------------------------------------------------
