@@ -25,7 +25,6 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/utils/DataHelper.hh"
-#include "ContainerMd.pb.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
 // Static global variable
@@ -106,6 +105,7 @@ ConvertFileMD::serialize(std::string& buffer)
     throw ex;
   }
 
+  // TODO (esindril): Could use compression on the entries
   // Compute the CRC32C checkusm
   uint32_t cksum = DataHelper::computeCRC32C((void*)ptr, align_size);
   cksum = DataHelper::finalizeCRC32C(cksum);
@@ -115,7 +115,6 @@ ConvertFileMD::serialize(std::string& buffer)
   ptr += sz;
   (void) memcpy((void*)ptr, &obj_size, sz);
 }
-
 
 //------------------------------------------------------------------------------
 //           ************* ConvertContainerMD Class ************
@@ -575,6 +574,7 @@ ConvertFileMDSvc::initialize()
           exit(1);
         }
 
+        // TODO (esindril): Could use compression when storing the entries
         conv_fmd->updateInternal();
         conv_fmd->serialize(buffer);
         qclient::QHash bucket_map(qclient, getBucketKey(file->getId()));
@@ -735,7 +735,7 @@ ConvertQuotaView::addQuotaInfo(IFileMD* file)
 }
 
 //------------------------------------------------------------------------------
-// Export container info to the quota view
+// Commit quota view information to the backend
 //------------------------------------------------------------------------------
 void
 ConvertQuotaView::commitToBackend()
@@ -799,9 +799,9 @@ ConvertQuotaView::commitToBackend()
 void
 ConvertFsView::addFileInfo(IFileMD* file)
 {
-  IFileMD::LocationVector loc_vect = file->getLocations();
   std::string key, val;
   std::string selem;
+  IFileMD::LocationVector loc_vect = file->getLocations();
   std::lock_guard<std::mutex> scope_lock(mMutex);
 
   for (const auto& elem : loc_vect) {
@@ -868,8 +868,6 @@ ConvertFsView::commitToBackend()
       }
 
       if ((count & sAsyncBatch) == 0) {
-        count = 0;
-
         if (!async_handler.Wait()) {
           std::cerr << __FUNCTION__ << " Got error response from the backend"
                     << std::endl;
@@ -951,12 +949,11 @@ main(int argc, char* argv[])
     sBkndPort = std::stoull(argv[4]);
     sQcl = eos::BackendClient::getInstance(sBkndHost, sBkndPort);
     // Check file and directory changelog files
-    int ret;
     struct stat info = {0};
-    std::list<std::string> lst_files{file_chlog, dir_chlog};
+    std::list<std::string> lst_files {file_chlog, dir_chlog};
 
     for (auto& fn : lst_files) {
-      ret = stat(fn.c_str(), &info);
+      int ret = stat(fn.c_str(), &info);
 
       if (ret != 0) {
         std::cerr << "Unable to access file: " << fn << std::endl;
@@ -976,7 +973,7 @@ main(int argc, char* argv[])
     std::cout << "Initialize the container meta-data service" << std::endl;
     cont_svc->setFileMDService(file_svc.get());
     cont_svc->configure(config_cont);
-    // Create the quota view object
+    // Create the view objects
     std::unique_ptr<eos::ConvertQuotaView> quota_view
     (new eos::ConvertQuotaView(sQcl, cont_svc.get(), file_svc.get()));
     std::unique_ptr<eos::ConvertFsView> fs_view(new eos::ConvertFsView());
@@ -986,7 +983,7 @@ main(int argc, char* argv[])
       dynamic_cast<eos::ConvertFileMDSvc*>(file_svc.get());
 
     if (!conv_cont_svc || !conv_file_svc) {
-      std::cerr << "Not convert meta-data service type" << std::endl;
+      std::cerr << "Failed dynamic cast to convert meta-data type" << std::endl;
       exit(-1);
     }
 
@@ -994,12 +991,6 @@ main(int argc, char* argv[])
     conv_file_svc->setViews(quota_view.get(), fs_view.get());
     std::time_t cont_start = std::time(nullptr);
     cont_svc->initialize();
-
-    if (!sAh.Wait()) {
-      std::cerr << "ERROR: Failed to initialize container service" << std::endl;
-      return 1;
-    }
-
     std::chrono::seconds cont_duration {std::time(nullptr) - cont_start};
 
     if (cont_duration.count()) {
@@ -1023,14 +1014,6 @@ main(int argc, char* argv[])
     conv_file_svc->configure(config_file);
     std::time_t file_start = std::time(nullptr);
     file_svc->initialize();
-
-    // Wait for all in-flight async requests
-    if (!sAh.Wait()) {
-      std::cerr << __FUNCTION__ << " Got error response from the backend"
-                << std::endl;
-      exit(1);
-    }
-
     std::chrono::seconds file_duration {std::time(nullptr) - file_start};
     std::cout << "File init: " << file_duration.count() << " seconds" << std::endl;
     std::cout << "Commit quota and file system view ..." << std::endl;
@@ -1063,8 +1046,7 @@ main(int argc, char* argv[])
               << std::endl;
     std::chrono::seconds full_duration {std::time(nullptr) - start};
     std::cout << "Conversion duration: " << full_duration.count() << std::endl;
-    // Save the first free file and container id in the meta_hmap - actually it is
-    // the last id since we get the first free id by doing a hincrby operation
+    // Save the last used file and container id in the meta_hmap
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
     meta_map.hset(eos::constants::sLastUsedFid, file_svc->getFirstFreeId() - 1);
     meta_map.hset(eos::constants::sLastUsedCid, cont_svc->getFirstFreeId() - 1);
