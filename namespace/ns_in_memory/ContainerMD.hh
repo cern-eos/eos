@@ -128,7 +128,7 @@ public:
   //!
   // @param other container from which to inherit children
   //----------------------------------------------------------------------------
-  void InheritChildren(const ContainerMD& other);
+  void InheritChildren(const IContainerMD& other);
 
   //----------------------------------------------------------------------------
   //! Add container

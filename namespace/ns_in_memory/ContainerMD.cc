@@ -111,11 +111,13 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 // Children inheritance
 //------------------------------------------------------------------------------
 void
-ContainerMD::InheritChildren(const ContainerMD& other)
+ContainerMD::InheritChildren(const IContainerMD& other)
 {
-  pFiles = other.pFiles;
-  pSubContainers = other.pSubContainers;
-  setTreeSize(other.getTreeSize());
+  const ContainerMD& otherContainer = dynamic_cast<const ContainerMD&>(other);
+
+  pFiles = otherContainer.pFiles;
+  pSubContainers = otherContainer.pSubContainers;
+  setTreeSize(otherContainer.getTreeSize());
 }
 
 //------------------------------------------------------------------------------
