@@ -780,7 +780,7 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
 
       if (optype.empty() || (optype == "plctblc")) {
         ostr << "### scheduling snapshot for scheduling group " <<
-             it->second->group->mName << " and operation \'Draining Placement\' :" <<
+             it->second->group->mName << " and operation \'Balancing Placement\' :" <<
              std::endl;
         it->second->foregroundFastStruct->blcPlacementTree->recursiveDisplay(ostr,
             useColors) << endl;
