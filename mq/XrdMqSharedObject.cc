@@ -2115,9 +2115,9 @@ XrdMqSharedObjectChangeNotifier::SomListener()
     SOM->SubjectsSem.Wait();
     XrdSysThread::SetCancelOff();
     // we always take a lock to take something from the queue and then release it
+    WatchMutex.Lock();
     SOM->mSubjectsMutex.Lock();
     // listens
-    WatchMutex.Lock();
     std::set<Subscriber*> notifiedSubscribers;
 
     while (SOM->NotificationSubjects.size()) {
@@ -2315,8 +2315,8 @@ XrdMqSharedObjectChangeNotifier::SomListener()
       (*it)->SubjectsSem.Post();
     }
 
-    WatchMutex.UnLock();
     SOM->mSubjectsMutex.UnLock();
+    WatchMutex.UnLock();
     XrdSysThread::SetCancelOn();
   } while (true);
 }
