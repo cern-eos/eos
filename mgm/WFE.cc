@@ -1704,7 +1704,7 @@ WFE::PublishActiveJobs()
   char sactive[256];
   snprintf(sactive, sizeof(sactive) - 1, "%lu", GetActiveJobs());
   FsView::gFsView.mSpaceView["default"]->SetConfigMember
-  ("stat.workflow.active",
+  ("stat.wfe.active",
    sactive,
    true,
    "/eos/*/mgm",
