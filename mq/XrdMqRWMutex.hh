@@ -28,6 +28,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include <stdio.h>
+#include <atomic>
 #define _MULTI_THREADED
 #include <pthread.h>
 
@@ -91,7 +92,7 @@ public:
   {
     int retc = 0;
 
-    if (AtomicGet(wlockid) == (unsigned long long) XrdSysThread::ID()) {
+    if (wlockid.load() == (unsigned long long) XrdSysThread::ID()) {
       fprintf(stderr, "MQ === WRITE LOCK FOLLOWED BY READ === TID=%llu OBJECT=%llx\n",
               (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
       std::terminate();
@@ -132,7 +133,7 @@ public:
   //----------------------------------------------------------------------------
   void LockWrite()
   {
-    if (AtomicGet(wlockid) == (unsigned long long) XrdSysThread::ID()) {
+    if (wlockid.load() == (unsigned long long) XrdSysThread::ID()) {
       fprintf(stderr, "MQ === WRITE LOCK DOUBLELOCK === TID=%llu OBJECT=%llx\n",
               (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
       std::terminate();
@@ -148,8 +149,7 @@ public:
       std::terminate();
     }
 
-    AtomicFAZ(wlockid);
-    AtomicAdd(wlockid, (unsigned long long)XrdSysThread::ID());
+    wlockid = XrdSysThread::ID();
     //fprintf(stderr,"MQ === WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",
     //(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
   }
@@ -169,13 +169,13 @@ public:
 
     //fprintf(stderr,"MQ --- WRITE LOCK RELEASED  ---- TID=%llu OBJECT=%llx\n",
     //(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
-    AtomicFAZ(wlockid);
+    wlockid = 0;
   }
 
 private:
   pthread_rwlock_t rwlock; ///< Underlying rwlock
   pthread_rwlockattr_t attr; ///< RWlock attirbute
-  unsigned long long wlockid; ///< Thread id holding the lock
+  std::atomic<unsigned long long> wlockid;
 };
 
 
