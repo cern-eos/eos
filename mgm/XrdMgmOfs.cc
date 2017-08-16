@@ -330,13 +330,12 @@ XrdMgmOfs::HasRedirect (const char* path,
     eos_static_info("info=\"redirect\" path=\"%s\" host=%s port=%d errno=%s",
                     path, host.c_str(), port, rule);
 
-    if (srule == "ENONET")
-    {
+    if (srule == "ENONET") {
       gOFS->MgmStats.Add("RedirectENONET", 0, 0, 1);
-    }
-    if (srule == "ENOENT")
-    {
-      gOFS->MgmStats.Add("redirectENOENT", 0, 0, 1);
+    } else if (srule == "ENOENT") {
+      gOFS->MgmStats.Add("RedirectENOENT", 0, 0, 1);
+    } else if (srule == "ENETUNREACH") {
+      gOFS->MgmStats.Add("RedirectENETUNREACH", 0, 0, 1);
     }
 
     return true;
