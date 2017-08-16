@@ -324,21 +324,21 @@ GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
       if (size) {
         *size = fmd->getSize();
       }
+
+      XrdOucString fileURI = gOFS->eosView->getUri(fmd.get()).c_str();
+
+      if (fileURI.beginswith(gOFS->MgmProcPath.c_str())) {
+        // don't touch files in any ../proc/ directory
+        return std::string("");
+      }
+
+      eos_static_debug("found file for transfering file=%s",
+                       fileURI.c_str());
     } catch (eos::MDException& e) {
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                        e.getMessage().str().c_str());
       return std::string("");
     }
-
-    XrdOucString fileURI = gOFS->eosView->getUri(fmd.get()).c_str();
-
-    if (fileURI.beginswith(gOFS->MgmProcPath.c_str())) {
-      // don't touch files in any ../proc/ directory
-      return std::string("");
-    }
-
-    eos_static_debug("found file for transfering file=%s",
-                     fileURI.c_str());
   }
   snprintf(fileName, 1024, "%s/%016llx:%s#%08lx",
            gOFS->MgmProcConversionPath.c_str(),
