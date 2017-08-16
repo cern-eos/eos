@@ -122,7 +122,7 @@ Storage::Publish()
 
       eos::common::StringConversion::LoadFileIntoString(tmp_name, publish_sockets);
     }
-    time_t now = time(NULL);
+    //    time_t now = time(NULL);
     gettimeofday(&tv1, &tz);
     // TODO: derive this from a global variable
     int PublishInterval = 10;
@@ -147,8 +147,8 @@ Storage::Publish()
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
       eos::common::RWMutexReadLock lock(mFsMutex);
-      static time_t last_consistency_stats = 0;
-      static time_t next_consistency_stats = 0;
+      //static time_t last_consistency_stats = 0;
+      //static time_t next_consistency_stats = 0;
 
       if (!gOFS.ObjectManager.OpenMuxTransaction()) {
         eos_static_err("cannot open mux transaction");
@@ -229,7 +229,6 @@ Storage::Publish()
           // Retrieve Statistics from the SQLITE DB
 //          std::map<std::string, size_t>::const_iterator isit;
           bool success = true;
-
 //          if (mFsVect[i]->GetStatus() == eos::common::FileSystem::kBooted) {
 //            if (next_consistency_stats < now) {
 //              eos_static_debug("msg=\"publish consistency stats\"");
@@ -248,7 +247,6 @@ Storage::Publish()
 //              }
 //            }
 //          }
-
           eos::common::Statfs* statfs = 0;
 
           // call the update function which stores into the filesystem shared hash
@@ -447,8 +445,8 @@ Storage::Publish()
         }
 
         gOFS.ObjectManager.CloseMuxTransaction();
-        next_consistency_stats = last_consistency_stats +
-                                 60; // report the consistency only once per minute
+        // report the consistency only once per minute
+        // next_consistency_stats = last_consistency_stats + 60;
       }
     }
 
