@@ -137,6 +137,7 @@ XrdMgmOfs::AuthWorkerThread()
   }
 
   bool done = false;
+  std::chrono::system_clock::time_point time_start, time_end;
 
   // Main loop of the worker thread
   while (1) {
@@ -159,6 +160,7 @@ XrdMgmOfs::AuthWorkerThread()
     }
 
     // Read in the ProtocolBuffer object just received
+    time_start = std::chrono::system_clock::now();
     std::string msg_recv((char*)request.data(), request.size());
     RequestProto req_proto;
     req_proto.ParseFromString(msg_recv);
@@ -551,11 +553,15 @@ XrdMgmOfs::AuthWorkerThread()
         return;
       }
     }
+
+    time_end = std::chrono::system_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>
+                    (time_end - time_start);
+    AuthCollectInfo(req_proto.type(), duration.count());
   }
 
   delete responder;
 }
-
 
 //------------------------------------------------------------------------------
 // Check that the ProtocolBuffers message has not been tampered with
@@ -595,4 +601,122 @@ XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Collect statistics for authentication response times
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::AuthCollectInfo(eos::auth::RequestProto_OperationType op,
+                           std::int64_t ms_duration)
+{
+  auto now = std::chrono::system_clock::now();
+  std::lock_guard<std::mutex> lock(mAuthStatsMutex);
+
+  if (std::chrono::duration_cast<std::chrono::minutes>(now -
+      mLastTimestamp).count() >= 1) {
+    mLastTimestamp = now;
+
+    // Push all accumulated samples
+    for (auto it = mAuthSamples.begin(); it != mAuthSamples.end(); ++it) {
+      if (!it->second.empty()) {
+        AuthUpdateAggregate(mAuthAggregate[op], it->second);
+        it->second.clear();
+      }
+    }
+
+    std::string info = AuthPrintStatistics();
+    eos_info("msg=\"authentication statistics\" data=\"%s\"", info.c_str());
+  } else {
+    // Append new measurement
+    mAuthSamples[op].push_back(ms_duration);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Compute stats for the provided samples
+//------------------------------------------------------------------------------
+XrdMgmOfs::AuthStats
+XrdMgmOfs::AuthComputeStats(const std::list<std::int64_t>& lst_samples) const
+{
+  AuthStats stats;
+  stats.mNumSamples = 0;
+  stats.mMax = 0;
+  stats.mMin = std::numeric_limits<std::int64_t>::max();
+  stats.mMean = stats.mVariance = 0;
+  double sum = 0, sq_sum = 0;
+  std::int64_t elem;
+
+  for (auto it = lst_samples.begin(); it != lst_samples.end(); ++it) {
+    elem = *it;
+
+    if (elem > stats.mMax) {
+      stats.mMax = elem;
+    }
+
+    if (elem < stats.mMin) {
+      stats.mMin = elem;
+    }
+
+    sum += elem;
+    sq_sum += elem * elem;
+    ++stats.mNumSamples;
+  }
+
+  stats.mMean = sum / stats.mNumSamples;
+  stats.mVariance = sq_sum / stats.mNumSamples - stats.mMean * stats.mMean;
+  return stats;
+}
+
+//------------------------------------------------------------------------------
+// Update aggregate info with the latest samples
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::AuthUpdateAggregate(AuthStats& stats,
+                               const std::list<std::int64_t>& lst_samples) const
+{
+  if (stats.mNumSamples == 0) {
+    stats = AuthComputeStats(lst_samples);
+    return;
+  }
+
+  AuthStats tmp = AuthComputeStats(lst_samples);
+  double new_mean = (stats.mNumSamples * stats.mMean + tmp.mNumSamples *
+                     tmp.mMean) /
+                    (stats.mNumSamples + tmp.mNumSamples);
+  stats.mVariance =
+    (stats.mNumSamples * (stats.mVariance + std::pow(stats.mMean, 2)) +
+     tmp.mNumSamples * (tmp.mVariance + std::pow(tmp.mMean, 2))) /
+    (stats.mNumSamples + tmp.mNumSamples) - std::pow(new_mean, 2);
+  stats.mMean = new_mean;
+  stats.mNumSamples += tmp.mNumSamples;
+
+  if (stats.mMax < tmp.mMax) {
+    stats.mMax = tmp.mMax;
+  }
+
+  if (stats.mMin > tmp.mMin) {
+    stats.mMin = tmp.mMin;
+  }
+}
+
+//----------------------------------------------------------------------------
+// Print statistics about authentication performance - needs to be called
+// with the mutex locked
+//----------------------------------------------------------------------------
+std::string
+XrdMgmOfs::AuthPrintStatistics() const
+{
+  std::ostringstream oss;
+
+  for (auto it = mAuthAggregate.begin(); it != mAuthAggregate.end(); ++it) {
+    oss << "op=" << it->first << "&"
+        << "samples=" << it->second.mNumSamples << "&"
+        << "max=" << it->second.mMax << "ms&"
+        << "min="  << it->second.mMin << "ms&"
+        << "mean=" << it->second.mMean << "ms&"
+        << "std_dev=" << std::sqrt(it->second.mVariance) << "&";
+  }
+
+  return oss.str();
 }

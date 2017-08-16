@@ -45,7 +45,9 @@
   static std::map<std::string, size_t> sGroupCycle;
   static XrdSysMutex sGroupCycleMutex;
   static XrdSysMutex sZeroMoveMutex;
-  static std::map < eos::common::FileId::fileid_t, std::pair < eos::common::FileSystem::fsid_t, eos::common::FileSystem::fsid_t >> sZeroMove;
+  static std::map < eos::common::FileId::fileid_t,
+  std::pair < eos::common::FileSystem::fsid_t,
+  eos::common::FileSystem::fsid_t >> sZeroMove;
   static time_t sScheduledFidCleanupTime = 0;
 
   // -----------------------------------------------------------------------
@@ -422,7 +424,7 @@
               if (eos::common::LayoutId::GetBlockChecksum(lid) ==
                   eos::common::LayoutId::kNone) {
                 // mask block checksums (e.g. for replica layouts)
-                target_lid &= 0xf0ffffff;
+                target_lid &= 0xff0fffff;
               }
 
               replica_source_capability += "mgm.access=read";

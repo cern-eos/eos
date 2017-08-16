@@ -302,10 +302,10 @@ XrdMgmOfs::HasRedirect(const char* path,
 
     if (srule == "ENONET") {
       gOFS->MgmStats.Add("RedirectENONET", 0, 0, 1);
-    }
-
-    if (srule == "ENOENT") {
-      gOFS->MgmStats.Add("redirectENOENT", 0, 0, 1);
+    } else if (srule == "ENOENT") {
+      gOFS->MgmStats.Add("RedirectENOENT", 0, 0, 1);
+    } else if (srule == "ENETUNREACH") {
+      gOFS->MgmStats.Add("RedirectENETUNREACH", 0, 0, 1);
     }
 
     return true;
@@ -356,7 +356,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
   MAYREDIRECT;
 
   // simply reply OK if it's not a workflow
-  if(info.empty()) {
+  if (info.empty()) {
     return SFS_OK;
   }
 
@@ -368,7 +368,6 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
 
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
-
   int retc = SFS_OK;
 
   // check that all files exist
@@ -725,6 +724,6 @@ XrdMgmOfs::DiscoverPlatformServices(const char* svc_name, void* opaque)
   } else {
     return EINVAL;
   }
-  
+
   return 0;
 }

@@ -287,7 +287,7 @@
               if (eos::common::LayoutId::GetBlockChecksum(lid) ==
                   eos::common::LayoutId::kNone) {
                 // mask block checksums (e.g. for replica layouts)
-                target_lid &= 0xf0ffffff;
+                target_lid &= 0xff0fffff;
               }
 
               source_capability += "mgm.access=read";
@@ -406,6 +406,7 @@
                 target_cap += hexfid;
                 fullcapability += source_cap;
                 fullcapability += target_cap;
+                ScheduledToBalanceFid[fid] = time(NULL) + 3600;
                 XrdOucString response = "submitted";
                 error.setErrInfo(response.length() + 1, response.c_str());
 

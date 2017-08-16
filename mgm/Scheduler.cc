@@ -27,23 +27,24 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+
 XrdSysMutex Scheduler::pMapMutex;
 std::map<std::string, FsGroup*> Scheduler::schedulingGroup;
 
-
-/* ------------------------------------------------------------------------- */
-
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 Scheduler::Scheduler() { }
-/* ------------------------------------------------------------------------- */
 
-/* ------------------------------------------------------------------------- */
-//! -------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 Scheduler::~Scheduler() { }
-//! the write placement routine
-//! -------------------------------------------------------------
 
-// the caller routine has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex)
+//------------------------------------------------------------------------------
+// Write placement routine - the caller routine has to lock via =>
+// eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex)
+//------------------------------------------------------------------------------
 int
 Scheduler::FilePlacement(PlacementArguments* args)
 {
@@ -107,7 +108,6 @@ Scheduler::FilePlacement(PlacementArguments* args)
   std::vector<FsGroup*> groupsToTry;
 
   // place the group iterator
-
   if (!args->alreadyused_filesystems->empty()) {
     if (!gGeoTreeEngine.getInfosFromFsIds(*args->alreadyused_filesystems,
                                           &fsidsgeotags,
@@ -226,9 +226,9 @@ Scheduler::FilePlacement(PlacementArguments* args)
   return ENOSPC;
 }
 
-// we are off the wire
-// the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
-// drain patch
+//------------------------------------------------------------------------------
+// File access method
+//------------------------------------------------------------------------------
 int Scheduler::FileAccess(AccessArguments* args)
 {
   size_t nReqStripes = (args->isRW ?
@@ -266,11 +266,11 @@ int Scheduler::FileAccess(AccessArguments* args)
 
     size_t idx = 0;
 
-    // -----------------------------------------------------------------------
-    // we store not available filesystems in the unavail vector
+    // we store unavailable filesystems in the unavail vector
     for (auto it = hosts.begin(); it != hosts.end(); it++) {
       if ((!it->empty()) && args->tried_cgi->find((*it) + ",") != std::string::npos) {
-        // - this matters for RAID layouts because we have to remove there URLs to let the RAID driver use only online stripes
+        // - this matters for RAID layouts because we have to remove there URLs
+        // to let the RAID driver use only online stripes
         args->unavailfs->push_back((*args->locationsfs)[idx]);
       }
 

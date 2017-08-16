@@ -7,6 +7,17 @@
 Beryl Release Notes
 ===================
 
+``V0.3.266 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- MGM: avoid recreating block-xs files in balancing and draining due to wrong mask used
+- MGM: avoid increasing number of replicas when balancing very empty groups
+- AUTH: Avoid replay of requests for ZMQ sockets which are deleted. This avoid the 0-size
+  files in the namespace bug.
+
 ``V0.3.265 Aquamarine``
 =======================
 

@@ -126,6 +126,18 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   }
 
 // -----------------------------------------------------------------------------
+//! ENETUNREACH Redirect Macro
+// -----------------------------------------------------------------------------
+#define MAYREDIRECT_ENETUNREACH { if (gOFS->IsRedirect) { \
+      int port=0;           \
+      XrdOucString host="";         \
+      if (gOFS->HasRedirect(path,"ENETUNREACH:*",host,port)) {  \
+  return gOFS->Redirect(error, host.c_str(), port) ;  \
+      }               \
+    }               \
+  }
+
+// -----------------------------------------------------------------------------
 //! ENOENT Stall Macro
 // -----------------------------------------------------------------------------
 #define MAYSTALL_ENOENT { if (gOFS->IsStall) {        \
@@ -144,6 +156,18 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       XrdOucString stallmsg="";         \
       int stalltime;            \
       if (gOFS->HasStall(path,"ENONET:*", stalltime, stallmsg)) { \
+  return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;  \
+      }                 \
+    }                 \
+  }
+
+// -----------------------------------------------------------------------------
+//! ENETUNREACH Stall Macro
+// -----------------------------------------------------------------------------
+#define MAYSTALL_ENETUNREACH { if (gOFS->IsStall) {     \
+      XrdOucString stallmsg="";           \
+      int stalltime;              \
+      if (gOFS->HasStall(path,"ENETUNREACH:*", stalltime, stallmsg)) {  \
   return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;  \
       }                 \
     }                 \

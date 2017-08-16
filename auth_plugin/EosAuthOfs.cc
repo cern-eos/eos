@@ -267,6 +267,8 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
 #if ZMQ_VERSION >= 20200
         int timeout_mili = 5000;
         socket->setsockopt(ZMQ_RCVTIMEO, &timeout_mili, sizeof timeout_mili);
+        int socket_linger = 0;
+        socket->setsockopt(ZMQ_LINGER, &socket_linger, sizeof(socket_linger));
 #endif
         std::string endpoint = "inproc://proxyfrontend";
 
@@ -1239,7 +1241,9 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
 google::protobuf::Message*
 EosAuthOfs::GetResponse(zmq::socket_t*& socket)
 {
-  int num_retries = 40; // 2 min = 40 * 5 sec
+  // It makes no sense to wait more than 1 min since the XRootD client will
+  // timeout by default after 60 seconds.
+  int num_retries = 12; // 1 min = 12 * 5 sec
   bool done = false;
   bool reset_socket = false;
   zmq::message_t reply;
@@ -1248,15 +1252,20 @@ EosAuthOfs::GetResponse(zmq::socket_t*& socket)
   try {
     do {
       done = socket->recv(&reply);
-      num_retries--;
+      --num_retries;
+
+      if (!done) {
+        eos_err("ptr_socket=%p, num_retries=%i failed receive", socket,
+                num_retries);
+      }
     } while (!done && (num_retries > 0));
   } catch (zmq::error_t& e) {
     eos_err("socket error: %s", e.what());
     reset_socket = true;
   }
 
-  // We waited 2 min for a response or a fatal error occurent - then we throw
-  //  away the socket and create a new one
+  // We time out while waiting for a response or a fatal error occurent -
+  // then we throw away the socket and create a new one
   if ((num_retries <= 0) || reset_socket) {
     eos_err("discard current socket and create a new one");
     delete socket;
@@ -1264,6 +1273,8 @@ EosAuthOfs::GetResponse(zmq::socket_t*& socket)
 #if ZMQ_VERSION >= 20200
     int timeout_mili = 5000;
     socket->setsockopt(ZMQ_RCVTIMEO, &timeout_mili, sizeof timeout_mili);
+    int socket_linger = 0;
+    socket->setsockopt(ZMQ_LINGER, &socket_linger, sizeof(socket_linger));
 #endif
     std::string endpoint = "inproc://proxyfrontend";
 

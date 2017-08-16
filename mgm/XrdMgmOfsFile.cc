@@ -1283,9 +1283,7 @@ XrdMgmOfsFile::open(const char* inpath,
   if (retc) {
     // if we don't have quota we don't bounce the client back
     if ((retc != ENOSPC) && (retc != EDQUOT)) {
-      // ----------------------------------------------------------------------
       // INLINE Workflows
-      // ----------------------------------------------------------------------
       int stalltime = 0;
       workflow.SetFile(path, fmd->getId());
 
@@ -1298,11 +1296,11 @@ XrdMgmOfsFile::open(const char* inpath,
       // check if we have a global redirect or stall for offline files
       MAYREDIRECT_ENONET;
       MAYSTALL_ENONET;
+      MAYREDIRECT_ENETUNREACH;
+      MAYSTALL_ENETUNREACH;
 
-      // ----------------------------------------------------------------------
       // INLINE REPAIR
       // - if files are less than 1GB we try to repair them inline - max. 3 time
-      // ----------------------------------------------------------------------
       if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") &&
           (fmd->getSize() < (1 * 1024 * 1024 * 1024))) {
         int nmaxheal = 3;
@@ -1623,19 +1621,18 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // get the redirection host from the selected entry in the vector
-  // ---------------------------------------------------------------------------
+  // Get the redirection host from the selected entry in the vector
   if (!selectedfs[fsIndex]) {
     eos_err("0 filesystem in selection");
-    return Emsg(epname, error, ENONET, "received filesystem id 0", path);
+    return Emsg(epname, error, ENETUNREACH, "received filesystem id 0", path);
   }
 
   if (FsView::gFsView.mIdView.count(selectedfs[fsIndex])) {
     filesystem = FsView::gFsView.mIdView[selectedfs[fsIndex]];
-  } else
-    return Emsg(epname, error, ENONET,
-                "received non-existent filesystem", path);
+  } else {
+    return Emsg(epname, error, ENETUNREACH, "received non-existent filesystem",
+                path);
+  }
 
   // Set the FST gateway for clients who are geotagged with default
   // Do this with forwarding proxy syntax only if the firewall entrypoint is different from the endpoint

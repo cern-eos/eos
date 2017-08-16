@@ -603,6 +603,14 @@ ProcCommand::Space()
                         stdOut += "success: geo access policy prefers with a weight the geo matching replica for placements!";
                       }
                     }
+
+                    if (key == "scheduler.skip.overloaded") {
+                      if (value == "on") {
+                        stdOut += "success: scheduler skips overloaded eth-out nodes!";
+                      } else {
+                        stdOut += "success: scheduler does not skip overloaded eth-out nodes!";
+                      }
+                    }
                   }
                 }
               } else {

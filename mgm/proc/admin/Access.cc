@@ -369,8 +369,9 @@ ProcCommand::Access()
   if (mSubCmd == "set") {
     eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
 
-    if (redirect.length() && ((type.length() == 0) || (type == "r") ||
-                              (type == "w") || (type == "ENONET") || (type == "ENOENT"))) {
+    if (redirect.length() &&
+        ((type.length() == 0) || (type == "r") || (type == "w") ||
+         (type == "ENONET") || (type == "ENOENT") || (type == "ENETUNREACH"))) {
       if (type == "r") {
         Access::gRedirectionRules[std::string("r:*")] = redirect;
       } else {
@@ -383,7 +384,11 @@ ProcCommand::Access()
             if (type == "ENONET") {
               Access::gRedirectionRules[std::string("ENONET:*")] = redirect;
             } else {
-              Access::gRedirectionRules[std::string("*")] = redirect;
+              if (type == "ENETUNREACH") {
+                Access::gRedirectionRules[std::string("ENETUNREACH:*")] = redirect;
+              } else {
+                Access::gRedirectionRules[std::string("*")] = redirect;
+              }
             }
           }
         }
@@ -407,9 +412,10 @@ ProcCommand::Access()
       }
     } else {
       if (stall.length()) {
-        if ((atoi(stall.c_str()) > 0) && ((type.length() == 0) || (type == "r") ||
-                                          (type == "w") || ((type.find("rate:") == 0)) || (type == "ENONET") ||
-                                          (type == "ENOENT"))) {
+        if ((atoi(stall.c_str()) > 0) &&
+            ((type.length() == 0) || (type == "r") || (type == "w") ||
+             ((type.find("rate:") == 0)) || (type == "ENONET") ||
+             (type == "ENOENT") || (type == "ENETUNREACH"))) {
           if (type == "r") {
             Access::gStallRules[std::string("r:*")] = stall;
             Access::gStallComment[std::string("r:*")] = mComment.c_str();
@@ -430,8 +436,13 @@ ProcCommand::Access()
                     Access::gStallRules[std::string("ENOENT:*")] = stall;
                     Access::gStallComment[std::string("ENOENT:*")] = mComment.c_str();
                   } else {
-                    Access::gStallRules[std::string("*")] = stall;
-                    Access::gStallComment[std::string("*")] = mComment.c_str();
+                    if (type == "ENETUNREACH") {
+                      Access::gStallRules[std::string("ENETUNREACH:*")] = stall;
+                      Access::gStallComment[std::string("ENETUNREACH:*")] = mComment.c_str();
+                    } else {
+                      Access::gStallRules[std::string("*")] = stall;
+                      Access::gStallComment[std::string("*")] = mComment.c_str();
+                    }
                   }
                 }
               }
@@ -483,7 +494,9 @@ ProcCommand::Access()
           (Access::gRedirectionRules.count(std::string("ENONET:*")) &&
            (type == "ENONET")) ||
           (Access::gRedirectionRules.count(std::string("ENOENT:*")) &&
-           (type == "ENOENT"))) {
+           (type == "ENOENT")) ||
+          (Access::gRedirectionRules.count(std::string("ENETUNREACH:*")) &&
+           (type == "ENETUNREACH"))) {
         stdOut = "success: removing global redirection";
 
         if (type.length()) {
@@ -504,7 +517,11 @@ ProcCommand::Access()
               if (type == "ENOENT") {
                 Access::gRedirectionRules.erase(std::string("ENOENT:*"));
               } else {
-                Access::gRedirectionRules.erase(std::string("*"));
+                if (type == "ENETUNREACH") {
+                  Access::gRedirectionRules.erase(std::string("ENETUNREACH:*"));
+                } else {
+                  Access::gRedirectionRules.erase(std::string("*"));
+                }
               }
             }
           }

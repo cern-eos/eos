@@ -396,6 +396,9 @@ Recycle::Recycler()
                 }
               } else {
                 // This entry has still to be kept
+                eos_static_info("oldest entry: %lld sec to deletion",
+                                it->first + lKeepTime - now);
+
                 if (!snoozetime) {
                   // define the sleep period from the oldest entry
                   snoozetime = it->first + lKeepTime - now;
