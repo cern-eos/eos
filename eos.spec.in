@@ -59,7 +59,8 @@ BuildRequires: redhat-rpm-config
 BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
-BuildRequires: gcc gcc-c++
+BuildRequires: gcc, gcc-c++
+BuildRequires: zstd, libzstd, libzstd-devel
 
 %if %{?_with_server:1}%{!?_with_server:0}
 BuildRequires: openldap-devel
@@ -141,6 +142,7 @@ Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
 Requires: protobuf3
+Requires: zstd, libzstd
 %if %{use_systemd}
 Requires: systemd
 %else
