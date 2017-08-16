@@ -1767,7 +1767,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
   // check there is enough available replicas
   if (availFsCount < nAccessReplicas) {
-    returnCode = ENONET;
+    returnCode = ENETUNREACH;
     goto cleanup;
   }
 
@@ -1775,7 +1775,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
   if (forcedFsId > 0 &&
       (std::find(unavailableFs->begin(), unavailableFs->end(),
                  forcedFsId) != unavailableFs->end())) {
-    returnCode = ENONET;
+    returnCode = ENETUNREACH;
     goto cleanup;
   }
 
@@ -1995,7 +1995,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
   if (dataProxys) {
     if (!findProxy(ERIdx, entries, inode, dataProxys, NULL,
                    pProxyCloseToFs ? "" : accesserGeotag, filesticky)) {
-      returnCode = ENONET;
+      returnCode = ENETUNREACH;
       goto cleanup;
     }
   }
@@ -2020,7 +2020,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
     if (!findProxy(ERIdx, entries, inode, firewallEntryPoint, &firewallProxyGroups,
                    pProxyCloseToFs ? "" : accesserGeotag, any)) {
-      returnCode = ENONET;
+      returnCode = ENETUNREACH;
       goto cleanup;
     }
   }
@@ -2032,7 +2032,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
     if (!findProxy(ERIdx, entries, inode, dataProxys, NULL,
                    pProxyCloseToFs ? "" : accesserGeotag, regular)) {
-      returnCode = ENONET;
+      returnCode = ENETUNREACH;
       goto cleanup;
     }
   }
@@ -2310,8 +2310,7 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       }
 
       eos_debug("geotag change detected : old geotag is %s   new geotag is %s",
-              oldGeoTag.c_str(), newGeoTag.c_str());
-
+                oldGeoTag.c_str(), newGeoTag.c_str());
       entry->slowTreeModified = true;
       entry->fs2SlowTreeNode[fsid] = newNode;
       // !!! change the argument too
