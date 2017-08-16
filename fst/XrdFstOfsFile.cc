@@ -941,7 +941,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
         }
 
         // Return an error that can be recovered at the MGM
-        return gOFS.Emsg(epname, error, ENODEV, "open - not enough sapce");
+        return gOFS.Emsg(epname, error, ENODEV, "open - not enough space");
       }
 
       writeErrorFlag = kOfsDiskFullError;
