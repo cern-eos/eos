@@ -123,67 +123,77 @@ void HealthCommand::DeadNodesCheck()
   std::string ret = m_mgm_execute.GetResult();
   std::string line;
   std::istringstream splitter(ret);
-  ConsoleTableOutput table;
-  std::vector<std::pair<std::string, unsigned>> header;
-  header.push_back(std::make_pair("Hostport:", 30));
-  header.push_back(std::make_pair("Status:", 10));
-  table.SetHeader(header);
-  //table.SetHeader({{"Hostport:", 30}, {"Status:", 10}});
+  std::string format_s = !m_monitoring ? "s" : "os";
+  std::string format_ss = !m_monitoring ? "-s" : "os";
+  TableFormatterBase table;
 
-  if (m_monitoring) {
-    m_output << "type=DeadNodesCheck" << std::endl;
+  if (!m_monitoring) {
+    table.SetHeader({
+      std::make_tuple("hostport", 32, format_ss),
+      std::make_tuple("status", 8, format_s)
+    });
+  } else {
+    table.SetHeader({
+      std::make_tuple("type", 0, format_ss),
+      std::make_tuple("hostport", 0, format_ss),
+      std::make_tuple("status", 0, format_s)
+    });
   }
 
   while (std::getline(splitter, line, '\n')) {
     GetValueWrapper extractor(line);
+    std::string hostport = extractor.GetValue("hostport");
     std::string status = extractor.GetValue("status");
+    bool trigger = status != "online";
 
-    if (m_monitoring) {
-      m_output << extractor.GetValue("hostport") << "=";
-      m_output << status << " ";
-    } else {
-      bool trigger = status != "online";
+    if (trigger || m_all) {
+      TableData table_data;
+      table_data.emplace_back();
 
-      if (trigger || m_all)
-        table.AddRow(
-          extractor.GetValue("hostport"),
-          table.Colorify(
-            trigger ? ConsoleTableOutput::RED : ConsoleTableOutput::GREEN,
-            status
-          )
-        );
+      if (m_monitoring) {
+        table_data.back().push_back(TableCell("DeadNodesCheck", format_ss));
+      }
+
+      table_data.back().push_back(TableCell(hostport, format_s));
+      table_data.back().push_back(TableCell(status, format_s));
+      table.AddRows(table_data);
     }
   }
 
-  if (!m_monitoring) {
-    m_output << table.Str() << std::endl;
-  }
-
-  m_output << std::endl;
+  m_output << table.GenerateTable(HEADER).c_str();
 }
 
 void HealthCommand::TooFullForDrainingCheck()
 {
-  ConsoleTableOutput table;
+  std::vector<std::tuple<std::string, std::string,
+      unsigned long long, unsigned long long, std::string>> data;
+  std::string format_s = !m_monitoring ? "s" : "os";
+  std::string format_ss = !m_monitoring ? "-s" : "os";
+  std::string format_l = !m_monitoring ? "+l" : "ol";
+  std::string unit = !m_monitoring ? "B" : "";
+  TableFormatterBase table;
 
-  if (m_monitoring) {
-    m_output << "type=FullDrainCheck" << std::endl;
+  if (!m_monitoring) {
+    table.SetHeader({
+      std::make_tuple("group", 12, format_ss),
+      std::make_tuple("offline used", 12, format_l),
+      std::make_tuple("online free", 12, format_l),
+      std::make_tuple("status", 8, format_s)
+    });
   } else {
-    std::vector<std::pair<std::string, unsigned>> header;
-    header.push_back(std::make_pair("Group:", 20));
-    header.push_back(std::make_pair("Offline Used(GB)", 18));
-    header.push_back(std::make_pair("Online Free(GB)", 18));
-    header.push_back(std::make_pair("Status:", 10));
-    table.SetHeader(header);
-//     table.SetHeader({
-//       {"Group:", 20}, {"Offline Used(GB)", 18},
-//       {"Online Free(GB)", 18}, {"Status:", 10}});
+    table.SetHeader({
+      std::make_tuple("type", 0, format_ss),
+      std::make_tuple("group", 0, format_ss),
+      std::make_tuple("offline_used_space", 0, format_l),
+      std::make_tuple("online_free_space", 0, format_l),
+      std::make_tuple("status", 0, format_s)
+    });
   }
 
   for (auto group = m_group_data.begin();
        group !=  m_group_data.end(); ++group) {
-    uint64_t summed_free_space = 0;
-    uint64_t offline_used_space = 0;
+    unsigned long long summed_free_space = 0;
+    unsigned long long offline_used_space = 0;
 
     for (auto fs = group->second.begin(); fs != group->second.end(); ++fs) {
       if (fs->active != "online") {
@@ -193,83 +203,71 @@ void HealthCommand::TooFullForDrainingCheck()
       }
     }
 
-    if (m_monitoring) {
-      m_output << "group=" << group->first << " ";
-      m_output << "offline_used_space=";
-      m_output << (offline_used_space * 1.) / (1 << 30) << " ";
-      m_output << "online_free_space=";
-      m_output << (summed_free_space * 1.) / (1 << 30) << " ";
-      m_output << "status=";
+    bool trigger = summed_free_space <= offline_used_space;
+    std::string status = trigger ? "full" : "ok";
 
-      if (summed_free_space <= offline_used_space) {
-        m_output << "full ";
-      } else {
-        m_output << "ok ";
-      }
-
-      m_output << std::endl;
-    } else {
-      bool trigger = summed_free_space <= offline_used_space;
-
-      if (trigger || m_all)
-        table.AddRow(
-          group->first,
-          (offline_used_space * 1.) / (1 << 30),
-          (summed_free_space * 1.) / (1 << 30),
-          table.Colorify(
-            trigger ? ConsoleTableOutput::RED : ConsoleTableOutput::GREEN,
-            trigger ? "FULL" : "OK"
-          )
-        );
+    if (trigger || m_all) {
+      data.push_back(std::make_tuple("FullDrainCheck", group->first.c_str(),
+                                     offline_used_space, summed_free_space, status));
     }
   }
 
-  if (!m_monitoring) {
-    m_output << table.Str() << std::endl;
+  std::sort(data.begin(), data.end());
+
+  for (auto it : data) {
+    TableData table_data;
+    table_data.emplace_back();
+
+    if (m_monitoring) {
+      table_data.back().push_back(TableCell(std::get<0>(it), format_ss));
+    }
+
+    table_data.back().push_back(TableCell(std::get<1>(it), format_ss));
+    table_data.back().push_back(TableCell(std::get<2>(it), format_l, unit));
+    table_data.back().push_back(TableCell(std::get<3>(it), format_l, unit));
+    table_data.back().push_back(TableCell(std::get<4>(it), format_s));
+    table.AddRows(table_data);
   }
 
-  m_output << std::endl;
+  m_output << table.GenerateTable(HEADER).c_str();
 }
 
 void HealthCommand::PlacementContentionCheck()
 {
-  ConsoleTableOutput table;
+  std::vector<std::tuple<std::string, std::string, unsigned long long,
+      unsigned long long, unsigned long long, std::string>> data;
+  std::string format_s = !m_monitoring ? "s" : "os";
+  std::string format_ss = !m_monitoring ? "-s" : "os";
+  std::string format_l = !m_monitoring ? "l" : "ol";
+  std::string unit = !m_monitoring ? "%" : "";
+  TableFormatterBase table;
 
-  if (m_monitoring) {
-    m_output << "type=PlacementContentionCheck"  << std::endl;
+  if (!m_monitoring) {
+    table.SetHeader({
+      std::make_tuple("group", 12, format_ss),
+      std::make_tuple("free fs", 8, format_l),
+      std::make_tuple("full fs", 8, format_l),
+      std::make_tuple("contention", 10, format_l),
+      std::make_tuple("status", 8, format_s)
+    });
   } else {
-    std::vector<std::pair<std::string, unsigned>> header;
-    header.push_back(std::make_pair("Group", 20));
-    header.push_back(std::make_pair("Free", 10));
-    header.push_back(std::make_pair("Full", 10));
-    header.push_back(std::make_pair("Contention", 12));
-    table.SetHeader(header);
-//     table.SetHeader({
-//       {"Group", 20}, {"Free", 10}, {"Full", 10}, {"Contention", 12}
-//     });
+    table.SetHeader({
+      std::make_tuple("type", 0, format_ss),
+      std::make_tuple("group", 0, format_ss),
+      std::make_tuple("free_fs", 0, format_l),
+      std::make_tuple("full_fs", 0, format_l),
+      std::make_tuple("contention", 10, format_l),
+      std::make_tuple("status", 0, format_s)
+    });
   }
 
-  unsigned min = 100, max = 0, avg = 0;
-  std::string critical_group;
+  unsigned min = 100;
+  unsigned avg = 0;
+  unsigned max = 0;
   unsigned min_free_fs = 1024;
+  std::string critical_group;
 
-  for (auto group = m_group_data.begin();
-       group !=  m_group_data.end();
-       ++group) {
-    if (group->second.size() < 4) {
-      if (m_monitoring) {
-        m_output << group->first << "=\"Less than 4 fs in group\" ";
-      } else {
-        table.Colorify(ConsoleTableOutput::YELLOW, "");
-        table.CustomRow(
-          std::make_pair(group->first, 15),
-          std::make_pair("Group has less than 4 filesystem in group", 45)
-        );
-      }
-
-      continue;
-    }
-
+  for (auto group = m_group_data.begin(); group != m_group_data.end(); ++group) {
     unsigned int free_space_left = 0;
 
     for (auto fs = group->second.begin(); fs !=  group->second.end(); ++fs) {
@@ -278,66 +276,91 @@ void HealthCommand::PlacementContentionCheck()
       }
     }
 
+    unsigned int full_fs = group->second.size() - free_space_left;
+    unsigned contention = 100 - (free_space_left * 1. / group->second.size()) * 100;
+    std::string status;
+    bool trigger = true;
+
+    if (group->second.size() < 4) {
+      status = "warning: Less than 4 fs in group";
+    } else if (free_space_left <= 2) {
+      status = "full";
+    } else {
+      status = "fine";
+      trigger = false;
+    }
+
+    if (trigger || m_all) {
+      data.push_back(std::make_tuple("PlacementContentionCheck",
+                                     group->first.c_str(), free_space_left, full_fs, contention, status));
+    }
+
+    min = (contention < min) ? contention : min;
+    avg += contention;
+    max = (contention > max) ? contention : max;
+
     if (free_space_left < min_free_fs) {
       min_free_fs = free_space_left;
       critical_group = group->first;
     }
+  }
+
+  std::sort(data.begin(), data.end());
+
+  for (auto it : data) {
+    TableData table_data;
+    table_data.emplace_back();
 
     if (m_monitoring) {
-      m_output << "group=" << group->first << " ";
-      m_output << "free_fs=" << free_space_left << " ";
-      m_output << "full_fs=" << group->second.size() - free_space_left << " ";
-      m_output << "status=" << (free_space_left <= 2 ? "full" : "fine");
-      m_output << std::endl;
-    } else {
-      bool trigger = free_space_left <= 2;
-      unsigned contention = 100 - (free_space_left * 1. / group->second.size()) * 100;
-      avg += contention;
-
-      if (contention < min) {
-        min = contention;
-      }
-
-      if (contention > max) {
-        max = contention;
-      }
-
-      if (trigger || m_all)
-        table.AddRow(
-          group->first,
-          free_space_left,
-          group->second.size() - free_space_left,
-          table.Colorify(
-            trigger ? ConsoleTableOutput::RED : ConsoleTableOutput::GREEN,
-            std::to_string((long long)contention) + "%"
-          )
-        );
+      table_data.back().push_back(TableCell(std::get<0>(it), format_ss));
     }
+
+    table_data.back().push_back(TableCell(std::get<1>(it), format_ss));
+    table_data.back().push_back(TableCell(std::get<2>(it), format_l));
+    table_data.back().push_back(TableCell(std::get<3>(it), format_l));
+    table_data.back().push_back(TableCell(std::get<4>(it), format_l, unit));
+    table_data.back().push_back(TableCell(std::get<5>(it), format_s));
+    table.AddRows(table_data);
   }
+
+  m_output << table.GenerateTable(HEADER).c_str();
+  //! Summary
+  avg /= m_group_data.size();
+  TableFormatterBase table_summ;
 
   if (!m_monitoring) {
-    avg = avg / m_group_data.size();
-    std::vector<std::pair<std::string, unsigned>> header;
-    header.push_back(std::make_pair("min", 6));
-    header.push_back(std::make_pair("avg", 6));
-    header.push_back(std::make_pair("max", 6));
-    header.push_back(std::make_pair("min-placement", 15));
-    header.push_back(std::make_pair("group", 20));
-    table.SetHeader(header);
-//     table.SetHeader({
-//       {"min", 6}, {"avg", 6}, {"max", 6}, {"min-placement", 15}, {"group",20}
-//     });
-    table.AddRow(
-      std::to_string((long long)min) + "%",
-      std::to_string((long long)avg) + "%",
-      std::to_string((long long)max) + "%",
-      min_free_fs,
-      critical_group
-    );
-    m_output << table.Str() << std::endl;
+    table_summ.SetHeader({
+      std::make_tuple("min", 6, format_l),
+      std::make_tuple("avg", 6, format_l),
+      std::make_tuple("max", 6, format_l),
+      std::make_tuple("min placement", 14, format_l),
+      std::make_tuple("critical group", 15, format_s)
+    });
+  } else {
+    table_summ.SetHeader({
+      std::make_tuple("type", 0, format_ss),
+      std::make_tuple("min", 0, format_l),
+      std::make_tuple("avg", 0, format_l),
+      std::make_tuple("max", 0, format_l),
+      std::make_tuple("min_placement", 0, format_l),
+      std::make_tuple("critical_group", 0, format_s)
+    });
   }
 
-  m_output << std::endl;
+  TableData table_data;
+  table_data.emplace_back();
+
+  if (m_monitoring) {
+    table_data.back().push_back(TableCell("Summary", format_ss));
+  }
+
+  table_data.back().push_back(TableCell(min, format_l, unit));
+  table_data.back().push_back(TableCell(avg, format_l, unit));
+  table_data.back().push_back(TableCell(max, format_l, unit));
+  table_data.back().push_back(TableCell(min_free_fs, format_l));
+  table_data.back().push_back(TableCell(critical_group, format_s));
+  table_summ.AddRows(table_data);
+  m_output << table_summ.GenerateTable(HEADER).c_str();
 }
 
 void HealthCommand::GetGroupsInfo()
@@ -395,7 +418,6 @@ void HealthCommand::GetGroupsInfo()
 
 void HealthCommand::AllCheck()
 {
-  m_output << "Whole report!" << std::endl;
   DeadNodesCheck();
   TooFullForDrainingCheck();
   PlacementContentionCheck();

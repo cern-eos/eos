@@ -248,6 +248,8 @@ void TableCell::SetValue(double value)
 {
   if (mSelectedValue == TypeContainingValue::DOUBLE) {
     //Convert value into K,M,G,T,P,E scale
+    long long unsigned scale = (mUnit == "B") ? 1024 : 1000;
+
     if (mFormat.find("+") != std::string::npos && value != 0) {
       bool value_negative = false;
 
@@ -256,24 +258,24 @@ void TableCell::SetValue(double value)
         value_negative = true;
       }
 
-      if (value >= 1000ll * 1000 * 1000 * 1000 * 1000 * 1000) {
+      if (value >= scale * scale * scale * scale * scale * scale) {
         mUnit.insert(0, "E");
-        value /= 1000ll * 1000 * 1000 * 1000 * 1000 * 1000;
-      } else if (value >= 1000ll * 1000 * 1000 * 1000 * 1000) {
+        value /= scale * scale * scale * scale * scale * scale;
+      } else if (value >= scale * scale * scale * scale * scale) {
         mUnit.insert(0, "P");
-        value /= 1000ll * 1000 * 1000 * 1000 * 1000;
-      } else if (value >= 1000ll * 1000 * 1000 * 1000) {
+        value /= scale * scale * scale * scale * scale;
+      } else if (value >= scale * scale * scale * scale) {
         mUnit.insert(0, "T");
-        value /= 1000ll * 1000 * 1000 * 1000;
-      } else if (value >= 1000ll * 1000 * 1000) {
+        value /= scale * scale * scale * scale;
+      } else if (value >= scale * scale * scale) {
         mUnit.insert(0, "G");
-        value /= 1000ll * 1000 * 1000;
-      } else if (value >= 1000ll * 1000) {
+        value /= scale * scale * scale;
+      } else if (value >= scale * scale) {
         mUnit.insert(0, "M");
-        value /= 1000ll * 1000;
-      } else if (value >= 1000ll) {
+        value /= scale * scale;
+      } else if (value >= scale) {
         mUnit.insert(0, "K");
-        value /= 1000ll;
+        value /= scale;
       }
 
       if (value_negative) {
@@ -363,7 +365,10 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
     }
   }
 
-  ostream << sColorVector[mColor];
+  // Color
+  if (mFormat.find("o") == std::string::npos) {
+    ostream << sColorVector[mColor];
+  }
 
   // Value
   if (mSelectedValue == TypeContainingValue::UINT) {
@@ -378,7 +383,9 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
     ostream << mStrValue;
   }
 
-  if (mColor != TableFormatterColor::NONE) {
+  // Color (return color to default)
+  if (mFormat.find("o") == std::string::npos &&
+      mColor != TableFormatterColor::NONE) {
     ostream << sColorVector[TableFormatterColor::DEFAULT];
   }
 

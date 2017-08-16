@@ -42,13 +42,10 @@ add_library(
 
   ConsoleMain.cc  ConsoleMain.hh
   ConsolePipe.cc  ConsolePipe.hh
-
   RegexUtil.cc RegexUtil.hh
   MgmExecute.cc MgmExecute.hh
-
   commands/AclCommand.cc commands/AclCommand.hh
   commands/HealthCommand.cc commands/HealthCommand.hh
-
   commands/com_access.cc
   commands/com_acl.cc
   commands/com_archive.cc
@@ -121,6 +118,8 @@ add_executable(
   eos
   ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
+  # TODO (esindril) Add the table formatter in common
+  ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableFormatterBase.cc
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
 #-------------------------------------------------------------------------------

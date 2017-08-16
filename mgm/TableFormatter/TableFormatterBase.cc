@@ -326,7 +326,7 @@ void TableFormatterBase::AddString(std::string string)
 TableFormatterColor TableFormatterBase::ChangeColor(std::string header,
     std::string value)
 {
-  // Colors for "fs ls", "node ls" and for "fileinfo"
+  // Colors for "fs ls", "node ls", "fileinfo" and "health" commands
   if (header == "status" || header == "active") {
     if (value == "online") {
       return BWHITE;
@@ -334,6 +334,18 @@ TableFormatterColor TableFormatterBase::ChangeColor(std::string header,
 
     if (value == "offline" || value == "unknown") {
       return BBGRED;
+    }
+
+    if (value == "ok" || value == "fine") {
+      return BGREEN;
+    }
+
+    if (value.find("warning") != std::string::npos) {
+      return YELLOW;
+    }
+
+    if (value == "full") {
+      return BRED;
     }
   }
 
