@@ -261,7 +261,6 @@ ProcCommand::FuseX ()
 
   eos_debug("result-dump=%s", eos::common::StringConversion::string_to_hex(mResultStream).c_str());
 
-  mOffset = 0;
   return SFS_OK;
 }
 
