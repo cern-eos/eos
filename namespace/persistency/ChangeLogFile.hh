@@ -121,7 +121,7 @@ namespace eos
       //------------------------------------------------------------------------
       ChangeLogFile():
         pFd(-1), pInotifyFd(-1), pWatchFd(-1), pIsOpen( false ), pVersion( 0 ),
-        pUserFlags(0), pSeqNumber( 0 ), pContentFlag( 0 ) {
+        pUserFlags(0), pSeqNumber( 0 ), pContentFlag( 0 ), pData( 0 ) {
 	pthread_mutex_init(&pWarningMessagesMutex,0);
       };
 
