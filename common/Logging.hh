@@ -258,10 +258,10 @@ public:
            const char* td = "")
   {
     Mapping::Copy(vid_in, vid);
-    snprintf(cident, sizeof(cident) - 1, "%s", td);
+    snprintf(cident, sizeof(cident), "%s", td);
 
     if (newlogid != logId) {
-      snprintf(logId, sizeof(logId) - 1, "%s", newlogid);
+      snprintf(logId, sizeof(logId), "%s", newlogid);
     }
   }
 

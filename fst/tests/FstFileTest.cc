@@ -305,7 +305,8 @@ DeleteFlagTest()
   assert(status.IsOK());
   delete response;
   // Close the file and then test for its existence
-  mFile->Close();
+  status = mFile->Close();
+  assert(!status.IsOK());
   status = mFile->Open(file_url, OpenFlags::Read, Access::Mode::None);
   assert(!status.IsOK());
   delete[] buffer;

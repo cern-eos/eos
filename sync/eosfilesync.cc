@@ -220,7 +220,7 @@ again:
             }
           } else {
             eos_static_notice("re-opened source file");
-            (void) file->Close();
+            auto st_close = file->Close();
 
             if (file) {
               delete file;

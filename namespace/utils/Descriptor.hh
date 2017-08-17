@@ -123,8 +123,7 @@ namespace eos
       //! @param buffer buffer pointer
       //! @param len    length of the buffer
       //------------------------------------------------------------------------
-      void readBlocking( char *buffer, unsigned len )
-        throw( DescriptorException );
+      void readBlocking( char *buffer, unsigned len );
 
       //------------------------------------------------------------------------
       //! Read the buffer from the non-blocking descriptor (file),
@@ -138,8 +137,7 @@ namespace eos
       //!               an exception is thrown it poll is set to 0 and there
       //!               is no data anymore
       //------------------------------------------------------------------------
-      void readNonBlocking( char *buffer, unsigned len, unsigned poll = 0 )
-        throw( DescriptorException );
+      void readNonBlocking( char *buffer, unsigned len, unsigned poll = 0 );
 
       //------------------------------------------------------------------------
       //! Read the buffer from the non-blocking descriptor (file)
@@ -155,8 +153,7 @@ namespace eos
       //!               is no data anymore
       //------------------------------------------------------------------------
       void offsetReadNonBlocking( char *buffer, unsigned len, off_t offset,
-                                  unsigned poll = 0 )
-        throw( DescriptorException );
+                                  unsigned poll = 0 );
 
       //------------------------------------------------------------------------
       //! Try to read len bytes at offset
@@ -166,8 +163,7 @@ namespace eos
       //! @param  offset offset
       //! @return number of available bytes
       //------------------------------------------------------------------------
-      unsigned tryRead( char *buffer, unsigned len, off_t offset )
-        throw( DescriptorException );
+       unsigned tryRead( char *buffer, unsigned len, off_t offset );
 
       //------------------------------------------------------------------------
       //! Write data to the descriptor
@@ -175,8 +171,7 @@ namespace eos
       //! @param buffer buffer pointer
       //! @param len    length of the buffer
       //------------------------------------------------------------------------
-      void write( const char *buffer, unsigned len )
-        throw( DescriptorException );
+      void write( const char *buffer, unsigned len );
 
     protected:
       int pFD;
@@ -213,7 +208,7 @@ namespace eos
       //!
       //! @param proto   protocol type
       //------------------------------------------------------------------------
-      void init( Protocol proto ) throw( DescriptorException );
+      void init( Protocol proto );
 
       //------------------------------------------------------------------------
       //! Connect the socket
@@ -221,27 +216,25 @@ namespace eos
       //! @param address hostname or ip address of a server
       //! @param port    port number
       //------------------------------------------------------------------------
-      void connect( const char *address, unsigned port )
-        throw( DescriptorException );
+      void connect( const char *address, unsigned port );
 
       //------------------------------------------------------------------------
       //! Bind to the port
       //------------------------------------------------------------------------
-      void bind( const char *address, unsigned port )
-        throw( DescriptorException );
+      void bind( const char *address, unsigned port );
 
       //------------------------------------------------------------------------
       //! Listen to the incomming connections
       //!
       //! @param queue backlog queue size
       //------------------------------------------------------------------------
-      void listen( unsigned queue = 20 ) throw( DescriptorException );
+      void listen( unsigned queue = 20 );
 
       //------------------------------------------------------------------------
       //! Accept connections, allocates memory, the user takes ownership over
       //! The socket object
       //------------------------------------------------------------------------
-      Socket *accept() throw( DescriptorException );
+      Socket *accept();
 
       //------------------------------------------------------------------------
       //! Close the socket
@@ -251,14 +244,12 @@ namespace eos
       //------------------------------------------------------------------------
       //! The same as the ones in the manual
       //------------------------------------------------------------------------
-      void setsockopt( int level, int name, void *value, socklen_t len )
-        throw( DescriptorException );
+      void setsockopt( int level, int name, void *value, socklen_t len );
 
       //------------------------------------------------------------------------
       //! The same as the ones in the manual
       //------------------------------------------------------------------------
-      void getsockopt( int level, int name, void *value, socklen_t &len )
-        throw( DescriptorException );
+      void getsockopt( int level, int name, void *value, socklen_t &len );
   };
 };
 

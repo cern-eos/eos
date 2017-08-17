@@ -471,9 +471,9 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         username = eos::common::Mapping::UidToUserName(buf.st_uid, terrc);
 
         if (!terrc) {
-          snprintf(uidlimit, 12, "%-12s", username.c_str());
+          snprintf(uidlimit, 16, "%-12s", username.c_str());
         } else {
-          snprintf(uidlimit, 12, "%d", buf.st_uid);
+          snprintf(uidlimit, 16, "%d", buf.st_uid);
         }
 
         // try to translate with password database
@@ -481,9 +481,9 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         groupname = eos::common::Mapping::GidToGroupName(buf.st_gid, terrc);
 
         if (!terrc) {
-          snprintf(gidlimit, 12, "%-12s", groupname.c_str());
+          snprintf(gidlimit, 16, "%-12s", groupname.c_str());
         } else {
-          snprintf(gidlimit, 12, "%d", buf.st_gid);
+          snprintf(gidlimit, 16, "%d", buf.st_gid);
         }
 
         char t_creat[36];

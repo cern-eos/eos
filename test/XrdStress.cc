@@ -223,7 +223,7 @@ XrdStress::RunTestProcesses()
     }
 
     if (cpid[i] == 0) {   //child process
-      char writebuffer[30] = "\0";
+      char writebuffer[64] = "\0";
       close(pipefd[i][0]);      //close reading end
       ChildInfo* info = (ChildInfo*) calloc(1, sizeof(ChildInfo));
       info->pXrdStress = this;

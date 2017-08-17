@@ -35,7 +35,6 @@
 #include <cstdlib>
 
 static void resolve(const char* address, sockaddr_in& addr)
-throw(eos::DescriptorException)
 {
   eos::DescriptorException ex;
   //--------------------------------------------------------------------------
@@ -95,7 +94,7 @@ namespace eos
 //----------------------------------------------------------------------------
 // Initializer
 //----------------------------------------------------------------------------
-void Socket::init(Protocol proto) throw(DescriptorException)
+void Socket::init(Protocol proto)
 {
   if (pFD != -1) {
     DescriptorException ex;
@@ -124,7 +123,6 @@ void Socket::init(Protocol proto) throw(DescriptorException)
 // Connect the socket
 //----------------------------------------------------------------------------
 void Socket::connect(const char* address, unsigned port)
-throw(DescriptorException)
 {
   DescriptorException ex;
 
@@ -161,7 +159,6 @@ throw(DescriptorException)
 // Bind to the port
 //----------------------------------------------------------------------------
 void Socket::bind(const char* address, unsigned port)
-throw(DescriptorException)
 {
   if (pFD == -1) {
     init(TCP);
@@ -201,7 +198,7 @@ throw(DescriptorException)
 //----------------------------------------------------------------------------
 // Listen to the incomming connections
 //----------------------------------------------------------------------------
-void Socket::listen(unsigned queue) throw(DescriptorException)
+void Socket::listen(unsigned queue)
 {
   DescriptorException ex;
 
@@ -214,7 +211,7 @@ void Socket::listen(unsigned queue) throw(DescriptorException)
   }
 }
 
-Socket* Socket::accept() throw(DescriptorException)
+Socket* Socket::accept()
 {
   DescriptorException ex;
   //--------------------------------------------------------------------------
@@ -252,7 +249,6 @@ void Descriptor::close()
 // return untill all the requested data is read
 //----------------------------------------------------------------------------
 void Descriptor::readBlocking(char* buffer, unsigned len)
-throw(DescriptorException)
 {
   if (len == 0) {
     return;
@@ -287,7 +283,6 @@ throw(DescriptorException)
 // it won't return untill all the requested data is read.
 //----------------------------------------------------------------------------
 void Descriptor::readNonBlocking(char* buffer, unsigned len, unsigned poll)
-throw(DescriptorException)
 {
   if (len == 0) {
     return;
@@ -333,7 +328,6 @@ throw(DescriptorException)
 //----------------------------------------------------------------------------
 void Descriptor::offsetReadNonBlocking(char* buffer, unsigned len,
                                        off_t offset, unsigned poll)
-throw(DescriptorException)
 {
   if (len == 0) {
     return;
@@ -380,7 +374,6 @@ throw(DescriptorException)
 // Try to read len bytes at offset
 //----------------------------------------------------------------------------
 unsigned Descriptor::tryRead(char* buffer, unsigned len, off_t offset)
-throw(DescriptorException)
 {
   if (len == 0) {
     return 0;
@@ -423,7 +416,6 @@ throw(DescriptorException)
 // Write data to the descriptor
 //----------------------------------------------------------------------------
 void Descriptor::write(const char* buffer, unsigned len)
-throw(DescriptorException)
 {
   if (len == 0) {
     return;
@@ -457,7 +449,6 @@ throw(DescriptorException)
 // The same as the ones in the manual
 //----------------------------------------------------------------------------
 void Socket::setsockopt(int level, int name, void* value, socklen_t len)
-throw(DescriptorException)
 {
   if (::setsockopt(pFD, level, name, value, len) == -1) {
     DescriptorException ex;
@@ -472,7 +463,6 @@ throw(DescriptorException)
 // The same as the ones in the manual
 //----------------------------------------------------------------------------
 void Socket::getsockopt(int level, int name, void* value, socklen_t& len)
-throw(DescriptorException)
 {
   if (::getsockopt(pFD, level, name, value, &len) == -1) {
     DescriptorException ex;

@@ -48,7 +48,7 @@ int main(void)
   XrdOucString resultBase64;
   
   std::string readableStr;
-  char str[2];
+  char str[3];
 
   for ( unsigned int i = 0; i < result.length(); ++i, ptrResult++ ) {
     sprintf( str, "%02x", *ptrResult );
