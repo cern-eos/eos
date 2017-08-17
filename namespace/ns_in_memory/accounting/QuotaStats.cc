@@ -155,7 +155,6 @@ namespace eos
   // Register a new quota node
   //----------------------------------------------------------------------------
   IQuotaNode *QuotaStats::registerNewNode( IContainerMD::id_t nodeId )
-    throw( MDException )
   {
     NodeMap::iterator it = pNodeMap.find( nodeId );
     if( it != pNodeMap.end() )
@@ -173,7 +172,6 @@ namespace eos
   // Remove quota node
   //----------------------------------------------------------------------------
   void QuotaStats::removeNode( IContainerMD::id_t nodeId )
-    throw( MDException )
   {
     NodeMap::iterator it = pNodeMap.find( nodeId );
     if( it == pNodeMap.end() )

@@ -210,12 +210,12 @@ class QuotaStats: public IQuotaStats
   //----------------------------------------------------------------------------
   //! Register a new quota node
   //----------------------------------------------------------------------------
-  IQuotaNode* registerNewNode(IContainerMD::id_t nodeId) throw(MDException) override;
+  IQuotaNode* registerNewNode(IContainerMD::id_t nodeId) override;
 
   //----------------------------------------------------------------------------
   //! Remove quota node
   //----------------------------------------------------------------------------
-  void removeNode(IContainerMD::id_t nodeId) throw(MDException) override;
+  void removeNode(IContainerMD::id_t nodeId) override;
 
 private:
   std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes

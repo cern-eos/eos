@@ -432,7 +432,7 @@ public:
     if (flag) {
       mFile.set_flags(mFile.flags() | (1 << n));
     } else {
-      mFile.set_flags(mFile.flags() & !(1 << n));
+      mFile.set_flags(mFile.flags() & (~(1 << n)));
     }
   }
 

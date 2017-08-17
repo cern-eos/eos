@@ -430,7 +430,7 @@ public:
     if (flag) {
       pFlags |= (1 << n);
     } else {
-      pFlags &= !(1 << n);
+      pFlags &= (~(1 << n));
     }
   }
 
