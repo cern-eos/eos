@@ -37,7 +37,7 @@
 #include <utility>
 #include <set>
 #include <features.h>
-#if __GNUC_PREREQ(4,8)
+#if __GNUC_PREREQ(4,8) || defined(__clang__)
 #include <atomic>
 #endif
 
@@ -750,7 +750,7 @@ void ChangeLogFileMDSvc::initialize()
     time_t start_time = time(0);
     time_t now = start_time;
     uint64_t end = pIdMap.size();
-#if __GNUC_PREREQ(4,8)
+#if __GNUC_PREREQ(4,8) || (defined(__clang__) && __has_feature(cxx_lambdas))
     std::atomic_ulong cnt(0);
     int nthread = std::thread::hardware_concurrency();
 

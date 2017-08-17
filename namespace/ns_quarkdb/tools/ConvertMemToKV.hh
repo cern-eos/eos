@@ -51,9 +51,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ConvertQuotaView(qclient::QClient* qcl, eos::IContainerMDSvc* csvc,
-                   eos::IFileMDSvc* fsvc):
-    mQcl(qcl), mContSvc(csvc), mFileSvc(fsvc) {}
+  ConvertQuotaView(eos::IContainerMDSvc* csvc):
+    mContSvc(csvc) {}
 
   //----------------------------------------------------------------------------
   //!Destructor
@@ -80,9 +79,7 @@ public:
   void commitToBackend();
 
 private:
-  qclient::QClient* mQcl; ///< Qclient object
   eos::IContainerMDSvc* mContSvc; ///< Container metadata service
-  eos::IFileMDSvc* mFileSvc; ///< File metadata service
   //! Map beween quota node id and uid and gid maps holding info about the
   //! quota accounting
   std::set<std::string> mSetQuotaIds; ///< Set of quota ids
@@ -144,7 +141,7 @@ public:
   //!
   //! @param buffer output of the serialized object
   //----------------------------------------------------------------------------
-  void serialize(std::string& buffer);
+  void serializeToStr(std::string& buffer);
 
 private:
   eos::ns::FileMdProto mFile; ///< Protobuf file representation
@@ -201,7 +198,7 @@ public:
   //!
   //! @param buffer output of the serialized object
   //----------------------------------------------------------------------------
-  void serialize(std::string& buffer);
+  void serializeToStr(std::string& buffer);
 
   //----------------------------------------------------------------------------
   //! Commit map of subcontainer to the backend

@@ -168,7 +168,7 @@ std::string DiskHealth::smartctl(const char* device)
   int mask = 1;
 
   for (int i = 0; i < 8; i++) {
-    if ((rc.exit_code & mask) && 1) {
+    if (rc.exit_code & mask) {
       switch (i) {
       case 0:
       case 1:

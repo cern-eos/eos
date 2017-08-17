@@ -213,19 +213,19 @@ public:
   //----------------------------------------------------------------------------
   //! Start the slave
   //----------------------------------------------------------------------------
-  void startSlave();
+  void startSlave() override;
 
   //----------------------------------------------------------------------------
   //! Stop the slave mode
   //----------------------------------------------------------------------------
-  void stopSlave();
+  void stopSlave() override;
 
   //----------------------------------------------------------------------------
   //! Set container service
   //!
   //! @param cont_svc container service
   //----------------------------------------------------------------------------
-  virtual void setContMDService(IContainerMDSvc* cont_svc);
+  virtual void setContMDService(IContainerMDSvc* cont_svc) override;
 
   //----------------------------------------------------------------------------
   //! Get the change log
@@ -238,7 +238,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get the following offset
   //----------------------------------------------------------------------------
-  uint64_t getFollowOffset()
+  uint64_t getFollowOffset() override
   {
     uint64_t lFollowStart;
     pthread_mutex_lock(&pFollowStartMutex);
@@ -268,7 +268,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get the pending items
   //----------------------------------------------------------------------------
-  uint64_t getFollowPending()
+  uint64_t getFollowPending() override
   {
     uint64_t lFollowPending;
     pthread_mutex_lock(&pFollowStartMutex);

@@ -1219,7 +1219,7 @@ void ChangeLogFile::repair(const std::string&  filename,
         snprintf(msg, 4096,
                  "error: discarded block from offset [ %llx <=> %llx ] [ len=%lu ] \n",
                  (long long)offset, (long long)newOffset, (unsigned long)(newOffset - offset));
-        fprintf(stderr, msg);
+        fprintf(stderr, "%s", msg);
         fflush(stderr);
       }
 

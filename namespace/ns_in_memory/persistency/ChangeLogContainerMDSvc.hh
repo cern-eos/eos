@@ -224,18 +224,18 @@ public:
   //--------------------------------------------------------------------------
   //! Start the slave
   //--------------------------------------------------------------------------
-  void startSlave();
+  void startSlave() override;
 
   //--------------------------------------------------------------------------
   //! Stop the slave mode
   //--------------------------------------------------------------------------
-  void stopSlave();
+  void stopSlave() override;
 
   //--------------------------------------------------------------------------
   //! Create container in parent
   //--------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> createInParent(const std::string& name,
-      IContainerMD* parent);
+      IContainerMD* parent) override;
 
   //--------------------------------------------------------------------------
   //! Get the lost+found container, create if necessary
@@ -245,7 +245,8 @@ public:
   //--------------------------------------------------------------------------
   //! Get the orphans container
   //--------------------------------------------------------------------------
-  std::shared_ptr<IContainerMD> getLostFoundContainer(const std::string& name);
+  std::shared_ptr<IContainerMD> getLostFoundContainer(const std::string& name)
+    override;
 
   //--------------------------------------------------------------------------
   //! Get the change log
@@ -258,7 +259,7 @@ public:
   //--------------------------------------------------------------------------
   //! Get the following offset
   //--------------------------------------------------------------------------
-  uint64_t getFollowOffset()
+  uint64_t getFollowOffset() override
   {
     uint64_t lFollowStart;
     pthread_mutex_lock(&pFollowStartMutex);
@@ -288,7 +289,7 @@ public:
   //--------------------------------------------------------------------------
   //! Set the QuotaStats object for the follower
   //--------------------------------------------------------------------------
-  void setQuotaStats(IQuotaStats* quotaStats)
+  void setQuotaStats(IQuotaStats* quotaStats) override
   {
     pQuotaStats = quotaStats;
   }
@@ -306,17 +307,18 @@ public:
   //!
   //! @return vector of warning messages
   //--------------------------------------------------------------------------
-  std::vector<std::string> getWarningMessages();
+  std::vector<std::string> getWarningMessages() override;
 
   //--------------------------------------------------------------------------
   //! Clear changelog warning messages
   //--------------------------------------------------------------------------
-  void clearWarningMessages();
+  void clearWarningMessages() override;
 
   //------------------------------------------------------------------------
   //! Set container accounting
   //------------------------------------------------------------------------
   void setContainerAccounting(IFileMDChangeListener* containerAccounting)
+    override
   {
     pContainerAccounting = containerAccounting;
   }
@@ -324,7 +326,7 @@ public:
   //------------------------------------------------------------------------
   //! Get first free container id
   //------------------------------------------------------------------------
-  IContainerMD::id_t getFirstFreeId()
+  IContainerMD::id_t getFirstFreeId() override
   {
     return pFirstFreeId;
   }
@@ -332,7 +334,7 @@ public:
   //------------------------------------------------------------------------
   //! Resize container service map
   //------------------------------------------------------------------------
-  void resize()
+  void resize() override
   {
     pIdMap.resize(0);
   }
@@ -382,7 +384,8 @@ private:
   //--------------------------------------------------------------------------
   //! Notify the listeners about the change
   //--------------------------------------------------------------------------
-  void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a);
+  void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a)
+    override;
 
   //--------------------------------------------------------------------------
   //! Load the container

@@ -86,7 +86,7 @@ ConvertFileMD::updateInternal()
 // Serialize the object to a std::string buffer
 //------------------------------------------------------------------------------
 void
-ConvertFileMD::serialize(std::string& buffer)
+ConvertFileMD::serializeToStr(std::string& buffer)
 {
   // Align the buffer to 4 bytes to efficiently compute the checksum
   size_t obj_size = mFile.ByteSizeLong();
@@ -168,7 +168,7 @@ ConvertContainerMD::updateInternal()
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
 void
-ConvertContainerMD::serialize(std::string& buffer)
+ConvertContainerMD::serializeToStr(std::string& buffer)
 {
   // Align the buffer to 4 bytes to efficiently compute the checksum
   size_t obj_size = mCont.ByteSizeLong();
@@ -378,7 +378,7 @@ ConvertContainerMDSvc::commitToBackend()
         }
         ++count;
         std::string buffer;
-        conv_cont->serialize(buffer);
+        conv_cont->serializeToStr(buffer);
         std::string sid = stringify(container->getId());
         qclient::QHash bucket_map(qclient, getBucketKey(container->getId()));
         async_handler.Register(bucket_map.hset_async(sid, buffer),
@@ -576,7 +576,7 @@ ConvertFileMDSvc::initialize()
 
         // TODO (esindril): Could use compression when storing the entries
         conv_fmd->updateInternal();
-        conv_fmd->serialize(buffer);
+        conv_fmd->serializeToStr(buffer);
         qclient::QHash bucket_map(qclient, getBucketKey(file->getId()));
         async_handler.Register(bucket_map.hset_async(sid, buffer),
                                bucket_map.getClient());
@@ -975,7 +975,7 @@ main(int argc, char* argv[])
     cont_svc->configure(config_cont);
     // Create the view objects
     std::unique_ptr<eos::ConvertQuotaView> quota_view
-    (new eos::ConvertQuotaView(sQcl, cont_svc.get(), file_svc.get()));
+    (new eos::ConvertQuotaView(cont_svc.get()));
     std::unique_ptr<eos::ConvertFsView> fs_view(new eos::ConvertFsView());
     eos::ConvertContainerMDSvc* conv_cont_svc =
       dynamic_cast<eos::ConvertContainerMDSvc*>(cont_svc.get());

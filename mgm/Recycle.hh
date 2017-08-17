@@ -54,8 +54,6 @@ class Recycle
 {
 private:
   pthread_t mThread; //< thread id of the recyling thread
-  // Variables for an recyling action (e.g. deletion movement into bin)
-  eos::common::Mapping::VirtualIdentity_t* pVid;
   std::string mPath;
   std::string mRecycleDir;
   std::string mRecyclePath;
@@ -71,7 +69,7 @@ public:
   //! afterwards.
   //----------------------------------------------------------------------------
   Recycle():
-    mThread(0), pVid(0), mPath(""), mRecycleDir(""), mRecyclePath(""),
+    mThread(0), mPath(""), mRecycleDir(""), mRecyclePath(""),
     mOwnerUid(99), mOwnerGid(99), mId(0), mWakeUp(false)
   {}
 
@@ -86,7 +84,7 @@ public:
   Recycle(const char* path, const char* recycledir,
           eos::common::Mapping::VirtualIdentity_t* vid, uid_t ownerUid,
           gid_t ownerGid, unsigned long long id):
-    mThread(0), pVid(vid), mPath(path), mRecycleDir(recycledir),
+    mThread(0), mPath(path), mRecycleDir(recycledir),
     mRecyclePath(""), mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id),
     mWakeUp(false)
   {}
