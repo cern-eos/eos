@@ -473,14 +473,36 @@ XrdMgmOfs::_rename (const char *old_name,
 		    }
 		    catch (eos::MDException &e)
 		    {
-		      errno = e.getErrno();
-		      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-				e.getErrno(), e.getMessage().str().c_str());
+		      // try if this is a symbolic link
+		      std::string fname = *fileit;
+		      size_t link_pos = fname.find(" -> ");
+		      if (link_pos != std::string::npos)
+		      {
+			fname.erase(link_pos);
+			fspath = rfoundit->first;
+			fspath += fname;
+			try 
+			{
+			  fmd = gOFS->eosView->getFile(fspath.c_str(), false);
+			}
+			catch (eos::MDException &e)
+			{
+			  errno = e.getErrno();
+			  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+				    e.getErrno(), e.getMessage().str().c_str());
+			}
+		      }
+		      else
+		      {
+			errno = e.getErrno();
+			eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+				  e.getErrno(), e.getMessage().str().c_str());
+		      }
 		    }
 		    
 		    if (!fmd)
 		    {
-		      return Emsg(epname, error, errno, "rename - cannot stat file in subtree", fspath.c_str());
+		      return Emsg(epname, error, errno, "rename - cannot stat file in subtree1", fspath.c_str());
 		    }
 		    if (!fmd->isLink())
 		    {
@@ -544,16 +566,44 @@ XrdMgmOfs::_rename (const char *old_name,
 		  {
 		    std::string fspath = rfoundit->first;
 		    fspath += *fileit;
+		    std::string fname = *fileit;
+		    if (fname.find(" -> ") != std::string::npos)
+		    {
+		      //skip symlinks
+		      continue;
+		    }
 
-		    try {
+		    try 
+                    {
 		      file = gOFS->eosView->getFile(fspath.c_str(), false);
 		    }
 		    catch (eos::MDException &e)
 		    {
-		      errno = e.getErrno();
-		      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-				e.getErrno(), e.getMessage().str().c_str());
-		      eos_debug("path=%s is probably a symlink", fspath.c_str());
+		      // try if this is a symbolic link
+		      std::string fname = *fileit;
+		      size_t link_pos = fname.find(" -> ");
+		      if (link_pos != std::string::npos)
+		      {
+			fname.erase(link_pos);
+			fspath = rfoundit->first;
+			fspath += fname;
+			try 
+			{
+			  file = gOFS->eosView->getFile(fspath.c_str(), false);
+			}
+			catch (eos::MDException &e)
+			{
+			  errno = e.getErrno();
+			  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+				    e.getErrno(), e.getMessage().str().c_str());
+			}
+		      }
+		      else
+		      {
+			errno = e.getErrno();
+			eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+				  e.getErrno(), e.getMessage().str().c_str());
+		      }
 		    }
 
 		    if (file && !file->isLink())
