@@ -663,8 +663,11 @@ XrdMgmOfs::AuthComputeStats(const std::list<std::int64_t>& lst_samples) const
     ++stats.mNumSamples;
   }
 
-  stats.mMean = sum / stats.mNumSamples;
-  stats.mVariance = sq_sum / stats.mNumSamples - stats.mMean * stats.mMean;
+  if (stats.mNumSamples) {
+    stats.mMean = sum / stats.mNumSamples;
+    stats.mVariance = sq_sum / stats.mNumSamples - stats.mMean * stats.mMean;
+  }
+
   return stats;
 }
 
