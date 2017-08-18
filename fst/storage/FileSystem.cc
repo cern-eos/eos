@@ -32,8 +32,8 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 FileSystem::FileSystem(const char* queuepath,
-                       const char* queue, XrdMqSharedObjectManager* som
-                      ) : eos::common::FileSystem(queuepath, queue, som, true)
+                       const char* queue, XrdMqSharedObjectManager* som):
+  eos::common::FileSystem(queuepath, queue, som, true)
 {
   last_blocks_free = 0;
   last_status_broadcast = 0;
@@ -57,7 +57,7 @@ FileSystem::FileSystem(const char* queuepath,
   mTxMultiplexer.Add(mTxExternQueue);
   mTxMultiplexer.Run();
   mRecoverable = false;
-  mFileIO = FileIoPlugin::GetIoObject(GetPath().c_str());
+  mFileIO = FileIoPlugin::GetIoObject(mPath);
 }
 
 /*----------------------------------------------------------------------------*/
