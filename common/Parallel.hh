@@ -39,7 +39,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-#if __GNUC_PREREQ(4,8) || (defined(__clang__) && __has_feature(cxx_lambdas))
+#if __GNUC_PREREQ(4,8) || defined(__clang__)
 
 class Parallel
 {

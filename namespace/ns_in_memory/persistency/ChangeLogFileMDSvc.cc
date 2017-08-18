@@ -750,7 +750,7 @@ void ChangeLogFileMDSvc::initialize()
     time_t start_time = time(0);
     time_t now = start_time;
     uint64_t end = pIdMap.size();
-#if __GNUC_PREREQ(4,8) || (defined(__clang__) && __has_feature(cxx_lambdas))
+#if __GNUC_PREREQ(4,8) || defined(__clang__)
     std::atomic_ulong cnt(0);
     int nthread = std::thread::hardware_concurrency();
 
