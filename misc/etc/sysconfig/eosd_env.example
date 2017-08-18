@@ -21,6 +21,9 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+# Preload jemalloc
+LD_PRELOAD=/usr/lib64/libjemalloc.so.1
+
 # Note: all these variables can be overwritten in the systemd file which is
 # specific to the particular instance of eosd which you are spwning.
 

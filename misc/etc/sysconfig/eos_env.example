@@ -24,6 +24,9 @@
 # Should we run with another limit on the core file size other than the default?
 DAEMON_COREFILE_LIMIT=unlimited
 
+# Preload jemalloc
+LD_PRELOAD=/usr/lib64/libjemalloc.so.1
+
 # Disable the KRB5 replay cache
 KRB5RCACHETYPE=none
 
