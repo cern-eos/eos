@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: Statfs.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -20,14 +20,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-/**
- * @file   Statfs.hh
- *
- * @brief  Filesystem 'statfs' store,
- *
- *
- */
 
 #ifndef __EOSCOMMON_STATFS_HH__
 #define __EOSCOMMON_STATFS_HH__
@@ -52,21 +44,16 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class Statfs: public LogId
 {
-  struct statfs statFs; //< the stored statfs struct
-  XrdOucString path; //< path to the filesystem stat'ed
-  XrdOucString env; //< env representation of the contents
-
 public:
 
+  //------------------------------------------------------------------------------
+  //! Subclass Callback
+  //------------------------------------------------------------------------------
   class Callback
   {
   public:
-
     typedef struct callback_data {
-
-      callback_data() : caller(0), path(0), statfs(0), retc(-1)
-      {
-      }
+      callback_data() : caller(0), path(0), statfs(0), retc(-1) {}
       void* caller;
       const char* path;
       struct statfs* statfs;
@@ -87,9 +74,7 @@ public:
       data.retc = 0;
     }
 
-    virtual ~Callback()
-    {
-    };
+    virtual ~Callback() = default;
 
     Callback(const Callback& obj)
     {
@@ -101,26 +86,23 @@ public:
     callback_data_t data;
   };
 
-  static XrdSysMutex gMutex; //< static global mutex for the global statfs hash
-  static XrdOucHash<Statfs>
-  gStatfs; //< static global hash containing statfs class objects for several file systems
-
-  // ---------------------------------------------------------------------------
-  //! Return the statfs structure for a given path from the global statfs hash
-  // ---------------------------------------------------------------------------
-
-  static Statfs* GetStatfs(const char* path)
+  //----------------------------------------------------------------------------
+  //! Constructor taking the path of the filesystem to stat as in parameter
+  //----------------------------------------------------------------------------
+  Statfs(const char* inpath):
+    mPath(inpath)
   {
-    gMutex.Lock();
-    Statfs* sfs = gStatfs.Find(path);
-    gMutex.UnLock();
-    return sfs;
+    memset(&statFs, 0, sizeof(struct statfs));
   }
 
-  // ---------------------------------------------------------------------------
-  //! Return reference to the internal statfs struct
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~Statfs() = default;
 
+  //----------------------------------------------------------------------------
+  //! Return reference to the internal statfs struct
+  //----------------------------------------------------------------------------
   struct statfs* GetStatfs()
   {
     return &statFs;
@@ -131,7 +113,6 @@ public:
     return env.c_str();
   }
 
-
   //----------------------------------------------------------------------------
   //! Execute the statfs function on the given path and build the env
   //! representation. Optional the 'statfs' method can be given as a callback
@@ -141,11 +122,14 @@ public:
   {
     env = "";
     int retc = 0;
+    std::string tmp_path;
 
     if (call) {
+      tmp_path = data->path;
       retc = call(data);
     } else {
-      retc = ::statfs(path.c_str(), (struct statfs*) &statFs);
+      tmp_path = mPath.c_str();
+      retc = ::statfs(mPath.c_str(), (struct statfs*) &statFs);
     }
 
     if (!retc) {
@@ -158,35 +142,31 @@ public:
               (long) statFs.f_ffree);
       env = s;
     } else {
-      eos_err("failed statfs errno=%i strerrno=%s", errno, strerror(errno));
+      eos_err("failed statfs path=%s, errno=%i, strerrno=%s", tmp_path.c_str(),
+              errno, strerror(errno));
     }
 
     return retc;
   }
 
+  static XrdSysMutex gMutex; //< Static global mutex for the global statfs hash
+  //< Static global hash containing statfs class objects for several file systems
+  static XrdOucHash<Statfs>gStatfs;
 
-  // ---------------------------------------------------------------------------
-  //! Constructor taking the path of the filesystem to stat as in parameter
-  // ---------------------------------------------------------------------------
-
-  Statfs(const char* inpath)
+  //----------------------------------------------------------------------------
+  //! Return the statfs structure for a given path from the global statfs hash
+  //----------------------------------------------------------------------------
+  static Statfs* GetStatfs(const char* path)
   {
-    path = inpath;
-    memset(&statFs, 0, sizeof(struct statfs));
+    gMutex.Lock();
+    Statfs* sfs = gStatfs.Find(path);
+    gMutex.UnLock();
+    return sfs;
   }
 
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-
-  ~Statfs()
-  {
-  }
-
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Static function do add a statfs struct for path to the global statfs hash
-  // ---------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   static Statfs* DoStatfs(const char* path,
                           Callback::callback_t call = 0,
                           Callback::callback_data_t* data = 0)
@@ -207,8 +187,13 @@ public:
       return 0;
     }
   }
+
+private:
+  struct statfs statFs; //< the stored statfs struct
+  XrdOucString mPath; //< path to the filesystem stat'ed
+  XrdOucString env; //< env representation of the contents
 };
-/*----------------------------------------------------------------------------*/
+
 EOSCOMMONNAMESPACE_END
 
 #endif
