@@ -206,8 +206,6 @@ public:
     return config;
   }
 
-private:
-
   struct fuse_id
   {
     uid_t uid;
@@ -236,7 +234,7 @@ private:
       snprintf(ebuf, sizeof (ebuf), "???");
     }
 
-    snprintf(s, 1024, "rc=%02d uid=%05d gid=%05d pid=%05d ino=%08lx fh=%08lx name=%s",
+    snprintf(s, 1024, "rc=%02d uid=%05d gid=%05d pid=%05d ino=%16lx fh=%08lx name=%s",
              rc,
              id.uid,
              id.gid,
@@ -247,6 +245,13 @@ private:
     return s;
   }
 
+  typedef struct opendir_fh 
+  {
+    metad::shared_md md;
+  } opendir_t ;
+  
+private:
+  
   cfg_t config;
 
   kv mKV;

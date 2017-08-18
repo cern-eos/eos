@@ -27,6 +27,7 @@
 
 #include <string>
 #include <map>
+#include <set>
 #include <iostream>
 #include <sstream>
 #include <memory>
@@ -60,7 +61,7 @@
 #include "kv/kv.hh"
 #include "data/cache.hh"
 
-#if ( FUSE_USE_VERSOIN > 28 )
+#if ( FUSE_USE_VERSION > 28 )
 #include "EosFuseSessionLoop.hh"
 #endif
 
@@ -635,7 +636,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   struct fuse_entry_param e;
 
   metad::shared_md md = Instance().mds.get(req, ino);
-  if (!md->id() || md->deleted())
+  if (!md->id() || (md->deleted() && !md->lookup_is()))
   {
     rc = ENOENT;
   }
@@ -692,353 +693,354 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
 
   metad::shared_md md;
-  if (!rc)
+
+  md = Instance().mds.get(req, ino);
+
+  md->Locker().Lock();
+
+  if (!md->id() || (md->deleted() && !md->lookup_is()))
   {
-    md = Instance().mds.get(req, ino);
+    rc = ENOENT;
+  }
+  else
+  {
 
-    md->Locker().Lock();
+    fuse_ino_t cap_ino =  S_ISDIR(md->mode()) ? ino : md->pid();
 
-    if (!md->id() || md->deleted())
+
+    if (op & FUSE_SET_ATTR_MODE)
     {
-      rc = ENOENT;
+      // retrieve cap for mode setting
+      pcap = Instance().caps.acquire(req, cap_ino,
+                                     M_OK);
+    }
+    else
+      if ((op & FUSE_SET_ATTR_UID) || (op & FUSE_SET_ATTR_GID))
+    {
+      // retrieve cap for owner setting
+      pcap = Instance().caps.acquire(req, cap_ino,
+                                     C_OK);
+    }
+    else
+      if (op & FUSE_SET_ATTR_SIZE)
+    {
+      // retrieve cap for write
+      pcap = Instance().caps.acquire(req, cap_ino,
+                                     W_OK);
+    }
+    else
+      if ( (op & FUSE_SET_ATTR_ATIME)
+          || (op & FUSE_SET_ATTR_MTIME)
+          || (op & FUSE_SET_ATTR_ATIME_NOW)
+          || (op & FUSE_SET_ATTR_MTIME_NOW)
+          )
+    {
+      // retrieve cap for write
+      pcap = Instance().caps.acquire(req, cap_ino,
+                                     W_OK);
+    }
+
+    if (pcap->errc())
+    {
+      rc = pcap->errc();
     }
     else
     {
 
-      fuse_ino_t cap_ino =  S_ISDIR(md->mode()) ? ino : md->pid();
-
-
       if (op & FUSE_SET_ATTR_MODE)
       {
-        // retrieve cap for mode setting
-        pcap = Instance().caps.acquire(req, cap_ino,
-                                       M_OK);
-      }
-      else
-        if ((op & FUSE_SET_ATTR_UID) || (op & FUSE_SET_ATTR_GID))
-      {
-        // retrieve cap for owner setting
-        pcap = Instance().caps.acquire(req, cap_ino,
-                                       C_OK);
-      }
-      else
-        if (op & FUSE_SET_ATTR_SIZE)
-      {
-        // retrieve cap for write
-        pcap = Instance().caps.acquire(req, cap_ino,
-                                       W_OK);
-      }
-      else
-        if ( (op & FUSE_SET_ATTR_ATIME)
-            || (op & FUSE_SET_ATTR_MTIME)
-            || (op & FUSE_SET_ATTR_ATIME_NOW)
-            || (op & FUSE_SET_ATTR_MTIME_NOW)
-            )
-      {
-        // retrieve cap for write
-        pcap = Instance().caps.acquire(req, cap_ino,
-                                       W_OK);
-      }
+        /*
+          EACCES Search permission is denied on a component of the path prefix.  
 
-      if (pcap->errc())
-      {
-        rc = pcap->errc();
-      }
-      else
-      {
+          EFAULT path points outside your accessible address space.
 
-        if (op & FUSE_SET_ATTR_MODE)
-        {
-          /*
-            EACCES Search permission is denied on a component of the path prefix.  
+          EIO    An I/O error occurred.
 
-            EFAULT path points outside your accessible address space.
-
-            EIO    An I/O error occurred.
-
-            ELOOP  Too many symbolic links were encountered in resolving path.
-
-            ENAMETOOLONG
-                   path is too long.
-
-            ENOENT The file does not exist.
-
-            ENOMEM Insufficient kernel memory was available.
-
-            ENOTDIR
-                   A component of the path prefix is not a directory.
-
-            EPERM  The  effective  UID does not match the owner of the file, 
-                   and the process is not privileged (Linux: it does not
-           
-                   have the CAP_FOWNER capability).
-
-            EROFS  The named file resides on a read-only filesystem.
-
-            The general errors for fchmod() are listed below:
-
-            EBADF  The file descriptor fd is not valid.
-
-            EIO    See above.
-
-            EPERM  See above.
-
-            EROFS  See above.
-           */
-          ADD_FUSE_STAT("setattr:chmod", req);
-
-          EXEC_TIMING_BEGIN("setattr:chmod");
-
-          md->set_mode(attr->st_mode);
-
-          EXEC_TIMING_END("setattr:chmod");
-        }
-
-        if ((op & FUSE_SET_ATTR_UID) || (op & FUSE_SET_ATTR_GID))
-        {
-          /*
-            EACCES Search permission is denied on a component of the path prefix.  
-
-            EFAULT path points outside your accessible address space.
-
-            ELOOP  Too many symbolic links were encountered in resolving path.
-
-            ENAMETOOLONG
-                   path is too long.
-
-            ENOENT The file does not exist.
-
-            ENOMEM Insufficient kernel memory was available.
-
-            ENOTDIR
-                   A component of the path prefix is not a directory.
-
-            EPERM  The calling process did not have the required permissions 
-                   (see above) to change owner and/or group.
-
-            EROFS  The named file resides on a read-only filesystem.
-
-            The general errors for fchown() are listed below:
-
-            EBADF  The descriptor is not valid.
-
-            EIO    A low-level I/O error occurred while modifying the inode.
-
-            ENOENT See above.
-
-            EPERM  See above.
-
-            EROFS  See above.
-           */
-
-          ADD_FUSE_STAT("setattr:chown", req);
-
-          EXEC_TIMING_BEGIN("setattr:chown");
-
-          if (op & FUSE_SET_ATTR_UID)
-            md->set_uid(attr->st_uid);
-          if (op & FUSE_SET_ATTR_GID)
-            md->set_gid(attr->st_gid);
-
-          EXEC_TIMING_END("setattr:chown");
-        }
-
-        if (
-            (op & FUSE_SET_ATTR_ATIME)
-            || (op & FUSE_SET_ATTR_MTIME)
-            || (op & FUSE_SET_ATTR_ATIME_NOW)
-            || (op & FUSE_SET_ATTR_MTIME_NOW)
-            )
-        {
-          /*
-          EACCES Search permission is denied for one of the directories in 
-     the  path  prefix  of  path
-
-          EACCES times  is  NULL,  the caller's effective user ID does not match 
-     the owner of the file, the caller does not have
-     write access to the file, and the caller is not privileged 
-     (Linux: does not have either the CAP_DAC_OVERRIDE or
-     the CAP_FOWNER capability).
-
-          ENOENT filename does not exist.
-
-          EPERM  times is not NULL, the caller's effective UID does not 
-     match the owner of the file, and the caller is not priv‐
-     ileged (Linux: does not have the CAP_FOWNER capability).
-
-          EROFS  path resides on a read-only filesystem.
-           */
-
-          ADD_FUSE_STAT("setattr:utimes", req);
-
-          EXEC_TIMING_BEGIN("setattr:utimes");
-
-          struct timespec tsnow;
-          eos::common::Timing::GetTimeSpec(tsnow);
-          if (op & FUSE_SET_ATTR_ATIME)
-          {
-            md->set_atime(attr->ATIMESPEC.tv_sec);
-            md->set_atime_ns(attr->ATIMESPEC.tv_nsec);
-            md->set_ctime(tsnow.tv_sec);
-            md->set_ctime_ns(tsnow.tv_nsec);
-          }
-          if (op & FUSE_SET_ATTR_MTIME)
-          {
-            md->set_mtime(attr->MTIMESPEC.tv_sec);
-            md->set_mtime_ns(attr->MTIMESPEC.tv_nsec);
-            md->set_ctime(tsnow.tv_sec);
-            md->set_ctime_ns(tsnow.tv_nsec);
-          }
-
-          if ( ( op & FUSE_SET_ATTR_ATIME_NOW) ||
-              ( op & FUSE_SET_ATTR_MTIME_NOW) )
-          {
-            if (op & FUSE_SET_ATTR_ATIME_NOW)
-            {
-              md->set_atime(tsnow.tv_sec);
-              md->set_atime_ns(tsnow.tv_nsec);
-              md->set_ctime(tsnow.tv_sec);
-              md->set_ctime_ns(tsnow.tv_nsec);
-            }
-
-            if (op & FUSE_SET_ATTR_MTIME_NOW)
-            {
-              md->set_mtime(tsnow.tv_sec);
-              md->set_mtime_ns(tsnow.tv_nsec);
-              md->set_ctime(tsnow.tv_sec);
-              md->set_ctime_ns(tsnow.tv_nsec);
-            }
-          }
-          EXEC_TIMING_END("setattr:utimes");
-        }
-
-
-        if (op & FUSE_SET_ATTR_SIZE)
-        {
-          /*
-          EACCES Search  permission is denied for a component of the path 
-       prefix, or the named file is not writable by the user.
-             
-          EFAULT Path points outside the process's allocated address space.
-
-          EFBIG  The argument length is larger than the maximum file size. 
-
-          EINTR  While blocked waiting to complete, the call was interrupted 
-       by a signal handler; see fcntl(2) and signal(7).
-
-          EINVAL The argument length is negative or larger than the maximum 
-       file size.
-
-          EIO    An I/O error occurred updating the inode.
-
-          EISDIR The named file is a directory.
-
-          ELOOP  Too many symbolic links were encountered in translating the 
-       pathname.
+          ELOOP  Too many symbolic links were encountered in resolving path.
 
           ENAMETOOLONG
-       A component of a pathname exceeded 255 characters, or an 
-       entire pathname exceeded 1023 characters.
+                 path is too long.
 
-          ENOENT The named file does not exist.
+          ENOENT The file does not exist.
+
+          ENOMEM Insufficient kernel memory was available.
 
           ENOTDIR
-       A component of the path prefix is not a directory.
+                 A component of the path prefix is not a directory.
 
-          EPERM  The underlying filesystem does not support extending a file 
-       beyond its current size.
+          EPERM  The  effective  UID does not match the owner of the file, 
+                 and the process is not privileged (Linux: it does not
+           
+                 have the CAP_FOWNER capability).
 
           EROFS  The named file resides on a read-only filesystem.
 
-          ETXTBSY
-       The file is a pure procedure (shared text) file that is 
-       being executed.
+          The general errors for fchmod() are listed below:
 
-          For ftruncate() the same errors apply, but instead of things that 
-          can be wrong with path, we now have things that  can
-          be wrong with the file descriptor, fd:
+          EBADF  The file descriptor fd is not valid.
 
-          EBADF  fd is not a valid descriptor.
+          EIO    See above.
 
-          EBADF or EINVAL
-       fd is not open for writing.
+          EPERM  See above.
 
-          EINVAL fd does not reference a regular file.
-           */
+          EROFS  See above.
+         */
+        ADD_FUSE_STAT("setattr:chmod", req);
 
-          ADD_FUSE_STAT("setattr:truncate", req);
+        EXEC_TIMING_BEGIN("setattr:chmod");
 
-          EXEC_TIMING_BEGIN("setattr:truncate");
+        md->set_mode(attr->st_mode);
 
+        EXEC_TIMING_END("setattr:chmod");
+      }
 
-          int rc = 0;
+      if ((op & FUSE_SET_ATTR_UID) || (op & FUSE_SET_ATTR_GID))
+      {
+        /*
+          EACCES Search permission is denied on a component of the path prefix.  
 
-          if (!md->id() || md->deleted())
+          EFAULT path points outside your accessible address space.
+
+          ELOOP  Too many symbolic links were encountered in resolving path.
+
+          ENAMETOOLONG
+                 path is too long.
+
+          ENOENT The file does not exist.
+
+          ENOMEM Insufficient kernel memory was available.
+
+          ENOTDIR
+                 A component of the path prefix is not a directory.
+
+          EPERM  The calling process did not have the required permissions 
+                 (see above) to change owner and/or group.
+
+          EROFS  The named file resides on a read-only filesystem.
+
+          The general errors for fchown() are listed below:
+
+          EBADF  The descriptor is not valid.
+
+          EIO    A low-level I/O error occurred while modifying the inode.
+
+          ENOENT See above.
+
+          EPERM  See above.
+
+          EROFS  See above.
+         */
+
+        ADD_FUSE_STAT("setattr:chown", req);
+
+        EXEC_TIMING_BEGIN("setattr:chown");
+
+        if (op & FUSE_SET_ATTR_UID)
+          md->set_uid(attr->st_uid);
+        if (op & FUSE_SET_ATTR_GID)
+          md->set_gid(attr->st_gid);
+
+        EXEC_TIMING_END("setattr:chown");
+      }
+
+      if (
+          (op & FUSE_SET_ATTR_ATIME)
+          || (op & FUSE_SET_ATTR_MTIME)
+          || (op & FUSE_SET_ATTR_ATIME_NOW)
+          || (op & FUSE_SET_ATTR_MTIME_NOW)
+          )
+      {
+        /*
+        EACCES Search permission is denied for one of the directories in 
+   the  path  prefix  of  path
+
+        EACCES times  is  NULL,  the caller's effective user ID does not match 
+   the owner of the file, the caller does not have
+   write access to the file, and the caller is not privileged 
+   (Linux: does not have either the CAP_DAC_OVERRIDE or
+   the CAP_FOWNER capability).
+
+        ENOENT filename does not exist.
+
+        EPERM  times is not NULL, the caller's effective UID does not 
+   match the owner of the file, and the caller is not priv‐
+   ileged (Linux: does not have the CAP_FOWNER capability).
+
+        EROFS  path resides on a read-only filesystem.
+         */
+
+        ADD_FUSE_STAT("setattr:utimes", req);
+
+        EXEC_TIMING_BEGIN("setattr:utimes");
+
+        struct timespec tsnow;
+        eos::common::Timing::GetTimeSpec(tsnow);
+        if (op & FUSE_SET_ATTR_ATIME)
+        {
+          md->set_atime(attr->ATIMESPEC.tv_sec);
+          md->set_atime_ns(attr->ATIMESPEC.tv_nsec);
+          md->set_ctime(tsnow.tv_sec);
+          md->set_ctime_ns(tsnow.tv_nsec);
+        }
+        if (op & FUSE_SET_ATTR_MTIME)
+        {
+          md->set_mtime(attr->MTIMESPEC.tv_sec);
+          md->set_mtime_ns(attr->MTIMESPEC.tv_nsec);
+          md->set_ctime(tsnow.tv_sec);
+          md->set_ctime_ns(tsnow.tv_nsec);
+        }
+
+        if ( ( op & FUSE_SET_ATTR_ATIME_NOW) ||
+            ( op & FUSE_SET_ATTR_MTIME_NOW) )
+        {
+          if (op & FUSE_SET_ATTR_ATIME_NOW)
           {
-            rc = ENOENT;
+            md->set_atime(tsnow.tv_sec);
+            md->set_atime_ns(tsnow.tv_nsec);
+            md->set_ctime(tsnow.tv_sec);
+            md->set_ctime_ns(tsnow.tv_nsec);
+          }
+
+          if (op & FUSE_SET_ATTR_MTIME_NOW)
+          {
+            md->set_mtime(tsnow.tv_sec);
+            md->set_mtime_ns(tsnow.tv_nsec);
+            md->set_ctime(tsnow.tv_sec);
+            md->set_ctime_ns(tsnow.tv_nsec);
+          }
+        }
+        EXEC_TIMING_END("setattr:utimes");
+      }
+
+
+      if (op & FUSE_SET_ATTR_SIZE)
+      {
+        /*
+        EACCES Search  permission is denied for a component of the path 
+     prefix, or the named file is not writable by the user.
+             
+        EFAULT Path points outside the process's allocated address space.
+
+        EFBIG  The argument length is larger than the maximum file size. 
+
+        EINTR  While blocked waiting to complete, the call was interrupted 
+     by a signal handler; see fcntl(2) and signal(7).
+
+        EINVAL The argument length is negative or larger than the maximum 
+     file size.
+
+        EIO    An I/O error occurred updating the inode.
+
+        EISDIR The named file is a directory.
+
+        ELOOP  Too many symbolic links were encountered in translating the 
+     pathname.
+
+        ENAMETOOLONG
+     A component of a pathname exceeded 255 characters, or an 
+     entire pathname exceeded 1023 characters.
+
+        ENOENT The named file does not exist.
+
+        ENOTDIR
+     A component of the path prefix is not a directory.
+
+        EPERM  The underlying filesystem does not support extending a file 
+     beyond its current size.
+
+        EROFS  The named file resides on a read-only filesystem.
+
+        ETXTBSY
+     The file is a pure procedure (shared text) file that is 
+     being executed.
+
+        For ftruncate() the same errors apply, but instead of things that 
+        can be wrong with path, we now have things that  can
+        be wrong with the file descriptor, fd:
+
+        EBADF  fd is not a valid descriptor.
+
+        EBADF or EINVAL
+     fd is not open for writing.
+
+        EINVAL fd does not reference a regular file.
+         */
+
+        ADD_FUSE_STAT("setattr:truncate", req);
+
+        EXEC_TIMING_BEGIN("setattr:truncate");
+
+
+        int rc = 0;
+
+        if (!md->id() || (md->deleted() && !md->lookup_is()))
+        {
+          rc = ENOENT;
+        }
+        else
+        {
+          if ((md->mode() & S_IFDIR))
+          {
+            rc = EISDIR;
           }
           else
           {
-            if ((md->mode() & S_IFDIR))
+            if (fi && fi->fh)
             {
-              rc = EISDIR;
-            }
-            else
-            {
-              if (fi && fi->fh)
-              {
-                // ftruncate
-                data::data_fh* io = (data::data_fh*) fi->fh;
+              // ftruncate
+              data::data_fh* io = (data::data_fh*) fi->fh;
 
-                if (io)
-                {
-                  eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
-                  rc |= io->ioctx()->truncate(req, attr->st_size);
-                  rc |= io->ioctx()->flush(req);
-                }
-                else
-                {
-                  rc = EIO;
-                }
+              if (io)
+              {
+                eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
+                rc |= io->ioctx()->truncate(req, attr->st_size);
+                rc |= io->ioctx()->flush(req);
               }
               else
               {
-                // truncate
-
-                eos_static_debug("truncate size=%lu", (size_t) attr->st_size);
-                std::string cookie=md->Cookie();
-                data::shared_data io = Instance().datas.get(req, md->id(), md);
-                rc = io->attach(req, cookie, true);
-                eos_static_debug("calling truncate");
-                rc |= io->truncate(req, attr->st_size);
-                rc |= io->flush(req);
-                rc |= io->detach(req, cookie, true);
-                Instance().datas.release(req, md->id());
-              }
-              if (!rc)
-              {
-                md->set_size(attr->st_size);
+                rc = EIO;
               }
             }
+            else
+            {
+              // truncate
+
+              eos_static_debug("truncate size=%lu", (size_t) attr->st_size);
+              std::string cookie=md->Cookie();
+              data::shared_data io = Instance().datas.get(req, md->id(), md);
+              rc = io->attach(req, cookie, true);
+              eos_static_debug("calling truncate");
+              rc |= io->truncate(req, attr->st_size);
+              rc |= io->flush(req);
+              rc |= io->detach(req, cookie, true);
+              Instance().datas.release(req, md->id());
+            }
+            if (!rc)
+            {
+              md->set_size(attr->st_size);
+            }
           }
-          EXEC_TIMING_END("setattr:truncate");
         }
+        EXEC_TIMING_END("setattr:truncate");
       }
     }
   }
 
 
   if (rc)
+  {
+    md->Locker().UnLock();
     fuse_reply_err (req, rc);
+  }
   else
   {
     struct fuse_entry_param e;
     memset(&e, 0, sizeof (e));
     md->convert(e);
     eos_static_info("%s", md->dump(e).c_str());
-    fuse_reply_attr (req, &e.attr, e.attr_timeout);
     Instance().mds.update(req, md, pcap->authid());
     md->Locker().UnLock();
+    fuse_reply_attr (req, &e.attr, e.attr_timeout);
   }
 
   EXEC_TIMING_END(__func__);
@@ -1149,15 +1151,11 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
     else
     {
       eos_static_info("%s", md->dump().c_str());
-
-      // copy the current state
-      eos::fusex::md* fh_md = new eos::fusex::md(*md);
-      auto map = fh_md->mutable_children();
+      auto md_fh = new opendir_t;
+      md_fh->md = md;
+      // fh contains a dummy 0 pointer
       eos_static_debug("adding ino=%08lx p-ino=%08lx", md->id(), md->pid());
-      (*map)["."] = md->id();
-      (*map)[".."] = md->pid();
-
-      fi->fh = (unsigned long) fh_md;
+      fi->fh = (unsigned long) md_fh;
     }
   }
   if (rc)
@@ -1200,23 +1198,27 @@ EBADF  Invalid directory stream descriptor fi->fh
   }
   else
   {
-    eos::fusex::md* md = (eos::fusex::md*) fi->fh;
-    auto map = md->children();
-    auto it = map.begin();
+    // get the shared pointer from the open file descriptor 
+    opendir_t* md = (opendir_t*) fi->fh;
+    metad::shared_md pmd = md->md;
+    XrdSysMutexHelper mLock(pmd->Locker());
 
-    eos_static_info("off=%lu size=%lu", off, map.size());
+    auto pmap = pmd->children();
+    auto it = pmap.begin();
 
-    if ((size_t) off < map.size())
+    eos_static_info("off=%lu size-%lu", off, pmap.size());
+
+    if ((size_t) off < pmap.size())
       std::advance(it, off);
     else
-      it = map.end();
+      it = pmap.end();
 
     char b[size];
 
     char* b_ptr = b;
     off_t b_size = 0;
 
-    for ( ; it != map.end(); ++it)
+    for ( ; it != pmap.end(); ++it)
     {
       std::string bname = it->first;
       fuse_ino_t cino = it->second;
@@ -1278,7 +1280,7 @@ EosFuse::releasedir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
   fuse_id id(req);
 
-  eos::fusex::md* md = (eos::fusex::md*) fi->fh;
+  opendir_t* md = (opendir_t*) fi->fh;
   if (md)
   {
     delete md;
@@ -1601,8 +1603,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
       if (!rc)
       {
         pmd = Instance().mds.get(req, parent);
-        Instance().mds.remove(pmd, md, pcap->authid());
         Instance().datas.unlink(req, md->id());
+        Instance().mds.remove(pmd, md, pcap->authid());
       }
     }
   }
@@ -1613,7 +1615,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
-                    dump(id, parent, 0, rc).c_str());
+                    dump(id, parent, 0, rc, name).c_str());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1922,7 +1924,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       io->ioctx()->set_remote(Instance().Config().hostport,
                               md->name(),
                               md->md_ino(),
-                              md->md_pino());
+                              md->md_pino(),
+                              req);
 
       bool outdated = (io->ioctx()->attach(req, cookie, (mode == W_OK) ) == EKEYEXPIRED);
 
@@ -2160,7 +2163,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           io->ioctx()->set_remote(Instance().Config().hostport,
                                   md->name(),
                                   md->md_ino(),
-                                  md->md_pino());
+                                  md->md_pino(),
+                                  req);
 
           io->ioctx()->attach(req, cookie, true);
         }
@@ -2194,11 +2198,15 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
               struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
+  eos::common::Timing timing(__func__);
+  COMMONTIMING("_start_", &timing);
 
   eos_static_debug("inode=%llu size=%li off=%llu",
                    (unsigned long long) ino, size, (unsigned long long) off);
 
   eos_static_debug("");
+
+  fuse_id id(req);
 
   ADD_FUSE_STAT(__func__, req);
 
@@ -2230,6 +2238,9 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
   if (rc)
     fuse_reply_err (req, rc);
 
+  eos_static_debug("t(ms)=%.03f %s", timing.RealTime(),
+                   dump(id, ino, 0, rc).c_str());
+
   EXEC_TIMING_END(__func__);
 
 }
@@ -2241,12 +2252,16 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
                off_t off, struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
+  eos::common::Timing timing(__func__);
+  COMMONTIMING("_start_", &timing);
 
   eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld",
                    (long long) ino, (long long) size,
                    (long long) off, (long long) buf);
 
   eos_static_debug("");
+
+  fuse_id id(req);
 
   ADD_FUSE_STAT(__func__, req);
 
@@ -2280,6 +2295,9 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
 
   if (rc)
     fuse_reply_err (req, rc);
+
+  eos_static_debug("t(ms)=%.03f %s", timing.RealTime(),
+                   dump(id, ino, 0, rc).c_str());
 
   EXEC_TIMING_END(__func__);
 }
