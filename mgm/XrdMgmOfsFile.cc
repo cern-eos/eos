@@ -236,32 +236,34 @@ XrdMgmOfsFile::open (const char *inpath,
   MAYSTALL;
   MAYREDIRECT;
 
+  unsigned long long byfid = 0;
+
+
   if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) || (spath.beginswith("ino:"))))
   {
     //-------------------------------------------
     // reference by fid+fsid                                                                                                                                                                                           
     //-------------------------------------------
-    unsigned long long fid = 0;
     if (spath.beginswith("fid:"))
     {
       spath.replace("fid:", "");
-      fid = strtoull(spath.c_str(), 0, 10);
+      byfid = strtoull(spath.c_str(), 0, 10);
     }
     if (spath.beginswith("fxid:"))
     {
       spath.replace("fxid:", "");
-      fid = strtoull(spath.c_str(), 0, 16);
+      byfid = strtoull(spath.c_str(), 0, 16);
     }
     if (spath.beginswith("ino:"))
     {
       spath.replace("ino:","");
-      fid = strtoull(spath.c_str(), 0, 16);
-      fid = eos::common::FileId::InodeToFid(fid);
+      byfid = strtoull(spath.c_str(), 0, 16);
+      byfid = eos::common::FileId::InodeToFid(byfid);
     }
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
-      fmd = gOFS->eosFileService->getFileMD(fid);
+      fmd = gOFS->eosFileService->getFileMD(byfid);
       spath = gOFS->eosView->getUri(fmd).c_str();
       eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
       path = spath.c_str();
@@ -1727,6 +1729,39 @@ XrdMgmOfsFile::open (const char *inpath,
         // consistently redirect to the highest fsid having if possible the same
         // geotag as the client
         // ---------------------------------------------------------------------
+
+	if (byfid)
+	{
+	  // the new FUSE client needs to have the replicas attached after the 
+	  // first open call
+
+	  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          // -------------------------------------------------------------------                                                 
+          try
+	  {
+	    fmd = gOFS->eosFileService->getFileMD(byfid);
+	    
+	    if (isRecreation)
+	    {
+	      fmd->unlinkAllLocations();
+	    }
+	    for (int i = 0; i < (int) selectedfs.size(); i++)
+	    {
+	      fmd->addLocation(selectedfs[i]);
+	    }
+	    gOFS->eosView->updateFileStore(fmd);
+	  }
+          catch (eos::MDException &e)
+	  {
+	    errno = e.getErrno();
+	    std::string errmsg = e.getMessage().str();
+	    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		      e.getErrno(), e.getMessage().str().c_str());
+	    gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+	    return Emsg(epname, error, errno, "open file", errmsg.c_str());
+	  }
+	}
+
         eos::common::FileSystem::fsid_t fsid = 0;
         fsIndex = 0;
         std::string fsgeotag;
