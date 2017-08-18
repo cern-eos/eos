@@ -24,6 +24,7 @@
 
 #include "backend/backend.hh"
 #include "cap/cap.hh"
+#include "misc/fusexrdlogin.hh"
 #include "eosfuse.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
@@ -417,7 +418,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
         eos_static_info("relock do");
         locker->Lock();
         md->set_md_ino(resp.ack_().md_ino());
-        eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error=%s", md->id(), md->md_ino(),
+        eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md->id(), md->md_ino(),
                          resp.ack_().md_ino(), resp.ack_().transactionid(),
                          resp.ack_().err_msg().c_str());
         eos_static_info("relock done");
@@ -463,6 +464,7 @@ backend::doLock(fuse_req_t req,
   XrdCl::URL url ("root://" + hostport);
   url.SetPath("/dummy");
 
+ 
 
   md.set_clientuuid(clientuuid);
 
@@ -541,7 +543,7 @@ backend::doLock(fuse_req_t req,
         eos_static_info("relock do");
         locker->Lock();
         (*(md.mutable_flock())) = (resp.lock_());
-        eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error=%s", md.id(), md.md_ino(),
+        eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md.id(), md.md_ino(),
                          resp.ack_().md_ino(), resp.ack_().transactionid(),
                          resp.ack_().err_msg().c_str());
         eos_static_info("relock done");
@@ -578,6 +580,8 @@ backend::getURL(fuse_req_t req, const std::string & path, std::string op, std::s
   XrdCl::URL url ("root://" + hostport);
   url.SetPath("/proc/user/");
 
+  fusexrdlogin::loginurl(url, req, 0);
+
   XrdCl::URL::ParamsMap query;
   query["mgm.cmd"] = "fuseX";
   query["mgm.clock"] = "0";
@@ -600,6 +604,8 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name, std::st
 {
   XrdCl::URL url ("root://" + hostport);
   url.SetPath("/proc/user/");
+
+  fusexrdlogin::loginurl(url, req, inode);
 
   XrdCl::URL::ParamsMap query;
   query["mgm.cmd"] = "fuseX";
@@ -626,6 +632,9 @@ backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string op, 
 {
   XrdCl::URL url ("root://" + hostport);
   url.SetPath("/proc/user/");
+
+  fusexrdlogin::loginurl(url, req, inode);
+
   XrdCl::URL::ParamsMap query;
   std::string sclock;
   query["mgm.cmd"] = "fuseX";
