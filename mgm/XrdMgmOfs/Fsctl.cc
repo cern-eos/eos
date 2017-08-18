@@ -200,7 +200,7 @@ XrdMgmOfs::FSctl (const int cmd,
     iopaque[0] = 0;
   }
 
-  eos_static_err("1 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+  eos_static_debug("1 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
 
   const char* inpath = ipath;
   const char* ininfo = iopaque;
@@ -221,7 +221,7 @@ XrdMgmOfs::FSctl (const int cmd,
 
   BOUNCE_ILLEGAL_NAMES;
 
-  eos_static_err("2 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+  eos_static_debug("2 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
 
   // ---------------------------------------------------------------------------
   // from here on we can deal with XrdOucString which is more 'comfortable'
@@ -234,7 +234,7 @@ XrdMgmOfs::FSctl (const int cmd,
   const char* scmd = env.Get("mgm.pcmd");
   XrdOucString execmd = scmd ? scmd : "";
 
-  eos_static_err("3 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+  eos_static_debug("3 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
 
   // version is not submitted to access control
   // so that features of the instance can be retrieved by an authenticated user
@@ -243,7 +243,7 @@ XrdMgmOfs::FSctl (const int cmd,
     BOUNCE_NOT_ALLOWED;
   }
 
-  eos_static_err("4 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+  eos_static_debug("4 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
 
   eos_thread_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
 
@@ -286,7 +286,7 @@ XrdMgmOfs::FSctl (const int cmd,
   // -------------------------------------------------------------------------
   if (fusexset)
   {
-    eos_static_err("5 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+    eos_static_debug("5 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
     std::string protobuf;
     protobuf.assign(args.Arg2 + 6, args.Arg2Len - 6);
 #include "fsctl/Fusex.cc"
