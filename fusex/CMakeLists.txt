@@ -67,6 +67,7 @@ add_executable(
   data/data.cc data/data.hh 
   kv/kv.cc kv/kv.hh 
   misc/longstring.cc misc/longstring.hh 
+  misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   data/cache.cc data/cache.hh data/bufferll.hh
   data/diskcache.cc data/diskcache.hh
   data/memorycache.cc data/memorycache.hh
@@ -139,6 +140,7 @@ add_executable(
   data/data.cc data/data.hh 
   kv/kv.cc kv/kv.hh 
   misc/longstring.cc misc/longstring.hh 
+  misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   data/cache.cc data/cache.hh data/bufferll.hh
   data/diskcache.cc data/diskcache.hh
   data/memorycache.cc data/memorycache.hh
