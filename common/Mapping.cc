@@ -48,7 +48,7 @@ Mapping::GroupRoleMap_t Mapping::gGroupRoleVector;
 Mapping::VirtualUserMap_t Mapping::gVirtualUidMap;
 Mapping::VirtualGroupMap_t Mapping::gVirtualGidMap;
 Mapping::SudoerMap_t Mapping::gSudoerMap;
-bool Mapping::gRootSquash = true;
+bool Mapping::gRootSquash = false;
 
 Mapping::GeoLocationMap_t Mapping::gGeoMap;
 
@@ -102,7 +102,7 @@ Mapping::ActiveExpire (int interval, bool force)
     // expire tidents older than interval
     google::dense_hash_map<std::string, time_t>::iterator it1;
     google::dense_hash_map<std::string, time_t>::iterator it2;
-    for (it1 = Mapping::ActiveTidents.begin(); it1 != Mapping::ActiveTidents.end();)
+    for (it1 = Mapping::ActiveTidents.begin(); it1 != Mapping::ActiveTidents.end(); )
     {
       if ((now - it1->second) > interval)
       {
@@ -578,7 +578,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       }
       else
       {
-        eos_static_debug("tident uid mapping");
+        eos_static_debug("tident uid mapping prot=%s name=%s", vid.prot.c_str(), vid.name.c_str());
         vid.uid_list.clear();
         // use physical mapping
 
@@ -741,7 +741,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   // ---------------------------------------------------------------------------
   if (!vid.sudoer)
   {
-    // if we are not a sudore, scan the allowed ids
+    // if we are not a sudoer, scan the allowed ids
     if (HasUid(sel_uid, vid.uid_list))
       vid.uid = sel_uid;
     else
@@ -756,12 +756,12 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     vid.uid = sel_uid;
     vid.gid = sel_gid;
-    if (ruid.length() || rgid.length()) 
+    if (ruid.length() || rgid.length())
     {
       if (!eos::common::Mapping::HasGid(sel_gid, vid))
-	vid.gid_list.push_back(sel_gid);
+        vid.gid_list.push_back(sel_gid);
       if (!eos::common::Mapping::HasUid(sel_uid, vid))
-	vid.uid_list.push_back(sel_uid);
+        vid.uid_list.push_back(sel_uid);
     }
   }
 
@@ -777,7 +777,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     vid.gid_string = GidToGroupName(vid.gid, errc);
   }
 
-  if (rapp.length()) 
+  if (rapp.length())
   {
     vid.app = rapp.c_str();
   }
@@ -1107,7 +1107,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
       // -------------------------------------------------------------------------
       // check if name is a 8 digit hex number indication <uid-hex><gid-hex>
       // -------------------------------------------------------------------------
-      unsigned long long hexid = strtoull(sname.c_str(), 0, 16);     
+      unsigned long long hexid = strtoull(sname.c_str(), 0, 16);
       char rhexid[16];
       bool known_tident = false;
 
@@ -1115,7 +1115,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
       eos_static_debug("hexname=%s hexid=%llu name=%s", rhexid, hexid, name);
       if (sname == rhexid)
       {
-	known_tident = true;
+        known_tident = true;
         // that is a hex id
         XrdOucString suid = sname;
         suid.erase(4);
@@ -1126,51 +1126,52 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
         eos_static_debug("using hexmapping %s %d %d", sname.c_str(), id->uid, id->gid);
       }
 
-      if (sname.beginswith("*")) 
+      if (sname.beginswith("*"))
       {
-	known_tident = true;
-	// that is a new base-64 encoded id following the format '*1234567'
+        known_tident = true;
+        // that is a new base-64 encoded id following the format '*1234567'
         // where 1234567 is the base64 encoded 42-bit value of 20-bit uid |
         // 16-bit gid | 6-bit session id.
-	XrdOucString b64name = sname;
-	b64name.erase(0,1);
+        XrdOucString b64name = sname;
+        b64name.erase(0, 1);
 
         // Decoden '_' -> '/', '-' -> '+' that was done to ensure the validity
         // of the XRootD URL.
         b64name.replace('_', '/');
-        b64name.replace('-','+');
-	b64name += "=";
-	unsigned long long bituser=0;
-	char* out=0;
-	unsigned int outlen;
-	if (eos::common::SymKey::Base64Decode (b64name, out, outlen))
-	{
-	  if (outlen <= 8) {
-	    memcpy( (((char*)&bituser))+8-outlen,out,outlen);
-	    eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx", bituser, n_tohll(bituser));
-	  }
-	  else
-	  {
-	    eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d",outlen);
-	    return ;
-	  }
-
-	  bituser = n_tohll(bituser);
-	  if (out)
-	    free(out);
-	  id  = new id_pair( (bituser >> 22 ) & 0xfffff, (bituser>>6) & 0xffff);
-	  eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid, id->gid);
-	}
-	else 
+        b64name.replace('-', '+');
+        b64name += "=";
+        unsigned long long bituser=0;
+        char* out=0;
+        unsigned int outlen;
+        if (eos::common::SymKey::Base64Decode (b64name, out, outlen))
         {
-	  eos_static_err("msg=\"failed to decoded base-64 uid/gid/sid\" id=%s", sname.c_str());
-	  return;
-	}
+          if (outlen <= 8)
+          {
+            memcpy( (((char*) &bituser)) + 8 - outlen, out, outlen);
+            eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx", bituser, n_tohll(bituser));
+          }
+          else
+          {
+            eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d", outlen);
+            return ;
+          }
+
+          bituser = n_tohll(bituser);
+          if (out)
+            free(out);
+          id  = new id_pair( (bituser >> 22 ) & 0xfffff, (bituser >> 6) & 0xffff);
+          eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid, id->gid);
+        }
+        else
+        {
+          eos_static_err("msg=\"failed to decoded base-64 uid/gid/sid\" id=%s", sname.c_str());
+          return;
+        }
       }
 
-      if (known_tident) 
+      if (known_tident)
       {
-        if (!id->uid || !id->gid)
+        if (gRootSquash && (!id->uid || !id->gid))
         {
           gPhysicalIdMutex.UnLock();
           return;
@@ -1310,7 +1311,7 @@ Mapping::UidToUserName (uid_t uid, int &errc)
         snprintf(suid, sizeof (suid) - 1, "%u", uid);
         uid_string = suid;
         errc = EINVAL;
-	return uid_string; // don't cache this one
+        return uid_string; // don't cache this one
       }
       else
       {
