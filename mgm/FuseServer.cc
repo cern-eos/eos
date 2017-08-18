@@ -1854,6 +1854,8 @@ FuseServer::HandleMD(const std::string &id,
     {
       eos_static_info("ino=%lx set-link", (long) md.md_ino());
 
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
       eos::FileMD* fmd = 0;
       eos::ContainerMD* pcmd = 0;
 
