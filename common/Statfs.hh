@@ -32,13 +32,11 @@
 #ifndef __EOSCOMMON_STATFS_HH__
 #define __EOSCOMMON_STATFS_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
+#include "common/Logging.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 #ifndef __APPLE__
 #include <sys/vfs.h>
 #else
@@ -46,14 +44,13 @@
 #include <sys/mount.h>
 #endif
 
-/*----------------------------------------------------------------------------*/
-
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-//! Class storing a statfs struct and providing some convenience functions to convert into an env representation
-/*----------------------------------------------------------------------------*/
-class Statfs
+//------------------------------------------------------------------------------
+//! Class storing a statfs struct and providing some convenience functions to
+//! convert into an env representation
+//------------------------------------------------------------------------------
+class Statfs: public LogId
 {
   struct statfs statFs; //< the stored statfs struct
   XrdOucString path; //< path to the filesystem stat'ed
@@ -135,12 +132,11 @@ public:
   }
 
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Execute the statfs function on the given path and build the env
   //! representation. Optional the 'statfs' method can be given as a callback
   //! function
-  // ---------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   int DoStatfs(Callback::callback_t call = 0, Callback::callback_data_t* data = 0)
   {
     env = "";
@@ -155,11 +151,14 @@ public:
     if (!retc) {
       char s[1024];
       sprintf(s,
-              "statfs.type=%ld&statfs.bsize=%ld&statfs.blocks=%ld&statfs.bfree=%ld&statfs.bavail=%ld&statfs.files=%ld&statfs.ffree=%ld",
+              "statfs.type=%ld&statfs.bsize=%ld&statfs.blocks=%ld&"
+              "statfs.bfree=%ld&statfs.bavail=%ld&statfs.files=%ld&statfs.ffree=%ld",
               (long) statFs.f_type, (long) statFs.f_bsize, (long) statFs.f_blocks,
               (long) statFs.f_bfree, (long) statFs.f_bavail, (long) statFs.f_files,
               (long) statFs.f_ffree);
       env = s;
+    } else {
+      eos_err("failed statfs errno=%i strerrno=%s", errno, strerror(errno));
     }
 
     return retc;
