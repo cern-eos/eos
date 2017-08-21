@@ -174,6 +174,31 @@ XrdMgmOfs::_remdir (const char *path,
     return Emsg(epname, error, EPERM, "rmdir - immutable", path);
   }
 
+  if (ininfo) 
+  {
+    XrdOucEnv env_info(ininfo);
+    if (env_info.Get("mgm.option"))
+    {
+      XrdOucString option = env_info.Get("mgm.option");
+      if (option == "r")
+      {
+	// this is an recursive delete 
+	ProcCommand cmd;
+	XrdOucString info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
+	info += path;
+
+	cmd.open("/proc/user", info.c_str(), vid, &error);
+	cmd.close();
+	int rc = cmd.GetRetc();
+	if (rc)
+	{
+	  return Emsg(epname, error, rc, "rmdir", path);
+	}
+	return SFS_OK;
+      }
+    }
+  }
+
   bool stdpermcheck = false;
   bool aclok = false;
   if (acl.HasAcl())
