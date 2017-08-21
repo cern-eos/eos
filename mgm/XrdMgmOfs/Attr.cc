@@ -326,13 +326,12 @@ XrdMgmOfs::_attr_set(const char* path,
 
   std::string vpath = path;
 
+  // We never put any attribute on version directories
   if (vpath.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos) {
-    // if never put any attribute on version directories
     errno = 0;
     return SFS_OK;
   }
 
-  // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
@@ -342,7 +341,7 @@ XrdMgmOfs::_attr_set(const char* path,
     if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
       errno = EPERM;
     } else {
-      // check permissions in case of user attributes
+      // Check permissions in case of user attributes
       if (dh && !Key.beginswith("sys.") && (vid.uid != dh->getCUid())
           && (!vid.sudoer)) {
         errno = EPERM;
@@ -351,7 +350,7 @@ XrdMgmOfs::_attr_set(const char* path,
         XrdOucString val;
         eos::common::SymKey::DeBase64(val64, val);
 
-        // check format of acl
+        // Check format of acl
         if (Key.beginswith("user.acl") || Key.beginswith("sys.acl")) {
           if (!Acl::IsValid(val.c_str(), error, Key.beginswith("sys.acl"))) {
             errno = EINVAL;

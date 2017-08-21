@@ -117,7 +117,7 @@ public:
   void GenerateRuleMap(const std::string& acl_string, RuleMap& map);
 
   //----------------------------------------------------------------------------
-  //! Checking if id is in correct format
+  //! Check if id is in the correct format
   //!
   //! @param id string containing id
   //! @return bool if id is correct or not.

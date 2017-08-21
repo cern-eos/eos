@@ -392,7 +392,7 @@ bool AclCommand::ParseRule(const std::string& input)
   pos_equal     = input.find("=");
   std::string id, rule;
 
-  if (pos_del_first == pos_del_last && pos_equal != std::string::npos) {
+  if ((pos_del_first == pos_del_last) && (pos_equal != std::string::npos)) {
     // u:id=rw+x
     m_set = true;
     // Check if id and rule are correct
@@ -417,8 +417,7 @@ bool AclCommand::ParseRule(const std::string& input)
   } else {
     if (pos_del_first != pos_del_last &&
         pos_del_first != std::string::npos &&
-        pos_del_last  != std::string::npos
-       ) {
+        pos_del_last  != std::string::npos) {
       m_set = false;
       // u:id:+rwx
       // Check if id and rule are correct
@@ -722,7 +721,6 @@ void AclCommand::Execute()
     }
   }
 
-  std::cout << "Success!" << std::endl;
   return;
 error_handling:
   std::cout << m_error_message << std::endl;
