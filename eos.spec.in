@@ -331,6 +331,7 @@ Requires: systemd
 Requires: chkconfig
 Requires: initscripts
 Requires: sysvinit-tools
+Requires: pmisc
 %endif
 
 %description -n eos-fuse
@@ -401,6 +402,11 @@ if [ "$1" -ge "1" ]; then # Upgrade
   do
     /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
   done
+
+  # If the automount daemon catches a USR1 signal, it will umount all currently
+  # unused autofs managed mounted filesystems and continue running (forced
+  # expire).
+  /usr/bin/killall --quiet --signal USR1 automount ||:
 fi
 
 #-------------------------------------------------------------------------------
