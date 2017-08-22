@@ -243,43 +243,4 @@ public:
   ~AclCommand() {};
 };
 
-//----------------------------------------------------------------------------
-//! Hiearchy of functor classes to replace original lambda implementation.
-//----------------------------------------------------------------------------
-class RuleParseActionBase
-{
-public:
-  virtual void operator()(const AclCommand::ACLPos& pos) = 0;
-};
-
-class RuleParseActionAdd : public RuleParseActionBase
-{
-  unsigned short& add_ret;
-  unsigned short& ret;
-public:
-  RuleParseActionAdd(unsigned short& add_ret_, unsigned short& ret_)
-    : add_ret(add_ret_), ret(ret_) {}
-
-  virtual void operator()(const AclCommand::ACLPos& pos)
-  {
-    add_ret = add_ret | pos;
-    ret = ret | pos;
-  }
-};
-
-class RuleParseActionRm : public RuleParseActionBase
-{
-  unsigned short& rm_ret;
-  unsigned short& ret;
-public:
-  RuleParseActionRm(unsigned short& rm_ret_, unsigned short& ret_)
-    : rm_ret(rm_ret_), ret(ret_) {}
-
-  virtual void operator()(const AclCommand::ACLPos& pos)
-  {
-    rm_ret = rm_ret | pos;
-    ret = ret & (~pos);
-  }
-};
-
 #endif //__ACL__COMMAND__HH__
