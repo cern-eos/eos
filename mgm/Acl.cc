@@ -110,7 +110,7 @@ Acl::Set(std::string sysacl, std::string useracl,
   for (size_t n_gid = 0; n_gid < vid.gid_list.size(); ++n_gid) {
     gid_t chk_gid = vid.gid_list[n_gid];
 
-    // only check non system groups
+    // Only check non-system groups
     if (chk_gid < 3) {
       continue;
     }
@@ -137,15 +137,15 @@ Acl::Set(std::string sysacl, std::string useracl,
       groupname = "_INVAL_";
     }
 
-    std::string usertagfn = "u:";
-    usertagfn += username;
-    usertagfn += ":";
-    std::string grouptagfn = "g:";
-    grouptagfn += groupname;
-    grouptagfn += ":";
+    std::string usr_name_tag = "u:";
+    usr_name_tag += username;
+    usr_name_tag += ":";
+    std::string grp_name_tag = "g:";
+    grp_name_tag += groupname;
+    grp_name_tag += ":";
     std::string ztag = "z:";
     eos_static_debug("%s %s %s %s", usertag.c_str(), grouptag.c_str(),
-                     usertagfn.c_str(), grouptagfn.c_str());
+                     usr_name_tag.c_str(), grp_name_tag.c_str());
 
     // Rule interpretation logic
     for (it = rules.begin(); it != rules.end(); it++) {
@@ -170,8 +170,8 @@ Acl::Set(std::string sysacl, std::string useracl,
           (!it->compare(0, grouptag.length(), grouptag)) ||
           (!it->compare(0, ztag.length(), ztag)) ||
           (egroupmatch) ||
-          (!it->compare(0, usertagfn.length(), usertagfn)) ||
-          (!it->compare(0, grouptagfn.length(), grouptagfn))) {
+          (!it->compare(0, usr_name_tag.length(), usr_name_tag)) ||
+          (!it->compare(0, grp_name_tag.length(), grp_name_tag))) {
         std::vector<std::string> entry;
         std::string delimiter = ":";
         eos::common::StringConversion::Tokenize(*it, entry, delimiter);
@@ -290,9 +290,10 @@ Acl::Set(std::string sysacl, std::string useracl,
 // Check whether ACL has a valid format / syntax.
 //------------------------------------------------------------------------------
 bool
-Acl::IsValid(const std::string value, XrdOucErrInfo& error, bool sysacl)
+Acl::IsValid(const std::string& value, XrdOucErrInfo& error, bool is_sys_acl,
+             bool check_numeric)
 {
-  // empty is valid
+  // Empty is valid
   if (!value.length()) {
     return true;
   }
@@ -300,14 +301,20 @@ Acl::IsValid(const std::string value, XrdOucErrInfo& error, bool sysacl)
   int regexErrorCode;
   int result;
   regex_t regex;
-  std::string regexString =
-    "^(((((u|g):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))):"
-    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  std::string regexString;
 
-  if (sysacl) {
-    regexString =
-      "^(((((u|g):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
-      "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  if (is_sys_acl) {
+    if (check_numeric) {
+      regexString = sRegexSysNumericAcl;
+    } else {
+      regexString = sRegexSysGenericAcl;
+    }
+  } else {
+    if (check_numeric) {
+      regexString = sRegexUsrNumericAcl;
+    } else {
+      regexString = sRegexUsrGenericAcl;
+    }
   }
 
   // Compile regex
@@ -334,5 +341,78 @@ Acl::IsValid(const std::string value, XrdOucErrInfo& error, bool sysacl)
     return false;
   }
 }
+
+//------------------------------------------------------------------------------
+// Convert acl rules to numeric uid/gid if needed
+//------------------------------------------------------------------------------
+bool
+Acl::ConvertToNumericIds(std::string& acl_val, XrdOucErrInfo& error)
+{
+  bool is_uid, is_gid;
+  std::string sid;
+  std::ostringstream oss;
+  using eos::common::StringConversion;
+  std::vector<std::string> rules;
+  StringConversion::Tokenize(acl_val, rules, ",");
+
+  if (!rules.size() && acl_val.length()) {
+    rules.push_back(acl_val);
+  }
+
+  for (auto& rule : rules) {
+    is_uid = is_gid = false;
+    std::vector<std::string> tokens;
+    StringConversion::Tokenize(rule, tokens, ":");
+    eos_static_info("rule=%s, tokens.size=%i", rule.c_str(), tokens.size());
+
+    if (tokens.size() != 3) {
+      oss << rule << ',';
+      continue;
+    }
+
+    is_uid = (tokens[0] == "u");
+    is_gid = (tokens[0] == "g");
+
+    if (!is_uid && !is_gid) {
+      oss << rule << ',';
+      continue;
+    }
+
+    sid = tokens[1];
+
+    // If not in numeric format try to convert it
+    if (sid.find_first_not_of("0123456789") != std::string::npos) {
+      int errc {0};
+      std::uint32_t numeric_id {0};
+
+      if (is_uid) {
+        numeric_id = eos::common::Mapping::UserNameToUid(sid, errc);
+      } else {
+        numeric_id = eos::common::Mapping::GroupNameToGid(sid, errc);
+      }
+
+      if (errc) {
+        oss.str("");
+        oss << "failed to convert id: \"" << sid << "\" to numeric format";
+        eos_static_err(oss.str().c_str());
+        error.setErrInfo(EINVAL, oss.str().c_str());
+        return false;
+      }
+
+      oss << tokens[0] << ':' << numeric_id << ':' << tokens[2] << ',';
+    } else {
+      oss << rule << ',';
+    }
+  }
+
+  acl_val = oss.str();
+
+  if (*acl_val.rbegin() == ',') {
+    acl_val.pop_back();
+  }
+
+  return true;
+}
+
 
 EOSMGMNAMESPACE_END

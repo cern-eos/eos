@@ -347,14 +347,25 @@ XrdMgmOfs::_attr_set(const char* path,
         errno = EPERM;
       } else {
         XrdOucString val64 = value;
-        XrdOucString val;
-        eos::common::SymKey::DeBase64(val64, val);
+        XrdOucString ouc_val;
+        eos::common::SymKey::DeBase64(val64, ouc_val);
+        std::string val = ouc_val.c_str();
+        bool is_sys_acl = Key.beginswith("sys.acl");
 
         // Check format of acl
-        if (Key.beginswith("user.acl") || Key.beginswith("sys.acl")) {
-          if (!Acl::IsValid(val.c_str(), error, Key.beginswith("sys.acl"))) {
+        if (Key.beginswith("user.acl") || is_sys_acl) {
+          if (!Acl::IsValid(val, error, is_sys_acl)) {
             errno = EINVAL;
             return SFS_ERROR;
+          }
+
+          // Check if acl is already in numeric format
+          if (!Acl::IsValid(val, error, is_sys_acl, true)) {
+            if (!Acl::ConvertToNumericIds(val, error)) {
+              eos_err("failed to convert to numeric ids: %s", val.c_str());
+              errno = EINVAL;
+              return SFS_ERROR;
+            }
           }
         }
 

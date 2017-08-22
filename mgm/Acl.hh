@@ -46,6 +46,44 @@ EOSMGMNAMESPACE_BEGIN
 class Acl
 {
 public:
+  static constexpr auto sRegexUsrGenericAcl =
+    "^(((((u|g):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))):"
+    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  static constexpr auto sRegexSysGenericAcl =
+    "^(((((u|g):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
+    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  static constexpr auto sRegexUsrNumericAcl =
+    "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))):"
+    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  static constexpr auto sRegexSysNumericAcl =
+    "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
+    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+
+  //----------------------------------------------------------------------------
+  //! Use regex to check ACL format / syntax
+  //!
+  //! @param value value to check
+  //! @param error error datastructure
+  //! @param is_sys_acl boolean indicating a sys acl entry which might have a
+  //!        z: rule
+  //! @param check_numeric if true use numeric format of the regex
+  //!
+  //! return boolean indicating validity
+  //----------------------------------------------------------------------------
+  static bool IsValid(const std::string& value, XrdOucErrInfo& error,
+                      bool is_sys_acl = false, bool check_numeric = false);
+
+
+  //----------------------------------------------------------------------------
+  //! Convert to numeric uid/gid if needed
+  //!
+  //! @param value input acl string
+  //! @param error error object
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool ConvertToNumericIds(std::string& value, XrdOucErrInfo& error);
+
   //----------------------------------------------------------------------------
   //! Default Constructor
   //----------------------------------------------------------------------------
@@ -101,18 +139,6 @@ public:
   void Set(std::string sysacl, std::string useracl,
            eos::common::Mapping::VirtualIdentity& vid,
            bool allowUserAcl = false);
-
-  //----------------------------------------------------------------------------
-  //! Use regex to check ACL format / syntax
-  //!
-  //! @param value value to check
-  //! @param error error datastructure
-  //! @param sysacl boolean indicating a sys acl entry which might have a z: rule
-  //!
-  //! return boolean indicating validity
-  //----------------------------------------------------------------------------
-  static bool IsValid(const std::string value, XrdOucErrInfo& error,
-                      bool sysacl = false);
 
   //----------------------------------------------------------------------------
   // Getter Functions for ACL booleans
