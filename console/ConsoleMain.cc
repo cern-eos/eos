@@ -395,7 +395,8 @@ EOSConsole_completion(const char* text, int start, int intend)
       cmd.beginswith("cd ") ||
       cmd.beginswith("chown ") ||
       cmd.beginswith("chmod ") ||
-      cmd.beginswith("attr ")) {
+      cmd.beginswith("attr ") ||
+      cmd.beginswith("acl")) {
     // dir completion
     rl_completion_append_character = '\0';
     matches = rl_completion_matches(text, dir_generator);
