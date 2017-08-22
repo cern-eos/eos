@@ -93,7 +93,9 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
         err = "error: the given FS does not exist";
         return false;
     }
-
+    eos::common::FileSystem::fs_snapshot_t drain_snapshot;
+    it_fs->second->SnapShotFileSystem(drain_snapshot, false);
+    
     FileSystem::fsstatus_t status = it_fs->second->GetDrainStatus();
 
     if (status != eos::common::FileSystem::kNoDrain ) {
@@ -102,25 +104,37 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
         return false;
     }
 
-    auto it_drainfs = mDrainFS.find(fsId);
+    auto it_drainfs = mDrainFS.find(drain_snapshot.mHostPort);
 
     if (it_drainfs != mDrainFS.end()){
-        //fs is already draining
-        err = "error: a central FS drain has already started for the given FS ";
-        return false;
-    }
-
-    if (!UpdateSpaceStats(it_fs->second,true)) {
-      err = "error: maximum number of draing fs for the given space reached";	
-      return false;
-    }
-    
+        //check if the FS is already under draining for this node
+        auto it = std::find_if( it_drainfs->second.begin(), it_drainfs->second.end(),
+          [fsId](const DrainMapPair& element){ return element.first == fsId;} );
+        
+        if (it != it_drainfs->second.end()) { //fs is already draining
+          err = "error: a central FS drain has already started for the given FS ";
+          return false;
+        }
+	else {
+          //check if we have reached the max fs per node for this node
+          if  (it_drainfs->second.size() >= GetSpaceConf(drain_snapshot.mSpace)) {
+            err = "error: reached maximum number of draining fs for the node";
+            return false;
+          } 
+        }
+    } 
     //start the drain
     DrainMapPair::first_type s(fsId);
     DrainMapPair::second_type d(new DrainFS(fsId));
-     
+    
     mDrainMutex.Lock();
-    mDrainFS.insert(std::make_pair(s, d));
+    if (it_drainfs != mDrainFS.end()){
+      it_drainfs->second.push_back(std::make_pair(s, d));
+    }else {
+      std::vector<DrainMapPair> fs_vect;
+      fs_vect.push_back(std::make_pair(s, d));
+      mDrainFS.insert(std::make_pair(std::string(drain_snapshot.mHostPort),fs_vect));
+    }
     mDrainMutex.UnLock();
 
     return true;
@@ -149,15 +163,25 @@ Drainer::StopFSDrain(XrdOucEnv& env, XrdOucString& err)
         err = "error: the given FS does not exist";
         return false;
     }
-    auto it_drainfs = mDrainFS.find(fsId);
+    eos::common::FileSystem::fs_snapshot_t drain_snapshot;
+    it_fs->second->SnapShotFileSystem(drain_snapshot, false);
+
+    auto it_drainfs = mDrainFS.find(drain_snapshot.mHostPort);
 
     if (it_drainfs == mDrainFS.end()){
         //fs is not drainin
         err = "error: a central FS drain has not started for the given FS ";
         return false;
     }
-
-    (*it_drainfs).second->DrainStop();
+    //check if the FS is already under draining for this node
+    auto it = std::find_if( it_drainfs->second.begin(), it_drainfs->second.end(),
+             [fsId](const DrainMapPair& element){ return element.first == fsId;} );
+    if (it == it_drainfs->second.end()) {
+        //fs is not draining
+        err = "error: a central FS drain has not started for the given FS ";
+        return false;
+    }                                 
+    (*it).second->DrainStop();
     return true;
   
 }
@@ -186,19 +210,24 @@ Drainer::ClearFSDrain(XrdOucEnv& env, XrdOucString& err)
         err = "error: the given FS does not exist";
         return false;
     }
-    auto it_drainfs = mDrainFS.find(fsId);
+    eos::common::FileSystem::fs_snapshot_t drain_snapshot;
+    it_fs->second->SnapShotFileSystem(drain_snapshot, false);
+    
+    auto it_drainfs = mDrainFS.find(drain_snapshot.mHostPort);
     if (it_drainfs == mDrainFS.end()){
         //fs is not draining
-        err = "error: the given FS is not drained or under drained";
+        err = "error: the given FS is not drained or under drain";
         return false;
     }
-
-    if (!UpdateSpaceStats(it_fs->second,false)) {
-      return false;
+    //check if the FS is already under draining for this node
+    auto it = std::find_if( it_drainfs->second.begin(), it_drainfs->second.end(),
+       [fsId](const DrainMapPair& element){ return element.first == fsId;} );
+    if (it == it_drainfs->second.end()) {
+        err = "error: a central FS drain has not started for the given FS ";
+        return false;
     }
-
     mDrainMutex.Lock();
-    mDrainFS.erase(it_drainfs);
+    it_drainfs->second.erase(it);
     mDrainMutex.UnLock();
 
     return true;
@@ -223,27 +252,19 @@ Drainer::GetDrainStatus(XrdOucEnv& env,XrdOucString& out, XrdOucString& err)
     
     while (it_drainfs != mDrainFS.end()){
       //fs is already draining
-      out+= "Drain Status for FS with ID: ";
-      out+= std::to_string((*it_drainfs).first).c_str();
-      out+= " => ";
-      out+= FileSystem::GetDrainStatusAsString((*it_drainfs).second->GetDrainStatus());
+      out+= "Drain Status for FSs on the Node: ";
+      out+= (*it_drainfs).first.c_str();
       out+= "\n";
-       
-      std::vector<shared_ptr<DrainTransferJob>> jobs;
-      jobs = (*it_drainfs).second->GetJobs(DrainTransferJob::Failed);
-      
-      out+= "\tFailed Draining Files:\n";
-      auto it_jobs = jobs.begin(); 
-      
-      while (it_jobs != jobs.end()){
-        out+= "\tFile Id: ";
-        out+= std::to_string((*it_jobs)->GetFileId()).c_str();
+      auto it_map = (*it_drainfs).second.begin();
+      while ( it_map !=  (*it_drainfs).second.end()) {
+        out+= "\n\t\tFilesystem Id: ";
+        out+= std::to_string((*it_map).first).c_str();
+        out+= " Status: ";
+        out+= FileSystem::GetDrainStatusAsString((*it_map).second->GetDrainStatus());
         out+= "\n";
-        it_jobs++;
+        it_map++;
       }
-
       it_drainfs++;
-      
     }
     return true;
 }
@@ -296,33 +317,33 @@ Drainer::Drain()
     sleeper.Snooze(10);
 
     XrdSysThread::SetCancelOff();
-    //load conf
+    while (1) 
     {
-    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     
-    auto space = FsView::gFsView.mSpaceView.begin();
-    while (space != FsView::gFsView.mSpaceView.end()) {
-        int maxdrainingfs = 0;
+      auto space = FsView::gFsView.mSpaceView.begin();
+      while (space != FsView::gFsView.mSpaceView.end()) {
+        int maxdrainingfs = 5;
+
         std::string spacename = space->second->GetMember("name");
-        if (FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxdrainingfs")!= "" ) {
-          maxdrainingfs = stoi(FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxdrainingfs"));
+        if (FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxfsdrainpernode")!= "" ) {
+          maxdrainingfs = atoi(FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxfsdrainpernode").c_str());
         }
 	else { 
-          FsView::gFsView.mSpaceView[spacename]->SetConfigMember("drainer.maxdrainingfs", "10", true, "/eos/*/mgm");
+          FsView::gFsView.mSpaceView[spacename]->SetConfigMember("drainer.maxfsdrainpernode", "5", true, "/eos/*/mgm");
         }
         //get the space configuration
-        mDrainingFSMutex.Lock();
-        std::pair<int, int> pair = std::make_pair(0, maxdrainingfs);
-        drainingFSMap.insert(std::make_pair(spacename,pair));
-        mDrainingFSMutex.UnLock();
+        drainConfMutex.Lock(); 
+        if  (maxFSperNodeConfMap.count(spacename))  {
+          auto it_conf = maxFSperNodeConfMap.find(spacename);
+          (*it_conf).second = maxdrainingfs;
+        } else {
+          maxFSperNodeConfMap.insert(std::make_pair(spacename,maxdrainingfs));
+        }
+        drainConfMutex.UnLock();
         space++;
       }
-    }
-    // ---------------------------------------------------------------------------
-    // loop forever until cancelled
-    // ---------------------------------------------------------------------------
-    while (1) {
-      eos_static_debug("Drainer running");
+      
       XrdSysThread::SetCancelOn();
       // Let some time pass or wait for a notification
       XrdSysTimer sleeper;
@@ -333,35 +354,15 @@ Drainer::Drain()
     return 0;
 }
 
-bool
-Drainer::UpdateSpaceStats(eos::common::FileSystem* fs , bool isDrainStart)
+unsigned int
+Drainer::GetSpaceConf(std::string space)
 {
-    eos::common::FileSystem::fs_snapshot_t drain_snapshot;
-    fs->SnapShotFileSystem(drain_snapshot, false);
-
-    //check space conf to see if we reached the max configured drain fs
-    mDrainingFSMutex.Lock();
-    if (drainingFSMap.count(drain_snapshot.mSpace)) {
-      int running = drainingFSMap[drain_snapshot.mSpace].first;
-      int max = drainingFSMap[drain_snapshot.mSpace].second;
-
-      if (isDrainStart) {
-        if (running == max) {
-          mDrainingFSMutex.UnLock();
-          return false;
-        }
-        else {
-          std::pair<int, int> pair = std::make_pair(++running, max);
-          drainingFSMap.insert(std::make_pair(drain_snapshot.mSpace,pair));
-        }
-      }
-      else {
-         std::pair<int, int> pair = std::make_pair(--running, max);
-         drainingFSMap.insert(std::make_pair(drain_snapshot.mSpace,pair));
-      }
+    
+    //check space conf to see if we reached the max configured draining fs per node
+    if (maxFSperNodeConfMap.count(space)) {
+      return maxFSperNodeConfMap[space];
     } 
-    mDrainingFSMutex.UnLock();
-    return true;
+    else return 0;
 }
 
 EOSMGMNAMESPACE_END

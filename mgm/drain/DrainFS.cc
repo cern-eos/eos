@@ -263,7 +263,11 @@ DrainFS::Drain (void)
 
     while(job != drainJobs.end() && !drainStop) {
       eos::common::FileSystem::fsid_t fsIdTarget;
-
+      //if it's a retry, schedule only the failed transfers
+      if (ntried >1 && ((*job)->GetStatus() == DrainTransferJob::Failed))
+      {
+	continue;
+      }
       if ((fsIdTarget= SelectTargetFS(*job->get())) != 0) {
         (*job)->SetTargetFS(fsIdTarget);
         (*job)->SetStatus(DrainTransferJob::Ready);
@@ -290,7 +294,7 @@ DrainFS::Drain (void)
 
       last_filesleft = filesleft;
     
-      filesleft = CountJobs(DrainTransferJob::Running);
+      filesleft = CountJobs(DrainTransferJob::Running) + CountJobs(DrainTransferJob::Failed); 
   
       if (!last_filesleft)
       {
@@ -421,9 +425,9 @@ DrainFS::Drain (void)
       }
       XrdSysThread::SetCancelOff();
     }
-    while(1);
+    while(!drainStop);
 
-  } while (ntried < maxretries);
+  } while (ntried < maxretries && !drainStop );
 
   XrdSysThread::SetCancelOn();
   return 0;

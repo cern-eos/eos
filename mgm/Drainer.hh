@@ -61,20 +61,21 @@ EOSMGMNAMESPACE_BEGIN
 class Drainer: public eos::common::LogId
 {
 private:
-  /// thread id
+  // thread id
   pthread_t mThread;
 
-  /// DrainFS thread map (maps DrainFS threads  with their fs )
+  // DrainFS thread map pair (maps DrainFS threads  with their fs )
   typedef std::pair<eos::common::FileSystem::fsid_t, shared_ptr<eos::mgm::DrainFS>>
       DrainMapPair;
-  typedef std::map<DrainMapPair::first_type, DrainMapPair::second_type> DrainMap;
+  //maps node with a list of FS under drain
+  typedef std::map<std::string, std::vector<DrainMapPair>> DrainMap;
 
-  //contains per space the number of draining file systems and the max allowed
-  std::map<std::string, std::pair<int, int>> drainingFSMap;
+  //contains per space the max allowed fs draining per node
+  std::map<std::string, int> maxFSperNodeConfMap;
 
   DrainMap  mDrainFS;
 
-  XrdSysMutex mDrainMutex, mDrainingFSMutex;
+  XrdSysMutex mDrainMutex, drainConfMutex;
 
 public:
 
@@ -120,7 +121,7 @@ public:
 
   void* Drain(void);
 
-  bool UpdateSpaceStats(eos::common::FileSystem*, bool);
+  unsigned int GetSpaceConf(std::string);
 
 };
 
