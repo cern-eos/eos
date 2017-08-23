@@ -27,7 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include <pthread.h>
 /*----------------------------------------------------------------------------*/
-#include "common/FileSystem.hh"
+#include "mgm/FileSystem.hh"
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -81,12 +81,6 @@ public:
     gScheduler->Start();
     mThread = 0;
     mFsId = ifsid;
-
-    if (FsView::gFsView.mIdView.count(mFsId)) {
-      fs = FsView::gFsView.mIdView[mFsId];
-    } else {
-      throw std::exception();
-    }
 
     XrdSysThread::Run(&mThread,
                       DrainFS::StaticThreadProc,
@@ -147,8 +141,6 @@ public:
 private:
   /// file system id of the draining filesystem
   eos::common::FileSystem::fsid_t mFsId;
-
-  eos::common::FileSystem* fs;
 
   pthread_t mThread;
 

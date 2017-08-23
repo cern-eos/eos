@@ -466,6 +466,9 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
   key = mQueuePath;
   val = mHash->SerializeWithFilter("stat.");
+  //adding also the drain status
+  val.append(" drain=");
+  val.append(mHash->Get("stat.drain"));
 }
 
 //------------------------------------------------------------------------------

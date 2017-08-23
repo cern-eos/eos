@@ -72,8 +72,8 @@ void
  */
 /*----------------------------------------------------------------------------*/
 DrainFS::SetInitialCounters()
-{   
-  fs = 0;
+{
+  FileSystem* fs = 0;   
   if (FsView::gFsView.mIdView.count(mFsId))
   {
     fs = FsView::gFsView.mIdView[mFsId];
@@ -89,6 +89,7 @@ DrainFS::SetInitialCounters()
       fs->CloseTransaction();
     }
   }
+  FsView::gFsView.StoreFsConfig(fs);
   //set also local var
   drainStatus= eos::common::FileSystem::kNoDrain;
 }
@@ -135,7 +136,7 @@ DrainFS::Drain (void)
  */
 /*----------------------------------------------------------------------------*/
 {
-
+  FileSystem* fs = 0;
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
   XrdSysTimer sleeper;
@@ -163,7 +164,6 @@ DrainFS::Drain (void)
     {
       // set status to 'prepare'
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      fs = 0;
       if (FsView::gFsView.mIdView.count(mFsId))
       fs = FsView::gFsView.mIdView[mFsId];
       if (!fs) {
@@ -223,7 +223,7 @@ DrainFS::Drain (void)
       //set draining status
       fs->SetDrainStatus(eos::common::FileSystem::kDraining);
       drainStatus = eos::common::FileSystem::kDraining;
-
+      FsView::gFsView.StoreFsConfig(fs);
       eos::IFsView::FileIterator fid_it = filelist.begin();
       drainJobsMutex.Lock();
       while (fid_it != filelist.end()) {
@@ -255,6 +255,7 @@ DrainFS::Drain (void)
       // set status to 'RO'
       //----------------------------------------------------------------------------
       fs->SetConfigStatus(eos::common::FileSystem::kRO);
+      FsView::gFsView.StoreFsConfig(fs);
     }
 
     XrdSysThread::CancelPoint();
@@ -323,23 +324,23 @@ DrainFS::Drain (void)
           if (FsView::gFsView.mIdView.count(mFsId))
             fs = FsView::gFsView.mIdView[mFsId];
           if (!fs)
-        {
-          eos_static_notice(
+          {
+            eos_static_notice(
                             "Filesystem fsid=%u has been removed during drain operation", mFsId);
-          return 0;
-        }
-        fs->SetLongLong("stat.drainbytesleft",
+            return 0;
+          }
+          fs->SetLongLong("stat.drainbytesleft",
                         fs->GetLongLong("stat.statfs.usedbytes"));
-        fs->SetLongLong("stat.drainfiles",
+          fs->SetLongLong("stat.drainfiles",
                         filesleft);
-        if (stalled)
-          fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
-        else
-          fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+          if (stalled) {
+            fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
+            FsView::gFsView.StoreFsConfig(fs);
+          }
+          else
+            fs->SetDrainStatus(eos::common::FileSystem::kDraining);
         }
-
         int progress = (int) (totalfiles) ? (100.0 * (totalfiles - filesleft) / totalfiles) : 100;
-
         {
           eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
           fs->SetLongLong("stat.drainprogress", progress, false);
@@ -408,7 +409,7 @@ DrainFS::Drain (void)
 
           fs->SetLongLong("stat.drainfiles", filesleft);
           fs->SetDrainStatus(eos::common::FileSystem::kDrainExpired);
-
+          FsView::gFsView.StoreFsConfig(fs);
         }
         //go to next retry if still avaialble
         break;
@@ -442,7 +443,7 @@ DrainFS::CompleteDrain() {
   //----------------------------------------------------------------------------
   {
    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-   fs = 0;
+   FileSystem* fs = 0;
    if (FsView::gFsView.mIdView.count(mFsId))
       fs = FsView::gFsView.mIdView[mFsId];
    if (!fs)
@@ -466,6 +467,7 @@ DrainFS::CompleteDrain() {
      //--------------------------------------------------------------------------
      fs->SetString("configstatus", "empty");
      fs->SetLongLong("stat.drainprogress", 100);
+     FsView::gFsView.StoreFsConfig(fs);
    }
    fs->CloseTransaction();
   }
@@ -528,14 +530,26 @@ DrainFS::DrainStop()
  */
 /*----------------------------------------------------------------------------*/
 {
-  drainStop = true;
+  FileSystem* fs = 0;
 
-  fs->OpenTransaction();
-  fs->SetConfigStatus(eos::common::FileSystem::kRW);
-  fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
-  fs->CloseTransaction();
-  //set also local var
-  drainStatus= eos::common::FileSystem::kNoDrain;
+  drainStop = true;
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  if (FsView::gFsView.mIdView.count(mFsId))
+  {
+    fs = FsView::gFsView.mIdView[mFsId];
+    if (fs) {
+      fs->OpenTransaction();
+      fs->SetConfigStatus(eos::common::FileSystem::kRW);
+      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+      fs->CloseTransaction();
+      //set also local var
+      drainStatus= eos::common::FileSystem::kNoDrain;
+       FsView::gFsView.StoreFsConfig(fs);
+    } else { 
+      eos_notice("Filesystem fsid=%u has been removed during drain operation",
+                        mFsId);
+    }
+  }
 }
 /*----------------------------------------------------------------------------*/
 eos::common::FileSystem::fsid_t  
