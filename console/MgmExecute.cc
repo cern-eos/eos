@@ -24,17 +24,28 @@
 #include "MgmExecute.hh"
 
 #ifndef BUILD_TESTS
-MgmExecute::MgmExecute() {}
-
-bool MgmExecute::proccess(XrdOucEnv* response)
+//------------------------------------------------------------------------------
+// Process MGM response
+//------------------------------------------------------------------------------
+int MgmExecute::proccess(XrdOucEnv* response)
 {
+  int errc = 0;
+  std::string serrc = response->Get("mgm.proc.retc");
+
+  try {
+    errc = std::stoi(serrc);
+  } catch (...) {
+    rstderr = "error: failed to parse response from server";
+    return EINVAL;
+  }
+
   rstdout = response->Get("mgm.proc.stdout");
   rstderr = response->Get("mgm.proc.stderr");
 
-  if (rstderr.length() != 0) {
+  if (rstderr.length() > 0) {
     m_error = std::string(rstderr.c_str());
     delete response;
-    return false;
+    return errc;
   }
 
   m_result = std::string("");
@@ -44,18 +55,26 @@ bool MgmExecute::proccess(XrdOucEnv* response)
   }
 
   delete response;
-  return true;
+  return 0;
 }
 
-bool MgmExecute::ExecuteCommand(const char* command)
+//------------------------------------------------------------------------------
+// Execute user command
+//------------------------------------------------------------------------------
+int MgmExecute::ExecuteCommand(const char* command)
 {
+  // @TODO (esindril): avoid copying the command again
   XrdOucString command_xrd = XrdOucString(command);
   XrdOucEnv* response = client_user_command(command_xrd);
   return proccess(response);
 }
 
-bool MgmExecute::ExecuteAdminCommand(const char* command)
+//------------------------------------------------------------------------------
+// Execute admin command
+//------------------------------------------------------------------------------
+int MgmExecute::ExecuteAdminCommand(const char* command)
 {
+  // @TODO (esindril): avoid copying the command again
   XrdOucString command_xrd = XrdOucString(command);
   XrdOucEnv* response = client_admin_command(command_xrd);
   return proccess(response);

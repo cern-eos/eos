@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __MGMEXECUT__HH__
-#define __MGMEXECUT__HH__
-
+#pragma once
 #include "console/ConsoleMain.hh"
 
 #ifdef BUILD_TESTS
@@ -39,25 +37,53 @@ class AclCommandTest;
 //------------------------------------------------------------------------------
 class MgmExecute
 {
-  std::string m_result;
-  std::string m_error;
-  bool proccess(XrdOucEnv* response);
-
 public:
-  MgmExecute();
+  //----------------------------------------------------------------------------
+  //! Execute user command
+  //!
+  //! @param command command to be executed
+  //!
+  //! @return return code
+  //----------------------------------------------------------------------------
+  int ExecuteCommand(const char* command);
 
-  bool ExecuteCommand(const char* command);
-  bool ExecuteAdminCommand(const char* command);
+  //----------------------------------------------------------------------------
+  //! Execute admin command
+  //!
+  //! @param command command to be executed
+  //!
+  //! @return return code
+  //----------------------------------------------------------------------------
+  int ExecuteAdminCommand(const char* command);
+
+  //----------------------------------------------------------------------------
+  //! Get result string
+  //----------------------------------------------------------------------------
   inline std::string& GetResult()
   {
     return m_result;
   }
+
+  //----------------------------------------------------------------------------
+  //! Get error string
+  //----------------------------------------------------------------------------
   inline std::string& GetError()
   {
     return m_error;
   }
+
+private:
+  //----------------------------------------------------------------------------
+  //! Command to process the server response
+  //!
+  //! @param response incoming data strream
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int proccess(XrdOucEnv* response);
+
+  std::string m_result; ///< String holding the result
+  std::string m_error; ///< String holding the error message
 };
 
 #endif //BUILD_TESTS
-
-#endif // __MGMEXECUT__HH__
