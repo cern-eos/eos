@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: ProcInterface.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -64,14 +64,9 @@ ProcInterface::IsProcAccess(const char* path)
   return false;
 }
 
-/**
- * Check if a proc command is a 'write' command modifying state of an MGM
- * @param path input arguments for proc command
- * @param info CGI for proc command
- * @return true if write access otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Check if a proc command is a 'write' command modifying state of an MGM
+//------------------------------------------------------------------------------
 bool
 ProcInterface::IsWriteAccess(const char* path, const char* info)
 {
@@ -86,9 +81,7 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
   XrdOucString cmd = procEnv.Get("mgm.cmd");
   XrdOucString subcmd = procEnv.Get("mgm.subcmd");
 
-  // ----------------------------------------------------------------------------
-  // filter here all namespace modifying proc messages
-  // ----------------------------------------------------------------------------
+  // Filter here all namespace modifying proc messages
   if (((cmd == "file") &&
        ((subcmd == "adjustreplica") ||
         (subcmd == "drop") ||
@@ -151,28 +144,17 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Authorize a proc command based on the clients VID
- * @param path specifies user or admin command path
- * @param info CGI providing proc arguments
- * @param vid virtual id of the client
- * @param entity security entity object
- * @return true if authorized otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Authorize a proc command based on the client's VID
+//------------------------------------------------------------------------------
 bool
-ProcInterface::Authorize(const char* path,
-                         const char* info,
+ProcInterface::Authorize(const char* path, const char* info,
                          eos::common::Mapping::VirtualIdentity& vid,
                          const XrdSecEntity* entity)
 {
   XrdOucString inpath = path;
 
-  // ----------------------------------------------------------------------------
-  // administrator access
-  // ----------------------------------------------------------------------------
+  // Administrator access
   if (inpath.beginswith("/proc/admin/")) {
     // hosts with 'sss' authentication can run 'admin' commands
     std::string protocol = entity ? entity->prot : "";
@@ -183,20 +165,18 @@ ProcInterface::Authorize(const char* path,
       return true;
     }
 
-    // root can do it
+    // Root can do it
     if (!vid.uid) {
       return true;
     }
 
-    // One has to be part of the virtual users 2(daemon) || 3(adm)/4(adm)
+    // One has to be part of the virtual users 2(daemon)/3(adm)/4(adm)
     return ((eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list)) ||
             (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
             (eos::common::Mapping::HasGid(4, vid.gid_list)));
   }
 
-  // ----------------------------------------------------------------------------
-  // user access
-  // ----------------------------------------------------------------------------
+  // User access
   if (inpath.beginswith("/proc/user/")) {
     return true;
   }
@@ -204,46 +184,28 @@ ProcInterface::Authorize(const char* path,
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Constructor ProcCommand
- */
+//------------------------------------------------------------------------------
+//                            *** ProcCommand ***
+//------------------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-ProcCommand::ProcCommand()
+//------------------------------------------------------------------------------
+// Constructor ProcCommand
+//------------------------------------------------------------------------------
+ProcCommand::ProcCommand():
+  mPath(""), pVid(0), mCmd(""), mSubCmd(""), mArgs(""), stdOut(""), stdErr(""),
+  stdJson(""), retc(0), mResultStream(""), pOpaque(0), ininfo(0), mDoSort(false),
+  mSelection(0), mOutFormat(""), mOutDepth(0), fstdout(0), fstderr(0),
+  fresultStream(0), fstdoutfilename(""), fstderrfilename(""),
+  fresultStreamfilename(""), mError(0), mComment(""), mLen(0), mAdminCmd(false),
+  mUserCmd(false), mFuseFormat(false), mJsonFormat(false), mHttpFormat(false),
+  mClosed(false), mBase64Encoding(false), mJsonCallback("")
 {
-  stdOut = "";
-  stdErr = "";
-  stdJson = "";
-  retc = 0;
-  mResultStream = "";
-  mLen = 0;
-  pVid = 0;
-  path = "";
-  mAdminCmd = mUserCmd = 0;
-  mError = 0;
-  mComment = "";
-  mArgs = "";
   mExecTime = time(NULL);
-  mClosed = true;
-  pOpaque = 0;
-  ininfo = 0;
-  fstdout = fstderr = fresultStream = 0;
-  fstdoutfilename = fstderrfilename = fresultStreamfilename = "";
-  mDoSort = false;
-  mSelection = 0;
-  mOutDepth = 0;
-  mBase64Encoding = false;
-  mOutFormat = "";
-  mFuseFormat = mJsonFormat = mHttpFormat = false;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Destructor
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 ProcCommand::~ProcCommand()
 {
   if (fstdout) {
@@ -270,13 +232,9 @@ ProcCommand::~ProcCommand()
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Open temporary output files for results of find commands
- * @return true if successful otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Open temporary output files for results of find commands
+//------------------------------------------------------------------------------
 bool
 ProcCommand::OpenTemporaryOutputFiles()
 {
@@ -325,43 +283,32 @@ ProcCommand::OpenTemporaryOutputFiles()
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * open a proc command e.g. call the appropriate user or admin commmand and
- * store the output in a resultstream of in case of find in temporary output
- * files.
- * @param inpath path indicating user or admin command
- * @param info CGI describing the proc command
- * @param vid_in virtual identity of the user requesting a command
- * @param error object to store errors
- * @return SFS_OK in any case
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Open a proc command e.g. call the appropriate user or admin commmand and
+// store the output in a resultstream of in case of find in temporary output
+// files.
+//------------------------------------------------------------------------------
 int
-ProcCommand::open(const char* inpath,
-                  const char* info,
+ProcCommand::open(const char* inpath, const char* info,
                   eos::common::Mapping::VirtualIdentity& vid_in,
                   XrdOucErrInfo* error)
 {
   pVid = &vid_in;
   mClosed = false;
-  path = inpath;
+  mPath = inpath;
   mDoSort = false;
   mError = error;
   ininfo = info;
 
-  if ((path.beginswith("/proc/admin"))) {
+  if ((mPath.beginswith("/proc/admin"))) {
     mAdminCmd = true;
   }
 
-  if (path.beginswith("/proc/user")) {
+  if (mPath.beginswith("/proc/user")) {
     mUserCmd = true;
   }
 
-  // ---------------------------------------------
-  // deal with '&' ... sigh
-  // ---------------------------------------------
+  // Deal with '&' ... sigh
   XrdOucString sinfo = ininfo;
 
   for (int i = 0; i < sinfo.length(); i++) {
@@ -377,7 +324,6 @@ ProcCommand::open(const char* inpath,
     }
   }
 
-  // ---------------------------------------------
   pOpaque = new XrdOucEnv(sinfo.c_str());
 
   if (!pOpaque) {
@@ -439,9 +385,7 @@ ProcCommand::open(const char* inpath,
     mJsonFormat = true;
   }
 
-  // ----------------------------------------------------------------------------
-  // admin command section
-  // ----------------------------------------------------------------------------
+  // Admin command section
   if (mAdminCmd) {
     if (mCmd == "archive") {
       Archive();
@@ -510,9 +454,7 @@ ProcCommand::open(const char* inpath,
     return SFS_OK;
   }
 
-  // ----------------------------------------------------------------------------
-  // user command section
-  // ----------------------------------------------------------------------------
+  // User command section
   if (mUserCmd) {
     if (mCmd == "accounting") {
       Accounting();
@@ -574,9 +516,7 @@ ProcCommand::open(const char* inpath,
       Recycle();
       mDoSort = false;
     } else {
-      // ------------------------------------------------------------------------
-      // command not implemented
-      // ------------------------------------------------------------------------
+      // Command not implemented
       stdErr += "errro: no such user command '";
       stdErr += mCmd;
       stdErr += "'";
@@ -587,23 +527,14 @@ ProcCommand::open(const char* inpath,
     return SFS_OK;
   }
 
-  // ----------------------------------------------------------------------------
-  // if neither admin nor proc command
-  // ----------------------------------------------------------------------------
+  // If neither admin nor proc command
   return gOFS->Emsg((const char*) "open", *error, EINVAL,
                     "execute command - not implemented ", ininfo);
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * read a part of the result stream produced during open
- * @param boff offset where to start
- * @param buff buffer to store stream
- * @param blen len to return
- * @return number of bytes read
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Read a part of the result stream produced during open
+//------------------------------------------------------------------------------
 int
 ProcCommand::read(XrdSfsFileOffset boff, char* buff, XrdSfsXferSize blen)
 {
@@ -625,7 +556,7 @@ ProcCommand::read(XrdSfsFileOffset boff, char* buff, XrdSfsXferSize blen)
       return 0;
     }
 
-    // memory based results go here ...
+    // Memory based results go here ...
     if (((unsigned int) blen <= (mLen - boff))) {
       memcpy(buff, mResultStream.c_str() + boff, blen);
       return blen;
@@ -636,15 +567,10 @@ ProcCommand::read(XrdSfsFileOffset boff, char* buff, XrdSfsXferSize blen)
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * return stat information for the result stream to tell the client the size
- * of the proc output
- * @param buf stat structure to fill
- * @return SFS_OK in any case
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return stat information for the result stream to tell the client the size
+// of the proc output.
+//------------------------------------------------------------------------------
 int
 ProcCommand::stat(struct stat* buf)
 {
@@ -653,18 +579,15 @@ ProcCommand::stat(struct stat* buf)
   return SFS_OK;
 }
 
-/*----------------------------------------------------------------------------*/
-
-/**
- * close the proc stream and store the clients comment for the command in the
- * comment log file
- * @return 0 if comment has been successfully stored otherwise !=0
- */
+//------------------------------------------------------------------------------
+// Close the proc stream and store the clients comment for the command in the
+// comment log file.
+//------------------------------------------------------------------------------
 int
 ProcCommand::close()
 {
   if (!mClosed) {
-    // only instance users or sudoers can add to the log book
+    // Only instance users or sudoers can add to the log book
     if ((pVid->uid <= 2) || (pVid->sudoer)) {
       if (mComment.length() && gOFS->commentLog) {
         if (!gOFS->commentLog->Add(mExecTime, mCmd.c_str(), mSubCmd.c_str(),
@@ -680,14 +603,11 @@ ProcCommand::close()
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Build the inmemory result of the stdout,stderr & retc of the proc commdn
- * Depending on the output format the key-value CGI returned changes => see
- * implementation.
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Build the inmemory result of the stdout,stderr & retc of the proc commdn
+// Depending on the output format the key-value CGI returned changes => see
+// implementation.
+//------------------------------------------------------------------------------
 void
 ProcCommand::MakeResult()
 {
@@ -726,9 +646,7 @@ ProcCommand::MakeResult()
         mResultStream += mSubCmd.c_str();
         mResultStream += "\">\n";
 
-        // ------------------------------------------------------------------------
         // FUSE format contains only STDOUT
-        // ------------------------------------------------------------------------
         if (stdOut.length() && KeyValToHttpTable(stdOut)) {
           mResultStream += stdOut;
         } else {
@@ -753,9 +671,6 @@ ProcCommand::MakeResult()
     }
 
     if (mJsonFormat) {
-      // ------------------------------------------------------------------------
-      // only few commands actually return stdJson as output
-      // ------------------------------------------------------------------------
       if (!stdJson.length()) {
         Json::Value json;
         Json::Value jsonresult;
@@ -903,13 +818,9 @@ ProcCommand::MakeResult()
 
     mLen = mResultStream.length();
   } else {
-    // --------------------------------------------------------------------------
-    // file based results CANNOT be sorted and don't have mFuseFormat
-    // --------------------------------------------------------------------------
+    // File based results CANNOT be sorted and don't have mFuseFormat
     if (!mFuseFormat) {
-      // ------------------------------------------------------------------------
-      // create the stdout result
-      // ------------------------------------------------------------------------
+      // Create the stdout result
       if (!fseek(fstdout, 0, 0) &&
           !fseek(fstderr, 0, 0) &&
           !fseek(fresultStream, 0, 0)) {
@@ -929,15 +840,11 @@ ProcCommand::MakeResult()
           fprintf(fresultStream, "%s", sentry.c_str());
         }
 
-        // ----------------------------------------------------------------------
-        // close and remove - if this fails there is nothing to recover anyway
-        // ----------------------------------------------------------------------
+        // Close and remove - if this fails there is nothing to recover anyway
         fclose(fstdout);
         fstdout = 0;
         unlink(fstdoutfilename.c_str());
-        // ----------------------------------------------------------------------
-        // create the stderr result
-        // ----------------------------------------------------------------------
+        // Create the stderr result
         fprintf(fresultStream, "&mgm.proc.stderr=");
 
         while (std::getline(inStderr, entry)) {
@@ -947,17 +854,13 @@ ProcCommand::MakeResult()
           fprintf(fresultStream, "%s", sentry.c_str());
         }
 
-        // ----------------------------------------------------------------------
-        // close and remove - if this fails there is nothing to recover anyway
-        // ----------------------------------------------------------------------
+        // Close and remove - if this fails there is nothing to recover anyway
         fclose(fstderr);
         fstderr = 0;
         unlink(fstderrfilename.c_str());
         fprintf(fresultStream, "&mgm.proc.retc=%d", retc);
         mLen = ftell(fresultStream);
-        // ----------------------------------------------------------------------
-        // spool the resultstream to the beginning
-        // ----------------------------------------------------------------------
+        // Spool the resultstream to the beginning
         fseek(fresultStream, 0, 0);
       } else {
         eos_static_err("cannot seek to position 0 in result files");
@@ -966,14 +869,10 @@ ProcCommand::MakeResult()
   }
 }
 
-
-/*----------------------------------------------------------------------------*/
-/**
- * Try to detect and convert a monitor output format and convert it into a
- * nice http table
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Try to detect and convert a monitor output format and convert it into a
+// nice http table
+//------------------------------------------------------------------------------
 bool
 ProcCommand::KeyValToHttpTable(XrdOucString& stdOut)
 {
@@ -1076,13 +975,12 @@ table
   return ok;
 }
 
-
 //------------------------------------------------------------------------------
 // Get a file's full path using the fid information stored in the opaque data
 //------------------------------------------------------------------------------
 void
 ProcCommand::GetPathFromFid(XrdOucString& path, XrdOucEnv* opaque,
-			    const std::string& err_msg)
+                            const std::string& err_msg)
 {
   std::string tag = "mgm.file.id";
 
@@ -1092,11 +990,12 @@ ProcCommand::GetPathFromFid(XrdOucString& path, XrdOucEnv* opaque,
     if (fid == 0ULL) {
       stdErr += "error: fid unknown!";
       retc = errno;
+      return;
     }
 
     try {
       std::string temp =
-	gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
+        gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
       path = XrdOucString(temp.c_str());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -1104,10 +1003,9 @@ ProcCommand::GetPathFromFid(XrdOucString& path, XrdOucEnv* opaque,
       stdErr += e.getMessage().str().c_str();
       stdErr += "\n";
       eos_debug("caught exception %d %s\n",
-		e.getErrno(), e.getMessage().str().c_str());
+                e.getErrno(), e.getMessage().str().c_str());
     }
   }
 }
 
 EOSMGMNAMESPACE_END
-

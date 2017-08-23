@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: ProcInterface.hh
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -31,32 +31,31 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSec/XrdSecEntity.hh"
-
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
 
-/**
- * @file   ProcInterface.hh
- *
- * @brief  ProcCommand class handling proc commands
- *
- * A proc command is identified by a user requesting to read a path like
- * '/proc/user' or '/proc/admin'. These two options specify either user or
- * admin commands. Admin commands can only be executed if a VID indicates
- * membership in the admin group, root or in same cases 'sss' authenticated
- * clients. A proc command is usually referenced with the tag 'mgm.cmd'.
- * In some cases there a sub commands defined by 'mgm.subcmd'.
- * Proc commands are executed in the 'open' function and the results
- * are provided as stdOut,stdErr and a return code which is assembled in an
- * opaque output stream with 3 keys indicating the three return objects.
- * The resultstream is streamed by a client like a file read using 'xrdcp'
- * issuing several read requests. On close the resultstream is freed.
- *
- * The implementations of user commands are found under mgm/proc/user/X.cc
- * The implementations of admin commands are found under mgm/proc/admin/X.cc
- * A new command has to be added to the if-else construct in the open function.
- */
+//------------------------------------------------------------------------------
+//! @file   ProcInterface.hh
+//!
+//! @brief  ProcCommand class handling proc commands
+//!
+//! A proc command is identified by a user requesting to read a path like
+//! '/proc/user' or '/proc/admin'. These two options specify either user or
+//! admin commands. Admin commands can only be executed if a VID indicates
+//! membership in the admin group, root or in same cases 'sss' authenticated
+//! clients. A proc command is usually referenced with the tag 'mgm.cmd'.
+//! In some cases there a sub commands defined by 'mgm.subcmd'.
+//! Proc commands are executed in the 'open' function and the results
+//! are provided as stdOut,stdErr and a return code which is assembled in an
+//! opaque output stream with 3 keys indicating the three return objects.
+//! The resultstream is streamed by a client like a file read using 'xrdcp'
+//! issuing several read requests. On close the resultstream is freed.
+//!
+//! The implementations of user commands are found under mgm/proc/user/X.cc
+//! The implementations of admin commands are found under mgm/proc/admin/X.cc
+//! A new command has to be added to the if-else construct in the open function.
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 //! Class IFilter used as interface to implement various types of filters
@@ -77,8 +76,8 @@ public:
   //!
   //! @return true if entry should be filtered out, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool FilterOutFile(const std::map<std::string, std::string>& entry_info)
-    = 0 ;
+  virtual bool FilterOutFile(const std::map<std::string,
+                             std::string>& entry_info) = 0 ;
 
   //----------------------------------------------------------------------------
   //! Filter the directory entry
@@ -104,7 +103,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ProcCommand();
+  virtual ~ProcCommand();
 
   //----------------------------------------------------------------------------
   //! Open a proc command e.g. call the appropriate user or admin commmand and
@@ -150,7 +149,7 @@ public:
   int close();
 
   //----------------------------------------------------------------------------
-  //! Add stdout,stderr to an external stdout,stderr variable
+  //! Add stdout, stderr to an external stdout, stderr variable
   //----------------------------------------------------------------------------
   void
   AddOutput(XrdOucString& lStdOut, XrdOucString& lStdErr)
@@ -169,8 +168,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get the return code of a proc command
   //----------------------------------------------------------------------------
-  int
-  GetRetc()
+  inline int GetRetc() const
   {
     return retc;
   }
@@ -283,12 +281,11 @@ public:
   bool KeyValToHttpTable(XrdOucString& stdOut);
 
 private:
-  XrdOucString path; ///< path argument for the proc command
+  XrdOucString mPath; ///< path argument for the proc command
   eos::common::Mapping::VirtualIdentity* pVid; ///< pointer to virtual identity
   XrdOucString mCmd; ///< proc command name
   XrdOucString mSubCmd; ///< proc sub command name
   XrdOucString mArgs; ///< full args from opaque input
-
   XrdOucString stdOut; ///< stdOut returned by proc command
   XrdOucString stdErr; ///< stdErr returned by proc command
   XrdOucString stdJson; ///< JSON output returned by proc command
@@ -315,11 +312,9 @@ private:
 
   XrdOucString mComment; ///< comment issued by the user for the proc comamnd
   time_t mExecTime; ///< execution time measured for the proc command
-
-  ssize_t mLen; //< len of the result stream
-  bool mAdminCmd; // < indicates an admin command
+  ssize_t mLen; ///< len of the result stream
+  bool mAdminCmd; ///< indicates an admin command
   bool mUserCmd; ///< indicates a user command
-
   bool mFuseFormat; ///< indicates FUSE format
   bool mJsonFormat; ///< indicates JSON format
   bool mHttpFormat; ///< indicates HTTP format
@@ -466,16 +461,6 @@ private:
 class ProcInterface
 {
 public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  ProcInterface() {};
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~ProcInterface() {};
-
   //----------------------------------------------------------------------------
   //! Check if a path is requesting a proc commmand
   //!
