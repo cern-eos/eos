@@ -286,7 +286,6 @@ char** EOSConsole_completion(const char* text, int start, int intend);
 char* command_generator(const char* text, int state);
 char* dir_generator(const char* text, int state);
 char* filedir_generator(const char* text, int state);
-int valid_argument(char* caller, char* arg);
 int execute_line(char* line);
 
 /* The name of this program, as taken from argv[0]. */
@@ -782,6 +781,9 @@ output_result(XrdOucEnv* result, bool highlighting)
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Execute admin command
+//------------------------------------------------------------------------------
 XrdOucEnv*
 client_admin_command(XrdOucString& in)
 {
@@ -856,6 +858,9 @@ client_admin_command(XrdOucString& in)
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Execute user command
+//------------------------------------------------------------------------------
 XrdOucEnv*
 client_user_command(XrdOucString& in)
 {
@@ -926,19 +931,6 @@ client_user_command(XrdOucString& in)
   }
 
   return 0;
-}
-
-/* Return non-zero if ARG is a valid argument for CALLER, else print
-   an error message and return zero. */
-int
-valid_argument(char* caller, char* arg)
-{
-  if (!arg || !*arg) {
-    //fprintf (stderr, "%s: Argument required.\n", caller);
-    return (0);
-  }
-
-  return (1);
 }
 
 //------------------------------------------------------------------------------

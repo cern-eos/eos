@@ -24,7 +24,6 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-# TODO: remove protobuf reference which is not used
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIRS}
@@ -43,7 +42,6 @@ add_library(
   ConsolePipe.cc  ConsolePipe.hh
   RegexUtil.cc RegexUtil.hh
   MgmExecute.cc MgmExecute.hh
-  commands/AclCommand.cc commands/AclCommand.hh
   commands/HealthCommand.cc commands/HealthCommand.hh
   commands/com_access.cc
   commands/com_accounting.cc
@@ -119,8 +117,9 @@ add_executable(
   eos
   ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
-  # TODO (esindril) Add the table formatter in common
+  # @TODO (esindril) Add the table formatter in common
   ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableFormatterBase.cc
+  $<TARGET_OBJECTS:CommonCli-Objects>
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
 #-------------------------------------------------------------------------------

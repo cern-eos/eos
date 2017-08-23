@@ -308,6 +308,15 @@ ProcCommand::open(const char* inpath, const char* info,
     mUserCmd = true;
   }
 
+  // Handle protobuf CLI request
+  if (strstr(info, "mgm.cmd.proto=")) {
+    eos_info("handle protobuf cli request");
+    stdErr = "error: operation not supported";
+    retc = ENOTSUP;
+    MakeResult();
+    return SFS_OK;
+  }
+
   // Deal with '&' ... sigh
   XrdOucString sinfo = ininfo;
 
