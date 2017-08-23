@@ -24,7 +24,7 @@
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "console/ConsoleMain.hh"
 #include "console/MgmExecute.hh"
-#include "console/Acl.pb.h"
+#include "common/Acl.pb.h"
 #include <iostream>
 
 using eos::console::AclProto_OpType;
