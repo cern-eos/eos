@@ -71,7 +71,7 @@ com_mkdir(char* arg1)
     path = abspath(path.c_str());
     in += "&mgm.path=";
     in += path;
-    global_retc = output_result(client_user_command(in));
+    global_retc = output_result(client_command(in));
     return (0);
   }
 

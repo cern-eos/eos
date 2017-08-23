@@ -30,48 +30,46 @@
 
 /* Namespace Interface */
 int
-com_geosched (char* arg1)
+com_geosched(char* arg1)
 {
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString cmd = subtokenizer.GetToken();
-
-  std::set<std::string> supportedParam = {"skipSaturatedPlct","skipSaturatedAccess",
-					  "skipSaturatedDrnAccess","skipSaturatedBlcAccess",
-					  "skipSaturatedDrnPlct","skipSaturatedBlcPlct",
-					  "plctDlScorePenalty","plctUlScorePenalty",
-					  "accessDlScorePenalty","accessUlScorePenalty",
-					  "fillRatioLimit","fillRatioCompTol","saturationThres",
-					  "timeFrameDurationMs","penaltyUpdateRate","proxyCloseToFs"};
-
+  std::set<std::string> supportedParam = {"skipSaturatedPlct", "skipSaturatedAccess",
+                                          "skipSaturatedDrnAccess", "skipSaturatedBlcAccess",
+                                          "skipSaturatedDrnPlct", "skipSaturatedBlcPlct",
+                                          "plctDlScorePenalty", "plctUlScorePenalty",
+                                          "accessDlScorePenalty", "accessUlScorePenalty",
+                                          "fillRatioLimit", "fillRatioCompTol", "saturationThres",
+                                          "timeFrameDurationMs", "penaltyUpdateRate", "proxyCloseToFs"
+                                         };
   XrdOucString in = "";
 
-  if (wants_help(arg1))
+  if (wants_help(arg1)) {
     goto com_geosched_usage;
+  }
 
-  if ((cmd != "show") && (cmd != "set") && (cmd != "updater") && (cmd != "forcerefresh") && (cmd != "disabled") && (cmd != "access"))
-  {
+  if ((cmd != "show") && (cmd != "set") && (cmd != "updater") &&
+      (cmd != "forcerefresh") && (cmd != "disabled") && (cmd != "access")) {
     goto com_geosched_usage;
   }
 
   in = "mgm.cmd=geosched";
 
-  if (cmd == "show")
-  {
+  if (cmd == "show") {
     XrdOucString subcmd = subtokenizer.GetToken();
-    if(subcmd == "-c")
-    {
+
+    if (subcmd == "-c") {
       in += "&mgm.usecolors=1";
       subcmd = subtokenizer.GetToken();
     }
 
-    if ((subcmd != "tree") && (subcmd != "snapshot") && (subcmd != "state") && (subcmd != "param"))
-    {
+    if ((subcmd != "tree") && (subcmd != "snapshot") && (subcmd != "state") &&
+        (subcmd != "param")) {
       goto com_geosched_usage;
     }
 
-    if (subcmd == "state")
-    {
+    if (subcmd == "state") {
       in += "&mgm.subcmd=showstate";
       subcmd = subtokenizer.GetToken();
       if (subcmd == "-m"){
@@ -79,71 +77,77 @@ com_geosched (char* arg1)
       }
     }
 
-    if (subcmd == "param")
-    {
+    if (subcmd == "param") {
       in += "&mgm.subcmd=showparam";
     }
 
-    if (subcmd == "tree")
-    {
+    if (subcmd == "tree") {
       in += "&mgm.subcmd=showtree";
       in += "&mgm.schedgroup=";
       XrdOucString group = subtokenizer.GetToken();
-      if(group.length())
-	in += group;
+
+      if (group.length()) {
+        in += group;
+      }
     }
 
-    if (subcmd == "snapshot")
-    {
+    if (subcmd == "snapshot") {
       in += "&mgm.subcmd=showsnapshot";
       in += "&mgm.schedgroup=";
       XrdOucString group = subtokenizer.GetToken();
-      if(group.length())
-	in += group;
+
+      if (group.length()) {
+        in += group;
+      }
+
       in += "&mgm.optype=";
       XrdOucString optype = subtokenizer.GetToken();
-      if(optype.length())
-	in += optype;
+
+      if (optype.length()) {
+        in += optype;
+      }
     }
   }
 
-  if(cmd == "set")
-  {
+  if (cmd == "set") {
     XrdOucString parameter = subtokenizer.GetToken();
-    if(!parameter.length())
-    {
+
+    if (!parameter.length()) {
       fprintf(stderr, "Error: parameter name is not provided\n");
       goto com_geosched_usage;
     }
-    if(supportedParam.find(parameter.c_str())==supportedParam.end())
-    {
-      fprintf(stderr, "Error: parameter %s not supported\n",parameter.c_str());
+
+    if (supportedParam.find(parameter.c_str()) == supportedParam.end()) {
+      fprintf(stderr, "Error: parameter %s not supported\n", parameter.c_str());
       return 0;
     }
 
     XrdOucString index = subtokenizer.GetToken();
     XrdOucString value = subtokenizer.GetToken();
-    if(!index.length())
-    {
+
+    if (!index.length()) {
       fprintf(stderr, "Error: value is not provided\n");
       goto com_geosched_usage;
     }
-    if(!value.length())
-    {
-      value=index;
-      index="-1";
+
+    if (!value.length()) {
+      value = index;
+      index = "-1";
     }
+
     double didx = 0.0;
-    if(!sscanf(value.c_str(),"%lf",&didx))
-    {
-      fprintf(stderr, "Error: parameter %s should have a numeric value, %s was provided\n",
-	      parameter.c_str(),value.c_str());
+
+    if (!sscanf(value.c_str(), "%lf", &didx)) {
+      fprintf(stderr,
+              "Error: parameter %s should have a numeric value, %s was provided\n",
+              parameter.c_str(), value.c_str());
       return 0;
     }
-    if(!XrdOucString(index.c_str()).isdigit())
-    {
-      fprintf(stderr, "Error: index for parameter %s should have a numeric value, %s was provided\n",
-              parameter.c_str(),index.c_str());
+
+    if (!XrdOucString(index.c_str()).isdigit()) {
+      fprintf(stderr,
+              "Error: index for parameter %s should have a numeric value, %s was provided\n",
+              parameter.c_str(), index.c_str());
       return 0;
     }
 
@@ -156,32 +160,27 @@ com_geosched (char* arg1)
     in += value.c_str();
   }
 
-  if(cmd == "updater")
-  {
+  if (cmd == "updater") {
     XrdOucString subcmd = subtokenizer.GetToken();
-    if(subcmd == "pause")
-    {
+
+    if (subcmd == "pause") {
       in += "&mgm.subcmd=updtpause";
     }
 
-    if(subcmd == "resume")
-    {
+    if (subcmd == "resume") {
       in += "&mgm.subcmd=updtresume";
     }
   }
 
-  if(cmd == "forcerefresh")
-  {
-      in += "&mgm.subcmd=forcerefresh";
+  if (cmd == "forcerefresh") {
+    in += "&mgm.subcmd=forcerefresh";
   }
 
-  if (cmd == "disabled")
-  {
+  if (cmd == "disabled") {
     XrdOucString subcmd = subtokenizer.GetToken();
-    XrdOucString geotag,group,optype;
+    XrdOucString geotag, group, optype;
 
-    if ((subcmd != "add") && (subcmd != "rm") && (subcmd != "show"))
-    {
+    if ((subcmd != "add") && (subcmd != "rm") && (subcmd != "show")) {
       goto com_geosched_usage;
     }
 
@@ -189,86 +188,106 @@ com_geosched (char* arg1)
     optype = subtokenizer.GetToken();
     group = subtokenizer.GetToken();
 
-    if(!group.length() || !optype.length() || !geotag.length())
+    if (!group.length() || !optype.length() || !geotag.length()) {
       goto com_geosched_usage;
+    }
 
-    std::string sgroup(group.c_str()),soptype(optype.c_str()),sgeotag(geotag.c_str());
+    std::string sgroup(group.c_str()), soptype(optype.c_str()),
+        sgeotag(geotag.c_str());
     const char fbdChars[] = "&/,;%$#@!*";
     auto fbdMatch =  sgroup.find_first_of(fbdChars);
-    if(fbdMatch!=std::string::npos && !(sgroup=="*"))
-    {
-      fprintf(stdout, "illegal character %c detected in group name %s\n",sgroup[fbdMatch],sgroup.c_str());
+
+    if (fbdMatch != std::string::npos && !(sgroup == "*")) {
+      fprintf(stdout, "illegal character %c detected in group name %s\n",
+              sgroup[fbdMatch], sgroup.c_str());
       return 0;
     }
+
     fbdMatch =  soptype.find_first_of(fbdChars);
-    if(fbdMatch!=std::string::npos && !(soptype=="*"))
-    {
-      fprintf(stdout, "illegal character %c detected in optype %s\n",soptype[fbdMatch],soptype.c_str());
+
+    if (fbdMatch != std::string::npos && !(soptype == "*")) {
+      fprintf(stdout, "illegal character %c detected in optype %s\n",
+              soptype[fbdMatch], soptype.c_str());
       return 0;
     }
+
     fbdMatch =  sgeotag.find_first_of(fbdChars);
-    if(fbdMatch!=std::string::npos && !(sgeotag=="*" && subcmd!="add") )
-    {
-      fprintf(stdout, "illegal character %c detected in geotag %s\n",sgeotag[fbdMatch],sgeotag.c_str());
+
+    if (fbdMatch != std::string::npos && !(sgeotag == "*" && subcmd != "add")) {
+      fprintf(stdout, "illegal character %c detected in geotag %s\n",
+              sgeotag[fbdMatch], sgeotag.c_str());
       return 0;
     }
 
-    in += ("&mgm.subcmd=disabled"+subcmd); // mgm.subcmd is  disabledadd or disabledrm or disabledshow
+    in += ("&mgm.subcmd=disabled" +
+           subcmd); // mgm.subcmd is  disabledadd or disabledrm or disabledshow
 
-    if(geotag.length())
-      in += ("&mgm.geotag="+geotag);
+    if (geotag.length()) {
+      in += ("&mgm.geotag=" + geotag);
+    }
 
-    in += ("&mgm.schedgroup="+group);
-    in += ("&mgm.optype="+optype);
-
+    in += ("&mgm.schedgroup=" + group);
+    in += ("&mgm.optype=" + optype);
   }
 
-  if (cmd == "access")
-  {
+  if (cmd == "access") {
     XrdOucString subcmd = subtokenizer.GetToken();
-    XrdOucString geotag,geotag_list,optype;
+    XrdOucString geotag, geotag_list, optype;
 
-    if ((subcmd != "setdirect") && (subcmd != "showdirect") && (subcmd != "cleardirect") &&
-        (subcmd != "setproxygroup") && (subcmd != "showproxygroup") && (subcmd != "clearproxygroup"))
-    {
+    if ((subcmd != "setdirect") && (subcmd != "showdirect") &&
+        (subcmd != "cleardirect") &&
+        (subcmd != "setproxygroup") && (subcmd != "showproxygroup") &&
+        (subcmd != "clearproxygroup")) {
       goto com_geosched_usage;
     }
-    const char *token = 0;
-    if((token=subtokenizer.GetToken()))
-    geotag = token;
-    if((token=subtokenizer.GetToken()))
-    geotag_list = token;
 
-    if(subcmd == "setdirect" || subcmd == "setproxygroup")
-    {
-      if(!geotag.length() || !geotag_list.length())
-        goto com_geosched_usage;
-    }
-    if(subcmd == "showdirect" || subcmd == "showproxygroup")
-    {
-      if(geotag.length() || geotag_list.length())
-        goto com_geosched_usage;
-    }
-    if(subcmd == "cleardirect" || subcmd == "clearproxygroup")
-    {
-      if(!geotag.length() || geotag_list.length())
-        goto com_geosched_usage;
+    const char* token = 0;
+
+    if ((token = subtokenizer.GetToken())) {
+      geotag = token;
     }
 
-    in += ("&mgm.subcmd=access"+subcmd); // mgm.subcmd is accessset or accessshow or accessclear
+    if ((token = subtokenizer.GetToken())) {
+      geotag_list = token;
+    }
 
-    if(geotag.length())
-      in += ("&mgm.geotag="+geotag);
+    if (subcmd == "setdirect" || subcmd == "setproxygroup") {
+      if (!geotag.length() || !geotag_list.length()) {
+        goto com_geosched_usage;
+      }
+    }
 
-    if(geotag.length())
-      in += ("&mgm.geotaglist="+geotag_list);
+    if (subcmd == "showdirect" || subcmd == "showproxygroup") {
+      if (geotag.length() || geotag_list.length()) {
+        goto com_geosched_usage;
+      }
+    }
+
+    if (subcmd == "cleardirect" || subcmd == "clearproxygroup") {
+      if (!geotag.length() || geotag_list.length()) {
+        goto com_geosched_usage;
+      }
+    }
+
+    in += ("&mgm.subcmd=access" +
+           subcmd); // mgm.subcmd is accessset or accessshow or accessclear
+
+    if (geotag.length()) {
+      in += ("&mgm.geotag=" + geotag);
+    }
+
+    if (geotag.length()) {
+      in += ("&mgm.geotaglist=" + geotag_list);
+    }
   }
-  global_retc = output_result(client_admin_command(in));
-  return (0);
 
+  global_retc = output_result(client_command(in, true));
+  return (0);
 com_geosched_usage:
-  fprintf(stdout, "'[eos] geosched ..' Interact with the file geoscheduling engine in EOS.\n");
-  fprintf(stdout, "Usage: geosched show|set|updater|forcerefresh|disabled|access ...\n");
+  fprintf(stdout,
+          "'[eos] geosched ..' Interact with the file geoscheduling engine in EOS.\n");
+  fprintf(stdout,
+          "Usage: geosched show|set|updater|forcerefresh|disabled|access ...\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout, "       geosched show [-c] tree [<scheduling subgroup>]                    :  show scheduling trees\n");
   fprintf(stdout, "                                                                          :  if <scheduling group> is specified only the tree for this group is shown. If it's not all, the trees are shown.\n");

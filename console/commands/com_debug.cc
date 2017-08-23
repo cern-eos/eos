@@ -73,7 +73,7 @@ com_debug(char* arg1)
         }
       }
 
-      global_retc = output_result(client_admin_command(in));
+      global_retc = output_result(client_command(in, true));
       return (0);
     }
   }

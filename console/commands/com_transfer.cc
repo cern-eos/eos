@@ -179,12 +179,12 @@ com_transfer(char* argin)
     in += noauth;
 
     if (!sync) {
-      global_retc = output_result(client_admin_command(in));
+      global_retc = output_result(client_command(in, true));
     } else {
       signal(SIGINT, txcancel_handler);
       time_t starttime = time(NULL);
       in += "&mgm.txoption=s";
-      XrdOucEnv* result = client_admin_command(in);
+      XrdOucEnv* result = client_command(in, true);
       std::vector<std::string> lines;
       command_result_stdout_to_vector(lines);
       global_retc = output_result(result);
@@ -217,7 +217,7 @@ com_transfer(char* argin)
 
           while (1) {
             lines.clear();
-            XrdOucEnv* result = client_admin_command(in);
+            XrdOucEnv* result = client_command(in, true);
             in = incp;
             command_result_stdout_to_vector(lines);
 
@@ -296,7 +296,7 @@ com_transfer(char* argin)
                   // get the log
                   in = "mgm.cmd=transfer&mgm.subcmd=log&mgm.txid=";
                   in += id.c_str();
-                  output_result(client_admin_command(in));
+                  output_result(client_command(in, true));
                 }
 
                 if (status == "done") {
@@ -315,7 +315,7 @@ com_transfer(char* argin)
                   fprintf(stdout, "\n<Control-C>\n");
                   in = "mgm.cmd=transfer&mgm.subcmd=cancel&mgm.txid=";
                   in += id.c_str();
-                  output_result(client_admin_command(in));
+                  output_result(client_command(in, true));
                   global_retc = ECONNABORTED;
                   return (0);
                 }
@@ -344,12 +344,12 @@ com_transfer(char* argin)
     in += group;
     in += "&mgm.txid=";
     in += arg1;
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
   if ((subcmd == "enable") || (subcmd == "disable") || (subcmd == "clear")) {
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -370,7 +370,7 @@ com_transfer(char* argin)
       in += xid;
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 

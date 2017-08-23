@@ -61,7 +61,7 @@ com_vid(char* arg1)
       in += soption;
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -103,7 +103,7 @@ com_vid(char* arg1)
       in += vidkey.c_str();
       in += "&mgm.vid.geotag=";
       in += target.c_str();
-      global_retc = output_result(client_admin_command(in));
+      global_retc = output_result(client_command(in, true));
       return (0);
     }
 
@@ -168,7 +168,7 @@ com_vid(char* arg1)
         goto com_vid_usage;
       }
 
-      global_retc = output_result(client_admin_command(in));
+      global_retc = output_result(client_command(in, true));
       return (0);
     }
 
@@ -289,7 +289,7 @@ com_vid(char* arg1)
 
       in += "&mgm.vid.key=";
       in += "<key>";
-      global_retc = output_result(client_admin_command(in));
+      global_retc = output_result(client_command(in, true));
       return (0);
     }
   }
@@ -372,12 +372,12 @@ com_vid(char* arg1)
     in += "<key>";
 
     if ((subcommand == "enable")) {
-      global_retc = output_result(client_admin_command(in));
+      global_retc = output_result(client_command(in, true));
     }
 
     if ((subcommand == "disable")) {
-      global_retc = output_result(client_admin_command(disableu));
-      global_retc |= output_result(client_admin_command(disableg));
+      global_retc = output_result(client_command(disableu, true));
+      global_retc |= output_result(client_command(disableg, true));
     }
 
     return (0);
@@ -434,12 +434,12 @@ com_vid(char* arg1)
     in += "<key>";
 
     if ((subcommand == "add")) {
-      global_retc = output_result(client_admin_command(in));
+      global_retc = output_result(client_command(in, true));
     }
 
     if ((subcommand == "remove")) {
-      global_retc = output_result(client_admin_command(disableu));
-      global_retc |= output_result(client_admin_command(disableg));
+      global_retc = output_result(client_command(disableu, true));
+      global_retc |= output_result(client_command(disableg, true));
     }
 
     return (0);
@@ -462,8 +462,8 @@ com_vid(char* arg1)
       in1 += key1;
       in2 += "&mgm.vid.key=";
       in2 += key2;
-      global_retc = output_result(client_admin_command(in1));
-      global_retc |= output_result(client_admin_command(in2));
+      global_retc = output_result(client_command(in1, true));
+      global_retc |= output_result(client_command(in2, true));
       return (0);
     }
 
@@ -477,7 +477,7 @@ com_vid(char* arg1)
 
     in += "&mgm.vid.key=";
     in += key;
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 

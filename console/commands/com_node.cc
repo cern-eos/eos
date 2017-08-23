@@ -250,7 +250,7 @@ com_node(char* arg1)
     in += token[0].c_str();
     in += "&mgm.node.value=";
     in += token[1].c_str();
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -307,7 +307,7 @@ com_node(char* arg1)
       in += "&mgm.node.root=true";
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -315,7 +315,7 @@ com_node(char* arg1)
     goto com_node_usage;
   }
 
-  result = client_admin_command(in);
+  result = client_command(in, true);
 
   if (!silent) {
     global_retc = output_result(result, highlighting);

@@ -65,7 +65,7 @@ int MgmExecute::ExecuteCommand(const char* command)
 {
   // @TODO (esindril): avoid copying the command again
   XrdOucString command_xrd = XrdOucString(command);
-  XrdOucEnv* response = client_user_command(command_xrd);
+  XrdOucEnv* response = client_command(command_xrd);
   return proccess(response);
 }
 
@@ -76,7 +76,7 @@ int MgmExecute::ExecuteAdminCommand(const char* command)
 {
   // @TODO (esindril): avoid copying the command again
   XrdOucString command_xrd = XrdOucString(command);
-  XrdOucEnv* response = client_admin_command(command_xrd);
+  XrdOucEnv* response = client_command(command_xrd, true);
   return proccess(response);
 }
 

@@ -313,7 +313,7 @@ com_attr(char* arg1)
     in += path;
   }
 
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 com_attr_usage:
   fprintf(stdout,

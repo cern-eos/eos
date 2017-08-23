@@ -59,7 +59,7 @@ com_chmod(char* arg1)
   in += path;
   in += "&mgm.chmod.mode=";
   in += mode;
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 com_chmod_usage:
   fprintf(stdout,

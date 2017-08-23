@@ -89,12 +89,21 @@ extern bool pipemode;
 extern bool runpipe;
 extern bool ispipe;
 extern bool json;
-extern XrdOucEnv* client_user_command(XrdOucString& in);
-extern XrdOucEnv* client_admin_command(XrdOucString& in);
 extern int output_result(XrdOucEnv* result, bool highlighting = true);
 extern void command_result_stdout_to_vector(std::vector<std::string>&
     string_vector);
 extern XrdOucEnv* CommandEnv;
+
+//------------------------------------------------------------------------------
+//! Send client command tot the MGM
+//!
+//! @param in command to be appended as opaque info to the XrdCl::File object
+//! @param is_admin if true execute as an admin command, otherwise as an user
+//!        command
+//!
+//! @return object containing the server response
+//------------------------------------------------------------------------------
+extern XrdOucEnv* client_command(XrdOucString& in, bool is_admin = false);
 
 typedef int CFunction(char*);
 //! Structure which contains information on the commands this program

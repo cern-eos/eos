@@ -117,7 +117,7 @@ com_fs(char* arg1)
     in += space;
     in += "&mgm.fs.configstatus=";
     in += configstatus;
-    XrdOucEnv* result = client_admin_command(in);
+    XrdOucEnv* result = client_command(in, true);
     global_retc = output_result(result);
     return (0);
   }
@@ -135,7 +135,7 @@ com_fs(char* arg1)
     in += fsid;
     in += "&mgm.space=";
     in += space;
-    XrdOucEnv* result = client_admin_command(in);
+    XrdOucEnv* result = client_command(in, true);
     global_retc = output_result(result);
     return (0);
   }
@@ -213,7 +213,7 @@ com_fs(char* arg1)
       }
     } while (option.length());
 
-    XrdOucEnv* result = client_admin_command(in);
+    XrdOucEnv* result = client_command(in, true);
 
     if (!silent && (!temp_silent)) {
       global_retc = output_result(result, highlighting);
@@ -256,7 +256,7 @@ com_fs(char* arg1)
     in += token[0].c_str();
     in += "&mgm.fs.value=";
     in += token[1].c_str();
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -322,7 +322,7 @@ com_fs(char* arg1)
       }
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -348,7 +348,7 @@ com_fs(char* arg1)
       goto com_fs_usage;
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -384,7 +384,7 @@ com_fs(char* arg1)
       }
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -453,7 +453,7 @@ com_fs(char* arg1)
       in += option;
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -810,7 +810,7 @@ com_fs(char* arg1)
       }
     }
 
-    XrdOucEnv* result = client_admin_command(in);
+    XrdOucEnv* result = client_command(in, true);
 
     if (!silentcommand) {
       global_retc = output_result(result);

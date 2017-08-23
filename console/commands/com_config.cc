@@ -78,7 +78,7 @@ com_config(char* arg1)
       } while (arg.length());
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -89,7 +89,7 @@ com_config(char* arg1)
       in += "&mgm.config.showbackup=1";
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -101,7 +101,7 @@ com_config(char* arg1)
     }
 
     in += arg;
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -141,20 +141,20 @@ com_config(char* arg1)
       goto com_config_usage;
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
   if (subcommand == "autosave") {
     XrdOucString in = "mgm.cmd=config&mgm.subcmd=autosave&mgm.config.state=";
     in += arg;
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
   if (subcommand == "reset") {
     XrdOucString in = "mgm.cmd=config&mgm.subcmd=reset";
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -219,7 +219,7 @@ com_config(char* arg1)
       goto com_config_usage;
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -231,7 +231,7 @@ com_config(char* arg1)
       goto com_config_usage;
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -254,7 +254,7 @@ com_config(char* arg1)
       goto com_config_usage;
     }
 
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 

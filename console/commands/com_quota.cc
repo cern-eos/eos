@@ -54,7 +54,7 @@ com_quota(char* arg1)
       in += "&mgm.quota.format=m";
     }
 
-    global_retc = output_result(client_user_command(in));
+    global_retc = output_result(client_command(in));
     return (0);
   }
 
@@ -121,7 +121,7 @@ com_quota(char* arg1)
         }
       } while (arg.length());
 
-    global_retc = output_result(client_user_command(in), highlighting);
+    global_retc = output_result(client_command(in), highlighting);
     return (0);
   }
 
@@ -197,7 +197,7 @@ com_quota(char* arg1)
       }
     } while (arg.length());
 
-    global_retc = output_result(client_user_command(in));
+    global_retc = output_result(client_command(in));
     return (0);
   }
 
@@ -258,7 +258,7 @@ com_quota(char* arg1)
       }
     } while (arg.length());
 
-    global_retc = output_result(client_user_command(in));
+    global_retc = output_result(client_command(in));
     return (0);
   }
 
@@ -304,7 +304,7 @@ com_quota(char* arg1)
 
     if (s == sconfirmation) {
       fprintf(stdout, "\nDeletion confirmed\n");
-      global_retc = output_result(client_admin_command(in));
+      global_retc = output_result(client_command(in, true));
     } else {
       fprintf(stdout, "\nDeletion aborted!\n");
       global_retc = -1;

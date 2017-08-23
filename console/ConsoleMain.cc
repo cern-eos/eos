@@ -782,87 +782,10 @@ output_result(XrdOucEnv* result, bool highlighting)
 }
 
 //------------------------------------------------------------------------------
-// Execute admin command
-//------------------------------------------------------------------------------
-XrdOucEnv*
-client_admin_command(XrdOucString& in)
-{
-  if (user_role.length()) {
-    in += "&eos.ruid=";
-  }
-
-  in += user_role;
-
-  if (group_role.length()) {
-    in += "&eos.rgid=";
-  }
-
-  in += group_role;
-
-  if (json) {
-    in += "&mgm.format=json";
-  }
-
-  if (global_comment.length()) {
-    in += "&mgm.comment=";
-    in += global_comment;
-    global_comment = "";
-  }
-
-  XrdMqTiming mytiming("eos");
-  TIMING("start", &mytiming);
-  XrdOucString out = "";
-  XrdOucString path = serveruri;
-  path += "//proc/admin/";
-  path += "?";
-  path += in;
-
-  if (debug) {
-    printf("debug: %s\n", path.c_str());
-  }
-
-  XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
-  XrdCl::File* client = new XrdCl::File();
-  XrdCl::XRootDStatus status = client->Open(path.c_str(), flags_xrdcl);
-
-  if (status.IsOK()) {
-    off_t offset = 0;
-    uint32_t nbytes = 0;
-    char buffer[4096 + 1];
-    status = client->Read(offset, 4096, buffer, nbytes);
-
-    while (status.IsOK() && (nbytes > 0)) {
-      buffer[nbytes] = 0;
-      out += buffer;
-      offset += nbytes;
-      status = client->Read(offset, 4096, buffer, nbytes);
-    }
-
-    status = client->Close();
-    TIMING("stop", &mytiming);
-    delete client;
-
-    if (timing) {
-      mytiming.Print();
-    }
-
-    CommandEnv = new XrdOucEnv(out.c_str());
-    return CommandEnv;
-  } else {
-    std::string errmsg;
-    errmsg = status.GetErrorMessage();
-    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
-  }
-
-  delete client;
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 // Execute user command
 //------------------------------------------------------------------------------
 XrdOucEnv*
-client_user_command(XrdOucString& in)
+client_command(XrdOucString& in, bool is_admin)
 {
   if (user_role.length()) {
     in += "&eos.ruid=";
@@ -890,7 +813,13 @@ client_user_command(XrdOucString& in)
   TIMING("start", &mytiming);
   XrdOucString out = "";
   XrdOucString path = serveruri;
-  path += "//proc/user/";
+
+  if (is_admin) {
+    path += "//proc/admin/";
+  } else {
+    path += "//proc/user/";
+  }
+
   path += "?";
   path += in;
   XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;

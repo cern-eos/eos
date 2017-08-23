@@ -130,7 +130,7 @@ com_fsck(char* arg1)
     in += selection;
   }
 
-  global_retc = output_result(client_admin_command(in));
+  global_retc = output_result(client_command(in, true));
   return (0);
 com_fsck_usage:
   fprintf(stdout,

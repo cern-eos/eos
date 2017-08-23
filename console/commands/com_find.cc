@@ -737,7 +737,7 @@ com_find(char* arg1)
   }
 
   XrdOucEnv* result;
-  result = client_user_command(in);
+  result = client_command(in);
 
   if ((option.find("s")) == STR_NPOS) {
     global_retc = output_result(result);

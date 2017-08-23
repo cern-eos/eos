@@ -280,9 +280,9 @@ setEnvironmentVariables(Configuration& config)
   XrdOucString location = base + "kinetic.location." + spacename;
   XrdOucString security = base + "kinetic.security." + spacename;
   XrdOucString cluster = base + "kinetic.cluster." + spacename;
-  XrdOucEnv* location_result = client_admin_command(location);
-  XrdOucEnv* security_result = client_admin_command(security);
-  XrdOucEnv* cluster_result = client_admin_command(cluster);
+  XrdOucEnv* location_result = client_command(location, true);
+  XrdOucEnv* security_result = client_command(security, true);
+  XrdOucEnv* cluster_result = client_command(cluster, true);
   setenv("KINETIC_DRIVE_LOCATION", resultToString(location_result).c_str(), 1);
   setenv("KINETIC_DRIVE_SECURITY", resultToString(security_result).c_str(), 1);
   setenv("KINETIC_CLUSTER_DEFINITION", resultToString(cluster_result).c_str(), 1);

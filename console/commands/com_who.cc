@@ -80,7 +80,7 @@ com_who(char* arg1)
     in += options;
   }
 
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 com_who_usage:
   fprintf(stdout,

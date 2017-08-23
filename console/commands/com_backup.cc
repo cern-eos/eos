@@ -127,7 +127,7 @@ int com_backup(char* arg1)
   }
 
   in = in_cmd.str().c_str();
-  global_retc = output_result(client_admin_command(in));
+  global_retc = output_result(client_command(in, true));
   return 0;
 com_backup_usage:
   std::ostringstream oss;

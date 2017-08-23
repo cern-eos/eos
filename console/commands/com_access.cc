@@ -228,7 +228,7 @@ com_access(char* arg1)
     in += option;
   }
 
-  global_retc = output_result(client_admin_command(in));
+  global_retc = output_result(client_command(in, true));
   return (0);
 com_access_usage:
   fprintf(stdout,

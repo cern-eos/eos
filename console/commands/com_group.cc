@@ -164,7 +164,7 @@ com_group(char* arg1)
     goto com_group_usage;
   }
 
-  result = client_admin_command(in);
+  result = client_command(in, true);
 
   if (!silent) {
     global_retc = output_result(result, highlighting);

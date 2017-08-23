@@ -162,7 +162,7 @@ com_recycle(char* arg1)
     in += "&mgm.recycle.printid=n";
   }
 
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 com_recycle_usage:
   fprintf(stdout, "Usage: recycle ls|purge|restore|config ...\n");

@@ -102,7 +102,7 @@ com_cd(char* arg1)
   lsminuss = "mgm.cmd=cd&mgm.path=";
   lsminuss += pwd;
   lsminuss += "&mgm.option=s";
-  global_retc = output_result(client_user_command(lsminuss));
+  global_retc = output_result(client_command(lsminuss));
 
   if (global_retc) {
     pwd = oldpwd;

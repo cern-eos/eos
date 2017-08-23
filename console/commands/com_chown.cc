@@ -59,7 +59,7 @@ com_chown(char* arg1)
   in += path;
   in += "&mgm.chown.owner=";
   in += owner;
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 com_chown_usage:
   fprintf(stdout, "Usage: chown [-r] <owner>[:<group>] <path>\n");

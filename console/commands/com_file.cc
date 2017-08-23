@@ -87,7 +87,7 @@ com_fileinfo(char* arg1)
     }
 
     if ((option.find("silent") == STR_NPOS)) {
-      global_retc = output_result(client_user_command(in));
+      global_retc = output_result(client_command(in));
     }
 
     return (0);
@@ -587,7 +587,7 @@ com_file(char* arg1)
     in += "&mgm.path=";
     in += path;
     XrdOucString option = fsid1;
-    XrdOucEnv* result = client_user_command(in);
+    XrdOucEnv* result = client_command(in);
 
     if (!result) {
       fprintf(stderr, "error: getmdlocation query failed\n");
@@ -861,7 +861,7 @@ com_file(char* arg1)
     in += option;
   }
 
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 com_file_usage:
   fprintf(stdout,

@@ -374,7 +374,7 @@ com_space(char* arg1)
     in += "&mgm.space.node-get.key=";
     in += key;
     ok = true;
-    result = client_admin_command(in);
+    result = client_command(in, true);
 
     if (result->Get("mgm.proc.stdout")) {
       XrdOucString val = result->Get("mgm.proc.stdout");
@@ -445,7 +445,7 @@ com_space(char* arg1)
     in += token[0].c_str();
     in += "&mgm.space.value=";
     in += token[1].c_str();
-    global_retc = output_result(client_admin_command(in));
+    global_retc = output_result(client_command(in, true));
     return (0);
   }
 
@@ -453,7 +453,7 @@ com_space(char* arg1)
     goto com_space_usage;
   }
 
-  result = client_admin_command(in);
+  result = client_command(in, true);
 
   if (!silent) {
     global_retc = output_result(result, highlighting);

@@ -108,7 +108,7 @@ com_archive(char* arg1)
   }
 
   in = in_cmd.str().c_str();
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 com_archive_usage:
   std::ostringstream oss;

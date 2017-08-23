@@ -303,13 +303,14 @@ com_ls(char* arg1)
   in += path;
   in += "&mgm.option=";
   in += option;
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 com_ls_usage:
   fprintf(stdout,
           "usage: ls [-lani] <path>                                                  :  list directory <path>\n");
   fprintf(stdout, "                    -l : show long listing\n");
-  fprintf(stdout, "                    -y : show long listing with backend(tape) status\n");
+  fprintf(stdout,
+          "                    -y : show long listing with backend(tape) status\n");
   fprintf(stdout,
           "                    -lh: show long listing with readable sizes\n");
   fprintf(stdout, "                    -a : show hidden files\n");

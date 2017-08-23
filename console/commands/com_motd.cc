@@ -53,6 +53,6 @@ com_motd(char* arg)
     }
   }
 
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 }

@@ -41,7 +41,7 @@ com_member(char* arg1)
   in = "mgm.cmd=member";
   in += "&mgm.egroup=";
   in += egroup;
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 com_member_usage:
   fprintf(stdout,

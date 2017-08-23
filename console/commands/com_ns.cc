@@ -185,7 +185,7 @@ com_ns(char* arg1)
     in += options;
   }
 
-  global_retc = output_result(client_admin_command(in));
+  global_retc = output_result(client_command(in, true));
   return (0);
 com_ns_usage:
   fprintf(stdout,

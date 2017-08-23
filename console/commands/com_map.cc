@@ -88,7 +88,7 @@ com_map(char* arg1)
     in += key;
   }
 
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 com_map_usage:
   fprintf(stdout,

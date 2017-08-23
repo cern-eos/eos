@@ -60,7 +60,7 @@ com_version(char* arg)
     in += options;
   }
 
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   fprintf(stdout, "EOS_CLIENT_VERSION=%s EOS_CLIENT_RELEASE=%s\n", VERSION,
           RELEASE);
   return (0);
