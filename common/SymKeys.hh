@@ -54,10 +54,10 @@ class SymKey
 private:
   static XrdSysMutex msMutex; ///< mutex for protecting the access to OpenSSL
   char key[SHA_DIGEST_LENGTH + 1]; //< the symmetric key in binary format
-  char keydigest[SHA_DIGEST_LENGTH +
-                 1]; //< the digest of the key  in binary format
-  char keydigest64[SHA_DIGEST_LENGTH *
-                   2]; //< the digest of the key in base64 format
+  //! the digest of the key  in binary format
+  char keydigest[SHA_DIGEST_LENGTH + 1];
+  //! the digest of the key in base64 format
+  char keydigest64[SHA_DIGEST_LENGTH * 2];
   XrdOucString key64; //< the key in base64 format
   time_t validity; //< unix time when the validity of the key stops
 
@@ -107,24 +107,34 @@ public:
 
 
   //----------------------------------------------------------------------------
-  //! Base64 encode a string
+  //! Base64 encode a string - base function
+  //!
+  //! @param in input data
+  //! @param inline input data length
+  //! @param out encoded data in std::string
+  //!
+  //! @return true if succesful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool Base64Encode(const char* in, unsigned int inlen,
+                           std::string& out);
+
+  //----------------------------------------------------------------------------
+  //! Base64 encode a string - returning an XrdOucString object
+  //!
+  //! @param in input data
+  //! @param inline input data length
+  //! @param out encoded data
+  //!
+  //! @return true if succesful, otherwise false
   //----------------------------------------------------------------------------
   static bool Base64Encode(char* in, unsigned int inlen, XrdOucString& out);
 
-  static bool Base64Encode(char* in, unsigned int inlen, std::string& out)
-  {
-    XrdOucString uout = "";
-    bool rc = Base64Encode(in, inlen, uout);
-
-    if (rc) {
-      out = uout.c_str();
-    }
-
-    return rc;
-  }
-
   //----------------------------------------------------------------------------
   //! Base64 decode a string
+  //!
+  //! @param in input data
+  //! @param out decoded data
+  //! @param outlen output length
   //----------------------------------------------------------------------------
   static bool Base64Decode(XrdOucString& in, char*& out, unsigned int& outlen);
 
@@ -254,9 +264,9 @@ public:
 
 };
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Class providing a keystore for symmetric keys
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 class SymKeyStore
 {
 private:

@@ -232,10 +232,10 @@ SymKey::HmacSha1(std::string& data, const char* key)
 }
 
 //------------------------------------------------------------------------------
-// Base64 encoding function
+// Base64 encoding function - base function
 //------------------------------------------------------------------------------
 bool
-SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
+SymKey::Base64Encode(const char* in, unsigned int inlen, std::string& out)
 {
   BIO* bmem, *b64;
   BUF_MEM* bptr;
@@ -264,13 +264,27 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
   BIO_get_mem_ptr(b64, &bptr);
 
   if (bptr->data) {
-    std::string s(bptr->data, size);
-    out = s.c_str();
-    // we don't use out.assign() as the buffer does not have null terminating character
+    out.assign(bptr->data, size);
   }
 
   BIO_free_all(b64);
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Base64 encoding function - returning an XrdOucString object
+//------------------------------------------------------------------------------
+bool
+SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
+{
+  std::string encoded;
+
+  if (Base64Encode(in, inlen, encoded)) {
+    out = encoded.c_str();
+    return true;
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
