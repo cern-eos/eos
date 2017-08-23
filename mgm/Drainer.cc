@@ -242,32 +242,46 @@ bool
 Drainer::GetDrainStatus(XrdOucEnv& env,XrdOucString& out, XrdOucString& err)
 {
     if (mDrainFS.size() > 0 ){
-       out+=  "Status of the drain activities on the System:\n";
-     } else {
+    } else {
        out+=  "No Drain activities are recorded on the System.\n";
        return true;
-     }
+    }
+
+    TableFormatterBase table;
+    std::vector<std::string> selections;
 
     auto it_drainfs = mDrainFS.begin();
-    
     while (it_drainfs != mDrainFS.end()){
-      //fs is already draining
-      out+= "Drain Status for FSs on the Node: ";
-      out+= (*it_drainfs).first.c_str();
-      out+= "\n";
       auto it_map = (*it_drainfs).second.begin();
       while ( it_map !=  (*it_drainfs).second.end()) {
-        out+= "\n\t\tFilesystem Id: ";
-        out+= std::to_string((*it_map).first).c_str();
-        out+= " Status: ";
-        out+= FileSystem::GetDrainStatusAsString((*it_map).second->GetDrainStatus());
-        out+= "\n";
+        PrintTable(table, (*it_drainfs).first, *it_map);
         it_map++;
       }
       it_drainfs++;
     }
+
+    
+    TableHeader table_header;
+    table_header.push_back(std::make_tuple("node", 30, "s"));
+    table_header.push_back(std::make_tuple("fs id", 10, "s"));
+    table_header.push_back(std::make_tuple("drain status", 30, "s"));
+    
+    table.SetHeader(table_header);
+    out =  table.GenerateTable(HEADER, selections).c_str();
     return true;
 }
+
+void
+Drainer::PrintTable(TableFormatterBase& table,std::string node, DrainMapPair& pair) {
+  
+  TableData table_data;
+  table_data.emplace_back();
+  table_data.back().push_back( TableCell(node, "s"));
+  table_data.back().push_back( TableCell(pair.first, "s"));
+  table_data.back().push_back( TableCell(FileSystem::GetDrainStatusAsString(pair.second->GetDrainStatus()),"s"));
+  table.AddRows(table_data);
+}
+
 
 
 /*----------------------------------------------------------------------------*/

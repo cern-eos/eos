@@ -30,6 +30,7 @@
 #include "common/FileSystem.hh"
 #include "mgm/drain/DrainFS.hh"
 #include "mgm/drain/DrainTransferJob.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 /* -------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
 /* -------------------------------------------------------------------------- */
@@ -122,6 +123,8 @@ public:
   void* Drain(void);
 
   unsigned int GetSpaceConf(std::string);
+
+  void PrintTable(TableFormatterBase&, std::string, DrainMapPair& );
 
 };
 
