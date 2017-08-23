@@ -1,0 +1,32 @@
+syntax="proto3";
+package eos.console;
+
+import "Acl.proto";
+
+//------------------------------------------------------------------------------
+// Request message sent to the server
+//------------------------------------------------------------------------------
+message RequestProto {
+  enum OpType {
+    NONE = 0;
+    ACL  = 1;
+  }
+
+  /// Types of output format supported
+  enum FormatType {
+    DEFAULT = 0;
+    FUSE    = 1;
+    JSON    = 2;
+    HTTP    = 3;
+  }
+
+  FormatType format = 1;
+
+  // Identifies which field is filled in
+  OpType type = 2;
+
+  // Actual request data object
+  oneof data {
+    AclProto acl = 3;
+  }
+}

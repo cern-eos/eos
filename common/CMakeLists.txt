@@ -33,6 +33,32 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
+# Generate protobol buffer object for the CLI
+#-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(ACL_SRCS ACL_HDRS cli_proto/Acl.proto)
+PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS cli_proto/Request.proto)
+
+set(CLI_PROTO_SRCS
+  ${ACL_SRCS} ${REQ_SRCS})
+
+set(CLI_PROTO_HDRS
+  ${ACL_HDRS} ${REQ_HDRS})
+
+set_source_files_properties(
+  ${CLI_PROTO_SRCS}
+  ${CLI_PROTO_HDRS}
+  PROPERTIES GENERATED 1)
+
+add_library(
+  CommonCli-Objects OBJECT
+  ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS})
+
+set_target_properties(
+  CommonCli-Objects
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+#-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS dbmaptest/test.proto)
@@ -248,11 +274,22 @@ endif()
 set(EOS_PLUGIN_MANAGER_SRCS
   plugin_manager/Plugin.hh
   Namespace.hh
-  Logging.cc                        Logging.hh
-  plugin_manager/PluginManager.cc   plugin_manager/PluginManager.hh
-  plugin_manager/DynamicLibrary.cc  plugin_manager/DynamicLibrary.hh)
+  Logging.cc
+  plugin_manager/PluginManager.cc
+  plugin_manager/DynamicLibrary.cc)
 
-add_library(EosPluginManager SHARED ${EOS_PLUGIN_MANAGER_SRCS})
+add_library(
+  EosPluginManager-Objects OBJECT
+  ${EOS_PLUGIN_MANAGER_SRCS})
+
+set_target_properties(
+  EosPluginManager-Objects
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+add_library(
+  EosPluginManager SHARED
+  $<TARGET_OBJECTS:EosPluginManager-Objects>)
 
 target_link_libraries(
   EosPluginManager PUBLIC
@@ -265,9 +302,16 @@ set_target_properties(
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-add_library(EosPluginManager-Static STATIC ${EOS_PLUGIN_MANAGER_SRCS})
-target_link_libraries(EosPluginManager-Static PUBLIC ${XROOTD_UTILS_LIBRARY})
-set_target_properties(EosPluginManager-Static PROPERTIES
+add_library(
+  EosPluginManager-Static STATIC
+  $<TARGET_OBJECTS:EosPluginManager-Objects>)
+
+target_link_libraries(
+  EosPluginManager-Static PUBLIC
+  ${XROOTD_UTILS_LIBRARY})
+
+set_target_properties(
+  EosPluginManager-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 install(
