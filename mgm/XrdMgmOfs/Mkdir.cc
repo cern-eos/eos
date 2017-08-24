@@ -456,7 +456,7 @@ XrdMgmOfs::_mkdir (const char *path,
           dir = copydir;
         }
 
-        if (!newdir && (errno != EEXIST)))
+        if (!newdir && (errno != EEXIST))
         {
           if (copydir) delete copydir;
           return Emsg(epname, error, errno, "mkdir - newdir is 0", path);
