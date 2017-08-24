@@ -406,8 +406,6 @@ int
 /*----------------------------------------------------------------------------*/
 WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
 {
-  XrdSysMutexHelper lLock(&gQueueChangeMutex);
-
   if (mActions.size() != 1) {
     return -1;
   }
@@ -528,7 +526,6 @@ WFE::Job::Load(std::string path2entry)
  */
 /*----------------------------------------------------------------------------*/
 {
-  XrdSysMutexHelper lLock(&gQueueChangeMutex);
   XrdOucErrInfo lError;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
@@ -616,8 +613,8 @@ WFE::Job::Move(std::string from_queue, std::string to_queue, time_t& when,
 {
   if (Save(to_queue, when, 0, retry) == SFS_OK) {
     if ((from_queue != to_queue) && (Delete(from_queue) == SFS_ERROR)) {
-      eos_static_err("msg=\"failed to remove for move from queue\" queue=\"%s\"",
-                     from_queue.c_str());
+      eos_static_err("msg=\"failed to remove for move from queue\"%s\" to  queue=\"%s\"",
+                     from_queue.c_str(), to_queue.c_str());
     }
   } else {
     eos_static_err("msg=\"failed to save for move to queue\" queue=\"%s\"",
@@ -716,8 +713,6 @@ WFE::Job::Delete(std::string queue)
  */
 /*----------------------------------------------------------------------------*/
 {
-  XrdSysMutexHelper lLock(&gQueueChangeMutex);
-
   if (mActions.size() != 1) {
     return SFS_ERROR;
   }
