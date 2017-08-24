@@ -133,7 +133,7 @@ XrdMgmOfs::_remdir (const char *path,
   }
 
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  gOFS->eosVieRWMutex.Lock();
 
   std::string aclpath;
   try
@@ -158,6 +158,7 @@ XrdMgmOfs::_remdir (const char *path,
   if (!dh)
   {
     errno = ENOENT;
+    gOFS->eosViewRWMutex->UnLock();
     return Emsg(epname, error, errno, "rmdir", path);
   }
    
@@ -171,6 +172,7 @@ XrdMgmOfs::_remdir (const char *path,
   if (vid.uid && !acl.IsMutable())
   {
     errno = EPERM;
+    gOFS->eosViewRWMutex->UnLock();
     return Emsg(epname, error, EPERM, "rmdir - immutable", path);
   }
 
@@ -182,7 +184,9 @@ XrdMgmOfs::_remdir (const char *path,
       XrdOucString option = env_info.Get("mgm.option");
       if (option == "r")
       {
-	// this is an recursive delete 
+	// this is an recursive delete, need to unlock before calling the proc function
+	gOFS->eosViewRWMutex->UnLock();
+
 	ProcCommand cmd;
 	XrdOucString info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
 	info += path;
@@ -211,6 +215,7 @@ XrdMgmOfs::_remdir (const char *path,
     {
       // deletion is explicitly forbidden
       errno = EPERM;
+      gOFS->eosViewRWMutex->UnLock();
       return Emsg(epname, error, EPERM, "rmdir by ACL", path);
     }
 
@@ -236,6 +241,7 @@ XrdMgmOfs::_remdir (const char *path,
   if (!permok)
   {
     errno = EPERM;
+    gOFS->eosViewRWMutex->UnLock();
     return Emsg(epname, error, errno, "rmdir", path);
   }
 
@@ -243,6 +249,7 @@ XrdMgmOfs::_remdir (const char *path,
   {
     errno = EADDRINUSE;
     eos_err("%s is a quota node - deletion canceled", path);
+    gOFS->eosViewRWMutex->UnLock();
     return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
   }
 
@@ -266,6 +273,7 @@ XrdMgmOfs::_remdir (const char *path,
                 e.getErrno(), e.getMessage().str().c_str());
     }
   }
+  gOFS->eosViewRWMutex->UnLock();
 
   EXEC_TIMING_END("RmDir");
 
