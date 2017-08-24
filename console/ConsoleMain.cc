@@ -98,6 +98,7 @@ extern int com_vid(char*);
 extern int com_vst(char*);
 extern int com_whoami(char*);
 extern int com_who(char*);
+extern int com_accounting(char*);
 
 //------------------------------------------------------------------------------
 // Global variables
@@ -209,6 +210,7 @@ wants_help(const char* arg1)
 //------------------------------------------------------------------------------
 COMMAND commands[] = {
   { (char*) "access", com_access, (char*) "Access Interface"},
+  { (char*) "accounting", com_accounting, (char*) "Accounting Information"},
   { (char*) "acl", com_acl, (char*) "Acl Interface"},
   { (char*) "archive", com_archive, (char*) "Archive Interface"},
   { (char*) "attr", com_attr, (char*) "Attribute Interface"},

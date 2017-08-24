@@ -510,7 +510,11 @@ ProcCommand::open(const char* inpath,
   // user command section
   // ----------------------------------------------------------------------------
   if (mUserCmd) {
-    if (mCmd == "archive") {
+    if (mCmd == "accounting") {
+      Accounting();
+      mDoSort = false;
+    }
+    else if (mCmd == "archive") {
       Archive();
       mDoSort = false;
     } else if (mCmd == "motd") {

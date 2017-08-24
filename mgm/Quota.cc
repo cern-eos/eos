@@ -1968,4 +1968,27 @@ Quota::Create(const std::string& path)
   }
 }
 
+map<std::string, std::tuple<unsigned long long, unsigned long long, unsigned long long>>
+Quota::GetAllGroupsLogicalQuotaValues()
+{
+  map<string, std::tuple<unsigned long long, unsigned long long, unsigned long long>> allGroupLogicalByteValues;
+
+  // Add this to have all quota nodes visible even if they are not in
+  // the configuration file
+  LoadNodes();
+  eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+
+  for(const auto& quotaNode : pMapQuota) {
+    quotaNode.second->Refresh();
+    allGroupLogicalByteValues[quotaNode.first] =
+      std::make_tuple(quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupLogicalBytesIs, 0),
+                     quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupLogicalBytesTarget, 0),
+                     quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupFilesIs, 0));
+  }
+
+  return allGroupLogicalByteValues;
+}
+
 EOSMGMNAMESPACE_END

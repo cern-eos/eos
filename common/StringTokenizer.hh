@@ -73,6 +73,10 @@ public:
   const char* GetLine();  // return the next parsed line seperated by \n
 
   const char* GetToken(bool escapeand = true); // return the next token
+
+  static std::vector<std::string> split(const std::string& str, char delimiter);
+
+  static bool IsUnsignedNumber(const std::string& str);
 };
 
 EOSCOMMONNAMESPACE_END

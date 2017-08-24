@@ -47,6 +47,7 @@ add_library(
   commands/AclCommand.cc commands/AclCommand.hh
   commands/HealthCommand.cc commands/HealthCommand.hh
   commands/com_access.cc
+  commands/com_accounting.cc
   commands/com_acl.cc
   commands/com_archive.cc
   commands/com_attr.cc

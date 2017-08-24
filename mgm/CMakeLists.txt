@@ -79,6 +79,7 @@ add_library(
   proc/admin/Transfer.cc
   proc/admin/Vid.cc
   proc/admin/Vst.cc
+  proc/user/Accounting.cc
   proc/user/Attr.cc
   proc/user/Archive.cc
   proc/user/Cd.cc

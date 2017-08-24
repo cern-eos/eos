@@ -123,9 +123,9 @@ private:
   //! Get quota
   //!
   //! @param tag quota type tag (eQuotaTag)
-  //! @param id uid/gid/projec it
+  //! @param id uid/gid/project id
   //!
-  //! @return reuqested quota value
+  //! @return requested quota value
   //----------------------------------------------------------------------------
   long long GetQuota(unsigned long tag, unsigned long id);
 
@@ -585,6 +585,10 @@ public:
   //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
   static int FileAccess(Scheduler::AccessArguments* args);
+
+  //! @brief Retrieves the kAllGroupLogicalBytesIs and kAllGroupLogicalBytesTarget values for the quota nodes.
+  //! @return a map with the paths of the quota nodes and the corresponding values
+  static map<std::string, std::tuple<unsigned long long, unsigned long long, unsigned long long>> GetAllGroupsLogicalQuotaValues();
 
   static gid_t gProjectId; ///< gid indicating project quota
   static eos::common::RWMutex pMapMutex; ///< mutex to protect access to pMapQuota

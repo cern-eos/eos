@@ -520,4 +520,15 @@ ContainerMD::getAttributes() const
   return pXAttrs;
 }
 
+size_t
+ContainerMD::getNumFilesRecursive() {
+  auto count = 0ul;
+  count += getNumFiles();
+  for(const auto& subCont : pSubContainers){
+    auto childContainer = pContSvc->getContainerMD(subCont.second);
+    count += childContainer->getNumFilesRecursive();
+  }
+  return count;
+}
+
 EOSNSNAMESPACE_END

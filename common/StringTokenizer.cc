@@ -24,6 +24,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/StringTokenizer.hh"
+#include <sstream>
 
 /*----------------------------------------------------------------------------*/
 
@@ -188,6 +189,26 @@ StringTokenizer::GetToken(bool escapeand)
   } else {
     return 0;
   }
+}
+
+std::vector<std::string>
+StringTokenizer::split(const std::string& str, char delimiter)
+{
+  istringstream iss(str);
+  std::vector<std::string> parts;
+  std::string part;
+  while (std::getline(iss, part, delimiter)) {
+    if (!part.empty())
+      parts.emplace_back(part);
+  }
+
+  return parts;
+}
+
+bool
+StringTokenizer::IsUnsignedNumber(const std::string& str)
+{
+  return !str.empty() && str.find_first_not_of( "0123456789" ) == std::string::npos && (str.front() != '0' || str.size() == 1);
 }
 
 /*----------------------------------------------------------------------------*/

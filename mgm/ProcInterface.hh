@@ -186,6 +186,7 @@ public:
   //----------------------------------------------------------------------------
   //! List of user proc commands
   //----------------------------------------------------------------------------
+  int Accounting();
   int Attr();
   int Archive();
   int Backup();
@@ -453,6 +454,7 @@ private:
                    const std::string& twindow_type,
                    const std::string& twindow_val,
                    const std::set<std::string>& excl_xattr);
+
 };
 
 

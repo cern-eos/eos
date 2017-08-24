@@ -652,6 +652,11 @@ XrdMgmOfsFile::open(const char* inpath,
       vid.uid = d_uid;
       vid.gid = d_gid;
     }
+
+    // If a file has the sys.proc attribute, it will be redirected as a command
+    if(fmd != nullptr && fmd->getAttributes().count("sys.proc")) {
+      return open("/proc/user/", open_mode, Mode, client, fmd->getAttribute("sys.proc").c_str());
+    }
   }
 
   // set the versioning depth if it is defined
