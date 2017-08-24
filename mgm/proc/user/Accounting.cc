@@ -83,8 +83,8 @@ ProcCommand::Accounting()
     root["storageservice"]["implementationversion"] = version.str().c_str();
     root["storageservice"]["latestupdate"] = std::to_string(std::time(nullptr));
 
-    auto capacity = 0ull;
-    auto used = 0ull;
+    auto capacity = Json::UInt64{0};
+    auto used = Json::UInt64{0};
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
       for (const auto& space : FsView::gFsView.mIdView) {
@@ -119,9 +119,9 @@ ProcCommand::Accounting()
       }
 
       storageShare["path"].append(quota.first);
-      storageShare["usedsize"] = std::get<0>(quota.second);
-      storageShare["totalsize"] = std::get<1>(quota.second);
-      storageShare["numberoffiles"] = std::get<2>(quota.second);
+      storageShare["usedsize"] = Json::UInt64{std::get<0>(quota.second)};
+      storageShare["totalsize"] = Json::UInt64{std::get<1>(quota.second)};
+      storageShare["numberoffiles"] = Json::UInt64{std::get<2>(quota.second)};
       storageShare["timestamp"] = std::to_string(std::time(nullptr));
       root["storageservice"]["storageshares"].append(storageShare);
     }
