@@ -133,7 +133,7 @@ XrdMgmOfs::_remdir (const char *path,
   }
 
   // ---------------------------------------------------------------------------
-  gOFS->eosVieRWMutex.Lock();
+  gOFS->eosVieRWMutex.LockWrite();
 
   std::string aclpath;
   try
@@ -158,7 +158,7 @@ XrdMgmOfs::_remdir (const char *path,
   if (!dh)
   {
     errno = ENOENT;
-    gOFS->eosViewRWMutex->UnLock();
+    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, errno, "rmdir", path);
   }
    
@@ -172,7 +172,7 @@ XrdMgmOfs::_remdir (const char *path,
   if (vid.uid && !acl.IsMutable())
   {
     errno = EPERM;
-    gOFS->eosViewRWMutex->UnLock();
+    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, EPERM, "rmdir - immutable", path);
   }
 
@@ -185,7 +185,7 @@ XrdMgmOfs::_remdir (const char *path,
       if (option == "r")
       {
 	// this is an recursive delete, need to unlock before calling the proc function
-	gOFS->eosViewRWMutex->UnLock();
+	gOFS->eosViewRWMutex.UnLockWrite();
 
 	ProcCommand cmd;
 	XrdOucString info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
@@ -215,7 +215,7 @@ XrdMgmOfs::_remdir (const char *path,
     {
       // deletion is explicitly forbidden
       errno = EPERM;
-      gOFS->eosViewRWMutex->UnLock();
+      gOFS->eosViewRWMutex.UnLockWrite();
       return Emsg(epname, error, EPERM, "rmdir by ACL", path);
     }
 
@@ -241,7 +241,7 @@ XrdMgmOfs::_remdir (const char *path,
   if (!permok)
   {
     errno = EPERM;
-    gOFS->eosViewRWMutex->UnLock();
+    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, errno, "rmdir", path);
   }
 
@@ -249,7 +249,7 @@ XrdMgmOfs::_remdir (const char *path,
   {
     errno = EADDRINUSE;
     eos_err("%s is a quota node - deletion canceled", path);
-    gOFS->eosViewRWMutex->UnLock();
+    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
   }
 
@@ -273,7 +273,7 @@ XrdMgmOfs::_remdir (const char *path,
                 e.getErrno(), e.getMessage().str().c_str());
     }
   }
-  gOFS->eosViewRWMutex->UnLock();
+  gOFS->eosViewRWMutex.UnLockWrite();
 
   EXEC_TIMING_END("RmDir");
 
