@@ -36,7 +36,6 @@
 
 XrdSysMutex eos::mgm::WFE::gSchedulerMutex;
 XrdScheduler* eos::mgm::WFE::gScheduler;
-XrdSysMutex eos::mgm::WFE::gQueueChangeMutex;
 
 /*----------------------------------------------------------------------------*/
 extern XrdSysError gMgmOfsEroute;
