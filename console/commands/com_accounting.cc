@@ -32,7 +32,7 @@ com_accounting_usage() {
   fprintf(stdout,
           "       accounting config -e [<expired>] -i [<invalid>] : configure caching behaviour\n");
   fprintf(stdout,
-          "                                                    -e : expiry time in minutes, after this time frame asynchronous update happens\n");
+          "                                                    -e : expiry time in minutes, after this time frame asynchronous update happens, default is 10 minutes\n");
   fprintf(stdout,
           "                                                    -i : invalidity time in minutes, after this time frame synchronous update happens, must be greater than expiry time, default is never\n");
   global_retc = EINVAL;

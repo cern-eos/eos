@@ -33,7 +33,7 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Accounting()
 {
-  static eos::common::ExpiryCache<std::string> accountingCache(std::chrono::seconds(20));
+  static eos::common::ExpiryCache<std::string> accountingCache(std::chrono::seconds(600));
 
   static const auto generateAccountingJson = [this] (eos::common::Mapping::VirtualIdentity& vid)
   {
