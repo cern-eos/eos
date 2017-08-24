@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
-// File: ConsoleMain.cc
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// File ConsoleMain.cc
+// Author Andreas-Joachim Peters - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -23,13 +23,10 @@
 
 #include "ConsoleMain.hh"
 #include "ConsolePipe.hh"
+#include "ConsoleCompletion.hh"
 #include "License"
 #include "common/Path.hh"
 #include "common/IoPipe.hh"
-#include "XrdNet/XrdNetOpts.hh"
-#include "XrdNet/XrdNetSocket.hh"
-#include "XrdSys/XrdSysLogger.hh"
-#include "fst/FmdClient.hh"
 #include <setjmp.h>
 
 #ifdef __APPLE__
@@ -102,116 +99,10 @@ extern int com_who(char*);
 extern int com_accounting(char*);
 
 //------------------------------------------------------------------------------
-// Global variables
-//------------------------------------------------------------------------------
-XrdOucString serveruri = "";
-XrdOucString historyfile = "";
-XrdOucString pwdfile = "";
-XrdOucString pwd = "/";
-XrdOucString rstdout;
-XrdOucString rstderr;
-XrdOucString rstdjson;
-XrdOucString user_role = "";
-XrdOucString group_role = "";
-XrdOucString global_comment = "";
-std::string exec_line = "";
-
-int global_retc = 0;
-bool global_highlighting = true;
-bool interactive = true;
-bool hasterminal = true;
-bool silent = false;
-bool timing = false;
-bool debug = false;
-bool pipemode = false;
-bool runpipe = false;
-bool ispipe = false;
-bool json = false;
-
-eos::common::IoPipe iopipe;
-int retcfd = 0;
-
-// Pointer to the result of client_admin... or client_user.... = it gets
-// invalid when the output_result function is called.
-XrdOucEnv* CommandEnv = 0;
-static sigjmp_buf sigjump_buf;
-
-//------------------------------------------------------------------------------
-// Exit handler
-//------------------------------------------------------------------------------
-void
-exit_handler(int a)
-{
-  fprintf(stdout, "\n");
-  fprintf(stderr, "<Control-C>\n");
-  write_history(historyfile.c_str());
-
-  if (ispipe) {
-    iopipe.UnLockProducer();
-  }
-
-  exit(-1);
-}
-
-//------------------------------------------------------------------------------
-// Jump handler
-//------------------------------------------------------------------------------
-void
-jump_handler(int a)
-{
-  siglongjmp(sigjump_buf, 1);
-}
-
-// ----------------------------------------------------------------------------
-// - Absolut Path Conversion Function
-// ----------------------------------------------------------------------------
-
-const char*
-abspath(const char* in)
-{
-  static XrdOucString inpath;
-  inpath = in;
-
-  if (inpath.beginswith("/")) {
-    return inpath.c_str();
-  }
-
-  inpath = pwd;
-  inpath += in;
-  eos::common::Path cPath(inpath.c_str());
-  inpath = cPath.GetPath();
-  return inpath.c_str();
-}
-
-// ----------------------------------------------------------------------------
-// Help flag filter
-// ----------------------------------------------------------------------------
-int
-wants_help(const char* arg1)
-{
-  XrdOucString allargs = " ";
-  allargs += arg1;
-  allargs += " ";
-
-  if ((allargs.find(" help ") != STR_NPOS) ||
-      (allargs.find("\"-h\"") != STR_NPOS) ||
-      (allargs.find("\"--help\"") != STR_NPOS) ||
-      (allargs.find(" -h ") != STR_NPOS) ||
-      (allargs.find(" \"-h\" ") != STR_NPOS) ||
-      (allargs.find(" --help ") != STR_NPOS) ||
-      (allargs.find(" \"--help\" ") != STR_NPOS)) {
-    return 1;
-  }
-
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 // Command mapping array
 //------------------------------------------------------------------------------
 COMMAND commands[] = {
   { (char*) "access", com_access, (char*) "Access Interface"},
-  { (char*) "accounting", com_accounting, (char*) "Accounting Information"},
   { (char*) "acl", com_acl, (char*) "Acl Interface"},
   { (char*) "archive", com_archive, (char*) "Archive Interface"},
   { (char*) "attr", com_attr, (char*) "Attribute Interface"},
@@ -278,29 +169,109 @@ COMMAND commands[] = {
 };
 
 //------------------------------------------------------------------------------
-// Forward declarations
+// Global variables
 //------------------------------------------------------------------------------
-char* stripwhite(char* string);
-COMMAND* find_command(char* command);
-char** EOSConsole_completion(const char* text, int start, int intend);
-char* command_generator(const char* text, int state);
-char* dir_generator(const char* text, int state);
-char* filedir_generator(const char* text, int state);
-int execute_line(char* line);
+XrdOucString serveruri = "";
+XrdOucString historyfile = "";
+XrdOucString pwdfile = "";
+XrdOucString gPwd = "/";
+XrdOucString rstdout;
+XrdOucString rstderr;
+XrdOucString rstdjson;
+XrdOucString user_role = "";
+XrdOucString group_role = "";
+XrdOucString global_comment = "";
+std::string exec_line = "";
 
-/* The name of this program, as taken from argv[0]. */
-char* progname;
+int global_retc = 0;
+bool global_highlighting = true;
+bool interactive = true;
+bool hasterminal = true;
+bool silent = false;
+bool timing = false;
+bool debug = false;
+bool pipemode = false;
+bool runpipe = false;
+bool ispipe = false;
+bool json = false;
 
-/* When non-zero, this global means the user is done using this program. */
+eos::common::IoPipe iopipe;
+int retcfd = 0;
+//! When non-zero, this global means the user is done using this program. */
 int done;
 
-char*
-dupstr(char* s)
+// Pointer to the result of client_command. It gets invalid when the
+// output_result function is called.
+XrdOucEnv* CommandEnv = 0;
+static sigjmp_buf sigjump_buf;
+
+//------------------------------------------------------------------------------
+// Exit handler
+//------------------------------------------------------------------------------
+void
+exit_handler(int a)
 {
-  char* r;
-  r = (char*) malloc(strlen(s) + 1);
-  strcpy(r, s);
-  return (r);
+  fprintf(stdout, "\n");
+  fprintf(stderr, "<Control-C>\n");
+  write_history(historyfile.c_str());
+
+  if (ispipe) {
+    iopipe.UnLockProducer();
+  }
+
+  exit(-1);
+}
+
+//------------------------------------------------------------------------------
+// Jump handler
+//------------------------------------------------------------------------------
+void
+jump_handler(int a)
+{
+  siglongjmp(sigjump_buf, 1);
+}
+
+//------------------------------------------------------------------------------
+// Absolut path conversion funcion
+//------------------------------------------------------------------------------
+const char*
+abspath(const char* in)
+{
+  static XrdOucString inpath;
+  inpath = in;
+
+  if (inpath.beginswith("/")) {
+    return inpath.c_str();
+  }
+
+  inpath = gPwd;
+  inpath += in;
+  eos::common::Path cPath(inpath.c_str());
+  inpath = cPath.GetPath();
+  return inpath.c_str();
+}
+
+//------------------------------------------------------------------------------
+// Help flag filter
+//------------------------------------------------------------------------------
+int
+wants_help(const char* arg1)
+{
+  XrdOucString allargs = " ";
+  allargs += arg1;
+  allargs += " ";
+
+  if ((allargs.find(" help ") != STR_NPOS) ||
+      (allargs.find("\"-h\"") != STR_NPOS) ||
+      (allargs.find("\"--help\"") != STR_NPOS) ||
+      (allargs.find(" -h ") != STR_NPOS) ||
+      (allargs.find(" \"-h\" ") != STR_NPOS) ||
+      (allargs.find(" --help ") != STR_NPOS) ||
+      (allargs.find(" \"--help\" ") != STR_NPOS)) {
+    return 1;
+  }
+
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -351,304 +322,11 @@ startpipe()
 }
 
 
-//------------------------------------------------------------------------------
-// Interface to readline completion
-//------------------------------------------------------------------------------
-/* Tell the GNU Readline library how to complete.  We want to try to complete
-   on command names if this is the first word in the line, or on filenames
-   if not. */
-void
-initialize_readline()
-{
-  /* Allow conditional parsing of the ~/.inputrc file. */
-  rl_readline_name = (char*) "EOS Console";
-  /* Tell the completer that we want a crack first. */
-  rl_attempted_completion_function = EOSConsole_completion;
-  rl_completion_append_character = '\0';
-}
-
-/* Attempt to complete on the contents of TEXT.  START and END bound the
-   region of rl_line_buffer that contains the word to complete.  TEXT is
-   the word to complete.  We can use the entire contents of rl_line_buffer
-   in case we want to do some simple parsing.  Return the array of matches,
-   or 0 if there aren't any. */
-char**
-EOSConsole_completion(const char* text, int start, int intend)
-{
-  char** matches;
-  matches = (char**) 0;
-
-  /* If this word is at the start of the line, then it is a command
-     to complete.  Otherwise it is the name of a file in the current
-     directory. */
-  if (start == 0) {
-    rl_completion_append_character = ' ';
-    matches = rl_completion_matches(text, command_generator);
-  }
-
-  XrdOucString cmd = rl_line_buffer;
-
-  if (cmd.beginswith("mkdir ") ||
-      cmd.beginswith("rmdir ") ||
-      cmd.beginswith("find ") ||
-      cmd.beginswith("cd ") ||
-      cmd.beginswith("chown ") ||
-      cmd.beginswith("chmod ") ||
-      cmd.beginswith("attr ") ||
-      cmd.beginswith("acl")) {
-    // dir completion
-    rl_completion_append_character = '\0';
-    matches = rl_completion_matches(text, dir_generator);
-  }
-
-  if (cmd.beginswith("rm ") ||
-      cmd.beginswith("ls ") ||
-      cmd.beginswith("fileinfo ")) {
-    // dir/file completion
-    rl_completion_append_character = '\0';
-    matches = rl_completion_matches(text, filedir_generator);
-  }
-
-  return (matches);
-}
-
-char*
-dir_generator(const char* text, int state)
-{
-  static int list_index, len;
-
-  /* If this is a new word to complete, initialize now.  This includes
-     saving the length of TEXT for efficiency, and initializing the index
-     variable to 0. */
-  if (!state) {
-    list_index = 0;
-    len = strlen(text);
-  }
-
-  /* Return the next name which partially matches from the command list. */
-  // create a dirlist
-  std::vector<std::string> dirs;
-  dirs.resize(0);
-  bool oldsilent = silent;
-  silent = true;
-  XrdOucString inarg = text;
-  bool absolute = false;
-
-  if (inarg.beginswith("/")) {
-    absolute = true;
-
-    // absolute pathnames
-    if (inarg.endswith("/")) {
-      // that's ok
-    } else {
-      int rpos = inarg.rfind("/");
-
-      if ((rpos != STR_NPOS)) {
-        inarg.erase(rpos + 1);
-      }
-    }
-  } else {
-    // relative pathnames
-    if ((!inarg.length()) || (!inarg.endswith("/"))) {
-      inarg = pwd.c_str();
-    } else {
-      inarg = pwd.c_str();
-      inarg += text;
-    }
-  }
-
-  //  while (inarg.replace("//","/")) {};
-  XrdOucString comarg = "-F ";
-  comarg += inarg;
-  char buffer[4096];
-  sprintf(buffer, "%s", comarg.c_str());
-  com_ls((char*) buffer);
-  silent = oldsilent;
-  XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
-
-  do {
-    subtokenizer.GetLine();
-    XrdOucString entry = subtokenizer.GetToken();
-
-    if (entry.length() == 0) {
-      break;
-    }
-
-    if (entry.endswith('\n')) {
-      entry.erase(entry.length() - 1);
-    }
-
-    if (!entry.endswith("/")) {
-      continue;
-    }
-
-    if (entry.length()) {
-      dirs.push_back(entry.c_str());
-    } else {
-      break;
-    }
-  } while (1);
-
-  for (unsigned int i = list_index; i < dirs.size(); i++) {
-    list_index++;
-    XrdOucString compare = "";
-
-    if (absolute) {
-      compare = inarg;
-      compare += dirs[i].c_str();
-    } else {
-      compare = dirs[i].c_str();
-    }
-
-    //    fprintf(stderr,"%s %s %d\n", compare.c_str(), text, len);
-    if (strncmp(compare.c_str(), text, len) == 0) {
-      return (dupstr((char*) compare.c_str()));
-    }
-  }
-
-  /* If no names matched, then return 0. */
-  return ((char*) 0);
-}
-
-char*
-filedir_generator(const char* text, int state)
-{
-  static int list_index, len;
-
-  /* If this is a new word to complete, initialize now.  This includes
-     saving the length of TEXT for efficiency, and initializing the index
-     variable to 0. */
-  if (!state) {
-    list_index = 0;
-    len = strlen(text);
-  }
-
-  /* Return the next name which partially matches from the command list. */
-  // create a dirlist
-  std::vector<std::string> dirs;
-  dirs.resize(0);
-  bool oldsilent = silent;
-  silent = true;
-  XrdOucString inarg = text;
-  bool absolute = false;
-
-  if (inarg.beginswith("/")) {
-    absolute = true;
-
-    // absolute pathnames
-    if (inarg.endswith("/")) {
-      // that's ok
-    } else {
-      int rpos = inarg.rfind("/");
-
-      if ((rpos != STR_NPOS)) {
-        inarg.erase(rpos + 1);
-      }
-    }
-  } else {
-    // relative pathnames
-    if ((!inarg.length()) || (!inarg.endswith("/"))) {
-      if (!inarg.length()) {
-        inarg = "";
-      } else {
-        int rpos = inarg.rfind("/");
-
-        if ((rpos != STR_NPOS)) {
-          inarg.erase(rpos + 1);
-        } else {
-          inarg = "";
-        }
-      }
-    } else {
-      inarg = pwd.c_str();
-      inarg += text;
-    }
-  }
-
-  //  while (inarg.replace("//","/")) {};
-  XrdOucString comarg = "-F ";
-  comarg += inarg;
-  char buffer[4096];
-  sprintf(buffer, "%s", comarg.c_str());
-  com_ls((char*) buffer);
-  silent = oldsilent;
-  XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
-
-  do {
-    subtokenizer.GetLine();
-    XrdOucString entry = subtokenizer.GetToken();
-
-    if (entry.endswith('\n')) {
-      entry.erase(entry.length() - 1);
-    }
-
-    if (entry.length()) {
-      dirs.push_back(entry.c_str());
-    } else {
-      break;
-    }
-  } while (1);
-
-  for (unsigned int i = list_index; i < dirs.size(); i++) {
-    list_index++;
-    XrdOucString compare = "";
-
-    if (absolute) {
-      compare = inarg;
-      compare += dirs[i].c_str();
-    } else {
-      compare = inarg;
-      compare += dirs[i].c_str();
-    }
-
-    //    fprintf(stderr,"%s %s %d\n", compare.c_str(), text, len);
-    if (strncmp(compare.c_str(), text, len) == 0) {
-      return (dupstr((char*) compare.c_str()));
-    }
-  }
-
-  /* If no names matched, then return 0. */
-  return ((char*) 0);
-}
-
-/* Generator function for command completion.  STATE lets us know whether
-   to start from scratch; without any state (i.e. STATE == 0), then we
-   start at the top of the list. */
-char*
-command_generator(const char* text, int state)
-{
-  static int list_index, len;
-  char* name;
-
-  /* If this is a new word to complete, initialize now.  This includes
-     saving the length of TEXT for efficiency, and initializing the index
-     variable to 0. */
-  if (!state) {
-    list_index = 0;
-    len = strlen(text);
-  }
-
-  /* Return the next name which partially matches from the command list. */
-  while ((name = commands[list_index].name)) {
-    list_index++;
-
-    if (strncmp(name, text, len) == 0) {
-      XrdOucString withspace = name;
-      return (dupstr((char*) withspace.c_str()));
-    }
-  }
-
-  /* If no names matched, then return 0. */
-  return ((char*) 0);
-}
-
 /* **************************************************************** */
 /*                                                                  */
 /*                       EOSConsole Commands                        */
 /*                                                                  */
-
 /* **************************************************************** */
-
 void
 command_result_stdout_to_vector(std::vector<std::string>& string_vector)
 {
@@ -688,6 +366,9 @@ command_result_stdout_to_vector(std::vector<std::string>& string_vector)
   }
 }
 
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 int
 output_result(XrdOucEnv* result, bool highlighting)
 {
@@ -872,7 +553,6 @@ read_pwdfile()
   eos::common::StringConversion::LoadFileIntoString(pwdfile.c_str(), lpwd);
 
   if (lpwd.length()) {
-    // apply
     com_cd((char*) lpwd.c_str());
   }
 }
@@ -894,7 +574,6 @@ std::string textunbold("\001\033[0m\002");
 //------------------------------------------------------------------------------
 // Usage Information
 //------------------------------------------------------------------------------
-
 void
 usage()
 {
@@ -1023,8 +702,8 @@ main(int argc, char* argv[])
 
     if ((in1 == "--version") || (in1 == "-v")) {
       fprintf(stderr, "EOS %s (CERN)\n\n", VERSION);
-      fprintf(stderr,
-              "Written by CERN-IT-DSS (Andreas-Joachim Peters, Lukasz Janyst & Elvin Sindrilaru)\n");
+      fprintf(stderr, "Written by CERN-IT-DSS (Andreas-Joachim Peters, "
+              "Lukasz Janyst & Elvin Sindrilaru)\n");
       exit(-1);
     }
 
@@ -1057,8 +736,8 @@ main(int argc, char* argv[])
       in1 = argv[argindex];
 
       if (!startpipe()) {
-        fprintf(stderr,
-                "error: unable to start the pipe - maybe there is already a process with 'eos -p' running?\n");
+        fprintf(stderr, "error: unable to start the pipe - maybe there is "
+                "already a process with 'eos -p' running?\n");
         exit(-1);
       }
     }
@@ -1192,7 +871,8 @@ main(int argc, char* argv[])
           iopipe.Init(); // need to initialize for Checkproducer
 
           if (!iopipe.CheckProducer()) {
-            // we need to run a pipe daemon, so we fork here and let the fork run the code like 'eos -p'
+            // We need to run a pipe daemon, so we fork here and let the fork
+            // run the code like 'eos -p'
             if (!fork()) {
               for (int i = 1; i < argc; i++) {
                 for (size_t j = 0; j < strlen(argv[i]); j++) {
@@ -1246,7 +926,7 @@ main(int argc, char* argv[])
     silent = false;
   }
 
-  /* configure looging */
+  /* configure logging */
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   g_logging.SetUnit("eos");
   g_logging.SetLogPriority(LOG_NOTICE);
@@ -1291,8 +971,10 @@ main(int argc, char* argv[])
             textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str());
   }
 
-  progname = argv[0];
-  initialize_readline(); /* Bind our completer. */
+  // Bind our completer
+  rl_readline_name = (char*) "EOS Console";
+  rl_attempted_completion_function = eos_console_completion;
+  rl_completion_append_character = '\0';
 
   if (getenv("EOS_HISTORY_FILE")) {
     historyfile = getenv("EOS_HISTORY_FILE");
@@ -1325,7 +1007,7 @@ main(int argc, char* argv[])
     } else {
       sprintf(prompt, "%sEOS Console%s [%s%s%s] |%s> ", textbold.c_str(),
               textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str(),
-              pwd.c_str());
+              gPwd.c_str());
     }
 
     if (pipemode) {
@@ -1463,12 +1145,11 @@ execute_line(char* line)
 COMMAND*
 find_command(char* name)
 {
-  int i;
-
-  for (i = 0; commands[i].name; i++)
+  for (int i = 0; commands[i].name; ++i) {
     if (strcmp(name, commands[i].name) == 0) {
       return (&commands[i]);
     }
+  }
 
   return ((COMMAND*) 0);
 }

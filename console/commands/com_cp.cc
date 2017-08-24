@@ -1024,11 +1024,11 @@ com_cp(char* argin)
 
     if (interactive) {
       if (!arg1.beginswith("/")) {
-        arg1.insert(pwd.c_str(), 0);
+        arg1.insert(gPwd.c_str(), 0);
       }
 
       if (!arg2.beginswith("/")) {
-        arg2.insert(pwd.c_str(), 0);
+        arg2.insert(gPwd.c_str(), 0);
       }
     }
 

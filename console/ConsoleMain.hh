@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
-// File: ConsoleMain.hh
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file ConsoleMain.hh
+//! @author Andreas-Joachim Peters - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOS_CONSOLE_MAIN_HH__
-#define __EOS_CONSOLE_MAIN_HH__
-
+#pragma once
 #include "common/LayoutId.hh"
 #include "common/Fmd.hh"
 #include "common/Logging.hh"
@@ -69,7 +67,7 @@
 #include <math.h>
 
 extern const char* abspath(const char* in);
-extern XrdOucString pwd;
+extern XrdOucString gPwd;
 extern XrdOucString rstdout;
 extern XrdOucString rstderr;
 extern XrdOucString user_role;
@@ -95,7 +93,7 @@ extern void command_result_stdout_to_vector(std::vector<std::string>&
 extern XrdOucEnv* CommandEnv;
 
 //------------------------------------------------------------------------------
-//! Send client command tot the MGM
+//! Send client command to the MGM
 //!
 //! @param in command to be appended as opaque info to the XrdCl::File object
 //! @param is_admin if true execute as an admin command, otherwise as an user
@@ -119,9 +117,9 @@ extern int wants_help(const char* arg1);
 extern COMMAND commands[];
 extern int done;
 
-XrdOucString cleanPath(const std::string& pathToHandle);
-void addHelpOptionRecursively(ConsoleCliCommand* command);
-bool checkHelpAndErrors(ConsoleCliCommand* command);
+char* stripwhite(char* string);
+COMMAND* find_command(char* command);
+int execute_line(char* line);
 
 //------------------------------------------------------------------------------
 //! Check if input matches pattern and extact the file id if possible
@@ -151,4 +149,3 @@ bool Path2FileDenominator(XrdOucString& path);
 //! @return true if MGM is online, otherwise false
 //------------------------------------------------------------------------------
 bool CheckMgmOnline(const std::string& uri);
-#endif

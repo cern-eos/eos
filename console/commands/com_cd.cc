@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-/*----------------------------------------------------------------------------*/
 
 /* Change working directory &*/
 int
@@ -48,9 +46,9 @@ com_cd(char* arg1)
     arg = (char*) opwd.c_str();
   }
 
-  opwd = pwd;
+  opwd = gPwd;
   newpath = abspath(arg.c_str());
-  oldpwd = pwd;
+  oldpwd = gPwd;
 
   // cd ~ (home)
   if ((arg == "") || (arg == "~")) {
@@ -62,57 +60,57 @@ com_cd(char* arg1)
     }
   }
 
-  pwd = newpath;
+  gPwd = newpath;
 
-  if ((!pwd.endswith("/")) && (!pwd.endswith("/\""))) {
-    pwd += "/";
+  if ((!gPwd.endswith("/")) && (!gPwd.endswith("/\""))) {
+    gPwd += "/";
   }
 
   // filter "/./";
-  while (pwd.replace("/./", "/")) {
+  while (gPwd.replace("/./", "/")) {
   }
 
   // filter "..";
   int dppos;
   dppos = 0;
 
-  while ((dppos = pwd.find("/../")) != STR_NPOS) {
+  while ((dppos = gPwd.find("/../")) != STR_NPOS) {
     if (dppos == 0) {
-      pwd = oldpwd;
+      gPwd = oldpwd;
       break;
     }
 
-    int rpos = pwd.rfind("/", dppos - 1);
+    int rpos = gPwd.rfind("/", dppos - 1);
 
-    //    fprintf(stdout,"%s %d %d\n", pwd.c_str(), dppos, rpos);
+    //    fprintf(stdout,"%s %d %d\n", gPwd.c_str(), dppos, rpos);
     if (rpos != STR_NPOS) {
       //      fprintf(stdout,"erasing %d %d", rpos, dppos-rpos+3);
-      pwd.erase(rpos, dppos - rpos + 3);
+      gPwd.erase(rpos, dppos - rpos + 3);
     } else {
-      pwd = oldpwd;
+      gPwd = oldpwd;
       break;
     }
   }
 
-  if ((!pwd.endswith("/")) && (!pwd.endswith("/\""))) {
-    pwd += "/";
+  if ((!gPwd.endswith("/")) && (!gPwd.endswith("/\""))) {
+    gPwd += "/";
   }
 
   // check if this exists, otherwise go back to oldpwd
   lsminuss = "mgm.cmd=cd&mgm.path=";
-  lsminuss += pwd;
+  lsminuss += gPwd;
   lsminuss += "&mgm.option=s";
   global_retc = output_result(client_command(lsminuss));
 
   if (global_retc) {
-    pwd = oldpwd;
+    gPwd = oldpwd;
   } else {
     if (pwdfile.length()) {
       // store the last used directory
       int cfd = open(pwdfile.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRWXU);
 
       if (cfd >= 0) {
-        if ((::write(cfd, pwd.c_str(), pwd.length())) != pwd.length()) {
+        if ((::write(cfd, gPwd.c_str(), gPwd.length())) != gPwd.length()) {
           fprintf(stderr, "warning: unable to store CWD to %s [errno=%d]\n",
                   pwdfile.c_str(), errno);
         }

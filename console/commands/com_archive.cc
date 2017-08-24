@@ -20,12 +20,9 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-/*----------------------------------------------------------------------------*/
 #include <sstream>
 #include "console/ConsoleMain.hh"
 #include "XrdCl/XrdClURL.hh"
-/*----------------------------------------------------------------------------*/
 
 int
 com_archive(char* arg1)
@@ -42,7 +39,7 @@ com_archive(char* arg1)
     XrdOucString path = subtokenizer.GetToken();
 
     if (!path.length()) {
-      path = pwd;
+      path = gPwd;
     }
 
     path = abspath(path.c_str());
@@ -70,7 +67,7 @@ com_archive(char* arg1)
 
     // The last token is the path
     if (!token.length()) {
-      in_cmd << "&mgm.archive.path=" << pwd;
+      in_cmd << "&mgm.archive.path=" << gPwd;
     } else {
       token = abspath(token.c_str());
       in_cmd << "&mgm.archive.path=" << token;
@@ -90,7 +87,7 @@ com_archive(char* arg1)
     if (!token.length()) {
       in_cmd << "&mgm.archive.path=/";
     } else if (token == "./" || token == ".") {
-      in_cmd << "&mgm.archive.path=" << abspath(pwd.c_str());
+      in_cmd << "&mgm.archive.path=" << abspath(gPwd.c_str());
     } else {
       in_cmd << "&mgm.archive.path=" << token;
     }

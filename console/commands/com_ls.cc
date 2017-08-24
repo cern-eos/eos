@@ -68,7 +68,7 @@ com_ls(char* arg1)
   } while (1);
 
   if (!path.length()) {
-    path = pwd;
+    path = gPwd;
   }
 
   // remove escaped blanks

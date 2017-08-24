@@ -40,6 +40,7 @@ add_library(
   EosConsoleCommands-Objects OBJECT
   ConsoleMain.cc  ConsoleMain.hh
   ConsolePipe.cc  ConsolePipe.hh
+  ConsoleCompletion.cc ConsoleCompletion.hh
   RegexUtil.cc RegexUtil.hh
   MgmExecute.cc MgmExecute.hh
   commands/HealthCommand.cc commands/HealthCommand.hh
