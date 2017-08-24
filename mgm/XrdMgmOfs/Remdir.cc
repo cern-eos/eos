@@ -133,7 +133,7 @@ XrdMgmOfs::_remdir (const char *path,
   }
 
   // ---------------------------------------------------------------------------
-  gOFS->eosVieRWMutex.LockWrite();
+  gOFS->eosViewRWMutex.LockWrite();
 
   std::string aclpath;
   try
