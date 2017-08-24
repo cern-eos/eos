@@ -439,9 +439,27 @@ XrdMgmOfs::_rename(const char* old_name,
                   try {
                     fmd = gOFS->eosView->getFile(fspath.c_str(), false);
                   } catch (eos::MDException& e) {
-                    errno = e.getErrno();
-                    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                              e.getErrno(), e.getMessage().str().c_str());
+                    // Check if this is a symbolic link
+                    std::string fname = *fileit;
+                    size_t link_pos = fname.find(" -> ");
+
+                    if (link_pos != std::string::npos) {
+                      fname.erase(link_pos);
+                      fspath = rfoundit->first;
+                      fspath += fname;
+
+                      try {
+                        fmd = gOFS->eosView->getFile(fspath.c_str(), false);
+                      } catch (eos::MDException& e) {
+                        errno = e.getErrno();
+                        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                                  e.getErrno(), e.getMessage().str().c_str());
+                      }
+                    } else {
+                      errno = e.getErrno();
+                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                                e.getErrno(), e.getMessage().str().c_str());
+                    }
                   }
 
                   if (!fmd) {
@@ -488,14 +506,37 @@ XrdMgmOfs::_rename(const char* old_name,
                    fileit++) {
                 std::string fspath = rfoundit->first;
                 fspath += *fileit;
+                std::string fname = *fileit;
+
+                if (fname.find(" -> ") != std::string::npos) {
+                  // Skip symlinks
+                  continue;
+                }
 
                 try {
                   file = gOFS->eosView->getFile(fspath.c_str());
                 } catch (eos::MDException& e) {
-                  errno = e.getErrno();
-                  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                            e.getErrno(), e.getMessage().str().c_str());
-                  eos_debug("path=%s is probably a symlink", fspath.c_str());
+                  // Check if this is a symbolic link
+                  std::string fname = *fileit;
+                  size_t link_pos = fname.find(" -> ");
+
+                  if (link_pos != std::string::npos) {
+                    fname.erase(link_pos);
+                    fspath = rfoundit->first;
+                    fspath += fname;
+
+                    try {
+                      file = gOFS->eosView->getFile(fspath.c_str(), false);
+                    } catch (eos::MDException& e) {
+                      errno = e.getErrno();
+                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                                e.getErrno(), e.getMessage().str().c_str());
+                    }
+                  } else {
+                    errno = e.getErrno();
+                    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                              e.getErrno(), e.getMessage().str().c_str());
+                  }
                 }
 
                 if (file && !file->isLink()) {

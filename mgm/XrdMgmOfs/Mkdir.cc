@@ -239,6 +239,7 @@ XrdMgmOfs::_mkdir(const char* path,
       // Walk up the paths until one exists
       for (i = cPath.GetSubPathSize() - 1; i >= 0; i--) {
         eos_debug("testing path %s", cPath.GetSubPath(i));
+        errno = 0;
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         attrmap.clear();
 
@@ -329,6 +330,7 @@ XrdMgmOfs::_mkdir(const char* path,
         eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
         try {
+          errno = 0;
           eos_debug("creating path %s", cPath.GetSubPath(j));
           tmp_path.Init(cPath.GetSubPath(j));
           dir = eosView->getContainer(tmp_path.GetParentPath());
@@ -364,6 +366,10 @@ XrdMgmOfs::_mkdir(const char* path,
           return Emsg(epname, error, errno, "mkdir", path);
         }
 
+        if (!newdir && (errno != EEXIST)) {
+          return Emsg(epname, error, errno, "mkdir - newdir is 0", path);
+        }
+
         dir.swap(newdir);
       }
     } else {
@@ -380,6 +386,7 @@ XrdMgmOfs::_mkdir(const char* path,
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
+    errno = 0;
     dir = eosView->getContainer(cPath.GetParentPath());
     newdir = eosView->createContainer(path);
     newdir->setCUid(vid.uid);
@@ -409,7 +416,7 @@ XrdMgmOfs::_mkdir(const char* path,
     // Commit to backend
     eosView->updateContainerStore(newdir.get());
     eosView->updateContainerStore(dir.get());
-    // notify after attribute inheritance
+    // Notify after attribute inheritance
     newdir->notifyMTimeChange(gOFS->eosDirectoryService);
     dir->notifyMTimeChange(gOFS->eosDirectoryService);
   } catch (eos::MDException& e) {
@@ -418,7 +425,7 @@ XrdMgmOfs::_mkdir(const char* path,
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  if (!newdir) {
+  if (!newdir && (errno != EEXIST)) {
     return Emsg(epname, error, errno, "mkdir", path);
   }
 
