@@ -1,11 +1,10 @@
 //------------------------------------------------------------------------------
-//! @file AclCommand.cc
-//! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
+//! @file Acl.cc
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -17,69 +16,77 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the GNU General Public License    *
+ * You should have received a copy of the AGNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "AclCommand.hh"
-#include <functional>
-#include <queue>
-#include <sstream>
+#include "Acl.hh"
+#include "common/StringTokenizer.hh"
 #include <unistd.h>
 #include <getopt.h>
+#include <functional>
+#include <algorithm>
+#include <queue>
+#include <sstream>
 
-std::string AclCommand::AclShortToString(unsigned short int in)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+std::string Acl::AclShortToString(unsigned short int in)
 {
   std::string ret = "";
 
-  if (in & AclCommand::R) {
+  if (in & Acl::R) {
     ret.append("r");
   }
 
-  if (in & AclCommand::W) {
+  if (in & Acl::W) {
     ret.append("w");
   }
 
-  if (in & AclCommand::X) {
+  if (in & Acl::X) {
     ret.append("x");
   }
 
-  if (in & AclCommand::M) {
+  if (in & Acl::M) {
     ret.append("m");
   }
 
-  if (in & AclCommand::nM) {
+  if (in & Acl::nM) {
     ret.append("!m");
   }
 
-  if (in & AclCommand::nD) {
+  if (in & Acl::nD) {
     ret.append("!d");
   }
 
-  if (in & AclCommand::pD) {
+  if (in & Acl::pD) {
     ret.append("+d");
   }
 
-  if (in & AclCommand::nU) {
+  if (in & Acl::nU) {
     ret.append("!u");
   }
 
-  if (in & AclCommand::pU) {
+  if (in & Acl::pU) {
     ret.append("+u");
   }
 
-  if (in & AclCommand::Q) {
+  if (in & Acl::Q) {
     ret.append("q");
   }
 
-  if (in & AclCommand::C) {
+  if (in & Acl::C) {
     ret.append("c");
   }
 
   return ret;
 }
 
-Rule AclCommand::AclRuleFromString(const std::string& single_acl)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+Rule Acl::AclRuleFromString(const std::string& single_acl)
 {
   Rule ret;
   auto acl_delimiter = single_acl.rfind(':');
@@ -90,27 +97,27 @@ Rule AclCommand::AclRuleFromString(const std::string& single_acl)
   for (auto i = acl_delimiter + 1, size = single_acl.length(); i < size; ++i) {
     switch (single_acl.at(i)) {
     case 'r' :
-      rule_int = rule_int | AclCommand::R;
+      rule_int = rule_int | Acl::R;
       break;
 
     case 'w' :
-      rule_int = rule_int | AclCommand::W;
+      rule_int = rule_int | Acl::W;
       break;
 
     case 'x' :
-      rule_int = rule_int | AclCommand::X;
+      rule_int = rule_int | Acl::X;
       break;
 
     case 'm' :
-      rule_int = rule_int | AclCommand::M;
+      rule_int = rule_int | Acl::M;
       break;
 
     case 'q' :
-      rule_int = rule_int | AclCommand::Q;
+      rule_int = rule_int | Acl::Q;
       break;
 
     case 'c' :
-      rule_int = rule_int | AclCommand::C;
+      rule_int = rule_int | Acl::C;
       break;
 
     case '+' :
@@ -118,9 +125,9 @@ Rule AclCommand::AclRuleFromString(const std::string& single_acl)
       i++;
 
       if (single_acl.at(i) == 'd') {
-        rule_int = rule_int | AclCommand::pD;
+        rule_int = rule_int | Acl::pD;
       } else {
-        rule_int = rule_int | AclCommand::pU;
+        rule_int = rule_int | Acl::pU;
       }
 
       break;
@@ -129,15 +136,15 @@ Rule AclCommand::AclRuleFromString(const std::string& single_acl)
       i++;
 
       if (single_acl.at(i) == 'd') {
-        rule_int = rule_int | AclCommand::nD;
+        rule_int = rule_int | Acl::nD;
       }
 
       if (single_acl.at(i) == 'u') {
-        rule_int = rule_int | AclCommand::nU;
+        rule_int = rule_int | Acl::nU;
       }
 
       if (single_acl.at(i) == 'm') {
-        rule_int = rule_int | AclCommand::nM;
+        rule_int = rule_int | Acl::nM;
       }
 
       break;
@@ -148,39 +155,42 @@ Rule AclCommand::AclRuleFromString(const std::string& single_acl)
   return ret;
 }
 
-bool AclCommand::GetAclStringsForPath(const std::string& path)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+bool Acl::GetAclStringsForPath(const std::string& path)
 {
   std::string command = std::string("mgm.cmd=attr&mgm.subcmd=ls&mgm.path=") +
                         path;
-
-  if (!m_mgm_execute.ExecuteCommand(command.c_str())) {
-    m_error_message = "Error getting acl strings from mgm!";
-    return false;
-  }
-
-  std::string result = m_mgm_execute.GetResult();
+  // @TODO (esindril): call internal attr ls
+  std::string result = "";
   SetAclString(result, m_sys_acl_string, "sys.acl");
   SetAclString(result, m_usr_acl_string, "user.acl");
   return true;
 }
 
-void AclCommand::SetAclString(const std::string& result,
-                              std::string& which,
-                              const char* type)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+void Acl::SetAclString(const std::string& result,
+                       std::string& which,
+                       const char* type)
 {
   which = "";
   size_t pos_begin = result.find(type);
 
   if (pos_begin != std::string::npos) {
     unsigned int pos_end = result.find("\n", pos_begin);
-    \
     // 2 comes from the leading " and :
     which = std::string(result.begin() + strlen(type) + 2 + pos_begin,
                         result.begin() + pos_end - 1);
   }
 }
 
-void AclCommand::GenerateRuleMap(const std::string& acl_string, RuleMap& map)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+void Acl::GenerateRuleMap(const std::string& acl_string, RuleMap& map)
 {
   size_t curr_pos = 0, pos = 0;
 
@@ -211,7 +221,10 @@ void AclCommand::GenerateRuleMap(const std::string& acl_string, RuleMap& map)
   }
 }
 
-bool AclCommand::CheckCorrectId(const std::string& id)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+bool Acl::CheckCorrectId(const std::string& id)
 {
   std::string allowed_chars =
     "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-";
@@ -228,19 +241,22 @@ bool AclCommand::CheckCorrectId(const std::string& id)
   return false;
 }
 
-bool AclCommand::GetRuleInt(const std::string& rule, bool set)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+bool Acl::GetRuleInt(const std::string& rule, bool set)
 {
   unsigned short int ret = 0, add_ret = 0, rm_ret = 0;
   bool lambda_happen = false;
-  auto add_lambda = [&add_ret, &ret](AclCommand::ACLPos pos) {
+  auto add_lambda = [&add_ret, &ret](Acl::ACLPos pos) {
     add_ret = add_ret | pos;
     ret = ret | pos;
   };
-  auto remove_lambda = [&rm_ret, &ret](AclCommand::ACLPos pos) {
+  auto remove_lambda = [&rm_ret, &ret](Acl::ACLPos pos) {
     rm_ret = rm_ret | pos;
     ret = ret & (~pos);
   };
-  std::function<void(AclCommand::ACLPos)>curr_lambda = add_lambda;
+  std::function<void(Acl::ACLPos)>curr_lambda = add_lambda;
 
   for (auto flag = rule.begin(); flag != rule.end(); ++flag) {
     // Check for add/rm rules
@@ -272,32 +288,32 @@ bool AclCommand::GetRuleInt(const std::string& rule, bool set)
 
     // Check for flags
     if (*flag == 'r') {
-      curr_lambda(AclCommand::R);
+      curr_lambda(Acl::R);
       continue;
     }
 
     if (*flag == 'w') {
-      curr_lambda(AclCommand::W);
+      curr_lambda(Acl::W);
       continue;
     }
 
     if (*flag == 'x') {
-      curr_lambda(AclCommand::X);
+      curr_lambda(Acl::X);
       continue;
     }
 
     if (*flag == 'm') {
-      curr_lambda(AclCommand::M);
+      curr_lambda(Acl::M);
       continue;
     }
 
     if (*flag == 'q') {
-      curr_lambda(AclCommand::Q);
+      curr_lambda(Acl::Q);
       continue;
     }
 
     if (*flag == 'c') {
-      curr_lambda(AclCommand::C);
+      curr_lambda(Acl::C);
       continue;
     }
 
@@ -309,17 +325,17 @@ bool AclCommand::GetRuleInt(const std::string& rule, bool set)
       }
 
       if (*flag == 'd') {
-        curr_lambda(AclCommand::nD);
+        curr_lambda(Acl::nD);
         continue;
       }
 
       if (*flag == 'u') {
-        curr_lambda(AclCommand::nU);
+        curr_lambda(Acl::nU);
         continue;
       }
 
       if (*flag == 'm') {
-        curr_lambda(AclCommand::nM);
+        curr_lambda(Acl::nM);
         continue;
       }
 
@@ -330,12 +346,12 @@ bool AclCommand::GetRuleInt(const std::string& rule, bool set)
       ++flag;
 
       if (*flag == 'd') {
-        curr_lambda(AclCommand::pD);
+        curr_lambda(Acl::pD);
         continue;
       }
 
       if (*flag == 'u') {
-        curr_lambda(AclCommand::pU);
+        curr_lambda(Acl::pU);
         continue;
       }
     }
@@ -354,7 +370,10 @@ error_label:
   return false;
 }
 
-void AclCommand::ApplyRule()
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+void Acl::ApplyRule()
 {
   unsigned short temp_rule = 0;
 
@@ -373,7 +392,10 @@ void AclCommand::ApplyRule()
   m_rules[m_id] = temp_rule;
 }
 
-std::string AclCommand::MapToAclString()
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+std::string Acl::MapToAclString()
 {
   std::string ret = "";
 
@@ -391,7 +413,10 @@ std::string AclCommand::MapToAclString()
   return ret;
 }
 
-bool AclCommand::ParseRule(const std::string& input)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+bool Acl::ParseRule(const std::string& input)
 {
   size_t pos_del_first, pos_del_last, pos_equal;
   pos_del_first = input.find(":");
@@ -454,76 +479,10 @@ bool AclCommand::ParseRule(const std::string& input)
   }
 }
 
-bool AclCommand::MgmSet(const std::string& path)
-{
-  std::string command;
-  std::string rules = MapToAclString();
-  std::string acl_type = m_sys_acl ? "sys.acl" : "user.acl";
-
-  if (rules != "") {
-    command = std::string("mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=");
-    command += acl_type;
-    command += "&mgm.attr.value=";
-    command += rules;
-    command += "&mgm.path=" + path;
-  } else {
-    command  = "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=";
-    command += acl_type;
-    command += "&mgm.path=";
-    command += path;
-  }
-
-  if (!m_mgm_execute.ExecuteCommand(command.c_str())) {
-    return false;
-  }
-
-  return true;
-}
-
-bool AclCommand::SetDefaultAclRoleFlag()
-{
-  if (m_sys_acl && m_usr_acl) {
-    m_error_message = "Both usr and sys flag set!";
-    return false;
-  }
-
-  // Making sure if list flag exists and no other acl type flag exists
-  // to usr acl flag be default.
-  if (m_list && !m_usr_acl && !m_sys_acl) {
-    m_usr_acl = true;
-    return true;
-  }
-
-  if (m_sys_acl == false && m_usr_acl == false) {
-    if (m_mgm_execute.ExecuteCommand("mgm.cmd=whoami")) {
-      std::string result = m_mgm_execute.GetResult();
-      size_t pos = 0;
-
-      if ((pos = result.find("uid=")) != std::string::npos) {
-        if (
-          result.at(pos + 4) >= '0' &&
-          result.at(pos + 4) <= '4' &&
-          result.at(pos + 5) == ' '
-        ) {
-          m_sys_acl = true;
-        } else {
-          m_usr_acl = true;
-        }
-
-        return true;
-      }
-
-      return false;
-    }
-
-    return false;
-  }
-
-  return true;
-}
-
-// Check!
-bool AclCommand::ProcessCommand()
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+bool Acl::ProcessCommand()
 {
   std::string token;
   const char* temp;
@@ -607,35 +566,10 @@ bool AclCommand::ProcessCommand()
   return true;
 }
 
-void AclCommand::RecursiveCall(bool apply)
-{
-  std::string prefix_command = "mgm.cmd=find&mgm.path=";
-  std::string postfix_command = "&mgm.option=d";
-  std::string command = prefix_command + m_path + postfix_command;
-
-  if (!m_mgm_execute.ExecuteCommand(command.c_str())) {
-    std::cout << "Directory rec error!" << std::endl;
-    return;
-  }
-
-  // Get path and add it into stack
-  std::string path;
-  std::string result = m_mgm_execute.GetResult();
-  std::stringstream stream {result};
-
-  while (stream) {
-    std::getline(stream, path, '\n');
-
-    if (path.empty()) {
-      continue;
-    }
-
-    // Execute command
-    Action(apply, path);
-  }
-}
-
-bool AclCommand::Action(bool apply , const std::string& path)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+bool Acl::Action(bool apply , const std::string& path)
 {
   if (apply) {
     if (!GetAclStringsForPath(path)) {
@@ -649,7 +583,8 @@ bool AclCommand::Action(bool apply , const std::string& path)
     }
 
     ApplyRule();
-    return MgmSet(path);
+    return false;
+    // return MgmSet(path);
   } else {
     if (!GetAclStringsForPath(path)) {
       return false;
@@ -665,73 +600,4 @@ bool AclCommand::Action(bool apply , const std::string& path)
 
     return true;
   }
-}
-
-
-void AclCommand::PrintHelp()
-{
-  std::cerr << "Usage: eos acl [-l|--list] [-R|--recursive]";
-  std::cerr << "[--sys|--user] <rule> <path>" << std::endl;
-  std::cerr << std::endl;
-  std::cerr << "    --help           Print help" << std::endl;
-  std::cerr << "-R, --recursive      Apply on directories recursively" <<
-            std::endl;
-  std::cerr << "-l, --lists          List ACL rules" << std::endl;
-  std::cerr << "    --user           Set user.acl rules on directory" <<
-            std::endl;
-  std::cerr << "    --sys            Set sys.acl rules on directory" << std::endl;
-  std::cerr << "<rule> is created based on chmod rules. " << std::endl;
-  std::cerr <<
-            "Every rule begins with [u|g|egroup] followed with : and identifier." <<
-            std::endl;
-  std::cerr <<  std::endl;
-  std::cerr << "Afterwards can be:" << std::endl;
-  std::cerr << "= for setting new permission ." << std::endl;
-  std::cerr << ": for modification of existing permission." << std::endl;
-  std::cerr << std::endl;
-  std::cerr << "This is followed by the rule definition." << std::endl;
-  std::cerr << "Every ACL flag can be added with + or removed with -, or in case"
-            << std::endl;
-  std::cerr << "of setting new ACL permission just entered ACL flag." <<
-            std::endl;
-}
-
-void AclCommand::Execute()
-{
-  bool choice;
-  m_error_message = "";
-
-  // Initial processing of command
-  if (!ProcessCommand()) {
-    goto error_handling;
-  }
-
-  m_path = std::string(abspath(m_path.c_str()));
-
-  // Set
-  if (!SetDefaultAclRoleFlag()) {
-    m_error_message = "Failed to set acl role!";
-    goto error_handling;
-  }
-
-  if (!m_list && !ParseRule(m_rule)) {
-    goto error_handling;
-  }
-
-  choice = m_list ? false : true;
-
-  if (m_recursive) {
-    RecursiveCall(choice);
-  } else {
-    if (!Action(choice, m_path)) {
-      goto error_handling;
-    }
-  }
-
-  return;
-error_handling:
-  std::cout << m_error_message << std::endl;
-  std::cout << m_mgm_execute.GetError() << std::endl << std::endl;
-  PrintHelp();
-  return;
 }

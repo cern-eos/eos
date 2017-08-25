@@ -310,7 +310,7 @@ ProcCommand::open(const char* inpath, const char* info,
 
   // Handle protobuf CLI request
   if (strstr(info, "mgm.cmd.proto=")) {
-    eos_info("handle protobuf cli request");
+    eos_info("handle protobuf cli request: %s", ininfo);
     stdErr = "error: operation not supported";
     retc = ENOTSUP;
     MakeResult();

@@ -1,11 +1,10 @@
 //------------------------------------------------------------------------------
-//! @file AclCommand.hh
-//! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
+//! @file Acl.hh
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -17,46 +16,68 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the GNU General Public License    *
+ * You should have received a copy of the AGNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __ACL__COMMAND__HH__
-#define __ACL__COMMAND__HH__
+#pragma once
 
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "console/MgmExecute.hh"
-#include "console/ConsoleMain.hh"
-#include "common/StringTokenizer.hh"
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <regex>
-#include <string>
+#include "common/Acl.pb.h"
 #include <unordered_map>
-#include <utility>
 
 typedef std::pair<std::string, unsigned short> Rule;
 typedef std::unordered_map<std::string, unsigned short> RuleMap;
 
 //------------------------------------------------------------------------------
-//! Class AclCommand
+//! Class Acl
 //!
 //! @description Implementing ACL command line tool. Tool is intended to be used
 //!   as unix chmod tool for setting and removing ACL rights from eos directory.
 //------------------------------------------------------------------------------
-class AclCommand
+class Acl
 {
-  // Making test class friend so can access to private parts for testing purposes
-# ifdef BUILD_TESTS
-  // Ugly hack to allow test class to access private members
-  // due missing friend directive support in gcc 4.4.7 (support for SLC6)
 public:
-# endif
+  //! Enumerator defining which bit represents which acl flag.
+  enum ACLPos {
+    R  = 1 << 0,   // 1    -  r
+    W  = 1 << 1,   // 2    -  w
+    X  = 1 << 2,   // 4    -  x
+    M  = 1 << 3,   // 8    -  m
+    nM = 1 << 4,   // 16   - !m
+    nD = 1 << 5,   // 32   - !d
+    pD = 1 << 6,   // 64   - +d
+    nU = 1 << 7,   // 128  - !u
+    pU = 1 << 8,   // 256  - +u
+    Q  = 1 << 9,   // 512  -  q
+    C  = 1 << 10   // 1024 -  c
+  };
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  Acl(const char* comm) :
+    m_rules(), m_add_rule(0), m_rm_rule(0), m_comm(const_cast<char*>(comm)),
+    m_recursive(false), m_list(false), m_usr_acl(false), m_sys_acl(false),
+    m_set(false)
+  {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~Acl() = default;
+
+  //----------------------------------------------------------------------------
+  //! Returning error message
+  //!
+  //! @return string with error message
+  //----------------------------------------------------------------------------
+  inline std::string getErrorMessage()
+  {
+    return m_error_message;
+  }
+
+private:
   RuleMap m_rules; ///< Map containing current ACL rules
-  MgmExecute m_mgm_execute; ///< Object for executing mgm commands
   std::string m_id; ///< Identifier for rule. Extracted from command line.
   ///< ACL rule bitmasks for adding and removing
   unsigned short m_add_rule, m_rm_rule;
@@ -67,6 +88,7 @@ public:
   std::string m_sys_acl_string;
   std::string m_usr_acl_string;
   char* m_comm; ///< pointer to original command
+  eos::console::AclProto mAclProto; ///< Protobuf cmd representation
 
   // Flags
   bool m_recursive; ///< -R --recursive flag bool
@@ -154,22 +176,6 @@ public:
   bool ParseRule(const std::string& input);
 
   //----------------------------------------------------------------------------
-  //! Applying changes to MGM
-  //!
-  //! @param path string containing path for which we are applying changes.
-  //! @param set indicating if set mode is active or not
-  //! @return bool indicating if we succesfully applied rules or not.
-  //----------------------------------------------------------------------------
-  bool MgmSet(const std::string& path);
-
-  //----------------------------------------------------------------------------
-  //! Determining Acl type flags if there is no flag risen for acl type.
-  //!
-  //! @return bool indicating if flags are correctly set.
-  //----------------------------------------------------------------------------
-  bool SetDefaultAclRoleFlag();
-
-  //----------------------------------------------------------------------------
   //! Converting ACL string rule to bitmask
   //!
   //! @param rule string containing rule from command line
@@ -179,68 +185,10 @@ public:
   bool ProcessCommand();
 
   //----------------------------------------------------------------------------
-  //! Recursive calling for all directories in subtree from given directory
-  //!
-  //! @param action Action to be done for every directory
-  //----------------------------------------------------------------------------
-  void RecursiveCall(bool apply);
-
-  //----------------------------------------------------------------------------
   //! Doing relevant action.
   //!
   //! @param apply True for apply action, false for list action
   //! @param path On which path to execute action.
   //----------------------------------------------------------------------------
   bool Action(bool apply, const std::string& path);
-
-public:
-
-  AclCommand(const char* comm) :
-    m_rules(),
-    m_add_rule(0), m_rm_rule(0),
-    m_comm(const_cast<char*>(comm)),
-    m_recursive(false),
-    m_list(false),
-    m_usr_acl(false),
-    m_sys_acl(false),
-    m_set(false)
-
-  {}
-  ///< Enumerator defining which bit represents which acl flag.
-  enum ACLPos {
-    R  = 1 << 0,                                            // 1    -  r
-    W  = 1 << 1,                                            // 2    -  w
-    X  = 1 << 2,                                            // 4    -  x
-    M  = 1 << 3,                                            // 8    -  m
-    nM = 1 << 4,                                            // 16   - !m
-    nD = 1 << 5,                                            // 32   - !d
-    pD = 1 << 6,                                            // 64   - +d
-    nU = 1 << 7,                                            // 128  - !u
-    pU = 1 << 8,                                            // 256  - +u
-    Q  = 1 << 9,                                            // 512  -  q
-    C  = 1 << 10                                            // 1024 -  c
-  };
-
-  //----------------------------------------------------------------------------
-  //! Returning error message
-  //!
-  //! @return string with error message
-  //----------------------------------------------------------------------------
-  inline std::string getErrorMessage()
-  {
-    return m_error_message;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Printing help
-  //----------------------------------------------------------------------------
-  void PrintHelp();
-
-  //----------------------------------------------------------------------------
-  //! Executing command
-  //----------------------------------------------------------------------------
-  void Execute();
-  ~AclCommand() {};
 };
-
-#endif //__ACL__COMMAND__HH__

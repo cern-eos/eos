@@ -23,6 +23,7 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}
   ${XROOTD_INCLUDE_DIR}
   ${XROOTD_PRIVATE_INCLUDE_DIR}
   ${Z_INCLUDE_DIRS}
@@ -93,6 +94,7 @@ add_library(
   proc/admin/Vid.cc
   proc/admin/Vst.cc
   proc/user/Accounting.cc
+  proc/user/Acl.cc
   proc/user/Attr.cc
   proc/user/Archive.cc
   proc/user/Cd.cc
