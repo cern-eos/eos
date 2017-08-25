@@ -63,7 +63,7 @@ com_drain(char* arg1)
 
     in += "&mgm.drain.fsid=";
     in += fsid;
-    XrdOucEnv* result = client_admin_command(in);
+    XrdOucEnv* result = client_command(in);
     global_retc = output_result(result);
     return (0);
   }
@@ -84,7 +84,7 @@ com_drain(char* arg1)
 
     in += "&mgm.drain.fsid=";
     in += fsid;
-    XrdOucEnv* result = client_admin_command(in);
+    XrdOucEnv* result = client_command(in);
     global_retc = output_result(result);
     return (0);
   }
@@ -105,14 +105,25 @@ com_drain(char* arg1)
 
     in += "&mgm.drain.fsid=";
     in += fsid;
-    XrdOucEnv* result = client_admin_command(in);
+    XrdOucEnv* result = client_command(in);
     global_retc = output_result(result);
     return (0);
   }
 
   if (subcommand == "status") {
     XrdOucString in = "mgm.cmd=drain&mgm.subcmd=status";
-    XrdOucEnv* result = client_admin_command(in);
+    XrdOucString fsid = subtokenizer.GetToken();
+
+   if (fsid.length()) {
+      int ifsid = atoi(fsid.c_str());
+      if (ifsid == 0) {
+        goto com_drain_usage;
+      }
+      in += "&mgm.drain.fsid=";
+      in += fsid;
+   }
+
+    XrdOucEnv* result = client_command(in);
     global_retc = output_result(result);
     return (0);
   }
@@ -131,9 +142,9 @@ com_drain_usage:
   fprintf(stdout, "drain clear <fsid> : \n");
   fprintf(stdout,
           "                                                  clear the draining info for the given fsid.\n\n");
-  fprintf(stdout, "drain status :\n");
+  fprintf(stdout, "drain status [fsid] :\n");
   fprintf(stdout,
-          "                                                  show the status of the drain activities on the system\n");
+          "                                                  show the status of the drain activities on the system. If the fsid is specified shows detailed info about that fs drain\n");
   fprintf(stdout, "Report bugs to eos-dev@cern.ch.\n");
   global_retc = EINVAL;
   return (0);

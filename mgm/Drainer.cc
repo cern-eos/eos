@@ -246,29 +246,91 @@ Drainer::GetDrainStatus(XrdOucEnv& env,XrdOucString& out, XrdOucString& err)
        out+=  "No Drain activities are recorded on the System.\n";
        return true;
     }
+    if (env.Get("mgm.drain.fsid") == NULL) {
+      
+      TableFormatterBase table;
+      std::vector<std::string> selections;
 
-    TableFormatterBase table;
-    std::vector<std::string> selections;
-
-    auto it_drainfs = mDrainFS.begin();
-    while (it_drainfs != mDrainFS.end()){
-      auto it_map = (*it_drainfs).second.begin();
-      while ( it_map !=  (*it_drainfs).second.end()) {
-        PrintTable(table, (*it_drainfs).first, *it_map);
-        it_map++;
+      auto it_drainfs = mDrainFS.begin();
+      while (it_drainfs != mDrainFS.end()){
+        auto it_map = (*it_drainfs).second.begin();
+        while ( it_map !=  (*it_drainfs).second.end()) {
+          PrintTable(table, (*it_drainfs).first, *it_map);
+          it_map++;
+        }
+        it_drainfs++;
       }
-      it_drainfs++;
-    }
 
     
-    TableHeader table_header;
-    table_header.push_back(std::make_tuple("node", 30, "s"));
-    table_header.push_back(std::make_tuple("fs id", 10, "s"));
-    table_header.push_back(std::make_tuple("drain status", 30, "s"));
+      TableHeader table_header;
+      table_header.push_back(std::make_tuple("node", 30, "s"));
+      table_header.push_back(std::make_tuple("fs id", 10, "s"));
+      table_header.push_back(std::make_tuple("drain status", 30, "s"));
     
-    table.SetHeader(table_header);
-    out =  table.GenerateTable(HEADER, selections).c_str();
-    return true;
+      table.SetHeader(table_header);
+      out =  table.GenerateTable(HEADER, selections).c_str();
+    
+    } else {
+      const char* fsIdString = env.Get("mgm.drain.fsid");
+      eos::common::FileSystem::fsid_t fsId = atoi(fsIdString);
+     
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+      auto it_fs = FsView::gFsView.mIdView.find(fsId);
+
+      if (it_fs == FsView::gFsView.mIdView.end()){
+        err = "error: the given FS does not exist";
+        return false;
+      }
+      eos::common::FileSystem::fs_snapshot_t drain_snapshot;
+      it_fs->second->SnapShotFileSystem(drain_snapshot, false);
+
+      auto it_drainfs = mDrainFS.find(drain_snapshot.mHostPort);
+
+      if (it_drainfs == mDrainFS.end()){
+        //fs is not draining
+         err = "error: a central FS drain has not started for the given FS ";
+        return false;
+      }
+      //check if the FS is already under draining for this node
+      auto it = std::find_if( it_drainfs->second.begin(), it_drainfs->second.end(),
+      [fsId](const DrainMapPair& element){ return element.first == fsId;} );
+     
+      if (it == it_drainfs->second.end()) {
+        err = "error: a central FS drain has not started for the given FS ";
+        return false;
+      }
+      TableFormatterBase table;
+      std::vector<std::string> selections;
+      TableHeader table_header;
+      table_header.push_back(std::make_tuple("node", 30, "s"));
+      table_header.push_back(std::make_tuple("fs id", 10, "s"));
+      table_header.push_back(std::make_tuple("drain status", 30, "s"));  
+      PrintTable(table,drain_snapshot.mHostPort,*it);
+      table.SetHeader(table_header); 
+      out += table.GenerateTable(HEADER, selections).c_str();
+
+      //second table
+      TableFormatterBase table_jobs;
+      TableHeader table_header_jobs;
+      table_header_jobs.push_back(std::make_tuple("file id", 30, "s"));
+      table_header_jobs.push_back(std::make_tuple("source fs", 30, "s"));
+      table_header_jobs.push_back(std::make_tuple("destination fs", 30, "s"));
+      table_jobs.SetHeader(table_header_jobs);
+      
+      std::vector<shared_ptr<DrainTransferJob>> job_vect = (*it).second->GetJobs(DrainTransferJob::Failed);
+      if (job_vect.size() > 0 ){
+        out+= "List of Files failed to be drained:\n\n";
+        auto it_jobs = job_vect.begin();
+        while (it_jobs != job_vect.end()){
+          PrintJobsTable(table_jobs,(*it_jobs).get());
+	  it_jobs++;
+        }
+        out +=  table_jobs.GenerateTable(HEADER, selections).c_str();
+      }
+   }
+
+   return true;
 }
 
 void
@@ -282,6 +344,16 @@ Drainer::PrintTable(TableFormatterBase& table,std::string node, DrainMapPair& pa
   table.AddRows(table_data);
 }
 
+void
+Drainer::PrintJobsTable(TableFormatterBase& table, DrainTransferJob* job) {
+
+  TableData table_data;
+  table_data.emplace_back();
+  table_data.back().push_back( TableCell(job->GetFileId(), "l"));
+  table_data.back().push_back( TableCell(job->GetSourceFS(), "l"));
+  table_data.back().push_back( TableCell(job->GetTargetFS(), "l"));
+  table.AddRows(table_data);
+}
 
 
 /*----------------------------------------------------------------------------*/

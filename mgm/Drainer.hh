@@ -126,6 +126,7 @@ public:
 
   void PrintTable(TableFormatterBase&, std::string, DrainMapPair& );
 
+  void PrintJobsTable(TableFormatterBase& , DrainTransferJob*);
 };
 
 EOSMGMNAMESPACE_END
