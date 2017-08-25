@@ -609,8 +609,14 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
 
       ostr << std::endl;
 
+      FsView::gFsView.ViewMutex.LockRead();
+  
       for (size_t itline = 1;
            itline < pPenaltySched.pCircFrCnt2FsPenalties.begin()->size(); itline++) {
+
+        if (!(FsView::gFsView.mIdView.count(itline)))
+        continue;
+
         ostr << std::setw(6) << itline << std::setw(6) << "UL";
 
         for (size_t itcol = 0; itcol < pCircSize; itcol++) {
@@ -625,9 +631,9 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
           ostr << std::setw(6) << (int)(pPenaltySched.pCircFrCnt2FsPenalties[(pFrameCount
                                         + pCircSize - 1 - itcol) % pCircSize][itline].dlScorePenalty);
         }
-
         ostr << std::endl;
       }
+      FsView::gFsView.ViewMutex.UnLockRead();
     }
     ostr << "=============================================================" <<
          std::endl << std::endl;
@@ -655,7 +661,11 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
          << setw(5) << (int)pLatencySched.pGlobalLatencyStats.maxlatency << "ms.(max)" <<
          "  |  age=" << setw(6) << (int)avAge << "ms.(avg)" << std::endl;
 
+    FsView::gFsView.ViewMutex.LockRead();
     for (size_t n = 1; n < pLatencySched.pFsId2LatencyStats.size(); n++) {
+      if (!(FsView::gFsView.mIdView.count(n))) 
+        continue;
+      
       ostr << "fsLatency (fsid=" << std::setw(6) << n << ")  = ";
 
       if (pLatencySched.pFsId2LatencyStats[n].getage(nowms) >
@@ -673,7 +683,7 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
              << "  |  age=" << setw(6) << (int)pLatencySched.pFsId2LatencyStats[n].getage(
                nowms) << "ms.(last)" << std::endl;
     }
-
+    FsView::gFsView.ViewMutex.UnLockRead();
     ostr << "=============================================================" <<
          std::endl << std::endl;
     ostr << "================ gw2GeotreeEngine latency  =================" <<
