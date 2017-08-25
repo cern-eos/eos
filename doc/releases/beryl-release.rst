@@ -16,6 +16,7 @@ Bug Fixes
 - AUTH: Set the ZMQ_LINGER option on the socket so that messages are not retransmitted
 - NS: add missing initialization of pData leading to random compaction crashes/failures
 - MGM: fix race in mkdir which could return EEXIST
+- FUSE: fix memory-leak when read-ahead gets disabled during an open/read/close sequence
 
 Improvement
 +++++++++++
