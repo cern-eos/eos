@@ -7,6 +7,28 @@
 Beryl Release Notes
 ===================
 
+``V0.3.267 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- AUTH: Set the ZMQ_LINGER option on the socket so that messages are not retransmitted
+- NS: add missing initialization of pData leading to random compaction crashes/failures
+- MGM: fix race in mkdir which could return EEXIST
+
+Improvement
++++++++++++
+
+- MGM: Return ENETUNREACH in case no diskservers are available (implies different client behavior)
+- MGM: allow recursive deletes for the http bridge using XrdOfs::remdir with ?mgm.option=r
+- MGM: add two new space variables to modify scheduler behaviour
+       "space.scheduler.skip.overloaded=off" - by default we don't skip anymore overloaded eth-out nodes)
+       "space.min.weight=0.1" - the minimum probability to select an disk or eth-out overloaded node
+- MGM: Collect response time statistics for the authentication front-ends
+- MGM: make the recycle bin work with symbolic links
+
+
 ``V0.3.266 Aquamarine``
 =======================
 
