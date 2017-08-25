@@ -990,13 +990,11 @@ XrdIo::fileDelete(const char* url)
 void
 XrdIo::CleanReadCache()
 {
-  if (mDoReadahead) {
-    fileWaitAsyncIO();
-
-    if (mQueueBlocks.empty()) {
-      for (unsigned int i = 0; i < sNumRdAheadBlocks; i++) {
-        mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
-      }
+  fileWaitAsyncIO();
+  
+  if (mQueueBlocks.empty()) {
+    for (unsigned int i = 0; i < sNumRdAheadBlocks; i++) {
+      mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
     }
   }
 }
