@@ -24,7 +24,8 @@
 #include "console/ConsoleMain.hh"
 
 inline int
-com_accounting_usage() {
+com_accounting_usage()
+{
   fprintf(stdout,
           "usage: accounting report [-f]                          : prints accounting report in JSON, data is served from cache if possible\n");
   fprintf(stdout,
@@ -40,10 +41,10 @@ com_accounting_usage() {
 }
 
 int
-com_accounting(char* arg) {
+com_accounting(char* arg)
+{
   eos::common::StringTokenizer subtokenizer(arg);
   subtokenizer.GetLine();
-
   XrdOucString in = "mgm.cmd=accounting";
   XrdOucString subcmd = subtokenizer.GetToken();
   XrdOucString option = "";
@@ -52,13 +53,12 @@ com_accounting(char* arg) {
   if (subcmd == "report") {
     ok = true;
     in += "&mgm.subcmd=report";
-  }
-  else if (subcmd == "config") {
+  } else if (subcmd == "config") {
     ok = true;
     in += "&mgm.subcmd=config";
   }
 
-  if(!ok) {
+  if (!ok) {
     return com_accounting_usage();
   }
 
@@ -74,24 +74,21 @@ com_accounting(char* arg) {
       option += maybeoption;
       maybeoption = subtokenizer.GetToken();
     }
-  }
-  else if ((subcmd == "config")) {
+  } else if ((subcmd == "config")) {
     while (maybeoption.beginswith("-")) {
       if (maybeoption == "-e") {
         in += "&mgm.accounting.expired=";
-      }
-      else if (maybeoption == "-i"){
+      } else if (maybeoption == "-i") {
         in += "&mgm.accounting.invalid=";
-      }
-      else {
+      } else {
         return com_accounting_usage();
       }
 
       maybeoption = subtokenizer.GetToken();
-      if(eos::common::StringTokenizer::IsUnsignedNumber(maybeoption.c_str())) {
+
+      if (eos::common::StringTokenizer::IsUnsignedNumber(maybeoption.c_str())) {
         in += maybeoption;
-      }
-      else {
+      } else {
         return com_accounting_usage();
       }
 
@@ -104,6 +101,6 @@ com_accounting(char* arg) {
     in += option;
   }
 
-  global_retc = output_result(client_user_command(in));
+  global_retc = output_result(client_command(in));
   return (0);
 }
