@@ -132,17 +132,15 @@ XrdIo::~XrdIo()
 
   DropConnection();
 
-  if (mDoReadahead) {
-    while (!mQueueBlocks.empty()) {
-      ReadaheadBlock* ptr_readblock = mQueueBlocks.front();
-      mQueueBlocks.pop();
-      delete ptr_readblock;
-    }
+  while (!mQueueBlocks.empty()) {
+    ReadaheadBlock* ptr_readblock = mQueueBlocks.front();
+    mQueueBlocks.pop();
+    delete ptr_readblock;
+  }
 
-    while (!mMapBlocks.empty()) {
-      delete mMapBlocks.begin()->second;
-      mMapBlocks.erase(mMapBlocks.begin());
-    }
+  while (!mMapBlocks.empty()) {
+    delete mMapBlocks.begin()->second;
+    mMapBlocks.erase(mMapBlocks.begin());
   }
 
   delete mMetaHandler;
@@ -718,13 +716,11 @@ XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 // Wait for async IO
 //------------------------------------------------------------------------------
-
 int
 XrdIo::fileWaitAsyncIO()
 {
   bool async_ok = true;
-
-  if (mDoReadahead) {
+  {
     XrdSysMutexHelper scope_lock(mPrefetchMutex);
 
     // Wait for any requests on the fly and then close
