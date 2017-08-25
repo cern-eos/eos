@@ -84,21 +84,16 @@ XrdIo::~XrdIo ()
   }
 
   DropConnection();
-  
-  if (mDoReadahead)
-  {
-    while (!mQueueBlocks.empty())
-    {
-      ReadaheadBlock* ptr_readblock = mQueueBlocks.front();
-      mQueueBlocks.pop();
-      delete ptr_readblock;
-    }
 
-    while (!mMapBlocks.empty())
-    {
-      delete mMapBlocks.begin()->second;
-      mMapBlocks.erase(mMapBlocks.begin());
-    }
+  while (!mQueueBlocks.empty()) {
+    ReadaheadBlock* ptr_readblock = mQueueBlocks.front();
+    mQueueBlocks.pop();
+    delete ptr_readblock;
+  }
+
+  while (!mMapBlocks.empty()) {
+    delete mMapBlocks.begin()->second;
+    mMapBlocks.erase(mMapBlocks.begin());
   }
 
   delete mMetaHandler;
@@ -758,20 +753,14 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset, const char* buffer,
 void 
 XrdIo::CleanReadCache()
 {
-  if (mDoReadahead)
-  {
-    WaitAsyncIO();
-    if (mQueueBlocks.empty())
-    {
-      for (unsigned int i = 0; i < sNumRdAheadBlocks; i++)
-      {
-        mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
-      }
-    }
+  WaitAsyncIO();
 
+  if (mQueueBlocks.empty()) {
+    for (unsigned int i = 0; i < sNumRdAheadBlocks; i++) {
+      mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
+    }
   }
 }
-
 
 
 //------------------------------------------------------------------------------
@@ -783,9 +772,8 @@ XrdIo::WaitAsyncIO()
 {
   bool async_ok = true;
 
-  if (mDoReadahead)
   {
-    mPrefetchMutex.Lock();
+    XrdSysMutexHelper scope_lock(mPrefetchMutex);
     // Wait for any requests on the fly and then close
     while (!mMapBlocks.empty())
     {
@@ -797,7 +785,6 @@ XrdIo::WaitAsyncIO()
       delete mMapBlocks.begin()->second;
       mMapBlocks.erase(mMapBlocks.begin());
     }
-    mPrefetchMutex.UnLock();
   }
 
   // Wait for any async requests before closing
@@ -810,10 +797,9 @@ XrdIo::WaitAsyncIO()
     }
   }
   
-  if (async_ok)
+  if (async_ok) {
     return 0;
-  else
-  {
+  } else {
     errno = EIO;
     return -1;
   }
