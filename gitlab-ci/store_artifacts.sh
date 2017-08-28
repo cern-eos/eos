@@ -1,4 +1,5 @@
 #! /bin/bash
+set -ex
 
 BRANCH=$1
 BUILD_TYPE=$2
