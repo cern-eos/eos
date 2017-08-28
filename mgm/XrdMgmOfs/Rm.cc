@@ -117,7 +117,6 @@ XrdMgmOfs::_rem (const char *path,
     gOFS->MgmStats.Add("Rm", vid.uid, vid.gid, 1);
   }
   // Perform the actual deletion
-  //
   errno = 0;
 
   XrdSfsFileExistence file_exists;
@@ -289,6 +288,10 @@ XrdMgmOfs::_rem (const char *path,
         }
       }
     }
+  } else {
+    gOFS->eosViewRWMutex.UnLockWrite();
+    errno = ENOENT;
+    return Emsg(epname, error, errno, "remove", path);
   }
 
   if (!doRecycle)
