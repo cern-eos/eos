@@ -18,6 +18,27 @@ It is merged from the Aquamarine Version 0.3.130. Main difference to Aquamarine
 is the use of XRootD 4 and the new tree-based scheduling algorithm.
 
 
+``v4.1.27 Citrine``
++++++++++++++++++++
+
+Bug
++++
+* [EOS-1976] - EOSD client memory leak
+* [EOS-1986] - EOSPUBLIC: Crash when deleting a file entry
+* [EOS-1984] - MGM: only show available fs on geosched show state latency and penalties tables.
+* [EOS-1974] - NS: add missing initialization of pData (might lead to a SEGV during compaction if mmapping is disabled)
+
+Improvement
++++++++++++
+* [EOS-1791] - RFE: attempt to auto-unmount on eos-fuse-core updates
+* [EOS-1968] - eosd: always preload libjemalloc.so.1
+* [EOS-1983] - Built-in http server should be dual-stack
+
+New features
+++++++++++++
+
+* New accounting command - "eos accounting".
+
 ``v4.1.26 Citrine``
 +++++++++++++++++++
 
