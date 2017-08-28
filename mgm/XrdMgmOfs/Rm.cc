@@ -105,7 +105,6 @@ XrdMgmOfs::_rem(const char* path,
   }
 
   // Perform the actual deletion
-  //
   errno = 0;
   XrdSfsFileExistence file_exists;
 
@@ -246,34 +245,37 @@ XrdMgmOfs::_rem(const char* path,
         }
       }
     }
+  } else {
+    gOFS->eosViewRWMutex.UnLockWrite();
+    errno = ENOENT;
+    return Emsg(epname, error, errno, "remove", path);
   }
 
   if (!doRecycle) {
     try {
       if (!simulate) {
         eos_info("unlinking from view %s", path);
+        Workflow workflow;
+        // eventually trigger a workflow
+        workflow.Init(&attrmap, path, fid);
+        int ret_wfe = 0;
+        errno = 0;
+        gOFS->eosViewRWMutex.UnLockWrite();
 
-	Workflow workflow;
-	// eventually trigger a workflow
-	workflow.Init(&attrmap, path, fid);
+        if (((ret_wfe = workflow.Trigger("sync::delete", "default", vid)) < 0) &&
+            (errno == ENOKEY)) {
+          eos_info("msg=\"no workflow defined for delete\"");
+        } else {
+          eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+        }
 
-	int ret_wfe = 0;
-	errno = 0;
-	gOFS->eosViewRWMutex.UnLockWrite();
+        gOFS->eosViewRWMutex.LockWrite();
 
-	if (((ret_wfe = workflow.Trigger("sync::delete", "default", vid)) < 0) && (errno == ENOKEY)) {
-	  eos_info("msg=\"no workflow defined for delete\"");
-	} else {
-	  eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
-	}
-
-	gOFS->eosViewRWMutex.LockWrite();	
-	if (ret_wfe && errno!=ENOKEY)
-	{
-	  eos::MDException e( errno );
-	  e.getMessage() << "Deletion workflow failed";
-	  throw e;
-	}
+        if (ret_wfe && errno != ENOKEY) {
+          eos::MDException e(errno);
+          e.getMessage() << "Deletion workflow failed";
+          throw e;
+        }
 
         gOFS->eosView->unlinkFile(path);
         // Reload file object that was modifed in the unlinkFile method
