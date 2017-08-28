@@ -23,6 +23,10 @@ mkdir -p $STORAGE_PATH_SLC6_SRPM
 cp slc6_artifacts/SRPMS/* $STORAGE_PATH_SLC6_SRPM
 createrepo --update -q $STORAGE_PATH_SLC6_SRPM
 
+# Allow failures from now on, since the builds for
+# these platforms are allowed to fail
+set +e
+
 STORAGE_PATH_FCRH=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64
 mkdir -p $STORAGE_PATH_FCRH
 cp fcrawhide_artifacts/RPMS/* $STORAGE_PATH_FCRH
