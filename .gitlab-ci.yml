@@ -391,10 +391,8 @@ eos_publish_debian_artifacts_volume:
     - apt-get update
     - apt-get install -y sudo apt-utils sssd
     - mkdir /home/stci
-    - chown -R stci:def-cg /home/stci
-    - chmod -R 700 /home/stci
-    - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
-    - sudo -u stci -H ./gitlab-ci/store_artifacts_debian.sh /mnt/eos_repositories/eos/${BRANCH} tag
+    - gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
+    - ./gitlab-ci/store_artifacts_debian.sh /mnt/eos_repositories/eos/${BRANCH} tag
   tags:
     - docker-cc7
   dependencies:
