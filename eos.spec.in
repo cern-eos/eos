@@ -331,7 +331,7 @@ Requires: systemd
 Requires: chkconfig
 Requires: initscripts
 Requires: sysvinit-tools
-Requires: pmisc
+Requires: psmisc
 %endif
 
 %description -n eos-fuse
