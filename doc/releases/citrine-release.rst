@@ -17,6 +17,12 @@ This is the first release targeted for clients to use EOS with XRootD >= 4.2.X.
 It is merged from the Aquamarine Version 0.3.130. Main difference to Aquamarine
 is the use of XRootD 4 and the new tree-based scheduling algorithm.
 
+``v4.1.28 Citrine``
++++++++++++++++++++
+
+Bug
++++
+* [EOS-1991] - eos-fuse rpm package broken dependency
 
 ``v4.1.27 Citrine``
 +++++++++++++++++++
