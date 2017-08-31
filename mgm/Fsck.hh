@@ -27,9 +27,13 @@
 #include "mgm/Namespace.hh"
 #include "common/FileSystem.hh"
 #include "common/FileId.hh"
+#include "common/ExpiryCache.hh"
+#include "XrdSys/XrdSysPthread.hh"
+//#include <google/sparse_hash_map>
+//#include <google/sparse_hash_set>
 #include <sys/types.h>
 #include <string>
-#include <stdarg.h>
+//#include <stdarg.h>
 #include <map>
 #include <set>
 #include <chrono>
@@ -52,15 +56,6 @@ EOSMGMNAMESPACE_BEGIN
 class Fsck
 {
 public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  Fsck();
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~Fsck();
 
   //----------------------------------------------------------------------------
   //! Method ot issue a repair action
@@ -76,21 +71,14 @@ public:
   void Report(XrdOucString& out, XrdOucString option, const XrdOucString& selection);
 
 private:
-  XrdSysRWLock mIncMutex; ///< Mutex protecting the in-memory inconsistencies
-  XrdSysMutex mIncUpdateMutex; ///< Mutex protecting the updating flag
+  using InconsistencyMap = std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::pair<std::list<eos::common::FileId::fileid_t>, std::time_t>>>;
+  eos::common::ExpiryCache<InconsistencyMap> cache{std::chrono::seconds(20)};
 
-  std::chrono::time_point<std::chrono::steady_clock> mUpdatedAt = std::chrono::steady_clock::now();
-  std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::list<eos::common::FileId::fileid_t>>>* mInconsistencies = nullptr;
-  bool mIsUpdatingInconsistencies = false;
-  static constexpr auto mInvalidAfter = 2;
+  static InconsistencyMap* RetrieveInconsistencies();
 
-  std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::list<eos::common::FileId::fileid_t>>>* RetrieveInconsistencies();
+  std::string GenerateJsonReport(const std::set<std::string>& inconsistencyTypes, bool perfsid, bool printlfn);
 
-  void UpdateInconsistenciesIfNeeded();
-
-  std::string GenerateJsonReport(const std::set<std::string>& inconsistencies, bool perfsid, bool printlfn);
-
-  std::string GenerateTextReport(const std::set<std::string>& inconsistencies, bool perfsid, bool printlfn);
+  std::string GenerateTextReport(const std::set<std::string>& inconsistencyTypes, bool perfsid, bool printlfn);
 
   void RemoveFsckFile(const string& inconsistency, eos::common::FileSystem::fsid_t fsid,
                       eos::common::FileId::fileid_t fid);

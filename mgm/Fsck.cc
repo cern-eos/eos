@@ -39,20 +39,6 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-Fsck::Fsck()
-{}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-Fsck::~Fsck()
-{
-  delete mInconsistencies;
-}
-
-//------------------------------------------------------------------------------
 // Method to issue a repair action
 //------------------------------------------------------------------------------
 bool
@@ -75,8 +61,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return false;
   }
 
-  UpdateInconsistenciesIfNeeded();
-  XrdSysRWLockHelper inconsistenciesReadLock(mIncMutex, true);
+  auto inconsistencies = cache.getCachedObject(true, RetrieveInconsistencies);
 
   if (option.beginswith("checksum")) {
     out += "# repair checksum ------------------------------------------------"
@@ -85,18 +70,18 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
       std::map<eos::common::FileId::fileid_t, std::list<std::string>>> fid2check;
 
     // Loop over all filesystems
-    for (const auto& efsmapit : (*mInconsistencies)["m_cx_diff"]) {
+    for (const auto& efsmapit : inconsistencies["m_cx_diff"]) {
       // Loop over all fids
-      for (auto fid : efsmapit.second) {
+      for (auto fid : efsmapit.second.first) {
         fid2check[efsmapit.first][fid].emplace_back("m_cx_diff");
       }
     }
 
     // Loop over all filesystems
-    for (const auto& efsmapit : (*mInconsistencies)["d_cx_diff"]) {
+    for (const auto& efsmapit : inconsistencies["d_cx_diff"]) {
 
       // Loop over all fids
-      for (auto fid : efsmapit.second) {
+      for (auto fid : efsmapit.second.first) {
         fid2check[efsmapit.first][fid].emplace_back("d_cx_diff");
       }
     }
@@ -162,16 +147,16 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     std::map < eos::common::FileSystem::fsid_t,
         std::map<eos::common::FileId::fileid_t, std::list<std::string>>> fid2check;
 
-    for (const auto& emapit : *mInconsistencies) {
+    for (const auto& emapit : inconsistencies) {
       // Don't sync offline replicas
       if (emapit.first == "rep_offline") {
         continue;
       }
 
       // Loop over all filesystems
-      for (const auto& efsmapit : (*mInconsistencies)[emapit.first]) {
+      for (const auto& efsmapit : inconsistencies[emapit.first]) {
         // Loop over all fids
-        for (auto fid : efsmapit.second) {
+        for (auto fid : efsmapit.second.first) {
           fid2check[efsmapit.first][fid].emplace_back(emapit.first);
         }
       }
@@ -231,9 +216,9 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     XrdOucErrInfo error;
 
     // Loop over all filesystems
-    for (const auto& efsmapit : (*mInconsistencies)["unreg_n"]) {
+    for (const auto& efsmapit : inconsistencies["unreg_n"]) {
       // Loop over all fids
-      for (auto fid : efsmapit.second) {
+      for (auto fid : efsmapit.second.first) {
         bool haslocation = false;
         std::string spath = "";
 
@@ -297,9 +282,9 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
            "-------------------------\n";
     // Unlink all orphaned files
     // Loop over all filesystems
-    for (const auto& efsmapit : (*mInconsistencies)["orphans_n"]) {
+    for (const auto& efsmapit : inconsistencies["orphans_n"]) {
       // Loop over all fids
-      for (auto fid : efsmapit.second) {
+      for (auto fid : efsmapit.second.first) {
         bool haslocation = false;
 
         // Crosscheck if the location really is not attached
@@ -347,9 +332,9 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
            "-------------------------\n";
     // Adjust all layout errors e.g. missing replicas where possible
     // Loop over all filesystems
-    for (const auto& efsmapit : (*mInconsistencies)["rep_diff_n"]) {
+    for (const auto& efsmapit : inconsistencies["rep_diff_n"]) {
       // Loop over all fids
-      for (auto fid : efsmapit.second) {
+      for (auto fid : efsmapit.second.first) {
         std::string path = "";
 
         try {
@@ -404,9 +389,9 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     XrdOucErrInfo error;
 
     // Loop over all filesystems
-    for (const auto& efsmapit : (*mInconsistencies)["rep_missing_n"]) {
+    for (const auto& efsmapit : inconsistencies["rep_missing_n"]) {
       // Loop over all fids
-      for (auto fid : efsmapit.second) {
+      for (auto fid : efsmapit.second.first) {
         bool haslocation = false;
         std::string path = "";
 
@@ -489,8 +474,8 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
            "-------------------------\n";
     // Drop all namespace entries which are older than 48 hours and have no
     // files attached. Loop over all fids ...
-    for (const auto& fsMap : (*mInconsistencies)["zero_replica"]) {
-      for (auto fid : fsMap.second) {
+    for (const auto& fsMap : inconsistencies["zero_replica"]) {
+      for (auto fid : fsMap.second.first) {
         std::string path = "";
         time_t now = time(NULL);
         out += "progress: checking fid=";
@@ -640,14 +625,15 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
   return false;
 }
 
-std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::list<eos::common::FileId::fileid_t>>>*
+Fsck::InconsistencyMap*
 Fsck::RetrieveInconsistencies() {
-  auto inconPtr = new std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::list<eos::common::FileId::fileid_t>>>{};
+  auto inconPtr =
+    new std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::pair<std::list<eos::common::FileId::fileid_t>, std::time_t>>>{};
 
   eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
 
   for(auto& inconsistency : XrdMgmOfs::MgmFsckDirs) {
-    auto inconsistentFilesMap = std::map<eos::common::FileSystem::fsid_t, std::list<eos::common::FileId::fileid_t>>{};
+    std::map<eos::common::FileSystem::fsid_t, std::pair<std::list<eos::common::FileId::fileid_t>, std::time_t>> inconsistentFilesMap;
 
     std::string incContPath = std::string(gOFS->MgmProcFsckPath.c_str()) + "/" + inconsistency;
     auto container = gOFS->eosView->getContainer(incContPath);
@@ -658,7 +644,7 @@ Fsck::RetrieveInconsistencies() {
         cerr << "inconsistency: " << inconsistency << ", fsid:" << fsidIt->first << ", fid:" << fidIt->first << endl;
         fidList.emplace_back(stoull(fidIt->first));
       }
-      inconsistentFilesMap[stoull(fsidIt->first)] = std::move(fidList);
+      inconsistentFilesMap[stoull(fsidIt->first)] = std::make_pair(std::move(fidList), std::time(nullptr));
     }
 
     (*inconPtr)[inconsistency] = std::move(inconsistentFilesMap);
@@ -668,53 +654,18 @@ Fsck::RetrieveInconsistencies() {
 }
 
 void
-Fsck::UpdateInconsistenciesIfNeeded() {
-  bool isInvalid = false;
-  {
-    XrdSysRWLockHelper lock(mIncMutex, true);
-    isInvalid = mInconsistencies == nullptr;
-  }
-
-  auto now = std::chrono::steady_clock::now();
-  if(std::chrono::duration_cast<std::chrono::minutes>(now - mUpdatedAt).count() >= mInvalidAfter || isInvalid) {
-    {
-      XrdSysMutexHelper updateLock(mIncUpdateMutex);
-      if(mIsUpdatingInconsistencies) {
-        return;
-      }
-      else {
-        mIsUpdatingInconsistencies = true;
-      }
-    }
-
-    auto updatedInconsistencies = RetrieveInconsistencies();
-    if(updatedInconsistencies != nullptr){
-      XrdSysRWLockHelper lock(mIncMutex, false);
-      delete mInconsistencies;
-      mInconsistencies = updatedInconsistencies;
-      mUpdatedAt = std::move(now);
-    }
-
-    XrdSysMutexHelper updateLock(mIncUpdateMutex);
-    mIsUpdatingInconsistencies = false;
-  }
-}
-
-void
 Fsck::Stat(XrdOucString& out) {
-  UpdateInconsistenciesIfNeeded();
-
+  auto inconsistencies = cache.getCachedObject(false, RetrieveInconsistencies);
   std::ostringstream outBuff;
-  XrdSysRWLockHelper lock(mIncMutex, true);
 
-  auto fsNumber = mInconsistencies->empty() ? 0 : mInconsistencies->begin()->second.size();
+  auto fsNumber = inconsistencies.empty() ? 0 : inconsistencies.begin()->second.size();
   outBuff << "Filesystems checked: " << fsNumber << endl;
 
   for(auto& inconsistency : XrdMgmOfs::MgmFsckDirs) {
     outBuff << inconsistency << ": ";
     auto count = 0ul;
-    for(auto& pair : (*mInconsistencies)[inconsistency]) {
-      count += pair.second.size();
+    for(auto& pair : inconsistencies[inconsistency]) {
+      count += pair.second.first.size();
     }
     outBuff << count << endl;
   }
@@ -724,8 +675,6 @@ Fsck::Stat(XrdOucString& out) {
 
 void
 Fsck::Report(XrdOucString& out, XrdOucString option, const XrdOucString& selection) {
-  UpdateInconsistenciesIfNeeded();
-
   bool printlfn = (option.find("l") != STR_NPOS);
   bool perfsid = (option.find("a") != STR_NPOS);
   bool json = (option.find("json") != STR_NPOS);
@@ -745,17 +694,10 @@ fileNameDisplayFunc(unsigned long long fid) {
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   try {
     std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
-    return "\"" + gOFS->eosView->getUri(fmd.get()) + "\"";
+    return gOFS->eosView->getUri(fmd.get());
   } catch (eos::MDException& e) {
-    return std::string("\"undefined\"");
+    return std::string("undefined");
   }
-}
-
-inline std::string
-fileFidFsidDisplayFunc(unsigned long long fid, unsigned long long fsid) {
-  std::ostringstream displayBuff;
-  displayBuff << "{\"fsid\": " << fsid << ", \"fid\": " << fid << "}";
-  return displayBuff.str();
 }
 
 inline std::string
@@ -764,72 +706,64 @@ fileFidDisplayFunc(unsigned long long fid) {
 }
 
 std::string
-Fsck::GenerateJsonReport(const std::set<std::string>& inconsistencies, bool perfsid, bool printlfn) {
-  std::ostringstream outBuff;
-  outBuff << "{";
+Fsck::GenerateJsonReport(const std::set<std::string>& inconsistencyTypes, bool perfsid, bool printlfn) {
+  auto inconsistencies = cache.getCachedObject(false, RetrieveInconsistencies);
+  Json::Value root;
 
-  XrdSysRWLockHelper lock(mIncMutex, true);
+  Json::Value file;
+  for(auto& inconsistency : inconsistencyTypes) {
+    auto numberOfFiles = Json::UInt64{0};
+    for (auto& pair : inconsistencies[inconsistency]) {
+      if (!pair.second.first.empty()) {
+        auto fsidString = std::to_string(pair.first);
+        auto& files = perfsid ? root[inconsistency][fsidString]["files"] : root[inconsistency]["files"];
+        if (perfsid) {
+          root[inconsistency][fsidString]["n"] = Json::UInt64{pair.second.first.size()};
+          root[inconsistency][fsidString]["timestamp"] = Json::Int64{pair.second.second};
+        } else {
+          numberOfFiles += pair.second.first.size();
+        }
 
-  const char* separator;
-  const char* inconsistencySparator = "";
-  for(auto& inconsistency : inconsistencies) {
-    outBuff << inconsistencySparator << endl << "  \"" << inconsistency << "\": {";
-    if(perfsid) {
-      const char* fsidSeparator = "";
-      for (auto& pair : (*mInconsistencies)[inconsistency]) {
-        if (!pair.second.empty()) {
-          separator = "";
-          outBuff << fsidSeparator << endl << "    \"" << pair.first << "\": {" << endl;
-          outBuff << "      \"n\": " << pair.second.size() << "," << endl;
-          outBuff << "      \"files\": " << "[";
-          for (auto& fid : pair.second) {
-            auto fileDisplay = printlfn ? fileNameDisplayFunc(fid) : fileFidDisplayFunc(fid);
-            outBuff << separator << fileDisplay;
-            separator = ",";
+        for (auto& fid : pair.second.first) {
+          if (printlfn) {
+            files.append(fileNameDisplayFunc(fid));
+          } else if (perfsid) {
+            files.append(Json::UInt64{fid});
+          } else {
+            file.clear();
+            file["fsid"] = Json::UInt64{pair.first};
+            file["fid"] = Json::UInt64{fid};
+            files.append(file);
           }
-          outBuff << "]" << endl << "    }";
-          fsidSeparator = ",";
         }
       }
-      outBuff << endl << "  }";
-    }
-    else {
-      separator = "";
-      outBuff << endl << "    \"files\": " << "[";
-      for (auto& pair : (*mInconsistencies)[inconsistency]) {
-        for (auto& fid : pair.second) {
-          auto fileDisplay = printlfn ? fileNameDisplayFunc(fid) : fileFidFsidDisplayFunc(fid, pair.first);
-          outBuff << separator << std::move(fileDisplay);
-          separator = ",";
-        }
-      }
-      outBuff << "]" << endl;
-      outBuff << "  }";
     }
 
-    inconsistencySparator = ",";
+    if (!perfsid && numberOfFiles > 0) {
+      root[inconsistency]["n"] = numberOfFiles;
+      root[inconsistency]["timestamp"] = Json::Int64{inconsistencies[inconsistency].cbegin()->second.second};
+    }
   }
-  outBuff << endl << "}";
 
-  return outBuff.str();
+  Json::StyledWriter writer;
+  return writer.write(root);
 }
 
 std::string
-Fsck::GenerateTextReport(const std::set<std::string>& inconsistencies, bool perfsid, bool printlfn) {
+Fsck::GenerateTextReport(const std::set<std::string>& inconsistencyTypes, bool perfsid, bool printlfn) {
+  auto inconsistencies = cache.getCachedObject(false, RetrieveInconsistencies);
   std::ostringstream outBuff;
-  auto time = std::time(nullptr);
-  XrdSysRWLockHelper lock(mIncMutex, true);
 
-  for(auto& inconsistency : inconsistencies) {
+  for(auto& inconsistency : inconsistencyTypes) {
     const char* separator = "";
 
     if(perfsid) {
-      for(auto& pair : (*mInconsistencies)[inconsistency]) {
-        if (!pair.second.empty()) {
+      for(auto& pair : inconsistencies[inconsistency]) {
+        if (!pair.second.first.empty()) {
           separator = "";
-          outBuff << "timestamp=" << time << " tag=\"" << inconsistency;
-          outBuff << " fsid=" << pair.first << " n=" << pair.second.size() << (printlfn ? " lfn=" : " fxid=");
-          for(auto& fid : pair.second) {
+          outBuff << "timestamp=" << pair.second.second << " tag=\"" << inconsistency;
+          outBuff << " fsid=" << pair.first << " n=" << pair.second.first.size() << (printlfn ? " lfn=" : " fxid=");
+          for(auto& fid : pair.second.first) {
             auto fileDisplay = printlfn ? fileNameDisplayFunc(fid) : fileFidDisplayFunc(fid);
             outBuff << separator << std::move(fileDisplay);
             separator = ",";
@@ -841,14 +775,15 @@ Fsck::GenerateTextReport(const std::set<std::string>& inconsistencies, bool perf
     }
     else {
       auto count = 0ul;
-      for(auto& pair : (*mInconsistencies)[inconsistency]) {
-        count += pair.second.size();
+      auto time = inconsistencies[inconsistency].cbegin()->second.second;
+      for(auto& pair : inconsistencies[inconsistency]) {
+        count += pair.second.first.size();
       }
 
       if (count > 0) {
         outBuff << "timestamp=" << time << " tag=\"" << inconsistency << "\" n=" << count << (printlfn ? " lfn=" : " fxid=");
-        for(auto& pair : (*mInconsistencies)[inconsistency]) {
-          for (auto& fid : pair.second) {
+        for(auto& pair : inconsistencies[inconsistency]) {
+          for (auto& fid : pair.second.first) {
             auto fileDisplay = printlfn ? fileNameDisplayFunc(fid) : fileFidDisplayFunc(fid);
             outBuff << separator << std::move(fileDisplay);
             separator = ",";

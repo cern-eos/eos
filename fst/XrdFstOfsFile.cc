@@ -882,7 +882,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   SetLogId(logId, vid, tident);
   eos_info("fstpath=%s", fstPath.c_str());
 
-  if(!isCreation) {
+  if(isCreation) {
+    if(fMd == nullptr){
+      fMd = new FmdHelper(fileid, fsid);
+    }
+  }
+  else {
     try {
       Fmd fmd = gFmdAttributeHandler.FmdAttrGet(layOut->GetFileIo());
       fMd = new FmdHelper(fileid, fsid);
