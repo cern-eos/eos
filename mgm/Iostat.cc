@@ -1304,7 +1304,7 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         table.AddRows(table_data);
       }
 
-      out += table.GenerateTable(HEADER_QUOTA).c_str();
+      out += table.GenerateTable(HEADER2).c_str();
     }
 
     PopularityMutex.UnLock();

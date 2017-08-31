@@ -73,6 +73,10 @@ com_geosched (char* arg1)
     if (subcmd == "state")
     {
       in += "&mgm.subcmd=showstate";
+      subcmd = subtokenizer.GetToken();
+      if (subcmd == "-m"){
+        in += "&mgm.monitoring=1";
+      }
     }
 
     if (subcmd == "param")
@@ -275,7 +279,8 @@ com_geosched_usage:
   fprintf(stdout, "                                                                          :  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc\n");
   fprintf(stdout, "                                                                          :  '-c' enables color display\n");
   fprintf(stdout, "       geosched show param                                                :  show internal parameters\n");
-  fprintf(stdout, "       geosched show state                                                :  show internal state\n");
+  fprintf(stdout, "       geosched show state [-m]                                           :  show internal state\n");
+  fprintf(stdout, "                                                                          :  '-m' list in monitoring format\n");
   fprintf(stdout, "       geosched set <param name> [param index] <param value>              :  set the value of an internal state parameter (all names can be listed with geosched show state) \n");
   fprintf(stdout, "       geosched updater {pause|resume}                                    :  pause / resume the tree updater\n");
   fprintf(stdout, "       geosched forcerefresh                                              :  force a refresh of the trees/snapshots\n");

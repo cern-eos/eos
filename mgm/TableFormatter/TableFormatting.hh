@@ -84,16 +84,16 @@ enum TableFormatterColor {
 };
 
 enum TableFormatterStyle {
-  FULL          =  0,
-  FULLBOLD      =  1,
-  FULLDOUBLE    =  2,
-  HEADER        =  3,
-  HEADERBOLD    =  4,
-  HEADERDOUBLE  =  5,
-  MINIMAL       =  6,
-  OLD           =  7,
-  OLDWIDE       =  8,
-  HEADER_QUOTA  =  9
+  FULL,
+  FULLBOLD,
+  FULLDOUBLE,
+  HEADER,
+  HEADER2,
+  HEADERBOLD,
+  HEADERDOUBLE,
+  MINIMAL,
+  OLD,
+  OLDWIDE
 };
 
 //------------------------------------------------------------------------------

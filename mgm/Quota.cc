@@ -633,7 +633,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
   if ((uid_sel < 0) && (gid_sel < 0)) {
     output += table_user.GenerateTable(HEADER).c_str();
   } else {
-    output += table_user.GenerateTable(HEADER_QUOTA).c_str();
+    output += table_user.GenerateTable(HEADER2).c_str();
   }
 
   //! Quota node - Group
@@ -729,7 +729,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
   if ((uid_sel < 0) && (gid_sel < 0)) {
     output += table_group.GenerateTable(HEADER).c_str();
   } else {
-    output += table_group.GenerateTable(HEADER_QUOTA).c_str();
+    output += table_group.GenerateTable(HEADER2).c_str();
   }
 
   //! Quota node - Summary
@@ -790,7 +790,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget, 0)), "s"));
       table_summary.AddRows(table_data);
-      output += table_summary.GenerateTable(HEADER_QUOTA).c_str();
+      output += table_summary.GenerateTable(HEADER2).c_str();
     } else {
       TableFormatterBase table_summary_user;
       table_summary_user.SetHeader({

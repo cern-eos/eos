@@ -435,8 +435,8 @@ void TableFormatterBase::Style(TableFormatterStyle style)
     break;
   }
 
-  // Header normal border for quota ls
-  case HEADER_QUOTA: {
+  // Header normal border with Title
+  case HEADER2: {
     std::string head [11] = {"┌", "┬", "┐", "─",
                              "│", "│", "│",
                              "└", "┴", "┘", "─"

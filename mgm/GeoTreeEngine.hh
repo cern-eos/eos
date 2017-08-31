@@ -31,6 +31,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"
 #include "mgm/geotree/SchedulingSlowTree.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -1980,7 +1981,7 @@ public:
   void printInfo(std::string& info,
                  bool dispTree, bool dispSnaps, bool dispParam, bool dispState,
                  const std::string& schedgroup, const std::string& optype,
-                 bool useColors = false);
+                 bool useColors = false, bool monitoring = false);
 
   // ---------------------------------------------------------------------------
   //! Place several replicas in one scheduling group.

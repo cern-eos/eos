@@ -43,6 +43,7 @@ ProcCommand::GeoSched()
       bool bprm = (mSubCmd == "showparam");
       bool bst = (mSubCmd == "showstate");
       bool useColors = false;
+      bool monitoring = pOpaque->Get("mgm.monitoring");
 
       if (pOpaque->Get("mgm.usecolors")) {
         useColors = (bool)XrdOucString(pOpaque->Get("mgm.usecolors")).atoi();
@@ -50,7 +51,7 @@ ProcCommand::GeoSched()
 
       std::string info;
       gGeoTreeEngine.printInfo(info, btree, bsnapsh, bprm, bst, schedgroup.c_str(),
-                               optype.c_str(), useColors);
+                               optype.c_str(), useColors, monitoring);
       stdOut += info.c_str();
       retc = SFS_OK;
     }

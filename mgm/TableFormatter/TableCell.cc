@@ -247,7 +247,7 @@ void TableCell::SetValue(long long int value)
 void TableCell::SetValue(double value)
 {
   if (mSelectedValue == TypeContainingValue::DOUBLE) {
-    //Convert value into K,M,G,T,P,E scale
+    //Convert value into f,p,n,u,m,K,M,G,T,P,E scale
     long long unsigned scale = (mUnit == "B") ? 1024 : 1000;
 
     if (mFormat.find("+") != std::string::npos && value != 0) {
@@ -276,6 +276,23 @@ void TableCell::SetValue(double value)
       } else if (value >= scale) {
         mUnit.insert(0, "K");
         value /= scale;
+      } else if (value >= 1) {
+        value = value;
+      } else if (value >= 1/scale) {
+        mUnit.insert(0, "m");
+        value *= scale;
+      } else if (value >= 1/(scale * scale)) {
+        mUnit.insert(0, "u");
+        value *= scale * scale;
+      } else if (value >= 1/(scale * scale * scale)) {
+        mUnit.insert(0, "n");
+        value *= scale * scale * scale;
+      } else if (value >= 1/(scale * scale * scale * scale)) {
+        mUnit.insert(0, "p");
+        value *= scale * scale * scale * scale;
+      } else if (value >= 1/(scale * scale * scale * scale * scale)) {
+        mUnit.insert(0, "f");
+        value *= scale * scale * scale * scale * scale;
       }
 
       if (value_negative) {

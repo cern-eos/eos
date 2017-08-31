@@ -542,11 +542,19 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
 
 void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
                               bool dispParam, bool dispState, const std::string&
-                              schedgroup, const std::string& optype, bool useColors)
+                              schedgroup, const std::string& optype,
+                              bool useColors, bool monitoring)
 {
   RWMutexReadLock lock(pTreeMapMutex);
   stringstream ostr;
   map<string, string> orderByGroupName;
+  std::string format_s = !monitoring ? "-s" : "os";
+  std::string format_l = !monitoring ? "l" : "ol";
+  std::string format_ll = !monitoring ? "-l" : "ol";
+  std::string format_f = !monitoring ? "+f" : "of";
+  std::string unit = !monitoring ? "s" : "";
+  std::string na = !monitoring ? "-NA-" : "NA";
+  unsigned scale = !monitoring ? 1000 : 1; // miliseconds to seconds for human view
 
   if (dispParam) {
     ostr << "### GeoTreeEngine parameters :" << std::endl;
@@ -590,144 +598,231 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
 
   if (dispState) {
     ostr << "frameCount = " << pFrameCount << std::endl;
-    ostr << "==== added penalties for each fs over successive frames  ====" <<
-         std::endl;
+
+    //! Added penalties for each fs over successive frames
+    if (!monitoring)
+      ostr << "\n┏━> Added penalties for each fs over successive frames\n";
     {
       // to be sure that no fs in inserted removed in the meantime
       eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
       struct timeval curtime;
       gettimeofday(&curtime, 0);
       size_t ts = curtime.tv_sec * 1000 + curtime.tv_usec / 1000;
-      ostr << std::setw(6) << "fsid" << std::setw(6) << "drct ";
 
+      TableFormatterBase table;
+      TableHeader table_header;
+      if (monitoring)
+        table_header.push_back(std::make_tuple("type", 4, format_s));
+      table_header.push_back(std::make_tuple("fsid", 4, format_ll));
+      table_header.push_back(std::make_tuple("drct", 4, format_s));
       for (size_t itcol = 0; itcol < pCircSize; itcol++) {
-        ostr << std::setw(6) << std::fixed << std::setprecision(1) <<
-             (pLatencySched.pCircFrCnt2Timestamp[(pFrameCount + pCircSize - 1 - itcol) %
-                 pCircSize] ? (ts - pLatencySched.pCircFrCnt2Timestamp[(pFrameCount + pCircSize -
-                               1 - itcol) % pCircSize]) * 0.001 : 0);
-      }
+        float frame = pLatencySched.pCircFrCnt2Timestamp[
+                      (pFrameCount + pCircSize - 1 - itcol) % pCircSize] ?
+                      (ts - pLatencySched.pCircFrCnt2Timestamp[
+                      (pFrameCount + pCircSize - 1 - itcol) % pCircSize]) * 0.001 : 0;
 
-      ostr << std::endl;
+        char header_name[24];
+        std::sprintf(header_name, "%.1f", frame);
+        table_header.push_back(std::make_tuple( header_name, 4, format_l ));
+      }
+      table.SetHeader(table_header);
 
       FsView::gFsView.ViewMutex.LockRead();
-  
-      for (size_t itline = 1;
-           itline < pPenaltySched.pCircFrCnt2FsPenalties.begin()->size(); itline++) {
-
-        if (!(FsView::gFsView.mIdView.count(itline)))
+      size_t fsid_count = pPenaltySched.pCircFrCnt2FsPenalties.begin()->size();
+      for (size_t fsid = 1; fsid < fsid_count; fsid++) {
+        if (!(FsView::gFsView.mIdView.count(fsid)))
         continue;
 
-        ostr << std::setw(6) << itline << std::setw(6) << "UL";
+        table.AddSeparator();
+
+        // for Upload
+        TableData table_data;
+        table_data.emplace_back();
+        if (monitoring)
+          table_data.back().push_back(TableCell( "AddedPenalties", format_s));
+        table_data.back().push_back(TableCell( (unsigned long long)fsid, format_l));
+        table_data.back().push_back(TableCell( "UL", format_s));
 
         for (size_t itcol = 0; itcol < pCircSize; itcol++) {
-          ostr << std::setw(6) << (int)(pPenaltySched.pCircFrCnt2FsPenalties[(pFrameCount
-                                        + pCircSize - 1 - itcol) % pCircSize][itline].ulScorePenalty);
+          int value = pPenaltySched.pCircFrCnt2FsPenalties[
+            (pFrameCount + pCircSize - 1 - itcol) % pCircSize][fsid].ulScorePenalty;
+          table_data.back().push_back(TableCell( value, format_l));
         }
 
-        ostr << std::endl;
-        ostr << std::setw(6) << "" <<  std::setw(6) << "DL";
+        // for Download
+        table_data.emplace_back();
+        if (monitoring) {
+          table_data.back().push_back(TableCell( "AddedPenalties", format_s));
+          table_data.back().push_back(TableCell( (unsigned long long)fsid, format_l));
+        } else {
+          table_data.back().push_back(TableCell( "", format_s));
+        }
+        table_data.back().push_back(TableCell( "DL", format_s));
 
         for (size_t itcol = 0; itcol < pCircSize; itcol++) {
-          ostr << std::setw(6) << (int)(pPenaltySched.pCircFrCnt2FsPenalties[(pFrameCount
-                                        + pCircSize - 1 - itcol) % pCircSize][itline].dlScorePenalty);
+          int value = pPenaltySched.pCircFrCnt2FsPenalties[
+            (pFrameCount + pCircSize - 1 - itcol) % pCircSize][fsid].dlScorePenalty;
+          table_data.back().push_back(TableCell( value, format_l));
         }
-        ostr << std::endl;
+        table.AddRows(table_data);
       }
       FsView::gFsView.ViewMutex.UnLockRead();
+      ostr << table.GenerateTable(HEADER2).c_str();
     }
-    ostr << "=============================================================" <<
-         std::endl << std::endl;
-    ostr << "================ fst2GeotreeEngine latency  =================" <<
-         std::endl;
+
+    //! fst2GeotreeEngine latency
+    if (!monitoring)
+      ostr << "\n┏━> fst2GeotreeEngine latency\n";
     struct timeval nowtv;
     gettimeofday(&nowtv, NULL);
     size_t nowms = nowtv.tv_sec * 1000 + nowtv.tv_usec / 1000;
     double avAge = 0.0;
     size_t count = 0;
+    std::vector<std::tuple<unsigned long long,
+      double, double, double, double, bool>> data_fst;
 
-    for (size_t n = 1; n < pLatencySched.pFsId2LatencyStats.size(); n++) {
-      if (pLatencySched.pFsId2LatencyStats[n].getage(nowms) <
-          600000) { // consider only if less than a minute
-        avAge += pLatencySched.pFsId2LatencyStats[n].getage(nowms);
+    for (auto it : pLatencySched.pFsId2LatencyStats) {
+      if (it.getage(nowms) < 600000) { // consider only if less than a minute
+        avAge += it.getage(nowms);
         count++;
       }
     }
 
     avAge /= (count ? count : 1);
-    ostr << "globalLatency  = " << setw(5) << (int)
-         pLatencySched.pGlobalLatencyStats.minlatency << "ms.(min)" << " | "
-         << setw(5) << (int)pLatencySched.pGlobalLatencyStats.averagelatency <<
-         "ms.(avg)" << " | "
-         << setw(5) << (int)pLatencySched.pGlobalLatencyStats.maxlatency << "ms.(max)" <<
-         "  |  age=" << setw(6) << (int)avAge << "ms.(avg)" << std::endl;
+
+    TableFormatterBase table_fst;
+    if (!monitoring)
+      table_fst.SetHeader({
+        std::make_tuple("fsid", 6, format_ll),
+        std::make_tuple("minimum", 10, format_f),
+        std::make_tuple("averge", 10, format_f),
+        std::make_tuple("maximum", 10, format_f),
+        std::make_tuple("age(last)", 10, format_f)
+      });
+    else
+      table_fst.SetHeader({
+        std::make_tuple("type", 0, format_s),
+        std::make_tuple("fsid", 0, format_ll),
+        std::make_tuple("min", 0, format_f),
+        std::make_tuple("avg", 0, format_f),
+        std::make_tuple("max", 0, format_f),
+        std::make_tuple("age(last)", 0, format_f)
+      });
 
     FsView::gFsView.ViewMutex.LockRead();
-    for (size_t n = 1; n < pLatencySched.pFsId2LatencyStats.size(); n++) {
-      if (!(FsView::gFsView.mIdView.count(n))) 
+    data_fst.push_back(std::make_tuple( 0,
+      pLatencySched.pGlobalLatencyStats.minlatency,
+      pLatencySched.pGlobalLatencyStats.averagelatency,
+      pLatencySched.pGlobalLatencyStats.maxlatency, avAge, true ));
+    for (size_t fsid = 1; fsid < pLatencySched.pFsId2LatencyStats.size(); fsid++) {
+      if (!(FsView::gFsView.mIdView.count(fsid)))
         continue;
-      
-      ostr << "fsLatency (fsid=" << std::setw(6) << n << ")  = ";
-
-      if (pLatencySched.pFsId2LatencyStats[n].getage(nowms) >
-          600000) // more than 1 minute, something is wrong
-        ostr << setw(5) << "NA" << "ms.(min)" << " | "
-             << setw(5) << "NA" << "ms.(avg)" << " | "
-             << setw(5) << "NA" << "ms.(max)" << "  |  age=" << setw(
-               6) << "NA" << "ms.(last)" << std::endl;
+      // more than 1 minute, something is wrong
+      if (pLatencySched.pFsId2LatencyStats[fsid].getage(nowms) > 600000)
+        data_fst.push_back(std::make_tuple( fsid, 0, 0, 0, 0, false ));
       else
-        ostr << setw(5) << (int)pLatencySched.pFsId2LatencyStats[n].minlatency <<
-             "ms.(min)" << " | "
-             << setw(5) << (int)pLatencySched.pFsId2LatencyStats[n].averagelatency <<
-             "ms.(avg)" << " | "
-             << setw(5) << (int)pLatencySched.pFsId2LatencyStats[n].maxlatency << "ms.(max)"
-             << "  |  age=" << setw(6) << (int)pLatencySched.pFsId2LatencyStats[n].getage(
-               nowms) << "ms.(last)" << std::endl;
+        data_fst.push_back(std::make_tuple( fsid,
+          pLatencySched.pFsId2LatencyStats[fsid].minlatency,
+          pLatencySched.pFsId2LatencyStats[fsid].averagelatency,
+          pLatencySched.pFsId2LatencyStats[fsid].maxlatency,
+          pLatencySched.pFsId2LatencyStats[fsid].getage(nowms), true ));
     }
     FsView::gFsView.ViewMutex.UnLockRead();
-    ostr << "=============================================================" <<
-         std::endl << std::endl;
-    ostr << "================ gw2GeotreeEngine latency  =================" <<
-         std::endl;
+
+    for(auto it : data_fst) {
+      TableData table_data;
+      table_data.emplace_back();
+      if (monitoring)
+        table_data.back().push_back(TableCell( "fst2GeotreeEngine", format_s));
+      if (std::get<0>(it) == 0) {
+        table_data.back().push_back(TableCell( "global", format_s));
+      } else {
+        table_data.back().push_back(TableCell( std::get<0>(it), format_l));
+      }
+      if (std::get<5>(it)) {
+        table_data.back().push_back(TableCell( std::get<1>(it)/scale, format_f, unit));
+        table_data.back().push_back(TableCell( std::get<2>(it)/scale, format_f, unit));
+        table_data.back().push_back(TableCell( std::get<3>(it)/scale, format_f, unit));
+        table_data.back().push_back(TableCell( std::get<4>(it)/scale, format_f, unit));
+      } else for(int i=0; i<4; i++) {
+        table_data.back().push_back(TableCell( na, format_s));
+      }
+      table_fst.AddRows(table_data);
+      if (std::get<0>(it) == 0 && data_fst.size() > 1)
+        table_fst.AddSeparator();
+    }
+    ostr << table_fst.GenerateTable(HEADER2).c_str();
+
+    //! gw2GeotreeEngine latency
+    if (!monitoring)
+      ostr << "\n┏━> gw2GeotreeEngine latency\n";
     avAge = 0.0;
     count = 0;
+    std::vector<std::tuple<std::string,
+      double, double, double, double, bool>> data_gw;
 
-    //for(size_t n=1; n<pLatencySched.pFsId2LatencyStats.size(); n++)
-    for (auto lit = pLatencySched.pHost2LatencyStats.begin();
-         lit != pLatencySched.pHost2LatencyStats.end(); ++lit) {
-      if (lit->second.getage(nowms) < 600000) { // consider only if less than a minute
-        avAge += lit->second.getage(nowms);
+    for (auto it : pLatencySched.pHost2LatencyStats) {
+      if (it.second.getage(nowms) < 600000) { // consider only if less than a minute
+        avAge += it.second.getage(nowms);
         count++;
       }
     }
 
     avAge /= (count ? count : 1);
-    ostr << "globalLatency  = " << setw(5) << (int)
-         pLatencySched.pGlobalLatencyStats.minlatency << "ms.(min)" << " | "
-         << setw(5) << (int)pLatencySched.pGlobalLatencyStats.averagelatency <<
-         "ms.(avg)" << " | "
-         << setw(5) << (int)pLatencySched.pGlobalLatencyStats.maxlatency << "ms.(max)" <<
-         "  |  age=" << setw(6) << (int)avAge << "ms.(avg)" << std::endl;
 
-    //for(size_t n=1; n<pLatencySched.pFsId2LatencyStats.size(); n++)
-    for (auto lit = pLatencySched.pHost2LatencyStats.begin();
-         lit != pLatencySched.pHost2LatencyStats.end(); ++lit) {
-      ostr << "hostLatency (host=" << std::setw(16) << lit->first << ")  = ";
+    TableFormatterBase table_gw;
+    if (!monitoring)
+      table_gw.SetHeader({
+        std::make_tuple("hostname", 10, format_s),
+        std::make_tuple("minimum", 10, format_f),
+        std::make_tuple("averge", 10, format_f),
+        std::make_tuple("maximum", 10, format_f),
+        std::make_tuple("age(last)", 10, format_f)
+      });
+    else
+      table_gw.SetHeader({
+        std::make_tuple("type", 0, format_s),
+        std::make_tuple("hostname", 0, format_s),
+        std::make_tuple("min", 0, format_f),
+        std::make_tuple("avg", 0, format_f),
+        std::make_tuple("max", 0, format_f),
+        std::make_tuple("age(last)", 0, format_f)
+      });
 
-      if (lit->second.getage(nowms) >
-          600000) // more than 1 minute, something is wrong
-        ostr << setw(5) << "NA" << "ms.(min)" << " | "
-             << setw(5) << "NA" << "ms.(avg)" << " | "
-             << setw(5) << "NA" << "ms.(max)" << "  |  age=" << setw(
-               6) << "NA" << "ms.(last)" << std::endl;
+    data_gw.push_back(std::make_tuple( "global",
+      pLatencySched.pGlobalLatencyStats.minlatency,
+      pLatencySched.pGlobalLatencyStats.averagelatency,
+      pLatencySched.pGlobalLatencyStats.maxlatency, avAge, true ));
+
+    for (auto it : pLatencySched.pHost2LatencyStats) {
+      // more than 1 minute, something is wrong
+      if (it.second.getage(nowms) > 600000)
+        data_gw.push_back(std::make_tuple( it.first, 0, 0, 0, 0, false ));
       else
-        ostr << setw(5) << (int)lit->second.minlatency << "ms.(min)" << " | "
-             << setw(5) << (int)lit->second.averagelatency << "ms.(avg)" << " | "
-             << setw(5) << (int)lit->second.maxlatency << "ms.(max)" << "  |  age=" << setw(
-               6) << (int)lit->second.getage(nowms) << "ms.(last)" << std::endl;
+        data_gw.push_back(std::make_tuple( it.first,
+          it.second.minlatency, it.second.averagelatency,
+          it.second.maxlatency, it.second.getage(nowms), true ));
     }
 
-    ostr << "=============================================================" <<
-         std::endl;
+    for(auto it : data_gw) {
+      TableData table_data;
+      table_data.emplace_back();
+      if (monitoring)
+        table_data.back().push_back(TableCell( "gw2GeotreeEngine", format_s));
+      table_data.back().push_back(TableCell( std::get<0>(it), format_s));
+      if (std::get<5>(it)) {
+        table_data.back().push_back(TableCell( std::get<1>(it)/scale, format_f, unit));
+        table_data.back().push_back(TableCell( std::get<2>(it)/scale, format_f, unit));
+        table_data.back().push_back(TableCell( std::get<3>(it)/scale, format_f, unit));
+        table_data.back().push_back(TableCell( std::get<4>(it)/scale, format_f, unit));
+      } else for(int i=0; i<4; i++) {
+        table_data.back().push_back(TableCell( na, format_s));
+      }
+      table_gw.AddRows(table_data);
+      if (std::get<0>(it) == "global" && data_gw.size() > 1)
+        table_gw.AddSeparator();
+    }
+    ostr << table_gw.GenerateTable(HEADER2).c_str();
   }
 
   // ==== run through the map of file systems
