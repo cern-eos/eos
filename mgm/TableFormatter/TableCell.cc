@@ -248,7 +248,7 @@ void TableCell::SetValue(double value)
 {
   if (mSelectedValue == TypeContainingValue::DOUBLE) {
     //Convert value into f,p,n,u,m,K,M,G,T,P,E scale
-    long long unsigned scale = (mUnit == "B") ? 1024 : 1000;
+    double scale = (mUnit == "B") ? 1024.0 : 1000.0;
 
     if (mFormat.find("+") != std::string::npos && value != 0) {
       bool value_negative = false;
