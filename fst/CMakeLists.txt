@@ -204,7 +204,7 @@ set_target_properties(
   POSITION_INDEPENDENT_CODE TRUE)
 
 target_compile_definitions(
-EosFstIo-Objects PUBLIC -DHAVE_ATOMICS=1)
+EosFstIo-Objects PUBLIC -DHAVE_ATOMICS=1 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 add_library(EosFstIo SHARED $<TARGET_OBJECTS:EosFstIo-Objects>)
 
