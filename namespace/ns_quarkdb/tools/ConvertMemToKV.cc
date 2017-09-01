@@ -1044,12 +1044,20 @@ main(int argc, char* argv[])
     std::cout << "Container init: " << cont_svc->getNumContainers()
               << " containers in " << cont_commit.count() << " seconds"
               << std::endl;
-    std::chrono::seconds full_duration {std::time(nullptr) - start};
-    std::cout << "Conversion duration: " << full_duration.count() << std::endl;
     // Save the last used file and container id in the meta_hmap
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
     meta_map.hset(eos::constants::sLastUsedFid, file_svc->getFirstFreeId() - 1);
     meta_map.hset(eos::constants::sLastUsedCid, cont_svc->getFirstFreeId() - 1);
+
+    // QuarkDB bulkload finalization (triggers manual compaction in rocksdb)
+    std::time_t finalizeStart = std::time(nullptr);
+    sQcl->exec("quarkdb_bulkload_finalize").get();
+    std::time_t finalizeEnd = std::time(nullptr);
+    std::cout << "QuarkDB bulkload finalization: " << finalizeEnd - finalizeStart << " seconds" << std::endl;
+
+    std::chrono::seconds full_duration {std::time(nullptr) - start};
+    std::cout << "Conversion duration: " << full_duration.count() << std::endl;
+
   } catch (std::runtime_error& e) {
     std::cerr << "Exception thrown: " << e.what() << std::endl;
     return 1;
