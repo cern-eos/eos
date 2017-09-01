@@ -995,19 +995,19 @@ FsView::GetSpaceFormat(std::string option)
   }
 
   if (option == "io") {
-    return "header=1:member=name:width=10:format=-s|avg=stat.geotag:width=32:format=s|avg=stat.disk.load:width=10:format=f:tag=diskload|sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sum=stat.ropen:width=6:format=l:tag=ropen|sum=stat.wopen:width=6:format=l:tag=wopen|sum=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|sum=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|sum=stat.usedfiles:width=12:format=+f:tag=used-files|sum=stat.statfs.files:width=11:format=+f:tag=max-files|sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
+    return "header=1:member=name:width=10:format=-s|avg=stat.geotag:width=32:format=-s|avg=stat.disk.load:width=10:format=f:tag=diskload|sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sum=stat.ropen:width=6:format=l:tag=ropen|sum=stat.wopen:width=6:format=l:tag=wopen|sum=stat.statfs.usedbytes:width=12:format=+f:unit=B:tag=used-bytes|sum=stat.statfs.capacity:width=12:format=+f:unit=B:tag=max-bytes|sum=stat.usedfiles:width=12:format=+f:tag=used-files|sum=stat.statfs.files:width=11:format=+f:tag=max-files|sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
   }
 
   if (option == "fsck") {
-    return "header=1:member=name:width=10:format=-s|avg=stat.geotag:width=32:format=s|sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orph)|sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sum=stat.fsck.rep_missing_n:width=12:format=l:tag=e(miss)|sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sum=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
+    return "header=1:member=name:width=10:format=-s|avg=stat.geotag:width=32:format=-s|sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orph)|sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sum=stat.fsck.rep_missing_n:width=12:format=l:tag=e(miss)|sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sum=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   }
 
   if (option == "l") {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|member=name:width=16:format=s|avg=stat.geotag:width=32:format=s|member=cfg.groupsize:width=12:format=s|member=cfg.groupmod:width=12:format=s|sum=<n>?*@*:width=6:format=l:tag=N(fs)|sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sum=stat.statfs.usedbytes:width=15:format=+f|sum=stat.statfs.capacity:width=14:format=+f|sum=stat.statfs.capacity?configstatus@rw:width=13:format=+f:tag=capacity(rw)|member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|member=cfg.quota:width=6:format=s";
+    return "header=1:member=type:width=10:format=-s|member=name:width=16:format=s|avg=stat.geotag:width=32:format=-s|member=cfg.groupsize:width=12:format=s|member=cfg.groupmod:width=12:format=s|sum=<n>?*@*:width=6:format=l:tag=N(fs)|sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sum=stat.statfs.usedbytes:width=15:format=+f:unit=B|sum=stat.statfs.capacity:width=14:format=+f:unit=B|sum=stat.statfs.capacity?configstatus@rw:width=13:format=+f:tag=capacity(rw):unit=B|member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|member=cfg.quota:width=6:format=s";
   }
 
-  return "header=1:member=type:width=10:format=-s|member=name:width=16:format=s|avg=stat.geotag:width=32:format=s|member=cfg.groupsize:width=12:format=s|member=cfg.groupmod:width=12:format=s|member=nofs:width=6:format=s:tag=N(fs)|sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sum=stat.statfs.usedbytes:width=15:format=+f|sum=stat.statfs.capacity:width=14:format=+f|sum=stat.statfs.capacity?configstatus@rw:width=13:format=+f:tag=capacity(rw)|member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|member=cfg.quota:width=6:format=s|member=cfg.balancer:width=10:format=s:tag=balancing|member=cfg.balancer.threshold:width=11:format=+l:tag=threshold|member=cfg.converter:width=11:format=s:tag=converter|member=cfg.converter.ntx:width=6:format=+l:tag=ntx|member=cfg.stat.converter.active:width=8:format=+l:tag=active|member=cfg.wfe:width=11:format=s:tag=wfe|member=cfg.wfe.ntx:width=6:format=+l:tag=ntx|member=cfg.stat.wfe.active:width=8:format=+l:tag=active|member=cfg.groupbalancer:width=11:format=s:tag=intergroup|";
+  return "header=1:member=type:width=10:format=-s|member=name:width=16:format=s|avg=stat.geotag:width=32:format=-s|member=cfg.groupsize:width=12:format=s|member=cfg.groupmod:width=12:format=s|member=nofs:width=6:format=s:tag=N(fs)|sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sum=stat.statfs.usedbytes:width=15:format=+f:unit=B|sum=stat.statfs.capacity:width=14:format=+f:unit=B|sum=stat.statfs.capacity?configstatus@rw:width=13:format=+f:tag=capacity(rw):unit=B|member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|member=cfg.quota:width=6:format=s|member=cfg.balancer:width=10:format=s:tag=balancing|member=cfg.balancer.threshold:width=11:format=+l:tag=threshold|member=cfg.converter:width=11:format=s:tag=converter|member=cfg.converter.ntx:width=6:format=+l:tag=ntx|member=cfg.stat.converter.active:width=8:format=+l:tag=active|member=cfg.wfe:width=11:format=s:tag=wfe|member=cfg.wfe.ntx:width=6:format=+l:tag=ntx|member=cfg.stat.wfe.active:width=8:format=+l:tag=active|member=cfg.groupbalancer:width=11:format=s:tag=intergroup|";
 }
 
 //------------------------------------------------------------------------------
@@ -3239,6 +3239,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
 
   for (unsigned int l = 0; l < nLines; l++) {
     table_data.emplace_back();
+    table_header.clear();
 
     for (unsigned int i = 0; i < formattoken.size(); i++) {
       std::vector<std::string> tagtoken;
@@ -3468,38 +3469,47 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
     }
   } // l from 0 to nLines
 
-  //Get table from MQ side (second table)
-  if (table_mq_format.length()) {
-    // If a format was given for the filesystem children, forward the print to
-    // the filesystems
-    for (auto it = begin(); it != end(); it++) {
-      FileSystem* fs = FsView::gFsView.mIdView[*it];
-      table_mq_header.clear();
-      fs->Print(table_mq_header, table_mq_data, table_mq_format);
+  if (outdepth > 0) {
+    // Print table for geotag
+    TableFormatterBase table_geo;
+    table_geo.SetHeader(table_header);
+    table_geo.AddRows(table_data);
+    table.AddString(table_geo.GenerateTable(HEADER).c_str());
+
+  } else {
+    //Get table from MQ side (second table)
+    if (table_mq_format.length()) {
+      // If a format was given for the filesystem children, forward the print to
+      // the filesystems
+      for (auto it = begin(); it != end(); it++) {
+        FileSystem* fs = FsView::gFsView.mIdView[*it];
+        table_mq_header.clear();
+        fs->Print(table_mq_header, table_mq_data, table_mq_format);
+      }
     }
-  }
 
-  // Print table with information from MGM
-  if (table_format.length() && !table_mq_format.length()) {
-    table.SetHeader(table_header);
-    table.AddRows(table_data);
-  }
+    // Print table with information from MGM
+    if (table_format.length() && !table_mq_format.length()) {
+      table.SetHeader(table_header);
+      table.AddRows(table_data);
+    }
 
-  // Print table with information from MGM and MQ. (Option "-l")
-  if (table_format.length() && table_mq_format.length()) {
-    table.SetHeader(table_header);
-    table.AddRows(table_data);
-    TableFormatterBase table_mq;
-    table_mq.SetHeader(table_mq_header);
-    table_mq.AddRows(table_mq_data);
-    table.AddString(table_mq.GenerateTable(HEADER).c_str());
-  }
+    // Print table with information from MGM and MQ. (Option "-l")
+    if (table_format.length() && table_mq_format.length()) {
+      table.SetHeader(table_header);
+      table.AddRows(table_data);
+      TableFormatterBase table_mq;
+      table_mq.SetHeader(table_mq_header);
+      table_mq.AddRows(table_mq_data);
+      table.AddString(table_mq.GenerateTable(HEADER).c_str());
+    }
 
-  // Print table with information only from MQ. (e.g. "fs ls")
-  if (!table_format.length() && table_mq_format.length()) {
-    table.SetHeader(table_mq_header);
-    table.AddSeparator();
-    table.AddRows(table_mq_data);
+    // Print table with information only from MQ. (e.g. "fs ls")
+    if (!table_format.length() && table_mq_format.length()) {
+      table.SetHeader(table_mq_header);
+      table.AddSeparator();
+      table.AddRows(table_mq_data);
+    }
   }
 }
 
