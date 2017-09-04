@@ -553,7 +553,7 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 
       if ((!showbackup) && ((removelinefeed.find(".backup.") != STR_NPOS) ||
                             (removelinefeed.find(".autosave.") != STR_NPOS))) {
-        // Don't show this ones
+        // Don't show these ones
       } else {
         configlist += removelinefeed;
         configlist += "\n";
@@ -698,28 +698,7 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
     }
   }
 
-  if (gOFS->MgmMaster.IsMaster() && mAutosave && mConfigFile.length()) {
-    int aspos = 0;
-
-    if ((aspos = mConfigFile.find(".autosave")) != STR_NPOS) {
-      mConfigFile.erase(aspos);
-    }
-
-    if ((aspos = mConfigFile.find(".backup")) != STR_NPOS) {
-      mConfigFile.erase(aspos);
-    }
-
-    XrdOucString envstring = "mgm.config.file=";
-    envstring += mConfigFile;
-    envstring += "&mgm.config.force=1";
-    envstring += "&mgm.config.autosave=1";
-    XrdOucEnv env(envstring.c_str());
-    XrdOucString err = "";
-
-    if (!SaveConfig(env, err)) {
-      eos_static_err("%s\n", err.c_str());
-    }
-  }
+  (void) AutoSave();
 }
 
 //------------------------------------------------------------------------------
@@ -765,29 +744,7 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
     mChangelog->AddEntry(cl.c_str());
   }
 
-  if (gOFS->MgmMaster.IsMaster() && mAutosave && mConfigFile.length()) {
-    int aspos = 0;
-
-    if ((aspos = mConfigFile.find(".autosave")) != STR_NPOS) {
-      mConfigFile.erase(aspos);
-    }
-
-    if ((aspos = mConfigFile.find(".backup")) != STR_NPOS) {
-      mConfigFile.erase(aspos);
-    }
-
-    XrdOucString envstring = "mgm.config.file=";
-    envstring += mConfigFile;
-    envstring += "&mgm.config.force=1";
-    envstring += "&mgm.config.autosave=1";
-    XrdOucEnv env(envstring.c_str());
-    XrdOucString err = "";
-
-    if (!SaveConfig(env, err)) {
-      eos_static_err("%s\n", err.c_str());
-    }
-  }
-
+  (void) AutoSave();
   eos_static_debug("%s", key);
 }
 
