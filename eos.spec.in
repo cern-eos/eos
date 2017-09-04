@@ -362,8 +362,8 @@ The EOS fuse core containing eosd and mount scripts.
 /sbin/mount.eos
 %{_datarootdir}/selinux/targeted/eosfuse.pp
 %{_datarootdir}/selinux/mls/eosfuse.pp
-%{_datarootdir}/selinux/strict/eosfuse.pp
-%{_sysconfdir}/logrotate.d/eos-fuse-logs
+%{_datarootdir}/selinux/strict/eosfuse.pp%
+%config %{_sysconfdir}/logrotate.d/eos-fuse-logs
 %dir %attr(755,daemon,daemon) /var/log/eos
 %dir %attr(755,daemon,daemon) /var/log/eos/fuse
 %dir %attr(0755, root, root) /var/run/eosd/
