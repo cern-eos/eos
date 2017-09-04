@@ -530,7 +530,10 @@ com_file(char* arg1)
 
         if (fsid2.length()) {
           options.push_back(fsid2.c_str());
-          options.push_back(fsid3.c_str());
+
+          if (fsid3.length()) {
+            options.push_back(fsid3.c_str());
+          }
 
           while ((opt = subtokenizer.GetToken())) {
             options.push_back(opt);
@@ -539,8 +542,14 @@ com_file(char* arg1)
         }
       } else {
         options.push_back(fsid1.c_str());
-        options.push_back(fsid3.c_str());
-        options.push_back(fsid3.c_str());
+
+        if (fsid2.length()) {
+          options.push_back(fsid2.c_str());
+        }
+
+        if (fsid3.length()) {
+          options.push_back(fsid3.c_str());
+        }
 
         while ((opt = subtokenizer.GetToken())) {
           options.push_back(opt);
