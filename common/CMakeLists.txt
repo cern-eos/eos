@@ -248,7 +248,6 @@ endif()
 set(EOS_PLUGIN_MANAGER_SRCS
   plugin_manager/Plugin.hh
   Namespace.hh
-  Logging.cc                        Logging.hh
   plugin_manager/PluginManager.cc   plugin_manager/PluginManager.hh
   plugin_manager/DynamicLibrary.cc  plugin_manager/DynamicLibrary.hh)
 
