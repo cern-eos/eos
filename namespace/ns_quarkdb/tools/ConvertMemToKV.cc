@@ -34,6 +34,8 @@ static long long int sAsyncBatch = 256 * 256 - 1;
 static qclient::QClient* sQcl;
 static qclient::AsyncHandler sAh;
 
+static size_t sThreads = 1;
+
 EOSNSNAMESPACE_BEGIN
 
 std::uint64_t ConvertContainerMDSvc::sNumContBuckets = 128 * 1024;
@@ -241,7 +243,7 @@ ConvertContainerMD::commitFiles(qclient::QClient* qclient)
 ConvertContainerMDSvc::ConvertContainerMDSvc():
   ChangeLogContainerMDSvc(), mFirstFreeId(0), mConvQView(nullptr)
 {
-  int num_mutexes = std::thread::hardware_concurrency();
+  int num_mutexes = sThreads;
 
   while (num_mutexes > 0) {
     --num_mutexes;
@@ -340,7 +342,7 @@ ConvertContainerMDSvc::commitToBackend()
 {
   std::mutex mutex_free_id;
   std::uint64_t total = pIdMap.size();
-  int nthreads = std::thread::hardware_concurrency();
+  int nthreads = sThreads;
   int chunk = total / nthreads;
   int last_chunk = chunk + total - (chunk * nthreads);
   // Parallel loop
@@ -513,7 +515,7 @@ ConvertFileMDSvc::initialize()
   FileMDScanner scanner(pIdMap, pSlaveMode);
   pFollowStart = pChangeLog->scanAllRecords(&scanner);
   std::uint64_t total = pIdMap.size();
-  int nthreads = std::thread::hardware_concurrency();
+  int nthreads = sThreads;
   int chunk = total / nthreads;
   int last_chunk = chunk + pIdMap.size() - (chunk * nthreads);
   auto start = std::time(nullptr);
@@ -831,7 +833,7 @@ void
 ConvertFsView::commitToBackend()
 {
   std::uint64_t total = mFsView.size();
-  int nthreads = std::thread::hardware_concurrency();
+  int nthreads = sThreads;
   int chunk = total / nthreads;
   int last_chunk = chunk + total - (chunk * nthreads);
   // Parallel loop
@@ -917,6 +919,14 @@ usage()
 int
 main(int argc, char* argv[])
 {
+  sThreads = std::thread::hardware_concurrency();
+
+  const char *conversionThreads = getenv("CONVERSION_THREADS");
+  if(conversionThreads) {
+    sThreads = atoi(conversionThreads);
+  }
+  std::cerr << "Using " << sThreads << " parallel threads for conversion" << std::endl;
+
   if (argc != 5) {
     usage();
     return 1;
