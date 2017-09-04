@@ -29,6 +29,9 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+const std::string FileConfigEngine::sAutosaveTag = ".autosave.";
+const std::string FileConfigEngine::sBackupTag = ".backup.";
+
 //------------------------------------------------------------------------------
 //                **** FileCfgEngineChangelog class ****
 //------------------------------------------------------------------------------
@@ -179,9 +182,9 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     eos_notice("removed partial update config file: %s", tmp_partial.c_str());
 
     if (remove(tmp_partial.c_str())) {
-      eos_err("failed to remove %s", tmp_partial.c_str());
       oss.str("");
       oss << "error: failed to remove " << tmp_partial;
+      eos_err(oss.str().c_str());
       err = oss.str().c_str();
       return false;
     }
@@ -192,9 +195,9 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     eos_notice("rename %s to %s", tmp_path.c_str(), full_path.c_str());
 
     if (rename(tmp_path.c_str(), full_path.c_str())) {
-      eos_err("failed to renmae %s to %s", tmp_path.c_str(), full_path.c_str());
       oss.str("");
       oss << "error: failed to rename " << tmp_path << " to " << full_path;
+      eos_err(oss.str().c_str());
       err = oss.str().c_str();
       return false;
     }
@@ -203,21 +206,35 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
   // If default configuration file not found then create it
   if (stat(full_path.c_str(), &info) == -1) {
     if ((errno == ENOENT) && full_path.endswith("default.eoscf")) {
-      int fd = creat(full_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+      // If there are any autosave files and use the latest one
+      std::string autosave_path = GetLatestAutosave();
 
-      if (fd == -1) {
-        err = "error: failed to create file ";
-        err += full_path.c_str();
-        return false;
-      } else {
-        if (fchown(fd, DAEMONUID, DAEMONGID) == 1) {
-          err = "error: failed to chown file ";
+      if (autosave_path.empty()) {
+        int fd = creat(full_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
+        if (fd == -1) {
+          err = "error: failed to create file ";
           err += full_path.c_str();
+          return false;
+        } else {
+          if (fchown(fd, DAEMONUID, DAEMONGID) == 1) {
+            err = "error: failed to chown file ";
+            err += full_path.c_str();
+            (void) close(fd);
+            return false;
+          }
+
           (void) close(fd);
+        }
+      } else {
+        // Rename latest autosave to the current default.eoscf
+        if (rename(autosave_path.c_str(), full_path.c_str())) {
+          oss.str("");
+          oss << "error: failed to rename " << autosave_path << " to " << full_path;
+          eos_err(oss.str().c_str());
+          err = oss.str().c_str();
           return false;
         }
-
-        (void) close(fd);
       }
     }
   }
@@ -308,7 +325,7 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     cl += "(force)";
   }
 
-  eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
+  eos_debug("saving config name=%s comment=%s force=%d", name, comment, force);
 
   if (!name) {
     if (mConfigFile.length()) {
@@ -357,10 +374,11 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
       }
 
       if (autosave) {
-        oss << half_path << ".autosave." << st.st_mtime <<
+        oss << half_path << sAutosaveTag << st.st_mtime <<
             EOSMGMCONFIGENGINE_EOS_SUFFIX;
       } else {
-        oss << half_path << ".backup." << st.st_mtime << EOSMGMCONFIGENGINE_EOS_SUFFIX;
+        oss << half_path << sBackupTag << st.st_mtime
+            << EOSMGMCONFIGENGINE_EOS_SUFFIX;
       }
 
       bkp_path = oss.str();
@@ -404,13 +422,14 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 
     // Rename *.tmp.partial to *.tmp to signal that we have a proper/full dump
     if (rename(tmp_partial.c_str(), tmp_path.c_str())) {
-      eos_err("failed rename %s to $%s", tmp_partial.c_str(), tmp_path.c_str());
+      eos_err("failed rename %s to %s", tmp_partial.c_str(), tmp_path.c_str());
       oss.str("");
       oss << "error: faile to rename " << tmp_partial << " to " << tmp_path;
       err = oss.str().c_str();
       return false;
     }
   } else {
+    eos_err("failed to open temporary configuration file %s", tmp_partial.c_str());
     err = "error: failed to save temporary configuration file with name \"";
     err += name;
     err += "\"!";
@@ -432,7 +451,7 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   if (rename(tmp_path.c_str(), full_path.c_str())) {
     eos_err("failed rename %s to %s", full_path.c_str(), bkp_path.c_str());
     oss.str("");
-    oss << "error: faield to rename " << full_path << " to " << bkp_path;
+    oss << "error: failed to rename " << full_path << " to " << bkp_path;
     err = oss.str().c_str();
     return false;
   }
@@ -551,8 +570,8 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
       // Remove suffix
       removelinefeed.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX, "");
 
-      if ((!showbackup) && ((removelinefeed.find(".backup.") != STR_NPOS) ||
-                            (removelinefeed.find(".autosave.") != STR_NPOS))) {
+      if ((!showbackup) && ((removelinefeed.find(sBackupTag.c_str()) != STR_NPOS) ||
+                            (removelinefeed.find(sAutosaveTag.c_str()) != STR_NPOS))) {
         // Don't show these ones
       } else {
         configlist += removelinefeed;
@@ -746,6 +765,37 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 
   (void) AutoSave();
   eos_static_debug("%s", key);
+}
+
+//------------------------------------------------------------------------------
+// Get the most recent autosave file from the default location
+//------------------------------------------------------------------------------
+std::string
+FileConfigEngine::GetLatestAutosave() const
+{
+  DIR* dir;
+  std::set<std::string> file_names;
+
+  if ((dir = opendir(mConfigDir.c_str())) != NULL) {
+    struct dirent* ent;
+
+    // Collect all the files containing "autosave" in their name
+    while ((ent = readdir(dir)) != NULL) {
+      if (strstr(ent->d_name, sAutosaveTag.c_str()) != nullptr) {
+        (void) file_names.insert(ent->d_name);
+      }
+    }
+
+    closedir(dir);
+
+    // Files have a timestamp so it's enough to take the last one ordered
+    // lexicographically and rely on the fact that sets are ordered.
+    if (!file_names.empty()) {
+      return *file_names.rbegin();
+    }
+  }
+
+  return std::string();
 }
 
 EOSMGMNAMESPACE_END

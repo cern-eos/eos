@@ -187,6 +187,10 @@ public:
   }
 
 private:
+  //! Tags used when building the config file names stored on disk
+  static const std::string sAutosaveTag;
+  static const std::string sBackupTag;
+
   //----------------------------------------------------------------------------
   //! Filter configuration
   //!
@@ -195,6 +199,14 @@ private:
   //! @param cfg_name configuration name
   //----------------------------------------------------------------------------
   void FilterConfig(PrintInfo& info, XrdOucString& out, const char* cfg_fn);
+
+  //----------------------------------------------------------------------------
+  //! Get the most recent autosave file from the default location
+  //!
+  //! @return full path to the autosave file if it exists, otherwise empty
+  //!         string
+  //----------------------------------------------------------------------------
+  std::string GetLatestAutosave() const;
 };
 
 EOSMGMNAMESPACE_END
