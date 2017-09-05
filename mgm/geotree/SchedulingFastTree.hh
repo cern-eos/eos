@@ -94,7 +94,7 @@ class GeoTag2NodeIdxMap : public SchedTreeBase
   void
   search(const char* tag, tFastTreeIdx& startFrom) const
   {
-    eos_static_notice("tag=%s | startFrom=%d", tag, (int)startFrom);
+    eos_static_debug("tag=%s | startFrom=%d", tag, (int)startFrom);
 
     if (*tag == 0) {
       return;
