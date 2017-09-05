@@ -319,7 +319,6 @@ private:
   bool mJsonFormat; ///< indicates JSON format
   bool mHttpFormat; ///< indicates HTTP format
   bool mClosed; ///< indicates the proc command has been closed already
-  bool mBase64Encoding; ///< indicates base64 encoding of response
   XrdOucString mJsonCallback; ///< sets the JSONP callback name in a response
 
   //----------------------------------------------------------------------------
@@ -451,7 +450,6 @@ private:
                    const std::string& twindow_type,
                    const std::string& twindow_val,
                    const std::set<std::string>& excl_xattr);
-
 };
 
 

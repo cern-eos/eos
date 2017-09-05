@@ -198,7 +198,7 @@ ProcCommand::ProcCommand():
   fresultStream(0), fstdoutfilename(""), fstderrfilename(""),
   fresultStreamfilename(""), mError(0), mComment(""), mLen(0), mAdminCmd(false),
   mUserCmd(false), mFuseFormat(false), mJsonFormat(false), mHttpFormat(false),
-  mClosed(false), mBase64Encoding(false), mJsonCallback("")
+  mClosed(false), mJsonCallback("")
 {
   mExecTime = time(NULL);
 }
@@ -361,7 +361,6 @@ ProcCommand::open(const char* inpath, const char* info,
   mFuseFormat = false;
   mJsonFormat = false;
   mHttpFormat = false;
-  mBase64Encoding = false;
   // If set to FUSE, don't print the stdout,stderr tags and we guarantee a line
   // feed in the end
   XrdOucString format = pOpaque->Get("mgm.format");
@@ -384,11 +383,6 @@ ProcCommand::open(const char* inpath, const char* info,
   mResultStream = "";
   mLen = 0;
   mDoSort = true;
-  XrdOucString encoding = pOpaque->Get("mgm.enc");
-
-  if (encoding == "b64") {
-    mBase64Encoding = true;
-  }
 
   if (mJsonCallback.length()) {
     mJsonFormat = true;
