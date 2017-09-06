@@ -476,11 +476,34 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             }
           }
         }
+
+        if (!strcmp("fmddict", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument 2 for fmd dictionary missing");
+            NoGo = 1;
+          } else {
+            eos::fst::Config::gConfig.FstFmdDict = val;
+          }
+        }
       }
     }
 
     Config.Close();
     close(cfgFD);
+  }
+
+  if(eos::fst::Config::gConfig.FstFmdDict.length() == 0) {
+    Eroute.Emsg("Config", "fmd compression dictionary is not provided");
+    NoGo = 1;
+  }
+  else {
+    fmdCompressor.setCompressionLevel(19);
+    try {
+      fmdCompressor.setDicts(eos::fst::Config::gConfig.FstFmdDict.c_str());
+    } catch (MDException& ex) {
+      Eroute.Emsg("Config", "could not load data from fmd compression dictionary");
+      NoGo = 1;
+    }
   }
 
   if (eos::fst::Config::gConfig.autoBoot) {

@@ -141,6 +141,14 @@ public:
     eos::common::RWMutexReadLock lock(mObjectLock);
     return mCachedObject ? *mCachedObject : throw UpdateException("Could not update the data, no valid data is present.");
   }
+
+  ExpiryCache(const ExpiryCache<T>&) = delete;
+
+  ExpiryCache(ExpiryCache<T>&&) = delete;
+
+  ExpiryCache<T>& operator=(const ExpiryCache<T>&) = delete;
+
+  ExpiryCache<T>& operator=(ExpiryCache<T>&&) = delete;
 };
 
 EOSCOMMONNAMESPACE_END

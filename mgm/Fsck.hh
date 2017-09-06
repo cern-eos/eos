@@ -28,15 +28,8 @@
 #include "common/FileSystem.hh"
 #include "common/FileId.hh"
 #include "common/ExpiryCache.hh"
-#include "XrdSys/XrdSysPthread.hh"
-//#include <google/sparse_hash_map>
-//#include <google/sparse_hash_set>
-#include <sys/types.h>
 #include <string>
-//#include <stdarg.h>
 #include <map>
-#include <set>
-#include <chrono>
 
 //------------------------------------------------------------------------------
 //! @file Fsck.hh

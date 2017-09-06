@@ -22,17 +22,14 @@
  ************************************************************************/
 
 #include "FmdAttributeHandler.hh"
-#include "fst/io/local/FsIo.hh"
 #include "common/Path.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-#include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/XrdFstOfs.hh"
 
 #include <fts.h>
 
 EOSFSTNAMESPACE_BEGIN
 
-FmdAttributeHandler gFmdAttributeHandler{&gFmdClient};
+FmdAttributeHandler gFmdAttributeHandler{&(gOFS.fmdCompressor), &gFmdClient};
 
 Fmd
 FmdAttributeHandler::FmdAttrGet(FileIo* fileIo) const {
@@ -44,28 +41,26 @@ FmdAttributeHandler::FmdAttrGet(FileIo* fileIo) const {
   }
 
   Fmd fmd;
-  fmd.ParsePartialFromString(fmdAttrValue);
+  fmd.ParsePartialFromString(compressor->decompress(fmdAttrValue));
 
   return fmd;
 }
 
 Fmd
 FmdAttributeHandler::FmdAttrGet(const std::string& filePath) const {
-  FsIo fsIo{filePath};
-  return FmdAttrGet(&fsIo);
+  LocalIo localIo{filePath};
+  return FmdAttrGet(&localIo);
 }
 
 Fmd
 FmdAttributeHandler::FmdAttrGet(eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
                                 XrdOucEnv* env) const {
-  FsIo fsIo{FullPathOfFile(fid, fsid, env).c_str()};
-  return FmdAttrGet(&fsIo);
+  return FmdAttrGet(FullPathOfFile(fid, fsid, env).c_str());
 }
 
 void
 FmdAttributeHandler::FmdAttrSet(FileIo* fileIo, const Fmd& fmd) const {
-  eos_info("fmd=%s", fmd.DebugString().c_str());
-  int result = fileIo->attrSet(FmdAttributeHandler::fmdAttrName, fmd.SerializePartialAsString());
+  int result = fileIo->attrSet(FmdAttributeHandler::fmdAttrName, compressor->compress(fmd.SerializePartialAsString()));
 
   if (result != 0) {
     throw fmd_attribute_error {"Could not set meta data attribute for the file."};
@@ -75,8 +70,8 @@ FmdAttributeHandler::FmdAttrSet(FileIo* fileIo, const Fmd& fmd) const {
 void
 FmdAttributeHandler::FmdAttrSet(const Fmd& fmd, eos::common::FileId::fileid_t fid,
                                 eos::common::FileSystem::fsid_t fsid, XrdOucEnv* env) const {
-  FsIo fsIo{FullPathOfFile(fid, fsid, env).c_str()};
-  FmdAttrSet(&fsIo, fmd);
+  LocalIo localIo{FullPathOfFile(fid, fsid, env).c_str()};
+  FmdAttrSet(&localIo, fmd);
 }
 
 void

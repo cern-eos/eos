@@ -28,6 +28,7 @@
 #include "fst/Config.hh"
 #include "fst/Fmd.hh"
 #include "common/Logging.hh"
+#include "common/compression/ZStandard.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -381,6 +382,7 @@ public:
   const char* mHostName; ///< FST hostname
   std::unique_ptr<qclient::QClient> mQcl; ///< Qclient object
   qclient::Members mQdbMembers; ///< QDB member endpoints
+  eos::common::ZStandard fmdCompressor;
 
 private:
   HttpServer* mHttpd; ///< Embedded http server

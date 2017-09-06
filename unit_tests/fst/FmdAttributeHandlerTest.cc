@@ -96,10 +96,26 @@ public:
   MOCK_METHOD3(GetMgmFmd, int(const char*, eos::common::FileId::fileid_t, struct Fmd&));
 };
 
-TEST_F(FmdAttributeHandlerTest, TestAttrSetAndGet) {
-  gFmdAttributeHandler.FmdAttrSet(fileIo, fmd);
+class MockCompression : public eos::common::Compression {
+public:
+  void
+  compress(eos::Buffer& record) override {
 
-  Fmd newFmd = gFmdAttributeHandler.FmdAttrGet(fileIo);
+  }
+
+  void
+  decompress(eos::Buffer& record) override {
+
+  }
+};
+
+MockCompression mockCompressor;
+
+TEST_F(FmdAttributeHandlerTest, TestAttrSetAndGet) {
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor};
+  testFmdAttributeHandler.FmdAttrSet(fileIo, fmd);
+
+  Fmd newFmd = testFmdAttributeHandler.FmdAttrGet(fileIo);
 
   ASSERT_EQ(fmd.fid(), newFmd.fid());
   ASSERT_EQ(fmd.cid(), newFmd.cid());
@@ -110,36 +126,40 @@ TEST_F(FmdAttributeHandlerTest, TestAttrSetAndGet) {
 }
 
 TEST_F(FmdAttributeHandlerTest, TestAttrGetWhenNotPresent) {
-  EXPECT_THROW(gFmdAttributeHandler.FmdAttrGet(fileIo), fmd_attribute_error);
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor};
+  EXPECT_THROW(testFmdAttributeHandler.FmdAttrGet(fileIo), fmd_attribute_error);
 }
 
 TEST_F(FmdAttributeHandlerTest, TestAttrSetWhenFileNotPresent) {
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor};
   Fmd fmd;
-  EXPECT_THROW(gFmdAttributeHandler.FmdAttrSet(nonExistingFileIo, fmd), fmd_attribute_error);
+  EXPECT_THROW(testFmdAttributeHandler.FmdAttrSet(nonExistingFileIo, fmd), fmd_attribute_error);
 }
 
 TEST_F(FmdAttributeHandlerTest, TestAttrDelete) {
-  gFmdAttributeHandler.FmdAttrSet(fileIo, fmd);
-  EXPECT_NO_THROW(gFmdAttributeHandler.FmdAttrGet(fileIo));
-  gFmdAttributeHandler.FmdAttrDelete(fileIo);
-  EXPECT_THROW(gFmdAttributeHandler.FmdAttrGet(fileIo), fmd_attribute_error);
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor};
+  testFmdAttributeHandler.FmdAttrSet(fileIo, fmd);
+  EXPECT_NO_THROW(testFmdAttributeHandler.FmdAttrGet(fileIo));
+  testFmdAttributeHandler.FmdAttrDelete(fileIo);
+  EXPECT_THROW(testFmdAttributeHandler.FmdAttrGet(fileIo), fmd_attribute_error);
 }
 
 TEST_F(FmdAttributeHandlerTest, TestAttrDeleteWhenNoFilePresent) {
-  EXPECT_THROW(gFmdAttributeHandler.FmdAttrDelete(fileIo), fmd_attribute_error);
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor};
+  EXPECT_THROW(testFmdAttributeHandler.FmdAttrDelete(fileIo), fmd_attribute_error);
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncMgmNoData) {
   MockFmdClient mockFmdClient;
   EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(Return(ENODATA));
-  FmdAttributeHandler testFmdAttributeHandler {&mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
   EXPECT_FALSE(testFmdAttributeHandler.ResyncMgm(nonExistingFileIo, 1, 2, "dummyManager"));
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncMgmError) {
   MockFmdClient mockFmdClient;
   EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(Return(-1));
-  FmdAttributeHandler testFmdAttributeHandler {&mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
   EXPECT_FALSE(testFmdAttributeHandler.ResyncMgm(nonExistingFileIo, 1, 2, "dummyManager"));
 }
 
@@ -147,7 +167,7 @@ TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFilePresent) {
   MockFmdClient mockFmdClient;
   EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(fmd), Return(0)));
 
-  FmdAttributeHandler testFmdAttributeHandler {&mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
   EXPECT_TRUE(testFmdAttributeHandler.ResyncMgm(fileIo, fsid, 2, "dummyManager"));
 
   Fmd newFmd = testFmdAttributeHandler.FmdAttrGet(fileIo);
@@ -166,7 +186,7 @@ TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFileNotPresent) {
   MockFmdClient mockFmdClient;
   EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(fmd), Return(0)));
 
-  FmdAttributeHandler testFmdAttributeHandler {&mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
   EXPECT_TRUE(testFmdAttributeHandler.ResyncMgm(nonExistingFileIo, fsid, 2, "dummyManager"));
 
   Fmd newFmd = testFmdAttributeHandler.FmdAttrGet(nonExistingFileIo);
@@ -185,7 +205,7 @@ TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFmdUpdate) {
   MockFmdClient mockFmdClient;
   EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(mgmUpdatedFmd), Return(0)));
 
-  FmdAttributeHandler testFmdAttributeHandler {&mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
 
   testFmdAttributeHandler.FmdAttrSet(fileIo, fmd);
   EXPECT_TRUE(testFmdAttributeHandler.ResyncMgm(fileIo, 1, 2, "dummyManager"));
@@ -205,7 +225,7 @@ TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFmdUpToDate) {
   MockFmdClient mockFmdClient;
   EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(mgmSameFmd), Return(0)));
 
-  FmdAttributeHandler testFmdAttributeHandler {&mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
 
   testFmdAttributeHandler.FmdAttrSet(fileIo, fmd);
   EXPECT_TRUE(testFmdAttributeHandler.ResyncMgm(fileIo, 1, 2, "dummyManager"));
@@ -226,14 +246,15 @@ TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithBadFile) {
   EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(fmd), Return(0)));
 
   FsIo badIo("/|this|/is*/a/bad?/<file name>");
-  FmdAttributeHandler testFmdAttributeHandler {&mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
   EXPECT_FALSE(testFmdAttributeHandler.ResyncMgm(&badIo, 1, 2, "dummyManager"));
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncDisk) {
-  EXPECT_TRUE(gFmdAttributeHandler.ResyncDisk(testFileName, fsid, false));
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor};
+  EXPECT_TRUE(testFmdAttributeHandler.ResyncDisk(testFileName, fsid, false));
 
-  Fmd newFmd = gFmdAttributeHandler.FmdAttrGet(fileIo);
+  Fmd newFmd = testFmdAttributeHandler.FmdAttrGet(fileIo);
 
   ASSERT_EQ(5, newFmd.fid());
   ASSERT_EQ(fsid, newFmd.fsid());

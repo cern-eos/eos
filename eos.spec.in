@@ -54,6 +54,7 @@ BuildRequires: git, readline-devel
 BuildRequires: openssl, openssl-devel
 BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
+BuildRequires: zstd, libzstd, libzstd-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: redhat-rpm-config
 %if %{?fedora}%{!?fedora:0} >= 27
@@ -159,6 +160,7 @@ Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
 %endif
+Requires: zstd, libzstd
 %if %{use_systemd}
 Requires: systemd
 %else

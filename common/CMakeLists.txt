@@ -27,6 +27,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${Z_INCLUDE_DIRS}
+  ${ZSTD_INCLUDE_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
@@ -71,7 +72,9 @@ set(EOSCOMMON_SRCS
   JeMallocHandler.cc
   plugin_manager/Plugin.hh
   plugin_manager/PluginManager.cc
-  plugin_manager/DynamicLibrary.cc)
+  plugin_manager/DynamicLibrary.cc
+  compression/Compression.cc
+  compression/ZStandard.cc)
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 
@@ -79,6 +82,7 @@ target_link_libraries(eosCommon PUBLIC
   XrdMqClient
   fmt
   ${Z_LIBRARY}
+  ${ZSTD_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
@@ -132,6 +136,7 @@ target_link_libraries(eosCommon-Static PRIVATE
   XrdMqClient-Static
   fmt
   ${Z_LIBRARY}
+  ${ZSTD_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}

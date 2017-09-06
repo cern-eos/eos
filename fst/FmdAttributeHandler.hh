@@ -27,6 +27,8 @@
 
 #include "fst/Namespace.hh"
 #include "fst/io/FileIo.hh"
+#include "common/compression/ZStandard.hh"
+#include "fst/XrdFstOfs.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -34,6 +36,7 @@ class FmdAttributeHandler : public eos::common::LogId {
 protected:
   static constexpr auto fmdAttrName = "user.eos.fmd"; //! file meta data attribute name constant
   FmdClient* const fmdClient = nullptr; //! client for meta data operations
+  eos::common::Compression* const compressor = nullptr;
 
   std::map<eos::common::FileSystem::fsid_t, bool> isSyncing;
 
@@ -132,19 +135,18 @@ public:
 
   //! Constructor to create the handler object
   //! \param fmdClient pointer to the \see FmdClient object, default value is the globally available client object
-  explicit FmdAttributeHandler(FmdClient* fmdClient = &gFmdClient) : fmdClient(fmdClient) {}
+  FmdAttributeHandler(eos::common::Compression* compressor = &(gOFS.fmdCompressor), FmdClient* fmdClient = &gFmdClient)
+    : fmdClient(fmdClient), compressor(compressor) {}
 
   virtual ~FmdAttributeHandler() {};
 
   FmdAttributeHandler(FmdAttributeHandler&) = delete;
 
-  FmdAttributeHandler&
-  operator=(FmdAttributeHandler&) = delete;
+  FmdAttributeHandler& operator=(FmdAttributeHandler&) = delete;
 
   FmdAttributeHandler(FmdAttributeHandler&&) = delete;
 
-  FmdAttributeHandler&
-  operator=(FmdAttributeHandler&&) = delete;
+  FmdAttributeHandler& operator=(FmdAttributeHandler&&) = delete;
 };
 
 struct fmd_attribute_error : public std::runtime_error {

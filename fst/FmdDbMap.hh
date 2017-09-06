@@ -30,6 +30,8 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 
+#include <dirent.h>
+
 #ifdef __APPLE__
 #define ECOMM 70
 #endif
@@ -166,6 +168,46 @@ public:
   //----------------------------------------------------------------------------
   bool LocalDeleteFmd(eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid);
+
+  static std::vector<int> GetFsidInMetaDir(const char* path)
+  {
+    std::unique_ptr<DIR, decltype(&closedir)> dir(opendir(path), &closedir);
+    if(!dir) {
+      return std::vector<int>();
+    }
+
+    struct dirent *entry = readdir(dir.get());
+
+    std::vector<int> fsidList;
+    while (entry != nullptr)
+    {
+      if (entry->d_type == DT_DIR && std::string(entry->d_name).find_first_of( "0123456789" ) != std::string::npos) {
+        fsidList.emplace_back(std::stoi(first_numberstring(entry->d_name)));
+      }
+
+      entry = readdir(dir.get());
+    }
+
+    return fsidList;
+  }
+
+  inline std::list<Fmd> RetrieveAllFmd()
+  {
+    std::list<Fmd> fmdList;
+    const eos::common::DbMap::Tval* val;
+    const eos::common::DbMap::Tkey* key;
+    Fmd fmd;
+    for (const auto& map : mDbMap) {
+      map.second->beginIter();
+      while(map.second->iterate(&key, &val)) {
+        fmd.Clear();
+        fmd.ParseFromString(val->value);
+        fmdList.emplace_back(fmd);
+      }
+    }
+
+    return fmdList;
+  }
 
   //----------------------------------------------------------------------------
   //! Commit modified Fmd record to the local database
@@ -571,6 +613,17 @@ private:
   static bool ExecuteDumpmd(const std::string& mgm_hosst,
                             eos::common::FileSystem::fsid_t fsid,
                             std::string& fn_output);
+
+  static inline std::string first_numberstring(const std::string & str)
+  {
+    std::size_t const n = str.find_first_of("0123456789");
+    if (n != std::string::npos)
+    {
+      std::size_t const m = str.find_first_not_of("0123456789", n);
+      return str.substr(n, m != std::string::npos ? m-n : m);
+    }
+    return std::string();
+  }
 };
 
 extern FmdDbMapHandler gFmdDbMapHandler;

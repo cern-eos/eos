@@ -97,6 +97,7 @@ if(NOT PACKAGEONLY)
   # The server build also requires
   if (NOT CLIENT)
     find_package(ldap REQUIRED)
+    find_package(zstd REQUIRED)
     if (BUILD_TESTS)
       # @todo (esindril): Completely drop cppunit once everything is moved
       # to gtest
