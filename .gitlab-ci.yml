@@ -193,7 +193,7 @@ eos_dmg_macosx:
     - mkdir build
     - mkdir install
     - cd build
-    - /Users/jenkins/workspace/cmake-3.5.2/install/bin/cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=/usr/local -D Z_ROOT_DIR=/usr/local/opt/zlib/ -D OPENSSL_ROOT_DIR=/usr/local/opt/openssl/ -D NCURSES_ROOT_DIR=/usr/local/opt/ncurses/ -D ZMQ_ROOT_DIR=/usr/local/opt/zeromq/ -D XROOTD_ROOT_DIR=/usr/local/opt/xrootd/ ..
+    - /Users/jenkins/workspace/cmake-3.5.2/install/bin/cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=/usr/local -D Z_ROOT_DIR=/usr/local/opt/zlib/ -D ZSTD_ROOT_DIR=/usr/local/opt/zstd/ -D OPENSSL_ROOT_DIR=/usr/local/opt/openssl/ -D NCURSES_ROOT_DIR=/usr/local/opt/ncurses/ -D ZMQ_ROOT_DIR=/usr/local/opt/zeromq/ -D XROOTD_ROOT_DIR=/usr/local/opt/xrootd/ ..
     - make -j 4
     - make install DESTDIR=../install/
     - version=`../genversion.sh`
