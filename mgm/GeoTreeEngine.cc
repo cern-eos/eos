@@ -554,7 +554,8 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
   std::string format_f = !monitoring ? "+f" : "of";
   std::string unit = !monitoring ? "s" : "";
   std::string na = !monitoring ? "-NA-" : "NA";
-  unsigned scale = !monitoring ? 1000 : 1; // miliseconds to seconds for human view
+  unsigned scale = !monitoring ? 1000 :
+                   1; // miliseconds to seconds for human view
 
   if (dispParam) {
     ostr << "### GeoTreeEngine parameters :" << std::endl;
@@ -600,86 +601,105 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
     ostr << "frameCount = " << pFrameCount << std::endl;
 
     //! Added penalties for each fs over successive frames
-    if (!monitoring)
+    if (!monitoring) {
       ostr << "\n┏━> Added penalties for each fs over successive frames\n";
+    }
+
     {
       // to be sure that no fs in inserted removed in the meantime
       eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
       struct timeval curtime;
       gettimeofday(&curtime, 0);
       size_t ts = curtime.tv_sec * 1000 + curtime.tv_usec / 1000;
-
       TableFormatterBase table;
       TableHeader table_header;
-      if (monitoring)
+
+      if (monitoring) {
         table_header.push_back(std::make_tuple("type", 4, format_s));
+      }
+
       table_header.push_back(std::make_tuple("fsid", 4, format_ll));
       table_header.push_back(std::make_tuple("drct", 4, format_s));
+
       for (size_t itcol = 0; itcol < pCircSize; itcol++) {
         float frame = pLatencySched.pCircFrCnt2Timestamp[
-                      (pFrameCount + pCircSize - 1 - itcol) % pCircSize] ?
+                        (pFrameCount + pCircSize - 1 - itcol) % pCircSize] ?
                       (ts - pLatencySched.pCircFrCnt2Timestamp[
-                      (pFrameCount + pCircSize - 1 - itcol) % pCircSize]) * 0.001 : 0;
-
+                         (pFrameCount + pCircSize - 1 - itcol) % pCircSize]) * 0.001 : 0;
         char header_name[24];
         std::sprintf(header_name, "%.1f", frame);
-        table_header.push_back(std::make_tuple( header_name, 4, format_l ));
+        table_header.push_back(std::make_tuple(header_name, 4, format_l));
       }
-      table.SetHeader(table_header);
 
+      table.SetHeader(table_header);
       FsView::gFsView.ViewMutex.LockRead();
       size_t fsid_count = pPenaltySched.pCircFrCnt2FsPenalties.begin()->size();
+
       for (size_t fsid = 1; fsid < fsid_count; fsid++) {
-        if (!(FsView::gFsView.mIdView.count(fsid)))
-        continue;
+        if (!(FsView::gFsView.mIdView.count(fsid))) {
+          continue;
+        }
 
         table.AddSeparator();
-
         // for Upload
         TableData table_data;
         table_data.emplace_back();
-        if (monitoring)
-          table_data.back().push_back(TableCell( "AddedPenalties", format_s));
-        table_data.back().push_back(TableCell( (unsigned long long)fsid, format_l));
-        table_data.back().push_back(TableCell( "UL", format_s));
+
+        if (monitoring) {
+          table_data.back().push_back(TableCell("AddedPenalties", format_s));
+        }
+
+        table_data.back().push_back(TableCell((unsigned long long)fsid, format_l));
+        table_data.back().push_back(TableCell("UL", format_s));
 
         for (size_t itcol = 0; itcol < pCircSize; itcol++) {
           int value = pPenaltySched.pCircFrCnt2FsPenalties[
-            (pFrameCount + pCircSize - 1 - itcol) % pCircSize][fsid].ulScorePenalty;
-          table_data.back().push_back(TableCell( value, format_l));
+                        (pFrameCount + pCircSize - 1 - itcol) % pCircSize][fsid].ulScorePenalty;
+          table_data.back().push_back(TableCell(value, format_l));
         }
 
         // for Download
         table_data.emplace_back();
+
         if (monitoring) {
-          table_data.back().push_back(TableCell( "AddedPenalties", format_s));
-          table_data.back().push_back(TableCell( (unsigned long long)fsid, format_l));
+          table_data.back().push_back(TableCell("AddedPenalties", format_s));
+          table_data.back().push_back(TableCell((unsigned long long)fsid, format_l));
         } else {
-          table_data.back().push_back(TableCell( "", format_s));
+          table_data.back().push_back(TableCell("", format_s));
         }
-        table_data.back().push_back(TableCell( "DL", format_s));
+
+        table_data.back().push_back(TableCell("DL", format_s));
 
         for (size_t itcol = 0; itcol < pCircSize; itcol++) {
           int value = pPenaltySched.pCircFrCnt2FsPenalties[
-            (pFrameCount + pCircSize - 1 - itcol) % pCircSize][fsid].dlScorePenalty;
-          table_data.back().push_back(TableCell( value, format_l));
+                        (pFrameCount + pCircSize - 1 - itcol) % pCircSize][fsid].dlScorePenalty;
+          table_data.back().push_back(TableCell(value, format_l));
         }
+
         table.AddRows(table_data);
       }
+
       FsView::gFsView.ViewMutex.UnLockRead();
       ostr << table.GenerateTable(HEADER2).c_str();
     }
 
     //! fst2GeotreeEngine latency
-    if (!monitoring)
+    if (!monitoring) {
       ostr << "\n┏━> fst2GeotreeEngine latency\n";
+    }
+
     struct timeval nowtv;
+
     gettimeofday(&nowtv, NULL);
+
     size_t nowms = nowtv.tv_sec * 1000 + nowtv.tv_usec / 1000;
+
     double avAge = 0.0;
+
     size_t count = 0;
+
     std::vector<std::tuple<unsigned long long,
-      double, double, double, double, bool>> data_fst;
+        double, double, double, double, bool>> data_fst;
 
     for (auto it : pLatencySched.pFsId2LatencyStats) {
       if (it.getage(nowms) < 600000) { // consider only if less than a minute
@@ -689,77 +709,90 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
     }
 
     avAge /= (count ? count : 1);
-
     TableFormatterBase table_fst;
+
     if (!monitoring)
       table_fst.SetHeader({
-        std::make_tuple("fsid", 6, format_ll),
-        std::make_tuple("minimum", 10, format_f),
-        std::make_tuple("averge", 10, format_f),
-        std::make_tuple("maximum", 10, format_f),
-        std::make_tuple("age(last)", 10, format_f)
-      });
+      std::make_tuple("fsid", 6, format_ll),
+      std::make_tuple("minimum", 10, format_f),
+      std::make_tuple("averge", 10, format_f),
+      std::make_tuple("maximum", 10, format_f),
+      std::make_tuple("age(last)", 10, format_f)
+    });
     else
       table_fst.SetHeader({
-        std::make_tuple("type", 0, format_s),
-        std::make_tuple("fsid", 0, format_ll),
-        std::make_tuple("min", 0, format_f),
-        std::make_tuple("avg", 0, format_f),
-        std::make_tuple("max", 0, format_f),
-        std::make_tuple("age(last)", 0, format_f)
-      });
-
+      std::make_tuple("type", 0, format_s),
+      std::make_tuple("fsid", 0, format_ll),
+      std::make_tuple("min", 0, format_f),
+      std::make_tuple("avg", 0, format_f),
+      std::make_tuple("max", 0, format_f),
+      std::make_tuple("age(last)", 0, format_f)
+    });
     FsView::gFsView.ViewMutex.LockRead();
-    data_fst.push_back(std::make_tuple( 0,
-      pLatencySched.pGlobalLatencyStats.minlatency,
-      pLatencySched.pGlobalLatencyStats.averagelatency,
-      pLatencySched.pGlobalLatencyStats.maxlatency, avAge, true ));
+    data_fst.push_back(std::make_tuple(0,
+                                       pLatencySched.pGlobalLatencyStats.minlatency,
+                                       pLatencySched.pGlobalLatencyStats.averagelatency,
+                                       pLatencySched.pGlobalLatencyStats.maxlatency, avAge, true));
+
     for (size_t fsid = 1; fsid < pLatencySched.pFsId2LatencyStats.size(); fsid++) {
-      if (!(FsView::gFsView.mIdView.count(fsid)))
+      if (!(FsView::gFsView.mIdView.count(fsid))) {
         continue;
+      }
+
       // more than 1 minute, something is wrong
-      if (pLatencySched.pFsId2LatencyStats[fsid].getage(nowms) > 600000)
-        data_fst.push_back(std::make_tuple( fsid, 0, 0, 0, 0, false ));
-      else
-        data_fst.push_back(std::make_tuple( fsid,
-          pLatencySched.pFsId2LatencyStats[fsid].minlatency,
-          pLatencySched.pFsId2LatencyStats[fsid].averagelatency,
-          pLatencySched.pFsId2LatencyStats[fsid].maxlatency,
-          pLatencySched.pFsId2LatencyStats[fsid].getage(nowms), true ));
+      if (pLatencySched.pFsId2LatencyStats[fsid].getage(nowms) > 600000) {
+        data_fst.push_back(std::make_tuple(fsid, 0, 0, 0, 0, false));
+      } else
+        data_fst.push_back(std::make_tuple(fsid,
+                                           pLatencySched.pFsId2LatencyStats[fsid].minlatency,
+                                           pLatencySched.pFsId2LatencyStats[fsid].averagelatency,
+                                           pLatencySched.pFsId2LatencyStats[fsid].maxlatency,
+                                           pLatencySched.pFsId2LatencyStats[fsid].getage(nowms), true));
     }
+
     FsView::gFsView.ViewMutex.UnLockRead();
 
-    for(auto it : data_fst) {
+    for (auto it : data_fst) {
       TableData table_data;
       table_data.emplace_back();
-      if (monitoring)
-        table_data.back().push_back(TableCell( "fst2GeotreeEngine", format_s));
+
+      if (monitoring) {
+        table_data.back().push_back(TableCell("fst2GeotreeEngine", format_s));
+      }
+
       if (std::get<0>(it) == 0) {
-        table_data.back().push_back(TableCell( "global", format_s));
+        table_data.back().push_back(TableCell("global", format_s));
       } else {
-        table_data.back().push_back(TableCell( std::get<0>(it), format_l));
+        table_data.back().push_back(TableCell(std::get<0>(it), format_l));
       }
+
       if (std::get<5>(it)) {
-        table_data.back().push_back(TableCell( std::get<1>(it)/scale, format_f, unit));
-        table_data.back().push_back(TableCell( std::get<2>(it)/scale, format_f, unit));
-        table_data.back().push_back(TableCell( std::get<3>(it)/scale, format_f, unit));
-        table_data.back().push_back(TableCell( std::get<4>(it)/scale, format_f, unit));
-      } else for(int i=0; i<4; i++) {
-        table_data.back().push_back(TableCell( na, format_s));
-      }
+        table_data.back().push_back(TableCell(std::get<1>(it) / scale, format_f, unit));
+        table_data.back().push_back(TableCell(std::get<2>(it) / scale, format_f, unit));
+        table_data.back().push_back(TableCell(std::get<3>(it) / scale, format_f, unit));
+        table_data.back().push_back(TableCell(std::get<4>(it) / scale, format_f, unit));
+      } else for (int i = 0; i < 4; i++) {
+          table_data.back().push_back(TableCell(na, format_s));
+        }
+
       table_fst.AddRows(table_data);
-      if (std::get<0>(it) == 0 && data_fst.size() > 1)
+
+      if (std::get<0>(it) == 0 && data_fst.size() > 1) {
         table_fst.AddSeparator();
+      }
     }
+
     ostr << table_fst.GenerateTable(HEADER2).c_str();
 
     //! gw2GeotreeEngine latency
-    if (!monitoring)
+    if (!monitoring) {
       ostr << "\n┏━> gw2GeotreeEngine latency\n";
+    }
+
     avAge = 0.0;
     count = 0;
     std::vector<std::tuple<std::string,
-      double, double, double, double, bool>> data_gw;
+        double, double, double, double, bool>> data_gw;
 
     for (auto it : pLatencySched.pHost2LatencyStats) {
       if (it.second.getage(nowms) < 600000) { // consider only if less than a minute
@@ -769,59 +802,66 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
     }
 
     avAge /= (count ? count : 1);
-
     TableFormatterBase table_gw;
+
     if (!monitoring)
       table_gw.SetHeader({
-        std::make_tuple("hostname", 10, format_s),
-        std::make_tuple("minimum", 10, format_f),
-        std::make_tuple("averge", 10, format_f),
-        std::make_tuple("maximum", 10, format_f),
-        std::make_tuple("age(last)", 10, format_f)
-      });
+      std::make_tuple("hostname", 10, format_s),
+      std::make_tuple("minimum", 10, format_f),
+      std::make_tuple("averge", 10, format_f),
+      std::make_tuple("maximum", 10, format_f),
+      std::make_tuple("age(last)", 10, format_f)
+    });
     else
       table_gw.SetHeader({
-        std::make_tuple("type", 0, format_s),
-        std::make_tuple("hostname", 0, format_s),
-        std::make_tuple("min", 0, format_f),
-        std::make_tuple("avg", 0, format_f),
-        std::make_tuple("max", 0, format_f),
-        std::make_tuple("age(last)", 0, format_f)
-      });
-
-    data_gw.push_back(std::make_tuple( "global",
-      pLatencySched.pGlobalLatencyStats.minlatency,
-      pLatencySched.pGlobalLatencyStats.averagelatency,
-      pLatencySched.pGlobalLatencyStats.maxlatency, avAge, true ));
+      std::make_tuple("type", 0, format_s),
+      std::make_tuple("hostname", 0, format_s),
+      std::make_tuple("min", 0, format_f),
+      std::make_tuple("avg", 0, format_f),
+      std::make_tuple("max", 0, format_f),
+      std::make_tuple("age(last)", 0, format_f)
+    });
+    data_gw.push_back(std::make_tuple("global",
+                                      pLatencySched.pGlobalLatencyStats.minlatency,
+                                      pLatencySched.pGlobalLatencyStats.averagelatency,
+                                      pLatencySched.pGlobalLatencyStats.maxlatency, avAge, true));
 
     for (auto it : pLatencySched.pHost2LatencyStats) {
       // more than 1 minute, something is wrong
-      if (it.second.getage(nowms) > 600000)
-        data_gw.push_back(std::make_tuple( it.first, 0, 0, 0, 0, false ));
-      else
-        data_gw.push_back(std::make_tuple( it.first,
-          it.second.minlatency, it.second.averagelatency,
-          it.second.maxlatency, it.second.getage(nowms), true ));
+      if (it.second.getage(nowms) > 600000) {
+        data_gw.push_back(std::make_tuple(it.first, 0, 0, 0, 0, false));
+      } else
+        data_gw.push_back(std::make_tuple(it.first,
+                                          it.second.minlatency, it.second.averagelatency,
+                                          it.second.maxlatency, it.second.getage(nowms), true));
     }
 
-    for(auto it : data_gw) {
+    for (auto it : data_gw) {
       TableData table_data;
       table_data.emplace_back();
-      if (monitoring)
-        table_data.back().push_back(TableCell( "gw2GeotreeEngine", format_s));
-      table_data.back().push_back(TableCell( std::get<0>(it), format_s));
-      if (std::get<5>(it)) {
-        table_data.back().push_back(TableCell( std::get<1>(it)/scale, format_f, unit));
-        table_data.back().push_back(TableCell( std::get<2>(it)/scale, format_f, unit));
-        table_data.back().push_back(TableCell( std::get<3>(it)/scale, format_f, unit));
-        table_data.back().push_back(TableCell( std::get<4>(it)/scale, format_f, unit));
-      } else for(int i=0; i<4; i++) {
-        table_data.back().push_back(TableCell( na, format_s));
+
+      if (monitoring) {
+        table_data.back().push_back(TableCell("gw2GeotreeEngine", format_s));
       }
+
+      table_data.back().push_back(TableCell(std::get<0>(it), format_s));
+
+      if (std::get<5>(it)) {
+        table_data.back().push_back(TableCell(std::get<1>(it) / scale, format_f, unit));
+        table_data.back().push_back(TableCell(std::get<2>(it) / scale, format_f, unit));
+        table_data.back().push_back(TableCell(std::get<3>(it) / scale, format_f, unit));
+        table_data.back().push_back(TableCell(std::get<4>(it) / scale, format_f, unit));
+      } else for (int i = 0; i < 4; i++) {
+          table_data.back().push_back(TableCell(na, format_s));
+        }
+
       table_gw.AddRows(table_data);
-      if (std::get<0>(it) == "global" && data_gw.size() > 1)
+
+      if (std::get<0>(it) == "global" && data_gw.size() > 1) {
         table_gw.AddSeparator();
+      }
     }
+
     ostr << table_gw.GenerateTable(HEADER2).c_str();
   }
 
@@ -1748,26 +1788,25 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
                                                  )
 {
   int returnCode = ENODATA;
-  // some basic checks
   assert(nAccessReplicas);
   assert(existingReplicas);
 
-  // check that enough replicas exist already
+  // Check that enough replicas exist already
   if (nAccessReplicas > existingReplicas->size()) {
     eos_debug("not enough replica : has %d and requires %d :",
               (int)existingReplicas->size(), (int)nAccessReplicas);
     return EROFS;
   }
 
-  // check if the forced replicas (if any) is among the existing replicas
+  // Check if the forced replicas (if any) are among the existing replicas
   if (forcedFsId > 0 &&
       (std::find(existingReplicas->begin(), existingReplicas->end(),
                  forcedFsId) == existingReplicas->end())) {
     return ENODATA;
   }
 
-  // find the group holdings the fs of the existing replicas
-  // check that the replicas are available
+  // Find the group holdings the fs of the existing replicas and check that the
+  // replicas are available
   size_t availFsCount = 0;
   eos::mgm::ROAccessPriorityComparator comp;
   eos::mgm::SchedTreeBase::TreeNodeSlots freeSlot;
@@ -1777,8 +1816,8 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
   ERIdx.reserve(existingReplicas->size());
   std::vector<SchedTME*> entries;
   entries.reserve(existingReplicas->size());
-  // Maps tree maps entries (i.e. scheduling groups) to fsids containing a
-  // replica being available and the corresponding fastTreeIndex
+  // Maps tree maps entries (i.e. scheduling groups) to fs ids containing an
+  // available replica and the corresponding fastTreeIndex
   map<SchedTME*, vector< pair<FileSystem::fsid_t, SchedTreeBase::tFastTreeIdx> > >
   entry2FsId;
   SchedTME* entry = NULL;
@@ -1791,7 +1830,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
          exrepIt != existingReplicas->end(); exrepIt++) {
       auto mentry = pFs2SchedTME.find(*exrepIt);
 
-      // if we cannot find the fs in any group, there is an inconsistency somewhere
+      // If we cannot find the fs in any group, there is an inconsistency somewhere
       if (mentry == pFs2SchedTME.end()) {
         eos_warning("cannot find the existing replica in any scheduling group");
         continue;
@@ -1870,13 +1909,13 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     }
   }
 
-  // check there is enough available replicas
+  // Check if there are enough available replicas
   if (availFsCount < nAccessReplicas) {
     returnCode = ENETUNREACH;
     goto cleanup;
   }
 
-  // check if the forced replicas (if any) is available
+  // Check if the forced replica (if any) is available
   if (forcedFsId > 0 &&
       (std::find(unavailableFs->begin(), unavailableFs->end(),
                  forcedFsId) != unavailableFs->end())) {
@@ -1884,8 +1923,8 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     goto cleanup;
   }
 
-  // we have multiple groups
-  // compute their geolocation scores to the the available fsids (+things) having a replica
+  // We have multiple groups - compute their geolocation scores to the the
+  // available fsids (+things) having a replica
   {
     SchedTreeBase::tFastTreeIdx accesserNode = 0;
     FileSystem::fsid_t selectedFsId = 0;
@@ -2042,24 +2081,20 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     }
   }
 
-  // apply penalties if needed
+  // Apply penalties if needed
   if (!noIO) {
-    std::set<eos::common::FileSystem::fsid_t> setunav(unavailableFs->begin(),
-        unavailableFs->end());
+    std::set<eos::common::FileSystem::fsid_t>
+    setunav(unavailableFs->begin(), unavailableFs->end());
 
-    //for(auto erit=existingReplicas->begin(); erit!=existingReplicas->end(); erit++)
     for (size_t i = 0; i < existingReplicas->size(); i++) {
       size_t j = (fsIndex + i) % existingReplicas->size();
       auto& fs = (*existingReplicas)[j];
 
-      // if this one is unavailable, skip it
+      // If this one is unavailable, skip it
       if (setunav.count(fs)) {
         continue;
       }
 
-      //////////
-      // apply the penalties
-      //////////
       if (!pFs2SchedTME.count(fs)) {
         continue;
       }
@@ -2090,7 +2125,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
         eos_err("could not find fs on the fast tree to apply penalties");
       }
 
-      // the gateway will also have to pull data from the
+      // The gateway will also have to pull data from the
       if (j == fsIndex && nAccessReplicas == 1) { // mainly replica layout RO case
         break;
       }
@@ -2142,7 +2177,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     }
   }
 
-  // if we arrive here, it all ran fine
+  // If we get here, everything is fine
   returnCode = 0;
   // cleanup and exit
 cleanup:
