@@ -45,6 +45,7 @@ if(NOT PACKAGEONLY)
   find_package(fuse3 )
   find_package(Threads REQUIRED)
   find_package(z REQUIRED)
+  find_package(zstd REQUIRED)
   find_package(readline REQUIRED)
   find_package(CURL REQUIRED)
   find_package(uuid REQUIRED)
@@ -97,7 +98,6 @@ if(NOT PACKAGEONLY)
   # The server build also requires
   if (NOT CLIENT)
     find_package(ldap REQUIRED)
-    find_package(zstd REQUIRED)
     if (BUILD_TESTS)
       # @todo (esindril): Completely drop cppunit once everything is moved
       # to gtest
