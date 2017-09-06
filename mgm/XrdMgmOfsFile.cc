@@ -654,8 +654,9 @@ XrdMgmOfsFile::open(const char* inpath,
     }
 
     // If a file has the sys.proc attribute, it will be redirected as a command
-    if(fmd != nullptr && fmd->getAttributes().count("sys.proc")) {
-      return open("/proc/user/", open_mode, Mode, client, fmd->getAttribute("sys.proc").c_str());
+    if (fmd != nullptr && fmd->getAttributes().count("sys.proc")) {
+      return open("/proc/user/", open_mode, Mode, client,
+                  fmd->getAttribute("sys.proc").c_str());
     }
   }
 
@@ -1639,68 +1640,76 @@ XrdMgmOfsFile::open(const char* inpath,
                 path);
   }
 
-  // Set the FST gateway for clients who are geotagged with default
-  // Do this with forwarding proxy syntax only if the firewall entrypoint is different from the endpoint
-  if (firewalleps[fsIndex].size()
-      && ((!proxys[fsIndex].empty() && firewalleps[fsIndex] != proxys[fsIndex])
-          || (firewalleps[fsIndex] != filesystem->GetString("hostport").c_str()))) {
-    // Build the URL for the forwarding proxy and must have the following
-    // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
-    auto idx = firewalleps[fsIndex].rfind(":");
-
-    if (idx != std::string::npos) {
-      targethost = firewalleps[fsIndex].substr(0, idx).c_str();
-      targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
-                        std::string::npos).c_str());
-    } else {
-      targethost = firewalleps[fsIndex].c_str();
-      targetport = 0;
-    }
-
-    std::ostringstream oss;
-    oss << targethost << "?" << "eos.fstfrw=";
-
-    // check if we have to redirect to the fs host or to a proxy
-    if (proxys[fsIndex].empty()) {
-      oss << filesystem->GetString("host").c_str() << ":" <<
-          filesystem->GetString("port").c_str();
-    } else {
-      oss << proxys[fsIndex];
-    }
-
-    redirectionhost = oss.str().c_str();
-    redirectionhost += "&";
-  } else {
-    if (proxys[fsIndex].empty()) { // there is no proxy to use
-      targethost  = filesystem->GetString("host").c_str();
-      targetport  = atoi(filesystem->GetString("port").c_str());
-    } else { // we have a proxy to use
-      (void) proxys[fsIndex].c_str();
-      auto idx = proxys[fsIndex].rfind(":");
+  // Set the FST gateway for clients who are geo-tagged with default
+  if ((firewalleps.size() > fsIndex) && (proxys.size() > fsIndex)) {
+    // Do this with forwarding proxy syntax only if the firewall entrypoint is
+    // different from the endpoint
+    if (firewalleps[fsIndex].size() &&
+        ((!proxys[fsIndex].empty() && firewalleps[fsIndex] != proxys[fsIndex]) ||
+         (firewalleps[fsIndex] != filesystem->GetString("hostport").c_str()))) {
+      // Build the URL for the forwarding proxy and must have the following
+      // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
+      auto idx = firewalleps[fsIndex].rfind(":");
 
       if (idx != std::string::npos) {
-        targethost = proxys[fsIndex].substr(0, idx).c_str();
-        targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
+        targethost = firewalleps[fsIndex].substr(0, idx).c_str();
+        targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
+                          std::string::npos).c_str());
       } else {
-        targethost = proxys[fsIndex].c_str();
+        targethost = firewalleps[fsIndex].c_str();
         targetport = 0;
       }
+
+      std::ostringstream oss;
+      oss << targethost << "?" << "eos.fstfrw=";
+
+      // Check if we have to redirect to the fs host or to a proxy
+      if (proxys[fsIndex].empty()) {
+        oss << filesystem->GetString("host").c_str() << ":" <<
+            filesystem->GetString("port").c_str();
+      } else {
+        oss << proxys[fsIndex];
+      }
+
+      redirectionhost = oss.str().c_str();
+      redirectionhost += "&";
+    } else {
+      if (proxys[fsIndex].empty()) { // there is no proxy to use
+        targethost  = filesystem->GetString("host").c_str();
+        targetport  = atoi(filesystem->GetString("port").c_str());
+      } else { // we have a proxy to use
+        auto idx = proxys[fsIndex].rfind(":");
+
+        if (idx != std::string::npos) {
+          targethost = proxys[fsIndex].substr(0, idx).c_str();
+          targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
+        } else {
+          targethost = proxys[fsIndex].c_str();
+          targetport = 0;
+        }
+      }
+
+      redirectionhost = targethost;
+      redirectionhost += "?";
     }
 
+    if (!proxys[fsIndex].empty()) {
+      std::string fsprefix = filesystem->GetPath();
+
+      if (fsprefix.size()) {
+        XrdOucString s = "mgm.fsprefix";
+        s += "=";
+        s += fsprefix.c_str();
+        s.replace(":", "#COL#");
+        redirectionhost += s;
+      }
+    }
+  } else {
+    // There is no proxy or firewall entry point to use
+    targethost  = filesystem->GetString("host").c_str();
+    targetport  = atoi(filesystem->GetString("port").c_str());
     redirectionhost = targethost;
     redirectionhost += "?";
-  }
-
-  if (!proxys[fsIndex].empty()) {
-    std::string fsprefix = filesystem->GetPath();
-
-    if (fsprefix.size()) {
-      XrdOucString s = "mgm.fsprefix";
-      s += "=";
-      s += fsprefix.c_str();
-      s.replace(":", "#COL#");
-      redirectionhost += s;
-    }
   }
 
   // ---------------------------------------------------------------------------
