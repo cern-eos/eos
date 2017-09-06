@@ -237,7 +237,7 @@
 
     if (target_filelist.count(fid)) {
       // Move on to the next file, we have this file already
-      fit++;
+      ++fit;
       continue;
     } else {
       // Check that this file has not been scheduled during the last 1h
@@ -266,7 +266,7 @@
       if ((ScheduledToDrainFid.count(fid) && ((ScheduledToDrainFid[fid] > (now))))) {
         eos_thread_debug("file %llx has already been scheduled at %lu", fid,
                          ScheduledToDrainFid[fid]);
-        fit++;
+        ++fit;
         continue;
       } else {
         std::string fullpath = "";
@@ -411,7 +411,7 @@
             XrdOucString sizestring;
             unsigned long long target_lid = lid & 0xffffff0f;
 
-            if (LayoutId::GetBlockChecksum(lid) == LayoutId::kNone) {
+            if (LayoutId::GetBlockChecksum(lid) != LayoutId::kNone) {
               // mask block checksums (e.g. for replica layouts)
               target_lid &= 0xff0fffff;
             }
