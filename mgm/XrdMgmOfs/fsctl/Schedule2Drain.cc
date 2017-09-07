@@ -594,6 +594,10 @@
     }
   }
 
+  // @todo (esindril): This should introduce a delay for the fsts asking for
+  // new jobs rather than just hammering the MGM
+  eos_thread_debug("no files to schedule for drain in group=%s",
+                   target_snapshot.mGroup.c_str());
   gOFS->MgmStats.Add("SchedulingFailedDrain", 0, 0, 1);
   error.setErrInfo(0, "");
   return SFS_DATA;
