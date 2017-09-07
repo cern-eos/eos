@@ -296,26 +296,68 @@ private:
   bool GetBalanceJob(unsigned int index);
 
   //----------------------------------------------------------------------------
-  //! Drain related methods
+  //! Drain related methods and attributes
   //----------------------------------------------------------------------------
   XrdSysCondVar drainJobNotification;
 
+  //----------------------------------------------------------------------------
+  //! Get the number of parallel transfers and transfer rate settings
+  //!
+  //! @param nparalleltx number of parallel transfers to run
+  //! @param ratex rate per transfer
+  //! @param nodeconfigqueue config queue to use
+  //----------------------------------------------------------------------------
   void GetDrainSlotVariables(unsigned long long& nparalleltx,
                              unsigned long long& ratex,
                              std::string configqueue);
 
+  //----------------------------------------------------------------------------
+  //! Get the number of already scheduled jobs
+  //!
+  //! @param totalscheduled the total number of scheduled jobs
+  //! @param totalexecuted the total number of executed jobs
+  //! @return number of scheduled jobs
+  //!
+  //! The time delay from scheduling on MGM and appearing in the queue on the FST
+  //! creates an accounting problem. The returned value is the currently known
+  //! value on the FST which can be wrong e.g. too small!
+  //----------------------------------------------------------------------------
   unsigned long long GetScheduledDrainJobs(unsigned long long totalscheduled,
       unsigned long long& totalexecuted);
 
+  //----------------------------------------------------------------------------
+  //! Wait that there is a free slot to schedule a new drain
+  //!
+  //! @param nparalleltx number of parallel transfers
+  //! @param totalscheduled number of total scheduled transfers
+  //! @param totalexecuted number of total executed transfers
+  //!
+  //! @return number of used drain slots
+  //----------------------------------------------------------------------------
   unsigned long long WaitFreeDrainSlot(unsigned long long& nparalleltx,
                                        unsigned long long& totalscheduled,
                                        unsigned long long& totalexecuted);
 
+  //----------------------------------------------------------------------------
+  //! Get the list of filesystems which are in drain mode in current group
+  //!
+  //! @param drainfsvector result vector with the indices of draining filesystems
+  //! @param cycler cyclic index guaranteeing round-robin selection
+  //!
+  //! @return true if there is any filesystem in drain mode
+  //----------------------------------------------------------------------------
   bool GetFileSystemInDrainMode(std::vector<unsigned int>& drainfsvector,
                                 unsigned int& cycler,
                                 unsigned long long nparalleltx,
                                 unsigned long long ratetx);
 
+  //----------------------------------------------------------------------------
+  //! Get drain job for the reuqested filesystem
+  //!
+  //! @param index index in the filesystem vector
+  //!
+  //! @return true if scheduled otherwise false
+  //----------------------------------------------------------------------------
   bool GetDrainJob(unsigned int index);
 };
 

@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: Drainer.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -44,20 +44,13 @@ Storage::WaitConfigQueue(std::string& nodeconfigqueue)
   nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get the number of parallel transfers and transfer rate settings
+//------------------------------------------------------------------------------
 void
 Storage::GetDrainSlotVariables(unsigned long long& nparalleltx,
                                unsigned long long& ratetx,
-                               std::string nodeconfigqueue
-                              )
-/*----------------------------------------------------------------------------*/
-/**
- * @brief get the parallel transfer and transfer rate settings
- * @param nparalleltx number of parallel transfers to run
- * @param ratex rate per transfer
- * @param nodeconfigqueue config queue to use
- */
-/*----------------------------------------------------------------------------*/
+                               std::string nodeconfigqueue)
 {
   gOFS.ObjectManager.HashMutex.LockRead();
   XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(
@@ -81,22 +74,12 @@ Storage::GetDrainSlotVariables(unsigned long long& nparalleltx,
   gOFS.ObjectManager.HashMutex.UnLockRead();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get the number of already scheduled jobs
+//------------------------------------------------------------------------------
 unsigned long long
 Storage::GetScheduledDrainJobs(unsigned long long totalscheduled,
                                unsigned long long& totalexecuted)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief return the number of already scheduled jobs
- * @param totalscheduled the total number of scheduled jobs
- * @param totalexecuted the total number of executed jobs
- * @return number of scheduled jobs
- *
- * The time delay from scheduling on MGM and appearing in the queue on the FST
- * creates an accounting problem. The returned value is the currently known
- * value on the FST which can be wrong e.g. too small!
- */
-/*----------------------------------------------------------------------------*/
 {
   unsigned int nfs = 0;
   unsigned long long nscheduled = 0;
@@ -123,20 +106,13 @@ Storage::GetScheduledDrainJobs(unsigned long long totalscheduled,
   return nscheduled;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Wait that there is a free slot to schedule a new drain
+//------------------------------------------------------------------------------
 unsigned long long
 Storage::WaitFreeDrainSlot(unsigned long long& nparalleltx,
                            unsigned long long& totalscheduled,
                            unsigned long long& totalexecuted)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief wait that there is a free slot to schedule a new drain
- * @param nparalleltx number of parallel transfers
- * @param totalscheduled number of total scheduled transfers
- * @param totalexecuted number of total executed transfers
- * @return number of used drain slots
- */
-/*----------------------------------------------------------------------------*/
 {
   size_t sleep_count = 0;
   unsigned long long nscheduled = 0;
@@ -170,20 +146,14 @@ Storage::WaitFreeDrainSlot(unsigned long long& nparalleltx,
   return nscheduled;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Get the list of filesystems which are in drain mode in current group
+//------------------------------------------------------------------------------
 bool
 Storage::GetFileSystemInDrainMode(std::vector<unsigned int>& drainfsvector,
                                   unsigned int& cycler,
                                   unsigned long long nparalleltx,
                                   unsigned long long ratetx)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief return a filesystem vector which should ask for a drain job now
- * @param drainfsvector result vector with the indices of draining filesystems
- * @param cycler cyclic index guaranteeing round-robin selection
- * @return true if there is any filesystem in drain mode
- */
-/*----------------------------------------------------------------------------*/
 {
   unsigned int nfs = 0;
   {
@@ -252,16 +222,12 @@ Storage::GetFileSystemInDrainMode(std::vector<unsigned int>& drainfsvector,
   return (bool) drainfsvector.size();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get drain job for the reuqested filesystem
+//------------------------------------------------------------------------------
 bool
 Storage::GetDrainJob(unsigned int index)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief get a drain job for the filesystem in the filesystem vector with index
- * @param index index in the filesystem vector
- * @return true if scheduled otherwise false
- */
-/*----------------------------------------------------------------------------*/
+
 {
   unsigned long long freebytes =
     mFsVect[index]->GetLongLong("stat.statfs.freebytes");
@@ -280,11 +246,7 @@ Storage::GetDrainJob(unsigned int index)
   managerQuery += "&mgm.logid=";
   managerQuery += logId;
   XrdOucString response = "";
-  int rc = gOFS.CallManager(&error,
-                            "/",
-                            0,
-                            managerQuery,
-                            &response);
+  int rc = gOFS.CallManager(&error, "/", 0, managerQuery, &response);
   eos_static_debug("job-response=%s", response.c_str());
 
   if (rc) {
@@ -302,14 +264,11 @@ Storage::GetDrainJob(unsigned int index)
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Eternal thread loop pulling drain jobs
+//------------------------------------------------------------------------------
 void
 Storage::Drainer()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief eternal thread loop pulling drain jobs
- */
-/*----------------------------------------------------------------------------*/
 
 {
   eos_static_info("Start Drainer ...");
@@ -323,21 +282,17 @@ Storage::Drainer()
   bool noDrainer = false;
   time_t last_config_update = 0;
   XrdSysTimer sleeper;
-  // ---------------------------------------------------------------------------
-  // wait for our configuration queue to be set
-  // ---------------------------------------------------------------------------
   WaitConfigQueue(nodeconfigqueue);
 
-  while (1) {
+  while (true) {
     time_t now = time(NULL);
 
     // -------------------------------------------------------------------------
     // -- 1 --
     // a drain round
     // -------------------------------------------------------------------------
-
+    // Sleep of 1 minnute if there is no drainer in our group
     if (noDrainer) {
-      // we can lay back for a minute if we have no drainer in our group
       sleeper.Snooze(60);
     }
 
@@ -354,7 +309,7 @@ Storage::Drainer()
 
     // -------------------------------------------------------------------------
     // -- U --
-    // update the config atlast every minute
+    // update the config at least every minute
     // -------------------------------------------------------------------------
     if (!last_config_update ||
         (((long long) now - (long long) last_config_update) > 60)) {
@@ -375,8 +330,8 @@ Storage::Drainer()
     std::vector<unsigned int> drainfsindex;
     std::vector<bool> drainfsindexSchedulingFailed;
     std::map<unsigned int, time_t> drainfsindexSchedulingTime;
-    // read lock the file system vector from now on
     {
+      // Read lock the file system vector from now on
       eos::common::RWMutexReadLock lock(mFsMutex);
 
       if (!GetFileSystemInDrainMode(drainfsindex, cycler, nparalleltx, ratetx)) {
