@@ -237,7 +237,7 @@ Storage::GetFileSystemInDrainMode(std::vector<unsigned int>& drainfsvector,
           (configstatus <= eos::common::FileSystem::kRO) ||
           (full)) {
         // skip this one in bad state
-        eos_static_debug("FileSystem %lu status=%u configstatus=%s", id, bootstatus,
+        eos_static_debug("FileSystem %lu status=%u configstatus=%i", id, bootstatus,
                          configstatus);
         continue;
       }
@@ -345,7 +345,6 @@ Storage::Drainer()
     // -- W --
     // wait that we have a drain slot configured
     // -------------------------------------------------------------------------
-
     while (!nparalleltx) {
       GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue);
       last_config_update = time(NULL);
@@ -376,15 +375,11 @@ Storage::Drainer()
     std::vector<unsigned int> drainfsindex;
     std::vector<bool> drainfsindexSchedulingFailed;
     std::map<unsigned int, time_t> drainfsindexSchedulingTime;
-    // ************************************************************************>
     // read lock the file system vector from now on
     {
       eos::common::RWMutexReadLock lock(mFsMutex);
 
-      if (!GetFileSystemInDrainMode(drainfsindex,
-                                    cycler,
-                                    nparalleltx,
-                                    ratetx)) {
+      if (!GetFileSystemInDrainMode(drainfsindex, cycler, nparalleltx, ratetx)) {
         noDrainer = true;
         continue;
       } else {
@@ -400,11 +395,9 @@ Storage::Drainer()
       size_t slotstofill = ((nparalleltx - nscheduled) > 0) ?
                            (nparalleltx - nscheduled) : 0;
       bool stillGotOneScheduled;
-      eos_static_debug("slotstofill=%u nparalleltx=%u nscheduled=%u totalscheduled=%llu totalexecuted=%llu",
-                       slotstofill,
-                       nparalleltx,
-                       nscheduled,
-                       totalscheduled,
+      eos_static_debug("slotstofill=%u nparalleltx=%u nscheduled=%u "
+                       "totalscheduled=%llu totalexecuted=%llu",
+                       slotstofill, nparalleltx, nscheduled, totalscheduled,
                        totalexecuted);
 
       if (slotstofill) {
@@ -412,24 +405,18 @@ Storage::Drainer()
           stillGotOneScheduled = false;
 
           for (size_t i = 0; i < drainfsindex.size(); i++) {
-            // ---------------------------------------------------------------------
-            // skip indices where we know we couldn't schedule
-            // ---------------------------------------------------------------------
+            // Skip indices where we know we couldn't schedule
             if (drainfsindexSchedulingFailed[i]) {
               continue;
             }
 
-            // ---------------------------------------------------------------------
-            // skip filesystems where we scheduling has been blocked for some time
-            // ---------------------------------------------------------------------
+            // Skip filesystems where scheduling has been blocked for some time
             if ((drainfsindexSchedulingTime.count(drainfsindex[i])) &&
                 (drainfsindexSchedulingTime[drainfsindex[i]] > time(NULL))) {
               continue;
             }
 
-            // ---------------------------------------------------------------------
-            // try to get a drainjob for the indexed filesystem
-            // ---------------------------------------------------------------------
+            // Try to get a drainjob for the indexed filesystem
             if (GetDrainJob(drainfsindex[i])) {
               eos_static_debug("got scheduled totalscheduled=%llu slotstofill=%llu",
                                totalscheduled, slotstofill);
@@ -442,24 +429,21 @@ Storage::Drainer()
               drainfsindexSchedulingTime[drainfsindex[i]] = time(NULL) + 60;
             }
 
-            // we stop if we have all slots full
+            // Stop if all slots are full
             if (!slotstofill) {
               break;
             }
           }
         } while (slotstofill && stillGotOneScheduled);
 
-        // reset the failed vector, otherwise we starve forever
+        // Reset the failed vector, otherwise we starve forever
         for (size_t i = 0; i < drainfsindex.size(); i++) {
           drainfsindexSchedulingFailed[i] = false;
         }
       }
     }
-    // ************************************************************************>
     drainJobNotification.WaitMS(1000);
   }
 }
 
 EOSFSTNAMESPACE_END
-
-
