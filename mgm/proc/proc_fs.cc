@@ -808,7 +808,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
       // Check that we can still add file systems to this group
       if (grp_num_fs > grp_size) {
         eos_static_err("reached maximum number of fs for group: %s", dst.c_str());
-        oss << "error: reached maximum number of file systems for group"
+        oss << "error: reached maximum number of file systems for group "
             << dst.c_str() << std::endl;
         stdErr = oss.str().c_str();
         return EINVAL;
