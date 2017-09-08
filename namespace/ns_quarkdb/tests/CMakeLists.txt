@@ -31,6 +31,7 @@ include_directories(
 #-------------------------------------------------------------------------------
 add_executable(
   test_metadata
+  HierarchicalViewTest.cc
   MetadataTests.cc
   NextInodeProviderTest.cc
   OtherTests.cc
@@ -50,7 +51,6 @@ add_library(
   EosNsQuarkdbTests MODULE
   ContainerMDSvcTest.cc
   FileMDSvcTest.cc
-  HierarchicalViewTest.cc
   FileSystemViewTest.cc
 )
 
