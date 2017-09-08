@@ -457,7 +457,7 @@
                 XrdOucString sizestring;
 
 		unsigned long long target_lid = lid & 0xffffff0f;
-		if (eos::common::LayoutId::GetBlockChecksum(lid) == eos::common::LayoutId::kNone)
+		if (eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
 		{
 		  // mask block checksums (e.g. for replica layouts)                                                               
 		  target_lid &= 0xff0fffff;
