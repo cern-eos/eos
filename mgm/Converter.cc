@@ -74,6 +74,7 @@ void
 ConverterJob::DoIt()
 
 {
+  using eos::common::StringConversion;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
@@ -108,11 +109,11 @@ ConverterJob::DoIt()
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
       cmd = gOFS->eosView->getContainer(gOFS->eosView->getUri(cmd.get()));
       XrdOucErrInfo error;
-      // load the attributes
+      // Load the attributes
       gOFS->_attr_ls(gOFS->eosView->getUri(cmd.get()).c_str(), error, rootvid, 0,
                      attrmap, false, true);
 
-      // get the checksum string if defined
+      // Get checksum as string
       for (unsigned int i = 0;
            i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
         char hb[3];
@@ -120,9 +121,9 @@ ConverterJob::DoIt()
         sourceChecksum += hb;
       }
 
-      // get the size string
-      eos::common::StringConversion::GetSizeString(sourceSize,
-          (unsigned long long) fmd->getSize());
+      // Get size
+      StringConversion::GetSizeString(sourceSize,
+                                      (unsigned long long) fmd->getSize());
       std::string conversionattribute = "sys.conversion.";
       conversionattribute += mConversionLayout.c_str();
       XrdOucString lEnv;
@@ -160,7 +161,6 @@ ConverterJob::DoIt()
     XrdCl::PropertyList result;
 
     if (size) {
-      // non-empty files run with TPC
       properties.Set("thirdParty", "only");
     }
 
@@ -187,14 +187,14 @@ ConverterJob::DoIt()
     url_src.SetParams("eos.app=converter");
     url_src.SetParams("eos.ruid=0&eos.rgid=0");
     url_src.SetPath(source);
-    XrdCl::URL url_trg;
-    url_trg.SetProtocol("root");
-    url_trg.SetHostName("localhost");
-    url_trg.SetUserName("root");
-    url_trg.SetParams(cgi);
-    url_trg.SetPath(target);
+    XrdCl::URL url_dst;
+    url_dst.SetProtocol("root");
+    url_dst.SetHostName("localhost");
+    url_dst.SetUserName("root");
+    url_dst.SetParams(cgi);
+    url_dst.SetPath(target);
     properties.Set("source", url_src);
-    properties.Set("target", url_trg);
+    properties.Set("target", url_dst);
     properties.Set("sourceLimit", (uint16_t) 1);
     properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
     properties.Set("parallelChunks", (uint8_t) 1);
@@ -203,7 +203,7 @@ ConverterJob::DoIt()
     XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
     eos_static_info("[tpc]: %s=>%s %s",
                     url_src.GetURL().c_str(),
-                    url_trg.GetURL().c_str(),
+                    url_dst.GetURL().c_str(),
                     lTpcPrepareStatus.ToStr().c_str());
 
     if (lTpcPrepareStatus.IsOK()) {
@@ -351,6 +351,7 @@ Converter::StaticConverter(void* arg)
 void*
 Converter::Convert(void)
 {
+  using eos::common::StringConversion;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
@@ -454,8 +455,8 @@ Converter::Convert(void)
               continue;
             }
 
-            if (eos::common::StringConversion::SplitKeyValue(sfxid, fxid,
-                conversionattribute) &&
+            if (StringConversion::SplitKeyValue(sfxid, fxid,
+                                                conversionattribute) &&
                 (eos::common::FileId::Hex2Fid(fxid.c_str())) &&
                 (fxid.length() == 16)) {
               if (conversionattribute.beginswith(mSpaceName.c_str())) {
@@ -478,7 +479,7 @@ Converter::Convert(void)
               }
             } else {
               eos_static_warning("split=%d fxid=%llu fxid=|%s|length=%u",
-                                 eos::common::StringConversion::SplitKeyValue(sfxid, fxid,
+                                 StringConversion::SplitKeyValue(sfxid, fxid,
                                      conversionattribute),
                                  eos::common::FileId::Hex2Fid(fxid.c_str()),
                                  fxid.c_str(), fxid.length());

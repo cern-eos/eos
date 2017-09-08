@@ -61,15 +61,15 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
       src_fmd = gOFS->eosView->getFile(src_path);
       dst_fmd = gOFS->eosView->getFile(dst_path);
       // Inherit some core meta data, the checksum must be right by construction,
-      // so we don't copy it
-      // inherit the previous ownership
+      // so we don't copy it.
       src_fmd->setCUid(dst_fmd->getCUid());
       src_fmd->setCGid(dst_fmd->getCGid());
-      // inherit the creation time
-      eos::IFileMD::ctime_t ctime;
+      // Inherit ctime and mtime
+      eos::IFileMD::ctime_t mtime, ctime;
       dst_fmd->getCTime(ctime);
       src_fmd->setCTime(ctime);
-      // change the owner of the source file
+      dst_fmd->getMTime(mtime);
+      src_fmd->setMTime(mtime);
       eosView->updateFileStore(src_fmd.get());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -85,7 +85,7 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
     rc |= gOFS->_rem(dst_path.c_str(), error, rootvid, "");
     // rename the source to destination
     rc |= gOFS->_rename(src_path.c_str(), dst_path.c_str(), error, rootvid, "",
-                        "", true, false);
+                        "", false, false);
   } else {
     return Emsg("merge", error, EINVAL, "merge source into destination path - "
                 "cannot get file meta data ", src_path.c_str());
