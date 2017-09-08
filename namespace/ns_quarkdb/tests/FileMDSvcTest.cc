@@ -27,52 +27,35 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include <cppunit/extensions/HelperMacros.h>
 #include <memory>
+#include <gtest/gtest.h>
+
 // Hack to expose all members of FileSystemView to this test unit
 #define private public
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #undef private
 
 //------------------------------------------------------------------------------
-// FileMDSvcTest class
-//------------------------------------------------------------------------------
-class FileMDSvcTest : public CppUnit::TestCase
-{
-public:
-  CPPUNIT_TEST_SUITE(FileMDSvcTest);
-  CPPUNIT_TEST(loadTest);
-  CPPUNIT_TEST(checkFileTest);
-  CPPUNIT_TEST_SUITE_END();
-
-  void loadTest();
-  void checkFileTest();
-};
-
-CPPUNIT_TEST_SUITE_REGISTRATION(FileMDSvcTest);
-
-//------------------------------------------------------------------------------
 // Tests implementation
 //------------------------------------------------------------------------------
-void
-FileMDSvcTest::loadTest()
-{
+TEST(FileMDSvc, LoadTest) {
   std::unique_ptr<eos::IContainerMDSvc> contSvc{new eos::ContainerMDSvc};
   std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc};
   fileSvc->setContMDService(contSvc.get());
   std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
-    {"qdb_port", "6380"}
+    {"qdb_port", "7777"}
   };
   fileSvc->configure(config);
-  CPPUNIT_ASSERT_NO_THROW(fileSvc->initialize());
+  ASSERT_NO_THROW(fileSvc->initialize());
   std::shared_ptr<eos::IFileMD> file1 = fileSvc->createFile();
   std::shared_ptr<eos::IFileMD> file2 = fileSvc->createFile();
   std::shared_ptr<eos::IFileMD> file3 = fileSvc->createFile();
   std::shared_ptr<eos::IFileMD> file4 = fileSvc->createFile();
   std::shared_ptr<eos::IFileMD> file5 = fileSvc->createFile();
-  CPPUNIT_ASSERT(file1 != nullptr);
-  CPPUNIT_ASSERT(file2 != nullptr);
-  CPPUNIT_ASSERT(file3 != nullptr);
-  CPPUNIT_ASSERT(file4 != nullptr);
-  CPPUNIT_ASSERT(file5 != nullptr);
+  ASSERT_TRUE(file1 != nullptr);
+  ASSERT_TRUE(file2 != nullptr);
+  ASSERT_TRUE(file3 != nullptr);
+  ASSERT_TRUE(file4 != nullptr);
+  ASSERT_TRUE(file5 != nullptr);
   file1->setName("file1");
   file2->setName("file2");
   file3->setName("file3");
@@ -88,40 +71,34 @@ FileMDSvcTest::loadTest()
   fileSvc->updateStore(file3.get());
   fileSvc->updateStore(file4.get());
   fileSvc->updateStore(file5.get());
-  CPPUNIT_ASSERT(fileSvc->getNumFiles() == 5);
+  ASSERT_TRUE(fileSvc->getNumFiles() == 5);
   fileSvc->removeFile(file2.get());
   fileSvc->removeFile(file4.get());
-  CPPUNIT_ASSERT(fileSvc->getNumFiles() == 3);
+  ASSERT_TRUE(fileSvc->getNumFiles() == 3);
   fileSvc->finalize();
-  CPPUNIT_ASSERT_NO_THROW(fileSvc->initialize());
+  ASSERT_NO_THROW(fileSvc->initialize());
   std::shared_ptr<eos::IFileMD> fileRec1 = fileSvc->getFileMD(id1);
   std::shared_ptr<eos::IFileMD> fileRec3 = fileSvc->getFileMD(id3);
   std::shared_ptr<eos::IFileMD> fileRec5 = fileSvc->getFileMD(id5);
-  CPPUNIT_ASSERT(fileRec1 != nullptr);
-  CPPUNIT_ASSERT(fileRec3 != nullptr);
-  CPPUNIT_ASSERT(fileRec5 != nullptr);
-  CPPUNIT_ASSERT(fileRec1->getName() == "file1");
-  CPPUNIT_ASSERT(fileRec3->getName() == "file3");
-  CPPUNIT_ASSERT(fileRec5->getName() == "file5");
-  CPPUNIT_ASSERT_THROW(fileSvc->getFileMD(id2), eos::MDException);
-  CPPUNIT_ASSERT_THROW(fileSvc->getFileMD(id4), eos::MDException);
-  CPPUNIT_ASSERT_NO_THROW(fileSvc->removeFile(fileRec1.get()));
-  CPPUNIT_ASSERT_NO_THROW(fileSvc->removeFile(fileRec3.get()));
-  CPPUNIT_ASSERT_NO_THROW(fileSvc->removeFile(fileRec5.get()));
-  CPPUNIT_ASSERT(fileSvc->getNumFiles() == 0);
+  ASSERT_TRUE(fileRec1 != nullptr);
+  ASSERT_TRUE(fileRec3 != nullptr);
+  ASSERT_TRUE(fileRec5 != nullptr);
+  ASSERT_TRUE(fileRec1->getName() == "file1");
+  ASSERT_TRUE(fileRec3->getName() == "file3");
+  ASSERT_TRUE(fileRec5->getName() == "file5");
+  ASSERT_THROW(fileSvc->getFileMD(id2), eos::MDException);
+  ASSERT_THROW(fileSvc->getFileMD(id4), eos::MDException);
+  ASSERT_NO_THROW(fileSvc->removeFile(fileRec1.get()));
+  ASSERT_NO_THROW(fileSvc->removeFile(fileRec3.get()));
+  ASSERT_NO_THROW(fileSvc->removeFile(fileRec5.get()));
+  ASSERT_TRUE(fileSvc->getNumFiles() == 0);
   fileSvc->finalize();
 }
 
-//------------------------------------------------------------------------------
-// Check and repair a file object after intentional corruption of the file
-// system view information.
-//------------------------------------------------------------------------------
-void
-FileMDSvcTest::checkFileTest()
-{
+TEST(FileMDSvc, CheckFileTest) {
   std::map<std::string, std::string> config = {
     {"qdb_host", "localhost"},
-    {"qdb_port", "6380"}
+    {"qdb_port", "7777"}
   };
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
@@ -151,7 +128,7 @@ FileMDSvcTest::checkFileTest()
     view->createFile("/test_dir/test_file1.dat");
   eos::IFileMD::id_t fid = file->getId();
   std::string sfid = std::to_string(fid);
-  CPPUNIT_ASSERT(file != nullptr);
+  ASSERT_TRUE(file != nullptr);
 
   // Add some replica and unlink locations
   for (int i = 1; i <= 4; ++i) {
@@ -167,42 +144,42 @@ FileMDSvcTest::checkFileTest()
                             config["qdb_host"], std::stoi(config["qdb_port"]));
   key = "1" + eos::fsview::sFilesSuffix;
   qclient::QSet fs_set(*qcl, key);
-  CPPUNIT_ASSERT(fs_set.srem(sfid));
+  ASSERT_TRUE(fs_set.srem(sfid));
   key = "4" + eos::fsview::sUnlinkedSuffix;
   fs_set.setKey(key);
-  CPPUNIT_ASSERT(fs_set.srem(sfid));
+  ASSERT_TRUE(fs_set.srem(sfid));
   key = eos::fsview::sNoReplicaPrefix;
   fs_set.setKey(key);
-  CPPUNIT_ASSERT(fs_set.sadd(sfid));
+  ASSERT_TRUE(fs_set.sadd(sfid));
   key = "5" + eos::fsview::sFilesSuffix;
   fs_set.setKey(key);
-  CPPUNIT_ASSERT(fs_set.sadd(sfid));
+  ASSERT_TRUE(fs_set.sadd(sfid));
   // Need to add fsid by hand
   fs_set.setKey(eos::fsview::sSetFsIds);
-  CPPUNIT_ASSERT(fs_set.sadd("5"));
+  ASSERT_TRUE(fs_set.sadd("5"));
   // Introduce file in the set to be checked and trigger a check
   fs_set.setKey(eos::constants::sSetCheckFiles);
-  CPPUNIT_ASSERT_NO_THROW(fs_set.sadd(sfid));
-  CPPUNIT_ASSERT(fileSvc->checkFiles());
+  ASSERT_NO_THROW(fs_set.sadd(sfid));
+  ASSERT_TRUE(fileSvc->checkFiles());
   // Check that the back-end KV store is consistent
   key = "1" + eos::fsview::sFilesSuffix;
   fs_set.setKey(key);
-  CPPUNIT_ASSERT(fs_set.sismember(sfid));
+  ASSERT_TRUE(fs_set.sismember(sfid));
   key = "2" + eos::fsview::sFilesSuffix;
   fs_set.setKey(key);
-  CPPUNIT_ASSERT(fs_set.sismember(sfid));
+  ASSERT_TRUE(fs_set.sismember(sfid));
   key = "5" + eos::fsview::sFilesSuffix;
   fs_set.setKey(key);
-  CPPUNIT_ASSERT(!fs_set.sismember(sfid));
+  ASSERT_TRUE(!fs_set.sismember(sfid));
   key = "3" + eos::fsview::sUnlinkedSuffix;
   fs_set.setKey(key);
-  CPPUNIT_ASSERT(fs_set.sismember(sfid));
+  ASSERT_TRUE(fs_set.sismember(sfid));
   key = "4" + eos::fsview::sUnlinkedSuffix;
   fs_set.setKey(key);
-  CPPUNIT_ASSERT(fs_set.sismember(sfid));
+  ASSERT_TRUE(fs_set.sismember(sfid));
   key = eos::fsview::sNoReplicaPrefix;
   fs_set.setKey(key);
-  CPPUNIT_ASSERT(fs_set.scard() == 0);
+  ASSERT_TRUE(fs_set.scard() == 0);
   file->unlinkAllLocations();
   file->removeAllLocations();
   view->removeFile(file.get());
