@@ -51,6 +51,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pQcl = impl_cont_svc->pQcl;
   pFilesMap = qclient::QHash(*pQcl, pFilesKey);
   pDirsMap = qclient::QHash(*pQcl, pDirsKey);
+  pFlusher = MetadataFlusherFactory::getInstance("default", "", 0);
 }
 
 //------------------------------------------------------------------------------
@@ -229,11 +230,13 @@ ContainerMD::addFile(IFileMD* file)
   }
 
   try {
-    if (!pFilesMap.hset(file->getName(), file->getId())) {
-      MDException e(EINVAL);
-      e.getMessage() << "File #" << file->getId() << " already exists";
-      throw e;
-    }
+    pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
+
+    // if (!pFilesMap.hset(file->getName(), file->getId())) {
+    //   MDException e(EINVAL);
+    //   e.getMessage() << "File #" << file->getId() << " already exists";
+    //   throw e;
+    // }
   } catch (std::runtime_error& qdb_err) {
     MDException e(EINVAL);
     e.getMessage() << __FUNCTION__ << " " << qdb_err.what();

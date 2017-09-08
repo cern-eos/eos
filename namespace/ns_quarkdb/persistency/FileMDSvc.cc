@@ -68,6 +68,7 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
   mDirtyFidBackend.setKey(constants::sSetCheckFiles);
   mDirtyFidBackend.setClient(*pQcl);
   inodeProvider.configure(mMetaMap, constants::sLastUsedFid);
+  pFlusher = MetadataFlusherFactory::getInstance("default", host, port);
 }
 
 //------------------------------------------------------------------------------
@@ -161,8 +162,7 @@ FileMDSvc::updateStore(IFileMD* obj)
 
   try {
     std::string sid = stringify(obj->getId());
-    qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
-    bucket_map.hset(sid, buffer);
+    pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
@@ -181,8 +181,7 @@ FileMDSvc::removeFile(IFileMD* obj)
 {
   try {
     std::string sid = stringify(obj->getId());
-    qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
-    bucket_map.hdel(sid);
+    pFlusher->hdel(getBucketKey(obj->getId()), sid);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " not found. ";
@@ -388,7 +387,7 @@ FileMDSvc::addToDirtySet(IFileMD* file)
 
   if (mFlushFidSet.erase(stringify(fid)) == 0) {
     try {
-      mDirtyFidBackend.sadd(fid);  // add to backend set
+      pFlusher->sadd(constants::sSetCheckFiles, std::to_string(fid));
     } catch (std::runtime_error& qdb_err) {
       MDException e(ENOENT);
       e.getMessage() << "File #" << fid
@@ -416,7 +415,7 @@ FileMDSvc::flushDirtySet(IFileMD::id_t id, bool force)
     mFlushFidSet.clear();
 
     try {
-      mDirtyFidBackend.srem(to_del);
+      pFlusher->srem(constants::sSetCheckFiles, to_del);
     } catch (std::runtime_error& qdb_err) {
       MDException e(ENOENT);
       e.getMessage() << "Failed to clear set of dirty files - backend error";

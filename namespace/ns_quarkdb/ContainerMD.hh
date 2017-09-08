@@ -27,6 +27,7 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "ContainerMd.pb.h"
 #include <string>
 #include <sys/time.h>
@@ -371,6 +372,7 @@ private:
   eos::ns::ContainerMdProto mCont; ///< Protobuf container representation
   IContainerMDSvc* pContSvc;  ///< Container metadata service
   IFileMDSvc* pFileSvc;       ///< File metadata service
+  MetadataFlusher* pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl;     ///< QClient object
   std::string pFilesKey;      ///< Map files key
   std::string pDirsKey;       ///< Map dir key

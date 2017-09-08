@@ -64,6 +64,7 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
   mMetaMap.setKey(constants::sMapMetaInfoKey);
   mMetaMap.setClient(*pQcl);
   mInodeProvider.configure(mMetaMap, constants::sLastUsedCid);
+  pFlusher = MetadataFlusherFactory::getInstance("default", host, port);
 }
 
 //------------------------------------------------------------------------------
@@ -160,8 +161,9 @@ ContainerMDSvc::updateStore(IContainerMD* obj)
 
   try {
     std::string sid = stringify(obj->getId());
-    qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
-    bucket_map.hset(sid, buffer);
+    pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
+    // qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
+    // bucket_map.hset(sid, buffer);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
@@ -185,8 +187,10 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
 
   try {
     std::string sid = stringify(obj->getId());
-    qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
-    bucket_map.hdel(sid);
+    pFlusher->hdel(getBucketKey(obj->getId()), stringify(obj->getId()));
+
+    // qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
+    // bucket_map.hdel(sid);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << obj->getId() << " not found. "

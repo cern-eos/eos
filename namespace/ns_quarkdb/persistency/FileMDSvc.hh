@@ -28,6 +28,7 @@
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -198,6 +199,7 @@ private:
   IQuotaStats* pQuotaStats; ///< Quota view
   IContainerMDSvc* pContSvc; ///< Container metadata service
   std::time_t mFlushTimestamp; ///< Timestamp of the last dirty set flush
+  MetadataFlusher* pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl; ///< QClient object
   qclient::QHash mMetaMap ; ///< Map holding metainfo about the namespace
   NextInodeProvider inodeProvider; ///< Provides next free inode

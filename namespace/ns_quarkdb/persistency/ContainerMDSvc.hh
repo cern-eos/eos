@@ -30,6 +30,8 @@
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+
 #include <list>
 #include <map>
 
@@ -188,6 +190,7 @@ private:
   IQuotaStats* pQuotaStats;  ///< Quota view
   IFileMDSvc* pFileSvc;      ///< File metadata service
   qclient::QClient* pQcl;    ///< QClient object
+  MetadataFlusher* pFlusher; ///< Metadata flusher object
   qclient::QHash mMetaMap ;  ///< Map holding metainfo about the namespace
   NextInodeProvider mInodeProvider; ///< Provide next free inode
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;

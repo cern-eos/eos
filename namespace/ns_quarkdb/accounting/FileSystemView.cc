@@ -31,7 +31,7 @@ FileSystemView::FileSystemView():
   pNoReplicasSet(*pQcl, fsview::sNoReplicaPrefix),
   pFsIdsSet(*pQcl, fsview::sSetFsIds)
 {
-  // empty
+  pFlusher = MetadataFlusherFactory::getInstance("default", "", 0);
 }
 
 //------------------------------------------------------------------------------
@@ -71,8 +71,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   switch (e->action) {
   // New file has been created
   case IFileMDChangeListener::Created:
-    file->Register(pNoReplicasSet.sadd_async(file->getId()),
-                   pNoReplicasSet.getClient());
+    pFlusher->sadd(fsview::sNoReplicaPrefix, std::to_string(file->getId()));
     break;
 
   // File has been deleted
@@ -84,23 +83,22 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   // Add location
   case IFileMDChangeListener::LocationAdded:
     val = std::to_string(e->location);
-    file->Register(pFsIdsSet.sadd_async(val), pFsIdsSet.getClient());
+    pFlusher->sadd(fsview::sSetFsIds, val);
     key = val + fsview::sFilesSuffix;
     val = std::to_string(file->getId());
-    fs_set = qclient::QSet(*pQcl, key);
-    file->Register(fs_set.sadd_async(val), fs_set.getClient());
-    file->Register(pNoReplicasSet.srem_async(val), pNoReplicasSet.getClient());
+
+    pFlusher->sadd(key, val);
+    pFlusher->srem(fsview::sNoReplicaPrefix, val);
     break;
 
   // Replace location
   case IFileMDChangeListener::LocationReplaced:
     key = std::to_string(e->oldLocation) + fsview::sFilesSuffix;
     val = std::to_string(file->getId());
-    fs_set = qclient::QSet(*pQcl, key);
-    file->Register(fs_set.srem_async(val), fs_set.getClient());
+    pFlusher->srem(key, val);
+
     key = std::to_string(e->location) + fsview::sFilesSuffix;
-    fs_set.setKey(key);
-    file->Register(fs_set.sadd_async(val), fs_set.getClient());
+    pFlusher->sadd(key, val);
     break;
 
   // Remove location
@@ -133,11 +131,10 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   case IFileMDChangeListener::LocationUnlinked:
     key = std::to_string(e->location) + fsview::sFilesSuffix;
     val = std::to_string(e->file->getId());
-    fs_set = qclient::QSet(*pQcl, key);
-    file->Register(fs_set.srem_async(val), fs_set.getClient());
+    pFlusher->srem(key, val);
+
     key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
-    fs_set.setKey(key);
-    file->Register(fs_set.sadd_async(val), fs_set.getClient());
+    pFlusher->sadd(key, val);
     break;
 
   default:

@@ -28,6 +28,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include <utility>
 
 EOSNSNAMESPACE_BEGIN
@@ -153,6 +154,7 @@ public:
   void RemoveTree(IContainerMD* obj, int64_t dsize) override {};
 
 private:
+  MetadataFlusher* pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl;    ///< QClient object
   qclient::QSet pNoReplicasSet; ///< Set of file ids without replicas
   qclient::QSet pFsIdsSet; ///< Set of file ids in use

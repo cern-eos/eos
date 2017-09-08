@@ -17,59 +17,61 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-//! @author Elvin-Alin Sindrilaru <esindril@cern.ch.
-//! @brief QClient singleton
+//! @author Georgios Bitzes <georgios.bitzes@cern.ch>
+//! @brief Metadata flushing towards QuarkDB
 //------------------------------------------------------------------------------
 
-#pragma once
-#include "namespace/Namespace.hh"
-#include "qclient/QClient.hh"
-#include "qclient/QHash.hh"
-#include "qclient/QSet.hh"
-#include "qclient/AsyncHandler.hh"
-#include <atomic>
+#ifndef __EOS_NS_METADATA_FLUSHER_HH__
+#define __EOS_NS_METADATA_FLUSHER_HH__
+
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/LRU.hh"
+#include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
+#include "qclient/BackgroundFlusher.hh"
+#include <list>
 #include <map>
-#include <mutex>
 
 EOSNSNAMESPACE_BEGIN
 
-class MetadataFlusherFactory;
+class ContainerMD;
 
 //------------------------------------------------------------------------------
-//! Singleton client class used throughout the namespace implementation
+//! Class to receive notifications from the BackgroundFlusher
 //------------------------------------------------------------------------------
-class BackendClient
+// TODO
+
+//------------------------------------------------------------------------------
+//! Metadata flushing towards QuarkDB
+//------------------------------------------------------------------------------
+class MetadataFlusher
 {
 public:
-  //----------------------------------------------------------------------------
-  //! Initialize
-  //----------------------------------------------------------------------------
-  static void Initialize() noexcept;
+  MetadataFlusher(const std::string &host, int port);
 
-  //----------------------------------------------------------------------------
-  //! Finalize
-  //----------------------------------------------------------------------------
-  static void Finalize();
-
-  //----------------------------------------------------------------------------
-  //! Get client for a particular quarkdb instance
-  //!
-  //! @param host quarkdb host
-  //! @param port quarkdb port
-  //!
-  //! @return qclient object
-  //----------------------------------------------------------------------------
-  static qclient::QClient* getInstance(const std::string& host = "",
-                                       uint32_t port = 0);
+  void hdel(const std::string &key, const std::string &field);
+  void hset(const std::string &key, const std::string &field, const std::string &value);
+  void sadd(const std::string &key, const std::string &field);
+  void srem(const std::string &key, const std::string &field);
+  void srem(const std::string &key, const std::list<std::string> &items);
 
 private:
-  friend class MetadataFlusherFactory;
+  qclient::QClient qcl;
+  qclient::BackgroundFlusher backgroundFlusher;
+  qclient::Notifier dummyNotifier;
+};
 
-  static std::atomic<qclient::QClient*> sQdbClient;
-  static std::string sQdbHost; ///< quarkdb instance host
-  static int sQdbPort;         ///< quarkddb instance port
-  static std::map<std::string, qclient::QClient*> pMapClients;
-  static std::mutex pMutexMap; ///< Mutex to protect the access to the map
+class MetadataFlusherFactory {
+public:
+  static MetadataFlusher* getInstance(const std::string &id, std::string host, int port);
+private:
+  static std::mutex mtx;
+
+  using InstanceKey = std::tuple<std::string, std::string, int>;
+  static std::map<std::tuple<std::string, std::string, int>, MetadataFlusher*> instances;
 };
 
 EOSNSNAMESPACE_END
+
+#endif
