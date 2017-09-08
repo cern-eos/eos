@@ -33,6 +33,7 @@ add_executable(
   test_metadata
   MetadataTests.cc
   NextInodeProviderTest.cc
+  OtherTests.cc
 )
 
 target_link_libraries(
@@ -51,7 +52,7 @@ add_library(
   FileMDSvcTest.cc
   HierarchicalViewTest.cc
   FileSystemViewTest.cc
-  OtherTests.cc)
+)
 
 target_link_libraries(
   EosNsQuarkdbTests
