@@ -31,6 +31,7 @@ include_directories(
 #-------------------------------------------------------------------------------
 add_executable(
   test_metadata
+  ContainerMDSvcTest.cc
   HierarchicalViewTest.cc
   MetadataTests.cc
   NextInodeProviderTest.cc
@@ -49,7 +50,6 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 add_library(
   EosNsQuarkdbTests MODULE
-  ContainerMDSvcTest.cc
   FileMDSvcTest.cc
   FileSystemViewTest.cc
 )

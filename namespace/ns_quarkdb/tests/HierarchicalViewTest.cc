@@ -27,7 +27,6 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/utils/TestHelpers.hh"
 #include <algorithm>
-#include <cppunit/extensions/HelperMacros.h>
 #include <cstdint>
 #include <memory>
 #include <numeric>
@@ -37,25 +36,6 @@
 #include <gtest/gtest.h>
 
 #include <vector>
-
-//------------------------------------------------------------------------------
-// HierarchicalViewTest class
-//------------------------------------------------------------------------------
-// class HierarchicalViewTest : public CppUnit::TestCase
-// {
-// public:
-//   CPPUNIT_TEST_SUITE(HierarchicalViewTest);
-//   CPPUNIT_TEST(loadTest);
-//   CPPUNIT_TEST(quotaTest);
-//   CPPUNIT_TEST(lostContainerTest);
-//   CPPUNIT_TEST_SUITE_END();
-//
-//   void loadTest();
-//   void quotaTest();
-//   void lostContainerTest();
-// };
-//
-// CPPUNIT_TEST_SUITE_REGISTRATION(HierarchicalViewTest);
 
 TEST(HierarchicalView, LoadTest) {
   try {
