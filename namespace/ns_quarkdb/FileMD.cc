@@ -125,7 +125,7 @@ FileMD::removeAllLocations()
     ++it;
   }
 
-  mFile.clear_locations();
+  mFile.clear_unlink_locations();
 }
 
 //------------------------------------------------------------------------------
