@@ -119,13 +119,12 @@ FileMD::removeAllLocations()
   auto it = mFile.unlink_locations().rbegin();
 
   while (it != mFile.unlink_locations().rend()) {
+    mFile.mutable_unlink_locations()->RemoveLast();
     IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationRemoved,
                                    *it);
     pFileMDSvc->notifyListeners(&e);
     ++it;
   }
-
-  mFile.clear_unlink_locations();
 }
 
 //------------------------------------------------------------------------------
