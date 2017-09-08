@@ -22,7 +22,6 @@
 # ************************************************************************
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${CPPUNIT_INCLUDE_DIRS}
   "${gtest_SOURCE_DIR}/include"
   "${gmock_SOURCE_DIR}/include")
 
@@ -30,9 +29,10 @@ include_directories(
 # ProtoBuf representation tests
 #-------------------------------------------------------------------------------
 add_executable(
-  test_metadata
+  eos-ns-quarkdb-tests
   ContainerMDSvcTest.cc
   FileMDSvcTest.cc
+  FileSystemViewTest.cc
   HierarchicalViewTest.cc
   MetadataTests.cc
   NextInodeProviderTest.cc
@@ -40,24 +40,11 @@ add_executable(
 )
 
 target_link_libraries(
-  test_metadata
+  eos-ns-quarkdb-tests
   gtest
   gmock_main
   EosNsQuarkdb-Static
   ${CMAKE_THREAD_LIBS_INIT})
-
-#-------------------------------------------------------------------------------
-# EosNsQuarkdbTests library
-#-------------------------------------------------------------------------------
-add_library(
-  EosNsQuarkdbTests MODULE
-  FileSystemViewTest.cc
-)
-
-target_link_libraries(
-  EosNsQuarkdbTests
-  EosNsQuarkdb-Static
-  ${CPPUNIT_LIBRARIES})
 
 #-------------------------------------------------------------------------------
 # eosnsbench executable
