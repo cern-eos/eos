@@ -934,6 +934,7 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
 
   for (auto grp : sorted_grps) {
     if (proc_mv_fs_group(fs_view, src, grp, stdOut, stdErr) == 0) {
+      stdErr = "";
       done = true;
       break;
     }
