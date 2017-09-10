@@ -288,10 +288,10 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
 }
 
 //------------------------------------------------------------------------------
-// Base64 decoding function
+// Base64 decoding function - base function
 //------------------------------------------------------------------------------
 bool
-SymKey::Base64Decode(XrdOucString& in, char*& out, unsigned int& outlen)
+SymKey::Base64Decode(const char* in, char*& out, size_t& outlen)
 {
   BIO* b64, *bmem;
   b64 = BIO_new(BIO_f_base64());
@@ -301,8 +301,8 @@ SymKey::Base64Decode(XrdOucString& in, char*& out, unsigned int& outlen)
   }
 
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-  unsigned int body64len = in.length();
-  bmem = BIO_new_mem_buf((void*) in.c_str(), body64len);
+  size_t body64len = strlen(in);
+  bmem = BIO_new_mem_buf((void*) in, body64len);
 
   if (!bmem) {
     return false;
@@ -310,10 +310,45 @@ SymKey::Base64Decode(XrdOucString& in, char*& out, unsigned int& outlen)
 
   char* encryptionbuffer = (char*) malloc(body64len);
   bmem = BIO_push(b64, bmem);
-  outlen = BIO_read(bmem, encryptionbuffer, body64len);
-  BIO_free_all(b64);
+  int nread = BIO_read(bmem, encryptionbuffer, (int)body64len);
   out = encryptionbuffer;
-  return true;
+  BIO_free_all(b64);
+
+  if (nread > 0) {
+    outlen = (size_t) nread;
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Base64 decoding of input given as XrdOucString
+//------------------------------------------------------------------------------
+bool
+SymKey::Base64Decode(const char* in, std::string& out)
+{
+  BIO* b64, *bmem;
+  b64 = BIO_new(BIO_f_base64());
+  out = "";
+
+  if (!b64) {
+    return false;
+  }
+
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+  size_t body64len = strlen(in);
+  bmem = BIO_new_mem_buf((void*) in, body64len);
+
+  if (!bmem) {
+    return false;
+  }
+
+  out.resize(body64len);
+  bmem = BIO_push(b64, bmem);
+  int nread = BIO_read(bmem, (void*)out.data(), (int)body64len);
+  BIO_free_all(b64);
+  return (nread > 0);
 }
 
 //------------------------------------------------------------------------------
@@ -374,10 +409,9 @@ SymKey::DeBase64(XrdOucString& in, XrdOucString& out)
   XrdOucString in64 = in;
   in64.erase(0, 7);
   char* valout = 0;
-  unsigned int valout_len = 0;
-  eos::common::SymKey::Base64Decode(in64, valout, valout_len);
+  size_t valout_len = 0;
 
-  if (valout) {
+  if (eos::common::SymKey::Base64Decode(in64, valout, valout_len)) {
     std::string s;
     s.assign(valout, 0, valout_len);
     out = s.c_str();
@@ -416,22 +450,6 @@ SymKey::DeBase64(std::string& in, std::string& out)
 
 
 //------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-SymKeyStore::SymKeyStore()
-{
-  currentKey = 0;
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-SymKeyStore::~SymKeyStore()
-{
-  // empty
-}
-
-//------------------------------------------------------------------------------
 // Set a key providing its base64 encoded representation and validity
 //------------------------------------------------------------------------------
 SymKey*
@@ -442,7 +460,7 @@ SymKeyStore::SetKey64(const char* inkey64, time_t invalidity)
   }
 
   char* binarykey = 0;
-  unsigned int outlen = 0;
+  size_t outlen = 0;
   XrdOucString key64 = inkey64;
 
   if (!SymKey::Base64Decode(key64, binarykey, outlen)) {

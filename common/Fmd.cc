@@ -1163,7 +1163,7 @@ Fmd::EnvToFmd(XrdOucEnv& env, struct Fmd::FMD& fmd)
 
   // base64 decode
   XrdOucString checksum64 = env.Get("mgm.fmd.checksum64");
-  unsigned int checksumlen;
+  size_t checksumlen;
   memset(fmd.checksum, 0, SHA_DIGEST_LENGTH);
   char* decodebuffer = 0;
 

@@ -412,7 +412,7 @@ TransferJob::DoIt()
 
           // now base64decode the decrypted credential
           char* credential = 0;
-          unsigned int credentiallen = 0;
+          size_t credentiallen = 0;
 
           if (eos::common::SymKey::Base64Decode(decrypted, credential, credentiallen)) {
             if (credential) {

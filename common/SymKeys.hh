@@ -130,13 +130,30 @@ public:
   static bool Base64Encode(char* in, unsigned int inlen, XrdOucString& out);
 
   //----------------------------------------------------------------------------
-  //! Base64 decode a string
+  //! Base64 decode data, output as char* and length
   //!
   //! @param in input data
   //! @param out decoded data
-  //! @param outlen output length
+  //! @param outlen decoded data length
   //----------------------------------------------------------------------------
-  static bool Base64Decode(XrdOucString& in, char*& out, unsigned int& outlen);
+  static bool Base64Decode(const char* in, char*& out, size_t& outlen);
+
+  //----------------------------------------------------------------------------
+  //! Base64 decode data, output as string
+  //!
+  //! @param in input data
+  //! @param out decoded data given as std::string
+  //----------------------------------------------------------------------------
+  static bool Base64Decode(const char* in, std::string& out);
+
+  //----------------------------------------------------------------------------
+  //! Base64 decode data stored in XrdOucString
+  //!
+  //! @param in input data
+  //! @param out decoded data
+  //! @param outlen decoded data length
+  //----------------------------------------------------------------------------
+  static bool Base64Decode(XrdOucString& in, char*& out, size_t& outlen);
 
   //----------------------------------------------------------------------------
   //! Decode a base64: prefixed string
@@ -277,12 +294,12 @@ public:
   //-----------------------------------------------------------------------------
   //! Constructor
   //-----------------------------------------------------------------------------
-  SymKeyStore();
+  SymKeyStore() = default;
 
   //-----------------------------------------------------------------------------
   //! Destructor
   //-----------------------------------------------------------------------------
-  ~SymKeyStore();
+  ~SymKeyStore() = default;
 
   //-----------------------------------------------------------------------------
   //! Set a binary key and it's validity

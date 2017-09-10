@@ -44,7 +44,7 @@ ProcCommand::Motd()
        eos::common::Mapping::HasUid(3, vid.uid_list) ||
        eos::common::Mapping::HasGid(4, vid.gid_list))) {
     // root + admins can set the MOTD
-    unsigned int motdlen = 0;
+    size_t motdlen = 0;
     char* motdout = 0;
     eos_info("decoding motd\n");
 

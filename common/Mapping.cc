@@ -1169,7 +1169,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
         b64name += "=";
         unsigned long long bituser = 0;
         char* out = 0;
-        unsigned int outlen;
+        size_t outlen;
 
         if (eos::common::SymKey::Base64Decode(b64name, out, outlen)) {
           if (outlen <= 8) {

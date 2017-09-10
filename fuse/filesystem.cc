@@ -1377,7 +1377,7 @@ filesystem::getxattr(const char* path,
 
       if (value64.beginswith("base64:")) {
         value64.erase(0, 7);
-        unsigned int ret_size;
+        size_t ret_size;
         eos::common::SymKey::Base64Decode(value64, *xattr_value, ret_size);
         *size = ret_size;
         eos_static_info("xattr-name=%s xattr-value=%s", xattr_name, *xattr_value);
