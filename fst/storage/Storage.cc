@@ -549,7 +549,15 @@ Storage::Boot(FileSystem* fs)
   fs->SetError(0, "");
   // create FS orphan directory
   std::string orphanDirectory = fs->GetPath();
-  orphanDirectory += "/.eosorphans";
+
+  if (fs->GetPath()[0] != '/') {
+    orphanDirectory = mMetaDir.c_str();
+    orphanDirectory += "/.eosorphans";
+    orphanDirectory += "-";
+    orphanDirectory += (int) fs->GetId();
+  } else {
+    orphanDirectory += "/.eosorphans";
+  }
 
   if (mkdir(orphanDirectory.c_str(),
             S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
