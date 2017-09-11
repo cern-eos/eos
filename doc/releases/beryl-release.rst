@@ -7,6 +7,16 @@
 Beryl Release Notes
 ===================
 
+``V0.3.268 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- MGM: Mask the block checksum for draining and balancing when there is a layout
+       requesting blockchecksum for replica files. This was blocking all draining,
+       balancing or conversion jobs.
+
 ``V0.3.267 Aquamarine``
 =======================
 
