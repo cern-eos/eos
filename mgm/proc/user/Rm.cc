@@ -21,8 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Access.hh"

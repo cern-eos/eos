@@ -21,49 +21,39 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Vid.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Vid ()
+ProcCommand::Vid()
 {
- if (mSubCmd == "ls")
- {
-   eos_notice("vid ls");
-   Vid::Ls(*pOpaque, retc, stdOut, stdErr);
-   mDoSort = true;
- }
+  if (mSubCmd == "ls") {
+    eos_notice("vid ls");
+    Vid::Ls(*pOpaque, retc, stdOut, stdErr);
+    mDoSort = true;
+  }
 
- if ((mSubCmd == "set") || (mSubCmd == "rm"))
- {
-   if (pVid->uid == 0)
-   {
-     if (mSubCmd == "set")
-     {
-       eos_notice("vid set");
-       Vid::Set(*pOpaque, retc, stdOut, stdErr);
-     }
+  if ((mSubCmd == "set") || (mSubCmd == "rm")) {
+    if (pVid->uid == 0) {
+      if (mSubCmd == "set") {
+        eos_notice("vid set");
+        Vid::Set(*pOpaque, retc, stdOut, stdErr);
+      }
 
+      if (mSubCmd == "rm") {
+        eos_notice("vid rm");
+        Vid::Rm(*pOpaque, retc, stdOut, stdErr);
+      }
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
 
-     if (mSubCmd == "rm")
-     {
-       eos_notice("vid rm");
-       Vid::Rm(*pOpaque, retc, stdOut, stdErr);
-     }
-   }
-   else
-   {
-     retc = EPERM;
-     stdErr = "error: you have to take role 'root' to execute this command";
-   }
- }
- return SFS_OK;
+  return SFS_OK;
 }
 
 EOSMGMNAMESPACE_END

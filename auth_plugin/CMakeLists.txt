@@ -26,8 +26,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${ZMQ_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS}
-  ${CMAKE_CURRENT_BINARY_DIR})
+  ${XROOTD_INCLUDE_DIRS})
 
 if (CPPUNIT_FOUND)
   add_subdirectory(tests)

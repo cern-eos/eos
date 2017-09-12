@@ -21,8 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Quota.hh"
@@ -30,12 +29,9 @@
 #include "mgm/Policy.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClCopyProcess.hh"
-/*----------------------------------------------------------------------------*/
 #include <math.h>
 #include <memory>
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 

@@ -1,11 +1,10 @@
 //------------------------------------------------------------------------------
-// File: Acl.cc
-// Author: Andreas-Joachim Peters - CERN
+//! @file Acl.cc
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -25,9 +24,7 @@
 #include "mgm/Egroup.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/StringConversion.hh"
-#include "common/Logging.hh"
 #include <regex.h>
-#include <string>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -48,7 +45,7 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
          eos::IContainerMD::XAttrMap& attrmap, bool lockNs)
 {
   gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
-  // define the acl rules from the attributes
+  // Set the acl rules from the attributes
   Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
       attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
       vid, attrmap.count("sys.eval.useracl"));
@@ -78,21 +75,21 @@ Acl::Set(std::string sysacl, std::string useracl,
   }
 
   // By default nothing is granted
-  hasAcl = false;
-  canRead = false;
-  canWrite = false;
-  canWriteOnce = false;
-  canUpdate = true;
-  canBrowse = false;
-  canChmod = false;
-  canNotChmod = false;
-  canChown = false;
-  canNotDelete = false;
-  canDelete = false;
-  canSetQuota = false;
-  hasEgroup = false;
-  isMutable = true;
-  canArchive = false;
+  mHasAcl = false;
+  mCanRead = false;
+  mCanWrite = false;
+  mCanWriteOnce = false;
+  mCanUpdate = true;
+  mCanBrowse = false;
+  mCanChmod = false;
+  mCanNotChmod = false;
+  mCanChown = false;
+  mCanNotDelete = false;
+  mCanDelete = false;
+  mCanSetQuota = false;
+  mHasEgroup = false;
+  mIsMutable = true;
+  mCanArchive = false;
 
   // no acl definition
   if (!acl.length()) {
@@ -162,7 +159,7 @@ Acl::Set(std::string sysacl, std::string useracl,
         }
 
         egroupmatch = Egroup::Member(username, entry[1]);
-        hasEgroup = egroupmatch;
+        mHasEgroup = egroupmatch;
       }
 
       // Match 'our' rule
@@ -189,39 +186,39 @@ Acl::Set(std::string sysacl, std::string useracl,
 
         // 'a' defines archiving permission
         if ((entry[2].find("a")) != std::string::npos) {
-          canArchive = true;
-          hasAcl = true;
+          mCanArchive = true;
+          mHasAcl = true;
         }
 
         // 'r' defines read permission
         if ((entry[2].find("r")) != std::string::npos) {
-          canRead = true;
-          hasAcl = true;
+          mCanRead = true;
+          mHasAcl = true;
         }
 
         // 'x' defines browsing permission
         if ((entry[2].find("x")) != std::string::npos) {
-          canBrowse = true;
-          hasAcl = true;
+          mCanBrowse = true;
+          mHasAcl = true;
         }
 
         // 'm' defines mode change permission
         if ((entry[2].find("m")) != std::string::npos) {
           if ((entry[2].find("!m")) != std::string::npos) {
-            canNotChmod = true;
+            mCanNotChmod = true;
           } else {
-            canChmod = true;
+            mCanChmod = true;
           }
 
-          hasAcl = true;
+          mHasAcl = true;
         }
 
         // 'c' defines owner change permission (for directories)
         if ((sysacl.find(*it) != std::string::npos) &&
             ((entry[2].find("c")) != std::string::npos)) {
           // this is only valid if it is specified as a sysacl
-          canChown = true;
-          hasAcl = true;
+          mCanChown = true;
+          mHasAcl = true;
         }
 
         // '!d' forbids deletion
@@ -229,57 +226,57 @@ Acl::Set(std::string sysacl, std::string useracl,
           // canDelete is true, if deletion has been explicitly allowed by a rule
           // and in this case we don't forbid deletion even if another rule
           // says that
-          if (!canDelete) {
-            canNotDelete = true;
+          if (!mCanDelete) {
+            mCanNotDelete = true;
           }
 
-          hasAcl = true;
+          mHasAcl = true;
         }
 
         // '+d' adds deletion
         if ((entry[2].find("+d")) != std::string::npos) {
-          canDelete = true;
-          canNotDelete = false;
-          canWriteOnce = false;
-          hasAcl = true;
+          mCanDelete = true;
+          mCanNotDelete = false;
+          mCanWriteOnce = false;
+          mHasAcl = true;
         }
 
         // '!u' removes update
         if ((entry[2].find("!u")) != std::string::npos) {
-          canUpdate = false;
-          hasAcl = true;
+          mCanUpdate = false;
+          mHasAcl = true;
         }
 
         // '+u' adds update
         if ((entry[2].find("+u")) != std::string::npos) {
-          canUpdate = true;
-          hasAcl = true;
+          mCanUpdate = true;
+          mHasAcl = true;
         }
 
         // 'wo' defines write once permissions
         if (((entry[2].find("wo")) != std::string::npos)) {
-          canWriteOnce = true;
-          hasAcl = true;
+          mCanWriteOnce = true;
+          mHasAcl = true;
         }
 
         // 'w' defines write permissions if 'wo' is not granted
-        if ((!canWriteOnce) && (entry[2].find("w")) != std::string::npos) {
-          canWrite = true;
-          hasAcl = true;
+        if ((!mCanWriteOnce) && (entry[2].find("w")) != std::string::npos) {
+          mCanWrite = true;
+          mHasAcl = true;
         }
 
         // 'q' defines quota set permission
         if (((sysacl.find(*it) != std::string::npos)) &&
             ((entry[2].find("q")) != std::string::npos)) {
           // this is only valid if it is specified as a sysacl
-          canSetQuota = true;
-          hasAcl = true;
+          mCanSetQuota = true;
+          mHasAcl = true;
         }
 
         // 'i' makes directories immutable
         if ((entry[2].find("i")) != std::string::npos) {
-          isMutable = false;
-          hasAcl = true;
+          mIsMutable = false;
+          mHasAcl = true;
         }
       }
     }
@@ -345,9 +342,13 @@ Acl::IsValid(const std::string& value, XrdOucErrInfo& error, bool is_sys_acl,
 //------------------------------------------------------------------------------
 // Convert acl rules to numeric uid/gid if needed
 //------------------------------------------------------------------------------
-bool
-Acl::ConvertToNumericIds(std::string& acl_val, XrdOucErrInfo& error)
+void
+Acl::ConvertIds(std::string& acl_val, bool to_string)
 {
+  if (acl_val.empty()) {
+    return;
+  }
+
   bool is_uid, is_gid;
   std::string sid;
   std::ostringstream oss;
@@ -363,7 +364,7 @@ Acl::ConvertToNumericIds(std::string& acl_val, XrdOucErrInfo& error)
     is_uid = is_gid = false;
     std::vector<std::string> tokens;
     StringConversion::Tokenize(rule, tokens, ":");
-    eos_static_info("rule=%s, tokens.size=%i", rule.c_str(), tokens.size());
+    eos_static_debug("rule=%s, tokens.size=%i", rule.c_str(), tokens.size());
 
     if (tokens.size() != 3) {
       oss << rule << ',';
@@ -379,27 +380,62 @@ Acl::ConvertToNumericIds(std::string& acl_val, XrdOucErrInfo& error)
     }
 
     sid = tokens[1];
+    bool needs_conversion = false;
 
-    // If not in numeric format try to convert it
-    if (sid.find_first_not_of("0123456789") != std::string::npos) {
-      int errc {0};
+    if (to_string) {
+      // Convert to string representation if needed
+      needs_conversion =
+        (std::find_if(sid.begin(), sid.end(),
+      [](const char& c) {
+        return std::isalpha(c);
+      }) == sid.end());
+    } else {
+      // Convert to numeric representation if needed
+      needs_conversion =
+        (std::find_if(sid.begin(), sid.end(),
+      [](const char& c) {
+        return std::isalpha(c);
+      }) != sid.end());
+    }
+
+    if (needs_conversion) {
+      int errc = 0;
       std::uint32_t numeric_id {0};
+      std::string string_id {""};
 
       if (is_uid) {
-        numeric_id = eos::common::Mapping::UserNameToUid(sid, errc);
+        if (!to_string) {
+          numeric_id = eos::common::Mapping::UserNameToUid(sid, errc);
+          string_id = std::to_string(numeric_id);
+        } else {
+          numeric_id = atoi(sid.c_str());
+          string_id = eos::common::Mapping::UidToUserName(numeric_id, errc);
+        }
       } else {
-        numeric_id = eos::common::Mapping::GroupNameToGid(sid, errc);
+        if (!to_string) {
+          numeric_id = eos::common::Mapping::GroupNameToGid(sid, errc);
+          string_id = std::to_string(numeric_id);
+        } else {
+          numeric_id = atoi(sid.c_str());
+          string_id = eos::common::Mapping::GidToGroupName(numeric_id, errc);
+        }
       }
 
       if (errc) {
         oss.str("");
-        oss << "failed to convert id: \"" << sid << "\" to numeric format";
+
+        if (to_string) {
+          oss << "failed to convert id: \"" << sid << "\" to string format";
+        } else {
+          oss << "failed to convert id: \"" << sid << "\" to numeric format";
+        }
+
+        // Print error message but still return the original value that we have
         eos_static_err(oss.str().c_str());
-        error.setErrInfo(EINVAL, oss.str().c_str());
-        return false;
+        string_id = sid;
       }
 
-      oss << tokens[0] << ':' << numeric_id << ':' << tokens[2] << ',';
+      oss << tokens[0] << ':' << string_id << ':' << tokens[2] << ',';
     } else {
       oss << rule << ',';
     }
@@ -410,9 +446,6 @@ Acl::ConvertToNumericIds(std::string& acl_val, XrdOucErrInfo& error)
   if (*acl_val.rbegin() == ',') {
     acl_val.pop_back();
   }
-
-  return true;
 }
-
 
 EOSMGMNAMESPACE_END

@@ -21,30 +21,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Member ()
+ProcCommand::Member()
 {
   XrdOucString smember = pOpaque->Get("mgm.egroup");
-  if (smember.length()) 
-  {
+
+  if (smember.length()) {
     std::string egroup = smember.c_str();
     std::string rs = Egroup::DumpMember(vid.uid_string,  egroup);
     stdOut += rs.c_str();
-
-  } 
-  else
-  {
+  } else {
     std::string rs = Egroup::DumpMembers();
     stdOut += rs.c_str();
   }
+
   return SFS_OK;
 }
 

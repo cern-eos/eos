@@ -21,90 +21,82 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Fsck ()
+ProcCommand::Fsck()
 {
- if (pVid->uid == 0)
- {
-   if (mSubCmd == "disable")
-   {
-     if (gOFS->FsCheck.Stop())
-     {
-       stdOut += "success: disabled fsck";
-     }
-     else
-     {
-       stdErr += "error: fsck was already disabled";
-     }
-   }
-   if (mSubCmd == "enable")
-   {
-     if (gOFS->FsCheck.Start())
-     {
-       stdOut += "success: enabled fsck";
-     }
-     else
-     {
-       stdErr += "error: fsck was already enabled - to change the <interval> settings stop it first";
-     }
-   }
-   if (mSubCmd == "report")
-   {
-     XrdOucString option = "";
-     XrdOucString mSelection = "";
-     option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
-     mSelection = pOpaque->Get("mgm.fsck.selection") ? pOpaque->Get("mgm.fsck.selection") : "";
-     if (gOFS->FsCheck.Report(stdOut, stdErr, option, mSelection))
-       retc = 0;
-     else
-       retc = EINVAL;
-   }
+  if (pVid->uid == 0) {
+    if (mSubCmd == "disable") {
+      if (gOFS->FsCheck.Stop()) {
+        stdOut += "success: disabled fsck";
+      } else {
+        stdErr += "error: fsck was already disabled";
+      }
+    }
 
-   if (mSubCmd == "repair")
-   {
-     XrdOucString option = "";
-     XrdOucString mSelection = "";
-     option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
-     if (option == "all")
-     {
-       retc = (
-               gOFS->FsCheck.Repair(stdOut, stdErr, "checksum") &&
-               gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-unregistered") &&
-               gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-orphans") &&
-               gOFS->FsCheck.Repair(stdOut, stdErr, "adjust-replicas") &&
-               gOFS->FsCheck.Repair(stdOut, stdErr, "drop-missing-replicas") &&
-	       //               gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-zero-replicas") && // we don't do that anymore for the 'all' option
-               gOFS->FsCheck.Repair(stdOut, stdErr, "resync"));
-       if (retc)
-         retc = 0;
-       else
-         retc = EINVAL;
-     }
-     else
-     {
-       if (gOFS->FsCheck.Repair(stdOut, stdErr, option))
-         retc = 0;
-       else
-         retc = EINVAL;
-     }
-   }
- }
+    if (mSubCmd == "enable") {
+      if (gOFS->FsCheck.Start()) {
+        stdOut += "success: enabled fsck";
+      } else {
+        stdErr += "error: fsck was already enabled - to change the <interval> settings stop it first";
+      }
+    }
 
- if (mSubCmd == "stat")
- {
-   XrdOucString option = ""; // not used for the moment
-   eos_info("fsck stat");
-   gOFS->FsCheck.PrintOut(stdOut, option);
- }
- return SFS_OK;
+    if (mSubCmd == "report") {
+      XrdOucString option = "";
+      XrdOucString mSelection = "";
+      option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
+      mSelection = pOpaque->Get("mgm.fsck.selection") ?
+                   pOpaque->Get("mgm.fsck.selection") : "";
+
+      if (gOFS->FsCheck.Report(stdOut, stdErr, option, mSelection)) {
+        retc = 0;
+      } else {
+        retc = EINVAL;
+      }
+    }
+
+    if (mSubCmd == "repair") {
+      XrdOucString option = "";
+      XrdOucString mSelection = "";
+      option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
+
+      if (option == "all") {
+        retc = (
+                 gOFS->FsCheck.Repair(stdOut, stdErr, "checksum") &&
+                 gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-unregistered") &&
+                 gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-orphans") &&
+                 gOFS->FsCheck.Repair(stdOut, stdErr, "adjust-replicas") &&
+                 gOFS->FsCheck.Repair(stdOut, stdErr, "drop-missing-replicas") &&
+                 //               gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-zero-replicas") && // we don't do that anymore for the 'all' option
+                 gOFS->FsCheck.Repair(stdOut, stdErr, "resync"));
+
+        if (retc) {
+          retc = 0;
+        } else {
+          retc = EINVAL;
+        }
+      } else {
+        if (gOFS->FsCheck.Repair(stdOut, stdErr, option)) {
+          retc = 0;
+        } else {
+          retc = EINVAL;
+        }
+      }
+    }
+  }
+
+  if (mSubCmd == "stat") {
+    XrdOucString option = ""; // not used for the moment
+    eos_info("fsck stat");
+    gOFS->FsCheck.PrintOut(stdOut, option);
+  }
+
+  return SFS_OK;
 }
 
 EOSMGMNAMESPACE_END

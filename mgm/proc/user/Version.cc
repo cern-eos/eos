@@ -21,25 +21,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Features.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Version ()
+ProcCommand::Version()
 {
   gOFS->MgmStats.Add("Version", pVid->uid, pVid->gid, 1);
   eos_info("version");
-
   XrdOucString option = pOpaque->Get("mgm.option");
 
-  if (option.find("m") != STR_NPOS)
-  {
+  if (option.find("m") != STR_NPOS) {
     stdOut += "eos.instance.name=";
     stdOut +=  gOFS->MgmOfsInstanceName;
     stdOut += " eos.instance.version=";
@@ -47,34 +42,33 @@ ProcCommand::Version ()
     stdOut += " eos.instance.release=";
     stdOut += RELEASE;
     stdOut += " ";
-    for(auto it = Features::sMap.begin(); it!=Features::sMap.end(); it++)
-    {
+
+    for (auto it = Features::sMap.begin(); it != Features::sMap.end(); it++) {
       stdOut += it->first.c_str();
       stdOut += "=";
       stdOut += it->second.c_str();
       stdOut += " ";
     }
-  }
-  else
-  {
+  } else {
     stdOut += "EOS_INSTANCE=";
     stdOut += gOFS->MgmOfsInstanceName;
     stdOut += "\nEOS_SERVER_VERSION=";
     stdOut += VERSION;
     stdOut += " EOS_SERVER_RELEASE=";
     stdOut += RELEASE;
-    if (option.find("f") != STR_NPOS)
-    {
+
+    if (option.find("f") != STR_NPOS) {
       stdOut += "\nEOS_SERVER_FEATURES=";
-      for(auto it = Features::sMap.begin(); it!=Features::sMap.end(); it++)
-      {
-	stdOut += "\n";
-	stdOut += it->first.c_str();
-	stdOut += "  =>  ";
-	stdOut += it->second.c_str();
+
+      for (auto it = Features::sMap.begin(); it != Features::sMap.end(); it++) {
+        stdOut += "\n";
+        stdOut += it->first.c_str();
+        stdOut += "  =>  ";
+        stdOut += it->second.c_str();
       }
     }
   }
+
   return SFS_OK;
 }
 

@@ -21,50 +21,42 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Recycle.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Recycle ()
+ProcCommand::Recycle()
 {
   eos_info("");
   gOFS->MgmStats.Add("Recycle", pVid->uid, pVid->gid, 1);
 
-  if (mSubCmd == "ls" || (mSubCmd == ""))
-  {
+  if (mSubCmd == "ls" || (mSubCmd == "")) {
     XrdOucString monitoring = pOpaque->Get("mgm.recycle.format");
     XrdOucString translateids = pOpaque->Get("mgm.recycle.printid");
     XrdOucString option = pOpaque->Get("mgm.option");
-
-    Recycle::Print(stdOut, stdErr, *pVid, (monitoring == "m"), !(translateids == "n"), (mSubCmd == "ls"));
+    Recycle::Print(stdOut, stdErr, *pVid, (monitoring == "m"),
+                   !(translateids == "n"), (mSubCmd == "ls"));
   }
 
-  if (mSubCmd == "purge")
-  {
+  if (mSubCmd == "purge") {
     retc = Recycle::Purge(stdOut, stdErr, *pVid);
   }
 
-  if (mSubCmd == "restore")
-  {
+  if (mSubCmd == "restore") {
     XrdOucString arg = pOpaque->Get("mgm.recycle.arg");
     XrdOucString option = pOpaque->Get("mgm.option");
-
     retc = Recycle::Restore(stdOut, stdErr, *pVid, arg.c_str(), option);
   }
 
-  if (mSubCmd == "config")
-  {
+  if (mSubCmd == "config") {
     XrdOucString arg = pOpaque->Get("mgm.recycle.arg");
     XrdOucString option = pOpaque->Get("mgm.option");
-
     retc = Recycle::Config(stdOut, stdErr, *pVid, arg.c_str(), option);
   }
+
   return SFS_OK;
 }
 

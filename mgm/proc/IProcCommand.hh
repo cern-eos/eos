@@ -1,11 +1,10 @@
 //------------------------------------------------------------------------------
-// File: Backup.hh
-// Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
+//! @file IProcCommand.hh
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -17,62 +16,78 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the GNU General Public License    *
+ * You should have received a copy of the AGNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_BACKUP_HH__
-#define __EOSMGM_BACKUP_HH__
+#pragma once
 
-#include "mgm/proc/ProcInterface.hh"
-#include <set>
+#include "common/Mapping.hh"
+#include "common/Logging.hh"
+#include "common/ConsoleReply.pb.h"
+#include "XrdSfs/XrdSfsInterface.hh"
+#include <future>
+
+//! Forward declarations
+class XrdOucErrInfo;
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class TwindowFilter to exclude older entries
+//! Class IProcCommand - interface that needs to be implemented by all types
+//! of commands executed by the MGM.
 //------------------------------------------------------------------------------
-class TwindowFilter: public IFilter, public eos::common::LogId
+class IProcCommand: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param twindow_type time window type
-  //! @param twindow_val time window value
-  //----------------------------------------------------------------------------
-  TwindowFilter(const std::string& twindow_type, const std::string& twindow_val);
-
-  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~TwindowFilter() {};
+  virtual ~IProcCommand() = default;
 
   //----------------------------------------------------------------------------
-  //! Filter file entry if it is a version file i.e. contains ".sys.v#." or if
-  //! it is ouside the timewindow
+  //! Open a proc command e.g. call the appropriate user or admin commmand and
+  //! store the output in a resultstream of in case of find in temporary output
+  //! files.
   //!
-  //! @param entry_info entry information on which the filter is applied
+  //! @param inpath path indicating user or admin command
+  //! @param info CGI describing the proc command
+  //! @param vid_in virtual identity of the user requesting a command
+  //! @param error object to store errors
   //!
-  //! @return true if entry should be filtered out, otherwise false
+  //! @return SFS_OK in any case
   //----------------------------------------------------------------------------
-  bool FilterOutFile(const std::map<std::string, std::string>& entry_info);
+  virtual int open(const char* path, const char* info,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   XrdOucErrInfo* error) = 0;
 
   //----------------------------------------------------------------------------
-  //! Filter the directory entry
+  //! Read a part of the result stream created during open
   //!
-  //! @param path current directory path
+  //! @param boff offset where to start
+  //! @param buff buffer to store stream
+  //! @param blen len to return
   //!
-  //! @return true if entry should be filtered out, otherwise false
+  //! @return number of bytes read
   //----------------------------------------------------------------------------
-  bool FilterOutDir(const std::string& path);
+  virtual int read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen) = 0;
 
-private:
-  std::string mTwindowType; ///< Time window type
-  std::string mTwindowVal; ///< Time window value
-  std::set<std::string> mSetDirs; ///< Set of directories to keep
+  //----------------------------------------------------------------------------
+  //! Get the size of the result stream
+  //!
+  //! @param buf stat structure to fill
+  //!
+  //! @return SFS_OK in any case
+  //----------------------------------------------------------------------------
+  virtual int stat(struct stat* buf) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Close the proc stream and store the clients comment for the command in the
+  //! comment log file
+  //!
+  //! @return 0 if comment has been successfully stored otherwise != 0
+  //----------------------------------------------------------------------------
+  virtual int close() = 0;
 };
 
 EOSMGMNAMESPACE_END
-
-#endif // __EOS_MGM_BACKUP_HH__

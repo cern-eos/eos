@@ -21,8 +21,8 @@
  ************************************************************************/
 
 #include "ProcInterface.hh"
-#include "mgm/Acl.hh"
 #include "common/ConsoleRequest.pb.h"
+#include "mgm/proc/user/AclCmd.hh"
 #include <iostream>
 #include <fstream>
 #include <json/json.h>
@@ -33,8 +33,8 @@ EOSMGMNAMESPACE_BEGIN
 // Factory method to get a ProcCommand object
 //------------------------------------------------------------------------------
 std::unique_ptr<IProcCommand>
-ProcInterface::CreateProcCommand(const char* path,
-                                 const char* opaque)
+ProcInterface::CreateProcCommand(eos::common::Mapping::VirtualIdentity& vid,
+                                 const char* path, const char* opaque)
 {
   std::unique_ptr<IProcCommand> cmd;
 
@@ -43,8 +43,9 @@ ProcInterface::CreateProcCommand(const char* path,
   } else {
     XrdOucEnv env(opaque);
 
+    // New console implementation using ProtocolBuffer objects
     if (env.Get("mgm.cmd.proto")) {
-      cmd = HandleProtobufRequest(path, opaque);
+      cmd = HandleProtobufRequest(path, opaque, vid);
     } else {
       cmd.reset(new ProcCommand());
     }
@@ -57,7 +58,8 @@ ProcInterface::CreateProcCommand(const char* path,
 // Handle protobuf request
 //----------------------------------------------------------------------------
 std::unique_ptr<IProcCommand>
-ProcInterface::HandleProtobufRequest(const char* path, const char* opaque)
+ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
+                                     eos::common::Mapping::VirtualIdentity& vid)
 {
   using eos::console::RequestProto_OpType;
   std::unique_ptr<IProcCommand> cmd {nullptr};
@@ -84,7 +86,7 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque)
   switch (req.type()) {
   case RequestProto_OpType::RequestProto_OpType_ACL:
     eos_static_debug("handling acl command");
-    // cmd.reset(new AclCmd(req));
+    cmd.reset(new AclCmd(std::move(req), vid));
     break;
 
   default:
@@ -152,7 +154,6 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
         (subcmd == "add") ||
         (subcmd == "mv") ||
         (subcmd == "rm"))) ||
-      ((cmd == "fusex")) ||
       ((cmd == "space") &&
        ((subcmd == "config") ||
         (subcmd == "define") ||

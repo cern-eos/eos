@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file Acl.cc
+//! @file AclCmd.cc
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -20,7 +20,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "Acl.hh"
+#include "AclCmd.hh"
+#include "mgm/Acl.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "common/StringTokenizer.hh"
 #include <unistd.h>
 #include <getopt.h>
@@ -29,54 +31,177 @@
 #include <queue>
 #include <sstream>
 
+extern XrdMgmOfs* gOFS;
+
+EOSMGMNAMESPACE_BEGIN
+
 //------------------------------------------------------------------------------
-//
+// Method triggering the execution of the command and returning a future object
 //------------------------------------------------------------------------------
-std::string Acl::AclShortToString(unsigned short int in)
+std::future<eos::console::ReplyProto>
+AclCmd::Execute()
+{
+  auto reply_future = mPromise.get_future();
+  std::thread([&]() {
+    return ProcessRequest();
+  }).detach();
+  return reply_future;
+}
+
+//------------------------------------------------------------------------------
+// Process request
+//------------------------------------------------------------------------------
+void
+AclCmd::ProcessRequest()
+{
+  using eos::console::AclProto_OpType;
+  eos::console::ReplyProto reply;
+  eos::console::AclProto acl = mReqProto.acl();
+
+  if (acl.op() == AclProto_OpType::AclProto_OpType_LIST) {
+    std::string acl_val;
+    GetAcls(acl.path(), acl_val, acl.sys_acl());
+
+    if (acl_val.empty()) {
+      std::string err_msg = "error: ";
+      err_msg += std::strerror(ENODATA);
+      reply.set_std_err(err_msg);
+      reply.set_retc(ENODATA);
+    } else {
+      reply.set_std_out(acl_val);
+      reply.set_retc(0);
+    }
+  } else {
+    reply.set_retc(EINVAL);
+    reply.set_std_err("error: not implemented yet");
+  }
+
+  mPromise.set_value(std::move(reply));
+}
+
+//------------------------------------------------------------------------------
+// Open a proc command e.g. call the appropriate user or admin commmand and
+// store the output in a resultstream of in case of find in temporary output
+// files.
+//------------------------------------------------------------------------------
+int
+AclCmd::open(const char* path, const char* info,
+             eos::common::Mapping::VirtualIdentity& vid,
+             XrdOucErrInfo* error)
+{
+  mFuture = Execute();
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Read a part of the result stream created during open
+//------------------------------------------------------------------------------
+int
+AclCmd::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
+{
+  if (!mHasResponse) {
+    std::future_status status = mFuture.wait_for(std::chrono::seconds(5));
+
+    if (status != std::future_status::ready) {
+      // Stall the client requst
+      eos_err("future is not ready yet, return 0");
+      return 0;
+    } else {
+      mHasResponse = true;
+      eos::console::ReplyProto reply = mFuture.get();
+      std::ostringstream oss;
+      oss << "mgm.proc.stdout=" << reply.std_out()
+          << "&mgm.proc.stderr=" << reply.std_err()
+          << "&mgm.proc.retc=" << reply.retc();
+      mTmpResp = oss.str();
+      eos_info("future is ready, response is: %s", oss.str().c_str());
+    }
+  }
+
+  if ((size_t)offset < mTmpResp.length()) {
+    size_t cpy_len = std::min((size_t)(mTmpResp.size() - offset), (size_t)blen);
+    memcpy(buff, mTmpResp.data() + offset, cpy_len);
+    return cpy_len;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Get sys.acl and user.acl for a given path
+//------------------------------------------------------------------------------
+void
+AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys)
+{
+  std::string acl_key;
+  XrdOucString value;
+  XrdOucErrInfo error;
+
+  if (is_sys) {
+    acl_key = "sys.acl";
+  } else {
+    acl_key = "user.acl";
+  }
+
+  if (gOFS->_attr_get(path.c_str(), error, *pVid, 0, acl_key.c_str(), value)) {
+    value = "";
+  }
+
+  acl = value.c_str();
+  Acl::ConvertIds(acl, true);
+}
+
+
+/*
+//------------------------------------------------------------------------------
+// Convert ACL bitmask to string representation
+//------------------------------------------------------------------------------
+std::string
+AclCmd::AclBitmaskToString(unsigned short int in) const
 {
   std::string ret = "";
 
-  if (in & Acl::R) {
+  if (in & AclCmd::R) {
     ret.append("r");
   }
 
-  if (in & Acl::W) {
+  if (in & AclCmd::W) {
     ret.append("w");
   }
 
-  if (in & Acl::X) {
+  if (in & AclCmd::X) {
     ret.append("x");
   }
 
-  if (in & Acl::M) {
+  if (in & AclCmd::M) {
     ret.append("m");
   }
 
-  if (in & Acl::nM) {
+  if (in & AclCmd::nM) {
     ret.append("!m");
   }
 
-  if (in & Acl::nD) {
+  if (in & AclCmd::nD) {
     ret.append("!d");
   }
 
-  if (in & Acl::pD) {
+  if (in & AclCmd::pD) {
     ret.append("+d");
   }
 
-  if (in & Acl::nU) {
+  if (in & AclCmd::nU) {
     ret.append("!u");
   }
 
-  if (in & Acl::pU) {
+  if (in & AclCmd::pU) {
     ret.append("+u");
   }
 
-  if (in & Acl::Q) {
+  if (in & AclCmd::Q) {
     ret.append("q");
   }
 
-  if (in & Acl::C) {
+  if (in & AclCmd::C) {
     ret.append("c");
   }
 
@@ -84,69 +209,64 @@ std::string Acl::AclShortToString(unsigned short int in)
 }
 
 //------------------------------------------------------------------------------
-//
+// Get ACL rule from string by creating a pair of identifier for the ACL and
+// the bitmask representation
 //------------------------------------------------------------------------------
-Rule Acl::AclRuleFromString(const std::string& single_acl)
+Rule AclCmd::AclRuleFromString(const std::string& single_acl) const
 {
   Rule ret;
   auto acl_delimiter = single_acl.rfind(':');
-  ret.first =
-    std::string(single_acl.begin(), single_acl.begin() + acl_delimiter);
+  ret.first = std::string(single_acl.begin(),
+                          single_acl.begin() + acl_delimiter);
   unsigned short rule_int = 0;
 
   for (auto i = acl_delimiter + 1, size = single_acl.length(); i < size; ++i) {
     switch (single_acl.at(i)) {
     case 'r' :
-      rule_int = rule_int | Acl::R;
+      rule_int = rule_int | AclCmd::R;
       break;
-
     case 'w' :
-      rule_int = rule_int | Acl::W;
+      rule_int = rule_int | AclCmd::W;
       break;
-
     case 'x' :
-      rule_int = rule_int | Acl::X;
+      rule_int = rule_int | AclCmd::X;
       break;
-
     case 'm' :
-      rule_int = rule_int | Acl::M;
+      rule_int = rule_int | AclCmd::M;
       break;
-
     case 'q' :
-      rule_int = rule_int | Acl::Q;
+      rule_int = rule_int | AclCmd::Q;
       break;
-
     case 'c' :
-      rule_int = rule_int | Acl::C;
+      rule_int = rule_int | AclCmd::C;
       break;
-
     case '+' :
-      // There is only two + flags in current acl permissions +d and +u
+      // There are only two + flags in current acl permissions +d and +u
       i++;
-
       if (single_acl.at(i) == 'd') {
-        rule_int = rule_int | Acl::pD;
+        rule_int = rule_int | AclCmd::pD;
       } else {
-        rule_int = rule_int | Acl::pU;
+        rule_int = rule_int | AclCmd::pU;
       }
 
       break;
-
     case '!' :
       i++;
 
       if (single_acl.at(i) == 'd') {
-        rule_int = rule_int | Acl::nD;
+        rule_int = rule_int | AclCmd::nD;
       }
 
       if (single_acl.at(i) == 'u') {
-        rule_int = rule_int | Acl::nU;
+        rule_int = rule_int | AclCmd::nU;
       }
 
       if (single_acl.at(i) == 'm') {
-        rule_int = rule_int | Acl::nM;
+        rule_int = rule_int | AclCmd::nM;
       }
 
+      break;
+    default:
       break;
     }
   }
@@ -158,21 +278,41 @@ Rule Acl::AclRuleFromString(const std::string& single_acl)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool Acl::GetAclStringsForPath(const std::string& path)
+void AclCmd::GenerateRuleMap(const std::string& acl_string)
 {
-  std::string command = std::string("mgm.cmd=attr&mgm.subcmd=ls&mgm.path=") +
-                        path;
-  // @TODO (esindril): call internal attr ls
-  std::string result = "";
-  SetAclString(result, m_sys_acl_string, "sys.acl");
-  SetAclString(result, m_usr_acl_string, "user.acl");
-  return true;
+  if (!mRules.empty()) {
+    mRules.clear();
+  }
+
+  if (acl_string.empty()) {
+    return;
+  }
+
+  size_t curr_pos = 0, pos = 0;
+
+  while (1) {
+    pos = acl_string.find(',', curr_pos);
+
+    if (pos == std::string::npos) {
+      pos = acl_string.length();
+    }
+
+    std::string single_acl = std::string(acl_string.begin() + curr_pos,
+                                         acl_string.begin() + pos);
+    Rule temp = AclRuleFromString(single_acl);
+    mRules[temp.first] = temp.second;
+    curr_pos = pos + 1;
+
+    if (curr_pos > acl_string.length()) {
+      break;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void Acl::SetAclString(const std::string& result,
+void AclCmd::SetAclString(const std::string& result,
                        std::string& which,
                        const char* type)
 {
@@ -190,41 +330,7 @@ void Acl::SetAclString(const std::string& result,
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void Acl::GenerateRuleMap(const std::string& acl_string, RuleMap& map)
-{
-  size_t curr_pos = 0, pos = 0;
-
-  if (!map.empty()) {
-    map.clear();
-  }
-
-  if (acl_string.empty()) {
-    return;
-  }
-
-  while (1) {
-    pos = acl_string.find(',', curr_pos);
-
-    if (pos == std::string::npos) {
-      pos = acl_string.length();
-    }
-
-    std::string single_acl =
-      std::string(acl_string.begin() + curr_pos, acl_string.begin() + pos);
-    Rule temp = AclRuleFromString(single_acl);
-    m_rules[temp.first] = temp.second;
-    curr_pos = pos + 1;
-
-    if (curr_pos > acl_string.length()) {
-      break;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-bool Acl::CheckCorrectId(const std::string& id)
+bool AclCmd::CheckCorrectId(const std::string& id)
 {
   std::string allowed_chars =
     "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-";
@@ -244,19 +350,19 @@ bool Acl::CheckCorrectId(const std::string& id)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool Acl::GetRuleInt(const std::string& rule, bool set)
+bool AclCmd::GetRuleInt(const std::string& rule, bool set)
 {
   unsigned short int ret = 0, add_ret = 0, rm_ret = 0;
   bool lambda_happen = false;
-  auto add_lambda = [&add_ret, &ret](Acl::ACLPos pos) {
+  auto add_lambda = [&add_ret, &ret](AclCmd::ACLPos pos) {
     add_ret = add_ret | pos;
     ret = ret | pos;
   };
-  auto remove_lambda = [&rm_ret, &ret](Acl::ACLPos pos) {
+  auto remove_lambda = [&rm_ret, &ret](AclCmd::ACLPos pos) {
     rm_ret = rm_ret | pos;
     ret = ret & (~pos);
   };
-  std::function<void(Acl::ACLPos)>curr_lambda = add_lambda;
+  std::function<void(AclCmd::ACLPos)>curr_lambda = add_lambda;
 
   for (auto flag = rule.begin(); flag != rule.end(); ++flag) {
     // Check for add/rm rules
@@ -288,32 +394,32 @@ bool Acl::GetRuleInt(const std::string& rule, bool set)
 
     // Check for flags
     if (*flag == 'r') {
-      curr_lambda(Acl::R);
+      curr_lambda(AclCmd::R);
       continue;
     }
 
     if (*flag == 'w') {
-      curr_lambda(Acl::W);
+      curr_lambda(AclCmd::W);
       continue;
     }
 
     if (*flag == 'x') {
-      curr_lambda(Acl::X);
+      curr_lambda(AclCmd::X);
       continue;
     }
 
     if (*flag == 'm') {
-      curr_lambda(Acl::M);
+      curr_lambda(AclCmd::M);
       continue;
     }
 
     if (*flag == 'q') {
-      curr_lambda(Acl::Q);
+      curr_lambda(AclCmd::Q);
       continue;
     }
 
     if (*flag == 'c') {
-      curr_lambda(Acl::C);
+      curr_lambda(AclCmd::C);
       continue;
     }
 
@@ -325,17 +431,17 @@ bool Acl::GetRuleInt(const std::string& rule, bool set)
       }
 
       if (*flag == 'd') {
-        curr_lambda(Acl::nD);
+        curr_lambda(AclCmd::nD);
         continue;
       }
 
       if (*flag == 'u') {
-        curr_lambda(Acl::nU);
+        curr_lambda(AclCmd::nU);
         continue;
       }
 
       if (*flag == 'm') {
-        curr_lambda(Acl::nM);
+        curr_lambda(AclCmd::nM);
         continue;
       }
 
@@ -346,12 +452,12 @@ bool Acl::GetRuleInt(const std::string& rule, bool set)
       ++flag;
 
       if (*flag == 'd') {
-        curr_lambda(Acl::pD);
+        curr_lambda(AclCmd::pD);
         continue;
       }
 
       if (*flag == 'u') {
-        curr_lambda(Acl::pU);
+        curr_lambda(AclCmd::pU);
         continue;
       }
     }
@@ -373,12 +479,12 @@ error_label:
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void Acl::ApplyRule()
+void AclCmd::ApplyRule()
 {
   unsigned short temp_rule = 0;
 
-  if (!m_set && m_rules.find(m_id) != m_rules.end()) {
-    temp_rule = m_rules[m_id];
+  if (!m_set && mRules.find(m_id) != mRules.end()) {
+    temp_rule = mRules[m_id];
   }
 
   if (m_add_rule != 0) {
@@ -389,19 +495,19 @@ void Acl::ApplyRule()
     temp_rule = temp_rule & (~m_rm_rule);
   }
 
-  m_rules[m_id] = temp_rule;
+  mRules[m_id] = temp_rule;
 }
 
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-std::string Acl::MapToAclString()
+std::string AclCmd::MapToAclString()
 {
   std::string ret = "";
 
-  for (auto item = m_rules.begin(); item != m_rules.end(); item++) {
+  for (auto item = mRules.begin(); item != mRules.end(); item++) {
     if ((*item).second != 0) {
-      ret += (*item).first + ":" + AclShortToString((*item).second) + ",";
+      ret += (*item).first + ":" + AclBitmaskToString((*item).second) + ",";
     }
   }
 
@@ -416,7 +522,7 @@ std::string Acl::MapToAclString()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool Acl::ParseRule(const std::string& input)
+bool AclCmd::ParseRule(const std::string& input)
 {
   size_t pos_del_first, pos_del_last, pos_equal;
   pos_del_first = input.find(":");
@@ -482,94 +588,7 @@ bool Acl::ParseRule(const std::string& input)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool Acl::ProcessCommand()
-{
-  std::string token;
-  const char* temp;
-  eos::common::StringTokenizer m_subtokenizer(m_comm);
-  m_subtokenizer.GetLine();
-
-  // Get opts
-  while ((temp = m_subtokenizer.GetToken()) != 0) {
-    //trimming
-    token = std::string(temp);
-    token.erase(std::find_if(token.rbegin(), token.rend(),
-                             std::not1(std::ptr_fun<int, int> (std::isspace))).base(), token.end());
-
-    if (token == "") {
-      continue;
-    }
-
-    if (token == "--help") {
-      return false;
-    }
-
-    if (token == "-lR" || token == "-Rl") {
-      m_recursive = m_list = true;
-      continue;
-    }
-
-    if (token == "-R")          {
-      m_recursive = true;
-      continue;
-    }
-
-    if (token == "--recursive") {
-      m_recursive = true;
-      continue;
-    }
-
-    if (token == "-l")      {
-      m_list = true;
-      continue;
-    }
-
-    if (token == "--lists") {
-      m_list = true;
-      continue;
-    }
-
-    if (token == "--sys")  {
-      m_sys_acl = true;
-      continue;
-    }
-
-    if (token == "--user") {
-      m_usr_acl = true;
-      continue;
-    }
-
-    // If there is unsupported flag
-    if (token.at(0) == '-') {
-      m_error_message = "Unercognized flag " + token + " !";
-      return false;
-    } else {
-      if (m_list) {
-        m_path = token;
-      } else {
-        m_rule = std::string(token);
-
-        if ((temp = m_subtokenizer.GetToken()) != 0) {
-          token = std::string(temp);
-          token.erase(std::find_if(token.rbegin(), token.rend(),
-                                   std::not1(std::ptr_fun<int, int> (std::isspace))).base(), token.end());
-          m_path = std::string(token);
-        } else {
-          return false;
-        }
-      }
-
-      break;
-    }
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-bool Acl::Action(bool apply , const std::string& path)
+bool AclCmd::Action(bool apply , const std::string& path)
 {
   if (apply) {
     if (!GetAclStringsForPath(path)) {
@@ -577,14 +596,13 @@ bool Acl::Action(bool apply , const std::string& path)
     }
 
     if (m_sys_acl) {
-      GenerateRuleMap(m_sys_acl_string, m_rules);
+      GenerateRuleMap(m_sys_acl_string);
     } else {
-      GenerateRuleMap(m_usr_acl_string, m_rules);
+      GenerateRuleMap(m_usr_acl_string);
     }
 
     ApplyRule();
     return false;
-    // return MgmSet(path);
   } else {
     if (!GetAclStringsForPath(path)) {
       return false;
@@ -601,3 +619,5 @@ bool Acl::Action(bool apply , const std::string& path)
     return true;
   }
 }
+*/
+EOSMGMNAMESPACE_END

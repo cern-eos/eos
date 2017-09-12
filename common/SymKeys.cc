@@ -348,7 +348,13 @@ SymKey::Base64Decode(const char* in, std::string& out)
   bmem = BIO_push(b64, bmem);
   int nread = BIO_read(bmem, (void*)out.data(), (int)body64len);
   BIO_free_all(b64);
-  return (nread > 0);
+
+  if (nread > 0) {
+    out.resize(nread);
+    return true;
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------

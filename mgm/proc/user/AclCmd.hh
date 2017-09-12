@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file Acl.hh
+//! @file AclCmd.hh
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,22 +21,67 @@
  ************************************************************************/
 
 #pragma once
-
+#include "mgm/Namespace.hh"
+#include "mgm/proc/ProcCommand.hh"
 #include "common/Acl.pb.h"
+#include "common/ConsoleRequest.pb.h"
 #include <unordered_map>
+
+EOSMGMNAMESPACE_BEGIN
 
 typedef std::pair<std::string, unsigned short> Rule;
 typedef std::unordered_map<std::string, unsigned short> RuleMap;
 
 //------------------------------------------------------------------------------
-//! Class Acl
-//!
-//! @description Implementing ACL command line tool. Tool is intended to be used
-//!   as unix chmod tool for setting and removing ACL rights from eos directory.
+//! Class AclCmd - class hadling acl command from a client
 //------------------------------------------------------------------------------
-class Acl
+class AclCmd: public ProcCommand
 {
 public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param req client ProtocolBuffer request
+  //----------------------------------------------------------------------------
+  AclCmd(eos::console::RequestProto&& req,
+         eos::common::Mapping::VirtualIdentity& vid):
+    ProcCommand(vid), mHasResponse(false), mReqProto(std::move(req))
+  {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~AclCmd() = default;
+
+  //----------------------------------------------------------------------------
+  //! Open a proc command e.g. call the appropriate user or admin commmand and
+  //! store the output in a resultstream of in case of find in temporary output
+  //! files.
+  //!
+  //! @param inpath path indicating user or admin command
+  //! @param info CGI describing the proc command
+  //! @param vid_in virtual identity of the user requesting a command
+  //! @param error object to store errors
+  //!
+  //! @return SFS_OK in any case
+  //----------------------------------------------------------------------------
+  virtual int open(const char* path, const char* info,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   XrdOucErrInfo* error) override;
+
+  //----------------------------------------------------------------------------
+  //! Read a part of the result stream created during open
+  //!
+  //! @param boff offset where to start
+  //! @param buff buffer to store stream
+  //! @param blen len to return
+  //!
+  //! @return number of bytes read
+  //----------------------------------------------------------------------------
+  virtual int read(XrdSfsFileOffset offset, char* buff,
+                   XrdSfsXferSize blen) override;
+
+private:
   //! Enumerator defining which bit represents which acl flag.
   enum ACLPos {
     R  = 1 << 0,   // 1    -  r
@@ -52,32 +97,47 @@ public:
     C  = 1 << 10   // 1024 -  c
   };
 
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  Acl(const char* comm) :
-    m_rules(), m_add_rule(0), m_rm_rule(0), m_comm(const_cast<char*>(comm)),
-    m_recursive(false), m_list(false), m_usr_acl(false), m_sys_acl(false),
-    m_set(false)
-  {}
+  std::string mTmpResp;
+  bool mHasResponse; ///< Value indicating that the reseponse is ready
+  std::promise<eos::console::ReplyProto> mPromise; ///< Promise reply
+  std::future<eos::console::ReplyProto> mFuture; ///< Response future
+  eos::console::RequestProto mReqProto; ///< Client request protobuf object
+  RuleMap mRules; ///< Map containing current ACL rules
 
   //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~Acl() = default;
-
-  //----------------------------------------------------------------------------
-  //! Returning error message
+  //! Method executing the command and returning a future object
   //!
-  //! @return string with error message
+  //! @return future holding the reply object
   //----------------------------------------------------------------------------
-  inline std::string getErrorMessage()
-  {
-    return m_error_message;
-  }
+  std::future<eos::console::ReplyProto> Execute();
 
-private:
-  RuleMap m_rules; ///< Map containing current ACL rules
+
+  //----------------------------------------------------------------------------
+  //! Process request - this is can be run asynchronously and needs to set the
+  //! mPromise object which is storing the response.
+  //----------------------------------------------------------------------------
+  void ProcessRequest();
+
+  //----------------------------------------------------------------------------
+  //! Get sys.acl and user.acl for a given path
+  //!
+  //! @param path path to get the ACLs for
+  //! @param acls ACL VALUE
+  //! @param is_sys if true return sys.acl, otherwise user.acl
+  //----------------------------------------------------------------------------
+  void GetAcls(const std::string& path, std::string& acls, bool is_sys = false);
+
+
+
+
+
+
+
+
+
+
+
+
   std::string m_id; ///< Identifier for rule. Extracted from command line.
   ///< ACL rule bitmasks for adding and removing
   unsigned short m_add_rule, m_rm_rule;
@@ -97,30 +157,35 @@ private:
   bool m_sys_acl; ///< --sys flag bool
   bool m_set; ///< Is rule set or not. (Containing =).
 
+  /*
+
   //----------------------------------------------------------------------------
-  //! Converting ACL bitmask to string representation
+  //! Convert ACL bitmask to string representation
   //!
   //! @param in ACL bitmask
+  //!
   //! @return std::string representation of ACL
   //----------------------------------------------------------------------------
-  std::string AclShortToString(unsigned short in);
+  std::string AclBitmaskToString(unsigned short in) const;
 
   //----------------------------------------------------------------------------
-  //! Getting whole rule from string. Intended for extracting rules from acl
-  //! string which MGM sent.
+  //! Get ACL rule from string by creating a pair of identifier for the ACL and
+  //! the bitmask representation
   //!
-  //! @param in ACL bitmask
-  //! @return std::pair containing id and ACL rule bitmask
+  //! @param in ACL string
+  //!
+  //! @return std::pair containing ACL identifier (ie. u:user1 or g:group1)
+  //! and the bitmask representation
   //----------------------------------------------------------------------------
-  Rule AclRuleFromString(const std::string& in);
+  Rule AclRuleFromString(const std::string& in) const;
 
   //----------------------------------------------------------------------------
-  //! Reading acl strings for given path from MGM
+  //! Generating rule map based on acl string
   //!
-  //! @param path Path for which we are asking acl strings for.
-  //! @return bool if operation is succesfull or not.
+  //! @param acl_string string containing acl rules
+  //! @param map Map which will be filled with acl rules
   //----------------------------------------------------------------------------
-  bool GetAclStringsForPath(const std::string& path);
+  void GenerateRuleMap(const std::string& acl_string);
 
   //----------------------------------------------------------------------------
   //! Universal method for setting given acl string from mgm format.
@@ -130,13 +195,6 @@ private:
   //----------------------------------------------------------------------------
   void SetAclString(const std::string& res, std::string& which, const char* type);
 
-  //----------------------------------------------------------------------------
-  //! Generating rule map based on acl string
-  //!
-  //! @param acl_string string containing acl rules
-  //! @param map Map which will be filled with acl rules
-  //----------------------------------------------------------------------------
-  void GenerateRuleMap(const std::string& acl_string, RuleMap& map);
 
   //----------------------------------------------------------------------------
   //! Check if id is in the correct format
@@ -176,19 +234,13 @@ private:
   bool ParseRule(const std::string& input);
 
   //----------------------------------------------------------------------------
-  //! Converting ACL string rule to bitmask
-  //!
-  //! @param rule string containing rule from command line
-  //! @param set indicating if set mode is active or not
-  //! @return bool if rule is correct or not.
-  //----------------------------------------------------------------------------
-  bool ProcessCommand();
-
-  //----------------------------------------------------------------------------
   //! Doing relevant action.
   //!
   //! @param apply True for apply action, false for list action
   //! @param path On which path to execute action.
   //----------------------------------------------------------------------------
   bool Action(bool apply, const std::string& path);
+  */
 };
+
+EOSMGMNAMESPACE_END

@@ -1,11 +1,10 @@
 //------------------------------------------------------------------------------
-// File: Acl.hh
-// Author: Andreas-Joachim Peters - CERN
+//! @file Acl.hh
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,10 +20,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_ACL__HH__
-#define __EOSMGM_ACL__HH__
-
+#pragma once
 #include "mgm/Namespace.hh"
+#include "mgm/proc/ProcCommand.hh"
 #include "common/Mapping.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -32,16 +30,14 @@
 #include <sys/types.h>
 #include <string>
 
-
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class implementing access control list interpretation.
-//! ACL rules used in the constructor or set function are strings with
-//! the following format:\n\n
-//! rule=
-//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{arw[o]ximc(!u)(+u)(!d)(+d)q}|z:xmc(!u)(+u)(!d)(+d)q}'
-//!
+//! ACL rules used in the constructor or in the Set function are strings with
+//! the following format:
+//! rule= 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{arw[o]ximc(!u)
+//!        (+u)(!d)(+d)q}|z:xmc(!u)(+u)(!d)(+d)q}'
 //------------------------------------------------------------------------------
 class Acl
 {
@@ -73,40 +69,40 @@ public:
   static bool IsValid(const std::string& value, XrdOucErrInfo& error,
                       bool is_sys_acl = false, bool check_numeric = false);
 
-
   //----------------------------------------------------------------------------
-  //! Convert to numeric uid/gid if needed
+  //! By default convert the uid/gid(s) to numeric representation. If to_string
+  //! is set to true then convert from numeric to string representation.
   //!
-  //! @param value input acl string
-  //! @param error error object
-  //!
-  //! @return true if successful, otherwise false
+  //! @param acl_val acl string which is modified in-place
+  //! @param to_string by default false, if true convert uid/gids(s) from
+  //!        numeric to string representation
   //----------------------------------------------------------------------------
-  static bool ConvertToNumericIds(std::string& value, XrdOucErrInfo& error);
+  static void ConvertIds(std::string& acl_val, bool to_string = false);
 
   //----------------------------------------------------------------------------
   //! Default Constructor
   //----------------------------------------------------------------------------
   Acl():
-    canRead(false), canWrite(false), canWriteOnce(false), canUpdate(false),
-    canBrowse(false), canChmod(false), canChown(false), canNotDelete(false),
-    canNotChmod(false), canDelete(false), canSetQuota(false), hasAcl(false),
-    hasEgroup(false), isMutable(false), canArchive(false)
+    mCanRead(false), mCanWrite(false), mCanWriteOnce(false), mCanUpdate(false),
+    mCanBrowse(false), mCanChmod(false), mCanChown(false), mCanNotDelete(false),
+    mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
+    mHasEgroup(false), mIsMutable(false), mCanArchive(false)
   {}
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param sysacl system acl definition string
-  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}
+  //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
   //! @param useracl user acl definition string
-  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}
+  //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
   //! @param vid virtual id to match ACL
   //! @param allowUserAcl if true evaluate also the user acl for the permissions
   //----------------------------------------------------------------------------
   Acl(std::string sysacl, std::string useracl,
       eos::common::Mapping::VirtualIdentity& vid, bool allowUserAcl = false);
-
 
   //----------------------------------------------------------------------------
   //! Constructor by path
@@ -124,15 +120,17 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~Acl() {}
+  virtual ~Acl() = default;
 
   //----------------------------------------------------------------------------
   //! Enter system and user definition + identity used for ACL interpretation
   //!
   //! @param sysacl system acl definition string
-  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{arwxom(!d)(+d)(!u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{arwxom(!d)(+d)(!u)}
+  //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
   //! @param useracl user acl definition string
-  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}
+  //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
   //! @param vid virtual id to match ACL
   //! @param allowUserAcl if true evaluate the user acl for permissions
   //----------------------------------------------------------------------------
@@ -145,67 +143,67 @@ public:
   //----------------------------------------------------------------------------
   inline bool CanRead() const
   {
-    return canRead;
+    return mCanRead;
   }
 
   inline bool CanWrite() const
   {
-    return canWrite;
+    return mCanWrite;
   }
 
   inline bool CanWriteOnce() const
   {
-    return canWriteOnce;
+    return mCanWriteOnce;
   }
 
   inline bool CanUpdate() const
   {
-    return canUpdate;
+    return mCanUpdate;
   }
 
   inline bool CanBrowse() const
   {
-    return canBrowse;
+    return mCanBrowse;
   }
 
   inline bool CanChmod() const
   {
-    return canChmod;
+    return mCanChmod;
   }
 
   inline bool CanNotChmod() const
   {
-    return canNotChmod;
+    return mCanNotChmod;
   }
 
   inline bool CanChown() const
   {
-    return canChown;
+    return mCanChown;
   }
 
   inline bool CanNotDelete() const
   {
-    return canNotDelete;
+    return mCanNotDelete;
   }
 
   inline bool CanDelete() const
   {
-    return canDelete;
+    return mCanDelete;
   }
 
   inline bool CanSetQuota() const
   {
-    return canSetQuota;
+    return mCanSetQuota;
   }
 
   inline bool HasAcl() const
   {
-    return hasAcl;
+    return mHasAcl;
   }
 
   inline bool HasEgroup() const
   {
-    return hasEgroup;
+    return mHasEgroup;
   }
 
   //----------------------------------------------------------------------------
@@ -213,7 +211,7 @@ public:
   //----------------------------------------------------------------------------
   inline bool IsMutable() const
   {
-    return isMutable;
+    return mIsMutable;
   }
 
   //----------------------------------------------------------------------------
@@ -221,27 +219,25 @@ public:
   //----------------------------------------------------------------------------
   inline bool CanArchive() const
   {
-    return canArchive;
+    return mCanArchive;
   }
 
 private:
-  bool canRead; ///< acl allows read access
-  bool canWrite; ///< acl allows write access
-  bool canWriteOnce; ///< acl allows write-once access (creation, no delete)
-  bool canUpdate; ///< acl allows update of files
-  bool canBrowse; ///< acl allows browsing
-  bool canChmod; ///< acl allows mode change
-  bool canChown; ///< acl allows chown change
-  bool canNotDelete; ///< acl forbids deletion
-  bool canNotChmod; ///< acl forbids chmod
-  bool canDelete; ///< acl allows deletion
-  bool canSetQuota; ///< acl allows to set quota
-  bool hasAcl; ///< acl is valid
-  bool hasEgroup; ///< acl contains egroup rule
-  bool isMutable; ///< acl does not contain the immutable flag
-  bool canArchive; ///< acl which allows archiving
+  bool mCanRead; ///< acl allows read access
+  bool mCanWrite; ///< acl allows write access
+  bool mCanWriteOnce; ///< acl allows write-once access (creation, no delete)
+  bool mCanUpdate; ///< acl allows update of files
+  bool mCanBrowse; ///< acl allows browsing
+  bool mCanChmod; ///< acl allows mode change
+  bool mCanChown; ///< acl allows chown change
+  bool mCanNotDelete; ///< acl forbids deletion
+  bool mCanNotChmod; ///< acl forbids chmod
+  bool mCanDelete; ///< acl allows deletion
+  bool mCanSetQuota; ///< acl allows to set quota
+  bool mHasAcl; ///< acl is valid
+  bool mHasEgroup; ///< acl contains egroup rule
+  bool mIsMutable; ///< acl does not contain the immutable flag
+  bool mCanArchive; ///< acl which allows archiving
 };
 
 EOSMGMNAMESPACE_END
-
-#endif

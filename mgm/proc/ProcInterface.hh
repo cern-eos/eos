@@ -22,11 +22,10 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "ProcCommand.hh"
-#include "proc/proc_fs.hh"
+#include "mgm/proc/ProcCommand.hh"
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
-
+#include "proc_fs.hh"
 
 //! Forward declarations
 class XrdSecEntity;
@@ -64,13 +63,16 @@ public:
   //----------------------------------------------------------------------------
   //! Factory method to get ProcCommand object
   //!
+  //! @param vid virtual id of the client
   //! @param path input path for proc command
   //! @param opaque input opaque information
+
   //!
   //! @return ProcCommand object
   //----------------------------------------------------------------------------
   static std::unique_ptr<IProcCommand>
-  CreateProcCommand(const char* path = 0, const char* opaque = 0);
+  CreateProcCommand(eos::common::Mapping::VirtualIdentity& vid,
+                    const char* path = 0, const char* opaque = 0);
 
   //----------------------------------------------------------------------------
   //! Check if a path is requesting a proc commmand
@@ -111,10 +113,12 @@ private:
   //!
   //! @parm path input path of a proc command
   //! @param opaque full opaque info containing the base64 protocol request
+  //! @param vid virtual id of the client
   //!
   //! @return unique pointer to ProcCommand object or null otherwise
   //----------------------------------------------------------------------------
   static std::unique_ptr<IProcCommand>
-  HandleProtobufRequest(const char* path, const char* opaque);
+  HandleProtobufRequest(const char* path, const char* opaque,
+                        eos::common::Mapping::VirtualIdentity& vid);
 };
 EOSMGMNAMESPACE_END

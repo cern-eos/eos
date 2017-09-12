@@ -1,7 +1,8 @@
-// ----------------------------------------------------------------------
-// File com_acl.cc
-// Author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file com_acl.cc
+//! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
+//!         Elvin Sindrilaru <esindril@cern.ch>
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -25,6 +26,7 @@
 #include "console/ConsoleMain.hh"
 #include "console/MgmExecute.hh"
 #include "common/Acl.pb.h"
+#include "common/ConsoleRequest.pb.h"
 #include <iostream>
 
 using eos::console::AclProto_OpType;
@@ -59,10 +61,147 @@ public:
   int Execute();
 
 private:
+  //----------------------------------------------------------------------------
+  //! Check that the rule respects the expected format
+  //!
+  //! @param rule client supplied rule
+  //!
+  //! @return true if correct, otherwise false
+  //----------------------------------------------------------------------------
+  static bool CheckRule(const std::string& rule);
+
+  //----------------------------------------------------------------------------
+  //! Check that the id respects the expected format
+  //!
+  //! @param id client supplied id
+  //!
+  //! @return true if correct, otherwise false
+  //----------------------------------------------------------------------------
+  static bool CheckId(const std::string& id);
+
+  //----------------------------------------------------------------------------
+  //! Check that the flags respect the expected format
+  //!
+  //! @param flags client supplied flags
+  //!
+  //! @return true if correct, otherwise false
+  //----------------------------------------------------------------------------
+  static bool CheckFlags(const std::string& flags);
+
+  //----------------------------------------------------------------------------
+  //! Set the path doing any neccessary modfications to the the absolute path
+  //!
+  //! @param in_path input path
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool SetPath(const std::string& in_path);
+
+
   eos::console::AclProto mAclProto; ///< Protobuf representation of the command
   MgmExecute mMgmExec; ///< Wrapper for executing commands at the MGM
 };
 
+//------------------------------------------------------------------------------
+// Set the path doing any neccessary modfications to the the absolute path
+//------------------------------------------------------------------------------
+bool
+AclHelper::SetPath(const std::string& in_path)
+{
+  if (in_path.empty()) {
+    return false;
+  }
+
+  if (in_path.at(0) == '/') {
+    mAclProto.set_path(in_path);
+  } else {
+    mAclProto.set_path(abspath(in_path.c_str()));
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Check that the id respects the expected format
+//------------------------------------------------------------------------------
+bool
+AclHelper::CheckId(const std::string& id)
+{
+  static const std::string allowed_chars =
+    "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-";
+
+  if ((id.at(0) == 'u' && id.at(1) == ':') ||
+      (id.at(0) == 'g' && id.at(1) == ':')) {
+    return id.find_first_not_of(allowed_chars, 2) == std::string::npos;
+  }
+
+  if (id.find("egroup") == 0 && id.at(6) == ':') {
+    return id.find_first_not_of(allowed_chars, 7) == std::string::npos;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Check that the flags respect the expected format
+//------------------------------------------------------------------------------
+bool
+AclHelper::CheckFlags(const std::string& flags)
+{
+  static const std::string allowed_chars = "!+rwxmduqc";
+  return flags.find_first_not_of(allowed_chars) == std::string::npos;
+}
+
+//------------------------------------------------------------------------------
+// Check that the rule respects the expected format
+//------------------------------------------------------------------------------
+bool
+AclHelper::CheckRule(const std::string& rule)
+{
+  size_t pos_del_first, pos_del_last, pos_equal;
+  pos_del_first = rule.find(":");
+  pos_del_last  = rule.rfind(":");
+  pos_equal     = rule.find("=");
+  std::string id, flags;
+
+  if ((pos_del_first == pos_del_last) && (pos_equal != std::string::npos)) {
+    // u:id=rw+x
+    id = std::string(rule.begin(), rule.begin() + pos_equal);
+
+    if (!CheckId(id)) {
+      return false;
+    }
+
+    flags = std::string(rule.begin() + pos_equal + 1, rule.end());
+
+    if (!CheckFlags(flags)) {
+      return false;
+    }
+
+    return true;
+  } else {
+    if ((pos_del_first != pos_del_last) &&
+        (pos_del_first != std::string::npos) &&
+        (pos_del_last  != std::string::npos)) {
+      // u:id:+rwx
+      id = std::string(rule.begin(), rule.begin() + pos_del_last);
+
+      if (!CheckId(id)) {
+        return false;
+      }
+
+      flags = std::string(rule.begin() + pos_del_last + 1, rule.end());
+
+      if (!CheckFlags(flags)) {
+        return false;
+      }
+
+      return true;
+    }
+  }
+
+  return false;
+}
 
 //------------------------------------------------------------------------------
 // Parse command line input
@@ -80,7 +219,8 @@ AclHelper::ParseCommand(const char* arg)
     // Trimming
     token = std::string(temp);
     token.erase(std::find_if(token.rbegin(), token.rend(),
-                             std::not1(std::ptr_fun<int, int> (std::isspace))).base(), token.end());
+                             std::not1(std::ptr_fun<int, int> (std::isspace))).base(),
+                token.end());
 
     if (token == "") {
       continue;
@@ -108,26 +248,41 @@ AclHelper::ParseCommand(const char* arg)
     }
 
     if (token == "--user") {
-      mAclProto.set_usr_acl(true);
+      mAclProto.set_sys_acl(false);
       continue;
     }
 
     // If there is unsupported flag
     if (token.at(0) == '-') {
-      std::cerr << "Error: unercognized flag " << token << std:: endl;
+      std::cerr << "error: unercognized flag " << token << std:: endl;
       return false;
     } else {
       if (mAclProto.op() == AclProto_OpType::AclProto_OpType_LIST) {
-        mAclProto.set_path(token);
+        // Set the absolute path if neccessary
+        if (!SetPath(token)) {
+          std::cerr << "error: failed to the the absolute path" << std::endl;
+          return false;
+        }
       } else {
         mAclProto.set_op(AclProto_OpType::AclProto_OpType_MODIFY);
+
+        if (!CheckRule(token)) {
+          std::cerr << "error: unrecognized rule format" << std::endl;
+          return false;
+        }
+
         mAclProto.set_rule(token);
 
         if ((temp = tokenizer.GetToken()) != 0) {
           token = std::string(temp);
           token.erase(std::find_if(token.rbegin(), token.rend(),
-                                   std::not1(std::ptr_fun<int, int> (std::isspace))).base(), token.end());
-          mAclProto.set_path(token);
+                                   std::not1(std::ptr_fun<int, int> (std::isspace))).base(),
+                      token.end());
+
+          if (!SetPath(token)) {
+            std::cerr << "error: failed to the the absolute path" << std::endl;
+            return false;
+          }
         } else {
           return false;
         }
@@ -151,21 +306,8 @@ AclHelper::ParseCommand(const char* arg)
 bool
 AclHelper::SetDefaultRole()
 {
-  if (mAclProto.sys_acl() && mAclProto.usr_acl()) {
-    std::cerr << "Error: both user and sys flags set" << std::endl;
-    return false;
-  }
-
-  // Making sure if list flag exists and no other acl type flag exists
-  // to usr acl flag be default.
-  if ((mAclProto.op() == AclProto_OpType::AclProto_OpType_LIST) &&
-      !mAclProto.sys_acl() && !mAclProto.usr_acl()) {
-    mAclProto.set_usr_acl(true);
-    return true;
-  }
-
-  if (!mAclProto.sys_acl() && !mAclProto.usr_acl()) {
-    if (mMgmExec.ExecuteCommand("mgm.cmd=whoami")) {
+  if (!mAclProto.sys_acl()) {
+    if (!mMgmExec.ExecuteCommand("mgm.cmd=whoami")) {
       std::string result = mMgmExec.GetResult();
       size_t pos = 0;
 
@@ -174,17 +316,17 @@ AclHelper::SetDefaultRole()
             (result.at(pos + 5) == ' ')) {
           mAclProto.set_sys_acl(true);
         } else {
-          mAclProto.set_usr_acl(true);
+          mAclProto.set_sys_acl(false);
         }
 
         return true;
       }
 
-      std::cerr << "Error: failed to get uid form whoami command" << std::endl;
+      std::cerr << "error: failed to get uid form whoami command" << std::endl;
       return false;
     }
 
-    std::cerr << "Error: failed to execute whoami command" << std::endl;
+    std::cerr << "error: failed to execute whoami command" << std::endl;
     return false;
   }
 
@@ -193,16 +335,21 @@ AclHelper::SetDefaultRole()
 
 //------------------------------------------------------------------------------
 // Execute command and display any output information
+// @todo (esindril): This should be moved to console main and made generic
+//       using templates.
 //------------------------------------------------------------------------------
 int
 AclHelper::Execute()
 {
-  size_t sz = mAclProto.ByteSizeLong();
+  eos::console::RequestProto req;
+  req.set_type(eos::console::RequestProto_OpType::RequestProto_OpType_ACL);
+  *req.mutable_acl() = mAclProto;
+  size_t sz = req.ByteSizeLong();
   std::string buffer(sz , '\0');
   google::protobuf::io::ArrayOutputStream aos((void*)buffer.data(), sz);
 
-  if (!mAclProto.SerializeToZeroCopyStream(&aos)) {
-    std::cerr << "Error: failed to serialize ProtobolBuffer request"
+  if (!req.SerializeToZeroCopyStream(&aos)) {
+    std::cerr << "error: failed to serialize ProtobolBuffer request"
               << std::endl;
     return EINVAL;
   }
@@ -210,7 +357,7 @@ AclHelper::Execute()
   std::string b64buff;
 
   if (!eos::common::SymKey::Base64Encode(buffer.data(), buffer.size(), b64buff)) {
-    std::cerr << "Error: failed to base64 encode the request" << std::endl;
+    std::cerr << "error: failed to base64 encode the request" << std::endl;
     return EINVAL;
   }
 

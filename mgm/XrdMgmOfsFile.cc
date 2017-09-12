@@ -397,9 +397,15 @@ XrdMgmOfsFile::open(const char* inpath,
       return Emsg(epname, error, EPERM, "execute proc command - you don't have "
                   "the requested permissions for that operation (2)", path);
     } else {
-      procCmd = new ProcCommand();
-      procCmd->SetLogId(logId, vid, tident);
-      return procCmd->open(path, ininfo, vid, &error);
+      mProcCmd = ProcInterface::CreateProcCommand(vid, path, ininfo);
+
+      if (mProcCmd) {
+        mProcCmd->SetLogId(logId, vid, tident);
+        return mProcCmd->open(path, ininfo, vid, &error);
+      } else {
+        return Emsg(epname, error, ENOMEM, "allocate proc command object for ",
+                    path);
+      }
     }
   }
 
@@ -1350,16 +1356,15 @@ XrdMgmOfsFile::open(const char* inpath,
         // increase the heal counter for that file id
         gOFS->MgmHealMap[fileId] = nheal + 1;
         gOFS->MgmHealMapMutex.UnLock();
-        ProcCommand* procCmd = new ProcCommand();
+        auto proc_cmd = ProcInterface::CreateProcCommand(vid);
 
-        if (procCmd) {
-          // issue the version command
+        if (proc_cmd) {
+          // Issue the version command
           XrdOucString cmd =
             "mgm.cmd=file&mgm.subcmd=version&mgm.purge.version=-1&mgm.path=";
           cmd += path;
-          procCmd->open("/proc/user/", cmd.c_str(), vid, &error);
-          procCmd->close();
-          delete procCmd;
+          proc_cmd->open("/proc/user/", cmd.c_str(), vid, &error);
+          proc_cmd->close();
           int stalltime = 1; // let the client come back quickly
 
           if (attrmap.count("sys.stall.unavailable")) {
@@ -1372,9 +1377,8 @@ XrdMgmOfsFile::open(const char* inpath,
           return gOFS->Stall(error, stalltime, ""
                              "Required filesystems are currently unavailable!");
         } else {
-          gOFS->MgmHealMapMutex.UnLock();
-          return Emsg(epname, error, ENOMEM,
-                      "allocate memory for proc command", path);
+          return Emsg(epname, error, ENOMEM, "allocate proc command object for ",
+                      path);
         }
       }
 
@@ -1408,9 +1412,9 @@ XrdMgmOfsFile::open(const char* inpath,
         } else {
           // increase the heal counter for that file id
           gOFS->MgmHealMap[fileId] = nheal + 1;
-          ProcCommand* procCmd = new ProcCommand();
+          auto proc_cmd = ProcInterface::CreateProcCommand(vid);
 
-          if (procCmd) {
+          if (proc_cmd) {
             // issue the adjustreplica command as root
             eos::common::Mapping::VirtualIdentity vidroot;
             eos::common::Mapping::Copy(vid, vidroot);
@@ -1418,9 +1422,8 @@ XrdMgmOfsFile::open(const char* inpath,
             XrdOucString cmd =
               "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.file.express=1&mgm.path=";
             cmd += path;
-            procCmd->open("/proc/user/", cmd.c_str(), vidroot, &error);
-            procCmd->close();
-            delete procCmd;
+            proc_cmd->open("/proc/user/", cmd.c_str(), vidroot, &error);
+            proc_cmd->close();
             int stalltime = 60; // 1 min by default
 
             if (attrmap.count("sys.stall.unavailable")) {
@@ -1435,8 +1438,8 @@ XrdMgmOfsFile::open(const char* inpath,
                                "Required filesystems are currently unavailable!");
           } else {
             gOFS->MgmHealMapMutex.UnLock();
-            return Emsg(epname, error, ENOMEM,
-                        "allocate memory for proc command", path);
+            return Emsg(epname, error, ENOMEM, "allocate proc command object for ",
+                        path);
           }
         }
       }
@@ -2361,8 +2364,8 @@ XrdMgmOfsFile::close()
 {
   oh = -1;
 
-  if (procCmd) {
-    procCmd->close();
+  if (mProcCmd) {
+    mProcCmd->close();
     return SFS_OK;
   }
 
@@ -2404,8 +2407,8 @@ XrdMgmOfsFile::read(XrdSfsFileOffset offset,
 
 #endif
 
-  if (procCmd) {
-    return procCmd->read(offset, buff, blen);
+  if (mProcCmd) {
+    return mProcCmd->read(offset, buff, blen);
   }
 
   return Emsg(epname, error, EOPNOTSUPP, "read", fileName.c_str());
@@ -2497,8 +2500,8 @@ XrdMgmOfsFile::stat(struct stat* buf)
     return 0;
   }
 
-  if (procCmd) {
-    return procCmd->stat(buf);
+  if (mProcCmd) {
+    return mProcCmd->stat(buf);
   }
 
   return Emsg(epname, error, EOPNOTSUPP, "stat", fileName.c_str());
@@ -2576,11 +2579,6 @@ XrdMgmOfsFile::~XrdMgmOfsFile()
   if (openOpaque) {
     delete openOpaque;
     openOpaque = 0;
-  }
-
-  if (procCmd) {
-    delete procCmd;
-    procCmd = 0;
   }
 }
 

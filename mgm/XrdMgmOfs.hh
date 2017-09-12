@@ -98,8 +98,8 @@
 #ifndef __EOSMGM_MGMOFS__HH__
 #define __EOSMGM_MGMOFS__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "authz/XrdCapability.hh"
+#include "auth_plugin/ProtoUtils.hh"
 #include "common/Mapping.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
@@ -107,6 +107,7 @@
 #include "common/CommentLog.hh"
 #include "common/LinuxStat.hh"
 #include "common/JeMallocHandler.hh"
+#include "common/ZMQ.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "mgm/IConfigEngine.hh"
@@ -121,13 +122,12 @@
 #include "mgm/Recycle.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/VstMessaging.hh"
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/http/HttpServer.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -146,6 +146,14 @@ USE_EOSMGMNAMESPACE
 //! Forward declaration
 class XrdMgmOfsFile;
 class XrdMgmOfsDirectory;
+
+namespace eos
+{
+namespace auth
+{
+class RequestProto;
+}
+}
 
 //------------------------------------------------------------------------------
 //! Class implementing atomic meta data commands

@@ -74,7 +74,8 @@ add_library(
   Messaging.cc
   VstMessaging.cc
   Policy.cc
-  ProcInterface.cc
+  proc/ProcInterface.cc
+  proc/ProcCommand.cc
   proc/proc_fs.cc
   proc/admin/Access.cc
   proc/admin/Backup.cc
@@ -94,7 +95,7 @@ add_library(
   proc/admin/Vid.cc
   proc/admin/Vst.cc
   proc/user/Accounting.cc
-  proc/user/Acl.cc
+  proc/user/AclCmd.cc
   proc/user/Attr.cc
   proc/user/Archive.cc
   proc/user/Cd.cc
@@ -165,25 +166,24 @@ add_library(
   ${FUSEX_SRCS}
   ${QDB_CLIENT})
 
+#-------------------------------------------------------------------------------
+# Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
+# are generated when we try to build XrdEosMgm
+#-------------------------------------------------------------------------------
 add_dependencies(XrdEosMgm-Objects EosAuthProto)
-
-target_compile_definitions(
-  XrdEosMgm-Objects PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
-
-add_library(XrdEosMgm MODULE
-  $<TARGET_OBJECTS:XrdEosMgm-Objects>)
 
 set_target_properties(
   XrdEosMgm-Objects
   PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-#-------------------------------------------------------------------------------
-# Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
-# are generated when we try to build XrdEosMgm
-#-------------------------------------------------------------------------------
-add_dependencies(XrdEosMgm EosAuthProto)
+target_compile_definitions(
+  XrdEosMgm-Objects PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+
+add_library(XrdEosMgm MODULE
+  $<TARGET_OBJECTS:XrdEosMgm-Objects>
+  $<TARGET_OBJECTS:CommonCli-Objects>)
 
 target_compile_definitions(
   XrdEosMgm PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -268,7 +268,9 @@ target_link_libraries(
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------
 if(CPPUNIT_FOUND AND BUILD_QUARKDB_NAMESPACE AND Linux)
-  add_library(XrdEosMgm-Static STATIC $<TARGET_OBJECTS:XrdEosMgm-Objects> )
+  add_library(XrdEosMgm-Static STATIC
+    $<TARGET_OBJECTS:XrdEosMgm-Objects>
+    $<TARGET_OBJECTS:CommonCli-Objects>)
 
   target_compile_definitions(
     XrdEosMgm-Static PUBLIC

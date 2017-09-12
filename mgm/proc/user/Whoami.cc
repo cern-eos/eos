@@ -21,88 +21,95 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Whoami ()
+ProcCommand::Whoami()
 {
   gOFS->MgmStats.Add("WhoAmI", pVid->uid, pVid->gid, 1);
-  std::string option = (pOpaque->Get("mgm.option")) ? pOpaque->Get("mgm.option") : "";
-  if ((option.find("m")) != std::string::npos)
-  {
+  std::string option = (pOpaque->Get("mgm.option")) ? pOpaque->Get("mgm.option") :
+                       "";
+
+  if ((option.find("m")) != std::string::npos) {
     stdOut += "uid=";
     stdOut += (int) pVid->uid;
-    
     stdOut += " uids=";
-    for (unsigned int i = 0; i < pVid->uid_list.size(); i++)
-    {
+
+    for (unsigned int i = 0; i < pVid->uid_list.size(); i++) {
       stdOut += (int) pVid->uid_list[i];
       stdOut += ",";
     }
-    if (pVid->uid_list.size())
+
+    if (pVid->uid_list.size()) {
       stdOut.erase(stdOut.length() - 1);
+    }
 
     stdOut += " gid=";
     stdOut += (int) pVid->gid;
-
     stdOut += " gids=";
-    for (unsigned int i = 0; i < pVid->gid_list.size(); i++)
-    {
+
+    for (unsigned int i = 0; i < pVid->gid_list.size(); i++) {
       stdOut += (int) pVid->gid_list[i];
       stdOut += ",";
     }
-    if (pVid->gid_list.size())
+
+    if (pVid->gid_list.size()) {
       stdOut.erase(stdOut.length() - 1);
+    }
+
     stdOut += " authz=";
     stdOut += pVid->prot;
     stdOut += " sudo=";
-    if (pVid->sudoer)
+
+    if (pVid->sudoer) {
       stdOut += "true";
-    else
+    } else {
       stdOut += "false";
+    }
+
     //! the host/geo location is not reported
-  } 
-  else 
-  {
+  } else {
     stdOut += "Virtual Identity: uid=";
     stdOut += (int) pVid->uid;
     stdOut += " (";
-    for (unsigned int i = 0; i < pVid->uid_list.size(); i++)
-    {
+
+    for (unsigned int i = 0; i < pVid->uid_list.size(); i++) {
       stdOut += (int) pVid->uid_list[i];
       stdOut += ",";
     }
+
     stdOut.erase(stdOut.length() - 1);
     stdOut += ") gid=";
     stdOut += (int) pVid->gid;
     stdOut += " (";
-    for (unsigned int i = 0; i < pVid->gid_list.size(); i++)
-    {
+
+    for (unsigned int i = 0; i < pVid->gid_list.size(); i++) {
       stdOut += (int) pVid->gid_list[i];
       stdOut += ",";
     }
+
     stdOut.erase(stdOut.length() - 1);
     stdOut += ")";
     stdOut += " [authz:";
     stdOut += pVid->prot;
     stdOut += "]";
-    if (pVid->sudoer)
+
+    if (pVid->sudoer) {
       stdOut += " sudo*";
-    
+    }
+
     stdOut += " host=";
     stdOut += pVid->host.c_str();
-    if (pVid->geolocation.length())
-    {
+
+    if (pVid->geolocation.length()) {
       stdOut += " geo-location=";
       stdOut += pVid->geolocation.c_str();
     }
   }
+
   return SFS_OK;
 }
 

@@ -361,11 +361,11 @@ XrdMgmOfs::_attr_set(const char* path,
 
           // Check if acl is already in numeric format
           if (!Acl::IsValid(val, error, is_sys_acl, true)) {
-            if (!Acl::ConvertToNumericIds(val, error)) {
-              eos_err("failed to convert to numeric ids: %s", val.c_str());
-              errno = EINVAL;
-              return SFS_ERROR;
-            }
+            Acl::ConvertIds(val);
+          } else {
+            eos_err("invalid acl: %s", val.c_str());
+            errno = EINVAL;
+            return SFS_ERROR;
           }
         }
 

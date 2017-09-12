@@ -21,67 +21,68 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/VstView.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Vst ()
+ProcCommand::Vst()
 {
-  if (pVid->uid == 0)
-  {
-    if (mSubCmd == "ls")
-    {
-      std::string option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
+  if (pVid->uid == 0) {
+    if (mSubCmd == "ls") {
+      std::string option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") :
+                           "";
       std::string out;
       VstView::gVstView.Print(out, option.c_str());
       stdOut += out.c_str();
       retc = 0;
     }
-    if (mSubCmd == "map")
-    {
-      std::string option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
-      if (option == "nojs")
-        VstView::gVstView.PrintHtml(stdOut,false);
-      else
-        VstView::gVstView.PrintHtml(stdOut,true);
+
+    if (mSubCmd == "map") {
+      std::string option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") :
+                           "";
+
+      if (option == "nojs") {
+        VstView::gVstView.PrintHtml(stdOut, false);
+      } else {
+        VstView::gVstView.PrintHtml(stdOut, true);
+      }
     }
 
-    if (mSubCmd == "udp")
-    {
-      std::string target = pOpaque->Get("mgm.vst.target") ? pOpaque->Get("mgm.vst.target") : "";
-      std::string myself = pOpaque->Get("mgm.vst.self") ? pOpaque->Get("mgm.vst.self") : "";
-      if (target.length())
-      {
+    if (mSubCmd == "udp") {
+      std::string target = pOpaque->Get("mgm.vst.target") ?
+                           pOpaque->Get("mgm.vst.target") : "";
+      std::string myself = pOpaque->Get("mgm.vst.self") ? pOpaque->Get("mgm.vst.self")
+                           : "";
+
+      if (target.length()) {
         // set a target
-        if (gOFS->MgmOfsVstMessaging->SetInfluxUdpEndpoint(target.c_str(), (myself=="true") ) )
-        {
+        if (gOFS->MgmOfsVstMessaging->SetInfluxUdpEndpoint(target.c_str(),
+            (myself == "true"))) {
           stdOut += "info: target is now '";
           stdOut += gOFS->MgmOfsVstMessaging->GetInfluxUdpEndpoint().c_str();
-	       if (myself=="true")
-	         stdOut += " [ publishing only own values ]";
+
+          if (myself == "true") {
+            stdOut += " [ publishing only own values ]";
+          }
         }
-      }
-      else
-      {
+      } else {
         // list the target
         stdOut += "info: target=";
         stdOut += gOFS->MgmOfsVstMessaging->GetInfluxUdpEndpoint().c_str();
-	     if (gOFS->MgmOfsVstMessaging->GetPublishOnlySelf())
-	       stdOut += " [ publishing only own values ]";
+
+        if (gOFS->MgmOfsVstMessaging->GetPublishOnlySelf()) {
+          stdOut += " [ publishing only own values ]";
+        }
       }
     }
-  }
-  else
-  {
+  } else {
     stdErr += "error: you have to be root to list VSTs";
     retc = EPERM;
   }
+
   return SFS_OK;
 }
 

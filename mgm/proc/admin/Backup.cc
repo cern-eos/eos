@@ -21,14 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
+#include "mgm/proc/admin/Backup.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include <string>
 #include <iomanip>
 #include <fstream>
-/*----------------------------------------------------------------------------*/
-#include "mgm/proc/admin/Backup.hh"
-#include "mgm/XrdMgmOfs.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 

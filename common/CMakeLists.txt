@@ -36,13 +36,14 @@ include_directories(
 # Generate protobol buffer object for the CLI
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(ACL_SRCS ACL_HDRS cli_proto/Acl.proto)
-PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS cli_proto/Request.proto)
+PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS cli_proto/ConsoleRequest.proto)
+PROTOBUF_GENERATE_CPP(REP_SRCS REP_HDRS cli_proto/ConsoleReply.proto)
 
 set(CLI_PROTO_SRCS
-  ${ACL_SRCS} ${REQ_SRCS})
+  ${ACL_SRCS} ${REQ_SRCS} ${REP_SRCS})
 
 set(CLI_PROTO_HDRS
-  ${ACL_HDRS} ${REQ_HDRS})
+  ${ACL_HDRS} ${REQ_HDRS} ${REP_HDRS})
 
 set_source_files_properties(
   ${CLI_PROTO_SRCS}

@@ -1,0 +1,12 @@
+syntax="proto3";
+package eos.console;
+
+//------------------------------------------------------------------------------
+// Reply message sent to the client
+//------------------------------------------------------------------------------
+message ReplyProto {
+  int64 retc      = 1; // return code of the command
+  string std_err  = 2; // error message
+  string std_out  = 3; // output message
+  string tmp_file = 4; // file location at MGM storing the response
+}
