@@ -91,6 +91,7 @@ message heartbeat {
   fixed64 clock = 7; //< client clock ns when sending
   fixed64 clock_ns = 8; //< client clock ns when sending
   double delta = 9; //< client delta after arrival
+  map<string, fixed32> authextension = 10; // < map of authids to extend lifetime by seconds 
 }
 
 message statistics {
