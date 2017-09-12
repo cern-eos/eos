@@ -416,8 +416,6 @@ XrdMgmOfs::_rename (const char *old_name,
 	      }
 	      newdir->addFile(file);
 	      eosView->updateFileStore(file);
-	      gOFS->FuseXCast(eos::common::FileId::FidToInode(file->getId()));
-
 	      // adjust the quota
 	      SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(oP.c_str());
 	      SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str());
@@ -598,7 +596,7 @@ XrdMgmOfs::_rename (const char *old_name,
 	      rdir->setMTimeNow();
 	      rdir->notifyMTimeChange( gOFS->eosDirectoryService );
 	      eosView->updateContainerStore(rdir);
-	      gOFS->FuseXCast(dir->getId());
+	      gOFS->FuseXCast(rdir->getId());
 	    }
 	    else
 	    {
