@@ -129,6 +129,10 @@ To display a capability on a path do as root
 
 To display a list of all capabilities on a path do as root
 # getfattr --only-values -n system.eos.caps <any-path>
+
+To display a list of local to remote inode translations
+# getfattr --only-values -n system.eos.vmap <any-path> 
+
 To drop a capability on a path do as root
 # setfattr -n system.eos.dropcap <path>
 
