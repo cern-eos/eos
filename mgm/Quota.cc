@@ -478,7 +478,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
             name = "project";
           } else {
             int errc = 0;
-            name = eos::common::Mapping::GidToGroupName(uid, errc);
+            name = eos::common::Mapping::UidToUserName(uid, errc);
           }
         }
 
@@ -1969,10 +1969,10 @@ Quota::Create(const std::string& path)
 }
 
 map<std::string, std::tuple<unsigned long long, unsigned long long, unsigned long long>>
-Quota::GetAllGroupsLogicalQuotaValues()
+    Quota::GetAllGroupsLogicalQuotaValues()
 {
-  map<string, std::tuple<unsigned long long, unsigned long long, unsigned long long>> allGroupLogicalByteValues;
-
+  map<string, std::tuple<unsigned long long, unsigned long long, unsigned long long>>
+      allGroupLogicalByteValues;
   // Add this to have all quota nodes visible even if they are not in
   // the configuration file
   LoadNodes();
@@ -1980,12 +1980,14 @@ Quota::GetAllGroupsLogicalQuotaValues()
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
 
-  for(const auto& quotaNode : pMapQuota) {
+  for (const auto& quotaNode : pMapQuota) {
     quotaNode.second->Refresh();
     allGroupLogicalByteValues[quotaNode.first] =
-      std::make_tuple(quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupLogicalBytesIs, 0),
-                     quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupLogicalBytesTarget, 0),
-                     quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupFilesIs, 0));
+      std::make_tuple(quotaNode.second->GetQuota(
+                        SpaceQuota::eQuotaTag::kAllGroupLogicalBytesIs, 0),
+                      quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupLogicalBytesTarget,
+                          0),
+                      quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupFilesIs, 0));
   }
 
   return allGroupLogicalByteValues;
