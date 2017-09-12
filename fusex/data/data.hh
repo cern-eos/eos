@@ -108,7 +108,8 @@ public:
     void set_remote(const std::string& hostport,
                     const std::string& basename,
                     const uint64_t md_ino,
-                    const uint64_t md_pino);
+                    const uint64_t md_pino,
+                    fuse_req_t req);
 
     // IO bridge interface
     ssize_t pread(fuse_req_t req, void *buf, size_t count, off_t offset);
@@ -121,6 +122,7 @@ public:
     int cache_invalidate();
     bool prefetch(fuse_req_t req);
     void WaitPrefetch(fuse_req_t req);
+    void WaitOpen();
 
     // ref counting for this object
 
@@ -140,7 +142,7 @@ public:
     {
       return (--mAttached);
     }
-    
+
     bool attached()
     {
       XrdSysMutexHelper lLock(mLock);
@@ -149,9 +151,7 @@ public:
 
     bool attached_nolock()
     {
-      // the flush daemon itself is attached, so if there is no client anymore
-      // the counter eq 1
-      return (mAttached>1) ? true : false;
+      return (mAttached) ? true : false;
     }
   private:
     XrdSysMutex mLock;
@@ -275,7 +275,7 @@ public:
 
   uint64_t commit(fuse_req_t req,
                   shared_data io);
-
+  
   void unlink(fuse_req_t req, fuse_ino_t ino);
 
 private:

@@ -242,6 +242,8 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
   eos_debug("url=%s flags=%x mode=%x", url.c_str(), (int) flags, (int) mode);
   XrdSysCondVarHelper lLock(OpenCondVar());
 
+  mUrl = url;
+  
   if ( state() == OPENING )
   {
     XRootDStatus status(XrdCl::stError,
@@ -489,7 +491,7 @@ XrdCl::Proxy::HadFailures(std::string &message)
     message = "file writing failed";
     ok = false;
   }
-  eos_debug("state=%d had-failures=%d", state(), ok);
+  eos_debug("state=%d had-failures=%d", state(), !ok);
   return !ok;
 }
 

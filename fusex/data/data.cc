@@ -27,6 +27,7 @@
 #include "data/cachesyncer.hh"
 #include "data/journalcache.hh"
 #include "misc/MacOSXHelper.hh"
+#include "misc/fusexrdlogin.hh"
 #include "common/Logging.hh"
 #include <iostream>
 #include <sstream>
@@ -68,9 +69,8 @@ data::get(fuse_req_t req,
   if (datamap.count(ino))
   {
     shared_data io = datamap[ino];
-    io->attach(); // object ref counting for the first client
-    io->attach(); // object ref counting for the flush daemon which releases files
-    // once they have no local journal anymore
+    io->attach(); // client ref counting
+
     return io;
   }
   else
@@ -79,7 +79,6 @@ data::get(fuse_req_t req,
     io->set_id(ino, req);
     datamap[(fuse_ino_t) io->id()] = io;
     io->attach();
-    io->attach(); // object ref counting for the flush daemon which releases files
     return io;
   }
 }
@@ -115,6 +114,8 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
   XrdSysMutexHelper mLock(datamap);
   if (datamap.count(ino))
   {
+    // wait for open in flight to be done
+    datamap[ino]->WaitOpen();
     datamap[ino]->unlink(req);
     // put the unlinked inode in a high bucket, will be removed by the flush thread
     datamap[ino + 0xffffffff] = datamap[ino];
@@ -291,6 +292,10 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, bool isRW)
       }
       XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Read;
       XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UX;
+
+      // we might need to wait for a creation to go through
+      WaitOpen();
+
       mFile->xrdioro(freq)->OpenAsync(mRemoteUrl.c_str(), targetFlags, mode, 0);
     }
     else
@@ -369,6 +374,31 @@ data::datax::WaitPrefetch(fuse_req_t req)
 }
 
 /* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+data::datax::WaitOpen()
+{
+  // make sure there is no pending remote open.
+  // this has to be done to avoid opening a file for read, which is not yet 
+  // created.
+
+  for (auto fit = mFile->get_xrdiorw().begin();
+       fit != mFile->get_xrdiorw().end(); ++fit)
+  {
+    if (fit->second->IsOpening())
+    {
+      eos_info("status=pending url=%s", fit->second->url().c_str());
+      fit->second->WaitOpen();
+      eos_info("status=final url=%s", fit->second->url().c_str());
+    }
+    else
+    {
+      eos_info("status=final url=%s", fit->second->url().c_str());
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 int
 data::datax::detach(fuse_req_t req, std::string& cookie, bool isRW)
 /* -------------------------------------------------------------------------- */
@@ -393,7 +423,6 @@ data::datax::detach(fuse_req_t req, std::string& cookie, bool isRW)
   {
     if (mFile->xrdioro(req))
     {
-
       mFile->xrdioro(req)->detach();
     }
   }
@@ -532,7 +561,7 @@ data::datax::pread(fuse_req_t req, void *buf, size_t count, off_t offset)
 
         for (auto it = chunks.begin(); it != chunks.end(); ++it)
         {
-          fprintf(stderr, "offset=%llu count=%lu overlay-chunk offset=%llu size=%lu\n", offset, count, it->offset, it->size);
+          fprintf(stderr, "offset=%ld count=%lu overlay-chunk offset=%ld size=%lu\n", offset, count, it->offset, it->size);
           // overlay journal contents again over the remote contents
           ssize_t ljr = mFile->journal()->pread((char*) buf + br + jr + (it->offset - offset - br - jr) , it->size, it->offset );
 
@@ -551,6 +580,7 @@ data::datax::pread(fuse_req_t req, void *buf, size_t count, off_t offset)
     }
     else
     {
+
       mLock.UnLock();
       // IO error
       return -1;
@@ -724,7 +754,7 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
     }
   }
 
-  ssize_t jr = mFile->journal() ? mFile->journal()->pread(buf, count, offset) : 0;
+  ssize_t jr = mFile->journal() ? mFile->journal()->pread(buf + br, count - br, offset + br) : 0;
 
   if (jr < 0)
     return jr;
@@ -735,13 +765,19 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
   // read the missing part remote
   XrdCl::Proxy * proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
 
+  XrdCl::XRootDStatus status;
+
+  eos_info("offset=%llu count=%lu br=%lu jr=%lu", offset, count, br, jr);
+
   if (proxy)
   {
     uint32_t bytesRead=0;
-    if (proxy->Read( offset + br + jr,
-                    count - br - jr,
-                    (char*) buf + br + jr,
-                    bytesRead).IsOK())
+    status = proxy->Read( offset + br + jr,
+                         count - br - jr,
+                         (char*) buf + br + jr,
+                         bytesRead);
+
+    if ( status. IsOK() )
     {
       std::vector<journalcache::chunk_t> chunks;
       if (mFile->journal())
@@ -753,8 +789,8 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
 
         for (auto it = chunks.begin(); it != chunks.end(); ++it)
         {
-          fprintf(stderr, "offset=%llu count=%lu overlay-chunk offset=%llu size=%lu\n", offset, count, it->offset, it->size);
-          eos_info("offset=%llu count=%lu overlay-chunk offset=%llu size=%lu", offset, count, it->offset, it->size);
+          fprintf(stderr, "offset=%ld count=%lu overlay-chunk offset=%ld size=%lu\n", offset, count, it->offset, it->size);
+          eos_info("offset=%ld count=%lu overlay-chunk offset=%ld size=%lu", offset, count, it->offset, it->size);
           // overlay journal contents again over the remote contents
           ssize_t ljr = mFile->journal()->pread((char*) buf + br + jr + (it->offset - offset - br - jr) , it->size, it->offset );
 
@@ -773,6 +809,8 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
     }
     else
     {
+
+      eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());
       // IO error
       return -1;
     }
@@ -831,6 +869,7 @@ data::datax::truncate(fuse_req_t req, off_t offset)
     }
     else
     {
+
       return -1;
     }
   }
@@ -907,7 +946,8 @@ void
 data::datax::set_remote(const std::string& hostport,
                         const std::string& basename,
                         const uint64_t md_ino,
-                        const uint64_t md_pino)
+                        const uint64_t md_pino,
+                        fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("");
@@ -932,7 +972,11 @@ data::datax::set_remote(const std::string& hostport,
     mRemoteUrl += "/";
     mRemoteUrl += basename;
   }
-  mRemoteUrl += "&eos.app=fuse&mgm.mtime=0&mgm.fusex=1";
+  mRemoteUrl += "&eos.app=fuse&mgm.mtime=0&mgm.fusex=1&eos.bookingsize=0";
+
+  XrdCl::URL url(mRemoteUrl);
+  fusexrdlogin::loginurl(url, req, md_ino);
+  mRemoteUrl = url.GetURL();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -962,7 +1006,6 @@ data::dmap::ioflush()
         eos_static_info("dbmap-in %08lx => %lx", it->first, &(*(it->second)));
       }
 
-
       for (auto it = data.begin(); it != data.end(); ++it)
       {
         {
@@ -982,7 +1025,7 @@ data::dmap::ioflush()
                 {
                   eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->state(), fit->second->IsClosed());
                   // skip files which are opening or closing
-                  continue;
+                  break;
                 }
                 if (fit->second->IsOpen())
                 {
@@ -990,11 +1033,6 @@ data::dmap::ioflush()
                   // flush the journal
                   (*it)->journalflush(fit->first);
 
-                  /*
-                  // detach from the journal
-                  std::string cookie("flusher");
-                  (*it)->file()->journal()->detach(cookie);
-                   */
                   fit->second->set_state(XrdCl::Proxy::WAITWRITE);
                   eos_static_info("changing to write wait state");
                 }
@@ -1027,11 +1065,11 @@ data::dmap::ioflush()
                     std::string journal_rescue_location;
                     int dt = (*it)->file()->file() ? (*it)->file()->file()->rescue(file_rescue_location) : 0 ;
                     int jt = (*it)->file()->journal() ? (*it)->file()->journal()->rescue(journal_rescue_location) : 0;
-                    eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s", 
-                                    (*it)->id(), 
-                                    msg.c_str(), 
-                                    (!dt)?file_rescue_location.c_str():"<none>",
-                                    (!jt)?journal_rescue_location.c_str():"<none>");
+                    eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",
+                                    (*it)->id(),
+                                    msg.c_str(),
+                                    (!dt) ? file_rescue_location.c_str() : "<none>",
+                                    (!jt) ? journal_rescue_location.c_str() : "<none>");
 
                   }
 

@@ -63,7 +63,7 @@ journalcache::~journalcache()
 int journalcache::location( std::string &path, bool mkpath )
 {
   char cache_path[1024 + 20];
-  snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lu.j",
+  snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lx.j",
            sLocation.c_str(), ino / 10000, ino);
 
   if (mkpath)
