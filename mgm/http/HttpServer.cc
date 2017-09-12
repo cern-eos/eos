@@ -35,6 +35,8 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 #include <sstream>
+#include <sys/socket.h>
+#include <netdb.h>
 
 /*----------------------------------------------------------------------------*/
 
@@ -86,14 +88,23 @@ HttpServer::Handler(void* cls,
     // Get the headers
     MHD_get_connection_values(connection, MHD_HEADER_KIND,
                               &HttpServer::BuildHeaderMap, (void*) &headers);
-    char buf[INET6_ADDRSTRLEN];
+
     // Retrieve Client IP
     const MHD_ConnectionInfo* info = MHD_get_connection_info(connection,
                                      MHD_CONNECTION_INFO_CLIENT_ADDRESS);
 
     if (info && info->client_addr) {
-      headers["client-real-ip"] = inet_ntop(info->client_addr->sa_family,
-                                            info->client_addr->sa_data + 2, buf, INET6_ADDRSTRLEN);
+      char host[NI_MAXHOST];
+
+      if ( ! getnameinfo(info->client_addr, (info->client_addr->sa_family == AF_INET)? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6), host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST) )
+      { 
+	headers["client-real-ip"] = host;
+      }
+      else
+      {
+	headers["client-real-ip"] = "NOIPLOOKUP";
+      }
+
       char* haddr[1];
       char* hname[1];
 
