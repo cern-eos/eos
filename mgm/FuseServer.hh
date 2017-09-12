@@ -70,7 +70,7 @@ public:
     }
 
     bool
-    Dispatch(const std::string identity, const eos::fusex::heartbeat & hb);
+    Dispatch(const std::string identity, eos::fusex::heartbeat & hb);
     void Print(std::string& out, std::string options="", bool monitoring=false);
     void HandleStatistics(const std::string identity,
                           const eos::fusex::statistics& stats);
@@ -158,7 +158,7 @@ public:
                    const std::string& uuid,
                    const std::string& clientid
                    );
-
+    
     // send MD after update
     int SendMD( const eos::fusex::md &md, 
 		const std::string& uuid,
@@ -289,6 +289,8 @@ public:
                authid_t implied_authid);
 
 
+    int Delete(uint64_t id);
+    
     shared_cap Get(authid_t id);
 
     int BroadcastRelease(const eos::fusex::md &md); // broad cast triggered by fuse network

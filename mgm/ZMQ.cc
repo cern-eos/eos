@@ -84,7 +84,8 @@ ZMQ::Worker::work()
           hb.mutable_heartbeat_()->set_delta(tsnow.tv_sec - hb.heartbeat_().clock() +
                                              (((int64_t) tsnow.tv_nsec - (int64_t) hb.heartbeat_().clock_ns())*1.0 / 1000000000.0));
 
-          if (gFuseServer.Client().Dispatch(id, hb.heartbeat_()))
+          
+          if (gFuseServer.Client().Dispatch(id,*(hb.mutable_heartbeat_())))
           {
             eos_static_info("msg=\"received new heartbeat\" identity=%s type=%d", (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
           }
