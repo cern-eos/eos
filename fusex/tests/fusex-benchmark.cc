@@ -15,6 +15,9 @@
 #define LOOP_8 100
 #define LOOP_9 1000
 #define LOOP_10 10000
+#define LOOP_11 100
+#define LOOP_12 10
+#define LOOP_13 10
 
 int main(int argc, char* argv[])
 {
@@ -267,7 +270,7 @@ int main(int argc, char* argv[])
     fprintf(stderr, ">>> test %04d\n", testno);
     snprintf(name, sizeof (name), "ftruncate");
     unlink(name);
-    int fd = open(name, O_CREAT|O_RDWR, S_IRWXU);
+    int fd = open(name, O_CREAT | O_RDWR, S_IRWXU);
     if (fd > 0)
     {
       for (size_t i=0; i < LOOP_9; i++)
@@ -309,68 +312,227 @@ int main(int argc, char* argv[])
 
   if ( (testno >= test_start) && (testno <= test_stop))
   {
-    
+    fprintf(stderr, ">>> test %04d\n", testno);
     snprintf(name, sizeof (name), "fjournal");
-    unlink(name);    
+    unlink(name);
 
-    int fd = open(name, O_CREAT|O_RDWR, S_IRWXU);
-    for (int i = 0; i< LOOP_10; i+=2)
+    int fd = open(name, O_CREAT | O_RDWR, S_IRWXU);
+    for (int i = 0; i < LOOP_10; i+=2)
     {
-      ssize_t nwrite = pwrite(fd, &i, 4, (i*4) + (2*1024*1024));
+      ssize_t nwrite = pwrite(fd, &i, 4, (i * 4) + (2 * 1024 * 1024));
       if (nwrite != 4)
       {
-	fprintf(stderr, "[test=%03d] failed linear(1) write i=%d\n", testno, i);
-	exit(testno);
+        fprintf(stderr, "[test=%03d] failed linear(1) write i=%d\n", testno, i);
+        exit(testno);
       }
     }
-    for (int i = 0; i< LOOP_10; i+=2)
+    for (int i = 0; i < LOOP_10; i+=2)
     {
       int v;
-      ssize_t nread = pread(fd, &v, 4, (i*4) + (2*1024*1024));
+      ssize_t nread = pread(fd, &v, 4, (i * 4) + (2 * 1024 * 1024));
       if (nread != 4)
       {
-	fprintf(stderr, "[test=%03d] failed linear read i=%d\n", testno, i);
-	exit(testno);
+        fprintf(stderr, "[test=%03d] failed linear read i=%d\n", testno, i);
+        exit(testno);
       }
       if (v != i)
       {
-	fprintf(stderr, "[test=%03d] inconsistent(1) read i=%d != v=%d\n", testno, i, v);
-	exit(testno);
+        fprintf(stderr, "[test=%03d] inconsistent(1) read i=%d != v=%d\n", testno, i, v);
+        exit(testno);
       }
     }
     fdatasync(fd);
-    
-    for (int i = 1; i< LOOP_10; i+=2)
+
+    for (int i = 1; i < LOOP_10; i+=2)
     {
-      ssize_t nwrite = pwrite(fd, &i, 4, i*4 + 2*1024*1024);
+      ssize_t nwrite = pwrite(fd, &i, 4, i * 4 + 2 * 1024 * 1024);
       if (nwrite != 4)
       {
-	fprintf(stderr, "[test=%03d] failed linear(2) write i=%d\n", testno, i);
-	exit(testno);
+        fprintf(stderr, "[test=%03d] failed linear(2) write i=%d\n", testno, i);
+        exit(testno);
       }
     }
-    for (int i = 0; i< LOOP_10; i+=1)
+    for (int i = 0; i < LOOP_10; i+=1)
     {
       int v;
-      ssize_t nread = pread(fd, &v, 4, i*4 + 2*1024*1024);
+      ssize_t nread = pread(fd, &v, 4, i * 4 + 2 * 1024 * 1024);
       if (nread != 4)
       {
-	fprintf(stderr, "[test=%03d] failed linear read i=%d\n", testno, i);
-	exit(testno);
+        fprintf(stderr, "[test=%03d] failed linear read i=%d\n", testno, i);
+        exit(testno);
       }
       if (v != i)
       {
-	fprintf(stderr, "[test=%03d] inconsistent(2) read i=%d != v=%d\n", testno, i, v);
-	exit(testno);
+        fprintf(stderr, "[test=%03d] inconsistent(2) read i=%d != v=%d\n", testno, i, v);
+        exit(testno);
       }
     }
 
     fdatasync(fd);
     close(fd);
-    
+
     unlink(name);
 
     COMMONTIMING("journal-cache-timing", &tm);
+  }
+
+
+  // ------------------------------------------------------------------------ //
+  testno = 11;
+
+  if ( (testno >= test_start) && (testno <= test_stop))
+  {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    eos::common::ShellCmd makethedir("dd if=/dev/urandom of=/var/tmp/random bs=1k count=16");
+    eos::common::cmd_status rc = makethedir.wait(60);
+    if (rc.exit_code)
+    {
+      fprintf(stderr, "[test=%03d] creation of random contents file failed\n", testno);
+      exit(testno);
+    }
+
+    for (size_t i=0; i < LOOP_11; i++)
+    {
+      eos::common::ShellCmd ddcompare("dd if=/var/tmp/random of=random bs=1k count=16; diff /var/tmp/random random");
+      eos::common::cmd_status rc = ddcompare.wait(10);
+      if (rc.exit_code)
+      {
+        fprintf(stderr, "[test=%03d] dd & compare failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+    }
+    eos::common::ShellCmd removethefiles("rm -rf random /var/tmp/random");
+    rc = removethefiles.wait(5);
+    if (rc.exit_code)
+    {
+      fprintf(stderr, "[test=%03d] rm -rf failed\n", testno);
+      exit(testno);
+    }
+    COMMONTIMING("dd-diff-16k-loop", &tm);
+  }
+
+
+  // ------------------------------------------------------------------------ //
+  testno = 12;
+
+  if ( (testno >= test_start) && (testno <= test_stop))
+  {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    eos::common::ShellCmd makethedir("dd if=/dev/urandom of=/var/tmp/random bs=1M count=16");
+    eos::common::cmd_status rc = makethedir.wait(60);
+    if (rc.exit_code)
+    {
+      fprintf(stderr, "[test=%03d] creation of random contents file failed\n", testno);
+      exit(testno);
+    }
+
+    for (size_t i=0; i < LOOP_12; i++)
+    {
+      eos::common::ShellCmd ddcompare("dd if=/var/tmp/random of=random bs=1M count=16; diff /var/tmp/random random");
+      eos::common::cmd_status rc = ddcompare.wait(10);
+      if (rc.exit_code)
+      {
+        fprintf(stderr, "[test=%03d] dd & compare failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+    }
+    eos::common::ShellCmd removethefiles("rm -rf random /var/tmp/random");
+    rc = removethefiles.wait(5);
+    if (rc.exit_code)
+    {
+      fprintf(stderr, "[test=%03d] rm -rf failed\n", testno);
+      exit(testno);
+    }
+    COMMONTIMING("dd-diff-16M-loop", &tm);
+  }
+
+
+
+  // ------------------------------------------------------------------------ //
+  testno = 13;
+
+  if ( (testno >= test_start) && (testno <= test_stop))
+  {
+    char buffer[1024];
+    for (size_t i=0; i < 1024; ++i)
+    {
+      buffer [i] = (char) (i % 256);
+    }
+
+    fprintf(stderr, ">>> test %04d\n", testno);
+    for (size_t i=0; i < LOOP_13; i++)
+    {
+      snprintf(name, sizeof (name), "test-unlink");
+      int fd = open(name, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU);
+      if (fd < 0)
+      {
+        fprintf(stderr, "[test=%03d] creat failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+      if (stat(name, &buf))
+      {
+        fprintf(stderr, "[test=%03d] creation failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+      else
+      {
+        // unlinking the file
+        if (unlink(name))
+        {
+          fprintf(stderr, "[test=%03d] unlink failed i=%lu\n", testno, i);
+          exit(testno);
+        }
+        if (!stat(name, &buf))
+        {
+          fprintf(stderr, "[test=%03d] file visible after ulink i=%lu\n", testno, i);
+          exit(testno);
+        }
+        for (size_t i = 0; i < 4000; ++i)
+        {
+          ssize_t nwrite = write(fd, buffer, sizeof (buffer));
+          if (nwrite != sizeof (buffer))
+          {
+            fprintf(stderr, "[test=%3d] write after unlink failed errno=%d i=%lu\n", testno, errno, i);
+            exit(testno);
+          }
+          fstat(fd, &buf);
+          if ( (errno != 2) || (buf.st_size != (i + 1) * sizeof (buffer)))
+          {
+            fprintf(stderr, "[test=%3d] stat after write gives wrong size errno=%d size=%ld i=%lu\n", testno, errno, buf.st_size, i);
+            exit(testno);
+          }
+        }
+        for (size_t i = 0; i < 4000; ++i)
+        {
+          memset (buffer, 0, sizeof (buffer));
+          ssize_t nread = pread(fd, buffer, sizeof (buffer), i * sizeof (buffer));
+          if (nread != sizeof (buffer))
+          {
+            fprintf(stderr, "[test=%3d] read after unlink failed errno=%d i=%lu\n", testno, errno, i);
+            exit(testno);
+          }
+          for (size_t l = 0; l < sizeof (buffer);  ++l)
+          {
+            if (buffer[l] != ( (char) (((size_t) l) % 256)))
+            {
+              fprintf(stderr, "[test=%3d] wrong contents for read after unlink i=%lu l=%u b=%x\n", testno, i, l, buffer[l]);
+              exit(testno);
+            }
+          }
+        }
+        memset(&buf, 0, sizeof (struct stat));
+        fstat(fd, &buf);
+        if ( (errno != 2 ) || (buf.st_size != 4000 * sizeof (buffer)) )
+        {
+          fprintf(stderr, "[test=%3d] stat after read gives wrong size errno=%d size=%ld\n", testno, errno, buf.st_size);
+          exit(testno);
+        }
+      }
+      close(fd);
+    }
+    COMMONTIMING("write-unlinked-loop", &tm);
   }
 
   tm.Print();
