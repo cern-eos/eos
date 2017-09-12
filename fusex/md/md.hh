@@ -142,6 +142,11 @@ public:
       return true;
     }
 
+    int lookup_is()
+    {
+      return lookup_cnt;
+    }
+    
     md_op getop() const
     {
       return op;

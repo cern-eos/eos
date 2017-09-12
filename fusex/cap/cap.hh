@@ -77,7 +77,7 @@ public:
 
     std::string dump(bool dense=false);
 
-    capx()
+    capx() : lastusage(0)
     {
     }
 
@@ -94,8 +94,18 @@ public:
 
     bool valid(bool debug=true);
 
+    void use()
+    {
+      lastusage = time(NULL);  
+    }
+    
+    const time_t used() const {
+      return lastusage;
+    }
+    
   private:
     XrdSysMutex mLock;
+    time_t lastusage;
   } ;
 
   typedef std::shared_ptr<capx> shared_cap;
@@ -165,12 +175,24 @@ public:
 
   void capflush(); // thread removing capabilities
 
+  XrdSysMutex& get_extensionLock() { return extensionLock;}
+  
+  typedef std::map<std::string, size_t> extension_map_t; 
+  
+  extension_map_t& get_extensionmap() { return extensionmap;}
+  
 private:
 
   cmap capmap;
+  cmap capextionsmap;
   backend* mdbackend;
   metad* mds;
 
   std::atomic<bool> capterminate;
+  
+  XrdSysMutex extensionLock;
+  extension_map_t extensionmap; // map containing all authids
+  // with their lifetime increment to be sent by the heartbeat
+  
 } ;
 #endif /* FUSE_CAP_HH_ */

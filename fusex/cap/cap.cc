@@ -30,6 +30,8 @@
 
 cap* cap::sCAP=0;
 
+#define CAP_EXTENSION_TIME 180
+
 /* -------------------------------------------------------------------------- */
 cap::cap()
 /* -------------------------------------------------------------------------- */
@@ -102,7 +104,7 @@ cap::capx::capid(fuse_req_t req, fuse_ino_t ino)
            fuse_req_ctx(req)->gid,
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
-          );
+           );
   return sid;
 }
 
@@ -192,7 +194,7 @@ cap::get(fuse_req_t req,
     cap->set_vtime(0);
     cap->set_vtime_ns(0);
     capmap[cid] = cap;
-    //mds->increase_cap(ino);
+    mds->increase_cap(ino);
     return cap;
   }
 }
@@ -209,7 +211,7 @@ cap::store(fuse_req_t req,
 
   uint64_t id = mds->vmaps().forward(icap.id());
   std::string cid = cap::capx::capid(req, id); // cid uses the local inode
-  
+
   XrdSysMutexHelper mLock(capmap);
   if (capmap.count(cid))
   {
@@ -239,11 +241,11 @@ cap::forget(const std::string& cid)
   fuse_ino_t inode=0;
   {
     XrdSysMutexHelper mLock(capmap);
-    
+
     if (capmap.count(cid))
     {
       eos_static_debug("forget capid=%s cap: %s", cid.c_str(),
-		       capmap[cid]->dump().c_str());
+                       capmap[cid]->dump().c_str());
       shared_cap cap = capmap[cid];
       inode = cap->id();
       capmap.erase(cid);
@@ -333,6 +335,10 @@ cap::acquire(fuse_req_t req,
       mds->increase_cap(ino);
     }
   }
+
+  // stamp latest time of use
+  cap->use();
+
   return cap;
 }
 
@@ -455,6 +461,24 @@ cap::capflush()
           eos_static_debug("expire %s", it->second->dump().c_str());
           mds->decrease_cap(it->second->id());
           capdelinodes.insert(it->second->id());
+        }
+        else
+        {
+          time_t vtime = it->second->vtime();
+          time_t utime = it->second->used();
+          time_t period = vtime - utime;
+          if ( (period < 90) && (period > 15) )
+          {
+            // if cap was used during last 90 seconds, we automatically ask
+            // for an extension of CAP_EXTENSION_TIME
+            XrdSysMutexHelper eLock(extensionLock);
+            extensionmap[it->second->authid()] = CAP_EXTENSION_TIME;
+            it->second->set_vtime(vtime  + CAP_EXTENSION_TIME);
+            eos_static_info("authid=%s vtime=%lu extended-vtime=%lu",
+                            it->second->authid().c_str(),
+                            vtime,
+                            it->second->vtime());
+          }
         }
       }
       for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it)
