@@ -70,6 +70,7 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
       src_fmd->setCTime(ctime);
       dst_fmd->getMTime(mtime);
       src_fmd->setMTime(mtime);
+      src_fmd->setFlags(dst_fmd->getFlags());
       eosView->updateFileStore(src_fmd.get());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
