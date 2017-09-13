@@ -32,6 +32,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 #include <sstream>
@@ -105,17 +106,11 @@ HttpServer::Handler(void* cls,
 	headers["client-real-ip"] = "NOIPLOOKUP";
       }
 
-      char* haddr[1];
-      char* hname[1];
-
-      if ((XrdSysDNS::getAddrName(const_cast<char*>
-                                  (headers["client-real-ip"].c_str()),
-                                  1,
-                                  haddr,
-                                  hname)) > 0) {
-        headers["client-real-host"] = const_cast<char*>(hname[0]);
-        free(hname[0]);
-        free(haddr[0]);
+      XrdNetAddr netaddr(info->client_addr);
+      const char* name = netaddr.Name();
+      if (name)
+      {
+	headers["client-real-host"] = name;
       }
     }
 
@@ -379,16 +374,13 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
   if (headers.count("x-real-ip")) {
     // translate a proxied host name
     remotehost = const_cast<char*>(headers["x-real-ip"].c_str());
-    char* haddr[1];
-    char* hname[1];
 
-    if ((XrdSysDNS::getAddrName(remotehost.c_str(),
-                                1,
-                                haddr,
-                                hname)) > 0) {
-      remotehost = const_cast<char*>(hname[0]);
-      free(hname[0]);
-      free(haddr[0]);
+    XrdNetAddr netaddr;
+    netaddr.Set(headers["x-real-ip"].c_str());
+    const char* name = netaddr.Name();
+    if (name)
+    {
+      remotehost = name;
     }
 
     if (headers.count("auth-type")) {
