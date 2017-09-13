@@ -35,7 +35,6 @@
 struct dirbuf {
   char* p;
   size_t size;
-  size_t alloc_size;
 };
 
 using eos::common::RWMutex;

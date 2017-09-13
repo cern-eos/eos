@@ -7,6 +7,16 @@
 Beryl Release Notes
 ===================
 
+``V0.3.268 Aquamarine``
+=======================
+
+Bug Fixes
++++++++++
+
+- MGM: Mask the block checksum for draining and balancing when there is a layout
+       requesting blockchecksum for replica files. This was blocking all draining,
+       balancing or conversion jobs.
+
 ``V0.3.267 Aquamarine``
 =======================
 
@@ -16,6 +26,8 @@ Bug Fixes
 - AUTH: Set the ZMQ_LINGER option on the socket so that messages are not retransmitted
 - NS: add missing initialization of pData leading to random compaction crashes/failures
 - MGM: fix race in mkdir which could return EEXIST
+- MGM: fix race in rm 
+- FUSE: fix memory-leak when read-ahead gets disabled during an open/read/close sequence
 
 Improvement
 +++++++++++

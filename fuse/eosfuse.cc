@@ -632,11 +632,9 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   int dir_status = 0;
   size_t cnt = 0;
   struct dirbuf b;
-  struct dirbuf* tmp_buf;
   struct dirbuf* fh_buf;
   struct stat attr {};
   b.size = 0;
-  b.alloc_size = 0;
   b.p = 0;
   UPDATEPROCCACHE;
   me.fs().lock_r_p2i();   // =>
@@ -693,7 +691,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   }
 
   dir_status = me.fs().dir_cache_get(ino, attr.MTIMESPEC, attr.CTIMESPEC,
-                                     &tmp_buf);
+                                     &fh_buf);
 
   if (!dir_status) {
     // Dir not in cache or invalid, fall-back to normal reading
@@ -738,7 +736,6 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     fh_buf->p = (char*) calloc(b.size, sizeof(char));
     fh_buf->p = (char*) memcpy(fh_buf->p, b.p, b.size);
     fh_buf->size = b.size;
-    fh_buf->alloc_size = b.size;
     fi->fh = (uint64_t) fh_buf;
 
     if (entriesstats) {
@@ -755,14 +752,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       free(b.p);
     }
   } else {
-    // duplicate the dirbuf from cache and store in the file handle
-    fh_buf = (struct dirbuf*) malloc(sizeof(dirbuf));
-    fh_buf->p = (char*) calloc(tmp_buf->size, sizeof(char));
-    fh_buf->p = (char*) memcpy(fh_buf->p, tmp_buf->p, tmp_buf->size);
-    fh_buf->size = tmp_buf->size;
-    fh_buf->alloc_size = tmp_buf->size;
     fi->fh = (uint64_t) fh_buf;
-    free(tmp_buf);
   }
 
   free(name);
