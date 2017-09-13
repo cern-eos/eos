@@ -92,21 +92,30 @@ XrdMgmOfs::_utimes(const char* path,
  */
 /*----------------------------------------------------------------------------*/
 {
+  static const char* epname = "utimes";
   std::shared_ptr<eos::IContainerMD> cmd;
   EXEC_TIMING_BEGIN("Utimes");
   gOFS->MgmStats.Add("Utimes", vid.uid, vid.gid, 1);
+  eos_info("calling utimes for path=%s, uid=%i, gid=%i", path, vid.uid, vid.gid);
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
     cmd = gOFS->eosView->getContainer(path, false);
+
+    // Check permissions
+    if (!cmd->access(vid.uid, vid.gid, W_OK)) {
+      EXEC_TIMING_END("Utimes");
+      return Emsg(epname, error, EPERM, "set utime", path);
+    }
+
     cmd->setMTime(tvp[1]);
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
     eosView->updateContainerStore(cmd.get());
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-              e.getErrno(), e.getMessage().str().c_str());
+    eos_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+            e.getErrno(), e.getMessage().str().c_str());
   }
 
   if (!cmd) {
@@ -114,6 +123,14 @@ XrdMgmOfs::_utimes(const char* path,
 
     try {
       fmd = gOFS->eosView->getFile(path, false);
+      // Check permissions on the directory
+      eos::common::Path cont_path(path);
+      cmd = gOFS->eosView->getContainer(cont_path.GetParentPath(), false);
+
+      if (!cmd->access(vid.uid, vid.gid, W_OK)) {
+        EXEC_TIMING_END("Utimes");
+        return Emsg(epname, error, EPERM, "set utime", path);
+      }
 
       // Set the ctime only if different from 0.0
       if (tvp[0].tv_sec != 0 || tvp[0].tv_nsec != 0) {

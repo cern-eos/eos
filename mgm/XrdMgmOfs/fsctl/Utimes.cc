@@ -44,6 +44,7 @@
   tv2_nsec = env.Get("tv2_nsec");
 
   struct timespec tvp[2];
+
   if (tv1_sec && tv1_nsec && tv2_sec && tv2_nsec)
   {
     // ctime
@@ -52,14 +53,18 @@
     // mtime
     tvp[1].tv_sec = strtol(tv2_sec, 0, 10);
     tvp[1].tv_nsec = strtol(tv2_nsec, 0, 10);
-
     int retc = utimes(spath.c_str(), tvp, error, client, 0);
     XrdOucString response = "utimes: retc=";
-    response += retc;
+
+    if (retc == SFS_ERROR) {
+      response += error.getErrInfo();
+    } else {
+      response += retc;
+    }
+
     error.setErrInfo(response.length() + 1, response.c_str());
     return SFS_DATA;
-  }
-  else
+  } else
   {
     XrdOucString response = "utimes: retc=";
     response += EINVAL;

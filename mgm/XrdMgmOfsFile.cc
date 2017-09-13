@@ -660,8 +660,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  // set the versioning depth if it is defined
-
+  // Set the versioning depth if it is defined
   if (attrmap.count("sys.versioning")) {
     versioning = atoi(attrmap["sys.versioning"].c_str());
   } else {
@@ -984,13 +983,10 @@ XrdMgmOfsFile::open(const char* inpath,
         }
       }
 
-      // -----------------------------------------------------------------------
-      // set the layout and commit new meta data
+      // Set the layout and commit new meta data
       fmd->setLayoutId(layoutId);
 
-      // -------------------------------------------------------------------------
       // if specified set an external modification/creation time
-      // -------------------------------------------------------------------------
       if (ext_mtime_sec) {
         eos::IFileMD::ctime_t mtime;
         mtime.tv_sec = ext_mtime_sec;
