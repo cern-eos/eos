@@ -93,10 +93,9 @@ public:
 
   //----------------------------------------------------------------------------
   //! Print quota information
-  //!
   //----------------------------------------------------------------------------
-  void PrintOut(XrdOucString& output, long uid_sel = -1,
-                long gid_sel = -1, bool monitoring = false,
+  void PrintOut(XrdOucString& output, long long int uid_sel = -1,
+                long long int gid_sel = -1, bool monitoring = false,
                 bool translate_ids = false);
 
   //----------------------------------------------------------------------------
@@ -319,16 +318,6 @@ public:
   enum Type { kUnknown, kVolume, kInode, kAll }; ///< Quota types
 
   //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  Quota() { }
-
-  //----------------------------------------------------------------------------
-  //! Desstructor
-  //----------------------------------------------------------------------------
-  virtual ~Quota() { }
-
-  //----------------------------------------------------------------------------
   //! Create space quota
   //!
   //! @param path quota node path which needs to be '/' terminated
@@ -528,7 +517,7 @@ public:
   //!         output string with the error messsage
   //----------------------------------------------------------------------------
   static bool PrintOut(const std::string& path, XrdOucString& output,
-                       long uid_sel = -1, long gid_sel = -1,
+                       long long int uid_sel = -1, long long int gid_sel = -1,
                        bool monitoring = false, bool translate_ids = false);
 
   //----------------------------------------------------------------------------
@@ -588,7 +577,8 @@ public:
 
   //! @brief Retrieves the kAllGroupLogicalBytesIs and kAllGroupLogicalBytesTarget values for the quota nodes.
   //! @return a map with the paths of the quota nodes and the corresponding values
-  static map<std::string, std::tuple<unsigned long long, unsigned long long, unsigned long long>> GetAllGroupsLogicalQuotaValues();
+  static map<std::string, std::tuple<unsigned long long, unsigned long long, unsigned long long>>
+      GetAllGroupsLogicalQuotaValues();
 
   static gid_t gProjectId; ///< gid indicating project quota
   static eos::common::RWMutex pMapMutex; ///< mutex to protect access to pMapQuota

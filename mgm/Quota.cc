@@ -21,14 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Quota.hh"
 #include "mgm/Policy.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/TableFormatter/TableFormatterBase.hh"
-/*----------------------------------------------------------------------------*/
 #include <errno.h>
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -440,8 +437,8 @@ SpaceQuota::Refresh()
 // Print quota information
 //------------------------------------------------------------------------------
 void
-SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
-                     bool monitoring, bool translate_ids)
+SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
+                     long long int gid_sel, bool monitoring, bool translate_ids)
 {
   using eos::common::StringConversion;
   // Make a map containing once all the defined uid's and gid's
@@ -454,19 +451,18 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
       gid_sel = Quota::gProjectId;
     }
 
-    for (auto it = mMapIdQuota.begin(); it != mMapIdQuota.end(); it++) {
-      if ((UnIndex(it->first) >= kUserBytesIs)
-          && (UnIndex(it->first) <= kUserFilesTarget)) {
-        eos_static_debug("adding %llx to print list ", UnIndex(it->first));
-        unsigned long uid = (it->first) & 0xffffffff;
+    for (auto it = mMapIdQuota.begin(); it != mMapIdQuota.end(); ++it) {
+      if ((UnIndex(it->first) >= kUserBytesIs) &&
+          (UnIndex(it->first) <= kUserFilesTarget)) {
+        long long int uid = (long long int)((it->first) & 0xffffffff);
 
         // uid selection filter
-        if ((uid_sel >= 0) && (uid != (unsigned long) uid_sel)) {
+        if ((uid_sel >= 0LL) && (uid != uid_sel)) {
           continue;
         }
 
         // we don't print the users if a gid is selected
-        if (gid_sel >= 0) {
+        if (gid_sel >= 0LL) {
           continue;
         }
 
@@ -482,20 +478,20 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
           }
         }
 
-        uids.push_back(std::make_pair(name.c_str(), uid));
+        uids.push_back(std::make_pair(name, uid));
       }
 
-      if ((UnIndex(it->first) >= kGroupBytesIs)
-          && (UnIndex(it->first) <= kGroupFilesTarget)) {
-        unsigned long gid = (it->first) & 0xffffffff;
+      if ((UnIndex(it->first) >= kGroupBytesIs) &&
+          (UnIndex(it->first) <= kGroupFilesTarget)) {
+        long long int gid = (it->first) & 0xfffffff;
 
         // uid selection filter
-        if ((gid_sel >= 0) && (gid != (unsigned long) gid_sel)) {
+        if ((gid_sel >= 0LL) && (gid != gid_sel)) {
           continue;
         }
 
         // We don't print the group if a uid is selected
-        if (uid_sel >= 0) {
+        if (uid_sel >= 0LL) {
           continue;
         }
 
@@ -511,11 +507,12 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
           }
         }
 
-        gids.push_back(std::make_pair(name.c_str(), gid));
+        gids.push_back(std::make_pair(name, gid));
       }
     }
   }
-  // Sort and erase duplicated the uids and gids
+  // Sort and erase duplicated uids and gids
+  eos_static_info("uids_size=%i, gids_size=%i", uids.size(), gids.size());
   std::sort(uids.begin(), uids.end());
   uids.erase(std::unique(uids.begin(), uids.end()), uids.end());
   std::sort(gids.begin(), gids.end());
@@ -1770,8 +1767,9 @@ Quota::LoadNodes()
 // Print out quota information
 //------------------------------------------------------------------------------
 bool
-Quota::PrintOut(const std::string& path, XrdOucString& output, long uid_sel,
-                long gid_sel, bool monitoring, bool translate_ids)
+Quota::PrintOut(const std::string& path, XrdOucString& output,
+                long long int uid_sel, long long int gid_sel, bool monitoring,
+                bool translate_ids)
 {
   // Add this to have all quota nodes visible even if they are not in
   // the configuration file
