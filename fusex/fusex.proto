@@ -2,7 +2,7 @@ syntax = "proto3";
 package eos.fusex;
 
 message md {
-  enum OP { GET = 0; SET = 1; DELETE = 2; GETCAP = 3; LS = 4; GETLK = 5; SETLK = 6; SETLKW = 7;}
+  enum OP { GET = 0; SET = 1; DELETE = 2; GETCAP = 3; LS = 4; GETLK = 5; SETLK = 6; SETLKW = 7; BEGINFLUSH = 8; ENDFLUSH = 9;}
   enum TYPE { MD = 0; MDLS = 1; EXCL = 2;}
 
   fixed64 id = 1;        //< file/container id
@@ -154,10 +154,8 @@ message lock {
   fixed32 err_no = 5; //< errno from locking call
 }
 
-
-
 message response {
-  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; }
+  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; NONE = 5;}
 
   // Identifies which field is filled in.
   Type type = 1;
