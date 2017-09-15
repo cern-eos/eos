@@ -17,6 +17,18 @@ This is the first release targeted for clients to use EOS with XRootD >= 4.2.X.
 It is merged from the Aquamarine Version 0.3.130. Main difference to Aquamarine
 is the use of XRootD 4 and the new tree-based scheduling algorithm.
 
+``v4.1.30 Citrine``
++++++++++++++++++++
+
+Bug
+++++
+* [EOS-1978] - Preserve converted file ctime and ctime (CITRINE)
+* FUSE: fix significant leak when returning a cached directory listing
+* MGM: Enforce permission check when utime is executed
+* MGM: Fix uid/gid overflow and comparison issues
+* HTTP: fix ipv4/6 connection2ip function
+
+
 ``v4.1.29 Citrine``
 +++++++++++++++++++
 
@@ -32,7 +44,6 @@ Bug
 * [EOS-1989] - eos file verify <path> -checksum is broken
 * [EOS-1991] - eos-fuse rpm package broken dependency
 * [EOS-1996] - space ls geo output is wrongly formatted
-
 
 ``v4.1.28 Citrine``
 +++++++++++++++++++
