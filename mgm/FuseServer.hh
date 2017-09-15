@@ -158,12 +158,12 @@ public:
                    const std::string& uuid,
                    const std::string& clientid
                    );
-    
+
     // send MD after update
-    int SendMD( const eos::fusex::md &md, 
-		const std::string& uuid,
-		const std::string& clientid
-		);
+    int SendMD( const eos::fusex::md &md,
+               const std::string& uuid,
+               const std::string& clientid
+               );
 
     // drop caps of a given client
     int Dropcaps(const std::string& uuid, std::string& out);
@@ -290,7 +290,7 @@ public:
 
 
     int Delete(uint64_t id);
-    
+
     shared_cap Get(authid_t id);
 
     int BroadcastRelease(const eos::fusex::md &md); // broad cast triggered by fuse network
@@ -345,9 +345,11 @@ public:
     {
     }
 
-    typedef std::map<uint64_t, LockTracker> lockmap_t;
+    typedef shared_ptr<LockTracker> shared_locktracker;
+    
+    typedef std::map<uint64_t, shared_locktracker > lockmap_t;
 
-    LockTracker& getLocks(uint64_t id);
+    shared_locktracker getLocks(uint64_t id);
 
     void purgeLocks();
 
@@ -357,13 +359,74 @@ public:
     int dropLocks(const std::string& owner);
 
     int lsLocks(const std::string& owner,
-                std::map<uint64_t, std::set<pid_t>> rlocks,
-                std::map<uint64_t, std::set<pid_t>> wlocks);
+                std::map<uint64_t, std::set<pid_t>>& rlocks,
+                std::map<uint64_t, std::set<pid_t>>& wlocks);
 
 
   private:
     lockmap_t lockmap;
 
+  } ;
+
+  class Flush : XrdSysMutex
+  {
+    // essentially a map containing clients which currently flush a file
+  public:
+
+    static const int cFlushWindow=60;
+    
+    Flush()
+    {
+    }
+
+    virtual ~Flush()
+    {
+    }
+
+    void beginFlush(uint64_t id, std::string client);
+
+    void endFlush(uint64_t id, std::string client);
+
+    bool hasFlush(uint64_t id);
+
+    bool validateFlush(uint64_t id);
+
+    void expireFlush();
+    
+    void Print(std::string& out);
+
+  private:
+
+    typedef struct flush_info
+    {
+      flush_info() : client("") , nref(0) {}
+      
+      flush_info(std::string _client) : client(_client)
+      {
+        eos::common::Timing::GetTimeSpec(ftime);
+        ftime.tv_sec += cFlushWindow;
+        nref = 0;
+      }
+      
+      void Add(struct flush_info l)
+      {
+        ftime = l.ftime;
+        nref++;
+      }
+      bool Remove(struct flush_info l)
+      {
+        nref--;
+        if (nref>0)
+          return false;
+        return true;
+      }
+      
+      std::string client;
+      struct timespec ftime;
+      ssize_t nref;
+    } flush_info_t;
+
+    std::map<uint64_t, std::map<std::string, flush_info_t> > flushmap;
   } ;
 
   Clients& Client()
@@ -383,6 +446,11 @@ public:
     return mLocks;
   }
 
+  Flush& Flushs()
+  {
+    return mFlushs;
+  }
+  
   void Print(std::string& out, std::string options="", bool monitoring=false);
 
   bool FillContainerMD(uint64_t id, eos::fusex::md& dir);
@@ -422,6 +490,7 @@ protected:
   Clients mClients;
   Caps mCaps;
   Lock mLocks;
+  Flush mFlushs;
 
 private:
 

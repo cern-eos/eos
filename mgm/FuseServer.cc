@@ -101,7 +101,7 @@ FuseServer::Clients::MonitorHeartBeat()
           {
             evictmap[it->second.heartbeat().uuid()] = it->first;
             it->second.set_state(Client::EVICTED);
-            gOFS->zMQ->gFuseServer.Locks().dropLocks(it->first);
+            gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
           }
           else
           {
@@ -120,6 +120,8 @@ FuseServer::Clients::MonitorHeartBeat()
         mUUIDView.erase(it->first);
       }
     }
+
+    gOFS->zMQ->gFuseServer.Flushs().expireFlush();
     sleeper.Snooze(1);
 
     if (should_terminate())
@@ -200,10 +202,19 @@ FuseServer::Print(std::string& out, std::string options, bool monitoring)
 {
 
 
-  if (options.find("c"))
+  if ( (options.find("c") != std::string::npos)
+      || !options.length() )
   {
     Client().Print(out, "", monitoring);
   }
+
+  if (options.find("f") != std::string::npos)
+  {
+    std::string flushout;
+    gOFS->zMQ->gFuseServer.Flushs().Print(flushout);
+    out += flushout;
+  }
+
 }
 
 /*----------------------------------------------------------------------------*/
@@ -259,24 +270,26 @@ FuseServer::Clients::Print(std::string& out, std::string options, bool monitorin
       std::map<uint64_t, std::set < pid_t>> rlocks;
       std::map<uint64_t, std::set < pid_t>> wlocks;
 
-      gOFS->zMQ->gFuseServer.Locks().lsLocks(it->first, rlocks, wlocks);
+      gOFS->zMQ->gFuseServer.Locks().lsLocks(it->second.heartbeat().uuid(), rlocks, wlocks);
 
 
       for (auto rit = rlocks.begin(); rit != rlocks.end(); ++rit)
       {
         if (rit->second.size())
         {
-          out += "\n";
-          snprintf(formatline, sizeof (formatline), "      t:rlock i:%016lx", rit->first);
+          snprintf(formatline, sizeof (formatline), "      t:rlock i:%016lx p:", rit->first);
           out += formatline;
           std::string pidlocks;
           for (auto pit = rit->second.begin(); pit != rit->second.end(); ++pit)
           {
             if (pidlocks.length())
               pidlocks += ",";
-            pidlocks += *pit;
+            char spid[16];
+            snprintf(spid, sizeof (spid), "%u", *pit);
+            pidlocks += spid;
           }
           out += pidlocks;
+          out += "\n";
         }
       }
 
@@ -284,17 +297,19 @@ FuseServer::Clients::Print(std::string& out, std::string options, bool monitorin
       {
         if (wit->second.size())
         {
-          out += "\n";
-          snprintf(formatline, sizeof (formatline), "      t:wlock i:%016lx", wit->first);
+          snprintf(formatline, sizeof (formatline), "      t:wlock i:%016lx p:", wit->first);
           out += formatline;
           std::string pidlocks;
           for (auto pit = wit->second.begin(); pit != wit->second.end(); ++pit)
           {
             if (pidlocks.length())
               pidlocks += ",";
-            pidlocks += *pit;
+            char spid[16];
+            snprintf(spid, sizeof (spid), "%u", *pit);
+            pidlocks += spid;
           }
           out += pidlocks;
+          out += "\n";
         }
       }
     }
@@ -882,7 +897,7 @@ FuseServer::Caps::Delete(uint64_t md_ino
     {
       // erase authid from the client set
       it->second.erase(*sit);
-      
+
       // erase authid from the time ordered list
       mTimeOrderedCap.erase(std::remove(mTimeOrderedCap.begin(), mTimeOrderedCap.end(),
                                         *sit), mTimeOrderedCap.end());
@@ -895,12 +910,17 @@ FuseServer::Caps::Delete(uint64_t md_ino
 }
 
 /*----------------------------------------------------------------------------*/
-LockTracker &
+FuseServer::Lock::shared_locktracker
 /*----------------------------------------------------------------------------*/
 FuseServer::Lock::getLocks(uint64_t id)
 /*----------------------------------------------------------------------------*/
 {
+  XrdSysMutexHelper lock(this);
   // make sure you have this object locked
+  if (!lockmap.count(id))
+  {
+    lockmap[id] = std::make_shared<LockTracker>();
+  }
   return lockmap[id];
 }
 
@@ -915,7 +935,7 @@ FuseServer::Lock::purgeLocks()
 
   for (auto it=lockmap.begin(); it != lockmap.end(); ++it)
   {
-    if (!it->second.inuse())
+    if (!it->second->inuse())
     {
       purgeset.insert(it->first);
     }
@@ -940,7 +960,7 @@ FuseServer::Lock::dropLocks(uint64_t id, pid_t pid)
     XrdSysMutexHelper lock(this);
     if (lockmap.count(id))
     {
-      lockmap[id].removelk(pid);
+      lockmap[id]->removelk(pid);
       retc = 0;
     }
     else
@@ -966,7 +986,7 @@ FuseServer::Lock::dropLocks(const std::string & owner)
     XrdSysMutexHelper lock(this);
     for (auto it=lockmap.begin(); it != lockmap.end(); ++it)
     {
-      it->second.removelk(owner);
+      it->second->removelk(owner);
     }
   }
   purgeLocks();
@@ -977,21 +997,158 @@ FuseServer::Lock::dropLocks(const std::string & owner)
 int
 /*----------------------------------------------------------------------------*/
 FuseServer::Lock::lsLocks(const std::string& owner,
-                          std::map<uint64_t, std::set < pid_t>> rlocks,
-                          std::map<uint64_t, std::set < pid_t >> wlocks)
+                          std::map<uint64_t, std::set < pid_t >>& rlocks,
+                          std::map<uint64_t, std::set < pid_t >>& wlocks)
 /*----------------------------------------------------------------------------*/
 {
   int retc = 0;
   {
+    XrdSysMutexHelper lock(this);
     for (auto it=lockmap.begin(); it != lockmap.end(); ++it)
     {
-      std::set<pid_t> rlk = it->second.getrlks(owner);
-      std::set<pid_t> wlk = it->second.getwlks(owner);
+      std::set<pid_t> rlk = it->second->getrlks(owner);
+      std::set<pid_t> wlk = it->second->getwlks(owner);
       rlocks[it->first].insert(rlk.begin(), rlk.end());
       wlocks[it->first].insert(wlk.begin(), wlk.end());
     }
   }
   return retc;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+/*----------------------------------------------------------------------------*/
+FuseServer::Flush::beginFlush(uint64_t id, std::string client)
+/*----------------------------------------------------------------------------*/
+{
+  eos_static_info("ino=%016x client=%s", id, client.c_str());
+  XrdSysMutexHelper lock(this);
+  flush_info_t finfo(client);
+  flushmap[id][client].Add(finfo);
+}
+
+/*----------------------------------------------------------------------------*/
+void
+/*----------------------------------------------------------------------------*/
+FuseServer::Flush::endFlush(uint64_t id, std::string client)
+/*----------------------------------------------------------------------------*/
+{
+  eos_static_info("ino=%016x client=%s", id, client.c_str());
+  XrdSysMutexHelper lock(this);
+  flush_info_t finfo(client);
+  if (flushmap[id][client].Remove(finfo))
+  {
+    flushmap[id].erase(client);
+    if (!flushmap[id].size())
+      flushmap.erase(id);
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+/*----------------------------------------------------------------------------*/
+FuseServer::Flush::hasFlush(uint64_t id)
+/*----------------------------------------------------------------------------*/
+{
+  // this function takes maximum 255ms and waits for a flush to be removed
+  // this function might block a client connection/thread for the given time
+  bool has = false;
+  size_t delay = 1;
+  for (size_t i = 0 ; i < 8; ++i)
+  {
+    {
+      XrdSysMutexHelper lock(this);
+      has = validateFlush(id);
+    }
+    if (!has)
+      return false;
+    XrdSysTimer sleeper;
+    sleeper.Wait(delay);
+    delay*=2;
+    ;
+  }
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+/*----------------------------------------------------------------------------*/
+FuseServer::Flush::validateFlush(uint64_t id)
+/*----------------------------------------------------------------------------*/
+{
+  bool has = false;
+
+  if (flushmap.count(id))
+  {
+    for (auto it = flushmap[id].begin(); it != flushmap[id].end(); )
+    {
+      if (eos::common::Timing::GetAgeInNs(&it->second.ftime) < 0)
+      {
+        has = true;
+        ++it;
+      }
+      else
+      {
+        it = flushmap[id].erase(it);
+      }
+    }
+    if (!flushmap[id].size())
+    {
+      flushmap.erase(id);
+    }
+  }
+  return has;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+/*----------------------------------------------------------------------------*/
+FuseServer::Flush::expireFlush()
+/*----------------------------------------------------------------------------*/
+{
+  XrdSysMutexHelper lock(this);
+  for (auto it = flushmap.begin(); it != flushmap.end(); )
+  {
+    for (auto fit = it->second.begin(); fit != it->second.end(); )
+    {
+      if (eos::common::Timing::GetAgeInNs(&fit->second.ftime) < 0)
+        ++fit;
+      else
+      {
+        fit = it->second.erase(fit);
+      }
+    }
+    if (!it->second.size())
+    {
+      it=flushmap.erase(it);
+    }
+    else
+    {
+      ++it;
+    }
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+/*----------------------------------------------------------------------------*/
+FuseServer::Flush::Print(std::string & out)
+/*----------------------------------------------------------------------------*/
+{
+  XrdSysMutexHelper lock(this);
+  for (auto it = flushmap.begin(); it != flushmap.end(); ++it)
+  {
+    for (auto fit = it->second.begin(); fit != it->second.end(); ++fit)
+    {
+      long long valid = eos::common::Timing::GetAgeInNs(&fit->second.ftime);
+      char formatline[4096];
+      snprintf(formatline, sizeof (formatline), "flush : ino : %016lx client : %-8s valid=%.02f sec\n",
+               it->first,
+               fit->first.c_str(),
+               1.0 * valid / 1000000000.0);
+      out += formatline;
+    }
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1415,11 +1572,17 @@ FuseServer::HandleMD(const std::string &id,
     break;
   case md.SETLK: ops = "SETLK";
     break;
+  case md.SETLKW: ops = "SETLKW";
+    break;
+  case md.BEGINFLUSH: ops = "BEGINFLUSH";
+    break;
+  case md.ENDFLUSH: ops = "ENDFLUSH";
+    break;
   default:
     ops = "UNKNOWN";
   }
 
-  eos_static_info("ino=%lx operation=%s cid=%s cuuid=%s", (long) md.md_ino(),
+  eos_static_info("ino=%016lx operation=%s cid=%s cuuid=%s", (long) md.md_ino(),
                   ops.c_str(),
                   md.clientid().c_str(), md.clientuuid().c_str());
 
@@ -1428,6 +1591,25 @@ FuseServer::HandleMD(const std::string &id,
   {
     std::string mdout = dump_message(md);
     eos_static_debug("\n%s\n", mdout.c_str());
+  }
+
+  if ( md.operation() == md.BEGINFLUSH )
+  {
+    // this is a flush begin/end indicator
+    Flushs().beginFlush(md.md_ino(), md.clientuuid());
+    eos::fusex::response resp;
+    resp.set_type(resp.NONE);
+    resp.SerializeToString(response);
+    return 0;
+  }
+
+  if ( md.operation() == md.ENDFLUSH )
+  {
+    Flushs().endFlush(md.md_ino(), md.clientuuid());
+    eos::fusex::response resp;
+    resp.set_type(resp.NONE);
+    resp.SerializeToString(response);
+    return 0;
   }
 
   if ( (md.operation() == md.GET) || (md.operation() == md.LS) )
@@ -2048,7 +2230,7 @@ FuseServer::HandleMD(const std::string &id,
 
         Cap().BroadcastRelease(md);
         Cap().Delete(md.md_ino());
-        
+
         return 0;
       }
       if (S_ISREG(md.mode()))
@@ -2135,10 +2317,17 @@ FuseServer::HandleMD(const std::string &id,
 
     struct flock lock;
 
-    Locks().getLocks(md.md_ino()).getlk((pid_t) md.flock().pid(), &lock);
+    Locks().getLocks(md.md_ino())->getlk((pid_t) md.flock().pid(), &lock);
     resp.mutable_lock_()->set_len(lock.l_len);
     resp.mutable_lock_()->set_start(lock.l_start);
     resp.mutable_lock_()->set_pid(lock.l_pid);
+
+    eos_static_info("getlk: ino=%016lx start=%lu len=%ld pid=%u type=%d",
+                    md.md_ino(),
+                    lock.l_start,
+                    lock.l_len,
+                    lock.l_pid,
+                    lock.l_type);
 
     switch (lock.l_type) {
     case F_RDLCK:
@@ -2179,6 +2368,7 @@ FuseServer::HandleMD(const std::string &id,
       break;
     case eos::fusex::lock::UNLCK:
       lock.l_type = F_UNLCK;
+      break;
     default:
       resp.mutable_lock_()->set_err_no(EAGAIN);
       resp.SerializeToString(response);
@@ -2186,7 +2376,21 @@ FuseServer::HandleMD(const std::string &id,
       break;
     }
 
-    if (Locks().getLocks(md.md_ino()).setlk(md.flock().pid(), &lock, sleep, md.clientid()))
+    if (lock.l_len == 0)
+    {
+      // the infinite lock is represented by -1 in the locking class implementation 
+      lock.l_len = -1;
+    }
+
+    eos_static_info("setlk: ino=%016lx start=%lu len=%ld pid=%u type=%d",
+                    md.md_ino(),
+                    lock.l_start,
+                    lock.l_len,
+                    lock.l_pid,
+                    lock.l_type);
+
+
+    if (Locks().getLocks(md.md_ino())->setlk(md.flock().pid(), &lock, sleep, md.clientuuid()))
     {
       // lock ok!
       resp.mutable_lock_()->set_err_no(0);
