@@ -264,9 +264,11 @@ metad::forget(fuse_req_t req,
     metad::shared_md md = mdmap[ino];
     if (md->id())
     {
+      eos_static_debug("count=%d(-%d) - ino=%016x", md->lookup_is(), nlookup, ino);
       XrdSysMutexHelper mLock(md->Locker());
       if (md->lookup_dec(nlookup))
       {
+        eos_static_debug("delete md object - ino=%016x", ino);
         // forget this inode
         mdmap.erase(ino);
         stat.inodes_dec();
@@ -1133,7 +1135,7 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
   // push to backend
   if ((rc = mdbackend->putMD(&(*md), authid, &(md->Locker()))))
   {
-    eos_static_err("metacache::flush backend::putMD failed rc=%d", rc);
+    eos_static_err("metad::add_sync backend::putMD failed rc=%d", rc);
     // ---------------------------------------------------------------
     // in this case we always clean this MD record to force a refresh
     // ---------------------------------------------------------------
@@ -1151,7 +1153,7 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
     inomap.insert(md->md_ino(), md->id());
     md->setop_none();
   }
-  eos_static_info("metacache::flush backend::putMD - stop");
+  eos_static_info("metad::add_sync backend::putMD - stop");
 
   std::string mdstream;
   md->SerializeToString(&mdstream);
@@ -1186,6 +1188,55 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
   mdflush.Signal();
   mdflush.UnLock();
   return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+int 
+/* -------------------------------------------------------------------------- */
+metad::begin_flush(shared_md emd, std::string authid)
+/* -------------------------------------------------------------------------- */
+{
+  shared_md md = std::make_shared<mdx>();
+  md->set_operation(md->BEGINFLUSH);
+
+  int rc = 0;
+  if (!emd->md_ino())
+  {
+    //TODO wait for the remote inode to be known
+  }
+  
+  md->set_md_ino(emd->md_ino());
+
+  if ((rc = mdbackend->putMD(&(*md), authid, 0)))
+  {
+    eos_static_err("metad::begin_flush backend::putMD failed rc=%d", rc);
+  }
+  return rc;
+}
+
+/* -------------------------------------------------------------------------- */
+int 
+/* -------------------------------------------------------------------------- */
+metad::end_flush(shared_md emd, std::string authid)
+/* -------------------------------------------------------------------------- */
+{
+  shared_md md = std::make_shared<mdx>();
+  md->set_operation(md->ENDFLUSH);
+  
+  int rc = 0;
+  
+  if (!emd->md_ino())
+  {
+    //TODO wait for the remote inode to be known
+  }
+  
+  md->set_md_ino(emd->md_ino());
+
+  if ((rc = mdbackend->putMD(&(*md), authid, 0)))
+  {
+    eos_static_err("metad::begin_flush backend::putMD failed rc=%d", rc);
+  }
+  return rc;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2152,7 +2203,7 @@ metad::mdcommunicate()
         XrdSysMutexHelper eLock(cap::Instance().get_extensionLock());
         auto map = hb.mutable_heartbeat_()->mutable_authextension();
         cap::extension_map_t extmap = cap::Instance().get_extensionmap();
-        
+
         for (auto it = extmap.begin(); it != extmap.end(); ++it)
         {
           (*map)[it->first] = it->second;
@@ -2163,7 +2214,7 @@ metad::mdcommunicate()
         extmap.clear();
         eos_static_info("cap-extension: map-size=%u", extmap.size());
       }
-      
+
 
       std::string hbstream;
       hb.SerializeToString(&hbstream);

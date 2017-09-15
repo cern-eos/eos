@@ -146,7 +146,7 @@ public:
     {
       return lookup_cnt;
     }
-    
+
     md_op getop() const
     {
       return op;
@@ -384,6 +384,8 @@ public:
 
   void add(shared_md pmd, shared_md md, std::string authid);
   int add_sync(shared_md pmd, shared_md md, std::string authid);
+  int begin_flush(shared_md md, std::string authid);
+  int end_flush(shared_md md, std::string authid);
 
   void remove(shared_md pmd, shared_md md, std::string authid, bool upstream=true);
   void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
