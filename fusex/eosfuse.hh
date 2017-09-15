@@ -197,6 +197,8 @@ public:
       int data_kernelcache;
       int mkdir_is_sync;
       int create_is_sync;
+      int global_flush;
+      int global_locking;
     } options_t;
     options_t options;
   } cfg_t;
@@ -234,7 +236,7 @@ public:
       snprintf(ebuf, sizeof (ebuf), "???");
     }
 
-    snprintf(s, 1024, "rc=%02d uid=%05d gid=%05d pid=%05d ino=%16lx fh=%08lx name=%s",
+    snprintf(s, 1024, "rc=%02d uid=%05d gid=%05d pid=%05d ino=%016lx fh=%08lx name=%s",
              rc,
              id.uid,
              id.gid,

@@ -170,6 +170,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
     config.options.mkdir_is_sync = root["options"]["mkdir-is-sync"].asInt();
     config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
+    config.options.global_flush = root["options"]["global-flush"].asInt();
+    config.options.global_locking = root["options"]["global-locking"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
     config.mqtargethost = root["mdzmqtarget"].asString();
@@ -2364,12 +2366,49 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 
   if (datasync)
   {
-    flush(req, ino, fi);
+    data::data_fh* io = (data::data_fh*) fi->fh;
+
+    if (io)
+    {
+      if (io->has_update())
+      {
+        if (Instance().Config().options.global_flush)
+        {
+          Instance().mds.begin_flush(io->md, io->authid()); // flag an ongoing flush centrally
+        }
+
+        struct timespec tsnow;
+        eos::common::Timing::GetTimeSpec(tsnow);
+
+        XrdSysMutexHelper mLock(io->md->Locker());
+        io->md->set_mtime(tsnow.tv_sec);
+        io->md->set_mtime_ns(tsnow.tv_nsec);
+        Instance().mds.update(req, io->md, io->authid());
+
+        // step 1 call flush
+        rc = io->ioctx()->flush(req); // actually do the flush
+
+        std::string cookie=io->md->Cookie();
+        io->ioctx()->store_cookie(cookie);
+
+        if (!rc)
+        {
+          // step 2 call sync - this currently flushed all open filedescriptors - should be ok
+          rc = io->ioctx()->sync(); // actually wait for writes to be acknowledged
+        }
+
+        if (Instance().Config().options.global_flush)
+        {
+          //XrdSysTimer sleeper;
+          //sleeper.Wait(5000);
+          Instance().mds.end_flush(io->md, io->authid()); // unflag an ongoing flush centrally
+        }
+      }
+    }
   }
-  else
-  {
-    fuse_reply_err (req, rc);
-  }
+
+  fuse_reply_err (req, rc);
+
 
   EXEC_TIMING_END(__func__);
 
@@ -2403,8 +2442,8 @@ EosFuse::forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
   EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
-                    dump(id, ino, 0, rc).c_str());
+  eos_static_notice("t(ms)=%.03f %s nlookup=%d", timing.RealTime(),
+                    dump(id, ino, 0, rc).c_str(), nlookup);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2440,7 +2479,9 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       io->md->set_mtime(tsnow.tv_sec);
       io->md->set_mtime_ns(tsnow.tv_nsec);
       Instance().mds.update(req, io->md, io->authid());
-      io->ioctx()->flush(req);
+
+      io->ioctx()->flush(req); // actually do the flush
+
       std::string cookie=io->md->Cookie();
       io->ioctx()->store_cookie(cookie);
     }
@@ -2564,7 +2605,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
           rc = ENOATTR;
         }
 #ifdef __APPLE__
-        else
+else
           // don't return any finder attribute
           if (key.substr(0, s_apple.length()) == s_apple)
         {
@@ -2817,14 +2858,14 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
           rc = 0;
         }
 #ifdef __APPLE__
-        else
+else
           // ignore silently any finder attribute
           if (key.substr(0, s_apple.length()) == s_apple)
         {
           rc = 0;
         }
 #endif
-        else
+else
         {
           auto map = md->mutable_attr();
 
@@ -3024,14 +3065,14 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
         rc = 0;
       }
 #ifdef __APPLE__
-      else
+else
         // ignore silently any finder attribute
         if (key.substr(0, s_apple.length()) == s_apple)
       {
         rc = 0;
       }
 #endif
-      else
+else
       {
         auto map = md->mutable_attr();
 
@@ -3259,7 +3300,7 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
       md->set_uid(pcap->uid());
       md->set_gid(pcap->gid());
       md->set_id(Instance().mds.insert(req, md, pcap->authid()));
-
+      md->lookup_inc();
       Instance().mds.add(pmd, md, pcap->authid());
 
       memset(&e, 0, sizeof (e));
@@ -3300,18 +3341,26 @@ EosFuse::getlk(fuse_req_t req, fuse_ino_t ino,
 
   fuse_id id(req);
 
-  data::data_fh* io = (data::data_fh*) fi->fh;
-
   int rc = 0;
 
-  if (io)
+  if (!Instance().Config().options.global_locking)
   {
-    XrdSysMutexHelper mLock(io->mdctx()->Locker());
-    rc = Instance().mds.getlk(req, io->mdctx(), lock);
+    // use default local locking
+    rc = EOPNOTSUPP;
   }
   else
   {
-    rc = ENXIO;
+    // use global locking
+    data::data_fh* io = (data::data_fh*) fi->fh;
+
+    if (io)
+    {
+      rc = Instance().mds.getlk(req, io->mdctx(), lock);
+    }
+    else
+    {
+      rc = ENXIO;
+    }
   }
 
   if (rc)
@@ -3344,18 +3393,46 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
 
   fuse_id id(req);
 
-  data::data_fh* io = (data::data_fh*) fi->fh;
-
   int rc = 0;
 
-  if (io)
+  if (!Instance().Config().options.global_locking)
   {
-    XrdSysMutexHelper mLock(io->mdctx()->Locker());
-    rc = Instance().mds.setlk(req, io->mdctx(), lock, sleep);
+    // use default local locking
+    rc = EOPNOTSUPP;
   }
   else
   {
-    rc = ENXIO;
+    // use global locking
+    data::data_fh* io = (data::data_fh*) fi->fh;
+
+    if (io)
+    {
+      size_t w_ms=10;
+      do
+      {
+        // we currently implement the polling lock on client side due to the 
+        // thread-per-link model of XRootD
+        rc = Instance().mds.setlk(req, io->mdctx(), lock, sleep);
+        if (rc && sleep)
+        {
+          XrdSysTimer sleeper;
+          sleeper.Wait(w_ms);
+          // do exponential back-off with a hard limit at 1s
+          w_ms *= 2;
+          if (w_ms > 1000)
+          {
+            w_ms = 1000;
+          }
+          continue;
+        }
+        break;
+      }
+      while (rc);
+    }
+    else
+    {
+      rc = ENXIO;
+    }
   }
 
   fuse_reply_err (req, rc);
