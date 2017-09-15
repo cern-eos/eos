@@ -349,7 +349,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
   md->clear_clientuuid();
   md->clear_implied_authid();
 
-  locker->UnLock();
+  if (locker) locker->UnLock();
 
   eos_static_info("proto-serialize unlock");
   XrdCl::FileSystem fs(url);
@@ -388,7 +388,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
       {
         eos_static_err("protocol error - to short response received");
         delete response;
-        locker->Lock();
+        if (locker) locker->Lock();
         return EIO;
       }
 
@@ -396,7 +396,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
       {
         eos_static_err("protocol error - fusex: prefix missing in response");
         delete response;
-        locker->Lock();
+        if (locker) locker->Lock();
         return EIO;
       }
       std::string sresponse;
@@ -410,13 +410,13 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
       {
         eos_static_err("parsing error/wrong response type received");
         delete response;
-        locker->Lock();
+        if (locker) locker->Lock();
         return EIO;
       }
       if (resp.ack_().code() == resp.ack_().OK)
       {
         eos_static_info("relock do");
-        locker->Lock();
+        if (locker) locker->Lock();
         md->set_md_ino(resp.ack_().md_ino());
         eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md->id(), md->md_ino(),
                          resp.ack_().md_ino(), resp.ack_().transactionid(),
@@ -427,7 +427,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
       }
       eos_static_err("failed query command for ino=%lx", md->id());
       delete response;
-      locker->Lock();
+      if (locker) locker->Lock();
       return EIO;
     }
     else
@@ -436,16 +436,16 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
                      response, response ? response->GetBuffer() : 0);
       if (response)
         delete response;
-      locker->Lock();
+      if (locker) locker->Lock();
       return EIO;
     }
-    locker->Lock();
+    if (locker) locker->Lock();
     return 0;
   }
   else
   {
     eos_static_err("query resulted in error url=%s", url.GetURL().c_str());
-    locker->Lock();
+    if (locker) locker->Lock();
     if ( status.code == XrdCl::errErrorResponse )
       return mapErrCode(status.errNo);
     else
@@ -463,9 +463,7 @@ backend::doLock(fuse_req_t req,
 {
   XrdCl::URL url ("root://" + hostport);
   url.SetPath("/dummy");
-
- 
-
+  
   md.set_clientuuid(clientuuid);
 
   std::string mdstream;

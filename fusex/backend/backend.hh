@@ -93,6 +93,6 @@ private:
   std::string clientuuid;
   
   int mapErrCode(int retc);
-  
+
 } ;
 #endif /* FUSE_BACKEND_HH_ */
