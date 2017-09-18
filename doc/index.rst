@@ -3,31 +3,25 @@
 .. _index:
 
 
-EOS - Storage
-=============
-
-|
-
-|
-
-======================================
- |more| :ref:`contents`               
-======================================
-
-|
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-
-   contents
+EOS - Open Storage Documentation
+================================
 
 .. epigraph::
    
-   *EOS* is a simple storage software solution to manage multi PB storage. Core of the implementation is the *XRootD* framework a providing feature-rich remote access protocol. 
-   The storage system is running on commodity hardware with disks in *JBOD* configuration. Default mode of operation is to store files with two replicas. 
-   *EOS Version BERYLL* supports also flexible erasure encoding of files with two or three redundancy stripes optimizing disk space usage. Files can be accessed via native XRootD protocol, a POSIX-like *FUSE* client or *HTTP(S) & WebDav* protocol. 
+   *EOS* is a CERN open-source storage software solution to manage multi PB storage. Core of the implementation is the *XRootD* framework a providing feature-rich remote access protocol. 
 
+.. toctree::
+   :maxdepth: 1
+
+   intro
+   releases
+   quickstart
+   install
+   using
+   develop
+   configuration
+   clicommands
+   restapi
 
 
 

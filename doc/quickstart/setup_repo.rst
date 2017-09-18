@@ -41,5 +41,10 @@ EOS Repo (eventually change el-7 to your platform: el-5 el-6 el-7 fc-21 fc-22 fc
 
    [eos-citrine]
    name=EOS 4.0 Version
-   baseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/citrine/tag/el-7/x86_64/
+   baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/citrine/tag/el-7/x86_64/
+   gpgcheck=0
+
+   [eos-citrine-dep]
+   name=EOS 4.0 Dependencies
+   baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/
    gpgcheck=0

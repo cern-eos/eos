@@ -13,9 +13,7 @@ Citrine Release Notes
 
 Introduction
 ------------
-This is the first release targeted for clients to use EOS with XRootD >= 4.2.X.
-It is merged from the Aquamarine Version 0.3.130. Main difference to Aquamarine
-is the use of XRootD 4 and the new tree-based scheduling algorithm.
+This release is based on XRootD V4 and IPV6 enabled.
 
 ``v4.1.30 Citrine``
 +++++++++++++++++++
