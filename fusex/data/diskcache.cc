@@ -23,7 +23,7 @@
  ************************************************************************/
 
 #include "diskcache.hh"
-
+#include "dircleaner.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include <unistd.h>
@@ -53,9 +53,35 @@ diskcache::init()
   {
     diskcache::sMaxSize = config.per_file_cache_max_size;
   }
-
   return 0;
 }
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+diskcache::init_daemonized()
+/* -------------------------------------------------------------------------- */
+{
+  cachehandler::cacheconfig config = cachehandler::instance().get_config();
+
+  if (config.per_file_cache_max_size)
+  {
+    diskcache::sMaxSize = config.per_file_cache_max_size;
+  }
+
+  if (config.clean_on_startup)
+  {
+    eos_static_info("cleaning cache path=%s", config.location.c_str());
+    dircleaner dc;
+    if (dc.cleanall(config.location))
+    {
+      eos_static_err("cache cleanup failed");
+      return -1;
+    }
+  }
+  return 0;
+}
+
 
 /* -------------------------------------------------------------------------- */
 diskcache::diskcache() : ino(0), nattached(0)

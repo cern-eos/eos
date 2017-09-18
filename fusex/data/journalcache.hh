@@ -90,7 +90,8 @@ public:
   virtual int remote_sync( cachesyncer &syncer );
 
   static int init();
-
+  static int init_daemonized();
+  
   virtual bool fits(size_t count) { return ( sMaxSize >= (cachesize+count));} 
   virtual bool halffull(size_t count) { return ( sMaxSize/2 <= cachesize );}
   

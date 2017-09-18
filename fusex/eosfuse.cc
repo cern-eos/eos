@@ -137,6 +137,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     unsetenv("X509_USER_PROXY");
   }
 
+  cachehandler::cacheconfig cconfig;
+
   {
     // parse JSON configuration
     Json::Value root;
@@ -222,8 +224,16 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     }
 
     // data caching configuration
-    cachehandler::cacheconfig cconfig;
     cconfig.type = cachehandler::cache_t::INVALID;
+
+    if (!config.mdcachehost.length())
+    {
+      cconfig.clean_on_startup = true;
+    }
+    else
+    {
+      cconfig.clean_on_startup = false;
+    }
 
     if (root["cache"]["type"].asString() == "disk")
     {
@@ -357,6 +367,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
     }
 
+    if ( cachehandler::instance().init_daemonized())
+    {
+      exit(errno);
+    }
+    
     fusestat.Add("getattr", 0, 0, 0);
     fusestat.Add("setattr", 0, 0, 0);
     fusestat.Add("setattr:chown", 0, 0, 0);
@@ -2605,7 +2620,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
           rc = ENOATTR;
         }
 #ifdef __APPLE__
-else
+        else
           // don't return any finder attribute
           if (key.substr(0, s_apple.length()) == s_apple)
         {
@@ -2858,14 +2873,14 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
           rc = 0;
         }
 #ifdef __APPLE__
-else
+        else
           // ignore silently any finder attribute
           if (key.substr(0, s_apple.length()) == s_apple)
         {
           rc = 0;
         }
 #endif
-else
+        else
         {
           auto map = md->mutable_attr();
 
@@ -3065,14 +3080,14 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
         rc = 0;
       }
 #ifdef __APPLE__
-else
+      else
         // ignore silently any finder attribute
         if (key.substr(0, s_apple.length()) == s_apple)
       {
         rc = 0;
       }
 #endif
-else
+      else
       {
         auto map = md->mutable_attr();
 

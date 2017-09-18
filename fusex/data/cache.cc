@@ -65,6 +65,30 @@ cachehandler::init(cachehandler::cacheconfig & _config)
 }
 
 /* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+cachehandler::init_daemonized()
+/* -------------------------------------------------------------------------- */
+{
+  int rc=0;
+
+  if (config.type == cachehandler::cache_t::INVALID)
+    return EINVAL;
+
+  if (config.type == cachehandler::cache_t::DISK)
+  {
+    rc = diskcache::init_daemonized();
+    if (rc) return rc;
+   }
+  if (config.journal.length())
+  {
+    rc = journalcache::init_daemonized();
+    if (rc ) return rc;
+  }
+  return 0;
+}
+
+/* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 cachehandler::logconfig()

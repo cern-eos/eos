@@ -62,7 +62,8 @@ public:
   virtual int attr(std::string key, std::string& value);
 
   static int init();
-
+  static int init_daemonized();
+  
   virtual int rescue(std::string& location);
   
   int location(std::string &path, bool mkpath=true);

@@ -47,13 +47,25 @@ public:
     size_t size;
   } file_info_t;
   
-  typedef std::multimap<time_t, file_info_t> tree_info_t; 
+  typedef std::multimap<time_t, file_info_t> tree_map_t; 
+  
+  typedef struct tree_info
+  {
+    tree_info() {totalsize=0; totalfiles=0;}
+    tree_map_t treemap;
+    uint64_t totalsize;
+    uint64_t totalfiles;
+    std::string path;
+    
+    void Print(std::string& out);
+    
+  } tree_info_t;
   
   dircleaner();
   virtual ~dircleaner();
   
-  int cleanall();
-  int scanall(std::string path, tree_info_t); 
+  int cleanall(const std::string path);
+  int scanall(const std::string path, dircleaner::tree_info_t& treeinfo); 
   
   //----------------------------------------------------------------------------
 };

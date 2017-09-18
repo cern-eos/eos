@@ -389,6 +389,11 @@ int journalcache::init()
   return 0;
 }
 
+int journalcache::init_daemonized()
+{
+  return 0;
+}
+
 int journalcache::remote_sync( cachesyncer & syncer )
 {
   write_lock lck( clck );

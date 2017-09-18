@@ -260,9 +260,13 @@ public:
     uint64_t total_file_journal_size; // total size of the journal cache
     uint64_t per_file_journal_max_size; // per file maximum journal cache size
     std::string journal;
+    bool clean_on_startup; // indicate that the cache is not reusable after restart
   } ;
 
-  int init(cacheconfig &config);
+  int init(cacheconfig &config); // called before becoming a daemon
+  
+  int init_daemonized(); // called after becoming a daemon
+  
   void logconfig();
 
   bool inmemory()
