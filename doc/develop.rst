@@ -12,7 +12,7 @@ For development clone the GIT source tree ...
 
 .. code-block:: bash
 
-   git clone http://eos.cern.ch/repos/eos.git
+   git clone https://gitlab.cern.ch/dss/eos.git
 
 Create a build directory ...
 
@@ -25,17 +25,17 @@ Create a build directory ...
 
 Dependencies
 ----------------
-.. warning:: Before compilation you have to make sure that you installed the packaged listed in the following table ...
+.. warning:: Before compilation of the master branch you have to make sure that you installed the packaged listed in the following table ...
 
 .. epigraph::
 
    ===============================  =========
    Package                          Version                        
    ===============================  =========
-   xrootd-server                    = 3.3.4                       
-   xrootd-server-devel              = 3.3.4                       
-   xrootd-private-devel             = 3.3.4                       
-   xrootd-cl-devel                  = 3.3.4                       
+   xrootd-server                    = 4.7                       
+   xrootd-server-devel              = 4.7                       
+   xrootd-private-devel             = 4.7                       
+   xrootd-cl-devel                  = 4.7                       
    readline-devel                   default                        
    readline                         default
    ncurses-devel                    default                        
