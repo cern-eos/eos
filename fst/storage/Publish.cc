@@ -343,8 +343,8 @@ Storage::Publish()
             eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
             FmdSqliteWriteLock vlock(fsid);
             success &= mFsVect[i]->SetLongLong("stat.usedfiles",
-                                               (long long)(gFmdDbMapHandler.dbmap.count(fsid) ?
-                                                   gFmdDbMapHandler.dbmap[fsid]->size() : 0));
+                                               (long long)(gFmdDbMapHandler.mDbMap.count(fsid) ?
+                                                   gFmdDbMapHandler.mDbMap[fsid]->size() : 0));
           }
           success &= mFsVect[i]->SetString("stat.boot",
                                            mFsVect[i]->GetStatusAsString(mFsVect[i]->GetStatus()));

@@ -936,9 +936,9 @@ public:
     return pDb->detachDbLog(dblog->pDb);
   }
 
-  // ------------------------------------------------------------------------
-  /// constr , destr
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   DbMapT():
     pUseMap(true), pUseSeqId(true), pIterating(false), pItThreadId(0),
     pSetSequence(false), pSetCounter(0), pGetCounter(0), pNestedSetSeq(0)
@@ -970,6 +970,10 @@ public:
 
 #endif
   }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~DbMapT()
   {
     gNamesMutex.LockWrite();
@@ -978,13 +982,17 @@ public:
     delete static_cast<TDbMapInterface*>(pDb);
   }
 
-  // ------------------------------------------------------------------------
-  //! Set the name of the DbMap. This name is used in the logs attached to this DbMap.
-  //! if not changed with this function the default name of a dbmap is dbmap%p where %p is the pointer to the DbMap Object.
-  //! this avoid any conflict at any time but doesn't guarantee consistency over time.
+  //----------------------------------------------------------------------------
+  //! Set the name of the DbMap. This name is used in the logs attached to this
+  //! DbMap. If not changed with this function the default name of a dbmap is
+  //! dbmap%p where %p is the pointer to the DbMap Object. This avoids any
+  //! conflict at any time but doesn't guarantee consistency over time.
+  //!
   //! @param[in] name the name used for this DbMap as the writer in the logs
-  //! @return true if the name of the instance was successfully set. If the return value is false, the name is already given to another instance.
-  // ------------------------------------------------------------------------
+  //!
+  //! @return true if the name of the instance was successfully set. If the
+  //! return value is false, the name is already given to another instance.
+  //----------------------------------------------------------------------------
   bool setName(const std::string& name)
   {
     gNamesMutex.LockWrite();
@@ -1002,17 +1010,19 @@ public:
     return true;
   }
 
-  // ------------------------------------------------------------------------
-  //! Begin a const_iteration. It blocks the access to all the other threads as long as the iteration is not over.
-  //! the actual iteration steps are done by calling iterate
-  //! the iteration can be terminated using EndIter().
-  //! the iteration is automatically stopped if it reaches the end.
+  //----------------------------------------------------------------------------
+  //! Begin a const_iteration. It blocks the access to all the other threads as
+  //! long as the iteration is not over. The actual iteration steps are done
+  //! by calling iterate. The iteration can be terminated using EndIter().
+  //! The iteration is automatically stopped if it reaches the end.
+  //!
   //! @param[in] lockit should be given true (default value)
   // ------------------------------------------------------------------------
   void beginIter(bool lockit = true) const
   {
     if (lockit) {
-      pMutex.LockWrite();  // to prevent collisions in multiple threads iterating simultaneously
+      // Prevent collisions in multiple threads iterating simultaneously
+      pMutex.LockWrite();
     }
 
     if (pUseMap) {
@@ -1089,11 +1099,12 @@ public:
     }
   }
 
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Stop an ongoing iteration
-  //! WARNING : if an ongoing iteration is not stopped, no readings or writings can be done oh the instance.
+  //! WARNING : if an ongoing iteration is not stopped, no reading or writing
+  //! can be done on the instance.
   //! @param[in] unlockit should be given true (default value)
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void endIter(bool unlockit = true) const
   {
     if (pIterating) {
@@ -1394,13 +1405,13 @@ public:
   }
 };
 
-/*----------------------------------------------------------------------------*/
-//! this class is a logging container which store snapshots of entries of DbMap.
+//------------------------------------------------------------------------------
+//! This class is a logging container which store snapshots of entries of DbMap.
 //! It provides some reading facilities.
 //! Writing to this class must be done via the TDbMap class.
-/*----------------------------------------------------------------------------*/
-template<class TDbMapInterface, class TDbLogInterface> class DbLogT : public
-  eos::common::LogId
+//------------------------------------------------------------------------------
+template<class TDbMapInterface, class TDbLogInterface>
+class DbLogT : public eos::common::LogId
 {
   friend class DbMapT<TDbMapInterface, TDbLogInterface>;
   // db is a pointer to the db manager of the data
@@ -1598,17 +1609,21 @@ public:
     return TDbLogInterface::getDbType();
   }
 };
-/*----------------------------------------------------------------------------*/
 
-/*-------------    DEFAULT DbMap and DbLog IMPLEMENTATIONS     ---------------*/
+
+//------------------------------------------------------------------------------
+//! DEFAULT DbMap and DbLog IMPLEMENTATIONS
+//------------------------------------------------------------------------------
 typedef DbMapT<LvDbDbMapInterface, LvDbDbLogInterface> DbMap;
 typedef DbLogT<LvDbDbMapInterface, LvDbDbLogInterface> DbLog;
-/*----------------------------------------------------------------------------*/
 
-/*------------------------    DISPLAY HELPERS     ----------------------------*/
-//std::ostream& operator << (std::ostream &os, const DbMap &map );
-template<class DbMapInterface, class DbLogInterface> std::ostream& operator <<
-(std::ostream& os, const DbMapT<DbMapInterface, DbLogInterface>& map)
+
+//------------------------------------------------------------------------------
+//! Display helpers
+//------------------------------------------------------------------------------
+template<class DbMapInterface, class DbLogInterface>
+std::ostream& operator << (std::ostream& os,
+                           const DbMapT<DbMapInterface, DbLogInterface>& map)
 {
   const DbMapTypes::Tkey* key;
   const DbMapTypes::Tval* val;

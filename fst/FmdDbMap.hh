@@ -1,7 +1,6 @@
-// ----------------------------------------------------------------------
-// File: FmdHelper.hh
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file FmdHelper.hh
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,18 +20,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   FmdHelper.hh
- *
- * @brief  Classes for FST File Meta Data Handling.
- *
- *
- */
-
 #ifndef __EOSFST_FmdLEVELDB_HH__
 #define __EOSFST_FmdLEVELDB_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
@@ -41,10 +31,8 @@
 #include "common/LayoutId.hh"
 #include "common/DbMap.hh"
 #include "fst/FmdHandler.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
 #undef des_set_key
 #include <google/dense_hash_map>
@@ -65,57 +53,74 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Class handling many Fmd changelog files at a time
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
 class FmdDbMapHandler : public FmdHandler
 {
 public:
-  typedef std::vector<std::map< std::string, XrdOucString > > qr_result_t;
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FmdDbMapHandler()
+  {
+    SetLogId("CommonFmdDbMapHandler");
+#ifndef EOS_SQLITE_DBMAP
+    lvdboption.CacheSizeMb = 0;
+    lvdboption.BloomFilterNbits = 0;
+#endif
+    FmdSqliteMutexMap.set_deleted_key(
+      std::numeric_limits<eos::common::FileSystem::fsid_t>::max() - 2);
+    FmdSqliteMutexMap.set_empty_key(
+      std::numeric_limits<eos::common::FileSystem::fsid_t>::max() - 1);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~FmdDbMapHandler()
+  {
+    Shutdown();
+  }
+
 
   XrdOucString DBDir; //< path to the directory with the SQLITE DBs
   eos::common::RWMutex Mutex;//< Mutex protecting the Fmd handler
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Define a DB file for a filesystem id
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool SetDBFile(const char* dbfile, int fsid, XrdOucString option = "");
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Shutdown a DB for a filesystem
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool ShutdownDB(eos::common::FileSystem::fsid_t fsid);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Mark Clean
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool MarkCleanDB(eos::common::FileSystem::fsid_t fsid);
 
-  // ---------------------------------------------------------------------------
-  //! Read all Fmd entries from a DB file
-  // ---------------------------------------------------------------------------
-  //virtual bool ReadDBFile (eos::common::FileSystem::fsid_t, XrdOucString option = "");
-
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Trim a DB file
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool TrimDBFile(eos::common::FileSystem::fsid_t fsid,
                           XrdOucString option = "");
 
   // the meta data handling functions
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! attach or create a fmd record
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual FmdHelper* GetFmd(eos::common::FileId::fileid_t fid,
                             eos::common::FileSystem::fsid_t fsid, uid_t uid, gid_t gid,
                             eos::common::LayoutId::layoutid_t layoutid, bool isRW = false,
                             bool force = false);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Delete an fmd record
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool DeleteFmd(eos::common::FileId::fileid_t fid,
                          eos::common::FileSystem::fsid_t fsid);
 
@@ -124,67 +129,64 @@ public:
   {
     eos::common::DbMap::Tval val;
 
-    if (!dbmap.count(fsid)) {
+    if (!mDbMap.count(fsid)) {
       return false;
     }
 
-    bool retval = dbmap[fsid]->get(eos::common::Slice((const char*)&fid,
-                                   sizeof(fid)), &val);
+    bool retval = mDbMap[fsid]->get(eos::common::Slice((const char*)&fid,
+                                    sizeof(fid)), &val);
     //eos_warning("ExistFmd fid=%lu fsid=%u result=%d",fid,fsid,retval);
     return retval;
   }
+
   inline Fmd RetrieveFmd(eos::common::FileId::fileid_t fid,
                          eos::common::FileSystem::fsid_t fsid)
   {
     eos::common::DbMap::Tval val;
-    dbmap[fsid]->get(eos::common::Slice((const char*)&fid, sizeof(fid)), &val);
+    mDbMap[fsid]->get(eos::common::Slice((const char*)&fid, sizeof(fid)), &val);
     Fmd retval;
     retval.ParseFromString(val.value);
     std::stringstream ss;
     //eos_warning("RetrieveFmd fid=%lu fsid=%u getfid=%lu getfsid=%u",fid,fsid,retval.fid(),retval.fsid());
     return retval;
   }
+
   inline bool PutFmd(eos::common::FileId::fileid_t fid,
                      eos::common::FileSystem::fsid_t fsid, const Fmd& fmd)
   {
     std::string sval;
     fmd.SerializePartialToString(&sval);
     //eos_warning("RetrieveFmd fid=%lu fsid=%u setfid=%lu setfsid=%u",fid,fsid,fmd.fid(),fmd.fsid());
-    return dbmap[fsid]->set(eos::common::Slice((const char*)&fid, sizeof(fid)),
-                            sval, "") == 0;
+    return mDbMap[fsid]->set(eos::common::Slice((const char*)&fid, sizeof(fid)),
+                             sval, "") == 0;
   }
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Commit a modified fmd record
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool Commit(FmdHelper* fmd, bool lockit = true);
 
-  // ---------------------------------------------------------------------------
-  //! Commit a modified fmd record without locks and change of modification time
-  // ---------------------------------------------------------------------------
-  //virtual bool CommitFromMemory (eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid);
-
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Reset Disk Information
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Reset Mgm Information
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Update fmd from disk contents
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool UpdateFromDisk(eos::common::FileSystem::fsid_t fsid,
                               eos::common::FileId::fileid_t fid, unsigned long long disksize,
                               std::string diskchecksum, unsigned long checktime, bool filecxerror,
                               bool blockcxerror, bool flaglayouterror);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Update fmd from mgm contents
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
                              eos::common::FileId::fileid_t fid, eos::common::FileId::fileid_t cid,
                              eos::common::LayoutId::layoutid_t lid, unsigned long long mgmsize,
@@ -192,40 +194,40 @@ public:
                              unsigned long long ctime_ns, unsigned long long mtime,
                              unsigned long long mtime_ns, int layouterror, std::string locations);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Resync File meta data found under path
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool ResyncAllDisk(const char* path,
                              eos::common::FileSystem::fsid_t fsid, bool flaglayouterror);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Resync a single entry from Disk
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool ResyncDisk(const char* fstpath,
                           eos::common::FileSystem::fsid_t fsid, bool flaglayouterror,
                           bool callautorepair = false);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Resync a single entry from Mgm
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool ResyncMgm(eos::common::FileSystem::fsid_t fsid,
                          eos::common::FileId::fileid_t fid, const char* manager);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Resync all entries from Mgm
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
                             const char* manager);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Query list of fids
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual size_t Query(eos::common::FileSystem::fsid_t fsid, std::string query,
                        std::vector<eos::common::FileId::fileid_t>& fidvector);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! GetIncosistencyStatistics
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsid,
                                           std::map<std::string, size_t>& statistics,
                                           std::map<std::string, std::set < eos::common::FileId::fileid_t> >& fidset);
@@ -248,32 +250,32 @@ public:
   Reset(eos::common::FileSystem::fsid_t fsid)
   {
     // you need to lock the RWMutex Mutex before calling this
-    FmdHelperMap[fsid].clear();
+    // @todo (esindril): This needs to be implemented
   }
 
-  // ---------------------------------------------------------------------------
-  //! Initialize the SQL DB
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Initialize the DB
+  //----------------------------------------------------------------------------
   virtual bool ResetDB(eos::common::FileSystem::fsid_t fsid);
   virtual bool TrimDB();
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Comparison function for modification times
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static int CompareMtime(const void* a, const void* b);
 
   // that is all we need for meta data handling
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Hash map protecting each filesystem map in FmdSqliteMap
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
 
   google::dense_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex>
   FmdSqliteMutexMap;
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Mutex protecting the previous map
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   eos::common::RWMutex FmdSqliteMutexMapMutex;
 
   inline void _FmdSqliteLock(const eos::common::FileSystem::fsid_t& fsid,
@@ -349,47 +351,9 @@ public:
     _FmdSqliteUnLock(fsid, true);
   }
 
-  // ---------------------------------------------------------------------------
-  //! Hash map pointing from fid to offset in changelog file
-  // ---------------------------------------------------------------------------
-  google::dense_hash_map<eos::common::FileSystem::fsid_t,
-         google::dense_hash_map<unsigned long long, struct Fmd > >
-           FmdHelperMap;
-
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-
-  FmdDbMapHandler()
-  {
-    SetLogId("CommonFmdDbMapHandler");
-#ifndef EOS_SQLITE_DBMAP
-    lvdboption.CacheSizeMb = 0;
-    lvdboption.BloomFilterNbits = 0;
-#endif
-    FmdSqliteMutexMap.set_deleted_key(
-      std::numeric_limits<eos::common::FileSystem::fsid_t>::max() - 2);
-    FmdSqliteMutexMap.set_empty_key(
-      std::numeric_limits<eos::common::FileSystem::fsid_t>::max() - 1);
-    FmdHelperMap.set_deleted_key(
-      std::numeric_limits<eos::common::FileSystem::fsid_t>::max() - 2);
-    FmdHelperMap.set_empty_key(
-      std::numeric_limits<eos::common::FileSystem::fsid_t>::max() - 1);
-  }
-
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-
-  virtual ~FmdDbMapHandler()
-  {
-    Shutdown();
-  }
-
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Shutdown
-  // ---------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   void
   Shutdown()
   {
@@ -397,22 +361,17 @@ public:
     std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*>::const_iterator
     it;
 
-    for (it = dbmap.begin(); it != dbmap.end(); it++) {
+    for (it = mDbMap.begin(); it != mDbMap.end(); it++) {
       ShutdownDB(it->first);
     }
 
     {
       // remove all
       eos::common::RWMutexWriteLock lock(Mutex);
-      dbmap.clear();
+      mDbMap.clear();
     }
   }
 
-  // ---------------------------------------------------------------------------
-  //! Shutdown
-  // ---------------------------------------------------------------------------
-
-#ifndef EOS_SQLITE_DBMAP
   void
   SetLevelDbCacheMb(const unsigned& sizemb)
   {
@@ -426,19 +385,21 @@ public:
     eos_info("setting up LevelDb bloom filter length %u bit", bloomlength);
     lvdboption.BloomFilterNbits = bloomlength;
   }
-#endif
 
-  std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> dbmap;
+  std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
+
 private:
-#ifndef EOS_SQLITE_DBMAP
   eos::common::LvDbDbMapInterface::Option lvdboption;
-#endif
   std::map<eos::common::FileSystem::fsid_t, std::string> DBfilename;
 };
 
-// ---------------------------------------------------------------------------
+
 extern FmdDbMapHandler gFmdDbMapHandler;
 
+
+//------------------------------------------------------------------------------
+//! DB read lock per fsid
+//------------------------------------------------------------------------------
 class FmdSqliteReadLock
 {
   eos::common::FileSystem::fsid_t mFsId;
@@ -453,6 +414,9 @@ public:
   }
 };
 
+//------------------------------------------------------------------------------
+//! DB write lock per fsid
+//------------------------------------------------------------------------------
 class FmdSqliteWriteLock
 {
   eos::common::FileSystem::fsid_t mFsId;
@@ -466,6 +430,7 @@ public:
     gFmdDbMapHandler.FmdSqliteUnLockWrite(mFsId);
   }
 };
+
 
 EOSFSTNAMESPACE_END
 

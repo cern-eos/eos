@@ -1,7 +1,7 @@
-// ------------- ---------------------------------------------------------
+//------------- ----------------------------------------------------------------
 // File: FmdDbMap.cc
 // Author: Geoffray Adde - CERN
-// ----------------------------------------------------------------------
+//------------- ----------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
 #include "common/Path.hh"
@@ -30,22 +29,18 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include <fst/io/FileIoPluginCommon.hh>
-/*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFileSystem.hh"
-/*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <sys/mman.h>
 #include <fts.h>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+// Global objects
 FmdDbMapHandler gFmdDbMapHandler; //< static
-/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -68,7 +63,7 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
     // we first check if we have already this DB open - in this case we first do a shutdown
     eos::common::RWMutexReadLock lock(Mutex);
 
-    if (dbmap.count(fsid)) {
+    if (mDbMap.count(fsid)) {
       isattached = true;
     }
   }
@@ -83,12 +78,14 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
   FmdSqliteWriteLock vlock(fsid);
 
   if (!isattached) {
-    dbmap[fsid] = new eos::common::DbMap();
+    mDbMap[fsid] = new eos::common::DbMap();
   }
 
-  //! -when we successfully attach to a DB we set the mode to S_IRWXU & ~S_IRGRP
-  //! -when we shutdown the daemon clean we set the mode back to S_IRWXU | S_IRGRP
-  //! -when we attach and the mode is S_IRWXU & ~S_IRGRP we know that the DB has not been shutdown properly and we set a 'dirty' flag to force a full resynchronization
+  // -when we successfully attach to a DB we set the mode to S_IRWXU & ~S_IRGRP
+  // -when we shutdown the daemon clean we set the mode back to S_IRWXU | S_IRGRP
+  // -when we attach and the mode is S_IRWXU & ~S_IRGRP we know that the DB has
+  // not been shutdown properly and we set a 'dirty' flag to force a full
+  // resynchronization
   char fsDBFileName[1024];
   sprintf(fsDBFileName, "%s.%04d.%s", dbfileprefix, fsid,
           eos::common::DbMap::getDbType().c_str());
@@ -128,12 +125,12 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
 
 #endif
 
-  if (!dbmap[fsid]->attachDb(fsDBFileName, true, 0, dbopt)) {
+  if (!mDbMap[fsid]->attachDb(fsDBFileName, true, 0, dbopt)) {
     eos_err("failed to attach %s database file %s",
             eos::common::DbMap::getDbType().c_str(), fsDBFileName);
     return false;
   } else {
-    dbmap[fsid]->outOfCore(true);
+    mDbMap[fsid]->outOfCore(true);
   }
 
   // set the mode to S_IRWXU & ~S_IRGRP
@@ -163,7 +160,7 @@ FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
   eos_info("%s DB shutdown for fsid=%lu",
            eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
 
-  if (dbmap.count(fsid)) {
+  if (mDbMap.count(fsid)) {
     if (!stayDirty[fsid]) {
       // if there was a complete boot procedure done, we remove the dirty flag
       // set the mode back to S_IRWXU | S_IRGRP
@@ -173,9 +170,9 @@ FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
       }
     }
 
-    if (dbmap[fsid]->detachDb()) {
-      delete dbmap[fsid];
-      dbmap.erase(fsid);
+    if (mDbMap[fsid]->detachDb()) {
+      delete mDbMap[fsid];
+      mDbMap.erase(fsid);
       return true;
     }
   }
@@ -191,7 +188,7 @@ FmdDbMapHandler::MarkCleanDB(eos::common::FileSystem::fsid_t fsid)
   eos_info("%s DB mark clean for fsid=%lu",
            eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
 
-  if (dbmap.count(fsid)) {
+  if (mDbMap.count(fsid)) {
     if (DBfilename.count(fsid)) {
       // if there was a complete boot procedure done, we remove the dirty flag
       // set the mode back to S_IRWXU
@@ -254,13 +251,13 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
 
   eos::common::RWMutexReadLock lock(Mutex);
 
-  if (dbmap.count(fsid)) {
+  if (mDbMap.count(fsid)) {
     Fmd valfmd;
     {
       FmdSqliteLockRead(fsid);
       bool entryexist = ExistFmd(fid, fsid);
 
-      if (dbmap.count(fsid) && entryexist) {
+      if (mDbMap.count(fsid) && entryexist) {
         // this is to read an existing entry
         FmdHelper* fmd = new FmdHelper();
 
@@ -417,7 +414,7 @@ FmdDbMapHandler::DeleteFmd(eos::common::FileId::fileid_t fid,
   // erase the hash entry
   if (entryexist) {
     // delete in the in-memory hash
-    if (dbmap[fsid]->remove(eos::common::Slice((const char*)&fid, sizeof(fid)))) {
+    if (mDbMap[fsid]->remove(eos::common::Slice((const char*)&fid, sizeof(fid)))) {
       eos_err("unable to delete fid=%08llx from fst table\n", fid);
       rc = false;
     }
@@ -462,7 +459,7 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
     FmdSqliteLockWrite(fsid);
   }
 
-  if (dbmap.count(fsid)) {
+  if (mDbMap.count(fsid)) {
     bool res = PutFmd(fid, fsid, fmd->fMd);
 
     // update in-memory
@@ -518,7 +515,7 @@ FmdDbMapHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  if (dbmap.count(fsid)) {
+  if (mDbMap.count(fsid)) {
     Fmd valfmd = RetrieveFmd(fid, fsid);
     // update in-memory
     valfmd.set_disksize(disksize);
@@ -579,7 +576,7 @@ FmdDbMapHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  if (dbmap.count(fsid)) {
+  if (mDbMap.count(fsid)) {
     bool entryexist = ExistFmd(fid, fsid);
     Fmd valfmd = RetrieveFmd(fid, fsid);
 
@@ -634,14 +631,14 @@ FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
   eos::common::RWMutexReadLock lock(Mutex);
   FmdSqliteWriteLock wlock(fsid);
 
-  if (dbmap.count(fsid)) {
+  if (mDbMap.count(fsid)) {
     const eos::common::DbMapTypes::Tkey* k;
     const eos::common::DbMapTypes::Tval* v;
     eos::common::DbMapTypes::Tval val;
-    dbmap[fsid]->beginSetSequence();
+    mDbMap[fsid]->beginSetSequence();
     unsigned long cpt = 0;
 
-    for (dbmap[fsid]->beginIter(); dbmap[fsid]->iterate(&k, &v);) {
+    for (mDbMap[fsid]->beginIter(); mDbMap[fsid]->iterate(&k, &v);) {
       Fmd f;
       f.ParseFromString(v->value);
       f.set_disksize(0xfffffffffff1ULL);
@@ -651,11 +648,11 @@ FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
       f.set_blockcxerror(-1);
       val = *v;
       f.SerializeToString(&val.value);
-      dbmap[fsid]->set(*k, val);
+      mDbMap[fsid]->set(*k, val);
       cpt++;
     }
 
-    if (dbmap[fsid]->endSetSequence() != cpt)
+    if (mDbMap[fsid]->endSetSequence() != cpt)
       // the setsequence makes that it's impossible to know which key is faulty
     {
       eos_err("unable to update fsid=%lu\n", fsid);
@@ -686,14 +683,14 @@ FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
   eos::common::RWMutexReadLock lock(Mutex);
   FmdSqliteWriteLock vlock(fsid);
 
-  if (dbmap.count(fsid)) {
+  if (mDbMap.count(fsid)) {
     const eos::common::DbMapTypes::Tkey* k;
     const eos::common::DbMapTypes::Tval* v;
     eos::common::DbMapTypes::Tval val;
-    dbmap[fsid]->beginSetSequence();
+    mDbMap[fsid]->beginSetSequence();
     unsigned long cpt = 0;
 
-    for (dbmap[fsid]->beginIter(); dbmap[fsid]->iterate(&k, &v);) {
+    for (mDbMap[fsid]->beginIter(); mDbMap[fsid]->iterate(&k, &v);) {
       Fmd f;
       f.ParseFromString(v->value);
       f.set_mgmsize(0xfffffffffff1ULL);
@@ -701,11 +698,11 @@ FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
       f.set_locations("");
       val = *v;
       f.SerializeToString(&val.value);
-      dbmap[fsid]->set(*k, val);
+      mDbMap[fsid]->set(*k, val);
       cpt++;
     }
 
-    if (dbmap[fsid]->endSetSequence() != cpt)
+    if (mDbMap[fsid]->endSetSequence() != cpt)
       // the setsequence makes that it's impossible to know which key is faulty
     {
       eos_err("unable to update fsid=%lu\n", fsid);
@@ -1141,7 +1138,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
 {
   eos::common::RWMutexReadLock lock(Mutex);
 
-  if (!dbmap.count(fsid)) {
+  if (!mDbMap.count(fsid)) {
     return false;
   }
 
@@ -1180,7 +1177,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     FmdSqliteReadLock vlock(fsid);
 
     // We report values only when we are not in the sync phase from disk/mgm
-    for (dbmap[fsid]->beginIter(); dbmap[fsid]->iterate(&k, &v);) {
+    for (mDbMap[fsid]->beginIter(); mDbMap[fsid]->iterate(&k, &v);) {
       Fmd f;
       f.ParseFromString(v->value);
 
@@ -1257,31 +1254,43 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
 {
   bool rc = true;
   eos_static_info("");
+  eos::common::FileId::fileid_t fid;
   std::vector<eos::common::FileId::fileid_t> delvector;
   eos::common::RWMutexReadLock rd_lock(Mutex);
 
   if (!IsSyncing(fsid)) {
     {
       FmdSqliteReadLock vlock(fsid);
-      eos_static_info("verifying %d entries", FmdHelperMap[fsid].size());
 
-      // we report values only when we are not in the sync phase from disk/mgm
-      for (auto it = FmdHelperMap[fsid].begin(); it != FmdHelperMap[fsid].end();
-           it++) {
-        if (it->second.layouterror()) {
+      if (!mDbMap.count(fsid)) {
+        return true;
+      }
+
+      const eos::common::DbMapTypes::Tkey* k;
+      const eos::common::DbMapTypes::Tval* v;
+      eos::common::DbMap* db_map = mDbMap.find(fsid)->second;
+      eos_static_info("verifying %d entries", db_map->size());
+
+      // Report values only when we are not in the sync phase from disk/mgm
+      for (db_map->beginIter(); db_map->iterate(&k, &v);) {
+        Fmd f;
+        f.ParseFromString(v->value);
+        fid = atoi(k->c_str());
+
+        if (f.layouterror()) {
+          int rc = 0;
           XrdOucString hexfid;
           XrdOucString fstPath;
-          int rc = 0;
           struct stat buf;
-          eos::common::FileId::Fid2Hex(it->first, hexfid);
+          eos::common::FileId::Fid2Hex(fid, hexfid);
           eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), path, fstPath);
 
           if ((rc = stat(fstPath.c_str(), &buf))) {
             if ((errno == ENOENT) || (errno == ENOTDIR)) {
-              if ((it->second.layouterror() & eos::common::LayoutId::kOrphan) ||
-                  (it->second.layouterror() & eos::common::LayoutId::kUnregistered)) {
-                eos_static_info("push back for deletion %lu", it->first);
-                delvector.push_back(it->first);
+              if ((f.layouterror() & eos::common::LayoutId::kOrphan) ||
+                  (f.layouterror() & eos::common::LayoutId::kUnregistered)) {
+                eos_static_info("push back for deletion %s", k->c_str());
+                delvector.push_back(fid);
               }
             }
           }
@@ -1325,11 +1334,11 @@ FmdDbMapHandler::ResetDB(eos::common::FileSystem::fsid_t fsid)
   eos::common::RWMutexWriteLock lock(Mutex);
 
   // erase the hash entry
-  if (dbmap.count(fsid)) {
+  if (mDbMap.count(fsid)) {
     FmdSqliteWriteLock vlock(fsid);
 
     // delete in the in-memory hash
-    if (!dbmap[fsid]->clear()) {
+    if (!mDbMap[fsid]->clear()) {
       eos_err("unable to delete all from fst table\n");
       rc = false;
     } else {
@@ -1348,7 +1357,7 @@ FmdDbMapHandler::TrimDB()
 {
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*>::iterator it;
 
-  for (it = dbmap.begin(); it != dbmap.end(); ++it) {
+  for (it = mDbMap.begin(); it != mDbMap.end(); ++it) {
     eos_static_info("Trimming fsid=%llu ", it->first);
 
     if (!it->second->trimDb()) {
