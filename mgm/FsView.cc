@@ -3475,7 +3475,6 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
     table_geo.SetHeader(table_header);
     table_geo.AddRows(table_data);
     table.AddString(table_geo.GenerateTable(HEADER).c_str());
-
   } else {
     //Get table from MQ side (second table)
     if (table_mq_format.length()) {
@@ -3614,11 +3613,10 @@ FsSpace::ResetDraining()
       setactive = false;
     }
 
-    for (git = (*sgit)->begin();
-         git != (*sgit)->end(); git++) {
-      eos::mgm::FileSystem* fs = FsView::gFsView.mIdView[*git];
+    for (git = (*sgit)->begin(); git != (*sgit)->end(); git++) {
+      if (FsView::gFsView.mIdView.count(*git)) {
+        eos::mgm::FileSystem* fs = FsView::gFsView.mIdView[*git];
 
-      if (fs) {
         if (setactive) {
           if (fs->GetString("stat.drainer") != "on") {
             fs->SetString("stat.drainer", "on");
