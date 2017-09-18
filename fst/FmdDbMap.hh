@@ -244,19 +244,14 @@ public:
                           eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
-  //! Initialize the changelog hash
-  //----------------------------------------------------------------------------
-  virtual void
-  Reset(eos::common::FileSystem::fsid_t fsid)
-  {
-    // you need to lock the RWMutex Mutex before calling this
-    // @todo (esindril): This needs to be implemented
-  }
-
-  //----------------------------------------------------------------------------
-  //! Initialize the DB
+  //! Reset(clear) the contents of the DB
+  //!
+  //! @param fsid filesystem id
+  //!
+  //! @return true if deleted, false if it does not exist
   //----------------------------------------------------------------------------
   virtual bool ResetDB(eos::common::FileSystem::fsid_t fsid);
+
   virtual bool TrimDB();
 
   //----------------------------------------------------------------------------

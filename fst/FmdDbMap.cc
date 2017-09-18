@@ -891,7 +891,6 @@ FmdDbMapHandler::ResyncAllDisk(const char* path,
  *
  * @return true if successfull
  */
-
 /*----------------------------------------------------------------------------*/
 bool
 FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
@@ -1002,7 +1001,6 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
  *
  * @return true if successfull
  */
-
 /*----------------------------------------------------------------------------*/
 bool
 FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
@@ -1316,16 +1314,9 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
   return rc;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Reset(clear) the contents of the DB
- *
- * @param fsid filesystem id
- *
- * @return true if deleted, false if it does not exist
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Reset(clear) the contents of the DB
+//------------------------------------------------------------------------------
 bool
 FmdDbMapHandler::ResetDB(eos::common::FileSystem::fsid_t fsid)
 {
@@ -1351,7 +1342,9 @@ FmdDbMapHandler::ResetDB(eos::common::FileSystem::fsid_t fsid)
   return rc;
 }
 
-
+//------------------------------------------------------------------------------
+// Trim DB
+//------------------------------------------------------------------------------
 bool
 FmdDbMapHandler::TrimDB()
 {
