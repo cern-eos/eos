@@ -15,7 +15,14 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
-``v4.1.30 Citrine``
+``v4.1.31 Citrine``
++++++++++++++++++++
+
+* [EOS-2016] - avoid SEGV when removing ghost entries on FST
+* [EOS-2017] - avoid creating NULL object in map when resetting draining
+* DOC: various corrections - use solar template with new WEB colour scheme
+
+``v4.1.30  Citrine``
 +++++++++++++++++++
 
 Bug
