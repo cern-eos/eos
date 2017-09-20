@@ -16,14 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 ``v4.1.31 Citrine``
-+++++++++++++++++++
+===================
+
+Bug
+++++
 
 * [EOS-2016] - avoid SEGV when removing ghost entries on FST
 * [EOS-2017] - avoid creating NULL object in map when resetting draining
 * DOC: various corrections - use solar template with new WEB colour scheme
 
 ``v4.1.30  Citrine``
-+++++++++++++++++++
+====================
 
 Bug
 ++++
@@ -35,7 +38,7 @@ Bug
 
 
 ``v4.1.29 Citrine``
-+++++++++++++++++++
+===================
 
 Bug
 ++++
@@ -51,14 +54,14 @@ Bug
 * [EOS-1996] - space ls geo output is wrongly formatted
 
 ``v4.1.28 Citrine``
-+++++++++++++++++++
+===================
 
 Bug
 +++
 * [EOS-1991] - eos-fuse rpm package broken dependency
 
 ``v4.1.27 Citrine``
-+++++++++++++++++++
+===================
 
 Bug
 +++
@@ -79,7 +82,7 @@ New features
 * New accounting command - "eos accounting".
 
 ``v4.1.26 Citrine``
-+++++++++++++++++++
+===================
 
 Bug
 +++
@@ -103,7 +106,7 @@ Improvement
 
 
 ``v4.1.25 Citrine``
-+++++++++++++++++++
+===================
 
 Bugfix
 ++++++
@@ -131,7 +134,7 @@ Improvement
 
 
 ``v4.1.24 Citrine``
-+++++++++++++++++++
+===================
 
 Bugfix
 ++++++
@@ -158,7 +161,7 @@ Support
 
 
 ``v4.1.23 Citrine``
-+++++++++++++++++++
+===================
 
 Bugfix
 ++++++
@@ -168,7 +171,7 @@ Bugfix
 
 
 ``v4.1.22 Citrine``
-+++++++++++++++++++
+===================
 
 Bugfix
 ++++++
@@ -177,7 +180,7 @@ Bugfix
 
 
 ``v4.1.21 Citrine``
-+++++++++++++++++++
+===================
 
 Bugfix
 ++++++
@@ -214,7 +217,7 @@ Bugfix
 
 
 ``v0.4.30 Citrine``
-+++++++++++++++++++++++
+===================
 
 Bugfix
 +++++++
@@ -224,7 +227,7 @@ Bugfix
 
 
 ``v0.4.30 Citrine``
-+++++++++++++++++++++++
+===================
 
 Bugfix
 +++++++
@@ -235,7 +238,7 @@ Bugfix
         type in directory name.
 
 ``v0.4.29 Citrine``
-+++++++++++++++++++++++
+===================
 
 Bugfix
 +++++++
