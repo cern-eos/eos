@@ -25,7 +25,7 @@ Bug
 * [EOS-2017] - avoid creating NULL object in map when resetting draining
 * DOC: various corrections - use solar template with new WEB colour scheme
 
-``v4.1.30  Citrine``
+``v4.1.30 Citrine``
 ====================
 
 Bug
