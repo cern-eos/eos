@@ -103,6 +103,41 @@ public:
       return lastusage;
     }
     
+    void book_inode()
+    {
+      // need to have a lock on the cap
+      set_inode_quota(inode_quota()-1);
+    }
+    
+    void book_volume(uint64_t size)
+    {
+      // need to have a lock on the cap
+      if (size < volume_quota())
+      {
+        set_volume_quota(volume_quota()-size);
+      }
+      else
+      {
+        set_volume_quota(0);
+      }
+      eos_static_debug("volume=%llu", volume_quota());
+    }
+    
+    void free_volume(uint64_t size)
+    {
+      set_volume_quota(volume_quota() + size);
+    }
+    
+    bool has_quota(uint64_t size)
+    {
+      if ( (volume_quota() > size) &&
+           (inode_quota() > 0))
+      {
+        return true;
+      }
+      return false;
+    }
+    
   private:
     XrdSysMutex mLock;
     time_t lastusage;

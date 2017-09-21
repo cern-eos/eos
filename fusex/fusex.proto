@@ -44,6 +44,7 @@ message md {
   string implied_authid = 35; //< implied auth id from a create call
   lock flock = 36; //< file lock information
   sfixed32 nchildren = 37; //< number of children
+  string fullpath = 38; //< current path to file/dir
 };
 
 message md_map {
@@ -75,6 +76,9 @@ message cap {
   string authid = 9; //< auth id
   fixed32 errc = 10; //< error code
   fixed64 clock = 11    ; //< vector clock of the file/container
+  fixed64 inode_quota = 12 ; //< free inode quota
+  fixed64 volume_quota = 13; //< free bytes quota
+  fixed64 max_file_size = 14; //< maximum file size
 }
 
 message cap_map {
