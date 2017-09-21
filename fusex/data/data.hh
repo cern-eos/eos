@@ -182,13 +182,17 @@ public:
     bool rw;
     std::string _authid;
     std::atomic<bool> update_mtime_on_flush;
-
+    uint64_t _maxfilesize; // maximum allowed file size
+    uint64_t _opensize; // size at the moment of opening the file
+    
     _data_fh(shared_data _data, metad::shared_md _md, bool _rw)
     {
       data = _data;
       md = _md;
       rw = _rw;
       update_mtime_on_flush.store(false, std::memory_order_seq_cst);
+      _maxfilesize = 0;
+      _opensize = md->size();
     }
 
     ~_data_fh()
@@ -215,6 +219,16 @@ public:
       return _authid;
     }
 
+    uint64_t maxfilesize() const
+    {
+      return _maxfilesize;
+    }
+    
+    uint64_t opensize() const
+    {
+      return _opensize;
+    }
+    
     void set_authid(const std::string& authid)
     {
       _authid = authid;
@@ -234,6 +248,12 @@ public:
       }
       return false;
     }
+    
+    void set_maxfilesize(uint64_t size)
+    {
+      _maxfilesize=size;
+    }
+    
   } data_fh;
 
   //----------------------------------------------------------------------------
