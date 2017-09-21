@@ -371,7 +371,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     {
       exit(errno);
     }
-    
+
     fusestat.Add("getattr", 0, 0, 0);
     fusestat.Add("setattr", 0, 0, 0);
     fusestat.Add("setattr:chown", 0, 0, 0);
@@ -1335,12 +1335,7 @@ EosFuse::statfs(fuse_req_t req, fuse_ino_t ino)
   struct statvfs svfs;
   memset(&svfs, 0, sizeof (struct statvfs));
 
-  svfs.f_bsize = 128 * 1024;
-  svfs.f_blocks = 1000000000ll;
-  svfs.f_bfree = 1000000000ll;
-  svfs.f_bavail = 1000000000ll;
-  svfs.f_files = 1000000;
-  svfs.f_ffree = 1000000;
+  rc = Instance().mds.statvfs(req, &svfs);
 
   if (rc)
     fuse_reply_err (req, rc);
@@ -1353,8 +1348,6 @@ EosFuse::statfs(fuse_req_t req, fuse_ino_t ino)
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
-
-  return;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1587,7 +1580,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
   else
   {
     std::string sname = name;
-
+    uint64_t freesize = 0;
     if (sname == ".")
     {
       rc = EINVAL;
@@ -1619,10 +1612,18 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
       if (!rc)
       {
+        freesize = md->size();
         pmd = Instance().mds.get(req, parent);
         Instance().datas.unlink(req, md->id());
         Instance().mds.remove(pmd, md, pcap->authid());
       }
+    }
+    
+    if (!rc)
+    {
+      XrdSysMutexHelper pLock(pcap->Locker());
+      pcap->free_volume(freesize);
+      eos_static_debug("freeing %llu bytes on cap ", freesize);
     }
   }
 
@@ -1924,31 +1925,56 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       {
         rc = pcap->errc();
       }
+      else
+      {
+        uint64_t pquota=0;
 
+        if (mode == W_OK)
+        {
+          XrdSysMutexHelper pLock(pcap->Locker());
+          pquota = pcap->volume_quota();
 
-      struct fuse_entry_param e;
-      memset(&e, 0, sizeof (e));
-      md->convert(e);
+          if (!pcap->has_quota(1024 * 1024))
+          {
+            rc = EDQUOT;
+          }
+        }
+        if (!rc)
+        {
+          struct fuse_entry_param e;
+          memset(&e, 0, sizeof (e));
+          md->convert(e);
 
-      data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, (mode == W_OK));
-      io->set_authid(pcap->authid());
+          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, (mode == W_OK));
+          io->set_authid(pcap->authid());
 
-      // attach a datapool object
-      fi->fh = (uint64_t) io;
+          if (pquota < pcap->max_file_size())
+          {
+            io->set_maxfilesize(pquota);
+          }
+          else
+          {
+            io->set_maxfilesize(pcap->max_file_size());
+          }
 
-      std::string cookie=md->Cookie();
+          // attach a datapool object
+          fi->fh = (uint64_t) io;
 
-      io->ioctx()->set_remote(Instance().Config().hostport,
-                              md->name(),
-                              md->md_ino(),
-                              md->md_pino(),
-                              req);
+          std::string cookie=md->Cookie();
 
-      bool outdated = (io->ioctx()->attach(req, cookie, (mode == W_OK) ) == EKEYEXPIRED);
+          io->ioctx()->set_remote(Instance().Config().hostport,
+                                  md->name(),
+                                  md->md_ino(),
+                                  md->md_pino(),
+                                  req);
 
-      fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
-      fi->direct_io = 0;
-      eos_static_info("%s", md->dump(e).c_str());
+          bool outdated = (io->ioctx()->attach(req, cookie, (mode == W_OK) ) == EKEYEXPIRED);
+
+          fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
+          fi->direct_io = 0;
+          eos_static_info("%s", md->dump(e).c_str());
+        }
+      }
     }
   }
 
@@ -2100,93 +2126,106 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
   }
   else
   {
-    metad::shared_md md;
-    metad::shared_md pmd;
-    md = Instance().mds.lookup(req, parent, name);
-    pmd = Instance().mds.get(req, parent);
-
-    XrdSysMutexHelper mLock(md->Locker());
-
-    if (md->id() && !md->deleted())
     {
-      rc = EEXIST;
-    }
-    else
-    {
-      md->set_mode(mode | S_IFREG);
-      struct timespec ts;
-      eos::common::Timing::GetTimeSpec(ts);
-      md->set_name(name);
-      md->set_atime(ts.tv_sec);
-      md->set_atime_ns(ts.tv_nsec);
-      md->set_mtime(ts.tv_sec);
-      md->set_mtime_ns(ts.tv_nsec);
-      md->set_ctime(ts.tv_sec);
-      md->set_ctime_ns(ts.tv_nsec);
-      md->set_btime(ts.tv_sec);
-      md->set_btime_ns(ts.tv_nsec);
-      // need to update the parent mtime
-      md->set_pmtime(ts.tv_sec);
-      md->set_pmtime_ns(ts.tv_nsec);
-      pmd->set_mtime(ts.tv_sec);
-      pmd->set_mtime_ns(ts.tv_nsec);
-      md->set_uid(pcap->uid());
-      md->set_gid(pcap->gid());
-      md->set_id(Instance().mds.insert(req, md, pcap->authid()));
-
-      if ( (Instance().Config().options.create_is_sync) ||
-          (fi->flags & O_EXCL) )
+      XrdSysMutexHelper pLock(pcap->Locker());
+      if (!pcap->has_quota(1024 * 1024))
       {
-        md->set_type(md->EXCL);
-        rc = Instance().mds.add_sync(pmd, md, pcap->authid());
+        rc = EDQUOT;
+      }
+    }
+
+    if (!rc)
+    {
+      metad::shared_md md;
+      metad::shared_md pmd;
+      md = Instance().mds.lookup(req, parent, name);
+      pmd = Instance().mds.get(req, parent);
+
+      XrdSysMutexHelper mLock(md->Locker());
+
+      if (md->id() && !md->deleted())
+      {
+        rc = EEXIST;
       }
       else
       {
-        Instance().mds.add(pmd, md, pcap->authid());
-      }
+        md->set_mode(mode | S_IFREG);
+        struct timespec ts;
+        eos::common::Timing::GetTimeSpec(ts);
+        md->set_name(name);
+        md->set_atime(ts.tv_sec);
+        md->set_atime_ns(ts.tv_nsec);
+        md->set_mtime(ts.tv_sec);
+        md->set_mtime_ns(ts.tv_nsec);
+        md->set_ctime(ts.tv_sec);
+        md->set_ctime_ns(ts.tv_nsec);
+        md->set_btime(ts.tv_sec);
+        md->set_btime_ns(ts.tv_nsec);
+        // need to update the parent mtime
+        md->set_pmtime(ts.tv_sec);
+        md->set_pmtime_ns(ts.tv_nsec);
+        pmd->set_mtime(ts.tv_sec);
+        pmd->set_mtime_ns(ts.tv_nsec);
+        md->set_uid(pcap->uid());
+        md->set_gid(pcap->gid());
+        md->set_id(Instance().mds.insert(req, md, pcap->authid()));
 
-      if (!rc)
-      {
-        memset(&e, 0, sizeof (e));
-        md->convert(e);
-        md->lookup_inc();
-
-        if (fi)
+        if ( (Instance().Config().options.create_is_sync) ||
+            (fi->flags & O_EXCL) )
         {
-          // -----------------------------------------------------------------------
-          // TODO: for the moment there is no kernel cache used until 
-          // we add top-level management on it
-          // -----------------------------------------------------------------------
-          // FUSE caches the file for reads on the same filedescriptor in the buffer
-          // cache, but the pages are released once this filedescriptor is released.
-          fi->keep_cache = Instance().Config().options.data_kernelcache;
-
-          if ( (fi->flags & O_DIRECT) ||
-              (fi->flags & O_SYNC) )
-            fi->direct_io = 1;
-
-          else
-            fi->direct_io = 0;
-
-          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, true);
-
-          io->set_authid(pcap->authid());
-
-          // attach a datapool object
-          fi->fh = (uint64_t) io;
-
-          std::string cookie=md->Cookie();
-
-          io->ioctx()->set_remote(Instance().Config().hostport,
-                                  md->name(),
-                                  md->md_ino(),
-                                  md->md_pino(),
-                                  req);
-
-          io->ioctx()->attach(req, cookie, true);
+          md->set_type(md->EXCL);
+          rc = Instance().mds.add_sync(pmd, md, pcap->authid());
         }
+        else
+        {
+          Instance().mds.add(pmd, md, pcap->authid());
+        }
+
+        if (!rc)
+        {
+          memset(&e, 0, sizeof (e));
+          md->convert(e);
+          md->lookup_inc();
+
+          if (fi)
+          {
+            // -----------------------------------------------------------------------
+            // TODO: for the moment there is no kernel cache used until 
+            // we add top-level management on it
+            // -----------------------------------------------------------------------
+            // FUSE caches the file for reads on the same filedescriptor in the buffer
+            // cache, but the pages are released once this filedescriptor is released.
+            fi->keep_cache = Instance().Config().options.data_kernelcache;
+
+            if ( (fi->flags & O_DIRECT) ||
+                (fi->flags & O_SYNC) )
+              fi->direct_io = 1;
+
+            else
+              fi->direct_io = 0;
+
+            data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, true);
+
+            io->set_authid(pcap->authid());
+
+            io->set_maxfilesize(pcap->max_file_size());
+
+            // attach a datapool object
+            fi->fh = (uint64_t) io;
+
+            std::string cookie=md->Cookie();
+
+            io->ioctx()->set_remote(Instance().Config().hostport,
+                                    md->name(),
+                                    md->md_ino(),
+                                    md->md_pino(),
+                                    req);
+
+            io->ioctx()->attach(req, cookie, true);
+          }
+        }
+        eos_static_info("%s", md->dump(e).c_str());
       }
-      eos_static_info("%s", md->dump(e).c_str());
     }
   }
 
@@ -2290,19 +2329,30 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
 
   if (io)
   {
-    if (io->ioctx()->pwrite(req, buf, size, off) == -1)
+    eos_static_debug("max-file-size=%llu", io->maxfilesize());
+
+    if ( (off + size) > io->maxfilesize() )
     {
-      eos_static_err("io-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size, off, buf);
-      rc = EIO;
+      eos_static_err("io-error: maximum file size exceeded inode=%lld size=%lld off=%lld buf=%lld max-size=%llu",
+                     ino, size, off, buf, io->maxfilesize());
+      rc = EFBIG;
     }
     else
     {
+      if (io->ioctx()->pwrite(req, buf, size, off) == -1)
       {
-        XrdSysMutexHelper mLock(io->mdctx()->Locker());
-        io->mdctx()->set_size(io->ioctx()->size());
-        io->set_update();
+        eos_static_err("io-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size, off, buf);
+        rc = EIO;
       }
-      fuse_reply_write (req, size);
+      else
+      {
+        {
+          XrdSysMutexHelper mLock(io->mdctx()->Locker());
+          io->mdctx()->set_size(io->ioctx()->size());
+          io->set_update();
+        }
+        fuse_reply_write (req, size);
+      }
     }
   }
   else
@@ -2487,18 +2537,43 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   {
     if (io->has_update())
     {
-      struct timespec tsnow;
-      eos::common::Timing::GetTimeSpec(tsnow);
+      cap::shared_cap pcap = Instance().caps.acquire(req, io->md->pid(),
+                                                     S_IFDIR | W_OK);
+      if (pcap->errc())
+      {
+        rc = pcap->errc();
+      }
+      else
+      {
+        {
+          XrdSysMutexHelper pLock(pcap->Locker());
+          pcap->book_volume(io->md->size() - io->opensize());
+          eos_static_debug("booking %llu bytes on cap ", io->md->size() - io->opensize());
+        }
+        struct timespec tsnow;
+        eos::common::Timing::GetTimeSpec(tsnow);
 
-      XrdSysMutexHelper mLock(io->md->Locker());
-      io->md->set_mtime(tsnow.tv_sec);
-      io->md->set_mtime_ns(tsnow.tv_nsec);
-      Instance().mds.update(req, io->md, io->authid());
+        XrdSysMutexHelper mLock(io->md->Locker());
+        io->md->set_mtime(tsnow.tv_sec);
+        io->md->set_mtime_ns(tsnow.tv_nsec);
+        Instance().mds.update(req, io->md, io->authid());
 
-      io->ioctx()->flush(req); // actually do the flush
+        // actually do the flush
+        if (io->ioctx()->flush(req))
+        {
+          rc = EIO;
+        }
 
-      std::string cookie=io->md->Cookie();
-      io->ioctx()->store_cookie(cookie);
+        std::string cookie=io->md->Cookie();
+        io->ioctx()->store_cookie(cookie);
+
+        if (! pcap->has_quota(0) )
+        {
+          // we signal an error to the client if the quota get's exceeded although
+          // we let the file be complete
+          rc = EDQUOT;
+        }
+      }
     }
   }
 
@@ -2670,6 +2745,30 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
               std::string mgmurl = "root://";
               mgmurl += Instance().Config().hostport;
               value = mgmurl;
+            }
+            if ( key == "eos.quota")
+            {
+              pcap = Instance().caps.acquire(req, ino,
+                                             R_OK);
+              if (pcap->errc())
+              {
+                rc = pcap->errc();
+              }
+              else
+              {
+                XrdSysMutexHelper cLock(pcap->Locker());
+                char qline[1024];
+                snprintf(qline, sizeof (qline), "instance             uid     gid        vol-avail        ino-avail        max-fsize                         endpoint\n"
+                         "%-16s %7u %7u %16lu %16lu %16lu %32s\n",
+                         Instance().Config().name.c_str(),
+                         pcap->uid(),
+                         pcap->gid(),
+                         pcap->volume_quota(),
+                         pcap->inode_quota(),
+                         pcap->max_file_size(),
+                         Instance().Config().hostport.c_str());
+                value = qline;
+              }
             }
           }
           else
@@ -3458,4 +3557,3 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
 }
-
