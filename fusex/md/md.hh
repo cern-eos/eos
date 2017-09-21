@@ -44,6 +44,7 @@
 #include <exception>
 #include <stdexcept>
 #include <zmq.hpp>
+#include <sys/statvfs.h>
 
 class metad
 {
@@ -400,6 +401,8 @@ public:
   int getlk(fuse_req_t req, shared_md md, struct flock* lock);
   int setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep);
 
+  int statvfs(fuse_req_t req, struct statvfs* svfs);
+  
   bool should_terminate()
   {
     return mdterminate.load();
