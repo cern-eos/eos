@@ -254,6 +254,19 @@ eos_apmon_cc7:
   when: manual
   environment:
     name: apmon-cc7-prod
+    
+eos_docs:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y make python-sphinx python-pip sssd-client sudo
+    - pip install solar_theme
+    - cd doc
+    - make html
+  tags:
+    - docker-slc6
+  only:
+    - branches
 
 eos_dockerimage_commit:
   stage: build:dockerimage
