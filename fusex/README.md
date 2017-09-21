@@ -185,4 +185,6 @@ Display MGM hostname+port
 Display MGM url
 # getfattr --only-values -n eos.mgmurl /eos/
 
+Display Quota Information for a given path
+# getfattr --only-values -n eos.quota <path>
 
