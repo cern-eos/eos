@@ -259,9 +259,9 @@ eos_docs:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y make python-sphinx python-pip sssd-client sudo
-    - pip install solar_theme
+    - yum install --nogpg -y make python-sphinx sssd-client sudo
     - cd doc
+    - export PYTHONPATH=`pwd`/_themes/
     - make html
     - sudo -u stci -H mkdir -p /eos/project/e/eos/www/docs/test/
     - sudo -u stci -H rm -rf /eos/project/e/eos/www/docs/test/*
