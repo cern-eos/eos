@@ -29,6 +29,8 @@
 #include "fusex/fusex.pb.h"
 #include "llfusexx.hh"
 
+#include <sys/statvfs.h>
+
 class backend
 {
 public:
@@ -61,11 +63,11 @@ public:
             std::string authid=""
             );
 
-  int doLock(fuse_req_t req, 
+  int doLock(fuse_req_t req,
              eos::fusex::md& md,
              XrdSysMutex* locker);
-  
-  
+
+
   int fetchResponse(std::string& url,
                     std::vector<eos::fusex::container>& cont
                     );
@@ -82,6 +84,7 @@ public:
     clientuuid = s;
   }
 
+  int statvfs (fuse_req_t req, struct statvfs* stbuf);
 private:
 
   std::string getURL(fuse_req_t req, const std::string& path, std::string op="GET", std::string authid="");
@@ -91,7 +94,7 @@ private:
   std::string hostport;
   std::string mount;
   std::string clientuuid;
-  
+
   int mapErrCode(int retc);
 
 } ;

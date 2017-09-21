@@ -369,7 +369,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
   eos_static_info("sync-response");
 
   eos_static_debug("response-size=%d",
-                   response?response->GetSize():0);
+                   response ? response->GetSize() : 0);
   if (status.IsOK ())
   {
     if (response && response->GetBuffer())
@@ -463,7 +463,7 @@ backend::doLock(fuse_req_t req,
 {
   XrdCl::URL url ("root://" + hostport);
   url.SetPath("/dummy");
-  
+
   md.set_clientuuid(clientuuid);
 
   std::string mdstream;
@@ -650,4 +650,105 @@ backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string op, 
   query["mgm.cid"] = cap::capx::getclientid(req);
   url.SetParams(query);
   return url.GetURL();
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+backend::statvfs (fuse_req_t req,
+                 struct statvfs* stbuf
+                 )
+/* -------------------------------------------------------------------------- */
+{
+  XrdCl::URL url ("root://" + hostport);
+  url.SetPath("/");
+  fusexrdlogin::loginurl(url, req, 0);
+  XrdCl::URL::ParamsMap query;
+  std::string sclock;
+  query["mgm.pcmd"] = "statvfs";
+  query["eos.app"] = "fuse";
+  query["path"] = "/";
+  url.SetParams(query);
+
+  std::string sarg = url.GetPathWithParams();
+
+  static unsigned long long a1 = 0;
+  static unsigned long long a2 = 0;
+  static unsigned long long a3 = 0;
+  static unsigned long long a4 = 0;
+
+  // ---------------------------------------------------------------------------
+  // statfs caching around 10s
+  // ---------------------------------------------------------------------------
+  static XrdSysMutex statmutex;
+  static time_t laststat = 0;
+  errno = 0;
+
+  XrdSysMutexHelper sLock(statmutex);
+  if ((time (NULL) - laststat) < ((15 + (int) 5.0 * rand () / RAND_MAX)))
+  {
+    stbuf->f_bsize = 4096;
+    stbuf->f_frsize = 4096;
+    stbuf->f_blocks = a3 / 4096;
+    stbuf->f_bfree = a1 / 4096;
+    stbuf->f_bavail = a1 / 4096;
+    stbuf->f_files = a4;
+    stbuf->f_ffree = a2;
+    stbuf->f_fsid = 0xcafe;
+    stbuf->f_namemax = 1024;
+    eos_static_info("not calling %s\n", url.GetURL().c_str());
+    return errno;
+  }
+
+  XrdCl::Buffer arg;
+  arg.FromString (sarg);
+
+  XrdCl::Buffer* response = 0;
+
+  XrdCl::FileSystem fs (url);
+
+  SyncResponseHandler handler;
+  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+  XrdCl::XRootDStatus status = handler.Sync(response);
+
+  eos_static_info("calling %s\n", url.GetURL().c_str());
+  if (status.IsOK () && response && response->GetBuffer ())
+  {
+    int retc;
+    char tag[1024];
+    if (!response->GetBuffer ())
+    {
+      errno = EFAULT;
+      delete response;
+      return errno;
+    }
+
+    int items = sscanf (response->GetBuffer (), "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
+                        "f_max_bytes=%llu f_max_files=%llu",
+                        tag, &retc, &a1, &a2, &a3, &a4);
+    if ((items != 6) || (strcmp (tag, "statvfs:")))
+    {
+      statmutex.UnLock ();
+      errno = EFAULT;
+      delete response;
+      return errno;
+    }
+    errno = retc;
+    laststat = time (NULL);
+    stbuf->f_bsize = 4096;
+    stbuf->f_frsize = 4096;
+    stbuf->f_blocks = a3 / 4096;
+    stbuf->f_bfree = a1 / 4096;
+    stbuf->f_bavail = a1 / 4096;
+    stbuf->f_files = a4;
+    stbuf->f_ffree = a2;
+    stbuf->f_namemax = 1024;
+    eos_static_debug("vol=%lu ino=%lu", a1, a4);
+  }
+  else
+  {
+    errno = EPERM;;
+  }
+  delete response;
+  return errno;
 }
