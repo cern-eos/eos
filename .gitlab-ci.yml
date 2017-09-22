@@ -268,8 +268,7 @@ eos_docs:
     - sudo -u stci -H cp -R _build/html/* /eos/project/e/eos/www/docs/
   tags:
     - docker-cc7
-  only:
-    - tags
+  when: manual
 
 eos_dockerimage_commit:
   stage: build:dockerimage
