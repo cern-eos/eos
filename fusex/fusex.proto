@@ -64,6 +64,12 @@ message io {
   fixed64 clock = 4; //< vector clock
 };
 
+message quota {
+  fixed64 inode_quota = 1 ; //< free inode quota
+  fixed64 volume_quota = 2; //< free bytes quota
+  fixed64 quota_inode = 3; //< inode of the quota node
+};
+
 message cap {
   fixed64 id = 1; //< file/container 
   fixed32 mode = 2; //< granted mode
@@ -76,10 +82,11 @@ message cap {
   string authid = 9; //< auth id
   fixed32 errc = 10; //< error code
   fixed64 clock = 11    ; //< vector clock of the file/container
-  fixed64 inode_quota = 12 ; //< free inode quota
-  fixed64 volume_quota = 13; //< free bytes quota
-  fixed64 max_file_size = 14; //< maximum file size
-}
+  fixed64 max_file_size = 12; //< maximum file size
+  quota _quota = 13; //< quota information for this cap
+};
+
+
 
 message cap_map {
    map<fixed64, cap> cap_map_ = 1;
