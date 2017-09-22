@@ -50,6 +50,30 @@ public:
 
   //----------------------------------------------------------------------------
 
+  class quotax : public eos::fusex::quota
+  {
+  public:
+
+    virtual ~quotax()
+    {
+
+    }
+
+    XrdSysMutex & Locker()
+    {
+      return mLock;
+    }
+
+    quotax& operator=(eos::fusex::quota other)
+    {
+      (*((eos::fusex::quota*)(this))) = other;
+      return *this;
+    }
+    
+  private:
+    XrdSysMutex mLock;
+  } ;
+
   class capx : public eos::fusex::cap
   //----------------------------------------------------------------------------
   {
@@ -73,7 +97,7 @@ public:
     static std::string capid(fuse_req_t req, fuse_ino_t ino);
     static std::string capid(fuse_ino_t ino, std::string clientid);
     static std::string getclientid(fuse_req_t req);
-  
+
 
     std::string dump(bool dense=false);
 
@@ -96,57 +120,42 @@ public:
 
     void use()
     {
-      lastusage = time(NULL);  
+      lastusage = time(NULL);
     }
-    
-    const time_t used() const {
+
+    const time_t used() const
+    {
       return lastusage;
     }
-    
-    void book_inode()
-    {
-      // need to have a lock on the cap
-      set_inode_quota(inode_quota()-1);
-    }
-    
-    void book_volume(uint64_t size)
-    {
-      // need to have a lock on the cap
-      if (size < volume_quota())
-      {
-        set_volume_quota(volume_quota()-size);
-      }
-      else
-      {
-        set_volume_quota(0);
-      }
-      eos_static_debug("volume=%llu", volume_quota());
-    }
-    
-    void free_volume(uint64_t size)
-    {
-      set_volume_quota(volume_quota() + size);
-    }
-    
-    bool has_quota(uint64_t size)
-    {
-      if ( (volume_quota() > size) &&
-           (inode_quota() > 0))
-      {
-        return true;
-      }
-      return false;
-    }
-    
+
   private:
     XrdSysMutex mLock;
     time_t lastusage;
   } ;
 
   typedef std::shared_ptr<capx> shared_cap;
+  typedef std::shared_ptr<quotax> shared_quota;
+
   typedef std::set<fuse_ino_t> cinodes;
-  
+  typedef std::map<std::string, shared_quota> qmap_t;
+
   //----------------------------------------------------------------------------
+
+  class qmap : public qmap_t, public XrdSysMutex
+  {
+    // map from quota inode to quota information
+  public:
+
+    qmap()
+    {
+    }
+
+    virtual ~qmap()
+    {
+    }
+
+    shared_quota get(shared_cap cap);
+  } ;
 
   class cmap : public std::map<std::string, shared_cap> , public XrdSysMutex
   //----------------------------------------------------------------------------
@@ -173,8 +182,8 @@ public:
   {
     return *sCAP;
   }
-  
-  
+
+
   shared_cap get(fuse_req_t req,
                  fuse_ino_t ino);
 
@@ -183,10 +192,56 @@ public:
                      mode_t mode
                      );
 
+  void book_inode(shared_cap cap)
+  {
+    shared_quota q = quotamap.get(cap);
+    XrdSysMutexHelper qLock(q->Locker());
+    q->set_inode_quota(q->inode_quota() - 1);
+  }
+
+  void book_volume(shared_cap cap, uint64_t size)
+  {
+    shared_quota q = quotamap.get(cap);
+    XrdSysMutexHelper qLock(q->Locker());
+    if (size < q->volume_quota())
+    {
+      q->set_volume_quota(q->volume_quota() - size);
+    }
+    else
+    {
+      q->set_volume_quota(0);
+    }
+    eos_static_debug("volume=%llu", q->volume_quota());
+  }
+
+  void free_volume(shared_cap cap, uint64_t size)
+  {
+    shared_quota q = quotamap.get(cap);
+    XrdSysMutexHelper qLock(q->Locker());
+    q->set_volume_quota(q->volume_quota() + size);
+  }
+
+  bool has_quota(shared_cap cap, uint64_t size)
+  {
+    shared_quota q = quotamap.get(cap);
+    XrdSysMutexHelper qLock(q->Locker());
+    if ( (q->volume_quota() > size) &&
+        (q->inode_quota() > 0))
+    {
+      return true;
+    }
+    return false;
+  }
+
+  shared_quota quota(shared_cap cap)
+  {
+    return quotamap.get(cap);
+  }
+  
   std::string imply(shared_cap cap, std::string imply_authid, mode_t mode, fuse_ino_t inode);
-  
+
   fuse_ino_t forget(const std::string& capid);
-  
+
   void store(fuse_req_t req,
              eos::fusex::cap cap);
 
@@ -195,9 +250,9 @@ public:
   void init(backend* _mdbackend, metad* _metad);
 
   void reset();
-  
+
   std::string ls();
-  
+
   bool should_terminate()
   {
     return capterminate.load();
@@ -210,24 +265,32 @@ public:
 
   void capflush(); // thread removing capabilities
 
-  XrdSysMutex& get_extensionLock() { return extensionLock;}
-  
-  typedef std::map<std::string, size_t> extension_map_t; 
-  
-  extension_map_t& get_extensionmap() { return extensionmap;}
-  
+  XrdSysMutex& get_extensionLock()
+  {
+    return extensionLock;
+  }
+
+  typedef std::map<std::string, size_t> extension_map_t;
+
+  extension_map_t& get_extensionmap()
+  {
+    return extensionmap;
+  }
+
 private:
 
   cmap capmap;
   cmap capextionsmap;
+  qmap quotamap;
+
   backend* mdbackend;
   metad* mds;
 
   std::atomic<bool> capterminate;
-  
+
   XrdSysMutex extensionLock;
   extension_map_t extensionmap; // map containing all authids
   // with their lifetime increment to be sent by the heartbeat
-  
+
 } ;
 #endif /* FUSE_CAP_HH_ */

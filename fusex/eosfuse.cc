@@ -1622,7 +1622,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
     if (!rc)
     {
       XrdSysMutexHelper pLock(pcap->Locker());
-      pcap->free_volume(freesize);
+      Instance().caps.free_volume(pcap, freesize);
       eos_static_debug("freeing %llu bytes on cap ", freesize);
     }
   }
@@ -1931,10 +1931,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
         if (mode == W_OK)
         {
-          XrdSysMutexHelper pLock(pcap->Locker());
-          pquota = pcap->volume_quota();
-
-          if (!pcap->has_quota(1024 * 1024))
+          if (! Instance().caps.has_quota(pcap, 1024 * 1024))
           {
             rc = EDQUOT;
           }
@@ -2127,8 +2124,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
   else
   {
     {
-      XrdSysMutexHelper pLock(pcap->Locker());
-      if (!pcap->has_quota(1024 * 1024))
+      if (!Instance().caps.has_quota(pcap, 1024 * 1024))
       {
         rc = EDQUOT;
       }
@@ -2181,6 +2177,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           Instance().mds.add(pmd, md, pcap->authid());
         }
 
+        Instance().caps.book_inode(pcap);
+        
         if (!rc)
         {
           memset(&e, 0, sizeof (e));
@@ -2546,8 +2544,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       else
       {
         {
-          XrdSysMutexHelper pLock(pcap->Locker());
-          pcap->book_volume(io->md->size() - io->opensize());
+          Instance().caps.book_volume(pcap, io->md->size() - io->opensize());
           eos_static_debug("booking %llu bytes on cap ", io->md->size() - io->opensize());
         }
         struct timespec tsnow;
@@ -2567,7 +2564,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
         std::string cookie=io->md->Cookie();
         io->ioctx()->store_cookie(cookie);
 
-        if (! pcap->has_quota(0) )
+        if (! Instance().caps.has_quota(pcap, 0) )
         {
           // we signal an error to the client if the quota get's exceeded although
           // we let the file be complete
@@ -2756,15 +2753,16 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
               }
               else
               {
-                XrdSysMutexHelper cLock(pcap->Locker());
+                cap::shared_quota q = Instance().caps.quota(pcap);
+                XrdSysMutexHelper qLock(q->Locker());
                 char qline[1024];
                 snprintf(qline, sizeof (qline), "instance             uid     gid        vol-avail        ino-avail        max-fsize                         endpoint\n"
                          "%-16s %7u %7u %16lu %16lu %16lu %32s\n",
                          Instance().Config().name.c_str(),
                          pcap->uid(),
                          pcap->gid(),
-                         pcap->volume_quota(),
-                         pcap->inode_quota(),
+                         q->volume_quota(),
+                         q->inode_quota(),
                          pcap->max_file_size(),
                          Instance().Config().hostport.c_str());
                 value = qline;

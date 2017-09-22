@@ -72,12 +72,14 @@ cap::capx::dump(bool dense)
   }
   else
   {
+     
     snprintf(sout, sizeof (sout),
-             "id=%lx mode=%x vtime=%lu.%lu u=%u g=%u cid=%s auth-id=%s errc=%d maxs=%lu ino=%lu vol=%lu",
+             "id=%lx mode=%x vtime=%lu.%lu u=%u g=%u cid=%s auth-id=%s errc=%d maxs=%lu q-node=%16lx ino=%lu vol=%lu",
              id(), mode(), vtime(), vtime_ns(), uid(), gid(), clientid().c_str(), authid().c_str(), errc(),
              max_file_size(),
-             inode_quota(),
-             volume_quota()
+             _quota().quota_inode(),
+             _quota().inode_quota(),
+             _quota().volume_quota()
              );
   }
   return sout;
@@ -500,5 +502,37 @@ cap::capflush()
       XrdSysTimer sleeper;
       sleeper.Wait(1000);
     }
+  }
+}
+
+
+/* -------------------------------------------------------------------------- */
+cap::shared_quota 
+/* -------------------------------------------------------------------------- */
+cap::qmap::get(shared_cap cap)
+{
+  XrdSysMutexHelper mLock(this);
+  uint64_t ino = cap->_quota().quota_inode();
+  
+  char sqid[128];
+  snprintf(sqid, sizeof(sqid), "%u:%u:%16lx", 
+           cap->uid(),
+           cap->gid(),
+           ino);
+  
+  std::string qid = sqid;
+  
+  // quota information is shared per uid/gid/quota_inode triple
+  if (this->count(qid))
+  {
+    shared_quota quota = (*this)[qid];
+    return quota;
+  }
+  else
+  {
+    shared_quota quota = std::make_shared<quotax>();
+    *quota = cap->_quota();
+    (*this)[qid] = quota;
+    return quota;
   }
 }
