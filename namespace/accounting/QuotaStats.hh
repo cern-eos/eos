@@ -58,8 +58,14 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      QuotaNode( QuotaStats *quotaStats ): pQuotaStats( quotaStats ) {}
+      QuotaNode( QuotaStats *quotaStats , ContainerMD::id_t id): pQuotaStats( quotaStats ), pContainerId( id) {}
 
+      //------------------------------------------------------------------------
+      //! Get the container id of this node
+      //------------------------------------------------------------------------
+      
+      ContainerMD::id_t getId() const { return pContainerId; }
+      
       //------------------------------------------------------------------------
       //! Get the amount of space occupied by the given user
       //------------------------------------------------------------------------
@@ -221,6 +227,7 @@ namespace eos
       UserMap     pUserUsage;
       GroupMap    pGroupUsage;
       QuotaStats *pQuotaStats;
+      ContainerMD::id_t pContainerId;
   };
 
   //----------------------------------------------------------------------------

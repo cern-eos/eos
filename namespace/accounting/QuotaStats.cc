@@ -105,7 +105,7 @@ namespace eos
       e.getMessage() << "Quota node already exist: " << nodeId;
       throw e;
     }
-    QuotaNode *node = new QuotaNode( this );
+    QuotaNode *node = new QuotaNode( this , nodeId );
     pNodeMap[nodeId] = node;
     return node;
   }
