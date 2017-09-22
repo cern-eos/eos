@@ -263,8 +263,7 @@ eos_docs:
     - cd doc
     - export PYTHONPATH=`pwd`/_themes/
     - make html
-    - sudo -u stci -H rm -rf /eos/project/e/eos/www/docs/
-    - sudo -u stci -H mkdir -p /eos/project/e/eos/www/docs/
+    - sudo -u stci -H bash -c "rm -rf /eos/project/e/eos/www/docs/*"
     - sudo -u stci -H cp -R _build/html/* /eos/project/e/eos/www/docs/
   tags:
     - docker-cc7
