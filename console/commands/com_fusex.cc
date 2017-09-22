@@ -148,7 +148,14 @@ com_fusex (char* arg1)
           }
           else
           {
-            goto com_fusex_usage;
+            if (option == "-f")
+            {
+              options += "f";
+            }
+            else
+            {
+              goto com_fusex_usage;
+            }
           }
         }
       }
@@ -166,11 +173,9 @@ com_fusex (char* arg1)
   return (0);
 
 com_fusex_usage:
-  fprintf(stdout, "usage: fusex ls [-c] [-n] [-z] [-a] [-m] [-s]                        :  print statistics about eosxd fuse clients\n");
+  fprintf(stdout, "usage: fusex ls [-c] [-f]                         :  print statistics about eosxd fuse clients\n");
   fprintf(stdout, "                -c                                                   -  break down by client host\n");
-  fprintf(stdout, "                -a                                                   -  print all\n");
-  fprintf(stdout, "                -s                                                   -  print summary for clients\n");
-  fprintf(stdout, "                -m                                                   -  print in monitoring format <key>=<value>\n");
+  fprintf(stdout, "                -f                                                   -  show ongoing flush locks\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       fuxex evict <uuid> [<reason>]                                 :  evict a fuse client\n");
   fprintf(stdout, "                                                              <uuid> -  uuid of the client to evict\n");
