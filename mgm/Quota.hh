@@ -68,6 +68,26 @@ private:
   eos::QuotaNode* QuotaNode;
   double LayoutSizeFactor; // this is layout dependent!
   bool DirtyTarget; // indicating to recompute the target values
+
+
+
+  // one hash map for user view! depending on eQuota Tag id is either uid or gid!
+
+  std::map<long long, unsigned long long> Quota; // the key is (eQuotaTag<<32) | id
+
+  unsigned long long PhysicalFreeBytes; // this is coming from the statfs calls on all file systems
+  unsigned long long PhysicalFreeFiles; // this is coming from the statfs calls on all file systems
+  unsigned long long PhysicalMaxBytes; // this is coming from the statfs calls on all file systems
+  unsigned long long PhysicalMaxFiles; // this is coming from the statfs calls on all file systems
+
+  // this is used to recalculate the values without invalidating the old one
+  unsigned long long PhysicalTmpFreeBytes; // this is coming from the statfs calls on all file systems
+  unsigned long long PhysicalTmpFreeFiles; // this is coming from the statfs calls on all file systems
+  unsigned long long PhysicalTmpMaxBytes; // this is coming from the statfs calls on all file systems
+  unsigned long long PhysicalTmpMaxFiles; // this is coming from the statfs calls on all file systems
+
+public:
+
   bool
   Enabled ()
   {
@@ -97,22 +117,6 @@ private:
     return On;
   }
 
-  // one hash map for user view! depending on eQuota Tag id is either uid or gid!
-
-  std::map<long long, unsigned long long> Quota; // the key is (eQuotaTag<<32) | id
-
-  unsigned long long PhysicalFreeBytes; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalFreeFiles; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalMaxBytes; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalMaxFiles; // this is coming from the statfs calls on all file systems
-
-  // this is used to recalculate the values without invalidating the old one
-  unsigned long long PhysicalTmpFreeBytes; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalTmpFreeFiles; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalTmpMaxBytes; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalTmpMaxFiles; // this is coming from the statfs calls on all file systems
-
-public:
   XrdSysMutex OpMutex;
 
   enum eQuotaTag
@@ -125,7 +129,7 @@ public:
     kAllGroupBytesIs = 17, kAllGroupLogicalBytesIs = 18, kAllGroupLogicalBytesTarget = 19, kAllGroupBytesTarget = 20,
     kAllUserFilesIs = 21, kAllUserFilesTarget = 22,
     kAllGroupFilesIs = 23, kAllGroupFilesTarget = 24
-  };
+  } ;
 
   static const char*
   GetTagAsString (int tag)
@@ -616,7 +620,7 @@ public:
                      unsigned long long bookingsize = 1024 * 1024 * 1024ll //< size to book for the placement
                      );
 
-};
+} ;
 
 class Quota : eos::common::LogId
 {
@@ -629,14 +633,24 @@ public:
   static SpaceQuota* GetSpaceQuota (const char* name, bool nocreate = false);
   static SpaceQuota* GetResponsibleSpaceQuota (const char*path); // returns a space (+quota node), which is responsible for <path>
 
-  Quota () { }
+  Quota ()
+  {
+  }
 
-  ~Quota () { };
+  ~Quota ()
+  {
+  };
 
   void Recalculate ();
 
   // builds a list with the names of all spaces
   static int GetSpaceNameList (const char* key, SpaceQuota* spacequota, void *Arg);
+
+  static int QuotaByPath(const char* space, const char* path,
+                         uid_t uid, gid_t gid,
+                         long long& avail_files,
+                         long long& avail_bytes,
+                         eos::ContainerMD::id_t& quota_inode);
 
   static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t &vid, const char* path, long long &maxbytes, long long &freebytes);
 
@@ -661,7 +675,7 @@ public:
   static void NodeToSpaceQuota (const char* name);
 
   static gid_t gProjectId; //< gid indicating project quota
-};
+} ;
 
 EOSMGMNAMESPACE_END
 

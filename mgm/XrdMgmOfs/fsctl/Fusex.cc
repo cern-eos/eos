@@ -37,7 +37,7 @@
   // receive a protocol buffer and apply to the namespace
 
   std::string id = std::string("Fusex::sync:") + vid.tident.c_str();
-
+  
   eos_static_debug("protobuf-len=%d", protobuf.length());
   
   eos::fusex::md md;

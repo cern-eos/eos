@@ -26,6 +26,7 @@
 #include "mgm/FuseServer.hh"
 #include "mgm/Acl.hh"
 #include "mgm/Policy.hh"
+#include "mgm/Quota.hh"
 #include <thread>
 #include <regex.h>
 #include "common/Logging.hh"
@@ -1168,6 +1169,8 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md & dir)
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
+
+    std::string fullpath = gOFS->eosView->getUri(cmd);
     dir.set_md_ino(id);
     dir.set_md_pino(cmd->getParentId());
     dir.set_ctime(ctime.tv_sec);
@@ -1186,6 +1189,7 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md & dir)
     // TODO: no hardlinks
     dir.set_nlink(1);
     dir.set_name(cmd->getName());
+    dir.set_fullpath(fullpath);
 
     for ( eos::ContainerMD::XAttrMap::iterator it = cmd->attributesBegin();
          it != cmd->attributesEnd(); ++it)
@@ -1473,6 +1477,59 @@ FuseServer::FillContainerCAP(uint64_t id,
                                        reuse_uuid : eos::common::StringConversion::random_uuidstring());
   dir.mutable_capability()->set_clientid(dir.clientid());
   dir.mutable_capability()->set_clientuuid(dir.clientuuid());
+
+  // max-filesize settings
+  if (dir.attr().count("sys.forced.maxsize"))
+  {
+    // dynamic upper file size limit per file
+    dir.mutable_capability()->set_max_file_size(strtoull((*(dir.mutable_attr()))["sys.forced.maxsize"].c_str(), 0, 10));
+  }
+  else
+  {
+    // hard-coded upper file size limit per file
+    dir.mutable_capability()->set_max_file_size(512ll * 1024ll * 1024ll * 1024ll); // 512 GB
+  }
+
+  std::string space = "default";
+
+  {
+    // add quota information
+    if (dir.attr().count("sys.forced.space"))
+    {
+      space = (*(dir.mutable_attr()))["sys.forced.space"];
+    }
+    else
+    {
+      if (dir.attr().count("user.forced.space"))
+      {
+        space = (*(dir.mutable_attr()))["user.forced.space"];
+      }
+    }
+
+    long long avail_bytes;
+    long long avail_files;
+    eos::ContainerMD::id_t quota_inode;
+    
+    if (!Quota::QuotaByPath(space.c_str(),
+                            dir.fullpath().c_str(),
+                            dir.capability().uid(),
+                            dir.capability().gid(),
+                            avail_files,
+                            avail_bytes, 
+                            quota_inode))
+    {
+      dir.mutable_capability()->mutable__quota()->set_inode_quota(avail_files);
+      dir.mutable_capability()->mutable__quota()->set_volume_quota(avail_bytes);
+      dir.mutable_capability()->mutable__quota()->set_quota_inode(quota_inode);
+    }
+    else
+    {
+      dir.mutable_capability()->mutable__quota()->clear_inode_quota();
+      dir.mutable_capability()->mutable__quota()->clear_volume_quota();
+      dir.mutable_capability()->mutable__quota()->clear_quota_inode();
+    }
+  }
+
   Cap().Store(dir.capability(), vid);
   return true;
 }
@@ -1870,7 +1927,18 @@ FuseServer::HandleMD(const std::string &id,
           {
             eos_static_err("imply failed for new inode %lx", md_ino);
           }
+
+          if (pcmd->getMode() & S_ISGID)
+          {
+            // parent attribute inheritance
+            eos::ContainerMD::XAttrMap::const_iterator it;
+            for (it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it)
+            {
+              cmd->setAttribute(it->first, it->second);
+            }
+          }
         }
+
 
         cmd->setName(md.name());
         cmd->setCUid(md.uid());
@@ -1884,10 +1952,32 @@ FuseServer::HandleMD(const std::string &id,
         mtime.tv_nsec = md.mtime_ns();
         cmd->setCTime(ctime);
         cmd->setMTime(mtime);
-        cmd->clearAttributes();
-        for (auto map = md.attr().begin(); map != md.attr().end(); ++map)
+
+        // clear out all non central MGM attributes
         {
-          cmd->setAttribute(map->first, map->second);
+          std::set<std::string> rmAttr;
+          eos::ContainerMD::XAttrMap::const_iterator it;
+          for (it = cmd->attributesBegin(); it != cmd->attributesEnd(); ++it)
+          {
+
+            if (it->first.substr(0, 3) != "sys")
+            {
+              rmAttr.insert(it->first);
+            }
+          }
+          for (auto rit = rmAttr.begin(); rit != rmAttr.end(); ++rit)
+          {
+            cmd->removeAttribute(*rit);
+          }
+        }
+
+        for (auto it = md.attr().begin(); it != md.attr().end(); ++it)
+        {
+          if ( (it->first.substr(0, 3) != "sys") ||
+              (it->first == "sys.eos.btime") )
+          {
+            cmd->setAttribute(it->first, it->second);
+          }
         }
 
         if (op == CREATE)
@@ -1951,6 +2041,7 @@ FuseServer::HandleMD(const std::string &id,
                       (long) md.md_pino(),
                       md.authid().c_str());
 
+      eos::common::RWMutexReadLock qlock(Quota::gQuotaMutex);
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       eos::FileMD* fmd = 0;
       eos::ContainerMD* pcmd = 0;
@@ -2042,10 +2133,32 @@ FuseServer::HandleMD(const std::string &id,
           eos_static_info("ino=%lx pino=%lx md-ino=%lx create-file", (long) md.md_ino(), (long) md.md_pino(), md_ino);
         }
 
+        {
+          try
+          {
+            eos::QuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd);
+            // free previous quota
+            if (quotanode)
+            {
+              quotanode->removeFile(fmd);
+              fmd->setSize(md.size());
+              quotanode->addFile(fmd);
+            }
+            else
+            {
+              fmd->setSize(md.size());
+            }
+          }
+          catch ( eos::MDException &e )
+          {
+            fmd->setSize(md.size());
+          }
+        }
+
         fmd->setName(md.name());
         fmd->setCUid(md.uid());
         fmd->setCGid(md.gid());
-        fmd->setSize(md.size());
+
 
         // for the moment we store 9 bits here
         fmd->setFlags( md.mode() & (S_IRWXU | S_IRWXG | S_IRWXO) );
@@ -2193,6 +2306,7 @@ FuseServer::HandleMD(const std::string &id,
     eos::fusex::response resp;
     resp.set_type(resp.ACK);
 
+    eos::common::RWMutexReadLock qlock(Quota::gQuotaMutex);
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     eos::ContainerMD* cmd = 0;
     eos::ContainerMD* pcmd = 0;
@@ -2236,6 +2350,22 @@ FuseServer::HandleMD(const std::string &id,
       if (S_ISREG(md.mode()))
       {
         eos_static_info("ino=%lx delete-file", (long) md.md_ino());
+        
+        try
+        {
+          // handle quota        
+          eos::QuotaNode* quotanode = 0;
+          quotanode = gOFS->eosView->getQuotaNode(pcmd);
+          if (quotanode)
+          {
+            quotanode->removeFile(fmd);
+          }
+        }
+        catch ( eos::MDException &e )
+        {
+
+        }
+
         pcmd->removeFile(fmd->getName());
         fmd->setContainerId(0);
         fmd->unlinkAllLocations();

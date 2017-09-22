@@ -1051,6 +1051,16 @@ XrdMgmOfsFile::open (const char *inpath,
 
   }
 
+  
+  // ---------------------------------------------------------------------------
+  // flush synchronization logic, don't open a file which is currently flushing
+  // ---------------------------------------------------------------------------
+  if (gOFS->zMQ->gFuseServer.Flushs().hasFlush(eos::common::FileId::FidToInode(fileId)))
+  {
+    // the first 255ms are covered inside hasFlush, otherwise we stall clients for a sec
+    return gOFS->Stall(error, 1, "file is currently being flushed"); 
+  }
+   
   // ---------------------------------------------------------------------------
   // construct capability
   // ---------------------------------------------------------------------------
