@@ -9,7 +9,7 @@
 Citrine Release Notes
 ======================
 
-``Version V4.0.0 Citrine``
+``Version 4 Citrine``
 
 Introduction
 ------------
@@ -17,6 +17,8 @@ This release is based on XRootD V4 and IPV6 enabled.
 
 ``v4.1.31 Citrine``
 ===================
+
+2017-09-19
 
 Bug
 ++++
@@ -27,6 +29,8 @@ Bug
 
 ``v4.1.30 Citrine``
 ====================
+
+2017-09-15
 
 Bug
 ++++
@@ -39,6 +43,8 @@ Bug
 
 ``v4.1.29 Citrine``
 ===================
+
+2017-09-08
 
 Bug
 ++++
@@ -56,12 +62,16 @@ Bug
 ``v4.1.28 Citrine``
 ===================
 
+2017-08-30
+
 Bug
 +++
 * [EOS-1991] - eos-fuse rpm package broken dependency
 
 ``v4.1.27 Citrine``
 ===================
+
+2017-08-28
 
 Bug
 +++
@@ -83,6 +93,8 @@ New features
 
 ``v4.1.26 Citrine``
 ===================
+
+2017-08-07
 
 Bug
 +++
@@ -107,6 +119,8 @@ Improvement
 
 ``v4.1.25 Citrine``
 ===================
+
+2017-06-29
 
 Bugfix
 ++++++
@@ -136,6 +150,8 @@ Improvement
 ``v4.1.24 Citrine``
 ===================
 
+2017-06-14
+
 Bugfix
 ++++++
 * [EOS-162] - RFE: auto-refill spaces from "spare", up to "nominalsize"
@@ -163,6 +179,8 @@ Support
 ``v4.1.23 Citrine``
 ===================
 
+2017-05-17
+
 Bugfix
 ++++++
 * MGM: Take headroom into account when scheduling for placement
@@ -173,6 +191,8 @@ Bugfix
 ``v4.1.22 Citrine``
 ===================
 
+2017-05-15
+
 Bugfix
 ++++++
 * Fix response for xrdfs query checksum to display "adler32" instead of "adler" as checksum type
@@ -181,6 +201,8 @@ Bugfix
 
 ``v4.1.21 Citrine``
 ===================
+
+2017-05-12
 
 Bugfix
 ++++++
@@ -209,6 +231,8 @@ Suggestion
 ``v4.1.3 Citrine``
 ++++++++++
 
+2016-09-15
+
 Bugfix
 +++++++
 
@@ -216,8 +240,10 @@ Bugfix
 * [EOS-1609] - eos -b problem : *** Error in `/usr/bin/eos': free():
 
 
-``v0.4.30 Citrine``
+``v0.4.31 Citrine``
 ===================
+
+2016-07-22
 
 Bugfix
 +++++++
@@ -228,6 +254,8 @@ Bugfix
 
 ``v0.4.30 Citrine``
 ===================
+
+2016-07-21
 
 Bugfix
 +++++++
