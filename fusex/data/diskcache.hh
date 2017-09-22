@@ -43,7 +43,7 @@ public:
   virtual ~diskcache();
 
   // base class interface
-  virtual int attach(fuse_req_t req, std::string& cookie, bool isRW);
+  virtual int attach(fuse_req_t req, std::string& cookie, int flags);
   virtual int detach(std::string& cookie);
   virtual int unlink();
 

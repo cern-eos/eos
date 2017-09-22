@@ -130,7 +130,7 @@ diskcache::location(std::string& path, bool mkpath)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::attach(fuse_req_t req, std::string& acookie, bool isRW)
+diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper lLock(this);

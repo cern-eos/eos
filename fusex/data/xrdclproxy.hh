@@ -98,6 +98,10 @@ namespace XrdCl
                       uint16_t  timeout = 0 );
 
     // ---------------------------------------------------------------------- //
+    XRootDStatus Sync( uint16_t timeout = 0 );
+
+
+    // ---------------------------------------------------------------------- //
 
     XRootDStatus CloseAsync(uint16_t         timeout = 0 );
 
@@ -569,10 +573,11 @@ namespace XrdCl
     void detach();
     bool attached();
 
-    std::string url() {
+    std::string url()
+    {
       return mUrl;
     }
-    
+
   private:
     OPEN_STATE open_state;
     struct timespec open_state_time;
@@ -600,7 +605,7 @@ namespace XrdCl
     size_t mAttached;
     fuse_req_t mReq;
     uint64_t mIno;
-    
+
     std::string mUrl;
   } ;
 }

@@ -1618,7 +1618,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         Instance().mds.remove(pmd, md, pcap->authid());
       }
     }
-    
+
     if (!rc)
     {
       XrdSysMutexHelper pLock(pcap->Locker());
@@ -1887,7 +1887,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
-  eos_static_debug("");
+  eos_static_debug("flags=%x", fi->flags);
 
   ADD_FUSE_STAT(__func__, req);
 
@@ -1931,7 +1931,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
         if (mode == W_OK)
         {
-          if (! Instance().caps.has_quota(pcap, 1024 * 1024))
+          if (! (pquota = Instance().caps.has_quota(pcap, 1024 * 1024)))
           {
             rc = EDQUOT;
           }
@@ -1965,7 +1965,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
                                   md->md_pino(),
                                   req);
 
-          bool outdated = (io->ioctx()->attach(req, cookie, (mode == W_OK) ) == EKEYEXPIRED);
+          bool outdated = (io->ioctx()->attach(req, cookie, fi->flags ) == EKEYEXPIRED);
 
           fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
           fi->direct_io = 0;
@@ -2101,7 +2101,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
-  eos_static_debug("");
+  eos_static_debug("flags=%x", fi->flags);
 
   ADD_FUSE_STAT(__func__, req);
 
@@ -2178,7 +2178,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         }
 
         Instance().caps.book_inode(pcap);
-        
+
         if (!rc)
         {
           memset(&e, 0, sizeof (e));
@@ -2219,7 +2219,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
                                     md->md_pino(),
                                     req);
 
-            io->ioctx()->attach(req, cookie, true);
+            io->ioctx()->attach(req, cookie, fi->flags);
           }
         }
         eos_static_info("%s", md->dump(e).c_str());
@@ -2417,7 +2417,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
-  eos_static_debug("");
+  eos_static_debug("datasync=%d", datasync);
 
   ADD_FUSE_STAT(__func__, req);
 
@@ -2427,48 +2427,47 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 
   fuse_id id(req);
 
-  if (datasync)
+
+  data::data_fh* io = (data::data_fh*) fi->fh;
+
+  if (io)
   {
-    data::data_fh* io = (data::data_fh*) fi->fh;
-
-    if (io)
+    if (io->has_update())
     {
-      if (io->has_update())
+      if (Instance().Config().options.global_flush)
       {
-        if (Instance().Config().options.global_flush)
-        {
-          Instance().mds.begin_flush(io->md, io->authid()); // flag an ongoing flush centrally
-        }
+        Instance().mds.begin_flush(io->md, io->authid()); // flag an ongoing flush centrally
+      }
 
-        struct timespec tsnow;
-        eos::common::Timing::GetTimeSpec(tsnow);
+      struct timespec tsnow;
+      eos::common::Timing::GetTimeSpec(tsnow);
 
-        XrdSysMutexHelper mLock(io->md->Locker());
-        io->md->set_mtime(tsnow.tv_sec);
-        io->md->set_mtime_ns(tsnow.tv_nsec);
-        Instance().mds.update(req, io->md, io->authid());
+      XrdSysMutexHelper mLock(io->md->Locker());
+      io->md->set_mtime(tsnow.tv_sec);
+      io->md->set_mtime_ns(tsnow.tv_nsec);
+      Instance().mds.update(req, io->md, io->authid());
 
-        // step 1 call flush
-        rc = io->ioctx()->flush(req); // actually do the flush
+      // step 1 call flush
+      rc = io->ioctx()->flush(req); // actually do the flush
 
-        std::string cookie=io->md->Cookie();
-        io->ioctx()->store_cookie(cookie);
+      std::string cookie=io->md->Cookie();
+      io->ioctx()->store_cookie(cookie);
 
-        if (!rc)
-        {
-          // step 2 call sync - this currently flushed all open filedescriptors - should be ok
-          rc = io->ioctx()->sync(); // actually wait for writes to be acknowledged
-        }
+      if (!rc)
+      {
+        // step 2 call sync - this currently flushed all open filedescriptors - should be ok
+        rc = io->ioctx()->sync(); // actually wait for writes to be acknowledged
+      }
 
-        if (Instance().Config().options.global_flush)
-        {
-          //XrdSysTimer sleeper;
-          //sleeper.Wait(5000);
-          Instance().mds.end_flush(io->md, io->authid()); // unflag an ongoing flush centrally
-        }
+      if (Instance().Config().options.global_flush)
+      {
+        //XrdSysTimer sleeper;
+        //sleeper.Wait(5000);
+        Instance().mds.end_flush(io->md, io->authid()); // unflag an ongoing flush centrally
       }
     }
   }
+
 
   fuse_reply_err (req, rc);
 

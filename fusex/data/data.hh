@@ -100,8 +100,8 @@ public:
     int flush(fuse_req_t req);
     int journalflush(fuse_req_t req);
     int journalflush(std::string cid);
-    int attach(fuse_req_t req, std::string& cookie, bool isRW);
-    int detach(fuse_req_t req, std::string& cookie, bool isRW);
+    int attach(fuse_req_t req, std::string& cookie, int flags);
+    int detach(fuse_req_t req, std::string& cookie, int flags);
     int store_cookie(std::string& cookie);
     int unlink(fuse_req_t req);
 
@@ -170,6 +170,7 @@ public:
     bufferllmanager::shared_buffer buffer;
     static bufferllmanager sBufferManager;
     bool mWaitForOpen;
+    int mFlags;
   } ;
 
   typedef std::shared_ptr<datax> shared_data;

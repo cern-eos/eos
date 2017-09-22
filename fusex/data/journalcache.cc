@@ -31,7 +31,7 @@
 
 std::string journalcache::sLocation;
 bufferllmanager journalcache::sBufferManager;
-size_t journalcache::sMaxSize = 1024 * 1024 * 1024 * 1024ll; // TODO Some dummy default
+size_t journalcache::sMaxSize = 128 * 1024 * 1024 * 1024ll; // TODO Some dummy default
 
 journalcache::journalcache() : ino( 0 ), cachesize( 0 ), truncatesize( -1 ), fd( -1 ), nbAttached( 0 )
 {
@@ -118,7 +118,7 @@ int journalcache::read_journal()
   return totalBytesRead;
 }
 
-int journalcache::attach(fuse_req_t req, std::string& cookie, bool isRW)
+int journalcache::attach(fuse_req_t req, std::string& cookie, int flags)
 {
   XrdSysMutexHelper lck( mtx );
   if ((nbAttached == 0) && (fd == -1))

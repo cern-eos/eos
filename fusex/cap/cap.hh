@@ -221,16 +221,16 @@ public:
     q->set_volume_quota(q->volume_quota() + size);
   }
 
-  bool has_quota(shared_cap cap, uint64_t size)
+  uint64_t has_quota(shared_cap cap, uint64_t size)
   {
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
     if ( (q->volume_quota() > size) &&
         (q->inode_quota() > 0))
     {
-      return true;
+      return q->volume_quota();
     }
-    return false;
+    return 0;
   }
 
   shared_quota quota(shared_cap cap)

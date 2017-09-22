@@ -52,7 +52,7 @@ public:
   }
 
   // base class interface
-  virtual int attach(fuse_req_t req, std::string& cookie, bool isRW) = 0;
+  virtual int attach(fuse_req_t req, std::string& cookie, int flags) = 0;
   virtual int detach(std::string& cookie) = 0;
   virtual int unlink() = 0;
 
@@ -126,6 +126,14 @@ public:
       {
         delete it->second;
       }
+    }
+    
+    void disable_caches()
+    {
+      delete _file;
+      delete _journal;
+      _file = 0;
+      _journal = 0;
     }
     
     void set_file(cache* file)
