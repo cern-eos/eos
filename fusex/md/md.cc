@@ -1079,6 +1079,9 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
   eos_static_debug("child=%s parent=%s inode=%016lx", md->name().c_str(),
                    pmd->name().c_str(), md->id());
 
+  struct timespec ts;
+  eos::common::Timing::GetTimeSpec(ts);
+  
   // avoid lock order violation
   md->Locker().UnLock();
   {
@@ -1086,6 +1089,8 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
     (*map).erase(md->name());
     pmd->set_nchildren(pmd->nchildren() - 1);
     pmd->get_todelete().insert(md->name());
+    pmd->set_mtime(ts.tv_sec);
+    pmd->set_mtime_ns(ts.tv_nsec);
   }
 
   md->Locker().Lock();
@@ -1097,6 +1102,9 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
     stat.inodes_deleted_ever_inc();
   }
 
+  md->set_mtime(ts.tv_sec);
+  md->set_mtime_ns(ts.tv_nsec);
+  
   md->setop_delete();
 
   if (!upstream)

@@ -2424,6 +2424,11 @@ FuseServer::HandleMD(const std::string &id,
     eos::ContainerMD* cmd = 0;
     eos::ContainerMD* pcmd = 0;
     eos::FileMD* fmd = 0;
+
+    eos::FileMD::ctime_t mtime;
+    mtime.tv_sec = md.mtime();
+    mtime.tv_nsec = md.mtime_ns();
+
     try
     {
       pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
@@ -2432,6 +2437,7 @@ FuseServer::HandleMD(const std::string &id,
       else
         fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(md.md_ino()));
 
+      pcmd->setMTime(mtime);
 
       if (S_ISDIR(md.mode()))
       {
@@ -2449,7 +2455,9 @@ FuseServer::HandleMD(const std::string &id,
         }
         eos_static_info("ino=%lx delete-dir", (long) md.md_ino());
         pcmd->removeContainer(cmd->getName());
+
         gOFS->eosDirectoryService->removeContainer(cmd);
+        gOFS->eosDirectoryService->updateStore(pcmd);
         pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
         resp.mutable_ack_()->set_code(resp.ack_().OK);
         resp.mutable_ack_()->set_transactionid(md.reqid());
@@ -2483,6 +2491,7 @@ FuseServer::HandleMD(const std::string &id,
         fmd->setContainerId(0);
         fmd->unlinkAllLocations();
         gOFS->eosFileService->updateStore(fmd);
+        gOFS->eosDirectoryService->updateStore(pcmd);
         pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
         resp.mutable_ack_()->set_code(resp.ack_().OK);
         resp.mutable_ack_()->set_transactionid(md.reqid());
@@ -2499,6 +2508,7 @@ FuseServer::HandleMD(const std::string &id,
         fmd->setContainerId(0);
         fmd->unlinkAllLocations();
         gOFS->eosFileService->updateStore(fmd);
+        gOFS->eosDirectoryService->updateStore(pcmd);
         pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
         resp.mutable_ack_()->set_code(resp.ack_().OK);
         resp.mutable_ack_()->set_transactionid(md.reqid());
