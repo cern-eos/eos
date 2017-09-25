@@ -365,6 +365,7 @@ public:
 
   shared_md get(fuse_req_t req,
                 fuse_ino_t ino,
+                const std::string authid = "",
                 bool listing=false,
                 shared_md pmd = 0 ,
                 const char* name = 0,
@@ -383,7 +384,7 @@ public:
               std::string authid,
               bool localstore=false);
 
-  void add(shared_md pmd, shared_md md, std::string authid);
+  void add(shared_md pmd, shared_md md, std::string authid, bool localstore=false);
   int add_sync(shared_md pmd, shared_md md, std::string authid);
   int begin_flush(shared_md md, std::string authid);
   int end_flush(shared_md md, std::string authid);

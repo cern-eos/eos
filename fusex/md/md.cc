@@ -37,6 +37,7 @@
 #include <assert.h>
 #include <google/protobuf/util/json_util.h>
 
+
 std::string metad::vnode_gen::cInodeKey = "nextinode";
 
 /* -------------------------------------------------------------------------- */
@@ -194,7 +195,7 @@ metad::lookup(fuse_req_t req,
   // --------------------------------------------------
   // STEP 1 : retrieve the required parent MD
   // --------------------------------------------------
-  shared_md pmd = get(req, parent, false);
+  shared_md pmd = get(req, parent, "", false);
   shared_md md;
 
   if (pmd->id() == parent)
@@ -238,7 +239,7 @@ metad::lookup(fuse_req_t req,
     // --------------------------------------------------
     // try to get the meta data record
     // --------------------------------------------------
-    md = get(req, inode, false, pmd, name);
+    md = get(req, inode, "", false, pmd, name);
   }
   else
   {
@@ -472,6 +473,7 @@ metad::shared_md
 /* -------------------------------------------------------------------------- */
 metad::get(fuse_req_t req,
            fuse_ino_t ino,
+           std::string authid,
            bool listing,
            shared_md pmd,
            const char* name,
@@ -599,7 +601,7 @@ metad::get(fuse_req_t req,
     // -------------------------------------------------------------------------
     std::string root_path="/";
     // request the root meta data
-    rc = mdbackend->getMD(req, root_path, contv);
+    rc = mdbackend->getMD(req, root_path, contv, authid);
     // set ourselfs as parent of root since we might mount 
     // a remote directory != '/'
 
@@ -632,7 +634,7 @@ metad::get(fuse_req_t req,
 
       if (pmd->md_ino())
       {
-        rc = mdbackend->getMD(req, pmd->md_ino(), name, contv, listing);
+        rc = mdbackend->getMD(req, pmd->md_ino(), name, contv, listing, authid);
       }
       else
       {
@@ -666,7 +668,7 @@ metad::get(fuse_req_t req,
       }
        */
       eos_static_info("ino=%016lx type=%d", md->md_ino(), md->type());
-      rc = mdbackend->getMD(req, md->md_ino(), listing ? ( (md->type() != md->MDLS) ? 0 : md->clock()) : md->clock(), contv, listing);
+      rc = mdbackend->getMD(req, md->md_ino(), listing ? ( (md->type() != md->MDLS) ? 0 : md->clock()) : md->clock(), contv, listing, authid);
     }
     else
     {
@@ -773,183 +775,6 @@ metad::get(fuse_req_t req,
 }
 
 /* -------------------------------------------------------------------------- */
-//metad::shared_md
-/* -------------------------------------------------------------------------- */
-//metad::getold(fuse_req_t req,
-//              fuse_ino_t ino,
-//              bool listing,
-//              fuse_ino_t remote_pino,
-//              const char* name,
-//              fuse_ino_t pino)
-/* -------------------------------------------------------------------------- */
-/*
-{
-  shared_md md;
-  {
-    XrdSysMutexHelper mLock(mdmap);
-    if (mdmap.count(ino))
-    {
-      md = mdmap[ino];
-    }
-    else
-    {
-      // -----------------------------------------------------------------------
-      // the first thing is to try to load a parent directory and all its 
-      // children from the local KV store
-      // -----------------------------------------------------------------------
-
-      md = load_from_kv(ino);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // this variable indicates if we can stay with the local cached information
-  // ---------------------------------------------------------------------------
-  bool remote_refresh = false;
-
-  uint64_t remote_ino = 0;
-
-  // ---------------------------------------------------------------------------
-  // if this is a get from opendir, we have to fetch all the children, if we 
-  // never requested this MD but got it as a result to a parent query
-  // ---------------------------------------------------------------------------
-  {
-    XrdSysMutexHelper mdLock(md->Locker());
-    remote_ino = md->md_ino();
-    if (listing && !md->reqid())
-    {
-      eos_static_debug("forcing remote-refresh - not yet listed");
-      remote_refresh = true;
-    }
-
-    if (!md->cap_count())
-    {
-      eos_static_debug("forcing remote-refresh - no cap");
-      remote_refresh = true;
-    }
-  }
-
-
-  if (remote_ino && !remote_refresh)
-  {
-    inomap.insert(remote_ino, ino);
-    eos_static_debug("return unrefreshed MD %lx<=>%lx", remote_ino, ino);
-    return md;
-  }
-  else
-  {
-    if (remote_ino)
-      inomap.insert(remote_ino, ino);
-    eos_static_debug("refreshing MD %lx<=>%lx", remote_ino, ino);
-  }
-  // the root case is special because we don't know the remote inode and have
-  // to query by path
-
-  bool getroot=false;
-  {
-    // verify if the MD is (still) valid
-    if ( (ino == 1) && (!remote_ino))
-    {
-      getroot = true;
-    }
-  }
-
-  std::vector<eos::fusex::container> contv;
-  int rc=0;
-
-  remote_ino=0;
-
-  if (getroot)
-  {
-    // retrieve the root node by path
-    std::string root_path="/";
-    // request the root metadata
-    rc = mdbackend->getMD(req, root_path, contv);
-  }
-  else
-  {
-    // retrieve meta data by inode
-    {
-      remote_ino = inomap.backward(ino);
-      if (remote_ino)
-      {
-        eos_static_debug("get by inode ino=%lx", remote_ino);
-        rc = mdbackend->getMD(req, remote_ino, md->clock(), contv, listing);
-      }
-      else
-      {
-        eos_static_debug("by parent inode/name pino=%lx name=%s", remote_pino, name);
-        if (remote_pino)
-          rc = mdbackend->getMD(req, remote_pino, name, contv, listing);
-        else
-          rc = ENOENT;
-      }
-    }
-  }
-
-  if (!rc)
-  {
-    md->Locker().Lock();
-    for (auto it=contv.begin(); it != contv.end(); ++it)
-    {
-      if (it->ref_inode_())
-      {
-        if (getroot) inomap.insert(it->ref_inode_(), 1);
-
-        // store the retrieved meta data blob
-        apply(req, *it, listing, pmd);
-      }
-      else
-      {
-        if (getroot)
-          eos_static_crit("msg=\"could not retrieve meta-data for root inode 1");
-        else
-          eos_static_crit("msg=\"could not retrieve meta-data for inode=%16lx",
-                          remote_ino);
-      }
-    }
-    if (getroot) md->set_pid(1);
-    if (listing)
-      md->set_reqid((uint64_t) req);
-    md->Locker().UnLock();
-  }
-
-  {
-    XrdSysMutexHelper mLock(mdmap);
-    if (pino)
-    {
-      eos_static_info("get by ino/name searching pino=%lx", pino);
-      // get by parent inode/name
-      if (mdmap.count(pino))
-      {
-        eos_static_info("get by ino/name found pino=%lx", pino);
-        shared_md pmd = mdmap[pino];
-        if (pmd->children().count(name))
-        {
-          ino = pmd->children().at(name);
-          eos_static_info("get by ino/name found pino=%lx child-ino=%lx", pino, ino);
-        }
-        else
-        {
-          eos_static_info("get by ino/name found pino=%lx no child", pino);
-        }
-      }
-    }
-    if (ino)
-    {
-      // get by inode
-      if (mdmap.count(ino))
-      {
-        eos_static_info("get by ino/name assinging ino md", ino);
-        md = mdmap[ino];
-      }
-    }
-  }
-  return md;
-}
- */
-
-/* -------------------------------------------------------------------------- */
 uint64_t
 /* -------------------------------------------------------------------------- */
 metad::insert(fuse_req_t req,
@@ -1048,7 +873,8 @@ metad::update(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-metad::add(metad::shared_md pmd, metad::shared_md md, std::string authid)
+metad::add(metad::shared_md pmd, metad::shared_md md, std::string authid,
+           bool localstore)
 /* -------------------------------------------------------------------------- */
 {
   stat.inodes_inc();
@@ -1058,8 +884,8 @@ metad::add(metad::shared_md pmd, metad::shared_md md, std::string authid)
   uint64_t id=0;
 
   auto map = pmd->mutable_children();
-  eos_static_debug("child=%s parent=%s inode=%016lx authid=%s", md->name().c_str(),
-                   pmd->name().c_str(), md->id(), authid.c_str());
+  eos_static_debug("child=%s parent=%s inode=%016lx authid=%s localstore=%d", md->name().c_str(),
+                   pmd->name().c_str(), md->id(), authid.c_str(), localstore);
   {
     XrdSysMutexHelper mLock(pmd->Locker());
     (*map)[md->name()] = md->id();
@@ -1080,12 +906,15 @@ metad::add(metad::shared_md pmd, metad::shared_md md, std::string authid)
 
   stat.inodes_backlog_store(mdqueue.size());
 
-  while (mdqueue.size() == mdqueue_max_backlog)
-    mdflush.WaitMS(25);
+  if (!localstore)
+  {
+    while (mdqueue.size() == mdqueue_max_backlog)
+      mdflush.WaitMS(25);
 
-  flushentry fe(id, authid, mdx::ADD);
-  mdqueue[id]++;
-  mdflushqueue.push_back(fe);
+    flushentry fe(id, authid, mdx::ADD);
+    mdqueue[id]++;
+    mdflushqueue.push_back(fe);
+  }
 
   flushentry fep(pid, authid, mdx::LSTORE);
   mdqueue[pid]++;
@@ -1191,7 +1020,7 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
 }
 
 /* -------------------------------------------------------------------------- */
-int 
+int
 /* -------------------------------------------------------------------------- */
 metad::begin_flush(shared_md emd, std::string authid)
 /* -------------------------------------------------------------------------- */
@@ -1204,7 +1033,7 @@ metad::begin_flush(shared_md emd, std::string authid)
   {
     //TODO wait for the remote inode to be known
   }
-  
+
   md->set_md_ino(emd->md_ino());
 
   if ((rc = mdbackend->putMD(&(*md), authid, 0)))
@@ -1215,21 +1044,21 @@ metad::begin_flush(shared_md emd, std::string authid)
 }
 
 /* -------------------------------------------------------------------------- */
-int 
+int
 /* -------------------------------------------------------------------------- */
 metad::end_flush(shared_md emd, std::string authid)
 /* -------------------------------------------------------------------------- */
 {
   shared_md md = std::make_shared<mdx>();
   md->set_operation(md->ENDFLUSH);
-  
+
   int rc = 0;
-  
+
   if (!emd->md_ino())
   {
     //TODO wait for the remote inode to be known
   }
-  
+
   md->set_md_ino(emd->md_ino());
 
   if ((rc = mdbackend->putMD(&(*md), authid, 0)))
@@ -1549,14 +1378,13 @@ metad::setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep)
 }
 
 /* -------------------------------------------------------------------------- */
-int 
+int
 /* -------------------------------------------------------------------------- */
 metad::statvfs(fuse_req_t req, struct statvfs* svfs)
 /* -------------------------------------------------------------------------- */
 {
-  return mdbackend->statvfs(req,svfs);
+  return mdbackend->statvfs(req, svfs);
 }
-
 
 /* -------------------------------------------------------------------------- */
 uint64_t
@@ -2036,6 +1864,7 @@ metad::mdcommunicate()
   hb.mutable_heartbeat_()->set_host(zmq_clienthost);
   hb.mutable_heartbeat_()->set_uuid(zmq_clientuuid);
   hb.mutable_heartbeat_()->set_version(VERSION);
+  hb.mutable_heartbeat_()->set_protversion(hb.heartbeat_().PROTOCOLV1);
   hb.mutable_heartbeat_()->set_pid((int32_t) getpid());
   hb.mutable_heartbeat_()->set_starttime(time(NULL));
   hb.set_type(hb.HEARTBEAT);
@@ -2165,38 +1994,136 @@ metad::mdcommunicate()
                 }
               }
             }
-          }
-          else
-          {
             if (rsp.type() == rsp.MD)
             {
+              fuse_req_t req;
+              memset(&req, 0, sizeof(fuse_req_t));
               uint64_t md_ino = rsp.md_().md_ino();
               std::string authid = rsp.md_().authid();
               uint64_t ino = inomap.forward(md_ino);
 
-              eos_static_info("md-udpate: remote-ino=%lx ino=%lx authid=%s",
+              eos_static_info("md-update: remote-ino=%lx ino=%lx authid=%s",
                               md_ino, ino, authid.c_str());
               // we get this when a file update/flush appeared
               shared_md md;
               {
-                XrdSysMutexHelper mmLock(mdmap);
-                if (mdmap.count(ino))
+                bool create = true;
+                int64_t bookingsize=0;
+                uint64_t pino = 0;
+                std::string md_clientid;
+
                 {
-                  eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
-                  md = mdmap[ino];
-                  md->Locker().Lock();
+                  // MD update logic
+                  {
+                    XrdSysMutexHelper mmLock(mdmap);
+                    if (ino && mdmap.count(ino))
+                    {
+                      // updated file MD
+                      md = mdmap[ino];
+                      eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
+                      md->Locker().Lock();
+                      bookingsize = rsp.md_().size() - md->size();
+                      md_clientid = rsp.md_().clientid();
+                      *md = rsp.md_();
+                      md->clear_clientid();
+                      pino = md->pid();
+                      eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
+
+                      // update the local store
+                      update(req, md, authid, true);
+                      create = false;
+                    }
+                  }
+                  if (!create)
+                  {
+                    // adjust local quota
+                    cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
+                    if (cap->id())
+                    {
+                      if (bookingsize >= 0)
+                      {
+                        EosFuse::Instance().caps.book_volume(cap, (uint64_t) bookingsize);
+                      }
+                      else
+                      {
+                        EosFuse::Instance().caps.free_volume(cap, (uint64_t) - bookingsize);
+                      }
+                      EosFuse::instance().caps.book_inode(cap);
+                    }
+                    else
+                    {
+                      eos_static_err("missing quota node for pino=%16x and clientid=%s",
+                                     pino, md->clientid().c_str());
+                    }
+                  }
+                }
+
+                if (create)
+                {
+                  // new file
+                  md = md = std::make_shared<mdx>();
                   *md = rsp.md_();
-                  eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
-                  // we don't persist this one
+                  uint64_t new_ino = insert(req, md , authid);
+                  uint64_t md_pino = md->md_pino();
+                  std::string md_clientid= md->clientid();
+                  uint64_t md_size = md->size();
+
+                  // add to mdmap
+                  mdmap[new_ino] = md;
+                  // add to parent
+                  uint64_t pino = inomap.forward(md_pino);
+                  if (pino)
+                  {
+                    XrdSysMutexHelper mmLock(mdmap);
+                    shared_md pmd;
+                    if (mdmap.count(pino))
+                    {
+                      pmd = mdmap[pino];
+                      
+                      if (md->pt_mtime())
+                      {
+                        pmd->set_mtime(md->pt_mtime());
+                        pmd->set_mtime_ns(md->pt_mtime_ns());
+                      }
+                      md->clear_pt_mtime();
+                      md->clear_pt_mtime_ns();  
+                      add (pmd, md, authid, true);
+                      update(req, pmd, authid, true);
+                    }
+                    else
+                    {
+                      eos_static_err("missing parent meta-data pino=%16x for ino%16x",
+                                     md_pino,
+                                     md_ino);
+                    }
+                    // adjust local quota
+                    cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
+                    if (cap->id())
+                    {
+                      EosFuse::Instance().caps.book_volume(cap, md_size);
+                      EosFuse::instance().caps.book_inode(cap);
+                    }
+                    else
+                    {
+                      eos_static_err("missing quota node for pino=%16x and clientid=%s",
+                                     pino, md->clientid().c_str());
+                    }
+                  }
+                  else
+                  {
+                    eos_static_err("missing parent mapping pino=%16x for ino%16x",
+                                   md_pino,
+                                   md_ino);
+                  }
                 }
               }
             }
-            else
-            {
-              eos_static_err("unable to parse message");
-            }
           }
-          rc=rc;
+          else
+          {
+            eos_static_err("unable to parse message");
+          }
+          rc = rc;
           zmq_msg_close(&message);
         }
       }

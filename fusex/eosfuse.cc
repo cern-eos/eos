@@ -300,9 +300,16 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     {
       // Running as root ... we log into /var/log/eos/fuse                                                                                                                                                            
       std::string log_path = "/var/log/eos/fusex/fuse.";
-      if (getenv("EOS_FUSE_LOG_PREFIX"))
+      if (getenv("EOS_FUSE_LOG_PREFIX") || fsname.length())
       {
-        log_path += getenv("EOS_FUSE_LOG_PREFIX");
+        if (getenv("EOS_FUSE_LOG_PREFIX"))
+        {
+          log_path += getenv("EOS_FUSE_LOG_PREFIX");
+        }
+        else
+        {
+          log_path += fsname;
+        }
         if (!config.statfilepath.length()) config.statfilepath = log_path +
                 "." + config.statfilesuffix;
         log_path += ".log";
@@ -1034,6 +1041,11 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
             }
             if (!rc)
             {
+              ssize_t size_change = (int64_t) (attr->st_size) - (int64_t) md->size();
+              if (size_change > 0)
+                Instance().caps.book_volume(pcap, size_change);
+              else
+                Instance().caps.free_volume(pcap, size_change);
               md->set_size(attr->st_size);
             }
           }
@@ -1157,7 +1169,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   else
   {
     // retrieve md
-    metad::shared_md md = Instance().mds.get(req, ino, true);
+    metad::shared_md md = Instance().mds.get(req, ino, pcap->authid(), true);
 
     XrdSysMutexHelper mLock(md->Locker());
 
@@ -1241,7 +1253,7 @@ EBADF  Invalid directory stream descriptor fi->fh
       fuse_ino_t cino = it->second;
 
       eos_static_debug("list: %08x %s", cino, it->first.c_str());
-      metad::shared_md cmd = Instance().mds.get(req, cino, 0, 0, 0, true);
+      metad::shared_md cmd = Instance().mds.get(req, cino, "" , 0, 0, 0, true);
 
       mode_t mode = cmd->mode();
 
@@ -1426,7 +1438,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
     metad::shared_md md;
     metad::shared_md pmd;
     md = Instance().mds.lookup(req, parent, name);
-    pmd = Instance().mds.get(req, parent);
+    pmd = Instance().mds.get(req, parent, pcap->authid());
 
     {
       std::string implied_cid;
@@ -1613,7 +1625,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
       if (!rc)
       {
         freesize = md->size();
-        pmd = Instance().mds.get(req, parent);
+        pmd = Instance().mds.get(req, parent, pcap->authid());
         Instance().datas.unlink(req, md->id());
         Instance().mds.remove(pmd, md, pcap->authid());
       }
@@ -1751,7 +1763,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
 
       if (!rc)
       {
-        pmd = Instance().mds.get(req, parent);
+        pmd = Instance().mds.get(req, parent, pcap->authid());
         Instance().mds.remove(pmd, md, pcap->authid());
       }
     }
@@ -1820,8 +1832,8 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
     metad::shared_md p2md;
 
     md = Instance().mds.lookup(req, parent, name);
-    p1md = Instance().mds.get(req, parent);
-    p2md = Instance().mds.get(req, newparent);
+    p1md = Instance().mds.get(req, parent, p1cap->authid());
+    p2md = Instance().mds.get(req, newparent, p2cap->authid());
 
     {
       XrdSysMutexHelper mLock(md->Locker());
@@ -2135,7 +2147,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       metad::shared_md md;
       metad::shared_md pmd;
       md = Instance().mds.lookup(req, parent, name);
-      pmd = Instance().mds.get(req, parent);
+      pmd = Instance().mds.get(req, parent, pcap->authid());
 
       XrdSysMutexHelper mLock(md->Locker());
 
@@ -2635,7 +2647,8 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
       local_getxattr = true;
       metad::shared_md md;
 
-      md = Instance().mds.get(req, ino);
+      pcap = Instance().caps.get(req, ino);
+      md = Instance().mds.get(req, ino, pcap->authid());
       {
         XrdSysMutexHelper mLock(md->Locker());
         value = Instance().mds.dump_md(md);
@@ -3384,7 +3397,7 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
     metad::shared_md md;
     metad::shared_md pmd;
     md = Instance().mds.lookup(req, parent, name);
-    pmd = Instance().mds.get(req, parent);
+    pmd = Instance().mds.get(req, parent, pcap->authid());
 
     XrdSysMutexHelper mLock(md->Locker());
 
