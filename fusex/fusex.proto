@@ -45,6 +45,8 @@ message md {
   lock flock = 36; //< file lock information
   sfixed32 nchildren = 37; //< number of children
   string fullpath = 38; //< current path to file/dir
+  fixed64 pt_mtime = 39 ; //< modification time for the parent directory
+  fixed64 pt_mtime_ns= 40 ; //< ns of modification time for the parent directory
 };
 
 message md_map {
@@ -93,6 +95,8 @@ message cap_map {
 };
 
 message heartbeat {
+  enum ProtVersion { PROTOCOLV1 = 0; }
+
   string name = 1; //< client chosen ID	
   string host = 2; //< client host
   string uuid = 3; //< client uuid
@@ -102,7 +106,9 @@ message heartbeat {
   fixed64 clock = 7; //< client clock ns when sending
   fixed64 clock_ns = 8; //< client clock ns when sending
   double delta = 9; //< client delta after arrival
-  map<string, fixed32> authextension = 10; // < map of authids to extend lifetime by seconds 
+  ProtVersion protversion = 10;
+  map<string, fixed32> authextension = 11; // < map of authids to extend lifetime by seconds 
+  
 }
 
 message statistics {
