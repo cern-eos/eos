@@ -7,36 +7,38 @@ using namespace eos;
 using namespace eos::fst;
 
 int main(int argc, char* argv[]) {
-  if(argc < 2) {
-    cerr << "Usage: eos-fst-fmd-dbattr-convert <db directory>" << endl;
+  if(argc < 3) {
+    cerr << "Usage: eos-fst-fmd-dbattr-convert <md dictionary path> <db directory>" << endl;
     return -1;
   }
 
-  const auto dbPath = argv[1];
+  const auto dictPath = argv[1];
+  const auto dbPath = argv[2];
+
+  eos::common::ZStandard fmdCompressor;
+  fmdCompressor.setDicts(dictPath);
+  FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gFmdClient};
 
   std::vector<std::future<void>> futures;
   for(const auto& fsid : FmdDbMapHandler::GetFsidInMetaDir(dbPath)) {
     auto future = std::async(
       std::launch::async,
-      [&dbPath, fsid]() {
+      [&fmdAttributeHandler, &dbPath, fsid]() {
         XrdOucString dbfilename;
         FmdDbMapHandler fmdDbMapHandler;
         fmdDbMapHandler.CreateDBFileName(dbPath, dbfilename);
         fmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid);
         for(const auto& fmd : fmdDbMapHandler.RetrieveAllFmd()) {
-          gFmdAttributeHandler.FmdAttrSet(fmd, fmd.fid(), fmd.fsid(), nullptr);
+          fmdAttributeHandler.FmdAttrSet(fmd, fmd.fid(), fmd.fsid(), nullptr);
         }
       }
     );
-    futures.push_back(std::move(future));
+    futures.emplace_back(std::move(future));
   }
 
   for(auto&& future : futures) {
     future.get();
   }
-
-  cout << futures.size() << endl;
-  cout << FmdDbMapHandler::GetFsidInMetaDir("/home/jmakai/md").size() << endl;
 
   return 0;
 }
