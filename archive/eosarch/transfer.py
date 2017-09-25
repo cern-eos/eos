@@ -73,12 +73,12 @@ class ThreadJob(threading.Thread):
         for job in self.lst_jobs:
             # TODO: use the parallel mode starting with XRootD 4.1
             proc.add_job(job[0].encode("utf-8"), job[1].encode("utf-8"),
-                         force=True, thirdparty=True)
+                         force=True, thirdparty="only")
 
         self.xrd_status = proc.prepare()
 
         if self.xrd_status.ok:
-            self.xrd_status = proc.run()
+            self.xrd_status, __ = proc.run()
 
 
 class ThreadStatus(threading.Thread):
