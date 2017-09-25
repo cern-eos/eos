@@ -55,6 +55,7 @@ ProcCommand::FuseX ()
   XrdOucString sop    = pOpaque->Get("mgm.op") ? pOpaque->Get("mgm.op") : "GET";
   XrdOucString suuid  = pOpaque->Get("mgm.uuid") ? pOpaque->Get("mgm.uuid") : "";
   XrdOucString cid    = pOpaque->Get("mgm.cid") ? pOpaque->Get("mgm.cid") : "";
+  XrdOucString authid = pOpaque->Get("mgm.authid") ? pOpaque->Get("mgm.authid") : "";
 
   if (spath.length())
   {
@@ -75,7 +76,8 @@ ProcCommand::FuseX ()
 
   md.set_clientuuid(suuid.c_str());
   md.set_clientid(cid.c_str());
-
+  md.set_authid(authid.c_str());
+  
   errno = 0;
 
   if (spath.length())

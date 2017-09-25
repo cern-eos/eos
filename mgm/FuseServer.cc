@@ -88,6 +88,8 @@ FuseServer::Clients::MonitorHeartBeat()
   while (1)
   {
     client_uuid_t evictmap;
+    client_uuid_t evictversionmap;
+
     {
       XrdSysMutexHelper lLock(this);
 
@@ -113,6 +115,13 @@ FuseServer::Clients::MonitorHeartBeat()
         {
           it->second.set_state(Client::ONLINE);
         }
+
+        if (it->second.heartbeat().protversion() != it->second.heartbeat().PROTOCOLV1)
+        {
+          // protocol version mismatch, evict this client
+          evictversionmap[it->second.heartbeat().uuid()] = it->first;
+          it->second.set_state(Client::EVICTED);
+        }
       }
       // delete clients to be evicted
       for (auto it = evictmap.begin(); it != evictmap.end(); ++it)
@@ -121,6 +130,16 @@ FuseServer::Clients::MonitorHeartBeat()
         mUUIDView.erase(it->first);
       }
     }
+    // delete client ot be evicted because of a version mismatch
+    for (auto it = evictversionmap.begin(); it != evictversionmap.end(); ++it)
+    {
+      std::string versionerror = "Server supports only PROTOCOLV1";
+      std::string uuid = it->first;
+      Evict(uuid, versionerror);
+      mMap.erase(it->second);
+      mUUIDView.erase(it->first);
+    }
+
 
     gOFS->zMQ->gFuseServer.Flushs().expireFlush();
     sleeper.Snooze(1);
@@ -460,7 +479,10 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
 int
 FuseServer::Clients::SendMD( const eos::fusex::md &md,
                             const std::string& uuid,
-                            const std::string & clientid
+                            const std::string & clientid,
+                            uint64_t md_ino,
+                            uint64_t md_pino,
+                            struct timespec& p_mtime
                             )
 /*----------------------------------------------------------------------------*/
 {
@@ -469,6 +491,20 @@ FuseServer::Clients::SendMD( const eos::fusex::md &md,
   rsp.set_type(rsp.MD);
   *(rsp.mutable_md_()) = md;
   rsp.mutable_md_()->set_type(eos::fusex::md::MD);
+
+
+
+  // the client needs this to sort out the quota accounting using the cap map
+  rsp.mutable_md_()->set_clientid(clientid);
+
+  // when a file is created the inode is not yet written in the const md object
+  rsp.mutable_md_()->set_md_ino(md_ino);
+  rsp.mutable_md_()->set_md_pino(md_pino);
+  if (p_mtime.tv_sec)
+  {
+    rsp.mutable_md_()->set_pt_mtime(p_mtime.tv_sec);
+    rsp.mutable_md_()->set_pt_mtime_ns(p_mtime.tv_nsec);
+  }
 
   std::string rspstream;
   rsp.SerializeToString(&rspstream);
@@ -512,6 +548,7 @@ FuseServer::Caps::Store(const eos::fusex::cap &ecap, eos::common::Mapping::Virtu
   // fill the three views on caps
   mTimeOrderedCap.push_back(ecap.authid());
   mClientCaps[ecap.clientid()].insert(ecap.authid());
+  mClientInoCaps[ecap.clientid()].insert(ecap.id());
 
   shared_cap cap = std::make_shared<capx>();
   *cap = ecap;
@@ -555,6 +592,7 @@ FuseServer::Caps::Imply(uint64_t md_ino,
   // fill the three views on caps
   mTimeOrderedCap.push_back(implied_authid);
   mClientCaps[cap->clientid()].insert(implied_authid);
+  mClientInoCaps[cap->clientid()].insert(md_ino);
 
   mCaps[implied_authid] = implied_cap;
   mInodeCaps[md_ino].insert(implied_authid);
@@ -676,7 +714,10 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md & md)
 }
 
 int
-FuseServer::Caps::BroadcastMD(const eos::fusex::md & md)
+FuseServer::Caps::BroadcastMD(const eos::fusex::md & md,
+                              uint64_t md_ino,
+                              uint64_t md_pino,
+                              struct timespec& p_mtime)
 {
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
 
@@ -687,6 +728,8 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md & md)
                   refcap->clientid().c_str(),
                   refcap->clientuuid().c_str(),
                   refcap->authid().c_str());
+
+  std::set<std::string> clients_sent;
 
   if (mInodeCaps.count(refcap->id()))
   {
@@ -708,11 +751,19 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md & md)
       if (cap->clientid() == refcap->clientid())
         continue;
 
-      if (cap->id())
+
+      if (cap->id() && !clients_sent.count(cap->clientuuid()))
       {
         gOFS->zMQ->gFuseServer.Client().SendMD(md,
                                                cap->clientuuid(),
-                                               cap->clientid());
+                                               cap->clientid(),
+                                               md_ino,
+                                               md_pino,
+                                               p_mtime);
+
+        // make sure we sent the update only once to each client, eveh if this
+        // one has many caps
+        clients_sent.insert(cap->clientuuid());
       }
     }
   }
@@ -890,6 +941,7 @@ FuseServer::Caps::Delete(uint64_t md_ino
   if (!mInodeCaps.count(md_ino))
     return ENOENT;
 
+
   for (auto sit = mInodeCaps[md_ino].begin() ;
        sit != mInodeCaps[md_ino].end();
        ++sit)
@@ -903,8 +955,17 @@ FuseServer::Caps::Delete(uint64_t md_ino
       mTimeOrderedCap.erase(std::remove(mTimeOrderedCap.begin(), mTimeOrderedCap.end(),
                                         *sit), mTimeOrderedCap.end());
     }
-    mCaps.erase(*sit);
+    if (mCaps.count(*sit))
+    {
+      shared_cap cap = mCaps[*sit];
+      if (mClientInoCaps.count(cap->clientid()))
+      {
+        mClientInoCaps[cap->clientid()].erase(md_ino);
+      }
+      mCaps.erase(*sit);
+    }
   }
+
   // erase inode from the inode caps
   mInodeCaps.erase(md_ino);
   return 0;
@@ -1321,9 +1382,27 @@ bool
 FuseServer::FillContainerCAP(uint64_t id,
                              eos::fusex::md& dir,
                              eos::common::Mapping::VirtualIdentity * vid,
-                             std::string reuse_uuid)
+                             std::string reuse_uuid,
+                             bool issue_only_one)
 /*----------------------------------------------------------------------------*/
 {
+
+  if (issue_only_one)
+  {
+    eos_static_info("checking for id=%s", dir.clientid().c_str());
+    // check if the client has already a cap, in case yes, we don't return a new
+    // one 
+    XrdSysMutexHelper lock(Cap());
+    if (Cap().ClientInoCaps().count(dir.clientid()))
+    {
+      if (Cap().ClientInoCaps()[dir.clientid()].count(id))
+      {
+        return true;
+      }
+    }
+  }
+
+
   dir.mutable_capability()->set_id(id);
 
   eos_static_debug("container-id=%llx", id);
@@ -1509,13 +1588,13 @@ FuseServer::FillContainerCAP(uint64_t id,
     long long avail_bytes;
     long long avail_files;
     eos::ContainerMD::id_t quota_inode;
-    
+
     if (!Quota::QuotaByPath(space.c_str(),
                             dir.fullpath().c_str(),
                             dir.capability().uid(),
                             dir.capability().gid(),
                             avail_files,
-                            avail_bytes, 
+                            avail_bytes,
                             quota_inode))
     {
       dir.mutable_capability()->mutable__quota()->set_inode_quota(avail_files);
@@ -1733,7 +1812,7 @@ FuseServer::HandleMD(const std::string &id,
               // this is a directory
               FillContainerMD(it->second, *child_md);
               // get the capability
-              FillContainerCAP(it->second, *child_md, vid);
+              FillContainerCAP(it->second, *child_md, vid, "", true);
               child_md->clear_operation();
             }
           }
@@ -2051,6 +2130,8 @@ FuseServer::HandleMD(const std::string &id,
       uint64_t fid = eos::common::FileId::InodeToFid (md.md_ino());
       md_ino = md.md_ino();
 
+      uint64_t md_pino = md.md_pino();
+
       try
       {
         if (md.md_ino() && exclusive)
@@ -2171,6 +2252,22 @@ FuseServer::HandleMD(const std::string &id,
         fmd->setCTime(ctime);
         fmd->setMTime(mtime);
         fmd->clearAttributes();
+
+
+        struct timespec pt_mtime;
+        if (op != UPDATE)
+        {
+          // update the mtime
+          pcmd->setMTime(mtime);
+
+          pt_mtime.tv_sec = mtime.tv_sec;
+          pt_mtime.tv_nsec = mtime.tv_nsec;
+        }
+        else
+        {
+          pt_mtime.tv_sec = pt_mtime.tv_nsec = 0 ;
+        }
+
         for (auto map = md.attr().begin(); map != md.attr().end(); ++map)
         {
           fmd->setAttribute(map->first, map->second);
@@ -2182,6 +2279,11 @@ FuseServer::HandleMD(const std::string &id,
         fmd->setAttribute("sys.eos.btime", btime);
 
         gOFS->eosFileService->updateStore(fmd);
+        if (op != UPDATE)
+        {
+          // update the mtime
+          gOFS->eosDirectoryService->updateStore(pcmd);
+        }
 
         eos::fusex::response resp;
         resp.set_type(resp.ACK);
@@ -2196,7 +2298,7 @@ FuseServer::HandleMD(const std::string &id,
         case CREATE:
         case RENAME:
         case MOVE:
-          Cap().BroadcastMD(md);
+          Cap().BroadcastMD(md, md_ino, md_pino, pt_mtime);
           break;
         }
       }
@@ -2224,6 +2326,7 @@ FuseServer::HandleMD(const std::string &id,
 
       eos::FileMD* fmd = 0;
       eos::ContainerMD* pcmd = 0;
+      uint64_t md_pino = md.md_pino();
 
       try
       {
@@ -2267,7 +2370,16 @@ FuseServer::HandleMD(const std::string &id,
         snprintf(btime, sizeof (btime), "%lu.%lu", md.btime(), md.btime_ns());
         fmd->setAttribute("sys.eos.btime", btime);
 
+        struct timespec pt_mtime;
+
+        // update the mtime
+        pcmd->setMTime(mtime);
+
+        pt_mtime.tv_sec = mtime.tv_sec;
+        pt_mtime.tv_nsec = mtime.tv_nsec;
+
         gOFS->eosFileService->updateStore(fmd);
+        gOFS->eosDirectoryService->updateStore(pcmd);
 
         eos::fusex::response resp;
         resp.set_type(resp.ACK);
@@ -2276,7 +2388,8 @@ FuseServer::HandleMD(const std::string &id,
         resp.mutable_ack_()->set_md_ino(md_ino);
         resp.SerializeToString(response);
 
-        Cap().BroadcastRelease(md);
+        Cap().BroadcastMD(md, md_ino, md_pino, pt_mtime);
+        //Cap().BroadcastRelease(md);
       }
       catch ( eos::MDException &e )
       {
@@ -2350,7 +2463,7 @@ FuseServer::HandleMD(const std::string &id,
       if (S_ISREG(md.mode()))
       {
         eos_static_info("ino=%lx delete-file", (long) md.md_ino());
-        
+
         try
         {
           // handle quota        

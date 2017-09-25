@@ -162,7 +162,10 @@ public:
     // send MD after update
     int SendMD( const eos::fusex::md &md,
                const std::string& uuid,
-               const std::string& clientid
+               const std::string& clientid,
+               uint64_t md_ino,
+               uint64_t md_pino,
+               struct timespec& p_mtime
                );
 
     // drop caps of a given client
@@ -238,8 +241,10 @@ public:
     typedef std::string clientid_t;
     typedef std::pair<uint64_t, authid_t> ino_authid_t;
     typedef std::set<authid_t> authid_set_t;
+    typedef std::set<uint64_t> ino_set_t;
     typedef std::map<uint64_t, authid_set_t> notify_set_t; // inode=>set(authid_t)
     typedef std::map<clientid_t, authid_set_t> client_set_t;
+    typedef std::map<clientid_t, ino_set_t> client_ino_set_t;
 
     void pop()
     {
@@ -295,7 +300,11 @@ public:
 
     int BroadcastRelease(const eos::fusex::md &md); // broad cast triggered by fuse network
     int BroadcastReleaseFromExternal(uint64_t inode); // broad cast triggered non-fuse network
-    int BroadcastMD(const eos::fusex::md &md); // broad cast changed md around
+    int BroadcastMD(const eos::fusex::md &md,
+                    uint64_t md_ino,
+                    uint64_t md_pino,
+                    struct timespec& p_mtime
+                    ); // broad cast changed md around
     std::string Print(std::string option, std::string filter);
 
     std::map<authid_t, shared_cap>& GetCaps()
@@ -313,6 +322,11 @@ public:
       return mClientCaps;
     }
 
+    client_ino_set_t& ClientInoCaps()
+    {
+      return mClientInoCaps;
+    }
+
   protected:
     // -------------------------------------------------------------------------
     // a time ordered list pointing to caps
@@ -326,6 +340,11 @@ public:
     // clientid=>list of authid 
     // -------------------------------------------------------------------------
     client_set_t mClientCaps;
+
+    // -------------------------------------------------------------------------
+    // clientid=>list of inodes 
+    // -------------------------------------------------------------------------
+    client_ino_set_t mClientInoCaps;
 
     // -------------------------------------------------------------------------
     // inode=>authid_t 
@@ -346,7 +365,7 @@ public:
     }
 
     typedef shared_ptr<LockTracker> shared_locktracker;
-    
+
     typedef std::map<uint64_t, shared_locktracker > lockmap_t;
 
     shared_locktracker getLocks(uint64_t id);
@@ -374,7 +393,7 @@ public:
   public:
 
     static const int cFlushWindow=60;
-    
+
     Flush()
     {
     }
@@ -392,35 +411,39 @@ public:
     bool validateFlush(uint64_t id);
 
     void expireFlush();
-    
+
     void Print(std::string& out);
 
   private:
 
     typedef struct flush_info
     {
-      flush_info() : client("") , nref(0) {}
-      
+
+      flush_info() : client("") , nref(0)
+      {
+      }
+
       flush_info(std::string _client) : client(_client)
       {
         eos::common::Timing::GetTimeSpec(ftime);
         ftime.tv_sec += cFlushWindow;
         nref = 0;
       }
-      
+
       void Add(struct flush_info l)
       {
         ftime = l.ftime;
         nref++;
       }
+
       bool Remove(struct flush_info l)
       {
         nref--;
-        if (nref>0)
+        if (nref > 0)
           return false;
         return true;
       }
-      
+
       std::string client;
       struct timespec ftime;
       ssize_t nref;
@@ -450,14 +473,16 @@ public:
   {
     return mFlushs;
   }
-  
+
   void Print(std::string& out, std::string options="", bool monitoring=false);
 
   bool FillContainerMD(uint64_t id, eos::fusex::md& dir);
   bool FillFileMD(uint64_t id, eos::fusex::md& file);
   bool FillContainerCAP(uint64_t id, eos::fusex::md& md,
                         eos::common::Mapping::VirtualIdentity* vid,
-                        std::string reuse_uuid = "");
+                        std::string reuse_uuid = "",
+                        bool issue_only_one=false);
+
   Caps::shared_cap ValidateCAP(const eos::fusex::md& md, mode_t mode);
   uint64_t InodeFromCAP(const eos::fusex::md&);
 
