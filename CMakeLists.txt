@@ -104,6 +104,7 @@ add_subdirectory(mq)
 add_subdirectory(man)
 add_subdirectory(fuse)
 add_subdirectory(console)
+add_subdirectory(fusex)
 
 if (NOT CLIENT)
   add_subdirectory(mgm)
