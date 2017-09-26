@@ -39,6 +39,7 @@ BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: redhat-rpm-config
 BuildRequires: jsoncpp, jsoncpp-devel
 BuildRequires: protobuf, protobuf-devel, protobuf-compiler
+BuildRequires: hiredis, hiredis-devel
 
 %if %{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
@@ -49,8 +50,11 @@ BuildRequires: libcurl-devel libcurl, sparsehash-devel
 
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
 BuildRequires: zeromq3, zeromq3-devel
+BuildRequires: libevent2, libevent2-devel
+
 %else
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
+BuildRequires: libevent, libevent-devel
 %endif
 
 
