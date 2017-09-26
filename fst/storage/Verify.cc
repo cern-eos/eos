@@ -64,10 +64,12 @@ Storage::Verify ()
           if (gOFS.WOpenFid[verifyfile->fsId][verifyfile->fId] > 0)
           {
 	    time_t now = time(NULL);
+	    // Spit this message out only once pre minute
 	    if (open_w_out[verifyfile->fId] < now)
 	    {
-	      eos_static_warning("file is currently opened for writing id=%x on fs=%u - skipping verification", verifyfile->fId, verifyfile->fsId);
-	      // spit this message out only once pre minute
+	      eos_static_warning("file is currently opened for writing id=%x on "
+				 "fs=%u - skipping verification", verifyfile->fId,
+				 verifyfile->fsId);
 	      open_w_out[verifyfile->fId] = now + 60;
 	    }
             verifications.push(verifyfile);

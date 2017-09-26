@@ -500,6 +500,8 @@ XrdMqOfsFile::stat(struct stat *buf) {
 
   MAYREDIRECT;
 
+  gMqFS->Statistics();
+
   if (Out) {
     Out->DeletionSem.Wait();
     // this should be the case always ...

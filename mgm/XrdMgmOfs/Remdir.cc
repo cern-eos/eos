@@ -133,7 +133,7 @@ XrdMgmOfs::_remdir (const char *path,
   }
 
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  gOFS->eosViewRWMutex.LockWrite();
 
   std::string aclpath;
   try
@@ -158,6 +158,7 @@ XrdMgmOfs::_remdir (const char *path,
   if (!dh)
   {
     errno = ENOENT;
+    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, errno, "rmdir", path);
   }
    
@@ -171,7 +172,35 @@ XrdMgmOfs::_remdir (const char *path,
   if (vid.uid && !acl.IsMutable())
   {
     errno = EPERM;
+    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, EPERM, "rmdir - immutable", path);
+  }
+
+  if (ininfo) 
+  {
+    XrdOucEnv env_info(ininfo);
+    if (env_info.Get("mgm.option"))
+    {
+      XrdOucString option = env_info.Get("mgm.option");
+      if (option == "r")
+      {
+	// this is an recursive delete, need to unlock before calling the proc function
+	gOFS->eosViewRWMutex.UnLockWrite();
+
+	ProcCommand cmd;
+	XrdOucString info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
+	info += path;
+
+	cmd.open("/proc/user", info.c_str(), vid, &error);
+	cmd.close();
+	int rc = cmd.GetRetc();
+	if (rc)
+	{
+	  return Emsg(epname, error, rc, "rmdir", path);
+	}
+	return SFS_OK;
+      }
+    }
   }
 
   bool stdpermcheck = false;
@@ -186,6 +215,7 @@ XrdMgmOfs::_remdir (const char *path,
     {
       // deletion is explicitly forbidden
       errno = EPERM;
+      gOFS->eosViewRWMutex.UnLockWrite();
       return Emsg(epname, error, EPERM, "rmdir by ACL", path);
     }
 
@@ -211,6 +241,7 @@ XrdMgmOfs::_remdir (const char *path,
   if (!permok)
   {
     errno = EPERM;
+    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, errno, "rmdir", path);
   }
 
@@ -218,7 +249,8 @@ XrdMgmOfs::_remdir (const char *path,
   {
     errno = EADDRINUSE;
     eos_err("%s is a quota node - deletion canceled", path);
-    return Emsg(epname, error, errno, "rmdir", path);
+    gOFS->eosViewRWMutex.UnLockWrite();
+    return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
   }
 
   if (!simulate)
@@ -242,6 +274,7 @@ XrdMgmOfs::_remdir (const char *path,
                 e.getErrno(), e.getMessage().str().c_str());
     }
   }
+  gOFS->eosViewRWMutex.UnLockWrite();
 
   EXEC_TIMING_END("RmDir");
 

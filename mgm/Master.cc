@@ -813,7 +813,7 @@ Master::Compacting ()
         XrdSysMutexHelper lock(gOFS->InitializationMutex);
         gOFS->Initialized = XrdMgmOfs::kCompacting;
       }
-      eos_notice("msg=\"starting online compactificiation\"");
+      eos_notice("msg=\"starting online compactification\"");
 
       time_t now = time(NULL);
 

@@ -139,6 +139,8 @@
 #include <dirent.h>
 #include "auth_plugin/ProtoUtils.hh"
 #include "zmq.hpp"
+#include <chrono>
+#include <mutex>
 
 
 USE_EOSMGMNAMESPACE
@@ -1096,6 +1098,61 @@ public:
   unsigned int mFrontendPort; ///< frontend port number for incoming requests
   unsigned int mNumAuthThreads; ///< max number of auth worker threads
   zmq::context_t* mZmqContext; ///< ZMQ context for all the sockets
+
+  //! Autentication response time statistics
+  struct AuthStats {
+    std::int64_t mNumSamples;
+    std::int64_t mMax; ///< Max milliseconds
+    std::int64_t mMin; ///< Min milliseconds
+    double mVariance;
+    double mMean;
+  };
+
+  std::mutex mAuthStatsMutex; ///< Mutex protecting authenticaton stats
+  //! Map of operation types to duration
+  std::map<eos::auth::RequestProto_OperationType,
+	   std::list<std::int64_t> > mAuthSamples;
+  //! Map of operation types to aggregate info response times
+  std::chrono::system_clock::time_point mLastTimestamp;
+  std::map<eos::auth::RequestProto_OperationType, AuthStats>
+  mAuthAggregate;
+
+  //----------------------------------------------------------------------------
+  //! Collect statistics for authentication response times
+  //!
+  //! @param op operation type
+  //! @param duration request duration
+  //----------------------------------------------------------------------------
+  void AuthCollectInfo(eos::auth::RequestProto_OperationType op,
+		       std::int64_t ms_duration);
+
+  //----------------------------------------------------------------------------
+  //! Compute stats for the provided samples
+  //!
+  //! @param lst_samples list of samples
+  //!
+  //! @return statistics structure
+  //----------------------------------------------------------------------------
+  AuthStats AuthComputeStats(const std::list<std::int64_t>&
+			     lst_samples) const;
+
+
+  //----------------------------------------------------------------------------
+  //! Update aggregate info with the latest samples
+  //!
+  //! @param stats statistics structure to be updated
+  //! @param lst_samples list of samples
+  //----------------------------------------------------------------------------
+  void AuthUpdateAggregate(AuthStats& stats, const
+			   std::list<std::int64_t>& lst_samples) const;
+
+  //----------------------------------------------------------------------------
+  //! Print statistics about authentication performance - needs to be called
+  //! with the mutex lock
+  //!
+  //! @return statistics data
+  //----------------------------------------------------------------------------
+  std::string AuthPrintStatistics() const;
 
   //----------------------------------------------------------------------------
   // Class objects

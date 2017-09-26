@@ -685,12 +685,10 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   int dir_status = 0;
   size_t cnt = 0;
   struct dirbuf b;
-  struct dirbuf* tmp_buf;
   struct dirbuf* fh_buf;
   struct stat attr;
   
   b.size=0;
-  b.alloc_size=0;
   b.p=0;
 
   UPDATEPROCCACHE;
@@ -751,7 +749,7 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
       return;
     }
 
-  dir_status = me.fs ().dir_cache_get (ino, attr.MTIMESPEC, attr.CTIMESPEC, &tmp_buf);
+  dir_status = me.fs ().dir_cache_get (ino, attr.MTIMESPEC, attr.CTIMESPEC, &fh_buf);
 
   if (!dir_status)
   {
@@ -790,20 +788,17 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     }
 
 
-      //........................................................................
-      // Add directory to cache or update it
+    //........................................................................
+    // Add directory to cache or update it
     me.fs ().dir_cache_sync (ino, cnt, attr.MTIMESPEC, attr.CTIMESPEC, &b, me.config.attrcachetime*1000000000l);
-      //........................................................................
+    //........................................................................
 
     fh_buf = (struct dirbuf*) malloc(sizeof(dirbuf));
     fh_buf->p = (char*) calloc( b.size, sizeof ( char));
     fh_buf->p = (char*) memcpy (fh_buf->p, b.p, b.size);
     fh_buf->size = b.size;
-    fh_buf->alloc_size = b.size;
-      //........................................................................
     fi->fh = (uint64_t) fh_buf;
-      // Add the stat to the cache
-      //........................................................................
+    //........................................................................
     // Add the stat to the cache
     //........................................................................
     for (size_t i = 2; i < nstats; i++) // the two first ones are . and ..
@@ -820,22 +815,17 @@ EosFuse::opendir (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   }
   else
   {
-      //........................................................................
-    fh_buf = (struct dirbuf*) malloc(sizeof(dirbuf));
-    fh_buf->p = (char*) calloc( tmp_buf->size, sizeof ( char));
-    fh_buf->p = (char*) memcpy (fh_buf->p, tmp_buf->p, tmp_buf->size);
-    fh_buf->size = tmp_buf->size;
-    fh_buf->alloc_size = tmp_buf->size;
+    //........................................................................
     fi->fh = (uint64_t) fh_buf;
   }
-      //Get info from cache
+  //Get info from cache
   free (name);
-      //........................................................................
+  //........................................................................
   fuse_reply_open (req, fi);
 
   COMMONTIMING ("_stop_", &timing);
   eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
-    }
+}
 
 void
 EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fuse_file_info *fi)

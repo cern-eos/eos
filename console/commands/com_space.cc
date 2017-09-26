@@ -327,6 +327,12 @@ com_space_usage:
   fprintf(stdout, "       space config <space-name> space.geo.access.policy.write.exact=on|off   : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for write case ]\n");
   fprintf(stdout, "       space config <space-name> space.geo.access.policy.read.exact=on|off    : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for read case  ]\n");
   fprintf(stdout, "\n");
+  fprintf(stdout, "       space config <space-name> space.scheduler.min.weight=0.1 .. 1.0 [default=0.1]\n");
+  fprintf(stdout, "                                                                     : set the minimum probability to select an overloaded/full filesystem\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       space config <space-name> space.scheduler.skip.overloaded=on|off [default=off]\n");
+  fprintf(stdout, "                                                                     : enable to skip over network-out overloaded nodes during scheduling\n");
+  fprintf(stdout, "\n");
   fprintf(stdout, "       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       space define <space-name> [<groupsize> [<groupmod>]]          : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");

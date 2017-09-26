@@ -241,6 +241,9 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # EOS_FUSE_XRDBUGNULLRESPONSE_RETRYCOUNT=3
 # EOS_FUSE_XRDBUGNULLRESPONSE_RETRYSLEEPMS=1
 
+# Maximum number of retries in case a synchronous open fails. Default 100.
+# EOS_FUSE_OPEN_MAX_RETRIES=100
+
 # Set FUSE client creator CAP liftime
 #    During this time window all reads done on the client where a file has been created
 #    can be served from a local file write-back cache.

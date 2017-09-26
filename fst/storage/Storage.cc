@@ -384,14 +384,15 @@ Storage::Boot (FileSystem *fs)
     }
   }
 
-  gOFS.OpenFidMutex.Lock();
-  gOFS.ROpenFid.clear_deleted_key();
-  gOFS.ROpenFid[fsid].clear_deleted_key();
-  gOFS.WOpenFid[fsid].clear_deleted_key();
-  gOFS.ROpenFid.set_deleted_key(0);
-  gOFS.ROpenFid[fsid].set_deleted_key(0);
-  gOFS.WOpenFid[fsid].set_deleted_key(0);
-  gOFS.OpenFidMutex.UnLock();
+  {
+    XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
+    gOFS.ROpenFid[fsid].clear_deleted_key();
+    gOFS.ROpenFid[fsid].set_deleted_key(0);
+    gOFS.WOpenFid[fsid].clear_deleted_key();
+    gOFS.WOpenFid[fsid].set_deleted_key(0);
+    gOFS.WNoDeleteOnCloseFid[fsid].clear_deleted_key();
+    gOFS.WNoDeleteOnCloseFid[fsid].set_deleted_key(0);
+  }
 
   XrdOucString dbfilename;
   gFmdSqliteHandler.CreateDBFileName(metaDirectory.c_str(), dbfilename);

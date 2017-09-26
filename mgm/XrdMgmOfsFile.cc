@@ -276,7 +276,6 @@ XrdMgmOfsFile::open (const char *inpath,
 
       MAYREDIRECT_ENOENT;
       MAYSTALL_ENOENT;
-
       return Emsg(epname, error, ENOENT, "open - you specified a not existing inode number", path);
     }
   }
@@ -1363,11 +1362,9 @@ XrdMgmOfsFile::open (const char *inpath,
   bool isRecreation = false;
 
   // ---------------------------------------------------------------------------
-  if (isCreation || (!fmd->getNumLocation()) || isInjection)
+  // Place a new file
+  if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())) || isInjection)
   {
-    // -------------------------------------------------------------------------
-    // place a new file
-    // -------------------------------------------------------------------------
     const char* containertag = 0;
     if (attrmap.count("user.tag"))
     {
@@ -1390,11 +1387,7 @@ XrdMgmOfsFile::open (const char *inpath,
   }
   else
   {
-    // -------------------------------------------------------------------------
-    // access existing file
-    // -------------------------------------------------------------------------
-
-    // fill the vector with the existing locations
+    // Access existing file - fill the vector with the existing locations
     for (unsigned int i = 0; i < fmd->getNumLocation(); i++)
     {
       int loc = fmd->getLocation(i);
@@ -1415,7 +1408,7 @@ XrdMgmOfsFile::open (const char *inpath,
                                   unavailfs);
 
 
-    if ( (retc == ENONET) && (!fmd->getSize()) && (!bookingsize))
+    if ( (retc == ENETUNREACH) && (!fmd->getSize()) && (!bookingsize))
     {
       const char* containertag = 0;
       if (attrmap.count("user.tag"))
@@ -1449,17 +1442,16 @@ XrdMgmOfsFile::open (const char *inpath,
     // if we don't have quota we don't bounce the client back
     if ((retc != ENOSPC) && (retc != EDQUOT))
     {
-
       // check if we have a global redirect or stall for offline files
       MAYREDIRECT_ENONET;
       MAYSTALL_ENONET;
+      MAYREDIRECT_ENETUNREACH;
+      MAYSTALL_ENETUNREACH;
       
-      // ----------------------------------------------------------------------
-      // INLINE REPAIR
-      // - if files are less than 1GB we try to repair them inline - max. 3 time
-      // ----------------------------------------------------------------------
-      if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") && (fmd->getSize() < (1*1024*1024*1024)))
-      {
+      // INLINE REPAIR - if files are less than 1GB we try to repair them inline
+      // - max. 3 time
+      if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") &&
+	  (fmd->getSize() < (1*1024*1024*1024))) {
         int nmaxheal = 3;
 	if (attrmap.count("sys.heal.unavailable"))
 	  nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
@@ -1652,15 +1644,30 @@ XrdMgmOfsFile::open (const char *inpath,
     }
     else
     {
+      // Remove the created file from the namespace as root since somebody could
+      // have a no-delete ACL. Do this only if there are no replicas already
+      // attached to the file md entry. If there are, this means the current
+      // thread was blocked in scheduling and a retry of the client went
+      // through successfully. If we delete the entry we end up with data lost.
       if (isCreation)
       {
-        // ---------------------------------------------------------------------
-        // we will remove the created file in the namespace as root
-        // since somebody could have a no-delete ACL
-        // ---------------------------------------------------------------------
-        eos::common::Mapping::VirtualIdentity vidroot;
-        eos::common::Mapping::Root(vidroot);
-        gOFS->_rem(cPath.GetPath(), error, vidroot, 0, false, false, false);
+	bool do_remove = false;
+
+	try {
+	  eos::common::RWMutexReadLock rd_lock(gOFS->eosViewRWMutex);
+	  eos::FileMD* tmp_fmd = gOFS->eosView->getFile(path);
+
+	  if (tmp_fmd->getNumLocation() == 0) {
+	    do_remove = true;
+	  }
+	}
+	catch (eos::MDException &e) {}
+
+	if (do_remove) {
+	  eos::common::Mapping::VirtualIdentity vidroot;
+	  eos::common::Mapping::Root(vidroot);
+	  gOFS->_rem(cPath.GetPath(), error, vidroot, 0, false, false, false);
+	}
       }
 
       gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
@@ -1818,20 +1825,19 @@ XrdMgmOfsFile::open (const char *inpath,
       }
     }
   }
-  // ---------------------------------------------------------------------------
-  // get the redirection host from the selected entry in the vector
-  // ---------------------------------------------------------------------------
-  if (!selectedfs[fsIndex])
-  {
+
+  // Get the redirection host from the selected entry in the vector
+  if (!selectedfs[fsIndex]) {
     eos_err("0 filesystem in selection");
-    return Emsg(epname, error, ENONET, "received filesystem id 0", path);
+    return Emsg(epname, error, ENETUNREACH, "received filesystem id 0", path);
   }
 
-  if (FsView::gFsView.mIdView.count(selectedfs[fsIndex]))
+  if (FsView::gFsView.mIdView.count(selectedfs[fsIndex])) {
     filesystem = FsView::gFsView.mIdView[selectedfs[fsIndex]];
-  else
-    return Emsg(epname, error, ENONET,
+  } else {
+    return Emsg(epname, error, ENETUNREACH,
                 "received non-existent filesystem", path);
+  }
 
   // Set the FST gateway if this is available otherwise the actual FST but do
   // this only for clients who are geotagged with default

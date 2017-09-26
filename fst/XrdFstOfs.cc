@@ -112,23 +112,19 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs () :
-eos::common::LogId ()
+  eos::common::LogId ()
 {
   Eroute = 0;
   Messaging = 0;
   Storage = 0;
   TransferScheduler = 0;
-  if (!getenv("EOS_NO_SHUTDOWN")) 
-  {
-    //-------------------------------------------
-    // add Shutdown handler
-    //-------------------------------------------
+
+  if (!getenv("EOS_NO_SHUTDOWN")) {
+    // Add Shutdown handler
     (void) signal(SIGINT, xrdfstofs_shutdown);
     (void) signal(SIGTERM, xrdfstofs_shutdown);
     (void) signal(SIGQUIT, xrdfstofs_shutdown);
-    //-------------------------------------------
-    // add SEGV handler
-    //-------------------------------------------
+    // Add SEGV handler
     (void) signal(SIGSEGV, xrdfstofs_stacktrace);
     (void) signal(SIGABRT, xrdfstofs_stacktrace);
     (void) signal(SIGBUS, xrdfstofs_stacktrace);
@@ -137,6 +133,14 @@ eos::common::LogId ()
   TpcMap.resize(2);
   TpcMap[0].set_deleted_key(""); // readers
   TpcMap[1].set_deleted_key(""); // writers
+
+  // Initialize the google sparse hash maps
+  gOFS.ROpenFid.clear_deleted_key();
+  gOFS.ROpenFid.set_deleted_key(0);
+  gOFS.WOpenFid.clear_deleted_key();
+  gOFS.WOpenFid.set_deleted_key(0);
+  gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
+  gOFS.WNoDeleteOnCloseFid.set_deleted_key(0);
 }
 
 
@@ -1022,16 +1026,16 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
 
           for (fit = icit->second.begin(); fit != icit->second.end(); fit++)
           {
-            // don't report files which are currently write-open
-            XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+	    {
+	      // Don't report files which are currently write-open
+	      XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
 
-            if (gOFS.WOpenFid[fsid].count(*fit))
-            {
-              if (gOFS.WOpenFid[fsid][*fit] > 0)
-              {
-                continue;
-              }
-            }
+	      if (gOFS.WOpenFid[fsid].count(*fit)) {
+		if (gOFS.WOpenFid[fsid][*fit] > 0) {
+		  continue;
+		}
+	      }
+	    }
 
             // loop over all fids
             char sfid[4096];
@@ -1439,29 +1443,28 @@ void
 XrdFstOfs::OpenFidString (unsigned long fsid, XrdOucString& outstring)
 {
   outstring = "";
-  OpenFidMutex.Lock();
-  google::sparse_hash_map<unsigned long long, unsigned int>::const_iterator idit;
   int nopen = 0;
+  google::sparse_hash_map<unsigned long long, unsigned int>::const_iterator idit;
+  XrdSysMutexHelper scope_lock(OpenFidMutex);
 
-  for (idit = ROpenFid[fsid].begin(); idit != ROpenFid[fsid].end(); ++idit)
-  {
-    if (idit->second > 0)
+  for (idit = ROpenFid[fsid].begin(); idit != ROpenFid[fsid].end(); ++idit) {
+    if (idit->second > 0) {
       nopen += idit->second;
+    }
   }
 
   outstring += "&statfs.ropen=";
   outstring += nopen;
   nopen = 0;
 
-  for (idit = WOpenFid[fsid].begin(); idit != WOpenFid[fsid].end(); ++idit)
-  {
-    if (idit->second > 0)
+  for (idit = WOpenFid[fsid].begin(); idit != WOpenFid[fsid].end(); ++idit) {
+    if (idit->second > 0) {
       nopen += idit->second;
+    }
   }
 
   outstring += "&statfs.wopen=";
   outstring += nopen;
-  OpenFidMutex.UnLock();
 }
 
 int

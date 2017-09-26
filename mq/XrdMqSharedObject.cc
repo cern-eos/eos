@@ -495,39 +495,43 @@ XrdMqSharedObjectManager::ParseEnvMessage (XrdMqMessage* message, XrdOucString &
     ftag += "=";
     ftag += env.Get(XRDMQSHAREDHASH_CMD);
 
-    if (subjectlist.size() > 0)
+    if (subjectlist.size() > 0) {
       sh = GetObject(subjectlist[0].c_str(), type.c_str());
+    }
 
-    if ((ftag == XRDMQSHAREDHASH_BCREQUEST) || (ftag == XRDMQSHAREDHASH_DELETE) || (ftag == XRDMQSHAREDHASH_REMOVE))
-    {
+    if ((ftag == XRDMQSHAREDHASH_BCREQUEST) || (ftag == XRDMQSHAREDHASH_DELETE) ||
+	(ftag == XRDMQSHAREDHASH_REMOVE)) {
       // if we don't know the subject, we don't create it with a BCREQUEST
-      if ((ftag == XRDMQSHAREDHASH_BCREQUEST) && (reply == ""))
-      {
-        HashMutex.UnLockRead();
-        error = "bcrequest: no reply address present";
-        return false;
+      if ((ftag == XRDMQSHAREDHASH_BCREQUEST) && (reply == "")) {
+	HashMutex.UnLockRead();
+	error = "bcrequest: no reply address present";
+	return false;
       }
 
-      if (!sh)
-      {
-        if (ftag == XRDMQSHAREDHASH_BCREQUEST)
-        {
-          error = "bcrequest: don't know this subject";
-        }
-        if (ftag == XRDMQSHAREDHASH_DELETE)
-        {
-          error = "delete: don't know this subject";
-        }
-        if (ftag == XRDMQSHAREDHASH_REMOVE)
-        {
-          error = "remove: don't know this subject";
-        }
-        HashMutex.UnLockRead();
-        return false;
-      }
-      else
-      {
-        HashMutex.UnLockRead();
+      if (!sh) {
+	if (ftag == XRDMQSHAREDHASH_BCREQUEST) {
+	  error = "bcrequest: don't know this subject";
+	}
+
+	if (ftag == XRDMQSHAREDHASH_DELETE) {
+	  error = "delete: don't know this subject";
+
+	  if (subjectlist.size() > 0) {
+	    error += subjectlist[0].c_str();
+	  }
+	}
+
+	if (ftag == XRDMQSHAREDHASH_REMOVE) {
+	  error = "remove: don't know this subject";
+
+	  if (subjectlist.size() > 0) {
+	    error += subjectlist[0].c_str();
+	  }
+	}
+	HashMutex.UnLockRead();
+	return false;
+      } else {
+	HashMutex.UnLockRead();
       }
     }
     else

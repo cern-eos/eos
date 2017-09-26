@@ -352,13 +352,16 @@ ProcCommand::Space ()
                 (key == "geobalancer.threshold") ||
 		(key == "geo.access.policy.read.exact") ||
 		(key == "geo.access.policy.write.exact") ||
+		(key == "scheduler.skip.overloaded") ||
+		(key == "scheduler.min.weight") ||
                 (key == "balancer.threshold"))
             {
               if ((key == "balancer") || (key == "converter") ||
                   (key == "autorepair") || (key == "lru") ||
                   (key == "groupbalancer") || (key == "geobalancer") ||
 		  (key == "geo.access.policy.read.exact") ||
-		  (key == "geo.access.policy.write.exact"))
+		  (key == "geo.access.policy.write.exact") ||
+		  (key == "scheduler.skip.overloaded"))
               {
                 if ((value != "on") && (value != "off"))
                 {
@@ -423,6 +426,13 @@ ProcCommand::Space ()
                       else
                         stdOut += "success: geo access policy prefers with a weight the geo matching replica for placements!";
                     }
+		    if (key == "scheduler.skip.overloaded")
+		    {
+                      if (value == "on")
+                        stdOut += "success: scheduler skips overloaded eth-out nodes!";
+                      else
+                        stdOut += "success: scheduler does not skip overloaded eth-out nodes!";
+		    }
                   }
                 }
               }
@@ -434,7 +444,8 @@ ProcCommand::Space ()
                 {
                   if ((key != "balancer.threshold") &&
                       (key != "groupbalancer.threshold") &&
-                      (key != "geobalancer.threshold"))
+                      (key != "geobalancer.threshold") &&
+		      (key != "scheduler.min.weight"))
                   {
                     // the threshold is allowed to be decimal!
                     char ssize[1024];

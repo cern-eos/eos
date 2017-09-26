@@ -259,11 +259,14 @@ ScanDir::CheckFile (const char* filepath)
     eos::common::Path cPath(filePath.c_str());
     eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
     
-    // check if somebody is still writing on that file and skip in that case
+    // Check if somebody is still writing on that file and skip in that case
     XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+
     if (gOFS.WOpenFid[fsId].count(fid)) {
-      syslog(LOG_ERR, "skipping scan w-open file: localpath=%s fsid=%d fid=%x\n", filePath.c_str(), (int)fid, fsId);
-      eos_warning("skipping scan of w-open file: localpath=%s fsid=%d fid=%x", filePath.c_str(), (int)fid, fsId);
+      syslog(LOG_ERR, "skipping scan w-open file: localpath=%s fsid=%d fid=%x\n",
+	     filePath.c_str(), (int)fid, fsId);
+      eos_warning("skipping scan of w-open file: localpath=%s fsid=%d fid=%x",
+		  filePath.c_str(), (int)fid, fsId);
       return;
     }
   }
@@ -306,11 +309,12 @@ ScanDir::CheckFile (const char* filepath)
 	    eos::common::Path cPath(filePath.c_str());
 	    eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
 	    
-	    // check if somebody is again writing on that file and skip in that case
+	    // Check if somebody is again writing on that file and skip in that case
 	    XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
-	    if (gOFS.WOpenFid[fsId].count(fid)) 
-	    {
-	      eos_err("file %s has been reopened for update during the scan ... ignoring checksum error", filePath.c_str());
+
+	    if (gOFS.WOpenFid[fsId].count(fid)) {
+	      eos_err("file %s has been reopened for update during the scan ... "
+		      "ignoring checksum error", filePath.c_str());
 	      reopened = true;
 	    }
 	  }

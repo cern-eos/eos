@@ -367,7 +367,15 @@ Recycle::Recycler ()
                       for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
                       {
                         std::string fspath = rfoundit->first;
-                        fspath += *fileit;
+			std::string fname = *fileit;
+			size_t lpos;
+			if ( (lpos = fname.find(" -> ")) != std::string::npos)
+			{
+			  // rewrite link name
+			  fname.erase(lpos);
+			}
+                        fspath += fname;
+
                         if (gOFS->_rem(fspath.c_str(), lError, rootvid, (const char*) 0))
                         {
                           eos_static_err("msg=\"unable to remove file\" path=%s", fspath.c_str());
@@ -389,6 +397,7 @@ Recycle::Recycler ()
                       std::string fspath = rfoundit->first.c_str();
                       if (fspath == "/")
                         continue;
+		      
                       if (gOFS->_remdir(rfoundit->first.c_str(), lError, rootvid, (const char*) 0))
                       {
                         eos_static_err("msg=\"unable to remove directory\" path=%s", fspath.c_str());
@@ -421,6 +430,8 @@ Recycle::Recycler ()
                 // this entry has still to be kept
                 //...............................................................
 
+		eos_static_info("oldest entry: %lld sec to deletion", it->first+lKeepTime - now);
+
 		if (!snoozetime)
 		{
 		  // define the sleep period from the oldest entry
@@ -443,7 +454,8 @@ Recycle::Recycler ()
 		    snoozetime = lKeepTime;
 		  }
 		}
-                it++;
+		// we can leave the loop because all other entries don't match anymore the time constraint
+                break;
               }
             }
 	    if (!snoozetime)
