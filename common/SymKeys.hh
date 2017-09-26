@@ -111,6 +111,16 @@ public:
 //----------------------------------------------------------------------------
   static bool Base64Encode(char* in, unsigned int inlen, XrdOucString& out);
 
+  static bool Base64Encode (char* in, unsigned int inlen, std::string &out)
+  {
+    XrdOucString uout="";
+    bool rc = Base64Encode(in, inlen, uout);
+    if (rc)
+    {
+      out = uout.c_str();
+    }
+    return rc;
+  }
 
 //----------------------------------------------------------------------------
 //! Base64 decode a string
@@ -122,10 +132,14 @@ public:
 //----------------------------------------------------------------------------
   static bool DeBase64(XrdOucString& in, XrdOucString& out);
 
+  static bool DeBase64 (std::string &in, std::string &out);
+
 //----------------------------------------------------------------------------
 //! Encode a base64: prefixed string
 //----------------------------------------------------------------------------
   static bool Base64(XrdOucString& in, XrdOucString& out);
+
+  static bool Base64 (std::string &in, std::string &out);
 
 //----------------------------------------------------------------------------
 //!
