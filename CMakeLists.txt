@@ -54,6 +54,7 @@ EOS_DefineOperatingSystem()
 # Search for dependencies
 #-------------------------------------------------------------------------------
 set(PACKAGEONLY CACHE BOOL false)
+set(FUSEXCLIENT CACHE BOOL false)
 
 if (NOT PACKAGEONLY)
   find_package(PythonSitePkg REQUIRED)
@@ -183,7 +184,9 @@ else()
   add_subdirectory (etc)
   add_subdirectory (sync)
   add_subdirectory (fuse)
+if (FUSEXCLIENT)
   add_subdirectory (fusex)
+endif()
   add_subdirectory (srm)
   add_subdirectory (var)
   add_subdirectory (sbin)
