@@ -38,7 +38,7 @@ BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: redhat-rpm-config
 BuildRequires: jsoncpp, jsoncpp-devel
-BuildRequires: protobuf, protobuf-devel, protobuf-compiler
+BuildRequires: protobuf3, protobuf3-devel, protobuf3-compiler
 BuildRequires: hiredis, hiredis-devel
 
 %if %{distribution} == 5
@@ -88,7 +88,7 @@ Requires: zeromq3
 %else
 Requires: zeromq
 %endif
-Requires: protobuf
+Requires: protobuf3
 Requires: jemalloc
 Requires: jsoncpp
 
@@ -223,7 +223,7 @@ Summary: The EOS shell client
 Group: Applications/File
 
 Requires: xrootd-client
-Requires: protobuf
+Requires: protobuf3
 
 %description -n eos-client
 The EOS shell client.
