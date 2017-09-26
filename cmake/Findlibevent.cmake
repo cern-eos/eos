@@ -1,4 +1,4 @@
-ls# Try to find libevent
+# Try to find libevent
 # Once done, this will define
 #
 # LIBEVENT_FOUND        - system has libevent
