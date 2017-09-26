@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.270 Aquamarine``
+=======================
+
+New Features
+============
+
+- MGM: add the 'eos fusex' interface and new FUSE client server side support (beta status - be carefule with this version)
+- FUSEX: added new FUSE client submodule (beta status) (see README in submodule)
+
 ``V0.3.268 Aquamarine``
 =======================
 
