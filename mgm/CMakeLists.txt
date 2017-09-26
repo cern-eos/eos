@@ -44,7 +44,7 @@ link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
-PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER PROTOFILES fusex.proto )
+PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER fusex.proto )
 
 set_source_files_properties(
         ${PROTO_SRC} ${PROTO_HEADER}
