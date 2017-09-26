@@ -323,6 +323,7 @@ GroupBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid
   eos::FileMD* fmd = 0;
   eos::common::LayoutId::layoutid_t layoutid = 0;
   eos::common::FileId::fileid_t fileid = 0;
+  XrdOucString fileURI;
 
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -337,18 +338,18 @@ GroupBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid
 
       if (size)
 	*size = fmd->getSize();
+
+      fileURI = gOFS->eosView->getUri(fmd).c_str();
+      if (fileURI.beginswith(gOFS->MgmProcPath.c_str()))
+      {
+	// don't touch files in any ../proc/ directory
+	return std::string("");
+      }
     }
     catch (eos::MDException &e)
     {
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
 		       e.getMessage().str().c_str());
-      return std::string("");
-    }
-
-    XrdOucString fileURI = gOFS->eosView->getUri(fmd).c_str();
-    if (fileURI.beginswith(gOFS->MgmProcPath.c_str()))
-    {
-      // don't touch files in any ../proc/ directory
       return std::string("");
     }
 
