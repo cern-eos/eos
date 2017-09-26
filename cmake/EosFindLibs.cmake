@@ -55,6 +55,7 @@ if(NOT PACKAGEONLY)
   find_package(Sphinx)
   find_package(kineticio COMPONENTS headers)
   find_package(SparseHash REQUIRED)
+  find_package(libevent REQUIRED)
 
   if (Linux)
     find_package(Protobuf3 REQUIRED)
