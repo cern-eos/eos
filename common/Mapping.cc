@@ -48,7 +48,7 @@ Mapping::GroupRoleMap_t Mapping::gGroupRoleVector;
 Mapping::VirtualUserMap_t Mapping::gVirtualUidMap;
 Mapping::VirtualGroupMap_t Mapping::gVirtualGidMap;
 Mapping::SudoerMap_t Mapping::gSudoerMap;
-bool Mapping::gRootSquash = false;
+bool Mapping::gRootSquash = true;
 
 Mapping::GeoLocationMap_t Mapping::gGeoMap;
 
@@ -81,6 +81,12 @@ Mapping::Init ()
 {
   ActiveTidents.set_empty_key("");
   ActiveTidents.set_deleted_key("#__DELETED__#");
+
+  // allow FUSE client access as root via env variable
+  if (getenv("EOS_FUSE_NO_ROOT_SQUASH") && !strcmp("1", getenv("EOS_FUSE_NO_ROOT_SQUASH")))
+  {
+    gRootSquash = false;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
