@@ -608,6 +608,15 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
+   * Return a random generated uuid
+   * @return uuid string
+   */
+  // ---------------------------------------------------------------------------
+  static std::string
+  random_uuidstring();
+  
+  // ---------------------------------------------------------------------------
+  /**
    * Sort lines alphabetically in-place
    * @param data input data
    */
