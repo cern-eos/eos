@@ -101,7 +101,7 @@ public:
 
       try
       {
-        zmq::proxy(frontend_, backend_, nullptr);
+        zmq::proxy((void*)(const void*)(frontend_), (void*)(const void*)(backend_), (void*)nullptr);
       }
       catch (std::exception &e)
       {
