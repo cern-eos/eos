@@ -40,6 +40,7 @@ BuildRequires: redhat-rpm-config
 BuildRequires: jsoncpp, jsoncpp-devel
 BuildRequires: protobuf3, protobuf3-devel, protobuf3-compiler
 BuildRequires: hiredis, hiredis-devel
+BuildRequires: jemalloc, jemalloc-devel
 
 %if %{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
