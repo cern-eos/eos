@@ -24,6 +24,7 @@
 install(DIRECTORY DESTINATION /var/eos)
 install(DIRECTORY DESTINATION /var/log/eos)
 install(DIRECTORY DESTINATION /var/log/eos/fuse)
+install(DIRECTORY DESTINATION /var/log/eos/fusex)
 install(DIRECTORY DESTINATION /var/www/eos/cgi-bin)
 install(DIRECTORY DESTINATION /var/log/eos/httpd/)
 install(DIRECTORY DESTINATION /var/log/eos/tx)
