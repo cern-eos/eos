@@ -62,7 +62,7 @@ if (CLIENT)
   set(BUILD_QUARKDB_NAMESPACE OFF)
 endif ()
 
-set(EOS_CXX_DEFINE "-DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"")
+set(EOS_CXX_DEFINE "-DEOSCITRINE -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP11_FLAG} -msse4.2 -Wall")
 
 # Temporary fix for clang 3.4 compile errors
