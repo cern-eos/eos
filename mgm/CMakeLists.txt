@@ -45,7 +45,7 @@ endif()
 # XrdEosMgm-Objects library
 #-------------------------------------------------------------------------------
 set(QDB_CLIENT "")
-if (HIREDIS_FOUND)
+if (BUILD_QUARKDB_NAMESPACE)
   set(QDB_CLIENT ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 endif()
 
@@ -196,7 +196,7 @@ target_link_libraries(
   ${JSONCPP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
-if (HIREDIS_FOUND)
+if (BUILD_QUARKDB_NAMESPACE)
 target_link_libraries(
   XrdEosMgm PUBLIC
   qclient)
@@ -247,7 +247,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------
-if(CPPUNIT_FOUND AND HIREDIS_FOUND AND Linux)
+if(CPPUNIT_FOUND AND BUILD_QUARKDB_NAMESPACE AND Linux)
   add_library(XrdEosMgm-Static STATIC $<TARGET_OBJECTS:XrdEosMgm-Objects> )
 
   target_compile_definitions(
