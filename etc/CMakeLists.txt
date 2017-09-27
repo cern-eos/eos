@@ -26,4 +26,4 @@ INSTALL ( FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync xrd.cf.fed xrd.cf.pr
 INSTALL ( FILES rc.d/init.d/eos rc.d/init.d/eosha rc.d/init.d/eosslave rc.d/init.d/eossync rc.d/init.d/eosd DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 INSTALL ( FILES sysconfig/eos.example sysconfig/xrootd.example DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/ )
 INSTALL ( FILES cron.d/eos-logs cron.d/eos-reports cron.d/eos-config DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cron.d/ )
-INSTALL ( FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/ )
+INSTALL ( FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs logrotate.d/eos-fusex-logs DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/ )
