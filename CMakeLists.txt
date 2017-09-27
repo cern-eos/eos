@@ -42,6 +42,7 @@ endif()
 
 project (eos)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+option(BUILD_QUARKDB_NAMESPACE "Build the quarkdb namespace" ON)
 
 #-------------------------------------------------------------------------------
 # Include some generic functions and compiler definition parameters
@@ -52,12 +53,13 @@ endif ()
 
 include(EosUtils)
 EOS_CheckOutOfSourceBuild()
-EOS_GetUidGid("daemon" "DAEMONUID" "DAEMONGID")	 
+EOS_GetUidGid("daemon" "DAEMONUID" "DAEMONGID")
 EOS_GetVersion("${VERSION_MAJOR}" "${VERSION_MINOR}" "${VERSION_PATCH}" "${RELEASE}")
 include(EosOSDefaults)
 
 if (CLIENT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCLIENT_ONLY=1")
+  set(BUILD_QUARKDB_NAMESPACE OFF)
 endif ()
 
 set(EOS_CXX_DEFINE "-DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"")
@@ -159,9 +161,9 @@ add_custom_command(
   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
   "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
 
-# we get a local version of the kineticio dist so that it is embedded in the srpm because 
-# it is not always possible to download it from the machine doing the build 
-file(DOWNLOAD ${KINETICIO_URL} "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" 
+# we get a local version of the kineticio dist so that it is embedded in the srpm because
+# it is not always possible to download it from the machine doing the build
+file(DOWNLOAD ${KINETICIO_URL} "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz"
   SHOW_PROGRESS
   EXPECTED_MD5 "${KINETICIO_URL_MD5}")
 

@@ -122,6 +122,6 @@ endif()
 add_subdirectory(ns_in_memory)
 
 # Build EosNsQuarkdb only if hiredis is available
-if (HIREDIS_FOUND)
+if (BUILD_QUARKDB_NAMESPACE)
   add_subdirectory(ns_quarkdb)
 endif()
