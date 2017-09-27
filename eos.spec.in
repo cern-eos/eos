@@ -247,18 +247,19 @@ The EOS shell client.
 #-------------------------------------------------------------------------------
 # Package eos-fuse
 #-------------------------------------------------------------------------------
-%package -n eos-fuse
-Summary: The EOS fuse client with init.d and mount script
+%package -n eos-fusex
+Summary: The new EOS fuse client 
 Group: Applications/File
 
-Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
-Requires: eos-fuse-sysv = @CPACK_PACKAGE_VERSION@
+Requires: eos-fusex-core = @CPACK_PACKAGE_VERSION@
 
-%description -n eos-fuse
-The EOS fuse client bundle.
+%description -n eos-fusex
+The new EOS fuse client bundle.
 
-%files -n eos-fuse
+%files -n eos-fusex
 %defattr(-, root, root, -)
+
+
 
 #-------------------------------------------------------------------------------
 # Package eos-fuse-core
@@ -338,6 +339,59 @@ echo "d /run/eosd 755 root root" > /usr/lib/tmpfiles.d/eosd.conf
 echo "d /run/eosd/credentials 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
 echo "d /run/eosd/credentials/store 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
 %endif
+fi
+
+#-------------------------------------------------------------------------------
+# Package eos-fusex-core
+#-------------------------------------------------------------------------------
+%package -n eos-fusex-core
+Summary: The new EOS fuse client
+Group: Applications/File
+
+Requires: xrootd-client
+Requires: eos-client
+Requires: fuse
+Requires: jemalloc
+
+%description -n eos-fusex-core
+The EOS fuse core containing eosxd.
+
+%files -n eos-fusex-core
+%defattr(-, root, root, -)
+%{_bindir}/eosxd
+/usr/share/selinux/targeted/eosfuse.pp
+/usr/share/selinux/mls/eosfuse.pp
+/usr/share/selinux/strict/eosfuse.pp
+%{_sysconfdir}/logrotate.d/eos-fusex-logs
+%attr(755,daemon,daemon) /var/log/eos/
+%attr(755,daemon,daemon) /var/log/eos/fusex/
+
+%if 0%{distribution} == 5 || 0%{distribution} == 6
+%config(noreplace) %{_sysconfdir}/fuse.conf
+%{_sysconfdir}/fuse.conf.eos
+%else
+%{_sysconfdir}/fuse.conf.eos
+%endif
+
+%post -n eos-fusex-core
+for variant in mls strict targeted
+do
+  /usr/sbin/semodule -s $variant -i \
+  /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
+done
+
+%preun -n eos-fusex-core
+if [ $1 = 0 ] ; then
+  for variant in mls strict targeted ; do
+    /usr/sbin/semodule -s $variant -r eosfuse &> /dev/null || :
+  done
+fi
+
+%postun -n eos-fusex-core
+if [ $1 -eq 0 ]; then
+  for variant in mls strict targeted ; do
+    /usr/sbin/semodule -u /usr/share/selinux/$variant/eosfuse.pp || :
+  done
 fi
 
 #-------------------------------------------------------------------------------
