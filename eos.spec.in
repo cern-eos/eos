@@ -62,6 +62,7 @@ BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
 BuildRequires: jsoncpp, jsoncpp-devel
 BuildRequires: hiredis-devel
+BuildRequires: jemalloc, jemalloc-devel
 
 %if %{?_with_server:1}%{!?_with_server:0}
 BuildRequires: openldap-devel
