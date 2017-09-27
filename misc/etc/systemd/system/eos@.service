@@ -22,6 +22,9 @@
 # ************************************************************************
 [Unit]
 Description=EOS %i
+After=network-online.target local-fs.target
+Wants=network-online.target local-fs.target
+PartOf=eos.target
 
 [Service]
 EnvironmentFile=/etc/sysconfig/eos_env
@@ -29,20 +32,21 @@ EnvironmentFile=/etc/sysconfig/eos_env
 ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-start-pre %i"
 
 ExecStart=/usr/bin/xrootd -n %i -c /etc/xrd.cf.%i -l \
-/var/log/eos/xrdlog.%i -s /tmp/xrootd.%i.pid -b -Rdaemon
+/var/log/eos/xrdlog.%i -s /tmp/xrootd.%i.pid -Rdaemon
 
 ExecStop=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-stop %i"
 
-Type=forking
+Type=simple
 User=root
 Group=root
 Restart=on-abort
-RestartSec=0
+RestartSec=5
 LimitNOFILE=65000
+
+# Leverage 'soft-stop' feature of FST (waits for writes to complete || timeout)
 KillMode=mixed
-PIDFile=/tmp/xrootd.%i.pid
 #ExitStatus is KILL because FST daemon. Stop-signal from FST daemon is 9/KILL.
 SuccessExitStatus=KILL
 
 [Install]
-RequiredBy=multi-user.target
+WantedBy=eos.target

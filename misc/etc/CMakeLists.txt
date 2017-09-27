@@ -70,7 +70,7 @@ if(EXISTS ${SYSTEMD_DIR})
    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
 
  install(
-   FILES systemd/system/eos.service
+   FILES systemd/system/eos.target
  	systemd/system/eos@.service
  	systemd/system/eos@master.service
  	systemd/system/eos@slave.service

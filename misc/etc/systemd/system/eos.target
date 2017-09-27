@@ -1,0 +1,4 @@
+[Unit]
+Description=eos target allowing to start/stop all eos*@.service instances at once
+[Install]
+WantedBy=multi-user.target

@@ -22,6 +22,7 @@
 # ************************************************************************
 [Unit]
 Description=EOSd %i
+PartOf=eos.target
 
 [Service]
 EnvironmentFile=/etc/sysconfig/eos_env
@@ -45,4 +46,4 @@ LimitCORE=infinity
 KillMode=mixed
 
 [Install]
-RequiredBy=multi-user.target
+WantedBy=eos.target

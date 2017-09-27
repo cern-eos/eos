@@ -22,6 +22,7 @@
 # ************************************************************************
 [Unit]
 Description=EOS High Availability
+PartOf=eos.target
 
 [Service]
 EnvironmentFile=/etc/sysconfig/eos_env
@@ -38,4 +39,4 @@ User=root
 Group=root
 
 [Install]
-RequiredBy=multi-user.target
+WantedBy=eos.target

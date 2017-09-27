@@ -22,6 +22,7 @@
 # ************************************************************************
 [Unit]
 Description=EOS-Sync: %i
+PartOf=eos.target
 
 [Service]
 EnvironmentFile=/etc/sysconfig/eos_env
@@ -39,7 +40,7 @@ Type=simple
 User=daemon
 Group=daemon
 Restart=on-abort
-RestartSec=0
+RestartSec=5
 
 [Install]
-RequiredBy=multi-user.target
+WantedBy=eos.target
