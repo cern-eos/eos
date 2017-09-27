@@ -45,7 +45,7 @@ install(
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cron.d/)
 
 install(
-  FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs logrotate.d/eos/fusex-logs
+  FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs logrotate.d/eos-fusex-logs
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/)
 
 # Installing files depending on service manager (systemd or sysVinit)
