@@ -1,0 +1,4 @@
+#!/bin/bash
+
+chown daemon:daemon /var/log/eos/
+chown daemon:daemon /var/log/eos/fusex/

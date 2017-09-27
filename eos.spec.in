@@ -499,8 +499,8 @@ The new EOS fuse client bundle.
 Summary: The new EOS fuse client
 Group: Applications/File
 
-Requires: xrootd-client
-Requires: eos-client
+Requires: xrootd-client >= %{xrootd_version}
+Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
 Requires: jemalloc
 
