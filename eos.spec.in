@@ -252,6 +252,7 @@ Summary: The new EOS fuse client
 Group: Applications/File
 
 Requires: eos-fusex-core = @CPACK_PACKAGE_VERSION@
+Requires: eos-fusex-selinux = @CPACK_PACKAGE_VERSION@
 
 %description -n eos-fusex
 The new EOS fuse client bundle.
@@ -354,14 +355,11 @@ Requires: fuse
 Requires: jemalloc
 
 %description -n eos-fusex-core
-The EOS fuse core containing eosxd.
+The new EOS fuse core containing eosxd.
 
 %files -n eos-fusex-core
 %defattr(-, root, root, -)
 %{_bindir}/eosxd
-/usr/share/selinux/targeted/eosfuse.pp
-/usr/share/selinux/mls/eosfuse.pp
-/usr/share/selinux/strict/eosfuse.pp
 %{_sysconfdir}/logrotate.d/eos-fusex-logs
 %attr(755,daemon,daemon) /var/log/eos/
 %attr(755,daemon,daemon) /var/log/eos/fusex/
@@ -373,21 +371,37 @@ The EOS fuse core containing eosxd.
 %{_sysconfdir}/fuse.conf.eos
 %endif
 
-%post -n eos-fusex-core
+#-------------------------------------------------------------------------------
+# Package eos-fusex-selinux
+#-------------------------------------------------------------------------------
+%package -n eos-fusex-selinux
+Summary: The new EOS fuse client selinux configuration
+Group: Applications/File
+
+%description -n eos-fusex-selinux
+The new EOS fuse core containing selinux definitions.
+
+%files -n eos-fusex-selinux
+%defattr(-, root, root, -)
+/usr/share/selinux/targeted/eosfuse.pp
+/usr/share/selinux/mls/eosfuse.pp
+/usr/share/selinux/strict/eosfuse.pp
+
+%post -n eos-fusex-selinux
 for variant in mls strict targeted
 do
   /usr/sbin/semodule -s $variant -i \
   /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
 done
 
-%preun -n eos-fusex-core
+%preun -n eos-fusex-selinux
 if [ $1 = 0 ] ; then
   for variant in mls strict targeted ; do
     /usr/sbin/semodule -s $variant -r eosfuse &> /dev/null || :
   done
 fi
 
-%postun -n eos-fusex-core
+%postun -n eos-fusex-selinux
 if [ $1 -eq 0 ]; then
   for variant in mls strict targeted ; do
     /usr/sbin/semodule -u /usr/share/selinux/$variant/eosfuse.pp || :
