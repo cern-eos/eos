@@ -1162,12 +1162,11 @@ filesystem::rmxattr(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -1256,12 +1255,11 @@ filesystem::setxattr(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
@@ -1342,12 +1340,11 @@ filesystem::getxattr(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -1440,12 +1437,11 @@ filesystem::listxattr(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -1660,12 +1656,11 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   eos_static_debug("stat url is %s", surl.c_str());
   XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
@@ -1841,12 +1836,11 @@ filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid ,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -1932,12 +1926,11 @@ filesystem::chmod(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -2050,12 +2043,11 @@ filesystem::utimes(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -2125,12 +2117,11 @@ filesystem::symlink(const char* path, const char* link, uid_t uid, gid_t gid,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -2194,12 +2185,11 @@ filesystem::readlink(const char* path, char* buf, size_t bufsize, uid_t uid,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -2300,12 +2290,11 @@ filesystem::access(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -2376,12 +2365,11 @@ filesystem::inodirlist(unsigned long long dirinode,
   }
 
   // add the kerberos token
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    request += '&';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    request += "&" + auth;
   }
 
-  request += strongauth_cgi(pid);
   COMMONTIMING("GETSTSTREAM", &inodirtiming);
   request.insert(0, user_url(uid, gid, pid));
   XrdCl::File* file = new XrdCl::File();
@@ -2761,12 +2749,11 @@ filesystem::readdir(const char* path_dir, size_t* size,
 
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.DirList(path_str, flags, response);
@@ -2840,12 +2827,11 @@ filesystem::mkdir(const char* path,
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = xrdreq_retryonnullbuf(fs, arg, response);
@@ -2948,12 +2934,12 @@ filesystem::rmdir(const char* path, uid_t uid, gid_t gid, pid_t pid)
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   std::string spath = safePath(path);
@@ -3059,10 +3045,10 @@ filesystem::open(const char* path,
       spath.replace("/proc/whoami", "/proc/user/");
       //spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
       spath += '?';
-      spath += strongauth_cgi(pid).c_str();
 
-      if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-          fuse_shared) {
+      std::string auth = strongauth_cgi(pid);
+      if(!auth.empty()) {
+        spath += auth.c_str();
         spath += '&';
       }
 
@@ -3099,10 +3085,10 @@ filesystem::open(const char* path,
       spath.replace("/proc/who", "/proc/user/");
       //spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
       spath += '?';
-      spath += strongauth_cgi(pid).c_str();
 
-      if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-          fuse_shared) {
+      std::string auth = strongauth_cgi(pid);
+      if(!auth.empty()) {
+        spath += auth.c_str();
         spath += '&';
       }
 
@@ -3138,10 +3124,10 @@ filesystem::open(const char* path,
       spath.replace("/proc/quota", "/proc/user/");
       //spath += "?mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
       spath += '?';
-      spath += strongauth_cgi(pid).c_str();
 
-      if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-          fuse_shared) {
+      std::string auth = strongauth_cgi(pid);
+      if(!auth.empty()) {
+        spath += auth.c_str();
         spath += '&';
       }
 
@@ -3197,12 +3183,11 @@ filesystem::open(const char* path,
     arg.FromString(request);
     std::string surl = user_url(uid, gid, pid);
 
-    if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-        fuse_shared) {
-      surl += '?';
+    std::string auth = strongauth_cgi(pid);
+    if(!auth.empty()) {
+      surl += "?" + auth;
     }
 
-    surl += strongauth_cgi(pid);
     XrdCl::URL Url(surl);
     XrdCl::FileSystem fs(Url);
     XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
@@ -4011,12 +3996,11 @@ filesystem::unlink(const char* path, uid_t uid, gid_t gid, pid_t pid,
   eos_static_info("path=%s uid=%u, pid=%u", path, uid, pid);
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   std::string spath = safePath(path);
@@ -4068,12 +4052,11 @@ filesystem::rename(const char* oldpath, const char* newpath, uid_t uid,
 
   std::string surl = user_url(uid, gid, pid);
 
-  if ((credConfig.use_user_krb5cc || credConfig.use_user_gsiproxy) &&
-      fuse_shared) {
-    surl += '?';
+  std::string auth = strongauth_cgi(pid);
+  if(!auth.empty()) {
+    surl += "?" + auth;
   }
 
-  surl += strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Mv(sOldPath.c_str(), sNewPath.c_str());
