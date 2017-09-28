@@ -31,7 +31,6 @@
 /*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
-#define pow10( x ) pow( (float)10, (int)(x) )
 #define ENONET 64
 #endif
 
@@ -983,11 +982,11 @@ ProcCommand::Find()
       unsigned long long upperlimit = 0;
 
       if (((itsd->first) - 1) > 0) {
-        lowerlimit = pow10((itsd->first));
+        lowerlimit = pow(10, (itsd->first));
       }
 
       if ((itsd->first) > 0) {
-        upperlimit = pow10((itsd->first) + 1);
+        upperlimit = pow(10, (itsd->first) + 1);
       }
 
       XrdOucString sizestring1;
