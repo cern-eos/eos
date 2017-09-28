@@ -1,5 +1,5 @@
 --- a/src/microhttpd/daemon.c	2016-02-02 10:49:25.000000001 +0100
-+++ b/src/microhttpd/daemon.c	2016-02-02 10:39:18.000000001 +0100
++++ b/src/microhttpd/daemon.c	2017-09-28 10:12:32.192838535 +0200
 @@ -1776,8 +1776,10 @@
    struct sockaddr *addr = (struct sockaddr *) &addrstorage;
    socklen_t addrlen;
@@ -8,31 +8,30 @@
    MHD_socket fd;
    int nonblock;
 +  int s_flags;
- 
+
    addrlen = sizeof (addrstorage);
    memset (addr, 0, sizeof (addrstorage));
-@@ -1797,6 +1799,27 @@
+@@ -1797,6 +1799,26 @@
  #else
    s = accept (fd, addr, &addrlen);
  #endif
-+
 +  if (s>0)
 +  {
 +#if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
-+  new_s = fcntl(s, F_DUPFD_CLOEXEC, 48*1024);
-+  
-+  if (new_s>=(48*1024))
-+    close(s);
-+  s = new_s;
++    new_s = fcntl(s, F_DUPFD_CLOEXEC, 48*1024);
++    if (new_s>=(48*1024))
++    {
++      close(s);
++      s = new_s;
++    }
 +#else
-+  new_s = fcntl(s, F_DUPFD, 48*1024);
++    new_s = fcntl(s, F_DUPFD, 48*1024);
 +
-+  if (new_s>=(48*1024)) {
-+    close(s);
-+    s_flags = fcntl(new_s, F_GETFD);
-+    fcntl(new_s, s_flags|FD_CLOEXEC);
-+  } 
-+  s = new_s;
++    if (new_s>=(48*1024)) {
++      close(s);
++      s_flags = fcntl(new_s, F_GETFD);
++      fcntl(new_s, s_flags|FD_CLOEXEC);
++    }
 +#endif
 +  }
 +

@@ -2,7 +2,7 @@
 Summary: Lightweight library for embedding a webserver in applications
 Name: libmicrohttpd
 Version: 0.9.38
-Release: eos.xves%{?dist}
+Release: eos.yves%{?dist}
 Group: Development/Libraries
 License: LGPLv2+
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
@@ -135,5 +135,7 @@ fi
 #%doc html
 
 %changelog
+* Thu Sep 28 2017 Hervé Rousseau <hroussea@cern.ch> - 0.9.38-eos.yves
+- Do not return wrong socket when DUPFD fails
 * Mon Nov 17 2014 Andreas Peters <Andreas.Joachim.Peters@cern.ch> - 0.9.38-vmem
 - Add patch to avoid virtual memory explosion for PUT requests
