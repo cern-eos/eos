@@ -71,6 +71,7 @@ if(EXISTS ${SYSTEMD_DIR})
 
  install(
    FILES systemd/system/eos.target
+        systemd/system/eos.service
  	systemd/system/eos@.service
  	systemd/system/eos@master.service
  	systemd/system/eos@slave.service

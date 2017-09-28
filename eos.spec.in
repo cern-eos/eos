@@ -220,6 +220,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %if %{use_systemd}
     %config %{_sysconfdir}/sysconfig/eos_env.example
     %{_prefix}/lib/systemd/system/eos.target
+    %{_prefix}/lib/systemd/system/eos.service
     %{_prefix}/lib/systemd/system/eos@.service
     %{_prefix}/lib/systemd/system/eos@master.service
     %{_prefix}/lib/systemd/system/eos@slave.service

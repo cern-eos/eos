@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------
-# File: eos@.service
+# File: eos.service
 # Author: Ivan Arizanovic - ComTrade Solutions Engineering
 # ----------------------------------------------------------------------
 #
@@ -21,35 +21,16 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 [Unit]
-Description=EOS %i
-After=network-online.target local-fs.target
-Wants=network-online.target local-fs.target
-PartOf=eos.target
+Description=EOS All Services
 
 [Service]
-EnvironmentFile=/etc/sysconfig/eos_env
+ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-all"
 
-ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-start-pre %i"
+ExecStart=/bin/echo For status of daemons, \
+run \'journalctl -e\' or \'systemctl status eos@*\'.
 
-ExecStart=/usr/bin/xrootd -n %i -c /etc/xrd.cf.%i -l \
-/var/log/eos/xrdlog.%i -s /tmp/xrootd.%i.pid -Rdaemon
-
-ExecStop=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-stop %i"
-
-Type=simple
-User=root
-Group=root
-Restart=on-abort
-RestartSec=5
-LimitNOFILE=65000
-
-# Leverage 'soft-stop' feature of FST (waits for writes to complete || timeout)
-KillMode=mixed
-# @TODO (esindril): Check if this is still necessary for the proper shutdown
-# of the xrotod daemon
-#PIDFile=/tmp/xrootd.%i.pid
-# ExitStatus is KILL because FST daemon. Stop-signal from FST daemon is 9/KILL.
-SuccessExitStatus=KILL
+Type=oneshot
+KillMode=none
 
 [Install]
-WantedBy=eos.target
+RequiredBy=multi-user.target
