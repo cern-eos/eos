@@ -48,8 +48,9 @@ Storage::Publish()
   }
 
   (void) close(tmp_fd);
-  XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' |"
-                             " xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> ";
+  XrdOucString getnetspeed =
+    "ip route list | sed -ne '/^default/s/.*dev //p' | cut -d ' ' -f1 |"
+    " xargs -i ethtool {} 2>&1 | grep Speed | cut -d ' ' -f2 | cut -d 'M' -f1 > ";
 
   if (getenv("EOS_FST_NETWORK_SPEED")) {
     getnetspeed = "echo ";
@@ -111,7 +112,7 @@ Storage::Publish()
       }
 
       eos::common::StringConversion::LoadFileIntoString(tmp_name, publish_uptime);
-      XrdOucString sockets = "cat /proc/net/tcp | wc -l | tr -d \"\n\" >";
+      XrdOucString sockets = "cat /proc/net/tcp | wc -l | tr -d \"\n\" > ";
       sockets += tmp_name;
       eos::common::ShellCmd scmd3(sockets.c_str());
       rc = scmd3.wait(5);
@@ -225,7 +226,7 @@ Storage::Publish()
               }
             }
           }
-          // Retrieve Statistics from the SQLITE DB
+          // Retrieve Statistics from the local db
           std::map<std::string, size_t>::const_iterator isit;
           bool success = true;
 

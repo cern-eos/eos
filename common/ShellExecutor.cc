@@ -85,26 +85,23 @@ ShellExecutor::execute(const std::string& cmd, fifo_uuid_t uuid) const
 {
   static XrdSysMutex executeMutex;
   XrdSysMutexHelper lLock(&executeMutex);
-  // ---------------------------------------------------------------------------
-  // the offset in case we need to send several messages
-  // to cover the command string
+  // Offset in case we need to send several messages to cover the command string
   size_t offset = 0;
-  // the command to object to be returned
-  // the message for the child process
+  // Message for the child process
   msg_t msg(uuid);
 
   // send the command to child process
   while (!msg.complete) {
     // calculate the size of the message
-    size_t size = cmd.size() - offset < msg_t::max_size ? cmd.size() -
-                  offset : msg_t::max_size - 1;
+    size_t size = ((cmd.size() - offset < msg_t::max_size) ?
+                   cmd.size() - offset : msg_t::max_size - 1);
     memset(msg.buff, 0, sizeof(msg.buff));
     // copy the command
     strncpy(msg.buff, cmd.c_str() + offset, size);
     // terminate the string
     msg.buff[size] = 0;
     // set the complete flag
-    msg.complete = cmd.size() <= offset + size;
+    msg.complete = (cmd.size() <= offset + size);
 
     // send the command to child process
     if (write(outfd[1], &msg, sizeof(msg_t)) < 0) {
@@ -133,7 +130,6 @@ ShellExecutor::alarm(int signal)
 void
 ShellExecutor::run_child() const
 {
-  // ---------------------------------------------------------------------------
   // close the 'write-end' of input pipe on child side
   close(outfd[1]);
   // close the 'read-end' of output pipe on child side
