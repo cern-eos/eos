@@ -50,19 +50,19 @@ protected:
 
 public:
   //! Retrieves the file meta data for the file stored as attributes.
-  //! Throws \see fmd_attribute_error if operation was not successful.
+  //! Throws \see MDException if operation was not successful.
   //! \param fileIo the file object
   //! \return the file meta data object if it's present otherwise throws an exception
   Fmd FmdAttrGet(FileIo* fileIo) const;
 
   //! Retrieves the file meta data for the file stored as attributes.
-  //! Throws \see fmd_attribute_error if operation was not successful.
+  //! Throws \see MDException if operation was not successful.
   //! \param filePath FST path of the file
   //! \return the file meta data object if it's present otherwise throws an exception
   Fmd FmdAttrGet(const std::string& filePath) const;
 
   //! Retrieves the file meta data for the file stored as attributes.
-  //! Throws \see fmd_attribute_error if operation was not successful.
+  //! Throws \see MDException if operation was not successful.
   //! \param fid id of the file
   //! \param fsid id of the file system
   //! \param env environment object, can be null
@@ -72,7 +72,7 @@ public:
                  XrdOucEnv* env = nullptr) const;
 
   //! Stores the file meta data for a file as an attribute.
-  //! Throws \see fmd_attribute_error if operation was not successful.
+  //! Throws \see MDException if operation was not successful.
   //! \param fileIo file Io object
   //! \param fmd meta data object to save
   void FmdAttrSet(FileIo* fileIo, const Fmd& fmd) const;
@@ -88,7 +88,7 @@ public:
                   XrdOucEnv* env = nullptr) const;
 
   //! Removes the meta data attribute for the file.
-  //! Throws \see fmd_attribute_error if operation was not successful.
+  //! Throws \see MDException if operation was not successful.
   //! \param fileIo the file Io object
   void FmdAttrDelete(FileIo* fileIo) const;
 
@@ -147,10 +147,6 @@ public:
   FmdAttributeHandler(FmdAttributeHandler&&) = delete;
 
   FmdAttributeHandler& operator=(FmdAttributeHandler&&) = delete;
-};
-
-struct fmd_attribute_error : public std::runtime_error {
-  explicit fmd_attribute_error(const std::string& message) : std::runtime_error{message} {}
 };
 
 extern FmdAttributeHandler gFmdAttributeHandler;

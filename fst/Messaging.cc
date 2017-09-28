@@ -187,7 +187,7 @@ Messaging::Process(XrdMqMessage* newmessage)
           Fmd fmd = gFmdAttributeHandler.FmdAttrGet(fid, fsid, &action);
           fMd = new FmdHelper(fid, fsid);
           fMd->Replicate(fmd);
-        } catch (fmd_attribute_error& error) {
+        } catch (MDException& error) {
           fMd = nullptr;
         }
 

@@ -108,7 +108,7 @@ Storage::Verify()
         Fmd fmd = gFmdAttributeHandler.FmdAttrGet(io);
         fMd = new FmdHelper(verifyfile->fId, verifyfile->fsId);
         fMd->Replicate(fmd);
-      } catch (fmd_attribute_error& error) {
+      } catch (MDException& error) {
         fMd = nullptr;
       }
 
@@ -143,7 +143,7 @@ Storage::Verify()
       Fmd fmd = gFmdAttributeHandler.FmdAttrGet(io);
       fMd = new FmdHelper(verifyfile->fId, verifyfile->fsId);
       fMd->Replicate(fmd);
-    } catch (fmd_attribute_error& error) {
+    } catch (MDException& error) {
       fMd = nullptr;
     }
 
@@ -267,7 +267,7 @@ Storage::Verify()
         bool saveSucceeded = true;
         try{
           gFmdAttributeHandler.FmdAttrSet(io, fMd->mProtoFmd);
-        } catch (fmd_attribute_error& error) {
+        } catch (MDException& error) {
           saveSucceeded = false;
         }
 

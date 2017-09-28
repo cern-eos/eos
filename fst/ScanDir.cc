@@ -406,7 +406,7 @@ ScanDir::CheckFile(const char* filepath) {
               fmd.reset(new FmdHelper(fid, fsId));
               fmd->Replicate(fMd);
               eos_info("user.eos.fmd=%s", fMd.DebugString().c_str());
-            } catch (fmd_attribute_error& error) {
+            } catch (eos::MDException& error) {
               fmd.reset(nullptr);
             }
 
@@ -435,7 +435,7 @@ ScanDir::CheckFile(const char* filepath) {
                 Fmd fMd = gFmdAttributeHandler.FmdAttrGet(io.get());
                 fmd.reset(new FmdHelper(fid, fsId));
                 fmd->Replicate(fMd);
-              } catch (fmd_attribute_error& error) {
+              } catch (eos::MDException& error) {
                 fmd.reset(nullptr);
               }
 

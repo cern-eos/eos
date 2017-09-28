@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+using namespace eos;
 using namespace eos::fst;
 using namespace ::testing;
 
@@ -127,13 +128,13 @@ TEST_F(FmdAttributeHandlerTest, TestAttrSetAndGet) {
 
 TEST_F(FmdAttributeHandlerTest, TestAttrGetWhenNotPresent) {
   FmdAttributeHandler testFmdAttributeHandler {&mockCompressor};
-  EXPECT_THROW(testFmdAttributeHandler.FmdAttrGet(fileIo), fmd_attribute_error);
+  EXPECT_THROW(testFmdAttributeHandler.FmdAttrGet(fileIo), MDException);
 }
 
 TEST_F(FmdAttributeHandlerTest, TestAttrSetWhenFileNotPresent) {
   FmdAttributeHandler testFmdAttributeHandler {&mockCompressor};
   Fmd fmd;
-  EXPECT_THROW(testFmdAttributeHandler.FmdAttrSet(nonExistingFileIo, fmd), fmd_attribute_error);
+  EXPECT_THROW(testFmdAttributeHandler.FmdAttrSet(nonExistingFileIo, fmd), MDException);
 }
 
 TEST_F(FmdAttributeHandlerTest, TestAttrDelete) {
@@ -141,12 +142,12 @@ TEST_F(FmdAttributeHandlerTest, TestAttrDelete) {
   testFmdAttributeHandler.FmdAttrSet(fileIo, fmd);
   EXPECT_NO_THROW(testFmdAttributeHandler.FmdAttrGet(fileIo));
   testFmdAttributeHandler.FmdAttrDelete(fileIo);
-  EXPECT_THROW(testFmdAttributeHandler.FmdAttrGet(fileIo), fmd_attribute_error);
+  EXPECT_THROW(testFmdAttributeHandler.FmdAttrGet(fileIo), MDException);
 }
 
 TEST_F(FmdAttributeHandlerTest, TestAttrDeleteWhenNoFilePresent) {
   FmdAttributeHandler testFmdAttributeHandler {&mockCompressor};
-  EXPECT_THROW(testFmdAttributeHandler.FmdAttrDelete(fileIo), fmd_attribute_error);
+  EXPECT_THROW(testFmdAttributeHandler.FmdAttrDelete(fileIo), MDException);
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncMgmNoData) {

@@ -37,7 +37,10 @@ FmdAttributeHandler::FmdAttrGet(FileIo* fileIo) const {
   int result = fileIo->attrGet(FmdAttributeHandler::fmdAttrName, fmdAttrValue);
 
   if (result != 0) {
-    throw fmd_attribute_error {std::string("Meta data attribute is not present for file: ") + fileIo->GetPath()};
+    MDException ex(errno);
+    ex.getMessage() << "Meta data attribute is not present for file: ";
+    ex.getMessage() << fileIo->GetPath();
+    throw ex;
   }
 
   Fmd fmd;
@@ -63,7 +66,10 @@ FmdAttributeHandler::FmdAttrSet(FileIo* fileIo, const Fmd& fmd) const {
   int result = fileIo->attrSet(FmdAttributeHandler::fmdAttrName, compressor->compress(fmd.SerializePartialAsString()));
 
   if (result != 0) {
-    throw fmd_attribute_error {"Could not set meta data attribute for the file."};
+    MDException ex(errno);
+    ex.getMessage() << "Could not set meta data attribute for the file: ";
+    ex.getMessage() << fileIo->GetPath();
+    throw ex;
   }
 }
 
@@ -77,7 +83,10 @@ FmdAttributeHandler::FmdAttrSet(const Fmd& fmd, eos::common::FileId::fileid_t fi
 void
 FmdAttributeHandler::FmdAttrDelete(FileIo* fileIo) const {
   if (fileIo->attrDelete(FmdAttributeHandler::fmdAttrName) != 0) {
-    throw fmd_attribute_error {"Could not delete meta data attribute for the file."};
+    MDException ex(errno);
+    ex.getMessage() << "Could not delete meta data attribute for the file: ";
+    ex.getMessage() << fileIo->GetPath();
+    throw ex;
   }
 }
 
@@ -106,7 +115,7 @@ FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsid_t f
   try {
     // get local fmd object if possible and update that to not to lose information
     fmd = FmdAttrGet(fileIo);
-  } catch (fmd_attribute_error& error) {
+  } catch (MDException& error) {
     FmdHelper::Reset(fmd);
     // we have to set the fsid locally
     fmd.set_fsid(fsid);
@@ -296,7 +305,7 @@ FmdAttributeHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_
         Fmd fmd;
         try {
           fmd = FmdAttrGet(io.get());
-        } catch (fmd_attribute_error& error) {}
+        } catch (MDException& error) {}
 
         fmd.set_disksize(disksize);
         // fix the reference value from disk
@@ -317,7 +326,7 @@ FmdAttributeHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_
 
         try {
           FmdAttrSet(io.get(), fmd);
-        } catch (fmd_attribute_error& error) {
+        } catch (MDException& error) {
           eos_err("failed to update file meta data for fsid=%lu fid=%08llx",
                   (unsigned long) fsid, fid);
           retc = false;
@@ -424,7 +433,7 @@ FmdAttributeHandler::ReportFmdInconsistency(const std::string& filePath, eos::co
   Fmd fmd;
   try {
     fmd = FmdAttrGet(filePath);
-  } catch (fmd_attribute_error& error) {
+  } catch (MDException& error) {
     eos_err("Could not get meta data for fid=%llu, fsid=%llu", fid, fsid);
     return;
   }

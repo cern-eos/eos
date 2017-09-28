@@ -206,7 +206,7 @@ FileSystem::CleanTransactions()
             Fmd fmd = gFmdAttributeHandler.FmdAttrGet(fstPath.c_str());
             fMd = new FmdHelper(fileid, GetId());
             fMd->Replicate(fmd);
-          } catch (fmd_attribute_error& error) {
+          } catch (MDException& error) {
             fMd = nullptr;
           }
 

@@ -497,7 +497,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     NoGo = 1;
   }
   else {
-    fmdCompressor.setCompressionLevel(19);
     try {
       fmdCompressor.setDicts(eos::fst::Config::gConfig.FstFmdDict.c_str());
     } catch (MDException& ex) {
@@ -1371,7 +1370,7 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         Fmd fMd = gFmdAttributeHandler.FmdAttrGet(fileid, fsid, &env);
         fmd = new FmdHelper(fileid, fsid);
         fmd->Replicate(fMd);
-      } catch (fmd_attribute_error& error) {
+      } catch (MDException& error) {
         fmd = nullptr;
       }
 

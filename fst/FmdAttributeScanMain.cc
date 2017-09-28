@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
     try {
       Fmd fmd = fmdAttributeHandler.FmdAttrGet(argv[i]);
       cout << argv[i] << ":" << endl << fmd.DebugString() << endl;
-    } catch (fmd_attribute_error& error) {
+    } catch (eos::MDException& error) {
       cout << error.what() << endl << endl;
     }
   }

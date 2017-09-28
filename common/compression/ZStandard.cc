@@ -44,7 +44,7 @@ eos::common::ZStandard::loadDict(const std::string& dictionaryPath) {
 
 void
 ZStandard::createCDict() {
-  pCDict = (ZSTD_CDict*)pDictBuffer;
+  pCDict = ZSTD_createCDict(pDictBuffer, pDictSize, 19);
 
   if (pCDict == nullptr) {
     MDException ex(errno);
@@ -92,12 +92,10 @@ ZStandard::compress(Buffer& record) {
     throw ex;
   }
 
-  ZSTD_parameters params = ZSTD_getParams(pCompressionLevel, record.size(),
-                                          pDictSize);
-  size_t const cSize = ZSTD_compress_advanced(pCCtx, cBuff, cBuffSize,
+  size_t const cSize = ZSTD_compress_usingCDict(pCCtx, cBuff, cBuffSize,
                                               record.getDataPtr(),
                                               record.getSize(),
-                                              pCDict, pDictSize, params);
+                                              pCDict);
 
   if (ZSTD_isError(cSize)) {
     MDException ex(errno);

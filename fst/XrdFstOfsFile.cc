@@ -892,7 +892,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       Fmd fmd = gFmdAttributeHandler.FmdAttrGet(layOut->GetFileIo());
       fMd = new FmdHelper(fileid, fsid);
       fMd->Replicate(fmd);
-    } catch (fmd_attribute_error& error) {
+    } catch (MDException& error) {
       fMd = nullptr;
     }
 
@@ -906,7 +906,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
             fMd = new FmdHelper(fileid, fsid);
             fMd->Replicate(fmd);
             gFmdAttributeHandler.ReportFmdInconsistency(fmd);
-          } catch (fmd_attribute_error& error) {
+          } catch (MDException& error) {
             fMd = nullptr;
           }
         } else {
@@ -1771,15 +1771,13 @@ XrdFstOfsFile::close()
             fMd->mProtoFmd.set_atime_ns(tv.tv_usec * 1000);
 
             // save meta data
-            try {
-              try{
-                gFmdAttributeHandler.FmdAttrSet(layOut->GetFileIo(), fMd->mProtoFmd);
-              } catch (fmd_attribute_error& error) {
-                eos_err("unable to save meta data to file");
-                (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "
-                  "commit meta data", Path.c_str());
-              }
-            } catch (const std::length_error& e) {}
+            try{
+              gFmdAttributeHandler.FmdAttrSet(layOut->GetFileIo(), fMd->mProtoFmd);
+            } catch (MDException& error) {
+              eos_err("unable to save meta data to file");
+              (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "
+                "commit meta data", Path.c_str());
+            }
 
             // Commit to central mgm cache
             int envlen = 0;
