@@ -45,7 +45,7 @@ LimitNOFILE=65000
 
 # Leverage 'soft-stop' feature of FST (waits for writes to complete || timeout)
 KillMode=mixed
-#ExitStatus is KILL because FST daemon. Stop-signal from FST daemon is 9/KILL.
+# ExitStatus is KILL because FST daemon. Stop-signal from FST daemon is 9/KILL.
 SuccessExitStatus=KILL
 
 [Install]

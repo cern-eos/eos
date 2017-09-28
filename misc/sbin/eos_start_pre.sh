@@ -68,12 +68,12 @@ if [ "$1" = "eos-start-pre" ]; then
     chown daemon /var/eos/auth /var/eos/stage
     setfacl -m default:u:daemon:r /var/eos/auth/
 
-    #We requires cmsd for fed daemon
+    # Require cmsd for fed daemon
     if [ "$2" = "fed" ]; then
       systemctl start cmsd@clustered
     fi
   else
-    echo "<3>Error: Service $2 not in the XRD_ROLESin \"/etc/sysconf/eos_env\""
+    echo "<3>Error: Service $2 not in the XRD_ROLES in \"/etc/sysconf/eos_env\""
     exit 1
   fi
 fi
@@ -107,14 +107,14 @@ if [ "$1" = "eos-slave" ]; then
   fi
 fi
 
-# Start EOS-Fuse daemons
+# Start EOS fuse daemons
 if [ "$1" = "eosd-start" ]; then
   mkdir -p /var/run/eosd/ /var/run/eosd/credentials/store ${EOS_FUSE_MOUNTDIR}
   chmod 1777 /var/run/eosd/credentials /var/run/eosd/credentials/store
   chmod 755 ${EOS_FUSE_MOUNTDIR}
 fi
 
-# Stop EOS-Fuse daemons
+# Stop EOS fuse daemons
 if [ "$1" = "eosd-stop" ]; then
   umount -f ${EOS_FUSE_MOUNTDIR}
 fi
