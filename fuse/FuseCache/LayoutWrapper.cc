@@ -287,7 +287,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   status = xrdreq_retryonnullbuf(fs, arg, response);
 
   if (!status.IsOK()) {
-    if ((status.errNo == kXR_FSError) && mInlineRepair &&
+    if ((status.errNo == kXR_FSError || status.errNo == kXR_noserver) && mInlineRepair &&
         (((flags & SFS_O_WRONLY) || (flags & SFS_O_RDWR)) &&
          (!(flags & SFS_O_CREAT)))) {
       // FS io error state for writing we try to recover the file on the fly
