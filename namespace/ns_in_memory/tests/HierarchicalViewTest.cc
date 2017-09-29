@@ -279,8 +279,8 @@ void HierarchicalViewTest::quotaTest()
   std::map<gid_t, eos::IQuotaNode::UsageInfo> groups;
   std::map<uid_t, eos::IQuotaNode::UsageInfo>::iterator userIt;
   std::map<gid_t, eos::IQuotaNode::UsageInfo>::iterator groupIt;
-  eos::IQuotaNode* meldNode1 = new eos::QuotaNode(0);
-  eos::IQuotaNode* meldNode2 = new eos::QuotaNode(0);
+  eos::IQuotaNode* meldNode1 = new eos::QuotaNode(0, 1);
+  eos::IQuotaNode* meldNode2 = new eos::QuotaNode(0, 2);
 
   for (int i = 0; i < 10000; ++i) {
     uid_t uid = random();

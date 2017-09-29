@@ -57,6 +57,7 @@
   XrdOucString areconstruction = env.Get("mgm.reconstruction");
   XrdOucString aocchunk = env.Get("mgm.occhunk");
   XrdOucString aismodified = env.Get("mgm.modified");
+  XrdOucString afusex = env.Get("mgm.fusex");
 
   bool verifychecksum = (averifychecksum == "1");
   bool commitchecksum = (acommitchecksum == "1");
@@ -65,7 +66,7 @@
   bool replication = (areplication == "1");
   bool reconstruction = (areconstruction == "1");
   bool modified = (aismodified == "1");
-
+  bool fusex = (afusex == "1");
   int envlen;
   int oc_n = 0;
   int oc_max = 0;
@@ -245,6 +246,8 @@
 
                 try {
                   gOFS->eosView->updateFileStore(fmd.get());
+                  // this call is not needed, since it is just a new replica location
+                  // gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
                 } catch (eos::MDException& e) {
                   errno = e.getErrno();
                   std::string errmsg = e.getMessage().str();
@@ -280,6 +283,8 @@
 
                 try {
                   gOFS->eosView->updateFileStore(fmd.get());
+                  // this call is not be needed, since it is just a new replica location
+                  //gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
                 } catch (eos::MDException& e) {
                   errno = e.getErrno();
                   std::string errmsg = e.getMessage().str();
@@ -420,6 +425,13 @@
             // update parent mtime
             cmd->setMTimeNow();
             gOFS->eosView->updateContainerStore(cmd.get());
+
+            // Broadcast to the fusex network only if the change has been
+            // triggered outside the fusex client network e.g. xrdcp etc.
+            if (!fusex) {
+              gOFS->FuseXCast(cmd->getId());
+            }
+
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
           }
         } catch (eos::MDException& e) {
@@ -509,6 +521,7 @@
                 versiondir->addFile(versionfmd.get());
                 versiondir->setMTimeNow();
                 eosView->updateFileStore(versionfmd.get());
+                gOFS->FuseXCast(eos::common::FileId::FidToInode(versiondir->getId()));
                 // Update the ownership and mode of the new file to the original
                 // one
                 fmd->setCUid(versionfmd->getCUid());

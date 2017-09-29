@@ -95,7 +95,8 @@ public:
   //--------------------------------------------------------------------------
   //! Configure the container service
   //--------------------------------------------------------------------------
-  virtual void configure(const std::map<std::string, std::string>& config) override;
+  virtual void configure(const std::map<std::string, std::string>& config)
+  override;
 
   //--------------------------------------------------------------------------
   //! Finalize the container service
@@ -113,7 +114,17 @@ public:
   //--------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
   //--------------------------------------------------------------------------
-  virtual std::shared_ptr<IContainerMD> getContainerMD(IContainerMD::id_t id) override;
+  virtual std::shared_ptr<IContainerMD>
+  getContainerMD(IContainerMD::id_t id) override
+  {
+    return getContainerMD(id, 0);
+  }
+
+  //------------------------------------------------------------------------
+  //! Get the container metadata information for the given ID and clock
+  //------------------------------------------------------------------------
+  virtual std::shared_ptr<IContainerMD>
+  getContainerMD(IContainerMD::id_t id, uint64_t* clock) override;
 
   //--------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has
@@ -246,7 +257,7 @@ public:
   //! Get the orphans container
   //--------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> getLostFoundContainer(const std::string& name)
-    override;
+  override;
 
   //--------------------------------------------------------------------------
   //! Get the change log
@@ -318,7 +329,7 @@ public:
   //! Set container accounting
   //------------------------------------------------------------------------
   void setContainerAccounting(IFileMDChangeListener* containerAccounting)
-    override
+  override
   {
     pContainerAccounting = containerAccounting;
   }
@@ -385,7 +396,7 @@ private:
   //! Notify the listeners about the change
   //--------------------------------------------------------------------------
   void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a)
-    override;
+  override;
 
   //--------------------------------------------------------------------------
   //! Load the container

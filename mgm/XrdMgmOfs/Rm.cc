@@ -291,6 +291,7 @@ XrdMgmOfs::_rem(const char* path,
           container->setMTimeNow();
           container->notifyMTimeChange(gOFS->eosDirectoryService);
           eosView->updateContainerStore(container.get());
+          gOFS->FuseXCast(container->getId());
         }
       }
 

@@ -29,6 +29,7 @@
 #include "common/StringConversion.hh"
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
+#include "common/SymKeys.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/plugin_manager/Plugin.hh"
 #include "namespace/Constants.hh"
@@ -726,4 +727,13 @@ XrdMgmOfs::DiscoverPlatformServices(const char* svc_name, void* opaque)
   }
 
   return 0;
+}
+
+//------------------------------------------------------------------------------
+// Cast a change message to all fusex clients
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::FuseXCast(uint64_t inode)
+{
+  gOFS->zMQ->gFuseServer.Cap().BroadcastReleaseFromExternal(inode);
 }

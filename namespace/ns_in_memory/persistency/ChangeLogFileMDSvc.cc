@@ -1104,7 +1104,7 @@ void ChangeLogFileMDSvc::finalize()
 // Get the file metadata information for the given file ID
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
-ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id)
+ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 {
   IdMap::iterator it = pIdMap.find(id);
 
@@ -1118,6 +1118,10 @@ ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id)
     MDException e(ENOENT);
     e.getMessage() << "File #" << id << " not found in map";
     throw e;
+  }
+
+  if (clock) {
+    *clock = it->second.logOffset;
   }
 
   it->second.ptr->setFileMDSvc(this);

@@ -29,12 +29,12 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_chown (const char *path,
-                   uid_t uid,
-                   gid_t gid,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   const char *ininfo)
+XrdMgmOfs::_chown(const char* path,
+                  uid_t uid,
+                  gid_t gid,
+                  XrdOucErrInfo& error,
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change the owner of a file or directory
@@ -56,10 +56,8 @@ XrdMgmOfs::_chown (const char *path,
 /*----------------------------------------------------------------------------*/
 
 {
-  static const char *epname = "chown";
-
+  static const char* epname = "chown";
   EXEC_TIMING_BEGIN("Chown");
-
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -69,8 +67,7 @@ XrdMgmOfs::_chown (const char *path,
   eos_info("path=%s uid=%u gid=%u", path, uid, gid);
 
   // try as a directory
-  try
-  {
+  try {
     eos::IContainerMD::XAttrMap attrmap;
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path);
@@ -81,42 +78,35 @@ XrdMgmOfs::_chown (const char *path,
     cmd = gOFS->eosView->getContainer(path);
 
     if (((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
-        !eos::common::Mapping::HasGid(4, vid)) &&
-        !acl.CanChown()) ||
-        ((vid.uid) && !acl.IsMutable()))
-
-    {
+                       !eos::common::Mapping::HasGid(4, vid)) &&
+         !acl.CanChown()) ||
+        ((vid.uid) && !acl.IsMutable())) {
       errno = EPERM;
-    }
-    else
-    {
-      if ( (unsigned int) uid != 0xffffffff) 
-      {
-	// Change the owner
-	cmd->setCUid(uid);
+    } else {
+      if ((unsigned int) uid != 0xffffffff) {
+        // Change the owner
+        cmd->setCUid(uid);
       }
 
-      if (((!vid.uid) || (vid.uid == 3) || (vid.gid == 4)) && ( (unsigned int)gid != 0xffffffff))
-      {
+      if (((!vid.uid) || (vid.uid == 3) || (vid.gid == 4)) &&
+          ((unsigned int)gid != 0xffffffff)) {
         // Change the group
         cmd->setCGid(gid);
       }
 
       cmd->setCTimeNow();
       eosView->updateContainerStore(cmd.get());
+      gOFS->FuseXCast(cmd->getId());
       errno = 0;
     }
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
   }
 
-  if (!cmd)
-  {
+  if (!cmd) {
     errno = 0;
-    try
-    {
+
+    try {
       // Try as a file
       eos::common::Path cPath(path);
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -125,43 +115,41 @@ XrdMgmOfs::_chown (const char *path,
       cmd = eosView->getContainer(uri_cmd);
       eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
 
-      if ((vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid != 4))
-      {
+      if ((vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid != 4)) {
         errno = EPERM;
-      }
-      else
-      {
+      } else {
         fmd = gOFS->eosView->getFile(path);
 
         // Substract the file
-        if (ns_quota)
+        if (ns_quota) {
           ns_quota->removeFile(fmd.get());
+        }
 
-	// Change the owner
-	if ( (unsigned int) uid != 0xffffffff) 
-	  fmd->setCUid(uid);
+        // Change the owner
+        if ((unsigned int) uid != 0xffffffff) {
+          fmd->setCUid(uid);
+        }
 
-	// Change the group
-        if (!vid.uid && ((unsigned int) gid != 0xffffffff))
-            fmd->setCGid(gid);
+        // Change the group
+        if (!vid.uid && ((unsigned int) gid != 0xffffffff)) {
+          fmd->setCGid(gid);
+        }
 
         // Re-add the file
-        if (ns_quota)
+        if (ns_quota) {
           ns_quota->addFile(fmd.get());
+        }
 
         fmd->setCTimeNow();
         eosView->updateFileStore(fmd.get());
       }
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
     }
   }
 
   // ---------------------------------------------------------------------------
-  if (cmd && (!errno))
-  {
+  if (cmd && (!errno)) {
     EXEC_TIMING_END("Chmod");
     return SFS_OK;
   }

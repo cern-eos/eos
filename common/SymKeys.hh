@@ -62,93 +62,94 @@ private:
   time_t validity; //< unix time when the validity of the key stops
 
 public:
-//----------------------------------------------------------------------------
-//! Compute the HMAC SHA-256 value of the data passed as input
-//!
-//! @param key the key to be used in the encryption process
-//! @param data the message to be used as input
-//! @param blockSize the size in which the input is divided before the
-//!                  cryptographic function is applied ( 512 bits recommended )
-//! @param resultSize the size of the result ( the size recommended by the
-//!                  OpenSSL library is 256 bits = 32 bytes )
-//!
-//! @return hash-based message authentication code
-//!
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Compute the HMAC SHA-256 value of the data passed as input
+  //!
+  //! @param key the key to be used in the encryption process
+  //! @param data the message to be used as input
+  //! @param blockSize the size in which the input is divided before the
+  //!                  cryptographic function is applied ( 512 bits recommended )
+  //! @param resultSize the size of the result ( the size recommended by the
+  //!                  OpenSSL library is 256 bits = 32 bytes )
+  //!
+  //! @return hash-based message authentication code
+  //!
+  //----------------------------------------------------------------------------
   static std::string HmacSha256(std::string& key,
                                 std::string& data,
                                 unsigned int blockSize = 64,
                                 unsigned int resultSize = 32);
 
 
-//----------------------------------------------------------------------------
-//! Compute the SHA-256 value of the data passed as input
-//!
-//! @param data the message to be used as input
-//! @param blockSize the size in which the input is divided before the
-//!                  hash function is applied ( 512 bits recommended )
-//!
-//! @return hash message
-//!
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Compute the SHA-256 value of the data passed as input
+  //!
+  //! @param data the message to be used as input
+  //! @param blockSize the size in which the input is divided before the
+  //!                  hash function is applied ( 512 bits recommended )
+  //!
+  //! @return hash message
+  //!
+  //----------------------------------------------------------------------------
   static std::string Sha256(const std::string& data,
                             unsigned int blockSize = 32);
 
-//----------------------------------------------------------------------------
-//! Compute the HMAC SHA-1 value of the data passed as input
-//!
-//! @param data the message to be used as input
-//! @param key the key to be used in the encryption process
-//!
-//! @return hash-based message authentication code
-//!
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Compute the HMAC SHA-1 value of the data passed as input
+  //!
+  //! @param data the message to be used as input
+  //! @param key the key to be used in the encryption process
+  //!
+  //! @return hash-based message authentication code
+  //!
+  //----------------------------------------------------------------------------
   static std::string HmacSha1(std::string& data, const char* key = NULL);
 
 
-//----------------------------------------------------------------------------
-//! Base64 encode a string
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Base64 encode a string
+  //----------------------------------------------------------------------------
   static bool Base64Encode(char* in, unsigned int inlen, XrdOucString& out);
 
-  static bool Base64Encode (char* in, unsigned int inlen, std::string &out)
+  static bool Base64Encode(char* in, unsigned int inlen, std::string& out)
   {
-    XrdOucString uout="";
+    XrdOucString uout = "";
     bool rc = Base64Encode(in, inlen, uout);
-    if (rc)
-    {
+
+    if (rc) {
       out = uout.c_str();
     }
+
     return rc;
   }
 
-//----------------------------------------------------------------------------
-//! Base64 decode a string
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Base64 decode a string
+  //----------------------------------------------------------------------------
   static bool Base64Decode(XrdOucString& in, char*& out, unsigned int& outlen);
 
-//----------------------------------------------------------------------------
-//! Decode a base64: prefixed string
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Decode a base64: prefixed string
+  //----------------------------------------------------------------------------
   static bool DeBase64(XrdOucString& in, XrdOucString& out);
 
-  static bool DeBase64 (std::string &in, std::string &out);
+  static bool DeBase64(std::string& in, std::string& out);
 
-//----------------------------------------------------------------------------
-//! Encode a base64: prefixed string
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Encode a base64: prefixed string
+  //----------------------------------------------------------------------------
   static bool Base64(XrdOucString& in, XrdOucString& out);
 
-  static bool Base64 (std::string &in, std::string &out);
+  static bool Base64(std::string& in, std::string& out);
 
-//----------------------------------------------------------------------------
-//!
-//! Constructor for a symmetric key
-//!
-//! @param inkey binary key of SHA_DIGEST_LENGTH
-//! @param invalidity unix time stamp when the key becomes invalid
-//!
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //!
+  //! Constructor for a symmetric key
+  //!
+  //! @param inkey binary key of SHA_DIGEST_LENGTH
+  //! @param invalidity unix time stamp when the key becomes invalid
+  //!
+  //----------------------------------------------------------------------------
   SymKey(const char* inkey, time_t invalidity)
   {
     key64 = "";
@@ -164,14 +165,14 @@ public:
     strncpy(keydigest64, skeydigest64.c_str(), (SHA_DIGEST_LENGTH * 2) - 1);
   }
 
-//----------------------------------------------------------------------------
-//! Destructor
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~SymKey() { }
 
-//----------------------------------------------------------------------------
-//! Output a key and it's digest to stderr
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Output a key and it's digest to stderr
+  //----------------------------------------------------------------------------
   void
   Print()
   {
@@ -184,54 +185,54 @@ public:
     fprintf(stderr, "digest: %s", keydigest64);
   }
 
-//----------------------------------------------------------------------------
-//! Return the binary key
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Return the binary key
+  //----------------------------------------------------------------------------
   const char*
   GetKey()
   {
     return key;
   }
 
-//----------------------------------------------------------------------------
-//! Return the base64 encoded key
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Return the base64 encoded key
+  //----------------------------------------------------------------------------
   const char*
   GetKey64()
   {
     return key64.c_str();
   }
 
-//----------------------------------------------------------------------------
-//! Return the binary key digest
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Return the binary key digest
+  //----------------------------------------------------------------------------
   const char*
   GetDigest()
   {
     return keydigest;
   }
 
-//----------------------------------------------------------------------------
-//! Return the base64 encoded digest
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Return the base64 encoded digest
+  //----------------------------------------------------------------------------
   const char*
   GetDigest64()
   {
     return keydigest64;
   }
 
-//----------------------------------------------------------------------------
-//! Return the expiration time stamp of the key
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Return the expiration time stamp of the key
+  //----------------------------------------------------------------------------
   time_t
   GetValidity()
   {
     return validity;
   }
 
-//----------------------------------------------------------------------------
-//! Check if the key is still valid
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Check if the key is still valid
+  //----------------------------------------------------------------------------
   bool
   IsValid()
   {
@@ -242,9 +243,9 @@ public:
     }
   }
 
-//----------------------------------------------------------------------------
-//! Factory function to create a SymKey Object
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Factory function to create a SymKey Object
+  //----------------------------------------------------------------------------
   static SymKey*
   Create(const char* inkey, time_t validity)
   {
@@ -263,34 +264,34 @@ private:
   XrdOucHash<SymKey> Store;
   SymKey* currentKey;
 public:
-//-----------------------------------------------------------------------------
-//! Constructor
-//-----------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
+  //! Constructor
+  //-----------------------------------------------------------------------------
   SymKeyStore();
 
-//-----------------------------------------------------------------------------
-//! Destructor
-//-----------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
+  //! Destructor
+  //-----------------------------------------------------------------------------
   ~SymKeyStore();
 
-//-----------------------------------------------------------------------------
-//! Set a binary key and it's validity
-//-----------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
+  //! Set a binary key and it's validity
+  //-----------------------------------------------------------------------------
   SymKey* SetKey(const char* key, time_t validity);
 
-//-----------------------------------------------------------------------------
-//! Set a base64 key and it's validity
-//-----------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
+  //! Set a base64 key and it's validity
+  //-----------------------------------------------------------------------------
   SymKey* SetKey64(const char* key64, time_t validity);
 
-//-----------------------------------------------------------------------------
-//! Get a base64 encoded key by digest from the store
-//-----------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
+  //! Get a base64 encoded key by digest from the store
+  //-----------------------------------------------------------------------------
   SymKey* GetKey(const char* keydigest64);
 
-//-----------------------------------------------------------------------------
-//! Get last added valid key from the store
-//-----------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
+  //! Get last added valid key from the store
+  //-----------------------------------------------------------------------------
   SymKey* GetCurrentKey();
 };
 

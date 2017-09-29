@@ -16,7 +16,7 @@ else()
 
   find_library(
     LIBEVENT_LIBRARY
-    NAME event
+    NAMES event2 event
     HINTS ${LIBEVENT_ROOT_DIR}
     PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 

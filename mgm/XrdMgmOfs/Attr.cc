@@ -362,6 +362,7 @@ XrdMgmOfs::_attr_set(const char* path,
         dh->setMTimeNow();
         dh->notifyMTimeChange(gOFS->eosDirectoryService);
         eosView->updateContainerStore(dh.get());
+        gOFS->FuseXCast(dh->getId());
         errno = 0;
       }
     }
@@ -391,6 +392,7 @@ XrdMgmOfs::_attr_set(const char* path,
           fmd->setAttribute(key, val.c_str());
           fmd->setMTimeNow();
           eosView->updateFileStore(fmd.get());
+          gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
           errno = 0;
         }
       }

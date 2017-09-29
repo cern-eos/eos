@@ -62,7 +62,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  SpaceQuota(const char* name);
+  SpaceQuota(const char* path);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -72,9 +72,17 @@ public:
   //----------------------------------------------------------------------------
   //! Get space name
   //----------------------------------------------------------------------------
-  inline const char* GetSpaceName()
+  inline const char* GetSpaceName() const
   {
     return pPath.c_str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get namespace quota node
+  //----------------------------------------------------------------------------
+  inline eos::IQuotaNode* GetQuotaNode()
+  {
+    return mQuotaNode;
   }
 
   //----------------------------------------------------------------------------
@@ -313,7 +321,6 @@ private:
 class Quota: eos::common::LogId
 {
 public:
-
   enum IdT { kUid, kGid }; ///< Id type enum
   enum Type { kUnknown, kVolume, kInode, kAll }; ///< Quota types
 
@@ -575,10 +582,31 @@ public:
   //----------------------------------------------------------------------------
   static int FileAccess(Scheduler::AccessArguments* args);
 
-  //! @brief Retrieves the kAllGroupLogicalBytesIs and kAllGroupLogicalBytesTarget values for the quota nodes.
-  //! @return a map with the paths of the quota nodes and the corresponding values
-  static map<std::string, std::tuple<unsigned long long, unsigned long long, unsigned long long>>
-      GetAllGroupsLogicalQuotaValues();
+  //----------------------------------------------------------------------------
+  //! @brief Retrieve the kAllGroupLogicalBytesIs and kAllGroupLogicalBytesTarget
+  //! values for the quota nodes.
+  //!
+  //! @return a map with the paths of the quota nodes and the corresponding
+  //! values
+  //----------------------------------------------------------------------------
+  static std::map<std::string, std::tuple<unsigned long long,
+         unsigned long long,
+         unsigned long long>>
+         GetAllGroupsLogicalQuotaValues();
+
+  //----------------------------------------------------------------------------
+  //! Get quota for requested user and group by path
+  //!
+  //! @param path path for which to search for a quota node
+  //! @param uid user id
+  //! @param gid group id
+  //! @param avail_files inode quota left
+  //! @param avail_bytes size quota left
+  //! @param quota_inode inode of the quota node
+  //----------------------------------------------------------------------------
+  static int QuotaByPath(const char* path, uid_t uid, gid_t gid,
+                         long long& avail_files, long long& avail_bytes,
+                         eos::IContainerMD::id_t& quota_inode);
 
   static gid_t gProjectId; ///< gid indicating project quota
   static eos::common::RWMutex pMapMutex; ///< mutex to protect access to pMapQuota

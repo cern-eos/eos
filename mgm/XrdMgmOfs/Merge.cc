@@ -72,6 +72,7 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
       src_fmd->setMTime(mtime);
       src_fmd->setFlags(dst_fmd->getFlags());
       eosView->updateFileStore(src_fmd.get());
+      gOFS->FuseXCast(eos::common::FileId::FidToInode(src_fmd->getId()));
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("caught exception %d %s\n",

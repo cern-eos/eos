@@ -36,13 +36,13 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Policy::GetLayoutAndSpace (const char* path,
-                           eos::IContainerMD::XAttrMap &attrmap,
-                           const eos::common::Mapping::VirtualIdentity &vid,
-                           unsigned long &layoutId, XrdOucString &space,
-                           XrdOucEnv &env,
-                           unsigned long &forcedfsid,
-                           long &forcedgroup)
+Policy::GetLayoutAndSpace(const char* path,
+                          eos::IContainerMD::XAttrMap& attrmap,
+                          const eos::common::Mapping::VirtualIdentity& vid,
+                          unsigned long& layoutId, XrdOucString& space,
+                          XrdOucEnv& env,
+                          unsigned long& forcedfsid,
+                          long& forcedgroup)
 
 {
   // this is for the moment only defaulting or manual selection
@@ -51,59 +51,46 @@ Policy::GetLayoutAndSpace (const char* path,
   unsigned long bxsum = eos::common::LayoutId::GetBlockChecksumFromEnv(env);
   unsigned long stripes = eos::common::LayoutId::GetStripeNumberFromEnv(env);
   unsigned long blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(env);
-
-  bool noforcedchecksum=false;
-
+  bool noforcedchecksum = false;
   const char* val = 0;
-  if ((val = env.Get("eos.space")))
-  {
+
+  if ((val = env.Get("eos.space"))) {
     space = val;
-  }
-  else
-  {
+  } else {
     space = "default";
   }
 
-  if ((val = env.Get("eos.group")))
-  {
+  if ((val = env.Get("eos.group"))) {
     // we force an explicit group
-    forcedgroup = strtol(val,0,10);
-  }
-  else
-  {
+    forcedgroup = strtol(val, 0, 10);
+  } else {
     // we don't force an explicit group
     forcedgroup = -1;
   }
 
-  if ((xsum != eos::common::LayoutId::kNone) && (val = env.Get("eos.checksum.noforce")))
-  {
+  if ((xsum != eos::common::LayoutId::kNone) &&
+      (val = env.Get("eos.checksum.noforce"))) {
     // we don't force *.forced.checksum settings
     // we need this flag to be able to force MD5 checksums for S3 uploads
     noforcedchecksum = true;
   }
 
-  if ((vid.uid == 0) && (val = env.Get("eos.layout.noforce")))
-  {
+  if ((vid.uid == 0) && (val = env.Get("eos.layout.noforce"))) {
     // root can request not to apply any forced settings
-  }
-  else
-  {
-    if (attrmap.count("sys.forced.space"))
-    {
+  } else {
+    if (attrmap.count("sys.forced.space")) {
       // we force to use a certain space in this directory even if the user wants something else
       space = attrmap["sys.forced.space"].c_str();
       eos_static_debug("sys.forced.space in %s", path);
     }
 
-    if (attrmap.count("sys.forced.group"))
-    {
+    if (attrmap.count("sys.forced.group")) {
       // we force to use a certain group in this directory even if the user wants something else
-      forcedgroup = strtol(attrmap["sys.forced.group"].c_str(),0,10);
+      forcedgroup = strtol(attrmap["sys.forced.group"].c_str(), 0, 10);
       eos_static_debug("sys.forced.group in %s", path);
     }
 
-    if (attrmap.count("sys.forced.layout"))
-    {
+    if (attrmap.count("sys.forced.layout")) {
       XrdOucString layoutstring = "eos.layout.type=";
       layoutstring += attrmap["sys.forced.layout"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
@@ -112,8 +99,7 @@ Policy::GetLayoutAndSpace (const char* path,
       eos_static_debug("sys.forced.layout in %s", path);
     }
 
-    if (attrmap.count("sys.forced.checksum") && (!noforcedchecksum ))
-    {
+    if (attrmap.count("sys.forced.checksum") && (!noforcedchecksum)) {
       XrdOucString layoutstring = "eos.layout.checksum=";
       layoutstring += attrmap["sys.forced.checksum"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
@@ -122,8 +108,7 @@ Policy::GetLayoutAndSpace (const char* path,
       eos_static_debug("sys.forced.checksum in %s", path);
     }
 
-    if (attrmap.count("sys.forced.blockchecksum"))
-    {
+    if (attrmap.count("sys.forced.blockchecksum")) {
       XrdOucString layoutstring = "eos.layout.blockchecksum=";
       layoutstring += attrmap["sys.forced.blockchecksum"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
@@ -132,8 +117,7 @@ Policy::GetLayoutAndSpace (const char* path,
       eos_static_debug("sys.forced.blockchecksum in %s %x", path, bxsum);
     }
 
-    if (attrmap.count("sys.forced.nstripes"))
-    {
+    if (attrmap.count("sys.forced.nstripes")) {
       XrdOucString layoutstring = "eos.layout.nstripes=";
       layoutstring += attrmap["sys.forced.nstripes"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
@@ -142,8 +126,7 @@ Policy::GetLayoutAndSpace (const char* path,
       eos_static_debug("sys.forced.nstripes in %s", path);
     }
 
-    if (attrmap.count("sys.forced.blocksize"))
-    {
+    if (attrmap.count("sys.forced.blocksize")) {
       XrdOucString layoutstring = "eos.layout.blocksize=";
       layoutstring += attrmap["sys.forced.blocksize"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
@@ -152,19 +135,17 @@ Policy::GetLayoutAndSpace (const char* path,
       eos_static_debug("sys.forced.blocksize in %s : %llu", path, blocksize);
     }
 
-    if (((!attrmap.count("sys.forced.nouserlayout")) || (attrmap["sys.forced.nouserlayout"] != "1")) &&
-        ((!attrmap.count("user.forced.nouserlayout")) || (attrmap["user.forced.nouserlayout"] != "1")))
-    {
-
-      if (attrmap.count("user.forced.space"))
-      {
+    if (((!attrmap.count("sys.forced.nouserlayout")) ||
+         (attrmap["sys.forced.nouserlayout"] != "1")) &&
+        ((!attrmap.count("user.forced.nouserlayout")) ||
+         (attrmap["user.forced.nouserlayout"] != "1"))) {
+      if (attrmap.count("user.forced.space")) {
         // we force to use a certain space in this directory even if the user wants something else
         space = attrmap["user.forced.space"].c_str();
         eos_static_debug("user.forced.space in %s", path);
       }
 
-      if (attrmap.count("user.forced.layout"))
-      {
+      if (attrmap.count("user.forced.layout")) {
         XrdOucString layoutstring = "eos.layout.type=";
         layoutstring += attrmap["user.forced.layout"].c_str();
         XrdOucEnv layoutenv(layoutstring.c_str());
@@ -173,8 +154,7 @@ Policy::GetLayoutAndSpace (const char* path,
         eos_static_debug("user.forced.layout in %s", path);
       }
 
-      if (attrmap.count("user.forced.checksum") && (!noforcedchecksum ))
-      {
+      if (attrmap.count("user.forced.checksum") && (!noforcedchecksum)) {
         XrdOucString layoutstring = "eos.layout.checksum=";
         layoutstring += attrmap["user.forced.checksum"].c_str();
         XrdOucEnv layoutenv(layoutstring.c_str());
@@ -183,8 +163,7 @@ Policy::GetLayoutAndSpace (const char* path,
         eos_static_debug("user.forced.checksum in %s", path);
       }
 
-      if (attrmap.count("user.forced.blockchecksum"))
-      {
+      if (attrmap.count("user.forced.blockchecksum")) {
         XrdOucString layoutstring = "eos.layout.blockchecksum=";
         layoutstring += attrmap["user.forced.blockchecksum"].c_str();
         XrdOucEnv layoutenv(layoutstring.c_str());
@@ -193,8 +172,7 @@ Policy::GetLayoutAndSpace (const char* path,
         eos_static_debug("user.forced.blockchecksum in %s", path);
       }
 
-      if (attrmap.count("user.forced.nstripes"))
-      {
+      if (attrmap.count("user.forced.nstripes")) {
         XrdOucString layoutstring = "eos.layout.nstripes=";
         layoutstring += attrmap["user.forced.nstripes"].c_str();
         XrdOucEnv layoutenv(layoutstring.c_str());
@@ -203,8 +181,7 @@ Policy::GetLayoutAndSpace (const char* path,
         eos_static_debug("user.forced.nstripes in %s", path);
       }
 
-      if (attrmap.count("user.forced.blocksize"))
-      {
+      if (attrmap.count("user.forced.blocksize")) {
         XrdOucString layoutstring = "eos.layout.blocksize=";
         layoutstring += attrmap["user.forced.blocksize"].c_str();
         XrdOucEnv layoutenv(layoutstring.c_str());
@@ -214,103 +191,89 @@ Policy::GetLayoutAndSpace (const char* path,
       }
     }
 
-    if ((attrmap.count("sys.forced.nofsselection") && (attrmap["sys.forced.nofsselection"] == "1")) ||
-        (attrmap.count("user.forced.nofsselection") && (attrmap["user.forced.nofsselection"] == "1")))
-    {
+    if ((attrmap.count("sys.forced.nofsselection") &&
+         (attrmap["sys.forced.nofsselection"] == "1")) ||
+        (attrmap.count("user.forced.nofsselection") &&
+         (attrmap["user.forced.nofsselection"] == "1"))) {
       eos_static_debug("<sys|user>.forced.nofsselection in %s", path);
       forcedfsid = 0;
-    }
-    else
-    {
-      if ((val = env.Get("eos.force.fsid")))
-      {
+    } else {
+      if ((val = env.Get("eos.force.fsid"))) {
         forcedfsid = strtol(val, 0, 10);
-      }
-      else
-      {
+      } else {
         forcedfsid = 0;
       }
     }
   }
 
-  layoutId = eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize, bxsum);
+  layoutId = eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize,
+                                          bxsum);
   return;
 }
 
 /*----------------------------------------------------------------------------*/
 void
-Policy::GetPlctPolicy (const char* path,
-                       eos::IContainerMD::XAttrMap &attrmap,
-                       const eos::common::Mapping::VirtualIdentity &vid,
-                       XrdOucEnv &env,
-                       eos::mgm::Scheduler::tPlctPolicy &plctpol,
-                       std::string &targetgeotag)
+Policy::GetPlctPolicy(const char* path,
+                      eos::IContainerMD::XAttrMap& attrmap,
+                      const eos::common::Mapping::VirtualIdentity& vid,
+                      XrdOucEnv& env,
+                      eos::mgm::Scheduler::tPlctPolicy& plctpol,
+                      std::string& targetgeotag)
 {
   // default to save
-	plctpol = eos::mgm::Scheduler::kScattered;
+  plctpol = eos::mgm::Scheduler::kScattered;
   std::string policyString;
-
   const char* val = 0;
-  if ((val = env.Get("eos.placementpolicy")))
-  {
+
+  if ((val = env.Get("eos.placementpolicy"))) {
     // we force an explicit placement policy
     policyString = val;
   }
-  
-  if ((vid.uid == 0) && (val = env.Get("eos.placementpolicy.noforce")))
-  {
+
+  if ((vid.uid == 0) && (val = env.Get("eos.placementpolicy.noforce"))) {
     // root can request not to apply any forced settings
-  }
-  else
-  {
-    if (attrmap.count("sys.forced.placementpolicy"))
-    {
+  } else {
+    if (attrmap.count("sys.forced.placementpolicy")) {
       // we force to use a certain placament policy even if the user wants something else
       policyString = attrmap["sys.forced.placementpolicy"].c_str();
       eos_static_debug("sys.forced.placementpolicy in %s", path);
     }
 
-    if (((!attrmap.count("sys.forced.nouserplacementpolicy")) || (attrmap["sys.forced.nouserplacementpolicy"] != "1")) &&
-        ((!attrmap.count("user.forced.nouserplacementpolicy")) || (attrmap["user.forced.nouserplacementpolicy"] != "1")))
-    {
-
-      if (attrmap.count("user.forced.placementpolicy"))
-      {
+    if (((!attrmap.count("sys.forced.nouserplacementpolicy")) ||
+         (attrmap["sys.forced.nouserplacementpolicy"] != "1")) &&
+        ((!attrmap.count("user.forced.nouserplacementpolicy")) ||
+         (attrmap["user.forced.nouserplacementpolicy"] != "1"))) {
+      if (attrmap.count("user.forced.placementpolicy")) {
         // we force to use a certain placament policy even if the user wants something else
         policyString = attrmap["user.forced.placementpolicy"].c_str();
         eos_static_debug("user.forced.placementpolicy in %s", path);
       }
     }
-
   }
 
-  if(policyString.empty() || policyString == "scattered")
-  {
-  	plctpol = eos::mgm::Scheduler::kScattered;
-  	return;
+  if (policyString.empty() || policyString == "scattered") {
+    plctpol = eos::mgm::Scheduler::kScattered;
+    return;
   }
 
   std::string::size_type seppos = policyString.find(':');
+
   // if no target geotag is provided, it's not a valid placement policy
-  if(seppos == std::string::npos || seppos == policyString.length()-1)
-  {
-  	eos_static_warning("no geotag given in placement policy for path %s : \"%s\"",path,policyString.c_str());
-  	return;
+  if (seppos == std::string::npos || seppos == policyString.length() - 1) {
+    eos_static_warning("no geotag given in placement policy for path %s : \"%s\"",
+                       path, policyString.c_str());
+    return;
   }
 
-  targetgeotag = policyString.substr(seppos+1);
+  targetgeotag = policyString.substr(seppos + 1);
 
-  if(!policyString.compare(0,seppos,"hybrid"))
-  {
-  	plctpol = eos::mgm::Scheduler::kHybrid;
-  }
-  else if(!policyString.compare(0,seppos,"gathered"))
-  {
-  	plctpol = eos::mgm::Scheduler::kGathered;
-  }
-  else
-  {
-  	eos_static_warning("unknown placement policy for path %s : \"%s\"",path,policyString.c_str());
+  if (!policyString.compare(0, seppos, "hybrid")) {
+    plctpol = eos::mgm::Scheduler::kHybrid;
+  } else if (!policyString.compare(0, seppos, "gathered")) {
+    plctpol = eos::mgm::Scheduler::kGathered;
+  } else {
+    eos_static_warning("unknown placement policy for path %s : \"%s\"", path,
+                       policyString.c_str());
   }
 
   return;
@@ -318,50 +281,49 @@ Policy::GetPlctPolicy (const char* path,
 
 /*----------------------------------------------------------------------------*/
 bool
-Policy::Set (const char* value)
+Policy::Set(const char* value)
 {
   XrdOucEnv env(value);
   XrdOucString policy = env.Get("mgm.policy");
-
   XrdOucString skey = env.Get("mgm.policy.key");
-
   XrdOucString policycmd = env.Get("mgm.policy.cmd");
 
-  if (!skey.length())
+  if (!skey.length()) {
     return false;
+  }
 
   bool set = false;
 
-  if (!value)
+  if (!value) {
     return false;
+  }
 
   //  gOFS->ConfigEngine->SetConfigValue("policy",skey.c_str(), svalue.c_str());
-
   return set;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-Policy::Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Policy::Set(XrdOucEnv& env, int& retc, XrdOucString& stdOut,
+            XrdOucString& stdErr)
 {
   int envlen;
   // no '&' are allowed into stdOut !
   XrdOucString inenv = env.Env(envlen);
-  while (inenv.replace("&", " "))
-  {
+
+  while (inenv.replace("&", " ")) {
   };
+
   bool rc = Set(env.Env(envlen));
-  if (rc == true)
-  {
+
+  if (rc == true) {
     stdOut += "success: set policy [ ";
     stdOut += inenv;
     stdOut += "]\n";
     errno = 0;
     retc = 0;
     return true;
-  }
-  else
-  {
+  } else {
     stdErr += "error: failed to set policy [ ";
     stdErr += inenv;
     stdErr += "]\n";
@@ -373,18 +335,20 @@ Policy::Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdE
 
 /*----------------------------------------------------------------------------*/
 void
-Policy::Ls (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr) { }
+Policy::Ls(XrdOucEnv& env, int& retc, XrdOucString& stdOut,
+           XrdOucString& stdErr) { }
 
 /*----------------------------------------------------------------------------*/
 bool
-Policy::Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Policy::Rm(XrdOucEnv& env, int& retc, XrdOucString& stdOut,
+           XrdOucString& stdErr)
 {
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 const char*
-Policy::Get (const char* key)
+Policy::Get(const char* key)
 {
   return 0;
 }

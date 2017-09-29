@@ -995,7 +995,7 @@ public:
   //! @param space space name
   //!
   //! @return true if quota enabled for space, otherwise false
-  //! @warning needs to be called with a read-lock on the MapMutex
+  //! @warning needs to be called with a read-lock on the ViewMutex
   //----------------------------------------------------------------------------
   bool IsQuotaEnabled(const std::string& space);
 

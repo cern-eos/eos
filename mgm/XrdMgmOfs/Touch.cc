@@ -29,10 +29,10 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_touch (const char *path,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   const char *ininfo)
+XrdMgmOfs::_touch(const char* path,
+                  XrdOucErrInfo& error,
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create(touch) a no-replica file in the namespace
@@ -48,38 +48,29 @@ XrdMgmOfs::_touch (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   EXEC_TIMING_BEGIN("Touch");
-
   eos_info("path=%s vid.uid=%u vid.gid=%u", path, vid.uid, vid.gid);
-
-
   gOFS->MgmStats.Add("Touch", vid.uid, vid.gid, 1);
-
   // Perform the actual deletion
   errno = 0;
   std::shared_ptr<eos::IFileMD> fmd;
 
-  if (_access(path, W_OK, error, vid, ininfo))
-  {
+  if (_access(path, W_OK, error, vid, ininfo)) {
     return SFS_ERROR;
   }
 
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  try
-  {
+
+  try {
     fmd = gOFS->eosView->getFile(path);
     errno = 0;
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  try
-  {
-    if (!fmd)
-    {
+  try {
+    if (!fmd) {
       fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
       fmd->setCUid(vid.uid);
       fmd->setCGid(vid.gid);
@@ -89,24 +80,24 @@ XrdMgmOfs::_touch (const char *path,
 
     fmd->setMTimeNow();
     gOFS->eosView->updateFileStore(fmd.get());
+    gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
     unsigned long long cid = fmd->getContainerId();
-    std::shared_ptr<eos::IContainerMD> cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+    std::shared_ptr<eos::IContainerMD> cmd =
+      gOFS->eosDirectoryService->getContainerMD(cid);
     eos::IFileMD::ctime_t mtime;
     fmd->getMTime(mtime);
     cmd->setMTime(mtime);
-    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+    cmd->notifyMTimeChange(gOFS->eosDirectoryService);
     gOFS->eosView->updateContainerStore(cmd.get());
+    gOFS->FuseXCast(cmd->getId());
     errno = 0;
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  if (errno)
-  {
+  if (errno) {
     return Emsg("utimes", error, errno, "touch", path);
   }
 

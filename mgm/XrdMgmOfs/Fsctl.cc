@@ -21,18 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 // -----------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::fsctl(const int cmd,
-                 const char* args,
-                 XrdOucErrInfo& error,
-                 const XrdSecEntity* client)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief implements locate and space-ls function
@@ -46,6 +39,12 @@ XrdMgmOfs::fsctl(const int cmd,
  * space in XRootD fashion.
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::fsctl(const int cmd,
+                 const char* args,
+                 XrdOucErrInfo& error,
+                 const XrdSecEntity* client)
+
 {
   const char* tident = error.getErrUser();
   eos::common::LogId ThreadLogId;
@@ -114,12 +113,6 @@ XrdMgmOfs::fsctl(const int cmd,
 }
 
 /*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::FSctl(const int cmd,
-                 XrdSfsFSctl& args,
-                 XrdOucErrInfo& error,
-                 const XrdSecEntity* client)
-/*----------------------------------------------------------------------------*/
 /*
  * @brief FS control funcition implementing the locate and plugin call
  *
@@ -134,6 +127,11 @@ XrdMgmOfs::FSctl(const int cmd,
  * utimes, get checksum, schedule to drain/balance/delete ...
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::FSctl(const int cmd,
+                 XrdSfsFSctl& args,
+                 XrdOucErrInfo& error,
+                 const XrdSecEntity* client)
 {
   char ipath[16384];
   char iopaque[16384];
@@ -152,7 +150,19 @@ XrdMgmOfs::FSctl(const int cmd,
     ipath[0] = 0;
   }
 
-  if (args.Arg2Len) {
+  bool fusexset = false;
+
+  // check if this is a protocol buffer injection
+  if ((cmd == SFS_FSCTL_PLUGIN) && (args.Arg2Len > 5)) {
+    std::string key;
+    key.assign(args.Arg2, 6);
+
+    if (key == "fusex:") {
+      fusexset = true;
+    }
+  }
+
+  if (!fusexset && args.Arg2Len) {
     if (args.Arg2Len < 16384) {
       strncpy(iopaque, args.Arg2, args.Arg2Len);
       iopaque[args.Arg2Len] = 0;
@@ -164,6 +174,7 @@ XrdMgmOfs::FSctl(const int cmd,
     iopaque[0] = 0;
   }
 
+  eos_static_debug("1 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
   const char* inpath = ipath;
   const char* ininfo = iopaque;
   // Do the id mapping with the opaque information
@@ -176,6 +187,7 @@ XrdMgmOfs::FSctl(const int cmd,
   ThreadLogId.SetSingleShotLogId(tident);
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
+  eos_static_debug("2 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
   // ---------------------------------------------------------------------------
   // from here on we can deal with XrdOucString which is more 'comfortable'
   // ---------------------------------------------------------------------------
@@ -185,13 +197,15 @@ XrdMgmOfs::FSctl(const int cmd,
   XrdOucEnv env(opaque.c_str());
   const char* scmd = env.Get("mgm.pcmd");
   XrdOucString execmd = scmd ? scmd : "";
+  eos_static_debug("3 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
 
   // version is not submitted to access control
   // so that features of the instance can be retrieved by an authenticated user
-  if (execmd != "version") {
+  if ((execmd != "version") && !fusexset) {
     BOUNCE_NOT_ALLOWED;
   }
 
+  eos_static_debug("4 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
   eos_thread_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
 
   // ---------------------------------------------------------------------------
@@ -226,180 +240,137 @@ XrdMgmOfs::FSctl(const int cmd,
     return Emsg("fsctl", error, EOPNOTSUPP, "fsctl", inpath);
   }
 
+  // Fuse e(x)tension - this we always redirect to the RW master
+  if (fusexset) {
+    eos_static_debug("5 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+    std::string protobuf;
+    protobuf.assign(args.Arg2 + 6, args.Arg2Len - 6);
+#include "fsctl/Fusex.cc"
+  }
+
   if (scmd) {
-    // -------------------------------------------------------------------------
     // Adjust replica (repairOnClose from FST)
-    // -------------------------------------------------------------------------
     if (execmd == "adjustreplica") {
 #include "fsctl/Adjustreplica.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Repair file (repair after scan error e.g. use the converter to rewrite)
-    // -------------------------------------------------------------------------
     if (execmd == "rewrite") {
 #include "fsctl/Rewrite.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Commit a replica
-    // -------------------------------------------------------------------------
     if (execmd == "commit") {
 #include "fsctl/Commit.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Drop a replica
-    // -------------------------------------------------------------------------
     if (execmd == "drop") {
 #include "fsctl/Drop.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Trigger an event
-    // -------------------------------------------------------------------------
     if (execmd == "event") {
 #include "fsctl/Event.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Return's meta data in env representation
-    // -------------------------------------------------------------------------
     if (execmd == "getfmd") {
 #include "fsctl/Getfmd.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Stat a file/dir - this we always redirect to the RW master
-    // -------------------------------------------------------------------------
     if (execmd == "stat") {
 #include "fsctl/Stat.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Make a directory and return it's inode
-    // -------------------------------------------------------------------------
-
     if (execmd == "mkdir") {
 #include "fsctl/Mkdir.cc"
     }
 
-    // -------------------------------------------------------------------------
     // chmod a dir
-    // -------------------------------------------------------------------------
     if (execmd == "chmod") {
 #include "fsctl/Chmod.cc"
     }
 
-    // -------------------------------------------------------------------------
     // chown file/dir
-    // -------------------------------------------------------------------------
     if (execmd == "chown") {
 #include "fsctl/Chown.cc"
     }
 
-    // -------------------------------------------------------------------------
     // check access rights
-    // -------------------------------------------------------------------------
     if (execmd == "access") {
 #include "fsctl/Access.cc"
     }
 
-    // -------------------------------------------------------------------------
     // parallel IO mode open
-    // -------------------------------------------------------------------------
     if (execmd == "open") {
 #include "fsctl/Open.cc"
     }
 
-    // -------------------------------------------------------------------------
     // get open redirect
-    // -------------------------------------------------------------------------
     if (execmd == "redirect") {
 #include "fsctl/Redirect.cc"
     }
 
-    // -------------------------------------------------------------------------
     // utimes
-    // -------------------------------------------------------------------------
     if (execmd == "utimes") {
 #include "fsctl/Utimes.cc"
     }
 
-    // -------------------------------------------------------------------------
     // parallel IO mode open
-    // -------------------------------------------------------------------------
     if (execmd == "checksum") {
 #include "fsctl/Checksum.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Return the virtual 'filesystem' stat
-    // -------------------------------------------------------------------------
     if (execmd == "statvfs") {
 #include "fsctl/Statvfs.cc"
     }
 
-    // -------------------------------------------------------------------------
     // get/set/list/rm extended attributes
-    // -------------------------------------------------------------------------
     if (execmd == "xattr") {
 #include "fsctl/Xattr.cc"
     }
 
-    // -------------------------------------------------------------------------
     // create a symbolic link
-    // -------------------------------------------------------------------------
     if (execmd == "symlink") {
 #include "fsctl/Symlink.cc"
     }
 
-    // -------------------------------------------------------------------------
     // resolve a symbolic link
-    // -------------------------------------------------------------------------
     if (execmd == "readlink") {
 #include "fsctl/Readlink.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Schedule a balancer transfer
-    // -------------------------------------------------------------------------
     if (execmd == "schedule2balance") {
 #include "fsctl/Schedule2Balance.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Schedule a drain transfer
-    // -------------------------------------------------------------------------
     if (execmd == "schedule2drain") {
 #include "fsctl/Schedule2Drain.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Schedule deletion
-    // -------------------------------------------------------------------------
     if (execmd == "schedule2delete") {
 #include "fsctl/Schedule2Delete.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Set the transfer state (and log)
-    // -------------------------------------------------------------------------
     if (execmd == "txstate") {
 #include "fsctl/Txstate.cc"
     }
 
-    // -------------------------------------------------------------------------
     // Get the eos version (and the features)
-    // -------------------------------------------------------------------------
     if (execmd == "version") {
 #include "fsctl/Version.cc"
     }
 
     if (execmd == "mastersignalbounce") {
-      // -----------------------------------------------------------------------
       // a remote master signaled us to bounce everything to him
-      // -----------------------------------------------------------------------
       REQUIRE_SSS_OR_LOCAL_AUTH;
       gOFS->MgmMaster.TagNamespaceInodes();
       gOFS->MgmMaster.RedirectToRemoteMaster();

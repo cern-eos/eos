@@ -81,6 +81,12 @@ Mapping::Init()
 {
   ActiveTidents.set_empty_key("#__EMPTY__#");
   ActiveTidents.set_deleted_key("#__DELETED__#");
+
+  // allow FUSE client access as root via env variable
+  if (getenv("EOS_FUSE_NO_ROOT_SQUASH") &&
+      !strcmp("1", getenv("EOS_FUSE_NO_ROOT_SQUASH"))) {
+    gRootSquash = false;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -128,8 +134,8 @@ Mapping::ActiveExpire(int interval, bool force)
     google::dense_hash_map<std::string, time_t>::iterator it1;
     google::dense_hash_map<std::string, time_t>::iterator it2;
 
-    for (it1 = Mapping::ActiveTidents.begin(); it1 != Mapping::ActiveTidents.end();
-        ) {
+    for (it1 = Mapping::ActiveTidents.begin();
+         it1 != Mapping::ActiveTidents.end();) {
       if ((now - it1->second) > interval) {
         it2 = it1;
         it1++;
@@ -567,10 +573,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.gid = DAEMONGID;
         vid.gid_list.push_back(DAEMONGID);
       } else {
-        eos_static_debug("tident uid mapping");
+        eos_static_debug("tident uid mapping prot=%s name=%s",
+                         vid.prot.c_str(), vid.name.c_str());
         vid.uid_list.clear();
-        // use physical mapping
 
+        // use physical mapping
         // unix protocol maps to the role if the client is the root account
         // otherwise it maps to the unix ID on the client host
         if (((vid.prot == "unix") && (vid.name == "root")) ||
@@ -1118,7 +1125,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
   }
 
   gid_vector* gv;
-  id_pair* id;
+  id_pair* id  = 0;
   memset(&passwdinfo, 0, sizeof(passwdinfo));
   eos_static_debug("find in uid cache %s", name);
   gPhysicalIdMutex.Lock();
@@ -1130,9 +1137,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
     bool use_pw = true;
 
     if (sname.length() == 8) {
-      // -------------------------------------------------------------------------
       // check if name is a 8 digit hex number indication <uid-hex><gid-hex>
-      // -------------------------------------------------------------------------
       unsigned long long hexid = strtoull(sname.c_str(), 0, 16);
       char rhexid[16];
       bool known_tident = false;
@@ -1183,11 +1188,11 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
           if (out) {
             free(out);
           }
-          
+
           if (id) {
             delete id;
           }
-          
+
           id  = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
           eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid,
                            id->gid);
@@ -1201,7 +1206,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
       }
 
       if (known_tident) {
-        if (!id->uid || !id->gid) {
+        if (gRootSquash && (!id->uid || !id->gid)) {
           gPhysicalIdMutex.UnLock();
           delete id;
           return;

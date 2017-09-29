@@ -1176,6 +1176,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   lFanOutTags.push_back("Balancer");
   lFanOutTags.push_back("Converter");
   lFanOutTags.push_back("DrainJob");
+  lFanOutTags.push_back("ZMQ");
   lFanOutTags.push_back("Http");
   lFanOutTags.push_back("Master");
   lFanOutTags.push_back("Recycle");
@@ -1834,6 +1835,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
+    // Create the ZMQ processor used especially for fuse
+    zMQ = new ZMQ("tcp://*:1100");
+
+    if (!zMQ) {
+      Eroute.Emsg("Config", "cannto start ZMQ processor");
+      return 1;
+    }
+
+    zMQ->ServeFuse();
     ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
     ObjectManager.HashMutex.LockRead();
     hash = ObjectManager.GetHash("/eos/*");

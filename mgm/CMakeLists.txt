@@ -33,6 +33,7 @@ include_directories(
   ${NCURSES_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
+  ${CMAKE_BINARY_DIR}
   ${CMAKE_BINARY_DIR}/auth_plugin/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src)
@@ -49,9 +50,17 @@ if (BUILD_QUARKDB_NAMESPACE)
   set(QDB_CLIENT ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 endif()
 
+#-------------------------------------------------------------------------------
+# Generate protocol buffer files
+#-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(FUSEX_SRCS FUSEX_HDRS fusex.proto)
+set_source_files_properties(
+  ${FUSEX_SRCS}
+  ${FUSEX_HDRS}
+  PROPERTIES GENERATED 1)
+
 add_library(
   XrdEosMgm-Objects OBJECT
-
   Access.cc
   IConfigEngine.cc
   FileConfigEngine.cc
@@ -89,6 +98,7 @@ add_library(
   proc/user/Fileinfo.cc
   proc/user/Find.cc
   proc/user/Fuse.cc
+  proc/user/FuseX.cc
   proc/user/Ls.cc
   proc/user/Map.cc
   proc/user/Member.cc
@@ -125,6 +135,8 @@ add_library(
   GeoBalancer.cc
   Features.cc
   ZMQ.cc
+  FuseServer.cc FuseServer.hh
+  fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
   Master.cc
   Recycle.cc
   LRU.cc
@@ -144,6 +156,7 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   TableFormatter/TableFormatterBase.cc
   TableFormatter/TableCell.cc
+  ${FUSEX_SRCS}
   ${QDB_CLIENT})
 
 add_dependencies(XrdEosMgm-Objects EosAuthProto)
@@ -289,7 +302,7 @@ if(CPPUNIT_FOUND AND BUILD_QUARKDB_NAMESPACE AND Linux)
     tests/ConfigEngineTest.cc)
 
   target_link_libraries(
-    EosMgmConfigTest
+    EosMgmConfigTest PUBLIC
     XrdEosMgm-Static
     ${CPPUNIT_LIBRARY})
 

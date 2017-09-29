@@ -118,6 +118,7 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
         (subcmd == "add") ||
         (subcmd == "mv") ||
         (subcmd == "rm"))) ||
+      ((cmd == "fusex")) ||
       ((cmd == "space") &&
        ((subcmd == "config") ||
         (subcmd == "define") ||
@@ -466,6 +467,9 @@ ProcCommand::open(const char* inpath,
     } else if (mCmd == "group") {
       Group();
       mDoSort = false;
+    } else if (mCmd == "fusex") {
+      FuseX();
+      mDoSort = false;
     } else if (mCmd == "fs") {
       Fs();
       mDoSort = false;
@@ -513,8 +517,7 @@ ProcCommand::open(const char* inpath,
     if (mCmd == "accounting") {
       Accounting();
       mDoSort = false;
-    }
-    else if (mCmd == "archive") {
+    } else if (mCmd == "archive") {
       Archive();
       mDoSort = false;
     } else if (mCmd == "motd") {
@@ -531,6 +534,8 @@ ProcCommand::open(const char* inpath,
       mDoSort = false;
     } else if (mCmd == "fuse") {
       return Fuse();
+    } else if (mCmd == "fuseX") {
+      return FuseX();
     } else if (mCmd == "file") {
       File();
       mDoSort = false;
@@ -700,7 +705,9 @@ ProcCommand::MakeResult()
       mResultStream += "&mgm.proc.stderr=";
       mResultStream += XrdMqMessage::Seal(stdErr);
       mResultStream += "&mgm.proc.retc=";
-      mResultStream += retc;
+      std::string sret;
+      mResultStream += eos::common::StringConversion::GetSizeString(sret,
+                       (unsigned long long)retc);
     }
 
     if (mFuseFormat || mHttpFormat) {
@@ -714,9 +721,9 @@ ProcCommand::MakeResult()
           "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Midnight\"> \n";
         mResultStream += "<meta charset=\"utf-8\"> \n";
         mResultStream += "<div class=\"httptable\" id=\"";
-        mResultStream += mCmd;
+        mResultStream += mCmd.c_str();
         mResultStream += "_";
-        mResultStream += mSubCmd;
+        mResultStream += mSubCmd.c_str();
         mResultStream += "\">\n";
 
         // ------------------------------------------------------------------------
@@ -728,7 +735,7 @@ ProcCommand::MakeResult()
           if (stdErr.length() || retc) {
             mResultStream += stdOut;
             mResultStream += "<h3>&#9888;&nbsp;<font color=\"red\">";
-            mResultStream += stdErr;
+            mResultStream += stdErr.c_str();
             mResultStream += "</font></h3>";
           } else {
             if (!stdOut.length()) {
@@ -857,7 +864,7 @@ ProcCommand::MakeResult()
 
         if (mJsonCallback.length()) {
           // JSONP
-          mResultStream = mJsonCallback;
+          mResultStream = mJsonCallback.c_str();
           mResultStream += "([\n";
           mResultStream += r.str().c_str();
           mResultStream += "\n]);";
@@ -872,7 +879,7 @@ ProcCommand::MakeResult()
       } else {
         if (mJsonCallback.length()) {
           // JSONP
-          mResultStream = mJsonCallback;
+          mResultStream = mJsonCallback.c_str();
           mResultStream += "([\n";
           mResultStream += stdJson;
           mResultStream += "\n]);";
@@ -886,7 +893,7 @@ ProcCommand::MakeResult()
       }
     }
 
-    if (!mResultStream.endswith('\n')) {
+    if (mResultStream.length() && (!mResultStream.endswith('\n'))) {
       mResultStream += "\n";
     }
 

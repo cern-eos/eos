@@ -81,10 +81,16 @@ public:
   virtual void finalize() = 0;
 
   //------------------------------------------------------------------------
-  //! Get the file metadata information for the given file ID
+  //! Get the container metadata information for the given ID
   //------------------------------------------------------------------------
   virtual std::shared_ptr<IContainerMD>
   getContainerMD(IContainerMD::id_t id) = 0;
+
+  //------------------------------------------------------------------------
+  //! Get the container metadata information for the given ID and clock
+  //------------------------------------------------------------------------
+  virtual std::shared_ptr<IContainerMD>
+  getContainerMD(IContainerMD::id_t id, uint64_t* clock) = 0;
 
   //------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has

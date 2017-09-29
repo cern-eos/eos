@@ -21,26 +21,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSCOMMON_ZMQ__HH__
-#define __EOSCOMMON_ZMQ__HH__
-
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 #ifdef HAVE_DEFAULT_ZMQ
 #include <zmq.hpp>
 #else
 #include "utils/zmq.hpp"
 #endif
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
-class ZMQ : public eos::common::LogId {
+class ZMQ : public eos::common::LogId
+{
 private:
   std::string bindUrl;  // bind URL to listen for messages
   pthread_t tid;        // thread ID of listener thread
@@ -49,20 +44,24 @@ private:
 
 public:
 
-  ZMQ() {zombie = true;}
+  ZMQ()
+  {
+    zombie = true;
+  }
   ZMQ(const char* URL);
   virtual ~ZMQ();
 
-  virtual bool IsZombie() { return zombie; }
+  virtual bool IsZombie()
+  {
+    return zombie;
+  }
 
   virtual void Listen();
-  virtual void Process(zmq::socket_t &socket, zmq::message_t &request);
-  
-  // listener thread startup                                                                                                                                                                         
+  virtual void Process(zmq::socket_t& socket, zmq::message_t& request);
+
+  // listener thread startup
   static void* Start(void*);
 
 };
 
 EOSCOMMONNAMESPACE_END
-
-#endif

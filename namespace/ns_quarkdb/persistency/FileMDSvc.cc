@@ -76,7 +76,6 @@ FileMDSvc::initialize()
   mMetaMap.setClient(*pQcl);
   mDirtyFidBackend.setKey(constants::sSetCheckFiles);
   mDirtyFidBackend.setClient(*pQcl);
-
   inodeProvider.configure(mMetaMap, constants::sLastUsedFid);
 }
 
@@ -84,7 +83,7 @@ FileMDSvc::initialize()
 // Get the file metadata information for the given file ID
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
-FileMDSvc::getFileMD(IFileMD::id_t id)
+FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 {
   // Check first in cache
   std::shared_ptr<IFileMD> file = mFileCache.get(id);
@@ -116,6 +115,7 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
   eos::Buffer ebuff;
   ebuff.putData(blob.c_str(), blob.length());
   file->deserialize(ebuff);
+  // @todo (esindril): decide on what value to assign to clock ?!
   return mFileCache.put(file->getId(), file);
 }
 

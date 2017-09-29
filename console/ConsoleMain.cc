@@ -59,6 +59,7 @@ extern int com_find(char*);
 extern int com_fs(char*);
 extern int com_fsck(char*);
 extern int com_fuse(char*);
+extern int com_fusex(char*);
 extern int com_geosched(char*);
 extern int com_group(char*);
 extern int com_health(char*);
@@ -231,6 +232,7 @@ COMMAND commands[] = {
   { (char*) "fs", com_fs, (char*) "File System configuration"},
   { (char*) "fsck", com_fsck, (char*) "File System Consistency Checking"},
   { (char*) "fuse", com_fuse, (char*) "Fuse Mounting"},
+  { (char*) "fusex", com_fusex, (char*) "Fuse(x) Administration"},
   { (char*) "geosched", com_geosched, (char*) "Geoscheduler Interface"},
   { (char*) "group", com_group, (char*) "Group configuration"},
   { (char*) "health", com_health, (char*) "Health information about system"},

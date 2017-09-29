@@ -43,10 +43,9 @@ class IQuotaStats;
 //------------------------------------------------------------------------------
 class IQuotaNode
 {
- public:
+public:
 
-  struct UsageInfo
-  {
+  struct UsageInfo {
     UsageInfo(): space(0), physicalSpace(0), files(0) {}
     UsageInfo& operator += (const UsageInfo& other)
     {
@@ -66,12 +65,21 @@ class IQuotaNode
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IQuotaNode(IQuotaStats* quotaStats): pQuotaStats(quotaStats) {}
+  IQuotaNode(IQuotaStats* quotaStats, eos::IContainerMD::id_t id):
+    pQuotaStats(quotaStats), pContainerId(id) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~IQuotaNode() {};
+
+  //----------------------------------------------------------------------------
+  //! Get the container id of this node
+  //----------------------------------------------------------------------------
+  inline IContainerMD::id_t getId() const
+  {
+    return pContainerId;
+  }
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
@@ -134,8 +142,11 @@ class IQuotaNode
   //----------------------------------------------------------------------------
   virtual std::vector<unsigned long> getGids() = 0;
 
- protected:
+protected:
   IQuotaStats* pQuotaStats;
+
+private:
+  IContainerMD::id_t pContainerId; ///< Id of the corresponding container
 };
 
 //----------------------------------------------------------------------------
@@ -143,7 +154,7 @@ class IQuotaNode
 //----------------------------------------------------------------------------
 class IQuotaStats
 {
- public:
+public:
   //----------------------------------------------------------------------------
   // Type definitions
   //----------------------------------------------------------------------------
@@ -197,8 +208,7 @@ class IQuotaStats
   //----------------------------------------------------------------------------
   uint64_t getPhysicalSize(const IFileMD* file)
   {
-    if (!pSizeMapper)
-    {
+    if (!pSizeMapper) {
       MDException e;
       e.getMessage() << "No size mapping function registered" << std::endl;
       throw (e);
@@ -207,7 +217,7 @@ class IQuotaStats
     return (*pSizeMapper)(file);
   }
 
- protected:
+protected:
   SizeMapper pSizeMapper;
 };
 

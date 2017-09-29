@@ -129,6 +129,13 @@ public:
   virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
+  //! Get the file metadata information for the given file ID and clock
+  //! value
+  //------------------------------------------------------------------------
+  virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id,
+      uint64_t* clock) = 0;
+
+  //------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //------------------------------------------------------------------------

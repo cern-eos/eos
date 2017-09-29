@@ -215,6 +215,7 @@ XrdMgmOfs::_remdir(const char* path,
         dhpar->setMTimeNow();
         dhpar->notifyMTimeChange(gOFS->eosDirectoryService);
         eosView->updateContainerStore(dhpar.get());
+        gOFS->FuseXCast(dhpar->getId());
       }
 
       eosView->removeContainer(path);

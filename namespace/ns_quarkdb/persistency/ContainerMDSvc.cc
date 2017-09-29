@@ -81,7 +81,7 @@ ContainerMDSvc::initialize()
 // Get the container metadata information
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
+ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 {
   // Check first in cache
   std::shared_ptr<IContainerMD> cont = mContainerCache.get(id);
@@ -114,6 +114,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
   eos::Buffer ebuff;
   ebuff.putData(blob.c_str(), blob.length());
   cont->deserialize(ebuff);
+  // @todo (esindril): decide on what value to assign to clock ?!
   return mContainerCache.put(cont->getId(), cont);
 }
 

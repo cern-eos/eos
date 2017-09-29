@@ -79,6 +79,11 @@ public:
   {
     return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
   }
+  virtual std::shared_ptr<eos::IFileMD> getFileMD(eos::IFileMD::id_t id,
+      uint64_t* clock)
+  {
+    return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
+  }
   virtual std::shared_ptr<eos::IFileMD> createFile()
   {
     return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);

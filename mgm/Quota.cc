@@ -1905,8 +1905,8 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
                                 args->lid) + 1;
   // First figure out how many filesystems we need
   eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u",
-                   args->vid->uid,
-                   args->vid->gid, args->grouptag, nfilesystems);
+                   args->vid->uid, args->vid->gid, args->grouptag,
+                   nfilesystems);
 
   // Check if quota enabled for current space
   if (FsView::gFsView.IsQuotaEnabled(*args->spacename)) {
@@ -1966,11 +1966,18 @@ Quota::Create(const std::string& path)
   }
 }
 
-map<std::string, std::tuple<unsigned long long, unsigned long long, unsigned long long>>
+//------------------------------------------------------------------------------
+// Retrieve the kAllGroupLogicalBytesIs and kAllGroupLogicalBytesTarget
+// values for the quota nodes.
+//------------------------------------------------------------------------------
+std::map<std::string, std::tuple<unsigned long long,
+    unsigned long long,
+    unsigned long long>>
     Quota::GetAllGroupsLogicalQuotaValues()
 {
-  map<string, std::tuple<unsigned long long, unsigned long long, unsigned long long>>
-      allGroupLogicalByteValues;
+  std::map<string, std::tuple<unsigned long long,
+      unsigned long long,
+      unsigned long long>> allGroupLogicalByteValues;
   // Add this to have all quota nodes visible even if they are not in
   // the configuration file
   LoadNodes();
@@ -1989,6 +1996,110 @@ map<std::string, std::tuple<unsigned long long, unsigned long long, unsigned lon
   }
 
   return allGroupLogicalByteValues;
+}
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+int
+Quota::QuotaByPath(const char* path, uid_t uid, gid_t gid,
+                   long long& avail_files, long long& avail_bytes,
+                   eos::IContainerMD::id_t& quota_inode)
+{
+  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+  SpaceQuota* squota = GetResponsibleSpaceQuota(path);
+
+  if (squota) {
+    long long maxbytes_user, maxbytes_group, maxbytes_project;
+    long long freebytes_user, freebytes_group, freebytes_project;
+    long long freebytes = 0 ;
+    long long maxbytes = 0;
+    freebytes_user = freebytes_group = freebytes_project = 0;
+    maxbytes_user = maxbytes_group = maxbytes_project = 0;
+    squota->Refresh();
+    maxbytes_user  = squota->GetQuota(SpaceQuota::kUserBytesTarget, uid);
+    maxbytes_group = squota->GetQuota(SpaceQuota::kGroupBytesTarget, gid);
+    maxbytes_project = squota->GetQuota(SpaceQuota::kGroupBytesTarget,
+                                        Quota::gProjectId);
+    freebytes_user = maxbytes_user - squota->GetQuota(
+                       SpaceQuota::kUserLogicalBytesIs, uid);
+    freebytes_group = maxbytes_group - squota->GetQuota(
+                        SpaceQuota::kGroupLogicalBytesIs, gid);
+    freebytes_project = maxbytes_project - squota->GetQuota(
+                          SpaceQuota::kGroupLogicalBytesIs, Quota::gProjectId);
+
+    if (freebytes_user > freebytes) {
+      freebytes = freebytes_user;
+    }
+
+    if (freebytes_group > freebytes) {
+      freebytes = freebytes_group;
+    }
+
+    if (freebytes_project > freebytes) {
+      freebytes = freebytes_project;
+    }
+
+    if (maxbytes_user > maxbytes) {
+      maxbytes = maxbytes_user;
+    }
+
+    if (maxbytes_group > maxbytes) {
+      maxbytes = maxbytes_group;
+    }
+
+    if (maxbytes_project > maxbytes) {
+      maxbytes = maxbytes_project;
+    }
+
+    long long maxfiles_user, maxfiles_group, maxfiles_project;
+    long long freefiles_user, freefiles_group, freefiles_project;
+    long long freefiles = 0;
+    long long maxfiles = 0;
+    freefiles_user = freefiles_group = freefiles_project = 0;
+    maxfiles_user = maxfiles_group = maxfiles_project = 0;
+    maxfiles_user  = squota->GetQuota(SpaceQuota::kUserFilesTarget, uid);
+    maxfiles_group = squota->GetQuota(SpaceQuota::kGroupFilesTarget, gid);
+    maxfiles_project = squota->GetQuota(SpaceQuota::kGroupFilesTarget,
+                                        Quota::gProjectId);
+    freefiles_user = maxfiles_user - squota->GetQuota(SpaceQuota::kUserFilesIs,
+                     uid);
+    freefiles_group = maxfiles_group - squota->GetQuota(SpaceQuota::kGroupFilesIs,
+                      gid);
+    freefiles_project = maxfiles_project - squota->GetQuota(
+                          SpaceQuota::kGroupFilesIs, Quota::gProjectId);
+
+    if (freefiles_user > freefiles) {
+      freefiles = freefiles_user;
+    }
+
+    if (freefiles_group > freefiles) {
+      freefiles = freefiles_group;
+    }
+
+    if (freefiles_project > freefiles) {
+      freefiles = freefiles_project;
+    }
+
+    if (maxfiles_user > maxfiles) {
+      maxfiles = maxfiles_user;
+    }
+
+    if (maxfiles_group > maxfiles) {
+      maxfiles = maxfiles_group;
+    }
+
+    if (maxfiles_project > maxfiles) {
+      maxfiles = maxfiles_project;
+    }
+
+    avail_files = freefiles;
+    avail_bytes = freebytes;
+    quota_inode = squota->GetQuotaNode()->getId();
+    return 0;
+  }
+
+  return -1;
 }
 
 EOSMGMNAMESPACE_END

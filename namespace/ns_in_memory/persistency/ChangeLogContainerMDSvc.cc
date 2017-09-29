@@ -858,7 +858,8 @@ void ChangeLogContainerMDSvc::finalize()
 // Get the container metadata information
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-ChangeLogContainerMDSvc::getContainerMD(IContainerMD::id_t id)
+ChangeLogContainerMDSvc::getContainerMD(IContainerMD::id_t id,
+                                        uint64_t* clock)
 {
   IdMap::iterator it = pIdMap.find(id);
 
@@ -866,6 +867,10 @@ ChangeLogContainerMDSvc::getContainerMD(IContainerMD::id_t id)
     MDException e(ENOENT);
     e.getMessage() << "Container #" << id << " not found";
     throw e;
+  }
+
+  if (clock) {
+    *clock = it->second.logOffset;
   }
 
   return it->second.ptr;

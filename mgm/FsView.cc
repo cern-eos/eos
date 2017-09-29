@@ -2557,13 +2557,12 @@ FsView::ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return a fsid for a uuid
+//------------------------------------------------------------------------------
 eos::common::FileSystem::fsid_t
 FsView::GetMapping(std::string fsuuid)
 {
-  //----------------------------------------------------------------
-  //! returns an fsid for a uuid
-  //----------------------------------------------------------------
   eos::common::RWMutexReadLock lock(MapMutex);
 
   if (Uuid2FsMap.count(fsuuid)) {
@@ -2572,7 +2571,6 @@ FsView::GetMapping(std::string fsuuid)
     return 0; // 0 means there is no mapping
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Removes a mapping entry by fsid

@@ -388,6 +388,7 @@ protected:
   unsigned long long cid; //! container id
   unsigned long long mForcedMtime;
   unsigned long long mForcedMtime_ms;
+  bool mFusex; //! indicator that we are commiting from a fusex client
   XrdOucString hostName; //! our hostname
 
   bool closed; //! indicator the file is closed

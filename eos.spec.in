@@ -61,7 +61,7 @@ BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
 BuildRequires: jsoncpp, jsoncpp-devel
-BuildRequires: hiredis-devel
+BuildRequires: hiredis, hiredis-devel
 BuildRequires: jemalloc, jemalloc-devel
 
 %if %{?_with_server:1}%{!?_with_server:0}
@@ -74,10 +74,10 @@ BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
 BuildRequires: libcurl-devel libcurl, sparsehash-devel
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
 BuildRequires: zeromq3, zeromq3-devel
-BuildRequires: libevent2-devel
+BuildRequires: libevent2, libevent2-devel
 %else
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
-BuildRequires: libevent-devel
+BuildRequires: libevent, libevent-devel
 %endif
 
 # Install gcc 4.8 on SLC6
@@ -101,15 +101,15 @@ mkdir -p build
 cd build
 %if %{?_with_server:0}%{!?_with_server:1}
 %if 0%{?rhel} == 6 || 0%{?el6} == 1
-scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1"
+scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1 -DFUSEXCLIENT=1"
 %else
-%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1
+%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1 -DFUSEXCLIENT=1
 %endif
 %else
 %if 0%{?rhel} == 6 || 0%{?el6} == 1
 scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_QUARKDB_NAMESPACE=OFF"
 %else
-%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo
+%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFUSEXCLIENT=1
 %endif
 %endif
 %{__make} %{_smp_mflags}
@@ -322,10 +322,10 @@ The EOS shell client.
 # Package eos-fuse
 #-------------------------------------------------------------------------------
 %package -n eos-fuse
-Summary: The EOS fuse client with init.d and mount script
+Summary: The new EOS fuse client 
 Group: Applications/File
 Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
-Requires: eos-fuse-sysv = @CPACK_PACKAGE_VERSION@
+Requires: eos-fuse-selinux = @CPACK_PACKAGE_VERSION@
 %if %{use_systemd}
 Requires: systemd
 %else
@@ -336,7 +336,7 @@ Requires: psmisc
 %endif
 
 %description -n eos-fuse
-The EOS fuse client bundle.
+The new EOS fuse client bundle.
 
 %files -n eos-fuse
 %defattr(-, root, root, -)

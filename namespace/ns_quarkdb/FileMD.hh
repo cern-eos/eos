@@ -499,13 +499,21 @@ public:
   //! Remove attribute
   //----------------------------------------------------------------------------
   void
-  removeAttribute(const std::string& name)
+  removeAttribute(const std::string& name) override
   {
     auto it = mFile.xattrs().find(name);
 
     if (it != mFile.xattrs().end()) {
       mFile.mutable_xattrs()->erase(it->first);
     }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Remove all attributes
+  //----------------------------------------------------------------------------
+  void clearAttributes() override
+  {
+    mFile.clear_xattrs();
   }
 
   //----------------------------------------------------------------------------

@@ -24,15 +24,11 @@
 #ifndef __EOSAUTH_OFS_HH__
 #define __EOSAUTH_OFS_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
-#include <string>
-/*----------------------------------------------------------------------------*/
-#include "common/ZMQ.hh"
-/*----------------------------------------------------------------------------*/
-#include "common/ConcurrentQueue.hh"
 #include "Namespace.hh"
-/*----------------------------------------------------------------------------*/
+#include "common/ConcurrentQueue.hh"
+#include "mgm/ZMQ.hh"
+#include <string>
 
 //! Forward declaration
 class EosAuthOfsDirectory;

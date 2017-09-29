@@ -137,7 +137,7 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include <dirent.h>
 #include "auth_plugin/ProtoUtils.hh"
-#include "common/ZMQ.hh"
+#include "mgm/ZMQ.hh"
 #include <chrono>
 #include <mutex>
 
@@ -1190,6 +1190,7 @@ public:
   unsigned int mFrontendPort; ///< frontend port number for incoming requests
   unsigned int mNumAuthThreads; ///< max number of auth worker threads
   zmq::context_t* mZmqContext; ///< ZMQ context for all the sockets
+  ZMQ* zMQ; ///< ZMQ processor
 
   //! Autentication response time statistics
   struct AuthStats {
@@ -1345,6 +1346,13 @@ private:
   //! Stop the submitted thread and join
   //------------------------------------------------------------------------------
   void StopArchiveSubmitter();
+
+  //------------------------------------------------------------------------------
+  //! Cast a change message to all fusex clients
+  //!
+  //! @param inode input innode
+  //------------------------------------------------------------------------------
+  void FuseXCast(uint64_t inode);
 };
 
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

@@ -44,8 +44,7 @@ StringConversion::Tokenize(const std::string& str,
   // Find first "non-delimiter".
   std::string::size_type pos = str.find_first_of(delimiters, lastPos);
 
-  while (std::string::npos != pos || std::string::npos != lastPos)
-  {
+  while (std::string::npos != pos || std::string::npos != lastPos) {
     // Found a token, add it to the vector.
     tokens.push_back(str.substr(lastPos, pos - lastPos));
     // Skip delimiters.  Note the "not_of"
@@ -68,15 +67,15 @@ StringConversion::EmptyTokenize(const std::string& str,
   // Find first "non-delimiter".
   std::string::size_type pos = str.find_first_of(delimiters, lastPos);
 
-  while (std::string::npos != pos || std::string::npos != lastPos)
-  {
+  while (std::string::npos != pos || std::string::npos != lastPos) {
     // Found a token, add it to the vector.
     tokens.push_back(str.substr(lastPos, pos - lastPos));
     // Skip delimiters.  Note the "not_of"
     lastPos = str.find_first_of(delimiters, pos);
 
-    if (lastPos != std::string::npos)
+    if (lastPos != std::string::npos) {
       lastPos++;
+    }
 
     // Find next "non-delimiter"
     pos = str.find_first_of(delimiters, lastPos);
@@ -92,20 +91,13 @@ StringConversion::GetReadableAgeString(XrdOucString& sizestring,
 {
   char formsize[1024];
 
-  if (age > 86400)
-  {
+  if (age > 86400) {
     sprintf(formsize, "%llud", age / 86400);
-  }
-  else if (age > 3600)
-  {
+  } else if (age > 3600) {
     sprintf(formsize, "%lluh", age / 3600);
-  }
-  else if (age > 60)
-  {
+  } else if (age > 60) {
     sprintf(formsize, "%llum", age / 60);
-  }
-  else
-  {
+  } else {
     sprintf(formsize, "%llus", age);
   }
 
@@ -124,56 +116,40 @@ StringConversion::GetReadableSizeString(XrdOucString& sizestring,
 {
   char formsize[1024];
 
-  if (insize >= 10000)
-  {
-    if (insize >= (1000 * 1000))
-    {
-      if (insize >= (1000ll * 1000ll * 1000ll))
-      {
-        if (insize >= (1000ll * 1000ll * 1000ll * 1000ll))
-        {
-          if (insize >= (1000ll * 1000ll * 1000ll * 1000ll * 1000ll))
-          {
-            if (insize >= (1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll))
-            { // EB
+  if (insize >= 10000) {
+    if (insize >= (1000 * 1000)) {
+      if (insize >= (1000ll * 1000ll * 1000ll)) {
+        if (insize >= (1000ll * 1000ll * 1000ll * 1000ll)) {
+          if (insize >= (1000ll * 1000ll * 1000ll * 1000ll * 1000ll)) {
+            if (insize >= (1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll)) {
+              // EB
               sprintf(formsize, "%.02f E%s",
                       insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll), unit);
-            }
-            else
-            { // PB
+            } else {
+              // PB
               sprintf(formsize, "%.02f P%s",
                       insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll * 1000ll), unit);
             }
-          }
-          else
-          { // TB
+          } else {
+            // TB
             sprintf(formsize, "%.02f T%s",
                     insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll), unit);
           }
-        }
-        else
-        { // GB
+        } else {
+          // GB
           sprintf(formsize, "%.02f G%s", insize * 1.0 / (1000ll * 1000ll * 1000ll), unit);
         }
-      }
-      else
-      { // MB
+      } else {
+        // MB
         sprintf(formsize, "%.02f M%s", insize * 1.0 / (1000 * 1000), unit);
       }
-    }
-    else
-    {
+    } else {
       sprintf(formsize, "%.02f k%s", insize * 1.0 / (1000), unit);
     }
-  }
-  else
-  {
-    if (strlen(unit))
-    {
+  } else {
+    if (strlen(unit)) {
       sprintf(formsize, "%llu %s", insize, unit);
-    }
-    else
-    {
+    } else {
       sprintf(formsize, "%llu", insize);
     }
   }
@@ -188,8 +164,7 @@ StringConversion::GetReadableSizeString(XrdOucString& sizestring,
 unsigned long long
 StringConversion::GetSizeFromString(const char* instring)
 {
-  if (!instring)
-  {
+  if (!instring) {
     errno = EINVAL;
     return 0;
   }
@@ -199,93 +174,76 @@ StringConversion::GetSizeFromString(const char* instring)
   unsigned long long convfactor;
   convfactor = 1ll;
 
-  if (!sizestring.length())
-  {
+  if (!sizestring.length()) {
     errno = EINVAL;
     return 0;
   }
 
-  if (sizestring.endswith("B") || sizestring.endswith("b"))
-  {
+  if (sizestring.endswith("B") || sizestring.endswith("b")) {
     sizestring.erase(sizestring.length() - 1);
   }
 
-  if (sizestring.endswith("E") || sizestring.endswith("e"))
-  {
+  if (sizestring.endswith("E") || sizestring.endswith("e")) {
     convfactor = 1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll;
   }
 
-  if (sizestring.endswith("P") || sizestring.endswith("p"))
-  {
+  if (sizestring.endswith("P") || sizestring.endswith("p")) {
     convfactor = 1000ll * 1000ll * 1000ll * 1000ll * 1000ll;
   }
 
-  if (sizestring.endswith("T") || sizestring.endswith("t"))
-  {
+  if (sizestring.endswith("T") || sizestring.endswith("t")) {
     convfactor = 1000ll * 1000ll * 1000ll * 1000ll;
   }
 
-  if (sizestring.endswith("G") || sizestring.endswith("g"))
-  {
+  if (sizestring.endswith("G") || sizestring.endswith("g")) {
     convfactor = 1000ll * 1000ll * 1000ll;
   }
 
-  if (sizestring.endswith("M") || sizestring.endswith("m"))
-  {
+  if (sizestring.endswith("M") || sizestring.endswith("m")) {
     convfactor = 1000ll * 1000ll;
   }
 
-  if (sizestring.endswith("K") || sizestring.endswith("k"))
-  {
+  if (sizestring.endswith("K") || sizestring.endswith("k")) {
     convfactor = 1000ll;
   }
 
-  if (sizestring.endswith("S") || sizestring.endswith("s"))
-  {
+  if (sizestring.endswith("S") || sizestring.endswith("s")) {
     convfactor = 1ll;
   }
 
   if ((sizestring.length() > 3) && (sizestring.endswith("MIN")
-                                    || sizestring.endswith("min")))
-  {
+                                    || sizestring.endswith("min"))) {
     convfactor = 60ll;
   }
 
-  if (sizestring.endswith("H") || sizestring.endswith("h"))
-  {
+  if (sizestring.endswith("H") || sizestring.endswith("h")) {
     convfactor = 3600ll;
   }
 
-  if (sizestring.endswith("D") || sizestring.endswith("d"))
-  {
+  if (sizestring.endswith("D") || sizestring.endswith("d")) {
     convfactor = 86400ll;
   }
 
-  if (sizestring.endswith("W") || sizestring.endswith("w"))
-  {
+  if (sizestring.endswith("W") || sizestring.endswith("w")) {
     convfactor = 7 * 86400ll;
   }
 
   if ((sizestring.length() > 2) && (sizestring.endswith("MO")
-                                    || sizestring.endswith("mo")))
-  {
+                                    || sizestring.endswith("mo"))) {
     convfactor = 31 * 86400ll;
   }
 
-  if (sizestring.endswith("Y") || sizestring.endswith("y"))
-  {
+  if (sizestring.endswith("Y") || sizestring.endswith("y")) {
     convfactor = 365 * 86400ll;
   }
 
-  if (convfactor > 1)
+  if (convfactor > 1) {
     sizestring.erase(sizestring.length() - 1);
-
-  if ((sizestring.find(".")) != STR_NPOS)
-  {
-    return ((unsigned long long)(strtod(sizestring.c_str(), NULL) * convfactor));
   }
-  else
-  {
+
+  if ((sizestring.find(".")) != STR_NPOS) {
+    return ((unsigned long long)(strtod(sizestring.c_str(), NULL) * convfactor));
+  } else {
     return (strtoll(sizestring.c_str(), 0, 10) * convfactor);
   }
 }
@@ -298,11 +256,10 @@ StringConversion::GetReadableSizeString(std::string& sizestring,
                                         unsigned long long insize,
                                         const char* unit)
 {
-  const char* ptr = 0;
   XrdOucString oucsizestring = "";
-  ptr = GetReadableSizeString(oucsizestring, insize, unit);
+  GetReadableSizeString(oucsizestring, insize, unit);
   sizestring = oucsizestring.c_str();
-  return ptr;
+  return sizestring.c_str();
 }
 
 //------------------------------------------------------------------------------
@@ -352,14 +309,11 @@ StringConversion::SplitKeyValue(std::string keyval, std::string& key,
 {
   int equalpos = keyval.find(split.c_str());
 
-  if (equalpos != STR_NPOS)
-  {
+  if (equalpos != STR_NPOS) {
     key.assign(keyval, 0, equalpos);
     value.assign(keyval, equalpos + 1, keyval.length() - (equalpos + 1));
     return true;
-  }
-  else
-  {
+  } else {
     key = value = "";
     return false;
   }
@@ -374,14 +328,11 @@ StringConversion::SplitKeyValue(XrdOucString keyval, XrdOucString& key,
 {
   int equalpos = keyval.find(split.c_str());
 
-  if (equalpos != STR_NPOS)
-  {
+  if (equalpos != STR_NPOS) {
     key.assign(keyval, 0, equalpos - 1);
     value.assign(keyval, equalpos + 1);
     return true;
-  }
-  else
-  {
+  } else {
     key = value = "";
     return false;
   }
@@ -397,32 +348,28 @@ StringConversion::GetKeyValueMap(const char* mapstring,
                                  const char* sdelimiter,
                                  std::vector<std::string>* keyvector)
 {
-  if (!mapstring)
+  if (!mapstring) {
     return false;
+  }
 
   std::string is = mapstring;
   std::string delimiter = sdelimiter;
   std::vector<std::string> slist;
   Tokenize(is, slist, delimiter);
 
-  if (!slist.size())
-  {
+  if (!slist.size()) {
     return false;
   }
 
   size_t keyvectorindex = 0;
 
-  for (auto it = slist.begin(); it != slist.end(); it++)
-  {
+  for (auto it = slist.begin(); it != slist.end(); it++) {
     std::string key;
     std::string val;
 
-    if (SplitKeyValue(*it, key, val, split))
-    {
-      if (keyvector && !map.count(key))
-      {
-        if (std::find(keyvector->begin(), keyvector->end(), key) == keyvector->end())
-        {
+    if (SplitKeyValue(*it, key, val, split)) {
+      if (keyvector && !map.count(key)) {
+        if (std::find(keyvector->begin(), keyvector->end(), key) == keyvector->end()) {
           std::vector<std::string>::iterator it = keyvector->begin();
           std::advance(it, keyvectorindex);
           keyvector->insert(it, key);
@@ -431,9 +378,7 @@ StringConversion::GetKeyValueMap(const char* mapstring,
 
       keyvectorindex++;
       map[key] = val;
-    }
-    else
-    {
+    } else {
       return false;
     }
   }
@@ -450,13 +395,11 @@ StringConversion::GetHostPortFromQueue(const char* queue)
   XrdOucString hostport = queue;
   int pos = hostport.find("/", 2);
 
-  if (pos != STR_NPOS)
-  {
+  if (pos != STR_NPOS) {
     hostport.erase(0, pos + 1);
     pos = hostport.find("/");
 
-    if (pos != STR_NPOS)
-    {
+    if (pos != STR_NPOS) {
       hostport.erase(pos);
     }
   }
@@ -473,13 +416,11 @@ StringConversion::GetStringHostPortFromQueue(const char* queue)
   std::string hostport = queue;
   int pos = hostport.find("/", 2);
 
-  if (pos != STR_NPOS)
-  {
+  if (pos != STR_NPOS) {
     hostport.erase(0, pos + 1);
     pos = hostport.find("/");
 
-    if (pos != STR_NPOS)
-    {
+    if (pos != STR_NPOS) {
       hostport.erase(pos);
     }
   }
@@ -498,14 +439,11 @@ StringConversion::SplitByPoint(std::string in, std::string& pre,
   pre = in;
   post = in;
 
-  if ((dpos = in.find(".")) != std::string::npos)
-  {
+  if ((dpos = in.find(".")) != std::string::npos) {
     std::string s = in;
     post.erase(0, dpos + 1);
     pre.erase(dpos);
-  }
-  else
-  {
+  } else {
     post = "";
   }
 }
@@ -520,8 +458,7 @@ StringConversion::StringToLineVector(char* in, std::vector<std::string>& out)
   char* old_pos = in;
   int len = strlen(in);
 
-  while ((pos = strchr(pos, '\n')))
-  {
+  while ((pos = strchr(pos, '\n'))) {
     *pos = 0;
     out.push_back(old_pos);
     *pos = '\n';
@@ -529,8 +466,9 @@ StringConversion::StringToLineVector(char* in, std::vector<std::string>& out)
     old_pos = pos;
     // check for the end of string
 
-    if ((pos - in) >= len)
+    if ((pos - in) >= len) {
       break;
+    }
   }
 }
 
@@ -546,26 +484,21 @@ StringConversion::ParseStringIdSet(char* in, std::string& tag,
   char* ptr = in;
   char* add = strchr(in, '@');
 
-  if (!add)
+  if (!add) {
     return false;
+  }
 
   char* colon = strchr(add, ':');
 
-  if (!colon)
-  {
+  if (!colon) {
     id = strtoul(add + 1, 0, 10);
 
-    if (id)
-    {
+    if (id) {
       return true;
-    }
-    else
-    {
+    } else {
       return false;
     }
-  }
-  else
-  {
+  } else {
     *colon = 0;
     id = strtoul(add + 1, 0, 10);
     *colon = ':';
@@ -576,27 +509,22 @@ StringConversion::ParseStringIdSet(char* in, std::string& tag,
   *add = '@';
   ptr = colon + 1;
 
-  do
-  {
+  do {
     char* nextcolon = strchr(ptr, ':');
 
     // get a set member
-    if (nextcolon)
-    {
+    if (nextcolon) {
       *nextcolon = 0;
       unsigned long long n = strtoull(ptr, 0, 16);
       *nextcolon = ':';
       set.insert(n);
       ptr = nextcolon + 1;
-    }
-    else
-    {
+    } else {
       unsigned long long n = strtoull(ptr, 0, 16);
       set.insert(n);
       return true;
     }
-  }
-  while (1);
+  } while (1);
 
   return false;
 }
@@ -623,15 +551,13 @@ StringConversion::LongLongFromShellCmd(const char* shellcommand)
 {
   FILE* fd = popen(shellcommand, "r");
 
-  if (fd)
-  {
+  if (fd) {
     char buffer[1025];
     buffer[0] = 0;
     int nread = fread((void*) buffer, 1, 1024, fd);
     pclose(fd);
 
-    if ((nread > 0) && (nread < 1024))
-    {
+    if ((nread > 0) && (nread < 1024)) {
       buffer[nread] = 0;
       return strtoll(buffer, 0, 10);
     }
@@ -650,19 +576,18 @@ StringConversion::StringFromShellCmd(const char* shellcommand)
   FILE* fd = popen(shellcommand, "r");
   std::string shellstring;
 
-  if (fd)
-  {
+  if (fd) {
     char buffer[1025];
     buffer[0] = 0;
     int nread = 0;
 
-    while ((nread = fread((void*) buffer, 1, 1024, fd)) > 0)
-    {
+    while ((nread = fread((void*) buffer, 1, 1024, fd)) > 0) {
       buffer[nread] = 0;
       shellstring += buffer;
 
-      if (nread != 1024)
+      if (nread != 1024) {
         break;
+      }
     }
 
     pclose(fd);
@@ -697,14 +622,10 @@ StringConversion::MaskTag(XrdOucString& line, const char* tag)
   int spos = line.find(smask.c_str());
   int epos = line.find("&", spos + 1);
 
-  if (spos != STR_NPOS)
-  {
-    if (epos != STR_NPOS)
-    {
+  if (spos != STR_NPOS) {
+    if (epos != STR_NPOS) {
       line.erase(spos, epos - spos);
-    }
-    else
-    {
+    } else {
       line.erase(spos);
     }
 
@@ -726,42 +647,30 @@ StringConversion::ParseUrl(const char* url, XrdOucString& protocol,
   hostport = url;
   int ppos = protocol.find(":/");
 
-  if (ppos != STR_NPOS)
-  {
+  if (ppos != STR_NPOS) {
     protocol.erase(ppos);
-  }
-  else
-  {
-    if (protocol.beginswith("as3:"))
-    {
+  } else {
+    if (protocol.beginswith("as3:")) {
       protocol = "as3";
-    }
-    else
-    {
+    } else {
       protocol = "file";
     }
   }
 
-  if (protocol == "file")
-  {
-    if (hostport.beginswith("file:"))
-    {
+  if (protocol == "file") {
+    if (hostport.beginswith("file:")) {
       hostport = "";
       return (url + 5);
-    }
-    else
-    {
+    } else {
       hostport = "";
       return url;
     }
   }
 
-  if (protocol == "root")
-  {
+  if (protocol == "root") {
     int spos = hostport.find("//", ppos + 2);
 
-    if (spos == STR_NPOS)
-    {
+    if (spos == STR_NPOS) {
       return 0;
     }
 
@@ -770,39 +679,30 @@ StringConversion::ParseUrl(const char* url, XrdOucString& protocol,
     return (url + spos + 1);
   }
 
-  if (protocol == "as3")
-  {
-    if (hostport.beginswith("as3://"))
-    {
+  if (protocol == "as3") {
+    if (hostport.beginswith("as3://")) {
       // as3://<hostname>/<bucketname>/<filename> like in ROOT
       int spos = hostport.find("/", 6);
 
-      if (spos != STR_NPOS)
-      {
+      if (spos != STR_NPOS) {
         hostport.erase(spos);
         hostport.erase(0, 6);
         return (url + spos + 1);
-      }
-      else
-      {
+      } else {
         return 0;
       }
-    }
-    else
-    {
+    } else {
       // as3:<bucketname>/<filename>
       hostport = "";
       return (url + 4);
     }
   }
 
-  if (protocol == "http")
-  {
+  if (protocol == "http") {
     // http://<hostname><path>
     int spos = hostport.find("/", 7);
 
-    if (spos == STR_NPOS)
-    {
+    if (spos == STR_NPOS) {
       return 0;
     }
 
@@ -811,13 +711,11 @@ StringConversion::ParseUrl(const char* url, XrdOucString& protocol,
     return (url + spos);
   }
 
-  if (protocol == "https")
-  {
+  if (protocol == "https") {
     // http://<hostname><path>
     int spos = hostport.find("/", 8);
 
-    if (spos == STR_NPOS)
-    {
+    if (spos == STR_NPOS) {
       return 0;
     }
 
@@ -826,13 +724,11 @@ StringConversion::ParseUrl(const char* url, XrdOucString& protocol,
     return (url + spos);
   }
 
-  if (protocol == "gsiftp")
-  {
+  if (protocol == "gsiftp") {
     // gsiftp://<hostname><path>
     int spos = hostport.find("/", 9);
 
-    if (spos == STR_NPOS)
-    {
+    if (spos == STR_NPOS) {
       return 0;
     }
 
@@ -851,14 +747,12 @@ const char*
 StringConversion::CreateUrl(const char* protocol, const char* hostport,
                             const char* path, XrdOucString& url)
 {
-  if (!strcmp(protocol, "file"))
-  {
+  if (!strcmp(protocol, "file")) {
     url = path;
     return url.c_str();
   }
 
-  if (!strcmp(protocol, "root"))
-  {
+  if (!strcmp(protocol, "root")) {
     url = "root://";
     url += hostport;
     url += "/";
@@ -866,33 +760,27 @@ StringConversion::CreateUrl(const char* protocol, const char* hostport,
     return url.c_str();
   }
 
-  if (!strcmp(protocol, "as3"))
-  {
-    if (hostport && strlen(hostport))
-    {
+  if (!strcmp(protocol, "as3")) {
+    if (hostport && strlen(hostport)) {
       url = "as3://";
       url += hostport;
       url += path;
       return url.c_str();
-    }
-    else
-    {
+    } else {
       url = "as3:";
       url += path;
       return url.c_str();
     }
   }
 
-  if (!strcmp(protocol, "http"))
-  {
+  if (!strcmp(protocol, "http")) {
     url = "http://";
     url += hostport;
     url += path;
     return url.c_str();
   }
 
-  if (!strcmp(protocol, "gsiftp"))
-  {
+  if (!strcmp(protocol, "gsiftp")) {
     url = "gsiftp://";
     url += hostport;
     url += path;
@@ -909,8 +797,9 @@ StringConversion::CreateUrl(const char* protocol, const char* hostport,
 bool
 StringConversion::IsHexNumber(const char* hexstring, const char* format)
 {
-  if (!hexstring)
+  if (!hexstring) {
     return false;
+  }
 
   unsigned long long number = strtoull(hexstring, 0, 16);
   char controlstring[256];
@@ -928,12 +817,15 @@ StringConversion::GetPrettySize(float size)
   std::string ret_str;
   std::string size_unit;
 
-  if ((fsize = size / EB) >= 1) size_unit = "EB";
-  else if ((fsize = size / PB) >= 1) size_unit = "PB";
-  else if ((fsize = size / TB) >= 1) size_unit = "TB";
-  else if ((fsize = size / MB) >= 1) size_unit = "MB";
-  else
-  {
+  if ((fsize = size / EB) >= 1) {
+    size_unit = "EB";
+  } else if ((fsize = size / PB) >= 1) {
+    size_unit = "PB";
+  } else if ((fsize = size / TB) >= 1) {
+    size_unit = "TB";
+  } else if ((fsize = size / MB) >= 1) {
+    size_unit = "MB";
+  } else {
     fsize = size / KB;
     size_unit = "KB";
   }
@@ -959,8 +851,9 @@ CURL* StringConversion::tlCurlInit()
   eos_static_debug("allocating thread specific CURL session");
   CURL* buf = curl_easy_init();
 
-  if (!buf)
+  if (!buf) {
     eos_static_crit("error initialising CURL easy session");
+  }
 
   if (buf && pthread_setspecific(sPthreadKey, buf))
     eos_static_crit("error registering thread-local buffer located at %p for "
@@ -990,14 +883,14 @@ StringConversion::curl_escaped(const std::string& str)
   std::string ret_str = "<no-encoding>";
 
   // encode the key
-  if (!curl) curl = tlCurlInit();
+  if (!curl) {
+    curl = tlCurlInit();
+  }
 
-  if (curl)
-  {
+  if (curl) {
     char* output = curl_easy_escape(curl, str.c_str(), str.length());
 
-    if (output)
-    {
+    if (output) {
       ret_str = output;
       curl_free(output);
       // dont't escape '/'
@@ -1024,20 +917,19 @@ StringConversion::curl_unescaped(const std::string& str)
   std::string ret_str = "<no-encoding>";
 
   // encode the key
-  if (!curl) curl = tlCurlInit();
+  if (!curl) {
+    curl = tlCurlInit();
+  }
 
-  if (curl)
-  {
-    if (strncmp(str.c_str(), "/#curl#", 7))
-    {
+  if (curl) {
+    if (strncmp(str.c_str(), "/#curl#", 7)) {
       // the string has already been decoded
       return str;
     }
 
     char* output = curl_easy_unescape(curl, str.c_str() + 7, str.length() - 7, 0);
 
-    if (output)
-    {
+    if (output) {
       ret_str = output;
       curl_free(output);
     }
@@ -1047,55 +939,65 @@ StringConversion::curl_unescaped(const std::string& str)
 }
 
 // ---------------------------------------------------------------------------
-// Escape JSON string 
-// ---------------------------------------------------------------------------  
+// Escape JSON string
+// ---------------------------------------------------------------------------
 std::string
-StringConversion::json_encode(const std::string &s)
+StringConversion::json_encode(const std::string& s)
 {
   std::string output;
   output.reserve(s.length());
 
   for (size_t i = 0; i != s.length(); i++) {
     char c = s.at(i);
+
     switch (c) {
     case '"':
       output += "\\\"";
       break;
+
     case '/':
       output += "\\/";
       break;
+
     case '\b':
       output += "\\b";
       break;
+
     case '\f':
       output += "\\f";
       break;
+
     case '\n':
       output += "\\n";
       break;
+
     case '\r':
       output += "\\r";
       break;
+
     case '\t':
       output += "\\t";
       break;
+
     case '\\':
       output += "\\\\";
       break;
+
     default:
       output += c;
       break;
     }
   }
+
   return output;
 }
 
-// ---------------------------------------------------------------------------
-//! Create random uuid string
-// ---------------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Create random uuid string
+//------------------------------------------------------------------------------
 std::string
-StringConversion::random_uuidstring () 
+StringConversion::random_uuidstring()
 {
   char id[40];
   uuid_t uuid;
@@ -1115,15 +1017,13 @@ StringConversion::SortLines(XrdOucString& data)
   XrdOucTokenizer linizer((char*)data.c_str());
   char* val = 0;
 
-  while ((val = linizer.GetLine()))
-  {
+  while ((val = linizer.GetLine())) {
     vec.push_back(val);
   }
 
   std::sort(vec.begin(), vec.end());
 
-  for (unsigned int i = 0; i < vec.size(); ++i)
-  {
+  for (unsigned int i = 0; i < vec.size(); ++i) {
     sorts += vec[i].c_str();
     sorts += "\n";
   }

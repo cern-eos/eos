@@ -41,7 +41,7 @@ const std::string QuotaNode::sFilesTag = ":files";
 // Constructor
 //------------------------------------------------------------------------------
 QuotaNode::QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t node_id)
-  : IQuotaNode(quotaStats)
+  : IQuotaNode(quotaStats, node_id)
 {
   auto tmp_qstats = dynamic_cast<QuotaStats*>(quotaStats);
 

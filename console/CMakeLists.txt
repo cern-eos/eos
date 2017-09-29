@@ -39,7 +39,6 @@ endif()
 #-------------------------------------------------------------------------------
 add_library(
   EosConsoleCommands-Objects OBJECT
-
   ConsoleMain.cc  ConsoleMain.hh
   ConsolePipe.cc  ConsolePipe.hh
   RegexUtil.cc RegexUtil.hh
@@ -66,6 +65,7 @@ add_library(
   commands/com_fs.cc
   commands/com_fsck.cc
   commands/com_fuse.cc
+  commands/com_fusex.cc
   commands/com_geosched.cc
   commands/com_group.cc
   commands/com_health.cc

@@ -114,6 +114,7 @@ ProcCommand::FileInfo(const char* path)
 {
   XrdOucString option = pOpaque->Get("mgm.file.info.option");
   XrdOucString spath = path;
+  uint64_t clock = 0;
   {
     std::shared_ptr<eos::IFileMD> fmd;
 
@@ -135,7 +136,7 @@ ProcCommand::FileInfo(const char* path)
       gOFS->eosViewRWMutex.LockRead();
 
       try {
-        fmd = gOFS->eosFileService->getFileMD(fid);
+        fmd = gOFS->eosFileService->getFileMD(fid, &clock);
         std::string fullpath = gOFS->eosView->getUri(fmd.get());
         spath = fullpath.c_str();
       } catch (eos::MDException& e) {
@@ -331,6 +332,14 @@ ProcCommand::FileInfo(const char* path)
             stdOut += "  Flags: ";
             stdOut +=  eos::common::StringConversion::IntToOctal((int) fmd_copy->getFlags(),
                        4).c_str();
+
+            if (clock) {
+              XrdOucString hexclock;
+              eos::common::FileId::Fid2Hex(clock, hexclock);
+              stdOut += "  Clock: ";
+              stdOut += hexclock;
+            }
+
             stdOut += "\n";
             stdOut += "  Size: ";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring,
@@ -425,6 +434,10 @@ ProcCommand::FileInfo(const char* path)
             stdOut += ".";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring,
                       (unsigned long long) ctime.tv_nsec);
+            stdOut += " ";
+            stdOut += "clock=";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring,
+                      (unsigned long long) clock);
             stdOut += " ";
             stdOut += "mode=";
             stdOut +=  eos::common::StringConversion::IntToOctal((int) fmd_copy->getFlags(),
@@ -691,6 +704,7 @@ ProcCommand::DirInfo(const char* path)
 {
   XrdOucString option = pOpaque->Get("mgm.file.info.option");
   XrdOucString spath = path;
+  uint64_t clock = 0;
   {
     std::shared_ptr<eos::IContainerMD> dmd;
 
@@ -712,7 +726,7 @@ ProcCommand::DirInfo(const char* path)
       gOFS->eosViewRWMutex.LockRead();
 
       try {
-        dmd = gOFS->eosDirectoryService->getContainerMD(fid);
+        dmd = gOFS->eosDirectoryService->getContainerMD(fid, &clock);
         std::string fullpath = gOFS->eosView->getUri(dmd.get());
         spath = fullpath.c_str();
       } catch (eos::MDException& e) {
@@ -859,6 +873,14 @@ ProcCommand::DirInfo(const char* path)
           stdOut += "  Flags: ";
           stdOut +=  eos::common::StringConversion::IntToOctal((int) dmd_copy->getMode(),
                      4).c_str();
+
+          if (clock) {
+            XrdOucString hexclock;
+            eos::common::FileId::Fid2Hex(clock, hexclock);
+            stdOut += "  Clock: ";
+            stdOut += hexclock;
+          }
+
           stdOut += "\n";
           stdOut += "Modify: ";
           stdOut += ctime_r(&filemtime, mtimestring);
@@ -941,6 +963,10 @@ ProcCommand::DirInfo(const char* path)
           stdOut += ".";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring,
                     (unsigned long long) ctime.tv_nsec);
+          stdOut += " ";
+          stdOut += "clock=";
+          stdOut += eos::common::StringConversion::GetSizeString(sizestring,
+                    (unsigned long long) clock);
           stdOut += " ";
           stdOut += "mode=";
           stdOut +=  eos::common::StringConversion::IntToOctal((int) dmd_copy->getMode(),

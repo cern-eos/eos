@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.270 Aquamarine``
+=======================
+
+New Features
+============
+
+- MGM: add the 'eos fusex' interface and new FUSE client server side support (beta status - be carefule with this version)
+- FUSEX: added new FUSE client submodule (beta status) (see README in submodule)
+
 ``V0.3.268 Aquamarine``
 =======================
 
@@ -344,6 +353,7 @@ Bug Fix
 
 - FST: deal with unregistered files with the correct replica count in the same way as with orphans when .eosscan is enabled on an FST mount
 
+>>>>>>> beryl_aquamarine
 ``V0.3.229 Aquamarine``
 =======================
 
@@ -414,6 +424,10 @@ New Feature
 - FST: allow 'eos.checksum=ignore' for file uploads to avoid checksum computation
 - FST: fix 'eoscp -a' and add 'eoscp -A <offset>' to upload a file to a certain offset
 
+=======
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 ``V0.3.223 Aquamarine``
 =======================
 

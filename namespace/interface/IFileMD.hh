@@ -328,6 +328,11 @@ public:
   virtual void removeAttribute(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
+  //! Remove all attributes
+  //----------------------------------------------------------------------------
+  virtual void clearAttributes() = 0;
+
+  //----------------------------------------------------------------------------
   //! Check if the attribute exist
   //----------------------------------------------------------------------------
   virtual bool hasAttribute(const std::string& name) const = 0;

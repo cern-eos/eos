@@ -150,11 +150,23 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   if (gShortFormat) {
     tm = localtime(&current_time);
     snprintf(sourceline, sizeof(sourceline) - 1, "%s:%s", File.c_str(), linen);
-    sprintf(buffer,
-            "%02d%02d%02d %02d:%02d:%02d t=%lu.%06lu f=%-16s l=%s tid=%016lx s=%-24s ",
-            tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min,
-            tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func,
-            GetPriorityString(priority), (unsigned long) XrdSysThread::ID(), sourceline);
+    XrdOucString slog = logid;
+
+    if (slog.beginswith("logid:")) {
+      slog.erase(0, 6);
+      sprintf(buffer,
+              "%02d%02d%02d %02d:%02d:%02d t=%lu.%06lu f=%-16s l=%s %s s=%-24s ",
+              tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour,
+              tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec,
+              func, GetPriorityString(priority), slog.c_str(), sourceline);
+    } else {
+      sprintf(buffer,
+              "%02d%02d%02d %02d:%02d:%02d t=%lu.%06lu f=%-16s l=%s tid=%016lx s=%-24s ",
+              tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour,
+              tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec,
+              func, GetPriorityString(priority), (unsigned long) XrdSysThread::ID(),
+              sourceline);
+    }
   } else {
     sprintf(fcident, "tident=%s sec=%-5s uid=%d gid=%d name=%s geo=\"%s\"", cident,
             vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str());

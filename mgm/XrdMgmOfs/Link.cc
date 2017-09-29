@@ -224,6 +224,7 @@ XrdMgmOfs::_symlink(const char* source_name,
       dir->setMTimeNow();
       dir->notifyMTimeChange(gOFS->eosDirectoryService);
       eosView->updateContainerStore(dir.get());
+      gOFS->FuseXCast(dir->getId());
     } catch (eos::MDException& e) {
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());

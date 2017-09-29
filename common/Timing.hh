@@ -1,7 +1,8 @@
-// ----------------------------------------------------------------------
-// File: Timing.hh
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file Timing.hh
+//! @author Andreas-Joachim Peters - CERN
+//! @brief Class providing real-time code measurements
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -20,10 +21,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @brief Class providing real-time code measurements
-//------------------------------------------------------------------------------
 
 #ifndef __EOSCOMMON__TIMING__HH
 #define __EOSCOMMON__TIMING__HH
@@ -148,16 +145,16 @@ public:
   //! Return the coarse age of a timespec
   // ---------------------------------------------------------------------------
   static long long
-  GetCoarseAgeInNs ( const struct timespec *ts , const struct timespec *now=NULL)
+  GetCoarseAgeInNs(const struct timespec* ts , const struct timespec* now = NULL)
   {
     struct timespec tsn;
-    if(!now)
-    {
-      GetTimeSpec(tsn,true);
+
+    if (!now) {
+      GetTimeSpec(tsn, true);
       now = &tsn;
     }
 
-    return (now->tv_sec-ts->tv_sec)*1000000000 + (now->tv_nsec-ts->tv_nsec);
+    return (now->tv_sec - ts->tv_sec) * 1000000000 + (now->tv_nsec - ts->tv_nsec);
   }
 
 
@@ -203,18 +200,22 @@ public:
     Timing* p = this->next;
     Timing* n;
     cerr << std::endl;
-    size_t cnt=0;
-    while ((n = p->next))
-    {
+    size_t cnt = 0;
+
+    while ((n = p->next)) {
       cnt++;
-      sprintf(msg, " #%04lu : %s::%-20s %.03f ms\n", cnt, maintag.c_str(), n->tag.c_str(), (float) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
+      sprintf(msg, " #%04lu : %s::%-20s %.03f ms\n", cnt, maintag.c_str(),
+              n->tag.c_str(), (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 +
+                                      (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
       cerr << msg;
       p = n;
     }
 
     n = p;
     p = this->next;
-    sprintf(msg, " #==== : %s::%-20s %.03f ms\n", maintag.c_str(), "total", (float) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
+    sprintf(msg, " #==== : %s::%-20s %.03f ms\n", maintag.c_str(), "total",
+            (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 + (n->tv.tv_usec -
+                    p->tv.tv_usec)) / 1000.0);
     cerr << msg;
   }
 

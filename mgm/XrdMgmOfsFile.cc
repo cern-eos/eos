@@ -207,27 +207,30 @@ XrdMgmOfsFile::open(const char* inpath,
   MAYSTALL;
   MAYREDIRECT;
   XrdOucString currentWorkflow = "default";
+  unsigned long long byfid = 0;
 
-  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
-    //-------------------------------------------
-    // reference by fid+fsid
-    //-------------------------------------------
-    unsigned long long fid = 0;
-
+  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) ||
+       (spath.beginswith("ino:")))) {
     if (spath.beginswith("fid:")) {
       spath.replace("fid:", "");
-      fid = strtoull(spath.c_str(), 0, 10);
+      byfid = strtoull(spath.c_str(), 0, 10);
     }
 
     if (spath.beginswith("fxid:")) {
       spath.replace("fxid:", "");
-      fid = strtoull(spath.c_str(), 0, 16);
+      byfid = strtoull(spath.c_str(), 0, 16);
+    }
+
+    if (spath.beginswith("ino:")) {
+      spath.replace("ino:", "");
+      byfid = strtoull(spath.c_str(), 0, 16);
+      byfid = eos::common::FileId::InodeToFid(byfid);
     }
 
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
-      fmd = gOFS->eosFileService->getFileMD(fid);
+      fmd = gOFS->eosFileService->getFileMD(byfid);
       spath = gOFS->eosView->getUri(fmd.get()).c_str();
       eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
       path = spath.c_str();
@@ -818,6 +821,7 @@ XrdMgmOfsFile::open(const char* inpath,
             cmd->setMTimeNow();
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             gOFS->eosView->updateContainerStore(cmd.get());
+            gOFS->FuseXCast(cmd->getId());
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();
@@ -891,6 +895,15 @@ XrdMgmOfsFile::open(const char* inpath,
     } else {
       gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // flush synchronization logic, don't open a file which is currently flushing
+  // ---------------------------------------------------------------------------
+  if (gOFS->zMQ->gFuseServer.Flushs().hasFlush(eos::common::FileId::FidToInode(
+        fileId))) {
+    // the first 255ms are covered inside hasFlush, otherwise we stall clients for a sec
+    return gOFS->Stall(error, 1, "file is currently being flushed");
   }
 
   // ---------------------------------------------------------------------------
@@ -1005,11 +1018,13 @@ XrdMgmOfsFile::open(const char* inpath,
 
       try {
         gOFS->eosView->updateFileStore(fmd.get());
+        gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
         std::shared_ptr<eos::IContainerMD> cmd =
           gOFS->eosDirectoryService->getContainerMD(cid);
         cmd->setMTimeNow();
         cmd->notifyMTimeChange(gOFS->eosDirectoryService);
         gOFS->eosView->updateContainerStore(cmd.get());
+        gOFS->FuseXCast(cmd->getId());
 
         if (isCreation || (!fmd->getNumLocation())) {
           eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
@@ -1026,8 +1041,6 @@ XrdMgmOfsFile::open(const char* inpath,
         gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
         return Emsg(epname, error, errno, "open file", errmsg.c_str());
       }
-
-      // -----------------------------------------------------------------------
     }
   }
 
@@ -1578,6 +1591,33 @@ XrdMgmOfsFile::open(const char* inpath,
         // consistently redirect to the highest fsid having if possible the same
         // geotag as the client
         // ---------------------------------------------------------------------
+        if (byfid) {
+          // the new FUSE client needs to have the replicas attached after the
+          // first open call
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
+          try {
+            fmd = gOFS->eosFileService->getFileMD(byfid);
+
+            if (isRecreation) {
+              fmd->unlinkAllLocations();
+            }
+
+            for (int i = 0; i < (int) selectedfs.size(); ++i) {
+              fmd->addLocation(selectedfs[i]);
+            }
+
+            gOFS->eosView->updateFileStore(fmd.get());
+          } catch (eos::MDException& e) {
+            errno = e.getErrno();
+            std::string errmsg = e.getMessage().str();
+            eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                      e.getErrno(), e.getMessage().str().c_str());
+            gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+            return Emsg(epname, error, errno, "open file", errmsg.c_str());
+          }
+        }
+
         eos::common::FileSystem::fsid_t fsid = 0;
         fsIndex = 0;
         std::string fsgeotag;
@@ -2288,6 +2328,7 @@ XrdMgmOfsFile::open(const char* inpath,
           // only update within the resolution of the access tracking
           fmd->setCTimeNow();
           gOFS->eosView->updateFileStore(fmd.get());
+          gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
         }
 
         errno = 0;

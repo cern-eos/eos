@@ -164,10 +164,13 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Set FUSE to not daemonize the process, staying open in the foreground
 # export EOS_FUSE_FOREGROUND=1
 
+<<<<<<< Updated upstream
 # Timeout in seconds of the initial ping to the instance to check if the fs should be mounted
 #   note that this is constrained by XRD_TIMEOUTRESOLUTION which by default is 15 sec
 # export EOS_FUSE_PING_TIMEOUT=15
 
+=======
+>>>>>>> Stashed changes
 # Disable parallel IO mode (default on)
 #export EOS_FUSE_NOPIO=1
 

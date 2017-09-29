@@ -38,13 +38,13 @@ class QuotaStats;
 //------------------------------------------------------------------------------
 class QuotaNode: public IQuotaNode
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaNode(IQuotaStats* quotaStats):
-      IQuotaNode(quotaStats)
+  QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t id):
+    IQuotaNode(quotaStats, id)
   {}
 
   //----------------------------------------------------------------------------
@@ -183,7 +183,7 @@ class QuotaNode: public IQuotaNode
 //----------------------------------------------------------------------------
 class QuotaStats: public IQuotaStats
 {
- public:
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------

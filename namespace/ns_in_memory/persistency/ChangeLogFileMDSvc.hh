@@ -99,7 +99,8 @@ public:
   //----------------------------------------------------------------------------
   //! Configure the file service
   //----------------------------------------------------------------------------
-  virtual void configure(const std::map<std::string, std::string>& config) override;
+  virtual void configure(const std::map<std::string, std::string>& config)
+  override;
 
   //----------------------------------------------------------------------------
   //! Finalize the file service
@@ -109,7 +110,17 @@ public:
   //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //----------------------------------------------------------------------------
-  virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id) override;
+  virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id) override
+  {
+    return getFileMD(id, 0);
+  }
+
+  //------------------------------------------------------------------------
+  //! Get the file metadata information for the given file ID and clock
+  //! value
+  //------------------------------------------------------------------------
+  virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id,
+      uint64_t* clock) override;
 
   //----------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id

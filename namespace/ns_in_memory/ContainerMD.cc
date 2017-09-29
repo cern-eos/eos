@@ -114,7 +114,6 @@ void
 ContainerMD::InheritChildren(const IContainerMD& other)
 {
   const ContainerMD& otherContainer = dynamic_cast<const ContainerMD&>(other);
-
   pFiles = otherContainer.pFiles;
   pSubContainers = otherContainer.pSubContainers;
   setTreeSize(otherContainer.getTreeSize());

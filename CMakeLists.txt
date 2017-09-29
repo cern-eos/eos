@@ -35,10 +35,10 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 find_program(CCACHE_PROGRAM ccache)
-if(CCACHE_PROGRAM)
+if (CCACHE_PROGRAM)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
     set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CCACHE_PROGRAM}")
-endif()
+endif ()
 
 project (eos)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -78,16 +78,12 @@ include (EosFindLibs)
 #-------------------------------------------------------------------------------
 # Generate documentation
 #-------------------------------------------------------------------------------
-if(PYTHONINTERP_FOUND AND SPHINX_FOUND)
+if (PYTHONINTERP_FOUND AND SPHINX_FOUND)
   add_custom_target(doc
     COMMAND ${PYTHON_EXECUTABLE} generate_docs.py
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/doc"
     COMMENT "Build HTML documentation with Sphinx ...")
-endif()
-
-#-------------------------------------------------------------------------------
-# Install targets
-#-------------------------------------------------------------------------------
+endif ()
 
 #-------------------------------------------------------------------------------
 # Build the libfmt for fast convertions
@@ -96,7 +92,7 @@ if (NOT TARGET fmt)
   include_directories(common/fmt)
   add_subdirectory(common/fmt)
   set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-endif()
+endif ()
 
 add_subdirectory(common)
 add_subdirectory(misc)
@@ -118,10 +114,10 @@ if (NOT CLIENT)
   add_subdirectory(archive)
   add_subdirectory(auth_plugin)
 
-  if(BUILD_TESTS)
+  if (BUILD_TESTS)
     add_subdirectory(unittests)
-  endif()
-endif()
+  endif ()
+endif ()
 
 #-------------------------------------------------------------------------------
 # Uninstall target

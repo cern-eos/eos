@@ -70,8 +70,7 @@ ProcCommand::Fuse()
     }
 
     const char* entry;
-    mResultStream += 0;
-    mResultStream += " ";
+    mResultStream += "0 ";
     unsigned long long inode = 0;
     char inodestr[256];
     size_t dotend = 0;
@@ -101,7 +100,7 @@ ProcCommand::Fuse()
       }
 
       if ((!isdot) && (!isdotdot)) {
-        mResultStream += whitespaceentry;
+        mResultStream += whitespaceentry.c_str();
         mResultStream += " ";
       }
 

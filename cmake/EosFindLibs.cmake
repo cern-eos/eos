@@ -25,6 +25,7 @@
 # Search for dependencies
 #-------------------------------------------------------------------------------
 option(PACKAGEONLY "Build without dependencies" OFF)
+option(FUSEXCLIENT "Build FUSEX client" OFF)
 option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 option(BUILD_TESTS "Build CppUnit tests" OFF)
@@ -57,7 +58,7 @@ if(NOT PACKAGEONLY)
   find_package(SparseHash REQUIRED)
   find_package(libevent REQUIRED)
   find_package(jsoncpp REQUIRED)
-  find_package(hiredis)
+  find_package(hiredis REQUIRED)
 
   if (Linux)
     find_package(Protobuf3 REQUIRED)
