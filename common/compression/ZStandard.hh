@@ -37,6 +37,7 @@
 #include "namespace/utils/DataHelper.hh"
 #include "common/Namespace.hh"
 #include "common/compression/Compression.hh"
+#include "common/RWMutex.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -50,6 +51,7 @@ private:
   ZSTD_DDict* pDDict;
   ZSTD_CCtx*  pCCtx;
   ZSTD_DCtx*  pDCtx;
+  RWMutex mCompressLock;
 
   void loadDict(const std::string& dictionaryPath);
 

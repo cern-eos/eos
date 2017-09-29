@@ -92,12 +92,17 @@ ZStandard::compress(Buffer& record) {
     throw ex;
   }
 
-  size_t const cSize = ZSTD_compress_usingCDict(pCCtx, cBuff, cBuffSize,
-                                              record.getDataPtr(),
-                                              record.getSize(),
-                                              pCDict);
+  size_t cSize;
+  {
+    RWMutexWriteLock lock(mCompressLock);
+    cSize = ZSTD_compress_usingCDict(pCCtx, cBuff, cBuffSize,
+                                     record.getDataPtr(),
+                                     record.size(),
+                                     pCDict);
+  }
 
   if (ZSTD_isError(cSize)) {
+    free(cBuff);
     MDException ex(errno);
     ex.getMessage() << "Compression failed: ";
     ex.getMessage() << ZSTD_getErrorName(cSize);
@@ -129,9 +134,13 @@ ZStandard::decompress(Buffer& record) {
     throw ex;
   }
 
-  size_t const dSize = ZSTD_decompress_usingDDict(pDCtx, dBuff, dBuffSize,
-                                                  record.getDataPtr(),
-                                                  record.getSize(), pDDict);
+  size_t dSize;
+  {
+    RWMutexWriteLock lock(mCompressLock);
+    dSize = ZSTD_decompress_usingDDict(pDCtx, dBuff, dBuffSize,
+                                       record.getDataPtr(),
+                                       record.getSize(), pDDict);
+  }
 
   if (ZSTD_isError(dSize)) {
     free(dBuff);

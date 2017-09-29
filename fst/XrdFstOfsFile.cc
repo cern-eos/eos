@@ -1775,7 +1775,7 @@ XrdFstOfsFile::close()
               gFmdAttributeHandler.FmdAttrSet(layOut->GetFileIo(), fMd->mProtoFmd);
             } catch (MDException& error) {
               eos_err("unable to save meta data to file");
-              (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "
+              return gOFS.Emsg(epname, this->error, EIO, "close - unable to "
                 "commit meta data", Path.c_str());
             }
 
