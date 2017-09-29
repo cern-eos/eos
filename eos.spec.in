@@ -325,7 +325,7 @@ The EOS shell client.
 Summary: The new EOS fuse client 
 Group: Applications/File
 Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
-Requires: eos-fuse-selinux = @CPACK_PACKAGE_VERSION@
+Requires: eos-fuse-sysv = @CPACK_PACKAGE_VERSION@
 %if %{use_systemd}
 Requires: systemd
 %else
