@@ -81,9 +81,10 @@ filesystem::filesystem ()
   fuse_shared = false;
   creator_cap_lifetime = 30;
   file_write_back_cache_size = 64 * 1024 * 1024;
- max_wb_in_memory_size=512*1024*1024;
+  max_wb_in_memory_size=512*1024*1024;
   base_fd = 1;
   XFC = 0;
+  tCacheCleanup = 0;
 }
 
 filesystem::~filesystem ()
