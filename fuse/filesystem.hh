@@ -618,7 +618,7 @@ public:
   //! Create the cgi argument to be added to the url to use the kerberos cc file
   //!   for the given pid. e.g. xrd.k5ccname=<krb5login>
   //----------------------------------------------------------------------------
-  std::string strongauth_cgi(pid_t pid);
+  std::string strongauth_cgi(uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //! Create an URL
