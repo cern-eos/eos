@@ -168,7 +168,7 @@ public:
   //----------------------------------------------------------------------------
   void addContainer(IContainerMD* container) override
   {
-    pSubContainers[container->getName()] = container->getId();
+    mSubcontainers[container->getName()] = container->getId();
   }
 
   //----------------------------------------------------------------------------
@@ -176,7 +176,7 @@ public:
   //----------------------------------------------------------------------------
   void addFile(IFileMD* file) override
   {
-    pFiles[file->getName()] = file->getId();
+    mFiles[file->getName()] = file->getId();
   }
 
   //----------------------------------------------------------------------------

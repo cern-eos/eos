@@ -37,8 +37,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
                          IContainerMDSvc* cont_svc)
   : IContainerMD(), pContSvc(cont_svc), pFileSvc(file_svc),
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
-    pDirsKey(stringify(id) + constants::sMapDirsSuffix),
-    mDirsMap(), mFilesMap()
+    pDirsKey(stringify(id) + constants::sMapDirsSuffix)
 {
   mCont.set_id(id);
   ContainerMDSvc* impl_cont_svc = (ContainerMDSvc*)(cont_svc);
@@ -90,9 +89,9 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
-  auto iter = mDirsMap.find(name);
+  auto iter = mSubcontainers.find(name);
 
-  if (iter == mDirsMap.end()) {
+  if (iter == mSubcontainers.end()) {
     return std::shared_ptr<IContainerMD>(nullptr);
   }
 
@@ -106,7 +105,7 @@ ContainerMD::findContainer(const std::string& name)
 
   // Curate the list of subcontainers in case entry is not found
   if (cont == nullptr) {
-    mDirsMap.erase(iter);
+    mSubcontainers.erase(iter);
 
     try {
       (void) pDirsMap.hdel(name);
@@ -126,15 +125,15 @@ ContainerMD::findContainer(const std::string& name)
 void
 ContainerMD::removeContainer(const std::string& name)
 {
-  auto it = mDirsMap.find(name);
+  auto it = mSubcontainers.find(name);
 
-  if (it == mDirsMap.end()) {
+  if (it == mSubcontainers.end()) {
     MDException e(ENOENT);
     e.getMessage() << "Container " << name << " not found";
     throw e;
   }
 
-  mDirsMap.erase(it);
+  mSubcontainers.erase(it);
 
   // Do async call to KV backend
   try {
@@ -153,8 +152,8 @@ void
 ContainerMD::addContainer(IContainerMD* container)
 {
   container->setParentId(mCont.id());
-  auto ret = mDirsMap.insert(std::pair<std::string, IContainerMD::id_t>(
-                               container->getName(), container->getId()));
+  auto ret = mSubcontainers.insert(std::pair<std::string, IContainerMD::id_t>(
+                                     container->getName(), container->getId()));
 
   if (!ret.second) {
     MDException e(EINVAL);
@@ -182,9 +181,9 @@ ContainerMD::addContainer(IContainerMD* container)
 std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
-  auto iter = mFilesMap.find(name);
+  auto iter = mFiles.find(name);
 
-  if (iter == mFilesMap.end()) {
+  if (iter == mFiles.end()) {
     return std::shared_ptr<IFileMD>(nullptr);
   }
 
@@ -198,7 +197,7 @@ ContainerMD::findFile(const std::string& name)
 
   // Curate the list of files in case file entry is not found
   if (file == nullptr) {
-    mFilesMap.erase(iter);
+    mFiles.erase(iter);
 
     try {
       (void) pFilesMap.hdel(stringify(iter->second));
@@ -219,7 +218,7 @@ void
 ContainerMD::addFile(IFileMD* file)
 {
   file->setContainerId(mCont.id());
-  auto ret = mFilesMap.insert(
+  auto ret = mFiles.insert(
                std::pair<std::string, IFileMD::id_t>(file->getName(), file->getId()));
 
   if (!ret.second) {
@@ -254,15 +253,15 @@ void
 ContainerMD::removeFile(const std::string& name)
 {
   IFileMD::id_t id;
-  auto iter = mFilesMap.find(name);
+  auto iter = mFiles.find(name);
 
-  if (iter == mFilesMap.end()) {
+  if (iter == mFiles.end()) {
     MDException e(ENOENT);
     e.getMessage() << "Unknown file " << name << " in container " << mCont.name();
     throw e;
   } else {
     id = iter->second;
-    mFilesMap.erase(iter);
+    mFiles.erase(iter);
   }
 
   // Do async call to KV backend
@@ -294,7 +293,7 @@ ContainerMD::removeFile(const std::string& name)
 size_t
 ContainerMD::getNumFiles()
 {
-  return mFilesMap.size();
+  return mFiles.size();
 }
 
 //----------------------------------------------------------------------------
@@ -303,7 +302,7 @@ ContainerMD::getNumFiles()
 size_t
 ContainerMD::getNumContainers()
 {
-  return mDirsMap.size();
+  return mSubcontainers.size();
 }
 
 //------------------------------------------------------------------------
@@ -315,24 +314,24 @@ ContainerMD::cleanUp()
 {
   std::shared_ptr<IFileMD> file;
 
-  for (auto && elem : mFilesMap) {
+  for (const auto& elem : mFiles) {
     file = pFileSvc->getFileMD(elem.second);
     pFileSvc->removeFile(file.get());
   }
 
   file.reset();
-  mFilesMap.clear();
+  mFiles.clear();
   qclient::AsyncHandler ah;
   ah.Register(pQcl->del_async(pFilesKey), pQcl);
 
   // Remove all subcontainers
-  for (auto && elem : mDirsMap) {
+  for (const auto& elem : mSubcontainers) {
     std::shared_ptr<IContainerMD> cont = pContSvc->getContainerMD(elem.second);
     cont->cleanUp();
     pContSvc->removeContainer(cont.get());
   }
 
-  mDirsMap.clear();
+  mSubcontainers.clear();
   ah.Register(pQcl->del_async(pDirsKey), pQcl);
 
   if (!ah.Wait()) {
@@ -359,7 +358,7 @@ ContainerMD::getNameFiles() const
 {
   std::set<std::string> set_files;
 
-  for (auto && elem : mFilesMap) {
+  for (const auto& elem : mFiles) {
     set_files.insert(elem.first);
   }
 
@@ -374,7 +373,7 @@ ContainerMD::getNameContainers() const
 {
   std::set<std::string> set_dirs;
 
-  for (auto && elem : mDirsMap) {
+  for (const auto& elem : mSubcontainers) {
     set_dirs.insert(elem.first);
   }
 
@@ -798,8 +797,8 @@ ContainerMD::deserialize(Buffer& buffer)
         reply = pFilesMap.hscan(cursor);
         cursor = reply.first;
 
-        for (auto && elem : reply.second) {
-          mFilesMap.emplace(elem.first, std::stoull(elem.second));
+        for (const auto& elem : reply.second) {
+          mFiles.insert(std::make_pair(elem.first, std::stoull(elem.second)));
         }
       } while (cursor != "0");
 
@@ -810,8 +809,8 @@ ContainerMD::deserialize(Buffer& buffer)
         reply = pDirsMap.hscan(cursor);
         cursor = reply.first;
 
-        for (auto && elem : reply.second) {
-          mDirsMap.emplace(elem.first, std::stoull(elem.second));
+        for (const auto& elem : reply.second) {
+          mSubcontainers.insert(std::make_pair(elem.first, std::stoull(elem.second)));
         }
       } while (cursor != "0");
     } catch (std::runtime_error& qdb_err) {

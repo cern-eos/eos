@@ -1193,7 +1193,7 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
     dir.set_uid(cmd->getCUid());
     dir.set_gid(cmd->getCGid());
     dir.set_mode(cmd->getMode());
-    // TODO: no hardlinks
+    // @todo (apeters): no hardlinks
     dir.set_nlink(1);
     dir.set_name(cmd->getName());
     dir.set_fullpath(fullpath);
@@ -1213,20 +1213,17 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
     dir.set_nchildren(cmd->getNumContainers() + cmd->getNumFiles());
 
     if (dir.operation() == dir.LS) {
-      /*
-        // @todo (esindril): This needs an NS API change
-      for (eos::IContainerMD::FileMap::iterator it = cmd->filesBegin();
-           it != cmd->filesEnd() ; ++it) {
-        (*dir.mutable_children())[it->first] = eos::common::FileId::FidToInode(
-            it->second->getId());
+      for (auto it = cmd->filesBegin(), end = cmd->filesEnd();
+           it != end; ++it) {
+        (*dir.mutable_children())[it->first] =
+          eos::common::FileId::FidToInode(it->second);
       }
 
-      for (eos::IContainerMD::ContainerMap::iterator it = cmd->containersBegin();
-           it != cmd->containersEnd(); ++it) {
-        (*dir.mutable_children())[it->first] = it->second->getId();
+      for (auto it = cmd->subcontainersBegin(), end = cmd->subcontainersEnd();
+           it != end; ++it) {
+        (*dir.mutable_children())[it->first] = it->second;
       }
 
-      */
       // indicate that this MD record contains children information
       dir.set_type(dir.MDLS);
     } else {

@@ -387,9 +387,6 @@ private:
   std::string pDirsKey;       ///< Map dir key
   qclient::QHash pFilesMap;   ///< Map holding info about files
   qclient::QHash pDirsMap;    ///< Map holding info about subcontainers
-  //! Directory name to id map
-  std::map<std::string, eos::IContainerMD::id_t> mDirsMap;
-  std::map<std::string, eos::IFileMD::id_t> mFilesMap; ///< File name to id map
 };
 
 EOSNSNAMESPACE_END

@@ -34,6 +34,8 @@
 #include <map>
 #include <set>
 #include <sys/time.h>
+#include <google/sparse_hash_map>
+#include <google/dense_hash_map>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -41,7 +43,6 @@ EOSNSNAMESPACE_BEGIN
 class IContainerMDSvc;
 class IFileMDSvc;
 class IFileMD;
-
 
 //------------------------------------------------------------------------------
 //! Class holding the interface to the metadata information concerning a
@@ -58,11 +59,21 @@ public:
   typedef struct timespec mtime_t;
   typedef struct timespec tmtime_t;
   typedef std::map<std::string, std::string> XAttrMap;
+  typedef google::dense_hash_map< std::string, id_t >
+  ContainerMap;
+  typedef google::dense_hash_map< std::string, id_t >
+  FileMap;
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IContainerMD() {};
+  IContainerMD()
+  {
+    mSubcontainers.set_deleted_key("");
+    mFiles.set_deleted_key("");
+    mSubcontainers.set_empty_key("##_EMPTY_##");
+    mFiles.set_empty_key("##_EMPTY_##");
+  };
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -316,7 +327,43 @@ public:
   //----------------------------------------------------------------------------
   virtual std::set<std::string> getNameContainers() const = 0;
 
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the subcontainers map
+  //----------------------------------------------------------------------------
+  inline eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersBegin() const
+  {
+    return mSubcontainers.begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the subcontainers map
+  //----------------------------------------------------------------------------
+  inline eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersEnd() const
+  {
+    return mSubcontainers.end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the files map
+  //----------------------------------------------------------------------------
+  inline eos::IContainerMD::FileMap::const_iterator
+  filesBegin() const
+  {
+    return mFiles.begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the files map
+  //----------------------------------------------------------------------------
+  inline eos::IContainerMD::FileMap::const_iterator
+  filesEnd() const
+  {
+    return mFiles.end();
+  }
+
+  //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
   virtual void serialize(Buffer& buffer) = 0;
@@ -325,6 +372,10 @@ public:
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
   virtual void deserialize(Buffer& buffer) = 0;
+
+protected:
+  eos::IContainerMD::ContainerMap mSubcontainers; //! Directory name to id map
+  eos::IContainerMD::FileMap mFiles; ///< File name to id map
 
 private:
 

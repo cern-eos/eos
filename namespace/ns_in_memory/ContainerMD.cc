@@ -44,10 +44,6 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pMTime.tv_nsec = 0;
   pTMTime.tv_sec = 0;
   pTMTime.tv_nsec = 0;
-  pSubContainers.set_deleted_key("");
-  pFiles.set_deleted_key("");
-  pSubContainers.set_empty_key("##_EMPTY_##");
-  pFiles.set_empty_key("##_EMPTY_##");
   setTreeSize(0);
 }
 
@@ -57,8 +53,8 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 ContainerMD::~ContainerMD()
 {
   try {
-    pFiles.clear();
-    pSubContainers.clear();
+    mFiles.clear();
+    mSubcontainers.clear();
   } catch (const std::length_error& e) {}
 }
 
@@ -103,7 +99,7 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   this->pTMTime_atomic = other.pTMTime_atomic;
 #endif
   pTreeSize = 0;
-  // Note: pFiles, pSubContainers, pTreeSize are not copied here
+  // Note: mFiles, mSubcontainers, pTreeSize are not copied here
   return *this;
 }
 
@@ -114,8 +110,8 @@ void
 ContainerMD::InheritChildren(const IContainerMD& other)
 {
   const ContainerMD& otherContainer = dynamic_cast<const ContainerMD&>(other);
-  pFiles = otherContainer.pFiles;
-  pSubContainers = otherContainer.pSubContainers;
+  mFiles = otherContainer.mFiles;
+  mSubcontainers = otherContainer.mSubcontainers;
   setTreeSize(otherContainer.getTreeSize());
 }
 
@@ -125,9 +121,9 @@ ContainerMD::InheritChildren(const IContainerMD& other)
 std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
-  ContainerMap::iterator it = pSubContainers.find(name);
+  ContainerMap::iterator it = mSubcontainers.find(name);
 
-  if (it == pSubContainers.end()) {
+  if (it == mSubcontainers.end()) {
     return std::shared_ptr<IContainerMD>((IContainerMD*)0);
   }
 
@@ -140,7 +136,7 @@ ContainerMD::findContainer(const std::string& name)
 void
 ContainerMD::removeContainer(const std::string& name)
 {
-  pSubContainers.erase(name);
+  mSubcontainers.erase(name);
 }
 
 //------------------------------------------------------------------------------
@@ -150,7 +146,7 @@ void
 ContainerMD::addContainer(IContainerMD* container)
 {
   container->setParentId(pId);
-  pSubContainers[container->getName()] = container->getId();
+  mSubcontainers[container->getName()] = container->getId();
 }
 
 //------------------------------------------------------------------------------
@@ -159,9 +155,9 @@ ContainerMD::addContainer(IContainerMD* container)
 std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
-  FileMap::iterator it = pFiles.find(name);
+  eos::IContainerMD::FileMap::iterator it = mFiles.find(name);
 
-  if (it == pFiles.end()) {
+  if (it == mFiles.end()) {
     return std::shared_ptr<IFileMD>((IFileMD*)0);
   }
 
@@ -175,7 +171,7 @@ void
 ContainerMD::addFile(IFileMD* file)
 {
   file->setContainerId(pId);
-  pFiles[file->getName()] = file->getId();
+  mFiles[file->getName()] = file->getId();
   IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
                                  0, 0, file->getSize());
   file->getFileMDSvc()->notifyListeners(&e);
@@ -187,12 +183,12 @@ ContainerMD::addFile(IFileMD* file)
 void
 ContainerMD::removeFile(const std::string& name)
 {
-  if (pFiles.count(name)) {
-    std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(pFiles[name]);
+  if (mFiles.count(name)) {
+    std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(mFiles[name]);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
                                    0, 0, -file->getSize());
     file->getFileMDSvc()->notifyListeners(&e);
-    pFiles.erase(name);
+    mFiles.erase(name);
   }
 }
 
@@ -206,7 +202,7 @@ ContainerMD::cleanUp()
   std::shared_ptr<IContainerMD> cont;
   std::shared_ptr<IFileMD> file;
 
-  for (auto itf = pFiles.begin(); itf != pFiles.end(); ++itf) {
+  for (auto itf = mFiles.begin(); itf != mFiles.end(); ++itf) {
     file = pFileSvc->getFileMD(itf->second);
 
     if (file) {
@@ -214,7 +210,7 @@ ContainerMD::cleanUp()
     }
   }
 
-  for (auto itc = pSubContainers.begin(); itc != pSubContainers.end(); ++itc) {
+  for (auto itc = mSubcontainers.begin(); itc != mSubcontainers.end(); ++itc) {
     cont = pContSvc->getContainerMD(itc->second);
     cont->cleanUp();
     pContSvc->removeContainer(cont.get());
@@ -455,7 +451,7 @@ ContainerMD::getNameFiles() const
 {
   std::set<std::string> fnames;
 
-  for (auto it = pFiles.begin(); it != pFiles.end(); ++it) {
+  for (auto it = mFiles.begin(); it != mFiles.end(); ++it) {
     fnames.insert(it->first);
   }
 
@@ -470,7 +466,7 @@ ContainerMD::getNameContainers() const
 {
   std::set<std::string> dnames;
 
-  for (auto it = pSubContainers.begin(); it != pSubContainers.end(); ++it) {
+  for (auto it = mSubcontainers.begin(); it != mSubcontainers.end(); ++it) {
     dnames.insert(it->first);
   }
 

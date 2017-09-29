@@ -206,9 +206,9 @@ qclient::AsyncResponseType
 ConvertContainerMD::commitSubcontainers(qclient::QClient* qclient)
 {
   std::vector<std::string> cmd {"HMSET", pDirsKey};
-  cmd.reserve(pSubContainers.size() * 2 + 2);
+  cmd.reserve(mSubcontainers.size() * 2 + 2);
 
-  for (auto& elem : pSubContainers) {
+  for (auto& elem : mSubcontainers) {
     cmd.push_back(elem.first);
     cmd.push_back(stringify(elem.second));
   }
@@ -223,9 +223,9 @@ qclient::AsyncResponseType
 ConvertContainerMD::commitFiles(qclient::QClient* qclient)
 {
   std::vector<std::string> cmd {"HMSET", pFilesKey};
-  cmd.reserve(pFiles.size() * 2 + 2);
+  cmd.reserve(mFiles.size() * 2 + 2);
 
-  for (auto& elem : pFiles) {
+  for (auto& elem : mFiles) {
     cmd.push_back(elem.first);
     cmd.push_back(stringify(elem.second));
   }
@@ -920,12 +920,14 @@ int
 main(int argc, char* argv[])
 {
   sThreads = std::thread::hardware_concurrency();
+  const char* conversionThreads = getenv("CONVERSION_THREADS");
 
-  const char *conversionThreads = getenv("CONVERSION_THREADS");
-  if(conversionThreads) {
+  if (conversionThreads) {
     sThreads = atoi(conversionThreads);
   }
-  std::cerr << "Using " << sThreads << " parallel threads for conversion" << std::endl;
+
+  std::cerr << "Using " << sThreads << " parallel threads for conversion" <<
+            std::endl;
 
   if (argc != 5) {
     usage();
@@ -1058,16 +1060,14 @@ main(int argc, char* argv[])
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
     meta_map.hset(eos::constants::sLastUsedFid, file_svc->getFirstFreeId() - 1);
     meta_map.hset(eos::constants::sLastUsedCid, cont_svc->getFirstFreeId() - 1);
-
     // QuarkDB bulkload finalization (triggers manual compaction in rocksdb)
     std::time_t finalizeStart = std::time(nullptr);
     sQcl->exec("quarkdb_bulkload_finalize").get();
     std::time_t finalizeEnd = std::time(nullptr);
-    std::cout << "QuarkDB bulkload finalization: " << finalizeEnd - finalizeStart << " seconds" << std::endl;
-
+    std::cout << "QuarkDB bulkload finalization: " << finalizeEnd - finalizeStart <<
+              " seconds" << std::endl;
     std::chrono::seconds full_duration {std::time(nullptr) - start};
     std::cout << "Conversion duration: " << full_duration.count() << std::endl;
-
   } catch (std::runtime_error& e) {
     std::cerr << "Exception thrown: " << e.what() << std::endl;
     return 1;

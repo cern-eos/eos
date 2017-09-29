@@ -24,18 +24,10 @@
 #ifndef __EOS_NS_CONTAINER_MD_HH__
 #define __EOS_NS_CONTAINER_MD_HH__
 
-#include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
-#include <stdint.h>
-#include <unistd.h>
 #include <cstring>
-#include <string>
 #include <vector>
-#include <google/sparse_hash_map>
-#include <google/dense_hash_map>
-#include <map>
-#include <sys/time.h>
 #include <features.h>
 
 #if __GNUC_PREREQ(4,8)
@@ -54,13 +46,6 @@ class IFileMDSvc;
 class ContainerMD: public IContainerMD
 {
 public:
-  //----------------------------------------------------------------------------
-  // Type definitions
-  //----------------------------------------------------------------------------
-  typedef google::dense_hash_map< std::string, eos::IContainerMD::id_t >
-  ContainerMap;
-  typedef google::dense_hash_map< std::string, eos::IFileMD::id_t >
-  FileMap;
 
 #if __GNUC_PREREQ(4,8)
   struct tmtime_atomic_t {
@@ -150,7 +135,7 @@ public:
   //----------------------------------------------------------------------------
   size_t getNumContainers() override
   {
-    return pSubContainers.size();
+    return mSubcontainers.size();
   }
 
   //----------------------------------------------------------------------------
@@ -173,7 +158,7 @@ public:
   //----------------------------------------------------------------------------
   size_t getNumFiles() override
   {
-    return pFiles.size();
+    return mFiles.size();
   }
 
   //----------------------------------------------------------------------------
@@ -556,8 +541,6 @@ protected:
   mode_t       pMode;
   uint16_t     pACLId;
   XAttrMap     pXAttrs;
-  ContainerMap pSubContainers;
-  FileMap      pFiles;
 
 #if __GNUC_PREREQ(4,8)
   // Atomic (thread-safe) types
