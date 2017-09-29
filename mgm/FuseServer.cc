@@ -2535,6 +2535,8 @@ FuseServer::HandleMD(const std::string &id,
 
   if (md.operation() == md.GETCAP)
   {
+    eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+    
     eos::fusex::container cont;
     cont.set_type(cont.CAP);
 
