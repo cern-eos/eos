@@ -103,6 +103,8 @@ target_link_libraries(
    eosCommon
    ${PROTOBUF_LIBRARY})
 
+add_dependencies(EosAuthProto EosMgmProto-Objects)
+
 #-------------------------------------------------------------------------------
 # EosAuthOfs library
 #-------------------------------------------------------------------------------

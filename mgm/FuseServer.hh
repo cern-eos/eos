@@ -470,4 +470,5 @@ private:
   std::atomic<bool> terminate_;
 };
 
+
 EOSMGMNAMESPACE_END

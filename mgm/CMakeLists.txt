@@ -60,6 +60,10 @@ set_source_files_properties(
   PROPERTIES GENERATED 1)
 
 add_library(
+  EosMgmProto-Objects OBJECT
+  ${FUSEX_SRCS} ${FUSEX_HDRS})
+
+add_library(
   XrdEosMgm-Objects OBJECT
   Access.cc
   IConfigEngine.cc
@@ -165,7 +169,8 @@ target_compile_definitions(
   XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
 
-add_library(XrdEosMgm MODULE $<TARGET_OBJECTS:XrdEosMgm-Objects> )
+add_library(XrdEosMgm MODULE
+  $<TARGET_OBJECTS:XrdEosMgm-Objects>)
 
 set_target_properties(
   XrdEosMgm-Objects

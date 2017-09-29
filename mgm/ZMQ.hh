@@ -33,6 +33,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+
 class ZMQ
 {
 public:
@@ -112,9 +113,7 @@ public:
   } ;
 
   void ServeFuse();
-
   Task* task;
-
   std::string bindUrl;
   static FuseServer gFuseServer;
 };

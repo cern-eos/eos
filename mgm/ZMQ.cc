@@ -23,6 +23,7 @@
 
 #include "mgm/ZMQ.hh"
 #include "mgm/fusex.pb.h"
+#include "mgm/FuseServer.hh"
 #include "common/Logging.hh"
 #include <thread>
 
