@@ -45,7 +45,8 @@ public:
   //----------------------------------------------------------------------------
   AclCmd(eos::console::RequestProto&& req,
          eos::common::Mapping::VirtualIdentity& vid):
-    ProcCommand(vid), mHasResponse(false), mReqProto(std::move(req))
+    ProcCommand(vid), mHasResponse(false), mExecRequest(false),
+    mReqProto(std::move(req))
   {}
 
   //----------------------------------------------------------------------------
@@ -57,6 +58,10 @@ public:
   //! Open a proc command e.g. call the appropriate user or admin commmand and
   //! store the output in a resultstream of in case of find in temporary output
   //! files.
+  //! @note This method can also stall the client if the response is not ready
+  //!       within 5 seconds. This behaviour avoids the scenario in which the
+  //!       client resubmitts the same command if he doesn't get a reply within
+  //!       the STREAM_TIMEOUT (60 seconds).
   //!
   //! @param inpath path indicating user or admin command
   //! @param info CGI describing the proc command
@@ -98,7 +103,8 @@ private:
   };
 
   std::string mTmpResp; ///< String used for streaming the response
-  bool mHasResponse; ///< Value indicating that the reseponse is ready
+  bool mHasResponse; ///< Indicate if the reseponse is ready
+  bool mExecRequest; ///< Indicate if request is executed
   std::promise<eos::console::ReplyProto> mPromise; ///< Promise reply
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
   eos::console::RequestProto mReqProto; ///< Client request protobuf object
@@ -126,10 +132,10 @@ private:
   //! @param path path to get the ACLs for
   //! @param acls ACL VALUE
   //! @param is_sys if true return sys.acl, otherwise user.acl
-  //! @param has_ns_lock if true the namespace is already locked
+  //! @param take_lock if true take namespace lock, otherwise don't
   //----------------------------------------------------------------------------
   void GetAcls(const std::string& path, std::string& acls, bool is_sys = false,
-               bool has_ns_lock = false);
+               bool take_lock = true);
 
   //----------------------------------------------------------------------------
   //! Modify the acls for a path
@@ -152,14 +158,13 @@ private:
   Rule GetRuleFromString(const std::string& in) const;
 
   //----------------------------------------------------------------------------
-  //! Generate rule map from the string representation of the acls
+  //! Generate rule map from the string representation of the acls. If there
+  //! are no acls then the rmap will be empty.
   //!
   //! @param acl_string string containing acl
   //! @param rmap map to be filled with acl rules
-  //!
-  //! @return true if conversion successful, otherwise false
   //----------------------------------------------------------------------------
-  bool GenerateRuleMap(const std::string& acl_string, RuleMap& rmap) const;
+  void GenerateRuleMap(const std::string& acl_string, RuleMap& rmap) const;
 
   //----------------------------------------------------------------------------
   //! Generate acl string representation from a rule map

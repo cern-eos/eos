@@ -73,8 +73,13 @@ AclCmd::ProcessRequest()
       reply.set_retc(0);
     }
   } else if (acl.op() == AclProto_OpType::AclProto_OpType_MODIFY) {
-    reply.set_retc(ModifyAcls(acl));
-    reply.set_std_err(stdErr.c_str());
+    int retc = ModifyAcls(acl);
+    reply.set_retc(retc);
+    reply.set_std_out("");
+
+    if (retc) {
+      reply.set_std_err(stdErr.c_str());
+    }
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not implemented");
@@ -85,32 +90,30 @@ AclCmd::ProcessRequest()
 
 //------------------------------------------------------------------------------
 // Open a proc command e.g. call the appropriate user or admin commmand and
-// store the output in a resultstream of in case of find in temporary output
-// files.
+// store the output in a resultstream or in case of find in a temporary output
+// file.
 //------------------------------------------------------------------------------
 int
 AclCmd::open(const char* path, const char* info,
              eos::common::Mapping::VirtualIdentity& vid,
              XrdOucErrInfo* error)
 {
-  mFuture = Execute();
-  return SFS_OK;
-}
+  int delay = 5;
 
-//------------------------------------------------------------------------------
-// Read a part of the result stream created during open
-//------------------------------------------------------------------------------
-int
-AclCmd::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
-{
+  if (!mExecRequest) {
+    mFuture = Execute();
+    mExecRequest = true;
+  }
+
   if (!mHasResponse) {
-    std::future_status status = mFuture.wait_for(std::chrono::seconds(5));
+    std::future_status status = mFuture.wait_for(std::chrono::seconds(delay));
 
     if (status != std::future_status::ready) {
       // Stall the client requst
-      // @todo (esindril): stall if possible
-      eos_err("future is not ready yet, return 0");
-      return 0;
+      std::string msg = "acl command not ready, stall the client 5 seconds";
+      eos_info("%s", msg.c_str());
+      error->setErrInfo(0, msg.c_str());
+      return delay;
     } else {
       mHasResponse = true;
       eos::console::ReplyProto reply = mFuture.get();
@@ -122,6 +125,15 @@ AclCmd::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
     }
   }
 
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Read a part of the result stream created during open
+//------------------------------------------------------------------------------
+int
+AclCmd::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
+{
   if ((size_t)offset < mTmpResp.length()) {
     size_t cpy_len = std::min((size_t)(mTmpResp.size() - offset), (size_t)blen);
     memcpy(buff, mTmpResp.data() + offset, cpy_len);
@@ -136,14 +148,14 @@ AclCmd::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
 //------------------------------------------------------------------------------
 void
 AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
-                bool has_ns_lock)
+                bool take_lock)
 {
   XrdOucString value;
   XrdOucErrInfo error;
   std::string acl_key = (is_sys ? "sys.acl" : "user.acl");
 
   if (gOFS->_attr_get(path.c_str(), error, *pVid, 0, acl_key.c_str(), value,
-                      has_ns_lock)) {
+                      take_lock)) {
     value = "";
   }
 
@@ -158,7 +170,7 @@ int
 AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 {
   // Parse acl modification command into bitmask rule format
-  if (ParseRule(acl.rule())) {
+  if (!ParseRule(acl.rule())) {
     stdErr = "error: failed to parse input rule";
     return EINVAL;
   }
@@ -192,15 +204,8 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   XrdOucErrInfo error;
 
   for (const auto& elem : paths) {
-    GetAcls(elem, dir_acls, acl.sys_acl(), true);
-
-    if (!GenerateRuleMap(dir_acls, rule_map)) {
-      stdErr = "error: failed to get rule from acl string for path=";
-      stdErr += acl.path().c_str();
-      eos_err("%s", stdErr.c_str());
-      return EINVAL;
-    }
-
+    GetAcls(elem, dir_acls, acl.sys_acl(), false);
+    GenerateRuleMap(dir_acls, rule_map);
     ApplyRule(rule_map);
     new_acl_val = GenerateAclString(rule_map);
 
@@ -296,10 +301,11 @@ Rule AclCmd::GetRuleFromString(const std::string& single_acl) const
 //------------------------------------------------------------------------------
 // Generate rule map from the string representation of the acls
 //------------------------------------------------------------------------------
-bool AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap) const
+void
+AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap) const
 {
   if (acl_string.empty()) {
-    return false;
+    return;
   }
 
   rmap.clear();
@@ -323,7 +329,7 @@ bool AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap) const
     }
   }
 
-  return true;
+  return;
 }
 
 

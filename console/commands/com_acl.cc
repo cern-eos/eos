@@ -148,7 +148,7 @@ AclHelper::CheckId(const std::string& id)
 bool
 AclHelper::CheckFlags(const std::string& flags)
 {
-  static const std::string allowed_chars = "!+rwxmduqc";
+  static const std::string allowed_chars = "!+-rwxmduqc";
   return flags.find_first_not_of(allowed_chars) == std::string::npos;
 }
 
@@ -368,7 +368,9 @@ AclHelper::Execute()
   if (retc) {
     std::cerr << mMgmExec.GetError() << std::endl;
   } else {
-    std::cout << mMgmExec.GetResult() << std::endl;
+    if (mMgmExec.GetResult().size()) {
+      std::cout << mMgmExec.GetResult() << std::endl;
+    }
   }
 
   return retc;
