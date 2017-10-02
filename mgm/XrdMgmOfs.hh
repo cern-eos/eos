@@ -912,11 +912,13 @@ public:
             eos::common::Mapping::VirtualIdentity& vid
            );
 
+  // ---------------------------------------------------------------------------
   //! @brief Creates a fsck file entry for an inconsistent file
   //! @param fid id of the file
   //! @param fsid file system of the file
   //! @param inconsistency type of the inconsistency
-  //! @return
+  //! @return error code
+  // ---------------------------------------------------------------------------
   int fsck(const XrdOucString& fid,
            const XrdOucString& fsid,
            const XrdOucString& inconsistency);
@@ -1231,9 +1233,11 @@ public:
   //------------------------------------------------------------------------------
   static int32_t DiscoverPlatformServices(const char* svc_name, void* opaque);
 
+  //------------------------------------------------------------------------------
+  //! @brief Creates a container with the specified path if not present
+  //! @param containerPath
+  //------------------------------------------------------------------------------
   void CreateContainer(const XrdOucString& containerPath);
-
-  void RemoveContainer(const XrdOucString& containerPath);
 
   //----------------------------------------------------------------------------
   // Configuration variables
@@ -1563,6 +1567,11 @@ private:
   //------------------------------------------------------------------------------
   void FuseXCast(uint64_t inode);
 
+  //------------------------------------------------------------------------------
+  //! @brief Creates file with specified size reserved if not present
+  //! @param filePath path of the file
+  //! @param size size to be reserved
+  //------------------------------------------------------------------------------
   void CreateFileWithSize(const XrdOucString& filePath, unsigned int size);
 };
 

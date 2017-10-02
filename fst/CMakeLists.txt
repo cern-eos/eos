@@ -427,7 +427,7 @@ add_executable(eos-adler32
 
 add_executable(
   eos-file-fmdattribute-scan
-  FmdAttributeScanMain.cc)
+  tools/FmdAttributeScanMain.cc)
 
 add_executable(
   eos-fst-fmd-train

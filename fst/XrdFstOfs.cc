@@ -498,7 +498,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
   else {
     try {
-      fmdCompressor.setDicts(eos::fst::Config::gConfig.FstFmdDict.c_str());
+      fmdCompressor.SetDicts(eos::fst::Config::gConfig.FstFmdDict.c_str());
     } catch (MDException& ex) {
       Eroute.Emsg("Config", "could not load data from fmd compression dictionary");
       NoGo = 1;

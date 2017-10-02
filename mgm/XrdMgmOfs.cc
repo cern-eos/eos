@@ -785,6 +785,9 @@ XrdMgmOfs::IsNsBooted() const {
   return Initialized == kBooted;
 }
 
+//------------------------------------------------------------------------------
+// Creates file with specified size reserved if not present
+//------------------------------------------------------------------------------
 void
 XrdMgmOfs::CreateFileWithSize(const XrdOucString& filePath, unsigned int size) {
   std::shared_ptr<eos::IFileMD> fmd;
@@ -802,6 +805,9 @@ XrdMgmOfs::CreateFileWithSize(const XrdOucString& filePath, unsigned int size) {
   }
 }
 
+//------------------------------------------------------------------------------
+// Creates a container with the specified path if not present
+//------------------------------------------------------------------------------
 void
 XrdMgmOfs::CreateContainer(const XrdOucString& containerPath) {
   try {
@@ -811,13 +817,9 @@ XrdMgmOfs::CreateContainer(const XrdOucString& containerPath) {
   }
 }
 
-void
-XrdMgmOfs::RemoveContainer(const XrdOucString& containerPath) {
-  try {
-    eosView->removeContainer(containerPath.c_str(), true);
-  } catch (eos::MDException& e) {}
-}
-
+//------------------------------------------------------------------------------
+// Creates a fsck file entry for an inconsistent file
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::fsck(const XrdOucString& fid, const XrdOucString& fsid, const XrdOucString& inconsistency) {
   XrdOucString dirPath = MgmProcFsckPath + "/" + inconsistency + "/" + fsid + "/";

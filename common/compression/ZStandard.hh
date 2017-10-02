@@ -42,6 +42,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//! @brief Class providing efficient, thread-safe zstd compression and decompression
 class ZStandard : public Compression
 {
 private:
@@ -49,14 +50,18 @@ private:
   size_t      pDictSize;
   ZSTD_CDict* pCDict;
   ZSTD_DDict* pDDict;
-  ConcurrentQueue<ZSTD_CCtx*> mCompressCtxPool;
-  ConcurrentQueue<ZSTD_DCtx*> mDecompressCtxPool;
+  ConcurrentQueue<ZSTD_CCtx*> mCompressCtxPool; //! Pool of compression context objects for efficient concurrent usage
+  ConcurrentQueue<ZSTD_DCtx*> mDecompressCtxPool; //! Pool of decompression context objects for efficient concurrent usage
 
-  void loadDict(const std::string& dictionaryPath);
+  //! @brief Load the dictionary from file to memory
+  //! @param dictionaryPath path of the dictioanry file
+  void LoadDict(const std::string& dictionaryPath);
 
-  void createCDict();
+  //! @brief Creates the compression dictionary object
+  void CreateCDict();
 
-  void createDDict();
+  //! @brief Creates the decompression dictionary object
+  void CreateDDict();
 
 public:
   ZStandard():
@@ -66,15 +71,25 @@ public:
 
   ~ZStandard();
 
-  void setDicts(const std::string& dictionaryPath);
+  //! @brief Load and use both the dictionary for both compression and decompression
+  //! @param dictionaryPath path of the dictionary file
+  void SetDicts(const std::string& dictionaryPath);
 
-  void setCDict(const std::string& dictionaryPath);
+  //! @brief Load and use the compression dictionary
+  //! @param dictionaryPath path of the dictionary file
+  void SetCDict(const std::string& dictionaryPath);
 
-  void setDDict(const std::string& dictionaryPath);
+  //! @brief Load and use the decompression dictionary
+  //! @param dictionaryPath path of the dictionary file
+  void SetDDict(const std::string& dictionaryPath);
 
-  virtual void compress(Buffer& record) override;
+  //! @brief Compress binary data
+  //! @param record binary data
+  virtual void Compress(Buffer& record) override;
 
-  virtual void decompress(Buffer& record) override;
+  //! @brief Decompress binary data
+  //! @param record binary data
+  virtual void Decompress(Buffer& record) override;
 };
 
 EOSCOMMONNAMESPACE_END

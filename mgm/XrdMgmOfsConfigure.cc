@@ -1805,6 +1805,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
+    // Create fsck directories
     CreateContainer(MgmProcFsckPath);
     for (auto& fsckDir : XrdMgmOfs::MgmFsckDirs) {
       CreateContainer(MgmProcFsckPath + "/" + fsckDir.c_str());

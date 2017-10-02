@@ -15,21 +15,21 @@ class Compression {
 public:
   //! @brief Compress binary data represented by the Buffer class
   //! @param record uncompressed data
-  virtual void compress(Buffer& record) = 0;
+  virtual void Compress(Buffer& record) = 0;
 
   //! @brief Decompress binary data represented by the Buffer class
   //! @param record compressed data
-  virtual void decompress(Buffer& record) = 0;
+  virtual void Decompress(Buffer& record) = 0;
 
   //! @brief Compress text data
   //! @param input uncompressed text data as string
   //! @return compressed string
-  virtual std::string compress(const std::string& input);
+  virtual std::string Compress(const std::string& input);
 
   //! @brief Decompress text data
   //! @param input compressed text data as string
   //! @return decompressed string
-  virtual std::string decompress(const std::string& input);
+  virtual std::string Decompress(const std::string& input);
 
 };
 

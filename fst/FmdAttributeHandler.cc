@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-//! \file FmdAttributeHandler.cc
-//! \author Jozsef Makai<jmakai@cern.ch>
+//! @file FmdAttributeHandler.cc
+//! @author Jozsef Makai<jmakai@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -34,7 +34,7 @@ FmdAttributeHandler gFmdAttributeHandler{&(gOFS.fmdCompressor), &gFmdClient};
 Fmd
 FmdAttributeHandler::FmdAttrGet(FileIo* fileIo) const {
   std::string fmdAttrValue;
-  int result = fileIo->attrGet(FmdAttributeHandler::fmdAttrName, fmdAttrValue);
+  int result = fileIo->attrGet(FmdAttributeHandler::mFmdAttrName, fmdAttrValue);
 
   if (result != 0) {
     MDException ex(errno);
@@ -44,7 +44,7 @@ FmdAttributeHandler::FmdAttrGet(FileIo* fileIo) const {
   }
 
   Fmd fmd;
-  fmd.ParsePartialFromString(compressor->decompress(fmdAttrValue));
+  fmd.ParsePartialFromString(mCompressor->Decompress(fmdAttrValue));
 
   return fmd;
 }
@@ -63,7 +63,7 @@ FmdAttributeHandler::FmdAttrGet(eos::common::FileId::fileid_t fid, eos::common::
 
 void
 FmdAttributeHandler::FmdAttrSet(FileIo* fileIo, const Fmd& fmd) const {
-  int result = fileIo->attrSet(FmdAttributeHandler::fmdAttrName, compressor->compress(fmd.SerializePartialAsString()));
+  int result = fileIo->attrSet(FmdAttributeHandler::mFmdAttrName, mCompressor->Compress(fmd.SerializePartialAsString()));
 
   if (result != 0) {
     MDException ex(errno);
@@ -82,7 +82,7 @@ FmdAttributeHandler::FmdAttrSet(const Fmd& fmd, eos::common::FileId::fileid_t fi
 
 void
 FmdAttributeHandler::FmdAttrDelete(FileIo* fileIo) const {
-  if (fileIo->attrDelete(FmdAttributeHandler::fmdAttrName) != 0) {
+  if (fileIo->attrDelete(FmdAttributeHandler::mFmdAttrName) != 0) {
     MDException ex(errno);
     ex.getMessage() << "Could not delete meta data attribute for the file: ";
     ex.getMessage() << fileIo->GetPath();
@@ -91,7 +91,7 @@ FmdAttributeHandler::FmdAttrDelete(FileIo* fileIo) const {
 }
 
 void
-FmdAttributeHandler::CreateFileAndSetFmd(FileIo* fileIo, Fmd& fmd, eos::common::FileSystem::fsid_t fsid) const {
+FmdAttributeHandler::CreateFileAndSetFmd(FileIo* fileIo, Fmd& fmd) const {
   // check if it exists on disk
   if (fileIo->fileExists() != 0) {
     FsIo fsIo(fileIo->GetPath());
@@ -99,8 +99,7 @@ FmdAttributeHandler::CreateFileAndSetFmd(FileIo* fileIo, Fmd& fmd, eos::common::
     fsIo.fileClose();
 
     fmd.set_layouterror(fmd.layouterror() | eos::common::LayoutId::kMissing);
-    eos_warning("found missing replica for fid=%llu on fsid=%lu", fmd.fid(),
-                (unsigned long) fsid);
+    eos_warning("found missing replica for fid=%llu on fsid=%lu", fmd.fid(), fmd.fsid());
   }
 
   FmdAttrSet(fileIo, fmd);
@@ -124,7 +123,7 @@ FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsid_t f
 
   Fmd oldFmd = fmd;
 
-  int rc = fmdClient->GetMgmFmd(manager, fid, fmd);
+  int rc = mFmdClient->GetMgmFmd(manager, fid, fmd);
 
   if (rc == 0) {
     if (!fmdUpdated) {
@@ -140,7 +139,7 @@ FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsid_t f
     fmd.set_layouterror(FmdHelper::LayoutError(fsid, fmd.lid(), fmd.locations()));
 
     try {
-      CreateFileAndSetFmd(fileIo, fmd, fsid);
+      CreateFileAndSetFmd(fileIo, fmd);
     } catch (...) {
       eos_err("failed to get/create fmd for fid=%08llx", fmd.fid());
       return false;
@@ -220,14 +219,14 @@ FmdAttributeHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const ch
       struct Fmd fMd;
       FmdHelper::Reset(fMd);
 
-      if (fmdClient->EnvMgmToFmdSqlite(*env, fMd)) {
+      if (mFmdClient->EnvMgmToFmdSqlite(*env, fMd)) {
         fMd.set_layouterror(FmdHelper::LayoutError(fsid, fMd.lid(), fMd.locations()));
 
         XrdOucString filePath = FullPathOfFile(fMd.fid(), fsid, env.get());
 
         try {
           FsIo fsIo{filePath.c_str()};
-          CreateFileAndSetFmd(&fsIo, fMd, fsid);
+          CreateFileAndSetFmd(&fsIo, fMd);
         } catch (...) {
           eos_err("failed to get/create fmd for fid=%08llx", fMd.fid());
           return false;
@@ -244,7 +243,7 @@ FmdAttributeHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const ch
     }
   }
 
-  isSyncing[fsid] = false;
+  mIsSyncing[fsid] = false;
   return true;
 }
 
@@ -355,7 +354,7 @@ FmdAttributeHandler::ResyncAllDisk(const char* path, eos::common::FileSystem::fs
   paths[1] = 0;
 
   if (flaglayouterror) {
-    isSyncing[fsid] = true;
+    mIsSyncing[fsid] = true;
   }
 
   // scan all the files

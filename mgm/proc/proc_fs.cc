@@ -1219,7 +1219,11 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
   if (retc == 0) {
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
     for(auto& fsckDir : XrdMgmOfs::MgmFsckDirs) {
-      gOFS->RemoveContainer(gOFS->MgmProcFsckPath + "/" + fsckDir.c_str() + "/" + std::to_string(fsid).c_str());
+      try {
+        std::ostringstream containerPath;
+        containerPath << gOFS->MgmProcFsckPath << "/" << fsckDir << "/" << std::to_string(fsid);
+        gOFS->eosView->removeContainer(containerPath.str(), true);
+      } catch (eos::MDException& e) {}
     }
   }
 

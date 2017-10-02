@@ -169,6 +169,9 @@ public:
   bool LocalDeleteFmd(eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid);
 
+  //----------------------------------------------------------------------------
+  //! Retrieves the fsids present under a database directory
+  //----------------------------------------------------------------------------
   static std::vector<int> GetFsidInMetaDir(const char* path)
   {
     std::unique_ptr<DIR, decltype(&closedir)> dir(opendir(path), &closedir);
@@ -191,6 +194,9 @@ public:
     return fsidList;
   }
 
+  //----------------------------------------------------------------------------
+  //! Retrieves all fmd objects from the database
+  //----------------------------------------------------------------------------
   inline std::list<Fmd> RetrieveAllFmd()
   {
     std::list<Fmd> fmdList;

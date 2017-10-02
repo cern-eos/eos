@@ -100,12 +100,12 @@ public:
 class MockCompression : public eos::common::Compression {
 public:
   void
-  compress(eos::Buffer& record) override {
+  Compress(eos::Buffer& record) override {
 
   }
 
   void
-  decompress(eos::Buffer& record) override {
+  Decompress(eos::Buffer& record) override {
 
   }
 };

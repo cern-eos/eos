@@ -10,7 +10,7 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 void
-eos::common::ZStandard::loadDict(const std::string& dictionaryPath) {
+eos::common::ZStandard::LoadDict(const std::string& dictionaryPath) {
   struct stat statbuf;
 
   if (stat(dictionaryPath.c_str(), &statbuf) != 0) {
@@ -44,7 +44,7 @@ eos::common::ZStandard::loadDict(const std::string& dictionaryPath) {
 }
 
 void
-ZStandard::createCDict() {
+ZStandard::CreateCDict() {
   pCDict = ZSTD_createCDict(pDictBuffer, pDictSize, 19);
 
   if (pCDict == nullptr) {
@@ -62,7 +62,7 @@ ZStandard::createCDict() {
 }
 
 void
-ZStandard::createDDict() {
+ZStandard::CreateDDict() {
   pDDict = ZSTD_createDDict(pDictBuffer, pDictSize);
 
   if (pDDict == nullptr) {
@@ -80,7 +80,7 @@ ZStandard::createDDict() {
 }
 
 void
-ZStandard::compress(Buffer& record) {
+ZStandard::Compress(Buffer& record) {
   size_t const cBuffSize = ZSTD_compressBound(record.size());
   void* const cBuff = malloc(cBuffSize);
 
@@ -113,7 +113,7 @@ ZStandard::compress(Buffer& record) {
 }
 
 void
-ZStandard::decompress(Buffer& record) {
+ZStandard::Decompress(Buffer& record) {
   size_t const dBuffSize = ZSTD_DStreamOutSize();
   void* const dBuff = malloc(dBuffSize);
 
@@ -157,35 +157,35 @@ ZStandard::~ZStandard() {
   ZSTD_freeDDict(pDDict);
 
   while(!mCompressCtxPool.empty()) {
-    ZSTD_CCtx* ctx;
-    mCompressCtxPool.try_pop(ctx);
-    ZSTD_freeCCtx(ctx);
+    ZSTD_CCtx* ctx = nullptr;
+    if(mCompressCtxPool.try_pop(ctx))
+      ZSTD_freeCCtx(ctx);
   }
 
   while(!mDecompressCtxPool.empty()) {
-    ZSTD_DCtx* ctx;
-    mDecompressCtxPool.try_pop(ctx);
-    ZSTD_freeDCtx(ctx);
+    ZSTD_DCtx* ctx = nullptr;
+    if(mDecompressCtxPool.try_pop(ctx))
+      ZSTD_freeDCtx(ctx);
   }
 }
 
 void
-ZStandard::setDicts(const std::string& dictionaryPath) {
-  loadDict(dictionaryPath);
-  createCDict();
-  createDDict();
+ZStandard::SetDicts(const std::string& dictionaryPath) {
+  LoadDict(dictionaryPath);
+  CreateCDict();
+  CreateDDict();
 }
 
 void
-ZStandard::setCDict(const std::string& dictionaryPath) {
-  loadDict(dictionaryPath);
-  createCDict();
+ZStandard::SetCDict(const std::string& dictionaryPath) {
+  LoadDict(dictionaryPath);
+  CreateCDict();
 }
 
 void
-ZStandard::setDDict(const std::string& dictionaryPath) {
-  loadDict(dictionaryPath);
-  createDDict();
+ZStandard::SetDDict(const std::string& dictionaryPath) {
+  LoadDict(dictionaryPath);
+  CreateDDict();
 }
 
 EOSCOMMONNAMESPACE_END

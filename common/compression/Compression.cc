@@ -7,20 +7,20 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 std::string
-eos::common::Compression::compress(const std::string& input)
+eos::common::Compression::Compress(const std::string& input)
 {
   Buffer buffer;
   buffer.putData(input.c_str(), input.size());
-  compress(buffer);
+  Compress(buffer);
   return std::string(buffer.getDataPtr(), buffer.getSize());
 }
 
 std::string
-eos::common::Compression::decompress(const std::string& input)
+eos::common::Compression::Decompress(const std::string& input)
 {
   Buffer buffer;
   buffer.putData(input.c_str(), input.size());
-  decompress(buffer);
+  Decompress(buffer);
   return std::string(buffer.getDataPtr(), buffer.getSize());
 }
 
