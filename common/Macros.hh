@@ -23,10 +23,10 @@
 
 /**
  * @file   Macros.hh
- * 
+ *
  * @brief  Convenience macros for 64-bit network byte order conversion
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSCOMMON_MACROS_HH__
@@ -34,7 +34,7 @@
 
 #include <arpa/inet.h>
 
-unsigned long long h_tonll(unsigned long long n)
+inline unsigned long long h_tonll(unsigned long long n)
 {
 #if __BYTE_ORDER == __BIG_ENDIAN
   return n;
@@ -43,7 +43,7 @@ unsigned long long h_tonll(unsigned long long n)
 #endif
 }
 
-unsigned long long n_tohll(unsigned long long n)
+inline unsigned long long n_tohll(unsigned long long n)
 {
 #if __BYTE_ORDER == __BIG_ENDIAN
   return n;
