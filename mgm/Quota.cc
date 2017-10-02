@@ -1174,9 +1174,17 @@ Quota::QuotaByPath(const char* myspace,
 {
   eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
   SpaceQuota* qspace = GetSpaceQuota(myspace, false);
-  if (!qspace || !qspace->Enabled())
+  if (!qspace)
     return -1;
 
+  if (!qspace->Enabled())
+  {
+    // we grant infinite resources since quota is disabled
+    avail_files = std::numeric_limits<long>::max();
+    avail_bytes = std::numeric_limits<long>::max();
+    return 0;
+  }
+  
   SpaceQuota* space = GetResponsibleSpaceQuota(path);
   if (space)
   {
