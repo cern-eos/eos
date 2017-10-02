@@ -1180,8 +1180,8 @@ Quota::QuotaByPath(const char* myspace,
   if (!qspace->Enabled())
   {
     // we grant infinite resources since quota is disabled
-    avail_files = std::numeric_limits<long>::max();
-    avail_bytes = std::numeric_limits<long>::max();
+    avail_files = std::numeric_limits<long>::max()/2;
+    avail_bytes = std::numeric_limits<long>::max()/2;
     return 0;
   }
   
