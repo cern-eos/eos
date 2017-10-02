@@ -657,12 +657,14 @@ public:
   //! @param opaque CGI
   //! @param key key to set
   //! @param value value to set for key
+  //! @param take_lock if true take namespace lock, otherwise don't
   //!
   //! @return SFS_OK if success otherwise SFS_ERROR
   // ---------------------------------------------------------------------------
   int _attr_set(const char* path, XrdOucErrInfo& out_error,
                 eos::common::Mapping::VirtualIdentity& vid,
-                const char* opaque, const char* key, const char* value);
+                const char* opaque, const char* key, const char* value,
+                bool take_lock = true);
 
   //----------------------------------------------------------------------------
   //! Get an extended attribute for a given entry by key - high-level API.

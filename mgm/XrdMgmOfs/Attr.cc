@@ -21,11 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-// -----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // List extended attributes for a given file/directory - high-level API.
@@ -166,7 +165,8 @@ XrdMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
 int
 XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                      eos::common::Mapping::VirtualIdentity& vid,
-                     const char* info, const char* key, const char* value)
+                     const char* info, const char* key, const char* value,
+                     bool take_lock)
 {
   static const char* epname = "attr_set";
   EXEC_TIMING_BEGIN("AttrSet");
@@ -191,7 +191,11 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   }
 
   std::shared_ptr<eos::IContainerMD> dh;
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock ns_wr_lock;
+
+  if (take_lock) {
+    ns_wr_lock.Grab(gOFS->eosViewRWMutex);
+  }
 
   try {
     dh = gOFS->eosView->getContainer(path);

@@ -174,6 +174,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   std::string acl_key = (acl.sys_acl() ? "sys.acl" : "user.acl:");
   RuleMap rule_map;
   std::string dir_acls, new_acl_val;
+  XrdOucErrInfo error;
 
   for (const auto& elem : paths) {
     GetAcls(elem, dir_acls, acl.sys_acl(), true);
@@ -187,8 +188,15 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 
     ApplyRule(rule_map);
     new_acl_val = GenerateAclString(rule_map);
-    // @todo (esindril): make the attr set call without locking again the
-    // namespace.
+
+    // Set xattr without taking the namespace lock
+    if (!gOFS->_attr_set(elem.c_str(), error, *pVid, 0, acl_key.c_str(),
+                         new_acl_val.c_str(), false)) {
+      stdErr = "error: failed to set new acl for path=%s";
+      stdErr += elem.c_str();
+      eos_err("%s", stdErr.c_str());
+      return errno;
+    }
   }
 
   return 0;
