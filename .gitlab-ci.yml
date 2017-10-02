@@ -361,6 +361,7 @@ eos_stress_test:
   dependencies:
     - eos_rpm_cc7
   allow_failure: true
+  retry: 1
 
 eos_publish_artifacts:
   stage: publish
