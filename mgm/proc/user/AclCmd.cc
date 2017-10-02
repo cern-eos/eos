@@ -73,9 +73,11 @@ AclCmd::ProcessRequest()
       reply.set_retc(0);
     }
   } else if (acl.op() == AclProto_OpType::AclProto_OpType_MODIFY) {
+    reply.set_retc(ModifyAcls(acl));
+    reply.set_std_err(stdErr.c_str());
   } else {
     reply.set_retc(EINVAL);
-    reply.set_std_err("error: not implemented yet");
+    reply.set_std_err("error: not implemented");
   }
 
   mPromise.set_value(std::move(reply));
@@ -117,7 +119,6 @@ AclCmd::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
           << "&mgm.proc.stderr=" << reply.std_err()
           << "&mgm.proc.retc=" << reply.retc();
       mTmpResp = oss.str();
-      eos_info("future is ready, response is: %s", oss.str().c_str());
     }
   }
 
@@ -158,6 +159,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 {
   // Parse acl modification command into bitmask rule format
   if (ParseRule(acl.rule())) {
+    stdErr = "error: failed to parse input rule";
     return EINVAL;
   }
 
@@ -166,7 +168,20 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 
   if (acl.recursive()) {
     // @todo (esindril): get list of all directories recursively
-    return EFAULT;
+    XrdOucErrInfo error;
+    std::map<std::string, std::set<std::string>> dirs;
+    stdErr.erase();
+    (void) gOFS->_find(acl.path().c_str(), error, stdErr, *pVid, dirs, nullptr,
+                       nullptr, true, 0, false, 0, nullptr, false);
+
+    if (stdErr.length()) {
+      return EINVAL;
+    }
+
+    // Save all the directories in the current subtree
+    for (const auto& elem : dirs) {
+      paths.push_back(elem.first);
+    }
   } else {
     paths.push_back(acl.path());
   }

@@ -367,22 +367,50 @@ public:
            bool keepversion = false,
            bool no_recycling = false);
 
+  //----------------------------------------------------------------------------
+  //! Low-level namespace find command
+  //!
+  //! @param path path to start the sub-tree find
+  //! @param stdErr stderr output string
+  //! @param vid virtual identity of the client
+  //! @param found result map/set of the find
+  //! @param key search for a certain key in the extended attributes
+  //! @param val search for a certain value in the extended attributes
+  //!        (requires key)
+  //! @param no_files if true returns only directories, otherwise files and
+  //!         directories
+  //! @param millisleep milli seconds to sleep between each directory scan
+  //! @param nscounter if true update ns counters, otherwise don't
+  //! @param maxdepth is the maximum search depth
+  //! @param filematch is a pattern match for file names
+  //! @param take_lock if true then take namespace lock, otherwise don't
+  //!
+  //! @note The find command distinuishes 'power' and 'normal' users. If the
+  //! virtual identity indicates the root or admin user queries are unlimited.
+  //! For others queries are by dfeault limited to 50k directories and 100k
+  //! files and an appropriate error/warning message is written to stdErr.
+  //!
+  //! @note Find limits can be (re-)defined in the access interface by using
+  //! global rules:
+  //! => access set limit 100000 rate:user:*:FindFiles
+  //! => access set limit 50000 rate:user:*:FindDirs
+  //! or individual rules
+  //! => access set limit 100000000 rate:user:eosprod:FindFiles
+  //! => access set limit 100000000 rate:user:eosprod:FindDirs
+  //!
+  //! @note If 'key' contains a wildcard character in the end find produces a
+  //! list of directories containing an attribute starting with that key match
+  //! like var=sys.policy.*
+  //!
+  //! @note The millisleep variable allows to slow down full scans to decrease
+  //! the impact when doing large scans.
   // ---------------------------------------------------------------------------
-  // find files internal function
-  // ---------------------------------------------------------------------------
-  int _find(const char* path,
-            XrdOucErrInfo& out_error,
-            XrdOucString& stdErr,
+  int _find(const char* path, XrdOucErrInfo& out_error, XrdOucString& stdErr,
             eos::common::Mapping::VirtualIdentity& vid,
             std::map<std::string, std::set<std::string> >& found,
-            const char* key = 0,
-            const char* val = 0,
-            bool nofiles = false,
-            time_t millisleep = 0,
-            bool nscounter = true,
-            int maxdepth = 0,
-            const char* filematch = 0
-           );
+            const char* key = 0, const char* val = 0, bool no_files = false,
+            time_t millisleep = 0, bool nscounter = true, int maxdepth = 0,
+            const char* filematch = 0, bool take_lock = true);
 
   // ---------------------------------------------------------------------------
   // delete dir

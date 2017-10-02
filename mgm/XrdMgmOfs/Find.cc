@@ -27,37 +27,7 @@
 // -----------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-/*
- * @brief low-level namespace find command
- *
- * @param path path to start the sub-tree find
- * @param stdErr stderr output string
- * @param vid virtual identity of the client
- * @param found result map/set of the find
- * @param key search for a certain key in the extended attributes
- * @param val search for a certain value in the extended attributes (requires key)
- * @param no_files if true returns only directories, otherwise files and directories
- * @param millisleep milli seconds to sleep between each directory scan
- * @param maxdepth is the maximum search depth
- * @param filematch is a pattern match for file names
-
- * The find command distinuishes 'power' and 'normal' users. If the virtual
- * identity indicates the root or admin user queries are unlimited.
- * For others queries are by dfeault limited to 50k directories and 100k files and an
- * appropriate error/warning message is written to stdErr.
- * Find limits can be (re-)defined in the access interface by using global rules
- * => access set limit 100000 rate:user:*:FindFiles
- * => access set limit 50000 rate:user:*:FindDirs
- * or individual rules
- * => access set limit 100000000 rate:user:eosprod:FindFiles
- * => access set limit 100000000 rate:user:eosprod:FindDirs
- * If 'key' contains a wildcard character in the end find produces a list of
- * directories containing an attribute starting with that key match like
- * var=sys.policy.*
- * The millisleep variable allows to slow down full scans to decrease impact
- * when doing large scans.
- *
- */
+// Low-level namespace find command
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
@@ -65,7 +35,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                  std::map<std::string, std::set<std::string> >& found,
                  const char* key, const char* val, bool no_files,
                  time_t millisleep, bool nscounter, int maxdepth,
-                 const char* filematch)
+                 const char* filematch, bool take_lock)
 {
   std::vector< std::vector<std::string> > found_dirs;
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -105,7 +75,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     bool permok = false;
     found_dirs.resize(deepness + 2);
 
-    // loop over all directories in that deepness
+    // Loop over all directories in that deepness
     for (unsigned int i = 0; i < found_dirs[deepness].size(); i++) {
       Path = found_dirs[deepness][i].c_str();
       eos_static_debug("Listing files in directory %s", Path.c_str());
@@ -115,7 +85,12 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
         snooze.Wait(millisleep);
       }
 
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      // Held only for the current loop
+      eos::common::RWMutexReadLock ns_rd_lock;
+
+      if (take_lock) {
+        ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+      }
 
       try {
         cmd = gOFS->eosView->getContainer(Path.c_str(), false);
