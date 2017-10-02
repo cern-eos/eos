@@ -21,28 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 // -----------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::_find(const char* path,
-                 XrdOucErrInfo& out_error,
-                 XrdOucString& stdErr,
-                 eos::common::Mapping::VirtualIdentity& vid,
-                 std::map<std::string, std::set<std::string> >& found,
-                 const char* key,
-                 const char* val,
-                 bool nofiles,
-                 time_t millisleep,
-                 bool nscounter,
-                 int maxdepth,
-                 const char* filematch
-                )
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 /*
  * @brief low-level namespace find command
  *
@@ -74,10 +58,22 @@ XrdMgmOfs::_find(const char* path,
  * when doing large scans.
  *
  */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::_find(const char* path,
+                 XrdOucErrInfo& out_error,
+                 XrdOucString& stdErr,
+                 eos::common::Mapping::VirtualIdentity& vid,
+                 std::map<std::string, std::set<std::string> >& found,
+                 const char* key,
+                 const char* val,
+                 bool nofiles,
+                 time_t millisleep,
+                 bool nscounter,
+                 int maxdepth,
+                 const char* filematch)
 {
   std::vector< std::vector<std::string> > found_dirs;
-  // try if that is directory
   std::shared_ptr<eos::IContainerMD> cmd;
   std::string Path = path;
   XrdOucString sPath = path;
@@ -336,10 +332,8 @@ XrdMgmOfs::_find(const char* path,
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // include also the directory which was specified in the query if it is
+  // Include also the directory which was specified in the query if it is
   // accessible and a directory since it can evt. be missing if it is empty
-  // ---------------------------------------------------------------------------
   XrdSfsFileExistence dir_exists;
 
   if (((_exists(found_dirs[0][0].c_str(), dir_exists, out_error, vid,

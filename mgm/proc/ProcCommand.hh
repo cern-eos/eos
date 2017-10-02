@@ -261,16 +261,16 @@ public:
 
 protected:
   eos::common::Mapping::VirtualIdentity* pVid; ///< Pointer to virtual identity
+  XrdOucString stdOut; ///< stdOut returned by proc command
+  XrdOucString stdErr; ///< stdErr returned by proc command
+  XrdOucString stdJson; ///< JSON output returned by proc command
+  int retc; ///< return code from the proc command
 
 private:
   XrdOucString mPath; ///< path argument for the proc command
   XrdOucString mCmd; ///< proc command name
   XrdOucString mSubCmd; ///< proc sub command name
   XrdOucString mArgs; ///< full args from opaque input
-  XrdOucString stdOut; ///< stdOut returned by proc command
-  XrdOucString stdErr; ///< stdErr returned by proc command
-  XrdOucString stdJson; ///< JSON output returned by proc command
-  int retc; ///< return code from the proc command
   XrdOucString mResultStream; ///< string containing the assembled stream
   XrdOucEnv* pOpaque; ///< pointer to the opaque information object
   const char* ininfo; ///< original opaque info string

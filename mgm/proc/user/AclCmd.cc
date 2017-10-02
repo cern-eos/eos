@@ -57,20 +57,22 @@ AclCmd::ProcessRequest()
   using eos::console::AclProto_OpType;
   eos::console::ReplyProto reply;
   eos::console::AclProto acl = mReqProto.acl();
+  std::string err_msg;
 
   if (acl.op() == AclProto_OpType::AclProto_OpType_LIST) {
     std::string acl_val;
     GetAcls(acl.path(), acl_val, acl.sys_acl());
 
     if (acl_val.empty()) {
-      std::string err_msg = "error: ";
-      err_msg += std::strerror(ENODATA);
-      reply.set_std_err(err_msg);
+      stdErr = "error: ";
+      stdErr += std::strerror(ENODATA);
+      reply.set_std_err(stdErr.c_str());
       reply.set_retc(ENODATA);
     } else {
       reply.set_std_out(acl_val);
       reply.set_retc(0);
     }
+  } else if (acl.op() == AclProto_OpType::AclProto_OpType_MODIFY) {
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not implemented yet");
@@ -104,6 +106,7 @@ AclCmd::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
 
     if (status != std::future_status::ready) {
       // Stall the client requst
+      // @todo (esindril): stall if possible
       eos_err("future is not ready yet, return 0");
       return 0;
     } else {
@@ -131,19 +134,15 @@ AclCmd::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
 // Get sys.acl and user.acl for a given path
 //------------------------------------------------------------------------------
 void
-AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys)
+AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
+                bool has_ns_lock)
 {
-  std::string acl_key;
   XrdOucString value;
   XrdOucErrInfo error;
+  std::string acl_key = (is_sys ? "sys.acl" : "user.acl");
 
-  if (is_sys) {
-    acl_key = "sys.acl";
-  } else {
-    acl_key = "user.acl";
-  }
-
-  if (gOFS->_attr_get(path.c_str(), error, *pVid, 0, acl_key.c_str(), value)) {
+  if (gOFS->_attr_get(path.c_str(), error, *pVid, 0, acl_key.c_str(), value,
+                      has_ns_lock)) {
     value = "";
   }
 
@@ -151,13 +150,412 @@ AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys)
   Acl::ConvertIds(acl, true);
 }
 
+//------------------------------------------------------------------------------
+// Modify acls
+//------------------------------------------------------------------------------
+int
+AclCmd::ModifyAcls(const eos::console::AclProto& acl)
+{
+  // Parse acl modification command into bitmask rule format
+  if (ParseRule(acl.rule())) {
+    return EINVAL;
+  }
 
-/*
+  std::list<std::string> paths;
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+
+  if (acl.recursive()) {
+    // @todo (esindril): get list of all directories recursively
+    return EFAULT;
+  } else {
+    paths.push_back(acl.path());
+  }
+
+  std::string acl_key = (acl.sys_acl() ? "sys.acl" : "user.acl:");
+  RuleMap rule_map;
+  std::string dir_acls, new_acl_val;
+
+  for (const auto& elem : paths) {
+    GetAcls(elem, dir_acls, acl.sys_acl(), true);
+
+    if (!GenerateRuleMap(dir_acls, rule_map)) {
+      stdErr = "error: failed to get rule from acl string for path=";
+      stdErr += acl.path().c_str();
+      eos_err("%s", stdErr.c_str());
+      return EINVAL;
+    }
+
+    ApplyRule(rule_map);
+    new_acl_val = GenerateAclString(rule_map);
+    // @todo (esindril): make the attr set call without locking again the
+    // namespace.
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Get ACL rule from string by creating a pair of identifier for the ACL and
+// the bitmask representation
+//------------------------------------------------------------------------------
+Rule AclCmd::GetRuleFromString(const std::string& single_acl) const
+{
+  Rule ret;
+  auto acl_delimiter = single_acl.rfind(':');
+  ret.first = std::string(single_acl.begin(),
+                          single_acl.begin() + acl_delimiter);
+  unsigned short rule_int = 0;
+
+  for (auto i = acl_delimiter + 1, size = single_acl.length(); i < size; ++i) {
+    switch (single_acl.at(i)) {
+    case 'r' :
+      rule_int = rule_int | AclCmd::R;
+      break;
+
+    case 'w' :
+      rule_int = rule_int | AclCmd::W;
+      break;
+
+    case 'x' :
+      rule_int = rule_int | AclCmd::X;
+      break;
+
+    case 'm' :
+      rule_int = rule_int | AclCmd::M;
+      break;
+
+    case 'q' :
+      rule_int = rule_int | AclCmd::Q;
+      break;
+
+    case 'c' :
+      rule_int = rule_int | AclCmd::C;
+      break;
+
+    case '+' :
+      // There are only two + flags in current acl permissions +d and +u
+      i++;
+
+      if (single_acl.at(i) == 'd') {
+        rule_int = rule_int | AclCmd::pD;
+      } else {
+        rule_int = rule_int | AclCmd::pU;
+      }
+
+      break;
+
+    case '!' :
+      i++;
+
+      if (single_acl.at(i) == 'd') {
+        rule_int = rule_int | AclCmd::nD;
+      }
+
+      if (single_acl.at(i) == 'u') {
+        rule_int = rule_int | AclCmd::nU;
+      }
+
+      if (single_acl.at(i) == 'm') {
+        rule_int = rule_int | AclCmd::nM;
+      }
+
+      break;
+
+    default:
+      break;
+    }
+  }
+
+  ret.second = rule_int;
+  return ret;
+}
+
+//------------------------------------------------------------------------------
+// Generate rule map from the string representation of the acls
+//------------------------------------------------------------------------------
+bool AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap) const
+{
+  if (acl_string.empty()) {
+    return false;
+  }
+
+  rmap.clear();
+  size_t curr_pos = 0, pos = 0;
+
+  while (true) {
+    pos = acl_string.find(',', curr_pos);
+
+    if (pos == std::string::npos) {
+      pos = acl_string.length();
+    }
+
+    std::string single_acl = std::string(acl_string.begin() + curr_pos,
+                                         acl_string.begin() + pos);
+    Rule elem = GetRuleFromString(single_acl);
+    rmap.insert(elem);
+    curr_pos = pos + 1;
+
+    if (curr_pos > acl_string.length()) {
+      break;
+    }
+  }
+
+  return true;
+}
+
+
+//------------------------------------------------------------------------------
+// Convert acl modification command into bitmask rule format
+//------------------------------------------------------------------------------
+bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
+{
+  bool lambda_happen = false;
+  unsigned short int ret = 0, add_ret = 0, rm_ret = 0;
+  auto add_lambda = [&add_ret, &ret](AclCmd::ACLPos pos) {
+    add_ret = add_ret | pos;
+    ret = ret | pos;
+  };
+  auto remove_lambda = [&rm_ret, &ret](AclCmd::ACLPos pos) {
+    rm_ret = rm_ret | pos;
+    ret = ret & (~pos);
+  };
+  std::function<void(AclCmd::ACLPos)>curr_lambda = add_lambda;
+
+  for (auto flag = input.begin(); flag != input.end(); ++flag) {
+    // Check for add/rm rules
+    if (*flag == '-') {
+      curr_lambda = remove_lambda;
+      lambda_happen = true;
+      continue;
+    }
+
+    if (*flag == '+') {
+      auto temp_iter = flag + 1;
+
+      if (temp_iter == input.end()) {
+        continue;
+      }
+
+      if (*temp_iter != 'd' && *temp_iter != 'u') {
+        lambda_happen = true;
+        curr_lambda = add_lambda;
+        continue;
+      }
+    }
+
+    // If there is no +/- character non-"set" mode
+    if (!set && !lambda_happen) {
+      return false;
+    }
+
+    // Check for flags
+    if (*flag == 'r') {
+      curr_lambda(AclCmd::R);
+      continue;
+    }
+
+    if (*flag == 'w') {
+      curr_lambda(AclCmd::W);
+      continue;
+    }
+
+    if (*flag == 'x') {
+      curr_lambda(AclCmd::X);
+      continue;
+    }
+
+    if (*flag == 'm') {
+      curr_lambda(AclCmd::M);
+      continue;
+    }
+
+    if (*flag == 'q') {
+      curr_lambda(AclCmd::Q);
+      continue;
+    }
+
+    if (*flag == 'c') {
+      curr_lambda(AclCmd::C);
+      continue;
+    }
+
+    if (*flag == '!') {
+      ++flag;
+
+      if (flag == input.end()) {
+        goto error_label;
+      }
+
+      if (*flag == 'd') {
+        curr_lambda(AclCmd::nD);
+        continue;
+      }
+
+      if (*flag == 'u') {
+        curr_lambda(AclCmd::nU);
+        continue;
+      }
+
+      if (*flag == 'm') {
+        curr_lambda(AclCmd::nM);
+        continue;
+      }
+
+      goto error_label;
+    }
+
+    if (*flag == '+') {
+      ++flag;
+
+      if (*flag == 'd') {
+        curr_lambda(AclCmd::pD);
+        continue;
+      }
+
+      if (*flag == 'u') {
+        curr_lambda(AclCmd::pU);
+        continue;
+      }
+    }
+
+    goto error_label;
+  }
+
+  // Set the mask of flags which are going to be added or removed
+  mAddRule = ((add_ret == 0) ? 0 : ret & add_ret);
+  mRmRule  = ((rm_ret == 0) ? 0 : ~ret & rm_ret);
+  return true;
+error_label:
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Parse command line (modification) rule given by the client
+//------------------------------------------------------------------------------
+bool AclCmd::ParseRule(const std::string& input)
+{
+  size_t pos_del_first, pos_del_last, pos_equal;
+  pos_del_first = input.find(":");
+  pos_del_last  = input.rfind(":");
+  pos_equal     = input.find("=");
+  std::string id, srule;
+
+  if ((pos_del_first == pos_del_last) && (pos_equal != std::string::npos)) {
+    // u:id=rw+x | g:id=rw+x
+    mSet = true;
+    // Check if id and rule are correct
+    id = std::string(input.begin(), input.begin() + pos_equal);
+
+    if (!CheckCorrectId(id)) {
+      return false;
+    }
+
+    mId = id;
+    srule = std::string(input.begin() + pos_equal + 1, input.end());
+
+    if (!GetRuleBitmask(srule, true)) {
+      stdErr = "error: failed to get input rule as bitmask";
+      return false;
+    }
+  } else {
+    if ((pos_del_first != pos_del_last) &&
+        (pos_del_first != std::string::npos) &&
+        (pos_del_last  != std::string::npos)) {
+      mSet = false;
+      // u:id:+rw  | g:id:rw+x
+      // Check if id and rule are correct
+      id = std::string(input.begin(), input.begin() + pos_del_last);
+
+      if (!CheckCorrectId(id)) {
+        stdErr = "error: input rule has incorrect format for id";
+        return false;
+      }
+
+      mId = id;
+      srule = std::string(input.begin() + pos_del_last + 1, input.end());
+
+      if (!GetRuleBitmask(srule, false)) {
+        stdErr = "error: failed to get input rule as bitmask";
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Check if id has the correct format
+//------------------------------------------------------------------------------
+bool
+AclCmd::CheckCorrectId(const std::string& id) const
+{
+  std::string allowed_chars =
+    "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-";
+
+  if ((id.at(0) == 'u' && id.at(1) == ':') ||
+      (id.at(0) == 'g' && id.at(1) == ':')) {
+    return id.find_first_not_of(allowed_chars, 2) == std::string::npos;
+  }
+
+  if (id.find("egroup") == 0 && id.at(6) == ':') {
+    return id.find_first_not_of(allowed_chars, 7) == std::string::npos;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Apply client modification rule(s) to the acls of the current entry
+//------------------------------------------------------------------------------
+void AclCmd::ApplyRule(RuleMap& rules)
+{
+  unsigned short temp_rule = 0;
+
+  if (!mSet && rules.find(mId) != rules.end()) {
+    temp_rule = rules[mId];
+  }
+
+  if (mAddRule != 0) {
+    temp_rule = temp_rule | mAddRule;
+  }
+
+  if (mRmRule != 0) {
+    temp_rule = temp_rule & (~mRmRule);
+  }
+
+  rules[mId] = temp_rule;
+}
+
+//------------------------------------------------------------------------------
+// Generate acl string representation from a rule map
+//------------------------------------------------------------------------------
+std::string
+AclCmd::GenerateAclString(const RuleMap& rmap) const
+{
+  std::string ret = "";
+
+  for (const auto& elem : rmap) {
+    if (elem.second != 0) {
+      ret += elem.first + ":" + AclBitmaskToString(elem.second) + ",";
+    }
+  }
+
+  // Remove last ','
+  if (ret != "") {
+    ret = ret.substr(0, ret.size() - 1);
+  }
+
+  return ret;
+}
+
 //------------------------------------------------------------------------------
 // Convert ACL bitmask to string representation
 //------------------------------------------------------------------------------
 std::string
-AclCmd::AclBitmaskToString(unsigned short int in) const
+AclCmd::AclBitmaskToString(const unsigned short int in) const
 {
   std::string ret = "";
 
@@ -208,416 +606,4 @@ AclCmd::AclBitmaskToString(unsigned short int in) const
   return ret;
 }
 
-//------------------------------------------------------------------------------
-// Get ACL rule from string by creating a pair of identifier for the ACL and
-// the bitmask representation
-//------------------------------------------------------------------------------
-Rule AclCmd::AclRuleFromString(const std::string& single_acl) const
-{
-  Rule ret;
-  auto acl_delimiter = single_acl.rfind(':');
-  ret.first = std::string(single_acl.begin(),
-                          single_acl.begin() + acl_delimiter);
-  unsigned short rule_int = 0;
-
-  for (auto i = acl_delimiter + 1, size = single_acl.length(); i < size; ++i) {
-    switch (single_acl.at(i)) {
-    case 'r' :
-      rule_int = rule_int | AclCmd::R;
-      break;
-    case 'w' :
-      rule_int = rule_int | AclCmd::W;
-      break;
-    case 'x' :
-      rule_int = rule_int | AclCmd::X;
-      break;
-    case 'm' :
-      rule_int = rule_int | AclCmd::M;
-      break;
-    case 'q' :
-      rule_int = rule_int | AclCmd::Q;
-      break;
-    case 'c' :
-      rule_int = rule_int | AclCmd::C;
-      break;
-    case '+' :
-      // There are only two + flags in current acl permissions +d and +u
-      i++;
-      if (single_acl.at(i) == 'd') {
-        rule_int = rule_int | AclCmd::pD;
-      } else {
-        rule_int = rule_int | AclCmd::pU;
-      }
-
-      break;
-    case '!' :
-      i++;
-
-      if (single_acl.at(i) == 'd') {
-        rule_int = rule_int | AclCmd::nD;
-      }
-
-      if (single_acl.at(i) == 'u') {
-        rule_int = rule_int | AclCmd::nU;
-      }
-
-      if (single_acl.at(i) == 'm') {
-        rule_int = rule_int | AclCmd::nM;
-      }
-
-      break;
-    default:
-      break;
-    }
-  }
-
-  ret.second = rule_int;
-  return ret;
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-void AclCmd::GenerateRuleMap(const std::string& acl_string)
-{
-  if (!mRules.empty()) {
-    mRules.clear();
-  }
-
-  if (acl_string.empty()) {
-    return;
-  }
-
-  size_t curr_pos = 0, pos = 0;
-
-  while (1) {
-    pos = acl_string.find(',', curr_pos);
-
-    if (pos == std::string::npos) {
-      pos = acl_string.length();
-    }
-
-    std::string single_acl = std::string(acl_string.begin() + curr_pos,
-                                         acl_string.begin() + pos);
-    Rule temp = AclRuleFromString(single_acl);
-    mRules[temp.first] = temp.second;
-    curr_pos = pos + 1;
-
-    if (curr_pos > acl_string.length()) {
-      break;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-void AclCmd::SetAclString(const std::string& result,
-                       std::string& which,
-                       const char* type)
-{
-  which = "";
-  size_t pos_begin = result.find(type);
-
-  if (pos_begin != std::string::npos) {
-    unsigned int pos_end = result.find("\n", pos_begin);
-    // 2 comes from the leading " and :
-    which = std::string(result.begin() + strlen(type) + 2 + pos_begin,
-                        result.begin() + pos_end - 1);
-  }
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-bool AclCmd::CheckCorrectId(const std::string& id)
-{
-  std::string allowed_chars =
-    "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-";
-
-  if ((id.at(0) == 'u' && id.at(1) == ':') ||
-      (id.at(0) == 'g' && id.at(1) == ':')) {
-    return id.find_first_not_of(allowed_chars, 2) == std::string::npos;
-  }
-
-  if (id.find("egroup") == 0 && id.at(6) == ':') {
-    return id.find_first_not_of(allowed_chars, 7) == std::string::npos;
-  }
-
-  return false;
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-bool AclCmd::GetRuleInt(const std::string& rule, bool set)
-{
-  unsigned short int ret = 0, add_ret = 0, rm_ret = 0;
-  bool lambda_happen = false;
-  auto add_lambda = [&add_ret, &ret](AclCmd::ACLPos pos) {
-    add_ret = add_ret | pos;
-    ret = ret | pos;
-  };
-  auto remove_lambda = [&rm_ret, &ret](AclCmd::ACLPos pos) {
-    rm_ret = rm_ret | pos;
-    ret = ret & (~pos);
-  };
-  std::function<void(AclCmd::ACLPos)>curr_lambda = add_lambda;
-
-  for (auto flag = rule.begin(); flag != rule.end(); ++flag) {
-    // Check for add/rm rules
-    if (*flag == '-') {
-      curr_lambda = remove_lambda;
-      lambda_happen = true;
-      continue;
-    }
-
-    if (*flag == '+') {
-      auto temp_iter = flag + 1;
-
-      if (temp_iter == rule.end()) {
-        continue;
-      }
-
-      if (*temp_iter != 'd' && *temp_iter != 'u') {
-        lambda_happen = true;
-        curr_lambda = add_lambda;
-        continue;
-      }
-    }
-
-    // If there is no +/- character happend in not set mode
-    // This is not correct behaviour hence returning false
-    if (!set && !lambda_happen) {
-      return false;
-    }
-
-    // Check for flags
-    if (*flag == 'r') {
-      curr_lambda(AclCmd::R);
-      continue;
-    }
-
-    if (*flag == 'w') {
-      curr_lambda(AclCmd::W);
-      continue;
-    }
-
-    if (*flag == 'x') {
-      curr_lambda(AclCmd::X);
-      continue;
-    }
-
-    if (*flag == 'm') {
-      curr_lambda(AclCmd::M);
-      continue;
-    }
-
-    if (*flag == 'q') {
-      curr_lambda(AclCmd::Q);
-      continue;
-    }
-
-    if (*flag == 'c') {
-      curr_lambda(AclCmd::C);
-      continue;
-    }
-
-    if (*flag == '!') {
-      ++flag;
-
-      if (flag == rule.end()) {
-        goto error_label;
-      }
-
-      if (*flag == 'd') {
-        curr_lambda(AclCmd::nD);
-        continue;
-      }
-
-      if (*flag == 'u') {
-        curr_lambda(AclCmd::nU);
-        continue;
-      }
-
-      if (*flag == 'm') {
-        curr_lambda(AclCmd::nM);
-        continue;
-      }
-
-      goto error_label;
-    }
-
-    if (*flag == '+') {
-      ++flag;
-
-      if (*flag == 'd') {
-        curr_lambda(AclCmd::pD);
-        continue;
-      }
-
-      if (*flag == 'u') {
-        curr_lambda(AclCmd::pU);
-        continue;
-      }
-    }
-
-    goto error_label;
-  }
-
-  // Ret is representing mask for flags which are goint to be added or removed
-  // As if we need to remove flags that flags will be setted to 1 in rm_ret and
-  // setted to 0 in ret and vice versa for adding flags.
-  m_add_rule = ((add_ret == 0) ? 0 : ret & add_ret);
-  m_rm_rule  = ((rm_ret == 0) ? 0 : ~ret & rm_ret);
-  return true;
-error_label:
-  m_error_message = "Rule not correct!";
-  return false;
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-void AclCmd::ApplyRule()
-{
-  unsigned short temp_rule = 0;
-
-  if (!m_set && mRules.find(m_id) != mRules.end()) {
-    temp_rule = mRules[m_id];
-  }
-
-  if (m_add_rule != 0) {
-    temp_rule = temp_rule | m_add_rule;
-  }
-
-  if (m_rm_rule != 0) {
-    temp_rule = temp_rule & (~m_rm_rule);
-  }
-
-  mRules[m_id] = temp_rule;
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-std::string AclCmd::MapToAclString()
-{
-  std::string ret = "";
-
-  for (auto item = mRules.begin(); item != mRules.end(); item++) {
-    if ((*item).second != 0) {
-      ret += (*item).first + ":" + AclBitmaskToString((*item).second) + ",";
-    }
-  }
-
-  // Removing last ','
-  if (ret != "") {
-    ret = ret.substr(0,  ret.size() - 1);
-  }
-
-  return ret;
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-bool AclCmd::ParseRule(const std::string& input)
-{
-  size_t pos_del_first, pos_del_last, pos_equal;
-  pos_del_first = input.find(":");
-  pos_del_last  = input.rfind(":");
-  pos_equal     = input.find("=");
-  std::string id, rule;
-
-  if ((pos_del_first == pos_del_last) && (pos_equal != std::string::npos)) {
-    // u:id=rw+x
-    m_set = true;
-    // Check if id and rule are correct
-    id = std::string(input.begin(), input.begin() + pos_equal);
-
-    if (!CheckCorrectId(id)) {
-      m_error_message = "Rule: Incorrect format of id!";
-      return false;
-    }
-
-    m_id = id;
-    rule = std::string(input.begin() + pos_equal + 1, input.end());
-
-    if (!GetRuleInt(rule, true)) {
-      m_error_message = "Rule: Rule is not in correct format!";
-      return false;
-    }
-
-    // if( !id_lambda(pos_equal))             return false;
-    // if( !rule_lambda(pos_equal + 1, true)) return false;
-    return true;
-  } else {
-    if (pos_del_first != pos_del_last &&
-        pos_del_first != std::string::npos &&
-        pos_del_last  != std::string::npos) {
-      m_set = false;
-      // u:id:+rwx
-      // Check if id and rule are correct
-      id = std::string(input.begin(), input.begin() + pos_del_last);
-
-      if (!CheckCorrectId(id)) {
-        m_error_message = "Rule: Incorrect format of id!";
-        return false;
-      }
-
-      m_id = id;
-      rule = std::string(input.begin() + pos_del_last + 1, input.end());
-
-      if (!GetRuleInt(rule, false)) {
-        m_error_message = "Rule: Rule is not in correct format!";
-        return false;
-      }
-
-      //if(!id_lambda(pos_del_last))            return false;
-      //if(!rule_lambda(pos_del_last+1, false)) return false;
-      return true;
-    } else {
-      // Error
-      m_error_message = "Rule is not good!";
-      return false;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-bool AclCmd::Action(bool apply , const std::string& path)
-{
-  if (apply) {
-    if (!GetAclStringsForPath(path)) {
-      return false;
-    }
-
-    if (m_sys_acl) {
-      GenerateRuleMap(m_sys_acl_string);
-    } else {
-      GenerateRuleMap(m_usr_acl_string);
-    }
-
-    ApplyRule();
-    return false;
-  } else {
-    if (!GetAclStringsForPath(path)) {
-      return false;
-    }
-
-    std::cout << path << '\t';
-
-    if (m_usr_acl) {
-      std::cout << "usr: " << m_usr_acl_string << std::endl;
-    } else {
-      std::cout << "sys: " << m_sys_acl_string << std::endl;
-    }
-
-    return true;
-  }
-}
-*/
 EOSMGMNAMESPACE_END
