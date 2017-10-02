@@ -1109,12 +1109,28 @@ RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex):
   mWrMutex->LockWrite();
 }
 
+//----------------------------------------------------------------------------
+// Grab mutex and write lock it
+//----------------------------------------------------------------------------
+void
+RWMutexWriteLock::Grab(RWMutex& mutex)
+{
+  if (mWrMutex) {
+    throw std::runtime_error("already holding a mutex");
+  }
+
+  mWrMutex = &mutex;
+  mWrMutex->LockWrite();
+}
+
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 RWMutexWriteLock::~RWMutexWriteLock()
 {
-  mWrMutex->UnLockWrite();
+  if (mWrMutex) {
+    mWrMutex->UnLockWrite();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1134,12 +1150,28 @@ RWMutexReadLock::RWMutexReadLock(RWMutex& mutex, bool allow_cancel):
   }
 }
 
+//----------------------------------------------------------------------------
+// Grab mutex and write lock it
+//----------------------------------------------------------------------------
+void
+RWMutexReadLock::Grab(RWMutex& mutex)
+{
+  if (mRdMutex) {
+    throw std::runtime_error("already holding a mutex");
+  }
+
+  mRdMutex = &mutex;
+  mRdMutex->LockRead();
+}
+
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 RWMutexReadLock::~RWMutexReadLock()
 {
-  mRdMutex->UnLockRead();
+  if (mRdMutex) {
+    mRdMutex->UnLockRead();
+  }
 }
 
 EOSCOMMONNAMESPACE_END
