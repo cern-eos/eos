@@ -21,73 +21,61 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-/**
- * @file   Access.hh
- * 
- * @brief  Class defining access rules like banned users, hosts, stall rules etc.
- *       
- */
-/*----------------------------------------------------------------------------*/
-
+//------------------------------------------------------------------------------
+//! Class defining access rules like banned users, hosts, stall rules etc.
+//------------------------------------------------------------------------------
 
 #ifndef __EOSCOMMON_ACCESS__
 #define __EOSCOMMON_ACCESS__
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/RWMutex.hh"
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
+#include "common/Mapping.hh"
 #include <map>
 #include <vector>
 #include <string>
 #include <set>
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 /** @brief class implementing global access rules
  *
- * The access regulations are applied in XrdMgmOfs::ShouldStall & 
+ * The access regulations are applied in XrdMgmOfs::ShouldStall &
  * XrdMgmOfs::ShouldRedirect functions.\n
- * Normally User,Group & Host rules act as black-list and the AllowedXX rules 
+ * Normally User,Group & Host rules act as black-list and the AllowedXX rules
  * exclude individuals from the black list.\n\n
  * The stall rules can be:\n
- * '*' => everything get's stalled by number of seconds stored 
+ * '*' => everything get's stalled by number of seconds stored
  * in gStallRules["*"]\n
  * 'r:*" => everything get's stalled in read operations as above.\n
  *'w:*" => everything get's stalled in write operations as above.\n\n
- * The same syntax is used in gRedirectionRules to define r+w, 
- * r or w operation redirection. 
+ * The same syntax is used in gRedirectionRules to define r+w,
+ * r or w operation redirection.
  * The value in this map is defined as '<host>:<port>'
  */
 /*----------------------------------------------------------------------------*/
 class Access
 {
-private:
 public:
 
-  // static key defining the ban users entry in the global configuration 
+  // static key defining the ban users entry in the global configuration
   // key-value map
   static const char* gUserKey;
 
-  // static key defining the ban group key in the global configuration 
+  // static key defining the ban group key in the global configuration
   // key-value map
   static const char* gGroupKey;
 
-  // static key defining the ban host key in the global configuration 
+  // static key defining the ban host key in the global configuration
   // key-value map
   static const char* gHostKey;
 
-  // static key defining the allowed users key in the global configuration 
+  // static key defining the allowed users key in the global configuration
   // key-value map
   static const char* gAllowedUserKey;
 
-  // static key defining the allowed group key in the global configuration 
+  // static key defining the allowed group key in the global configuration
   // key-value map
   static const char* gAllowedGroupKey;
 
@@ -95,11 +83,11 @@ public:
   // key-value map
   static const char* gAllowedHostKey;
 
-  // static key defining the stall rules in the global configuration 
+  // static key defining the stall rules in the global configuration
   // key-value map
   static const char* gStallKey;
 
-  // static key defining the redirection rules in the global configuration 
+  // static key defining the redirection rules in the global configuration
   // key-value map
   static const char* gRedirectionKey;
 
@@ -154,19 +142,30 @@ public:
   // ---------------------------------------------------------------------------
   // reset/cleear all access rules
   // ---------------------------------------------------------------------------
-  static void Reset ();
+  static void Reset();
 
   // ---------------------------------------------------------------------------
-  // retrieve the access configuration from the global shared 
+  // retrieve the access configuration from the global shared
   // hash/config engine and fill all static access configuration variables
   // ---------------------------------------------------------------------------
-  static void ApplyAccessConfig (bool applystallandredirection=true);
+  static void ApplyAccessConfig(bool applystallandredirection = true);
 
   // ---------------------------------------------------------------------------
   // store the global access configuration variable into the global
   // shared hash/config engine
   // ---------------------------------------------------------------------------
-  static bool StoreAccessConfig ();
+  static bool StoreAccessConfig();
+
+  //----------------------------------------------------------------------------
+  //! Get find limits in number of files/dirs returned for a certain user
+  //!
+  //! @param vid virtual identity of the client
+  //! @param dir_limit number of directories limit
+  //! @param file_limit number of files limit
+  //----------------------------------------------------------------------------
+  static void GetFindLimits(const eos::common::Mapping::VirtualIdentity& vid,
+                            uint64_t& dir_limit, uint64_t& file_limit);
+
 };
 
 EOSMGMNAMESPACE_END

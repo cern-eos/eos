@@ -36,7 +36,7 @@
  * @param found result map/set of the find
  * @param key search for a certain key in the extended attributes
  * @param val search for a certain value in the extended attributes (requires key)
- * @param nofiles if true returns only directories, otherwise files and directories
+ * @param no_files if true returns only directories, otherwise files and directories
  * @param millisleep milli seconds to sleep between each directory scan
  * @param maxdepth is the maximum search depth
  * @param filematch is a pattern match for file names
@@ -60,24 +60,16 @@
  */
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_find(const char* path,
-                 XrdOucErrInfo& out_error,
-                 XrdOucString& stdErr,
-                 eos::common::Mapping::VirtualIdentity& vid,
+XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
+                 XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid,
                  std::map<std::string, std::set<std::string> >& found,
-                 const char* key,
-                 const char* val,
-                 bool nofiles,
-                 time_t millisleep,
-                 bool nscounter,
-                 int maxdepth,
+                 const char* key, const char* val, bool no_files,
+                 time_t millisleep, bool nscounter, int maxdepth,
                  const char* filematch)
 {
   std::vector< std::vector<std::string> > found_dirs;
   std::shared_ptr<eos::IContainerMD> cmd;
   std::string Path = path;
-  XrdOucString sPath = path;
-  errno = 0;
   XrdSysTimer snooze;
   EXEC_TIMING_BEGIN("Find");
 
@@ -85,65 +77,22 @@ XrdMgmOfs::_find(const char* path,
     gOFS->MgmStats.Add("Find", vid.uid, vid.gid, 1);
   }
 
-  if (!(sPath.endswith('/'))) {
-    Path += "/";
+  if (*Path.rbegin() != '/') {
+    Path += '/';
   }
 
+  errno = 0;
   found_dirs.resize(1);
   found_dirs[0].resize(1);
   found_dirs[0][0] = Path.c_str();
   int deepness = 0;
-  // users cannot return more than 100k files and 50k dirs with one find,
+  // Users cannot return more than 100k files and 50k dirs with one find,
   // unless there is an access rule allowing deeper queries
-  static unsigned long long finddiruserlimit = 50000;
-  static unsigned long long findfileuserlimit = 100000;
-  {
-    // see if there are special access settings
-    eos::common::RWMutexReadLock lock(Access::gAccessMutex);
-
-    if (Access::gStallUserGroup) {
-      std::string usermatchfiles = "rate:user:";
-      usermatchfiles += vid.uid_string;
-      usermatchfiles += ":";
-      usermatchfiles += "FindFiles";
-      std::string groupmatchfiles = "rate:group:";
-      groupmatchfiles += vid.gid_string;
-      groupmatchfiles += ":";
-      groupmatchfiles += "FindFiles";
-      std::string userwildcardmatchfiles = "rate:user:*:FindFiles";
-
-      if (Access::gStallRules.count(usermatchfiles)) {
-        findfileuserlimit = strtoul(Access::gStallRules[usermatchfiles].c_str(), 0, 10);
-      } else if (Access::gStallRules.count(groupmatchfiles)) {
-        findfileuserlimit = strtoul(Access::gStallRules[groupmatchfiles].c_str(), 0,
-                                    10);
-      } else if (Access::gStallRules.count(userwildcardmatchfiles)) {
-        findfileuserlimit = strtoul(Access::gStallRules[userwildcardmatchfiles].c_str(),
-                                    0, 10);
-      }
-
-      std::string usermatchdirs = "rate:user:";
-      usermatchdirs += vid.uid_string;
-      usermatchdirs += ":";
-      usermatchdirs += "FindDirs";
-      std::string groupmatchdirs = "rate:group:";
-      groupmatchdirs += vid.gid_string;
-      groupmatchdirs += ":";
-      groupmatchdirs += "FindDirs";
-      std::string userwildcardmatchdirs = "rate:user:*:FindDirs";
-
-      if (Access::gStallRules.count(usermatchdirs)) {
-        finddiruserlimit = strtoul(Access::gStallRules[usermatchdirs].c_str(), 0, 10);
-      } else if (Access::gStallRules.count(groupmatchdirs)) {
-        finddiruserlimit = strtoul(Access::gStallRules[groupmatchdirs].c_str(), 0, 10);
-      } else if (Access::gStallRules.count(userwildcardmatchdirs)) {
-        finddiruserlimit = strtoul(Access::gStallRules[userwildcardmatchdirs].c_str(),
-                                   0, 10);
-      }
-    }
-  }
-  unsigned long long filesfound = 0;
-  unsigned long long dirsfound = 0;
+  static uint64_t dir_limit = 50000;
+  static uint64_t file_limit = 100000;
+  Access::GetFindLimits(vid, dir_limit, file_limit);
+  uint64_t filesfound = 0;
+  uint64_t dirsfound = 0;
   bool limitresult = false;
   bool limited = false;
 
@@ -161,12 +110,11 @@ XrdMgmOfs::_find(const char* path,
       Path = found_dirs[deepness][i].c_str();
       eos_static_debug("Listing files in directory %s", Path.c_str());
 
+      // Slow down the find command without holding locks
       if (millisleep) {
-        // slow down the find command without having locks
         snooze.Wait(millisleep);
       }
 
-      // -----------------------------------------------------------------------
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
       try {
@@ -193,6 +141,7 @@ XrdMgmOfs::_find(const char* path,
         }
 
         // Add all children into the 2D vectors
+        // @todo (esindril): User the itertor interface from the ns
         std::set<std::string> dnames = cmd->getNameContainers();
 
         for (auto dit = dnames.begin(); dit != dnames.end(); ++dit) {
@@ -208,12 +157,8 @@ XrdMgmOfs::_find(const char* path,
               // this is a search for 'beginswith' match
               eos::IContainerMD::XAttrMap attrmap;
 
-              if (!gOFS->_attr_ls(fpath.c_str(),
-                                  out_error,
-                                  vid,
-                                  (const char*) 0,
-                                  attrmap,
-                                  false)) {
+              if (!gOFS->_attr_ls(fpath.c_str(), out_error, vid,
+                                  (const char*) 0, attrmap, false)) {
                 for (auto it = attrmap.begin(); it != attrmap.end(); it++) {
                   XrdOucString akey = it->first.c_str();
 
@@ -226,7 +171,7 @@ XrdMgmOfs::_find(const char* path,
 
               found_dirs[deepness + 1].push_back(fpath.c_str());
             } else {
-              // this is a search for a full match or a key search
+              // This is a search for a full match or a key search
               std::string sval = val;
               XrdOucString attr = "";
 
@@ -241,10 +186,10 @@ XrdMgmOfs::_find(const char* path,
             }
           } else {
             if (limitresult) {
-              // apply the user limits for non root/admin/sudoers
-              if (dirsfound >= finddiruserlimit) {
+              // Apply  user limits for non root/admin/sudoers
+              if (dirsfound >= dir_limit) {
                 stdErr += "warning: find results are limited for you to ndirs=";
-                stdErr += (int) finddiruserlimit;
+                stdErr += (int) dir_limit;
                 stdErr += " -  result is truncated!\n";
                 limited = true;
                 break;
@@ -257,7 +202,7 @@ XrdMgmOfs::_find(const char* path,
           }
         }
 
-        if (!nofiles) {
+        if (!no_files) {
           std::shared_ptr<eos::IFileMD> fmd;
           std::string link;
           std::set<std::string> fnames = cmd->getNameFiles();
@@ -265,7 +210,7 @@ XrdMgmOfs::_find(const char* path,
           for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
             fmd = cmd->findFile(*fit);
 
-            // skip symbolic links
+            // Skip symbolic links
             if (fmd->isLink()) {
               link = fmd->getLink();
             } else {
@@ -273,10 +218,10 @@ XrdMgmOfs::_find(const char* path,
             }
 
             if (limitresult) {
-              // apply the user limits for non root/admin/sudoers
-              if (filesfound >= findfileuserlimit) {
+              // Apply user limits for non root/admin/sudoers
+              if (filesfound >= file_limit) {
                 stdErr += "warning: find results are limited for you to nfiles=";
-                stdErr += (int) findfileuserlimit;
+                stdErr += (int) file_limit;
                 stdErr += " -  result is truncated!\n";
                 limited = true;
                 break;
@@ -318,9 +263,8 @@ XrdMgmOfs::_find(const char* path,
     }
   } while (found_dirs[deepness].size() && ((!maxdepth) || (deepness < maxdepth)));
 
-  // ---------------------------------------------------------------------------
-  if (!nofiles) {
-    // if the result is empty, maybe this was a find by file
+  if (!no_files) {
+    // If the result is empty, maybe this was a find by file
     if (!found.size()) {
       XrdSfsFileExistence file_exists;
 
