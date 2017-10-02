@@ -38,20 +38,19 @@
 #include "common/Namespace.hh"
 #include "common/compression/Compression.hh"
 #include "common/RWMutex.hh"
+#include "common/ConcurrentQueue.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
 class ZStandard : public Compression
 {
 private:
-  unsigned    pCompressionLevel;  /*compression level (1-19, default:5)*/
   char*       pDictBuffer;
   size_t      pDictSize;
   ZSTD_CDict* pCDict;
   ZSTD_DDict* pDDict;
-  ZSTD_CCtx*  pCCtx;
-  ZSTD_DCtx*  pDCtx;
-  RWMutex mCompressLock;
+  ConcurrentQueue<ZSTD_CCtx*> mCompressCtxPool;
+  ConcurrentQueue<ZSTD_DCtx*> mDecompressCtxPool;
 
   void loadDict(const std::string& dictionaryPath);
 
@@ -59,13 +58,10 @@ private:
 
   void createDDict();
 
-  uint32_t decompression(Buffer& record, uint32_t& crcHead);
-
 public:
   ZStandard():
-    pCompressionLevel(5), pDictBuffer(nullptr), pDictSize(0),
-    pCDict(nullptr), pDDict(nullptr),
-    pCCtx(nullptr), pDCtx(nullptr)
+    pDictBuffer(nullptr), pDictSize(0),
+    pCDict(nullptr), pDDict(nullptr)
   {};
 
   ~ZStandard();
@@ -76,13 +72,9 @@ public:
 
   void setDDict(const std::string& dictionaryPath);
 
-  void setCompressionLevel(unsigned compressionLevel);
-
   virtual void compress(Buffer& record) override;
 
   virtual void decompress(Buffer& record) override;
-
-  uint32_t updateCRC32(Buffer& record, uint32_t& crcHead);
 };
 
 EOSCOMMONNAMESPACE_END

@@ -3,6 +3,7 @@
 // Created by root on 8/31/17.
 //
 
+#include <thread>
 #include "common/Namespace.hh"
 #include "common/compression/ZStandard.hh"
 
@@ -52,12 +53,11 @@ ZStandard::createCDict() {
     throw ex;
   }
 
-  pCCtx = ZSTD_createCCtx();
-
-  if (pCCtx == nullptr) {
-    MDException ex(EFAULT);
-    ex.getMessage() << "ZSTD_createCCtx() error";
-    throw ex;
+  for(auto i = 0u; i < std::thread::hardware_concurrency(); i++) {
+    auto cCtx = ZSTD_createCCtx();
+    if (cCtx != nullptr) {
+      mCompressCtxPool.push(cCtx);
+    }
   }
 }
 
@@ -71,12 +71,11 @@ ZStandard::createDDict() {
     throw ex;
   }
 
-  pDCtx = ZSTD_createDCtx();
-
-  if (pDCtx == nullptr) {
-    MDException ex(EFAULT);
-    ex.getMessage() << "ZSTD_createDCtx() error";
-    throw ex;
+  for(auto i = 0u; i < std::thread::hardware_concurrency(); i++) {
+    auto dCtx = ZSTD_createDCtx();
+    if (dCtx != nullptr) {
+      mDecompressCtxPool.push(dCtx);
+    }
   }
 }
 
@@ -92,14 +91,13 @@ ZStandard::compress(Buffer& record) {
     throw ex;
   }
 
-  size_t cSize;
-  {
-    RWMutexWriteLock lock(mCompressLock);
-    cSize = ZSTD_compress_usingCDict(pCCtx, cBuff, cBuffSize,
-                                     record.getDataPtr(),
-                                     record.size(),
-                                     pCDict);
-  }
+  ZSTD_CCtx* ctx;
+  mCompressCtxPool.wait_pop(ctx);
+  size_t const cSize = ZSTD_compress_usingCDict(ctx, cBuff, cBuffSize,
+                                   record.getDataPtr(),
+                                   record.size(),
+                                   pCDict);
+  mCompressCtxPool.push(ctx);
 
   if (ZSTD_isError(cSize)) {
     free(cBuff);
@@ -134,13 +132,12 @@ ZStandard::decompress(Buffer& record) {
     throw ex;
   }
 
-  size_t dSize;
-  {
-    RWMutexWriteLock lock(mCompressLock);
-    dSize = ZSTD_decompress_usingDDict(pDCtx, dBuff, dBuffSize,
-                                       record.getDataPtr(),
-                                       record.getSize(), pDDict);
-  }
+  ZSTD_DCtx* ctx;
+  mDecompressCtxPool.wait_pop(ctx);
+  size_t const dSize = ZSTD_decompress_usingDDict(ctx, dBuff, dBuffSize,
+                                           record.getDataPtr(),
+                                           record.getSize(), pDDict);
+  mDecompressCtxPool.push(ctx);
 
   if (ZSTD_isError(dSize)) {
     free(dBuff);
@@ -155,48 +152,21 @@ ZStandard::decompress(Buffer& record) {
   free(dBuff);
 }
 
-uint32_t
-ZStandard::decompression(Buffer& record, uint32_t& crcHead) {
-  size_t const dBuffSize = ZSTD_DStreamOutSize();
-  void* const dBuff = malloc(dBuffSize);
-
-  if (dBuff == nullptr) {
-    MDException ex(errno);
-    ex.getMessage() << "Decompression failed: ";
-    ex.getMessage() << "memory allocation failed";
-    throw ex;
-  }
-
-  if (pDDict == nullptr) {
-    free(dBuff);
-    MDException ex(errno);
-    ex.getMessage() << "Decompression failed: ";
-    ex.getMessage() << "dictionary was not set";
-    throw ex;
-  }
-
-  size_t const dSize = ZSTD_decompress_usingDDict(pDCtx, dBuff, dBuffSize,
-                                                  record.getDataPtr(),
-                                                  record.getSize(), pDDict);
-
-  if (ZSTD_isError(dSize)) {
-    free(dBuff);
-    MDException ex(errno);
-    ex.getMessage() << "Decompression failed: ";
-    ex.getMessage() << ZSTD_getErrorName(dSize);
-    throw ex;
-  }
-
-  uint32_t crc = DataHelper::updateCRC32(crcHead, dBuff, dSize);
-  free(dBuff);
-  return crc;
-}
-
 ZStandard::~ZStandard() {
   delete[] pDictBuffer;
   ZSTD_freeDDict(pDDict);
-  ZSTD_freeCCtx(pCCtx);
-  ZSTD_freeDCtx(pDCtx);
+
+  while(!mCompressCtxPool.empty()) {
+    ZSTD_CCtx* ctx;
+    mCompressCtxPool.try_pop(ctx);
+    ZSTD_freeCCtx(ctx);
+  }
+
+  while(!mDecompressCtxPool.empty()) {
+    ZSTD_DCtx* ctx;
+    mDecompressCtxPool.try_pop(ctx);
+    ZSTD_freeDCtx(ctx);
+  }
 }
 
 void
@@ -216,16 +186,6 @@ void
 ZStandard::setDDict(const std::string& dictionaryPath) {
   loadDict(dictionaryPath);
   createDDict();
-}
-
-void
-ZStandard::setCompressionLevel(unsigned compressionLevel) {
-  pCompressionLevel = compressionLevel;
-}
-
-uint32_t
-ZStandard::updateCRC32(Buffer& record, uint32_t& crcHead) {
-  return decompression(record, crcHead);
 }
 
 EOSCOMMONNAMESPACE_END
