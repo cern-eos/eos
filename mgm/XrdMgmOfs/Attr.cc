@@ -61,7 +61,7 @@ int
 XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
                     eos::common::Mapping::VirtualIdentity& vid,
                     const char* info, eos::IContainerMD::XAttrMap& map,
-                    bool lock, bool links)
+                    bool take_lock, bool links)
 {
   static const char* epname = "attr_ls";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -70,7 +70,7 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
   eos::common::RWMutexReadLock ns_rd_lock;
   errno = 0;
 
-  if (lock) {
+  if (take_lock) {
     ns_rd_lock.Grab(gOFS->eosViewRWMutex);
   }
 
@@ -298,14 +298,13 @@ int
 XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
                      eos::common::Mapping::VirtualIdentity& vid,
                      const char* info, const char* key, XrdOucString& value,
-                     bool islocked)
+                     bool take_lock)
 {
   static const char* epname = "attr_get";
   std::shared_ptr<eos::IContainerMD> dh;
-  std::shared_ptr<eos::IFileMD> fmd;
-  errno = 0;
   EXEC_TIMING_BEGIN("AttrGet");
   gOFS->MgmStats.Add("AttrGet", vid.uid, vid.gid, 1);
+  errno = 0;
 
   if (!key) {
     return Emsg(epname, error, EINVAL, "get attribute", path);
@@ -324,7 +323,7 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
     }
   }
 
-  if (!islocked) {
+  if (take_lock) {
     gOFS->eosViewRWMutex.LockRead();
   }
 
@@ -354,6 +353,8 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   }
 
   if (!dh) {
+    std::shared_ptr<eos::IFileMD> fmd;
+
     try {
       fmd = gOFS->eosView->getFile(path);
       value = (fmd->getAttribute(key)).c_str();
@@ -365,7 +366,7 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
     }
   }
 
-  if (!islocked) {
+  if (take_lock) {
     gOFS->eosViewRWMutex.UnLockRead();
   }
 
@@ -446,7 +447,7 @@ XrdMgmOfs::_attr_get(uint64_t cid, std::string key, std::string& rvalue)
       }
     }
   }
-  // we always decode attributes here, even if they are stored as base64:
+  // Always decode attributes here, even if they are stored as base64:
   XrdOucString val64 = value;
   eos::common::SymKey::DeBase64(val64, value);
   rvalue = value.c_str();

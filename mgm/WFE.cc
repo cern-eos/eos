@@ -285,18 +285,18 @@ WFE::WFEr()
                 if (!job->IsSync()) {
                   // use the shared scheduler for asynchronous jobs
                   XrdSysMutexHelper sLock(gSchedulerMutex);
-		  time_t storetime = 0;
-		  // move job into the scheduled queue
-		  job->Move("q","s", storetime);
-		  job->mActions[0].mQueue = "s";
-		  job->mActions[0].mTime = storetime;
-		  XrdOucString tst;
-		  job->mActions[0].mWhen = eos::common::StringConversion::GetSizeString(tst,
-									    (unsigned long long) storetime);
-		  gScheduler->Schedule((XrdJob*) job);
-		  IncActiveJobs();
-		  eos_static_info("msg=\"scheduled workflow\" job=\"%s\"",
-				  job->mDescription.c_str());
+                  time_t storetime = 0;
+                  // move job into the scheduled queue
+                  job->Move("q", "s", storetime);
+                  job->mActions[0].mQueue = "s";
+                  job->mActions[0].mTime = storetime;
+                  XrdOucString tst;
+                  job->mActions[0].mWhen = eos::common::StringConversion::GetSizeString(tst,
+                                           (unsigned long long) storetime);
+                  gScheduler->Schedule((XrdJob*) job);
+                  IncActiveJobs();
+                  eos_static_info("msg=\"scheduled workflow\" job=\"%s\"",
+                                  job->mDescription.c_str());
                 } else {
                   delete job;
                 }
@@ -342,8 +342,9 @@ WFE::WFEr()
         }
       }
     }
-    
-    if (gOFS->MgmMaster.IsMaster() && (!cleanuptime || (cleanuptime < time(NULL)))) {
+
+    if (gOFS->MgmMaster.IsMaster() && (!cleanuptime ||
+                                       (cleanuptime < time(NULL)))) {
       time_t now = time(NULL);
       eos_static_info("msg=\"clean old workflows\"");
       XrdMgmOfsDirectory dir;
@@ -421,7 +422,8 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   XrdOucString hexfid;
   eos::common::FileId::Fid2Hex(mFid, hexfid);
   entry = hexfid.c_str();
-  eos_static_info("workflowdir=\"%s\" retry=%d when=%u job-time=%s", workflowdir.c_str(),
+  eos_static_info("workflowdir=\"%s\" retry=%d when=%u job-time=%s",
+                  workflowdir.c_str(),
                   retry, when, mActions[action].mWhen.c_str());
   XrdOucErrInfo lError;
   eos::common::Mapping::VirtualIdentity rootvid;
@@ -550,12 +552,8 @@ WFE::Job::Load(std::string path2entry)
     eos_static_info("workflow=\"%s\" fid=%lx", workflow.c_str(), mFid);
     XrdOucString action;
 
-    if (!gOFS->_attr_get(path2entry.c_str(),
-                         lError,
-                         rootvid,
-                         0,
-                         "sys.action",
-                         action, false)) {
+    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, 0,
+                         "sys.action", action)) {
       time_t t_when = strtoull(when.c_str(), 0, 10);
       AddAction(action.c_str(), event, t_when, workflow, q);
     } else {
@@ -564,12 +562,8 @@ WFE::Job::Load(std::string path2entry)
 
     XrdOucString vidstring;
 
-    if (!gOFS->_attr_get(path2entry.c_str(),
-                         lError,
-                         rootvid,
-                         0,
-                         "sys.vid",
-                         vidstring, false)) {
+    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, 0,
+                         "sys.vid", vidstring)) {
       if (!eos::common::Mapping::VidFromString(mVid, vidstring.c_str())) {
         eos_static_crit("parsing of %s failed - setting nobody\n", vidstring.c_str());
         eos::common::Mapping::Nobody(mVid);
@@ -581,12 +575,8 @@ WFE::Job::Load(std::string path2entry)
 
     XrdOucString sretry;
 
-    if (!gOFS->_attr_get(path2entry.c_str(),
-                         lError,
-                         rootvid,
-                         0,
-                         "sys.wfe.retry",
-                         sretry, false)) {
+    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, 0,
+                         "sys.wfe.retry", sretry)) {
       mRetry = (int)strtoul(sretry.c_str(), 0, 10);
     } else {
       eos_static_err("msg=\"no retry stored\" path=\"%s\"", f.c_str());

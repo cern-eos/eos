@@ -628,7 +628,7 @@ public:
   int _attr_ls(const char* path, XrdOucErrInfo& out_error,
                eos::common::Mapping::VirtualIdentity& vid,
                const char* opaque, eos::IContainerMD::XAttrMap& map,
-               bool lock = true, bool links = false);
+               bool take_lock = true, bool links = false);
 
 
   //----------------------------------------------------------------------------
@@ -690,12 +690,13 @@ public:
   //! @param opaque CGI
   //! @param key key to get
   //! @param value value returned
+  //! @param take_lock if true take namespace lock, otherwise don't
   //!
   //! @return SFS_OK if success, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int _attr_get(const char* path, XrdOucErrInfo& out_error,
                 eos::common::Mapping::VirtualIdentity& vid, const char* opaque,
-                const char* key, XrdOucString& value, bool islocked = false);
+                const char* key, XrdOucString& value, bool take_lock = true);
 
   //----------------------------------------------------------------------------
   //! Get extended attribute for a given inode - low-level API.
