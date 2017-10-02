@@ -595,100 +595,162 @@ public:
              eos::common::Mapping::VirtualIdentity& vid,
              const char* ininfo = 0);
 
-  // ---------------------------------------------------------------------------
-  // list extended attributes of a directory
-  // ---------------------------------------------------------------------------
-  int attr_ls(const char* path,
-              XrdOucErrInfo& out_error,
-              const XrdSecEntity* client,
-              const char* opaque,
+  //----------------------------------------------------------------------------
+  //! List extended attributes for a given file/directory - high-level API.
+  //! See _attr_ls for details.
+  //!
+  //! @param path file/directory name to list attributes
+  //! @param out_error error object
+  //! @param client XRootD authentication object
+  //! @param opaque CGI
+  //! @param map return object with the extended attributes, key-value map
+  //!
+  //! @return SFS_OK if success otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int attr_ls(const char* path, XrdOucErrInfo& out_error,
+              const XrdSecEntity* client, const char* opaque,
               eos::IContainerMD::XAttrMap& map);
 
-  // ---------------------------------------------------------------------------
-  // set extended attribute of a directory
-  // ---------------------------------------------------------------------------
-  int attr_set(const char* path,
-               XrdOucErrInfo& out_error,
-               const XrdSecEntity* client,
-               const char* opaque,
-               const char* key,
-               const char* value);
-
-  // ---------------------------------------------------------------------------
-  // get extended attribute of a directory
-  // ---------------------------------------------------------------------------
-  int attr_get(const char* path,
-               XrdOucErrInfo& out_error,
-               const XrdSecEntity* client,
-               const char* opaque,
-               const char* key,
-               XrdOucString& value);
-
-  // ---------------------------------------------------------------------------
-  // remove extended attribute of a directory
-  // ---------------------------------------------------------------------------
-  int attr_rem(const char* path,
-               XrdOucErrInfo& out_error,
-               const XrdSecEntity* client,
-               const char* opaque,
-               const char* key);
-
-  // ---------------------------------------------------------------------------
-  // list extended attributes by vid
-  // ---------------------------------------------------------------------------
-  int _attr_ls(const char* path,
-               XrdOucErrInfo& out_error,
+  //----------------------------------------------------------------------------
+  //! List extended attributes for a given file/directory - low-level API.
+  //!
+  //! @param path file/directory name to list attributes
+  //! @param out_error error object
+  //! @param vid virtual identity of the client
+  //! @param client XRootD authentication object
+  //! @param opaque CGI
+  //! @param map return object with the extended attributes, key-value map
+  //! @param lock if true take the namespace lock, otherwise don't
+  //! @param link if true honour sys.link attirbute, otherwise don't
+  //!
+  //! @return SFS_OK if success otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _attr_ls(const char* path, XrdOucErrInfo& out_error,
                eos::common::Mapping::VirtualIdentity& vid,
-               const char* opaque,
-               eos::IContainerMD::XAttrMap& map,
-               bool lock = true,
-               bool links = false);
+               const char* opaque, eos::IContainerMD::XAttrMap& map,
+               bool lock = true, bool links = false);
+
+
+  //----------------------------------------------------------------------------
+  //! Set an extended attribute for a given file/directory - high-level API.
+  //! See _attr_set for details.
+  //!
+  //! @param path file/directory name to set attribute
+  //! @param out_error error object
+  //! @param client XRootD authentication object
+  //! @param opaque CGI
+  //! @param key key to set
+  //! @param value value to set for key
+  //!
+  //! @return SFS_OK if success otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int attr_set(const char* path, XrdOucErrInfo& out_error,
+               const XrdSecEntity* client, const char* opaque,
+               const char* key, const char* value);
 
   // ---------------------------------------------------------------------------
-  // set extended attribute by vid
+  //! Set an extended attribute for a given file/directory - low-level API.
+  //!
+  //! @param path file/directory name to set attribute
+  //! @param out_error error object
+  //! @param vid virtual identity of the client
+  //! @param opaque CGI
+  //! @param key key to set
+  //! @param value value to set for key
+  //!
+  //! @return SFS_OK if success otherwise SFS_ERROR
   // ---------------------------------------------------------------------------
-  int _attr_set(const char* path,
-                XrdOucErrInfo& out_error,
+  int _attr_set(const char* path, XrdOucErrInfo& out_error,
                 eos::common::Mapping::VirtualIdentity& vid,
-                const char* opaque,
-                const char* key,
-                const char* value);
+                const char* opaque, const char* key, const char* value);
 
-  // ---------------------------------------------------------------------------
-  // get extended attribute by vid
-  // ---------------------------------------------------------------------------
-  int _attr_get(const char* path,
-                XrdOucErrInfo& out_error,
+  //----------------------------------------------------------------------------
+  //! Get an extended attribute for a given entry by key - high-level API.
+  //! @note Normal POSIX R_OK & X_OK permissions are required to retrieve a key
+  //!
+  //! @param path directory name to get attribute
+  //! @param out_error error object
+  //! @param client XRootD authentication object
+  //! @param opaque CGI
+  //! @param key key to get
+  //! @param value value returned
+  //!
+  //! @return SFS_OK if success otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int attr_get(const char* path, XrdOucErrInfo& out_error,
+               const XrdSecEntity* client, const char* opaque,
+               const char* key, XrdOucString& value);
+
+  //----------------------------------------------------------------------------
+  //! Get an extended attribute for a given entry by key - low-level API.
+  //!
+  //! @param path directory name to get attribute
+  //! @param out_error error object
+  //! @param vid virtual identity of the client
+  //! @param opaque CGI
+  //! @param key key to get
+  //! @param value value returned
+  //!
+  //! @return SFS_OK if success, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _attr_get(const char* path, XrdOucErrInfo& out_error,
+                eos::common::Mapping::VirtualIdentity& vid, const char* opaque,
+                const char* key, XrdOucString& value, bool islocked = false);
+
+  //----------------------------------------------------------------------------
+  //! Get extended attribute for a given inode - low-level API.
+  //!
+  //! @param id inode of a file/directory entry
+  //! @param key key to get
+  //! @param rvalue value returned
+  //!
+  //! @return true if it exists, otherwise false
+  //----------------------------------------------------------------------------
+  bool _attr_get(uint64_t id, std::string key, std::string& rvalue);
+
+  //----------------------------------------------------------------------------
+  //! Remove an extended attribute for a given entry - high-level API.
+  //! See _attr_rem for details.
+  //!
+  //! @param path file/directory name to delete attribute
+  //! @param out_error error object
+  //! @param client XRootD authentication object
+  //! @param opauqe CGI
+  //! @param key key to delete
+  //!
+  //! @return SFS_OK if success, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int attr_rem(const char* path, XrdOucErrInfo& out_error,
+               const XrdSecEntity* client, const char* opaque, const char* key);
+
+  //----------------------------------------------------------------------------
+  //! Remove an extended attribute for a given entry - low-level API.
+  //!
+  //! @param path file/directory name to delete attribute
+  //! @param out_error error object
+  //! @param vid virtual identity of the client
+  //! @param opauqe CGI
+  //! @param key key to delete
+  //!
+  //! @return SFS_OK if success, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _attr_rem(const char* path, XrdOucErrInfo& out_error,
                 eos::common::Mapping::VirtualIdentity& vid,
-                const char* opaque,
-                const char* key,
-                XrdOucString& value,
-                bool islocked = false);
+                const char* opaque, const char* key);
 
-  // ---------------------------------------------------------------------------
-  // get extended attribute by id
-  // ---------------------------------------------------------------------------
-  bool
-  _attr_get(uint64_t id,
-            std::string key,
-            std::string& rvalue);
-
-
-  // ---------------------------------------------------------------------------
-  // remove extended attribute by vid
-  // ---------------------------------------------------------------------------
-  int _attr_rem(const char* path,
-                XrdOucErrInfo& out_error,
-                eos::common::Mapping::VirtualIdentity& vid,
-                const char* opaque,
-                const char* key);
-
-  // ---------------------------------------------------------------------------
-  // clear all extended attributes by vid
-  // ---------------------------------------------------------------------------
-
-  int _attr_clear(const char* path,
-                  XrdOucErrInfo& out_error,
+  //----------------------------------------------------------------------------
+  //! Remove all extended attributes for a given file/directory - low-level API.
+  //! @note Only the owner of a directory can delete extended attributes with
+  //! user prefix. sys prefix attributes can be deleted only by sudo'ers or root.
+  //!
+  //! @param path entry path
+  //! @param out_error error object
+  //! @param vid virtual identity of the client
+  //! @param opaque CGI
+  //!
+  //! @return SFS_OK if success otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _attr_clear(const char* path, XrdOucErrInfo& out_error,
                   eos::common::Mapping::VirtualIdentity& vid,
                   const char* opaque);
 

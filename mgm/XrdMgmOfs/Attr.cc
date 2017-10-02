@@ -27,28 +27,16 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// List extended attributes for a given file/directory - high-level API.
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::attr_ls(const char* inpath,
                    XrdOucErrInfo& error,
                    const XrdSecEntity* client,
                    const char* ininfo,
                    eos::IContainerMD::XAttrMap& map)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief list extended attributes for a given file/directory
- *
- * @param inpath file/directory name to list attributes
- * @param error error object
- * @param client XRootD authentication object
- * @param ininfo CGI
- * @param map return object with the extended attribute key-value map
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * See _attr_ls for details on the internals.
- */
-/*----------------------------------------------------------------------------*/
+
 {
   static const char* epname = "attr_ls";
   const char* tident = error.getErrUser();
@@ -66,151 +54,14 @@ XrdMgmOfs::attr_ls(const char* inpath,
   return _attr_ls(path, error, vid, ininfo, map);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// List extended attributes for a given file/directory - low-level API.
+//------------------------------------------------------------------------------
 int
-XrdMgmOfs::attr_set(const char* inpath,
-                    XrdOucErrInfo& error,
-                    const XrdSecEntity* client,
-                    const char* ininfo,
-                    const char* key,
-                    const char* value)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief set an extended attribute for a given file/directory to key=value
- *
- * @param inpath file/directory name to set attribute
- * @param error error object
- * @param client XRootD authentication object
- * @param ininfo CGI
- * @param key key to set
- * @param value value to set for key
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * See _attr_set for details on the internals.
- */
-/*----------------------------------------------------------------------------*/
-{
-  static const char* epname = "attr_set";
-  const char* tident = error.getErrUser();
-  // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
-  EXEC_TIMING_END("IdMap");
-  NAMESPACEMAP;
-  BOUNCE_ILLEGAL_NAMES;
-  XrdOucEnv access_Env(ininfo);
-  AUTHORIZE(client, &access_Env, AOP_Update, "update", inpath, error);
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-  BOUNCE_NOT_ALLOWED;
-  return _attr_set(path, error, vid, ininfo, key, value);
-}
-
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::attr_get(const char* inpath,
-                    XrdOucErrInfo& error,
-                    const XrdSecEntity* client,
-                    const char* ininfo,
-                    const char* key,
-                    XrdOucString& value)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief get an extended attribute for a given file/directory by key
- *
- * @param inpath file/directory name to get attribute
- * @param error error object
- * @param client XRootD authentication object
- * @param ininfo CGI
- * @param key key to retrieve
- * @param value variable to store the value
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * See _attr_get for details on the internals.
- */
-/*----------------------------------------------------------------------------*/
-{
-  static const char* epname = "attr_get";
-  const char* tident = error.getErrUser();
-  // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
-  EXEC_TIMING_END("IdMap");
-  NAMESPACEMAP;
-  BOUNCE_ILLEGAL_NAMES;
-  XrdOucEnv access_Env(ininfo);
-  AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-  BOUNCE_NOT_ALLOWED;
-  return _attr_get(path, error, vid, ininfo, key, value);
-}
-
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::attr_rem(const char* inpath,
-                    XrdOucErrInfo& error,
-                    const XrdSecEntity* client,
-                    const char* ininfo,
-                    const char* key)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief delete an extended attribute for a given file/directory by key
- *
- * @param inpath file/directory name to delete attribute
- * @param error error object
- * @param client XRootD authentication object
- * @param ininfo CGI
- * @param key key to delete
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * See _attr_rem for details on the internals.
- */
-/*----------------------------------------------------------------------------*/
-{
-  static const char* epname = "attr_rm";
-  const char* tident = error.getErrUser();
-  // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
-  EXEC_TIMING_END("IdMap");
-  NAMESPACEMAP;
-  BOUNCE_ILLEGAL_NAMES;
-  XrdOucEnv access_Env(ininfo);
-  AUTHORIZE(client, &access_Env, AOP_Delete, "delete", inpath, error);
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-  BOUNCE_NOT_ALLOWED;
-  return _attr_rem(path, error, vid, ininfo, key);
-}
-
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::_attr_ls(const char* path,
-                    XrdOucErrInfo& error,
+XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
                     eos::common::Mapping::VirtualIdentity& vid,
-                    const char* info,
-                    eos::IContainerMD::XAttrMap& map,
-                    bool lock,
-                    bool links)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief list extended attributes for a given file/directory
- *
- * @param path file/directory name to list attributes
- * @param error error object
- * @param vid virtual identity of the client
- * @param info CGI
- * @param map return object with the extended attribute key-value map
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * Normal unix permissions R_OK & X_OK are needed to list attributes.
- */
-/*----------------------------------------------------------------------------*/
+                    const char* info, eos::IContainerMD::XAttrMap& map,
+                    bool lock, bool links)
 {
   static const char* epname = "attr_ls";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -219,7 +70,6 @@ XrdMgmOfs::_attr_ls(const char* path,
   EXEC_TIMING_BEGIN("AttrLs");
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
 
-  // ---------------------------------------------------------------------------
   if (lock) {
     gOFS->eosViewRWMutex.LockRead();
   }
@@ -287,38 +137,45 @@ XrdMgmOfs::_attr_ls(const char* path,
   return SFS_OK;
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Set an extended attribute for a given file/directory - high-level API.
+//-----------------------------------------------------------------------------
 int
-XrdMgmOfs::_attr_set(const char* path,
-                     XrdOucErrInfo& error,
+XrdMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
+                    const XrdSecEntity* client, const char* ininfo,
+                    const char* key, const char* value)
+{
+  static const char* epname = "attr_set";
+  const char* tident = error.getErrUser();
+  // use a thread private vid
+  eos::common::Mapping::VirtualIdentity vid;
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  EXEC_TIMING_END("IdMap");
+  NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
+  XrdOucEnv access_Env(ininfo);
+  AUTHORIZE(client, &access_Env, AOP_Update, "update", inpath, error);
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  BOUNCE_NOT_ALLOWED;
+  return _attr_set(path, error, vid, ininfo, key, value);
+}
+
+//------------------------------------------------------------------------------
+// Set an extended attribute for a given file/directory - low-level API.
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                      eos::common::Mapping::VirtualIdentity& vid,
-                     const char* info,
-                     const char* key,
-                     const char* value)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief set an extended attribute for a given directory with key=value
- *
- * @param path directory name to set attribute
- * @param error error object
- * @param vid virtual identity of the client
- * @param info CGI
- * @param key key to set
- * @param value value for key
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * Only the owner of a directory can set extended attributes with user prefix.
- * sys prefix attributes can be set only by sudo'ers or root.
- */
-/*----------------------------------------------------------------------------*/
+                     const char* info, const char* key, const char* value)
 {
   static const char* epname = "attr_set";
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fmd;
-  errno = 0;
   EXEC_TIMING_BEGIN("AttrSet");
   gOFS->MgmStats.Add("AttrSet", vid.uid, vid.gid, 1);
+  errno = 0;
 
   if (!key || !value) {
     return Emsg(epname, error, EINVAL, "set attribute", path);
@@ -353,22 +210,14 @@ XrdMgmOfs::_attr_set(const char* path,
         bool is_sys_acl = Key.beginswith("sys.acl");
 
         // Check format of acl
-        if (Key.beginswith("user.acl") || is_sys_acl) {
-          if (!Acl::IsValid(val, error, is_sys_acl)) {
-            errno = EINVAL;
-            return SFS_ERROR;
-          }
-
-          // Check if acl is already in numeric format
-          if (!Acl::IsValid(val, error, is_sys_acl, true)) {
-            Acl::ConvertIds(val);
-          } else {
-            eos_err("invalid acl: %s", val.c_str());
-            errno = EINVAL;
-            return SFS_ERROR;
-          }
+        if (!Acl::IsValid(val, error, is_sys_acl) &&
+            !Acl::IsValid(val, error, is_sys_acl, true)) {
+          errno = EINVAL;
+          return SFS_ERROR;
         }
 
+        // Convert to numeric representation
+        Acl::ConvertIds(val);
         dh->setAttribute(key, val.c_str());
         dh->setMTimeNow();
         dh->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -424,31 +273,38 @@ XrdMgmOfs::_attr_set(const char* path,
   return SFS_OK;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get an extended attribute for a given entry by key - high-level API.
+//------------------------------------------------------------------------------
 int
-XrdMgmOfs::_attr_get(const char* path,
-                     XrdOucErrInfo& error,
+XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
+                    const XrdSecEntity* client, const char* ininfo,
+                    const char* key, XrdOucString& value)
+{
+  static const char* epname = "attr_get";
+  const char* tident = error.getErrUser();
+  // use a thread private vid
+  eos::common::Mapping::VirtualIdentity vid;
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  EXEC_TIMING_END("IdMap");
+  NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
+  XrdOucEnv access_Env(ininfo);
+  AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  BOUNCE_NOT_ALLOWED;
+  return _attr_get(path, error, vid, ininfo, key, value);
+}
+
+//------------------------------------------------------------------------------
+// Get an extended attribute for a given entry by key - low-level API.
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
                      eos::common::Mapping::VirtualIdentity& vid,
-                     const char* info,
-                     const char* key,
-                     XrdOucString& value,
+                     const char* info, const char* key, XrdOucString& value,
                      bool islocked)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief get an extended attribute for a given directory by key
- *
- * @param path directory name to get attribute
- * @param error error object
- * @param vid virtual identity of the client
- * @param info CGI
- * @param key key to get
- * @param value value returned
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * Normal POSIX R_OK & X_OK permissions are required to retrieve a key.
- */
-/*----------------------------------------------------------------------------*/
 {
   static const char* epname = "attr_get";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -474,7 +330,6 @@ XrdMgmOfs::_attr_get(const char* path,
     }
   }
 
-  // ---------------------------------------------------------------------------
   if (!islocked) {
     gOFS->eosViewRWMutex.LockRead();
   }
@@ -536,29 +391,14 @@ XrdMgmOfs::_attr_get(const char* path,
     return Emsg(epname, error, errno, "get attributes", path);
   }
 
-  ;
-
   return SFS_OK;
 }
 
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get extended attribute for a given inode - low-level API.
+//------------------------------------------------------------------------------
 bool
-XrdMgmOfs::_attr_get(uint64_t cid,
-                     std::string key,
-                     std::string& rvalue)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief get an extended attribute for a given inode by key
- *
- * @param info CGI
- * @param key key to get
- * @param rvalue value returned
- *
- * @return true if exists, otherwise false
- *
- */
-/*----------------------------------------------------------------------------*/
+XrdMgmOfs::_attr_get(uint64_t cid, std::string key, std::string& rvalue)
 {
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fmd;
@@ -624,29 +464,38 @@ XrdMgmOfs::_attr_get(uint64_t cid,
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Remove an extended attribute for a given entry - high-level API.
+//------------------------------------------------------------------------------
 int
-XrdMgmOfs::_attr_rem(const char* path,
-                     XrdOucErrInfo& error,
+XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
+                    const XrdSecEntity* client, const char* ininfo,
+                    const char* key)
+{
+  static const char* epname = "attr_rm";
+  const char* tident = error.getErrUser();
+  // use a thread private vid
+  eos::common::Mapping::VirtualIdentity vid;
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  EXEC_TIMING_END("IdMap");
+  NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
+  XrdOucEnv access_Env(ininfo);
+  AUTHORIZE(client, &access_Env, AOP_Delete, "delete", inpath, error);
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  BOUNCE_NOT_ALLOWED;
+  return _attr_rem(path, error, vid, ininfo, key);
+}
+
+//------------------------------------------------------------------------------
+// Remove an extended attribute for a given entry - low-level API.
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
                      eos::common::Mapping::VirtualIdentity& vid,
-                     const char* info,
-                     const char* key)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief delete an extended attribute for a given file/directory by key
- *
- * @param path directory name to set attribute
- * @param error error object
- * @param vid virtual identity of the client
- * @param info CGI
- * @param key key to delete
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * Only the owner of a directory can delete an extended attributes with user prefix.
- * sys prefix attributes can be deleted only by sudo'ers or root.
- */
-/*----------------------------------------------------------------------------*/
+                     const char* info, const char* key)
+
 {
   static const char* epname = "attr_rm";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -659,7 +508,6 @@ XrdMgmOfs::_attr_rem(const char* path,
     return Emsg(epname, error, EINVAL, "delete attribute", path);
   }
 
-  // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
@@ -727,27 +575,14 @@ XrdMgmOfs::_attr_rem(const char* path,
   return SFS_OK;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Remove all extended attributes for a given file/directory - low-level API.
+//------------------------------------------------------------------------------
 int
-XrdMgmOfs::_attr_clear(const char* path,
-                       XrdOucErrInfo& error,
+XrdMgmOfs::_attr_clear(const char* path, XrdOucErrInfo& error,
                        eos::common::Mapping::VirtualIdentity& vid,
                        const char* info)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief clear all  extended attribute for a given file/directory
- *
- * @param path directory name to set attribute
- * @param error error object
- * @param vid virtual identity of the client
- * @param info CGI
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * Only the owner of a directory can delete extended attributes with user prefix.
- * sys prefix attributes can be deleted only by sudo'ers or root.
- */
-/*----------------------------------------------------------------------------*/
+
 {
   eos::IContainerMD::XAttrMap map;
 
