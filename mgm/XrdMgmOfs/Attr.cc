@@ -65,13 +65,13 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
 {
   static const char* epname = "attr_ls";
   std::shared_ptr<eos::IContainerMD> dh;
-  std::shared_ptr<eos::IFileMD> fmd;
-  errno = 0;
   EXEC_TIMING_BEGIN("AttrLs");
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
+  eos::common::RWMutexReadLock ns_rd_lock;
+  errno = 0;
 
   if (lock) {
-    gOFS->eosViewRWMutex.LockRead();
+    ns_rd_lock.Grab(gOFS->eosViewRWMutex);
   }
 
   try {
@@ -85,6 +85,8 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
   }
 
   if (!dh) {
+    std::shared_ptr<eos::IFileMD> fmd;
+
     try {
       fmd = gOFS->eosView->getFile(path);
       map = fmd->getAttributes();
@@ -122,10 +124,6 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                 e.getMessage().str().c_str());
     }
-  }
-
-  if (lock) {
-    gOFS->eosViewRWMutex.UnLockRead();
   }
 
   EXEC_TIMING_END("AttrLs");
@@ -171,60 +169,59 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                      const char* info, const char* key, const char* value)
 {
   static const char* epname = "attr_set";
-  std::shared_ptr<eos::IContainerMD> dh;
-  std::shared_ptr<eos::IFileMD> fmd;
   EXEC_TIMING_BEGIN("AttrSet");
   gOFS->MgmStats.Add("AttrSet", vid.uid, vid.gid, 1);
   errno = 0;
 
   if (!key || !value) {
-    return Emsg(epname, error, EINVAL, "set attribute", path);
+    errno = EINVAL;
+    return Emsg(epname, error, errno, "set attribute", path);
   }
 
-  std::string vpath = path;
+  XrdOucString Key = key;
 
-  // We never put any attribute on version directories
-  if (vpath.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos) {
-    errno = 0;
+  if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
+    errno = EPERM;
+    return Emsg(epname, error, errno, "set attribute", path);
+  }
+
+  // Never put any attribute on version directories
+  if (strstr(path, EOS_COMMON_PATH_VERSION_PREFIX) != 0) {
     return SFS_OK;
   }
 
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  std::shared_ptr<eos::IContainerMD> dh;
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
 
   try {
     dh = gOFS->eosView->getContainer(path);
-    XrdOucString Key = key;
 
-    if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
+    // Check permissions in case of user attributes
+    if (dh && !Key.beginswith("sys.") && (vid.uid != dh->getCUid())
+        && (!vid.sudoer)) {
       errno = EPERM;
     } else {
-      // Check permissions in case of user attributes
-      if (dh && !Key.beginswith("sys.") && (vid.uid != dh->getCUid())
-          && (!vid.sudoer)) {
-        errno = EPERM;
-      } else {
-        XrdOucString val64 = value;
-        XrdOucString ouc_val;
-        eos::common::SymKey::DeBase64(val64, ouc_val);
-        std::string val = ouc_val.c_str();
-        bool is_sys_acl = Key.beginswith("sys.acl");
+      XrdOucString val64 = value;
+      XrdOucString ouc_val;
+      eos::common::SymKey::DeBase64(val64, ouc_val);
+      std::string val = ouc_val.c_str();
+      bool is_sys_acl = Key.beginswith("sys.acl");
 
-        // Check format of acl
-        if (!Acl::IsValid(val, error, is_sys_acl) &&
-            !Acl::IsValid(val, error, is_sys_acl, true)) {
-          errno = EINVAL;
-          return SFS_ERROR;
-        }
-
-        // Convert to numeric representation
-        Acl::ConvertIds(val);
-        dh->setAttribute(key, val.c_str());
-        dh->setMTimeNow();
-        dh->notifyMTimeChange(gOFS->eosDirectoryService);
-        eosView->updateContainerStore(dh.get());
-        gOFS->FuseXCast(dh->getId());
-        errno = 0;
+      // Check format of acl
+      if (!Acl::IsValid(val, error, is_sys_acl) &&
+          !Acl::IsValid(val, error, is_sys_acl, true)) {
+        errno = EINVAL;
+        return Emsg(epname, error, errno, "set attribute", path);
       }
+
+      // Convert to numeric representation
+      Acl::ConvertIds(val);
+      dh->setAttribute(key, val.c_str());
+      dh->setMTimeNow();
+      dh->notifyMTimeChange(gOFS->eosDirectoryService);
+      eosView->updateContainerStore(dh.get());
+      gOFS->FuseXCast(dh->getId());
+      errno = 0;
     }
   } catch (eos::MDException& e) {
     dh.reset();
@@ -234,27 +231,24 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   }
 
   if (!dh) {
+    std::shared_ptr<eos::IFileMD> fmd;
+
     try {
       fmd = gOFS->eosView->getFile(path);
-      XrdOucString Key = key;
 
-      if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
+      // Check permissions in case of user attributes
+      if (fmd && Key.beginswith("sys.") && (vid.uid != fmd->getCUid())
+          && (!vid.sudoer)) {
         errno = EPERM;
       } else {
-        // check permissions in case of user attributes
-        if (fmd && Key.beginswith("sys.") && (vid.uid != fmd->getCUid())
-            && (!vid.sudoer)) {
-          errno = EPERM;
-        } else {
-          XrdOucString val64 = value;
-          XrdOucString val;
-          eos::common::SymKey::DeBase64(val64, val);
-          fmd->setAttribute(key, val.c_str());
-          fmd->setMTimeNow();
-          eosView->updateFileStore(fmd.get());
-          gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
-          errno = 0;
-        }
+        XrdOucString val64 = value;
+        XrdOucString val;
+        eos::common::SymKey::DeBase64(val64, val);
+        fmd->setAttribute(key, val.c_str());
+        fmd->setMTimeNow();
+        eosView->updateFileStore(fmd.get());
+        gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
+        errno = 0;
       }
     } catch (eos::MDException& e) {
       fmd.reset();
@@ -412,45 +406,46 @@ XrdMgmOfs::_attr_get(uint64_t cid, std::string key, std::string& rvalue)
 
   XrdOucString value = "";
   XrdOucString link;
-  eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+  {
+    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
-  try {
-    dh = gOFS->eosDirectoryService->getContainerMD(cid);
-    value = (dh->getAttribute(key)).c_str();
-  } catch (eos::MDException& e) {
-    errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-              e.getErrno(), e.getMessage().str().c_str());
-  }
-
-  if (dh && errno) {
-    // try linked attributes
     try {
-      std::string lkey = "sys.attr.link";
-      link = (dh->getAttribute(lkey)).c_str();
-      dh = gOFS->eosView->getContainer(link.c_str());
+      dh = gOFS->eosDirectoryService->getContainerMD(cid);
       value = (dh->getAttribute(key)).c_str();
-      errno = 0;
-    } catch (eos::MDException& e) {
-      dh.reset();
-      errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
-    }
-  }
-
-  if (!dh) {
-    try {
-      fmd = gOFS->eosFileService->getFileMD(cid);
-      value = (fmd->getAttribute(key)).c_str();
-      errno = 0;
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
     }
-  }
 
+    if (dh && errno) {
+      // try linked attributes
+      try {
+        std::string lkey = "sys.attr.link";
+        link = (dh->getAttribute(lkey)).c_str();
+        dh = gOFS->eosView->getContainer(link.c_str());
+        value = (dh->getAttribute(key)).c_str();
+        errno = 0;
+      } catch (eos::MDException& e) {
+        dh.reset();
+        errno = e.getErrno();
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                  e.getErrno(), e.getMessage().str().c_str());
+      }
+    }
+
+    if (!dh) {
+      try {
+        fmd = gOFS->eosFileService->getFileMD(cid);
+        value = (fmd->getAttribute(key)).c_str();
+        errno = 0;
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                  e.getErrno(), e.getMessage().str().c_str());
+      }
+    }
+  }
   // we always decode attributes here, even if they are stored as base64:
   XrdOucString val64 = value;
   eos::common::SymKey::DeBase64(val64, value);
