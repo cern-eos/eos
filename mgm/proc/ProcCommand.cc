@@ -314,6 +314,8 @@ ProcCommand::open(const char* inpath, const char* info,
       mDoSort = false;
     } else if (mCmd == "fuse") {
       return Fuse();
+    } else if (mCmd == "fusex") {
+      return FuseX();
     } else if (mCmd == "file") {
       File();
       mDoSort = false;

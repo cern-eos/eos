@@ -178,6 +178,7 @@ public:
   int FileInfo(const char* path);
   int FileJSON(uint64_t id, Json::Value* json);
   int Fuse();
+  int FuseX();
   int Ls();
   int Map();
   int Member();

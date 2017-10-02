@@ -147,7 +147,7 @@ com_fusex(char* arg1)
     in += options;
   }
 
-  global_retc = output_result(client_admin_command(in));
+  global_retc = output_result(client_command(in, true));
   return (0);
 com_fusex_usage:
   fprintf(stdout,

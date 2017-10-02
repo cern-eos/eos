@@ -358,6 +358,15 @@ SymKey::Base64Decode(const char* in, std::string& out)
 }
 
 //------------------------------------------------------------------------------
+// Base64 decoding of input given as XrdOucString
+//------------------------------------------------------------------------------
+bool
+SymKey::Base64Decode(XrdOucString& in, char*& out, size_t& outlen)
+{
+  return Base64Decode(in.c_str(), out, outlen);
+}
+
+//------------------------------------------------------------------------------
 // Encode a base64: prefixed string - XrdOucString as input
 //------------------------------------------------------------------------------
 bool
@@ -442,7 +451,7 @@ SymKey::DeBase64(std::string& in, std::string& out)
   XrdOucString in64 = in.c_str();
   in64.erase(0, 7);
   char* valout = 0;
-  unsigned int valout_len = 0;
+  size_t valout_len = 0;
   eos::common::SymKey::Base64Decode(in64, valout, valout_len);
 
   if (valout) {
