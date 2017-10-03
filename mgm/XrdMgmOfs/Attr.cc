@@ -209,17 +209,21 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       XrdOucString ouc_val;
       eos::common::SymKey::DeBase64(val64, ouc_val);
       std::string val = ouc_val.c_str();
-      bool is_sys_acl = Key.beginswith("sys.acl");
 
-      // Check format of acl
-      if (!Acl::IsValid(val, error, is_sys_acl) &&
-          !Acl::IsValid(val, error, is_sys_acl, true)) {
-        errno = EINVAL;
-        return Emsg(epname, error, errno, "set attribute", path);
+      if (Key.beginswith("sys.acl") || Key.beginswith("user.acl")) {
+        bool is_sys_acl = Key.beginswith("sys.acl");
+
+        // Check format of acl
+        if (!Acl::IsValid(val, error, is_sys_acl) &&
+            !Acl::IsValid(val, error, is_sys_acl, true)) {
+          errno = EINVAL;
+          return Emsg(epname, error, errno, "set attribute", path);
+        }
+
+        // Convert to numeric representation
+        Acl::ConvertIds(val);
       }
 
-      // Convert to numeric representation
-      Acl::ConvertIds(val);
       dh->setAttribute(key, val.c_str());
       dh->setMTimeNow();
       dh->notifyMTimeChange(gOFS->eosDirectoryService);
