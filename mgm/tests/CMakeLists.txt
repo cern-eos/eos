@@ -22,22 +22,33 @@
 # ************************************************************************
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${CPPUNIT_INCLUDE_DIRS}
-  "${gtest_SOURCE_DIR}/include"
-  "${gmock_SOURCE_DIR}/include")
+  ${CPPUNIT_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
-# Proc fs mv tests
+# Mgm View tests
 #-------------------------------------------------------------------------------
 add_executable(
-  test_proc_fs
-  ProcFsTest.cc)
+  mgm_view_tests
+  MgmViewTest.cc
+  ${CMAKE_SOURCE_DIR}/mgm/FsView.cc
+  ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableFormatterBase.cc
+  ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableCell.cc)
 
-target_compile_definitions(test_proc_fs PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
+target_compile_definitions(mgm_view_tests PUBLIC -DEOSMGMFSVIEWTEST)
 
 target_link_libraries(
-  test_proc_fs
-  gtest
-  gmock_main
-  XrdEosMgm
-  ${CMAKE_THREAD_LIBS_INIT})
+  mgm_view_tests
+  eosCommon
+  eosCommonServer
+  XrdMqClient-Static
+  eosCapability-Static
+  ${Z_LIBRARY}
+  ${ZMQ_LIBRARIES}
+  ${UUID_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${JSONCPP_LIBRARIES})

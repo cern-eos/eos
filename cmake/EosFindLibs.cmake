@@ -97,6 +97,8 @@ if(NOT PACKAGEONLY)
   if (NOT CLIENT)
     find_package(ldap REQUIRED)
     if (BUILD_TESTS)
+      # @todo (esindril): Completely drop cppunit once everything is moved
+      # to gtest
       find_package(CPPUnit REQUIRED)
       set(UPDATE_DISCONNECTED_IF_AVAILABLE "UPDATE_DISCONNECTED 1")
       include(cmake/DownloadProject.cmake)

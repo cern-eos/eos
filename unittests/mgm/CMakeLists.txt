@@ -1,7 +1,7 @@
-# ----------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # File: CMakeLists.txt
-# Author: Jozsef Makai <jmakai@cern.ch> CERN
-# ----------------------------------------------------------------------
+# Author: Elvin Sindrilaru <esindril at cern dot ch>
+#-------------------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
@@ -20,31 +20,19 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-set(CMAKE_CXX_STANDARD 14)
 
-include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${XROOTD_INCLUDE_DIRS}
-  "${GTEST_SOURCE_DIR}/include"
-  "${GMOCK_SOURCE_DIR}/include")
+#-------------------------------------------------------------------------------
+# Mgm unit tests
+#-------------------------------------------------------------------------------
+add_executable(
+  mgm_tests
+  ProcFsTest.cc)
 
-add_subdirectory(common)
-add_subdirectory(mgm)
-
-# @todo (jmakai): refactor all these so that we have just one executable
-# to run all unittests
-set(SOURCE_FILES
-  fst/XrdFstOssFileTest.cc
-  ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
-  ${CMAKE_SOURCE_DIR}/fst/tests/TestEnv.cc
-  ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc)
-
-add_executable(eos-unit-tests ${SOURCE_FILES})
-
-set( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=0" )
-target_link_libraries(eos-unit-tests gtest gtest_main)
+target_compile_definitions(mgm_tests PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
 
 target_link_libraries(
-  eos-unit-tests
-  EosFstIo-Static
-  ${XROOTD_SERVER_LIBRARY})
+  mgm_tests
+  gtest
+  gmock_main
+  XrdEosMgm-Static
+  ${CMAKE_THREAD_LIBS_INIT})

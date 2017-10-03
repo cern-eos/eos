@@ -20,12 +20,6 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${CPPUNIT_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS}
-  "${gtest_SOURCE_DIR}/include"
-  "${gmock_SOURCE_DIR}/include")
 
 #-------------------------------------------------------------------------------
 # Common tests

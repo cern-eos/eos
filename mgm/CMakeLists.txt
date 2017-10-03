@@ -23,7 +23,6 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR}
   ${XROOTD_INCLUDE_DIR}
   ${XROOTD_PRIVATE_INCLUDE_DIR}
   ${Z_INCLUDE_DIRS}
@@ -222,41 +221,28 @@ target_link_libraries(
   qclient)
 endif()
 
+install(
+  TARGETS XrdEosMgm
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+install(
+  PROGRAMS eos-repair-tool
+  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+  PERMISSIONS OWNER_READ OWNER_EXECUTE
+              GROUP_READ GROUP_EXECUTE
+              WORLD_READ WORLD_EXECUTE)
+
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part
 #-------------------------------------------------------------------------------
-# TODO (esindril): Move these to the test directory
-add_executable(testmgmview
-  FsView.cc
-  tests/MgmViewTest.cc
-  TableFormatter/TableFormatterBase.cc
-  TableFormatter/TableCell.cc)
-
+# @todo (esindril): Move these to the test directory
 add_executable(
   testschedulingtree
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)
-
-target_compile_definitions(
-  testmgmview PUBLIC -DEOSMGMFSVIEWTEST)
-
-target_link_libraries(
-  testmgmview
-  eosCommon
-  eosCommonServer
-  XrdMqClient-Static
-  eosCapability-Static
-  ${Z_LIBRARY}
-  ${ZMQ_LIBRARIES}
-  ${UUID_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${GLIBC_DL_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${JSONCPP_LIBRARIES})
 
 target_link_libraries(
   testschedulingtree
@@ -306,6 +292,7 @@ if(CPPUNIT_FOUND AND BUILD_QUARKDB_NAMESPACE AND Linux)
     PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
 
+  # @todo (amanzi): convert to gtest
   add_executable(
     EosMgmConfigTest
     tests/ConfigEngineTest.cc)
@@ -316,16 +303,3 @@ if(CPPUNIT_FOUND AND BUILD_QUARKDB_NAMESPACE AND Linux)
     ${CPPUNIT_LIBRARY})
 
 endif()
-
-install(
-  TARGETS XrdEosMgm
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-
-install(
-  PROGRAMS eos-repair-tool
-  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
-  PERMISSIONS OWNER_READ OWNER_EXECUTE
-              GROUP_READ GROUP_EXECUTE
-              WORLD_READ WORLD_EXECUTE)
