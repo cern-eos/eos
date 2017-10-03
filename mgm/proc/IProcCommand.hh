@@ -41,9 +41,23 @@ class IProcCommand: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
+  //! Costructor
+  //----------------------------------------------------------------------------
+  IProcCommand():
+    mThread(), mForceKill(false) {}
+
+  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~IProcCommand() = default;
+  virtual ~IProcCommand()
+  {
+    mForceKill.store(true);
+
+    // Wait of the thread to finish if it's still running
+    if (mThread.joinable()) {
+      mThread.join();
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Open a proc command e.g. call the appropriate user or admin commmand and
@@ -88,6 +102,31 @@ public:
   //! @return 0 if comment has been successfully stored otherwise != 0
   //----------------------------------------------------------------------------
   virtual int close() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Method implementing the specific behvior of the command executed by the
+  //! asynchronous thread
+  //----------------------------------------------------------------------------
+  virtual void ProcessRequest() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Lauch command asynchronously, creating the corresponding promise and
+  //! future
+  //----------------------------------------------------------------------------
+  virtual void LaunchAsyncJob() final {
+    mFuture = mPromise.get_future();
+    auto lth = std::thread([&]()
+    {
+      ProcessRequest();
+    });
+    mThread.swap(lth);
+  }
+
+protected:
+  std::promise<eos::console::ReplyProto> mPromise; ///< Promise reply
+  std::future<eos::console::ReplyProto> mFuture; ///< Response future
+  std::thread mThread; ///< Async thread doing all the work
+  std::atomic<bool> mForceKill; ///<
 };
 
 EOSMGMNAMESPACE_END

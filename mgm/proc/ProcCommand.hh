@@ -129,6 +129,16 @@ public:
   virtual int close() override;
 
   //----------------------------------------------------------------------------
+  //! Method implementing the specific behvior of the command executed by the
+  //! asynchronous thread - used only for protobuf commands
+  //----------------------------------------------------------------------------
+  virtual void ProcessRequest() override
+  {
+    // Default behvior for old (raw) style commands
+    return;
+  }
+
+  //----------------------------------------------------------------------------
   //! Add stdout, stderr to an external stdout, stderr variable
   //----------------------------------------------------------------------------
   void

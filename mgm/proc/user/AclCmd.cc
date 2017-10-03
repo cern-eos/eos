@@ -36,19 +36,6 @@ extern XrdMgmOfs* gOFS;
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Method triggering the execution of the command and returning a future object
-//------------------------------------------------------------------------------
-std::future<eos::console::ReplyProto>
-AclCmd::Execute()
-{
-  auto reply_future = mPromise.get_future();
-  std::thread([&]() {
-    return ProcessRequest();
-  }).detach();
-  return reply_future;
-}
-
-//------------------------------------------------------------------------------
 // Process request
 //------------------------------------------------------------------------------
 void
@@ -73,6 +60,7 @@ AclCmd::ProcessRequest()
       reply.set_retc(0);
     }
   } else if (acl.op() == AclProto_OpType::AclProto_OpType_MODIFY) {
+    sleep(11);
     int retc = ModifyAcls(acl);
     reply.set_retc(retc);
     reply.set_std_out("");
@@ -101,28 +89,25 @@ AclCmd::open(const char* path, const char* info,
   int delay = 5;
 
   if (!mExecRequest) {
-    mFuture = Execute();
+    LaunchAsyncJob();
     mExecRequest = true;
   }
 
-  if (!mHasResponse) {
-    std::future_status status = mFuture.wait_for(std::chrono::seconds(delay));
+  std::future_status status = mFuture.wait_for(std::chrono::seconds(delay));
 
-    if (status != std::future_status::ready) {
-      // Stall the client requst
-      std::string msg = "acl command not ready, stall the client 5 seconds";
-      eos_info("%s", msg.c_str());
-      error->setErrInfo(0, msg.c_str());
-      return delay;
-    } else {
-      mHasResponse = true;
-      eos::console::ReplyProto reply = mFuture.get();
-      std::ostringstream oss;
-      oss << "mgm.proc.stdout=" << reply.std_out()
-          << "&mgm.proc.stderr=" << reply.std_err()
-          << "&mgm.proc.retc=" << reply.retc();
-      mTmpResp = oss.str();
-    }
+  if (status != std::future_status::ready) {
+    // Stall the client
+    std::string msg = "acl command not ready, stall the client 5 seconds";
+    eos_notice("%s", msg.c_str());
+    error->setErrInfo(0, msg.c_str());
+    return delay;
+  } else {
+    eos::console::ReplyProto reply = mFuture.get();
+    std::ostringstream oss;
+    oss << "mgm.proc.stdout=" << reply.std_out()
+        << "&mgm.proc.stderr=" << reply.std_err()
+        << "&mgm.proc.retc=" << reply.retc();
+    mTmpResp = oss.str();
   }
 
   return SFS_OK;

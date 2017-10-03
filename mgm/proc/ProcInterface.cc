@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! file ProcInterface.cc
+//! @file ProcInterface.cc
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -99,6 +99,27 @@ ProcInterface::SaveSubmittedCmd(const char* tident,
 
   mMapCmds.insert(std::make_pair(std::string(tident), std::move(pcmd)));
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Drop asynchronous executing command since the client disconnected
+//------------------------------------------------------------------------------
+void
+ProcInterface::DropSubmittedCmd(const char* tident)
+{
+  std::unique_ptr<IProcCommand> tmp_cmd;
+  {
+    std::lock_guard<std::mutex> lock(mMutexMap);
+    auto it = mMapCmds.find(tident);
+
+    if (it != mMapCmds.end()) {
+      tmp_cmd.swap(it->second);
+      mMapCmds.erase(it);
+    }
+  }
+  // The tmp_cmd pointer will signal and wait for the async thread associated
+  // to the current command to finish outside the mMutexMap.
+  // For details see eos::mgm::~IProcCommand.
 }
 
 //----------------------------------------------------------------------------

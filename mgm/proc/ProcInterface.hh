@@ -135,7 +135,7 @@ public:
   //!
   //! @param tident unique client connection identifier
   //----------------------------------------------------------------------------
-  // static void DropSubmittedCmd(const char* tident);
+  static void DropSubmittedCmd(const char* tident);
 
 private:
   //----------------------------------------------------------------------------

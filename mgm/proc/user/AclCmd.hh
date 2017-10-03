@@ -45,8 +45,7 @@ public:
   //----------------------------------------------------------------------------
   AclCmd(eos::console::RequestProto&& req,
          eos::common::Mapping::VirtualIdentity& vid):
-    ProcCommand(vid), mHasResponse(false), mExecRequest(false),
-    mReqProto(std::move(req))
+    ProcCommand(vid), mExecRequest(false), mReqProto(std::move(req))
   {}
 
   //----------------------------------------------------------------------------
@@ -70,9 +69,9 @@ public:
   //!
   //! @return SFS_OK in any case
   //----------------------------------------------------------------------------
-  virtual int open(const char* path, const char* info,
-                   eos::common::Mapping::VirtualIdentity& vid,
-                   XrdOucErrInfo* error) override;
+  int open(const char* path, const char* info,
+           eos::common::Mapping::VirtualIdentity& vid,
+           XrdOucErrInfo* error) override;
 
   //----------------------------------------------------------------------------
   //! Read a part of the result stream created during open
@@ -83,8 +82,13 @@ public:
   //!
   //! @return number of bytes read
   //----------------------------------------------------------------------------
-  virtual int read(XrdSfsFileOffset offset, char* buff,
-                   XrdSfsXferSize blen) override;
+  int read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen) override;
+
+  //----------------------------------------------------------------------------
+  //! Method implementing the specific behvior of the command executed by the
+  //! asynchronous thread
+  //----------------------------------------------------------------------------
+  void ProcessRequest() override;
 
 private:
   //! Enumerator defining which bit represents which acl flag.
@@ -103,28 +107,12 @@ private:
   };
 
   std::string mTmpResp; ///< String used for streaming the response
-  bool mHasResponse; ///< Indicate if the reseponse is ready
-  bool mExecRequest; ///< Indicate if request is executed
-  std::promise<eos::console::ReplyProto> mPromise; ///< Promise reply
-  std::future<eos::console::ReplyProto> mFuture; ///< Response future
+  bool mExecRequest; ///< Indicate if request is launched asynchronously
   eos::console::RequestProto mReqProto; ///< Client request protobuf object
   std::string mId; ///< Rule identifier extracted from command line
   ///< ACL rule bitmasks for adding and removing
   unsigned short mAddRule, mRmRule;
   bool mSet; ///< Rule is set operations i.e contains =
-
-  //----------------------------------------------------------------------------
-  //! Method executing the command and returning a future object
-  //!
-  //! @return future holding the reply object
-  //----------------------------------------------------------------------------
-  std::future<eos::console::ReplyProto> Execute();
-
-  //----------------------------------------------------------------------------
-  //! Process request - this is can be run asynchronously and needs to set the
-  //! mPromise object which is storing the response.
-  //----------------------------------------------------------------------------
-  void ProcessRequest();
 
   //----------------------------------------------------------------------------
   //! Get sys.acl and user.acl for a given path

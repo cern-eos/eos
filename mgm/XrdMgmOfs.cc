@@ -201,6 +201,14 @@ XrdMgmOfs::newFile(char* user, int MonID)
   return (XrdSfsFile*)new XrdMgmOfsFile(user, MonID);
 }
 
+//------------------------------------------------------------------------------
+// Notify filesystem that a client has disconnected
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::Disc(const XrdSecEntity* client)
+{
+  ProcInterface::DropSubmittedCmd(client->tident);
+}
 
 //------------------------------------------------------------------------------
 // Implementation Source Code Includes
