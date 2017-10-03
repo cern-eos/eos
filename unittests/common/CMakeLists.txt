@@ -28,16 +28,17 @@ include_directories(
   "${gmock_SOURCE_DIR}/include")
 
 #-------------------------------------------------------------------------------
-# Timing tests
+# Common tests
 #-------------------------------------------------------------------------------
 add_executable(
-  test_time
-  TimingTest.cc)
+  common_tests
+  TimingTests.cc
+  MappingTests.cc)
 
-target_compile_definitions(test_time PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
+target_compile_definitions(common_tests PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
 
 target_link_libraries(
-  test_time
+  common_tests
   gtest
   gmock_main
   ${XROOTD_UTILS_LIBRARY}
