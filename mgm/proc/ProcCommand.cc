@@ -47,7 +47,8 @@ ProcCommand::ProcCommand():
 ProcCommand::ProcCommand(eos::common::Mapping::VirtualIdentity& vid):
   ProcCommand()
 {
-  pVid = &vid;
+  pVid = &vid; // to be used by old(raw) command implementations
+  mVid = vid; // to be used by new(protobuf) commmand impelementations
 }
 
 //------------------------------------------------------------------------------

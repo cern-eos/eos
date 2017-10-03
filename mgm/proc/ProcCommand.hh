@@ -93,7 +93,7 @@ public:
   //! @param vid_in virtual identity of the user requesting a command
   //! @param error object to store errors
   //!
-  //! @return SFS_OK in any case
+  //! @return SFS_OK or client stall interval in seconds
   //----------------------------------------------------------------------------
   virtual int open(const char* path, const char* info,
                    eos::common::Mapping::VirtualIdentity& vid,
@@ -261,6 +261,7 @@ public:
 
 protected:
   eos::common::Mapping::VirtualIdentity* pVid; ///< Pointer to virtual identity
+  eos::common::Mapping::VirtualIdentity mVid; ///< Copy of original vid
   XrdOucString stdOut; ///< stdOut returned by proc command
   XrdOucString stdErr; ///< stdErr returned by proc command
   XrdOucString stdJson; ///< JSON output returned by proc command

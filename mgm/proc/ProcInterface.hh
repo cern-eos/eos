@@ -26,6 +26,7 @@
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
 #include "proc_fs.hh"
+#include <unordered_map>
 
 //! Forward declarations
 class XrdSecEntity;
@@ -63,16 +64,16 @@ public:
   //----------------------------------------------------------------------------
   //! Factory method to get ProcCommand object
   //!
+  //! @param tident client connection unique identifier
   //! @param vid virtual id of the client
   //! @param path input path for proc command
   //! @param opaque input opaque information
-
   //!
   //! @return ProcCommand object
   //----------------------------------------------------------------------------
   static std::unique_ptr<IProcCommand>
-  CreateProcCommand(eos::common::Mapping::VirtualIdentity& vid,
-                    const char* path = 0, const char* opaque = 0);
+  GetProcCommand(const char* tident, eos::common::Mapping::VirtualIdentity& vid,
+                 const char* path = 0, const char* opaque = 0);
 
   //----------------------------------------------------------------------------
   //! Check if a path is requesting a proc commmand
@@ -107,18 +108,51 @@ public:
                         eos::common::Mapping::VirtualIdentity& vid,
                         const XrdSecEntity* entity);
 
+  //----------------------------------------------------------------------------
+  //! Get asynchronous executing command, submitted earlier by the same client
+  //! who cames to pick up the result.
+  //!
+  //! @param tident unique client connection identifier
+  //!
+  //! @return proc client command object or nullptr
+  //----------------------------------------------------------------------------
+  static std::unique_ptr<IProcCommand> GetSubmittedCmd(const char* tident);
+
+  //----------------------------------------------------------------------------
+  //! Save asynchronous executing command, so we can stall the client and
+  //! return later on the result.
+  //!
+  //! @param tident unique client connection identifier
+  //! @param pcmd proc command object
+  //!
+  //! @return true if command saved, otherwise false
+  //----------------------------------------------------------------------------
+  static bool SaveSubmittedCmd(const char* tident,
+                               std::unique_ptr<IProcCommand>&& pcmd);
+
+  //----------------------------------------------------------------------------
+  //! Drop asynchronous executing command since the client disconnected
+  //!
+  //! @param tident unique client connection identifier
+  //----------------------------------------------------------------------------
+  // static void DropSubmittedCmd(const char* tident);
+
 private:
   //----------------------------------------------------------------------------
   //! Handle protobuf request
   //!
   //! @parm path input path of a proc command
   //! @param opaque full opaque info containing the base64 protocol request
-  //! @param vid virtual id of the client
+  //! @param vid virtual identity of the client
   //!
   //! @return unique pointer to ProcCommand object or null otherwise
   //----------------------------------------------------------------------------
   static std::unique_ptr<IProcCommand>
   HandleProtobufRequest(const char* path, const char* opaque,
                         eos::common::Mapping::VirtualIdentity& vid);
+
+  //! Map of command id to async proc commands
+  static std::unordered_map<std::string, std::unique_ptr<IProcCommand>> mMapCmds;
+  static std::mutex mMutexMap; ///< Mutex protecting access to the map above
 };
 EOSMGMNAMESPACE_END

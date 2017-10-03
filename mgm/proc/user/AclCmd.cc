@@ -154,7 +154,7 @@ AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
   XrdOucErrInfo error;
   std::string acl_key = (is_sys ? "sys.acl" : "user.acl");
 
-  if (gOFS->_attr_get(path.c_str(), error, *pVid, 0, acl_key.c_str(), value,
+  if (gOFS->_attr_get(path.c_str(), error, mVid, 0, acl_key.c_str(), value,
                       take_lock)) {
     value = "";
   }
@@ -183,7 +183,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     XrdOucErrInfo error;
     std::map<std::string, std::set<std::string>> dirs;
     stdErr.erase();
-    (void) gOFS->_find(acl.path().c_str(), error, stdErr, *pVid, dirs, nullptr,
+    (void) gOFS->_find(acl.path().c_str(), error, stdErr, mVid, dirs, nullptr,
                        nullptr, true, 0, false, 0, nullptr, false);
 
     if (stdErr.length()) {
@@ -210,9 +210,9 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     new_acl_val = GenerateAclString(rule_map);
 
     // Set xattr without taking the namespace lock
-    if (!gOFS->_attr_set(elem.c_str(), error, *pVid, 0, acl_key.c_str(),
-                         new_acl_val.c_str(), false)) {
-      stdErr = "error: failed to set new acl for path=%s";
+    if (gOFS->_attr_set(elem.c_str(), error, mVid, 0, acl_key.c_str(),
+                        new_acl_val.c_str(), false)) {
+      stdErr = "error: failed to set new acl for path=";
       stdErr += elem.c_str();
       eos_err("%s", stdErr.c_str());
       return errno;

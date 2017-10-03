@@ -397,11 +397,25 @@ XrdMgmOfsFile::open(const char* inpath,
       return Emsg(epname, error, EPERM, "execute proc command - you don't have "
                   "the requested permissions for that operation (2)", path);
     } else {
-      mProcCmd = ProcInterface::CreateProcCommand(vid, path, ininfo);
+      mProcCmd = ProcInterface::GetProcCommand(tident, vid, path, ininfo);
 
       if (mProcCmd) {
         mProcCmd->SetLogId(logId, vid, tident);
-        return mProcCmd->open(path, ininfo, vid, &error);
+        rcode = mProcCmd->open(path, ininfo, vid, &error);
+
+        // If we need to stall the client then save the IProcCommand object and
+        // add it to the map for when the client comes back.
+        if (rcode > 0) {
+          if (!ProcInterface::SaveSubmittedCmd(tident, std::move(mProcCmd))) {
+            eos_err("failed to save submitted command object");
+            return Emsg(epname, error, EINVAL, "save sumitted command object "
+                        "for path ", path);
+          }
+
+          // Now the mProcCmd object is null and moved to the global map
+        }
+
+        return rcode;
       } else {
         return Emsg(epname, error, ENOMEM, "allocate proc command object for ",
                     path);
@@ -1356,12 +1370,12 @@ XrdMgmOfsFile::open(const char* inpath,
         // increase the heal counter for that file id
         gOFS->MgmHealMap[fileId] = nheal + 1;
         gOFS->MgmHealMapMutex.UnLock();
-        auto proc_cmd = ProcInterface::CreateProcCommand(vid);
+        auto proc_cmd = ProcInterface::GetProcCommand(tident, vid);
 
         if (proc_cmd) {
           // Issue the version command
-          XrdOucString cmd =
-            "mgm.cmd=file&mgm.subcmd=version&mgm.purge.version=-1&mgm.path=";
+          XrdOucString cmd = "mgm.cmd=file&mgm.subcmd=version&"
+                             "mgm.purge.version=-1&mgm.path=";
           cmd += path;
           proc_cmd->open("/proc/user/", cmd.c_str(), vid, &error);
           proc_cmd->close();
@@ -1412,15 +1426,15 @@ XrdMgmOfsFile::open(const char* inpath,
         } else {
           // increase the heal counter for that file id
           gOFS->MgmHealMap[fileId] = nheal + 1;
-          auto proc_cmd = ProcInterface::CreateProcCommand(vid);
+          auto proc_cmd = ProcInterface::GetProcCommand(tident, vid);
 
           if (proc_cmd) {
             // issue the adjustreplica command as root
             eos::common::Mapping::VirtualIdentity vidroot;
             eos::common::Mapping::Copy(vid, vidroot);
             eos::common::Mapping::Root(vidroot);
-            XrdOucString cmd =
-              "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.file.express=1&mgm.path=";
+            XrdOucString cmd = "mgm.cmd=file&mgm.subcmd=adjustreplica&"
+                               "mgm.file.express=1&mgm.path=";
             cmd += path;
             proc_cmd->open("/proc/user/", cmd.c_str(), vidroot, &error);
             proc_cmd->close();

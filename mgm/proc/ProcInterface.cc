@@ -29,29 +29,76 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+std::mutex ProcInterface::mMutexMap;
+std::unordered_map<std::string, std::unique_ptr<IProcCommand>>
+    ProcInterface::mMapCmds;
+
 //------------------------------------------------------------------------------
 // Factory method to get a ProcCommand object
 //------------------------------------------------------------------------------
 std::unique_ptr<IProcCommand>
-ProcInterface::CreateProcCommand(eos::common::Mapping::VirtualIdentity& vid,
-                                 const char* path, const char* opaque)
+ProcInterface::GetProcCommand(const char* tident,
+                              eos::common::Mapping::VirtualIdentity& vid,
+                              const char* path, const char* opaque)
 {
-  std::unique_ptr<IProcCommand> cmd;
+  // Check if this is an already submmited command
+  std::unique_ptr<IProcCommand> pcmd = GetSubmittedCmd(tident);
+
+  if (pcmd) {
+    return pcmd;
+  }
 
   if (!path || !opaque) {
-    cmd.reset(new ProcCommand());
+    // Return old style proc command which is populated in the open
+    pcmd.reset(new ProcCommand());
   } else {
     XrdOucEnv env(opaque);
 
-    // New console implementation using ProtocolBuffer objects
+    // New proc command implementation using ProtocolBuffer objects
     if (env.Get("mgm.cmd.proto")) {
-      cmd = HandleProtobufRequest(path, opaque, vid);
+      pcmd = HandleProtobufRequest(path, opaque, vid);
     } else {
-      cmd.reset(new ProcCommand());
+      pcmd.reset(new ProcCommand());
     }
   }
 
-  return cmd;
+  return pcmd;
+}
+
+//------------------------------------------------------------------------------
+// Get asynchronous executing command, submitted earlier by the same client
+//------------------------------------------------------------------------------
+std::unique_ptr<IProcCommand>
+ProcInterface::GetSubmittedCmd(const char* tident)
+{
+  std::unique_ptr<IProcCommand> pcmd;
+  std::lock_guard<std::mutex> lock(mMutexMap);
+  auto it = mMapCmds.find(tident);
+
+  if (it != mMapCmds.end()) {
+    pcmd.swap(it->second);
+    mMapCmds.erase(it);
+  }
+
+  return pcmd;
+}
+
+//------------------------------------------------------------------------------
+// Save asynchronous executing command, so we can stall the client and
+// return later on the result.
+//------------------------------------------------------------------------------
+bool
+ProcInterface::SaveSubmittedCmd(const char* tident,
+                                std::unique_ptr<IProcCommand>&& pcmd)
+{
+  std::lock_guard<std::mutex> lock(mMutexMap);
+
+  if (mMapCmds.count(tident)) {
+    return false;
+  }
+
+  mMapCmds.insert(std::make_pair(std::string(tident), std::move(pcmd)));
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -62,7 +109,7 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
                                      eos::common::Mapping::VirtualIdentity& vid)
 {
   using eos::console::RequestProto_OpType;
-  std::unique_ptr<IProcCommand> cmd {nullptr};
+  std::unique_ptr<IProcCommand> cmd;
   std::ostringstream oss;
   std::string raw_pb;
   XrdOucEnv env(opaque);
