@@ -36,6 +36,8 @@ public:
   MOCK_METHOD1(configure, void(const std::map<std::string, std::string>& config));
   MOCK_METHOD0(finalize, void());
   MOCK_METHOD1(getFileMD, std::shared_ptr<eos::IFileMD>(eos::IFileMD::id_t id));
+  MOCK_METHOD2(getFileMD, std::shared_ptr<eos::IFileMD>(eos::IFileMD::id_t id,
+               uint64_t* clock));
   MOCK_METHOD0(createFile, std::shared_ptr<eos::IFileMD>());
   MOCK_METHOD1(updateStore, void(eos::IFileMD* obj));
   MOCK_METHOD1(removeFile, void(eos::IFileMD* obj));

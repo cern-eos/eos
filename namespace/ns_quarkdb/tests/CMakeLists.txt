@@ -29,18 +29,19 @@ include_directories(
 # ProtoBuf representation tests
 #-------------------------------------------------------------------------------
 add_executable(
-  eos-ns-quarkdb-tests
+  eos_ns_quarkdb_tests
   ContainerMDSvcTest.cc
   FileMDSvcTest.cc
   FileSystemViewTest.cc
   HierarchicalViewTest.cc
   MetadataTests.cc
   NextInodeProviderTest.cc
-  OtherTests.cc
-)
+  OtherTests.cc)
+
+target_compile_definitions(eos_ns_quarkdb_tests PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
 
 target_link_libraries(
-  eos-ns-quarkdb-tests
+  eos_ns_quarkdb_tests
   gtest
   gmock_main
   EosNsQuarkdb-Static
