@@ -344,7 +344,7 @@ AclHelper::Execute()
   eos::console::RequestProto req;
   req.set_type(eos::console::RequestProto_OpType::RequestProto_OpType_ACL);
   *req.mutable_acl() = mAclProto;
-  size_t sz = req.ByteSizeLong();
+  size_t sz = req.ByteSize();
   std::string buffer(sz , '\0');
   google::protobuf::io::ArrayOutputStream aos((void*)buffer.data(), sz);
 
