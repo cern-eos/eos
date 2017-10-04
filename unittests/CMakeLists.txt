@@ -21,30 +21,28 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=0")
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${XROOTD_INCLUDE_DIRS}
-  "${GTEST_SOURCE_DIR}/include"
-  "${GMOCK_SOURCE_DIR}/include")
+  "${gtest_SOURCE_DIR}/include"
+  "${gmock_SOURCE_DIR}/include")
 
-add_subdirectory(common)
-add_subdirectory(mgm)
+file(GLOB MGM_UT_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/mgm/*.cc")
+file(GLOB COMMON_UT_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/common/*.cc")
+set(UT_SRCS ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
+add_executable(eos-unit-tests ${UT_SRCS})
 
-# @todo (jmakai): refactor all these so that we have just one executable
-# to run all unittests
-set(SOURCE_FILES
-  fst/XrdFstOssFileTest.cc
-  ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
-  ${CMAKE_SOURCE_DIR}/fst/tests/TestEnv.cc
-  ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc)
+# @todo all these should be moved to gtest and simplified
+# set(SOURCE_FILES
+#   fst/XrdFstOssFileTest.cc
+#   ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
+#   ${CMAKE_SOURCE_DIR}/fst/tests/TestEnv.cc
+#   ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc)
 
-add_executable(eos-unit-tests ${SOURCE_FILES})
-
-set( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=0" )
-target_link_libraries(eos-unit-tests gtest gtest_main)
-
-target_link_libraries(
-  eos-unit-tests
+target_link_libraries(eos-unit-tests
+  gtest_main
+  XrdEosMgm-Static
   EosFstIo-Static
   ${XROOTD_SERVER_LIBRARY})

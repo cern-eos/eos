@@ -22,27 +22,30 @@
  ************************************************************************/
 
 #define IN_TEST_HARNESS
-#include <fst/XrdFstOssFile.hh>
+#include "fst/XrdFstOssFile.hh"
 #undef IN_TEST_HARNESS
 
 #include <gtest/gtest.h>
-#include <fst/tests/TestEnv.hh>
-#include <XrdOuc/XrdOucTokenizer.hh>
+#include "fst/tests/TestEnv.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 
 using namespace eos::fst;
 using namespace eos::fst::test;
 
-class XrdFstOssFileTest : public ::testing::Test {
+class XrdFstOssFileTest : public ::testing::Test
+{
 public:
-  XrdFstOssFile *ossfile = nullptr;
-  TestEnv *mEnv = nullptr;
+  XrdFstOssFile* ossfile = nullptr;
+  TestEnv* mEnv = nullptr;
 
-  virtual void SetUp() override {
+  virtual void SetUp() override
+  {
     mEnv = new eos::fst::test::TestEnv();
     ossfile = new XrdFstOssFile("test_id");
   }
 
-  virtual void TearDown() override {
+  virtual void TearDown() override
+  {
     delete ossfile;
     ossfile = nullptr;
     delete mEnv;
@@ -50,9 +53,10 @@ public:
   }
 };
 
-TEST_F(XrdFstOssFileTest, AlignBufferTest) {
+TEST_F(XrdFstOssFileTest, AlignBufferTest)
+{
   int num_datasets = 9;
-  char *ptr_off, *ptr_len;
+  char* ptr_off, *ptr_len;
   size_t len_req;
   off_t off_req;
   std::string str_off;
@@ -68,16 +72,16 @@ TEST_F(XrdFstOssFileTest, AlignBufferTest) {
     sstr.str("");
     sstr << "align" << set << "_len";
     len_req = (size_t) atoi(mEnv->GetMapping(sstr.str()).c_str());
-    char *buffer = new char[len_req];
+    char* buffer = new char[len_req];
     // Read the correct answer to compare with
     sstr.str("");
     sstr << "align" << set << "_resp_off";
     str_off = mEnv->GetMapping(sstr.str());
-    XrdOucTokenizer tok_off = XrdOucTokenizer((char *) str_off.c_str());
+    XrdOucTokenizer tok_off = XrdOucTokenizer((char*) str_off.c_str());
     sstr.str("");
     sstr << "align" << set << "_resp_len";
     str_len = mEnv->GetMapping(sstr.str());
-    XrdOucTokenizer tok_len = XrdOucTokenizer((char *) str_len.c_str());
+    XrdOucTokenizer tok_len = XrdOucTokenizer((char*) str_len.c_str());
     ptr_off = tok_off.GetLine();
     ptr_len = tok_len.GetLine();
     expect_resp.clear();
