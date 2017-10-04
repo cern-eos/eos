@@ -2191,7 +2191,7 @@ FsView::HeartBeatCheck()
 // Return a view member variable
 //------------------------------------------------------------------------------
 std::string
-BaseView::GetMember(std::string member)
+BaseView::GetMember(const std::string& member) const
 {
   if (member == "name") {
     return mName;
@@ -2204,8 +2204,7 @@ BaseView::GetMember(std::string member)
   if (member == "nofs") {
     char line[1024];
     snprintf(line, sizeof(line) - 1, "%llu", (unsigned long long) size());
-    mSize = line;
-    return mSize;
+    return std::string(line);
   }
 
   if (member == "inqueue") {
@@ -2217,8 +2216,7 @@ BaseView::GetMember(std::string member)
   if (member == "heartbeat") {
     char line[1024];
     snprintf(line, sizeof(line) - 1, "%llu", (unsigned long long) mHeartBeat);
-    mHeartBeatString = line;
-    return mHeartBeatString;
+    return std::string(line);
   }
 
   if (member == "heartbeatdelta") {
@@ -2231,35 +2229,36 @@ BaseView::GetMember(std::string member)
                (unsigned long long)(time(NULL) - mHeartBeat));
     }
 
-    mHeartBeatDeltaString = line;
-    return mHeartBeatDeltaString;
+    return std::string(line);
   }
 
   if (member == "status") {
     return mStatus;
   }
 
-  // Return global config value
-  std::string prefix = member;
-  prefix.erase(4);
+  // Check for global config value
+  const std::string tag = "cfg.";
 
-  if (prefix == "cfg.") {
+  if (member.find(tag) == 0) {
+    std::string cfg_member = member;
     std::string val = "???";
-    member.erase(0, 4);
-    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                   GetConfigQueuePrefix(), mName.c_str());
-    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                              nodeconfigname.c_str());
+    cfg_member.erase(0, tag.length());
+    {
+      XrdMqRWMutexReadLock rd_lock(
+        eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+      std::string node_cfg_name =
+        eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(),
+            mName.c_str());
+      XrdMqSharedHash* hash =
+        eos::common::GlobalConfig::gConfig.Get(node_cfg_name.c_str());
 
-    if (hash) {
-      val = hash->Get(member.c_str());
+      if (hash) {
+        val = hash->Get(cfg_member.c_str());
+      }
     }
 
-    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
-
-    // it's otherwise hard to get the default into place
-    if (((val == "") || (val == "???")) && (member == "stat.balancing")) {
+    // It's otherwise hard to get the default into place
+    if (((val == "") || (val == "???")) && (cfg_member == "stat.balancing")) {
       val = "idle";
     }
 
@@ -2333,7 +2332,7 @@ FsNode::SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock)
 // GetMember
 //------------------------------------------------------------------------------
 std::string
-FsNode::GetMember(std::string member)
+FsNode::GetMember(const std::string& member) const
 {
   if (member == "hostport") {
     std::string hostport =

@@ -273,12 +273,6 @@ private:
   //! Last heartbeat time
   time_t mHeartBeat;
 
-  // Last heartbeat time as string
-  std::string mHeartBeatString;
-
-  //! Time since last heartbeat as string
-  std::string mHeartBeatDeltaString;
-
   //! Status of the base view (meaning depends on inheritor)
   std::string mStatus;
 
@@ -313,7 +307,7 @@ public:
   //!
   //! @return return the configuration prefix
   //----------------------------------------------------------------------------
-  virtual const char* GetConfigQueuePrefix()
+  virtual const char* GetConfigQueuePrefix() const
   {
     return "";
   }
@@ -332,7 +326,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return a member variable in the view
   //----------------------------------------------------------------------------
-  virtual std::string GetMember(std::string member);
+  virtual std::string GetMember(const std::string& member) const;
 
   //----------------------------------------------------------------------------
   //! Set a member variable in a view
@@ -653,7 +647,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get the configuration queue prefix
   //----------------------------------------------------------------------------
-  virtual const char* GetConfigQueuePrefix()
+  virtual const char* GetConfigQueuePrefix() const
   {
     return gConfigQueuePrefix.c_str();
   }
@@ -724,7 +718,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the configuration queue prefix (virtual function)
   //----------------------------------------------------------------------------
-  virtual const char* GetConfigQueuePrefix()
+  virtual const char* GetConfigQueuePrefix() const
   {
     return gConfigQueuePrefix.c_str();
   }
@@ -789,7 +783,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return a member variable
   //----------------------------------------------------------------------------
-  virtual std::string GetMember(std::string name);
+  virtual std::string GetMember(const std::string& name) const;
 
   //----------------------------------------------------------------------------
   //! Set the configuration default values for a node
@@ -856,7 +850,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the configuration queue prefix (virtual function)
   //----------------------------------------------------------------------------
-  virtual const char* GetConfigQueuePrefix()
+  virtual const char* GetConfigQueuePrefix() const
   {
     return gConfigQueuePrefix.c_str();
   }
