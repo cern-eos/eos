@@ -115,7 +115,7 @@ if (NOT CLIENT)
   add_subdirectory(auth_plugin)
 
   if (BUILD_TESTS)
-    add_subdirectory(unittests)
+    add_subdirectory(unit_tests)
   endif ()
 endif ()
 

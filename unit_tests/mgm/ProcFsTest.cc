@@ -22,10 +22,7 @@
  ************************************************************************/
 
 #include <gtest/gtest.h>
-#include "Namespace.hh"
 #include "mgm/proc/proc_fs.hh"
-
-EOSMGMTESTING_BEGIN
 
 //------------------------------------------------------------------------------
 // Test entity classification
@@ -66,5 +63,3 @@ TEST(ProcFs, MvOpClassification)
   ASSERT_TRUE(MvOpType::UNKNOWN == get_operation_type("meyrin", "8176", out,
               err));
 }
-
-EOSMGMTESTING_END
