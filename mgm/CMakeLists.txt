@@ -291,15 +291,4 @@ if(CPPUNIT_FOUND AND BUILD_QUARKDB_NAMESPACE AND Linux)
     XrdEosMgm-Static
     PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
-
-  # @todo (amanzi): convert to gtest
-  add_executable(
-    EosMgmConfigTest
-    tests/ConfigEngineTest.cc)
-
-  target_link_libraries(
-    EosMgmConfigTest PUBLIC
-    XrdEosMgm-Static
-    ${CPPUNIT_LIBRARY})
-
 endif()
