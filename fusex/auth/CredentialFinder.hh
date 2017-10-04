@@ -28,6 +28,7 @@
 #include <map>
 #include <vector>
 #include <sstream>
+#include <atomic>
 #include <time.h>
 #include "common/Logging.hh"
 #include "Utils.hh"
