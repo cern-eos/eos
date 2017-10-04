@@ -26,8 +26,9 @@
 //------------------------------------------------------------------------------
 // Constructor for unsigned int data
 //------------------------------------------------------------------------------
-TableCell::TableCell(unsigned int value, std::string format,
-                     std::string unit, bool empty, TableFormatterColor col)
+TableCell::TableCell(unsigned int value, const std::string& format,
+                     const std::string& unit, bool empty,
+                     TableFormatterColor col)
   : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
@@ -51,8 +52,9 @@ TableCell::TableCell(unsigned int value, std::string format,
 //------------------------------------------------------------------------------
 // Constructor for unsigned long long int data
 //------------------------------------------------------------------------------
-TableCell::TableCell(unsigned long long int value, std::string format,
-                     std::string unit, bool empty, TableFormatterColor col)
+TableCell::TableCell(unsigned long long int value, const std::string& format,
+                     const std::string& unit, bool empty,
+                     TableFormatterColor col)
   : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
@@ -76,8 +78,9 @@ TableCell::TableCell(unsigned long long int value, std::string format,
 //------------------------------------------------------------------------------
 // Constructor for int data
 //------------------------------------------------------------------------------
-TableCell::TableCell(int value, std::string format,
-                     std::string unit, bool empty, TableFormatterColor col)
+TableCell::TableCell(int value, const std::string& format,
+                     const std::string& unit, bool empty,
+                     TableFormatterColor col)
   : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
@@ -101,8 +104,9 @@ TableCell::TableCell(int value, std::string format,
 //------------------------------------------------------------------------------
 // Constructor for long long int data
 //------------------------------------------------------------------------------
-TableCell::TableCell(long long int value, std::string format,
-                     std::string unit, bool empty, TableFormatterColor col)
+TableCell::TableCell(long long int value, const std::string& format,
+                     const std::string& unit, bool empty,
+                     TableFormatterColor col)
   : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
@@ -126,8 +130,9 @@ TableCell::TableCell(long long int value, std::string format,
 //------------------------------------------------------------------------------
 // Constructor for float data
 //------------------------------------------------------------------------------
-TableCell::TableCell(float value, std::string format,
-                     std::string unit, bool empty, TableFormatterColor col)
+TableCell::TableCell(float value, const std::string& format,
+                     const std::string& unit, bool empty,
+                     TableFormatterColor col)
   : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
@@ -151,8 +156,9 @@ TableCell::TableCell(float value, std::string format,
 //------------------------------------------------------------------------------
 // Constructor for double data
 //------------------------------------------------------------------------------
-TableCell::TableCell(double value, std::string format,
-                     std::string unit, bool empty, TableFormatterColor col)
+TableCell::TableCell(double value, const std::string& format,
+                     const std::string& unit, bool empty,
+                     TableFormatterColor col)
   : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::DOUBLE)
 {
@@ -176,8 +182,9 @@ TableCell::TableCell(double value, std::string format,
 //------------------------------------------------------------------------------
 // Constructor for char* data
 //------------------------------------------------------------------------------
-TableCell::TableCell(const char* value, std::string format,
-                     std::string unit, bool empty, TableFormatterColor col)
+TableCell::TableCell(const char* value, const std::string& format,
+                     const std::string& unit, bool empty,
+                     TableFormatterColor col)
   : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::STRING)
 {
@@ -188,8 +195,9 @@ TableCell::TableCell(const char* value, std::string format,
 //------------------------------------------------------------------------------
 // Constructor for string data
 //------------------------------------------------------------------------------
-TableCell::TableCell(std::string& value, std::string format,
-                     std::string unit, bool empty, TableFormatterColor col)
+TableCell::TableCell(std::string& value, const std::string& format,
+                     const std::string& unit, bool empty,
+                     TableFormatterColor col)
   : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
     mSelectedValue(TypeContainingValue::STRING)
 {
@@ -278,19 +286,19 @@ void TableCell::SetValue(double value)
         value /= scale;
       } else if (value >= 1) {
         value = value;
-      } else if (value >= 1/scale) {
+      } else if (value >= 1 / scale) {
         mUnit.insert(0, "m");
         value *= scale;
-      } else if (value >= 1/(scale * scale)) {
+      } else if (value >= 1 / (scale * scale)) {
         mUnit.insert(0, "u");
         value *= scale * scale;
-      } else if (value >= 1/(scale * scale * scale)) {
+      } else if (value >= 1 / (scale * scale * scale)) {
         mUnit.insert(0, "n");
         value *= scale * scale * scale;
-      } else if (value >= 1/(scale * scale * scale * scale)) {
+      } else if (value >= 1 / (scale * scale * scale * scale)) {
         mUnit.insert(0, "p");
         value *= scale * scale * scale * scale;
-      } else if (value >= 1/(scale * scale * scale * scale * scale)) {
+      } else if (value >= 1 / (scale * scale * scale * scale * scale)) {
         mUnit.insert(0, "f");
         value *= scale * scale * scale * scale * scale;
       }
