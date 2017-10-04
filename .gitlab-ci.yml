@@ -318,8 +318,9 @@ eos_unit_test:
     - cd build
     - cmake3 .. -DBUILD_TESTS=1
     - make eos-unit-tests -j 4
+    - export LD_LIBRARY_PATH=./common/:./mq/
     - ccache -s
-    - ./unittests/eos-unit-tests
+    - ./unit_tests/eos-unit-tests
   cache:
     key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
     paths:
