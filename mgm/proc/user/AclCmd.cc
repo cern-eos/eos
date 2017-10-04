@@ -60,7 +60,6 @@ AclCmd::ProcessRequest()
       reply.set_retc(0);
     }
   } else if (acl.op() == AclProto_OpType::AclProto_OpType_MODIFY) {
-    sleep(11);
     int retc = ModifyAcls(acl);
     reply.set_retc(retc);
     reply.set_std_out("");
@@ -467,7 +466,7 @@ bool AclCmd::ParseRule(const std::string& input)
     mId = id;
     srule = std::string(input.begin() + pos_equal + 1, input.end());
 
-    if (!GetRuleBitmask(srule, true)) {
+    if (!GetRuleBitmask(srule, mSet)) {
       stdErr = "error: failed to get input rule as bitmask";
       return false;
     }
@@ -488,7 +487,7 @@ bool AclCmd::ParseRule(const std::string& input)
       mId = id;
       srule = std::string(input.begin() + pos_del_last + 1, input.end());
 
-      if (!GetRuleBitmask(srule, false)) {
+      if (!GetRuleBitmask(srule, mSet)) {
         stdErr = "error: failed to get input rule as bitmask";
         return false;
       }
