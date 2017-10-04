@@ -29,9 +29,10 @@ include_directories(
   "${gtest_SOURCE_DIR}/include"
   "${gmock_SOURCE_DIR}/include")
 
+file(GLOB MQ_UT_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/mq/*.cc")
 file(GLOB MGM_UT_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/mgm/*.cc")
 file(GLOB COMMON_UT_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/common/*.cc")
-set(UT_SRCS ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
+set(UT_SRCS ${MQ_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
 add_executable(eos-unit-tests ${UT_SRCS})
 
 # @todo all these should be moved to gtest and simplified
@@ -45,4 +46,5 @@ target_link_libraries(eos-unit-tests
   gtest_main
   XrdEosMgm-Static
   EosFstIo-Static
+  XrdMqClient-Static
   ${XROOTD_SERVER_LIBRARY})
