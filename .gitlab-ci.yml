@@ -318,7 +318,7 @@ eos_unit_test:
     - cd build
     - cmake3 .. -DBUILD_TESTS=1
     - make eos-unit-tests -j 4
-    - export LD_LIBRARY_PATH=./common/:./mq/
+    - export LD_LIBRARY_PATH=./common/:./mq/:./auth_plugin/
     - ccache -s
     - ./unit_tests/eos-unit-tests
   cache:
