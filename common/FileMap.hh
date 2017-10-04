@@ -197,7 +197,7 @@ public:
       eos::common::SymKey::Base64Decode(key64, keyout, keyout_len);
       eos::common::SymKey::Base64Decode(val64, valout, valout_len);
 
-      if ((keyout > 0) && (valout > 0)) {
+      if (keyout && valout) {
         std::string key;
         std::string val;
         key.assign(keyout, keyout_len);
