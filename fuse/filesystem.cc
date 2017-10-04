@@ -878,7 +878,6 @@ filesystem::force_rwopen (
   uid_t uid, gid_t gid, pid_t pid
 )
 {
-  int fd = -1;
   std::ostringstream sstr;
   sstr << inode << ":" << get_login (uid, gid, pid);
 
@@ -888,9 +887,6 @@ filesystem::force_rwopen (
 
   if (iter_fd != inodexrdlogin2fds.end ())
   {
-    fd = *iter_fd->second.begin ();
-    auto iter_file = fd2fabst.find (fd); //all the fd ti a same file share the same fabst
-
     for (auto fdit = iter_fd->second.begin (); fdit != iter_fd->second.end (); fdit++)
     {
       if ( fd2count[*fdit] > 0)
