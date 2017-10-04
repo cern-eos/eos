@@ -1,12 +1,11 @@
 //------------------------------------------------------------------------------
-//! @file fusexrdlogin.hh
-//! @author Andreas-Joachim Peters CERN
-//! @brief Class providing the login user name for an XRootD fusex connection
+// File: LoginIdentifier.hh
+// Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2017 CERN/Switzerland                                  *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,25 +21,40 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef __LOGIN_IDENTIFIER__HH__
+#define __LOGIN_IDENTIFIER__HH__
 
-#ifndef FUSE_XRDLOGIN_HH_
-#define FUSE_XRDLOGIN_HH_
+#include <string>
+#include <sys/types.h>
 
-#include <memory>
-#include "XrdCl/XrdClURL.hh"
-#include "llfusexx.hh"
-#include "auth/ProcessCache.hh"
-
-class fusexrdlogin  {
+// We have to juggle many different xrootd logins.
+// This class identifies them with a unique ID, which is provided in
+// the user part of an xrootd URL: root://user@host/path
+// We're only limited to 8 chars..
+// Each object is immutable after construction, no need for locking.
+class LoginIdentifier {
 public:
-  static int loginurl ( XrdCl::URL& url, XrdCl::URL::ParamsMap &query, fuse_req_t req ,
-                       fuse_ino_t ino,
-                       bool root_squash = false,
-                       int connectionid = 0);
+  LoginIdentifier() {
+    connId = 0;
+    stringId = "nobody";
+  }
+  
+  LoginIdentifier(uint64_t connId);
+  LoginIdentifier(uid_t uid, gid_t gid, pid_t pid, uint64_t connId);
 
-  static void initializeProcessCache(const CredentialConfig &config);
-  static std::unique_ptr<ProcessCache> processCache;
+  std::string getStringID() const {
+    return stringId;
+  }
+
+  uint64_t getConnectionID() const {
+    return connId;
+  }
+
 private:
+  uint64_t connId;
+  std::string stringId;
+
+  static std::string encode(char prefix, uint64_t bituser);
 };
 
 

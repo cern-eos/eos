@@ -121,8 +121,8 @@ public:
     int sync();
     size_t size();
     int cache_invalidate();
-    bool prefetch(fuse_req_t req);
-    void WaitPrefetch(fuse_req_t req);
+    bool prefetch(fuse_req_t req, bool lock=true);
+    void WaitPrefetch(fuse_req_t req, bool lock=true);
     void WaitOpen();
 
     // ref counting for this object

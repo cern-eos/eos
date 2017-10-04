@@ -24,6 +24,7 @@
 
 #include "eosfuse.hh"
 #include "misc/MacOSXHelper.hh"
+#include "misc/fusexrdlogin.hh"
 
 #include <string>
 #include <map>
@@ -44,6 +45,8 @@
 
 #include <sys/types.h>
 #ifdef __APPLE__
+#define O_DIRECT 0
+#define EKEYEXPIRED 127
 #include <sys/xattr.h>
 #else
 #include <attr/xattr.h>
@@ -65,7 +68,7 @@
 #include "EosFuseSessionLoop.hh"
 #endif
 
-#define _FILE_OFFSET_BITS 64 
+#define _FILE_OFFSET_BITS 64
 
 EosFuse* EosFuse::sEosFuse = 0;
 
@@ -171,6 +174,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
     config.options.foreground = root["options"]["foreground"].asInt();
     config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
+    config.options.md_kernelcache_enoent_timeout = root["options"]["md-kernelcache.enoent.timeout"].asDouble();
     config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
     config.options.mkdir_is_sync = root["options"]["mkdir-is-sync"].asInt();
     config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
@@ -181,6 +185,10 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.mqtargethost = root["mdzmqtarget"].asString();
     config.mqidentity = root["mdzmqidentity"].asString();
     config.mqname = config.mqidentity;
+    config.auth.fuse_shared  = root["auth"]["shared-mount"].asInt();
+    config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
+    config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
+    config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
 
     // default settings
     if (!config.statfilesuffix.length())
@@ -270,8 +278,10 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       ((fusechan = fuse_mount(local_mount_dir, &args)) != NULL) &&
       (fuse_daemonize(config.options.foreground) != -1))
   {
+    fusexrdlogin::initializeProcessCache(config.auth);
+
     FILE* fstderr;
-    // Open log file                                                                                                                                                                                               
+    // Open log file
     if (getuid())
     {
       char logfile[1024];
@@ -293,7 +303,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
         config.statfilepath += config.statfilesuffix;
       }
 
-      // Running as a user ... we log into /tmp/eos-fuse.$UID.log                                                                                                                                                     
+      // Running as a user ... we log into /tmp/eos-fuse.$UID.log
       if (!(fstderr = freopen(logfile, "a+", stderr)))
         fprintf(stderr, "error: cannot open log file %s\n", logfile);
       else
@@ -301,7 +311,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     }
     else
     {
-      // Running as root ... we log into /var/log/eos/fuse                                                                                                                                                            
+      // Running as root ... we log into /var/log/eos/fuse
       std::string log_path = "/var/log/eos/fusex/fuse.";
       if (getenv("EOS_FUSE_LOG_PREFIX") || fsname.length())
       {
@@ -330,10 +340,10 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr)))
         fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
       else
-        if(::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR))
-        {
-          fprintf(stderr,"error: failed to chmod %s\n", cPath.GetPath());
-        }
+        if (::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR))
+      {
+        fprintf(stderr, "error: failed to chmod %s\n", cPath.GetPath());
+      }
     }
 
     if (fstderr)
@@ -452,7 +462,14 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("thread-pool            := %s", config.options.libfusethreads ? "libfuse" : "custom");
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
-    cachehandler::instance().logconfig();
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f data-cache:%d mkdir-sync:%d create-sync:%d flush:%d locking:%d",
+                       config.options.md_kernelcache,
+                       config.options.md_kernelcache_enoent_timeout,
+                       config.options.data_kernelcache,
+                       config.options.mkdir_is_sync,
+                       config.options.create_is_sync,
+                       config.options.global_flush,
+                       config.options.global_locking);
 
 
     fusesession = fuse_lowlevel_new(&args,
@@ -507,7 +524,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     }
 #else
     {
-      // C++11 is poor for threading 
+      // C++11 is poor for threading
       pthread_cancel(tDumpStatistic.native_handle());
       pthread_cancel(tStatCirculate.native_handle());
       pthread_cancel(tMetaCacheFlush.native_handle());
@@ -683,25 +700,27 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
   struct fuse_entry_param e;
 
   metad::shared_md md = Instance().mds.get(req, ino);
-  if (!md->id() || (md->deleted() && !md->lookup_is()))
+
   {
-    rc = ENOENT;
-  }
-  else
-  {
-    cap::shared_cap pcap = Instance().caps.acquire(req, md->pid() ? md->pid() : 1,
-                                                   S_IFDIR | X_OK | R_OK);
-    if (pcap->errc())
+    XrdSysMutexHelper mLock(md->Locker());
+    if (!md->id() || (md->deleted() && !md->lookup_is()))
     {
-      rc = pcap->errc();
+      rc = ENOENT;
     }
     else
     {
-      XrdSysMutexHelper mLock(md->Locker());
-      md->convert(e);
-      eos_static_info("%s", md->dump(e).c_str());
+      cap::shared_cap pcap = Instance().caps.acquire(req, md->pid() ? md->pid() : 1,
+                                                     S_IFDIR | X_OK | R_OK);
+      if (pcap->errc())
+      {
+        rc = pcap->errc();
+      }
+      else
+      {
+        md->convert(e);
+        eos_static_info("%s", md->dump(e).c_str());
+      }
     }
-
   }
 
   if (rc)
@@ -720,7 +739,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 void
 /* -------------------------------------------------------------------------- */
 EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
-                 struct fuse_file_info *fi)
+                 struct fuse_file_info * fi)
 /* -------------------------------------------------------------------------- */
 {
   eos::common::Timing timing(__func__);
@@ -797,7 +816,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
       if (op & FUSE_SET_ATTR_MODE)
       {
         /*
-          EACCES Search permission is denied on a component of the path prefix.  
+          EACCES Search permission is denied on a component of the path prefix.
 
           EFAULT path points outside your accessible address space.
 
@@ -815,9 +834,9 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
           ENOTDIR
                  A component of the path prefix is not a directory.
 
-          EPERM  The  effective  UID does not match the owner of the file, 
+          EPERM  The  effective  UID does not match the owner of the file,
                  and the process is not privileged (Linux: it does not
-           
+
                  have the CAP_FOWNER capability).
 
           EROFS  The named file resides on a read-only filesystem.
@@ -844,7 +863,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
       if ((op & FUSE_SET_ATTR_UID) || (op & FUSE_SET_ATTR_GID))
       {
         /*
-          EACCES Search permission is denied on a component of the path prefix.  
+          EACCES Search permission is denied on a component of the path prefix.
 
           EFAULT path points outside your accessible address space.
 
@@ -860,7 +879,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
           ENOTDIR
                  A component of the path prefix is not a directory.
 
-          EPERM  The calling process did not have the required permissions 
+          EPERM  The calling process did not have the required permissions
                  (see above) to change owner and/or group.
 
           EROFS  The named file resides on a read-only filesystem.
@@ -898,18 +917,18 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
           )
       {
         /*
-        EACCES Search permission is denied for one of the directories in 
+        EACCES Search permission is denied for one of the directories in
    the  path  prefix  of  path
 
-        EACCES times  is  NULL,  the caller's effective user ID does not match 
+        EACCES times  is  NULL,  the caller's effective user ID does not match
    the owner of the file, the caller does not have
-   write access to the file, and the caller is not privileged 
+   write access to the file, and the caller is not privileged
    (Linux: does not have either the CAP_DAC_OVERRIDE or
    the CAP_FOWNER capability).
 
         ENOENT filename does not exist.
 
-        EPERM  times is not NULL, the caller's effective UID does not 
+        EPERM  times is not NULL, the caller's effective UID does not
    match the owner of the file, and the caller is not priv‐
    ileged (Linux: does not have the CAP_FOWNER capability).
 
@@ -963,28 +982,28 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
       if (op & FUSE_SET_ATTR_SIZE)
       {
         /*
-        EACCES Search  permission is denied for a component of the path 
+        EACCES Search  permission is denied for a component of the path
      prefix, or the named file is not writable by the user.
-             
+
         EFAULT Path points outside the process's allocated address space.
 
-        EFBIG  The argument length is larger than the maximum file size. 
+        EFBIG  The argument length is larger than the maximum file size.
 
-        EINTR  While blocked waiting to complete, the call was interrupted 
+        EINTR  While blocked waiting to complete, the call was interrupted
      by a signal handler; see fcntl(2) and signal(7).
 
-        EINVAL The argument length is negative or larger than the maximum 
+        EINVAL The argument length is negative or larger than the maximum
      file size.
 
         EIO    An I/O error occurred updating the inode.
 
         EISDIR The named file is a directory.
 
-        ELOOP  Too many symbolic links were encountered in translating the 
+        ELOOP  Too many symbolic links were encountered in translating the
      pathname.
 
         ENAMETOOLONG
-     A component of a pathname exceeded 255 characters, or an 
+     A component of a pathname exceeded 255 characters, or an
      entire pathname exceeded 1023 characters.
 
         ENOENT The named file does not exist.
@@ -992,16 +1011,16 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
         ENOTDIR
      A component of the path prefix is not a directory.
 
-        EPERM  The underlying filesystem does not support extending a file 
+        EPERM  The underlying filesystem does not support extending a file
      beyond its current size.
 
         EROFS  The named file resides on a read-only filesystem.
 
         ETXTBSY
-     The file is a pure procedure (shared text) file that is 
+     The file is a pure procedure (shared text) file that is
      being executed.
 
-        For ftruncate() the same errors apply, but instead of things that 
+        For ftruncate() the same errors apply, but instead of things that
         can be wrong with path, we now have things that  can
         be wrong with the file descriptor, fd:
 
@@ -1139,13 +1158,13 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     else
     {
       // negative cache entry
-
       e.ino = 0;
-      e.attr_timeout = 0;
-      e.entry_timeout = 0;
-      rc = ENOENT;
-
-      // for the moment no negative stat cache
+      e.attr_timeout = Instance().Config().options.md_kernelcache_enoent_timeout;
+      e.entry_timeout = Instance().Config().options.md_kernelcache_enoent_timeout;
+      if (e.entry_timeout)
+        rc = 0;
+      else
+        rc = ENOENT;
     }
   }
 
@@ -1183,7 +1202,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   // retrieve cap
 
   cap::shared_cap pcap = Instance().caps.acquire(req, ino,
-                                                 S_IFDIR | X_OK | R_OK);
+                                                 S_IFDIR | X_OK | R_OK, true);
 
   if (pcap->errc())
   {
@@ -1250,7 +1269,7 @@ EBADF  Invalid directory stream descriptor fi->fh
   }
   else
   {
-    // get the shared pointer from the open file descriptor 
+    // get the shared pointer from the open file descriptor
     opendir_t* md = (opendir_t*) fi->fh;
     metad::shared_md pmd = md->md;
     XrdSysMutexHelper mLock(pmd->Locker());
@@ -1391,15 +1410,15 @@ void
 EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode)
 /* -------------------------------------------------------------------------- */
 /*
-EACCES The parent directory does not allow write permission to the process, 
+EACCES The parent directory does not allow write permission to the process,
 or one of the directories in pathname  did
-  
+
 not allow search permission.  (See also path_resolution(7).)
 
-EDQUOT The user's quota of disk blocks or inodes on the filesystem has been 
+EDQUOT The user's quota of disk blocks or inodes on the filesystem has been
 exhausted.
 
-EEXIST pathname  already exists (not necessarily as a directory).  
+EEXIST pathname  already exists (not necessarily as a directory).
 This includes the case where pathname is a symbolic
 link, dangling or not.
 
@@ -1412,20 +1431,20 @@ EMLINK The number of links to the parent directory would exceed LINK_MAX.
 ENAMETOOLONG
 pathname was too long.
 
-ENOENT A directory component in pathname does not exist or is a dangling 
+ENOENT A directory component in pathname does not exist or is a dangling
 symbolic link.
 
 ENOMEM Insufficient kernel memory was available.
 
 ENOSPC The device containing pathname has no room for the new directory.
 
-ENOSPC The new directory cannot be created because the user's disk quota is 
+ENOSPC The new directory cannot be created because the user's disk quota is
 exhausted.
 
 ENOTDIR
 A component used as a directory in pathname is not, in fact, a directory.
 
-EPERM  The filesystem containing pathname does not support the creation of 
+EPERM  The filesystem containing pathname does not support the creation of
 directories.
 
 EROFS  pathname refers to a file on a read-only filesystem.
@@ -1449,7 +1468,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
   // do a parent check
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                 S_IFDIR | X_OK | W_OK);
+                                                 S_IFDIR | X_OK | W_OK, true);
 
 
   if (pcap->errc())
@@ -1605,7 +1624,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
   // retrieve cap
 
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                 S_IFDIR | X_OK | D_OK);
+                                                 S_IFDIR | X_OK | D_OK, true);
 
   if (pcap->errc())
   {
@@ -1677,11 +1696,11 @@ void
 EosFuse::rmdir(fuse_req_t req, fuse_ino_t parent, const char * name)
 /* -------------------------------------------------------------------------- */
 /*
-EACCES Write access to the directory containing pathname was not allowed, 
+EACCES Write access to the directory containing pathname was not allowed,
 or one of the directories in the path prefix
-of pathname did not allow search permission.  
+of pathname did not allow search permission.
 
-EBUSY  pathname is currently in use by the system or some process that 
+EBUSY  pathname is currently in use by the system or some process that
 prevents its  removal.   On  Linux  this  means
 pathname is currently used as a mount point or is the root directory of
 the calling process.
@@ -1695,27 +1714,27 @@ ELOOP  Too many symbolic links were encountered in resolving pathname.
 ENAMETOOLONG
 pathname was too long.
 
-ENOENT A directory component in pathname does not exist or is a dangling 
+ENOENT A directory component in pathname does not exist or is a dangling
 symbolic link.
 
 ENOMEM Insufficient kernel memory was available.
 
 ENOTDIR
-pathname, or a component used as a directory in pathname, is not, 
+pathname, or a component used as a directory in pathname, is not,
 in fact, a directory.
 
 ENOTEMPTY
-pathname contains entries other than . and .. ; or, pathname has ..  
+pathname contains entries other than . and .. ; or, pathname has ..
 as its final component.  POSIX.1-2001 also
 allows EEXIST for this condition.
 
-EPERM  The directory containing pathname has the sticky bit (S_ISVTX) set and 
+EPERM  The directory containing pathname has the sticky bit (S_ISVTX) set and
 the process's effective user ID is  nei‐
-ther  the  user  ID  of  the file to be deleted nor that of the 
+ther  the  user  ID  of  the file to be deleted nor that of the
 directory containing it, and the process is not
 privileged (Linux: does not have the CAP_FOWNER capability).
 
-EPERM  The filesystem containing pathname does not support the removal of 
+EPERM  The filesystem containing pathname does not support the removal of
 directories.
 
 EROFS  pathname refers to a directory on a read-only filesystem.
@@ -1738,7 +1757,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
   // retrieve cap
 
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                 S_IFDIR | X_OK | D_OK);
+                                                 S_IFDIR | X_OK | D_OK, true);
 
   if (pcap->errc())
   {
@@ -1834,10 +1853,10 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   // do a parent check
   cap::shared_cap p1cap = Instance().caps.acquire(req, parent,
-                                                  S_IFDIR | R_OK);
+                                                  S_IFDIR | R_OK, true);
 
   cap::shared_cap p2cap = Instance().caps.acquire(req, newparent,
-                                                  S_IFDIR | W_OK);
+                                                  S_IFDIR | W_OK, true);
 
   if (p1cap->errc())
   {
@@ -2140,7 +2159,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
   {
     eos_static_debug("flags=%x", fi->flags);
   }
-  
+
   ADD_FUSE_STAT(__func__, req);
 
   EXEC_TIMING_BEGIN(__func__);
@@ -2151,7 +2170,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
   // do a parent check
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                 S_IFDIR | W_OK);
+                                                 S_IFDIR | W_OK, true);
 
   struct fuse_entry_param e;
 
@@ -2198,11 +2217,14 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         // need to update the parent mtime
         md->set_pmtime(ts.tv_sec);
         md->set_pmtime_ns(ts.tv_nsec);
-        pmd->set_mtime(ts.tv_sec);
-        pmd->set_mtime_ns(ts.tv_nsec);
         md->set_uid(pcap->uid());
         md->set_gid(pcap->gid());
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
+
+        XrdSysMutexHelper mLockParent(pmd->Locker());
+        pmd->set_mtime(ts.tv_sec);
+        pmd->set_mtime_ns(ts.tv_nsec);
+        mLockParent.UnLock();
 
         if ( (Instance().Config().options.create_is_sync) ||
             (fi && fi->flags & O_EXCL) )
@@ -2218,7 +2240,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         Instance().caps.book_inode(pcap);
 
         memset(&e, 0, sizeof (e));
-        
+
         if (!rc)
         {
           md->convert(e);
@@ -2227,7 +2249,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           if (fi)
           {
             // -----------------------------------------------------------------------
-            // TODO: for the moment there is no kernel cache used until 
+            // TODO: for the moment there is no kernel cache used until
             // we add top-level management on it
             // -----------------------------------------------------------------------
             // FUSE caches the file for reads on the same filedescriptor in the buffer
@@ -2550,6 +2572,8 @@ EosFuse::forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s nlookup=%d", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str(), nlookup);
+
+  fuse_reply_none(req);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2579,7 +2603,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
     if (io->has_update())
     {
       cap::shared_cap pcap = Instance().caps.acquire(req, io->md->pid(),
-                                                     S_IFDIR | W_OK);
+                                                     S_IFDIR | W_OK, true);
       if (pcap->errc())
       {
         rc = pcap->errc();
@@ -2587,8 +2611,13 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       else
       {
         {
-          Instance().caps.book_volume(pcap, io->md->size() - io->opensize());
-          eos_static_debug("booking %llu bytes on cap ", io->md->size() - io->opensize());
+          ssize_t size_change = (int64_t) io->md->size() - (int64_t) io->opensize();
+          if (size_change > 0)
+            Instance().caps.book_volume(pcap, size_change);
+          else
+            Instance().caps.free_volume(pcap, size_change);
+
+          eos_static_debug("booking %ld bytes on cap ", size_change);
         }
         struct timespec tsnow;
         eos::common::Timing::GetTimeSpec(tsnow);
@@ -2665,7 +2694,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
   bool local_getxattr = false;
 
-  // the root user has a bypass to be able to retrieve information in 
+  // the root user has a bypass to be able to retrieve information in
   // realtime
   if (fuse_req_ctx(req)->uid == 0)
   {
@@ -2736,7 +2765,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
           rc = ENOATTR;
         }
 #ifdef __APPLE__
-        else
+else
           // don't return any finder attribute
           if (key.substr(0, s_apple.length()) == s_apple)
         {
@@ -2899,7 +2928,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
-  eos_static_debug("");
+  eos_static_debug("key=%s", xattr_name);
 
   ADD_FUSE_STAT(__func__, req);
 
@@ -2918,7 +2947,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
   std::string key = xattr_name;
   value.assign(xattr_value, size);
 
-  // the root user has a bypass to be able to change th fuse configuration in 
+  // the root user has a bypass to be able to change th fuse configuration in
   // realtime
   if (fuse_req_ctx(req)->uid == 0)
   {
@@ -3018,7 +3047,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
       {
 
         static std::string s_sec = "security.";
-        static std::string s_acl = "system.posix_acl";
+        static std::string s_acl = "system.posix_acl_access";
         static std::string s_apple = "com.apple";
 
         // ignore silently any security attribute
@@ -3033,14 +3062,14 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
           rc = 0;
         }
 #ifdef __APPLE__
-        else
+else
           // ignore silently any finder attribute
           if (key.substr(0, s_apple.length()) == s_apple)
         {
           rc = 0;
         }
 #endif
-        else
+else
         {
           auto map = md->mutable_attr();
 
@@ -3110,12 +3139,12 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   if (S_ISDIR(md->mode()))
   {
     pcap = Instance().caps.acquire(req, ino,
-                                   SA_OK);
+                                   SA_OK, true);
   }
   else
   {
     pcap = Instance().caps.acquire(req, md->pid(),
-                                   SA_OK);
+                                   SA_OK, true);
   }
 
   if (pcap->errc())
@@ -3200,12 +3229,12 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
   if (S_ISDIR(md->mode()))
   {
     pcap = Instance().caps.acquire(req, ino,
-                                   SA_OK);
+                                   SA_OK, true);
   }
   else
   {
     pcap = Instance().caps.acquire(req, md->pid(),
-                                   SA_OK);
+                                   SA_OK, true);
   }
 
   if (pcap->errc())
@@ -3240,14 +3269,14 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
         rc = 0;
       }
 #ifdef __APPLE__
-      else
+else
         // ignore silently any finder attribute
         if (key.substr(0, s_apple.length()) == s_apple)
       {
         rc = 0;
       }
 #endif
-      else
+else
       {
         auto map = md->mutable_attr();
 
@@ -3332,12 +3361,12 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
   if (S_ISDIR(md->mode()))
   {
     pcap = Instance().caps.acquire(req, ino,
-                                   SA_OK);
+                                   SA_OK, true);
   }
   else
   {
     pcap = Instance().caps.acquire(req, md->pid(),
-                                   SA_OK);
+                                   SA_OK, true);
   }
 
   if (pcap->errc())
@@ -3437,7 +3466,7 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
 
   // do a parent check
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                 S_IFDIR | W_OK);
+                                                 S_IFDIR | W_OK, true);
 
   if (pcap->errc())
   {
@@ -3585,7 +3614,7 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
       size_t w_ms=10;
       do
       {
-        // we currently implement the polling lock on client side due to the 
+        // we currently implement the polling lock on client side due to the
         // thread-per-link model of XRootD
         rc = Instance().mds.setlk(req, io->mdctx(), lock, sleep);
         if (rc && sleep)

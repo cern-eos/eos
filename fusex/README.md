@@ -3,7 +3,7 @@ eosxd
 
 Configuration File
 ------------------
-The configuration file name for an unnamed instance is */etc/eos/fuse.conf*. 
+The configuration file name for an unnamed instance is */etc/eos/fuse.conf*.
 The configuration file for a named instance is */etc/eos/fuse.<name>.conf*.
 
 ```
@@ -15,16 +15,24 @@ The configuration file for a named instance is */etc/eos/fuse.<name>.conf*.
   "statisticfile" : "stats",
   "mdcachehost" : "",
   "mdcacheport" : 6379,
+  "mdzmqtarget" : "tcp://localhost:1100",
+  "mdzmqidentity" : "eosxd",
+
   "options" : {
     "debug" : 1,
     "lowleveldebug" : 0,
     "debuglevel" : 6,
     "libfusethreads" : 0,
-    "foreground" : 1, 
+    "foreground" : 1,
     "md-kernelcache" : 1,
+    "md-kernelcache.enoent.timeout" : 0,
     "data-kernelcache" : 1,
     "mkdir-is-sync" : 1,
     "create-is-sync" : 1,
+  },
+  "auth" : {
+    "shared-mount" : 1,
+    "krb5" : 1
   }
 }
 ```
@@ -51,7 +59,7 @@ The *stat* file contains rate and execution average time counting.
 bash> cat /var/log/eos/fusex/fuse.stats
 ALL      Execution Time                   0.00 +- 0.00
 # -----------------------------------------------------------------------------------------------------------
-who      command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms) 
+who      command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)
 # -----------------------------------------------------------------------------------------------------------
 ALL        :sum                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
 ALL        access                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
@@ -103,7 +111,7 @@ All        starttime           := 1490279571
 All        uptime              := 183
 All        instance-url        := 128.142.24.85:1094
 # -----------------------------------------------------------------------------------------------------------
-    
+
 
 ```
 # mount on /eos/
@@ -133,7 +141,7 @@ To display a list of all capabilities on a path do as root
 # getfattr --only-values -n system.eos.caps <any-path>
 
 To display a list of local to remote inode translations
-# getfattr --only-values -n system.eos.vmap <any-path> 
+# getfattr --only-values -n system.eos.vmap <any-path>
 
 To drop a capability on a path do as root
 # setfattr -n system.eos.dropcap <path>
@@ -189,4 +197,3 @@ Display MGM url
 
 Display Quota Information for a given path
 # getfattr --only-values -n eos.quota <path>
-

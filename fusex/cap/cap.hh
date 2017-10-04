@@ -185,13 +185,17 @@ public:
 
 
   shared_cap get(fuse_req_t req,
-                 fuse_ino_t ino);
+                 fuse_ino_t ino,
+                 bool lock=false);
 
-  shared_cap get(fuse_ino_t ino, std::string clientid);
+  shared_cap get(fuse_ino_t ino,
+		 std::string clientid
+		 );
   
   shared_cap acquire(fuse_req_t req,
                      fuse_ino_t ino,
-                     mode_t mode
+                     mode_t mode, 
+		     bool lock=false
                      );
 
   void book_inode(shared_cap cap)

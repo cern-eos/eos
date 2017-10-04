@@ -1,12 +1,11 @@
-//------------------------------------------------------------------------------
-//! @file fusexrdlogin.hh
-//! @author Andreas-Joachim Peters CERN
-//! @brief Class providing the login user name for an XRootD fusex connection
-//------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
+// File: Utils.cc
+// Author: Georgios Bitzes - CERN
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2017 CERN/Switzerland                                  *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,26 +21,50 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <sys/stat.h>
+#include "Utils.hh"
 
-#ifndef FUSE_XRDLOGIN_HH_
-#define FUSE_XRDLOGIN_HH_
+bool readFile(const std::string &path, std::string &contents) {
+  bool retvalue = true;
+  std::ostringstream ss;
 
-#include <memory>
-#include "XrdCl/XrdClURL.hh"
-#include "llfusexx.hh"
-#include "auth/ProcessCache.hh"
+  const int BUFFER_SIZE = 1024;
+  char buffer[BUFFER_SIZE];
 
-class fusexrdlogin  {
-public:
-  static int loginurl ( XrdCl::URL& url, XrdCl::URL::ParamsMap &query, fuse_req_t req ,
-                       fuse_ino_t ino,
-                       bool root_squash = false,
-                       int connectionid = 0);
+  FILE *in = fopen(path.c_str(), "rb");
+  if(!in) {
+    return false;
+  }
 
-  static void initializeProcessCache(const CredentialConfig &config);
-  static std::unique_ptr<ProcessCache> processCache;
-private:
-};
+  while(true) {
+    size_t bytesRead = fread(buffer, 1, BUFFER_SIZE, in);
 
+    if(bytesRead > 0) {
+      ss.write(buffer, bytesRead);
+    }
 
-#endif
+    if(bytesRead < 0) {
+      retvalue = false;
+      break;
+    }
+
+    if(bytesRead != BUFFER_SIZE) {
+      break;
+    }
+  }
+
+  fclose(in);
+  contents = ss.str();
+  return retvalue;
+}
+
+bool checkCredSecurity(const struct stat& filestat, uid_t uid) {
+  if(filestat.st_uid == uid
+     && (filestat.st_mode & 0077) == 0 // no access to other users/groups
+     && (filestat.st_mode & 0400) != 0 // read allowed for the user
+   ) {
+     return true;
+   }
+
+   return false;
+}

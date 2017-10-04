@@ -29,7 +29,7 @@ include_directories(
   ${FUSE_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${KRB5_INCLUDE_DIR}
-  ${OPENSSL_INCLUDE_DIR} 
+  ${OPENSSL_INCLUDE_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
   ${HIREDIS_INCLUDE_DIR}
@@ -43,7 +43,12 @@ if(CPPUNIT_FOUND)
 endif(CPPUNIT_FOUND)
 
 #-------------------------------------------------------------------------------
-# Generate protocol buffer files 
+# auth subsystem
+#-------------------------------------------------------------------------------
+add_subdirectory(auth)
+
+#-------------------------------------------------------------------------------
+# Generate protocol buffer files
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER fusex.proto )
 
@@ -60,14 +65,14 @@ set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
 #-------------------------------------------------------------------------------
 add_executable(
   eosxd
-  main.cc 
-  eosfuse.cc eosfuse.hh 
-  stat/Stat.cc stat/Stat.hh 
-  md/md.cc md/md.hh 
+  main.cc
+  eosfuse.cc eosfuse.hh
+  stat/Stat.cc stat/Stat.hh
+  md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
-  data/data.cc data/data.hh 
-  kv/kv.cc kv/kv.hh 
-  misc/longstring.cc misc/longstring.hh 
+  data/data.cc data/data.hh
+  kv/kv.cc kv/kv.hh
+  misc/longstring.cc misc/longstring.hh
   misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   data/cache.cc data/cache.hh data/bufferll.hh
   data/diskcache.cc data/diskcache.hh
@@ -77,6 +82,7 @@ add_executable(
   data/xrdclproxy.cc data/xrdclproxy.hh
   data/dircleaner.cc data/dircleaner.hh
   backend/backend.cc backend/backend.hh
+  $<TARGET_OBJECTS:EosFuseAuth>
   ${PROTO_SRC} ${PROTO_HEADER}
 )
 
@@ -89,7 +95,7 @@ if(MacOSX)
     ${XROOTD_UNTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY} 
+    ${OPENSSL_CRYPTO_LIBRARY}
     ${PROTOBUF_LIBRARY}
     ${JSONCPP_LIBRARIES}
     ${HIREDIS_LIBRARIES}
@@ -118,12 +124,12 @@ else()
     ${HIREDIS_LIBRARIES}
     ${LIBEVENT_LIBRARIES}
     ${ZMQ_LIBRARIES}
-    eosCommon 
+    eosCommon
     jemalloc
 )
 
   set_target_properties(
-    eosxd 
+    eosxd
     PROPERTIES
     COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"")
 endif()
@@ -136,14 +142,14 @@ install(
 if (FUSE3_FOUND)
 add_executable(
   eosxd3
-  main.cc 
-  eosfuse.cc eosfuse.hh 
-  stat/Stat.cc stat/Stat.hh 
-  md/md.cc md/md.hh 
+  main.cc
+  eosfuse.cc eosfuse.hh
+  stat/Stat.cc stat/Stat.hh
+  md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
-  data/data.cc data/data.hh 
-  kv/kv.cc kv/kv.hh 
-  misc/longstring.cc misc/longstring.hh 
+  data/data.cc data/data.hh
+  kv/kv.cc kv/kv.hh
+  misc/longstring.cc misc/longstring.hh
   misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   data/cache.cc data/cache.hh data/bufferll.hh
   data/diskcache.cc data/diskcache.hh
@@ -153,6 +159,7 @@ add_executable(
   data/xrdclproxy.cc data/xrdclproxy.hh
   data/dircleaner.cc data/dircleaner.hh
   backend/backend.cc backend/backend.hh
+  $<TARGET_OBJECTS:EosFuseAuth>
   ${PROTO_SRC} ${PROTO_HEADER}
   )
 
@@ -170,11 +177,11 @@ add_executable(
     ${HIREDIS_LIBRARIES}
     ${LIBEVENT_LIBRARIES}
     ${ZMQ_LIBRARIES}
-    eosCommon 
+    eosCommon
     jemalloc)
 
   set_target_properties(
-    eosxd3 
+    eosxd3
     PROPERTIES
     COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FUSE3 -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"")
 
@@ -189,13 +196,13 @@ endif()
 #-------------------------------------------------------------------------------
 add_library(
   eosxd-test
-  eosfuse.cc eosfuse.hh 
-  stat/Stat.cc stat/Stat.hh 
-  md/md.cc md/md.hh 
+  eosfuse.cc eosfuse.hh
+  stat/Stat.cc stat/Stat.hh
+  md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
-  data/data.cc data/data.hh 
-  kv/kv.cc kv/kv.hh 
-  misc/longstring.cc misc/longstring.hh 
+  data/data.cc data/data.hh
+  kv/kv.cc kv/kv.hh
+  misc/longstring.cc misc/longstring.hh
   data/cache.cc data/cache.hh data/bufferll.hh
   data/diskcache.cc data/diskcache.hh
   data/memorycache.cc data/memorycache.hh
@@ -204,6 +211,7 @@ add_library(
   data/xrdclproxy.cc data/xrdclproxy.hh
   data/dircleaner.cc data/dircleaner.hh
   backend/backend.cc backend/backend.hh
+  $<TARGET_OBJECTS:EosFuseAuth>
   ${PROTO_SRC} ${PROTO_HEADER}
 )
 
@@ -226,6 +234,6 @@ add_library(
 )
 
   set_target_properties(
-    eosxd-test 
+    eosxd-test
     PROPERTIES
     COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" -fPIC")

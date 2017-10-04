@@ -261,7 +261,7 @@ void
 dircleaner::leveler()
 /* -------------------------------------------------------------------------- */
 {
-  size_t n;
+  size_t n=0;
   while (1)
   {
     XrdSysTimer sleeper;

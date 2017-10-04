@@ -138,6 +138,7 @@ public:
     void lookup_inc()
     {
       // requires to have Locker outside
+      eos_static_info("ino=%16x lookup=%d => lookup=%d", id(), lookup_cnt, lookup_cnt+1);
       lookup_cnt++;
     }
 
@@ -349,6 +350,38 @@ public:
     virtual ~pmap()
     {
     }
+
+    // TS stands for "thread-safe"
+    bool retrieveTS(fuse_ino_t ino, shared_md &ret)
+    {
+      XrdSysMutexHelper mLock(this);
+      return this->retrieve(ino, ret);
+    }
+
+    bool retrieve(fuse_ino_t ino, shared_md &ret)
+    {
+      auto it = this->find(ino);
+
+      if(it == this->end()) {
+        return false;
+      }
+
+      ret = it->second;
+      return true;
+    }
+
+    // TS stands for "thread-safe"
+    void insertTS(fuse_ino_t ino, shared_md &md) {
+      XrdSysMutexHelper mLock(this);
+      (*this)[ino] = md;
+    }
+
+    // TS stands for "thread-safe"
+    void eraseTS(fuse_ino_t ino) {
+      XrdSysMutexHelper mLock(this);
+      this->erase(ino);
+    }
+
   } ;
 
   //----------------------------------------------------------------------------
@@ -411,11 +444,11 @@ public:
   int setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep);
 
   int statvfs(fuse_req_t req, struct statvfs* svfs);
-  
+
   bool should_terminate()
   {
     return mdterminate.load();
-  } // check if threads should terminate 
+  } // check if threads should terminate
 
   void terminate()
   {
@@ -532,51 +565,49 @@ public:
   void
   reset_cap_count(uint64_t ino)
   {
-    XrdSysMutexHelper mLock(mdmap);
-    auto item = mdmap.find(ino);
-    if ( item != mdmap.end() )
-    {
-      XrdSysMutexHelper iLock(item->second->Locker());
-      item->second->cap_count_reset();
-      eos_static_err("reset cap counter for ino=%lx", ino);
-    }
-    else
+    shared_md md;
+    if(!mdmap.retrieveTS(ino, md))
     {
       eos_static_err("no cap counter change for ino=%lx", ino);
+      return;
     }
+
+    XrdSysMutexHelper iLock(md->Locker());
+    md->cap_count_reset();
+    eos_static_err("reset cap counter for ino=%lx", ino);
   }
 
   void
   decrease_cap(uint64_t ino)
   {
-    XrdSysMutexHelper mLock(mdmap);
-    auto item = mdmap.find(ino);
-    if ( item != mdmap.end() )
-    {
-      XrdSysMutexHelper iLock(item->second->Locker());
-      item->second->cap_dec();
-      eos_static_err("decrease cap counter for ino=%lx", ino);
-    }
-    else
+    shared_md md;
+    if(!mdmap.retrieveTS(ino, md))
     {
       eos_static_err("no cap counter change for ino=%lx", ino);
+      return;
     }
+
+    XrdSysMutexHelper iLock(md->Locker());
+    md->cap_dec();
+    eos_static_err("decrease cap counter for ino=%lx", ino);
   }
 
   void
-  increase_cap(uint64_t ino)
+  increase_cap(uint64_t ino, bool lock=false)
   {
-    auto item = mdmap.find(ino);
-    if ( item != mdmap.end() )
-    {
-      //      XrdSysMutexHelper iLock(item->second->Locker());
-      item->second->cap_inc();
-      eos_static_err("increase cap counter for ino=%lx", ino);
-    }
-    else
+    shared_md md;
+    if(!mdmap.retrieveTS(ino, md))
     {
       eos_static_err("no cap counter change for ino=%lx", ino);
+      return;
     }
+
+    if (lock)
+      md->Locker().Lock();
+    md->cap_inc();
+    if (lock)
+      md->Locker().UnLock();
+    eos_static_err("increase cap counter for ino=%lx", ino);
   }
 
   std::string get_clientuuid() const
@@ -648,8 +679,8 @@ private:
   size_t mdqueue_max_backlog;
 
   // ZMQ objects
-  zmq::context_t z_ctx;
-  zmq::socket_t z_socket;
+  zmq::context_t* z_ctx;
+  zmq::socket_t* z_socket;
   std::string zmq_target;
   std::string zmq_identity;
   std::string zmq_name;

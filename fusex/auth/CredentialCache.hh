@@ -1,12 +1,11 @@
 //------------------------------------------------------------------------------
-//! @file fusexrdlogin.hh
-//! @author Andreas-Joachim Peters CERN
-//! @brief Class providing the login user name for an XRootD fusex connection
+// File: CredentialCache.hh
+// Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2017 CERN/Switzerland                                  *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,26 +21,45 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef __CREDENTIALCACHE__HH__
+#define __CREDENTIALCACHE__HH__
 
-#ifndef FUSE_XRDLOGIN_HH_
-#define FUSE_XRDLOGIN_HH_
+#include "CredentialFinder.hh"
+#include "ShardedCache.hh"
 
-#include <memory>
-#include "XrdCl/XrdClURL.hh"
-#include "llfusexx.hh"
-#include "auth/ProcessCache.hh"
+struct CredInfoHasher {
+  static uint64_t hash(const CredInfo &key) {
+    uint64_t result = key.type;
+    for(size_t i = 0; i < key.fname.size(); i++) {
+      result += key.fname[i];
+    }
 
-class fusexrdlogin  {
-public:
-  static int loginurl ( XrdCl::URL& url, XrdCl::URL::ParamsMap &query, fuse_req_t req ,
-                       fuse_ino_t ino,
-                       bool root_squash = false,
-                       int connectionid = 0);
-
-  static void initializeProcessCache(const CredentialConfig &config);
-  static std::unique_ptr<ProcessCache> processCache;
-private:
+    return result;
+  }
 };
 
+// Maps CredInfo to a BoundIdentity.
+class CredentialCache {
+public:
+  CredentialCache() : cache(16 /* 2^16 shards */, 1000 * 60 * 60 * 12 /* 12 hours */ )
+  {}
+
+  std::shared_ptr<const BoundIdentity> retrieve(const CredInfo &credInfo) {
+    return cache.retrieve(credInfo);
+  }
+
+  // replace by default
+  bool store(const CredInfo &credInfo, BoundIdentity *boundIdentity) {
+    return cache.store(credInfo, boundIdentity, true);
+  }
+
+  bool invalidate(const CredInfo &credInfo) {
+    return cache.invalidate(credInfo);
+  }
+
+private:
+  // shards: 2^16 = 65536
+  ShardedCache<CredInfo, BoundIdentity, CredInfoHasher> cache;
+};
 
 #endif

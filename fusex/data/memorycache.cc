@@ -28,8 +28,11 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <errno.h>
+#ifdef __APPLE__
+#include <sys/xattr.h>
+#else
 #include <attr/xattr.h>
-
+#endif
 
 /* -------------------------------------------------------------------------- */
 memorycache::memorycache() : ino(0)

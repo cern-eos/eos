@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //! @file eosfuse.hh
 //! @author Andreas-Joachim Peters CERN
-//! @brief EOS C++ Fuse low-level implementation 
+//! @brief EOS C++ Fuse low-level implementation
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -32,6 +32,7 @@
 #include "backend/backend.hh"
 #include "kv/kv.hh"
 #include "llfusexx.hh"
+#include "auth/CredentialFinder.hh"
 
 #include <signal.h>
 #include <string.h>
@@ -194,6 +195,7 @@ public:
       int libfusethreads;
       int foreground;
       int md_kernelcache;
+      double md_kernelcache_enoent_timeout;
       int data_kernelcache;
       int mkdir_is_sync;
       int create_is_sync;
@@ -201,6 +203,7 @@ public:
       int global_locking;
     } options_t;
     options_t options;
+    CredentialConfig auth;
   } cfg_t;
 
   cfg_t& Config()
@@ -247,13 +250,13 @@ public:
     return s;
   }
 
-  typedef struct opendir_fh 
+  typedef struct opendir_fh
   {
     metad::shared_md md;
   } opendir_t ;
-  
+
 private:
-  
+
   cfg_t config;
 
   kv mKV;

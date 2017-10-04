@@ -26,7 +26,7 @@
 #define RBTREE_HH_
 
 #include <memory>
-#include <exception>
+#include <stdexcept>
 
 class rb_invariant_error : public std::exception
 {

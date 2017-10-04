@@ -350,15 +350,17 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 /* -------------------------------------------------------------------------- */
 bool
 /* -------------------------------------------------------------------------- */
-data::datax::prefetch(fuse_req_t req)
+data::datax::prefetch(fuse_req_t req, bool lock)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("handler=%d file=%lx size=%lu md-size=%lu", mPrefetchHandler ? 1 : 0,
            mFile ? mFile->file() : 0,
            mFile ? mFile->file() ? mFile->file()->size() : 0 : 0,
            mMd->size());
-  XrdSysMutexHelper lLock(mLock);
-
+  
+  if (lock)
+    mLock.Lock();
+  
   if (!mPrefetchHandler && mFile->file() && !mFile->file()->size() && mMd->size())
   {
     XrdCl::Proxy* proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
@@ -377,17 +379,22 @@ data::datax::prefetch(fuse_req_t req)
       }
     }
   }
+  if (lock)
+    mLock.UnLock();
+  
   return mPrefetchHandler ? true : false;
 }
 
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-data::datax::WaitPrefetch(fuse_req_t req)
+data::datax::WaitPrefetch(fuse_req_t req, bool lock)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("");
-  XrdSysMutexHelper lLock(mLock);
+  if (lock)
+    mLock.Lock();
+ 
   if (mPrefetchHandler && mFile->file())
   {
     XrdCl::Proxy* proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
@@ -397,11 +404,11 @@ data::datax::WaitPrefetch(fuse_req_t req)
       XrdCl::XRootDStatus status = proxy->WaitRead(mPrefetchHandler);
       if (status.IsOK())
       {
-        eos_err("pre-read done with size=%lu md-size=%lu", mPrefetchHandler->vbuffer().size(), mMd->size());
+        eos_info("pre-read done with size=%lu md-size=%lu", mPrefetchHandler->vbuffer().size(), mMd->size());
         if ((mPrefetchHandler->vbuffer().size() == mMd->size()) && mFile->file())
         {
           ssize_t nwrite = mFile->file()->pwrite(mPrefetchHandler->buffer(), mPrefetchHandler->vbuffer().size(), 0);
-          eos_info("nwb=%lu to local cache", nwrite);
+          eos_debug("nwb=%lu to local cache", nwrite);
         }
       }
       else
@@ -411,6 +418,8 @@ data::datax::WaitPrefetch(fuse_req_t req)
       }
     }
   }
+  if (lock)
+    mLock.UnLock();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -419,7 +428,7 @@ void
 data::datax::WaitOpen()
 {
   // make sure there is no pending remote open.
-  // this has to be done to avoid opening a file for read, which is not yet 
+  // this has to be done to avoid opening a file for read, which is not yet
   // created.
 
   for (auto fit = mFile->get_xrdiorw().begin();
@@ -829,11 +838,9 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
 
   if (mFile->file() && (offset < mFile->file()->prefetch_size()))
   {
-    mLock.UnLock();
-    if (prefetch(req))
+    if (prefetch(req, false))
     {
-      WaitPrefetch(req);
-      mLock.Lock();
+      WaitPrefetch(req, false);
       ssize_t br = mFile->file()->pread(buf, count, offset);
 
       if (br < 0)
@@ -841,10 +848,6 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
 
       if (br == (ssize_t) count)
         return br;
-    }
-    else
-    {
-      mLock.Lock();
     }
   }
 
@@ -1106,7 +1109,9 @@ data::datax::set_remote(const std::string& hostport,
   mRemoteUrl += "&eos.app=fuse&mgm.mtime=0&mgm.fusex=1&eos.bookingsize=0";
 
   XrdCl::URL url(mRemoteUrl);
-  fusexrdlogin::loginurl(url, req, md_ino);
+  XrdCl::URL::ParamsMap query = url.GetParams();
+  fusexrdlogin::loginurl(url, query, req, md_ino);
+  url.SetParams(query);
   mRemoteUrl = url.GetURL();
 }
 
@@ -1190,7 +1195,7 @@ data::dmap::ioflush()
                   {
                     // ---------------------------------------------------------
                     // we really have to avoid this to happen, but
-                    // we can put everything we have cached in a save place for 
+                    // we can put everything we have cached in a save place for
                     // manual recovery and tag the error message
                     // ---------------------------------------------------------
                     std::string file_rescue_location;

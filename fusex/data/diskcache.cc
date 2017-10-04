@@ -27,8 +27,12 @@
 #include "common/Path.hh"
 #include <unistd.h>
 #include <sys/types.h>
+#ifdef __APPLE__
+#define EKEYEXPIRED 127
+#include <sys/xattr.h>
+#else
 #include <attr/xattr.h>
-
+#endif
 std::string diskcache::sLocation;
 bufferllmanager diskcache::sBufferManager;
 off_t diskcache::sMaxSize = 2 * 1024 * 1024ll;
@@ -116,7 +120,7 @@ diskcache::location(std::string& path, bool mkpath)
 {
   char cache_path[1024 + 20];
   snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lX",
-           sLocation.c_str(), ino / 10000, ino);
+	   sLocation.c_str(), ino / 10000, ino);
 
   if (mkpath)
   {
@@ -171,9 +175,9 @@ diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
       eos_static_debug( "diskcache::attach truncating for cookie: %s <=> %s\n", ccookie.c_str(), acookie.c_str());
       if (truncate(0))
       {
-        char msg[1024];
-        snprintf(msg, sizeof (msg), "failed to truncate to invalidate cache file - ino=%08lx", ino);
-        throw std::runtime_error(msg);
+	char msg[1024];
+	snprintf(msg, sizeof (msg), "failed to truncate to invalidate cache file - ino=%08lx", ino);
+	throw std::runtime_error(msg);
 
       }
 
@@ -228,8 +232,8 @@ diskcache::unlink()
       rc = ::unlink(path.c_str());
       if (!rc)
       {
-        // a deleted file
-        sDirCleaner->get_external_tree().change(-buf.st_size, -1);
+	// a deleted file
+	sDirCleaner->get_external_tree().change(-buf.st_size, -1);
       }
     }
   }
@@ -373,9 +377,14 @@ diskcache::set_attr(std::string& key, std::string & value)
 {
   if (fd > 0)
   {
-    int rc = fsetxattr(fd, key.c_str(), value.c_str(), value.size(), 0);
-    if (rc && errno == ENOTSUP)
-    {
+    int rc = 0;
+#ifdef __APPLE__
+    rc = fsetxattr(fd, key.c_str(), value.c_str(), value.size(), 0, 0);
+#else
+    rc = fsetxattr(fd, key.c_str(), value.c_str(), value.size(), 0);
+#endif
+
+    if (rc && errno == ENOTSUP) {
       throw std::runtime_error("diskcache has no xattr support");
     }
   }
@@ -392,7 +401,13 @@ diskcache::attr(std::string key, std::string & value)
   if (fd > 0)
   {
     value.resize(4096);
-    ssize_t n = fgetxattr(fd, key.c_str(), (void*) value.c_str(), value.size());
+    ssize_t n = 0;
+#ifdef __APPLE__
+    n = fgetxattr(fd, key.c_str(), (void*) value.c_str(), value.size(), 0 , 0);
+#else
+    n = fgetxattr(fd, key.c_str(), (void*) value.c_str(), value.size());
+#endif
+
     if (n >= 0)
     {
       value.resize(n);

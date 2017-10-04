@@ -92,7 +92,7 @@ public:
   static int init();
   static int init_daemonized();
   
-  virtual bool fits(ssize_t count) { fprintf(stderr,"cachesize=%lu max=%lu\n", cachesize, sMaxSize); return ( sMaxSize >= (cachesize+count));} 
+  virtual bool fits(ssize_t count) { return ( sMaxSize >= (cachesize+count));} 
   virtual bool halffull(size_t count) { return ( sMaxSize/2 <= cachesize );}
   
   virtual int reset();

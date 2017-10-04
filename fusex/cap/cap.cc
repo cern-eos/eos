@@ -175,7 +175,8 @@ cap::ls()
 cap::shared_cap
 /* ----------------------------------------------------------- -------------- */
 cap::get(fuse_req_t req,
-         fuse_ino_t ino)
+         fuse_ino_t ino, 
+	 bool lock)
 /* -------------------------------------------------------------------------- */
 {
   std::string cid = cap::capx::capid(req, ino);
@@ -201,7 +202,7 @@ cap::get(fuse_req_t req,
     cap->set_vtime(0);
     cap->set_vtime_ns(0);
     capmap[cid] = cap;
-    mds->increase_cap(ino);
+    mds->increase_cap(ino, lock);
     return cap;
   }
 }
@@ -256,7 +257,6 @@ cap::store(fuse_req_t req,
     *cap = icap;
     cap->set_id(id);
     capmap[cid] = cap;
-    //mds->increase_cap(icap.id());
   }
   eos_static_debug("store inode=[r:%lx l:%lx] capid=%s cap: %s", icap.id(), id, cid.c_str(),
                    capmap[cid]->dump().c_str());
@@ -323,7 +323,8 @@ cap::shared_cap
 /* -------------------------------------------------------------------------- */
 cap::acquire(fuse_req_t req,
              fuse_ino_t ino,
-             mode_t mode
+             mode_t mode, 
+	     bool lock
              )
 /* -------------------------------------------------------------------------- */
 {
@@ -362,7 +363,7 @@ cap::acquire(fuse_req_t req,
     {
       capmap[cid] = cap;
       cap->set_id(ino);
-      mds->increase_cap(ino);
+      mds->increase_cap(ino, lock);
     }
   }
 

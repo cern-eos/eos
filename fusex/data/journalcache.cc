@@ -314,7 +314,8 @@ ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
     return -1;
 
   interval_tree<uint64_t, const void*>::iterator itr;
-  for ( itr = to_write.begin(); itr != to_write.end(); ++itr ) // TODO this could be replaced with a single pwritev
+  // TODO this could be replaced with a single pwritev
+  for ( itr = to_write.begin(); itr != to_write.end(); ++itr )
   {
     uint64_t size   = itr->high - itr->low;
 
@@ -328,7 +329,10 @@ ssize_t journalcache::pwrite(const void *buf, size_t count, off_t offset)
     iov[1].iov_base = const_cast<void*> ( itr->value );
     iov[1].iov_len  = size;
 
-    rc = ::pwritev( fd, iov, 2, cachesize ); // TODO is it safe to assume it will write it all
+    // @todo: fix this properly for the mac if there is such support
+    rc = ::pwrite(fd, iov[0].iov_base, iov[0].iov_len, cachesize);
+    rc +=  ::pwrite(fd, iov[1].iov_base, iov[1].iov_len, cachesize + iov[0].iov_len);
+    // rc = ::pwritev( fd, iov, 2, cachesize ); // TODO is it safe to assume it will write it all
     if ( rc <= 0 )
       return -1;
 

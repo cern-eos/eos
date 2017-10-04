@@ -32,7 +32,7 @@
 #include <vector>
 #include <exception>
 #include <algorithm>
-
+#include <cstdlib>
 
 template<typename I,typename V>
 class interval_node_t
@@ -126,7 +126,7 @@ class interval_tree : public rbtree< I, V, interval_node_t<I, V> >
       int64_t d1 = high - low;
       int64_t s2 = node->low + node->high;
       int64_t d2 = node->high - node->low;
-      return abs( s2 - s1 ) < d1 + d2;
+      return std::abs( s2 - s1 ) < d1 + d2;
     }
 
     static void query( I low, I high, std::unique_ptr<N> &node, std::set<iterator, less> &result )

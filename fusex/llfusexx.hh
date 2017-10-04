@@ -57,6 +57,14 @@ extern "C"
 
 #include <cstdlib>
 
+#ifndef FUSE_SET_ATTR_ATIME_NOW
+#define FUSE_SET_ATTR_ATIME_NOW (1 << 7)
+#endif
+#ifndef FUSE_SET_ATTR_MTIME_NOW
+#define FUSE_SET_ATTR_MTIME_NOW (1 << 8)
+#endif
+
+
 namespace llfusexx
 {
  //----------------------------------------------------------------------------
