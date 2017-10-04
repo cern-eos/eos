@@ -9,6 +9,9 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+thread_local std::unique_ptr<ZSTD_CCtx, decltype(&ZSTD_freeCCtx)> eos::common::ZStandard::mCCtx {ZSTD_createCCtx(), &ZSTD_freeCCtx};
+thread_local std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)> eos::common::ZStandard::mDCtx {ZSTD_createDCtx(), &ZSTD_freeDCtx};
+
 void
 eos::common::ZStandard::LoadDict(const std::string& dictionaryPath) {
   struct stat statbuf;
@@ -24,8 +27,7 @@ eos::common::ZStandard::LoadDict(const std::string& dictionaryPath) {
 
   if (pDictBuffer == nullptr) {
     MDException ex(errno);
-    ex.getMessage() << "Dictionary read failed: ";
-    ex.getMessage() << "memory allocation failed";
+    ex.getMessage() << "Dictionary read failed: memory allocation failed";
     throw ex;
   }
 
@@ -52,13 +54,6 @@ ZStandard::CreateCDict() {
     ex.getMessage() << "Creation of compression dictionary failed";
     throw ex;
   }
-
-  for(auto i = 0u; i < std::thread::hardware_concurrency(); i++) {
-    auto cCtx = ZSTD_createCCtx();
-    if (cCtx != nullptr) {
-      mCompressCtxPool.push(cCtx);
-    }
-  }
 }
 
 void
@@ -70,13 +65,6 @@ ZStandard::CreateDDict() {
     ex.getMessage() << "Creation of decompression dictionary failed";
     throw ex;
   }
-
-  for(auto i = 0u; i < std::thread::hardware_concurrency(); i++) {
-    auto dCtx = ZSTD_createDCtx();
-    if (dCtx != nullptr) {
-      mDecompressCtxPool.push(dCtx);
-    }
-  }
 }
 
 void
@@ -86,24 +74,19 @@ ZStandard::Compress(Buffer& record) {
 
   if (cBuff == nullptr) {
     MDException ex(errno);
-    ex.getMessage() << "Compression failed: ";
-    ex.getMessage() << "memory allocation failed";
+    ex.getMessage() << "Compression failed: memory allocation failed";
     throw ex;
   }
 
-  ZSTD_CCtx* ctx;
-  mCompressCtxPool.wait_pop(ctx);
-  size_t const cSize = ZSTD_compress_usingCDict(ctx, cBuff, cBuffSize,
+  size_t const cSize = ZSTD_compress_usingCDict(mCCtx.get(), cBuff, cBuffSize,
                                    record.getDataPtr(),
                                    record.size(),
                                    pCDict);
-  mCompressCtxPool.push(ctx);
 
   if (ZSTD_isError(cSize)) {
     free(cBuff);
     MDException ex(errno);
-    ex.getMessage() << "Compression failed: ";
-    ex.getMessage() << ZSTD_getErrorName(cSize);
+    ex.getMessage() << "Compression failed: " << ZSTD_getErrorName(cSize);
     throw ex;
   }
 
@@ -119,31 +102,25 @@ ZStandard::Decompress(Buffer& record) {
 
   if (dBuff == nullptr) {
     MDException ex(errno);
-    ex.getMessage() << "Decompression failed: ";
-    ex.getMessage() << "memory allocation failed";
+    ex.getMessage() << "Decompression failed: memory allocation failed";
     throw ex;
   }
 
   if (pDDict == nullptr) {
     free(dBuff);
     MDException ex(errno);
-    ex.getMessage() << "Decompression failed: ";
-    ex.getMessage() << "dictionary was not set";
+    ex.getMessage() << "Decompression failed: dictionary was not set";
     throw ex;
   }
 
-  ZSTD_DCtx* ctx;
-  mDecompressCtxPool.wait_pop(ctx);
-  size_t const dSize = ZSTD_decompress_usingDDict(ctx, dBuff, dBuffSize,
+  size_t const dSize = ZSTD_decompress_usingDDict(mDCtx.get(), dBuff, dBuffSize,
                                            record.getDataPtr(),
                                            record.getSize(), pDDict);
-  mDecompressCtxPool.push(ctx);
 
   if (ZSTD_isError(dSize)) {
     free(dBuff);
     MDException ex(errno);
-    ex.getMessage() << "Decompression failed: ";
-    ex.getMessage() << ZSTD_getErrorName(dSize);
+    ex.getMessage() << "Decompression failed: " << ZSTD_getErrorName(dSize);
     throw ex;
   }
 
@@ -154,19 +131,8 @@ ZStandard::Decompress(Buffer& record) {
 
 ZStandard::~ZStandard() {
   delete[] pDictBuffer;
+  ZSTD_freeCDict(pCDict);
   ZSTD_freeDDict(pDDict);
-
-  while(!mCompressCtxPool.empty()) {
-    ZSTD_CCtx* ctx = nullptr;
-    if(mCompressCtxPool.try_pop(ctx))
-      ZSTD_freeCCtx(ctx);
-  }
-
-  while(!mDecompressCtxPool.empty()) {
-    ZSTD_DCtx* ctx = nullptr;
-    if(mDecompressCtxPool.try_pop(ctx))
-      ZSTD_freeDCtx(ctx);
-  }
 }
 
 void

@@ -50,8 +50,8 @@ private:
   size_t      pDictSize;
   ZSTD_CDict* pCDict;
   ZSTD_DDict* pDDict;
-  ConcurrentQueue<ZSTD_CCtx*> mCompressCtxPool; //! Pool of compression context objects for efficient concurrent usage
-  ConcurrentQueue<ZSTD_DCtx*> mDecompressCtxPool; //! Pool of decompression context objects for efficient concurrent usage
+  thread_local static std::unique_ptr<ZSTD_CCtx, decltype(&ZSTD_freeCCtx)> mCCtx; //! Compression context object
+  thread_local static std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)> mDCtx; //! Decompression context object
 
   //! @brief Load the dictionary from file to memory
   //! @param dictionaryPath path of the dictioanry file
