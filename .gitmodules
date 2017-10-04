@@ -1,4 +1,0 @@
-[submodule "fusex"]
-	path = fusex
-	url = https://:@gitlab.cern.ch:8443/eos/eos-fusex.git
-	branch = master
