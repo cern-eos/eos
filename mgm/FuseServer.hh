@@ -465,8 +465,6 @@ protected:
   Flush mFlushs;
 
 private:
-  std::thread* mMonitorThread;
-  std::thread* mCapThread;
   std::atomic<bool> terminate_;
 };
 

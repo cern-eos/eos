@@ -1345,7 +1345,7 @@ FuseServer::FillContainerCAP(uint64_t id,
   mode_t mode = S_IFDIR;
 
   // define the permissions
-  if ((vid->uid == 0)) {
+  if (vid->uid == 0) {
     // grant all permissions
     dir.mutable_capability()->set_mode(0xff | S_IFDIR);
   } else {
@@ -1616,50 +1616,30 @@ FuseServer::HandleMD(const std::string& id,
                      eos::common::Mapping::VirtualIdentity* vid)
 {
   std::string ops;
+  int op_type = md.operation();
 
-  switch (md.operation()) {
-  case md.GET:
+  if (op_type == md.GET) {
     ops = "GET";
-    break;
-
-  case md.SET:
+  } else if (op_type == md.SET) {
     ops = "SET";
-    break;
-
-  case md.DELETE:
+  } else if (op_type == md.DELETE) {
     ops = "DELETE";
-    break;
-
-  case md.GETCAP:
+  } else if (op_type == md.GETCAP) {
     ops = "GETCAP";
-    break;
-
-  case md.LS:
+  } else if (op_type == md.LS) {
     ops = "LS";
-    break;
-
-  case md.GETLK:
+  } else if (op_type == md.GETLK) {
     ops = "GETLK";
-    break;
-
-  case md.SETLK:
+  } else if (op_type == md.SETLK) {
     ops = "SETLK";
-    break;
-
-  case md.SETLKW:
+  } else if (op_type == md.SETLKW) {
     ops = "SETLKW";
-    break;
-
-  case md.BEGINFLUSH:
+  } else if (op_type == md.BEGINFLUSH) {
     ops = "BEGINFLUSH";
-    break;
-
-  case md.ENDFLUSH:
+  } else if (op_type == md.ENDFLUSH) {
     ops = "ENDFLUSH";
-    break;
-
-  default:
-    ops = "UNKNOWN";
+  } else {
+    ops = "UNKOWN";
   }
 
   eos_static_info("ino=%016lx operation=%s cid=%s cuuid=%s", (long) md.md_ino(),
