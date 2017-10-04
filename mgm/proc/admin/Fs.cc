@@ -146,13 +146,13 @@ ProcCommand::Fs()
       std::string mountpoint = pOpaque->Get("mgm.fs.mountpoint") ?
                                pOpaque->Get("mgm.fs.mountpoint") : "";
       std::string id = pOpaque->Get("mgm.fs.id") ? pOpaque->Get("mgm.fs.id") : "";
-      eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
       retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, *pVid);
     }
 
     if (mSubCmd == "dropdeletion") {
       std::string id = pOpaque->Get("mgm.fs.id") ? pOpaque->Get("mgm.fs.id") : "";
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
       retc = proc_fs_dropdeletion(id, stdOut, stdErr, tident, *pVid);
     }
   }

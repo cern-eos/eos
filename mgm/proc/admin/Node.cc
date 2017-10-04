@@ -56,7 +56,7 @@ ProcCommand::Node()
         }
       }
 
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
       FsView::gFsView.PrintNodes(output, format, mListFormat, mOutDepth, mSelection);
       stdOut += output.c_str();
     }
@@ -274,7 +274,7 @@ ProcCommand::Node()
           nodename.append("/fst");
         }
 
-        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
 
         if (!FsView::gFsView.mNodeView.count(nodename)) {
           stdErr = "error: no such node '";
@@ -282,7 +282,7 @@ ProcCommand::Node()
           stdErr += "'";
           retc = ENOENT;
         } else {
-          // we only remove a node if it has no heartbeat anymore
+          // Remove a node only if it has no heartbeat anymore
           if ((time(NULL) - FsView::gFsView.mNodeView[nodename]->GetHeartBeat()) < 5) {
             stdErr = "error: this node was still sending a heartbeat < 5 "
                      "seconds ago - stop the FST daemon first!\n";
@@ -290,7 +290,7 @@ ProcCommand::Node()
             return SFS_OK;
           }
 
-          // we can only remove a node if all filesystems are in empty state
+          // Remove a node only if all filesystems are in empty state
           for (auto it = FsView::gFsView.mNodeView[nodename]->begin();
                it != FsView::gFsView.mNodeView[nodename]->end(); it++) {
             if (FsView::gFsView.mIdView.count(*it)) {

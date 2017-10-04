@@ -1805,15 +1805,15 @@ FsView::RegisterNode(const char* nodename)
 }
 
 //------------------------------------------------------------------------------
-// Remove view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
+// Remove view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst - we have
+// to remove all the connected filesystems via UnRegister(fs) to keep the
+// space, group and node views in sync.
 //------------------------------------------------------------------------------
 bool
 FsView::UnRegisterNode(const char* nodename)
 {
-  // We have to remove all the connected filesystems via UnRegister(fs) to keep
-  // space, group, node view in sync
   bool retc = true;
-  bool hasfs = false;
+  bool has_fs = false;
 
   if (mNodeView.count(nodename)) {
     while (mNodeView.count(nodename) &&
@@ -1822,16 +1822,15 @@ FsView::UnRegisterNode(const char* nodename)
       FileSystem* fs = mIdView[fsid];
 
       if (fs) {
-        hasfs = true;
+        has_fs = true;
         eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s",
                          (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
         retc |= UnRegister(fs);
       }
     }
 
-    if (!hasfs) {
-      // We have to explicitly remove the node from the view here because no fs
-      // was removed
+    // Explicitly remove the node from the view here because no fs was removed
+    if (!has_fs) {
       delete mNodeView[nodename];
       retc = (mNodeView.erase(nodename) ? true : false);
     }
@@ -1868,7 +1867,7 @@ FsView::UnRegisterSpace(const char* spacename)
   // We have to remove all the connected filesystems via UnRegister(fs) to keep
   // space, group, space view in sync
   bool retc = true;
-  bool hasfs = false;
+  bool has_fs = false;
 
   if (mSpaceView.count(spacename)) {
     while (mSpaceView.count(spacename) &&
@@ -1877,14 +1876,14 @@ FsView::UnRegisterSpace(const char* spacename)
       FileSystem* fs = mIdView[fsid];
 
       if (fs) {
-        hasfs = true;
+        has_fs = true;
         eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s",
                          (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
         retc |= UnRegister(fs);
       }
     }
 
-    if (!hasfs) {
+    if (!has_fs) {
       // We have to explicitly remove the space from the view here because no
       // fs was removed
       delete mSpaceView[spacename];
@@ -1923,7 +1922,7 @@ FsView::UnRegisterGroup(const char* groupname)
   // We have to remove all the connected filesystems via UnRegister(fs) to keep
   // the group view in sync.
   bool retc = true;
-  bool hasfs = false;
+  bool has_fs = false;
 
   if (mGroupView.count(groupname)) {
     while (mGroupView.count(groupname) &&
@@ -1933,14 +1932,14 @@ FsView::UnRegisterGroup(const char* groupname)
       FileSystem* fs = mIdView[fsid];
 
       if (fs) {
-        hasfs = true;
+        has_fs = true;
         eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s",
                          (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
         retc |= UnRegister(fs);
       }
     }
 
-    if (!hasfs) {
+    if (!has_fs) {
       std::string sgroupname = groupname;
       std::string spacename = "";
       std::string index = "";
