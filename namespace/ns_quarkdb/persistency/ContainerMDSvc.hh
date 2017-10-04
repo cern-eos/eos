@@ -58,17 +58,18 @@ public:
   //----------------------------------------------------------------------------
   //! Initizlize the container service
   //----------------------------------------------------------------------------
-  virtual void initialize();
+  virtual void initialize() override;
 
   //----------------------------------------------------------------------------
   //! Configure the container service
   //----------------------------------------------------------------------------
-  virtual void configure(const std::map<std::string, std::string>& config);
+  virtual void configure(const std::map<std::string, std::string>& config)
+    override;
 
   //----------------------------------------------------------------------------
   //! Finalize the container service
   //----------------------------------------------------------------------------
-  virtual void finalize() {};
+  virtual void finalize() override {};
 
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
@@ -89,35 +90,35 @@ public:
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //----------------------------------------------------------------------------
-  virtual std::shared_ptr<IContainerMD> createContainer();
+  virtual std::shared_ptr<IContainerMD> createContainer() override;
 
   //----------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the
   //! ContainerMD object has been changed
   //----------------------------------------------------------------------------
-  virtual void updateStore(IContainerMD* obj);
+  virtual void updateStore(IContainerMD* obj) override;
 
   //----------------------------------------------------------------------------
   //! Remove object from the store
   //----------------------------------------------------------------------------
-  virtual void removeContainer(IContainerMD* obj);
+  virtual void removeContainer(IContainerMD* obj) override;
 
   //----------------------------------------------------------------------------
   //! Get number of containers
   //----------------------------------------------------------------------------
-  virtual uint64_t getNumContainers();
+  virtual uint64_t getNumContainers() override;
 
   //----------------------------------------------------------------------------
   //! Add file listener that will be notified about all of the changes in
   //! the store
   //----------------------------------------------------------------------------
-  virtual void addChangeListener(IContainerMDChangeListener* listener);
+  virtual void addChangeListener(IContainerMDChangeListener* listener) override;
 
   //----------------------------------------------------------------------------
   //! Create container in parent
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> createInParent(const std::string& name,
-      IContainerMD* parent);
+                                               IContainerMD* parent) override;
 
   //----------------------------------------------------------------------------
   //! Get the lost+found container, create if necessary
@@ -127,13 +128,14 @@ public:
   //----------------------------------------------------------------------------
   //! Get the orphans container
   //----------------------------------------------------------------------------
-  std::shared_ptr<IContainerMD> getLostFoundContainer(const std::string& name);
+  std::shared_ptr<IContainerMD> getLostFoundContainer(const std::string& name)
+    override;
 
   //----------------------------------------------------------------------------
   //! Set file metadata service
   //----------------------------------------------------------------------------
   void
-  setFileMDService(IFileMDSvc* file_svc)
+  setFileMDService(IFileMDSvc* file_svc) override
   {
     pFileSvc = file_svc;
   }
@@ -142,7 +144,7 @@ public:
   //! Set the QuotaStats object for the follower
   //----------------------------------------------------------------------------
   void
-  setQuotaStats(IQuotaStats* quotaStats)
+  setQuotaStats(IQuotaStats* quotaStats) override
   {
     pQuotaStats = quotaStats;
   }
@@ -150,7 +152,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set container accounting
   //----------------------------------------------------------------------------
-  void setContainerAccounting(IFileMDChangeListener* containerAccounting)
+  void setContainerAccounting(IFileMDChangeListener* containerAccounting) override
   {
     // TODO(esindril): add implementation
   }
@@ -158,8 +160,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get first free container id
   //----------------------------------------------------------------------------
-  IContainerMD::id_t getFirstFreeId();
-
+  IContainerMD::id_t getFirstFreeId() override;
 
 private:
   typedef std::list<IContainerMDChangeListener*> ListenerList;
@@ -167,7 +168,8 @@ private:
   //----------------------------------------------------------------------------
   //! Notify the listeners about the change
   //----------------------------------------------------------------------------
-  void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a);
+  void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a)
+     override;
 
   //----------------------------------------------------------------------------
   //! Get container bucket which is computed as the id of the container modulo

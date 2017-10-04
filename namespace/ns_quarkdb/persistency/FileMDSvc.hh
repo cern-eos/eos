@@ -52,19 +52,20 @@ public:
   //----------------------------------------------------------------------------
   //! Initizlize the file service
   //----------------------------------------------------------------------------
-  virtual void initialize();
+  virtual void initialize() override;
 
   //----------------------------------------------------------------------------
   //! Configure the file service
   //!
   //! @param config map holding configuration parameters
   //----------------------------------------------------------------------------
-  virtual void configure(const std::map<std::string, std::string>& config);
+  virtual void configure(const std::map<std::string, std::string>& config)
+    override;
 
   //----------------------------------------------------------------------------
   //! Finalize the file service
   //----------------------------------------------------------------------------
-  virtual void finalize() {};
+  virtual void finalize() override {};
 
   //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
@@ -81,58 +82,58 @@ public:
   //! value
   //------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id,
-      uint64_t* clock) override;
+                                             uint64_t* clock) override;
 
   //----------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id
   //----------------------------------------------------------------------------
-  virtual std::shared_ptr<IFileMD> createFile();
+  virtual std::shared_ptr<IFileMD> createFile() override;
 
   //----------------------------------------------------------------------------
   //! Update the file metadata in the backing store after the FileMD object
   //! has been changed
   //----------------------------------------------------------------------------
-  virtual void updateStore(IFileMD* obj);
+  virtual void updateStore(IFileMD* obj) override;
 
   //----------------------------------------------------------------------------
   //! Remove object from the store
   //----------------------------------------------------------------------------
-  virtual void removeFile(IFileMD* obj);
+  virtual void removeFile(IFileMD* obj) override;
 
   //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
-  virtual uint64_t getNumFiles();
+  virtual uint64_t getNumFiles() override;
 
   //----------------------------------------------------------------------------
   //! Add file listener that will be notified about all of the changes in
   //! the store
   //----------------------------------------------------------------------------
-  virtual void addChangeListener(IFileMDChangeListener* listener);
+  virtual void addChangeListener(IFileMDChangeListener* listener) override;
 
   //----------------------------------------------------------------------------
   //! Notify the listeners about the change
   //----------------------------------------------------------------------------
-  virtual void notifyListeners(IFileMDChangeListener::Event* event);
+  virtual void notifyListeners(IFileMDChangeListener::Event* event) override;
 
   //----------------------------------------------------------------------------
   //! Set container service
   //!
   //! @param cont_svc container service
   //----------------------------------------------------------------------------
-  void setContMDService(IContainerMDSvc* cont_svc);
+  void setContMDService(IContainerMDSvc* cont_svc) override;
 
   //----------------------------------------------------------------------------
   //! Set the QuotaStats object for the follower
   //!
   //! @param quota_stats object implementing the IQuotaStats interface
   //----------------------------------------------------------------------------
-  void setQuotaStats(IQuotaStats* quota_stats);
+  void setQuotaStats(IQuotaStats* quota_stats) override;
 
   //----------------------------------------------------------------------------
   //! Visit all the files
   //----------------------------------------------------------------------------
-  void visit(IFileVisitor* visitor) {};
+  void visit(IFileVisitor* visitor) override {};
 
   //----------------------------------------------------------------------------
   //! Check files that had errors - these are stored in a separate set in the
@@ -145,7 +146,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get first free file id
   //----------------------------------------------------------------------------
-  IFileMD::id_t getFirstFreeId();
+  IFileMD::id_t getFirstFreeId() override;
 
 private:
   typedef std::list<IFileMDChangeListener*> ListenerList;

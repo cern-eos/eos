@@ -713,7 +713,7 @@ ContainerMD::removeAttribute(const std::string& name)
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
 void
-ContainerMD::serialize(Buffer& buffer)
+ContainerMD::serialize(Buffer& buffer) const
 {
   // Wait for any ongoing async requests and throw error if smth failed
   // if (!waitAsyncReplies()) {

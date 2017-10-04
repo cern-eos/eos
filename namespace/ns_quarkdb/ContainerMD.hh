@@ -60,7 +60,7 @@ public:
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
   //----------------------------------------------------------------------------
-  virtual ContainerMD* clone() const;
+  virtual ContainerMD* clone() const override;
 
   //----------------------------------------------------------------------------
   //! Assignment operator
@@ -70,48 +70,48 @@ public:
   //----------------------------------------------------------------------------
   //! Add container
   //----------------------------------------------------------------------------
-  void addContainer(IContainerMD* container);
+  void addContainer(IContainerMD* container) override;
 
   //----------------------------------------------------------------------------
   //! Remove container
   //----------------------------------------------------------------------------
-  void removeContainer(const std::string& name);
+  void removeContainer(const std::string& name) override;
 
   //----------------------------------------------------------------------------
   //! Find subcontainer
   //----------------------------------------------------------------------------
-  std::shared_ptr<IContainerMD> findContainer(const std::string& name);
+  std::shared_ptr<IContainerMD> findContainer(const std::string& name) override;
 
   //----------------------------------------------------------------------------
   //! Get number of containers
   //----------------------------------------------------------------------------
-  size_t getNumContainers();
+  size_t getNumContainers() override;
 
   //----------------------------------------------------------------------------
   //! Add file
   //----------------------------------------------------------------------------
-  void addFile(IFileMD* file);
+  void addFile(IFileMD* file) override;
 
   //----------------------------------------------------------------------------
   //! Remove file
   //----------------------------------------------------------------------------
-  void removeFile(const std::string& name);
+  void removeFile(const std::string& name) override;
 
   //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
-  std::shared_ptr<IFileMD> findFile(const std::string& name);
+  std::shared_ptr<IFileMD> findFile(const std::string& name) override;
 
   //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
-  size_t getNumFiles();
+  size_t getNumFiles() override;
 
   //----------------------------------------------------------------------------
   //! Get container id
   //----------------------------------------------------------------------------
   inline id_t
-  getId() const
+  getId() const override
   {
     return mCont.id();
   }
@@ -120,7 +120,7 @@ public:
   //! Get parent id
   //----------------------------------------------------------------------------
   inline id_t
-  getParentId() const
+  getParentId() const override
   {
     return mCont.parent_id();
   }
@@ -129,7 +129,7 @@ public:
   //! Set parent id
   //----------------------------------------------------------------------------
   void
-  setParentId(id_t parentId)
+  setParentId(id_t parentId) override
   {
     mCont.set_parent_id(parentId);
   }
@@ -138,7 +138,7 @@ public:
   //! Get the flags
   //----------------------------------------------------------------------------
   inline uint16_t
-  getFlags() const
+  getFlags() const override
   {
     return mCont.flags();
   }
@@ -146,7 +146,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set flags
   //----------------------------------------------------------------------------
-  virtual void setFlags(uint16_t flags)
+  virtual void setFlags(uint16_t flags) override
   {
     mCont.set_flags(0x00ff & flags);
   }
@@ -154,58 +154,58 @@ public:
   //----------------------------------------------------------------------------
   //! Set creation time
   //----------------------------------------------------------------------------
-  void setCTime(ctime_t ctime);
+  void setCTime(ctime_t ctime) override;
 
   //----------------------------------------------------------------------------
   //! Set creation time to now
   //----------------------------------------------------------------------------
-  void setCTimeNow();
+  void setCTimeNow() override;
 
   //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
-  void getCTime(ctime_t& ctime) const;
+  void getCTime(ctime_t& ctime) const override;
 
   //----------------------------------------------------------------------------
   //! Set creation time
   //----------------------------------------------------------------------------
-  void setMTime(mtime_t mtime);
+  void setMTime(mtime_t mtime) override;
 
   //----------------------------------------------------------------------------
   //! Set creation time to now
   //----------------------------------------------------------------------------
-  void setMTimeNow();
+  void setMTimeNow() override;
 
   //----------------------------------------------------------------------------
   //! Get modification time
   //----------------------------------------------------------------------------
-  void getMTime(mtime_t& mtime) const;
+  void getMTime(mtime_t& mtime) const override;
 
   //----------------------------------------------------------------------------
   //! Set propagated modification time (if newer)
   //----------------------------------------------------------------------------
-  bool setTMTime(tmtime_t tmtime);
+  bool setTMTime(tmtime_t tmtime) override;
 
   //----------------------------------------------------------------------------
   //! Set propagated modification time to now
   //----------------------------------------------------------------------------
-  void setTMTimeNow();
+  void setTMTimeNow() override;
 
   //----------------------------------------------------------------------------
   //! Get propagated modification time
   //----------------------------------------------------------------------------
-  void getTMTime(tmtime_t& tmtime);
+  void getTMTime(tmtime_t& tmtime) override;
 
   //----------------------------------------------------------------------------
   //! Trigger an mtime change event
   //----------------------------------------------------------------------------
-  void notifyMTimeChange(IContainerMDSvc* containerMDSvc);
+  void notifyMTimeChange(IContainerMDSvc* containerMDSvc) override;
 
   //----------------------------------------------------------------------------
   //! Get tree size
   //----------------------------------------------------------------------------
   inline uint64_t
-  getTreeSize() const
+  getTreeSize() const override
   {
     return mCont.tree_size();
   }
@@ -214,7 +214,7 @@ public:
   //! Set tree size
   //----------------------------------------------------------------------------
   inline void
-  setTreeSize(uint64_t treesize)
+  setTreeSize(uint64_t treesize) override
   {
     mCont.set_tree_size(treesize);
   }
@@ -222,18 +222,18 @@ public:
   //----------------------------------------------------------------------------
   //! Add to tree size
   //----------------------------------------------------------------------------
-  uint64_t addTreeSize(uint64_t addsize);
+  uint64_t addTreeSize(uint64_t addsize) override;
 
   //----------------------------------------------------------------------------
   //! Remove from tree size
   //----------------------------------------------------------------------------
-  uint64_t removeTreeSize(uint64_t removesize);
+  uint64_t removeTreeSize(uint64_t removesize) override;
 
   //----------------------------------------------------------------------------
   //! Get name
   //----------------------------------------------------------------------------
   inline const std::string&
-  getName() const
+  getName() const override
   {
     return mCont.name();
   }
@@ -241,13 +241,13 @@ public:
   //----------------------------------------------------------------------------
   //! Set name
   //----------------------------------------------------------------------------
-  void setName(const std::string& name);
+  void setName(const std::string& name) override;
 
   //----------------------------------------------------------------------------
   //! Get uid
   //----------------------------------------------------------------------------
   inline uid_t
-  getCUid() const
+  getCUid() const override
   {
     return mCont.uid();
   }
@@ -256,7 +256,7 @@ public:
   //! Set uid
   //----------------------------------------------------------------------------
   inline void
-  setCUid(uid_t uid)
+  setCUid(uid_t uid) override
   {
     mCont.set_uid(uid);
   }
@@ -265,7 +265,7 @@ public:
   //! Get gid
   //----------------------------------------------------------------------------
   inline gid_t
-  getCGid() const
+  getCGid() const override
   {
     return mCont.gid();
   }
@@ -274,7 +274,7 @@ public:
   //! Set gid
   //----------------------------------------------------------------------------
   inline void
-  setCGid(gid_t gid)
+  setCGid(gid_t gid) override
   {
     mCont.set_gid(gid);
   }
@@ -283,7 +283,7 @@ public:
   //! Get mode
   //----------------------------------------------------------------------------
   inline mode_t
-  getMode() const
+  getMode() const override
   {
     return mCont.mode();
   }
@@ -292,7 +292,7 @@ public:
   //! Set mode
   //----------------------------------------------------------------------------
   inline void
-  setMode(mode_t mode)
+  setMode(mode_t mode) override
   {
     mCont.set_mode(mode);
   }
@@ -301,7 +301,7 @@ public:
   //! Add extended attribute
   //----------------------------------------------------------------------------
   void
-  setAttribute(const std::string& name, const std::string& value)
+  setAttribute(const std::string& name, const std::string& value) override
   {
     (*mCont.mutable_xattrs())[name] = value;
   }
@@ -309,13 +309,13 @@ public:
   //----------------------------------------------------------------------------
   //! Remove attribute
   //----------------------------------------------------------------------------
-  void removeAttribute(const std::string& name);
+  void removeAttribute(const std::string& name) override;
 
   //----------------------------------------------------------------------------
   //! Check if the attribute exist
   //----------------------------------------------------------------------------
   bool
-  hasAttribute(const std::string& name) const
+  hasAttribute(const std::string& name) const override
   {
     return (mCont.xattrs().find(name) != mCont.xattrs().end());
   }
@@ -324,7 +324,7 @@ public:
   //! Return number of attributes
   //----------------------------------------------------------------------------
   size_t
-  numAttributes() const
+  numAttributes() const override
   {
     return mCont.xattrs().size();
   }
@@ -332,51 +332,51 @@ public:
   //----------------------------------------------------------------------------
   // Get the attribute
   //----------------------------------------------------------------------------
-  std::string getAttribute(const std::string& name) const;
+  std::string getAttribute(const std::string& name) const override;
 
   //----------------------------------------------------------------------------
   //! Get map copy of the extended attributes
   //!
   //! @return std::map containing all the extended attributes
   //----------------------------------------------------------------------------
-  XAttrMap getAttributes() const;
+  XAttrMap getAttributes() const override;
 
   //------------------------------------------------------------------------------
   //! Check the access permissions
   //!
   //! @return true if all the requested rights are granted, false otherwise
   //------------------------------------------------------------------------------
-  bool access(uid_t uid, gid_t gid, int flags = 0);
+  bool access(uid_t uid, gid_t gid, int flags = 0) override;
 
   //----------------------------------------------------------------------------
   //! Clean up the entire contents for the container. Delete files and
   //! containers recurssively
   //----------------------------------------------------------------------------
-  void cleanUp();
+  void cleanUp() override;
 
   //----------------------------------------------------------------------------
   //! Get set of file names contained in the current object
   //!
   //! @return set of file names
   //----------------------------------------------------------------------------
-  std::set<std::string> getNameFiles() const;
+  std::set<std::string> getNameFiles() const override;
 
   //----------------------------------------------------------------------------
   //! Get set of subcontainer names contained in the current object
   //!
   //! @return set of subcontainer names
   //----------------------------------------------------------------------------
-  std::set<std::string> getNameContainers() const;
+  std::set<std::string> getNameContainers() const override;
 
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  void serialize(Buffer& buffer);
+  void serialize(Buffer& buffer) const override;
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
-  void deserialize(Buffer& buffer);
+  void deserialize(Buffer& buffer) override;
 
 private:
   eos::ns::ContainerMdProto mCont; ///< Protobuf container representation

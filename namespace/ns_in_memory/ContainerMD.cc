@@ -221,7 +221,7 @@ ContainerMD::cleanUp()
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
 void
-ContainerMD::serialize(Buffer& buffer)
+ContainerMD::serialize(Buffer& buffer) const
 {
   buffer.putData(&pId,       sizeof(pId));
   buffer.putData(&pParentId, sizeof(pParentId));
@@ -236,7 +236,7 @@ ContainerMD::serialize(Buffer& buffer)
   buffer.putData(pName.c_str(), len);
   len = pXAttrs.size() + 2;
   buffer.putData(&len, sizeof(len));
-  XAttrMap::iterator it;
+  XAttrMap::const_iterator it;
 
   for (it = pXAttrs.begin(); it != pXAttrs.end(); ++it) {
     uint16_t strLen = it->first.length() + 1;

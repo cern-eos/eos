@@ -64,7 +64,7 @@ public:
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
   //----------------------------------------------------------------------------
-  virtual FileMD* clone() const;
+  virtual FileMD* clone() const override;
 
   //----------------------------------------------------------------------------
   //! Asignment operator
@@ -74,38 +74,38 @@ public:
   //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
-  void getCTime(ctime_t& ctime) const;
+  void getCTime(ctime_t& ctime) const override;
 
   //----------------------------------------------------------------------------
   //! Set creation time
   //----------------------------------------------------------------------------
-  void setCTime(ctime_t ctime);
+  void setCTime(ctime_t ctime) override;
 
   //----------------------------------------------------------------------------
   //! Set creation time to now
   //----------------------------------------------------------------------------
-  void setCTimeNow();
+  void setCTimeNow() override;
 
   //----------------------------------------------------------------------------
   //! Get modification time
   //----------------------------------------------------------------------------
-  void getMTime(ctime_t& mtime) const;
+  void getMTime(ctime_t& mtime) const override;
 
   //----------------------------------------------------------------------------
   //! Set modification time
   //----------------------------------------------------------------------------
-  void setMTime(ctime_t mtime);
+  void setMTime(ctime_t mtime) override;
 
   //----------------------------------------------------------------------------
   //! Set modification time to now
   //----------------------------------------------------------------------------
-  void setMTimeNow();
+  void setMTimeNow() override;
 
   //----------------------------------------------------------------------------
   //! Get file id
   //----------------------------------------------------------------------------
   inline id_t
-  getId() const
+  getId() const override
   {
     return mFile.id();
   }
@@ -114,7 +114,7 @@ public:
   //! Get size
   //----------------------------------------------------------------------------
   inline uint64_t
-  getSize() const
+  getSize() const override
   {
     return mFile.size();
   }
@@ -122,13 +122,13 @@ public:
   //----------------------------------------------------------------------------
   //! Set size - 48 bytes will be used
   //----------------------------------------------------------------------------
-  void setSize(uint64_t size);
+  void setSize(uint64_t size) override;
 
   //----------------------------------------------------------------------------
   //! Get parent id
   //----------------------------------------------------------------------------
   inline IContainerMD::id_t
-  getContainerId() const
+  getContainerId() const override
   {
     return mFile.cont_id();
   }
@@ -137,7 +137,7 @@ public:
   //! Set parent id
   //----------------------------------------------------------------------------
   void
-  setContainerId(IContainerMD::id_t containerId)
+  setContainerId(IContainerMD::id_t containerId) override
   {
     mFile.set_cont_id(containerId);
   }
@@ -146,7 +146,7 @@ public:
   //! Get checksum
   //----------------------------------------------------------------------------
   inline const Buffer
-  getChecksum() const
+  getChecksum() const override
   {
     Buffer buff(mFile.checksum().size());
     buff.putData((void*)mFile.checksum().data(), mFile.checksum().size());
@@ -161,7 +161,7 @@ public:
   //!          stored in the object
   //----------------------------------------------------------------------------
   bool
-  checksumMatch(const void* checksum) const
+  checksumMatch(const void* checksum) const override
   {
     return !memcmp(checksum, (void*)mFile.checksum().data(),
                    mFile.checksum().size());
@@ -171,7 +171,7 @@ public:
   //! Set checksum
   //----------------------------------------------------------------------------
   void
-  setChecksum(const Buffer& checksum)
+  setChecksum(const Buffer& checksum) override
   {
     mFile.set_checksum(checksum.getDataPtr(), checksum.getSize());
   }
@@ -180,7 +180,7 @@ public:
   //! Clear checksum
   //----------------------------------------------------------------------------
   void
-  clearChecksum(uint8_t size = 20)
+  clearChecksum(uint8_t size = 20) override
   {
     mFile.clear_checksum();
   }
@@ -192,7 +192,7 @@ public:
   //! @param size     size of the checksum in bytes
   //----------------------------------------------------------------------------
   void
-  setChecksum(const void* checksum, uint8_t size)
+  setChecksum(const void* checksum, uint8_t size) override
   {
     mFile.set_checksum(checksum, size);
   }
@@ -201,7 +201,7 @@ public:
   //! Get name
   //----------------------------------------------------------------------------
   inline const std::string
-  getName() const
+  getName() const override
   {
     return mFile.name();
   }
@@ -209,7 +209,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set name
   //----------------------------------------------------------------------------
-  inline void setName(const std::string& name)
+  inline void setName(const std::string& name) override
   {
     mFile.set_name(name);
   }
@@ -217,12 +217,12 @@ public:
   //----------------------------------------------------------------------------
   //! Add location
   //----------------------------------------------------------------------------
-  void addLocation(location_t location);
+  void addLocation(location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get vector with all the locations
   //----------------------------------------------------------------------------
-  inline LocationVector getLocations() const
+  inline LocationVector getLocations() const override
   {
     LocationVector locations(mFile.locations().begin(), mFile.locations().end());
     return locations;
@@ -232,7 +232,7 @@ public:
   //! Get location
   //----------------------------------------------------------------------------
   location_t
-  getLocation(unsigned int index)
+  getLocation(unsigned int index) override
   {
     if (index < (unsigned int)mFile.locations_size()) {
       return mFile.locations(index);
@@ -244,23 +244,23 @@ public:
   //----------------------------------------------------------------------------
   //! Replace location by index
   //----------------------------------------------------------------------------
-  void replaceLocation(unsigned int index, location_t newlocation);
+  void replaceLocation(unsigned int index, location_t newlocation) override;
 
   //----------------------------------------------------------------------------
   //! Remove location that was previously unlinked
   //----------------------------------------------------------------------------
-  void removeLocation(location_t location);
+  void removeLocation(location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Remove all locations that were previously unlinked
   //----------------------------------------------------------------------------
-  void removeAllLocations();
+  void removeAllLocations() override;
 
   //----------------------------------------------------------------------------
   //! Clear locations without notifying the listeners
   //----------------------------------------------------------------------------
   void
-  clearLocations()
+  clearLocations() override
   {
     mFile.clear_locations();
   }
@@ -269,7 +269,7 @@ public:
   //! Test if location exists
   //----------------------------------------------------------------------------
   bool
-  hasLocation(location_t location)
+  hasLocation(location_t location) override
   {
     for (int i = 0; i < mFile.locations_size(); i++) {
       if (mFile.locations(i) == location) {
@@ -284,7 +284,7 @@ public:
   //! Get number of locations
   //----------------------------------------------------------------------------
   inline size_t
-  getNumLocation() const
+  getNumLocation() const override
   {
     return mFile.locations_size();
   }
@@ -292,7 +292,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get vector with all unlinked locations
   //----------------------------------------------------------------------------
-  inline LocationVector getUnlinkedLocations() const
+  inline LocationVector getUnlinkedLocations() const override
   {
     LocationVector unlinked_locations(mFile.unlink_locations().begin(),
                                       mFile.unlink_locations().end());
@@ -302,18 +302,18 @@ public:
   //----------------------------------------------------------------------------
   //! Unlink location
   //----------------------------------------------------------------------------
-  void unlinkLocation(location_t location);
+  void unlinkLocation(location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Unlink all locations
   //----------------------------------------------------------------------------
-  void unlinkAllLocations();
+  void unlinkAllLocations() override;
 
   //----------------------------------------------------------------------------
   //! Clear unlinked locations without notifying the listeners
   //----------------------------------------------------------------------------
   inline void
-  clearUnlinkedLocations()
+  clearUnlinkedLocations() override
   {
     mFile.clear_unlink_locations();
   }
@@ -322,7 +322,7 @@ public:
   //! Test the unlinkedlocation
   //----------------------------------------------------------------------------
   bool
-  hasUnlinkedLocation(location_t location)
+  hasUnlinkedLocation(location_t location) override
   {
     for (int i = 0; i < mFile.unlink_locations_size(); ++i) {
       if (mFile.unlink_locations()[i] == location) {
@@ -337,7 +337,7 @@ public:
   //! Get number of unlinked locations
   //----------------------------------------------------------------------------
   inline size_t
-  getNumUnlinkedLocation() const
+  getNumUnlinkedLocation() const override
   {
     return mFile.unlink_locations_size();
   }
@@ -346,7 +346,7 @@ public:
   //! Get uid
   //----------------------------------------------------------------------------
   inline uid_t
-  getCUid() const
+  getCUid() const override
   {
     return mFile.uid();
   }
@@ -355,7 +355,7 @@ public:
   //! Set uid
   //----------------------------------------------------------------------------
   inline void
-  setCUid(uid_t uid)
+  setCUid(uid_t uid) override
   {
     mFile.set_uid(uid);
   }
@@ -364,7 +364,7 @@ public:
   //! Get gid
   //----------------------------------------------------------------------------
   inline gid_t
-  getCGid() const
+  getCGid() const override
   {
     return mFile.gid();
   }
@@ -373,7 +373,7 @@ public:
   //! Set gid
   //----------------------------------------------------------------------------
   inline void
-  setCGid(gid_t gid)
+  setCGid(gid_t gid) override
   {
     mFile.set_gid(gid);
   }
@@ -382,7 +382,7 @@ public:
   //! Get layout
   //----------------------------------------------------------------------------
   inline layoutId_t
-  getLayoutId() const
+  getLayoutId() const override
   {
     return mFile.layout_id();
   }
@@ -391,7 +391,7 @@ public:
   //! Set layout
   //----------------------------------------------------------------------------
   inline void
-  setLayoutId(layoutId_t layoutId)
+  setLayoutId(layoutId_t layoutId) override
   {
     mFile.set_layout_id(layoutId);
   }
@@ -400,7 +400,7 @@ public:
   //! Get flags
   //----------------------------------------------------------------------------
   inline uint16_t
-  getFlags() const
+  getFlags() const override
   {
     return mFile.flags();
   }
@@ -409,7 +409,7 @@ public:
   //! Get the n-th flag
   //----------------------------------------------------------------------------
   inline bool
-  getFlag(uint8_t n)
+  getFlag(uint8_t n) override
   {
     return (bool)(mFile.flags() & (0x0001 << n));
   }
@@ -418,7 +418,7 @@ public:
   //! Set flags
   //----------------------------------------------------------------------------
   inline void
-  setFlags(uint16_t flags)
+  setFlags(uint16_t flags) override
   {
     mFile.set_flags(flags);
   }
@@ -427,7 +427,7 @@ public:
   //! Set the n-th flag
   //----------------------------------------------------------------------------
   void
-  setFlag(uint8_t n, bool flag)
+  setFlag(uint8_t n, bool flag) override
   {
     if (flag) {
       mFile.set_flags(mFile.flags() | (1 << n));
@@ -439,13 +439,13 @@ public:
   //----------------------------------------------------------------------------
   //! Env Representation
   //----------------------------------------------------------------------------
-  void getEnv(std::string& env, bool escapeAnd = false);
+  void getEnv(std::string& env, bool escapeAnd = false) override;
 
   //----------------------------------------------------------------------------
   //! Set the FileMDSvc object
   //----------------------------------------------------------------------------
   inline void
-  setFileMDSvc(IFileMDSvc* fileMDSvc)
+  setFileMDSvc(IFileMDSvc* fileMDSvc) override
   {
     pFileMDSvc = static_cast<FileMDSvc*>(fileMDSvc);
   }
@@ -454,7 +454,7 @@ public:
   //! Get the FileMDSvc object
   //----------------------------------------------------------------------------
   inline virtual IFileMDSvc*
-  getFileMDSvc()
+  getFileMDSvc() override
   {
     return pFileMDSvc;
   }
@@ -463,7 +463,7 @@ public:
   //! Get symbolic link
   //----------------------------------------------------------------------------
   inline std::string
-  getLink() const
+  getLink() const override
   {
     return mFile.link_name();
   }
@@ -472,7 +472,7 @@ public:
   //! Set symbolic link
   //----------------------------------------------------------------------------
   inline void
-  setLink(std::string link_name)
+  setLink(std::string link_name) override
   {
     mFile.set_link_name(link_name);
   }
@@ -481,7 +481,7 @@ public:
   //! Check if symbolic link
   //----------------------------------------------------------------------------
   bool
-  isLink() const
+  isLink() const override
   {
     return !mFile.link_name().empty();
   }
@@ -490,7 +490,7 @@ public:
   //! Add extended attribute
   //----------------------------------------------------------------------------
   void
-  setAttribute(const std::string& name, const std::string& value)
+  setAttribute(const std::string& name, const std::string& value) override
   {
     (*mFile.mutable_xattrs())[name] = value;
   }
@@ -520,7 +520,7 @@ public:
   //! Check if the attribute exist
   //----------------------------------------------------------------------------
   bool
-  hasAttribute(const std::string& name) const
+  hasAttribute(const std::string& name) const override
   {
     return (mFile.xattrs().find(name) != mFile.xattrs().end());
   }
@@ -529,7 +529,7 @@ public:
   //! Return number of attributes
   //----------------------------------------------------------------------------
   inline size_t
-  numAttributes() const
+  numAttributes() const override
   {
     return mFile.xattrs().size();
   }
@@ -538,7 +538,7 @@ public:
   //! Get the attribute
   //----------------------------------------------------------------------------
   std::string
-  getAttribute(const std::string& name) const
+  getAttribute(const std::string& name) const override
   {
     auto it = mFile.xattrs().find(name);
 
@@ -556,17 +556,17 @@ public:
   //!
   //! @return std::map containing all the extended attributes
   //----------------------------------------------------------------------------
-  eos::IFileMD::XAttrMap getAttributes() const;
+  eos::IFileMD::XAttrMap getAttributes() const override;
 
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  void serialize(Buffer& buffer);
+  void serialize(Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
-  void deserialize(const Buffer& buffer);
+  void deserialize(const Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
   //! Wait for replies to asynchronous requests

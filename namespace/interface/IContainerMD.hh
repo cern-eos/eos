@@ -366,7 +366,7 @@ public:
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  virtual void serialize(Buffer& buffer) = 0;
+  virtual void serialize(Buffer& buffer) const = 0;
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
