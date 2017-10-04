@@ -4,7 +4,3 @@
 [submodule "namespace/ns_quarkdb/qclient"]
 	path = namespace/ns_quarkdb/qclient
 	url = https://gitlab.cern.ch/eos/qclient.git
-[submodule "fusex"]
-	path = fusex
-	url = https://:@gitlab.cern.ch:8443/eos/eos-fusex.git
-	branch = master
