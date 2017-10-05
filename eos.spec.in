@@ -189,9 +189,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libeosCommonServer.so.%{major_version}
 %{_libdir}/libeosCommonServer.so
 %{_libdir}/libEosAuthOfs.so
-%{_libdir}/libEosAuthProto.so
-%{_libdir}/libEosAuthProto.so.%{major_version}
-%{_libdir}/libEosAuthProto.so.%{version}
 %{_libdir}/libEosFstOss.so
 %{_libdir}/libXrdEosFst.so
 %{_libdir}/libEosPluginManager.so.%{version}
@@ -201,15 +198,12 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosNsCommon.so.%{major_version}
 %{_libdir}/libEosNsCommon.so
 %{_libdir}/libEosNsInMemory.so
+%{_libdir}/libXrdEosMgm.so
+%{_libdir}/libXrdMqOfs.so
 # Namespace on Quarkdb requires at least CC7
 %if 0%{distribution} > 6
 %{_libdir}/libEosNsQuarkdb.so
 %endif
-%{_libdir}/libEosAuthProto.so.%{version}
-%{_libdir}/libEosAuthProto.so.%{major_version}
-%{_libdir}/libEosAuthProto.so
-%{_libdir}/libXrdEosMgm.so
-%{_libdir}/libXrdMqOfs.so
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
 %config(noreplace) %{_sysconfdir}/xrd.cf.mgm
 %config(noreplace) %{_sysconfdir}/xrd.cf.mq
