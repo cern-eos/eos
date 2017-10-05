@@ -1258,14 +1258,8 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
   bool unlock_pmd = false;
   eos_static_debug(dump_container(cont).c_str());
 
-<<<<<<< HEAD
-  // switch (cont.type()) {
-  //   case cont.MD:
-  if (cont.type() == cont.MD) {
-=======
   if (cont.type() == cont.MD)
   {
->>>>>>> beryl_aquamarine
     uint64_t md_ino = cont.md_().md_ino();
     uint64_t ino = inomap.forward(md_ino);
     bool is_new = false;
