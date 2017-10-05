@@ -35,6 +35,7 @@
 #include <exception>
 #include <stdexcept>
 #include <thread>
+#include <mutex>
 
 class dircleaner
 {
@@ -114,7 +115,7 @@ public:
   void leveler();
 
 private:
-  XrdSysMutex cleaningMutex;
+  std::recursive_mutex cleaningMutex;
   std::string path;
 
   int64_t max_files;

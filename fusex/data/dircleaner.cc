@@ -70,7 +70,7 @@ int
 dircleaner::cleanall(std::string filtersuffix)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(cleaningMutex);
+  std::lock_guard<std::recursive_mutex> mLock(cleaningMutex);
 
   if (!scanall())
   {
@@ -268,7 +268,7 @@ dircleaner::leveler()
   {
     XrdSysTimer sleeper;
     sleeper.Snooze(15);
-    XrdSysMutexHelper mLock(cleaningMutex);
+    std::lock_guard<std::recursive_mutex> mLock(cleaningMutex);
     trim(!n % (1 * 60 * 4)); // forced trim every hour
     n++;
   }
