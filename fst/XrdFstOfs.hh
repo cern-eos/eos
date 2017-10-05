@@ -385,6 +385,9 @@ public:
   eos::common::ZStandard fmdCompressor;
 
 private:
+  void ConvertFmdToFileAttribute();
+  bool IsFmdConversionNeeded();
+
   HttpServer* mHttpd; ///< Embedded http server
   bool Simulate_IO_read_error; ///< simulate an IO error on read
   bool Simulate_IO_write_error; ///< simulate an IO error on write

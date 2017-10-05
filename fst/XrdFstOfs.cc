@@ -37,6 +37,7 @@
 #include "common/Statfs.hh"
 #include "common/SyncAll.hh"
 #include "common/StackTrace.hh"
+#include "common/ThreadPool.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -1572,6 +1573,73 @@ XrdOucString XrdFstOfs::getLocalPrefix(XrdOucEnv* env, unsigned long fsid) {
   }
 
   return localPrefix;
+}
+
+void
+XrdFstOfs::ConvertFmdToFileAttribute() {
+  FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gFmdClient};
+  const auto dbPath = eos::fst::Config::gConfig.FstMetaLogDir.c_str();
+
+  std::vector<std::future<void>> futures;
+  eos::common::ThreadPool pool;
+  for(const auto& fsid : FmdDbMapHandler::GetFsidInMetaDir(dbPath)) {
+    auto future = pool.PushTask<void>(
+      [&fmdAttributeHandler, &dbPath, fsid] {
+        XrdOucString dbfilename;
+        FmdDbMapHandler fmdDbMapHandler;
+        fmdDbMapHandler.CreateDBFileName(dbPath, dbfilename);
+        fmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid);
+        for(const auto& fmd : fmdDbMapHandler.RetrieveAllFmd()) {
+          try {
+            fmdAttributeHandler.FmdAttrSet(fmd, fmd.fid(), fmd.fsid(), nullptr);
+          } catch (MDException& e) {
+            eos_static_err("fmd extended attribute conversion was not successful for fsid:%u, fid: %u",
+                           fmd.fsid(), fmd.fid());
+          }
+        }
+      }
+    );
+    futures.emplace_back(std::move(future));
+  }
+
+  for(auto&& future : futures) {
+    future.get();
+  }
+
+  pool.Stop();
+}
+
+bool
+XrdFstOfs::IsFmdConversionNeeded() {
+  FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gFmdClient};
+  const auto dbPath = eos::fst::Config::gConfig.FstMetaLogDir.c_str();
+  constexpr size_t maxSampleSize = 10;
+
+  XrdOucString dbfilename;
+  FmdDbMapHandler fmdDbMapHandler;
+  for(const auto& fsid : FmdDbMapHandler::GetFsidInMetaDir(dbPath)) {
+    fmdDbMapHandler.CreateDBFileName(dbPath, dbfilename);
+    fmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid);
+    auto fmdList = fmdDbMapHandler.RetrieveAllFmd();
+    if(!fmdList.empty()) {
+      auto sampleSize = std::min(maxSampleSize, fmdList.size());
+      auto cntr = 0u, notFound = 0u;
+      for(const auto& fmd : fmdList) {
+        try {
+          fmdAttributeHandler.FmdAttrGet(fmd.fid(), fmd.fsid(), nullptr);
+        } catch (MDException& e) {
+          notFound++;
+        }
+
+        if(++cntr == maxSampleSize) break;
+      }
+
+      if((double)notFound / sampleSize > 0.3d)
+        return true;
+    }
+  }
+
+  return false;
 }
 
 EOSFSTNAMESPACE_END

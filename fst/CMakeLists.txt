@@ -433,11 +433,6 @@ add_executable(
   eos-fst-fmd-train
   tools/FstFmdTrainMain.cc)
 
-add_executable(
-  eos-fst-fmd-dbattr-convert
-  tools/DbToAttrFmdConversionMain.cc)
-
-
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.cc)
@@ -473,10 +468,6 @@ target_link_libraries(
   eos-fst-fmd-train PRIVATE
   XrdEosFst-Static)
 
-target_link_libraries(
-  eos-fst-fmd-dbattr-convert PRIVATE
-  XrdEosFst-Static)
-
 install(
   PROGRAMS
   tools/eosfstregister
@@ -489,7 +480,6 @@ install(TARGETS
   eos-ioping eos-adler32
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
   eos-file-fmdattribute-scan
-  eos-fst-fmd-dbattr-convert
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 endif()
