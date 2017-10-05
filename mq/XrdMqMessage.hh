@@ -54,7 +54,7 @@
 //------------------------------------------------------------------------------
 class XrdMqMessageHeader
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -128,7 +128,7 @@ class XrdMqMessageHeader
   bool kEncrypted;///< encrypted with private key or not
   int kType; ///< type of message
 
- private:
+private:
   XrdOucString mMsgHdrBuffer; ///< message header buffer
   XrdOucString kCertificateHash; ///< certificate hash used to verify sender
 };
@@ -139,7 +139,7 @@ class XrdMqMessageHeader
 //------------------------------------------------------------------------------
 class XrdMqMessage
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor for empty message
@@ -203,7 +203,7 @@ class XrdMqMessage
   //!
   //! @return true if encoding successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool Base64Encode(char* decoded_bytes, ssize_t decoded_length,
+  static bool Base64Encode(const char* decoded_bytes, ssize_t decoded_length,
                            std::string& out);
 
   //----------------------------------------------------------------------------
@@ -215,7 +215,7 @@ class XrdMqMessage
   //!
   //! @return true if decoding successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool Base64Decode(char* encoded_bytes, char*& decoded_bytes,
+  static bool Base64Decode(const char* encoded_bytes, char*& decoded_bytes,
                            ssize_t& decoded_length);
 
 
@@ -228,7 +228,7 @@ class XrdMqMessage
   //!
   //! @return true if decoding successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool Base64DecodeBroken(XrdOucString &in, char* &out, ssize_t &outlen);
+  static bool Base64DecodeBroken(XrdOucString& in, char*& out, ssize_t& outlen);
   //----------------------------------------------------------------------------
   //! Cipher encrypt using provided key
   //!
@@ -258,7 +258,7 @@ class XrdMqMessage
   //! @return true if decryption successful, otherwise false
   //----------------------------------------------------------------------------
   static bool CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
-                            char*& data, ssize_t& data_length, char* key, bool noerror=false);
+                            char*& data, ssize_t& data_length, char* key, bool noerror = false);
 
   //----------------------------------------------------------------------------
   //! RSA encrypt using private key
@@ -349,6 +349,7 @@ class XrdMqMessage
   static const char* Seal(XrdOucString& s, const char* seal = "#and#")
   {
     while (s.replace("&", seal)) {};
+
     return s.c_str();
   }
 
@@ -364,6 +365,7 @@ class XrdMqMessage
   static const char* UnSeal(XrdOucString& s, const char* seal = "#and#")
   {
     while (s.replace(seal, "&")) {};
+
     return s.c_str();
   }
 
@@ -403,15 +405,17 @@ class XrdMqMessage
 
   // Static settings and configuration
   static EVP_PKEY* PrivateKey;             ///< private key for signatures
-  static XrdOucString PublicKeyDirectory;  ///< containing public keys names with hashval
+  static XrdOucString
+  PublicKeyDirectory;  ///< containing public keys names with hashval
   static XrdOucString PrivateKeyFile;      ///< name of private key file
-  static XrdOucString PublicKeyFileHash;   ///< hash value of corresponding public key
+  static XrdOucString
+  PublicKeyFileHash;   ///< hash value of corresponding public key
   static XrdOucHash<EVP_PKEY> PublicKeyHash; ///< hash with public keys
   static XrdSysLogger* Logger; ///< logger object for error/debug info
   static XrdSysError Eroute; ///< error object for error/debug info
   XrdMqMessageHeader kMessageHeader; ///< message header
 
- protected:
+protected:
 
   XrdOucString kMessageBuffer;
   XrdOucString kMessageBody;
@@ -425,12 +429,12 @@ class XrdMqMessage
 //------------------------------------------------------------------------------
 class XrdAdvisoryMqMessage : public XrdMqMessage
 {
- public:
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   XrdAdvisoryMqMessage():
-      XrdMqMessage(), kQueue(""), kOnline(false)
+    XrdMqMessage(), kQueue(""), kOnline(false)
   { }
 
   //----------------------------------------------------------------------------
@@ -438,8 +442,8 @@ class XrdAdvisoryMqMessage : public XrdMqMessage
   //----------------------------------------------------------------------------
   XrdAdvisoryMqMessage(const char* description , const char* queue,
                        bool online, int type):
-      XrdMqMessage(description, type),
-      kQueue(queue), kOnline(online)
+    XrdMqMessage(description, type),
+    kQueue(queue), kOnline(online)
   { }
 
   //----------------------------------------------------------------------------

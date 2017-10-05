@@ -536,7 +536,7 @@ bool XrdMqMessage::Decode()
 // Base64 encoding
 //------------------------------------------------------------------------------
 bool
-XrdMqMessage::Base64Encode(char* decoded_bytes, ssize_t decoded_length,
+XrdMqMessage::Base64Encode(const char* decoded_bytes, ssize_t decoded_length,
                            std::string& out)
 {
   BIO* bmem, *b64;
@@ -575,7 +575,7 @@ XrdMqMessage::Base64Encode(char* decoded_bytes, ssize_t decoded_length,
 // Base64 decoding
 //------------------------------------------------------------------------------
 bool
-XrdMqMessage::Base64Decode(char* encoded_bytes, char*& decoded_bytes,
+XrdMqMessage::Base64Decode(const char* encoded_bytes, char*& decoded_bytes,
                            ssize_t& decoded_length)
 {
   BIO* b64, *bmem;
