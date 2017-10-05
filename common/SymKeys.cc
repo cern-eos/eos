@@ -237,36 +237,30 @@ SymKey::HmacSha1(std::string& data, const char* key)
 bool
 SymKey::Base64Encode(const char* in, unsigned int inlen, std::string& out)
 {
-  BIO* bmem, *b64;
-  BUF_MEM* bptr;
-  b64 = BIO_new(BIO_f_base64());
+  BIO* b64 = BIO_new(BIO_f_base64());
 
-  /* base64 encode */
   if (!b64) {
     return false;
   }
 
-  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-  bmem = BIO_new(BIO_s_mem());
+  BIO* bmem = BIO_new(BIO_s_mem());
 
   if (!bmem) {
     return false;
   }
 
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   b64 = BIO_push(b64, bmem);
-  BIO_write(b64, in, inlen);
-  int rc = BIO_flush(b64);
-  // to avoid gcc4 error
-  rc /= 1;
-  // retrieve size
-  char* dummy;
-  long size = BIO_get_mem_data(b64, &dummy);
-  BIO_get_mem_ptr(b64, &bptr);
+  BIO_write(b64, (const void*)in, inlen);
 
-  if (bptr->data) {
-    out.assign(bptr->data, size);
+  if (BIO_flush(b64) != 1) {
+    BIO_free_all(b64);
+    return false;
   }
 
+  BUF_MEM* bptr;
+  BIO_get_mem_ptr(b64, &bptr);
+  out.assign(bptr->data, bptr->length);
   BIO_free_all(b64);
   return true;
 }
@@ -293,33 +287,26 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
 bool
 SymKey::Base64Decode(const char* in, char*& out, size_t& outlen)
 {
-  BIO* b64, *bmem;
-  b64 = BIO_new(BIO_f_base64());
+  BIO* bmem = BIO_new_mem_buf((void*)in, -1);
+
+  if (!bmem) {
+    return false;
+  }
+
+  BIO* b64 = BIO_new(BIO_f_base64());
 
   if (!b64) {
     return false;
   }
 
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-  size_t body64len = strlen(in);
-  bmem = BIO_new_mem_buf((void*) in, body64len);
-
-  if (!bmem) {
-    return false;
-  }
-
-  char* encryptionbuffer = (char*) malloc(body64len);
   bmem = BIO_push(b64, bmem);
-  int nread = BIO_read(bmem, encryptionbuffer, (int)body64len);
-  out = encryptionbuffer;
-  BIO_free_all(b64);
-
-  if (nread > 0) {
-    outlen = (size_t) nread;
-    return true;
-  }
-
-  return false;
+  size_t buffer_length = BIO_get_mem_data(bmem, NULL);
+  out = (char*) malloc(buffer_length);
+  outlen = BIO_read(bmem, out, buffer_length);
+  out[outlen] = '\0';
+  BIO_free_all(bmem);
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -328,33 +315,26 @@ SymKey::Base64Decode(const char* in, char*& out, size_t& outlen)
 bool
 SymKey::Base64Decode(const char* in, std::string& out)
 {
-  BIO* b64, *bmem;
-  b64 = BIO_new(BIO_f_base64());
-  out = "";
+  BIO* bmem = BIO_new_mem_buf((void*)in, -1);
+
+  if (!bmem) {
+    return false;
+  }
+
+  BIO* b64 = BIO_new(BIO_f_base64());
 
   if (!b64) {
     return false;
   }
 
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-  size_t body64len = strlen(in);
-  bmem = BIO_new_mem_buf((void*) in, body64len);
-
-  if (!bmem) {
-    return false;
-  }
-
-  out.resize(body64len);
   bmem = BIO_push(b64, bmem);
-  int nread = BIO_read(bmem, (void*)out.data(), (int)body64len);
-  BIO_free_all(b64);
-
-  if (nread > 0) {
-    out.resize(nread);
-    return true;
-  }
-
-  return false;
+  size_t buffer_length = BIO_get_mem_data(bmem, NULL);
+  out.resize(buffer_length);
+  int nread = BIO_read(bmem, (char*)out.data(), buffer_length);
+  out[nread] = '\0';
+  BIO_free_all(bmem);
+  return true;
 }
 
 //------------------------------------------------------------------------------
