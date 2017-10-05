@@ -2765,7 +2765,6 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
       pcap = Instance().caps.get(req, ino);
       md = Instance().mds.get(req, ino, pcap->authid());
       {
-        XrdSysMutexHelper mLock(md->Locker());
         value = Instance().mds.dump_md(md);
       }
     }

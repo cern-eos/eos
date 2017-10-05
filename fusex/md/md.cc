@@ -484,8 +484,8 @@ metad::get(fuse_req_t req,
     // the inode is known, we try to get that one
     if (mdmap.retrieve(ino, md))
     {
-      XrdSysMutexHelper mLock(md->Locker());
-      eos_static_debug("MD:\n%s", dump_md(md).c_str());
+      if ( EOS_LOGS_DEBUG )
+	eos_static_debug("MD:\n%s", dump_md(md).c_str());
     }
     else
     {
@@ -535,7 +535,8 @@ metad::get(fuse_req_t req,
       if ( ( (!listing) || (listing && md->type() == md->MDLS) ) && md->md_ino() && md->cap_count())
       {
         eos_static_info("returning cap entry via parent lookup cap-count=%d", md->cap_count());
-        eos_static_debug("MD:\n%s", dump_md(md).c_str());
+	if ( EOS_LOGS_DEBUG )
+	  eos_static_debug("MD:\n%s", dump_md(md).c_str());
         return md;
       }
 
@@ -557,7 +558,8 @@ metad::get(fuse_req_t req,
     {
       // this must have been generated locally, we return this entry
       eos_static_info("returning generated entry");
-      eos_static_debug("MD:\n%s", dump_md(md).c_str());
+      if ( EOS_LOGS_DEBUG ) 
+	eos_static_debug("MD:\n%s", dump_md(md).c_str());
       return md;
 
     }
@@ -659,7 +661,8 @@ metad::get(fuse_req_t req,
       {
         // that can be a locally created entry which is not yet upstream
         rc = 0;
-        eos_static_debug("MD:\n%s", dump_md(md).c_str());
+	if ( EOS_LOGS_DEBUG )
+	  eos_static_debug("MD:\n%s", dump_md(md).c_str());
         return md;
       }
       else
@@ -745,7 +748,9 @@ metad::get(fuse_req_t req,
       break;
     }
   }
-  eos_static_debug("MD:\n%s", dump_md(md).c_str());
+
+  if ( EOS_LOGS_DEBUG )
+    eos_static_debug("MD:\n%s", dump_md(md).c_str());
 
   if (rc)
   {
@@ -1189,6 +1194,10 @@ std::string
 metad::dump_md(shared_md md)
 /* -------------------------------------------------------------------------- */
 {
+  if (! (md) )
+    return "";
+
+  XrdSysMutexHelper mLock(md->Locker());
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = true;
   options.always_print_primitive_fields = true;
