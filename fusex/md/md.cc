@@ -1387,10 +1387,11 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
     bool is_new = false;
     {
       XrdSysMutexHelper mLock(mdmap);
-      if ( !(ino && mdmap.retrieve(ino, md)))
+      if (!ino || !mdmap.retrieve(ino, md))
       {
         md = std::make_shared<mdx>();
-        mdmap[ino] = md;
+	if (ino)
+	  mdmap[ino] = md;
         md->Locker().Lock();
       }
       else
