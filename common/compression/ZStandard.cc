@@ -9,9 +9,6 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-thread_local std::unique_ptr<ZSTD_CCtx, decltype(&ZSTD_freeCCtx)> eos::common::ZStandard::mCCtx {ZSTD_createCCtx(), &ZSTD_freeCCtx};
-thread_local std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)> eos::common::ZStandard::mDCtx {ZSTD_createDCtx(), &ZSTD_freeDCtx};
-
 void
 eos::common::ZStandard::LoadDict(const std::string& dictionaryPath) {
   struct stat statbuf;
@@ -54,6 +51,13 @@ ZStandard::CreateCDict() {
     ex.getMessage() << "Creation of compression dictionary failed";
     throw ex;
   }
+
+  for(auto i = 0u; i < std::thread::hardware_concurrency(); i++) {
+    auto cCtx = ZSTD_createCCtx();
+    if (cCtx != nullptr) {
+      mCompressCtxPool.push(cCtx);
+    }
+  }
 }
 
 void
@@ -64,6 +68,13 @@ ZStandard::CreateDDict() {
     MDException ex(errno);
     ex.getMessage() << "Creation of decompression dictionary failed";
     throw ex;
+  }
+
+  for(auto i = 0u; i < std::thread::hardware_concurrency(); i++) {
+    auto dCtx = ZSTD_createDCtx();
+    if (dCtx != nullptr) {
+      mDecompressCtxPool.push(dCtx);
+    }
   }
 }
 
@@ -78,10 +89,13 @@ ZStandard::Compress(Buffer& record) {
     throw ex;
   }
 
-  size_t const cSize = ZSTD_compress_usingCDict(mCCtx.get(), cBuff, cBuffSize,
+  ZSTD_CCtx* ctx;
+  mCompressCtxPool.wait_pop(ctx);
+  size_t const cSize = ZSTD_compress_usingCDict(ctx, cBuff, cBuffSize,
                                    record.getDataPtr(),
                                    record.size(),
                                    pCDict);
+  mCompressCtxPool.push(ctx);
 
   if (ZSTD_isError(cSize)) {
     free(cBuff);
@@ -113,9 +127,12 @@ ZStandard::Decompress(Buffer& record) {
     throw ex;
   }
 
-  size_t const dSize = ZSTD_decompress_usingDDict(mDCtx.get(), dBuff, dBuffSize,
+  ZSTD_DCtx* ctx;
+  mDecompressCtxPool.wait_pop(ctx);
+  size_t const dSize = ZSTD_decompress_usingDDict(ctx, dBuff, dBuffSize,
                                            record.getDataPtr(),
                                            record.getSize(), pDDict);
+  mDecompressCtxPool.push(ctx);
 
   if (ZSTD_isError(dSize)) {
     free(dBuff);
@@ -133,6 +150,18 @@ ZStandard::~ZStandard() {
   delete[] pDictBuffer;
   ZSTD_freeCDict(pCDict);
   ZSTD_freeDDict(pDDict);
+
+  while(!mCompressCtxPool.empty()) {
+    ZSTD_CCtx* ctx = nullptr;
+    if(mCompressCtxPool.try_pop(ctx))
+      ZSTD_freeCCtx(ctx);
+  }
+
+  while(!mDecompressCtxPool.empty()) {
+    ZSTD_DCtx* ctx = nullptr;
+    if(mDecompressCtxPool.try_pop(ctx))
+      ZSTD_freeDCtx(ctx);
+  }
 }
 
 void
