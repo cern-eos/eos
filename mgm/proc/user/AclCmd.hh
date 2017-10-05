@@ -26,6 +26,7 @@
 #include "common/Acl.pb.h"
 #include "common/ConsoleRequest.pb.h"
 #include <unordered_map>
+#include "gtest/gtest_prod.h"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -91,6 +92,8 @@ public:
   void ProcessRequest() override;
 
 private:
+  FRIEND_TEST(AclCmd, RuleMap);
+
   //! Enumerator defining which bit represents which acl flag.
   enum ACLPos {
     R  = 1 << 0,   // 1    -  r

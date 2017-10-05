@@ -24,21 +24,22 @@
 #include <gtest/gtest.h>
 #include "mgm/proc/user/AclCmd.hh"
 
-/*
+EOSMGMNAMESPACE_BEGIN
+
 TEST(AclCmd, RuleMap)
 {
   using namespace eos::mgm;
   RuleMap expect_map = {
-    { "u:99", 0}, { "u:0", 0}};
-
+    { "u:99", 0b0111}, { "u:0", 0b0111}
+  };
   RuleMap result_map;
   const std::string acl = "u:99:rwx,u:0:rwx";
-  //AclCmd::GenerateRuleMap(acl, result_map);
+  AclCmd::GenerateRuleMap(acl, result_map);
   ASSERT_EQ(result_map.size(), expect_map.size());
 
-  for (auto const& elem: result_map) {
+  for (auto const& elem : result_map) {
     ASSERT_EQ(elem.second, expect_map[elem.first]);
   }
 }
-*/
 
+EOSMGMNAMESPACE_END
