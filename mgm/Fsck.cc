@@ -206,10 +206,9 @@ Fsck::Check(void)
     }
 
     XrdSysThread::SetCancelOff();
-    size_t max = 0;
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      max = FsView::gFsView.mIdView.size();
+      size_t max  = FsView::gFsView.mIdView.size();
       Log(false, "Filesystems to check: %lu", max);
       eos_static_debug("filesystems to check: %lu", max);
     }
@@ -340,6 +339,7 @@ Fsck::Check(void)
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
       if (FsView::gFsView.mIdView.count(unavailit->first)) {
+        // @todo (esindril): Check if FileSystem object not null
         host = FsView::gFsView.mIdView[unavailit->first]->GetString("hostport");
       }
 

@@ -1928,7 +1928,6 @@ FsView::UnRegisterGroup(const char* groupname)
     while (mGroupView.count(groupname) &&
            (mGroupView[groupname]->begin() != mGroupView[groupname]->end())) {
       eos::common::FileSystem::fsid_t fsid = *(mGroupView[groupname]->begin());
-      // TODO: this looks wrong
       FileSystem* fs = mIdView[fsid];
 
       if (fs) {
