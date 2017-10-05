@@ -543,7 +543,7 @@ metad::get(fuse_req_t req,
         // files are covered by the CAP of the parent, so if there is a cap
         // on the parent we can return this entry right away
         if(mdmap.retrieveTS(md->pid(), pmd)) {
-          if(pmd && pmd->id() && pmd->cap_count()) 
+          if(pmd && pmd->id() && pmd->cap_count())
           {
             return md;
           }
@@ -1760,6 +1760,7 @@ metad::mdcflush()
                 // forget an entry if we didn't process the outstanding KV changes
                 stat.inodes_deleted_dec();
                 eos_static_debug("count=%d(-%d) - ino=%016x", md->lookup_is(), 1, ino);
+                XrdSysMutexHelper mLock(md->Locker());
                 if (md->lookup_dec(1))
                 {
                   // forget this inode
