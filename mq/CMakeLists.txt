@@ -25,6 +25,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${OPENSSL_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
+  ${SPARSEHASH_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
