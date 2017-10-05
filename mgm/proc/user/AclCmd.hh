@@ -26,7 +26,6 @@
 #include "common/Acl.pb.h"
 #include "common/ConsoleRequest.pb.h"
 #include <unordered_map>
-#include "gtest/gtest_prod.h"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -91,9 +90,20 @@ public:
   //----------------------------------------------------------------------------
   void ProcessRequest() override;
 
-private:
-  FRIEND_TEST(AclCmd, RuleMap);
+  //----------------------------------------------------------------------------
+  //! Generate rule map from the string representation of the acls. If there
+  //! are no acls then the rmap will be empty.
+  //!
+  //! @note Public only for testing.
+  //!
+  //! @param acl_string string containing acl
+  //! @param rmap map to be filled with acl rules
+  //----------------------------------------------------------------------------
+  static void
+  GenerateRuleMap(const std::string& acl_string, RuleMap& rmap);
 
+
+private:
   //! Enumerator defining which bit represents which acl flag.
   enum ACLPos {
     R  = 1 << 0,   // 1    -  r
@@ -147,16 +157,6 @@ private:
   //! and the bitmask representation
   //----------------------------------------------------------------------------
   static Rule GetRuleFromString(const std::string& in);
-
-  //----------------------------------------------------------------------------
-  //! Generate rule map from the string representation of the acls. If there
-  //! are no acls then the rmap will be empty.
-  //!
-  //! @param acl_string string containing acl
-  //! @param rmap map to be filled with acl rules
-  //----------------------------------------------------------------------------
-  static void
-  GenerateRuleMap(const std::string& acl_string, RuleMap& rmap);
 
   //----------------------------------------------------------------------------
   //! Generate acl string representation from a rule map
