@@ -76,14 +76,9 @@ public:
       refresh = false;
     }
 
-    mdx(fuse_ino_t ino) : mSync(0)
+    mdx(fuse_ino_t ino) : mdx()
     {
       set_id(ino);
-      setop_add();
-      lookup_cnt.store(0, std::memory_order_seq_cst);
-      lock_remote = true;
-      cap_count_reset();
-      refresh = false;
     }
 
     mdx& operator=(eos::fusex::md other)
