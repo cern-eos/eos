@@ -25,7 +25,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=0")
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}
   ${XROOTD_INCLUDE_DIRS}
+  ${PROTOBUF_INCLUDE_DIRS}
+  ${JSONCPP_INCLUDE_DIR}
   "${gtest_SOURCE_DIR}/include"
   "${gmock_SOURCE_DIR}/include")
 
@@ -34,7 +37,7 @@ set(MQ_UT_SRCS
 
 set(MGM_UT_SRCS
   mgm/ProcFsTests.cc
-  mgm/AclTests.cc)
+  mgm/AclCmdTests.cc)
 
 set(COMMON_UT_SRCS
   common/TimingTests.cc
