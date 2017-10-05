@@ -46,17 +46,13 @@ set(CLI_PROTO_HDRS
   ${ACL_HDRS} ${REQ_HDRS} ${REP_HDRS})
 
 set_source_files_properties(
-  ${CLI_PROTO_SRCS}
-  ${CLI_PROTO_HDRS}
+  ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS}
   PROPERTIES GENERATED 1)
 
-add_library(
-  CommonCli-Objects OBJECT
+add_library(CommonCli-Objects OBJECT
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS})
 
-set_target_properties(
-  CommonCli-Objects
-  PROPERTIES
+set_target_properties(CommonCli-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
@@ -75,15 +71,13 @@ add_library(EosCrc32c-Static STATIC
   crc32c/crc32c.cc
   crc32c/crc32ctables.cc)
 
-set_target_properties(
-  EosCrc32c-Static PROPERTIES
+set_target_properties(EosCrc32c-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
 # eosCommon library
 #-------------------------------------------------------------------------------
-set(
-  EOSCOMMON_SRCS
+set(EOSCOMMON_SRCS
   Fmd.cc
   Mapping.cc
   Statfs.cc
@@ -99,8 +93,7 @@ set(
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 
-target_link_libraries(
-  eosCommon PUBLIC
+target_link_libraries(eosCommon PUBLIC
   XrdMqClient
   fmt
   ${Z_LIBRARY}
@@ -116,35 +109,28 @@ target_link_libraries(
 # TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
 # use std::atomic and the <atomic> header.
 # !!!!!
-target_compile_definitions(
-  eosCommon
-  PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+target_compile_definitions(eosCommon PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
 
-target_include_directories(
-  eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
+target_include_directories(eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
 
-set_target_properties(
-  eosCommon PROPERTIES
+set_target_properties(eosCommon PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
 if(Linux)
-  target_link_libraries(
-    eosCommon PUBLIC
-    ${GLIBC_RT_LIBRARY})
+  target_link_libraries(eosCommon PUBLIC ${GLIBC_RT_LIBRARY})
 endif()
 
-install(
-  TARGETS eosCommon
+install(TARGETS eosCommon
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
 
-target_include_directories(
-  eosCommon-Static PUBLIC
+target_include_directories(eosCommon-Static PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR};${CURL_INCLUDE_DIRS}>
   $<INSTALL_INTERFACE:include>)
 
@@ -152,16 +138,13 @@ target_include_directories(
 # TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
 # use std::atomic and the <atomic> header.
 # !!!!!
-target_compile_definitions(
-  eosCommon-Static
+target_compile_definitions(eosCommon-Static
   PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
 
-set_target_properties(
-  eosCommon-Static PROPERTIES
+set_target_properties(eosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-target_link_libraries(
-  eosCommon-Static PRIVATE
+target_link_libraries(eosCommon-Static PRIVATE
   XrdMqClient-Static
   fmt
   ${Z_LIBRARY}
@@ -179,8 +162,7 @@ target_link_libraries(
 # eosCommonServer and eosCommon-Static libraries
 #-------------------------------------------------------------------------------
 if (Linux)
-  add_library(
-    eosCommonServer SHARED
+  add_library(eosCommonServer SHARED
     ShellExecutor.cc
     ShellCmd.cc
     FileSystem.cc
@@ -200,8 +182,7 @@ if (Linux)
   target_include_directories(
    eosCommonServer PUBLIC ${LEVELDB_INCLUDE_DIRS})
 
-  target_link_libraries(
-    eosCommonServer PUBLIC
+  target_link_libraries(eosCommonServer PUBLIC
     XrdMqClient
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
@@ -219,18 +200,14 @@ if (Linux)
     target_link_libraries(eosCommonServer PUBLIC ${MICROHTTPD_LIBRARIES})
   endif()
 
-  set_target_properties(
-    eosCommonServer PROPERTIES
+  set_target_properties(eosCommonServer PROPERTIES
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
     MACOSX_RPATH TRUE)
 
-  target_compile_definitions(
-    eosCommonServer
-    PUBLIC -DSQLITE_NO_SYNC=1)
+  target_compile_definitions(eosCommonServer PUBLIC -DSQLITE_NO_SYNC=1)
 
-  install(
-    TARGETS eosCommonServer
+  install(TARGETS eosCommonServer
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -239,83 +216,62 @@ endif()
 #-------------------------------------------------------------------------------
 # Create helper executables
 #-------------------------------------------------------------------------------i
-if(NOT CLIENT)
-if (Linux)
+if(NOT CLIENT AND Linux)
   add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
   add_executable(mutextest mutextest/RWMutexTest.cc)
-  add_executable(
-    dbmaptestfunc
+  add_executable(dbmaptestfunc
     dbmaptest/DbMapTestFunc.cc
     ${DBMAPTEST_SRCS}
     ${DBMAPTEST_HDRS})
 
-  target_link_libraries(
-    dbmaptestburn PRIVATE
+  target_link_libraries(dbmaptestburn PRIVATE
     eosCommon
     eosCommonServer
     ${CMAKE_THREAD_LIBS_INIT})
 
-  target_link_libraries(
-    mutextest PRIVATE
+  target_link_libraries(mutextest PRIVATE
     eosCommon
     ${CMAKE_THREAD_LIBS_INIT})
 
-  target_link_libraries(
-    dbmaptestfunc PRIVATE
+  target_link_libraries(dbmaptestfunc PRIVATE
     eosCommonServer
     eosCommon
     ${PROTOBUF_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 endif()
-endif()
 
 #-------------------------------------------------------------------------------
 # Plugin Manager library
 #-------------------------------------------------------------------------------
-set(EOS_PLUGIN_MANAGER_SRCS
+add_library(EosPluginManager-Objects OBJECT
+  Namespace.hh Logging.cc
   plugin_manager/Plugin.hh
-  Namespace.hh
-  Logging.cc
   plugin_manager/PluginManager.cc
   plugin_manager/DynamicLibrary.cc)
 
-add_library(
-  EosPluginManager-Objects OBJECT
-  ${EOS_PLUGIN_MANAGER_SRCS})
-
-set_target_properties(
-  EosPluginManager-Objects
-  PROPERTIES
+set_target_properties(EosPluginManager-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_library(
-  EosPluginManager SHARED
+add_library(EosPluginManager SHARED
   $<TARGET_OBJECTS:EosPluginManager-Objects>)
 
-target_link_libraries(
-  EosPluginManager PUBLIC
+target_link_libraries(EosPluginManager PUBLIC
   ${XROOTD_UTILS_LIBRARY})
 
-set_target_properties(
-  EosPluginManager
-  PROPERTIES
+set_target_properties(EosPluginManager PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-add_library(
-  EosPluginManager-Static STATIC
+add_library(EosPluginManager-Static STATIC
   $<TARGET_OBJECTS:EosPluginManager-Objects>)
 
-target_link_libraries(
-  EosPluginManager-Static PUBLIC
+target_link_libraries(EosPluginManager-Static PUBLIC
   ${XROOTD_UTILS_LIBRARY})
 
-set_target_properties(
-  EosPluginManager-Static PROPERTIES
+set_target_properties(EosPluginManager-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-install(
-  TARGETS EosPluginManager
+install(TARGETS EosPluginManager
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

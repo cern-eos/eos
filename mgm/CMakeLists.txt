@@ -166,23 +166,23 @@ add_library(
   ${QDB_CLIENT})
 
 #-------------------------------------------------------------------------------
-# Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
-# are generated when we try to build XrdEosMgm
+# Add dependecy to EosAuthProto-Objects so we guarantee that the protocol
+# buffer files are generated when we try to build XrdEosMgm
 #-------------------------------------------------------------------------------
-add_dependencies(XrdEosMgm-Objects EosAuthProto)
+add_dependencies(XrdEosMgm-Objects EosAuthProto-Objects)
+
+target_compile_definitions(XrdEosMgm-Objects PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 set_target_properties(
   XrdEosMgm-Objects
   PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-target_compile_definitions(
-  XrdEosMgm-Objects PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
-
 add_library(XrdEosMgm MODULE
   $<TARGET_OBJECTS:XrdEosMgm-Objects>
-  $<TARGET_OBJECTS:CommonCli-Objects>)
+  $<TARGET_OBJECTS:CommonCli-Objects>
+  $<TARGET_OBJECTS:EosAuthProto-Objects>)
 
 target_compile_definitions(
   XrdEosMgm PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -200,7 +200,6 @@ target_link_libraries(
   EosPluginManager
   XrdMqClient
   eosCapability-Static
-  EosAuthProto
   ${Z_LIBRARY}
   ${ZMQ_LIBRARIES}
   ${LDAP_LIBRARIES}
@@ -253,24 +252,23 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------
-if(CPPUNIT_FOUND AND BUILD_QUARKDB_NAMESPACE AND Linux)
+if(BUILD_QUARKDB_NAMESPACE AND Linux)
   add_library(XrdEosMgm-Static STATIC
     $<TARGET_OBJECTS:XrdEosMgm-Objects>
-    $<TARGET_OBJECTS:CommonCli-Objects>)
+    $<TARGET_OBJECTS:CommonCli-Objects>
+    $<TARGET_OBJECTS:EosAuthProto-Objects>)
 
   target_compile_definitions(
     XrdEosMgm-Static PUBLIC
     -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
   target_link_libraries(
-    XrdEosMgm-Static PUBLIC
+    XrdEosMgm-Static PRIVATE
     EosNsCommon-Static
     eosCommon-Static
     eosCommonServer
     EosPluginManager
     eosCapability-Static
-    XrdMqClient-Static
-    EosAuthProto
     qclient
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
@@ -287,8 +285,6 @@ if(CPPUNIT_FOUND AND BUILD_QUARKDB_NAMESPACE AND Linux)
     ${CMAKE_THREAD_LIBS_INIT}
     ${PROTOBUF_LIBRARIES})
 
-  set_target_properties(
-    XrdEosMgm-Static
-    PROPERTIES
-    POSITION_INDEPENDENT_CODE TRUE)
+  set_target_properties(XrdEosMgm-Static
+    PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 endif()

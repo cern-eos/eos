@@ -25,14 +25,12 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${OPENSSL_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
-  ${NCURSES_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS})
+  ${NCURSES_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
-# XrdMqClient library
+# XrdMqClient-Objects
 #-------------------------------------------------------------------------------
-set(
-  XRDMQCLIENT_SRCS
+add_library(XrdMqClient-Objects OBJECT
   XrdMqOfs.hh
   XrdMqRWMutex.hh
   XrdMqTiming.hh
@@ -44,7 +42,13 @@ set(
   ${CMAKE_SOURCE_DIR}/common/Logging.cc
   ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableCell.cc)
 
-add_library(XrdMqClient SHARED ${XRDMQCLIENT_SRCS})
+target_compile_options(XrdMqClient-Objects PRIVATE "-Wno-unused-value")
+
+set_target_properties(XrdMqClient-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+add_library(XrdMqClient SHARED
+  $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
 target_link_libraries(
   XrdMqClient PUBLIC
@@ -55,22 +59,14 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
 
-target_compile_options(
-  XrdMqClient PRIVATE "-Wno-unused-value")
-
-target_compile_definitions(
-  XrdMqClient PUBLIC -DHAVE_ATOMICS=1)
-
 set_target_properties(
   XrdMqClient PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-add_library(XrdMqClient-Static STATIC ${XRDMQCLIENT_SRCS})
-
-target_compile_options(
-  XrdMqClient-Static PRIVATE "-Wno-unused-value")
+add_library(XrdMqClient-Static STATIC
+  $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
 target_link_libraries(
   XrdMqClient-Static PRIVATE
@@ -88,13 +84,10 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # XrdMqOfs library
 #-------------------------------------------------------------------------------
-set(
-  XRDMQOFS_SRCS
+add_library(XrdMqOfs MODULE
   XrdMqOfsFSctl.cc
   XrdMqOfs.cc       XrdMqOfs.hh
   XrdMqMessage.cc   XrdMqMessage.hh)
-
-add_library(XrdMqOfs MODULE ${XRDMQOFS_SRCS})
 
 target_link_libraries(
   XrdMqOfs PRIVATE

@@ -65,7 +65,7 @@ PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS proto/Request.proto)
 PROTOBUF_GENERATE_CPP(RESP_SRCS RESP_HDRS proto/Response.proto)
 
 set(
-  PROTO_SRCS
+  AUTH_PROTO_SRCS
   ${XSE_SRCS}     ${XOEI_SRCS}     ${XSFS_SRCS}   ${STAT_SRCS}
   ${FSCTL1_SRCS}  ${FSCTL2_SRCS}   ${REQ_SRCS}    ${RESP_SRCS}
   ${CHMOD_SRCS}   ${CHKSUM_SRCS}   ${EXISTS_SRCS} ${MKDIR_SRCS}
@@ -75,7 +75,7 @@ set(
   ${FFNAME_SRCS}  ${FSTAT_SRCS}    ${FREAD_SRCS}  ${FWRITE_SRCS})
 
 set(
-  PROTO_HDRS
+  AUTH_PROTO_HDRS
   ${XSE_HDRS}     ${XOEI_HDRS}     ${XSFS_HDRS}   ${STAT_HDRS}
   ${FSCTL1_HDRS}  ${FSCTL2_HDRS}   ${REQ_HDRS}    ${RESP_HDRS}
   ${CHMOD_HDRS}   ${CHKSUM_HDRS}   ${EXITS_HDRS}  ${MKDIR_HDRS}
@@ -85,24 +85,20 @@ set(
   ${FFNAME_HDRS}  ${FSTAT_HDRS}    ${FREAD_HDRS}  ${FWRITE_HDRS})
 
 set_source_files_properties(
-  ${PROTO_SRCS}
-  ${PROTO_HDRS}
+  ${AUTH_PROTO_SRCS}
+  ${AUTH_PROTO_HDRS}
   PROPERTIES GENERATED 1)
 
 #-------------------------------------------------------------------------------
-# EosAuthProto library
+# EosAuthProto-Objects
 #-------------------------------------------------------------------------------
 add_library(
-  EosAuthProto SHARED
+  EosAuthProto-Objects OBJECT
   ProtoUtils.cc ProtoUtils.hh
-  ${PROTO_SRCS} ${PROTO_HDRS})
+  ${AUTH_PROTO_SRCS} ${AUTH_PROTO_HDRS})
 
-target_link_libraries(
-   EosAuthProto PUBLIC
-   eosCommon
-   ${PROTOBUF_LIBRARY})
-
-add_dependencies(EosAuthProto EosMgmProto-Objects)
+set_target_properties(EosAuthProto-Objects
+  PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
 # EosAuthOfs library
@@ -111,24 +107,18 @@ add_library(
   EosAuthOfs MODULE
   EosAuthOfs.cc  EosAuthOfs.hh
   EosAuthOfsFile.cc EosAuthOfsFile.hh
-  EosAuthOfsDirectory.cc EosAuthOfsDirectory.hh)
+  EosAuthOfsDirectory.cc EosAuthOfsDirectory.hh
+  $<TARGET_OBJECTS:EosAuthProto-Objects>)
 
 target_link_libraries(
   EosAuthOfs PRIVATE
   eosCommon
-  EosAuthProto
   ${ZMQ_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY})
 
-set_target_properties(
-  EosAuthProto
-  PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR})
-
 install(
-  TARGETS EosAuthOfs EosAuthProto
+  TARGETS EosAuthOfs
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

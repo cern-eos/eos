@@ -125,8 +125,7 @@ else()
     ${LIBEVENT_LIBRARIES}
     ${ZMQ_LIBRARIES}
     eosCommon
-    jemalloc
-)
+    jemalloc)
 
   set_target_properties(
     eosxd

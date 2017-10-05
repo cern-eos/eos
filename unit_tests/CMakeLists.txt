@@ -54,6 +54,5 @@ add_executable(eos-unit-tests ${UT_SRCS})
 target_link_libraries(eos-unit-tests
   gtest_main
   XrdEosMgm-Static
-  XrdMqClient-Static
-#  EosFstIo
+  EosFstIo
   ${XROOTD_SERVER_LIBRARY})

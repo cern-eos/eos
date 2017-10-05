@@ -26,7 +26,6 @@
 
 #include <exception>
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysAtomics.hh"
 #include <stdio.h>
 #include <atomic>
 #define _MULTI_THREADED
@@ -149,7 +148,7 @@ public:
       std::terminate();
     }
 
-    wlockid.store( (unsigned long long) XrdSysThread::ID());
+    wlockid.store((unsigned long long) XrdSysThread::ID());
     //fprintf(stderr,"MQ === WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",
     //(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
   }

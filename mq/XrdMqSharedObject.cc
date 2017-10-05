@@ -25,7 +25,6 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqStringConversion.hh"
 #include "common/Logging.hh"
-#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -53,8 +52,8 @@ XrdMqSharedObjectChangeNotifier::tlSubscriber = NULL;
     entry->second.mSubscribers.erase(subscriber);  \
     if(entry->second.mSubscribers.empty()) {       \
       if(entry->second.mRegex) {                   \
-  regfree(entry->second.mRegex);             \
-  delete entry->second.mRegex;               \
+        regfree(entry->second.mRegex);             \
+        delete entry->second.mRegex;               \
       }                                            \
       map.erase(entry);                            \
     }                                              \
