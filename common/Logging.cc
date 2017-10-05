@@ -182,7 +182,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
 
   char* ptr = buffer + strlen(buffer);
   // limit the length of the output to buffer-1 length
-  vsnprintf(ptr, logmsgbuffersize - (ptr - buffer - 1), msg, args);
+  vsnprintf(ptr, logmsgbuffersize - (ptr - buffer + 1), msg, args);
 
   if (gToSysLog) {
     syslog(priority, "%s", ptr);

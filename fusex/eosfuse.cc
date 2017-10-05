@@ -1127,17 +1127,71 @@ EBADF  Invalid directory stream descriptor fi->fh
     auto it = pmap.begin();
     eos_static_info("off=%lu size-%lu", off, pmap.size());
 
-    if ((size_t) off < pmap.size()) {
-      std::advance(it, off);
-    } else {
-      it = pmap.end();
-    }
-
     char b[size];
     char* b_ptr = b;
     off_t b_size = 0;
 
-    for (; it != pmap.end(); ++it) {
+    // the root directory adds only '.', all other add '.' and '..' for off=0
+    size_t offset_corr = off?2:((pmd->id()==1)? 1:2);
+    
+    if (off == 0)
+    {
+      // at offset=0 add the '.' directory
+      std::string bname = ".";
+      fuse_ino_t cino = pmd->id();
+
+      eos_static_debug("list: %08x %s", cino, bname.c_str());
+      mode_t mode = pmd->mode();
+
+      struct stat stbuf;
+      memset (&stbuf, 0, sizeof ( struct stat ));
+      stbuf.st_ino = cino;
+      stbuf.st_mode = mode;
+
+      size_t a_size = fuse_add_direntry (req, b_ptr , size - b_size,
+                                         bname.c_str(), &stbuf, ++off);
+
+      eos_static_info("name=%s ino=%08lx mode=%08x bytes=%u/%u",
+                      bname.c_str(), cino, mode, a_size, size - b_size);
+
+
+      b_ptr += a_size;
+      b_size += a_size;
+
+      // at offset=0 add the '..' directory
+      metad::shared_md ppmd = Instance().mds.get(req, pmd->pid(), "" , 0, 0, 0, true);
+      if (ppmd && (ppmd->id() == pmd->pid()))
+      {
+        std::string bname = "..";
+        fuse_ino_t cino = ppmd->id();
+
+        eos_static_debug("list: %08x %s", cino, bname.c_str());
+        mode_t mode = ppmd->mode();
+
+        struct stat stbuf;
+        memset (&stbuf, 0, sizeof ( struct stat ));
+        stbuf.st_ino = cino;
+        stbuf.st_mode = mode;
+
+        size_t a_size = fuse_add_direntry (req, b_ptr , size - b_size,
+                                           bname.c_str(), &stbuf, ++off);
+
+        eos_static_info("name=%s ino=%08lx mode=%08x bytes=%u/%u",
+                        bname.c_str(), cino, mode, a_size, size - b_size);
+
+        b_ptr += a_size;
+        b_size += a_size;
+      }
+    }
+  
+    if ((size_t) (off-offset_corr) < pmap.size())
+      std::advance(it, off-offset_corr);
+    else
+      it = pmap.end();
+    
+    // add regular children
+    for ( ; it != pmap.end(); ++it)
+    {
       std::string bname = it->first;
       fuse_ino_t cino = it->second;
       eos_static_debug("list: %08x %s", cino, it->first.c_str());
@@ -2358,7 +2412,6 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 
 #ifdef __APPLE__
         else
-
           // don't return any finder attribute
           if (key.substr(0, s_apple.length()) == s_apple) {
             rc = ENOATTR;
@@ -2603,17 +2656,16 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
           }
 
 #ifdef __APPLE__
-          else
-
-            // ignore silently any finder attribute
-            if (key.substr(0, s_apple.length()) == s_apple) {
-              rc = 0;
-            }
-
+        else
+          // ignore silently any finder attribute
+          if (key.substr(0, s_apple.length()) == s_apple)
+        {
+          rc = 0;
+        }
 #endif
-            else {
-              auto map = md->mutable_attr();
-              bool exists = false;
+        else
+        {
+          auto map = md->mutable_attr();
 
               if ((*map).count(key)) {
                 exists = true;
@@ -2755,29 +2807,27 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name)
         }
 
 #ifdef __APPLE__
-        else
-
-          // ignore silently any finder attribute
-          if (key.substr(0, s_apple.length()) == s_apple) {
-            rc = 0;
-          }
-
+	else
+	// ignore silently any finder attribute
+	if (key.substr(0, s_apple.length()) == s_apple)
+	{
+	  rc = 0;
+	}
 #endif
-          else {
-            auto map = md->mutable_attr();
-            bool exists = false;
+	else
+	{
+	  auto map = md->mutable_attr();
+	  if ((*map).count(key)) {
+	    exists = true;
+	  }
 
-            if ((*map).count(key)) {
-              exists = true;
-            }
-
-            if (!exists) {
-              rc = ENOATTR;
-            } else {
-              (*map).erase(key);
-              Instance().mds.update(req, md, pcap->authid());
-            }
-          }
+	  if (!exists) {
+	    rc = ENOATTR;
+	  } else {
+	    (*map).erase(key);
+	    Instance().mds.update(req, md, pcap->authid());
+	  }
+	}
     }
   }
 
