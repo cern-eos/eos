@@ -2667,19 +2667,20 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         {
           auto map = md->mutable_attr();
 
-              if ((*map).count(key)) {
-                exists = true;
-              }
+	  bool exists = false;
+	  if ((*map).count(key)) {
+	    exists = true;
+	  }
 
-              if (exists && (flags == XATTR_CREATE)) {
-                rc = EEXIST;
-              } else if (!exists && (flags == XATTR_REPLACE)) {
-                rc = ENOATTR;
-              } else {
-                (*map)[key] = value;
-                Instance().mds.update(req, md, pcap->authid());
-              }
-            }
+	  if (exists && (flags == XATTR_CREATE)) {
+	    rc = EEXIST;
+	  } else if (!exists && (flags == XATTR_REPLACE)) {
+	    rc = ENOATTR;
+	  } else {
+	    (*map)[key] = value;
+	    Instance().mds.update(req, md, pcap->authid());
+	  }
+	}
       }
     }
   }
