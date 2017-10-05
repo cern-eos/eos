@@ -48,7 +48,7 @@ dircleaner::~dircleaner()
 {
   if (max_files | max_size)
   {
-    // C++11 is poor for threading 
+    // C++11 is poor for threading
     pthread_cancel(tLeveler.native_handle());
     tLeveler.join();
   }
@@ -70,6 +70,8 @@ int
 dircleaner::cleanall(std::string filtersuffix)
 /* -------------------------------------------------------------------------- */
 {
+  XrdSysMutexHelper mLock(cleaningMutex);
+
   if (!scanall())
   {
     std::string tout;
@@ -213,7 +215,7 @@ dircleaner::trim(bool force)
       files_ok = false;
     }
 
-    // nothing to do 
+    // nothing to do
     if (size_ok && files_ok)
       return 0;
   }
@@ -236,7 +238,7 @@ dircleaner::trim(bool force)
       files_ok = false;
     }
 
-    // nothing to do 
+    // nothing to do
     if (size_ok && files_ok)
       return 0;
 
@@ -266,6 +268,7 @@ dircleaner::leveler()
   {
     XrdSysTimer sleeper;
     sleeper.Snooze(15);
+    XrdSysMutexHelper mLock(cleaningMutex);
     trim(!n % (1 * 60 * 4)); // forced trim every hour
     n++;
   }

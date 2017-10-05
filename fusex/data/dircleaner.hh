@@ -81,7 +81,7 @@ public:
       totalsize = 0;
       totalfiles = 0;
     }
-    
+
     // thread safe get size
     int64_t get_size()
     {
@@ -114,7 +114,7 @@ public:
   void leveler();
 
 private:
-
+  XrdSysMutex cleaningMutex;
   std::string path;
 
   int64_t max_files;
