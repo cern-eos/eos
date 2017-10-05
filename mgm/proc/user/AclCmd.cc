@@ -210,7 +210,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 // Get ACL rule from string by creating a pair of identifier for the ACL and
 // the bitmask representation
 //------------------------------------------------------------------------------
-Rule AclCmd::GetRuleFromString(const std::string& single_acl) const
+Rule AclCmd::GetRuleFromString(const std::string& single_acl)
 {
   Rule ret;
   auto acl_delimiter = single_acl.rfind(':');
@@ -286,7 +286,7 @@ Rule AclCmd::GetRuleFromString(const std::string& single_acl) const
 // Generate rule map from the string representation of the acls
 //------------------------------------------------------------------------------
 void
-AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap) const
+AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap)
 {
   if (acl_string.empty()) {
     return;
@@ -315,7 +315,6 @@ AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap) const
 
   return;
 }
-
 
 //------------------------------------------------------------------------------
 // Convert acl modification command into bitmask rule format
@@ -546,13 +545,13 @@ void AclCmd::ApplyRule(RuleMap& rules)
 // Generate acl string representation from a rule map
 //------------------------------------------------------------------------------
 std::string
-AclCmd::GenerateAclString(const RuleMap& rmap) const
+AclCmd::GenerateAclString(const RuleMap& rmap)
 {
   std::string ret = "";
 
   for (const auto& elem : rmap) {
     if (elem.second != 0) {
-      ret += elem.first + ":" + AclBitmaskToString(elem.second) + ",";
+      ret += elem.first + ":" + AclCmd::AclBitmaskToString(elem.second) + ",";
     }
   }
 
@@ -568,7 +567,7 @@ AclCmd::GenerateAclString(const RuleMap& rmap) const
 // Convert ACL bitmask to string representation
 //------------------------------------------------------------------------------
 std::string
-AclCmd::AclBitmaskToString(const unsigned short int in) const
+AclCmd::AclBitmaskToString(const unsigned short int in)
 {
   std::string ret = "";
 

@@ -143,7 +143,7 @@ private:
   //! @return std::pair containing ACL identifier (ie. u:user1 or g:group1)
   //! and the bitmask representation
   //----------------------------------------------------------------------------
-  Rule GetRuleFromString(const std::string& in) const;
+  static Rule GetRuleFromString(const std::string& in);
 
   //----------------------------------------------------------------------------
   //! Generate rule map from the string representation of the acls. If there
@@ -152,7 +152,8 @@ private:
   //! @param acl_string string containing acl
   //! @param rmap map to be filled with acl rules
   //----------------------------------------------------------------------------
-  void GenerateRuleMap(const std::string& acl_string, RuleMap& rmap) const;
+  static void
+  GenerateRuleMap(const std::string& acl_string, RuleMap& rmap);
 
   //----------------------------------------------------------------------------
   //! Generate acl string representation from a rule map
@@ -161,7 +162,7 @@ private:
   //!
   //! @return true if conversion successful, otherwise false
   //----------------------------------------------------------------------------
-  std::string GenerateAclString(const RuleMap& rmap) const;
+  static std::string GenerateAclString(const RuleMap& rmap);
 
   //----------------------------------------------------------------------------
   //! Convert acl modification command into bitmask rule format
@@ -206,7 +207,7 @@ private:
   //!
   //! @return std::string representation of ACL
   //----------------------------------------------------------------------------
-  std::string AclBitmaskToString(const unsigned short in) const;
+  static std::string AclBitmaskToString(const unsigned short in);
 };
 
 EOSMGMNAMESPACE_END
