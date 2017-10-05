@@ -531,6 +531,7 @@ metad::get(fuse_req_t req,
     else
     {
       eos_static_info("pmd=%x cap-cnt=%d", pmd ? pmd->id() : 0, pmd ? pmd->cap_count() : 0);
+      XrdSysMutexHelper mLock(md->Locker());
       if ( ( (!listing) || (listing && md->type() == md->MDLS) ) && md->md_ino() && md->cap_count())
       {
         eos_static_info("returning cap entry via parent lookup cap-count=%d", md->cap_count());
@@ -551,6 +552,7 @@ metad::get(fuse_req_t req,
       }
     }
 
+    XrdSysMutexHelper mLock(md->Locker());
     if (!md->pid())
     {
       // this must have been generated locally, we return this entry
