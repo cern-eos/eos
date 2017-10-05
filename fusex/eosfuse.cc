@@ -2817,6 +2817,7 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name)
 #endif
 	else
 	{
+	  bool exists = false;
 	  auto map = md->mutable_attr();
 	  if ((*map).count(key)) {
 	    exists = true;
