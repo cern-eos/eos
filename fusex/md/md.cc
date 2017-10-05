@@ -420,6 +420,7 @@ bool
 metad::map_children_to_local(shared_md pmd)
 /* -------------------------------------------------------------------------- */
 {
+  XrdSysMutexHelper pLock(pmd->Locker());
   bool ret = true;
   // exchange the remote inode map with the local used inode map
   std::vector<std::string> names ;
@@ -1366,8 +1367,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
   bool unlock_pmd = false;
   eos_static_debug(dump_container(cont).c_str());
 
-  // switch (cont.type()) {
-  //   case cont.MD:
   if (cont.type() == cont.MD)
   {
     uint64_t md_ino = cont.md_().md_ino();
