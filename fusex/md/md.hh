@@ -70,7 +70,7 @@ public:
     mdx() : mSync(0)
     {
       setop_add();
-      lookup_cnt = 0;
+      lookup_cnt.store(0, std::memory_order_seq_cst);
       lock_remote = true;
       cap_count_reset();
       refresh = false;
@@ -80,7 +80,7 @@ public:
     {
       set_id(ino);
       setop_add();
-      lookup_cnt = 0;
+      lookup_cnt.store(0, std::memory_order_seq_cst);
       lock_remote = true;
       cap_count_reset();
       refresh = false;
@@ -137,23 +137,27 @@ public:
 
     void lookup_inc()
     {
-      // requires to have Locker outside
-      eos_static_info("ino=%16x lookup=%d => lookup=%d", id(), lookup_cnt, lookup_cnt+1);
-      lookup_cnt++;
+      // atomic operation, no need to lock before calling
+      int prevLookup = lookup_cnt.fetch_add(1, std::memory_order_seq_cst);
+      eos_static_info("ino=%16x lookup=%d => lookup=%d", id(), prevLookup, prevLookup+1);
     }
 
     bool lookup_dec(int n)
     {
-      // requires to have Lock outside
-      lookup_cnt-=n;
-      if (lookup_cnt > 0)
+      // atomic operation, no need to lock before calling
+      int prevLookup = lookup_cnt.fetch_sub(n, std::memory_order_seq_cst);
+
+      if(prevLookup - n > 0)
+      {
         return false;
+      }
+
       return true;
     }
 
     int lookup_is()
     {
-      return lookup_cnt;
+      return lookup_cnt.load();
     }
 
     md_op getop() const
@@ -183,24 +187,24 @@ public:
 
     void cap_inc()
     {
-      // requires to have Lock outside
-      cap_cnt++;
+      // atomic operation, no need to lock before calling
+      cap_cnt.fetch_add(1, std::memory_order_seq_cst);
     }
 
     void cap_dec()
     {
-      // requires to have Lock outside
-      cap_cnt--;
+      // atomic operation, no need to lock before calling
+      cap_cnt.fetch_sub(1, std::memory_order_seq_cst);
     }
 
     void cap_count_reset()
     {
-      cap_cnt = 0;
+      cap_cnt.store(0, std::memory_order_seq_cst);
     }
 
     int cap_count()
     {
-      return cap_cnt;
+      return cap_cnt.load();
     }
 
     std::vector<struct flock> &LockTable()
@@ -237,8 +241,8 @@ public:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
     md_op op;
-    int lookup_cnt;
-    int cap_cnt;
+    std::atomic<int> lookup_cnt;
+    std::atomic<int> cap_cnt;
     bool lock_remote;
     bool refresh;
     std::vector<struct flock> locktable;
