@@ -202,7 +202,7 @@ cap::get(fuse_req_t req,
     cap->set_vtime(0);
     cap->set_vtime_ns(0);
     capmap[cid] = cap;
-    mds->increase_cap(ino, lock);
+    //    mds->increase_cap(ino, lock);
     return cap;
   }
 }
@@ -363,7 +363,7 @@ cap::acquire(fuse_req_t req,
     {
       capmap[cid] = cap;
       cap->set_id(ino);
-      mds->increase_cap(ino, lock);
+      //mds->increase_cap(ino, lock);
     }
   }
 
