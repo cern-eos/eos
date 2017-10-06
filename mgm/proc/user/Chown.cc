@@ -137,9 +137,9 @@ ProcCommand::Chown()
               stdOut += " gid=";
               stdOut += gid.c_str();
             }
-
-            stdOut += "\n";
           }
+
+          stdOut += "\n";
         }
       }
 
