@@ -100,10 +100,7 @@ int cachesyncer::sync( int fd, interval_tree<uint64_t,
   if (truncatesize != -1)
   {
     XrdCl::XRootDStatus st = file.Truncate( truncatesize );
-    if( !st.IsOK())
-    {
-      handler.Report ( new XrdCl::XRootDStatus( st ) );
-    }
+    handler.Report ( new XrdCl::XRootDStatus( st ) );
   }
 
   handler.Wait();
