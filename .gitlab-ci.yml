@@ -14,18 +14,16 @@ eos_rpm_cc7:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities
-    - git submodule update --init --recursive
     - mkdir build
     - cd build
-    - cmake3 .. -DPACKAGEONLY=1
+    - cmake3 .. -DPACKAGEONLY=1 -DFUSEXCLIENT=1
     - make srpm
     - cd ..
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-7-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
-    - yum-builddep --nogpgcheck --setopt=cern*.exclude=xrootd* -y build/SRPMS/*
-    - rpmbuild --rebuild --with=server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - yum-builddep --nogpgcheck --setopt=cern*.exclude=xrootd* -y /root/rpmbuild/SRPMS/*
+    - rpmbuild --rebuild --with=server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" /root/rpmbuild/SRPMS/*
     - mkdir cc7_artifacts
-    - cp -R build/SRPMS cc7_artifacts
+    - cp -R /root/rpmbuild/SRPMS/ cc7_artifacts
     - cp -R build/RPMS cc7_artifacts
   artifacts:
     expire_in: 1 day
@@ -39,19 +37,16 @@ eos_rpm_slc6:
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar
-    - git submodule update --init --recursive
     - mkdir build
     - cd build
-    - cmake3 .. -DPACKAGEONLY=1
+    - cmake3 .. -DPACKAGEONLY=1 -DFUSEXCLIENT=1
     - make srpm
     - cd ..
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    # TODO: this repository needs to be removed in the future
-    - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-6-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
-    - yum-builddep --nogpgcheck --setopt=cern*.exclude=xrootd* -y build/SRPMS/*
-    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - yum-builddep --nogpgcheck --setopt=cern*.exclude=xrootd* -y /root/rpmbuild/SRPMS/*
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" /root/rpmbuild/SRPMS/*
     - mkdir slc6_artifacts
-    - cp -R build/SRPMS slc6_artifacts
+    - cp -R /root/rpmbuild/SRPMS/ slc6_artifacts
     - cp -R build/RPMS slc6_artifacts
   artifacts:
     expire_in: 1 day
