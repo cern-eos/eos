@@ -33,7 +33,7 @@ ProcCommand::Quota()
 {
   using eos::common::Mapping;
   using eos::common::StringConversion;
-  int errc;
+  int errc = 0;
   long id = 0;
   Quota::IdT id_type = Quota::IdT::kUid;
   Quota::Type quota_type = Quota::Type::kUnknown;
@@ -55,7 +55,6 @@ ProcCommand::Quota()
     }
 
     if (!gOFS->_stat(sspace.c_str(), &buf, *mError, *pVid, 0)) {
-      // this exists, so we rewrite space as asspace
       space = sspace;
     }
   }
@@ -122,14 +121,15 @@ ProcCommand::Quota()
   }
 
   if (canQuota) {
+    std::string uid_sel = (pOpaque->Get("mgm.quota.uid") ?
+                           pOpaque->Get("mgm.quota.uid") : "");
+    std::string gid_sel = (pOpaque->Get("mgm.quota.gid") ?
+                           pOpaque->Get("mgm.quota.gid") : "");
+
     if (mSubCmd == "ls") {
       eos_notice("quota ls");
       XrdOucString monitoring = pOpaque->Get("mgm.quota.format");
       XrdOucString printid = pOpaque->Get("mgm.quota.printid");
-      std::string uid_sel = (pOpaque->Get("mgm.quota.uid") ?
-                             pOpaque->Get("mgm.quota.uid") : "");
-      std::string gid_sel = (pOpaque->Get("mgm.quota.gid") ?
-                             pOpaque->Get("mgm.quota.gid") : "");
       long long int uid = (uid_sel.empty() ? -1LL :
                            Mapping::UserNameToUid(uid_sel, errc));
       long long int gid = (gid_sel.empty() ? -1LL :
@@ -181,8 +181,6 @@ ProcCommand::Quota()
       if ((pVid->prot != "sss") || (Mapping::IsLocalhost(*pVid))) {
         eos_notice("quota set");
         std::string msg {""};
-        XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
-        XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
         XrdOucString svolume = pOpaque->Get("mgm.quota.maxbytes");
         XrdOucString sinodes = pOpaque->Get("mgm.quota.maxinodes");
 
@@ -193,7 +191,7 @@ ProcCommand::Quota()
         }
 
         if (uid_sel.length() && gid_sel.length()) {
-          stdErr = "error: specify either a uid or a gid - not both!";
+          stdErr = "error: you need specify either a uid or a gid";
           retc = EINVAL;
           return SFS_OK;
         }
@@ -201,9 +199,23 @@ ProcCommand::Quota()
         if (uid_sel.length()) {
           id_type = Quota::IdT::kUid;
           id = Mapping::UserNameToUid(uid_sel.c_str(), errc);
+
+          if (errc == EINVAL) {
+            stdErr = "error: unable to translate uid=";
+            stdErr += uid_sel.c_str();
+            retc = EINVAL;
+            return SFS_OK;
+          }
         } else if (gid_sel.length()) {
           id_type = Quota::IdT::kGid;
           id = Mapping::GroupNameToGid(gid_sel.c_str(), errc);
+
+          if (errc == EINVAL) {
+            stdErr = "error: unable to translate gid=";
+            stdErr += gid_sel.c_str();
+            retc = EINVAL;
+            return SFS_OK;
+          }
         } else {
           stdErr = "error: no uid/gid specified for quota set";
           retc = EINVAL;
@@ -263,8 +275,6 @@ ProcCommand::Quota()
 
       if ((pVid->prot != "sss") || (Mapping::IsLocalhost(*pVid))) {
         int errc;
-        XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
-        XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
 
         if (space.empty()) {
           stdErr = "error: command not properly formatted";
@@ -273,7 +283,7 @@ ProcCommand::Quota()
         }
 
         if (uid_sel.length() && gid_sel.length()) {
-          stdErr = "error: you can either specify a uid or a gid - not both!";
+          stdErr = "error: you need specify either a uid or a gid";
           retc = EINVAL;
           return SFS_OK;
         }
@@ -284,7 +294,7 @@ ProcCommand::Quota()
 
           if (errc == EINVAL) {
             stdErr = "error: unable to translate uid=";
-            stdErr += gid_sel;
+            stdErr += uid_sel.c_str();
             retc = EINVAL;
             return SFS_OK;
           }
@@ -294,7 +304,7 @@ ProcCommand::Quota()
 
           if (errc == EINVAL) {
             stdErr = "error: unable to translate gid=";
-            stdErr += gid_sel;
+            stdErr += gid_sel.c_str();
             retc = EINVAL;
             return SFS_OK;
           }
