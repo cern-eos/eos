@@ -175,7 +175,7 @@ cap::ls()
 cap::shared_cap
 /* ----------------------------------------------------------- -------------- */
 cap::get(fuse_req_t req,
-         fuse_ino_t ino, 
+         fuse_ino_t ino,
 	 bool lock)
 /* -------------------------------------------------------------------------- */
 {
@@ -323,7 +323,7 @@ cap::shared_cap
 /* -------------------------------------------------------------------------- */
 cap::acquire(fuse_req_t req,
              fuse_ino_t ino,
-             mode_t mode, 
+             mode_t mode,
 	     bool lock
              )
 /* -------------------------------------------------------------------------- */
@@ -356,14 +356,15 @@ cap::acquire(fuse_req_t req,
     eos_static_debug("%s", cap->dump().c_str());
   }
 
+  XrdSysMutexHelper mLock(capmap);
+  XrdSysMutexHelper mLock2(cap->Locker());
+
   if (try_attach)
   {
-    XrdSysMutexHelper mLock(capmap);
     if (!capmap.count(cid))
     {
       capmap[cid] = cap;
       cap->set_id(ino);
-      //mds->increase_cap(ino, lock);
     }
   }
 

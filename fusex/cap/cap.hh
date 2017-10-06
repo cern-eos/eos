@@ -69,7 +69,7 @@ public:
       (*((eos::fusex::quota*)(this))) = other;
       return *this;
     }
-    
+
   private:
     XrdSysMutex mLock;
   } ;
@@ -191,10 +191,10 @@ public:
   shared_cap get(fuse_ino_t ino,
 		 std::string clientid
 		 );
-  
+
   shared_cap acquire(fuse_req_t req,
                      fuse_ino_t ino,
-                     mode_t mode, 
+                     mode_t mode,
 		     bool lock=false
                      );
 
@@ -243,7 +243,7 @@ public:
   {
     return quotamap.get(cap);
   }
-  
+
   std::string imply(shared_cap cap, std::string imply_authid, mode_t mode, fuse_ino_t inode);
 
   fuse_ino_t forget(const std::string& capid);
@@ -262,7 +262,7 @@ public:
   bool should_terminate()
   {
     return capterminate.load();
-  } // check if threads should terminate 
+  } // check if threads should terminate
 
   void terminate()
   {
