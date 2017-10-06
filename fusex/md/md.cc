@@ -533,20 +533,26 @@ metad::get(fuse_req_t req,
     else
     {
       eos_static_info("pmd=%x cap-cnt=%d", pmd ? pmd->id() : 0, pmd ? pmd->cap_count() : 0);
-      XrdSysMutexHelper mLock(md->Locker());
-      if ( ( (!listing) || (listing && md->type() == md->MDLS) ) && md->md_ino() && md->cap_count())
+      uint64_t md_pid = 0;
+      mode_t md_mode = 0;
       {
-        eos_static_info("returning cap entry via parent lookup cap-count=%d", md->cap_count());
-	if ( EOS_LOGS_DEBUG )
-	  eos_static_debug("MD:\n%s", dump_md(md,false).c_str());
-        return md;
+	XrdSysMutexHelper mLock(md->Locker());
+	if ( ( (!listing) || (listing && md->type() == md->MDLS) ) && md->md_ino() && md->cap_count())
+	{
+	  eos_static_info("returning cap entry via parent lookup cap-count=%d", md->cap_count());
+	  if ( EOS_LOGS_DEBUG )
+	    eos_static_debug("MD:\n%s", dump_md(md,false).c_str());
+	  return md;
+	}
+	md_pid = md->pid();
+	md_mode = md->mode();
       }
 
-      if (!S_ISDIR(md->mode()))
+      if (!S_ISDIR(md_mode))
       {
         // files are covered by the CAP of the parent, so if there is a cap
         // on the parent we can return this entry right away
-        if(mdmap.retrieveTS(md->pid(), pmd)) {
+        if(mdmap.retrieveTS(md_pid, pmd)) {
           if(pmd && pmd->id() && pmd->cap_count())
           {
             return md;
