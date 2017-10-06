@@ -625,9 +625,14 @@ metad::get(fuse_req_t req,
       }
        */
 
-      if (pmd->md_ino())
+      pmd->Locker().Lock();
+      uint64_t pmd_ino = pmd->md_ino();
+      pmd->Locker().UnLock();
+
+
+      if (pmd_ino)
       {
-        rc = mdbackend->getMD(req, pmd->md_ino(), name, contv, listing, authid);
+        rc = mdbackend->getMD(req, pmd_ino, name, contv, listing, authid);
       }
       else
       {
@@ -645,6 +650,7 @@ metad::get(fuse_req_t req,
     // -------------------------------------------------------------------------
   {
     thecase = 3;
+    XrdSysMutexHelper mLock(md->Locker());
     if (md->md_ino())
     {
       // prevent resyncing when we have deletions pending
