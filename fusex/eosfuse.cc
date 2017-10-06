@@ -2105,7 +2105,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
                                   md->name(),
                                   md->md_ino(),
                                   md->md_pino(),
-                                  req);
+                                  req, 
+				  (mode == W_OK) );
 
           bool outdated = (io->ioctx()->attach(req, cookie, fi->flags ) == EKEYEXPIRED);
 
@@ -2366,7 +2367,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
                                     md->name(),
                                     md->md_ino(),
                                     md->md_pino(),
-                                    req);
+                                    req,
+				    true);
 
             io->ioctx()->attach(req, cookie, fi->flags);
           }

@@ -204,6 +204,19 @@ public:
       return _xrdioro;
     }
 
+    bool erase_xrdioro(fuse_req_t req)
+    {
+      delete _xrdioro["default"];
+      _xrdioro.erase("default");
+      return true;
+    }
+
+    bool erase_xrdioro(const std::string& id)
+    {
+      _xrdioro.erase(id);
+      return true;
+    }
+
   private:
     cache* _file;
     cache* _journal;

@@ -261,7 +261,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
   eos_info("cookie=%s flags=%o isrw=%d md-size=%d %s", cookie.c_str(), flags,
            isRW, mMd->size(),
-           mRemoteUrl.c_str());
+           isRW?mRemoteUrlRW.c_str() : mRemoteUrlRO.c_str());
 
 
   if ( flags & O_SYNC )
@@ -304,7 +304,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       }
       XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update;
       XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::UX;
-      mFile->xrdiorw(freq)->OpenAsync(mRemoteUrl.c_str(), targetFlags, mode, 0);
+      mFile->xrdiorw(freq)->OpenAsync(mRemoteUrlRW.c_str(), targetFlags, mode, 0);
     }
     else
     {
@@ -336,7 +336,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       // we might need to wait for a creation to go through
       WaitOpen();
 
-      mFile->xrdioro(freq)->OpenAsync(mRemoteUrl.c_str(), targetFlags, mode, 0);
+      mFile->xrdioro(freq)->OpenAsync(mRemoteUrlRO.c_str(), targetFlags, mode, 0);
     }
     else
     {
@@ -1081,38 +1081,45 @@ data::datax::set_remote(const std::string& hostport,
                         const std::string& basename,
                         const uint64_t md_ino,
                         const uint64_t md_pino,
-                        fuse_req_t req)
+                        fuse_req_t req, 
+			bool isRW)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("");
-  mRemoteUrl = "root://";
-  mRemoteUrl += hostport;
-  mRemoteUrl += "//fusex-open";
-  mRemoteUrl += "?eos.lfn=";
+  std::string remoteurl;
+  
+  remoteurl = "root://";
+  remoteurl += hostport;
+  remoteurl += "//fusex-open";
+  remoteurl += "?eos.lfn=";
   if (md_ino)
   {
-    mRemoteUrl += "ino:";
+    remoteurl += "ino:";
     char sino[128];
     snprintf(sino, sizeof (sino), "%lx", md_ino);
-    mRemoteUrl += sino;
+    remoteurl += sino;
   }
   else
   {
-
-    mRemoteUrl += "pino:";
+    remoteurl += "pino:";
     char pino[128];
     snprintf(pino, sizeof (pino), "%lx", md_pino);
-    mRemoteUrl += pino;
-    mRemoteUrl += "/";
-    mRemoteUrl += basename;
+    remoteurl += pino;
+    remoteurl += "/";
+    remoteurl += basename;
   }
-  mRemoteUrl += "&eos.app=fuse&mgm.mtime=0&mgm.fusex=1&eos.bookingsize=0";
+  remoteurl += "&eos.app=fuse&mgm.mtime=0&mgm.fusex=1&eos.bookingsize=0";
 
-  XrdCl::URL url(mRemoteUrl);
+  XrdCl::URL url(remoteurl);
   XrdCl::URL::ParamsMap query = url.GetParams();
   fusexrdlogin::loginurl(url, query, req, md_ino);
   url.SetParams(query);
-  mRemoteUrl = url.GetURL();
+  remoteurl = url.GetURL();
+
+  if (isRW)
+    mRemoteUrlRW = remoteurl;
+  else
+    mRemoteUrlRO = remoteurl;
 }
 
 /* -------------------------------------------------------------------------- */

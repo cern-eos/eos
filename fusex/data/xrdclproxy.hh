@@ -570,7 +570,7 @@ namespace XrdCl
 
     // ref counting
     void attach();
-    void detach();
+    size_t detach();
     bool attached();
 
     std::string url()
