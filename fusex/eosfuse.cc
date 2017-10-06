@@ -242,10 +242,17 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       newrlimit.rlim_max = config.options.fdlimit;
 
       if(setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) {
-        fprintf(stderr, "error: unable to set fd limit to %d - errno %d\n", config.options.fdlimit, errno);
+        fprintf(stderr, "error: unable to set fd limit to %ld - errno %d\n", config.options.fdlimit, errno);
         exit(EINVAL);
       }
     }
+
+    struct rlimit nofilelimit;
+    if(getrlimit(RLIMIT_NOFILE, &nofilelimit) != 0) {
+      fprintf(stderr, "error: unable to get fd limit - errno %d\n", errno);
+      exit(EINVAL);
+    }
+    fprintf(stderr, "File descriptor limit: %d soft, %d hard\n", nofilelimit.rlim_cur, nofilelimit.rlim_max);
 
     // data caching configuration
     cconfig.type = cachehandler::cache_t::INVALID;
