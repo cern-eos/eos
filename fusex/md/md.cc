@@ -51,15 +51,17 @@ z_ctx(0), z_socket(0)
   {
     inomap.insert(1, 1);
   }
-  mdmap[1] = std::make_shared<mdx>(1);
-  XrdSysMutexHelper mLock(mdmap[1]->Locker());
-  mdmap[1]->set_nlink(1);
-  mdmap[1]->set_mode( S_IRWXU | S_IRWXG | S_IRWXO | S_IFDIR);
-  mdmap[1]->set_name(":root:");
-  mdmap[1]->set_pid(1);
+
+  shared_md md = std::make_shared<mdx>(1);
+  md->set_nlink(1);
+  md->set_mode( S_IRWXU | S_IRWXG | S_IRWXO | S_IFDIR);
+  md->set_name(":root:");
+  md->set_pid(1);
   stat.inodes_inc();
   stat.inodes_ever_inc();
   mdbackend = 0;
+
+  mdmap.insertTS(1, md);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -536,7 +538,7 @@ metad::get(fuse_req_t req,
       {
         eos_static_info("returning cap entry via parent lookup cap-count=%d", md->cap_count());
 	if ( EOS_LOGS_DEBUG )
-	  eos_static_debug("MD:\n%s", dump_md(md).c_str());
+	  eos_static_debug("MD:\n%s", dump_md(md,false).c_str());
         return md;
       }
 
@@ -1054,6 +1056,18 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts);
 
+  if (!md->deleted())
+  {
+    md->lookup_inc();
+    stat.inodes_deleted_inc();
+    stat.inodes_deleted_ever_inc();
+  }
+
+  md->set_mtime(ts.tv_sec);
+  md->set_mtime_ns(ts.tv_nsec);
+
+  md->setop_delete();
+
   // avoid lock order violation
   md->Locker().UnLock();
   {
@@ -1066,18 +1080,6 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
   }
 
   md->Locker().Lock();
-
-  if (!md->deleted())
-  {
-    md->lookup_inc();
-    stat.inodes_deleted_inc();
-    stat.inodes_deleted_ever_inc();
-  }
-
-  md->set_mtime(ts.tv_sec);
-  md->set_mtime_ns(ts.tv_nsec);
-
-  md->setop_delete();
 
   if (!upstream)
     return ;
@@ -1191,18 +1193,24 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
 /* -------------------------------------------------------------------------- */
 std::string
 /* -------------------------------------------------------------------------- */
-metad::dump_md(shared_md md)
+metad::dump_md(shared_md md, bool lock)
 /* -------------------------------------------------------------------------- */
 {
   if (! (md) )
     return "";
 
-  XrdSysMutexHelper mLock(md->Locker());
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = true;
   options.always_print_primitive_fields = true;
   std::string jsonstring;
+  if (lock)
+    md->Locker().Lock();
   google::protobuf::util::MessageToJsonString( *((eos::fusex::md*)(&(*md))), &jsonstring, options);
+  char capcnt[16];
+  snprintf(capcnt,sizeof(capcnt),"%d", md->cap_count());
+  jsonstring += "\ncap-cnt:"; jsonstring += capcnt;
+  if (lock)
+    md->Locker().UnLock();
   return jsonstring;
 }
 
@@ -1926,6 +1934,8 @@ metad::mdcommunicate()
                   }
                   // invalidate children
 
+		  eos_static_info("md=%16x", md->id());
+		      
                   if (md && md->id())
                   {
                     if (EosFuse::Instance().Config().options.md_kernelcache)
@@ -1942,6 +1952,7 @@ metad::mdcommunicate()
                     }
                     md->Locker().UnLock();
                     md->cap_count_reset();
+		    eos_static_debug("%s", dump_md(md).c_str());
                     //XrdSysMutexHelper mmLock(mdmap);
                     //mdmap.erase(ino);
                   }

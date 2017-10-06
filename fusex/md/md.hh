@@ -433,7 +433,7 @@ public:
   void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
           std::string authid1, std::string authid2);
 
-  std::string dump_md(shared_md md);
+  std::string dump_md(shared_md md, bool lock=true);
   std::string dump_md(eos::fusex::md& md);
   std::string dump_container(eos::fusex::container & cont);
 
