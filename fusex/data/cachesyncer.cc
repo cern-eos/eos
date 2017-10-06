@@ -38,8 +38,10 @@ public:
     result &= status->IsOK();
     delete status;
     --count;
-    if ( count == 0 )
+    if ( count == 0 ) {
+      scope.UnLock();
       sem.Post();
+    }
   }
 
   bool WasSuccessful()
@@ -98,7 +100,10 @@ int cachesyncer::sync( int fd, interval_tree<uint64_t,
   if (truncatesize != -1)
   {
     XrdCl::XRootDStatus st = file.Truncate( truncatesize );
-    handler.Report ( new XrdCl::XRootDStatus( st ) );
+    if( !st.IsOK())
+    {
+      handler.Report ( new XrdCl::XRootDStatus( st ) );
+    }
   }
 
   handler.Wait();
