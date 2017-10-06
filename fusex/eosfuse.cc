@@ -1337,7 +1337,7 @@ EBADF  Invalid directory stream descriptor fi->fh
         b_size += a_size;
       }
     }
-  
+
     // add regular children
     for ( ; it != pmap.end(); ++it)
     {
@@ -1411,6 +1411,16 @@ EosFuse::releasedir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   opendir_t* md = (opendir_t*) fi->fh;
   if (md)
   {
+    // The following two lines act as a barrier to ensure the last readdir() has
+    // released items_lock. From the point of view of the FUSE kernel module,
+    // once we call fuse_reply_buf inside readdir, that syscall is over, and it
+    // is free to call releasedir. This creates a race condition where we try to
+    // delete md while readdir still holds items_lock - the following two lines
+    // prevent this.
+
+    md->items_lock.Lock();
+    md->items_lock.UnLock();
+
     delete md;
     fi->fh = 0;
   }
