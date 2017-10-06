@@ -29,6 +29,7 @@ The configuration file for a named instance is */etc/eos/fuse.<name>.conf*.
     "data-kernelcache" : 1,
     "mkdir-is-sync" : 1,
     "create-is-sync" : 1,
+    "fd-limit" : 65536
   },
   "auth" : {
     "shared-mount" : 1,

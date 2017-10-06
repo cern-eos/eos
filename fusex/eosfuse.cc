@@ -43,6 +43,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <sys/resource.h>
 #include <sys/types.h>
 #ifdef __APPLE__
 #define O_DIRECT 0
@@ -180,6 +181,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
     config.options.global_flush = root["options"]["global-flush"].asInt();
     config.options.global_locking = root["options"]["global-locking"].asInt();
+    config.options.fdlimit = root["options"]["fd-limit"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
     config.mqtargethost = root["mdzmqtarget"].asString();
@@ -231,6 +233,18 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       char spid[16];
       snprintf(spid, sizeof (spid), "%d", getpid());
       config.mqidentity += spid;
+    }
+
+    if(config.options.fdlimit > 0) {
+
+      struct rlimit newrlimit;
+      newrlimit.rlim_cur = config.options.fdlimit;
+      newrlimit.rlim_max = config.options.fdlimit;
+
+      if(setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) {
+        fprintf(stderr, "error: unable to set fd limit to %d - errno %d\n", config.options.fdlimit, errno);
+        exit(EINVAL);
+      }
     }
 
     // data caching configuration

@@ -202,6 +202,7 @@ public:
       int create_is_sync;
       int global_flush;
       int global_locking;
+      int fdlimit;
     } options_t;
     options_t options;
     CredentialConfig auth;
