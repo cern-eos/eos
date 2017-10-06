@@ -566,7 +566,7 @@ metad::get(fuse_req_t req,
     {
       // this must have been generated locally, we return this entry
       eos_static_info("returning generated entry");
-      if ( EOS_LOGS_DEBUG ) 
+      if ( EOS_LOGS_DEBUG )
 	eos_static_debug("MD:\n%s", dump_md(md).c_str());
       return md;
 
@@ -1673,46 +1673,36 @@ metad::mdcflush()
 
       eos_static_debug("metacache::flush ino=%016lx authid=%s op=%d", ino, authid.c_str(), (int) op);
       {
+        if(should_terminate()) {
+          return;
+        }
+
         shared_md md;
-        {
-          XrdSysMutexHelper mLock(mdmap);
 
-          if (should_terminate())
-            return;
+        if(!mdmap.retrieveTS(ino, md)) {
+          continue;
+        }
 
-          if (mdmap.count(ino))
-          {
-            eos_static_info("metacache::flush ino=%016lx", (unsigned long long) ino);
+        eos_static_info("metacache::flush ino=%016lx", (unsigned long long) ino);
 
-            md = mdmap[ino];
+        if(op != metad::mdx::LSTORE) {
+          XrdSysMutexHelper mdLock(md->Locker());
+          if (!md->md_pino()) {
+            // when creating objects locally faster than pushed upstream
+            // we might not know the remote parent id when we insert a local
+            // creation request
 
-            if (op != metad::mdx::LSTORE)
-            {
-              XrdSysMutexHelper mdLock(md->Locker());
-              if (!md->md_pino())
-              {
-                // when creating objects locally faster than pushed upstream
-                // we might not know the remote parent id when we insert a local
-                // creation request
-                if (mdmap.count(md->pid()))
-                {
-                  uint64_t md_pino = mdmap[md->pid()]->md_ino();
-                  if (md_pino)
-                  {
-                    eos_static_crit("metacache::flush providing parent inode %016lx to %016lx", md->id(), md_pino);
-                    md->set_md_pino(md_pino);
-                  }
-                  else
-                  {
-                    eos_static_crit("metacache::flush ino=%016lx parent remote inode not known", (unsigned long long) ino);
-                  }
-                }
-              }
+            shared_md pmd;
+            if(mdmap.retrieveTS(md->pid(), pmd)) {
+              // TODO: check if we need to lock pmd? But then we have to enforce
+              // locking order child -> parent
+              uint64_t md_pino = pmd->md_ino();
+              eos_static_crit("metacache::flush providing parent inode %016lx to %016lx", md->id(), md_pino);
+              md->set_md_pino(md_pino);
             }
-          }
-          else
-          {
-            continue;
+            else {
+              eos_static_crit("metacache::flush ino=%016lx parent remote inode not known", (unsigned long long) ino);
+            }
           }
         }
         if (md->id())
@@ -1941,7 +1931,7 @@ metad::mdcommunicate()
                   // invalidate children
 
 		  eos_static_info("md=%16x", md->id());
-		      
+
                   if (md && md->id())
                   {
                     if (EosFuse::Instance().Config().options.md_kernelcache)
