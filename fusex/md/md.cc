@@ -1400,18 +1400,9 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 
     bool is_new = false;
     {
-      XrdSysMutexHelper mLock(mdmap);
-      if (!ino || !mdmap.retrieve(ino, md))
-      {
-        md = std::make_shared<mdx>();
-	if (ino)
-	  mdmap[ino] = md;
-        md->Locker().Lock();
-      }
-      else
-      {
-        md->Locker().Lock();
-      }
+      // Create a new md object, if none is found in the cache
+      mdmap.retrieveOrCreateTS(ino, md);
+      md->Locker().Lock();
 
       eos_static_debug("%s op=%d deleted=%d", md->dump().c_str(), md->getop(), md->deleted());
       if (md->deleted())

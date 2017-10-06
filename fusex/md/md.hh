@@ -350,6 +350,21 @@ public:
     {
     }
 
+    void retrieveOrCreateTS(fuse_ino_t ino, shared_md &ret)
+    {
+      XrdSysMutexHelper mLock(this);
+
+      if(this->retrieve(ino, ret))
+      {
+        return;
+      }
+
+      ret = std::make_shared<mdx>();
+      if (ino) {
+        (*this)[ino] = ret;
+      }
+    }
+
     // TS stands for "thread-safe"
     bool retrieveTS(fuse_ino_t ino, shared_md &ret)
     {
