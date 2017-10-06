@@ -34,6 +34,7 @@
 #include "llfusexx.hh"
 #include "auth/CredentialFinder.hh"
 
+#include <set>
 #include <signal.h>
 #include <string.h>
 #include <string>
@@ -253,6 +254,8 @@ public:
   typedef struct opendir_fh
   {
     metad::shared_md md;
+    std::set<std::string> readdir_items;
+    XrdSysMutex items_lock;
   } opendir_t ;
 
 private:

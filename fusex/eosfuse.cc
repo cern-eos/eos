@@ -1274,6 +1274,9 @@ EBADF  Invalid directory stream descriptor fi->fh
     metad::shared_md pmd = md->md;
     XrdSysMutexHelper mLock(pmd->Locker());
 
+    // only one readdir at a time
+    XrdSysMutexHelper lLock(md->items_lock);
+
     auto pmap = pmd->children();
     auto it = pmap.begin();
 
@@ -1285,8 +1288,6 @@ EBADF  Invalid directory stream descriptor fi->fh
     off_t b_size = 0;
 
     // the root directory adds only '.', all other add '.' and '..' for off=0
-    size_t offset_corr = off?2:((pmd->id()==1)? 1:2);
-    
     if (off == 0)
     {
       // at offset=0 add the '.' directory
@@ -1337,14 +1338,13 @@ EBADF  Invalid directory stream descriptor fi->fh
       }
     }
   
-    if ((size_t) (off-offset_corr) < pmap.size())
-      std::advance(it, off-offset_corr);
-    else
-      it = pmap.end();
-    
     // add regular children
     for ( ; it != pmap.end(); ++it)
     {
+      // skip entries we have shown already
+      if (md->readdir_items.count(it->first))
+	continue;
+
       std::string bname = it->first;
       fuse_ino_t cino = it->second;
 
@@ -1366,6 +1366,9 @@ EBADF  Invalid directory stream descriptor fi->fh
 
       if (a_size > (size - b_size))
         break;
+
+      // add to the shown list
+      md->readdir_items.insert(it->first);
 
       b_ptr += a_size;
       b_size += a_size;
