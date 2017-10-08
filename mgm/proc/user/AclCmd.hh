@@ -188,7 +188,7 @@ private:
   bool ParseRule(const std::string& input);
 
   //----------------------------------------------------------------------------
-  //! Check if id has the correct format
+  //! Check if id has the correct format i.e u:user_id or g:group_id
   //!
   //! @param id string containing id
   //!

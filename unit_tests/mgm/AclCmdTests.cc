@@ -30,10 +30,10 @@ TEST(AclCmd, RuleMap)
 {
   using namespace eos::mgm;
   RuleMap expect_map = {
-    { "u:99", 0b0111}, { "u:0", 0b0111}
+    { "u:99", 0b011111111111}, { "u:0", 0b01010101010}
   };
   RuleMap result_map;
-  const std::string acl = "u:99:rwx,u:0:rwx";
+  const std::string acl = "u:99:rwxm!m!d+d!u+uqc,u:0:wm!d!uq";
   AclCmd::GenerateRuleMap(acl, result_map);
   ASSERT_EQ(result_map.size(), expect_map.size());
 
