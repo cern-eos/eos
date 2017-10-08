@@ -260,6 +260,7 @@ SymKey::Base64Encode(const char* in, unsigned int inlen, std::string& out)
 
   BUF_MEM* bptr;
   BIO_get_mem_ptr(b64, &bptr);
+  out.resize(bptr->length + 1, '\0');
   out.assign(bptr->data, bptr->length);
   BIO_free_all(b64);
   return true;
@@ -302,9 +303,8 @@ SymKey::Base64Decode(const char* in, char*& out, size_t& outlen)
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   bmem = BIO_push(b64, bmem);
   size_t buffer_length = BIO_get_mem_data(bmem, NULL);
-  out = (char*) malloc(buffer_length);
+  out = (char*) malloc(buffer_length + 1);
   outlen = BIO_read(bmem, out, buffer_length);
-  out[outlen] = '\0';
   BIO_free_all(bmem);
   return true;
 }
@@ -330,9 +330,9 @@ SymKey::Base64Decode(const char* in, std::string& out)
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   bmem = BIO_push(b64, bmem);
   size_t buffer_length = BIO_get_mem_data(bmem, NULL);
-  out.resize(buffer_length);
+  out.resize(buffer_length, '\0');
   int nread = BIO_read(bmem, (char*)out.data(), buffer_length);
-  out[nread] = '\0';
+  out.resize(nread);
   BIO_free_all(bmem);
   return true;
 }
@@ -442,7 +442,6 @@ SymKey::DeBase64(std::string& in, std::string& out)
 
   return false;
 }
-
 
 //------------------------------------------------------------------------------
 // Set a key providing its base64 encoded representation and validity
