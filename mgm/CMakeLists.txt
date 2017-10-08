@@ -198,7 +198,6 @@ target_link_libraries(
   eosCommonServer
   EosNsCommon
   EosPluginManager
-  XrdMqClient
   eosCapability-Static
   ${Z_LIBRARY}
   ${ZMQ_LIBRARIES}

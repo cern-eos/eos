@@ -47,7 +47,7 @@ firsttest=$1
 lasttest=$2
 
 ################################################################################
-# Check which version on XRootD we are using
+# Check which version of XRootD we are using
 ################################################################################
 XRD_VERS_MAJOR=$(rpm -qa | grep xrootd-client-[[:digit:]] | awk -F "-" '{print $3}' | awk -F "." '{print $1}')
 
@@ -62,11 +62,11 @@ if [ -e /etc/sysconfig/eos ];  then
 fi
 
 if [ -z "$EOS_TEST_INSTANCE" ]; then
-        if [ -n "$EOS_INSTANCE_NAME" ]; then
-          export EOS_TEST_INSTANCE=${EOS_INSTANCE_NAME#eos}
-        else
-          export EOS_TEST_INSTANCE="dev"
-        fi
+  if [ -n "$EOS_INSTANCE_NAME" ]; then
+    export EOS_TEST_INSTANCE=${EOS_INSTANCE_NAME#eos}
+  else
+    export EOS_TEST_INSTANCE="dev"
+  fi
 fi
 ################################################################################
 mkdir -p $EOS_TEST_TESTSYS
@@ -81,14 +81,12 @@ export GSMLOCKFILE=$EOS_TEST_TESTSYS/eos-gsm.lock
 export EOSTESTPID=$EOS_TEST_TESTSYS/eos-pid
 export FAILFILE=$EOS_TEST_TESTSYS/eos-failed
 export TIMEOUTFILE=$EOS_TEST_TESTSYS/eos-timeout
-
 export TESTSYSFILE0K=$EOS_TEST_TESTSYS/file.0K
 export TESTSYSFILE1K=$EOS_TEST_TESTSYS/file.1K
 export TESTSYSFILE1M=$EOS_TEST_TESTSYS/file.1M
 export TESTSYSFILE50M=$EOS_TEST_TESTSYS/file.50M
 
 ################################################################################
-
 if [ "x$1" != "xlist" ]; then
 
 if [ ! -e $TESTSYSFILE0K ]; then
@@ -191,14 +189,17 @@ mailnotify () {
     OK="OK" && test -e $FAILFILE && OK="FAILED"
 
     if [ $OK = "FAILED" ]; then
-        if [ -n "$EOS_TEST_MAILNOTIFY" ]; then  mutt -s "$EOS_TEST_INSTANCE $OK" $EOS_TEST_MAILNOTIFY < $EOSALLCERTLOG ; fi
+        if [ -n "$EOS_TEST_MAILNOTIFY" ]; then
+          mutt -s "$EOS_TEST_INSTANCE $OK" $EOS_TEST_MAILNOTIFY < $EOSALLCERTLOG ; fi
         if [ ! -e $GSMLOCKFILE ]; then
-            if [ -n "$EOS_TEST_GSMNOTIFY" ]; then echo "$EOS_TEST_INSTANCE failed at `date`" | mail -s "$EOS_TEST_INSTANCE $OK" $EOS_TEST_GSMNOTIFY ; touch $GSMLOCKFILE; ( sleep EOS_TEST_GSMLOCKTIME; rm -rf $GSMLOCKFILE; ) >& /dev/null &
+            if [ -n "$EOS_TEST_GSMNOTIFY" ]; then
+              echo "$EOS_TEST_INSTANCE failed at `date`" | mail -s "$EOS_TEST_INSTANCE $OK" $EOS_TEST_GSMNOTIFY ; \
+              touch $GSMLOCKFILE; ( sleep EOS_TEST_GSMLOCKTIME; rm -rf $GSMLOCKFILE; ) >& /dev/null &
             fi;
         fi
-        exit -1
+        exit -1;
     fi
-    exit 0
+    exit 0;
 }
 ################################################################################
 (
@@ -736,7 +737,6 @@ runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | g
 runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 5"
 runtest "### Attr Ls   " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test | grep sys | wc -l | grep -w 5"
 runtest "### Attr Get  " unix 0 "" eos attr get "sys.forced.space /eos/$EOS_TEST_INSTANCE/test  | grep default"
-#runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.blockchecksum /eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.layout /eos/$EOS_TEST_INSTANCE/test"
@@ -753,7 +753,20 @@ runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/file"
 ################################################################################
 # ACL
 ###################################################A############################
-# @TODO (esindril)
+categorie="acl"
+runtest "### Mkdir   " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl ls  " unix 1 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl set " unix 0 "" eos acl u:daemon=rwx "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl ls  " unix 0 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl" | grep "u:daemon:rwx"
+runtest "### Acl upd " unix 0 "" eos acl u:daemon:+\!d+\!u+q+c "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl ls  " unix 0 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl" | grep "u:daemon:rwx!d!uqc"
+runtest "### Acl upd " unix 0 "" eos acl u:daemon:-x-\!d-\!u-c "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl ls  " unix 0 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl" | grep "u:daemon:rwq"
+runtest "### Acl set " unix 0 "" eos acl u:daemon=rw+d+u "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl ls  " unix 0 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl" | grep "u:daemon:rw+d+u"
+runtest "### Acl upd " unix 0 "" eos acl u:daemon:-r-w-+d-+u "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl ls  " unix 1 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Rmdir   " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/acl"
 
 ################################################################################
 # NAMESPACE
@@ -799,21 +812,21 @@ categorie="symlink"
 # ------------------------------------------------------------------------------
 runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/
 runtest "### Touch     " unix 0 "" eos touch /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/touch
-runtest "### Symlink(d)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref
-runtest "### Symlink(r)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symrel2 ../../test/instancetest/ref/
+runtest "### Symlink-d" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref
+runtest "### Symlink-r" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symrel2 ../../test/instancetest/ref/
 runtest "### Symlink   " unix 0 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/symrel2/touch
-runtest "### Symlink(r)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symrel1 ../instancetest/ref/
+runtest "### Symlink-r" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symrel1 ../instancetest/ref/
 runtest "### Symlink   " unix 0 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/symrel1/touch
-runtest "### Symlink(f)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/touch
-runtest "### Symlink(E)" unix 1 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami /eos/$EOS_TEST_INSTANCE/proc/whoami
-runtest "### Symlink(E)" unix 1 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref
+runtest "### Symlink-f" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/touch
+runtest "### Symlink-E" unix 1 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami /eos/$EOS_TEST_INSTANCE/proc/whoami
+runtest "### Symlink-E" unix 1 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref
 runtest "### Symlink   " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir/touch
 runtest "### Symlink   " unix 0 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami
 runtest "### Symlink   " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami
-runtest "### Symlink(L)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/fwd-loop /eos/$EOS_TEST_INSTANCE/bwd-loop
-runtest "### Symlink(L)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/bwd-loop /eos/$EOS_TEST_INSTANCE/fwd-loop
-runtest "### Symlink(L)" unix 1 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/bwd-loop
-runtest "### Symlink(L)" unix 1 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/fwd-loop
+runtest "### Symlink-L" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/fwd-loop /eos/$EOS_TEST_INSTANCE/bwd-loop
+runtest "### Symlink-L" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/bwd-loop /eos/$EOS_TEST_INSTANCE/fwd-loop
+runtest "### Symlink-L" unix 1 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/bwd-loop
+runtest "### Symlink-L" unix 1 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/fwd-loop
 
 # ------------------------------------------------------------------------------
 categorie="tag"
@@ -835,7 +848,6 @@ runtest "### Rmdir     " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instan
 #runtest "### UploadP   " unix 0 "" upload  "$TESTSYSFILE50M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
 #runtest "### Download  " unix 0 "" download "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k"
 #runtest "### DownloadP " unix 0 "" download "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
-
 
 ################################################################################
 # eoscp tests
@@ -1176,7 +1188,7 @@ runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/rai
 # show test summary
 testout
 unlink $EOSTESTPID
-exit
+exit;
 ################################################################################
 ) | tee -a $EOSALLCERTLOG &
 
