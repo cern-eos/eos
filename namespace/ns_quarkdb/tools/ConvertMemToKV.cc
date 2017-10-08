@@ -33,7 +33,6 @@ static std::int32_t sBkndPort;
 static long long int sAsyncBatch = 256 * 256 - 1;
 static qclient::QClient* sQcl;
 static qclient::AsyncHandler sAh;
-
 static size_t sThreads = 1;
 
 EOSNSNAMESPACE_BEGIN
@@ -162,6 +161,11 @@ ConvertContainerMD::updateInternal()
   mCont.clear_xattrs();
 
   for (auto& xattr : pXAttrs) {
+    // Convert acls to numeric values
+    if ((xattr.first == "sys.acl") || (xattr.first == "user.acl")) {
+      convertAclToNumeric(xattr.second);
+    }
+
     (*mCont.mutable_xattrs())[xattr.first] = xattr.second;
   }
 }
@@ -231,6 +235,90 @@ ConvertContainerMD::commitFiles(qclient::QClient* qclient)
   }
 
   return std::make_pair(qclient->execute(cmd), std::move(cmd));
+}
+
+//----------------------------------------------------------------------------
+//! Convert ACL to numeric representation of uid/gid(s). This code was taken
+//! from ~/mgm/Acl.hh/cc.
+//----------------------------------------------------------------------------
+void
+ConvertContainerMD::convertAclToNumeric(std::string& acl_val)
+{
+  if (acl_val.empty()) {
+    return;
+  }
+
+  bool is_uid, is_gid;
+  std::string sid;
+  std::ostringstream oss;
+  using eos::common::StringConversion;
+  std::vector<std::string> rules;
+  StringConversion::Tokenize(acl_val, rules, ",");
+
+  if (!rules.size() && acl_val.length()) {
+    rules.push_back(acl_val);
+  }
+
+  for (auto& rule : rules) {
+    is_uid = is_gid = false;
+    std::vector<std::string> tokens;
+    StringConversion::Tokenize(rule, tokens, ":");
+    eos_static_debug("rule=%s, tokens.size=%i", rule.c_str(), tokens.size());
+
+    if (tokens.size() != 3) {
+      oss << rule << ',';
+      continue;
+    }
+
+    is_uid = (tokens[0] == "u");
+    is_gid = (tokens[0] == "g");
+
+    if (!is_uid && !is_gid) {
+      oss << rule << ',';
+      continue;
+    }
+
+    sid = tokens[1];
+    bool needs_conversion = false;
+    // Convert to numeric representation
+    needs_conversion =
+      (std::find_if(sid.begin(), sid.end(),
+    [](const char& c) {
+      return std::isalpha(c);
+    }) != sid.end());
+
+    if (needs_conversion) {
+      int errc = 0;
+      std::uint32_t numeric_id {0};
+      std::string string_id {""};
+
+      if (is_uid) {
+        numeric_id = eos::common::Mapping::UserNameToUid(sid, errc);
+        string_id = std::to_string(numeric_id);
+      } else {
+        numeric_id = eos::common::Mapping::GroupNameToGid(sid, errc);
+        string_id = std::to_string(numeric_id);
+      }
+
+      if (errc) {
+        oss.str("");
+        oss << "failed to convert id: \"" << sid << "\" to numeric format";
+        // Print error message but still return the original value that we have
+        eos_static_err(oss.str().c_str());
+        string_id = sid;
+      }
+
+      oss << tokens[0] << ':' << string_id << ':' << tokens[2] << ',';
+    } else {
+      oss << rule << ',';
+    }
+  }
+
+  acl_val = oss.str();
+
+  if (*acl_val.rbegin() == ',') {
+    acl_val.pop_back();
+  }
 }
 
 //------------------------------------------------------------------------------

@@ -215,6 +215,14 @@ public:
   qclient::AsyncResponseType commitFiles(qclient::QClient* qclient);
 
 private:
+  //----------------------------------------------------------------------------
+  //! Convert ACL to numeric representation of uid/gid(s). This code was taken
+  //! from ~/mgm/Acl.cc.
+  //!
+  //! @param acl_val acl string
+  //----------------------------------------------------------------------------
+  void convertAclToNumeric(std::string& acl_val);
+
   eos::ns::ContainerMdProto mCont; ///< Protobuf container representation
   std::string pFilesKey; ///< Key of hmap holding info about files
   std::string pDirsKey;  ///< Key of hmap holding info about subcontainers
