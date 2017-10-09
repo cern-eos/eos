@@ -38,7 +38,7 @@
 #include "common/Namespace.hh"
 #include "common/compression/Compression.hh"
 #include "common/RWMutex.hh"
-#include "common/ConcurrentQueue.hh"
+#include "common/ConcurrentStack.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -50,8 +50,8 @@ private:
   size_t      pDictSize;
   ZSTD_CDict* pCDict;
   ZSTD_DDict* pDDict;
-  ConcurrentQueue<ZSTD_CCtx*> mCompressCtxPool; //! Pool of compression context objects for efficient concurrent usage
-  ConcurrentQueue<ZSTD_DCtx*> mDecompressCtxPool; //! Pool of decompression context objects for efficient concurrent usage
+  ConcurrentStack<ZSTD_CCtx*> mCompressCtxPool; //! Pool of compression context objects for efficient concurrent usage
+  ConcurrentStack<ZSTD_DCtx*> mDecompressCtxPool; //! Pool of decompression context objects for efficient concurrent usage
 
   //! @brief Load the dictionary from file to memory
   //! @param dictionaryPath path of the dictioanry file
