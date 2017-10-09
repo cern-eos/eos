@@ -197,6 +197,7 @@ public:
       int foreground;
       int md_kernelcache;
       double md_kernelcache_enoent_timeout;
+      double md_backend_timeout;
       int data_kernelcache;
       int mkdir_is_sync;
       int create_is_sync;
@@ -208,7 +209,7 @@ public:
     CredentialConfig auth;
   } cfg_t;
 
-  cfg_t& Config()
+  cfg_t& Config() 
   {
     return config;
   }
@@ -258,6 +259,8 @@ public:
     std::set<std::string> readdir_items;
     XrdSysMutex items_lock;
   } opendir_t ;
+
+protected:
 
 private:
 
