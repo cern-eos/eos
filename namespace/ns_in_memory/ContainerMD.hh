@@ -353,21 +353,17 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Add to tree size
+  //! Update tree size
   //----------------------------------------------------------------------------
-  uint64_t addTreeSize(uint64_t addsize) override
+  uint64_t updateTreeSize(int64_t delta) override
   {
-    pTreeSize += addsize;
-    return getTreeSize();
-  }
+    if ((delta < 0) && (std::llabs(delta) > pTreeSize)) {
+      pTreeSize = 0;
+    } else {
+      pTreeSize += delta;
+    }
 
-  //----------------------------------------------------------------------------
-  //! Remove from tree size
-  //----------------------------------------------------------------------------
-  uint64_t removeTreeSize(uint64_t removesize) override
-  {
-    pTreeSize -= removesize;
-    return pTreeSize;
+    return getTreeSize();
   }
 
   //----------------------------------------------------------------------------

@@ -79,8 +79,6 @@ PF_initPlugin(const PF_PlatformServices* services)
   param_syncacc.version.minor = 1;
   param_syncacc.CreateFunc = eos::NsQuarkdbPlugin::CreateSyncTimeAcc;
   param_syncacc.DestroyFunc = eos::NsQuarkdbPlugin::DestroySyncTimeAcc;
-  // TODO(esindril): define the necessary objects to be provided by the
-  // namespace in a common header
   std::map<std::string, PF_RegisterParams> map_obj = {
     {"ContainerMDSvc", param_cmdsvc},
     {"FileMDSvc", param_fmdsvc},

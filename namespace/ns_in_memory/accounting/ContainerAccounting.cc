@@ -69,7 +69,7 @@ void ContainerAccounting::Account(IFileMD* obj , int64_t dsize)
       return;
     }
 
-    iCont->addTreeSize(dsize);
+    iCont->updateTreeSize(dsize);
     iId = iCont->getParentId();
     deepness++;
   }
@@ -99,7 +99,7 @@ void ContainerAccounting::AddTree(IContainerMD* obj , int64_t dsize)
       return;
     }
 
-    iCont->addTreeSize(dsize);
+    iCont->updateTreeSize(dsize);
     iId = iCont->getParentId();
     deepness++;
   }

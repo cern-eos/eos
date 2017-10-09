@@ -712,8 +712,7 @@ ConvertFileMDSvc::initialize()
         // Propagate mtime and size up the tree
         if (mSyncTimeAcc && mContAcc) {
           mSyncTimeAcc->QueueForUpdate(file->getContainerId());
-          mContAcc->QueueForUpdate(file->getContainerId(), file->getSize(),
-                                   eos::ContainerAccounting::OpType::FILE);
+          mContAcc->QueueForUpdate(file->getContainerId(), file->getSize());
 
           // Update every 1M files
           if ((count % 1000000 == 0) && (i == 0)) {

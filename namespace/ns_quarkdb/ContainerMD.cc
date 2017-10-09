@@ -658,23 +658,19 @@ ContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
 }
 
 //------------------------------------------------------------------------------
-// Add to tree size
+// Update tree size
 //------------------------------------------------------------------------------
 uint64_t
-ContainerMD::addTreeSize(uint64_t addsize)
+ContainerMD::updateTreeSize(int64_t delta)
 {
-  uint64_t sz = mCont.tree_size() + addsize;
-  mCont.set_tree_size(sz);
-  return sz;
-}
+  uint64_t sz = mCont.tree_size();
 
-//------------------------------------------------------------------------------
-// Remove from tree size
-//------------------------------------------------------------------------------
-uint64_t
-ContainerMD::removeTreeSize(uint64_t removesize)
-{
-  uint64_t sz = mCont.tree_size() - removesize;
+  if ((delta < 0) && (std::llabs(delta) > sz)) {
+    sz = 0;
+  } else {
+    sz += delta;
+  }
+
   mCont.set_tree_size(sz);
   return sz;
 }

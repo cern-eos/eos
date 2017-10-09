@@ -40,11 +40,6 @@ EOSNSNAMESPACE_BEGIN
 class ContainerAccounting : public IFileMDChangeListener
 {
 public:
-
-  //! Type of operation that the update comes from. FILE means simple file
-  //! addition/removal and tree means rename on directories.
-  enum class OpType {FILE, TREE};
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -110,9 +105,8 @@ public:
   //!
   //! @param pid container id
   //! @param dsize size change
-  //! @param op type of operation
   //----------------------------------------------------------------------------
-  void QueueForUpdate(IContainerMD::id_t pid, int64_t dsize, OpType op);
+  void QueueForUpdate(IContainerMD::id_t pid, int64_t dsize);
 
   //----------------------------------------------------------------------------
   //! Propagate updates in the hierarchical structure. Method ran by the

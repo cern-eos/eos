@@ -215,14 +215,11 @@ public:
   virtual void setTreeSize(uint64_t treesize) = 0;
 
   //----------------------------------------------------------------------------
-  //! Add to tree size
+  //! Update tree size
+  //!
+  //! @param delta can be negative or positive
   //----------------------------------------------------------------------------
-  virtual uint64_t addTreeSize(uint64_t addsize) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Remove from tree size
-  //----------------------------------------------------------------------------
-  virtual uint64_t removeTreeSize(uint64_t removesize) = 0;
+  virtual uint64_t updateTreeSize(int64_t delta) = 0;
 
   //----------------------------------------------------------------------------
   //! Get creation time

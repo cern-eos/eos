@@ -65,9 +65,9 @@ ContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
       // NOTE: This is an ugly hack. The file object has not reference to the
       // container id, therefore we hijack the "location" member of the Event
       // class to pass in the container id.
-      QueueForUpdate(e->location, e->sizeChange, OpType::FILE);
+      QueueForUpdate(e->location, e->sizeChange);
     } else {
-      QueueForUpdate(e->file->getContainerId(), e->sizeChange, OpType::FILE);
+      QueueForUpdate(e->file->getContainerId(), e->sizeChange);
     }
 
     break;
@@ -83,7 +83,7 @@ ContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
 void
 ContainerAccounting::AddTree(IContainerMD* obj, int64_t dsize)
 {
-  QueueForUpdate(obj->getId(), dsize, OpType::TREE);
+  QueueForUpdate(obj->getId(), dsize);
 }
 
 //-------------------------------------------------------------------------------
@@ -92,33 +92,19 @@ ContainerAccounting::AddTree(IContainerMD* obj, int64_t dsize)
 void
 ContainerAccounting::RemoveTree(IContainerMD* obj, int64_t dsize)
 {
-  QueueForUpdate(obj->getId(), -dsize, OpType::TREE);
+  QueueForUpdate(obj->getId(), -dsize);
 }
-
 
 //------------------------------------------------------------------------------
 // Queue file info for update
 //------------------------------------------------------------------------------
 void
-ContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize,
-                                    OpType op)
+ContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
 {
   uint16_t deepness = 0;
+  std::shared_ptr<IContainerMD> cont;
   std::lock_guard<std::mutex> scope_lock(mMutexBatch);
   auto& batch = mBatch[mAccumulateIndx];
-
-  // If this is a tree operation and we already have an update for the root of
-  // of the mv then we need to update the current tree size taking into
-  // account the previous add/remove operation.
-  if (op == OpType::TREE) {
-    auto it_map = batch.mMap.find(id);
-
-    if (it_map != batch.mMap.end()) {
-      dsize += it_map->second;
-    }
-  }
-
-  std::shared_ptr<IContainerMD> cont;
 
   while ((id > 1) && (deepness < 255)) {
     try {
@@ -169,7 +155,7 @@ ContainerAccounting::PropagateUpdates()
       for (auto const& elem : batch.mMap) {
         try {
           cont = mContainerMDSvc->getContainerMD(elem.first);
-          cont->addTreeSize(elem.second);
+          cont->updateTreeSize(elem.second);
           mContainerMDSvc->updateStore(cont.get());
         } catch (MDException& e) {
           // TODO: (esindril) error message using default logging
