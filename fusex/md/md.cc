@@ -204,12 +204,14 @@ metad::lookup(fuse_req_t req,
         {
           // no entry - TODO return a NULLMD object instead of creating it all the time
           md = std::make_shared<mdx>();
+	  md->set_err(pmd->err());
           return md;
         }
         if (pmd->get_todelete().count(name))
         {
           // if this has been deleted, we just say this
           md = std::make_shared<mdx>();
+	  md->set_err(pmd->err());
           return md;
         }
       }
@@ -232,6 +234,7 @@ metad::lookup(fuse_req_t req,
     // no md available
     // --------------------------------------------------
     md = std::make_shared<mdx>();
+    md->set_err(pmd->err());
   }
 
   return md;
@@ -477,7 +480,7 @@ metad::get(fuse_req_t req,
            )
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_info("ino=%08llx pino=%08llx name=%s listing=%d", ino, pmd ? pmd->id() : 0, name, listing);
+  eos_static_info("ino=%1llx pino=%16lx name=%s listing=%d", ino, pmd ? pmd->id() : 0, name, listing);
   shared_md md;
   bool loaded = false;
 
@@ -498,7 +501,7 @@ metad::get(fuse_req_t req,
       // which also loads all available child meta data
       // -----------------------------------------------------------------------
       md = load_from_kv(ino);
-      eos_static_info("loaded from kv ino=%08llx remote-ino=%08llx", md->id(), md->md_ino());
+      eos_static_info("loaded from kv ino=%16lx remote-ino=%08llx", md->id(), md->md_ino());
       loaded = true;
     }
   }
@@ -765,13 +768,21 @@ metad::get(fuse_req_t req,
     }
   }
 
-  if ( EOS_LOGS_DEBUG )
-    eos_static_debug("MD:\n%s", dump_md(md).c_str());
 
   if (rc)
   {
-    return std::make_shared<mdx>();
+    shared_md md = std::make_shared<mdx>();
+    md->set_err(rc);
+
+    if ( EOS_LOGS_DEBUG )
+      eos_static_debug("MD:\n%s", dump_md(md).c_str());
+    
+    return md;
   }
+  
+  if ( EOS_LOGS_DEBUG )
+    eos_static_debug("MD:\n%s", dump_md(md).c_str());
+  
   return md;
 }
 
