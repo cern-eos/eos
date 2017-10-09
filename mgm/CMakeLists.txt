@@ -253,17 +253,17 @@ target_link_libraries(
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------
 if(BUILD_QUARKDB_NAMESPACE AND Linux)
-  add_library(XrdEosMgm-Static STATIC
+  add_library(XrdEosMgm-Shared SHARED
     $<TARGET_OBJECTS:XrdEosMgm-Objects>
     $<TARGET_OBJECTS:CommonCli-Objects>
     $<TARGET_OBJECTS:EosAuthProto-Objects>)
 
   target_compile_definitions(
-    XrdEosMgm-Static PUBLIC
+    XrdEosMgm-Shared PUBLIC
     -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
   target_link_libraries(
-    XrdEosMgm-Static PRIVATE
+    XrdEosMgm-Shared PRIVATE
     EosNsCommon-Static
     eosCommon-Static
     eosCommonServer
@@ -285,6 +285,6 @@ if(BUILD_QUARKDB_NAMESPACE AND Linux)
     ${CMAKE_THREAD_LIBS_INIT}
     ${PROTOBUF_LIBRARIES})
 
-  set_target_properties(XrdEosMgm-Static
+  set_target_properties(XrdEosMgm-Shared
     PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 endif()

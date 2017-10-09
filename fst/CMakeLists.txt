@@ -385,8 +385,13 @@ set(
 
 add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
 
+add_library(XrdEosFst-Shared SHARED ${XRDEOSFST_SRCS})
+
 target_compile_definitions(
   XrdEosFst PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+
+target_compile_definitions(
+  XrdEosFst-Shared PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(
    XrdEosFst PRIVATE
@@ -404,6 +409,24 @@ target_link_libraries(
    ${XOORTD_UTILS_LIBRARY}
    ${OPENSSL_CRYPTO_LIBRARY}
    ${CMAKE_THREAD_LIBS_INIT})
+
+target_link_libraries(
+  XrdEosFst-Shared PUBLIC
+  eosCommonServer
+  EosFstIo-Static
+  eosCapability-Static
+  ${Z_LIBRARY}
+  ${UUID_LIBRARIES}
+  ${ATTR_LIBRARIES}
+  ${GLIBC_RT_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
+  ${PROTOBUF_LIBRARY}
+  ${NCURSES_LIBRARIES}
+  ${XROOTD_CL_LIBRARY}
+  ${XOORTD_UTILS_LIBRARY}
+  ${XROOTD_SERVER_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
 
 install(
   TARGETS

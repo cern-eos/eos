@@ -54,8 +54,20 @@ add_executable(eos-unit-tests ${UT_SRCS})
 #   ${CMAKE_SOURCE_DIR}/fst/tests/TestEnv.cc
 #   ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc)
 
-target_link_libraries(eos-unit-tests
+set(EOS_UT_RPATH "${CMAKE_BINARY_DIR}/fst/;${CMAKE_BINARY_DIR}/mgm/;${CMAKE_BINARY_DIR}/common/;${CMAKE_BINARY_DIR}/mq/;${CMAKE_BINARY_DIR}/auth_plugin/")
+
+set_target_properties(
+  eos-unit-tests PROPERTIES
+  INSTALL_RPATH  "${EOS_UT_RPATH}"
+  SKIP_RPATH FALSE
+  SKIP_BUILD_RPATH  FALSE
+  BUILD_WITH_INSTALL_RPATH TRUE
+  INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+target_link_libraries(
+  eos-unit-tests
   gtest_main
-  XrdEosMgm-Static
-  EosFstIo
+  gmock
+  XrdEosMgm-Shared
+  XrdEosFst-Shared
   ${XROOTD_SERVER_LIBRARY})
