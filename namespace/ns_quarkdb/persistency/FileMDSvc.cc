@@ -36,9 +36,9 @@ std::chrono::seconds FileMDSvc::sFlushInterval(5);
 FileMDSvc::FileMDSvc()
   : pQuotaStats(nullptr), pContSvc(nullptr), mFlushTimestamp(std::time(nullptr)),
     pBkendPort(0), pBkendHost(""), pQcl(nullptr), mMetaMap(),
-    mDirtyFidBackend(), mFlushFidSet(), mFileCache(10e6)
+    mDirtyFidBackend(), mFlushFidSet(), mFileCache(10e8)
 {
-  // TODO (esindril): Make size of the file cache configurable
+  // empty
 }
 
 //------------------------------------------------------------------------------
@@ -49,6 +49,7 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
 {
   const std::string key_host = "qdb_host";
   const std::string key_port = "qdb_port";
+  const std::string cache_size = "file_cache_size";
 
   if (config.find(key_host) != config.end()) {
     pBkendHost = config.at(key_host);
@@ -56,6 +57,10 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
 
   if (config.find(key_port) != config.end()) {
     pBkendPort = std::stoul(config.at(key_port));
+  }
+
+  if (config.find(cache_size) != config.end()) {
+    mFileCache.set_max_size(std::stoull(config.at(cache_size)));
   }
 }
 

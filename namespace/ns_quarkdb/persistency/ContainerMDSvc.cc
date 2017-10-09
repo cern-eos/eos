@@ -34,9 +34,9 @@ std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), mMetaMap(),
-    pBkndHost(""), pBkndPort(0), mContainerCache(static_cast<uint64_t>(10e6))
+    pBkndHost(""), pBkndPort(0), mContainerCache(10e7)
 {
-  // TODO (esindril): Make size of the container cache configurable
+  // empty
 }
 
 //------------------------------------------------------------------------------
@@ -47,6 +47,7 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 {
   const std::string key_host = "qdb_host";
   const std::string key_port = "qdb_port";
+  const std::string cache_size = "dir_cache_size";
 
   if (config.find(key_host) != config.end()) {
     pBkndHost = config.at(key_host);
@@ -54,6 +55,10 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 
   if (config.find(key_port) != config.end()) {
     pBkndPort = std::stoul(config.at(key_port));
+  }
+
+  if (config.find(cache_size) != config.end()) {
+    mContainerCache.set_max_size(std::stoull(config.at(cache_size)));
   }
 }
 
