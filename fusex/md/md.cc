@@ -916,8 +916,11 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
   // this is called with a lock on the md object
   int rc = 0;
   // store the local and remote parent inode
+
+  XrdSysMutexHelper mLockParent(pmd->Locker());
   md->set_pid(pmd->id());
   md->set_md_pino(pmd->md_ino());
+  mLockParent.UnLock();
 
   mdx::md_op op = mdx::ADD;
 
