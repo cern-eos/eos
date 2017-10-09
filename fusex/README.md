@@ -26,6 +26,7 @@ The configuration file for a named instance is */etc/eos/fuse.<name>.conf*.
     "foreground" : 1,
     "md-kernelcache" : 1,
     "md-kernelcache.enoent.timeout" : 0,
+    "md-backend.timeout" : 0, 
     "data-kernelcache" : 1,
     "mkdir-is-sync" : 1,
     "create-is-sync" : 1,
