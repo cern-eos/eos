@@ -601,7 +601,6 @@ public:
       return;
     }
 
-    XrdSysMutexHelper iLock(md->Locker());
     md->cap_dec();
     eos_static_err("decrease cap counter for ino=%lx", ino);
   }
