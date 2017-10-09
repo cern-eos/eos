@@ -159,7 +159,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
     {
       if ((off_t) offset == mPosition)
       {
-        // re-enable read-ahead if sequential reading occurs 
+        // re-enable read-ahead if sequential reading occurs
         request_next = true;
       }
       else
@@ -243,7 +243,7 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
   XrdSysCondVarHelper lLock(OpenCondVar());
 
   mUrl = url;
-  
+
   if ( state() == OPENING )
   {
     XRootDStatus status(XrdCl::stError,
@@ -570,6 +570,9 @@ XrdCl::Proxy::WaitWrite()
     WriteCondVar().WaitMS(1000);
   }
   eos_debug(" [..] map-size=%lu", ChunkMap().size());
+  lLock.UnLock();
+
+  XrdSysCondVarHelper openLock(OpenCondVar());
   return XOpenState;
 }
 
@@ -731,4 +734,3 @@ XrdCl::Proxy::attached()
 
   return mAttached ? true : false;
 }
-
