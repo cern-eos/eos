@@ -183,6 +183,7 @@ metad::lookup(fuse_req_t req,
 
   if (pmd->id() == parent)
   {
+    XrdSysMutexHelper mLock(pmd->Locker());
     fuse_ino_t inode = 0; // inode referenced by parent + name
     // --------------------------------------------------
     // STEP 2: check if we hold a cap for that directory
@@ -222,6 +223,7 @@ metad::lookup(fuse_req_t req,
     // --------------------------------------------------
     // try to get the meta data record
     // --------------------------------------------------
+    mLock.UnLock();
     md = get(req, inode, "", false, pmd, name);
   }
   else
