@@ -205,31 +205,100 @@ backend::fetchResponse(std::string& requestURL,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("request='%s'", requestURL.c_str());
+  
+  double total_exec_time_sec = 0;
 
-  // the MD get operation is implemented via a stream: open/read/close
   XrdCl::File file;
-  XrdCl::XRootDStatus status = file.Open (requestURL.c_str (),
-                                          XrdCl::OpenFlags::Flags::Read);
-
-  if (!status.IsOK ())
+  XrdCl::XRootDStatus status;
+					  
+  do
   {
-    if (status.errNo == XErrorCode::kXR_NotFound )
+    struct timespec ts;
+    eos::common::Timing::GetTimeSpec(ts, true);
+
+    // the MD get operation is implemented via a stream: open/read/close
+    status = file.Open (requestURL.c_str (),
+					    XrdCl::OpenFlags::Flags::Read);
+
+    double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts, 0)/ 1000000000.0;
+    total_exec_time_sec += exec_time_sec;
+
+    if (!status.IsOK ())
     {
-      eos_static_debug ("error=status is NOT ok : %s", status.ToString ().c_str ());
-      return ENOENT;
+      // in case of any failure
+      if (status.errNo == XErrorCode::kXR_NotFound )
+      {
+	// this is just no such file or directory
+	eos_static_debug ("error=status is NOT ok : %s", status.ToString ().c_str ());
+	errno = ENOENT;
+	return ENOENT;
+      }
+      eos_static_err("fetch-exec-ms=%.02f sum-query-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d", exec_time_sec*1000.0, total_exec_time_sec*1000.0, status.IsOK(), status.IsError(), status.IsFatal(), status.code, status.errNo);
+
+
+      eos_static_err ("error=status is NOT ok : %s %d %d", status.ToString ().c_str (), status.code, status.errNo);
+
+      if (status.code == XrdCl::errAuthFailed) 
+      {
+	// this is an authentication error which results in permission denied
+	errno = EPERM;
+	return EPERM;
+      }
+
+      std::string xrootderr = status.GetErrorMessage();
+      
+      // the xrootd mapping of errno to everything unknwon to EIO is really unfortunate
+      if (xrootderr.find("get-cap-clock-out-of-sync") != std::string::npos)
+      {
+	// this is a time synchronization error
+	errno = EL2NSYNC;
+	return EL2NSYNC;
+      }
+      
+      if ( 
+	  ( status.code == XrdCl::errSocketTimeout ) ||
+	  ( status.code == XrdCl::errOperationExpired )
+	   )
+      {
+	// if there is a timeout, we might retry according to the backend timeout setting
+	if ( EosFuse::Instance().Config().options.md_backend_timeout &&
+	     (total_exec_time_sec > EosFuse::Instance().Config().options.md_backend_timeout) )
+	{
+	  // it took longer than our backend timeout allows
+	  eos_static_err("giving up fetch after sum-fetch-exec-s=%.02f backend-timeout-s=%.02f", total_exec_time_sec,  EosFuse::Instance().Config().options.md_backend_timeout);
+	  
+	}
+	else
+	{
+	  // retry 
+	  XrdSysTimer sleeper;
+	  sleeper.Snooze(5);
+	  continue;
+	}
+      }
+
+      // all the other errors are reported back
+      if (status.errNo)
+      {
+	errno = status.errNo;
+	eos_static_err ("error=status is not ok : errno=%d", errno);
+	return errno;
+      }
+      if (status.code)
+      {
+	errno = EIO;
+	eos_static_err ("error=status is not ok : code=%d", errno);
+	return errno;
+      }
     }
-    eos_static_err ("error=status is NOT ok : %s %d %d", status.ToString ().c_str (), status.code, status.errNo);
-    errno = status.errNo == XrdCl::errAuthFailed ? EPERM : EFAULT;
-    return errno;
-  }
+    else
+    {
+      eos_static_debug("fetch-exec-ms=%.02f sum-fetch-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d", exec_time_sec*1000.0, total_exec_time_sec*1000.0, status.IsOK(), status.IsError(), status.IsFatal(), status.code, status.errNo);
+      break;
+    }
 
-  if (status.errNo)
-  {
-    eos_static_err ("error=status is not ok : errno=%d", errno);
 
-    errno = status.errNo;
-    return errno;
-  }
+  } while (1);
 
   // Start to read
   off_t offset = 0;
@@ -367,13 +436,7 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
   arg.Append(mdstream.c_str(), mdstream.length());
   eos_static_debug("query: url=%s path=%s length=%d", url.GetURL().c_str(), prefix.c_str(), mdstream.length());
 
-#ifdef EOSCITRINE
-  XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
-#else
-  SyncResponseHandler handler;
-  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-  XrdCl::XRootDStatus status = handler.Sync(response);
-#endif
+  XrdCl::XRootDStatus status = Query(fs, XrdCl::QueryCode::OpaqueFile, arg, response);
 
   eos_static_info("sync-response");
 
@@ -513,13 +576,8 @@ backend::doLock(fuse_req_t req,
   arg.Append(mdstream.c_str(), mdstream.length());
   eos_static_debug("query: url=%s path=%s length=%d", url.GetURL().c_str(), prefix.c_str(), mdstream.length());
 
-#ifdef EOSCITRINE
-  XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
-#else
-  SyncResponseHandler handler;
-  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-  XrdCl::XRootDStatus status = handler.Sync(response);
-#endif
+  XrdCl::XRootDStatus status = Query (fs, XrdCl::QueryCode::OpaqueFile, arg, response);
+
   eos_static_info("sync-response");
 
   if (status.IsOK ())
@@ -728,15 +786,10 @@ backend::statvfs (fuse_req_t req,
 
   XrdCl::FileSystem fs (url);
 
-#ifdef EOSCITRINE
-  XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
-#else
-  SyncResponseHandler handler;
-  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-  XrdCl::XRootDStatus status = handler.Sync(response);
-#endif
+  XrdCl::XRootDStatus status = Query (fs, XrdCl::QueryCode::OpaqueFile, arg, response);
 
   eos_static_info("calling %s\n", url.GetURL().c_str());
+
   if (status.IsOK () && response && response->GetBuffer ())
   {
     int retc;
@@ -777,4 +830,63 @@ backend::statvfs (fuse_req_t req,
   }
   delete response;
   return errno;
+}
+
+
+/* -------------------------------------------------------------------------- */
+XrdCl::XRootDStatus 
+/* -------------------------------------------------------------------------- */
+backend::Query (XrdCl::FileSystem& fs, XrdCl::QueryCode::Code query_code, XrdCl::Buffer &arg, XrdCl::Buffer* &response )
+/* -------------------------------------------------------------------------- */
+{
+  // this function retries queries until the given timeout period has been rechaed
+  // it does not proceed if there is an authentication failure
+  double total_exec_time_sec = 0;
+
+  do
+  {
+    struct timespec ts;
+    eos::common::Timing::GetTimeSpec(ts, true);
+    
+    XrdCl::XRootDStatus status;
+#ifdef EOSCITRINE
+    status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
+#else
+    SyncResponseHandler handler;
+    fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+    status = handler.Sync(response);
+#endif
+
+    // we can't do anything if we cannot authenticate
+    if (status.code == XrdCl::errAuthFailed)
+      return status;
+
+    // we can't do anything if there is a fatal error like invalid hostname etc.
+    if (status.IsFatal())
+      return status;
+
+    // we want to report all errors which are not timeout related
+    if ( 
+	( status.code != XrdCl::errSocketTimeout ) &&
+	( status.code != XrdCl::errOperationExpired )
+	 )
+    {
+      return status;
+    }
+
+    double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts, 0)/ 1000000000.0;
+    total_exec_time_sec += exec_time_sec;
+
+    eos_static_err("query-exec-ms=%.02f sum-query-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d", exec_time_sec*1000.0, total_exec_time_sec*1000.0, status.IsOK(), status.IsError(), status.IsFatal(), status.code, status.errNo);
+    
+    if ( EosFuse::Instance().Config().options.md_backend_timeout &&
+	 (total_exec_time_sec > EosFuse::Instance().Config().options.md_backend_timeout) )
+    {
+      eos_static_err("giving up query after sum-query-exec-s=%.02f backend-timeout-s=%.02f", total_exec_time_sec,  EosFuse::Instance().Config().options.md_backend_timeout);
+      return status;
+    }
+    XrdSysTimer sleeper;
+    sleeper.Snooze(5);
+  }
+  while (1);
 }
