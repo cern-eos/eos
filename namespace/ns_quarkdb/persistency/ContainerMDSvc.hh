@@ -64,7 +64,7 @@ public:
   //! Configure the container service
   //----------------------------------------------------------------------------
   virtual void configure(const std::map<std::string, std::string>& config)
-    override;
+  override;
 
   //----------------------------------------------------------------------------
   //! Finalize the container service
@@ -118,7 +118,7 @@ public:
   //! Create container in parent
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> createInParent(const std::string& name,
-                                               IContainerMD* parent) override;
+      IContainerMD* parent) override;
 
   //----------------------------------------------------------------------------
   //! Get the lost+found container, create if necessary
@@ -129,7 +129,7 @@ public:
   //! Get the orphans container
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> getLostFoundContainer(const std::string& name)
-    override;
+  override;
 
   //----------------------------------------------------------------------------
   //! Set file metadata service
@@ -169,7 +169,7 @@ private:
   //! Notify the listeners about the change
   //----------------------------------------------------------------------------
   void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a)
-     override;
+  override;
 
   //----------------------------------------------------------------------------
   //! Get container bucket which is computed as the id of the container modulo
@@ -192,7 +192,7 @@ private:
   uint32_t pBkndPort;        ///< Backend port
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;
   // TODO: decide on how to ensure container consistency in case of a crash
-  qclient::QSet pCheckConts; ///< Set of container idsd to be checked
+  qclient::QSet pCheckConts; ///< Set of container ids to be checked
 };
 
 EOSNSNAMESPACE_END

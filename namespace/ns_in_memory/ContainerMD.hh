@@ -523,7 +523,7 @@ public:
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  void serialize(Buffer& buffer) const override;
+  void serialize(Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer

@@ -366,12 +366,20 @@ public:
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  virtual void serialize(Buffer& buffer) const = 0;
+  virtual void serialize(Buffer& buffer) = 0;
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
   virtual void deserialize(Buffer& buffer) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get value tracking changes to the metadata object
+  //----------------------------------------------------------------------------
+  virtual uint64_t getClock() const
+  {
+    return 0;
+  };
 
 protected:
   eos::IContainerMD::ContainerMap mSubcontainers; //! Directory name to id map

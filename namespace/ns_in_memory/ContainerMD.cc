@@ -221,7 +221,7 @@ ContainerMD::cleanUp()
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
 void
-ContainerMD::serialize(Buffer& buffer) const
+ContainerMD::serialize(Buffer& buffer)
 {
   buffer.putData(&pId,       sizeof(pId));
   buffer.putData(&pParentId, sizeof(pParentId));

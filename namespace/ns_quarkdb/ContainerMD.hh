@@ -371,12 +371,20 @@ public:
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  void serialize(Buffer& buffer) const override;
+  void serialize(Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
   void deserialize(Buffer& buffer) override;
+
+  //----------------------------------------------------------------------------
+  //! Get value tracking changes to the metadata object
+  //----------------------------------------------------------------------------
+  virtual uint64_t getClock() const override
+  {
+    return mClock;
+  };
 
 private:
   eos::ns::ContainerMdProto mCont; ///< Protobuf container representation
@@ -387,6 +395,7 @@ private:
   std::string pDirsKey;       ///< Map dir key
   qclient::QHash pFilesMap;   ///< Map holding info about files
   qclient::QHash pDirsMap;    ///< Map holding info about subcontainers
+  uint64_t mClock; ///< Value tracking changes
 };
 
 EOSNSNAMESPACE_END

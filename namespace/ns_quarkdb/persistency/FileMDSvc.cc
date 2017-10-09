@@ -89,6 +89,10 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
   std::shared_ptr<IFileMD> file = mFileCache.get(id);
 
   if (file != nullptr) {
+    if (clock) {
+      *clock = file->getClock();
+    }
+
     return file;
   }
 
@@ -115,7 +119,11 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
   eos::Buffer ebuff;
   ebuff.putData(blob.c_str(), blob.length());
   file->deserialize(ebuff);
-  // @todo (esindril): decide on what value to assign to clock ?!
+
+  if (clock) {
+    *clock = file->getClock();
+  }
+
   return mFileCache.put(file->getId(), file);
 }
 

@@ -362,6 +362,14 @@ public:
   //----------------------------------------------------------------------------
   virtual void deserialize(const Buffer& buffer) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Get value tracking changes to the metadata object
+  //----------------------------------------------------------------------------
+  virtual uint64_t getClock() const
+  {
+    return 0;
+  };
+
 private:
   //----------------------------------------------------------------------------
   //! Make copy constructor and assignment operator private to avoid "slicing"

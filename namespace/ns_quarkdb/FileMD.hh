@@ -584,12 +584,21 @@ public:
   //----------------------------------------------------------------------------
   void Register(qclient::AsyncResponseType aresp, qclient::QClient* qcl);
 
+  //----------------------------------------------------------------------------
+  //! Get value tracking changes to the metadata object
+  //----------------------------------------------------------------------------
+  virtual uint64_t getClock() const override
+  {
+    return mClock;
+  };
+
 protected:
   IFileMDSvc* pFileMDSvc;
 
 private:
   eos::ns::FileMdProto mFile; ///< Protobuf file representation
   qclient::AsyncHandler mAh; ///< Async handler
+  uint64_t mClock; ///< Value tracking metadata changes
 };
 
 EOSNSNAMESPACE_END

@@ -37,7 +37,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
                          IContainerMDSvc* cont_svc)
   : IContainerMD(), pContSvc(cont_svc), pFileSvc(file_svc),
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
-    pDirsKey(stringify(id) + constants::sMapDirsSuffix)
+    pDirsKey(stringify(id) + constants::sMapDirsSuffix), mClock(1)
 {
   mCont.set_id(id);
   ContainerMDSvc* impl_cont_svc = (ContainerMDSvc*)(cont_svc);
@@ -713,7 +713,7 @@ ContainerMD::removeAttribute(const std::string& name)
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
 void
-ContainerMD::serialize(Buffer& buffer) const
+ContainerMD::serialize(Buffer& buffer)
 {
   // Wait for any ongoing async requests and throw error if smth failed
   // if (!waitAsyncReplies()) {
@@ -722,6 +722,7 @@ ContainerMD::serialize(Buffer& buffer) const
   //   throw e;
   // }
   // Align the buffer to 4 bytes to efficiently compute the checksum
+  ++mClock;
   size_t obj_size = mCont.ByteSizeLong();
   uint32_t align_size = (obj_size + 3) >> 2 << 2;
   size_t sz = sizeof(align_size);

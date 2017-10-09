@@ -30,7 +30,7 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
-  pFileMDSvc(fileMDSvc), mAh()
+  pFileMDSvc(fileMDSvc), mAh(), mClock(1)
 {
   mFile.set_id(id);
 }
@@ -239,6 +239,7 @@ FileMD::serialize(eos::Buffer& buffer)
     throw ex;
   }
 
+  ++mClock;
   // Align the buffer to 4 bytes to efficiently compute the checksum
   size_t obj_size = mFile.ByteSizeLong();
   uint32_t align_size = (obj_size + 3) >> 2 << 2;

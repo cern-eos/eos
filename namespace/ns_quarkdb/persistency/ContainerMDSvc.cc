@@ -87,6 +87,10 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
   std::shared_ptr<IContainerMD> cont = mContainerCache.get(id);
 
   if (cont != nullptr) {
+    if (clock) {
+      *clock = cont->getClock();
+    }
+
     return cont;
   }
 
@@ -114,7 +118,11 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
   eos::Buffer ebuff;
   ebuff.putData(blob.c_str(), blob.length());
   cont->deserialize(ebuff);
-  // @todo (esindril): decide on what value to assign to clock ?!
+
+  if (clock) {
+    *clock = cont->getClock();
+  }
+
   return mContainerCache.put(cont->getId(), cont);
 }
 
