@@ -28,25 +28,54 @@
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Fsck()
+ProcCommand::Fsck ()
 {
- if (pVid->uid == 0)
- {
-   if (mSubCmd == "report")
-   {
-     auto option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
-     XrdOucString selection = pOpaque->Get("mgm.fsck.selection") ? pOpaque->Get("mgm.fsck.selection") : "";
-     gOFS->FsCheck.Report(stdOut, option, selection);
-   }
- }
+  if (pVid->uid == 0)
+  {
+    if (mSubCmd == "report")
+    {
+      auto option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
+      XrdOucString selection = pOpaque->Get("mgm.fsck.selection") ? pOpaque->Get("mgm.fsck.selection") : "";
+      gOFS->FsCheck.Report(stdOut, option, selection);
+    }
 
- if (mSubCmd == "stat")
- {
-   XrdOucString option = ""; // not used for the moment
-   eos_info("fsck stat");
-   gOFS->FsCheck.Stat(stdOut);
- }
- return SFS_OK;
+    if (mSubCmd == "repair")
+    {
+      XrdOucString option = "";
+      XrdOucString mSelection = "";
+      option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
+      if (option == "all")
+      {
+        retc = (
+          gOFS->FsCheck.Repair(stdOut, stdErr, "checksum") &&
+          gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-unregistered") &&
+          gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-orphans") &&
+          gOFS->FsCheck.Repair(stdOut, stdErr, "adjust-replicas") &&
+          gOFS->FsCheck.Repair(stdOut, stdErr, "drop-missing-replicas") &&
+          //               gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-zero-replicas") && // we don't do that anymore for the 'all' option
+          gOFS->FsCheck.Repair(stdOut, stdErr, "resync"));
+        if (retc)
+          retc = 0;
+        else
+          retc = EINVAL;
+      }
+      else
+      {
+        if (gOFS->FsCheck.Repair(stdOut, stdErr, option))
+          retc = 0;
+        else
+          retc = EINVAL;
+      }
+    }
+  }
+
+  if (mSubCmd == "stat")
+  {
+    XrdOucString option = ""; // not used for the moment
+    eos_info("fsck stat");
+    gOFS->FsCheck.Stat(stdOut);
+  }
+  return SFS_OK;
 }
 
 EOSMGMNAMESPACE_END
