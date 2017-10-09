@@ -2063,6 +2063,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
       cap::shared_cap pcap = Instance().caps.acquire(req, md->pid(),
                                                      S_IFDIR | mode);
 
+      XrdSysMutexHelper mLock(pcap->Locker());
       if (pcap->errc())
       {
         rc = pcap->errc();
@@ -2080,11 +2081,14 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
         }
         if (!rc)
         {
+          mLock.UnLock();
+
           struct fuse_entry_param e;
           memset(&e, 0, sizeof (e));
           md->convert(e);
 
           data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, (mode == W_OK));
+          pcap->Locker().Lock();
           io->set_authid(pcap->authid());
 
           if (pquota < pcap->max_file_size())
@@ -2095,6 +2099,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
           {
             io->set_maxfilesize(pcap->max_file_size());
           }
+          pcap->Locker().UnLock();
 
           // attach a datapool object
           fi->fh = (uint64_t) io;
@@ -2105,7 +2110,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
                                   md->name(),
                                   md->md_ino(),
                                   md->md_pino(),
-                                  req, 
+                                  req,
 				  (mode == W_OK) );
 
           bool outdated = (io->ioctx()->attach(req, cookie, fi->flags ) == EKEYEXPIRED);
