@@ -1591,10 +1591,15 @@ XrdFstOfs::ConvertFmdToFileAttribute() {
         fmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid);
         for(const auto& fmd : fmdDbMapHandler.RetrieveAllFmd()) {
           try {
-            fmdAttributeHandler.FmdAttrSet(fmd, fmd.fid(), fmd.fsid(), nullptr);
+            // Only set it if it does not have the meta data attribute yet
+            fmdAttributeHandler.FmdAttrGet(fmd.fid(), fmd.fsid());
           } catch (MDException& e) {
-            eos_static_err("fmd extended attribute conversion was not successful for fsid:%u, fid: %u",
-                           fmd.fsid(), fmd.fid());
+            try {
+              fmdAttributeHandler.FmdAttrSet(fmd, fmd.fid(), fmd.fsid());
+            } catch (MDException& e) {
+              eos_static_err("fmd extended attribute conversion was not successful for fsid:%u, fid: %u",
+                             fmd.fsid(), fmd.fid());
+            }
           }
         }
       }
@@ -1613,7 +1618,7 @@ bool
 XrdFstOfs::IsFmdConversionNeeded() {
   FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gFmdClient};
   const auto dbPath = eos::fst::Config::gConfig.FstMetaLogDir.c_str();
-  constexpr size_t maxSampleSize = 10;
+  constexpr size_t maxSampleSizePerFs = 20;
 
   XrdOucString dbfilename;
   FmdDbMapHandler fmdDbMapHandler;
@@ -1622,16 +1627,16 @@ XrdFstOfs::IsFmdConversionNeeded() {
     fmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid);
     auto fmdList = fmdDbMapHandler.RetrieveAllFmd();
     if(!fmdList.empty()) {
-      auto sampleSize = std::min(maxSampleSize, fmdList.size());
+      auto sampleSize = std::min(maxSampleSizePerFs, fmdList.size());
       auto cntr = 0u, notFound = 0u;
       for(const auto& fmd : fmdList) {
         try {
-          fmdAttributeHandler.FmdAttrGet(fmd.fid(), fmd.fsid(), nullptr);
+          fmdAttributeHandler.FmdAttrGet(fmd.fid(), fmd.fsid());
         } catch (MDException& e) {
           notFound++;
         }
 
-        if(++cntr == maxSampleSize) break;
+        if(++cntr == maxSampleSizePerFs) break;
       }
 
       if((double)notFound / sampleSize > 0.3d)
