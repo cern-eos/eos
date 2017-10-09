@@ -567,7 +567,7 @@ metad::get(fuse_req_t req,
       // this must have been generated locally, we return this entry
       eos_static_info("returning generated entry");
       if ( EOS_LOGS_DEBUG )
-	eos_static_debug("MD:\n%s", dump_md(md).c_str());
+	eos_static_debug("MD:\n%s", dump_md(md, false).c_str());
       return md;
 
     }
