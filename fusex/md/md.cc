@@ -269,6 +269,17 @@ metad::forget(fuse_req_t req,
   }
 
   eos_static_debug("delete md object - ino=%016x", ino);
+
+  shared_md pmd;
+  if (!mdmap.retrieveTS(md->pid(), pmd))
+  {
+    return ENOENT;
+  }
+
+  // we cannot evict cap protected entries from the map
+  if (pmd->cap_count() || md->cap_count())
+    return 0;
+
   mdmap.eraseTS(ino);
   stat.inodes_dec();
   return 0;
@@ -486,24 +497,23 @@ metad::get(fuse_req_t req,
 
   if (ino)
   {
-    XrdSysMutexHelper mLock(mdmap);
-
-    // the inode is known, we try to get that one
-    if (mdmap.retrieve(ino, md))
     {
-      if ( EOS_LOGS_DEBUG )
-	eos_static_debug("MD:\n%s", dump_md(md).c_str());
+      XrdSysMutexHelper mLock(mdmap);
+      
+      // the inode is known, we try to get that one
+      if (!mdmap.retrieve(ino, md))
+      {
+	// -----------------------------------------------------------------------
+	// if there is none we load the current cached md from the kv store
+	// which also loads all available child meta data
+	// -----------------------------------------------------------------------
+	md = load_from_kv(ino);
+	eos_static_info("loaded from kv ino=%16lx remote-ino=%08llx", md->id(), md->md_ino());
+	loaded = true;
+      }
     }
-    else
-    {
-      // -----------------------------------------------------------------------
-      // if there is none we load the current cached md from the kv store
-      // which also loads all available child meta data
-      // -----------------------------------------------------------------------
-      md = load_from_kv(ino);
-      eos_static_info("loaded from kv ino=%16lx remote-ino=%08llx", md->id(), md->md_ino());
-      loaded = true;
-    }
+    if ( EOS_LOGS_DEBUG )
+      eos_static_debug("MD:\n%s", dump_md(md).c_str());
   }
   else
   {
