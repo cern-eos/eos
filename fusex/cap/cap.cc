@@ -340,7 +340,11 @@ cap::acquire(fuse_req_t req,
     XrdSysMutexHelper cLock (cap->Locker());
     if (!cap->valid())
     {
-      refresh(req, cap);
+      if (refresh(req, cap))
+      {
+	cap->set_errc(errno?errno:EIO);
+	return cap;
+      }
       try_attach = true;
     }
 
@@ -375,7 +379,7 @@ cap::acquire(fuse_req_t req,
 }
 
 /* -------------------------------------------------------------------------- */
-void
+int
 /* -------------------------------------------------------------------------- */
 cap::refresh(fuse_req_t req, shared_cap cap)
 /* -------------------------------------------------------------------------- */
@@ -386,40 +390,77 @@ cap::refresh(fuse_req_t req, shared_cap cap)
   std::vector<eos::fusex::container> contv;
   int rc=0;
   uint64_t remote_ino = mds->vmaps().backward(cap->id());
-  rc = mdbackend->getCAP(req, remote_ino, contv);
-  if (!rc)
-  {
-    // decode the cap
-    for (auto it=contv.begin(); it != contv.end(); ++it)
+
+  // measure the call duration
+  struct timespec ts;
+  eos::common::Timing::GetTimeSpec(ts, true);
+
+  do {
+    rc = mdbackend->getCAP(req, remote_ino, contv);
+    if (!rc)
     {
-      switch (it->type()) {
-      case eos::fusex::container::CAP:
+      // decode the cap
+      for (auto it=contv.begin(); it != contv.end(); ++it)
       {
-        uint64_t id = mds->vmaps().forward(it->cap_().id());
-        //XrdSysMutexHelper mLock(cap->Locker());
-        // check if the cap received matches what we think about local mapping
-        if (cap->id() == id)
-        {
-          eos_static_debug("correct cap received for inode=%08x", cap->id());
-          // great
-          *cap = it->cap_();
-          cap->set_id(id);
-        }
-        else
-        {
-          eos_static_debug("wrong cap received for inode=%08x", cap->id());
-          // that is a fatal logical error
-          rc = ENXIO;
-        }
-        break;
+	switch (it->type()) {
+	case eos::fusex::container::CAP:
+	{
+	  uint64_t id = mds->vmaps().forward(it->cap_().id());
+	  //XrdSysMutexHelper mLock(cap->Locker());
+	  // check if the cap received matches what we think about local mapping
+	  if (cap->id() == id)
+	  {
+	    eos_static_debug("correct cap received for inode=%08x", cap->id());
+	    // great
+	    *cap = it->cap_();
+	    cap->set_id(id);
+	  }
+	  else
+	  {
+	    eos_static_debug("wrong cap received for inode=%08x", cap->id());
+	    // that is a fatal logical error
+	    rc = ENXIO;
+	  }
+	  break;
+	}
+	default:
+	  eos_static_err("msg=\"wrong content type received\" type=%d",
+			 it->type());
+	}
       }
-      default:
-        eos_static_err("msg=\"wrong content type received\" type=%d",
-                       it->type());
-      }
+      return rc;
     }
-    return;
-  }
+    else
+    {
+      eos_static_err("GETCAP failed with errno=%d for inode=%16x", errno, cap->id());
+      if (errno != EL2NSYNC)
+	return rc;
+
+      // if there is a time synchronization error reported we check if the call just took long to execute
+
+      // 2 seconds is the maximum allowed roundtrip/out-of-sync time applied by the MGM
+      uint64_t ns_lag;
+      if ( (ns_lag = eos::common::Timing::GetCoarseAgeInNs(&ts, 0)) < 2000000000)
+      {
+	eos_static_err("GETCAP finished during the allowed 2s round-trip time - our clock seems to be out of sync with the MGM!");
+	return EL2NSYNC;
+      }
+      else
+      {
+	float backoff = round(10 * random() / (double) RAND_MAX);
+	XrdSysTimer sleeper;
+	eos_static_warning("GETCAP exceeded 2s (%.02fs) round-trip time for inode=%16x - backing of for %.02f seconds, then retry!",
+			   ns_lag/1000000000.0,
+			   cap->id(), 
+			   backoff);
+
+	sleeper.Wait(backoff*1000);
+      }
+
+
+    }
+  } while (rc);
+  return rc;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -496,21 +537,25 @@ cap::capflush()
         }
         else
         {
-          time_t vtime = it->second->vtime();
-          time_t utime = it->second->used();
-          time_t period = vtime - utime;
-          if ( (period < 90) && (period > 15) )
-          {
-            // if cap was used during last 90 seconds, we automatically ask
-            // for an extension of CAP_EXTENSION_TIME
-            XrdSysMutexHelper eLock(extensionLock);
-            extensionmap[it->second->authid()] = CAP_EXTENSION_TIME;
-            it->second->set_vtime(vtime  + CAP_EXTENSION_TIME);
-            eos_static_info("authid=%s vtime=%lu extended-vtime=%lu",
-                            it->second->authid().c_str(),
-                            vtime,
-                            it->second->vtime());
-          }
+	  if (0)
+	  {
+	    // don't do automatic cap extension for the time being
+	    time_t vtime = it->second->vtime();
+	    time_t utime = it->second->used();
+	    time_t period = vtime - utime;
+	    if ( (period < 90) && (period > 15) )
+	    {
+	      // if cap was used during last 90 seconds, we automatically ask
+	      // for an extension of CAP_EXTENSION_TIME
+	      XrdSysMutexHelper eLock(extensionLock);
+	      extensionmap[it->second->authid()] = CAP_EXTENSION_TIME;
+	      it->second->set_vtime(vtime  + CAP_EXTENSION_TIME);
+	      eos_static_info("authid=%s vtime=%lu extended-vtime=%lu",
+			      it->second->authid().c_str(),
+			      vtime,
+			      it->second->vtime());
+	    }
+	  }
         }
       }
       for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it)

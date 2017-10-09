@@ -251,7 +251,7 @@ public:
   void store(fuse_req_t req,
              eos::fusex::cap cap);
 
-  void refresh(fuse_req_t req, shared_cap cap);
+  int refresh(fuse_req_t req, shared_cap cap);
 
   void init(backend* _mdbackend, metad* _metad);
 
