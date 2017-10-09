@@ -157,7 +157,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     else
     {
       fprintf(stderr, "error: invalid configuration file %s - %s\n",
-              jsonconfig.c_str(), reader.getFormatedErrorMessages().c_str());
+              jsonconfig.c_str(), reader.getFormattedErrorMessages().c_str());
       exit(EINVAL);
     }
 
