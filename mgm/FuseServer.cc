@@ -1600,7 +1600,7 @@ FuseServer::InodeFromCAP(const eos::fusex::md& md)
 std::string
 FuseServer::Header(const std::string& response)
 {
-  char hex[8];
+  char hex[9];
   sprintf(hex, "%08x", (int) response.length());
   return std::string("[") + hex + std::string("]");
 }
