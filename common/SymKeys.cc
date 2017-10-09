@@ -303,7 +303,7 @@ SymKey::Base64Decode(const char* in, char*& out, size_t& outlen)
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   bmem = BIO_push(b64, bmem);
   size_t buffer_length = BIO_get_mem_data(bmem, NULL);
-  out = (char*) malloc(buffer_length + 1);
+  out = (char*) calloc(buffer_length + 1, sizeof(char));
   outlen = BIO_read(bmem, out, buffer_length);
   BIO_free_all(bmem);
   return true;
