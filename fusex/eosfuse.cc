@@ -176,6 +176,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.foreground = root["options"]["foreground"].asInt();
     config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
     config.options.md_kernelcache_enoent_timeout = root["options"]["md-kernelcache.enoent.timeout"].asDouble();
+    config.options.md_backend_timeout = root["options"]["md-backend.timeout"].asDouble();
     config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
     config.options.mkdir_is_sync = root["options"]["mkdir-is-sync"].asInt();
     config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
@@ -252,7 +253,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       fprintf(stderr, "error: unable to get fd limit - errno %d\n", errno);
       exit(EINVAL);
     }
-    fprintf(stderr, "File descriptor limit: %lu soft, %lu hard\n", nofilelimit.rlim_cur, nofilelimit.rlim_max);
+    fprintf(stderr, "# File descriptor limit: %lu soft, %lu hard\n", nofilelimit.rlim_cur, nofilelimit.rlim_max);
 
     // data caching configuration
     cconfig.type = cachehandler::cache_t::INVALID;
@@ -483,14 +484,16 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("thread-pool            := %s", config.options.libfusethreads ? "libfuse" : "custom");
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f data-cache:%d mkdir-sync:%d create-sync:%d flush:%d locking:%d",
-                       config.options.md_kernelcache,
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d flush:%d locking:%d",
+		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
+                       config.options.md_backend_timeout,
                        config.options.data_kernelcache,
                        config.options.mkdir_is_sync,
                        config.options.create_is_sync,
                        config.options.global_flush,
-                       config.options.global_locking);
+                       config.options.global_locking
+		       );
 
 
     fusesession = fuse_lowlevel_new(&args,
@@ -726,7 +729,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     XrdSysMutexHelper mLock(md->Locker());
     if (!md->id() || (md->deleted() && !md->lookup_is()))
     {
-      rc = ENOENT;
+      rc = md->deleted()? ENOENT : md->err();
     }
     else
     {
@@ -788,7 +791,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
   if (!md->id() || (md->deleted() && !md->lookup_is()))
   {
-    rc = ENOENT;
+    rc = md->deleted()? ENOENT : md->err();
   }
   else
   {
@@ -1186,7 +1189,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
       if (e.entry_timeout)
         rc = 0;
       else
-        rc = ENOENT;
+        rc = md->deleted()? ENOENT : md->err();
     }
   }
 
@@ -1239,7 +1242,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
     if (!md->id() || md->deleted())
     {
-      rc = ENOENT;
+      rc = md->deleted()? ENOENT : md->err();
     }
     else
     {
@@ -1971,7 +1974,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
       if (!md->id() || md->deleted())
       {
-        rc = ENOENT;
+	rc = md->deleted()? ENOENT : md->err();
       }
     }
 
@@ -2009,7 +2012,7 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
   metad::shared_md md = Instance().mds.get(req, ino);
   if (!md->id())
   {
-    rc = ENOENT;
+    rc = md->deleted()? ENOENT : md->err();
   }
 
   fuse_reply_err(req, rc);
@@ -2056,7 +2059,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
     if (!md->id() || md->deleted())
     {
-      rc = ENOENT;
+      rc = md->deleted()? ENOENT : md->err();
     }
     else
     {
@@ -2882,7 +2885,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
         if (!md->id() || md->deleted())
         {
-          rc = ENOENT;
+	  rc = md->deleted()? ENOENT : md->err();
         }
         else
         {
@@ -3123,7 +3126,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
     if (!md->id() || md->deleted())
     {
-      rc = ENOENT;
+      rc = md->deleted()? ENOENT : md->err();
     }
     else
     {
@@ -3257,7 +3260,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 
     if (!md->id() || md->deleted())
     {
-      rc = ENOENT;
+      rc = md->deleted()? ENOENT : md->err();
     }
     else
     {
@@ -3347,7 +3350,7 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
 
     if (!md->id() || md->deleted())
     {
-      rc = ENOENT;
+      rc = md->deleted()? ENOENT : md->err();
     }
     else
     {
