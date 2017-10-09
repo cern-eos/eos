@@ -732,6 +732,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     {
       cap::shared_cap pcap = Instance().caps.acquire(req, md->pid() ? md->pid() : 1,
                                                      S_IFDIR | X_OK | R_OK);
+      XrdSysMutexHelper capLock(pcap->Locker());
       if (pcap->errc())
       {
         rc = pcap->errc();
@@ -2699,6 +2700,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
     {
       cap::shared_cap pcap = Instance().caps.acquire(req, io->md->pid(),
                                                      S_IFDIR | W_OK, true);
+      XrdSysMutexHelper pLock(pcap->Locker());
       if (pcap->errc())
       {
         rc = pcap->errc();
@@ -2714,6 +2716,8 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
           eos_static_debug("booking %ld bytes on cap ", size_change);
         }
+        pLock.UnLock();
+
         struct timespec tsnow;
         eos::common::Timing::GetTimeSpec(tsnow);
 
@@ -2731,12 +2735,14 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
         std::string cookie=io->md->Cookie();
         io->ioctx()->store_cookie(cookie);
 
+        pcap->Locker().Lock();
         if (! Instance().caps.has_quota(pcap, 0) )
         {
           // we signal an error to the client if the quota get's exceeded although
           // we let the file be complete
           rc = EDQUOT;
         }
+        pcap->Locker().UnLock();
       }
     }
   }
