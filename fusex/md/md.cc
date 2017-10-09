@@ -268,17 +268,16 @@ metad::forget(fuse_req_t req,
     return EAGAIN;
   }
 
-  eos_static_debug("delete md object - ino=%016x", ino);
-
   shared_md pmd;
   if (!mdmap.retrieveTS(md->pid(), pmd))
   {
     return ENOENT;
   }
 
-  // we cannot evict cap protected entries from the map
-  if (pmd->cap_count() || md->cap_count())
+  if (!md->deleted())
     return 0;
+
+  eos_static_err("delete md object - ino=%016x name=%s", ino, md->name().c_str());
 
   mdmap.eraseTS(ino);
   stat.inodes_dec();
@@ -1953,10 +1952,9 @@ metad::mdcommunicate()
                   }
                   // invalidate children
 
-		  eos_static_info("md=%16x", md->id());
-
                   if (md && md->id())
                   {
+		    eos_static_info("md=%16x", md->id());
                     if (EosFuse::Instance().Config().options.md_kernelcache)
                     {
                       eos_static_info("invalidate direct children ino=%016lx", ino);
