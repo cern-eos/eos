@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: common/ThreadPool.cc
 // Author: Jozsef Makai - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,68 +21,79 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_THREADPOOL_HH
-#define EOS_THREADPOOL_HH
-
+#pragma once
 #include "common/Namespace.hh"
 #include "common/ConcurrentQueue.hh"
-
 #include <future>
 
 EOSCOMMONNAMESPACE_BEGIN
 
-//! @brief pool of threads which will asynchronously execute your tasks
-class ThreadPool {
-private:
-  std::vector<std::thread> mThreadPool;
-  eos::common::ConcurrentQueue<std::shared_ptr<std::function<void(void)>>> mTasks;
-  std::atomic_bool mRunning {true};
-
+//------------------------------------------------------------------------------
+//! @brief Pool of threads which will asynchronously execute tasks
+//------------------------------------------------------------------------------
+class ThreadPool
+{
 public:
+  //----------------------------------------------------------------------------
   //! @brief Create a new thread pool
-  //! @param threads the number of allocated threads, defaults to hardware concurrency
-  explicit ThreadPool(unsigned int threads = std::thread::hardware_concurrency()) {
-    auto threadPoolFunc = [this] () {
+  //!
+  //! @param threads the number of allocated threads, defaults to hardware
+  //! concurrency
+  //----------------------------------------------------------------------------
+  explicit ThreadPool(unsigned int threads = std::thread::hardware_concurrency())
+  {
+    auto threadPoolFunc = [this]() {
       std::shared_ptr<std::function<void(void)>> task;
-      while(mRunning) {
+
+      while (mRunning) {
         mTasks.wait_pop(task);
         (*task)();
       }
     };
 
-    for(auto i = 0u; i < threads; i++) {
+    for (auto i = 0u; i < threads; i++) {
       mThreadPool.emplace_back(threadPoolFunc);
     }
   }
 
-  //! @brief Push a task for execution, your task can have a return type but inputs should be either captured in case of lambdas
-  //!        or bound using std::bind in case of regular functions. You receive a future of the return type to communicate with your task.
-  //! @tparam Ret return type of your task
+  //----------------------------------------------------------------------------
+  //! @brief Push a task for execution, the task can have a return type but
+  //! inputs should be either captured in case of lambdas or bound using
+  //! std::bind in case of regular functions.
+  //!
+  //! @param Ret return type of the task
   //! @param func the function for the task to execute
+  //!
   //! @return future of the return type to communicate with your task
+  //----------------------------------------------------------------------------
   template<typename Ret>
-  std::future<Ret> PushTask(std::function<Ret(void)> func) {
+  std::future<Ret> PushTask(std::function<Ret(void)> func)
+  {
     auto task = std::make_shared<std::packaged_task<Ret(void)>>(func);
     auto taskFunc = std::make_shared<std::function<void(void)>>([task] {
       (*task)();
     });
-
     mTasks.push(taskFunc);
     return task->get_future();
   }
 
-  //! @brief Stop the thread pool. The threads will stop and the pool cannot be used again. use this if you don't want to push tasks any more.
-  void Stop() {
+  //----------------------------------------------------------------------------
+  //! @brief Stop the thread pool. All threads will be stopped and the pool
+  //! cannot be used again.
+  //----------------------------------------------------------------------------
+  void Stop()
+  {
     mRunning = false;
 
-    // Push in fake tasks for each threads so all waiting can wake up and notice that running is over
-    for(auto i = 0u; i < mThreadPool.size(); i++) {
-      auto fakeTask = std::make_shared<std::function<void(void)>>([]{});
+    // Push in fake tasks for each threads so all waiting can wake up and
+    // notice that running is over.
+    for (auto i = 0u; i < mThreadPool.size(); i++) {
+      auto fakeTask = std::make_shared<std::function<void(void)>>([] {});
       mTasks.push(fakeTask);
     }
 
-    for(auto& thread : mThreadPool) {
-      if(thread.joinable()) {
+    for (auto& thread : mThreadPool) {
+      if (thread.joinable()) {
         thread.join();
       }
     }
@@ -91,19 +102,24 @@ public:
     mThreadPool.clear();
   }
 
-  ~ThreadPool() {
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~ThreadPool()
+  {
     Stop();
   }
 
+  // Disable copy/move constructors and assignment oprerators
   ThreadPool(const ThreadPool&) = delete;
-
   ThreadPool(ThreadPool&&) = delete;
-
   ThreadPool& operator=(const ThreadPool&) = delete;
-
   ThreadPool& operator=(ThreadPool&&) = delete;
+
+private:
+  std::vector<std::thread> mThreadPool;
+  eos::common::ConcurrentQueue<std::shared_ptr<std::function<void(void)>>> mTasks;
+  std::atomic_bool mRunning {true};
 };
 
 EOSCOMMONNAMESPACE_END
-
-#endif //EOS_THREADPOOL_HH
