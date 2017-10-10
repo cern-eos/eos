@@ -277,7 +277,7 @@ metad::forget(fuse_req_t req,
   if (!md->deleted())
     return 0;
 
-  eos_static_err("delete md object - ino=%016x name=%s", ino, md->name().c_str());
+  eos_static_info("delete md object - ino=%016x name=%s", ino, md->name().c_str());
 
   mdmap.eraseTS(ino);
   stat.inodes_dec();
@@ -807,6 +807,8 @@ metad::insert(fuse_req_t req,
   {
     newinode = next_ino.inc();
     md->set_id(newinode);
+    if (EOS_LOGS_DEBUG)
+      eos_static_debug("%s", dump_md(md, false).c_str());
     mdmap.insertTS(newinode, md);
   }
 
@@ -820,7 +822,8 @@ metad::wait_flush(fuse_req_t req,
                   metad::shared_md md)
 /* -------------------------------------------------------------------------- */
 {
-  // logic to make creation synchronous
+  // logic to wait for a completion of request
+  md->Locker().UnLock();
   while (1)
   {
     if (md->WaitSync(1))
@@ -834,10 +837,12 @@ metad::wait_flush(fuse_req_t req,
   eos_static_info("waited for sync rc=%d bw=%lx", md->err(), inomap.backward(md->id()));
   if (!inomap.backward(md->id()))
   {
+    md->Locker().Lock();
     return md->err();
   }
   else
   {
+    md->Locker().Lock();
     return 0;
   }
 }

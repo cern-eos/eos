@@ -597,12 +597,12 @@ public:
     shared_md md;
     if(!mdmap.retrieveTS(ino, md))
     {
-      eos_static_err("no cap counter change for ino=%lx", ino);
+      eos_static_info("no cap counter change for ino=%lx", ino);
       return;
     }
 
     md->cap_dec();
-    eos_static_err("decrease cap counter for ino=%lx", ino);
+    eos_static_debug("decrease cap counter for ino=%lx", ino);
   }
 
   void

@@ -203,6 +203,7 @@ public:
       int data_kernelcache;
       int mkdir_is_sync;
       int create_is_sync;
+      int symlink_is_sync;
       int global_flush;
       int global_locking;
       int fdlimit;

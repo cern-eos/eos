@@ -179,6 +179,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
     config.options.mkdir_is_sync = root["options"]["mkdir-is-sync"].asInt();
     config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
+    config.options.symlink_is_sync = root["options"]["symlink-is-sync"].asInt();
     config.options.global_flush = root["options"]["global-flush"].asInt();
     config.options.global_locking = root["options"]["global-locking"].asInt();
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
@@ -483,13 +484,14 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("thread-pool            := %s", config.options.libfusethreads ? "libfuse" : "custom");
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d flush:%d locking:%d",
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d flush:%d locking:%d",
 		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
                        config.options.data_kernelcache,
                        config.options.mkdir_is_sync,
                        config.options.create_is_sync,
+		       config.options.symlink_is_sync,
                        config.options.global_flush,
                        config.options.global_locking
 		       );
@@ -1553,7 +1555,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
   EXEC_TIMING_BEGIN(__func__);
 
-  Track::Monitor mon (__func__, Instance().Tracker(), parent);
+  Track::Monitor mon (__func__, Instance().Tracker(), parent, true);
 
   int rc = 0;
 
@@ -1588,6 +1590,12 @@ EROFS  pathname refers to a file on a read-only filesystem.
       }
       else
       {
+	if (md->deleted())
+	{
+	  // we need to wait that this entry is really gone
+	  Instance().mds.wait_flush(req, md);
+	}
+
         md->set_mode(mode | S_IFDIR);
         struct timespec ts;
         eos::common::Timing::GetTimeSpec(ts);
@@ -1712,7 +1720,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
   EXEC_TIMING_BEGIN(__func__);
 
-  Track::Monitor pmon (__func__, Instance().Tracker(), parent);
+  Track::Monitor pmon (__func__, Instance().Tracker(), parent, true);
 
   int rc = 0;
 
@@ -1984,6 +1992,12 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
     {
       XrdSysMutexHelper mLock(md->Locker());
 
+      if (md->deleted())
+      {
+	// we need to wait that this entry is really gone
+	Instance().mds.wait_flush(req, md);
+      }
+
       if (!md->id() || md->deleted())
       {
 	rc = md->deleted()? ENOENT : md->err();
@@ -2008,7 +2022,10 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
   fuse_reply_err(req, rc);
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+
+  if (rc)
+    eos_static_err("t(ms)=%.03f %s", timing.RealTime(),
+		   dump(id, parent, 0, rc, name).c_str());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2029,6 +2046,8 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
 
   int rc = 0;
 
+  fuse_id id(req);
+
   metad::shared_md md = Instance().mds.get(req, ino);
   if (!md->id())
   {
@@ -2040,7 +2059,9 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
   EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(id, ino, 0, rc).c_str());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2182,6 +2203,8 @@ EosFuse::mknod(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   int rc = 0;
 
+  fuse_id id(req);
+
   if (!S_ISREG(mode))
   {
     // we only implement files
@@ -2196,7 +2219,10 @@ EosFuse::mknod(fuse_req_t req, fuse_ino_t parent, const char *name,
   EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
+
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(id, parent, 0, rc, name).c_str());
+
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2324,6 +2350,12 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       }
       else
       {
+	if (md->deleted())
+	{
+	  // we need to wait that this entry is really gone
+	  Instance().mds.wait_flush(req, md);
+	}
+
         md->set_mode(mode | S_IFREG);
         struct timespec ts;
         eos::common::Timing::GetTimeSpec(ts);
@@ -2439,6 +2471,8 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
 
+  Track::Monitor mon (__func__, Instance().Tracker(), ino);
+
   eos_static_debug("inode=%llu size=%li off=%llu",
                    (unsigned long long) ino, size, (unsigned long long) off);
 
@@ -2492,6 +2526,8 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
+
+  Track::Monitor mon (__func__, Instance().Tracker(), ino, true);
 
   eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld",
                    (long long) ino, (long long) size,
@@ -3635,6 +3671,12 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
     }
     else
     {
+      if (md->deleted())
+      {
+	// we need to wait that this entry is really gone
+	Instance().mds.wait_flush(req, md);
+      }
+
       md->set_mode( S_IRWXU | S_IRWXG | S_IRWXO | S_IFLNK );
       md->set_target(link);
 
@@ -3653,7 +3695,16 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
       md->set_gid(pcap->gid());
       md->set_id(Instance().mds.insert(req, md, pcap->authid()));
       md->lookup_inc();
-      Instance().mds.add(pmd, md, pcap->authid());
+      
+      if (Instance().Config().options.mkdir_is_sync)
+      {
+	md->set_type(md->EXCL);
+	rc = Instance().mds.add_sync(pmd, md, pcap->authid());
+      }
+      else
+      {
+	Instance().mds.add(pmd, md, pcap->authid());
+      }
 
       memset(&e, 0, sizeof (e));
       md->convert(e);
