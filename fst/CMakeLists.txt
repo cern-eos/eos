@@ -22,14 +22,14 @@
 # ************************************************************************
 
 if(DAVIX_FOUND)
-    add_definitions(-DDAVIX_FOUND)
-    set(DAVIX_SRC "io/davix/DavixIo.cc")
-    set(DAVIX_HDR "io/davix/DavixIo.hh")
+  add_definitions(-DDAVIX_FOUND)
+  set(DAVIX_SRC "io/davix/DavixIo.cc")
+  set(DAVIX_HDR "io/davix/DavixIo.hh")
 else()
-    set(DAVIX_INCLUDE_DIR "")
-    set(DAVIX_LIBRARIES "")
-    set(DAVIX_SRC "")
-    set(DAVIX_HDR "")
+  set(DAVIX_INCLUDE_DIR "")
+  set(DAVIX_LIBRARIES "")
+  set(DAVIX_SRC "")
+  set(DAVIX_HDR "")
 endif()
 
 include_directories(
@@ -78,8 +78,7 @@ set_source_files_properties(
 #-------------------------------------------------------------------------------
 # gf-complete static library
 #-------------------------------------------------------------------------------
-set(
-  GFCOMPLETE_SRCS
+set(GFCOMPLETE_SRCS
   ./layout/gf-complete/src/gf.c
   ./layout/gf-complete/src/gf_w128.c
   ./layout/gf-complete/src/gf_rand.c
@@ -92,8 +91,7 @@ set(
   ./layout/gf-complete/src/gf_w4.c
   ./layout/gf-complete/src/gf_wgen.c)
 
-set(
-  GFCOMPLETE_HDRS
+set(GFCOMPLETE_HDRS
   ./layout/gf-complete/include/gf_complete.h
   ./layout/gf-complete/include/gf_rand.h
   ./layout/gf-complete/include/gf_method.h
@@ -105,25 +103,20 @@ set(
   ./layout/gf-complete/include/gf_w32.h
   ./layout/gf-complete/include/gf_w16.h)
 
-add_library(
-  gf-complete-static STATIC
+add_library(gf-complete-static STATIC
   ${GFCOMPLETE_SRCS}
   ${GFCOMPLETE_HDRS})
 
-target_compile_definitions(
-  gf-complete-static
+target_compile_definitions(gf-complete-static
   PRIVATE -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-set_target_properties(
-  gf-complete-static
-  PROPERTIES
+set_target_properties(gf-complete-static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
 # jerasure 2.0 static library
 #-------------------------------------------------------------------------------
-set(
-  JERASURE_SRCS
+set(JERASURE_SRCS
   layout/jerasure/src/cauchy_best_r6.c
   layout/jerasure/src/cauchy.c
   layout/jerasure/src/galois.c
@@ -132,8 +125,7 @@ set(
   layout/jerasure/src/reed_sol.c
   layout/jerasure/src/timing.c)
 
-set(
-  JERASURE_HDRS
+set(JERASURE_HDRS
   layout/jerasure/include/cauchy.h
   layout/jerasure/include/galois.h
   layout/jerasure/include/jerasure.h
@@ -141,18 +133,14 @@ set(
   layout/jerasure/include/reed_sol.h
   layout/jerasure/include/timing.h)
 
-add_library(
-  jerasure-static STATIC
+add_library(jerasure-static STATIC
   ${JERASURE_SRCS}
   ${JERASURE_HDRS})
 
-target_compile_definitions(
-  jerasure-static
-  PRIVATE -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(jerasure-static PRIVATE
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-set_target_properties(
-  jerasure-static
-  PROPERTIES
+set_target_properties(jerasure-static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 target_link_libraries(jerasure-static PRIVATE gf-complete-static)
@@ -160,20 +148,16 @@ target_link_libraries(jerasure-static PRIVATE gf-complete-static)
 #-------------------------------------------------------------------------------
 # EosFstIo-Objects library
 #-------------------------------------------------------------------------------
-add_library(
-  EosFstIo-Objects OBJECT
-
+add_library(EosFstIo-Objects OBJECT
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS}
 
-  #-----------------------------------------------------------------------------
   # File IO interface
-  #-----------------------------------------------------------------------------
   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
   io/kinetic/KineticIo.cc        io/kinetic/KineticIo.hh
   ${DAVIX_SRC}                   ${DAVIX_HDR}
-#  io/rados/RadosIo.cc            io/rados/RadosIo.hh
+  #  io/rados/RadosIo.cc         io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -181,15 +165,11 @@ add_library(
   io/SimpleHandler.cc            io/SimpleHandler.hh
   io/FileIoPlugin.cc             io/FileIoPlugin.hh
 
-  #-----------------------------------------------------------------------------
   # Checksum interface
-  #-----------------------------------------------------------------------------
   checksum/CheckSum.cc           checksum/CheckSum.hh
   checksum/Adler.cc              checksum/Adler.hh
 
-  #-----------------------------------------------------------------------------
   # File layout interface
-  #-----------------------------------------------------------------------------
   layout/LayoutPlugin.cc             layout/LayoutPlugin.hh
   layout/Layout.cc                   layout/Layout.hh
   layout/PlainLayout.cc              layout/PlainLayout.hh
@@ -199,17 +179,15 @@ add_library(
   layout/RaidDpLayout.cc             layout/RaidDpLayout.hh
   layout/ReedSLayout.cc              layout/ReedSLayout.hh)
 
-set_target_properties(
-  EosFstIo-Objects PROPERTIES
+set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-target_compile_definitions(
-EosFstIo-Objects PUBLIC -DHAVE_ATOMICS=1 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(EosFstIo-Objects PUBLIC
+  -DHAVE_ATOMICS=1 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 add_library(EosFstIo SHARED $<TARGET_OBJECTS:EosFstIo-Objects>)
 
-target_link_libraries(
-  EosFstIo PUBLIC
+target_link_libraries(EosFstIo PUBLIC
   eosCommon
   EosCrc32c-Static
   jerasure-static
@@ -228,14 +206,12 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARY})
 
-set_target_properties(
-  EosFstIo PROPERTIES
+set_target_properties(EosFstIo PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-install(
-  TARGETS EosFstIo
+install(TARGETS EosFstIo
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -250,8 +226,7 @@ endif()
 #-------------------------------------------------------------------------------
 add_library(EosFstIo-Static STATIC $<TARGET_OBJECTS:EosFstIo-Objects>)
 
-target_link_libraries(
-  EosFstIo-Static PUBLIC
+target_link_libraries(EosFstIo-Static PUBLIC
   eosCommon-Static
   EosCrc32c-Static
   jerasure-static
@@ -268,12 +243,10 @@ target_link_libraries(
   ${DAVIX_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_compile_definitions(
-  EosFstIo-Static PRIVATE
+target_compile_definitions(EosFstIo-Static PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-set_target_properties(
-  EosFstIo-Static PROPERTIES
+set_target_properties(EosFstIo-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 if (NOT PACKAGEONLY AND NOT KINETICIO_FOUND)
@@ -285,8 +258,7 @@ endif()
 #-------------------------------------------------------------------------------
 add_executable(eoscp txqueue/eoscp.cc)
 
-target_compile_definitions(
-  eoscp PRIVATE
+target_compile_definitions(eoscp PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 if(Linux)
@@ -295,8 +267,7 @@ else()
   target_link_libraries(eoscp PRIVATE EosFstIo ${XROOTD_CL_LIBRARY})
 endif()
 
-install(
-  TARGETS eoscp
+install(TARGETS eoscp
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -305,19 +276,16 @@ if(NOT CLIENT)
 #-------------------------------------------------------------------------------
 # EosFstOss library
 #-------------------------------------------------------------------------------
-add_library(
-  EosFstOss MODULE
+add_library(EosFstOss MODULE
   XrdFstOss.cc XrdFstOss.hh
   XrdFstOssFile.cc XrdFstOssFile.hh
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh)
 
-target_compile_definitions(
-  EosFstOss PUBLIC -DHAVE_ATOMICS=1)
+target_compile_definitions(EosFstOss PUBLIC -DHAVE_ATOMICS=1)
 
-target_link_libraries(
-  EosFstOss PRIVATE
+target_link_libraries(EosFstOss PRIVATE
   eosCommon
   EosCrc32c-Static
   ${UUID_LIBRARIES}
@@ -326,8 +294,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # XrdEosFst library
 #-------------------------------------------------------------------------------
-set(
-  XRDEOSFST_SRCS
+set(XRDEOSFST_SRCS
   Config.cc
   Load.cc
   Health.cc
@@ -336,15 +303,11 @@ set(
   io/FileIoPlugin-Server.cc
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
 
-  #-----------------------------------------------------------------------------
   # OFS layer implementation
-  #-----------------------------------------------------------------------------
   XrdFstOfs.cc                   XrdFstOfs.hh
   XrdFstOfsFile.cc               XrdFstOfsFile.hh
 
-  #-----------------------------------------------------------------------------
   # Storage interface
-  #-----------------------------------------------------------------------------
   storage/Balancer.cc
   storage/Cleaner.cc             storage/Comunicator.cc
   storage/Drainer.cc             storage/ErrorReport.cc
@@ -354,45 +317,36 @@ set(
   storage/Storage.cc             storage/Supervisor.cc
   storage/Trim.cc                storage/Verify.cc
 
-  #-----------------------------------------------------------------------------
   # Transfer interface
-  #-----------------------------------------------------------------------------
   txqueue/TransferMultiplexer.cc
   txqueue/TransferJob.cc
   txqueue/TransferQueue.cc
 
-  #-----------------------------------------------------------------------------
   # File metadata interface
-  #-----------------------------------------------------------------------------
   Fmd.cc               Fmd.hh
   FmdHandler.cc        FmdHandler.hh
   FmdDbMap.cc          FmdDbMap.hh
   FmdClient.cc         FmdClient.hh
 
-  #-----------------------------------------------------------------------------
   # HTTP interface
-  #-----------------------------------------------------------------------------
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
 
-  #-----------------------------------------------------------------------------
   # EosFstIo interface
-  #-----------------------------------------------------------------------------
   io/local/LocalIo.cc  io/local/LocalIo.hh)
 
 add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
 
 add_library(XrdEosFst-Shared SHARED ${XRDEOSFST_SRCS})
 
-target_compile_definitions(
-  XrdEosFst PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+target_compile_definitions(XrdEosFst PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-target_compile_definitions(
-  XrdEosFst-Shared PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+target_compile_definitions(XrdEosFst-Shared PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-target_link_libraries(
-   XrdEosFst PRIVATE
+target_link_libraries(XrdEosFst PRIVATE
    eosCommonServer
    EosFstIo-Static
    eosCapability-Static
@@ -408,8 +362,7 @@ target_link_libraries(
    ${OPENSSL_CRYPTO_LIBRARY}
    ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(
-  XrdEosFst-Shared PUBLIC
+target_link_libraries(XrdEosFst-Shared PUBLIC
   EosFstIo-Static
   eosCapability-Static
   ${Z_LIBRARY}
@@ -425,9 +378,7 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-install(
-  TARGETS
-  EosFstOss XrdEosFst
+install(TARGETS EosFstOss XrdEosFst
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -435,20 +386,17 @@ install(
 #-------------------------------------------------------------------------------
 # Other executables
 #-------------------------------------------------------------------------------
-add_executable(
-  eos-check-blockxs
+add_executable(eos-check-blockxs
   tools/CheckBlockXS.cc
   checksum/Adler.cc
   checksum/CheckSum.cc)
 
-add_executable(
-  eos-compute-blockxs
+add_executable(eos-compute-blockxs
   tools/ComputeBlockXS.cc
   checksum/Adler.cc
   checksum/CheckSum.cc)
 
-add_executable(
-  eos-scan-fs
+add_executable(eos-scan-fs
   ScanDir.cc             Load.cc
   Fmd.cc                 FmdHandler.cc
   FmdDbMap.cc
@@ -457,8 +405,7 @@ add_executable(
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS})
 
-add_executable(
-  eos-adler32
+add_executable(eos-adler32
   tools/Adler32.cc
   checksum/Adler.cc
   checksum/CheckSum.cc)
@@ -469,30 +416,25 @@ add_executable(eos-ioping tools/IoPing.cc)
 # TODO (esindril): Review if this is still used
 add_executable(FstLoad Load.cc tools/FstLoad.cc)
 
-target_link_libraries(
-  FstLoad PRIVATE
+target_link_libraries(FstLoad PRIVATE
   ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(
-  eos-check-blockxs PRIVATE
+target_link_libraries(eos-check-blockxs PRIVATE
   EosFstIo-Static
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(
-  eos-compute-blockxs PRIVATE
+target_link_libraries(eos-compute-blockxs PRIVATE
   EosFstIo-Static
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(
-  eos-adler32 PRIVATE
+target_link_libraries(eos-adler32 PRIVATE
   EosFstIo-Static
   ${CMAKE_THREAD_LIBS_INIT} )
 
-target_link_libraries(
-  eos-scan-fs PRIVATE
+target_link_libraries(eos-scan-fs PRIVATE
   eosCommonServer
   EosFstIo-Static
   ${GLIBC_RT_LIBRARY}
@@ -503,16 +445,14 @@ target_link_libraries(
 
 target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
 
-install(
-  PROGRAMS
+install(PROGRAMS
   tools/eosfstregister
   tools/eosfstinfo
   tools/eos-iobw
   tools/eos-iops
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
-install(
-  TARGETS
+install(TARGETS
   eos-ioping eos-adler32
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
