@@ -385,8 +385,9 @@ public:
   eos::common::ZStandard fmdCompressor;
 
 private:
-  void ConvertFmdToFileAttribute();
-  bool IsFmdConversionNeeded();
+  std::map<eos::common::FileSystem::fsid_t, std::string> GetFsidToMountpointMappingFromMgm();
+  void ConvertFmdToFileAttribute(std::map<eos::common::FileSystem::fsid_t, std::string>& fsidMapping);
+  bool IsFmdConversionNeeded(std::map<eos::common::FileSystem::fsid_t, std::string>& fsidMapping);
 
   HttpServer* mHttpd; ///< Embedded http server
   bool Simulate_IO_read_error; ///< simulate an IO error on read

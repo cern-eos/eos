@@ -37,6 +37,7 @@
 #include "common/Statfs.hh"
 #include "common/SyncAll.hh"
 #include "common/StackTrace.hh"
+#include "common/StringTokenizer.hh"
 #include "common/ThreadPool.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -615,6 +616,18 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (NoGo) {
     return NoGo;
+  }
+
+  // Convert the meta data for this FST if it's needed
+  try {
+    auto fsidMapping = GetFsidToMountpointMappingFromMgm();
+
+    if (IsFmdConversionNeeded(fsidMapping)) {
+      eos_info("Meta data conversion is needed.");
+      ConvertFmdToFileAttribute(fsidMapping);
+    }
+  } catch (MDException& ex) {
+    return ex.getErrno();
   }
 
   // Attach Storage to the meta log dir
@@ -1576,7 +1589,8 @@ XrdOucString XrdFstOfs::getLocalPrefix(XrdOucEnv* env, unsigned long fsid) {
 }
 
 void
-XrdFstOfs::ConvertFmdToFileAttribute() {
+XrdFstOfs::ConvertFmdToFileAttribute(std::map<eos::common::FileSystem::fsid_t, std::string>& fsidMapping)
+{
   FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gFmdClient};
   const auto dbPath = eos::fst::Config::gConfig.FstMetaLogDir.c_str();
 
@@ -1584,18 +1598,21 @@ XrdFstOfs::ConvertFmdToFileAttribute() {
   eos::common::ThreadPool pool;
   for(const auto& fsid : FmdDbMapHandler::GetFsidInMetaDir(dbPath)) {
     auto future = pool.PushTask<void>(
-      [&fmdAttributeHandler, &dbPath, fsid] {
+      [&fmdAttributeHandler, &dbPath, &fsidMapping, fsid] {
         XrdOucString dbfilename;
         FmdDbMapHandler fmdDbMapHandler;
         fmdDbMapHandler.CreateDBFileName(dbPath, dbfilename);
         fmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid);
+
+        XrdOucEnv env;
+        env.Put("mgm.fsprefix", fsidMapping[fsid].c_str());
         for(const auto& fmd : fmdDbMapHandler.RetrieveAllFmd()) {
           try {
             // Only set it if it does not have the meta data attribute yet
-            fmdAttributeHandler.FmdAttrGet(fmd.fid(), fmd.fsid());
+            fmdAttributeHandler.FmdAttrGet(fmd.fid(), fmd.fsid(), &env);
           } catch (MDException& e) {
             try {
-              fmdAttributeHandler.FmdAttrSet(fmd, fmd.fid(), fmd.fsid());
+              fmdAttributeHandler.FmdAttrSet(fmd, fmd.fid(), fmd.fsid(), &env);
             } catch (MDException& e) {
               eos_static_err("fmd extended attribute conversion was not successful for fsid:%u, fid: %u",
                              fmd.fsid(), fmd.fid());
@@ -1615,36 +1632,86 @@ XrdFstOfs::ConvertFmdToFileAttribute() {
 }
 
 bool
-XrdFstOfs::IsFmdConversionNeeded() {
+XrdFstOfs::IsFmdConversionNeeded(std::map<eos::common::FileSystem::fsid_t, std::string>& fsidMapping)
+{
   FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gFmdClient};
   const auto dbPath = eos::fst::Config::gConfig.FstMetaLogDir.c_str();
   constexpr size_t maxSampleSizePerFs = 20;
 
   XrdOucString dbfilename;
   FmdDbMapHandler fmdDbMapHandler;
+  XrdOucEnv env;
+
+  auto sampleSizeAll = 0u, notFoundAll = 0u;
   for(const auto& fsid : FmdDbMapHandler::GetFsidInMetaDir(dbPath)) {
+    env.Put("mgm.fsprefix", fsidMapping[fsid].c_str());
     fmdDbMapHandler.CreateDBFileName(dbPath, dbfilename);
     fmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid);
     auto fmdList = fmdDbMapHandler.RetrieveAllFmd();
     if(!fmdList.empty()) {
       auto sampleSize = std::min(maxSampleSizePerFs, fmdList.size());
-      auto cntr = 0u, notFound = 0u;
+      auto cntr = 0u;
       for(const auto& fmd : fmdList) {
         try {
-          fmdAttributeHandler.FmdAttrGet(fmd.fid(), fmd.fsid());
+          fmdAttributeHandler.FmdAttrGet(fmd.fid(), fmd.fsid(), &env);
         } catch (MDException& e) {
-          notFound++;
+          notFoundAll++;
         }
 
-        if(++cntr == maxSampleSizePerFs) break;
+        if(++cntr == sampleSize) break;
       }
 
-      if((double)notFound / sampleSize > 0.3d)
-        return true;
+      sampleSizeAll += sampleSize;
     }
   }
 
-  return false;
+  return sampleSizeAll > 0 && (double)notFoundAll / sampleSizeAll > 0.2d;
+}
+
+std::map<eos::common::FileSystem::fsid_t, std::string>
+XrdFstOfs::GetFsidToMountpointMappingFromMgm()
+{
+  std::unique_ptr<XrdCl::File> file {new XrdCl::File()};
+  std::ostringstream urlStream;
+  urlStream << getenv("EOS_MGM_ALIAS") << "//proc/admin/?mgm.cmd=fs&mgm.subcmd=ls&mgm.outformat=m";
+  XrdCl::URL url(urlStream.str());
+
+  if (!url.IsValid() || !file->Open(url.GetURL(), XrdCl::OpenFlags::Read).IsOK()) {
+    eos_err("Could not retrieve FS information from MGM and therefore cannot complete conversion, aborting.");
+    MDException ex(1);
+    throw ex;
+  }
+
+  std::ostringstream outputStream;
+  uint64_t offset = 0;
+  constexpr uint32_t size = 512;
+  char buffer[size];
+  uint32_t bytesRead;
+  do {
+    file->Read(offset, size, buffer, bytesRead);
+    for(auto i = 0u; i < bytesRead; i++)
+      outputStream << buffer[i];
+    offset += bytesRead;
+  } while (bytesRead > 0);
+
+  XrdOucEnv env(outputStream.str().c_str());
+  std::string output(env.Get("mgm.proc.stdout"));
+  map<FileSystem::fsid_t, string> mapping;
+  for(auto& fstLine : eos::common::StringTokenizer::split(output, '\n')) {
+    std::string id, path;
+    for(auto& fstField : eos::common::StringTokenizer::split(fstLine, ' ')) {
+      if (fstField.find("id=") == 0) {
+        id = eos::common::StringTokenizer::split(fstField, '=')[1];
+      }
+      else if (fstField.find("path=") == 0) {
+        path = eos::common::StringTokenizer::split(fstField, '=')[1];
+      }
+    }
+
+    mapping[std::stoul(id)] = path;
+  }
+
+  return mapping;
 }
 
 EOSFSTNAMESPACE_END
