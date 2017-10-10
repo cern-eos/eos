@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
 #include "common/ConsoleReply.pb.h"
@@ -44,17 +45,19 @@ public:
   //! Costructor
   //----------------------------------------------------------------------------
   IProcCommand():
-    mThread(), mForceKill(false), stdOut(), stdErr(), stdJson(), retc(0) {}
+    mThread(), mDoAsync(false), mForceKill(false), stdOut(), stdErr(),
+    stdJson(), retc(0) {}
 
   //----------------------------------------------------------------------------
   //! Costructor
   //!
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  IProcCommand(eos::common::Mapping::VirtualIdentity& vid):
+  IProcCommand(eos::common::Mapping::VirtualIdentity& vid, bool async):
     IProcCommand()
   {
     mVid = vid;
+    mDoAsync = async;
   }
 
   //----------------------------------------------------------------------------
@@ -115,28 +118,20 @@ public:
   virtual int close() = 0;
 
   //----------------------------------------------------------------------------
-  //! Method implementing the specific behvior of the command executed by the
-  //! asynchronous thread
+  //! Method implementing the specific behavior of the command executed
   //----------------------------------------------------------------------------
-  virtual void ProcessRequest() = 0;
+  virtual eos::console::ReplyProto ProcessRequest() = 0;
 
   //----------------------------------------------------------------------------
   //! Lauch command asynchronously, creating the corresponding promise and
   //! future
   //----------------------------------------------------------------------------
-  virtual void LaunchAsyncJob() final {
-    mFuture = mPromise.get_future();
-    auto lth = std::thread([&]()
-    {
-      ProcessRequest();
-    });
-    mThread.swap(lth);
-  }
+  virtual void LaunchJob() final;
 
 protected:
-  std::promise<eos::console::ReplyProto> mPromise; ///< Promise reply
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
   std::thread mThread; ///< Async thread doing all the work
+  bool mDoAsync; ///< If true use thread pool to do the work
   std::atomic<bool> mForceKill; ///< Flag to notify worker thread
   eos::common::Mapping::VirtualIdentity mVid; ///< Copy of original vid
   XrdOucString stdOut; ///< stdOut returned by proc command

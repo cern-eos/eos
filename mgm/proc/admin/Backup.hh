@@ -24,7 +24,7 @@
 #ifndef __EOSMGM_BACKUP_HH__
 #define __EOSMGM_BACKUP_HH__
 
-#include "mgm/proc/ProcInterface.hh"
+#include "mgm/proc/ProcCommand.hh"
 #include <set>
 
 EOSMGMNAMESPACE_BEGIN

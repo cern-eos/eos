@@ -22,9 +22,10 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "mgm/proc/ProcCommand.hh"
+#include "mgm/proc/IProcCommand.hh"
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
+#include "common/ThreadPool.hh"
 #include "proc_fs.hh"
 #include <unordered_map>
 
@@ -131,11 +132,14 @@ public:
                                std::unique_ptr<IProcCommand>&& pcmd);
 
   //----------------------------------------------------------------------------
-  //! Drop asynchronous executing command since the client disconnected
+  //! Drop asynchronously executing command since the client disconnected
   //!
   //! @param tident unique client connection identifier
   //----------------------------------------------------------------------------
   static void DropSubmittedCmd(const char* tident);
+
+  ///! Pool of threads executing asynchronously long-running client commands
+  static eos::common::ThreadPool sProcThreads;
 
 private:
   //----------------------------------------------------------------------------

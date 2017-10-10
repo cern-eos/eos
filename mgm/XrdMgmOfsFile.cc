@@ -39,6 +39,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Acl.hh"
 #include "mgm/Workflow.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"

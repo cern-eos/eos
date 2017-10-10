@@ -42,10 +42,11 @@ public:
   //! Constructor
   //!
   //! @param req client ProtocolBuffer request
+  //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  AclCmd(eos::console::RequestProto&& req,
-         eos::common::Mapping::VirtualIdentity& vid):
-    IProcCommand(vid), mExecRequest(false), mReqProto(std::move(req))
+  explicit AclCmd(eos::console::RequestProto&& req,
+                  eos::common::Mapping::VirtualIdentity& vid):
+    IProcCommand(vid, true), mExecRequest(false), mReqProto(std::move(req))
   {}
 
   //----------------------------------------------------------------------------
@@ -113,7 +114,7 @@ public:
   //! Method implementing the specific behvior of the command executed by the
   //! asynchronous thread
   //----------------------------------------------------------------------------
-  void ProcessRequest() override;
+  eos::console::ReplyProto ProcessRequest() override;
 
   //----------------------------------------------------------------------------
   //! Generate rule map from the string representation of the acls. If there

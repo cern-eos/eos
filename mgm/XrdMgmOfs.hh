@@ -122,7 +122,7 @@
 #include "mgm/Recycle.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/VstMessaging.hh"
-#include "mgm/proc/ProcInterface.hh"
+#include "mgm/proc/ProcCommand.hh"
 #include "mgm/http/HttpServer.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"

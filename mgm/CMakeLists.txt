@@ -73,6 +73,7 @@ add_library(
   Messaging.cc
   VstMessaging.cc
   Policy.cc
+  proc/IProcCommand.cc
   proc/ProcInterface.cc
   proc/ProcCommand.cc
   proc/proc_fs.cc

@@ -38,7 +38,7 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Process request
 //------------------------------------------------------------------------------
-void
+eos::console::ReplyProto
 AclCmd::ProcessRequest()
 {
   using eos::console::AclProto_OpType;
@@ -72,7 +72,7 @@ AclCmd::ProcessRequest()
     reply.set_std_err("error: not implemented");
   }
 
-  mPromise.set_value(std::move(reply));
+  return reply;
 }
 
 //------------------------------------------------------------------------------
@@ -88,7 +88,7 @@ AclCmd::open(const char* path, const char* info,
   int delay = 5;
 
   if (!mExecRequest) {
-    LaunchAsyncJob();
+    LaunchJob();
     mExecRequest = true;
   }
 

@@ -27,6 +27,7 @@
 #include "mgm/FsView.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Vid.hh"
+#include "mgm/proc/proc_fs.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include <sstream>
 

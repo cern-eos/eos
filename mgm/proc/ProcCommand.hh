@@ -132,10 +132,10 @@ public:
   //! Method implementing the specific behvior of the command executed by the
   //! asynchronous thread - used only for protobuf commands
   //----------------------------------------------------------------------------
-  virtual void ProcessRequest() override
+  virtual eos::console::ReplyProto ProcessRequest() override
   {
     // Default behvior for old (raw) style commands
-    return;
+    return eos::console::ReplyProto();
   }
 
   //----------------------------------------------------------------------------

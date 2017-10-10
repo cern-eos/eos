@@ -32,6 +32,7 @@ EOSMGMNAMESPACE_BEGIN
 std::mutex ProcInterface::mMutexMap;
 std::unordered_map<std::string, std::unique_ptr<IProcCommand>>
     ProcInterface::mMapCmds;
+eos::common::ThreadPool ProcInterface::sProcThreads;
 
 //------------------------------------------------------------------------------
 // Factory method to get a ProcCommand object
