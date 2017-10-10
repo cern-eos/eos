@@ -59,6 +59,7 @@ FileMD&
 FileMD::operator = (const FileMD& other)
 {
   mFile = other.mFile;
+  mClock = other.mClock;
   pFileMDSvc   = 0;
   return *this;
 }

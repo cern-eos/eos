@@ -76,9 +76,10 @@ ContainerMD::ContainerMD(const ContainerMD& other)
 ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 {
   mCont    = other.mCont;
-  pContSvc  = other.pContSvc;
-  pFileSvc  = other.pFileSvc;
-  pQcl      = other.pQcl;
+  pContSvc = other.pContSvc;
+  pFileSvc = other.pFileSvc;
+  pQcl     = other.pQcl;
+  mClock   = other.mClock;
   // Note: pFiles and pSubContainers are not copied here
   return *this;
 }
