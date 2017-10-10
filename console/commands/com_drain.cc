@@ -63,7 +63,7 @@ com_drain(char* arg1)
 
     in += "&mgm.drain.fsid=";
     in += fsid;
-    XrdOucEnv* result = client_command(in);
+    XrdOucEnv* result = client_command(in,true);
     global_retc = output_result(result);
     return (0);
   }
@@ -84,7 +84,7 @@ com_drain(char* arg1)
 
     in += "&mgm.drain.fsid=";
     in += fsid;
-    XrdOucEnv* result = client_command(in);
+    XrdOucEnv* result = client_command(in,true);
     global_retc = output_result(result);
     return (0);
   }
@@ -105,7 +105,7 @@ com_drain(char* arg1)
 
     in += "&mgm.drain.fsid=";
     in += fsid;
-    XrdOucEnv* result = client_command(in);
+    XrdOucEnv* result = client_command(in,true);
     global_retc = output_result(result);
     return (0);
   }
@@ -123,7 +123,7 @@ com_drain(char* arg1)
       in += fsid;
    }
 
-    XrdOucEnv* result = client_command(in);
+    XrdOucEnv* result = client_command(in,true);
     global_retc = output_result(result);
     return (0);
   }
