@@ -77,7 +77,7 @@ public:
   DrainFS(eos::common::FileSystem::fsid_t ifsid)
   {
     //create the scheduler for Drain Job; the max number of workers should be parametrized
-    gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, 10, 5);
+    gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, maxParallelJobs, 2);
     gScheduler->Start();
     mThread = 0;
     mFsId = ifsid;
@@ -122,20 +122,13 @@ public:
   // ---------------------------------------------------------------------------
   // select a FS as a draining target using GeoTreeEngine
   // ---------------------------------------------------------------------------
-  eos::common::FileSystem::fsid_t SelectTargetFS(DrainTransferJob& job);
+  eos::common::FileSystem::fsid_t SelectTargetFS(DrainTransferJob* job);
 
   // ---------------------------------------------------------------------------
-  // get the list of  Jobs filter by status
+  // get the list of  Failed  Jobs
   // ---------------------------------------------------------------------------
-  std::vector<shared_ptr<DrainTransferJob>> GetJobs(DrainTransferJob::Status
-                                         status);
+  std::vector<shared_ptr<DrainTransferJob>>* GetFailedJobs();
   
-  // ---------------------------------------------------------------------------
-  // get thef jobs count for the given status
-  // ---------------------------------------------------------------------------
-
-  int CountJobs(DrainTransferJob::Status status);
-
   void CompleteDrain() ;
 
 private:
@@ -152,8 +145,12 @@ private:
 
   XrdScheduler*   gScheduler;
 
-  //list of DrainTransferJob to run
+  //list of Drain Jobs to run 
   std::vector<shared_ptr<DrainTransferJob>> drainJobs;
+  //list of DrainTransferJob failed
+  std::vector<shared_ptr<DrainTransferJob>> drainJobsFailed;
+  //running jobs
+  std::vector<shared_ptr<DrainTransferJob>> runningJobs;
 
   XrdSysMutex drainJobsMutex;
 
@@ -165,6 +162,9 @@ private:
 
   int maxretries = 0;
 
+  //the max number of parallel drain jobs
+
+  int maxParallelJobs = 5;
 };
 
 EOSMGMNAMESPACE_END

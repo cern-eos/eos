@@ -208,7 +208,7 @@ DrainFS::Drain (void)
     {
       eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-       eos::IFsView::FileList filelist;
+      eos::IFsView::FileList filelist;
       try {  
         filelist = gOFS->eosFsView->getFileList(mFsId);
       }
@@ -219,20 +219,17 @@ DrainFS::Drain (void)
       if (filelist.size() == 0) {
         CompleteDrain();
         return 0;
-      }  
+      }
+      eos::IFsView::FileIterator fid_it = filelist.begin();
+      while (fid_it != filelist.end()) {
+        drainJobs.push_back( shared_ptr<DrainTransferJob> (new DrainTransferJob (*fid_it, mFsId)));
+        fid_it++;
+      } 
       //set draining status
       fs->SetDrainStatus(eos::common::FileSystem::kDraining);
       drainStatus = eos::common::FileSystem::kDraining;
       FsView::gFsView.StoreFsConfig(fs);
-      eos::IFsView::FileIterator fid_it = filelist.begin();
-      drainJobsMutex.Lock();
-      while (fid_it != filelist.end()) {
-        eos_notice("file to drain=%d ", *fid_it);
-        drainJobs.push_back( shared_ptr<DrainTransferJob> (new DrainTransferJob (*fid_it, mFsId)));
-        fid_it++;
-        totalfiles++;
-      }
-      drainJobsMutex.UnLock();
+      totalfiles = filelist.size();
     }
     // set the shared object counter
     {
@@ -257,46 +254,63 @@ DrainFS::Drain (void)
       fs->SetConfigStatus(eos::common::FileSystem::kRO);
       FsView::gFsView.StoreFsConfig(fs);
     }
-
-    XrdSysThread::CancelPoint();
-  
-    auto job = drainJobs.begin();
-
-    while(job != drainJobs.end() && !drainStop) {
-      eos::common::FileSystem::fsid_t fsIdTarget;
-      //if it's a retry, schedule only the failed transfers
-      if (ntried >1 && ((*job)->GetStatus() == DrainTransferJob::Failed))
-      {
-	continue;
-      }
-      if ((fsIdTarget= SelectTargetFS(*job->get())) != 0) {
-        (*job)->SetTargetFS(fsIdTarget);
-        (*job)->SetStatus(DrainTransferJob::Ready);
-        gScheduler->Schedule((XrdJob*) &(*job->get()));
-      }  else {
-        (*job)->SetStatus(DrainTransferJob::Failed);
-      } 
-      job++;
-    }
- 
+    
     time_t last_filesleft_change;
     last_filesleft_change = time(NULL);
     long long last_filesleft;
 
     last_filesleft = 0;
     filesleft = 0;
-
+    eos::IFsView::FileIterator fid_it;
     eos_notice("Filesystem fsid=%u is under draining..", mFsId);
     
+    //start the loop to drain the files 
     do {
-      XrdSysThread::SetCancelOff();
-    
+
+      XrdSysThread::CancelPoint();
+      
       bool stalled = ((time(NULL) - last_filesleft_change) > 600);
 
-      last_filesleft = filesleft;
-    
-      filesleft = CountJobs(DrainTransferJob::Running) + CountJobs(DrainTransferJob::Failed); 
-  
+      auto job = drainJobs.begin();
+      int i = 0;
+      eos::common::FileSystem::fsid_t fsIdTarget;
+      while ( i < maxParallelJobs && job != drainJobs.end()) {
+          if ((fsIdTarget= SelectTargetFS(&(*job->get()))) != 0) {
+            (*job)->SetTargetFS(fsIdTarget);
+            (*job)->SetStatus(DrainTransferJob::Ready);
+            gScheduler->Schedule((XrdJob*) &(*job->get()));
+            runningJobs.push_back(*job);
+          } else {
+            std::string error = "Failed to find a suitable Target filesystem for draining";
+            (*job)->ReportError(error);
+            drainJobsFailed.push_back(*job);
+          }
+          job = drainJobs.erase(job);
+          i++;
+      }
+
+      eos_notice("Check running jobs size: %u", runningJobs.size());
+      auto it_jobs = runningJobs.begin();
+      while (runningJobs.size()!=0) {
+	 if ((*it_jobs)->GetStatus() == DrainTransferJob::OK) {
+            it_jobs = runningJobs.erase(it_jobs);
+         } else if ((*it_jobs)->GetStatus() == DrainTransferJob::Failed) {
+	   drainJobsFailed.push_back(*it_jobs);
+           it_jobs = runningJobs.erase(it_jobs);
+         } else it_jobs++;
+
+        if (it_jobs == runningJobs.end()) {
+         if (runningJobs.size() ==0) 
+          break;
+	 else it_jobs = runningJobs.begin();
+        
+         XrdSysTimer sleep;
+         sleep.Wait(1000);
+        }
+      }
+
+      filesleft = drainJobs.size() + drainJobsFailed.size();
+
       if (!last_filesleft)
       {
         last_filesleft = filesleft;
@@ -337,8 +351,9 @@ DrainFS::Drain (void)
             fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
             FsView::gFsView.StoreFsConfig(fs);
           }
-          else
+          else {
             fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+          }
         }
         int progress = (int) (totalfiles) ? (100.0 * (totalfiles - filesleft) / totalfiles) : 100;
         {
@@ -475,51 +490,18 @@ DrainFS::CompleteDrain() {
 }
 
 /*----------------------------------------------------------------------------*/
-std::vector<shared_ptr<DrainTransferJob>>
-DrainFS::GetJobs(DrainTransferJob::Status status)
+std::vector<shared_ptr<DrainTransferJob>>*
+DrainFS::GetFailedJobs() 
 /*----------------------------------------------------------------------------*/
 /*
- * @brief get The jobs by Status
+ * @brief get the iterator to the failed jobs
  *       
  */
 /*----------------------------------------------------------------------------*/
 {
-  std::vector<shared_ptr<DrainTransferJob>> jobs;
-
-  auto job = drainJobs.begin();
-  drainJobsMutex.Lock();
-  while(job != drainJobs.end()) {
-    if ((*job)->GetStatus() == status)
-        jobs.push_back(*job);
-    job++; 
-  }
-  drainJobsMutex.UnLock();
-  return jobs;
-  
+  return &drainJobsFailed;
 }
 
-/*----------------------------------------------------------------------------*/
-int
-DrainFS::CountJobs(DrainTransferJob::Status status)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief get The jobs by Status
- *
- */
-/*----------------------------------------------------------------------------*/
-{
-  int count = 0;
-  auto job = drainJobs.begin();
-  drainJobsMutex.Lock();
-  while(job != drainJobs.end()) {
-    if ((*job)->GetStatus() == status)
-       count++;
-    job++;
-  }
-  drainJobsMutex.UnLock();
-  return count;
- 
-}
 /*----------------------------------------------------------------------------*/
 void
 DrainFS::DrainStop()
@@ -553,7 +535,7 @@ DrainFS::DrainStop()
 }
 /*----------------------------------------------------------------------------*/
 eos::common::FileSystem::fsid_t  
-DrainFS::SelectTargetFS( DrainTransferJob &job)
+DrainFS::SelectTargetFS( DrainTransferJob *job)
 /*----------------------------------------------------------------------------*/
 /**
  *  * @brief select TargetFS using the GeoTreeEngine
@@ -572,12 +554,12 @@ DrainFS::SelectTargetFS( DrainTransferJob &job)
   eos::common::FileSystem::fs_snapshot source_snapshot;
   eos::common::FileSystem* source_fs = 0;
 
-  std::shared_ptr<eos::IFileMD> fmd =  gOFS->eosFileService->getFileMD(job.GetFileId());
+  std::shared_ptr<eos::IFileMD> fmd =  gOFS->eosFileService->getFileMD(job->GetFileId());
 
   unsigned int nfilesystems = 1;
   unsigned int ncollocatedfs = 0;
 
-  source_fs = FsView::gFsView.mIdView[job.GetSourceFS()];
+  source_fs = FsView::gFsView.mIdView[job->GetSourceFS()];
   source_fs->SnapShotFileSystem(source_snapshot);
   FsGroup* group = FsView::gFsView.mGroupView[source_snapshot.mGroup];
 
