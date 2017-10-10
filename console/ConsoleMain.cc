@@ -24,6 +24,7 @@
 #include "ConsoleMain.hh"
 #include "ConsolePipe.hh"
 #include "ConsoleCompletion.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "License"
 #include "common/Path.hh"
 #include "common/IoPipe.hh"
@@ -647,6 +648,9 @@ main(int argc, char* argv[])
   bool checked_mgm = false;
   char* line, *s;
   serveruri = (char*) "root://localhost";
+  // Enable fork handlers for XrdCl
+  XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
+  env->PutInt("RunForkHandler", 1);
 
   if (getenv("EOS_MGM_URL")) {
     serveruri = getenv("EOS_MGM_URL");
