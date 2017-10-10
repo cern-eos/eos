@@ -271,11 +271,6 @@ public:
 
 protected:
   eos::common::Mapping::VirtualIdentity* pVid; ///< Pointer to virtual identity
-  eos::common::Mapping::VirtualIdentity mVid; ///< Copy of original vid
-  XrdOucString stdOut; ///< stdOut returned by proc command
-  XrdOucString stdErr; ///< stdErr returned by proc command
-  XrdOucString stdJson; ///< JSON output returned by proc command
-  int retc; ///< return code from the proc command
 
 private:
   XrdOucString mPath; ///< path argument for the proc command

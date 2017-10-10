@@ -30,13 +30,12 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 ProcCommand::ProcCommand():
-  pVid(0), stdOut(""), stdErr(""), stdJson(""), retc(0), mPath(""),  mCmd(""),
-  mSubCmd(""), mArgs(""), mResultStream(""), pOpaque(0), ininfo(0),
-  mDoSort(false), mSelection(0), mOutFormat(""), mOutDepth(0), fstdout(0),
-  fstderr(0), fresultStream(0), fstdoutfilename(""), fstderrfilename(""),
-  fresultStreamfilename(""), mError(0), mComment(""), mLen(0), mAdminCmd(false),
-  mUserCmd(false), mFuseFormat(false), mJsonFormat(false), mHttpFormat(false),
-  mClosed(false), mJsonCallback("")
+  pVid(0), mPath(""),  mCmd(""), mSubCmd(""), mArgs(""), mResultStream(""),
+  pOpaque(0), ininfo(0),  mDoSort(false), mSelection(0), mOutFormat(""),
+  mOutDepth(0), fstdout(0), fstderr(0), fresultStream(0), fstdoutfilename(""),
+  fstderrfilename(""), fresultStreamfilename(""), mError(0), mComment(""),
+  mLen(0), mAdminCmd(false), mUserCmd(false), mFuseFormat(false),
+  mJsonFormat(false), mHttpFormat(false), mClosed(false), mJsonCallback("")
 {
   mExecTime = time(NULL);
 }
@@ -47,8 +46,7 @@ ProcCommand::ProcCommand():
 ProcCommand::ProcCommand(eos::common::Mapping::VirtualIdentity& vid):
   ProcCommand()
 {
-  pVid = &vid; // to be used by old(raw) command implementations
-  mVid = vid; // to be used by new(protobuf) commmand impelementations
+  pVid = &vid;
 }
 
 //------------------------------------------------------------------------------

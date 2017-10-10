@@ -35,7 +35,7 @@ typedef std::unordered_map<std::string, unsigned short> RuleMap;
 //------------------------------------------------------------------------------
 //! Class AclCmd - class hadling acl command from a client
 //------------------------------------------------------------------------------
-class AclCmd: public ProcCommand
+class AclCmd: public IProcCommand
 {
 public:
   //----------------------------------------------------------------------------
@@ -45,7 +45,7 @@ public:
   //----------------------------------------------------------------------------
   AclCmd(eos::console::RequestProto&& req,
          eos::common::Mapping::VirtualIdentity& vid):
-    ProcCommand(vid), mExecRequest(false), mReqProto(std::move(req))
+    IProcCommand(vid), mExecRequest(false), mReqProto(std::move(req))
   {}
 
   //----------------------------------------------------------------------------
@@ -85,6 +85,31 @@ public:
   int read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen) override;
 
   //----------------------------------------------------------------------------
+  //! Get the size of the result stream
+  //!
+  //! @param buf stat structure to fill
+  //!
+  //! @return SFS_OK in any case
+  //----------------------------------------------------------------------------
+  virtual int stat(struct stat* buf) override
+  {
+    // @todo (esindril): to implement
+    return SFS_OK;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Close the proc stream and store the clients comment for the command in the
+  //! comment log file
+  //!
+  //! @return 0 if comment has been successfully stored otherwise != 0
+  //----------------------------------------------------------------------------
+  virtual int close() override
+  {
+    //@todo (esindril): to implement
+    return SFS_OK;
+  }
+
+  //----------------------------------------------------------------------------
   //! Method implementing the specific behvior of the command executed by the
   //! asynchronous thread
   //----------------------------------------------------------------------------
@@ -101,7 +126,6 @@ public:
   //----------------------------------------------------------------------------
   static void
   GenerateRuleMap(const std::string& acl_string, RuleMap& rmap);
-
 
 private:
   //! Enumerator defining which bit represents which acl flag.

@@ -44,7 +44,18 @@ public:
   //! Costructor
   //----------------------------------------------------------------------------
   IProcCommand():
-    mThread(), mForceKill(false) {}
+    mThread(), mForceKill(false), stdOut(), stdErr(), stdJson(), retc(0) {}
+
+  //----------------------------------------------------------------------------
+  //! Costructor
+  //!
+  //! @param vid client virtual identity
+  //----------------------------------------------------------------------------
+  IProcCommand(eos::common::Mapping::VirtualIdentity& vid):
+    IProcCommand()
+  {
+    mVid = vid;
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -126,7 +137,12 @@ protected:
   std::promise<eos::console::ReplyProto> mPromise; ///< Promise reply
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
   std::thread mThread; ///< Async thread doing all the work
-  std::atomic<bool> mForceKill; ///<
+  std::atomic<bool> mForceKill; ///< Flag to notify worker thread
+  eos::common::Mapping::VirtualIdentity mVid; ///< Copy of original vid
+  XrdOucString stdOut; ///< stdOut returned by proc command
+  XrdOucString stdErr; ///< stdErr returned by proc command
+  XrdOucString stdJson; ///< JSON output returned by proc command
+  int retc; ///< return code from the proc command
 };
 
 EOSMGMNAMESPACE_END
