@@ -76,9 +76,6 @@ public:
 
   DrainFS(eos::common::FileSystem::fsid_t ifsid)
   {
-    //create the scheduler for Drain Job; the max number of workers should be parametrized
-    gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, maxParallelJobs, 2);
-    gScheduler->Start();
     mThread = 0;
     mFsId = ifsid;
 
@@ -142,8 +139,6 @@ private:
 
   //group where the filesystem resides
   std::string mGroup;
-
-  XrdScheduler*   gScheduler;
 
   //list of Drain Jobs to run 
   std::vector<shared_ptr<DrainTransferJob>> drainJobs;

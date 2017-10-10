@@ -58,7 +58,6 @@ DrainFS::~DrainFS ()
     mThread = 0;
   }
   SetInitialCounters();
-  delete gScheduler;
   eos_notice("Stopping Drain for fs=%u", mFsId);
   
 }
@@ -278,7 +277,7 @@ DrainFS::Drain (void)
           if ((fsIdTarget= SelectTargetFS(&(*job->get()))) != 0) {
             (*job)->SetTargetFS(fsIdTarget);
             (*job)->SetStatus(DrainTransferJob::Ready);
-            gScheduler->Schedule((XrdJob*) &(*job->get()));
+            (*job)->DoIt();
             runningJobs.push_back(*job);
           } else {
             std::string error = "Failed to find a suitable Target filesystem for draining";
