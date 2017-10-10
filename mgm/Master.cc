@@ -1858,6 +1858,16 @@ Master::BootNamespace()
               "via EOS_NS_DIR_SIZE && EOS_NS_FILE_SIZE in /etc/sysconfig/eos\"");
   }
 
+  if (getenv("EOS_NS_QDB_HOST")) {
+    contSettings["qdb_host"] = getenv("EOS_NS_QDB_HOST");
+    fileSettings["qdb_host"] = getenv("EOS_NS_QDB_HOST");
+  }
+
+  if (getenv("EOS_NS_QDB_PORT")) {
+    contSettings["qdb_port"] = getenv("EOS_NS_QDB_PORT");
+    fileSettings["qdb_port"] = getenv("EOS_NS_QDB_PORT");
+  }
+
   contSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
   fileSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
   contSettings["changelog_path"] += "/directories.";
