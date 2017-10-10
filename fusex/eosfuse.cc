@@ -23,7 +23,6 @@
  ************************************************************************/
 
 #include "eosfuse.hh"
-#include "misc/MacOSXHelper.hh"
 #include "misc/fusexrdlogin.hh"
 
 #include <string>
@@ -1220,6 +1219,8 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
   ADD_FUSE_STAT(__func__, req);
 
+  Track::Monitor mon (__func__, Instance().Tracker(), ino);
+
   int rc = 0;
 
   fuse_id id(req);
@@ -1552,6 +1553,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
   EXEC_TIMING_BEGIN(__func__);
 
+  Track::Monitor mon (__func__, Instance().Tracker(), parent);
+
   int rc = 0;
 
   fuse_id id(req);
@@ -1709,6 +1712,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
   EXEC_TIMING_BEGIN(__func__);
 
+  Track::Monitor pmon (__func__, Instance().Tracker(), parent);
+
   int rc = 0;
 
   fuse_id id(req);
@@ -1842,6 +1847,8 @@ EROFS  pathname refers to a directory on a read-only filesystem.
 
   EXEC_TIMING_BEGIN(__func__);
 
+  Track::Monitor mon (__func__, Instance().Tracker(), parent);
+
   int rc = 0;
 
   fuse_id id(req);
@@ -1939,6 +1946,10 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   EXEC_TIMING_BEGIN(__func__);
 
+  Track::Monitor monp (__func__, Instance().Tracker(), parent);
+  Track::Monitor monn (__func__, Instance().Tracker(), newparent);
+
+
   int rc = 0;
 
   fuse_id id(req);
@@ -1969,6 +1980,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
     p1md = Instance().mds.get(req, parent, p1cap->authid());
     p2md = Instance().mds.get(req, newparent, p2cap->authid());
 
+    uint64_t md_ino = 0;
     {
       XrdSysMutexHelper mLock(md->Locker());
 
@@ -1976,10 +1988,16 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
       {
 	rc = md->deleted()? ENOENT : md->err();
       }
+      else
+      {
+	md_ino = md->id();
+      }
     }
 
     if (!rc)
     {
+      Track::Monitor mone (__func__,Instance().Tracker(), md_ino, true);
+
       std::string new_name = newname;
       Instance().mds.mv (p1md, p2md, md, newname, p1cap->authid(), p2cap->authid());
     }
@@ -2006,6 +2024,8 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
   eos_static_debug("");
 
   EXEC_TIMING_BEGIN(__func__);
+
+  Track::Monitor mon (__func__, Instance().Tracker(), ino);
 
   int rc = 0;
 
@@ -2038,6 +2058,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   ADD_FUSE_STAT(__func__, req);
 
   EXEC_TIMING_BEGIN(__func__);
+
+  Track::Monitor mon (__func__, Instance().Tracker(), ino, true);
 
   int rc = 0;
 
@@ -2252,6 +2274,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
+  
+  Track::Monitor mon (__func__, Instance().Tracker(), parent, true);
 
   if (fi)
   {
@@ -2543,6 +2567,8 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
   EXEC_TIMING_BEGIN(__func__);
 
+  Track::Monitor mon (__func__, Instance().Tracker(), ino, true);
+
   int rc = 0;
 
   fuse_id id(req);
@@ -2582,6 +2608,8 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
   ADD_FUSE_STAT(__func__, req);
 
   EXEC_TIMING_BEGIN(__func__);
+
+  Track::Monitor mon (__func__, Instance().Tracker(), ino);
 
   int rc = 0;
 
@@ -2672,6 +2700,9 @@ EosFuse::forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
   eos_static_notice("t(ms)=%.03f %s nlookup=%d", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str(), nlookup);
 
+  if (!rc)
+    Instance().Tracker().forget(ino);
+
   fuse_reply_none(req);
 }
 
@@ -2690,6 +2721,8 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   ADD_FUSE_STAT(__func__, req);
 
   EXEC_TIMING_BEGIN(__func__);
+
+  Track::Monitor mon (__func__, Instance().Tracker(), ino, true);
 
   int rc = 0;
 
@@ -2786,6 +2819,8 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
   ADD_FUSE_STAT(__func__, req);
 
   EXEC_TIMING_BEGIN(__func__);
+
+  Track::Monitor mon (__func__, Instance().Tracker(), ino);
 
   int rc = 0;
 
@@ -3037,6 +3072,8 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
   EXEC_TIMING_BEGIN(__func__);
 
+  Track::Monitor mon (__func__, Instance().Tracker(), ino, true);
+
   int rc = 0;
 
   fuse_id id(req);
@@ -3227,6 +3264,8 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 
   EXEC_TIMING_BEGIN(__func__);
 
+  Track::Monitor mon (__func__, Instance().Tracker(), ino);
+
   int rc = 0;
 
   fuse_id id(req);
@@ -3316,6 +3355,8 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
   ADD_FUSE_STAT(__func__, req);
 
   EXEC_TIMING_BEGIN(__func__);
+
+  Track::Monitor mon (__func__, Instance().Tracker(), ino);
 
   int rc = 0 ;
 
@@ -3449,6 +3490,8 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
 
   EXEC_TIMING_BEGIN(__func__);
 
+  Track::Monitor mon (__func__, Instance().Tracker(), ino);
+
   int rc = 0;
   std::string target;
 
@@ -3561,6 +3604,8 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
 
   EXEC_TIMING_BEGIN(__func__);
 
+  Track::Monitor mon (__func__, Instance().Tracker(), parent);
+
   int rc = 0;
 
   fuse_id id(req);
@@ -3646,6 +3691,8 @@ EosFuse::getlk(fuse_req_t req, fuse_ino_t ino,
 
   EXEC_TIMING_BEGIN(__func__);
 
+  Track::Monitor mon (__func__, Instance().Tracker(), ino);
+
   fuse_id id(req);
 
   int rc = 0;
@@ -3697,6 +3744,8 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
   ADD_FUSE_STAT(__func__, req);
 
   EXEC_TIMING_BEGIN(__func__);
+
+  Track::Monitor mon (__func__, Instance().Tracker(), ino, true);
 
   fuse_id id(req);
 

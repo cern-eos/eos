@@ -25,6 +25,7 @@
 #ifndef FUSE_EOSFUSE_HH_
 #define FUSE_EOSFUSE_HH_
 
+#include "misc/MacOSXHelper.hh"
 #include "stat/Stat.hh"
 #include "md/md.hh"
 #include "cap/cap.hh"
@@ -33,6 +34,7 @@
 #include "kv/kv.hh"
 #include "llfusexx.hh"
 #include "auth/CredentialFinder.hh"
+#include "misc/Track.hh"
 
 #include <set>
 #include <signal.h>
@@ -214,6 +216,11 @@ public:
     return config;
   }
 
+  Track& Tracker() 
+  {
+    return tracker;
+  }
+
   struct fuse_id
   {
     uid_t uid;
@@ -260,9 +267,12 @@ public:
     XrdSysMutex items_lock;
   } opendir_t ;
 
+  
 protected:
 
 private:
+
+  Track tracker;
 
   cfg_t config;
 
