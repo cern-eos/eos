@@ -78,6 +78,10 @@ Drainer::~Drainer()
 bool
 Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
 {
+    if (!gOFS->MgmOfsCentralDraining) {
+      err =  "error: central drain is not enabled in the configuration";
+      return false;
+    }
     //check the status of the given FS and if it's already in the map for drain FS
     const char* fsIdString = env.Get("mgm.drain.fsid");
  
@@ -90,8 +94,8 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
     auto it_fs = FsView::gFsView.mIdView.find(fsId);
 
     if (it_fs == FsView::gFsView.mIdView.end()){
-        err = "error: the given FS does not exist";
-        return false;
+      err = "error: the given FS does not exist";
+      return false;
     }
     eos::common::FileSystem::fs_snapshot_t drain_snapshot;
     it_fs->second->SnapShotFileSystem(drain_snapshot, false);
@@ -99,9 +103,8 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
     FileSystem::fsstatus_t status = it_fs->second->GetDrainStatus();
 
     if (status != eos::common::FileSystem::kNoDrain ) {
-
-        err = "error: the given FS is already under draining ";
-        return false;
+      err = "error: the given FS is already under draining ";
+      return false;
     }
 
     auto it_drainfs = mDrainFS.find(drain_snapshot.mHostPort);
@@ -149,6 +152,10 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
 bool
 Drainer::StopFSDrain(XrdOucEnv& env, XrdOucString& err)
 {
+    if (!gOFS->MgmOfsCentralDraining) {
+      err =  "error: central drain is not enabled in the configuration";
+      return false;
+    }
     //getting the fs id
     const char* fsIdString = env.Get("mgm.drain.fsid");
     eos::common::FileSystem::fsid_t fsId = atoi(fsIdString);
@@ -195,6 +202,10 @@ Drainer::StopFSDrain(XrdOucEnv& env, XrdOucString& err)
 bool
 Drainer::ClearFSDrain(XrdOucEnv& env, XrdOucString& err)
 {
+    if (!gOFS->MgmOfsCentralDraining) {
+      err =  "error: central drain is not enabled in the configuration";
+      return false;
+    }
     //getting the fs id
     const char* fsIdString = env.Get("mgm.drain.fsid");
     eos::common::FileSystem::fsid_t fsId = atoi(fsIdString);
@@ -241,6 +252,10 @@ Drainer::ClearFSDrain(XrdOucEnv& env, XrdOucString& err)
 bool
 Drainer::GetDrainStatus(XrdOucEnv& env,XrdOucString& out, XrdOucString& err)
 {
+    if (!gOFS->MgmOfsCentralDraining) {
+      err =  "error: central drain is not enabled in the configuration";
+      return false;
+    }
     if (mDrainFS.size() > 0 ){
     } else {
        out+=  "No Drain activities are recorded on the System.\n";
@@ -316,15 +331,15 @@ Drainer::GetDrainStatus(XrdOucEnv& env,XrdOucString& out, XrdOucString& err)
       table_header_jobs.push_back(std::make_tuple("file id", 30, "s"));
       table_header_jobs.push_back(std::make_tuple("source fs", 30, "s"));
       table_header_jobs.push_back(std::make_tuple("destination fs", 30, "s"));
+      table_header_jobs.push_back(std::make_tuple("error", 100, "s"));
       table_jobs.SetHeader(table_header_jobs);
       
-      std::vector<shared_ptr<DrainTransferJob>> job_vect = (*it).second->GetJobs(DrainTransferJob::Failed);
-      if (job_vect.size() > 0 ){
+      auto job_vect_it = (*it).second->GetFailedJobs()->begin();
+      if (job_vect_it != (*it).second->GetFailedJobs()->end()){
         out+= "List of Files failed to be drained:\n\n";
-        auto it_jobs = job_vect.begin();
-        while (it_jobs != job_vect.end()){
-          PrintJobsTable(table_jobs,(*it_jobs).get());
-	  it_jobs++;
+        while (job_vect_it != (*it).second->GetFailedJobs()->end()){
+          PrintJobsTable(table_jobs,(*job_vect_it).get());
+	  job_vect_it++;
         }
         out +=  table_jobs.GenerateTable(HEADER, selections).c_str();
       }
@@ -352,6 +367,7 @@ Drainer::PrintJobsTable(TableFormatterBase& table, DrainTransferJob* job) {
   table_data.back().push_back( TableCell(job->GetFileId(), "l"));
   table_data.back().push_back( TableCell(job->GetSourceFS(), "l"));
   table_data.back().push_back( TableCell(job->GetTargetFS(), "l"));
+  table_data.back().push_back( TableCell(job->GetErrorString(), "s"));
   table.AddRows(table_data);
 }
 
@@ -377,36 +393,36 @@ Drainer::Drain()
  */
 /*----------------------------------------------------------------------------*/
 {
-    XrdOucErrInfo error;
-    XrdSysThread::SetCancelOn();
     // ---------------------------------------------------------------------------
     // wait that the namespace is initialized
     // ---------------------------------------------------------------------------
     bool go = false;
-
+    XrdSysThread::SetCancelOn();
+    XrdSysTimer sleeper;
     eos_static_debug("Drainer starting");
-    do {
-        XrdSysThread::SetCancelOff();
-       {
-           XrdSysMutexHelper(gOFS->InitializationMutex);
 
-           if (gOFS->Initialized == gOFS->kBooted) {
-               go = true;
-           }
+    do {
+       XrdSysThread::SetCancelOff();
+       {
+         XrdSysMutexHelper(gOFS->InitializationMutex);
+
+         if (gOFS->Initialized == gOFS->kBooted) {
+           go = true;
+         }
        }
        XrdSysThread::SetCancelOn();
-       XrdSysTimer sleeper;
        sleeper.Wait(1000);
     } while (!go);
 
-    XrdSysTimer sleeper;
-    sleeper.Snooze(10);
-
-    XrdSysThread::SetCancelOff();
     while (1) 
     {
-      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-    
+      uint64_t timeout_ms = 100;
+     
+      while (FsView::gFsView.ViewMutex.TimedRdLock(timeout_ms)) {
+        XrdSysThread::CancelPoint();
+      }
+      XrdSysThread::SetCancelOff();
+      
       auto space = FsView::gFsView.mSpaceView.begin();
       while (space != FsView::gFsView.mSpaceView.end()) {
         int maxdrainingfs = 5;
@@ -418,6 +434,7 @@ Drainer::Drain()
 	else { 
           FsView::gFsView.mSpaceView[spacename]->SetConfigMember("drainer.maxfsdrainpernode", "5", true, "/eos/*/mgm");
         }
+        
         //get the space configuration
         drainConfMutex.Lock(); 
         if  (maxFSperNodeConfMap.count(spacename))  {
@@ -429,15 +446,12 @@ Drainer::Drain()
         drainConfMutex.UnLock();
         space++;
       }
-      
-      XrdSysThread::SetCancelOn();
-      // Let some time pass or wait for a notification
-      XrdSysTimer sleeper;
-      sleeper.Wait(10000);
-      XrdSysThread::CancelPoint();
-    }
+    FsView::gFsView.ViewMutex.UnLockRead();
+    XrdSysThread::SetCancelOn();
+    sleeper.Wait(10000);
+  }
 
-    return 0;
+  return 0;
 }
 
 unsigned int
