@@ -410,7 +410,6 @@ target_link_libraries(
 
 target_link_libraries(
   XrdEosFst-Shared PUBLIC
-  eosCommonServer
   EosFstIo-Static
   eosCapability-Static
   ${Z_LIBRARY}
