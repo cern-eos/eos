@@ -197,7 +197,6 @@ target_link_libraries(
   eosCommon
   eosCommonServer
   EosNsCommon
-  EosPluginManager
   eosCapability-Static
   ${Z_LIBRARY}
   ${ZMQ_LIBRARIES}
@@ -267,7 +266,6 @@ if(BUILD_QUARKDB_NAMESPACE AND Linux)
     EosNsCommon-Static
     eosCommon-Static
     eosCommonServer
-    EosPluginManager
     eosCapability-Static
     qclient
     ${Z_LIBRARY}

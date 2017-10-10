@@ -211,7 +211,6 @@ add_library(EosFstIo SHARED $<TARGET_OBJECTS:EosFstIo-Objects>)
 target_link_libraries(
   EosFstIo PUBLIC
   eosCommon
-  EosPluginManager-Static
   EosCrc32c-Static
   jerasure-static
   ${Z_LIBRARY}
@@ -254,7 +253,6 @@ add_library(EosFstIo-Static STATIC $<TARGET_OBJECTS:EosFstIo-Objects>)
 target_link_libraries(
   EosFstIo-Static PUBLIC
   eosCommon-Static
-  EosPluginManager-Static
   EosCrc32c-Static
   jerasure-static
   ${UUID_LIBRARIES}

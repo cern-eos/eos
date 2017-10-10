@@ -89,7 +89,10 @@ set(EOSCOMMON_SRCS
   CommentLog.cc
   RWMutex.cc
   XrdErrorMap.cc
-  JeMallocHandler.cc)
+  JeMallocHandler.cc
+  plugin_manager/Plugin.hh
+  plugin_manager/PluginManager.cc
+  plugin_manager/DynamicLibrary.cc)
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 
@@ -239,39 +242,3 @@ if(NOT CLIENT AND Linux)
     ${PROTOBUF_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 endif()
-
-#-------------------------------------------------------------------------------
-# Plugin Manager library
-#-------------------------------------------------------------------------------
-add_library(EosPluginManager-Objects OBJECT
-  Namespace.hh Logging.cc
-  plugin_manager/Plugin.hh
-  plugin_manager/PluginManager.cc
-  plugin_manager/DynamicLibrary.cc)
-
-set_target_properties(EosPluginManager-Objects PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
-
-add_library(EosPluginManager SHARED
-  $<TARGET_OBJECTS:EosPluginManager-Objects>)
-
-target_link_libraries(EosPluginManager PUBLIC
-  ${XROOTD_UTILS_LIBRARY})
-
-set_target_properties(EosPluginManager PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  MACOSX_RPATH TRUE)
-
-add_library(EosPluginManager-Static STATIC
-  $<TARGET_OBJECTS:EosPluginManager-Objects>)
-
-target_link_libraries(EosPluginManager-Static PUBLIC
-  ${XROOTD_UTILS_LIBRARY})
-
-set_target_properties(EosPluginManager-Static PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
-
-install(TARGETS EosPluginManager
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
