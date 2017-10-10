@@ -30,6 +30,7 @@
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
+#include <sstream>
 
 /*----------------------------------------------------------------------------*/
 
@@ -56,7 +57,7 @@ DrainTransferJob::DoIt ()
 
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
-  XrdOucErrInfo error;
+  std::string  errorString;
   XrdSysTimer sleeper;
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -71,6 +72,7 @@ DrainTransferJob::DoIt ()
   unsigned long long cid = 0;
   XrdOucEnv* source_capabilityenv = 0;
   XrdOucEnv* target_capabilityenv = 0;
+  std::stringstream ss;
 
   //set status to running
   mStatus = Status::Running;
@@ -109,7 +111,8 @@ DrainTransferJob::DoIt ()
       errno = e.getErrno();
       eos_notice("fid=%016x errno=%d msg=\"%s\"\n",
                      mFileId, e.getErrno(), e.getMessage().str().c_str());
-      mStatus = Status::Failed;
+      errorString = "Error reading the file metadata";
+      ReportError(errorString);
       return;
     }
   }
@@ -121,12 +124,12 @@ DrainTransferJob::DoIt ()
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
       
-    source_fs = FsView::gFsView.mIdView[mfsIdSource];
-    target_fs = FsView::gFsView.mIdView[mfsIdTarget];
+    source_fs = FsView::gFsView.mIdView[mFsIdSource];
+    target_fs = FsView::gFsView.mIdView[mFsIdTarget];
    
     if (!target_fs) {
-       eos_notice("Target fs not found");
-       mStatus = Status::Failed;
+       errorString = "Target fs not found";
+       ReportError(errorString);
        return;
     }
       
@@ -202,7 +205,7 @@ DrainTransferJob::DoIt ()
     source_params+= "&mgm.sec=";
     source_params+= eos::common::SecEntity::ToKey(0, "eos/draining").c_str();
     source_params+= "&mgm.drainfsid=";
-    source_params+= (int) mfsIdSource;          
+    source_params+= (int) mFsIdSource;          
               
     // build the replica_source_capability contents
     source_params+="&mgm.localprefix=";
@@ -256,7 +259,7 @@ DrainTransferJob::DoIt ()
     target_params+= "&mgm.sec=";
     target_params+= eos::common::SecEntity::ToKey(0, "eos/draining").c_str();
     target_params+= "&mgm.drainfsid=";
-    target_params+= (int) mfsIdSource;  
+    target_params+= (int) mFsIdSource;  
     // build the target_capability contents
     target_params+= "&mgm.localprefix=";
     target_params+= target_snapshot.mPath.c_str();
@@ -282,9 +285,8 @@ DrainTransferJob::DoIt ()
        (caprc = gCapabilityEngine.Create(&intarget_capability, 
  					  target_capabilityenv,
                                           symkey, gOFS->mCapabilityValidity))) {
-                
-      eos_notice("unable to create source/target capability - errno=%u", caprc);
-      mStatus = Status::Failed;
+      errorString = "unable to create source/target capability - errno=" + caprc;   
+      ReportError(errorString);      
     } else {
       int caplen = 0;
      
@@ -327,15 +329,17 @@ DrainTransferJob::DoIt ()
         XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
         eos_notice("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
         if (!lTpcStatus.IsOK()) {
-           eos_notice("Failed to run the Drain Job %s",lTpcPrepareStatus.ToStr().c_str() );
-           mStatus = Status::Failed;
+          ss << "Failed to run the Drain Job: ";
+          ss <<  lTpcStatus.ToStr().c_str();
+          ss >> errorString;
+          ReportError(errorString); 
         } else {
-           eos_notice("Drain Job completed Succesfully");
-           mStatus = Status::OK;
+          eos_notice("Drain Job completed Succesfully");
+          mStatus = Status::OK;
         }
       } else {
-        eos_notice("Failed to prepare the Drain job %s",lTpcPrepareStatus.ToStr().c_str() );
-        mStatus = Status::Failed;
+        errorString = "Failed to prepare the Drain job";
+        ReportError(errorString);
      }
     }
 
@@ -346,11 +350,19 @@ DrainTransferJob::DoIt ()
     if (target_capabilityenv) {
           delete target_capabilityenv;
     }
+
   }
 }
 
-void DrainTransferJob::SetTargetFS(eos::common::FileSystem::fsid_t fsIdT)
-{ mfsIdTarget = fsIdT; }
+void DrainTransferJob::SetTargetFS(eos::common::FileSystem::fsid_t fsIdT) {
+  mFsIdTarget = fsIdT; 
+}
+
+void DrainTransferJob::ReportError(std::string& error) {
+  eos_notice(error.c_str());
+  SetErrorString(error);
+  mStatus = Status::Failed;
+}
 
 EOSMGMNAMESPACE_END
 

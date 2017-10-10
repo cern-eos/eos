@@ -39,7 +39,6 @@
 #include <string>
 #include <cstring>
 
-
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -67,7 +66,6 @@ public:
   
   enum Status { OK, Running, Failed, Ready};
 
-
   // ---------------------------------------------------------------------------
   /**
    * @brief Constructor
@@ -79,8 +77,8 @@ public:
                               eos::common::FileSystem::fsid_t fsIdS,
                               eos::common::FileSystem::fsid_t fsIdT=0) {
     mFileId = fileId;
-    mfsIdSource = fsIdS;
-    mfsIdTarget = fsIdT;
+    mFsIdSource = fsIdS;
+    mFsIdTarget = fsIdT;
   }
 
   // ---------------------------------------------------------------------------
@@ -96,19 +94,26 @@ public:
 
   inline eos::common::FileId::fileid_t GetFileId() { return mFileId;}
 
-  inline eos::common::FileSystem::fsid_t GetSourceFS() { return mfsIdSource;}
+  inline eos::common::FileSystem::fsid_t GetSourceFS() { return mFsIdSource;}
 
-  inline eos::common::FileSystem::fsid_t GetTargetFS() { return mfsIdTarget;}
+  inline eos::common::FileSystem::fsid_t GetTargetFS() { return mFsIdTarget;}
  
   inline void SetStatus(DrainTransferJob::Status status) {  mStatus= status;}
 
+  inline void SetErrorString (std::string& error) { mErrorString= error;}
+
+  inline  std::string& GetErrorString() { return mErrorString;}
+  
+  void ReportError(std::string& error);
 private:
   /// file id for the given file to transfer
   eos::common::FileId::fileid_t mFileId;
   // destination fs
-  eos::common::FileSystem::fsid_t mfsIdSource, mfsIdTarget;
+  eos::common::FileSystem::fsid_t mFsIdSource, mFsIdTarget;
   std::string mSourcePath;
   Status mStatus;
+  std::string mErrorString;
+
 };
 
 EOSMGMNAMESPACE_END
