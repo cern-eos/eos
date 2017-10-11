@@ -47,7 +47,7 @@ MetadataFlusher::MetadataFlusher(const std::string &host, int port)
 //------------------------------------------------------------------------------
 void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant &assistant) {
   while(!assistant.terminationRequested()) {
-    eos_static_info("metadata-queue-size=%d", backgroundFlusher.size());
+    eos_static_info("metadata-queue-size=%d enqueued-since-last-message=%d", backgroundFlusher.size(), backgroundFlusher.getEnqueuedAndClear());
     assistant.wait_for(std::chrono::seconds(1));
   }
 }
