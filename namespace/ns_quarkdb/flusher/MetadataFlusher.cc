@@ -19,6 +19,7 @@
 #include <iostream>
 #include <list>
 #include <sstream>
+#include <memory>
 #include <qclient/BackpressuredQueue.hh>
 #include <qclient/BackgroundFlusher.hh>
 #include <qclient/RocksDBPersistency.hh>
