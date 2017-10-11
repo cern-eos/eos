@@ -30,6 +30,7 @@
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "qclient/BackgroundFlusher.hh"
+#include "qclient/AssistedThread.hh"
 #include <list>
 #include <map>
 
@@ -70,9 +71,12 @@ public:
   // void synchronize(size_t index = -1);
 
 private:
+  void queueSizeMonitoring(qclient::ThreadAssistant &assistant);
+
   qclient::QClient qcl;
   qclient::BackgroundFlusher backgroundFlusher;
   qclient::Notifier dummyNotifier;
+  qclient::AssistedThread sizePrinter;
 };
 
 class MetadataFlusherFactory {

@@ -1177,6 +1177,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   lFanOutTags.push_back("Converter");
   lFanOutTags.push_back("DrainJob");
   lFanOutTags.push_back("ZMQ");
+  lFanOutTags.push_back("MetadataFlusher");
   lFanOutTags.push_back("Http");
   lFanOutTags.push_back("Master");
   lFanOutTags.push_back("Recycle");

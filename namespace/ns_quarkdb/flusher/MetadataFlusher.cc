@@ -28,6 +28,7 @@
 #include "common/Logging.hh"
 #include <iostream>
 #include <chrono>
+#include <qclient/AssistedThread.hh>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -37,8 +38,18 @@ EOSNSNAMESPACE_BEGIN
 MetadataFlusher::MetadataFlusher(const std::string &host, int port)
 : qcl(host, port, true /* yes to redirects */, false /* no to exceptions */),
   backgroundFlusher(qcl, dummyNotifier, 50000 /* size limit */, 5000 /* pipeline length */,
-  new qclient::RocksDBPersistency("/var/eos/ns-queue/default-queue")) {
+  new qclient::RocksDBPersistency("/var/eos/ns-queue/default-queue")),
+  sizePrinter(&MetadataFlusher::queueSizeMonitoring, this) {
+}
 
+//------------------------------------------------------------------------------
+// Regularly print information on queue size
+//------------------------------------------------------------------------------
+void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant &assistant) {
+  while(!assistant.terminationRequested()) {
+    eos_static_info("metadata-queue-size=%d", backgroundFlusher.size());
+    assistant.wait_for(std::chrono::seconds(1));
+  }
 }
 
 //------------------------------------------------------------------------------
