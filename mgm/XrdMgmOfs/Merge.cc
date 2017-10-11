@@ -77,10 +77,12 @@ XrdMgmOfs::merge (
       src_fmd->setCUid(dst_fmd->getCUid());
       src_fmd->setCGid(dst_fmd->getCGid());
       // inherit the creation time
-      eos::FileMD::ctime_t ctime;
+      eos::FileMD::ctime_t ctime, mtime;
       dst_fmd->getCTime(ctime);
       src_fmd->setCTime(ctime);
-      // change the owner of the source file
+      dst_fmd->getMTime(mtime);
+      src_fmd->setMTime(mtime);
+      src_fmd->setFlags(dst_fmd->getFlags());
       eosView->updateFileStore(src_fmd);
       gOFS->FuseXCast(eos::common::FileId::FidToInode(src_fmd->getId()));
     }
