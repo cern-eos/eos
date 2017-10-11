@@ -1300,15 +1300,33 @@ EBADF  Invalid directory stream descriptor fi->fh
     // get the shared pointer from the open file descriptor
     opendir_t* md = (opendir_t*) fi->fh;
     metad::shared_md pmd = md->md;
-    XrdSysMutexHelper mLock(pmd->Locker());
+    
+    std::map<std::string, uint64_t> pmd_children;
 
+    mode_t pmd_mode;
+    uint64_t pmd_id;
+    {
+      // avoid to have more than one md object locked at a time
+      XrdSysMutexHelper mLock(pmd->Locker());
+      pmd_mode =pmd->mode();
+      pmd_id = pmd->id();
+      auto pmap = pmd->children();
+      auto it = pmap.begin();
+      for ( ; it != pmap.end(); ++it)
+      {
+	pmd_children[it->first] = it->second;
+      }
+      if (!pmd_children.size())
+      {
+	eos_static_err("%s",Instance().mds.dump_md(pmd,false).c_str());
+      }
+    }
     // only one readdir at a time
     XrdSysMutexHelper lLock(md->items_lock);
 
-    auto pmap = pmd->children();
-    auto it = pmap.begin();
+    auto it = pmd_children.begin();
 
-    eos_static_info("off=%lu size-%lu", off, pmap.size());
+    eos_static_err("off=%lu size-%lu", off, pmd_children.size());
 
     char b[size];
 
@@ -1320,10 +1338,10 @@ EBADF  Invalid directory stream descriptor fi->fh
     {
       // at offset=0 add the '.' directory
       std::string bname = ".";
-      fuse_ino_t cino = pmd->id();
+      fuse_ino_t cino = pmd_id;
 
       eos_static_debug("list: %08x %s", cino, bname.c_str());
-      mode_t mode = pmd->mode();
+      mode_t mode = pmd_mode;
 
       struct stat stbuf;
       memset (&stbuf, 0, sizeof ( struct stat ));
@@ -1344,11 +1362,16 @@ EBADF  Invalid directory stream descriptor fi->fh
       metad::shared_md ppmd = Instance().mds.get(req, pmd->pid(), "" , 0, 0, 0, true);
       if (ppmd && (ppmd->id() == pmd->pid()))
       {
+        fuse_ino_t cino = 0;
+	mode_t mode = 0;
+	{
+	  XrdSysMutexHelper ppLock(ppmd->Locker());
+	  cino = ppmd->id();
+	  mode = ppmd->mode();
+	}
         std::string bname = "..";
-        fuse_ino_t cino = ppmd->id();
 
         eos_static_debug("list: %08x %s", cino, bname.c_str());
-        mode_t mode = ppmd->mode();
 
         struct stat stbuf;
         memset (&stbuf, 0, sizeof ( struct stat ));
@@ -1367,7 +1390,7 @@ EBADF  Invalid directory stream descriptor fi->fh
     }
 
     // add regular children
-    for ( ; it != pmap.end(); ++it)
+    for ( ; it != pmd_children.end(); ++it)
     {
       // skip entries we have shown already
       if (md->readdir_items.count(it->first))
@@ -1379,7 +1402,11 @@ EBADF  Invalid directory stream descriptor fi->fh
       eos_static_debug("list: %08x %s", cino, it->first.c_str());
       metad::shared_md cmd = Instance().mds.get(req, cino, "" , 0, 0, 0, true);
 
-      mode_t mode = cmd->mode();
+      mode_t mode;
+      {
+	XrdSysMutexHelper cLock(cmd->Locker());
+	mode = cmd->mode();
+      }
 
       struct stat stbuf;
       memset (&stbuf, 0, sizeof ( struct stat ));

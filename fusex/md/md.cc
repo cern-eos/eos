@@ -436,42 +436,69 @@ bool
 /* -------------------------------------------------------------------------- */
 metad::map_children_to_local(shared_md pmd)
 /* -------------------------------------------------------------------------- */
-{
+{  
+  // here we do an atomic exchange of the current listing
   XrdSysMutexHelper pLock(pmd->Locker());
   bool ret = true;
   // exchange the remote inode map with the local used inode map
-  std::vector<std::string> names ;
+  std::vector<std::string> current_names ;
+  
+  std::map<std::string, uint64_t> merged_children;
 
   for (auto map = pmd->children().begin(); map != pmd->children().end(); ++map)
   {
     eos_static_debug("translate %s [%lx]", map->first.c_str(), map->second);
-    names.push_back(map->first);
-  }
 
-  for (size_t i=0; i < names.size(); ++i)
-  {
-    uint64_t remote_ino = (*pmd->mutable_children())[names[i]];
-    uint64_t local_ino = inomap.forward(remote_ino);
-
-    if (!local_ino)
+    shared_md child_md;
+    if (mdmap.retrieveTS(map->second, child_md))
     {
-      local_ino = next_ino.inc();
-      inomap.insert(remote_ino, local_ino);
-      shared_md md = std::make_shared<mdx>();
-
-      mdmap.insertTS(local_ino, md);
-
-      stat.inodes_inc();
-      stat.inodes_ever_inc();
+      mdflush.Lock();
+      if (!mdqueue.count(map->second))
+      {
+	// this entry has to stay in the listing
+	merged_children[map->first]= map->second;
+      }
+      mdflush.UnLock();      
     }
-    eos_static_debug("store-lookup r-ino %016lx <=> l-ino %016lx", remote_ino, local_ino);
-    (*pmd->mutable_children())[names[i]] = local_ino;
+  }
+  
+  for (auto map = pmd->get_childrentomap().begin(); map != pmd->get_childrentomap().end(); ++map)
+  {
+    if (!merged_children.count(map->first))
+    {
+      uint64_t remote_ino = map->second;
+      uint64_t local_ino = inomap.forward(remote_ino);
+
+      if (!local_ino)
+      {
+	local_ino = next_ino.inc();
+	inomap.insert(remote_ino, local_ino);
+	shared_md md = std::make_shared<mdx>();
+	
+	mdmap.insertTS(local_ino, md);
+	
+	stat.inodes_inc();
+	stat.inodes_ever_inc();
+      }
+      
+      merged_children[map->first] = local_ino;
+      eos_static_debug("store-lookup r-ino %016lx <=> l-ino %016lx", remote_ino , local_ino);
+
+    }
   }
 
-
-  for (auto map = pmd->children().begin(); map != pmd->children().end(); ++map)
+  // now put the merged lists as the new child list into pmd
+  for (auto it = merged_children.begin(); it != merged_children.end(); ++it)
   {
-    eos_static_debug("listing: %s [%lx]", map->first.c_str(), map->second);
+    (*pmd->mutable_children())[it->first] = it->second;
+  }
+
+  if ( EOS_LOGS_DEBUG )
+  {
+    for (auto map = pmd->children().begin(); map != pmd->children().end(); ++map)
+    {
+      eos_static_debug("listing: %s [%lx]", map->first.c_str(), map->second);
+    }
   }
 
   return ret;
@@ -1423,9 +1450,11 @@ uint64_t
 metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 /* -------------------------------------------------------------------------- */
 {
+  // apply receives either a single MD record or a parent MD + all children MD
+  // we have to make sure that the modification of children is atomic in the parent object
+
   shared_md md;
   shared_md pmd;
-  bool unlock_pmd = false;
   eos_static_debug(dump_container(cont).c_str());
 
   if (cont.type() == cont.MD)
@@ -1455,9 +1484,14 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
     }
 
     {
-      *md = cont.md_();
-      eos_static_debug("store md for local-ino=%016lx remote-ino=%016lx -", (long) ino, (long) md_ino);
-      eos_static_debug("%s", md->dump().c_str());
+      if (!md->cap_count())
+      {
+	// don't wipe capp'ed meta-data
+	*md = cont.md_();
+	
+	eos_static_debug("store md for local-ino=%016lx remote-ino=%016lx -", (long) ino, (long) md_ino);
+	eos_static_debug("%s", md->dump().c_str());
+      }
     }
     uint64_t p_ino = inomap.forward(md->md_pino());
     if (!p_ino)
@@ -1532,13 +1566,37 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
           if (child)
           {
             // don't overwrite the child counter if we know this md record
-            int children = md->nchildren();
-            *md = map->second;
-            md->set_nchildren(children);
+	    mdflush.Lock();
+	    if (!mdqueue.count(md->id()))
+	    {
+	      mdflush.UnLock();
+	   
+	      // don't overwrite objects which are in our outgoing queue!
+	      int children = md->nchildren();
+	      *md = map->second;
+	      md->set_nchildren(children);
+	    }
+	    else
+	      mdflush.UnLock();
           }
           else
           {
-            *md = map->second;
+	    // we have to overlay the listing 
+	    md->get_childrentomap().clear();
+	    for (auto it=map->second.children().begin(); it!=map->second.children().end(); ++it)
+	    {
+	      // add to the translationmap
+	      md->get_childrentomap()[it->first] = it->second;
+	    }
+
+	    if (!mdqueue.count(md->id()))
+	    {
+	      mdflush.UnLock();
+	      // overwrite local meta data with remote state
+	      *md = map->second;
+	    }
+	    else
+	      mdflush.UnLock();
           }
           md->clear_capability();
           md->set_id(ino);
@@ -1581,8 +1639,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
         if (!pmd)
         {
           pmd = md;
-          //	  pmd->Locker().Lock();
-          unlock_pmd = true;
         }
 
         uint64_t new_ino = insert(req, md, md->authid());
@@ -1624,10 +1680,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       {
         eos_static_err("local mapping has failed %d", ret);
         assert(0);
-      }
-      if (unlock_pmd)
-      {
-        //      pmd->Locker().UnLock();
       }
 
       for (auto map = pmd->children().begin(); map != pmd->children().end(); ++map)
@@ -1966,7 +2018,13 @@ metad::mdcommunicate()
                       for (auto it = md->children().begin(); it != md->children().end(); ++it)
                       {
                         eos_static_info("invalidate child ino=%016lx", it->second);
-                        kernelcache::inval_inode(it->second);
+			if ( S_ISREG(md->mode()) &&
+			     EosFuse::Instance().Config().options.data_kernelcache)
+			{
+			  // drop the buffer cache
+			  kernelcache::inval_inode(it->second);
+			}
+			// drop the entry stats
                         kernelcache::inval_entry(ino, it->first);
                         //mdmap.erase(it->second);
                       }

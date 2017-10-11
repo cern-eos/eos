@@ -232,6 +232,11 @@ public:
       return todelete;
     }
 
+    std::map<std::string, uint64_t>& get_childrentomap()
+    {
+      return childrentomap;
+    }
+
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
@@ -242,6 +247,7 @@ public:
     bool refresh;
     std::vector<struct flock> locktable;
     std::set<std::string> todelete;
+    std::map<std::string, uint64_t> childrentomap;
   } ;
 
   typedef std::shared_ptr<mdx> shared_md;

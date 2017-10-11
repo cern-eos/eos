@@ -289,7 +289,7 @@ cap::forget(const std::string& cid)
   {
     if (EosFuse::Instance().Config().options.md_kernelcache)
     {
-      kernelcache::inval_inode(inode);
+      // kernelcache::inval_inode(inode);
     }
   }
   return inode;
@@ -567,9 +567,7 @@ cap::capflush()
 
       for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it)
       {
-        fuse_lowlevel_notify_inval_inode( EosFuse::Instance().Channel(),
-                                         *it, 0, 0 );
-
+	// kernelcache::inval_inode(*it);
       }
       XrdSysTimer sleeper;
       sleeper.Wait(1000);

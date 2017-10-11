@@ -26,115 +26,117 @@
 #ifndef TRACK_HH_
 #define TRACK_HH_
 
-
-#include "common/Logging.hh"
-#include <map>
+#include "misc/MacOSXHelper.hh"
 #include <memory>
-#include <XrdSys/XrdSysPthread.hh>
+#include <map>
+#include "common/Logging.hh"
 
 class Track
 {
 public:
 
-  typedef struct _meta
-  {
-
-    _meta ()
+  typedef struct _meta {
+    _meta()
     {
       openr = openw = 0;
     }
-
+    
     RWMutex mInUse;
     XrdSysMutex mlocker;
     size_t openr;
     size_t openw;
   } meta_t;
+
+  Track() { }
   
-  Track () { }
-  
-  ~Track () { }
+  ~Track() { }
   
   void
-  assure (unsigned long long ino)
+  assure(unsigned long long ino)
   {
-    XrdSysMutexHelper l (iMutex);
+    XrdSysMutexHelper l(iMutex);
     iNodes[ino] = std::make_shared<meta_t>();
   }
-
+  
   void
-  forget (unsigned long long ino)
+  forget(unsigned long long ino)
   {
-    XrdSysMutexHelper l (iMutex);
-    iNodes.erase (ino);
+    XrdSysMutexHelper l(iMutex);
+    iNodes.erase(ino);
   }
-
+  
   std::shared_ptr<meta_t>
-  Attach (unsigned long long ino, bool exclusive = false)
+  Attach(unsigned long long ino, bool exclusive = false)
   {
     std::shared_ptr<meta_t> m;
     {
-      XrdSysMutexHelper l (iMutex);
-
-      if (!iNodes.count (ino))
-	{
-	  iNodes[ino] = std::make_shared<meta_t>();
-	}
+      XrdSysMutexHelper l(iMutex);
+      
+      if (!iNodes.count(ino)) {
+	iNodes[ino] = std::make_shared<meta_t>();
+      }
+      
       m = iNodes[ino];
     }
-   
-    if (exclusive)
-      {
-	m->mInUse.LockWrite ();
-      }
-    else
-      {
-	m->mInUse.LockRead ();
-      }
-
+    
+    if (exclusive) {
+      m->mInUse.LockWrite();
+    } else {
+      m->mInUse.LockRead();
+    }
+    
     return m;
   }
-
+  
+  void
+  Detach(std::shared_ptr<meta_t> m)
+  {
+    m->mInUse.UnLockRead();
+  }
+  
   class Monitor
   {
   public:
     
-    Monitor (const char* caller, Track& tracker, uint64_t ino, bool exclusive = false)
+    Monitor(const char* caller, Track& tracker, unsigned long long ino,
+	    bool exclusive = false)
     {
-      if (EOS_LOGS_DEBUG)
-	eos_static_debug ("trylock caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
-      
-      this->me = tracker.Attach (ino, exclusive);
+      eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
+                         thread_id(), ino, exclusive);
+      this->me = tracker.Attach(ino, exclusive);
       this->ino = ino;
       this->caller = caller;
       this->exclusive = exclusive;
-      if (EOS_LOGS_DEBUG)
-	eos_static_debug ("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx", caller, thread_id (), ino, exclusive, &(*(this->me)));
-      
+      eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
+                         caller, thread_id(), ino, exclusive,
+		       &(*(this->me)));
     }
     
-    ~Monitor ()
+    ~Monitor()
     {
-      if (EOS_LOGS_DEBUG)
-	eos_static_debug ("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
+      eos_static_debug("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller,
+		       thread_id(), ino, exclusive);
       
-      if (exclusive)
-	me->mInUse.UnLockWrite ();
-      else
-	me->mInUse.UnLockRead ();
-      if (EOS_LOGS_DEBUG)
-	eos_static_debug ("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller, thread_id (), ino, exclusive);
+      if (exclusive) {
+	me->mInUse.UnLockWrite();
+      } else {
+	me->mInUse.UnLockRead();
+      }
+      
+      eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,
+		       thread_id(), ino, exclusive);
     }
   private:
     std::shared_ptr<meta_t> me;
-  bool exclusive;
+    bool exclusive;
     unsigned long long ino;
     const char* caller;
   };
   
 private:
-private:
   XrdSysMutex iMutex;
   std::map<unsigned long long, std::shared_ptr<meta_t> > iNodes;
 };
+
 
 #endif
