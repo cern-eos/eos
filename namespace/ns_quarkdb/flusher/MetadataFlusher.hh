@@ -46,6 +46,7 @@ class ContainerMD;
 //------------------------------------------------------------------------------
 //! Metadata flushing towards QuarkDB
 //------------------------------------------------------------------------------
+using ItemIndex = int64_t;
 class MetadataFlusher
 {
 public:
@@ -64,11 +65,15 @@ public:
   void srem(const std::string &key, const std::string &field);
   void srem(const std::string &key, const std::list<std::string> &items);
 
-  // Block until the queue has flushed all pendind entries at the time of calling.
-  // Example: synchronize is called when pending items in the queue are [1500, 2000].
-  // The calling thread sleeps up to the point that entry #2000 is flushed - of course,
-  // at that point other items might have been added to the queue, but we don't wait.
-  // void synchronize(size_t index = -1);
+
+  //----------------------------------------------------------------------------
+  //! Block until the queue has flushed all pendind entries at the time of
+  //! calling. Example: synchronize is called when pending items in the queue
+  //! are [1500, 2000]. The calling thread sleeps up to the point that entry
+  //! #2000 is flushed - of course, at that point other items might have been
+  //! added to the queue, but we don't wait.
+  //----------------------------------------------------------------------------
+  void synchronize(ItemIndex targetIndex = -1);
 
 private:
   void queueSizeMonitoring(qclient::ThreadAssistant &assistant);

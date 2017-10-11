@@ -40,14 +40,19 @@ MetadataFlusher::MetadataFlusher(const std::string &host, int port)
   backgroundFlusher(qcl, dummyNotifier, 50000 /* size limit */, 5000 /* pipeline length */,
   new qclient::RocksDBPersistency("/var/eos/ns-queue/default-queue")),
   sizePrinter(&MetadataFlusher::queueSizeMonitoring, this) {
+
+  synchronize();
 }
 
 //------------------------------------------------------------------------------
-// Regularly print information on queue size
+// Regularly print queue statistics
 //------------------------------------------------------------------------------
 void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant &assistant) {
   while(!assistant.terminationRequested()) {
-    eos_static_info("metadata-queue-size=%d enqueued-since-last-message=%d", backgroundFlusher.size(), backgroundFlusher.getEnqueuedAndClear());
+    eos_static_info("total-pending=%d enqueued=%d acknowledged=%d",
+      backgroundFlusher.size(), backgroundFlusher.getEnqueuedAndClear(), backgroundFlusher.getAcknowledgedAndClear()
+    );
+
     assistant.wait_for(std::chrono::seconds(1));
   }
 }
@@ -95,9 +100,18 @@ void MetadataFlusher::srem(const std::string &key, const std::list<std::string> 
 //------------------------------------------------------------------------------
 // Sleep until given index has been flushed to the backend
 //------------------------------------------------------------------------------
-// void MetadataFlusher::synchronize() {
-//
-// }
+void MetadataFlusher::synchronize(ItemIndex targetIndex) {
+  if(targetIndex < 0) {
+    targetIndex = backgroundFlusher.getEndingIndex() - 1;
+  }
+
+  eos_static_info("starting-index=%d ending-index=%d msg=\"waiting until queue item %d has been acknowledged..\"", backgroundFlusher.getStartingIndex(), backgroundFlusher.getEndingIndex(), targetIndex);
+  while(!backgroundFlusher.waitForIndex(targetIndex, std::chrono::seconds(1))) {
+    eos_static_warning("starting-index=%d ending-index=%d msg=\"queue item %d has not been acknowledged yet..\"", backgroundFlusher.getStartingIndex(), backgroundFlusher.getEndingIndex(), targetIndex);
+  }
+
+  eos_static_info("starting-index=%d ending-index=%d msg=\"queue item %d has been acknowledged\"", backgroundFlusher.getStartingIndex(), backgroundFlusher.getEndingIndex(), targetIndex);
+}
 
 
 //------------------------------------------------------------------------------
@@ -129,7 +143,7 @@ MetadataFlusher* MetadataFlusherFactory::getInstance(const std::string &id, std:
   }
 
   MetadataFlusher *flusher = new MetadataFlusher(host, port);
-  eos_static_crit("created new metadata flusher at %s : %d", host.c_str(), port);
+  eos_static_notice("Created new metadata flusher towards %s:%d", host.c_str(), port);
 
   instances[key] = flusher;
 
