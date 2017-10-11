@@ -85,7 +85,8 @@ BuildRequires: libevent2, libevent2-devel
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 BuildRequires: libevent, libevent-devel
 BuildRequires: eos-rocksdb
-BuildRequires: libzdb-devel
+BuildRequires: bzip2-devel
+Requires: bzip2
 %endif
 
 # Install gcc 4.8 on SLC6
