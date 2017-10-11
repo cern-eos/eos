@@ -29,7 +29,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-std::mutex ProcInterface::mMutexMap;
+std::mutex ProcInterface::mMutexCmds;
+std::list<std::unique_ptr<IProcCommand>> ProcInterface::mCmdToDel;
 std::unordered_map<std::string, std::unique_ptr<IProcCommand>>
     ProcInterface::mMapCmds;
 eos::common::ThreadPool ProcInterface::sProcThreads;
@@ -73,7 +74,7 @@ std::unique_ptr<IProcCommand>
 ProcInterface::GetSubmittedCmd(const char* tident)
 {
   std::unique_ptr<IProcCommand> pcmd;
-  std::lock_guard<std::mutex> lock(mMutexMap);
+  std::lock_guard<std::mutex> lock(mMutexCmds);
   auto it = mMapCmds.find(tident);
 
   if (it != mMapCmds.end()) {
@@ -92,7 +93,7 @@ bool
 ProcInterface::SaveSubmittedCmd(const char* tident,
                                 std::unique_ptr<IProcCommand>&& pcmd)
 {
-  std::lock_guard<std::mutex> lock(mMutexMap);
+  std::lock_guard<std::mutex> lock(mMutexCmds);
 
   if (mMapCmds.count(tident)) {
     return false;
@@ -108,19 +109,29 @@ ProcInterface::SaveSubmittedCmd(const char* tident,
 void
 ProcInterface::DropSubmittedCmd(const char* tident)
 {
-  std::unique_ptr<IProcCommand> tmp_cmd;
-  {
-    std::lock_guard<std::mutex> lock(mMutexMap);
-    auto it = mMapCmds.find(tident);
+  std::lock_guard<std::mutex> lock(mMutexCmds);
 
-    if (it != mMapCmds.end()) {
-      tmp_cmd.swap(it->second);
-      mMapCmds.erase(it);
+  // Drop any long running commands without connected clients
+  for (auto it = mCmdToDel.begin(); it != mCmdToDel.end(); /* empty */) {
+    if ((*it)->KillJob()) {
+      mCmdToDel.erase(it++);
+    } else {
+      ++it;
     }
   }
-  // The tmp_cmd pointer will signal and wait for the async thread associated
-  // to the current command to finish outside the mMutexMap.
-  // For details see eos::mgm::~IProcCommand.
+
+  // Check if this client has any executing command
+  auto it = mMapCmds.find(tident);
+
+  if (it != mMapCmds.end()) {
+    std::unique_ptr<IProcCommand> tmp_cmd;
+    tmp_cmd.swap(it->second);
+    mMapCmds.erase(it);
+
+    if (!tmp_cmd->KillJob()) {
+      mCmdToDel.push_back(std::move(tmp_cmd));
+    }
+  }
 }
 
 //----------------------------------------------------------------------------

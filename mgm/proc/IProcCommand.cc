@@ -34,12 +34,34 @@ IProcCommand::LaunchJob()
   if (mDoAsync) {
     mFuture = ProcInterface::sProcThreads.PushTask<eos::console::ReplyProto>
     ([&]() -> eos::console::ReplyProto {
+      std::lock_guard<std::mutex> lock(mMutexAsync);
       return ProcessRequest();
     });
   } else {
     std::promise<eos::console::ReplyProto> promise;
     mFuture = promise.get_future();
     promise.set_value(ProcessRequest());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Check if we can safely delete the current object as there is no async
+// thread executing the ProcessResponse method
+//------------------------------------------------------------------------------
+bool
+IProcCommand::KillJob()
+{
+  if (!mDoAsync) {
+    return true;
+  }
+
+  mForceKill.store(true);
+
+  if (mMutexAsync.try_lock()) {
+    mMutexAsync.unlock();
+    return true;
+  } else {
+    return false;
   }
 }
 

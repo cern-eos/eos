@@ -45,7 +45,7 @@ public:
   //! Costructor
   //----------------------------------------------------------------------------
   IProcCommand():
-    mThread(), mDoAsync(false), mForceKill(false), stdOut(), stdErr(),
+    mDoAsync(false), mForceKill(false), stdOut(), stdErr(),
     stdJson(), retc(0) {}
 
   //----------------------------------------------------------------------------
@@ -66,11 +66,6 @@ public:
   virtual ~IProcCommand()
   {
     mForceKill.store(true);
-
-    // Wait of the thread to finish if it's still running
-    if (mThread.joinable()) {
-      mThread.join();
-    }
   }
 
   //----------------------------------------------------------------------------
@@ -128,9 +123,17 @@ public:
   //----------------------------------------------------------------------------
   virtual void LaunchJob() final;
 
+  //----------------------------------------------------------------------------
+  //! Check if we can safely delete the current object as there is no async
+  //! thread executing the ProcessResponse method
+  //!
+  //! @return true if deletion if safe, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool KillJob() final;
+
 protected:
+  std::mutex mMutexAsync; ///< Mutex locked during async execution
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
-  std::thread mThread; ///< Async thread doing all the work
   bool mDoAsync; ///< If true use thread pool to do the work
   std::atomic<bool> mForceKill; ///< Flag to notify worker thread
   eos::common::Mapping::VirtualIdentity mVid; ///< Copy of original vid

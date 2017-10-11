@@ -157,6 +157,9 @@ private:
 
   //! Map of command id to async proc commands
   static std::unordered_map<std::string, std::unique_ptr<IProcCommand>> mMapCmds;
-  static std::mutex mMutexMap; ///< Mutex protecting access to the map above
+  //! List of running command without an associated client waiting for their
+  //! response
+  static std::list<std::unique_ptr<IProcCommand>> mCmdToDel;
+  static std::mutex mMutexCmds; ///< Mutex protecting access to the map above
 };
 EOSMGMNAMESPACE_END
