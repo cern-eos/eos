@@ -16,6 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <iostream>
+#include <list>
+#include <sstream>
+#include <qclient/BackpressuredQueue.hh>
+#include <qclient/BackgroundFlusher.hh>
+#include <qclient/RocksDBPersistency.hh>
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "common/Logging.hh"
@@ -28,8 +34,9 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 MetadataFlusher::MetadataFlusher(const std::string &host, int port)
-: qcl(host, port, true /* yes to redirects */, false /* no to exceptions */ ),
-  backgroundFlusher(qcl, dummyNotifier, 50000 /* size limit */, 5000 /* pipeline length */) {
+: qcl(host, port, true /* yes to redirects */, false /* no to exceptions */),
+  backgroundFlusher(qcl, dummyNotifier, 50000 /* size limit */, 5000 /* pipeline length */,
+  new qclient::RocksDBPersistency("/var/eos/ns-queue/default-queue")) {
 
 }
 
@@ -72,6 +79,14 @@ void MetadataFlusher::srem(const std::string &key, const std::list<std::string> 
 
   backgroundFlusher.pushRequest(req);
 }
+
+//------------------------------------------------------------------------------
+// Sleep until given index has been flushed to the backend
+//------------------------------------------------------------------------------
+// void MetadataFlusher::synchronize() {
+//
+// }
+
 
 //------------------------------------------------------------------------------
 // Get a metadata flusher instance, keyed by (ID, host, port). The ID is an

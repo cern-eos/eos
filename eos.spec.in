@@ -84,6 +84,7 @@ BuildRequires: libevent2, libevent2-devel
 %else
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 BuildRequires: libevent, libevent-devel
+BuildRequires: eos-rocksdb
 %endif
 
 # Install gcc 4.8 on SLC6
@@ -319,7 +320,7 @@ The EOS shell client.
 # Package eos-fuse
 #-------------------------------------------------------------------------------
 %package -n eos-fuse
-Summary: The new EOS fuse client 
+Summary: The new EOS fuse client
 Group: Applications/File
 Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
 Requires: eos-fuse-sysv = @CPACK_PACKAGE_VERSION@

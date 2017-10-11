@@ -48,13 +48,26 @@ class ContainerMD;
 class MetadataFlusher
 {
 public:
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   MetadataFlusher(const std::string &host, int port);
 
+  //----------------------------------------------------------------------------
+  //! Methods to stage redis commands for background flushing.
+  //----------------------------------------------------------------------------
   void hdel(const std::string &key, const std::string &field);
   void hset(const std::string &key, const std::string &field, const std::string &value);
   void sadd(const std::string &key, const std::string &field);
   void srem(const std::string &key, const std::string &field);
   void srem(const std::string &key, const std::list<std::string> &items);
+
+  // Block until the queue has flushed all pendind entries at the time of calling.
+  // Example: synchronize is called when pending items in the queue are [1500, 2000].
+  // The calling thread sleeps up to the point that entry #2000 is flushed - of course,
+  // at that point other items might have been added to the queue, but we don't wait.
+  // void synchronize(size_t index = -1);
 
 private:
   qclient::QClient qcl;

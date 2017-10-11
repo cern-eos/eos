@@ -96,6 +96,8 @@ target_link_libraries(
   eosCommon
   EosCrc32c-Static
   qclient
+  bz2
+  rocksdb
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${XROOTD_UTILS_LIBRARY}
@@ -118,6 +120,8 @@ if (Linux)
     eosCommon-Static
     EosCrc32c-Static
     qclient
+    bz2
+    rocksdb
     ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}
     ${XROOTD_UTILS_LIBRARY}
