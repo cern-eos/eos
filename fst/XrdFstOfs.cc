@@ -627,7 +627,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
       ConvertFmdToFileAttribute(fsidMapping);
     }
   } catch (MDException& ex) {
-    return ex.getErrno();
+    eos_warning(ex.what());
   }
 
   // Attach Storage to the meta log dir
@@ -1677,8 +1677,8 @@ XrdFstOfs::GetFsidToMountpointMappingFromMgm()
   XrdCl::URL url(urlStream.str());
 
   if (!url.IsValid() || !file->Open(url.GetURL(), XrdCl::OpenFlags::Read).IsOK()) {
-    eos_err("Could not retrieve FS information from MGM and therefore cannot complete conversion, aborting.");
     MDException ex(1);
+    ex.getMessage() << "Could not retrieve FS information from MGM and therefore cannot complete conversion.";
     throw ex;
   }
 
@@ -1695,8 +1695,16 @@ XrdFstOfs::GetFsidToMountpointMappingFromMgm()
   } while (bytesRead > 0);
 
   XrdOucEnv env(outputStream.str().c_str());
+
+  if(env.Get("mgm.proc.stdout") == nullptr) {
+    MDException ex(1);
+    ex.getMessage() << "MGM has no information about the mount points (maybe because of new installation) and therefore cannot complete conversion.";
+    throw ex;
+  }
+
   std::string output(env.Get("mgm.proc.stdout"));
   map<FileSystem::fsid_t, string> mapping;
+
   for(auto& fstLine : eos::common::StringTokenizer::split(output, '\n')) {
     std::string id, path;
     for(auto& fstField : eos::common::StringTokenizer::split(fstLine, ' ')) {
