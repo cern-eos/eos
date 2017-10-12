@@ -99,32 +99,38 @@ public:
   public:
     
     Monitor(const char* caller, Track& tracker, unsigned long long ino,
-	    bool exclusive = false)
+	    bool exclusive = false, bool disable = false)
     {
-      eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
+      if (!disable)
+      {
+	eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
                          thread_id(), ino, exclusive);
-      this->me = tracker.Attach(ino, exclusive);
-      this->ino = ino;
-      this->caller = caller;
-      this->exclusive = exclusive;
-      eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
+	this->me = tracker.Attach(ino, exclusive);
+	this->ino = ino;
+	this->caller = caller;
+	this->exclusive = exclusive;
+	eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
                          caller, thread_id(), ino, exclusive,
-		       &(*(this->me)));
+			 &(*(this->me)));
+      }
     }
     
     ~Monitor()
     {
-      eos_static_debug("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller,
+      if (this->me) 
+      {
+	eos_static_debug("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller,
+			 thread_id(), ino, exclusive);
+	
+	if (exclusive) {
+	  me->mInUse.UnLockWrite();
+	} else {
+	  me->mInUse.UnLockRead();
+	}
+	
+	eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,
 		       thread_id(), ino, exclusive);
-      
-      if (exclusive) {
-	me->mInUse.UnLockWrite();
-      } else {
-	me->mInUse.UnLockRead();
       }
-      
-      eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,
-		       thread_id(), ino, exclusive);
     }
   private:
     std::shared_ptr<meta_t> me;
