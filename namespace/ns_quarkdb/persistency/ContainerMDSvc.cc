@@ -63,6 +63,7 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
   pQcl = BackendClient::getInstance(host, port);
   mMetaMap.setKey(constants::sMapMetaInfoKey);
   mMetaMap.setClient(*pQcl);
+  mMetaMap.hset("EOS-NS-FORMAT-VERSION", "1");
   mInodeProvider.configure(mMetaMap, constants::sLastUsedCid);
   pFlusher = MetadataFlusherFactory::getInstance("default", host, port);
 }
