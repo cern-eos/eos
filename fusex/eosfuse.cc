@@ -95,6 +95,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
   eos_static_debug("");
 
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+  fuse_opt_parse(&args, NULL, NULL, NULL);
+
   char* local_mount_dir = 0;
   int err = 0;
 
@@ -118,6 +120,15 @@ EosFuse::run(int argc, char* argv[], void *userdata)
   }
 
   fprintf(stderr, "# fsname='%s'\n", fsname.c_str());
+
+  if (getuid() == 0)
+  {
+    // the root mount always adds the 'allow_other' option
+    fuse_opt_add_arg(&args, "-oallow_other");
+    fprintf(stderr, "# -o allow_other enabled on shared mount\n");
+  }
+  fprintf(stderr, "# -o big_writes enabled\n");
+  fuse_opt_add_arg(&args, "-obig_writes");
 
   std::string jsonconfig = "/etc/eos/fuse";
 
