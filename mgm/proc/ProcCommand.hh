@@ -211,6 +211,7 @@ public:
   int Debug();
   int Fs();
   int Fsck();
+  int Fusex();
   int GeoSched();
   int Group();
   int Io();
@@ -277,7 +278,7 @@ private:
   XrdOucString mCmd; ///< proc command name
   XrdOucString mSubCmd; ///< proc sub command name
   XrdOucString mArgs; ///< full args from opaque input
-  XrdOucString mResultStream; ///< string containing the assembled stream
+  std::string mResultStream; ///< string containing the assembled stream
   XrdOucEnv* pOpaque; ///< pointer to the opaque information object
   const char* ininfo; ///< original opaque info string
   bool mDoSort; ///< sort flag (true = sorting)

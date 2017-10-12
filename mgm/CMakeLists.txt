@@ -83,6 +83,7 @@ add_library(
   proc/admin/Debug.cc
   proc/admin/Fs.cc
   proc/admin/Fsck.cc
+  proc/admin/Fusex.cc
   proc/admin/GeoSched.cc
   proc/admin/Group.cc
   proc/admin/Io.cc

@@ -329,6 +329,7 @@ FuseServer::Clients::Print(std::string& out, std::string options,
       snprintf(formatline, sizeof(formatline) - 1, "_");
     }
   }
+  eos_static_info("out=%s\n", out.c_str());
 }
 
 //------------------------------------------------------------------------------

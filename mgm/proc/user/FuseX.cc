@@ -227,10 +227,10 @@ ProcCommand::FuseX()
     }
   }
 
-  mResultStream = result.c_str();
-  eos_debug("returning resultstream len=%u %s", mResultStream.length(),
+  mResultStream = result;
+  eos_debug("returning resultstream len=%u %s", mResultStream.size(),
             mResultStream.c_str());
-  mLen = mResultStream.length();
+  mLen = mResultStream.size();
   eos_debug("result-dump=%s",
             eos::common::StringConversion::string_to_hex(result).c_str());
   return SFS_OK;

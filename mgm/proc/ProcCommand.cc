@@ -263,6 +263,9 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "fsck") {
       Fsck();
       mDoSort = false;
+    } else if (mCmd == "fusex") {
+      Fusex();
+      mDoSort = false;
     } else if (mCmd == "quota") {
       AdminQuota();
       mDoSort = false;
@@ -467,7 +470,7 @@ ProcCommand::MakeResult()
 
     if (mFuseFormat || mHttpFormat) {
       if (mFuseFormat) {
-        mResultStream += stdOut;
+        mResultStream += stdOut.c_str();
       } else {
         mResultStream +=
           "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n";
@@ -476,19 +479,19 @@ ProcCommand::MakeResult()
           "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Midnight\"> \n";
         mResultStream += "<meta charset=\"utf-8\"> \n";
         mResultStream += "<div class=\"httptable\" id=\"";
-        mResultStream += mCmd;
+        mResultStream += mCmd.c_str();
         mResultStream += "_";
-        mResultStream += mSubCmd;
+        mResultStream += mSubCmd.c_str();
         mResultStream += "\">\n";
 
         // FUSE format contains only STDOUT
         if (stdOut.length() && KeyValToHttpTable(stdOut)) {
-          mResultStream += stdOut;
+          mResultStream += stdOut.c_str();
         } else {
           if (stdErr.length() || retc) {
-            mResultStream += stdOut;
+            mResultStream += stdOut.c_str();
             mResultStream += "<h3>&#9888;&nbsp;<font color=\"red\">";
-            mResultStream += stdErr;
+            mResultStream += stdErr.c_str();
             mResultStream += "</font></h3>";
           } else {
             if (!stdOut.length()) {
@@ -496,7 +499,7 @@ ProcCommand::MakeResult()
               mResultStream += "Success!";
               mResultStream += "</h3>";
             } else {
-              mResultStream += stdOut;
+              mResultStream += stdOut.c_str();
             }
           }
         }
@@ -614,7 +617,7 @@ ProcCommand::MakeResult()
 
         if (mJsonCallback.length()) {
           // JSONP
-          mResultStream = mJsonCallback;
+          mResultStream = mJsonCallback.c_str();
           mResultStream += "([\n";
           mResultStream += r.str().c_str();
           mResultStream += "\n]);";
@@ -629,21 +632,21 @@ ProcCommand::MakeResult()
       } else {
         if (mJsonCallback.length()) {
           // JSONP
-          mResultStream = mJsonCallback;
+          mResultStream = mJsonCallback.c_str();
           mResultStream += "([\n";
-          mResultStream += stdJson;
+          mResultStream += stdJson.c_str();
           mResultStream += "\n]);";
         } else {
           if (!vid.prot.beginswith("http")) {
             mResultStream = "mgm.proc.json=";
           }
 
-          mResultStream += stdJson;
+          mResultStream += stdJson.c_str();
         }
       }
     }
 
-    if (!mResultStream.endswith('\n')) {
+    if (mResultStream.length() && (*(mResultStream.rbegin()) != '\n')) {
       mResultStream += "\n";
     }
 
