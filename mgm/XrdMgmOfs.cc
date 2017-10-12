@@ -155,8 +155,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   ErrorLog(true), eosDirectoryService(0), eosFileService(0), eosView(0),
   eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
   deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0), auth_tid(0),
-  mFrontendPort(0), mNumAuthThreads(0), Authorization(0), commentLog(0),
-  UTF8(false), mFstGwHost(""), mFstGwPort(0), mSubmitterTid(0)
+  mFrontendPort(0), mNumAuthThreads(0), zMQ(nullptr), Authorization(0),
+  commentLog(0), UTF8(false), mFstGwHost(""), mFstGwPort(0), mSubmitterTid(0)
 {
   eDest = ep;
   ConfigFN = 0;

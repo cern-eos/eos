@@ -46,7 +46,8 @@ public:
   //----------------------------------------------------------------------------
   explicit AclCmd(eos::console::RequestProto&& req,
                   eos::common::Mapping::VirtualIdentity& vid):
-    IProcCommand(vid, true), mExecRequest(false), mReqProto(std::move(req))
+    IProcCommand(vid, true), mExecRequest(false), mReqProto(std::move(req)),
+    mId(0), mAddRule(0), mRmRule(0), mSet(false)
   {}
 
   //----------------------------------------------------------------------------
