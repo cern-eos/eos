@@ -6,6 +6,8 @@ Configuration File
 The configuration file name for an unnamed instance is */etc/eos/fuse.conf*.
 The configuration file for a named instance is */etc/eos/fuse.<name>.conf*.
 
+You can select a named instance adding '-ofsname=<name>' to the argument list.
+
 ```
 {
   "name" : "",
@@ -23,7 +25,6 @@ The configuration file for a named instance is */etc/eos/fuse.<name>.conf*.
     "lowleveldebug" : 0,
     "debuglevel" : 6,
     "libfusethreads" : 0,
-    "foreground" : 1,
     "md-kernelcache" : 1,
     "md-kernelcache.enoent.timeout" : 0,
     "md-backend.timeout" : 0, 
@@ -124,6 +125,16 @@ mount -t fuse eosxd /eos/
 
 # umount /eos/
 umount -f /eos/
+
+# run the default mount in foreground mode
+eosxd -f 
+
+# run the default mount to a different mount directory from the JSON configuration
+eosxd -f /other/
+
+# run the default mount in background mode
+eosxd 
+
 ```
 
 Client Interaction with a FUSE mount

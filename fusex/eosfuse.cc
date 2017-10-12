@@ -183,7 +183,6 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.lowleveldebug = root["options"]["lowleveldebug"].asInt();
     config.options.debuglevel = root["options"]["debuglevel"].asInt();
     config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
-    config.options.foreground = root["options"]["foreground"].asInt();
     config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
     config.options.md_kernelcache_enoent_timeout = root["options"]["md-kernelcache.enoent.timeout"].asDouble();
     config.options.md_backend_timeout = root["options"]["md-backend.timeout"].asDouble();
@@ -306,10 +305,59 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     }
   }
 
+  {
+    std::string mountpoint;
+    for (int i=1; i< argc; ++i)
+    {
+      std::string opt = argv[i];
+      if (opt[0]!='-')
+      {
+	mountpoint = opt;
+      }
+      if (opt == "-f")
+      {
+	config.options.foreground = 1;
+      }
+    }
+
+    if (!mountpoint.length())
+    {
+      // we allow to take the mountpoint from the json file if it is not given on the command line
+      fuse_opt_add_arg(&args, config.localmountdir.c_str());
+      mountpoint = config.localmountdir.c_str();
+    }
+
+    if (mountpoint.length())
+    {
+      // sanity check of the mount directory
+      struct stat buf;
+      if ( stat( mountpoint.c_str(), &buf) )
+      {
+	// check for a broken mount
+	if ( errno == ENOTCONN )
+	{
+	  // force an 'umount -l '
+	  std::string systemline="umount -l ";
+	  systemline += mountpoint;
+	  fprintf(stderr,"# dead mount detected - forcing '%s'\n", systemline.c_str());
+	  system(systemline.c_str());
+	}
+      }
+    }
+  }
+  
   int debug;
-  if ((fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) != -1) &&
-      ((fusechan = fuse_mount(local_mount_dir, &args)) != NULL) &&
-      (fuse_daemonize(config.options.foreground) != -1))
+  if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1)
+  {
+    exit(errno?errno:-1);
+  }
+  if ((fusechan = fuse_mount(local_mount_dir, &args)) == NULL)
+  {
+    fprintf(stderr,"error: fuse_mount failed\n");
+    exit(errno?errno:-1);
+  }
+
+  if (fuse_daemonize(config.options.foreground) != -1)
   {
     fusexrdlogin::initializeProcessCache(config.auth);
 
@@ -577,6 +625,12 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     mds.terminate();
     fuse_unmount(local_mount_dir, fusechan);
   }
+  else
+  {
+    fprintf(stderr,"error: failed to daemonize\n");
+    exit(errno?errno:-1);
+  }
+
   return err ? 1 : 0;
 }
 
