@@ -206,7 +206,7 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
   // If default configuration file not found then create it
   if (stat(full_path.c_str(), &info) == -1) {
     if ((errno == ENOENT) && full_path.endswith("default.eoscf")) {
-      // If there are any autosave files and use the latest one
+      // If there are any autosave files then use the latest one
       std::string autosave_path = GetLatestAutosave();
 
       if (autosave_path.empty()) {
