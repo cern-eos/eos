@@ -162,8 +162,6 @@ ContainerMDSvc::updateStore(IContainerMD* obj)
   try {
     std::string sid = stringify(obj->getId());
     pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
-    // qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
-    // bucket_map.hset(sid, buffer);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
@@ -188,9 +186,6 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
   try {
     std::string sid = stringify(obj->getId());
     pFlusher->hdel(getBucketKey(obj->getId()), stringify(obj->getId()));
-
-    // qclient::QHash bucket_map(*pQcl, getBucketKey(obj->getId()));
-    // bucket_map.hdel(sid);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << obj->getId() << " not found. "
@@ -200,7 +195,7 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
 
   // If this was the root container i.e. id=1 then drop also the meta map
   if (obj->getId() == 1) {
-    (void) pQcl->del(constants::sMapMetaInfoKey);
+    pFlusher->del(constants::sMapMetaInfoKey);
   }
 
   mContainerCache.remove(obj->getId());

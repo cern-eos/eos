@@ -65,6 +65,13 @@ void MetadataFlusher::hset(const std::string &key, const std::string &field, con
 }
 
 //------------------------------------------------------------------------------
+// Queue a del command
+//------------------------------------------------------------------------------
+void MetadataFlusher::del(const std::string &key) {
+  backgroundFlusher.pushRequest( {"DEL", key} );
+}
+
+//------------------------------------------------------------------------------
 // Queue an hdel command
 //------------------------------------------------------------------------------
 void MetadataFlusher::hdel(const std::string &key, const std::string &field) {

@@ -76,8 +76,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 
   // File has been deleted
   case IFileMDChangeListener::Deleted:
-    file->Register(pNoReplicasSet.srem_async(file->getId()),
-                   pNoReplicasSet.getClient());
+    pFlusher->srem(fsview::sNoReplicaPrefix, std::to_string(file->getId()));
     break;
 
   // Add location
@@ -105,12 +104,19 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   case IFileMDChangeListener::LocationRemoved:
     key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
     val = std::to_string(file->getId());
-    fs_set = qclient::QSet(*pQcl, key);
-    fs_set.srem(val);
+    pFlusher->srem(key, val);
 
     if (!e->file->getNumUnlinkedLocation() && !e->file->getNumLocation()) {
-      file->Register(pNoReplicasSet.sadd_async(val), pNoReplicasSet.getClient());
+      pFlusher->sadd(fsview::sNoReplicaPrefix, val);
     }
+
+    // TODO: The metadata queue makes the following part very race-y.
+    // I think we can get rid of FsIdsSet completely, just be introducing
+    // a common key prefix on sets "std::to_string(e->location) + fsview::sFilesSuffix",
+    // "std::to_string(e->location) + fsview::sUnlinkedSuffix", and doing
+    // a prefix scan on those keys to infer contents of FsIdsSet.
+    // RocksDB can definitely do this efficiently, but not sure if there's
+    // any corresponding existing redis commands. Investigate.
 
     // Cleanup fsid if it doesn't hold any files anymore
     key = std::to_string(e->location) + fsview::sFilesSuffix;

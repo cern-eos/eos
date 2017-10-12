@@ -59,6 +59,7 @@ public:
   //----------------------------------------------------------------------------
   //! Methods to stage redis commands for background flushing.
   //----------------------------------------------------------------------------
+  void del(const std::string &key);
   void hdel(const std::string &key, const std::string &field);
   void hset(const std::string &key, const std::string &field, const std::string &value);
   void sadd(const std::string &key, const std::string &field);
