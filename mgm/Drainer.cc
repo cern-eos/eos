@@ -428,11 +428,11 @@ Drainer::Drain()
         int maxdrainingfs = 5;
 
         std::string spacename = space->second->GetMember("name");
-        if (FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxfsdrainpernode")!= "" ) {
-          maxdrainingfs = atoi(FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.maxfsdrainpernode").c_str());
+        if (FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.node.nfs")!= "" ) {
+          maxdrainingfs = atoi(FsView::gFsView.mSpaceView[spacename]->GetConfigMember("drainer.node.nfs").c_str());
         }
 	else { 
-          FsView::gFsView.mSpaceView[spacename]->SetConfigMember("drainer.maxfsdrainpernode", "5", true, "/eos/*/mgm");
+          FsView::gFsView.mSpaceView[spacename]->SetConfigMember("drainer.node.nfs", "5", true, "/eos/*/mgm");
         }
         
         //get the space configuration

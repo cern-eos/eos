@@ -34,10 +34,10 @@
 #include "common/SecEntity.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
-#include "Xrd/XrdScheduler.hh"
 #include <vector>
 #include <string>
 #include <cstring>
+#include <thread>
 
 /*----------------------------------------------------------------------------*/
 
@@ -60,7 +60,7 @@ EOSMGMNAMESPACE_BEGIN
  * source file id and the destination filesystem
  */
 /*----------------------------------------------------------------------------*/
-class DrainTransferJob : XrdJob, public eos::common::LogId 
+class DrainTransferJob :  public eos::common::LogId 
 {
 public:
   
@@ -75,7 +75,7 @@ public:
 
   DrainTransferJob (eos::common::FileId::fileid_t fileId, 
                               eos::common::FileSystem::fsid_t fsIdS,
-                              eos::common::FileSystem::fsid_t fsIdT=0) {
+                              eos::common::FileSystem::fsid_t fsIdT=0) : mThread() {
     mFileId = fileId;
     mFsIdSource = fsIdS;
     mFsIdTarget = fsIdT;
@@ -86,8 +86,6 @@ public:
   // ---------------------------------------------------------------------------
   virtual ~DrainTransferJob (); 
 
-  void DoIt();
-  
   inline DrainTransferJob::Status GetStatus() { return mStatus;}
 
   void SetTargetFS(eos::common::FileSystem::fsid_t fsIdT);
@@ -105,6 +103,8 @@ public:
   inline  std::string& GetErrorString() { return mErrorString;}
   
   void ReportError(std::string& error);
+   
+  void Start(); 
 private:
   /// file id for the given file to transfer
   eos::common::FileId::fileid_t mFileId;
@@ -113,7 +113,9 @@ private:
   std::string mSourcePath;
   Status mStatus;
   std::string mErrorString;
+  std::thread mThread;
 
+  void DoIt();
 };
 
 EOSMGMNAMESPACE_END

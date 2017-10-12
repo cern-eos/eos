@@ -111,16 +111,21 @@ void
 DrainFS::GetSpaceConfiguration ()
 /*----------------------------------------------------------------------------*/
 /**
- * @brief get the number of transfers 
+ * @brief get the number of retries and the numner of transfers per fs
  * 
  */
 /*----------------------------------------------------------------------------*/
 {
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-  if (FsView::gFsView.mSpaceView.count(mSpace))
-  {
-    maxretries = stoi(FsView::gFsView.mSpaceView[mSpace]->GetConfigMember("drainer.nretries"));
+  if (FsView::gFsView.mSpaceView.count(mSpace)) {
+    if (FsView::gFsView.mSpaceView[mSpace]->GetConfigMember("drainer.retries") != "") {
+      maxretries = stoi(FsView::gFsView.mSpaceView[mSpace]->GetConfigMember("drainer.retries"));
+      eos_static_debug("setting retries to:%u",maxretries);
+    }
+    if (FsView::gFsView.mSpaceView[mSpace]->GetConfigMember("drainer.fs.ntx") != "") {   
+      maxParallelJobs =  stoi(FsView::gFsView.mSpaceView[mSpace]->GetConfigMember("drainer.fs.ntx"));   
+      eos_static_debug("setting paralleljobs to:%u",maxParallelJobs);
+    }
   }
 
 }
@@ -142,15 +147,15 @@ DrainFS::Drain (void)
   
   int ntried = 0;
   long long filesleft = 0;
-  
+
   do {
     ntried++;
 
     eos_notice("Starting DrainFS for fs=%u",mFsId);
           
-    {
-      eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
-      //set counter and status
+    
+    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+    {  //set counter and status
       SetInitialCounters();
     }
 
@@ -161,8 +166,8 @@ DrainFS::Drain (void)
 
     XrdSysThread::SetCancelOff();
     {
-      // set status to 'prepare'
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      // set status to 'prepare'
       if (FsView::gFsView.mIdView.count(mFsId))
       fs = FsView::gFsView.mIdView[mFsId];
       if (!fs) {
@@ -178,11 +183,12 @@ DrainFS::Drain (void)
 
       fs->SnapShotFileSystem(drain_snapshot, false);
       drainperiod = fs->GetLongLong("drainperiod");
+      eos_static_debug("Drainperiod: %u", drainperiod); 
       drainendtime = drainstart + drainperiod;
       mSpace = drain_snapshot.mSpace;
       mGroup = drain_snapshot.mGroup;
+      GetSpaceConfiguration();
     }
-  
     XrdSysThread::SetCancelOn();
     // now we wait 60 seconds or the service delay time indicated by Master
 
@@ -197,6 +203,10 @@ DrainFS::Drain (void)
       XrdSysThread::SetCancelOn();
       sleeper.Snooze(1);
       XrdSysThread::CancelPoint();
+      if (drainStop) {
+         SetInitialCounters();
+         return 0;
+      }
     }
     long long totalfiles = 0;
       
@@ -227,7 +237,6 @@ DrainFS::Drain (void)
       //set draining status
       fs->SetDrainStatus(eos::common::FileSystem::kDraining);
       drainStatus = eos::common::FileSystem::kDraining;
-      FsView::gFsView.StoreFsConfig(fs);
       totalfiles = filelist.size();
     }
     // set the shared object counter
@@ -262,7 +271,8 @@ DrainFS::Drain (void)
     filesleft = 0;
     eos::IFsView::FileIterator fid_it;
     eos_notice("Filesystem fsid=%u is under draining..", mFsId);
-    
+    bool firstRun = true;
+
     //start the loop to drain the files 
     do {
 
@@ -277,7 +287,7 @@ DrainFS::Drain (void)
           if ((fsIdTarget= SelectTargetFS(&(*job->get()))) != 0) {
             (*job)->SetTargetFS(fsIdTarget);
             (*job)->SetStatus(DrainTransferJob::Ready);
-            (*job)->DoIt();
+            (*job)->Start();
             runningJobs.push_back(*job);
           } else {
             std::string error = "Failed to find a suitable Target filesystem for draining";
@@ -288,7 +298,7 @@ DrainFS::Drain (void)
           i++;
       }
 
-      eos_notice("Check running jobs size: %u", runningJobs.size());
+      eos_static_debug("Check running jobs size: %u", runningJobs.size());
       auto it_jobs = runningJobs.begin();
       while (runningJobs.size()!=0) {
 	 if ((*it_jobs)->GetStatus() == DrainTransferJob::OK) {
@@ -329,7 +339,7 @@ DrainFS::Drain (void)
         last_filesleft);
     
       // update drain display variables
-      if ((filesleft != last_filesleft) || stalled)
+      if (firstRun || (filesleft != last_filesleft) || stalled)
       {
         {
           eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -347,11 +357,18 @@ DrainFS::Drain (void)
           fs->SetLongLong("stat.drainfiles",
                         filesleft);
           if (stalled) {
-            fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
-            FsView::gFsView.StoreFsConfig(fs);
+            if (drainStatus != eos::common::FileSystem::kDrainStalling) {
+              fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
+              FsView::gFsView.StoreFsConfig(fs);
+              drainStatus = eos::common::FileSystem::kDrainStalling;
+            } 
           }
           else {
-            fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+            if (drainStatus != eos::common::FileSystem::kDraining) {
+              fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+              FsView::gFsView.StoreFsConfig(fs);
+              drainStatus = eos::common::FileSystem::kDraining;
+            }
           }
         }
         int progress = (int) (totalfiles) ? (100.0 * (totalfiles - filesleft) / totalfiles) : 100;
@@ -367,37 +384,11 @@ DrainFS::Drain (void)
             fs->SetLongLong("stat.timeleft", 99999999999LL, false);
           }
         }
+        firstRun = false;
       }
       if (!filesleft){
         CompleteDrain();
         return 0;
-      }
-      //--------------------------------------------------------------------------
-      // set timeleft
-      //--------------------------------------------------------------------------
-      {
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        int progress = (int) (totalfiles) ? (100.0 * (totalfiles - filesleft) / totalfiles) : 100;
-        fs = 0;
-        if (FsView::gFsView.mIdView.count(mFsId))
-          fs = FsView::gFsView.mIdView[mFsId];
-        if (!fs)
-        {
-          eos_notice("Filesystem fsid=%u has been removed during drain operation",
-                          mFsId);
-          XrdSysThread::SetCancelOn();
-          return 0;
-        }
-        fs->SetLongLong("stat.drainprogress", progress, false);
-
-        if ((drainendtime - time(NULL)) > 0)
-        {
-          fs->SetLongLong("stat.timeleft", drainendtime - time(NULL), false);
-        }
-        else
-        {
-          fs->SetLongLong("stat.timeleft", 99999999999LL, false);
-        }
       }
       //check if drain expired
       //
@@ -467,7 +458,6 @@ DrainFS::CompleteDrain() {
       XrdSysThread::SetCancelOn();
     }
 
-   //fs->SetLongLong("stat.drainfiles", filesleft);
    drainStatus = eos::common::FileSystem::kDrained;
    fs->OpenTransaction();
    fs->SetDrainStatus(eos::common::FileSystem::kDrained);
@@ -525,7 +515,7 @@ DrainFS::DrainStop()
       fs->CloseTransaction();
       //set also local var
       drainStatus= eos::common::FileSystem::kNoDrain;
-       FsView::gFsView.StoreFsConfig(fs);
+      FsView::gFsView.StoreFsConfig(fs);
     } else { 
       eos_notice("Filesystem fsid=%u has been removed during drain operation",
                         mFsId);
@@ -577,12 +567,12 @@ DrainFS::SelectTargetFS( DrainTransferJob *job)
 
   auto repl = existingReplicas.begin();
   while( repl != existingReplicas.end()) {
-    eos_notice("existing replicas: %d", *repl);
+    eos_static_debug("existing replicas: %d", *repl);
     repl++;
   }
   auto geo = fsidsgeotags.begin();
   while( geo != fsidsgeotags.end()) {
-    eos_notice("geotags: %s", (*geo).c_str());
+    eos_static_debug("geotags: %s", (*geo).c_str());
     geo++;
    }
 
@@ -612,7 +602,7 @@ DrainFS::SelectTargetFS( DrainTransferJob *job)
           buf += sprintf(buf, "%lu  ", (unsigned long)(*it));
      }
       
-     eos_notice("GeoTree Draining Placement returned %d with fs id's -> %s",
+     eos_static_debug("GeoTree Draining Placement returned %d with fs id's -> %s",
                      (int)res, buffer);
      //return only one FS now
      eos::common::FileSystem::fsid_t targetFS = *newReplicas->begin();

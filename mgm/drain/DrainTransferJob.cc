@@ -30,7 +30,6 @@
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
-#include <sstream>
 
 /*----------------------------------------------------------------------------*/
 
@@ -45,6 +44,9 @@ DrainTransferJob::~DrainTransferJob ()
 /----------------------------------------------------------------------------*/
 {
   eos_notice("Destroying transfer job");
+  if(mThread.joinable()) {
+    mThread.join();
+   }
 }
 void
 DrainTransferJob::DoIt ()
@@ -72,13 +74,11 @@ DrainTransferJob::DoIt ()
   unsigned long long cid = 0;
   XrdOucEnv* source_capabilityenv = 0;
   XrdOucEnv* target_capabilityenv = 0;
-  std::stringstream ss;
 
   //set status to running
   mStatus = Status::Running;
   {
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
-
     try {
       fmd = gOFS->eosFileService->getFileMD(mFileId);
       lid = fmd->getLayoutId();
@@ -180,7 +180,7 @@ DrainTransferJob::DoIt ()
     url_src.SetUserName("daemon");
     //layour id
     unsigned long long target_lid = lid & 0xffffff0f; 
-    if (eos::common::LayoutId::GetBlockChecksum(lid) == eos::common::LayoutId::kNone)
+    if (eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
     {
       // mask block checksums (e.g. for replica layouts)                                                               
       target_lid &= 0xff0fffff;
@@ -329,9 +329,7 @@ DrainTransferJob::DoIt ()
         XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
         eos_notice("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
         if (!lTpcStatus.IsOK()) {
-          ss << "Failed to run the Drain Job: ";
-          ss <<  lTpcStatus.ToStr().c_str();
-          ss >> errorString;
+          errorString=  lTpcStatus.ToStr().c_str();
           ReportError(errorString); 
         } else {
           eos_notice("Drain Job completed Succesfully");
@@ -364,6 +362,9 @@ void DrainTransferJob::ReportError(std::string& error) {
   mStatus = Status::Failed;
 }
 
+void DrainTransferJob::Start(){
+  mThread = std::thread(&DrainTransferJob::DoIt,this);
+}
 EOSMGMNAMESPACE_END
 
 

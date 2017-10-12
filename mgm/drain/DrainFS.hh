@@ -30,7 +30,6 @@
 #include "mgm/FileSystem.hh"
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
-#include "Xrd/XrdScheduler.hh"
 #include "mgm/FsView.hh"
 #include <memory>
 #include "mgm/drain/DrainTransferJob.hh"
@@ -78,7 +77,6 @@ public:
   {
     mThread = 0;
     mFsId = ifsid;
-
     XrdSysThread::Run(&mThread,
                       DrainFS::StaticThreadProc,
                       static_cast<void*>(this),
@@ -155,11 +153,12 @@ private:
 
   //the max numbers of retries
 
-  int maxretries = 0;
+  int maxretries = 1;
 
   //the max number of parallel drain jobs
 
   int maxParallelJobs = 5;
+
 };
 
 EOSMGMNAMESPACE_END
