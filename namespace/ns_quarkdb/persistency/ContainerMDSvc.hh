@@ -150,20 +150,22 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set container accounting
-  //----------------------------------------------------------------------------
-  void setContainerAccounting(IFileMDChangeListener* containerAccounting) override
-  {
-    // TODO(esindril): add implementation
-  }
-
-  //----------------------------------------------------------------------------
   //! Get first free container id
   //----------------------------------------------------------------------------
   IContainerMD::id_t getFirstFreeId() override;
 
 private:
   typedef std::list<IContainerMDChangeListener*> ListenerList;
+
+  //----------------------------------------------------------------------------
+  //! Set container accounting - no-op for this type of object since any type
+  //! of size accounting in done when manipulating files or using the
+  //! AddTree/RemoveTree interface of the continaer accounting view.
+  //----------------------------------------------------------------------------
+  void setContainerAccounting(IFileMDChangeListener* containerAccounting) override
+  {
+    return;
+  }
 
   //----------------------------------------------------------------------------
   //! Notify the listeners about the change

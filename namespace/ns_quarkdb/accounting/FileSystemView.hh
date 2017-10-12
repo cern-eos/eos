@@ -146,12 +146,12 @@ public:
   void shrink() {};
 
   //----------------------------------------------------------------------------
-  //! Add tree - TODO(esindril): review this
+  //! Add tree - no-op for this type of view
   //----------------------------------------------------------------------------
   void AddTree(IContainerMD* obj, int64_t dsize) {};
 
   //----------------------------------------------------------------------------
-  //! Remove tree - TODO(esindril): review this
+  //! Remove tree - no-op for this type of view
   //----------------------------------------------------------------------------
   void RemoveTree(IContainerMD* obj, int64_t dsize) {};
 

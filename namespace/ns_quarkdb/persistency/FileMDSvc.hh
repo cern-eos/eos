@@ -60,7 +60,7 @@ public:
   //! @param config map holding configuration parameters
   //----------------------------------------------------------------------------
   virtual void configure(const std::map<std::string, std::string>& config)
-    override;
+  override;
 
   //----------------------------------------------------------------------------
   //! Finalize the file service
@@ -82,7 +82,7 @@ public:
   //! value
   //------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id,
-                                             uint64_t* clock) override;
+      uint64_t* clock) override;
 
   //----------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id
@@ -165,7 +165,6 @@ private:
 
   //----------------------------------------------------------------------------
   //! Attach a broken file to lost+found
-  //! TODO: review this
   //----------------------------------------------------------------------------
   void attachBroken(const std::string& parent, IFileMD* file);
 

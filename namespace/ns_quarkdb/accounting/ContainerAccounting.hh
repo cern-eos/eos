@@ -89,14 +89,18 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Add tree - TODO(esindril): review this. These two methods should be
-  //! removed and we should use the concept of a virtual file to do these
-  //! updates for the Rename of a subtree case!
+  //! Add tree
+  //!
+  //! @param obj container where tree si added
+  //! @param dsize size of the subtree adeded
   //----------------------------------------------------------------------------
   void AddTree(IContainerMD* obj, int64_t dsize);
 
   //----------------------------------------------------------------------------
-  //! Remove tree - TODO(esindril): review this
+  //! Remove tree
+  //!
+  //! @param obj container where tree si added
+  //! @param dsize size of the subtree adeded
   //----------------------------------------------------------------------------
   void RemoveTree(IContainerMD* obj, int64_t dsize);
 
