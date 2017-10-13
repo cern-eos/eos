@@ -57,7 +57,7 @@ EOSCP="$(which eoscp) -s"
 EOS=$(which eos)
 LOGNAME=$(logname)
 
-if [ $LOGNAME != "root" ]; then
+if [ "$LOGNAME" != "root" ]; then
   SUDO="sudo"
 else 
   SUDO=""
