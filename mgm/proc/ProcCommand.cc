@@ -465,7 +465,7 @@ ProcCommand::MakeResult()
       mResultStream += "&mgm.proc.stderr=";
       mResultStream += XrdMqMessage::Seal(stdErr);
       mResultStream += "&mgm.proc.retc=";
-      mResultStream += retc;
+      mResultStream += std::to_string(retc);
     }
 
     if (mFuseFormat || mHttpFormat) {
