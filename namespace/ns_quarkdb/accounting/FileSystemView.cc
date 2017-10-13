@@ -24,6 +24,19 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Utility functions to build fs set keys
+//------------------------------------------------------------------------------
+std::string keyFilesystemFiles(IFileMD::location_t location)
+{
+  return fsview::sPrefix + std::to_string(location) + fsview::sFilesSuffix;
+}
+
+std::string keyFilesystemUnlinked(IFileMD::location_t location)
+{
+  return fsview::sPrefix + std::to_string(location) + fsview::sUnlinkedSuffix;
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 FileSystemView::FileSystemView():
@@ -83,7 +96,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   case IFileMDChangeListener::LocationAdded:
     val = std::to_string(e->location);
     pFlusher->sadd(fsview::sSetFsIds, val);
-    key = val + fsview::sFilesSuffix;
+    key = keyFilesystemFiles(e->location);
     val = std::to_string(file->getId());
 
     pFlusher->sadd(key, val);
@@ -92,17 +105,17 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 
   // Replace location
   case IFileMDChangeListener::LocationReplaced:
-    key = std::to_string(e->oldLocation) + fsview::sFilesSuffix;
+    key = keyFilesystemFiles(e->oldLocation);
     val = std::to_string(file->getId());
     pFlusher->srem(key, val);
 
-    key = std::to_string(e->location) + fsview::sFilesSuffix;
+    key = keyFilesystemFiles(e->location);
     pFlusher->sadd(key, val);
     break;
 
   // Remove location
   case IFileMDChangeListener::LocationRemoved:
-    key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
+    key = keyFilesystemUnlinked(e->location);
     val = std::to_string(file->getId());
     pFlusher->srem(key, val);
 
@@ -119,10 +132,10 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
     // any corresponding existing redis commands. Investigate.
 
     // Cleanup fsid if it doesn't hold any files anymore
-    key = std::to_string(e->location) + fsview::sFilesSuffix;
+    key = keyFilesystemFiles(e->location);
 
     if (pQcl->exists(key) == 0) {
-      key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
+      key = keyFilesystemUnlinked(e->location);
 
       if (pQcl->exists(key) == 0) {
         // FS does not hold any file replicas or unlinked ones, remove it
@@ -135,11 +148,11 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 
   // Unlink location
   case IFileMDChangeListener::LocationUnlinked:
-    key = std::to_string(e->location) + fsview::sFilesSuffix;
+    key = keyFilesystemFiles(e->location);
     val = std::to_string(e->file->getId());
     pFlusher->srem(key, val);
 
-    key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
+    key = keyFilesystemUnlinked(e->location);
     pFlusher->sadd(key, val);
     break;
 
@@ -184,7 +197,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
     for (auto && sfsid : reply.second) {
       fsid = std::stoull(sfsid);
       // Deal with the fs replica set
-      key = sfsid + fsview::sFilesSuffix;
+      key = keyFilesystemFiles(fsid);
       replica_set.setKey(key);
 
       if (std::find(replica_locs.begin(), replica_locs.end(), fsid) !=
@@ -197,7 +210,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
       }
 
       // Deal with the fs unlinked set
-      key = sfsid + fsview::sUnlinkedSuffix;
+      key = keyFilesystemUnlinked(fsid);
       unlink_set.setKey(key);
 
       if (std::find(unlink_locs.begin(), unlink_locs.end(), fsid) !=
@@ -223,9 +236,9 @@ FileSystemView::fileMDCheck(IFileMD* file)
 
     for (auto && sfsid : reply.second) {
       fsid = std::stoull(sfsid);
-      key = sfsid + fsview::sFilesSuffix;
+      key = keyFilesystemFiles(fsid);
       replica_set.setKey(key);
-      key = sfsid + fsview::sUnlinkedSuffix;
+      key = keyFilesystemUnlinked(fsid);
       unlink_set.setKey(key);
 
       if ((replica_set.scard() == 0) && (unlink_set.scard() == 0)) {
@@ -248,7 +261,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
 IFsView::FileList
 FileSystemView::getFileList(IFileMD::location_t location)
 {
-  std::string key = std::to_string(location) + fsview::sFilesSuffix;
+  std::string key = keyFilesystemFiles(location);
   IFsView::FileList set_files;
   set_files.set_empty_key(-1);
   std::pair<std::string, std::vector<std::string>> reply;
@@ -274,7 +287,7 @@ FileSystemView::getFileList(IFileMD::location_t location)
 IFsView::FileList
 FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
-  std::string key = std::to_string(location) + fsview::sUnlinkedSuffix;
+  std::string key = keyFilesystemUnlinked(location);
   IFsView::FileList set_unlinked;
   set_unlinked.set_empty_key(-1);
   std::pair<std::string, std::vector<std::string>> reply;
@@ -324,7 +337,7 @@ FileSystemView::getNoReplicasFileList()
 bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
-  std::string key = std::to_string(location) + fsview::sUnlinkedSuffix;
+  std::string key = keyFilesystemUnlinked(location);
   return (pQcl->del(key) >= 0);
 }
 

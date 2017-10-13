@@ -947,7 +947,7 @@ ConvertFsView::commitToBackend()
       fs_set.setKey(key);
       async_handler.Register(fs_set.sadd_async(val), fs_set.getClient());
       // Add file to corresponding fs file set
-      key = val + fsview::sFilesSuffix;
+      key = fsview::sPrefix + val + fsview::sFilesSuffix;
       fs_set.setKey(key);
 
       if (it->second.first.size()) {
@@ -978,7 +978,7 @@ ConvertFsView::commitToBackend()
         }
       }
 
-      key = val + fsview::sUnlinkedSuffix;
+      key = fsview::sPrefix + val + fsview::sUnlinkedSuffix;
       fs_set.setKey(key);
 
       if (it->second.second.size()) {
