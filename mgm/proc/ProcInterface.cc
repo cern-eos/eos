@@ -203,7 +203,7 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
   XrdOucEnv procEnv(ininfo.c_str());
 
   // @todo (esindril): review this and do it in a smart way
-  if (procEnv.Get("mgm.cmd.proc")) {
+  if (procEnv.Get("mgm.cmd.proto)) {
     return false;
   }
 
