@@ -220,7 +220,7 @@ ProcCommand::FuseX()
     // the client is supposed to send his current time when requesting a CAP
     time_t now = time(NULL);
 
-    if (labs(now - clock) > 2) {
+    if (now > clock + 2) {
       eos_err("client-clock %lu %s server-clock %lu", clock, sclock.c_str() , now);
       return gOFS->Emsg("FuseX", *mError, EL2NSYNC, "get-cap-clock-out-of-sync",
                         inpath);
