@@ -2619,8 +2619,8 @@ FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid)
 // Print space information
 //------------------------------------------------------------------------------
 void
-FsView::PrintSpaces(std::string& out, std::string table_format,
-                    std::string table_mq_format, unsigned int outdepth,
+FsView::PrintSpaces(std::string& out, const std::string& table_format,
+                    const std::string& table_mq_format, unsigned int outdepth,
                     const char* selection)
 {
   std::vector<std::string> selections;
@@ -2643,8 +2643,8 @@ FsView::PrintSpaces(std::string& out, std::string table_format,
 // Print group information
 //----------------------------------------------------------------------------
 void
-FsView::PrintGroups(std::string& out, std::string table_format,
-                    std::string table_mq_format, unsigned int outdepth,
+FsView::PrintGroups(std::string& out, const std::string& table_format,
+                    const std::string& table_mq_format, unsigned int outdepth,
                     const char* selection)
 {
   std::vector<std::string> selections;
@@ -2667,8 +2667,8 @@ FsView::PrintGroups(std::string& out, std::string table_format,
 // Print node information
 //------------------------------------------------------------------------------
 void
-FsView::PrintNodes(std::string& out, std::string table_format,
-                   std::string table_mq_format, unsigned int outdepth,
+FsView::PrintNodes(std::string& out, const std::string& table_format,
+                   const std::string& table_mq_format, unsigned int outdepth,
                    const char* selection)
 {
   std::vector<std::string> selections;
@@ -3489,7 +3489,7 @@ BaseView::TotalCount(bool lock,
 //------------------------------------------------------------------------------
 void
 BaseView::Print(TableFormatterBase& table, std::string table_format,
-                std::string table_mq_format, unsigned outdepth)
+                const std::string& table_mq_format, unsigned outdepth)
 {
   // Since we don't display the members with geodepth option, we proceed with
   // the non geodepth display first.

@@ -321,7 +321,7 @@ public:
   //! @param outdepth ouput depth for geoscheduling
   //----------------------------------------------------------------------------
   void Print(TableFormatterBase& table, std::string table_format,
-             std::string table_mq_format, unsigned outdepth);
+             const std::string& table_mq_format, unsigned outdepth);
 
   //----------------------------------------------------------------------------
   //! Return a member variable in the view
@@ -1034,16 +1034,16 @@ public:
   //----------------------------------------------------------------------------
   //! Print views (space,group,nodes)
   //----------------------------------------------------------------------------
-  void PrintGroups(std::string& out, std::string headerformat,
-                   std::string listformat, unsigned int geodepth = 0,
+  void PrintGroups(std::string& out, const std::string& headerformat,
+                   const std::string& listformat, unsigned int geodepth = 0,
                    const char* selection = 0);
 
-  void PrintNodes(std::string& out, std::string headerformat,
-                  std::string listformat, unsigned int geodepth = 0,
+  void PrintNodes(std::string& out, const std::string& headerformat,
+                  const std::string& listformat, unsigned int geodepth = 0,
                   const char* selection = 0);
 
-  void PrintSpaces(std::string& out, std::string headerformat,
-                   std::string listformat, unsigned int geodepth = 0,
+  void PrintSpaces(std::string& out, const std::string& headerformat,
+                   const std::string& listformat, unsigned int geodepth = 0,
                    const char* selection = 0);
 
   //----------------------------------------------------------------------------
