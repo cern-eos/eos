@@ -147,7 +147,7 @@ eos_deb_ubuntu_artful:
   script:
     - apt-get update
     - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache
-    - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ artful master' >> /etc/apt/sources.list
+    - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ artful release' >> /etc/apt/sources.list
     - curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | apt-key add -
     - apt-get update
     - git submodule update --init --recursive
