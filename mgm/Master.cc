@@ -1899,8 +1899,7 @@ Master::BootNamespace()
     gOFS->eosFsView->configure(contSettings);
     gOFS->eosView->setContainerMDSvc(gOFS->eosDirectoryService);
     gOFS->eosView->setFileMDSvc(gOFS->eosFileService);
-    std::map<std::string, std::string> cfg_settings;
-    gOFS->eosView->configure(cfg_settings);
+    gOFS->eosView->configure(contSetting);
 
     if (IsMaster()) {
       MasterLog(eos_notice("%s",
