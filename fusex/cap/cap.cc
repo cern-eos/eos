@@ -28,10 +28,6 @@
 #include "misc/MacOSXHelper.hh"
 #include "common/Logging.hh"
 
-#ifdef __APPLE__
-#define EL2NSYNC    45  /* Level 2 not synchronized */
-#endif
-
 cap* cap::sCAP = 0;
 
 #define CAP_EXTENSION_TIME 180

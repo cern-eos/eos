@@ -32,6 +32,7 @@
 #ifdef __APPLE__
 #define FUSE_USE_VERSION 27
 #pragma message("FUSE 27")
+#define EL2NSYNC    45  /* Level 2 not synchronized */
 #else
 
 #ifdef _FUSE3
