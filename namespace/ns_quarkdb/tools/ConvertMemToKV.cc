@@ -942,10 +942,6 @@ ConvertFsView::commitToBackend()
 
     for (int n = 0; n < max_elem; ++n) {
       ++count;
-      key = fsview::sSetFsIds;
-      val = stringify(it->first);
-      fs_set.setKey(key);
-      async_handler.Register(fs_set.sadd_async(val), fs_set.getClient());
       // Add file to corresponding fs file set
       key = fsview::sPrefix + val + fsview::sFilesSuffix;
       fs_set.setKey(key);

@@ -157,7 +157,6 @@ private:
   MetadataFlusher* pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl;    ///< QClient object
   qclient::QSet pNoReplicasSet; ///< Set of file ids without replicas
-  qclient::QSet pFsIdsSet; ///< Set of file ids in use
 };
 
 EOSNSNAMESPACE_END

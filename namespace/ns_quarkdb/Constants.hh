@@ -79,8 +79,6 @@ static const std::string sFilesTag = ":files";
 // Variable associated with the FileSystemView
 namespace fsview
 {
-//! Set of file system ids in use
-static const std::string sSetFsIds = "fsview_set_fsid";
 //! Prefix for sets storing file ids
 static const std::string sPrefix = "fsview:";
 //! Set suffix for file ids on a fs

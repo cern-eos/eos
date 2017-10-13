@@ -19,6 +19,9 @@
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include "common/StringTokenizer.hh"
+#include "common/Logging.hh"
+#include "qclient/QScanner.hh"
 #include <iostream>
 
 EOSNSNAMESPACE_BEGIN
@@ -36,13 +39,30 @@ std::string keyFilesystemUnlinked(IFileMD::location_t location)
   return fsview::sPrefix + std::to_string(location) + fsview::sUnlinkedSuffix;
 }
 
+bool retrieveFsId(const std::string &str, IFileMD::id_t &fsid, bool &unlinked) {
+  std::vector<std::string> parts = eos::common::StringTokenizer::split(str, ':');
+  if(parts.size() != 3) return false;
+  fsid = std::stoull(parts[1]);
+
+  if(parts[2] == fsview::sFilesSuffix) {
+    unlinked = false;
+  }
+  else if(parts[2] == fsview::sUnlinkedSuffix) {
+    unlinked = true;
+  }
+  else {
+    return false;
+  }
+
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 FileSystemView::FileSystemView():
   pQcl(BackendClient::getInstance()),
-  pNoReplicasSet(*pQcl, fsview::sNoReplicaPrefix),
-  pFsIdsSet(*pQcl, fsview::sSetFsIds)
+  pNoReplicasSet(*pQcl, fsview::sNoReplicaPrefix)
 {
   pFlusher = MetadataFlusherFactory::getInstance("default", "", 0);
 }
@@ -94,8 +114,6 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 
   // Add location
   case IFileMDChangeListener::LocationAdded:
-    val = std::to_string(e->location);
-    pFlusher->sadd(fsview::sSetFsIds, val);
     key = keyFilesystemFiles(e->location);
     val = std::to_string(file->getId());
 
@@ -121,27 +139,6 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 
     if (!e->file->getNumUnlinkedLocation() && !e->file->getNumLocation()) {
       pFlusher->sadd(fsview::sNoReplicaPrefix, val);
-    }
-
-    // TODO: The metadata queue makes the following part very race-y.
-    // I think we can get rid of FsIdsSet completely, just be introducing
-    // a common key prefix on sets "std::to_string(e->location) + fsview::sFilesSuffix",
-    // "std::to_string(e->location) + fsview::sUnlinkedSuffix", and doing
-    // a prefix scan on those keys to infer contents of FsIdsSet.
-    // RocksDB can definitely do this efficiently, but not sure if there's
-    // any corresponding existing redis commands. Investigate.
-
-    // Cleanup fsid if it doesn't hold any files anymore
-    key = keyFilesystemFiles(e->location);
-
-    if (pQcl->exists(key) == 0) {
-      key = keyFilesystemUnlinked(e->location);
-
-      if (pQcl->exists(key) == 0) {
-        // FS does not hold any file replicas or unlinked ones, remove it
-        key = std::to_string(e->location);
-        pFsIdsSet.srem(key);
-      }
     }
 
     break;
@@ -186,71 +183,54 @@ FileSystemView::fileMDCheck(IFileMD* file)
                 pNoReplicasSet.getClient());
   }
 
+  // Search through all filesystems, ensure this file is accounted for wherever
+  // it's supposed to.
+
   qclient::QSet replica_set(*pQcl, "");
   qclient::QSet unlink_set(*pQcl, "");
-  IFileMD::id_t fsid;
 
-  do {
-    reply = pFsIdsSet.sscan(cursor);
-    cursor = reply.first;
+  qclient::QScanner replicaSets(*pQcl, fsview::sPrefix + "*:*");
 
-    for (auto && sfsid : reply.second) {
-      fsid = std::stoull(sfsid);
-      // Deal with the fs replica set
-      key = keyFilesystemFiles(fsid);
-      replica_set.setKey(key);
+  std::vector<std::string> results;
+  while(replicaSets.next(results)) {
+    for(std::string &rep : results) {
+      // extract fsid from key
+      IFileMD::id_t fsid;
 
-      if (std::find(replica_locs.begin(), replica_locs.end(), fsid) !=
-          replica_locs.end()) {
-        ah.Register(replica_set.sadd_async(file->getId()),
-                    replica_set.getClient());
-      } else {
-        ah.Register(replica_set.srem_async(file->getId()),
-                    replica_set.getClient());
+      bool unlinked;
+      if(!retrieveFsId(rep, fsid, unlinked)) {
+        eos_static_crit("Unable to parse redis key: %s", rep);
       }
 
-      // Deal with the fs unlinked set
-      key = keyFilesystemUnlinked(fsid);
-      unlink_set.setKey(key);
+      if(!unlinked) {
+        replica_set.setKey(rep);
 
-      if (std::find(unlink_locs.begin(), unlink_locs.end(), fsid) !=
-          unlink_locs.end()) {
-        ah.Register(unlink_set.sadd_async(file->getId()),
-                    unlink_set.getClient());
-      } else {
-        ah.Register(unlink_set.srem_async(file->getId()),
-                    unlink_set.getClient());
+        if (std::find(replica_locs.begin(), replica_locs.end(), fsid) !=
+            replica_locs.end()) {
+          ah.Register(replica_set.sadd_async(file->getId()),
+                      replica_set.getClient());
+        } else {
+          ah.Register(replica_set.srem_async(file->getId()),
+                      replica_set.getClient());
+        }
+      }
+      else {
+        unlink_set.setKey(rep);
+
+        if (std::find(unlink_locs.begin(), unlink_locs.end(), fsid) !=
+            unlink_locs.end()) {
+          ah.Register(unlink_set.sadd_async(file->getId()),
+                      unlink_set.getClient());
+        } else {
+          ah.Register(unlink_set.srem_async(file->getId()),
+                      unlink_set.getClient());
+        }
       }
     }
-  } while (cursor != "0");
+  }
 
   // Wait for all async responses
   (void) ah.Wait();
-  // Clean up all the fsids that don't hold any files either replicas
-  // or unlinked
-  std::list<std::string> to_remove;
-
-  do {
-    reply = pFsIdsSet.sscan(cursor);
-    cursor = reply.first;
-
-    for (auto && sfsid : reply.second) {
-      fsid = std::stoull(sfsid);
-      key = keyFilesystemFiles(fsid);
-      replica_set.setKey(key);
-      key = keyFilesystemUnlinked(fsid);
-      unlink_set.setKey(key);
-
-      if ((replica_set.scard() == 0) && (unlink_set.scard() == 0)) {
-        to_remove.emplace_back(sfsid);
-      }
-    }
-  } while (cursor != "0");
-
-  // Drop all the unused fs ids
-  if (pFsIdsSet.srem(to_remove) != (long long int)to_remove.size()) {
-    has_error = true;
-  }
 
   return !has_error;
 }
@@ -347,11 +327,9 @@ FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 size_t
 FileSystemView::getNumFileSystems()
 {
-  try {
-    return (size_t) pFsIdsSet.scard();
-  } catch (std::runtime_error& e) {
-    return 0;
-  }
+  return (size_t) 100; // TODO(gbitzes): Fix, LOL. We should replace this function
+  // with one returning the set of non-empty filesystems, or better, an iterator object.
+  // (the previous implemention here was also broken)
 }
 
 EOSNSNAMESPACE_END

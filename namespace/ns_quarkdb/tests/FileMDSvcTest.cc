@@ -149,9 +149,6 @@ TEST(FileMDSvc, CheckFileTest)
   key = "5" + eos::fsview::sFilesSuffix;
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.sadd(sfid));
-  // Need to add fsid by hand
-  fs_set.setKey(eos::fsview::sSetFsIds);
-  ASSERT_TRUE(fs_set.sadd("5"));
   // Introduce file in the set to be checked and trigger a check
   fs_set.setKey(eos::constants::sSetCheckFiles);
   ASSERT_NO_THROW(fs_set.sadd(sfid));
