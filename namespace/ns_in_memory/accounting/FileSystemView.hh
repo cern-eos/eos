@@ -111,9 +111,11 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Initizalie
+  //! Configure
+  //!
+  //! @param config map of configuration parameters
   //----------------------------------------------------------------------------
-  void initialize() override;
+  void configure(const std::map<std::string, std::string>& config) override {}
 
   //----------------------------------------------------------------------------
   //! Finalize

@@ -1896,6 +1896,7 @@ Master::BootNamespace()
     gOFS->eosFileService->setContMDService(gOFS->eosDirectoryService);
     gOFS->eosFileService->configure(fileSettings);
     gOFS->eosDirectoryService->configure(contSettings);
+    gOFS->eosFsView->configure(contSettings);
     gOFS->eosView->setContainerMDSvc(gOFS->eosDirectoryService);
     gOFS->eosView->setFileMDSvc(gOFS->eosFileService);
     std::map<std::string, std::string> cfg_settings;

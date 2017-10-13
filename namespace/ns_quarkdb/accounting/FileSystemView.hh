@@ -61,17 +61,17 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileSystemView() {};
+  virtual ~FileSystemView() = default;
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
   //----------------------------------------------------------------------------
-  virtual void fileMDChanged(IFileMDChangeListener::Event* e);
+  virtual void fileMDChanged(IFileMDChangeListener::Event* e) override;
 
   //----------------------------------------------------------------------------
   //! Notify me about files when recovering from changelog - not used
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj) {};
+  virtual void fileMDRead(IFileMD* obj) override {};
 
   //----------------------------------------------------------------------------
   //! Recheck the current file object and make any modifications necessary so
@@ -81,7 +81,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool fileMDCheck(IFileMD* file);
+  virtual bool fileMDCheck(IFileMD* file) override;
 
   //----------------------------------------------------------------------------
   //! Return set of files on filesystem
@@ -90,7 +90,7 @@ public:
   //!
   //! @return set of files on filesystem
   //----------------------------------------------------------------------------
-  IFsView::FileList getFileList(IFileMD::location_t location);
+  IFsView::FileList getFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Return set of unlinked files
@@ -99,7 +99,7 @@ public:
   //!
   //! @return set of unlinked files
   //----------------------------------------------------------------------------
-  IFsView::FileList getUnlinkedFileList(IFileMD::location_t location);
+  IFsView::FileList getUnlinkedFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get set of files without replicas
@@ -107,7 +107,7 @@ public:
   //!
   //! @return set of files with no replicas
   //----------------------------------------------------------------------------
-  IFsView::FileList getNoReplicasFileList();
+  IFsView::FileList getNoReplicasFileList() override;
 
   //----------------------------------------------------------------------------
   //! Clear unlinked files for filesystem
@@ -116,34 +116,31 @@ public:
   //!
   //! @return true if cleanup done successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool clearUnlinkedFileList(IFileMD::location_t location);
+  bool clearUnlinkedFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get number of file systems
   //!
   //! @return number of file systems
   //----------------------------------------------------------------------------
-  size_t getNumFileSystems();
+  size_t getNumFileSystems() override;
 
   //----------------------------------------------------------------------------
-  //! Initizalie for testing purposes
+  //! Configure
+  //!
+  //! @param config map of configuration parameters
   //----------------------------------------------------------------------------
-  void initialize(const std::map<std::string, std::string>& config);
-
-  //----------------------------------------------------------------------------
-  //! Initizalie
-  //----------------------------------------------------------------------------
-  void initialize() {};
+  void configure(const std::map<std::string, std::string>& config) override;
 
   //----------------------------------------------------------------------------
   //! Finalize
   //----------------------------------------------------------------------------
-  void finalize() {};
+  void finalize() override {};
 
   //----------------------------------------------------------------------------
   //! Shrink maps
   //----------------------------------------------------------------------------
-  void shrink() {};
+  void shrink() override {};
 
   //----------------------------------------------------------------------------
   //! Add tree - no-op for this type of view

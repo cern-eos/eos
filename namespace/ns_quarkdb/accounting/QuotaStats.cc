@@ -333,8 +333,8 @@ QuotaStats::~QuotaStats()
 void
 QuotaStats::configure(const std::map<std::string, std::string>& config)
 {
-  std::string host{""};
   uint32_t port{0};
+  std::string host{""};
   const std::string key_host = "qdb_host";
   const std::string key_port = "qdb_port";
 

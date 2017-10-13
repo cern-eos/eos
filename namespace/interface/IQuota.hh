@@ -172,7 +172,9 @@ public:
   virtual ~IQuotaStats() {};
 
   //----------------------------------------------------------------------------
-  //! Configure the quota service
+  //! Configure
+  //!
+  //! @param config map of configuration parameters
   //----------------------------------------------------------------------------
   virtual void configure(const std::map<std::string, std::string>& config) = 0;
 

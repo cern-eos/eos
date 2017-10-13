@@ -37,7 +37,8 @@
 //------------------------------------------------------------------------------
 // Tests implementation
 //------------------------------------------------------------------------------
-TEST(FileMDSvc, LoadTest) {
+TEST(FileMDSvc, LoadTest)
+{
   std::unique_ptr<eos::IContainerMDSvc> contSvc{new eos::ContainerMDSvc};
   std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc};
   fileSvc->setContMDService(contSvc.get());
@@ -95,7 +96,8 @@ TEST(FileMDSvc, LoadTest) {
   fileSvc->finalize();
 }
 
-TEST(FileMDSvc, CheckFileTest) {
+TEST(FileMDSvc, CheckFileTest)
+{
   std::map<std::string, std::string> config = {
     {"qdb_host", "localhost"},
     {"qdb_port", "7777"}
@@ -108,18 +110,11 @@ TEST(FileMDSvc, CheckFileTest) {
   contSvc->setFileMDService(fileSvc.get());
   contSvc->configure(config);
   fileSvc->configure(config);
+  fsView->configure(config);
   view->setContainerMDSvc(contSvc.get());
   view->setFileMDSvc(fileSvc.get());
   view->configure(config);
   view->initialize();
-  auto kv_fsview = dynamic_cast<eos::FileSystemView*>(fsView.get());
-
-  if (!kv_fsview) {
-    fprintf(stderr, "FileSystemView dynamic cast failed\n");
-    exit(1);
-  }
-
-  kv_fsview->initialize(config);
   fileSvc->addChangeListener(fsView.get());
   // Create test container and file
   std::shared_ptr<eos::IContainerMD> cont =

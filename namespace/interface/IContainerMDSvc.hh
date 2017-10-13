@@ -72,6 +72,8 @@ public:
 
   //------------------------------------------------------------------------
   //! Configure the container service
+  //!
+  //! @param config map of configuration parameters
   //------------------------------------------------------------------------
   virtual void configure(const std::map<std::string, std::string>& config) = 0;
 

@@ -74,7 +74,8 @@ countUnlinked(eos::IFsView* fs)
 //------------------------------------------------------------------------------
 // Concrete implementation tests
 //------------------------------------------------------------------------------
-TEST(FileSystemView, BasicSanity) {
+TEST(FileSystemView, BasicSanity)
+{
   srandom(time(nullptr));
 
   try {
@@ -89,18 +90,11 @@ TEST(FileSystemView, BasicSanity) {
     contSvc->setFileMDService(fileSvc.get());
     contSvc->configure(config);
     fileSvc->configure(config);
+    fsView->configure(config);
     view->setContainerMDSvc(contSvc.get());
     view->setFileMDSvc(fileSvc.get());
     view->configure(config);
     view->initialize();
-    auto qdb_fsview = dynamic_cast<eos::FileSystemView*>(fsView.get());
-
-    if (!qdb_fsview) {
-      fprintf(stderr, "FileSystemView dynamic cast failed\n");
-      exit(1);
-    }
-
-    qdb_fsview->initialize(config);
     fileSvc->addChangeListener(fsView.get());
     view->createContainer("/test/embed/embed1", true);
     std::shared_ptr<eos::IContainerMD> c =
@@ -177,7 +171,6 @@ TEST(FileSystemView, BasicSanity) {
     view->finalize();
     fsView->finalize();
     view->initialize();
-    fsView->initialize();
     numReplicas = countReplicas(fsView.get());
     ASSERT_TRUE(numReplicas == 17200);
     numUnlinked = countUnlinked(fsView.get());
