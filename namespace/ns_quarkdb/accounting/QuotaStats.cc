@@ -314,29 +314,6 @@ QuotaNode::getGids()
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-QuotaStats::QuotaStats(const std::map<std::string, std::string>& config)
-{
-  const std::string key_host = "qdb_host";
-  const std::string key_port = "qdb_port";
-  std::string host{""};
-  uint32_t port{0};
-
-  if (config.find(key_host) != config.end()) {
-    host = config.find(key_host)->second;
-  }
-
-  if (config.find(key_port) != config.end()) {
-    port = std::stoul(config.find(key_port)->second);
-  }
-
-  pQcl = BackendClient::getInstance(host, port);
-  pIdsSet.setClient(*pQcl);
-  pIdsSet.setKey(sSetQuotaIds);
-}
-
-//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 QuotaStats::~QuotaStats()
@@ -348,6 +325,30 @@ QuotaStats::~QuotaStats()
   }
 
   pNodeMap.clear();
+}
+
+//------------------------------------------------------------------------------
+// Configure the quota service
+//------------------------------------------------------------------------------
+void
+QuotaStats::configure(const std::map<std::string, std::string>& config)
+{
+  std::string host{""};
+  uint32_t port{0};
+  const std::string key_host = "qdb_host";
+  const std::string key_port = "qdb_port";
+
+  if (config.find(key_host) != config.end()) {
+    host = config.at(key_host);
+  }
+
+  if (config.find(key_port) != config.end()) {
+    port = std::stoul(config.at(key_port));
+  }
+
+  pQcl = BackendClient::getInstance(host, port);
+  pIdsSet.setClient(*pQcl);
+  pIdsSet.setKey(sSetQuotaIds);
 }
 
 //------------------------------------------------------------------------------

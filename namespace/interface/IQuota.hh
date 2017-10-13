@@ -172,6 +172,11 @@ public:
   virtual ~IQuotaStats() {};
 
   //----------------------------------------------------------------------------
+  //! Configure the quota service
+  //----------------------------------------------------------------------------
+  virtual void configure(const std::map<std::string, std::string>& config) = 0;
+
+  //----------------------------------------------------------------------------
   //! Get a quota node associated to the container id
   //----------------------------------------------------------------------------
   virtual IQuotaNode* getQuotaNode(IContainerMD::id_t nodeId) = 0;

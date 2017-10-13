@@ -37,7 +37,8 @@
 
 #include <vector>
 
-TEST(HierarchicalView, LoadTest) {
+TEST(HierarchicalView, LoadTest)
+{
   try {
     std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
       {"qdb_port", "7777"}
@@ -73,11 +74,11 @@ TEST(HierarchicalView, LoadTest) {
     ASSERT_TRUE(embed->findContainer("embed2") != nullptr);
     ASSERT_TRUE(embed->findContainer("embed3") != nullptr);
     ASSERT_TRUE(cont1->getName() ==
-                   embed->findContainer("embed1")->getName());
+                embed->findContainer("embed1")->getName());
     ASSERT_TRUE(cont2->getName() ==
-                   embed->findContainer("embed2")->getName());
+                embed->findContainer("embed2")->getName());
     ASSERT_TRUE(cont3->getName() ==
-                   embed->findContainer("embed3")->getName());
+                embed->findContainer("embed3")->getName());
     view->removeContainer("/test/embed/embed2");
     ASSERT_TRUE(embed->findContainer("embed2") == nullptr);
     view->createFile("/test/embed/file1");
@@ -97,19 +98,19 @@ TEST(HierarchicalView, LoadTest) {
       view->renameContainer(cont4.get(), "embed4.renamed"));
     ASSERT_TRUE(cont4->getName() == "embed4.renamed");
     ASSERT_THROW(view->renameContainer(cont4.get(), "embed1"),
-                         eos::MDException);
+                 eos::MDException);
     ASSERT_THROW(view->renameContainer(cont4.get(), "embed1/asd"),
-                         eos::MDException);
+                 eos::MDException);
     ASSERT_NO_THROW(view->getContainer("/test/embed/embed4.renamed"));
     ASSERT_NO_THROW(view->renameFile(fileR.get(), "fileR.renamed"));
     ASSERT_TRUE(fileR->getName() == "fileR.renamed");
     ASSERT_THROW(view->renameFile(fileR.get(), "file1"),
-                         eos::MDException);
+                 eos::MDException);
     ASSERT_THROW(view->renameFile(fileR.get(), "file1/asd"),
-                         eos::MDException);
+                 eos::MDException);
     ASSERT_NO_THROW(view->getFile("/test/embed/embed1/fileR.renamed"));
     ASSERT_THROW(view->renameContainer(root.get(), "rename"),
-                         eos::MDException);
+                 eos::MDException);
     // Test the "reverse" lookup
     std::shared_ptr<eos::IFileMD> file{
       view->getFile("/test/embed/embed1/file3")};
@@ -128,7 +129,7 @@ TEST(HierarchicalView, LoadTest) {
     // should stay valid
     view->unlinkFile("/test/embed/embed1/file2");
     ASSERT_THROW(view->getFile("/test/embed/embed1/file2"),
-                         eos::MDException);
+                 eos::MDException);
     ASSERT_TRUE(cont1->findFile("file2") == nullptr);
     // We remove the replicas and the file but we need to reload the toBeDeleted
     // pointer
@@ -166,15 +167,15 @@ TEST(HierarchicalView, LoadTest) {
       view->unlinkFile("/test/embed/embed1/fileR.renamed"));
     // Remove files
     ASSERT_NO_THROW(view->removeFile(
-                              view->getFileMDSvc()->getFileMD(file1->getId()).get()));
+                      view->getFileMDSvc()->getFileMD(file1->getId()).get()));
     ASSERT_NO_THROW(view->removeFile(
-                              view->getFileMDSvc()->getFileMD(file2->getId()).get()));
+                      view->getFileMDSvc()->getFileMD(file2->getId()).get()));
     ASSERT_NO_THROW(view->removeFile(
-                              view->getFileMDSvc()->getFileMD(file11->getId()).get()));
+                      view->getFileMDSvc()->getFileMD(file11->getId()).get()));
     ASSERT_NO_THROW(view->removeFile(
-                              view->getFileMDSvc()->getFileMD(file13->getId()).get()));
+                      view->getFileMDSvc()->getFileMD(file13->getId()).get()));
     ASSERT_NO_THROW(view->removeFile(
-                              view->getFileMDSvc()->getFileMD(fileR->getId()).get()));
+                      view->getFileMDSvc()->getFileMD(fileR->getId()).get()));
     // Remove all containers
     ASSERT_NO_THROW(view->removeContainer("/test/", true));
     // Remove the root container
@@ -240,7 +241,8 @@ createFiles(const std::string& path, eos::IView* view,
 }
 
 
-TEST(HierarchicalView, QuotaTest) {
+TEST(HierarchicalView, QuotaTest)
+{
   srandom(time(nullptr));
   // Initialize the system
   std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
@@ -317,9 +319,9 @@ TEST(HierarchicalView, QuotaTest) {
 
   for (int i = 1; i <= 3; ++i) {
     ASSERT_TRUE(node1->getPhysicalSpaceByGroup(i) ==
-                   groups1[i].physicalSpace);
+                groups1[i].physicalSpace);
     ASSERT_TRUE(node2->getPhysicalSpaceByGroup(i) ==
-                   groups2[i].physicalSpace);
+                groups2[i].physicalSpace);
     ASSERT_TRUE(node1->getUsedSpaceByGroup(i) == groups1[i].space);
     ASSERT_TRUE(node2->getUsedSpaceByGroup(i) == groups2[i].space);
     ASSERT_TRUE(node1->getNumFilesByGroup(i) == groups1[i].files);
@@ -328,7 +330,7 @@ TEST(HierarchicalView, QuotaTest) {
 
   // Restart and check if the quota stats are reloaded correctly
   ASSERT_NO_THROW(view->finalize());
-  view->setQuotaStats(new eos::QuotaStats(config));
+  view->configure(config);
   view->getQuotaStats()->registerSizeMapper(mapSize);
   ASSERT_NO_THROW(view->initialize());
   node1 = view->getQuotaNode(view->getContainer(path1).get());
@@ -347,9 +349,9 @@ TEST(HierarchicalView, QuotaTest) {
 
   for (int i = 1; i <= 3; ++i) {
     ASSERT_TRUE(node1->getPhysicalSpaceByGroup(i) ==
-                   groups1[i].physicalSpace);
+                groups1[i].physicalSpace);
     ASSERT_TRUE(node2->getPhysicalSpaceByGroup(i) ==
-                   groups2[i].physicalSpace);
+                groups2[i].physicalSpace);
     ASSERT_TRUE(node1->getUsedSpaceByGroup(i) == groups1[i].space);
     ASSERT_TRUE(node2->getUsedSpaceByGroup(i) == groups2[i].space);
     ASSERT_TRUE(node1->getNumFilesByGroup(i) == groups1[i].files);
@@ -366,45 +368,45 @@ TEST(HierarchicalView, QuotaTest) {
 
   for (int i = 1; i <= 10; ++i) {
     ASSERT_TRUE(parentNode->getPhysicalSpaceByUser(i) ==
-                   users1[i].physicalSpace + users2[i].physicalSpace);
+                users1[i].physicalSpace + users2[i].physicalSpace);
     ASSERT_TRUE(parentNode->getUsedSpaceByUser(i) ==
-                   users1[i].space + users2[i].space);
+                users1[i].space + users2[i].space);
     ASSERT_TRUE(parentNode->getNumFilesByUser(i) ==
-                   users1[i].files + users2[i].files);
+                users1[i].files + users2[i].files);
   }
 
   for (int i = 1; i <= 3; ++i) {
     ASSERT_TRUE(parentNode->getPhysicalSpaceByGroup(i) ==
-                   groups1[i].physicalSpace + groups2[i].physicalSpace);
+                groups1[i].physicalSpace + groups2[i].physicalSpace);
     ASSERT_TRUE(parentNode->getUsedSpaceByGroup(i) ==
-                   groups1[i].space + groups2[i].space);
+                groups1[i].space + groups2[i].space);
     ASSERT_TRUE(parentNode->getNumFilesByGroup(i) ==
-                   groups1[i].files + groups2[i].files);
+                groups1[i].files + groups2[i].files);
   }
 
   ASSERT_NO_THROW(
     view->removeQuotaNode(view->getContainer(path3).get()));
   ASSERT_THROW(view->removeQuotaNode(view->getContainer(path3).get()),
-                       eos::MDException);
+               eos::MDException);
 
   for (int i = 1; i <= 10; ++i) {
     ASSERT_TRUE(parentNode->getPhysicalSpaceByUser(i) ==
-                   users1[i].physicalSpace + users2[i].physicalSpace +
-                   users3[i].physicalSpace);
+                users1[i].physicalSpace + users2[i].physicalSpace +
+                users3[i].physicalSpace);
     ASSERT_TRUE(parentNode->getUsedSpaceByUser(i) ==
-                   users1[i].space + users2[i].space + users3[i].space);
+                users1[i].space + users2[i].space + users3[i].space);
     ASSERT_TRUE(parentNode->getNumFilesByUser(i) ==
-                   users1[i].files + users2[i].files + users3[i].files);
+                users1[i].files + users2[i].files + users3[i].files);
   }
 
   for (int i = 1; i <= 3; ++i) {
     ASSERT_TRUE(parentNode->getPhysicalSpaceByGroup(i) ==
-                   groups1[i].physicalSpace + groups2[i].physicalSpace +
-                   groups3[i].physicalSpace);
+                groups1[i].physicalSpace + groups2[i].physicalSpace +
+                groups3[i].physicalSpace);
     ASSERT_TRUE(parentNode->getUsedSpaceByGroup(i) ==
-                   groups1[i].space + groups2[i].space + groups3[i].space);
+                groups1[i].space + groups2[i].space + groups3[i].space);
     ASSERT_TRUE(parentNode->getNumFilesByGroup(i) ==
-                   groups1[i].files + groups2[i].files + groups3[i].files);
+                groups1[i].files + groups2[i].files + groups3[i].files);
   }
 
   // Clean up
@@ -424,7 +426,7 @@ TEST(HierarchicalView, QuotaTest) {
       std::shared_ptr<eos::IFileMD> file{view->getFile(p.str())};
       ASSERT_NO_THROW(view->unlinkFile(p.str()));
       ASSERT_NO_THROW(view->removeFile(
-                                view->getFileMDSvc()->getFileMD(file->getId()).get()));
+                        view->getFileMDSvc()->getFileMD(file->getId()).get()));
     }
   }
 
@@ -436,7 +438,8 @@ TEST(HierarchicalView, QuotaTest) {
   ASSERT_NO_THROW(view->finalize());
 }
 
-TEST(HierarchicalView, LostContainerTest) {
+TEST(HierarchicalView, LostContainerTest)
+{
   // Initializer
   std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
     {"qdb_port", "7777"}
@@ -487,7 +490,7 @@ TEST(HierarchicalView, LostContainerTest) {
 
     if (i != 0) {
       ASSERT_THROW(view->renameFile(file.get(), "conflict_file"),
-                           eos::MDException);
+                   eos::MDException);
     } else {
       ASSERT_NO_THROW(view->renameFile(file.get(), "conflict_file"));
     }
@@ -495,7 +498,7 @@ TEST(HierarchicalView, LostContainerTest) {
 
   // Trying to remove a non-empty container should result in an exception
   ASSERT_THROW(view->getContainerMDSvc()->removeContainer(cont1.get()),
-                       eos::MDException);
+               eos::MDException);
   // Trying to rename a container to an already existing one should result in
   // an exception
   ASSERT_THROW(cont5->setName("embed3"), eos::MDException);
@@ -525,7 +528,7 @@ TEST(HierarchicalView, LostContainerTest) {
       std::shared_ptr<eos::IFileMD> file{view->getFile(elem)};
       ASSERT_NO_THROW(view->unlinkFile(elem));
       ASSERT_NO_THROW(view->removeFile(
-                                view->getFileMDSvc()->getFileMD(file->getId()).get()));
+                        view->getFileMDSvc()->getFileMD(file->getId()).get()));
     }
   }
 

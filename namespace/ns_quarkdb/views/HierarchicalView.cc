@@ -36,11 +36,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 HierarchicalView::HierarchicalView()
   : pContainerSvc(nullptr), pFileSvc(nullptr),
-    pRoot(std::shared_ptr<IContainerMD>(nullptr))
-{
-  std::map<std::string, std::string> config;
-  pQuotaStats = new QuotaStats(config);
-}
+    pQuotaStats(new QuotaStats()), pRoot(nullptr)
+{}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -69,7 +66,8 @@ HierarchicalView::configure(const std::map<std::string, std::string>& config)
   }
 
   delete pQuotaStats;
-  pQuotaStats = new QuotaStats(config);
+  pQuotaStats = new QuotaStats();
+  pQuotaStats->configure(config);
 }
 
 //------------------------------------------------------------------------------
@@ -131,8 +129,7 @@ HierarchicalView::finalize()
   pContainerSvc->finalize();
   pFileSvc->finalize();
   delete pQuotaStats;
-  std::map<std::string, std::string> config;
-  pQuotaStats = new QuotaStats(config);
+  pQuotaStats = nullptr;
 }
 
 //------------------------------------------------------------------------------

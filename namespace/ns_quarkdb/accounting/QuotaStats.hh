@@ -205,7 +205,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaStats(const std::map<std::string, std::string>& config);
+  QuotaStats() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -213,19 +213,25 @@ public:
   virtual ~QuotaStats();
 
   //----------------------------------------------------------------------------
+  //! Configure the quota service
+  //----------------------------------------------------------------------------
+  virtual void configure(const std::map<std::string, std::string>& config)
+  override;
+
+  //----------------------------------------------------------------------------
   //! Get a quota node associated to the container id
   //----------------------------------------------------------------------------
-  IQuotaNode* getQuotaNode(IContainerMD::id_t node_id);
+  IQuotaNode* getQuotaNode(IContainerMD::id_t node_id) override;
 
   //----------------------------------------------------------------------------
   //! Register a new quota node
   //----------------------------------------------------------------------------
-  IQuotaNode* registerNewNode(IContainerMD::id_t node_id);
+  IQuotaNode* registerNewNode(IContainerMD::id_t node_id) override;
 
   //----------------------------------------------------------------------------
   //! Remove quota node
   //----------------------------------------------------------------------------
-  void removeNode(IContainerMD::id_t node_id);
+  void removeNode(IContainerMD::id_t node_id) override;
 
   //----------------------------------------------------------------------------
   //! Get the set of all quota node ids. The quota node id corresponds to the
