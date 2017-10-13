@@ -27,36 +27,33 @@
 
 EOSNSTESTING_BEGIN
 
-TEST(NextInodeProvider, BasicSanity) {
-  qclient::QClient qcl("localhost", 7777); // TODO make this configurable
+TEST(NextInodeProvider, BasicSanity)
+{
+  qclient::QClient qcl("localhost", 7778); // TODO make this configurable
   qclient::QHash myhash;
   myhash.setKey("ns-tests-next-inode-provider");
   myhash.setClient(qcl);
-
   myhash.hdel("counter");
-
   constexpr size_t firstRunLimit = 50000;
   constexpr size_t secondRunLimit = 100000;
-
   {
     NextInodeProvider inodeProvider;
     inodeProvider.configure(myhash, "counter");
 
-    for(size_t i = 1; i < firstRunLimit; i++) {
+    for (size_t i = 1; i < firstRunLimit; i++) {
       ASSERT_EQ(inodeProvider.getFirstFreeId(), i);
       ASSERT_EQ(inodeProvider.reserve(), i);
     }
   }
-
   {
     NextInodeProvider inodeProvider;
     inodeProvider.configure(myhash, "counter");
-
     size_t continuation = inodeProvider.getFirstFreeId();
     ASSERT_TRUE(firstRunLimit <= continuation);
-    std::cerr << "Wasted " << continuation - firstRunLimit << " inodes." << std::endl;
+    std::cerr << "Wasted " << continuation - firstRunLimit << " inodes." <<
+              std::endl;
 
-    for(size_t i = continuation; i < secondRunLimit; i++) {
+    for (size_t i = continuation; i < secondRunLimit; i++) {
       ASSERT_EQ(inodeProvider.getFirstFreeId(), i);
       ASSERT_EQ(inodeProvider.reserve(), i);
     }

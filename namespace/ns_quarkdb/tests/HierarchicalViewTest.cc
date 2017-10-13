@@ -41,7 +41,7 @@ TEST(HierarchicalView, LoadTest)
 {
   try {
     std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
-      {"qdb_port", "7777"}
+      {"qdb_port", "7778"}
     };
     std::unique_ptr<eos::IContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
     std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc()};
@@ -246,7 +246,7 @@ TEST(HierarchicalView, QuotaTest)
   srandom(time(nullptr));
   // Initialize the system
   std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
-    {"qdb_port", "7777"}
+    {"qdb_port", "7778"}
   };
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
@@ -442,7 +442,7 @@ TEST(HierarchicalView, LostContainerTest)
 {
   // Initializer
   std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
-    {"qdb_port", "7777"}
+    {"qdb_port", "7778"}
   };
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};

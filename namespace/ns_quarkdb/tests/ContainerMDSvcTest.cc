@@ -27,12 +27,13 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-TEST(ContainerMDSvc, BasicSanity) {
+TEST(ContainerMDSvc, BasicSanity)
+{
   try {
     std::unique_ptr<eos::IContainerMDSvc> containerSvc{new eos::ContainerMDSvc()};
     std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc()};
     std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
-      {"qdb_port", "7777"}
+      {"qdb_port", "7778"}
     };
     containerSvc->setFileMDService(fileSvc.get());
     containerSvc->configure(config);
