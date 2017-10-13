@@ -145,12 +145,12 @@ public:
   //----------------------------------------------------------------------------
   //! Add tree - no-op for this type of view
   //----------------------------------------------------------------------------
-  void AddTree(IContainerMD* obj, int64_t dsize) {};
+  void AddTree(IContainerMD* obj, int64_t dsize) override {};
 
   //----------------------------------------------------------------------------
   //! Remove tree - no-op for this type of view
   //----------------------------------------------------------------------------
-  void RemoveTree(IContainerMD* obj, int64_t dsize) {};
+  void RemoveTree(IContainerMD* obj, int64_t dsize) override {};
 
 private:
   qclient::QClient* pQcl;    ///< QClient object

@@ -75,47 +75,47 @@ public:
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByUser(uid_t uid);
+  uint64_t getUsedSpaceByUser(uid_t uid) override;
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByGroup(gid_t gid);
+  uint64_t getUsedSpaceByGroup(gid_t gid) override;
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByUser(uid_t uid);
+  uint64_t getPhysicalSpaceByUser(uid_t uid) override;
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByGroup(gid_t gid);
+  uint64_t getPhysicalSpaceByGroup(gid_t gid) override;
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getNumFilesByUser(uid_t uid);
+  uint64_t getNumFilesByUser(uid_t uid) override;
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getNumFilesByGroup(gid_t gid);
+  uint64_t getNumFilesByGroup(gid_t gid) override;
 
   //----------------------------------------------------------------------------
   //! Account a new file, adjust the size using the size mapping function
   //----------------------------------------------------------------------------
-  void addFile(const IFileMD* file);
+  void addFile(const IFileMD* file) override;
 
   //----------------------------------------------------------------------------
   //! Remove a file, adjust the size using the size mapping function
   //----------------------------------------------------------------------------
-  void removeFile(const IFileMD* file);
+  void removeFile(const IFileMD* file) override;
 
   //----------------------------------------------------------------------------
   //! Meld in another quota node
   //----------------------------------------------------------------------------
-  void meld(const IQuotaNode* node);
+  void meld(const IQuotaNode* node) override;
 
   //----------------------------------------------------------------------------
   //! Get current uid qutoa key
@@ -149,7 +149,7 @@ public:
   //!
   //! @return vector of uids
   //----------------------------------------------------------------------------
-  std::vector<uint64_t> getUids();
+  std::vector<uint64_t> getUids() override;
 
   //----------------------------------------------------------------------------
   //! Get the set of gids for which information is stored in the current quota
@@ -157,7 +157,7 @@ public:
   //!
   //! @return vector of gids
   //----------------------------------------------------------------------------
-  std::vector<uint64_t> getGids();
+  std::vector<uint64_t> getGids() override;
 
 private:
   //----------------------------------------------------------------------------
@@ -239,7 +239,7 @@ public:
   //!
   //! @return set of quota node ids
   //----------------------------------------------------------------------------
-  std::set<std::string> getAllIds();
+  std::set<std::string> getAllIds() override;
 
 private:
   static const std::string sSetQuotaIds;     ///< Ket of quota node ids set
