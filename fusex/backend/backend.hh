@@ -28,6 +28,9 @@
 #include "common/Logging.hh"
 #include "fusex/fusex.pb.h"
 #include "llfusexx.hh"
+#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClURL.hh"
 
 #include <sys/statvfs.h>
 
@@ -99,6 +102,8 @@ private:
   std::string clientuuid;
 
   int mapErrCode(int retc);
+
+  XrdCl::XRootDStatus Query (XrdCl::FileSystem& fs, XrdCl::QueryCode::Code query_code, XrdCl::Buffer &arg, XrdCl::Buffer* &repsonse);
 
 } ;
 #endif /* FUSE_BACKEND_HH_ */

@@ -28,7 +28,7 @@
 #include "misc/MacOSXHelper.hh"
 #include "common/Logging.hh"
 
-cap* cap::sCAP = 0;
+cap* cap::sCAP=0;
 
 #define CAP_EXTENSION_TIME 180
 
@@ -36,7 +36,7 @@ cap* cap::sCAP = 0;
 cap::cap()
 /* -------------------------------------------------------------------------- */
 {
-  sCAP = this;
+  sCAP=this;
   mdbackend = 0;
   mds = 0;
 }
@@ -45,7 +45,7 @@ cap::cap()
 cap::~cap()
 /* -------------------------------------------------------------------------- */
 {
-  sCAP = 0;
+  sCAP=0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -65,24 +65,25 @@ cap::capx::dump(bool dense)
 /* -------------------------------------------------------------------------- */
 {
   char sout[16384];
-
-  if (dense) {
-    snprintf(sout, sizeof(sout),
+  if (dense)
+  {
+    snprintf(sout, sizeof (sout),
              "i=%08lx m=%x c=%s",
              id(), mode(), clientid().c_str()
-            );
-  } else {
-    snprintf(sout, sizeof(sout),
+             );
+  }
+  else
+  {
+
+    snprintf(sout, sizeof (sout),
              "id=%lx mode=%x vtime=%lu.%lu u=%u g=%u cid=%s auth-id=%s errc=%d maxs=%lu q-node=%16lx ino=%lu vol=%lu",
-             id(), mode(), vtime(), vtime_ns(), uid(), gid(), clientid().c_str(),
-             authid().c_str(), errc(),
+             id(), mode(), vtime(), vtime_ns(), uid(), gid(), clientid().c_str(), authid().c_str(), errc(),
              max_file_size(),
              _quota().quota_inode(),
              _quota().inode_quota(),
              _quota().volume_quota()
-            );
+             );
   }
-
   return sout;
 }
 
@@ -103,14 +104,14 @@ cap::capx::capid(fuse_req_t req, fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
   char sid[256];
-  snprintf(sid, sizeof(sid),
+  snprintf(sid, sizeof (sid),
            "%lx:%u:%u@%s:%s",
            ino,
            fuse_req_ctx(req)->uid,
            fuse_req_ctx(req)->gid,
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
-          );
+           );
   return sid;
 }
 
@@ -121,11 +122,11 @@ cap::capx::capid(fuse_ino_t ino, std::string clientid)
 /* -------------------------------------------------------------------------- */
 {
   char sid[256];
-  snprintf(sid, sizeof(sid),
+  snprintf(sid, sizeof (sid),
            "%lx:%s",
            ino,
            clientid.c_str()
-          );
+           );
   return sid;
 }
 
@@ -136,13 +137,13 @@ cap::capx::getclientid(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   char sid[256];
-  snprintf(sid, sizeof(sid),
+  snprintf(sid, sizeof (sid),
            "%u:%u@%s:%s",
            fuse_req_ctx(req)->uid,
            fuse_req_ctx(req)->gid,
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
-          );
+           );
   return sid;
 }
 
@@ -154,19 +155,18 @@ cap::ls()
 {
   std::string listing;
   XrdSysMutexHelper mLock(capmap);
-
-  for (auto it = capmap.begin(); it != capmap.end(); ++it) {
+  for (auto it = capmap.begin(); it != capmap.end(); ++it)
+  {
     listing += it->second->dump(false);
     listing += "\n";
   }
-
-  if (listing.size() > (64 * 1000)) {
+  if (listing.size()>(64 * 1000))
+  {
     listing.resize((64 * 1000));
-    listing += "\n... (truncated) ...\n";
+    listing +="\n... (truncated) ...\n";
   }
-
   char csize[32];
-  snprintf(csize, sizeof(csize), "# [ %lu caps ]\n", capmap.size());
+  snprintf(csize, sizeof (csize), "# [ %lu caps ]\n", capmap.size());
   listing += csize;
   return listing;
 }
@@ -176,18 +176,22 @@ cap::shared_cap
 /* ----------------------------------------------------------- -------------- */
 cap::get(fuse_req_t req,
          fuse_ino_t ino,
-         bool lock)
+	 bool lock)
 /* -------------------------------------------------------------------------- */
 {
   std::string cid = cap::capx::capid(req, ino);
-  std::string clientid = cap::capx::getclientid(req);
-  eos_static_debug("inode=%08lx cap-id=%s", ino, cid.c_str());
-  XrdSysMutexHelper mLock(capmap);
+  std::string clientid= cap::capx::getclientid(req);
 
-  if (capmap.count(cid)) {
+  eos_static_debug("inode=%08lx cap-id=%s", ino, cid.c_str());
+
+  XrdSysMutexHelper mLock(capmap);
+  if (capmap.count(cid))
+  {
     shared_cap cap = capmap[cid];
     return cap;
-  } else {
+  }
+  else
+  {
     shared_cap cap = std::make_shared<capx>();
     cap->set_clientid(clientid);
     cap->set_authid("");
@@ -198,7 +202,7 @@ cap::get(fuse_req_t req,
     cap->set_vtime(0);
     cap->set_vtime_ns(0);
     capmap[cid] = cap;
-    mds->increase_cap(ino, lock);
+    //    mds->increase_cap(ino, lock);
     return cap;
   }
 }
@@ -211,12 +215,15 @@ cap::get(fuse_ino_t ino, std::string clientid)
 {
   std::string cid = cap::capx::capid(ino, clientid);
   eos_static_debug("inode=%08lx cap-id=%s", ino, cid.c_str());
-  XrdSysMutexHelper mLock(capmap);
 
-  if (capmap.count(cid)) {
+  XrdSysMutexHelper mLock(capmap);
+  if (capmap.count(cid))
+  {
     shared_cap cap = capmap[cid];
     return cap;
-  } else {
+  }
+  else
+  {
     shared_cap cap = std::make_shared<capx>();
     cap->set_id(0);
     return cap;
@@ -230,25 +237,28 @@ cap::store(fuse_req_t req,
            eos::fusex::cap icap)
 /* -------------------------------------------------------------------------- */
 {
-  std::string clientid = cap::capx::getclientid(req);
+
+  std::string clientid= cap::capx::getclientid(req);
+
   uint64_t id = mds->vmaps().forward(icap.id());
   std::string cid = cap::capx::capid(req, id); // cid uses the local inode
-  XrdSysMutexHelper mLock(capmap);
 
-  if (capmap.count(cid)) {
+  XrdSysMutexHelper mLock(capmap);
+  if (capmap.count(cid))
+  {
     shared_cap cap = capmap[cid];
     *cap = icap;
     cap->set_id(id);
-  } else {
+  }
+  else
+  {
     shared_cap cap = std::make_shared<capx>();
     cap->set_clientid(clientid);
     *cap = icap;
     cap->set_id(id);
     capmap[cid] = cap;
   }
-
-  eos_static_debug("store inode=[r:%lx l:%lx] capid=%s cap: %s", icap.id(), id,
-                   cid.c_str(),
+  eos_static_debug("store inode=[r:%lx l:%lx] capid=%s cap: %s", icap.id(), id, cid.c_str(),
                    capmap[cid]->dump().c_str());
 }
 
@@ -258,27 +268,30 @@ fuse_ino_t
 cap::forget(const std::string& cid)
 /* -------------------------------------------------------------------------- */
 {
-  fuse_ino_t inode = 0;
+  fuse_ino_t inode=0;
   {
     XrdSysMutexHelper mLock(capmap);
 
-    if (capmap.count(cid)) {
+    if (capmap.count(cid))
+    {
       eos_static_debug("forget capid=%s cap: %s", cid.c_str(),
                        capmap[cid]->dump().c_str());
       shared_cap cap = capmap[cid];
       inode = cap->id();
       capmap.erase(cid);
-    } else {
+    }
+    else
+    {
       eos_static_debug("forget capid=%s cap: ENOENT", cid.c_str());
     }
   }
-
-  if (inode) {
-    if (EosFuse::Instance().Config().options.md_kernelcache) {
-      kernelcache::inval_inode(inode);
+  if (inode)
+  {
+    if (EosFuse::Instance().Config().options.md_kernelcache)
+    {
+      // kernelcache::inval_inode(inode);
     }
   }
-
   return inode;
 }
 
@@ -299,6 +312,7 @@ cap::imply(shared_cap cap,
   std::string clientid = cap->clientid();
   std::string cid = capx::capid(ino, clientid);
   XrdSysMutexHelper mLock(capmap);
+
   // TODO: deal with the influence of mode to the cap itself
   capmap[cid] = implied_cap;
   return cid;
@@ -310,91 +324,143 @@ cap::shared_cap
 cap::acquire(fuse_req_t req,
              fuse_ino_t ino,
              mode_t mode,
-             bool lock
-            )
+	     bool lock
+             )
 /* -------------------------------------------------------------------------- */
 {
   std::string cid = cap::capx::capid(req, ino);
   eos_static_debug("inode=%08lx cap-id=%s mode=%x", ino, cid.c_str(), mode);
+
   shared_cap cap = get(req, ino);
   bool try_attach = false;
-  // avoid we create the same cap concurrently
-  {
-    XrdSysMutexHelper cLock(cap->Locker());
 
-    if (!cap->valid()) {
-      refresh(req, cap);
+  // avoid we create the same cap concurrently
+
+  {
+    XrdSysMutexHelper cLock (cap->Locker());
+    if (!cap->valid())
+    {
+      if (refresh(req, cap))
+      {
+	cap->set_errc(errno?errno:EIO);
+	return cap;
+      }
       try_attach = true;
     }
 
-    if (!cap->satisfy(mode) || !cap->valid()) {
+    if (!cap->satisfy(mode) || !cap->valid())
+    {
       cap->set_errc(EPERM);
-    } else {
+    }
+    else
+    {
       cap->set_errc(0);
     }
 
     eos_static_debug("%s", cap->dump().c_str());
   }
 
-  if (try_attach) {
-    XrdSysMutexHelper mLock(capmap);
+  XrdSysMutexHelper mLock(capmap);
+  XrdSysMutexHelper mLock2(cap->Locker());
 
-    if (!capmap.count(cid)) {
+  if (try_attach)
+  {
+    if (!capmap.count(cid))
+    {
       capmap[cid] = cap;
       cap->set_id(ino);
-      mds->increase_cap(ino, lock);
     }
   }
 
   // stamp latest time of use
   cap->use();
+
   return cap;
 }
 
 /* -------------------------------------------------------------------------- */
-void
+int
 /* -------------------------------------------------------------------------- */
 cap::refresh(fuse_req_t req, shared_cap cap)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("inode=%08lx cap-id=%s", cap->id(), cap->clientid().c_str());
+
   // retrieve cap from upstream
   std::vector<eos::fusex::container> contv;
-  int rc = 0;
+  int rc=0;
   uint64_t remote_ino = mds->vmaps().backward(cap->id());
-  rc = mdbackend->getCAP(req, remote_ino, contv);
 
-  if (!rc) {
-    // decode the cap
-    for (auto it = contv.begin(); it != contv.end(); ++it) {
-      switch (it->type()) {
-      case eos::fusex::container::CAP: {
-        uint64_t id = mds->vmaps().forward(it->cap_().id());
+  // measure the call duration
+  struct timespec ts;
+  eos::common::Timing::GetTimeSpec(ts, true);
 
-        //XrdSysMutexHelper mLock(cap->Locker());
-        // check if the cap received matches what we think about local mapping
-        if (cap->id() == id) {
-          eos_static_debug("correct cap received for inode=%08x", cap->id());
-          // great
-          *cap = it->cap_();
-          cap->set_id(id);
-        } else {
-          eos_static_debug("wrong cap received for inode=%08x", cap->id());
-          // that is a fatal logical error
-          rc = ENXIO;
-        }
-
-        break;
+  do {
+    rc = mdbackend->getCAP(req, remote_ino, contv);
+    if (!rc)
+    {
+      // decode the cap
+      for (auto it=contv.begin(); it != contv.end(); ++it)
+      {
+	switch (it->type()) {
+	case eos::fusex::container::CAP:
+	{
+	  uint64_t id = mds->vmaps().forward(it->cap_().id());
+	  //XrdSysMutexHelper mLock(cap->Locker());
+	  // check if the cap received matches what we think about local mapping
+	  if (cap->id() == id)
+	  {
+	    eos_static_debug("correct cap received for inode=%08x", cap->id());
+	    // great
+	    *cap = it->cap_();
+	    cap->set_id(id);
+	  }
+	  else
+	  {
+	    eos_static_debug("wrong cap received for inode=%08x", cap->id());
+	    // that is a fatal logical error
+	    rc = ENXIO;
+	  }
+	  break;
+	}
+	default:
+	  eos_static_err("msg=\"wrong content type received\" type=%d",
+			 it->type());
+	}
       }
-
-      default:
-        eos_static_err("msg=\"wrong content type received\" type=%d",
-                       it->type());
-      }
+      return rc;
     }
+    else
+    {
+      eos_static_err("GETCAP failed with errno=%d for inode=%16x", errno, cap->id());
+      if (errno != EL2NSYNC)
+	return rc;
 
-    return;
-  }
+      // if there is a time synchronization error reported we check if the call just took long to execute
+
+      // 2 seconds is the maximum allowed roundtrip/out-of-sync time applied by the MGM
+      uint64_t ns_lag;
+      if ( (ns_lag = eos::common::Timing::GetCoarseAgeInNs(&ts, 0)) < 2000000000)
+      {
+	eos_static_err("GETCAP finished during the allowed 2s round-trip time - our clock seems to be out of sync with the MGM!");
+	return EL2NSYNC;
+      }
+      else
+      {
+	float backoff = round(10 * random() / (double) RAND_MAX);
+	XrdSysTimer sleeper;
+	eos_static_warning("GETCAP exceeded 2s (%.02fs) round-trip time for inode=%16x - backing of for %.02f seconds, then retry!",
+			   ns_lag/1000000000.0,
+			   cap->id(), 
+			   backoff);
+
+	sleeper.Wait(backoff*1000);
+      }
+
+
+    }
+  } while (rc);
+  return rc;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -404,7 +470,9 @@ cap::capx::satisfy(mode_t mode)
 /* -------------------------------------------------------------------------- */
 {
   //XrdSysMutexHelper mLock(Locker());
-  if (((mode & this->mode())) == mode) {
+
+  if ( ((mode & this->mode())) == mode)
+  {
     eos_static_debug("inode=%08lx client-id=%s mode=%x test-mode=%x satisfy=true",
                      id(), clientid().c_str(), this->mode(), mode);
     return true;
@@ -425,17 +493,20 @@ cap::capx::valid(bool debug)
   ts.tv_sec = vtime();
   ts.tv_nsec = vtime_ns();
 
-  if (eos::common::Timing::GetCoarseAgeInNs(&ts, 0) < 0) {
+  if (eos::common::Timing::GetCoarseAgeInNs(&ts, 0) < 0)
+  {
     if (debug)
       eos_static_debug("inode=%08lx client-id=%s now=%lu vtime=%lu valid=true",
                        id(), clientid().c_str(), time(NULL), vtime());
-
     return true;
-  } else {
+  }
+  else
+  {
     if (debug)
       eos_static_debug("inode=%08lx client-id=%s now=%lu vtime=%lu valid=false",
-                       id(), clientid().c_str(), time(NULL), vtime());
 
+
+                       id(), clientid().c_str(), time(NULL), vtime());
     return false;
   }
 }
@@ -446,52 +517,58 @@ void
 cap::capflush()
 /* -------------------------------------------------------------------------- */
 {
-  while (1) {
+  while (1)
+  {
     {
       cmap capdelmap;
       cinodes capdelinodes;
+
       capmap.Lock();
-
-      for (auto it = capmap.begin(); it != capmap.end(); ++it) {
-        XrdSysMutexHelper cLock(it->second->Locker());
-
+      for (auto it = capmap.begin(); it != capmap.end(); ++it)
+      {
+        XrdSysMutexHelper cLock (it->second->Locker());
         // make a list of caps to timeout
-        if (!it->second->valid(false)) {
-          capdelmap[it->first] = it->second;
+        if (!it->second->valid(false))
+        {
+          capdelmap[it->first]=it->second;
           eos_static_debug("expire %s", it->second->dump().c_str());
           mds->decrease_cap(it->second->id());
           capdelinodes.insert(it->second->id());
-        } else {
-          time_t vtime = it->second->vtime();
-          time_t utime = it->second->used();
-          time_t period = vtime - utime;
-
-          if ((period < 90) && (period > 15)) {
-            // if cap was used during last 90 seconds, we automatically ask
-            // for an extension of CAP_EXTENSION_TIME
-            XrdSysMutexHelper eLock(extensionLock);
-            extensionmap[it->second->authid()] = CAP_EXTENSION_TIME;
-            it->second->set_vtime(vtime  + CAP_EXTENSION_TIME);
-            eos_static_info("authid=%s vtime=%lu extended-vtime=%lu",
-                            it->second->authid().c_str(),
-                            vtime,
-                            it->second->vtime());
-          }
+        }
+        else
+        {
+	  if (0)
+	  {
+	    // don't do automatic cap extension for the time being
+	    time_t vtime = it->second->vtime();
+	    time_t utime = it->second->used();
+	    time_t period = vtime - utime;
+	    if ( (period < 90) && (period > 15) )
+	    {
+	      // if cap was used during last 90 seconds, we automatically ask
+	      // for an extension of CAP_EXTENSION_TIME
+	      XrdSysMutexHelper eLock(extensionLock);
+	      extensionmap[it->second->authid()] = CAP_EXTENSION_TIME;
+	      it->second->set_vtime(vtime  + CAP_EXTENSION_TIME);
+	      eos_static_info("authid=%s vtime=%lu extended-vtime=%lu",
+			      it->second->authid().c_str(),
+			      vtime,
+			      it->second->vtime());
+	    }
+	  }
         }
       }
-
-      for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
+      for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it)
+      {
         // remove the expired caps
         capmap.erase(it->first);
       }
-
       capmap.UnLock();
 
-      for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it) {
-        fuse_lowlevel_notify_inval_inode(EosFuse::Instance().Channel(),
-                                         *it, 0, 0);
+      for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it)
+      {
+	// kernelcache::inval_inode(*it);
       }
-
       XrdSysTimer sleeper;
       sleeper.Wait(1000);
     }
@@ -505,18 +582,23 @@ cap::qmap::get(shared_cap cap)
 {
   XrdSysMutexHelper mLock(this);
   uint64_t ino = cap->_quota().quota_inode();
+
   char sqid[128];
-  snprintf(sqid, sizeof(sqid), "%u:%u:%16lx",
+  snprintf(sqid, sizeof (sqid), "%u:%u:%16lx",
            cap->uid(),
            cap->gid(),
            ino);
+
   std::string qid = sqid;
 
   // quota information is shared per uid/gid/quota_inode triple
-  if (this->count(qid)) {
+  if (this->count(qid))
+  {
     shared_quota quota = (*this)[qid];
     return quota;
-  } else {
+  }
+  else
+  {
     shared_quota quota = std::make_shared<quotax>();
     *quota = cap->_quota();
     (*this)[qid] = quota;

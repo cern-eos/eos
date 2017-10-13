@@ -25,6 +25,7 @@
 #ifndef FUSE_EOSFUSE_HH_
 #define FUSE_EOSFUSE_HH_
 
+#include "misc/MacOSXHelper.hh"
 #include "stat/Stat.hh"
 #include "md/md.hh"
 #include "cap/cap.hh"
@@ -33,7 +34,9 @@
 #include "kv/kv.hh"
 #include "llfusexx.hh"
 #include "auth/CredentialFinder.hh"
+#include "misc/Track.hh"
 
+#include <set>
 #include <signal.h>
 #include <string.h>
 #include <string>
@@ -53,105 +56,104 @@ public:
   EosFuse();
   virtual ~EosFuse();
 
-  int run(int argc, char* argv[], void* userdata);
+  int run(int argc, char* argv[], void *userdata);
 
-  static void umounthandler(int sig, siginfo_t* si, void* unused);
+  static void umounthandler(int sig, siginfo_t *si, void *unused);
 
-  static void init(void* userdata, struct fuse_conn_info* conn);
+  static void init(void *userdata, struct fuse_conn_info *conn);
 
-  static void destroy(void* userdata);
+  static void destroy(void *userdata);
 
-  static void getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
+  static void getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi);
 
-  static void setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr,
-                      int to_set, struct fuse_file_info* fi);
+  static void setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
+                      int to_set, struct fuse_file_info *fi);
 
   static void
-  lookup(fuse_req_t req, fuse_ino_t parent, const char* name);
+  lookup(fuse_req_t req, fuse_ino_t parent, const char *name);
 
-  static void opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
+  static void opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi);
 
   static void readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                      struct fuse_file_info* fi);
+                      struct fuse_file_info *fi);
 
-  static void releasedir(fuse_req_t req, fuse_ino_t ino,
-                         struct fuse_file_info* fi);
+  static void releasedir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi);
 
   static void statfs(fuse_req_t req, fuse_ino_t ino);
 
-  static void mknod(fuse_req_t req, fuse_ino_t parent, const char* name,
+  static void mknod(fuse_req_t req, fuse_ino_t parent, const char *name,
                     mode_t mode, dev_t rdev);
 
-  static void mkdir(fuse_req_t req, fuse_ino_t parent, const char* name,
+  static void mkdir(fuse_req_t req, fuse_ino_t parent, const char *name,
                     mode_t mode);
 
-  static void rm(fuse_req_t req, fuse_ino_t parent, const char* name);
+  static void rm(fuse_req_t req, fuse_ino_t parent, const char *name);
 
-  static void unlink(fuse_req_t req, fuse_ino_t parent, const char* name);
+  static void unlink(fuse_req_t req, fuse_ino_t parent, const char *name);
 
-  static void rmdir(fuse_req_t req, fuse_ino_t parent, const char* name);
+  static void rmdir(fuse_req_t req, fuse_ino_t parent, const char *name);
 
 #ifdef _FUSE3
-  static void rename(fuse_req_t req, fuse_ino_t parent, const char* name,
-                     fuse_ino_t newparent, const char* newname, unsigned int flags);
+  static void rename(fuse_req_t req, fuse_ino_t parent, const char *name,
+                     fuse_ino_t newparent, const char *newname, unsigned int flags);
 #else
-  static void rename(fuse_req_t req, fuse_ino_t parent, const char* name,
-                     fuse_ino_t newparent, const char* newname);
+  static void rename(fuse_req_t req, fuse_ino_t parent, const char *name,
+                     fuse_ino_t newparent, const char *newname);
 #endif
 
   static void access(fuse_req_t req, fuse_ino_t ino, int mask);
 
-  static void open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
+  static void open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi);
 
-  static void create(fuse_req_t req, fuse_ino_t parent, const char* name,
-                     mode_t mode, struct fuse_file_info* fi);
+  static void create(fuse_req_t req, fuse_ino_t parent, const char *name,
+                     mode_t mode, struct fuse_file_info *fi);
 
   static void read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                   struct fuse_file_info* fi);
+                   struct fuse_file_info * fi);
 
-  static void write(fuse_req_t req, fuse_ino_t ino, const char* buf,
-                    size_t size, off_t off, struct fuse_file_info* fi);
+  static void write(fuse_req_t req, fuse_ino_t ino, const char *buf,
+                    size_t size, off_t off, struct fuse_file_info * fi);
 
-  static void release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
+  static void release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi);
 
   static void fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
-                    struct fuse_file_info* fi);
+                    struct fuse_file_info * fi);
 
   static void forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup);
 
-  static void flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
+  static void flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi);
 
 #ifdef __APPLE__
-  static void getxattr(fuse_req_t req, fuse_ino_t ino, const char* name,
+  static void getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
                        size_t size, uint32_t position);
 #else
-  static void getxattr(fuse_req_t req, fuse_ino_t ino, const char* name,
+  static void getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
                        size_t size);
 #endif
 
 #ifdef __APPLE__
-  static void setxattr(fuse_req_t req, fuse_ino_t ino, const char* name,
-                       const char* value, size_t size, int flags, uint32_t position);
+  static void setxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
+                       const char *value, size_t size, int flags, uint32_t position);
 #else
-  static void setxattr(fuse_req_t req, fuse_ino_t ino, const char* name,
-                       const char* value, size_t size, int flags);
+  static void setxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
+                       const char *value, size_t size, int flags);
 #endif
 
   static void listxattr(fuse_req_t req, fuse_ino_t ino, size_t size);
 
-  static void removexattr(fuse_req_t req, fuse_ino_t ino, const char* name);
+  static void removexattr(fuse_req_t req, fuse_ino_t ino, const char *name);
 
   static void readlink(fuse_req_t req, fuse_ino_t ino);
 
   static void
-  symlink(fuse_req_t req, const char* link, fuse_ino_t parent, const char* name);
+  symlink(fuse_req_t req, const char *link, fuse_ino_t parent, const char *name);
 
   static void getlk(fuse_req_t req, fuse_ino_t ino,
-                    struct fuse_file_info* fi, struct flock* lock);
+                    struct fuse_file_info *fi, struct flock *lock);
 
   static void setlk(fuse_req_t req, fuse_ino_t ino,
-                    struct fuse_file_info* fi,
-                    struct flock* lock, int sleep) ;
+                    struct fuse_file_info *fi,
+                    struct flock *lock, int sleep) ;
   metad mds;
   data datas;
   cap caps;
@@ -172,7 +174,8 @@ public:
     return fusechan;
   }
 
-  typedef struct cfg {
+  typedef struct cfg
+  {
     std::string name;
     std::string hostport;
     std::string remotemountdir;
@@ -187,7 +190,8 @@ public:
     std::string clienthost;
     std::string clientuuid;
 
-    typedef struct options {
+    typedef struct options
+    {
       int debug;
       int lowleveldebug;
       int debuglevel;
@@ -195,22 +199,31 @@ public:
       int foreground;
       int md_kernelcache;
       double md_kernelcache_enoent_timeout;
+      double md_backend_timeout;
       int data_kernelcache;
       int mkdir_is_sync;
       int create_is_sync;
+      int symlink_is_sync;
       int global_flush;
       int global_locking;
+      int fdlimit;
     } options_t;
     options_t options;
     CredentialConfig auth;
   } cfg_t;
 
-  cfg_t& Config()
+  cfg_t& Config() 
   {
     return config;
   }
 
-  struct fuse_id {
+  Track& Tracker() 
+  {
+    return tracker;
+  }
+
+  struct fuse_id
+  {
     uid_t uid;
     gid_t gid;
     pid_t pid;
@@ -225,20 +238,19 @@ public:
 
   static std::string dump(fuse_id id,
                           fuse_ino_t ino,
-                          struct fuse_file_info* fi,
+                          struct fuse_file_info *fi,
                           int rc,
-                          std::string name = "")
+                          std::string name="")
   {
     char s[1024];
     char ebuf[1024];
-    ebuf[0] = 0;
-
-    if (strerror_r(rc, ebuf, sizeof(ebuf))) {
-      snprintf(ebuf, sizeof(ebuf), "???");
+    ebuf[0]=0;
+    if (strerror_r(rc, ebuf, sizeof (ebuf)))
+    {
+      snprintf(ebuf, sizeof (ebuf), "???");
     }
 
-    snprintf(s, 1024,
-             "rc=%02d uid=%05d gid=%05d pid=%05d ino=%016lx fh=%08lx name=%s",
+    snprintf(s, 1024, "rc=%02d uid=%05d gid=%05d pid=%05d ino=%016lx fh=%08lx name=%s",
              rc,
              id.uid,
              id.gid,
@@ -249,11 +261,19 @@ public:
     return s;
   }
 
-  typedef struct opendir_fh {
+  typedef struct opendir_fh
+  {
     metad::shared_md md;
+    std::set<std::string> readdir_items;
+    XrdSysMutex items_lock;
   } opendir_t ;
 
+  
+protected:
+
 private:
+
+  Track tracker;
 
   cfg_t config;
 

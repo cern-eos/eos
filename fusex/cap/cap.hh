@@ -187,14 +187,24 @@ public:
                  bool lock = false);
 
   shared_cap get(fuse_ino_t ino,
+<<<<<<< HEAD
                  std::string clientid
                 );
+=======
+		 std::string clientid
+		 );
+>>>>>>> beryl_aquamarine
 
   shared_cap acquire(fuse_req_t req,
                      fuse_ino_t ino,
                      mode_t mode,
+<<<<<<< HEAD
                      bool lock = false
                     );
+=======
+		     bool lock=false
+                     );
+>>>>>>> beryl_aquamarine
 
   void book_inode(shared_cap cap)
   {
@@ -242,15 +252,19 @@ public:
     return quotamap.get(cap);
   }
 
+<<<<<<< HEAD
   std::string imply(shared_cap cap, std::string imply_authid, mode_t mode,
                     fuse_ino_t inode);
+=======
+  std::string imply(shared_cap cap, std::string imply_authid, mode_t mode, fuse_ino_t inode);
+>>>>>>> beryl_aquamarine
 
   fuse_ino_t forget(const std::string& capid);
 
   void store(fuse_req_t req,
              eos::fusex::cap cap);
 
-  void refresh(fuse_req_t req, shared_cap cap);
+  int refresh(fuse_req_t req, shared_cap cap);
 
   void init(backend* _mdbackend, metad* _metad);
 

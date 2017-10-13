@@ -62,27 +62,23 @@ public:
 
     // local operations
 
-    enum md_op {
+    enum md_op
+    {
       ADD, MV, UPDATE, RM, SETSIZE, LSTORE, NONE
     } ;
 
     mdx() : mSync(0)
     {
       setop_add();
-      lookup_cnt = 0;
+      lookup_cnt.store(0, std::memory_order_seq_cst);
       lock_remote = true;
       cap_count_reset();
       refresh = false;
     }
 
-    mdx(fuse_ino_t ino) : mSync(0)
+    mdx(fuse_ino_t ino) : mdx()
     {
       set_id(ino);
-      setop_add();
-      lookup_cnt = 0;
-      lock_remote = true;
-      cap_count_reset();
-      refresh = false;
     }
 
     mdx& operator=(eos::fusex::md other)
@@ -100,9 +96,9 @@ public:
       return mLock;
     }
 
-    void convert(fuse_entry_param& e);
+    void convert(fuse_entry_param &e);
     std::string dump();
-    static std::string dump(struct fuse_entry_param& e);
+    static std::string dump(struct fuse_entry_param &e);
 
     void setop_delete()
     {
@@ -136,18 +132,18 @@ public:
 
     void lookup_inc()
     {
-      // requires to have Locker outside
-      eos_static_info("ino=%16x lookup=%d => lookup=%d", id(), lookup_cnt,
-                      lookup_cnt + 1);
-      lookup_cnt++;
+      // atomic operation, no need to lock before calling
+      int prevLookup = lookup_cnt.fetch_add(1, std::memory_order_seq_cst);
+      eos_static_info("ino=%16x lookup=%d => lookup=%d", id(), prevLookup, prevLookup+1);
     }
 
     bool lookup_dec(int n)
     {
-      // requires to have Lock outside
-      lookup_cnt -= n;
+      // atomic operation, no need to lock before calling
+      int prevLookup = lookup_cnt.fetch_sub(n, std::memory_order_seq_cst);
 
-      if (lookup_cnt > 0) {
+      if(prevLookup - n > 0)
+      {
         return false;
       }
 
@@ -156,7 +152,7 @@ public:
 
     int lookup_is()
     {
-      return lookup_cnt;
+      return lookup_cnt.load();
     }
 
     md_op getop() const
@@ -186,27 +182,27 @@ public:
 
     void cap_inc()
     {
-      // requires to have Lock outside
-      cap_cnt++;
+      // atomic operation, no need to lock before calling
+      cap_cnt.fetch_add(1, std::memory_order_seq_cst);
     }
 
     void cap_dec()
     {
-      // requires to have Lock outside
-      cap_cnt--;
+      // atomic operation, no need to lock before calling
+      cap_cnt.fetch_sub(1, std::memory_order_seq_cst);
     }
 
     void cap_count_reset()
     {
-      cap_cnt = 0;
+      cap_cnt.store(0, std::memory_order_seq_cst);
     }
 
     int cap_count()
     {
-      return cap_cnt;
+      return cap_cnt.load();
     }
 
-    std::vector<struct flock>& LockTable()
+    std::vector<struct flock> &LockTable()
     {
       return locktable;
     }
@@ -224,7 +220,7 @@ public:
     std::string Cookie()
     {
       char s[256];
-      snprintf(s, sizeof(s), "%lx:%lu.%lu:%lu", (unsigned long) id(),
+      snprintf(s, sizeof (s), "%lx:%lu.%lu:%lu", (unsigned long) id(),
                (unsigned long) mtime(),
                (unsigned long) mtime_ns(),
                (unsigned long) size());
@@ -236,16 +232,22 @@ public:
       return todelete;
     }
 
+    std::map<std::string, uint64_t>& get_childrentomap()
+    {
+      return childrentomap;
+    }
+
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
     md_op op;
-    int lookup_cnt;
-    int cap_cnt;
+    std::atomic<int> lookup_cnt;
+    std::atomic<int> cap_cnt;
     bool lock_remote;
     bool refresh;
     std::vector<struct flock> locktable;
     std::set<std::string> todelete;
+    std::map<std::string, uint64_t> childrentomap;
   } ;
 
   typedef std::shared_ptr<mdx> shared_md;
@@ -270,30 +272,34 @@ public:
 
     void init()
     {
-      mNextInode = 1;
-
+      mNextInode=1;
       // load the stored next indoe
-      if (kv::Instance().get(cInodeKey, mNextInode)) {
+      if (kv::Instance().get(cInodeKey, mNextInode))
+      {
         // otherwise store it for the first time
         inc();
       }
-
       eos_static_info("next-inode=%08lx", mNextInode);
     }
 
     uint64_t inc()
     {
       XrdSysMutexHelper mLock(this);
-
-      if (0) {
+      if (0)
+      {
         //sync - works for eosxd shared REDIS backend
-        if (!kv::Instance().inc(cInodeKey, mNextInode)) {
+        if (!kv::Instance().inc(cInodeKey, mNextInode))
+        {
           return mNextInode;
-        } else {
+        }
+        else
+        {
           // throw an exception
           throw std::runtime_error("REDIS backend failure - nextinode");
         }
-      } else {
+      }
+      else
+      {
         //async - works for eosxd exclusive REDIS backend
         uint64_t s_inode = mNextInode + 1;
         kv::Instance().put(cInodeKey, s_inode);
@@ -331,10 +337,8 @@ public:
     fuse_ino_t backward(fuse_ino_t lookup);
 
   private:
-    std::map<fuse_ino_t, fuse_ino_t>
-    fwd_map; // forward map points from remote to local inode
-    std::map<fuse_ino_t, fuse_ino_t>
-    bwd_map; // backward map points from local remote inode
+    std::map<fuse_ino_t, fuse_ino_t> fwd_map; // forward map points from remote to local inode
+    std::map<fuse_ino_t, fuse_ino_t> bwd_map; // backward map points from local remote inode
 
     XrdSysMutex mMutex;
   } ;
@@ -352,18 +356,33 @@ public:
     {
     }
 
+    void retrieveOrCreateTS(fuse_ino_t ino, shared_md &ret)
+    {
+      XrdSysMutexHelper mLock(this);
+
+      if(this->retrieve(ino, ret))
+      {
+        return;
+      }
+
+      ret = std::make_shared<mdx>();
+      if (ino) {
+        (*this)[ino] = ret;
+      }
+    }
+
     // TS stands for "thread-safe"
-    bool retrieveTS(fuse_ino_t ino, shared_md& ret)
+    bool retrieveTS(fuse_ino_t ino, shared_md &ret)
     {
       XrdSysMutexHelper mLock(this);
       return this->retrieve(ino, ret);
     }
 
-    bool retrieve(fuse_ino_t ino, shared_md& ret)
+    bool retrieve(fuse_ino_t ino, shared_md &ret)
     {
       auto it = this->find(ino);
 
-      if (it == this->end()) {
+      if(it == this->end()) {
         return false;
       }
 
@@ -372,15 +391,13 @@ public:
     }
 
     // TS stands for "thread-safe"
-    void insertTS(fuse_ino_t ino, shared_md& md)
-    {
+    void insertTS(fuse_ino_t ino, shared_md &md) {
       XrdSysMutexHelper mLock(this);
       (*this)[ino] = md;
     }
 
     // TS stands for "thread-safe"
-    void eraseTS(fuse_ino_t ino)
-    {
+    void eraseTS(fuse_ino_t ino) {
       XrdSysMutexHelper mLock(this);
       this->erase(ino);
     }
@@ -410,11 +427,11 @@ public:
   shared_md get(fuse_req_t req,
                 fuse_ino_t ino,
                 const std::string authid = "",
-                bool listing = false,
+                bool listing=false,
                 shared_md pmd = 0 ,
                 const char* name = 0,
-                bool readdir = false
-               );
+                bool readdir=false
+                );
 
   uint64_t insert(fuse_req_t req,
                   shared_md md,
@@ -426,22 +443,20 @@ public:
   void update(fuse_req_t req,
               shared_md md,
               std::string authid,
-              bool localstore = false);
+              bool localstore=false);
 
-  void add(shared_md pmd, shared_md md, std::string authid,
-           bool localstore = false);
+  void add(shared_md pmd, shared_md md, std::string authid, bool localstore=false);
   int add_sync(shared_md pmd, shared_md md, std::string authid);
   int begin_flush(shared_md md, std::string authid);
   int end_flush(shared_md md, std::string authid);
 
-  void remove(shared_md pmd, shared_md md, std::string authid,
-              bool upstream = true);
+  void remove(shared_md pmd, shared_md md, std::string authid, bool upstream=true);
   void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
           std::string authid1, std::string authid2);
 
-  std::string dump_md(shared_md md);
+  std::string dump_md(shared_md md, bool lock=true);
   std::string dump_md(eos::fusex::md& md);
-  std::string dump_container(eos::fusex::container& cont);
+  std::string dump_container(eos::fusex::container & cont);
 
   uint64_t apply(fuse_req_t req, eos::fusex::container& cont, bool listing);
 
@@ -464,8 +479,7 @@ public:
 
   void mdcommunicate(); // thread interacting with the MGM for meta data
 
-  int connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname,
-              std::string zmqclienthost, std::string zmqclientuuid);
+  int connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname, std::string zmqclienthost, std::string zmqclientuuid);
 
   class mdstat
   {
@@ -572,8 +586,8 @@ public:
   reset_cap_count(uint64_t ino)
   {
     shared_md md;
-
-    if (!mdmap.retrieveTS(ino, md)) {
+    if(!mdmap.retrieveTS(ino, md))
+    {
       eos_static_err("no cap counter change for ino=%lx", ino);
       return;
     }
@@ -587,37 +601,31 @@ public:
   decrease_cap(uint64_t ino)
   {
     shared_md md;
-
-    if (!mdmap.retrieveTS(ino, md)) {
-      eos_static_err("no cap counter change for ino=%lx", ino);
+    if(!mdmap.retrieveTS(ino, md))
+    {
+      eos_static_info("no cap counter change for ino=%lx", ino);
       return;
     }
 
-    XrdSysMutexHelper iLock(md->Locker());
     md->cap_dec();
-    eos_static_err("decrease cap counter for ino=%lx", ino);
+    eos_static_debug("decrease cap counter for ino=%lx", ino);
   }
 
   void
-  increase_cap(uint64_t ino, bool lock = false)
+  increase_cap(uint64_t ino, bool lock=false)
   {
     shared_md md;
-
-    if (!mdmap.retrieveTS(ino, md)) {
+    if(!mdmap.retrieveTS(ino, md))
+    {
       eos_static_err("no cap counter change for ino=%lx", ino);
       return;
     }
 
-    if (lock) {
+    if (lock)
       md->Locker().Lock();
-    }
-
     md->cap_inc();
-
-    if (lock) {
+    if (lock)
       md->Locker().UnLock();
-    }
-
     eos_static_err("increase cap counter for ino=%lx", ino);
   }
 
@@ -630,8 +638,7 @@ public:
   {
   public:
 
-    flushentry(const uint64_t id, const std::string& aid, mdx::md_op o) : _id(id),
-      _authid(aid), _op(o)
+    flushentry(const uint64_t id, const std::string& aid, mdx::md_op o) : _id(id), _authid(aid), _op(o)
     {
     };
 
@@ -663,8 +670,7 @@ public:
     {
       std::string out;
       char line[1024];
-      snprintf(line, sizeof(line), "authid=%s op=%d id=%lu", e.authid().c_str(),
-               (int) e.op(), e.id());
+      snprintf(line, sizeof (line), "authid=%s op=%d id=%lu", e.authid().c_str(), (int) e.op(), e.id());
       out += line;
       return out;
     }

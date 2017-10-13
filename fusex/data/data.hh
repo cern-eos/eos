@@ -114,7 +114,8 @@ public:
                     const std::string& basename,
                     const uint64_t md_ino,
                     const uint64_t md_pino,
-                    fuse_req_t req);
+                    fuse_req_t req, 
+		    bool isRW);
 
     // IO bridge interface
     ssize_t pread(fuse_req_t req, void* buf, size_t count, off_t offset);
@@ -164,7 +165,8 @@ public:
     fuse_req_t mReq;
     cache::shared_io mFile;
     off_t mSize;
-    std::string mRemoteUrl;
+    std::string mRemoteUrlRW;
+    std::string mRemoteUrlRO;
     std::string mBaseName;
     uint64_t mRemoteInode;
     uint64_t mRemoteParentInode;

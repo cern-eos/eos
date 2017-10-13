@@ -31,12 +31,13 @@
 dircleaner::dircleaner(const std::string _path,
                        int64_t _maxsize,
                        int64_t _maxfiles) : path(_path),
-  max_files(_maxfiles),
-  max_size(_maxsize)
+max_files(_maxfiles),
+max_size(_maxsize)
 
-  /* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 {
-  if (max_files | max_size) {
+  if (max_files | max_size)
+  {
     tLeveler = std::thread(&dircleaner::leveler, this);
   }
 }
@@ -45,7 +46,8 @@ dircleaner::dircleaner(const std::string _path,
 dircleaner::~dircleaner()
 /* -------------------------------------------------------------------------- */
 {
-  if (max_files | max_size) {
+  if (max_files | max_size)
+  {
     // C++11 is poor for threading
     pthread_cancel(tLeveler.native_handle());
     tLeveler.join();
@@ -55,11 +57,11 @@ dircleaner::~dircleaner()
 /* -------------------------------------------------------------------------- */
 bool
 /* -------------------------------------------------------------------------- */
-dircleaner::has_suffix(const std::string& str, const std::string& suffix)
+dircleaner::has_suffix(const std::string& str, const std::string &suffix)
 /* -------------------------------------------------------------------------- */
 {
   return str.size() >= suffix.size() &&
-         str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+          str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -68,22 +70,27 @@ int
 dircleaner::cleanall(std::string filtersuffix)
 /* -------------------------------------------------------------------------- */
 {
-  if (!scanall()) {
+  std::lock_guard<std::recursive_mutex> mLock(cleaningMutex);
+
+  if (!scanall())
+  {
     std::string tout;
     treeinfo.Print(tout);
     eos_static_info("purging %s", tout.c_str());
-
-    for (auto it = treeinfo.treemap.begin(); it != treeinfo.treemap.end(); ++it) {
-      if (filtersuffix.length() && has_suffix(it->second.path, filtersuffix)) {
+    for (auto it = treeinfo.treemap.begin(); it != treeinfo.treemap.end(); ++it)
+    {
+      if (filtersuffix.length() && has_suffix(it->second.path, filtersuffix))
+      {
         continue;
       }
 
-      if (unlink(it->second.path.c_str()) && errno != ENOENT) {
+      if (unlink(it->second.path.c_str()) && errno != ENOENT)
+      {
+
         eos_static_err("unlink: path=%s errno=%d", it->second.path.c_str(), errno);
       }
     }
   }
-
   return 0;
 }
 
@@ -93,8 +100,9 @@ void
 dircleaner::tree_info::Print(std::string& out)
 /* -------------------------------------------------------------------------- */
 {
+
   char line[1024];
-  snprintf(line, sizeof(line), "path=%s n-files=%lu tree-size=%lu",
+  snprintf(line, sizeof (line), "path=%s n-files=%lu tree-size=%lu",
            path.c_str(),
            totalfiles,
            totalsize);
@@ -108,40 +116,51 @@ dircleaner::scanall()
 /* -------------------------------------------------------------------------- */
 {
   int retc = 0;
-  char* paths[2];
+  char *paths[2];
   paths[0] = (char*) path.c_str();
   paths[1] = 0;
-  FTS* tree = fts_open(paths, FTS_NOCHDIR, 0);
 
-  if (!tree) {
+  FTS *tree = fts_open(paths, FTS_NOCHDIR, 0);
+  if (!tree)
+  {
     return -1; // see errno
   }
+  FTSENT *node;
 
-  FTSENT* node;
   treeinfo.path = path;
   treeinfo.totalfiles = 0;
   treeinfo.totalsize = 0;
   treeinfo.treemap.clear();
   externaltreeinfo.reset();
 
-  while ((node = fts_read(tree))) {
+  while ((node = fts_read(tree)))
+  {
     // skip any hidden file, we might want that
-    if (node->fts_level > 0 && node->fts_name[0] == '.') {
+    if (node->fts_level > 0 && node->fts_name[0] == '.')
+    {
       fts_set(tree, node, FTS_SKIP);
-    } else {
-      if (node->fts_info == FTS_F) {
+    }
+    else
+    {
+      if (node->fts_info == FTS_F)
+      {
         std::string filepath = node->fts_accpath;
         struct stat buf;
-
-        if (::stat(filepath.c_str(), &buf)) {
-          if (errno == ENOENT) {
+        if (::stat(filepath.c_str(), &buf))
+        {
+          if ( errno == ENOENT)
+          {
             // this can happen when something get's cleaned during scanning
             eos_static_info("stat: path=%s errno=%d", filepath.c_str(), errno);
-          } else {
+          }
+          else
+          {
             eos_static_err("stat: path=%s errno=%d", filepath.c_str(), errno);
             retc = -1;
           }
-        } else {
+        }
+        else
+        {
           treeinfo.totalfiles++;
           treeinfo.totalsize += buf.st_size;
           file_info_t finfo;
@@ -157,11 +176,11 @@ dircleaner::scanall()
     }
   }
 
-  if (fts_close(tree)) {
+  if (fts_close(tree))
+  {
     eos_static_err("fts_close: errno=%d", errno);
     return -1;
   }
-
   return retc;
 }
 
@@ -170,65 +189,70 @@ int
 /* -------------------------------------------------------------------------- */
 dircleaner::trim(bool force)
 {
-  if (!force) {
+  if (!force)
+  {
     // avoid full scans
     tree_info_t& externaltree = get_external_tree();
     bool size_ok = true;
     bool files_ok = true;
+
     // an external cache can give change hints via the externaltree
     int64_t tree_size = treeinfo.totalsize + externaltree.get_size();
     int64_t tree_files = treeinfo.totalfiles + externaltree.get_files();
+
     eos_static_info("max-size=%ld is-size=%ld max-files=%llu is-files=%ld force=%d",
                     max_size, tree_size,
                     max_files, tree_files,
                     force);
 
-    if (max_size && (tree_size > max_size)) {
+    if (max_size && (tree_size > max_size))
+    {
       size_ok = false;
     }
 
-    if (max_files && (tree_files > max_files)) {
+    if (max_files && (tree_files > max_files))
+    {
       files_ok = false;
     }
 
     // nothing to do
-    if (size_ok && files_ok) {
+    if (size_ok && files_ok)
       return 0;
-    }
   }
 
   scanall();
 
-  for (auto it = treeinfo.treemap.begin(); it != treeinfo.treemap.end(); ++it) {
+  for (auto it = treeinfo.treemap.begin(); it != treeinfo.treemap.end(); ++it)
+  {
     eos_static_debug("is-size %llu max-size %llu", treeinfo.totalsize, max_size);
     bool size_ok = true;
     bool files_ok = true;
 
-    if (max_size && (treeinfo.totalsize > max_size)) {
+    if (max_size && (treeinfo.totalsize > max_size))
+    {
       size_ok = false;
     }
 
-    if (max_files && (treeinfo.totalfiles > max_files)) {
+    if (max_files && (treeinfo.totalfiles > max_files))
+    {
       files_ok = false;
     }
 
     // nothing to do
-    if (size_ok && files_ok) {
+    if (size_ok && files_ok)
       return 0;
+
+    eos_static_info("erasing %s %lu => %lu", it->second.path.c_str(), treeinfo.totalsize, it->second.size);
+    if (::unlink(it->second.path.c_str()))
+    {
+      eos_static_err("failed to unlink file %s errno=%d", it->second.path.c_str(), errno);
     }
-
-    eos_static_info("erasing %s %lu => %lu", it->second.path.c_str(),
-                    treeinfo.totalsize, it->second.size);
-
-    if (::unlink(it->second.path.c_str())) {
-      eos_static_err("failed to unlink file %s errno=%d", it->second.path.c_str(),
-                     errno);
-    } else {
+    else
+    {
       treeinfo.totalfiles--;
-      treeinfo.totalsize -= it->second.size;
+      treeinfo.totalsize-=it->second.size;
     }
   }
-
   return 0;
 }
 /* -------------------------------------------------------------------------- */
@@ -239,12 +263,14 @@ void
 dircleaner::leveler()
 /* -------------------------------------------------------------------------- */
 {
-  size_t n = 0;
-
-  while (1) {
+  size_t n=0;
+  while (1)
+  {
     XrdSysTimer sleeper;
     sleeper.Snooze(15);
+    std::lock_guard<std::recursive_mutex> mLock(cleaningMutex);
     trim(!n % (1 * 60 * 4)); // forced trim every hour
     n++;
   }
+
 }
