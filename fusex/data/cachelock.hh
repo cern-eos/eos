@@ -44,7 +44,7 @@ class cachelock
 {
 public:
 
-  cachelock() : readers(0), sync(false)
+  cachelock() : readers(0)
   {
     int rc = 0;
     rc = pthread_cond_init(&cvar, NULL);
@@ -170,8 +170,6 @@ private:
   }
 
   size_t readers;
-  bool   sync;
-
   pthread_cond_t  cvar;
   pthread_cond_t  rwvar;
   pthread_mutex_t mtx;

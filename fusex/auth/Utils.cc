@@ -43,7 +43,7 @@ bool readFile(const std::string& path, std::string& contents)
       ss.write(buffer, bytesRead);
     }
 
-    if (bytesRead < 0) {
+    if (bytesRead == 0) {
       retvalue = false;
       break;
     }

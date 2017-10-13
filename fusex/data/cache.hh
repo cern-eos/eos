@@ -39,17 +39,9 @@ class cache
 {
 public:
 
-  cache() : ino(0)
-  {
-  }
+  cache() = default;
 
-  cache(fuse_ino_t _ino) : ino(_ino)
-  {
-  }
-
-  virtual ~cache()
-  {
-  }
+  virtual ~cache() = default;
 
   // base class interface
   virtual int attach(fuse_req_t req, std::string& cookie, int flags) = 0;
@@ -239,10 +231,6 @@ public:
   {
     return 0;
   }
-
-private:
-
-  fuse_ino_t ino;
 } ;
 
 class cachehandler : public std::map<fuse_ino_t, cache::shared_io>,

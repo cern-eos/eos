@@ -1932,7 +1932,7 @@ metad::mdcommunicate()
 
         if (items[0].revents & ZMQ_POLLIN)
         {
-          int rc;
+          int rc = 0;
           int64_t more;
           size_t more_size = sizeof (more);
           zmq_msg_t message;
@@ -1941,9 +1941,9 @@ metad::mdcommunicate()
           do
           {
             //eos_static_debug("0MQ receive");
-            int size = zmq_msg_recv (&message, static_cast<void*> (*z_socket), 0);
+            (void) zmq_msg_recv (&message, static_cast<void*> (*z_socket), 0);
             //int size = z_socket.recv (&message, 0);
-            size=size;
+            // size=size;
             //eos_static_debug("0MQ size=%d", size);
             zmq_getsockopt (static_cast<void*> (*z_socket), ZMQ_RCVMORE, &more, &more_size);
           }
@@ -2179,7 +2179,7 @@ metad::mdcommunicate()
           {
             eos_static_err("unable to parse message");
           }
-          rc = rc;
+
           zmq_msg_close(&message);
         }
       }

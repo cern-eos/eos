@@ -35,7 +35,7 @@ ProcessSnapshot ProcessCache::useCredentialsOfAnotherPID(
   }
 
   ProcessCacheEntry* entry = new ProcessCacheEntry(processInfo,
-      *boundIdentity.get(), uid, gid);
+                                                   *boundIdentity.get());
   cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid), entry);
   return cache.retrieve(ProcessCacheKey(processInfo.getPid(), uid, gid));
 }
@@ -120,8 +120,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
 
   // No credentials found .. fallback to nobody?
   if (credConfig.fallback2nobody) {
-    return ProcessSnapshot(new ProcessCacheEntry(processInfo, BoundIdentity(), uid,
-                           gid));
+    return ProcessSnapshot(new ProcessCacheEntry(processInfo, BoundIdentity()));
   }
 
   return {};

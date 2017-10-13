@@ -163,7 +163,7 @@ cachehandler::get(fuse_ino_t ino)
     entry = std::make_shared<cache::io>(ino);
 
     if (instance().inmemory()) {
-      entry->set_file(new memorycache(ino));
+      entry->set_file(new memorycache());
     } else {
       entry->set_file(new diskcache(ino));
     }
@@ -193,5 +193,3 @@ cachehandler::rm(fuse_ino_t ino)
 
   return 0;
 }
-
-

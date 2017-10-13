@@ -54,21 +54,16 @@ public:
   {
   public:
 
-    datax() : mIno(0), mReq(0), mFile(0), mSize(0), mRemoteInode(0),
-      mRemoteParentInode(0), mAttached(0), mMd(0), mPrefetchHandler(0),
+    datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0),
+              mPrefetchHandler(0),
       mWaitForOpen(false), mFlags(0)
-    {
-    }
+    {}
 
     datax(metad::shared_md md) : mIno(0), mReq(0), mFile(0), mSize(0),
-      mRemoteInode(0), mRemoteParentInode(0), mAttached(0), mMd(md),
-      mPrefetchHandler(0), mWaitForOpen(false), mFlags(0)
-    {
-    }
+      mAttached(0), mMd(md), mPrefetchHandler(0), mWaitForOpen(false), mFlags(0)
+    {}
 
-    virtual ~datax()
-    {
-    }
+    virtual ~datax() = default;
 
     XrdSysMutex& Locker()
     {
@@ -168,8 +163,6 @@ public:
     std::string mRemoteUrlRW;
     std::string mRemoteUrlRO;
     std::string mBaseName;
-    uint64_t mRemoteInode;
-    uint64_t mRemoteParentInode;
     size_t mAttached;
     metad::shared_md mMd;
     XrdCl::Proxy::read_handler mPrefetchHandler;
