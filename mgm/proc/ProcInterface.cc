@@ -40,8 +40,8 @@ eos::common::ThreadPool ProcInterface::sProcThreads;
 //------------------------------------------------------------------------------
 std::unique_ptr<IProcCommand>
 ProcInterface::GetProcCommand(const char* tident,
-                              eos::common::Mapping::VirtualIdentity& vid,
-                              const char* path, const char* opaque)
+			      eos::common::Mapping::VirtualIdentity& vid,
+			      const char* path, const char* opaque)
 {
   // Check if this is an already submmited command
   std::unique_ptr<IProcCommand> pcmd = GetSubmittedCmd(tident);
@@ -91,7 +91,7 @@ ProcInterface::GetSubmittedCmd(const char* tident)
 //------------------------------------------------------------------------------
 bool
 ProcInterface::SaveSubmittedCmd(const char* tident,
-                                std::unique_ptr<IProcCommand>&& pcmd)
+				std::unique_ptr<IProcCommand>&& pcmd)
 {
   std::lock_guard<std::mutex> lock(mMutexCmds);
 
@@ -139,7 +139,7 @@ ProcInterface::DropSubmittedCmd(const char* tident)
 //----------------------------------------------------------------------------
 std::unique_ptr<IProcCommand>
 ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
-                                     eos::common::Mapping::VirtualIdentity& vid)
+				     eos::common::Mapping::VirtualIdentity& vid)
 {
   using eos::console::RequestProto_OpType;
   std::unique_ptr<IProcCommand> cmd;
@@ -158,7 +158,7 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
 
   if (!req.ParseFromString(raw_pb)) {
     oss << "error: failed to deserialize ProtocolBuffer object: "
-        << raw_pb;
+	<< raw_pb;
     eos_static_err("%s", oss.str().c_str());
     return cmd;
   }
@@ -201,26 +201,32 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
   }
 
   XrdOucEnv procEnv(ininfo.c_str());
+
+  // @todo (esindril): review this and do it in a smart way
+  if (procEnv.Get("mgm.cmd.proc")) {
+    return false;
+  }
+
   XrdOucString cmd = procEnv.Get("mgm.cmd");
   XrdOucString subcmd = procEnv.Get("mgm.subcmd");
 
   // Filter here all namespace modifying proc messages
   if (((cmd == "file") &&
        ((subcmd == "adjustreplica") ||
-        (subcmd == "drop") ||
-        (subcmd == "layout") ||
-        (subcmd == "verify") ||
-        (subcmd == "version") ||
-        (subcmd == "versions") ||
-        (subcmd == "rename"))) ||
+	(subcmd == "drop") ||
+	(subcmd == "layout") ||
+	(subcmd == "verify") ||
+	(subcmd == "version") ||
+	(subcmd == "versions") ||
+	(subcmd == "rename"))) ||
       ((cmd == "attr") &&
        ((subcmd == "set") ||
-        (subcmd == "rm"))) ||
+	(subcmd == "rm"))) ||
       ((cmd == "archive") &&
        ((subcmd == "create") ||
-        (subcmd == "get")  ||
-        (subcmd == "purge")  ||
-        (subcmd == "delete"))) ||
+	(subcmd == "get")  ||
+	(subcmd == "purge")  ||
+	(subcmd == "delete"))) ||
       ((cmd == "backup")) ||
       ((cmd == "mkdir")) ||
       ((cmd == "rmdir")) ||
@@ -229,29 +235,29 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
       ((cmd == "chmod")) ||
       ((cmd == "fs") &&
        ((subcmd == "config") ||
-        (subcmd == "boot") ||
-        (subcmd == "dropdeletion") ||
-        (subcmd == "add") ||
-        (subcmd == "mv") ||
-        (subcmd == "rm"))) ||
+	(subcmd == "boot") ||
+	(subcmd == "dropdeletion") ||
+	(subcmd == "add") ||
+	(subcmd == "mv") ||
+	(subcmd == "rm"))) ||
       ((cmd == "space") &&
        ((subcmd == "config") ||
-        (subcmd == "define") ||
-        (subcmd == "set") ||
-        (subcmd == "rm") ||
-        (subcmd == "quota"))) ||
+	(subcmd == "define") ||
+	(subcmd == "set") ||
+	(subcmd == "rm") ||
+	(subcmd == "quota"))) ||
       ((cmd == "node") &&
        ((subcmd == "rm") ||
-        (subcmd == "config") ||
-        (subcmd == "set") ||
-        (subcmd == "register") ||
-        (subcmd == "gw"))) ||
+	(subcmd == "config") ||
+	(subcmd == "set") ||
+	(subcmd == "register") ||
+	(subcmd == "gw"))) ||
       ((cmd == "group") &&
        ((subcmd == "set") ||
-        (subcmd == "rm"))) ||
+	(subcmd == "rm"))) ||
       ((cmd == "map") &&
        ((subcmd == "link") ||
-        (subcmd == "unlink"))) ||
+	(subcmd == "unlink"))) ||
       ((cmd == "quota") &&
        ((subcmd != "ls"))) ||
       ((cmd == "vid") &&
@@ -271,8 +277,8 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
 //------------------------------------------------------------------------------
 bool
 ProcInterface::Authorize(const char* path, const char* info,
-                         eos::common::Mapping::VirtualIdentity& vid,
-                         const XrdSecEntity* entity)
+			 eos::common::Mapping::VirtualIdentity& vid,
+			 const XrdSecEntity* entity)
 {
   XrdOucString inpath = path;
 
@@ -283,7 +289,7 @@ ProcInterface::Authorize(const char* path, const char* info,
 
     // We allow sss only with the daemon login is admin
     if ((protocol == "sss") &&
-        (eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list))) {
+	(eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list))) {
       return true;
     }
 
@@ -294,8 +300,8 @@ ProcInterface::Authorize(const char* path, const char* info,
 
     // One has to be part of the virtual users 2(daemon)/3(adm)/4(adm)
     return ((eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list)) ||
-            (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
-            (eos::common::Mapping::HasGid(4, vid.gid_list)));
+	    (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
+	    (eos::common::Mapping::HasGid(4, vid.gid_list)));
   }
 
   // User access
