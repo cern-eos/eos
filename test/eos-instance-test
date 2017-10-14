@@ -1169,8 +1169,8 @@ runtest "### Attr      " unix 0 "" eos attr set default=raiddp "/eos/dev/test/fs
 
 TMP_FILE_32MB=mktemp
 dd if=/dev/zero count=32 bs=1M | tr '\000' '\001' > $TMP_FILE_32MB
-xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/plain/
-xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/raiddp/
+xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/plain/file32MB.dat
+xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/raiddp/file32MB.dat
 
 runtest "### Fst      " unix 0 "" eos-fst-test
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/dev/test/fst"

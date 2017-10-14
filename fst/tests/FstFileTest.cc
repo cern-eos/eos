@@ -139,6 +139,7 @@ ReadVTest()
     if (!status.IsOK() || (nread != chunk->length)) {
       std::cerr << "Error while reading at off:" << chunk->offset
                 << " len:" << chunk->length << std::endl;
+      std::terminate();
       break;
     }
   }
