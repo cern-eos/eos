@@ -23,6 +23,7 @@
 #include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
@@ -943,7 +944,7 @@ ConvertFsView::commitToBackend()
     for (int n = 0; n < max_elem; ++n) {
       ++count;
       // Add file to corresponding fs file set
-      key = fsview::sPrefix + val + fsview::sFilesSuffix;
+      key = eos::keyFilesystemFiles(std::stoi(it->first));
       fs_set.setKey(key);
 
       if (it->second.first.size()) {
@@ -974,7 +975,7 @@ ConvertFsView::commitToBackend()
         }
       }
 
-      key = fsview::sPrefix + val + fsview::sUnlinkedSuffix;
+      key = eos::keyFilesystemUnlinked(std::stoi(it->first));
       fs_set.setKey(key);
 
       if (it->second.second.size()) {

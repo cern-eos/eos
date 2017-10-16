@@ -45,6 +45,7 @@ TEST(FileMDSvc, LoadTest)
   std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
     {"qdb_port", "7778"}
   };
+  eos::MetadataFlusher *flusher = eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"], std::stoi(config["qdb_port"]));
   fileSvc->configure(config);
   ASSERT_NO_THROW(fileSvc->initialize());
   std::shared_ptr<eos::IFileMD> file1 = fileSvc->createFile();
@@ -72,10 +73,12 @@ TEST(FileMDSvc, LoadTest)
   fileSvc->updateStore(file3.get());
   fileSvc->updateStore(file4.get());
   fileSvc->updateStore(file5.get());
-  ASSERT_TRUE(fileSvc->getNumFiles() == 5);
+  flusher->synchronize();
+  ASSERT_EQ(fileSvc->getNumFiles(), 5);
   fileSvc->removeFile(file2.get());
   fileSvc->removeFile(file4.get());
-  ASSERT_TRUE(fileSvc->getNumFiles() == 3);
+  flusher->synchronize();
+  ASSERT_EQ(fileSvc->getNumFiles(), 3);
   fileSvc->finalize();
   ASSERT_NO_THROW(fileSvc->initialize());
   std::shared_ptr<eos::IFileMD> fileRec1 = fileSvc->getFileMD(id1);
@@ -92,7 +95,8 @@ TEST(FileMDSvc, LoadTest)
   ASSERT_NO_THROW(fileSvc->removeFile(fileRec1.get()));
   ASSERT_NO_THROW(fileSvc->removeFile(fileRec3.get()));
   ASSERT_NO_THROW(fileSvc->removeFile(fileRec5.get()));
-  ASSERT_TRUE(fileSvc->getNumFiles() == 0);
+  flusher->synchronize();
+  ASSERT_EQ(fileSvc->getNumFiles(), 0);
   fileSvc->finalize();
 }
 
@@ -130,6 +134,18 @@ TEST(FileMDSvc, CheckFileTest)
     file->addLocation(i);
   }
 
+  // There should be 4 filesystems now
+  eos::MetadataFlusher *flusher = eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"], std::stoi(config["qdb_port"]));
+  flusher->synchronize();
+
+  auto it = fsView->getFilesystemIterator();
+  for(size_t i = 1; i <= 4; i++) {
+    ASSERT_TRUE(it->valid()) << i;
+    ASSERT_EQ(i, it->getFilesystemID());
+    it->next();
+  }
+  ASSERT_FALSE(it->valid());
+
   file->unlinkLocation(3);
   file->unlinkLocation(4);
   view->updateFileStore(file.get());
@@ -137,16 +153,17 @@ TEST(FileMDSvc, CheckFileTest)
   std::string key;
   qclient::QClient* qcl = eos::BackendClient::getInstance(
                             config["qdb_host"], std::stoi(config["qdb_port"]));
-  key = "1" + eos::fsview::sFilesSuffix;
+  flusher->synchronize();
+  key = eos::keyFilesystemFiles(1);
   qclient::QSet fs_set(*qcl, key);
   ASSERT_TRUE(fs_set.srem(sfid));
-  key = "4" + eos::fsview::sUnlinkedSuffix;
+  key = eos::keyFilesystemUnlinked(4);
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.srem(sfid));
   key = eos::fsview::sNoReplicaPrefix;
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.sadd(sfid));
-  key = "5" + eos::fsview::sFilesSuffix;
+  key = eos::keyFilesystemFiles(5);
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.sadd(sfid));
   // Introduce file in the set to be checked and trigger a check
@@ -154,19 +171,20 @@ TEST(FileMDSvc, CheckFileTest)
   ASSERT_NO_THROW(fs_set.sadd(sfid));
   ASSERT_TRUE(fileSvc->checkFiles());
   // Check that the back-end KV store is consistent
-  key = "1" + eos::fsview::sFilesSuffix;
+  flusher->synchronize();
+  key = eos::keyFilesystemFiles(1);
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.sismember(sfid));
-  key = "2" + eos::fsview::sFilesSuffix;
+  key = eos::keyFilesystemFiles(2);
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.sismember(sfid));
-  key = "5" + eos::fsview::sFilesSuffix;
+  key = eos::keyFilesystemFiles(5);
   fs_set.setKey(key);
   ASSERT_TRUE(!fs_set.sismember(sfid));
-  key = "3" + eos::fsview::sUnlinkedSuffix;
+  key = eos::keyFilesystemUnlinked(3);
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.sismember(sfid));
-  key = "4" + eos::fsview::sUnlinkedSuffix;
+  key = eos::keyFilesystemUnlinked(4);
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.sismember(sfid));
   key = eos::fsview::sNoReplicaPrefix;

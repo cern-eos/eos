@@ -23,6 +23,7 @@
 
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include <cppunit/extensions/HelperMacros.h>
 #include <gtest/gtest.h>
 #include <memory>
@@ -35,6 +36,7 @@ TEST(ContainerMDSvc, BasicSanity)
     std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
       {"qdb_port", "7778"}
     };
+    eos::MetadataFlusher *flusher = eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"], std::stoi(config["qdb_port"]));
     containerSvc->setFileMDService(fileSvc.get());
     containerSvc->configure(config);
     containerSvc->initialize();
@@ -75,6 +77,7 @@ TEST(ContainerMDSvc, BasicSanity)
     containerSvc->updateStore(container3.get());
     containerSvc->updateStore(container4.get());
     containerSvc->updateStore(container5.get());
+    flusher->synchronize();
     ASSERT_EQ((size_t)5, containerSvc->getNumContainers());
     container3->removeContainer("subContLevel2-2");
     containerSvc->removeContainer(container5.get());
@@ -130,6 +133,7 @@ TEST(ContainerMDSvc, BasicSanity)
     containerSvc->removeContainer(container3.get());
     containerSvc->removeContainer(container2.get());
     containerSvc->removeContainer(container1.get());
+    flusher->synchronize();
     ASSERT_EQ((uint64_t)0, containerSvc->getNumContainers());
     containerSvc->finalize();
   } catch (eos::MDException& e) {

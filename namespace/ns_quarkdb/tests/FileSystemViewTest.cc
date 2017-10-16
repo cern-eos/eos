@@ -49,8 +49,8 @@ countReplicas(eos::IFsView* fs)
 {
   size_t replicas = 0;
 
-  for (size_t i = 1; i <= fs->getNumFileSystems(); ++i) {
-    replicas += fs->getFileList(i).size();
+  for (auto it = fs->getFilesystemIterator(); it->valid(); it->next()) {
+    replicas += fs->getFileList(it->getFilesystemID()).size();
   }
 
   return replicas;
@@ -64,11 +64,41 @@ countUnlinked(eos::IFsView* fs)
 {
   size_t unlinked = 0;
 
-  for (size_t i = 1; i <= fs->getNumFileSystems(); ++i) {
-    unlinked += fs->getUnlinkedFileList(i).size();
+  for (auto it = fs->getFilesystemIterator(); it->valid(); it->next()) {
+    unlinked += fs->getUnlinkedFileList(it->getFilesystemID()).size();
   }
 
   return unlinked;
+}
+
+//------------------------------------------------------------------------------
+// Test utility classes
+//------------------------------------------------------------------------------
+TEST(FileSystemView, FileSetKey)
+{
+  ASSERT_EQ(eos::keyFilesystemFiles(50), "fsview:50:files");
+  ASSERT_EQ(eos::keyFilesystemFiles(123), "fsview:123:files");
+
+  ASSERT_EQ(eos::keyFilesystemUnlinked(10), "fsview:10:unlinked");
+  ASSERT_EQ(eos::keyFilesystemUnlinked(999), "fsview:999:unlinked");
+}
+
+TEST(FileSystemView, ParseFsId)
+{
+  eos::IFileMD::location_t fsid;
+  bool unlinked;
+
+  ASSERT_TRUE(eos::parseFsId("fsview:1:files", fsid, unlinked));
+  ASSERT_EQ(fsid, 1);
+  ASSERT_FALSE(unlinked);
+
+  ASSERT_TRUE(eos::parseFsId("fsview:999:unlinked", fsid, unlinked));
+  ASSERT_EQ(fsid, 999);
+  ASSERT_TRUE(unlinked);
+
+  ASSERT_FALSE(eos::parseFsId("fsview:9:99:unlinked", fsid, unlinked));
+  ASSERT_FALSE(eos::parseFsId("fsview:999:uNlinked", fsid, unlinked));
+  ASSERT_FALSE(eos::parseFsId("fsVIew:1337:unlinked", fsid, unlinked));
 }
 
 //------------------------------------------------------------------------------
@@ -82,6 +112,7 @@ TEST(FileSystemView, BasicSanity)
     std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
       {"qdb_port", "7778"}
     };
+    eos::MetadataFlusher *flusher = eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"], std::stoi(config["qdb_port"]));
     std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
     std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
     std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
@@ -128,11 +159,12 @@ TEST(FileSystemView, BasicSanity)
     }
 
     // Sum up all the locations
+    flusher->synchronize();
     size_t numReplicas = countReplicas(fsView.get());
-    ASSERT_TRUE(numReplicas == 20000);
+    ASSERT_EQ(numReplicas, 20000);
     size_t numUnlinked = countUnlinked(fsView.get());
-    ASSERT_TRUE(numUnlinked == 0);
-    ASSERT_TRUE(fsView->getNoReplicasFileList().size() == 500);
+    ASSERT_EQ(numUnlinked, 0);
+    ASSERT_EQ(fsView->getNoReplicasFileList().size(), 500);
 
     // Unlink replicas
     for (int i = 100; i < 500; ++i) {
@@ -145,10 +177,11 @@ TEST(FileSystemView, BasicSanity)
       view->updateFileStore(f.get());
     }
 
+    flusher->synchronize();
     numReplicas = countReplicas(fsView.get());
-    ASSERT_TRUE(numReplicas == 19200);
+    ASSERT_EQ(numReplicas, 19200);
     numUnlinked = countUnlinked(fsView.get());
-    ASSERT_TRUE(numUnlinked == 800);
+    ASSERT_EQ(numUnlinked, 800);
     std::list<eos::IFileMD::id_t> file_ids;
 
     for (int i = 500; i < 900; ++i) {
@@ -163,33 +196,34 @@ TEST(FileSystemView, BasicSanity)
       view->updateFileStore(f.get());
     }
 
+    flusher->synchronize();
     numReplicas = countReplicas(fsView.get());
-    ASSERT_TRUE(numReplicas == 17200);
+    ASSERT_EQ(numReplicas, 17200);
     numUnlinked = countUnlinked(fsView.get());
-    ASSERT_TRUE(numUnlinked == 2800);
+    ASSERT_EQ(numUnlinked, 2800);
     // Restart
     view->finalize();
     fsView->finalize();
     view->initialize();
     numReplicas = countReplicas(fsView.get());
-    ASSERT_TRUE(numReplicas == 17200);
+    ASSERT_EQ(numReplicas, 17200);
     numUnlinked = countUnlinked(fsView.get());
-    ASSERT_TRUE(numUnlinked == 2800);
-    ASSERT_TRUE(fsView->getNoReplicasFileList().size() == 500);
+    ASSERT_EQ(numUnlinked, 2800);
+    ASSERT_EQ(fsView->getNoReplicasFileList().size(), 500);
     std::shared_ptr<eos::IFileMD> f{
       view->getFile(std::string("/test/embed/embed1/file1"))};
     f->unlinkAllLocations();
     numReplicas = countReplicas(fsView.get());
-    ASSERT_TRUE(numReplicas == 17195);
+    ASSERT_EQ(numReplicas, 17195);
     numUnlinked = countUnlinked(fsView.get());
-    ASSERT_TRUE(numUnlinked == 2805);
+    ASSERT_EQ(numUnlinked, 2805);
     f->removeAllLocations();
     numUnlinked = countUnlinked(fsView.get());
-    ASSERT_TRUE(numUnlinked == 2800);
+    ASSERT_EQ(numUnlinked, 2800);
     view->updateFileStore(f.get());
     ASSERT_EQ(fsView->getNoReplicasFileList().size(), 501);
     view->removeFile(f.get());
-    ASSERT_TRUE(fsView->getNoReplicasFileList().size() == 500);
+    ASSERT_EQ(fsView->getNoReplicasFileList().size(), 500);
     view->finalize();
     fsView->finalize();
 

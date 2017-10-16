@@ -26,22 +26,13 @@
 
 EOSNSNAMESPACE_BEGIN
 
-//------------------------------------------------------------------------------
-// Utility functions to build fs set keys
-//------------------------------------------------------------------------------
-std::string keyFilesystemFiles(IFileMD::location_t location)
+bool parseFsId(const std::string &str, IFileMD::location_t &fsid, bool &unlinked)
 {
-  return fsview::sPrefix + std::to_string(location) + fsview::sFilesSuffix;
-}
-
-std::string keyFilesystemUnlinked(IFileMD::location_t location)
-{
-  return fsview::sPrefix + std::to_string(location) + fsview::sUnlinkedSuffix;
-}
-
-bool retrieveFsId(const std::string &str, IFileMD::id_t &fsid, bool &unlinked) {
   std::vector<std::string> parts = eos::common::StringTokenizer::split(str, ':');
+
   if(parts.size() != 3) return false;
+  if(parts[0] + ":" != fsview::sPrefix) return false;
+
   fsid = std::stoull(parts[1]);
 
   if(parts[2] == fsview::sFilesSuffix) {
@@ -183,49 +174,36 @@ FileSystemView::fileMDCheck(IFileMD* file)
                 pNoReplicasSet.getClient());
   }
 
-  // Search through all filesystems, ensure this file is accounted for wherever
-  // it's supposed to.
-
+  // Make sure all active locations are accounted for.
   qclient::QSet replica_set(*pQcl, "");
+  for(IFileMD::location_t location : replica_locs) {
+    replica_set.setKey(keyFilesystemFiles(location));
+    ah.Register(replica_set.sadd_async(file->getId()), replica_set.getClient());
+  }
+
+  // Make sure all unlinked locations are accounted for.
   qclient::QSet unlink_set(*pQcl, "");
+  for(IFileMD::location_t location : unlink_locs) {
+    unlink_set.setKey(keyFilesystemUnlinked(location));
+    ah.Register(unlink_set.sadd_async(file->getId()), unlink_set.getClient());
+  }
 
-  qclient::QScanner replicaSets(*pQcl, fsview::sPrefix + "*:*");
+  // Make sure there's no other filesystems that erroneously contain this file.
+  // This will generate a gazillion writes towards QuarkDB, one for each
+  // filesystem not containing the file.. which is almost all of them!
+  // Maybe rethink if there's a better way?
 
-  std::vector<std::string> results;
-  while(replicaSets.next(results)) {
-    for(std::string &rep : results) {
-      // extract fsid from key
-      IFileMD::id_t fsid;
+  for(auto it = this->getFilesystemIterator(); it->valid(); it->next()) {
+    IFileMD::location_t fsid = it->getFilesystemID();
 
-      bool unlinked;
-      if(!retrieveFsId(rep, fsid, unlinked)) {
-        eos_static_crit("Unable to parse redis key: %s", rep);
-      }
+    if(std::find(replica_locs.begin(), replica_locs.end(), fsid) == replica_locs.end()) {
+      replica_set.setKey(keyFilesystemFiles(fsid));
+      ah.Register(replica_set.srem_async(file->getId()), replica_set.getClient());
+    }
 
-      if(!unlinked) {
-        replica_set.setKey(rep);
-
-        if (std::find(replica_locs.begin(), replica_locs.end(), fsid) !=
-            replica_locs.end()) {
-          ah.Register(replica_set.sadd_async(file->getId()),
-                      replica_set.getClient());
-        } else {
-          ah.Register(replica_set.srem_async(file->getId()),
-                      replica_set.getClient());
-        }
-      }
-      else {
-        unlink_set.setKey(rep);
-
-        if (std::find(unlink_locs.begin(), unlink_locs.end(), fsid) !=
-            unlink_locs.end()) {
-          ah.Register(unlink_set.sadd_async(file->getId()),
-                      unlink_set.getClient());
-        } else {
-          ah.Register(unlink_set.srem_async(file->getId()),
-                      unlink_set.getClient());
-        }
-      }
+    if(std::find(unlink_locs.begin(), unlink_locs.end(), fsid) == unlink_locs.end()) {
+      unlink_set.setKey(keyFilesystemUnlinked(fsid));
+      ah.Register(unlink_set.srem_async(file->getId()), unlink_set.getClient());
     }
   }
 
@@ -346,10 +324,10 @@ FileSystemView::getFilesystemIterator()
   while(replicaSets.next(results)) {
     for(std::string &rep : results) {
       // extract fsid from key
-      IFileMD::id_t fsid;
+      IFileMD::location_t fsid;
 
       bool unused;
-      if(!retrieveFsId(rep, fsid, unused)) {
+      if(!parseFsId(rep, fsid, unused)) {
         eos_static_crit("Unable to parse redis key: %s", rep.c_str());
         continue;
       }

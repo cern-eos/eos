@@ -212,6 +212,25 @@ private:
   qclient::QSet pNoReplicasSet; ///< Set of file ids without replicas
 };
 
+//------------------------------------------------------------------------------
+//! Utility functions to build fs set keys
+//------------------------------------------------------------------------------
+inline std::string keyFilesystemFiles(IFileMD::location_t location)
+{
+  return fsview::sPrefix + std::to_string(location) + ":" + fsview::sFilesSuffix;
+}
+
+inline std::string keyFilesystemUnlinked(IFileMD::location_t location)
+{
+  return fsview::sPrefix + std::to_string(location) + ":" + fsview::sUnlinkedSuffix;
+}
+
+//------------------------------------------------------------------------------
+//! Parse an fs set key, returning its id and whether it points to "files" or
+//! "unlinked"
+//------------------------------------------------------------------------------
+bool parseFsId(const std::string &str, IFileMD::location_t &fsid, bool &unlinked);
+
 EOSNSNAMESPACE_END
 
 #endif // __EOS_NS_FILESYSTEM_VIEW_HH__

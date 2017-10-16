@@ -82,9 +82,9 @@ namespace fsview
 //! Prefix for sets storing file ids
 static const std::string sPrefix = "fsview:";
 //! Set suffix for file ids on a fs
-static const std::string sFilesSuffix = ":files";
+static const std::string sFilesSuffix = "files";
 //! Set suffix for unlinked file ids on a fs
-static const std::string sUnlinkedSuffix = ":unlinked";
+static const std::string sUnlinkedSuffix = "unlinked";
 //! Set suffix for file ids with no replicas
 static const std::string sNoReplicaPrefix = "fsview_noreplicas";
 }
