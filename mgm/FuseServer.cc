@@ -1509,20 +1509,28 @@ FuseServer::FillContainerCAP(uint64_t id,
     // Check if quota is enabled for the current space
     bool has_quota = false;
 
+    long long avail_bytes=0;
+    long long avail_files=0;
+    eos::IContainerMD::id_t quota_inode;
+    
     if (eos::mgm::FsView::gFsView.IsQuotaEnabled(space)) {
-      long long avail_bytes;
-      long long avail_files;
-      eos::IContainerMD::id_t quota_inode;
-
       if (!Quota::QuotaByPath(dir.fullpath().c_str(), dir.capability().uid(),
-                              dir.capability().gid(), avail_files, avail_bytes,
-                              quota_inode)) {
-        dir.mutable_capability()->mutable__quota()->set_inode_quota(avail_files);
-        dir.mutable_capability()->mutable__quota()->set_volume_quota(avail_bytes);
-        dir.mutable_capability()->mutable__quota()->set_quota_inode(quota_inode);
-        has_quota = true;
+			 dir.capability().gid(), avail_files, avail_bytes,
+			      quota_inode))
+      {
+	has_quota = true;
       }
     }
+    else
+    {
+      avail_files = std::numeric_limits<long>::max()/2;
+      avail_bytes = std::numeric_limits<long>::max()/2;
+      has_quota = true;
+    }
+
+    dir.mutable_capability()->mutable__quota()->set_inode_quota(avail_files);
+    dir.mutable_capability()->mutable__quota()->set_volume_quota(avail_bytes);
+    dir.mutable_capability()->mutable__quota()->set_quota_inode(quota_inode);
 
     if (!has_quota) {
       dir.mutable_capability()->mutable__quota()->clear_inode_quota();
