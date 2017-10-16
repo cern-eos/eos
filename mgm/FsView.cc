@@ -2621,7 +2621,7 @@ FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid)
 void
 FsView::PrintSpaces(std::string& out, const std::string& table_format,
                     const std::string& table_mq_format, unsigned int outdepth,
-                    const char* selection)
+                    const char* selection, const string& filter)
 {
   std::vector<std::string> selections;
   std::string selected = selection ? selection : "";
@@ -2633,7 +2633,7 @@ FsView::PrintSpaces(std::string& out, const std::string& table_format,
   TableFormatterBase table;
 
   for (auto it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
-    it->second->Print(table, table_format, table_mq_format, outdepth);
+    it->second->Print(table, table_format, table_mq_format, outdepth, filter);
   }
 
   out =  table.GenerateTable(HEADER, selections).c_str();
@@ -3489,7 +3489,7 @@ BaseView::TotalCount(bool lock,
 //------------------------------------------------------------------------------
 void
 BaseView::Print(TableFormatterBase& table, std::string table_format,
-                const std::string& table_mq_format, unsigned outdepth)
+                const std::string& table_mq_format, unsigned outdepth, const std::string& filter)
 {
   // Since we don't display the members with geodepth option, we proceed with
   // the non geodepth display first.
@@ -3821,7 +3821,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
       for (auto it = begin(); it != end(); it++) {
         FileSystem* fs = FsView::gFsView.mIdView[*it];
         table_mq_header.clear();
-        fs->Print(table_mq_header, table_mq_data, table_mq_format);
+        fs->Print(table_mq_header, table_mq_data, table_mq_format,filter);
       }
     }
 

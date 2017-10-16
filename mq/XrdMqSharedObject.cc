@@ -789,7 +789,7 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
 //------------------------------------------------------------------------------
 void
 XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
-                       std::string format)
+                       std::string format, const string& filter)
 {
   std::vector<std::string> formattoken;
   XrdMqStringConversion::Tokenize(format, formattoken, "|");
@@ -800,7 +800,7 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
     std::vector<std::string> tagtoken;
     std::map<std::string, std::string> formattags;
     XrdMqStringConversion::Tokenize(formattoken[i], tagtoken, ":");
-
+    
     for (unsigned int j = 0; j < tagtoken.size(); ++j) {
       std::vector<std::string> keyval;
       XrdMqStringConversion::Tokenize(tagtoken[j], keyval, "=");
@@ -817,7 +817,7 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
         if ((format.find("s")) != std::string::npos) {
           table_mq_data.back().push_back(
             TableCell(Get(formattags["key"].c_str()).c_str(), format));
-        }
+        }      
 
         if ((format.find("S")) != std::string::npos) {
           std::string shortstring = Get(formattags["key"].c_str());
@@ -836,7 +836,6 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
             TableCell(GetDouble(formattags["key"].c_str()), format, unit));
         }
 
-        // Build header
         XrdOucString name = formattags["key"].c_str();
 
         if (format.find("o") == std::string::npos) {  //only for table output
@@ -852,6 +851,22 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
       }
     }
   }
+  //we check for filters
+  bool toRemove = false;
+  if (filter.find("d") != string::npos) {
+    std::string drain = Get("stat.drain");
+      if (drain == "nodrain") {
+        toRemove = true;
+      }
+  }
+  if (filter.find("e") != string::npos) {
+    int err = (int) GetLongLong("stat.errc");
+      if (err == 0) {
+        toRemove = true;
+      }
+  } 
+  if(toRemove)
+    table_mq_data.pop_back();
 }
 
 //------------------------------------------------------------------------------

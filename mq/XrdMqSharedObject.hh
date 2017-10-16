@@ -406,9 +406,10 @@ public:
   //! The unit is appended to every number:
   //! e.g. 1500 with unit=B would end up as '1.5 kB'
   //! "tag=<tag>" -> use <tag> instead of the variable name to print the header
+  //! @param filter to filter out hash content
   //----------------------------------------------------------------------------
   void Print(TableHeader& table_mq_header, TableData& table_mq_data,
-             std::string format);
+             std::string format, const std::string& filter = "");
 
   //----------------------------------------------------------------------------
   //! Open transaction

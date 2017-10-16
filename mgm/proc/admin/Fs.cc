@@ -51,9 +51,9 @@ ProcCommand::Fs()
         mListFormat.replace(mListFormat.find("S"), 1, "s");
       }
     }
-
+    std::string filter(mOutFormat.c_str()); 
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    FsView::gFsView.PrintSpaces(output, format, mListFormat, mOutDepth, mSelection);
+    FsView::gFsView.PrintSpaces(output, format, mListFormat, mOutDepth, mSelection,filter);
     stdOut += output.c_str();
   }
 

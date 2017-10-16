@@ -835,12 +835,12 @@ public:
   //! Function printing the file system info to the table
   //----------------------------------------------------------------------------
   void Print(TableHeader& table_mq_header, TableData& table_mq_data,
-             std::string listformat)
+             std::string listformat, const std::string& filter = "")
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      mHash->Print(table_mq_header, table_mq_data, listformat);
+      mHash->Print(table_mq_header, table_mq_data, listformat, filter);
     }
   }
 

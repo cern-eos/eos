@@ -319,9 +319,10 @@ public:
   //! @param table_format format for table from MGM side
   //! @param table_mq_format format for table from MQ side
   //! @param outdepth ouput depth for geoscheduling
+  //! @param filter view filter
   //----------------------------------------------------------------------------
   void Print(TableFormatterBase& table, std::string table_format,
-             const std::string& table_mq_format, unsigned outdepth);
+             const std::string& table_mq_format, unsigned outdepth, const std::string& filter = "");
 
   //----------------------------------------------------------------------------
   //! Return a member variable in the view
@@ -1044,7 +1045,7 @@ public:
 
   void PrintSpaces(std::string& out, const std::string& headerformat,
                    const std::string& listformat, unsigned int geodepth = 0,
-                   const char* selection = 0);
+                   const char* selection = 0, const std::string&  filter = "");
 
   //----------------------------------------------------------------------------
   //! Return printout formats
