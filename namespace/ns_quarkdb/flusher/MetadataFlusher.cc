@@ -35,10 +35,10 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-MetadataFlusher::MetadataFlusher(const std::string &host, int port)
+MetadataFlusher::MetadataFlusher(const std::string &path, const std::string &host, int port)
 : qcl(host, port, true /* yes to redirects */, false /* no to exceptions */),
   backgroundFlusher(qcl, dummyNotifier, 50000 /* size limit */, 5000 /* pipeline length */,
-  new qclient::RocksDBPersistency("/var/eos/ns-queue/default-queue")),
+  new qclient::RocksDBPersistency(path)),
   sizePrinter(&MetadataFlusher::queueSizeMonitoring, this) {
 
   synchronize();
@@ -133,8 +133,15 @@ void MetadataFlusher::synchronize(ItemIndex targetIndex) {
 //------------------------------------------------------------------------------
 std::map<MetadataFlusherFactory::InstanceKey, MetadataFlusher*> MetadataFlusherFactory::instances;
 std::mutex MetadataFlusherFactory::mtx;
+std::string MetadataFlusherFactory::queuePath = "/var/eos/ns-queue/";
 
-MetadataFlusher* MetadataFlusherFactory::getInstance(const std::string &id, std::string host, int port) {
+void MetadataFlusherFactory::setQueuePath(const std::string &newpath)
+{
+  queuePath = newpath;
+}
+
+MetadataFlusher* MetadataFlusherFactory::getInstance(const std::string &id, std::string host, int port)
+{
   std::lock_guard<std::mutex> lock(MetadataFlusherFactory::mtx);
 
   if(host.empty() || port == 0) {
@@ -149,7 +156,7 @@ MetadataFlusher* MetadataFlusherFactory::getInstance(const std::string &id, std:
     return it->second;
   }
 
-  MetadataFlusher *flusher = new MetadataFlusher(host, port);
+  MetadataFlusher *flusher = new MetadataFlusher(queuePath + id, host, port);
   eos_static_notice("Created new metadata flusher towards %s:%d", host.c_str(), port);
 
   instances[key] = flusher;

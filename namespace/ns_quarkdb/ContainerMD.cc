@@ -49,9 +49,9 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   }
 
   pQcl = impl_cont_svc->pQcl;
+  pFlusher = impl_cont_svc->pFlusher;
   pFilesMap = qclient::QHash(*pQcl, pFilesKey);
   pDirsMap = qclient::QHash(*pQcl, pDirsKey);
-  pFlusher = MetadataFlusherFactory::getInstance("default", "", 0);
 }
 
 //------------------------------------------------------------------------------

@@ -54,7 +54,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MetadataFlusher(const std::string &host, int port);
+  MetadataFlusher(const std::string &path, const std::string &host, int port);
 
   //----------------------------------------------------------------------------
   //! Methods to stage redis commands for background flushing.
@@ -88,7 +88,9 @@ private:
 class MetadataFlusherFactory {
 public:
   static MetadataFlusher* getInstance(const std::string &id, std::string host, int port);
+  static void setQueuePath(const std::string &newpath);
 private:
+  static std::string queuePath;
   static std::mutex mtx;
 
   using InstanceKey = std::tuple<std::string, std::string, int>;

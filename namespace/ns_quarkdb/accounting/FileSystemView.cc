@@ -64,7 +64,7 @@ FileSystemView::FileSystemView():
   pQcl(BackendClient::getInstance()),
   pNoReplicasSet(*pQcl, fsview::sNoReplicaPrefix)
 {
-  pFlusher = MetadataFlusherFactory::getInstance("default", "", 0);
+  pFlusher = nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -350,7 +350,7 @@ FileSystemView::getFilesystemIterator()
 
       bool unused;
       if(!retrieveFsId(rep, fsid, unused)) {
-        eos_static_crit("Unable to parse redis key: %s", rep);
+        eos_static_crit("Unable to parse redis key: %s", rep.c_str());
         continue;
       }
 
