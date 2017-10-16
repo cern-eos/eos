@@ -87,8 +87,8 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
   }
 
   pQcl = BackendClient::getInstance(host, port);
-  pFsIdsSet.setClient(*pQcl);
   pNoReplicasSet.setClient(*pQcl);
+  pFlusher = MetadataFlusherFactory::getInstance("default", host, port);
 }
 
 //------------------------------------------------------------------------------
