@@ -34,6 +34,54 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+//! File System iterator implementation on top of Redis.
+//! The proper solution would be that the object itself contacts redis running
+//! SCAN, but this should be fine for now.
+//------------------------------------------------------------------------------
+class FilesystemIterator : public IFsIterator
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FilesystemIterator(std::set<IFileMD::location_t> &&filesystems)
+  {
+    pFilesystems = std::move(filesystems);
+    iterator = pFilesystems.begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get current fsid
+  //----------------------------------------------------------------------------
+  IFileMD::location_t getFilesystemID() override
+  {
+    return *iterator;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if iterator is valid
+  //----------------------------------------------------------------------------
+  bool valid() override
+  {
+    return iterator != pFilesystems.end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Progress iterator by 1 - only has any effect if iterator is valid
+  //----------------------------------------------------------------------------
+  void next() override
+  {
+    if(valid()) {
+      iterator++;
+    }
+  }
+
+private:
+  std::set<IFileMD::location_t> pFilesystems;
+  std::set<IFileMD::location_t>::iterator iterator;
+};
+
+//------------------------------------------------------------------------------
 //! FileSystemView implementation on top of Redis
 //!
 //! This class keeps a mapping between filesystem ids and the actual file ids
@@ -125,6 +173,11 @@ public:
   //! @return number of file systems
   //----------------------------------------------------------------------------
   size_t getNumFileSystems() override;
+
+  //----------------------------------------------------------------------------
+  //! Get iterator object to run through all currently active filesystem IDs
+  //----------------------------------------------------------------------------
+  std::shared_ptr<IFsIterator> getFilesystemIterator() override;
 
   //----------------------------------------------------------------------------
   //! Configure

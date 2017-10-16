@@ -32,7 +32,53 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// File System view implementation of a in-memeory namespace
+// File System iterator implementation of a in-memory namespace
+// Trivial implementation, using the same logic to iterate over filesystems
+// as we did with "getNumFileSystems" before.
+//------------------------------------------------------------------------------
+class FilesystemIterator : public IFsIterator
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FilesystemIterator(IFileMD::location_t maxfs) : pCurrentFS(0), pMaxFS(maxfs)
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get current fsid
+  //----------------------------------------------------------------------------
+  IFileMD::location_t getFilesystemID() override
+  {
+    return pCurrentFS;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if iterator is valid
+  //----------------------------------------------------------------------------
+  bool valid() override
+  {
+    return pCurrentFS < pMaxFS;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Retrieve next fsid - returns false when no more filesystems exist
+  //----------------------------------------------------------------------------
+  void next() override
+  {
+    if(valid()) {
+      pCurrentFS++;
+    }
+  }
+
+private:
+  IFileMD::location_t pCurrentFS;
+  IFileMD::location_t pMaxFS;
+};
+
+//------------------------------------------------------------------------------
+// File System view implementation of a in-memory namespace
 //------------------------------------------------------------------------------
 class FileSystemView: public IFsView
 {
@@ -99,6 +145,14 @@ public:
   size_t getNumFileSystems() override
   {
     return pFiles.size();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator object to run through all currently active filesystem IDs
+  //----------------------------------------------------------------------------
+  std::shared_ptr<IFsIterator> getFilesystemIterator() override
+  {
+    return std::shared_ptr<IFsIterator>(new FilesystemIterator(pFiles.size()));
   }
 
   //----------------------------------------------------------------------------

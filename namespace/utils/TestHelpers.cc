@@ -32,7 +32,7 @@
 //------------------------------------------------------------------------------
 std::string getTempName(std::string dir, std::string prefix)
 {
-  dir += prefix;
+  dir += "/" + prefix;
   dir += "XXXXXX";
   size_t sz = 4 * 1024;
   char tmp_name[sz];

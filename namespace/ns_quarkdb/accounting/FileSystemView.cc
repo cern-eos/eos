@@ -332,4 +332,33 @@ FileSystemView::getNumFileSystems()
   // (the previous implemention here was also broken)
 }
 
+//----------------------------------------------------------------------------
+// Get iterator object to run through all currently active filesystem IDs
+//----------------------------------------------------------------------------
+std::shared_ptr<IFsIterator>
+FileSystemView::getFilesystemIterator()
+{
+  qclient::QScanner replicaSets(*pQcl, fsview::sPrefix + "*:*");
+
+  std::set<IFileMD::location_t> uniqueFilesytems;
+
+  std::vector<std::string> results;
+  while(replicaSets.next(results)) {
+    for(std::string &rep : results) {
+      // extract fsid from key
+      IFileMD::id_t fsid;
+
+      bool unused;
+      if(!retrieveFsId(rep, fsid, unused)) {
+        eos_static_crit("Unable to parse redis key: %s", rep);
+        continue;
+      }
+
+      uniqueFilesytems.insert(fsid);
+    }
+  }
+
+  return std::shared_ptr<IFsIterator>(new FilesystemIterator(std::move(uniqueFilesytems)));
+}
+
 EOSNSNAMESPACE_END
