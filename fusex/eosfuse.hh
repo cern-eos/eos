@@ -270,7 +270,7 @@ public:
     XrdSysMutex items_lock;
   } opendir_t ;
 
-
+  void getHbStat(eos::fusex::statistics&); 
 protected:
 
 private:
@@ -292,6 +292,7 @@ private:
     return mds.stats();
   }
 
+
   static EosFuse* sEosFuse;
 
   struct fuse_session* fusesession;
@@ -305,7 +306,6 @@ private:
 
   static void DumpStatistic();
   static void StatCirculate();
-
 } ;
 
 #endif /* FUSE_EOSFUSE_HH_ */

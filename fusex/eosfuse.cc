@@ -1385,7 +1385,7 @@ EBADF  Invalid directory stream descriptor fi->fh
       }
       if (!pmd_children.size())
       {
-	eos_static_err("%s",Instance().mds.dump_md(pmd,false).c_str());
+	eos_static_debug("%s",Instance().mds.dump_md(pmd,false).c_str());
       }
     }
     // only one readdir at a time
@@ -3945,4 +3945,32 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
+}
+
+/* -------------------------------------------------------------------------- */
+void
+EosFuse::getHbStat(eos::fusex::statistics& hbs)
+/* -------------------------------------------------------------------------- */
+{
+  eos::common::LinuxMemConsumption::linux_mem_t mem;
+  eos::common::LinuxStat::linux_stat_t osstat;
+  
+  if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem))
+  {
+    eos_static_err("failed to get the MEM usage information");
+  }
+  
+  if (!eos::common::LinuxStat::GetStat(osstat))
+  {
+    eos_static_err("failed to get the OS usage information");
+  }
+
+  hbs.set_inodes(EosFuse::Instance().getMdStat().inodes());
+  hbs.set_inodes_todelete(EosFuse::Instance().getMdStat().inodes_deleted());
+  hbs.set_inodes_backlog(EosFuse::Instance().getMdStat().inodes_backlog());
+  hbs.set_inodes_ever(EosFuse::Instance().getMdStat().inodes_ever());
+  hbs.set_inodes_ever_deleted(EosFuse::Instance().getMdStat().inodes_deleted_ever());
+  hbs.set_threads(osstat.threads);
+  hbs.set_vsize_mb(osstat.vsize);
+  hbs.set_rss_mb(osstat.rss);
 }

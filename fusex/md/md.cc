@@ -1934,6 +1934,7 @@ metad::mdcommunicate()
   hb.set_type(hb.HEARTBEAT);
 
   eos::fusex::response rsp;
+  size_t cnt=0;
 
   while (1)
   {
@@ -2239,6 +2240,16 @@ metad::mdcommunicate()
       hb.mutable_heartbeat_()->set_clock(tsnow.tv_sec);
       hb.mutable_heartbeat_()->set_clock_ns(tsnow.tv_nsec);
 
+      if (!(cnt%60))
+      {
+	// we send a statistics update every 60 heartbeats
+	EosFuse::Instance().getHbStat((*hb.mutable_statistics_()));
+      }
+      else
+      {
+	hb.clear_statistics_();
+      }
+
       {
         // add caps to be extended
         XrdSysMutexHelper eLock(cap::Instance().get_extensionLock());
@@ -2267,6 +2278,7 @@ metad::mdcommunicate()
 
       eos_static_err("catched exception %s", e.what());
     }
+    cnt++;
   }
 }
 
