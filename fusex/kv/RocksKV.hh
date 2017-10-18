@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file kv.hh
-//! @author Andreas-Joachim Peters CERN
-//! @brief kv persistency class
+//! @file RocksKV.hh
+//! @author Georgios Bitzes CERN
+//! @brief kv persistency class based on rocksdb
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,51 +22,51 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_KV_HH_
-#define FUSE_KV_HH_
+#ifndef FUSE_ROCKS_KV_HH_
+#define FUSE_ROCKS_KV_HH_
 
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
-#include "hiredis/hiredis.h"
-#include "hiredis/async.h"
+#include "kv/kv.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 #include <map>
 #include <event.h>
+#include <rocksdb/db.h>
 
 
 //------------------------------------------------------------------------------
-// Interface to a key-value store implementation.
+// Implementation of the key value store interface based on redis
 //------------------------------------------------------------------------------
-class kv : public XrdSysMutex
+class RocksKV : public kv
 {
 public:
-  kv() {}
-  virtual ~kv() {}
+  RocksKV();
+  virtual ~RocksKV();
 
-  virtual int get(std::string &key, std::string &value) = 0;
-  virtual int get(std::string &key, uint64_t &value) = 0;
-  virtual int put(std::string &key, std::string &value) = 0;
-  virtual int put(std::string &key, uint64_t &value) = 0;
-  virtual int inc(std::string &key, uint64_t &value) = 0;
+  int connect(const std::string &path);
 
-  virtual int erase(std::string &key) = 0;
+  int get(std::string &key, std::string &value) override;
+  int get(std::string &key, uint64_t &value) override;
+  int put(std::string &key, std::string &value) override;
+  int put(std::string &key, uint64_t &value) override;
+  int inc(std::string &key, uint64_t &value) override;
 
-  virtual int get(uint64_t key, std::string &value, std::string name_space="i") = 0;
-  virtual int put(uint64_t key, std::string &value, std::string name_space="i") = 0;
+  int erase(std::string &key) override;
 
-  virtual int get(uint64_t key, uint64_t &value, std::string name_space="i") = 0;
-  virtual int put(uint64_t key, uint64_t &value, std::string name_space="i") = 0;
+  int get(uint64_t key, std::string &value, std::string name_space="i") override;
+  int put(uint64_t key, std::string &value, std::string name_space="i") override;
 
-  virtual int erase(uint64_t key, std::string name_space="i") = 0;
+  int get(uint64_t key, uint64_t &value, std::string name_space="i") override;
+  int put(uint64_t key, uint64_t &value, std::string name_space="i") override;
 
-  static kv* sKV;
+  int erase(uint64_t key, std::string name_space="i") override;
 
-  static kv& Instance()
-  {
-    return *sKV;
-  }
-};
+  std::string prefix(std::string& key) { return mPrefix+key; }
+private:
+  std::unique_ptr<rocksdb::DB> db;
+  std::string mPrefix;
+} ;
 #endif /* FUSE_KV_HH_ */

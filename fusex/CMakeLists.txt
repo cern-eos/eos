@@ -38,6 +38,14 @@ include_directories(
   ./
 )
 
+find_package(RocksDB)
+
+if(ROCKSDB_FOUND)
+  set(SOURCES_IF_ROCKSDB_WAS_FOUND kv/RocksKV.cc kv/RocksKV.hh)
+  set(LIBRARIES_IF_ROCKSDB_WAS_FOUND ${ROCKSDB_LIBRARY} bz2)
+endif()
+
+
 if(CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
@@ -71,7 +79,9 @@ add_executable(
   md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
   data/data.cc data/data.hh
-  kv/kv.cc kv/kv.hh
+  ${SOURCES_IF_ROCKSDB_WAS_FOUND}
+  kv/RedisKV.cc           kv/RedisKV.hh
+                          kv/kv.hh
   misc/longstring.cc misc/longstring.hh
   misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   data/cache.cc data/cache.hh data/bufferll.hh
@@ -101,6 +111,8 @@ if(MacOSX)
     ${HIREDIS_LIBRARIES}
     ${LIBEVENT_LIBRARIES}
     ${ZMQ_LIBRARIES}
+    ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
+    bz2
     eosCommon
     )
 
@@ -124,6 +136,7 @@ else()
     ${HIREDIS_LIBRARIES}
     ${LIBEVENT_LIBRARIES}
     ${ZMQ_LIBRARIES}
+    ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
     eosCommon
     jemalloc)
 
@@ -147,7 +160,9 @@ add_executable(
   md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
   data/data.cc data/data.hh
-  kv/kv.cc kv/kv.hh
+  ${SOURCES_IF_ROCKSDB_WAS_FOUND}
+  kv/RedisKV.cc           kv/RedisKV.hh
+                          kv/kv.hh
   misc/longstring.cc misc/longstring.hh
   misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   data/cache.cc data/cache.hh data/bufferll.hh
@@ -176,6 +191,7 @@ add_executable(
     ${HIREDIS_LIBRARIES}
     ${LIBEVENT_LIBRARIES}
     ${ZMQ_LIBRARIES}
+    ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
     eosCommon
     jemalloc)
 
@@ -200,8 +216,11 @@ add_library(
   md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
   data/data.cc data/data.hh
-  kv/kv.cc kv/kv.hh
+  ${SOURCES_IF_ROCKSDB_WAS_FOUND}
+  kv/RedisKV.cc           kv/RedisKV.hh
+                          kv/kv.hh
   misc/longstring.cc misc/longstring.hh
+  misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   data/cache.cc data/cache.hh data/bufferll.hh
   data/diskcache.cc data/diskcache.hh
   data/memorycache.cc data/memorycache.hh
@@ -228,6 +247,7 @@ add_library(
     ${JSONCPP_LIBRARIES}
     ${HIREDIS_LIBRARIES}
     ${LIBEVENT_LIBRARIES}
+    ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
     eosCommon
     jemalloc
 )

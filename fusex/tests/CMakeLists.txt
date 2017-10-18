@@ -21,23 +21,68 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ${CMAKE_SOURCE_DIR}
-    	             ${CMAKE_CURRENT_SOURCE_DIR}
-                     ${CPPUNIT_INCLUDE_DIRS} )
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CPPUNIT_INCLUDE_DIRS}
 
-                     
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}
+  ${XROOTD_INCLUDE_DIRS}
+  ${XROOTD_PRIVATE_INCLUDE_DIR}
+  ${FUSE_INCLUDE_DIRS}
+  ${SPARSEHASH_INCLUDE_DIRS}
+  ${KRB5_INCLUDE_DIR}
+  ${OPENSSL_INCLUDE_DIR}
+  ${PROTOBUF_INCLUDE_DIRS}
+  ${JSONCPP_INCLUDE_DIR}
+  ${HIREDIS_INCLUDE_DIR}
+  ${ZMQ_INCLUDE_DIR}
+  ${LIBEVENT_INCLUDE_DIRS}
+)
+
+
 link_directories( ${CPPUNIT_LIBRARY} )
+
+add_executable(eos-fusex-tests
+  RocksKVTest.cc
+)
+
+target_link_libraries(
+  eos-fusex-tests
+  eosxd-test
+  gtest_main
+  ${GTEST_LIBRARIES}
+  ${FUSE_LIBRARY}
+  ${UUID_LIBRARIES}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${KRB5_LIBRARIES}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${PROTOBUF_LIBRARY}
+  ${JSONCPP_LIBRARIES}
+  ${HIREDIS_LIBRARIES}
+  ${LIBEVENT_LIBRARIES}
+  eosCommonServer eosCommon
+  ${CPPUNIT_LIBRARIES} )
+
+set_target_properties(
+  eos-fusex-tests
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+
 
 add_library(
   EosFuseXTests SHARED
   RBTreeTest.cc
-  IntervalTreeTest.cc 
+  IntervalTreeTest.cc
   JournalCacheTest.cc
   XrdClProxyTest.cc
 )
-  
+
 target_link_libraries(
-  EosFuseXTests 
+  EosFuseXTests
   eosxd-test
   ${FUSE_LIBRARY}
   ${UUID_LIBRARIES}
@@ -52,7 +97,7 @@ target_link_libraries(
   ${LIBEVENT_LIBRARIES}
   eosCommonServer eosCommon
   ${CPPUNIT_LIBRARIES} )
- 
+
 if (Linux)
   set_target_properties(
     EosFuseXTests
@@ -66,7 +111,7 @@ else (Linux)
 endif (Linux)
 
 
- 
+
 add_executable(fusex-tester TextRunner.cc)
 target_link_libraries( fusex-tester EosFuseXTests dl eosCommonServer eosCommon)
 

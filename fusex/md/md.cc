@@ -733,8 +733,7 @@ metad::get(fuse_req_t req,
     // hierarchical entries
     // -------------------------------------------------------------------------
 
-    //    md->Locker().Lock();
-    eos_static_crit("apply vector=%d", contv.size());
+    eos_static_debug("apply vector=%d", contv.size());
 
     for (auto it=contv.begin(); it != contv.end(); ++it)
     {
@@ -763,8 +762,6 @@ metad::get(fuse_req_t req,
         // we didn't get the md back
       }
     }
-    //    md->Locker().UnLock();
-
 
 
     {
@@ -1644,7 +1641,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 	    md->cap_inc();
 	    if (md->cap_count() == 1)
 	    {
-	      eos_static_crit("clearing all children of ino=%16dx", md->id());
+	      eos_static_info("clearing all children of ino=%16dx", md->id());
 	      // we got a full refresh from upstream, the local contents=remote contents for the map_chilren function
 
 	      md->get_childrentomap().clear();
@@ -1937,6 +1934,7 @@ metad::mdcommunicate()
   hb.set_type(hb.HEARTBEAT);
 
   eos::fusex::response rsp;
+  size_t cnt=0;
 
   while (1)
   {
@@ -2242,6 +2240,16 @@ metad::mdcommunicate()
       hb.mutable_heartbeat_()->set_clock(tsnow.tv_sec);
       hb.mutable_heartbeat_()->set_clock_ns(tsnow.tv_nsec);
 
+      if (!(cnt%60))
+      {
+	// we send a statistics update every 60 heartbeats
+	EosFuse::Instance().getHbStat((*hb.mutable_statistics_()));
+      }
+      else
+      {
+	hb.clear_statistics_();
+      }
+
       {
         // add caps to be extended
         XrdSysMutexHelper eLock(cap::Instance().get_extensionLock());
@@ -2270,6 +2278,7 @@ metad::mdcommunicate()
 
       eos_static_err("catched exception %s", e.what());
     }
+    cnt++;
   }
 }
 

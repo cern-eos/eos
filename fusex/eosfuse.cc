@@ -112,9 +112,10 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     if ((npos = option.find("fsname=")) != std::string::npos)
     {
       epos = option.find(",", npos);
+
       fsname = option.substr(npos + std::string("fsname=").length(),
                              (epos != std::string::npos) ?
-                             epos - npos : option.length() - npos);
+                             epos - npos-std::string("fsname=").length() : -1);
       break;
     }
   }
@@ -345,7 +346,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
     }
   }
-  
+
   int debug;
   if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1)
   {
@@ -1366,7 +1367,7 @@ EBADF  Invalid directory stream descriptor fi->fh
     // get the shared pointer from the open file descriptor
     opendir_t* md = (opendir_t*) fi->fh;
     metad::shared_md pmd = md->md;
-    
+
     std::map<std::string, uint64_t> pmd_children;
 
     mode_t pmd_mode;
@@ -1384,7 +1385,7 @@ EBADF  Invalid directory stream descriptor fi->fh
       }
       if (!pmd_children.size())
       {
-	eos_static_err("%s",Instance().mds.dump_md(pmd,false).c_str());
+	eos_static_debug("%s",Instance().mds.dump_md(pmd,false).c_str());
       }
     }
     // only one readdir at a time
@@ -1392,7 +1393,7 @@ EBADF  Invalid directory stream descriptor fi->fh
 
     auto it = pmd_children.begin();
 
-    eos_static_err("off=%lu size-%lu", off, pmd_children.size());
+    eos_static_info("off=%lu size-%lu", off, pmd_children.size());
 
     char b[size];
 
@@ -2395,7 +2396,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  
+
   Track::Monitor mon (__func__, Instance().Tracker(), parent, true);
 
   if (fi)
@@ -3790,7 +3791,7 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
       md->set_gid(pcap->gid());
       md->set_id(Instance().mds.insert(req, md, pcap->authid()));
       md->lookup_inc();
-      
+
       if (Instance().Config().options.mkdir_is_sync)
       {
 	md->set_type(md->EXCL);
@@ -3944,4 +3945,32 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
+}
+
+/* -------------------------------------------------------------------------- */
+void
+EosFuse::getHbStat(eos::fusex::statistics& hbs)
+/* -------------------------------------------------------------------------- */
+{
+  eos::common::LinuxMemConsumption::linux_mem_t mem;
+  eos::common::LinuxStat::linux_stat_t osstat;
+  
+  if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem))
+  {
+    eos_static_err("failed to get the MEM usage information");
+  }
+  
+  if (!eos::common::LinuxStat::GetStat(osstat))
+  {
+    eos_static_err("failed to get the OS usage information");
+  }
+
+  hbs.set_inodes(EosFuse::Instance().getMdStat().inodes());
+  hbs.set_inodes_todelete(EosFuse::Instance().getMdStat().inodes_deleted());
+  hbs.set_inodes_backlog(EosFuse::Instance().getMdStat().inodes_backlog());
+  hbs.set_inodes_ever(EosFuse::Instance().getMdStat().inodes_ever());
+  hbs.set_inodes_ever_deleted(EosFuse::Instance().getMdStat().inodes_deleted_ever());
+  hbs.set_threads(osstat.threads);
+  hbs.set_vsize_mb(osstat.vsize);
+  hbs.set_rss_mb(osstat.rss);
 }

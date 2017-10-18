@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file kv.hh
+//! @file RedisKeyValueStore.hh
 //! @author Andreas-Joachim Peters CERN
 //! @brief kv persistency class
 //------------------------------------------------------------------------------
@@ -22,13 +22,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_KV_HH_
-#define FUSE_KV_HH_
+#ifndef FUSE_REDIS_KV_HH_
+#define FUSE_REDIS_KV_HH_
 
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
+#include "kv/kv.hh"
 #include "hiredis/hiredis.h"
 #include "hiredis/async.h"
 #include "XrdSys/XrdSysPthread.hh"
@@ -38,35 +39,42 @@
 
 
 //------------------------------------------------------------------------------
-// Interface to a key-value store implementation.
+// Implementation of the key value store interface based on redis
 //------------------------------------------------------------------------------
-class kv : public XrdSysMutex
+class RedisKV : public kv
 {
 public:
-  kv() {}
-  virtual ~kv() {}
 
-  virtual int get(std::string &key, std::string &value) = 0;
-  virtual int get(std::string &key, uint64_t &value) = 0;
-  virtual int put(std::string &key, std::string &value) = 0;
-  virtual int put(std::string &key, uint64_t &value) = 0;
-  virtual int inc(std::string &key, uint64_t &value) = 0;
+  //----------------------------------------------------------------------------
 
-  virtual int erase(std::string &key) = 0;
+  //----------------------------------------------------------------------------
+  RedisKV();
+  virtual ~RedisKV();
 
-  virtual int get(uint64_t key, std::string &value, std::string name_space="i") = 0;
-  virtual int put(uint64_t key, std::string &value, std::string name_space="i") = 0;
+  int connect(std::string connectionstring, int port);
 
-  virtual int get(uint64_t key, uint64_t &value, std::string name_space="i") = 0;
-  virtual int put(uint64_t key, uint64_t &value, std::string name_space="i") = 0;
+  int get(std::string &key, std::string &value) override;
+  int get(std::string &key, uint64_t &value) override;
+  int put(std::string &key, std::string &value) override;
+  int put(std::string &key, uint64_t &value) override;
+  int inc(std::string &key, uint64_t &value) override;
 
-  virtual int erase(uint64_t key, std::string name_space="i") = 0;
+  int erase(std::string &key) override;
 
-  static kv* sKV;
+  int get(uint64_t key, std::string &value, std::string name_space="i") override;
+  int put(uint64_t key, std::string &value, std::string name_space="i") override;
 
-  static kv& Instance()
-  {
-    return *sKV;
-  }
-};
+  int get(uint64_t key, uint64_t &value, std::string name_space="i") override;
+  int put(uint64_t key, uint64_t &value, std::string name_space="i") override;
+
+  int erase(uint64_t key, std::string name_space="i") override;
+
+  std::string prefix(std::string& key) { return mPrefix+key; }
+
+private:
+  redisContext* mContext;
+  redisAsyncContext* mAsyncContext;
+  struct event_base *mEventBase;
+  std::string mPrefix;
+} ;
 #endif /* FUSE_KV_HH_ */

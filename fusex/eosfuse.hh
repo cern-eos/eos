@@ -32,6 +32,8 @@
 #include "data/data.hh"
 #include "backend/backend.hh"
 #include "kv/kv.hh"
+#include "kv/RedisKV.hh"
+
 #include "llfusexx.hh"
 #include "auth/CredentialFinder.hh"
 #include "misc/Track.hh"
@@ -212,12 +214,12 @@ public:
     CredentialConfig auth;
   } cfg_t;
 
-  cfg_t& Config() 
+  cfg_t& Config()
   {
     return config;
   }
 
-  Track& Tracker() 
+  Track& Tracker()
   {
     return tracker;
   }
@@ -268,7 +270,7 @@ public:
     XrdSysMutex items_lock;
   } opendir_t ;
 
-  
+  void getHbStat(eos::fusex::statistics&); 
 protected:
 
 private:
@@ -277,8 +279,7 @@ private:
 
   cfg_t config;
 
-  kv mKV;
-
+  RedisKV mKV;
   Stat fusestat;
 
   Stat& getFuseStat()
@@ -290,6 +291,7 @@ private:
   {
     return mds.stats();
   }
+
 
   static EosFuse* sEosFuse;
 
@@ -304,7 +306,6 @@ private:
 
   static void DumpStatistic();
   static void StatCirculate();
-
 } ;
 
 #endif /* FUSE_EOSFUSE_HH_ */
