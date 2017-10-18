@@ -26,6 +26,7 @@
 #include "eosfuse.hh"
 #include "md/kernelcache.hh"
 #include "misc/MacOSXHelper.hh"
+#include "misc/fusexrdlogin.hh"
 #include "common/Logging.hh"
 
 cap* cap::sCAP=0;
@@ -137,10 +138,13 @@ cap::capx::getclientid(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   char sid[256];
+  std::string login = fusexrdlogin::xrd_login(req);
+
   snprintf(sid, sizeof (sid),
-           "%u:%u@%s:%s",
+           "%u:%u:%s@%s:%s",
            fuse_req_ctx(req)->uid,
            fuse_req_ctx(req)->gid,
+	   login.c_str(),
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
            );
@@ -289,7 +293,7 @@ cap::forget(const std::string& cid)
   {
     if (EosFuse::Instance().Config().options.md_kernelcache)
     {
-      // kernelcache::inval_inode(inode);
+      kernelcache::inval_inode(inode, false);
     }
   }
   return inode;
@@ -567,7 +571,7 @@ cap::capflush()
 
       for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it)
       {
-	// kernelcache::inval_inode(*it);
+	kernelcache::inval_inode(*it, false);
       }
       XrdSysTimer sleeper;
       sleeper.Wait(1000);

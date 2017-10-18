@@ -38,6 +38,8 @@ public:
                        bool root_squash = false,
                        int connectionid = 0);
 
+  static std::string xrd_login(fuse_req_t req);
+
   static void initializeProcessCache(const CredentialConfig &config);
   static std::unique_ptr<ProcessCache> processCache;
 private:
