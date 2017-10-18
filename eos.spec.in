@@ -146,6 +146,7 @@ Group: Applications/File
 Requires: xrootd >= %{xrootd_version}
 Requires: xrootd-client >= %{xrootd_version}
 Requires: eos-client
+Requires: cta-frontend-interface
 Requires: libmicrohttpd >= 0.9.38
 Requires: acl
 Requires: gdb
