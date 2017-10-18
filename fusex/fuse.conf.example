@@ -1,8 +1,8 @@
 [{
   "name" : "",
   "hostport" : "localhost:1094",
-  "remotedir" : "/eos/",
-  "localdir" : "/eos/",
+  "remotemountdir" : "/eos/",
+  "localniybtdir" : "/eos/",
   "mdcachehost" : "",
   "mdcacheport" : 6379,
   "mdzmqtarget" : "tcp://localhost:1100",
