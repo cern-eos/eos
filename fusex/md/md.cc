@@ -1137,13 +1137,14 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
 
   md->setop_delete();
 
+  std::string name = md->name();
   // avoid lock order violation
   md->Locker().UnLock();
   {
     XrdSysMutexHelper mLock(pmd->Locker());
-    (*map).erase(md->name());
+    (*map).erase(name);
     pmd->set_nchildren(pmd->nchildren() - 1);
-    pmd->get_todelete().insert(md->name());
+    pmd->get_todelete().insert(name);
     pmd->set_mtime(ts.tv_sec);
     pmd->set_mtime_ns(ts.tv_nsec);
   }
@@ -1217,6 +1218,7 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
     md->set_pid(p2md->id());
     md->set_md_pino(p2md->md_ino());
     p1md->get_todelete().insert(md->name()); // make it known as deleted
+    p2md->get_todelete().erase(newname); // the new target is not deleted anymore
   }
   else
   {
@@ -1225,6 +1227,7 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
     (*map2)[newname] = md->id();
     (*map1).erase(md->name());
     p1md->get_todelete().insert(md->name()); // make it known as deleted
+    p2md->get_todelete().erase(newname); // the new target is not deleted anymore
     md->set_name(newname);
 
   }
@@ -2007,36 +2010,50 @@ metad::mdcommunicate()
                       md->Locker().Lock();
                     }
                   }
-                  // invalidate children
-
+                 
+		  // invalidate children
                   if (md && md->id())
                   {
 		    eos_static_info("md=%16x", md->id());
+		    std::map<std::string, uint64_t> children_copy;
                     if (EosFuse::Instance().Config().options.md_kernelcache)
-                    {
-                      eos_static_info("invalidate direct children ino=%016lx", ino);
-                      for (auto it = md->children().begin(); it != md->children().end(); ++it)
-                      {
-                        eos_static_info("invalidate child ino=%016lx", it->second);
-			if ( S_ISREG(md->mode()) &&
-			     EosFuse::Instance().Config().options.data_kernelcache)
-			{
-			  // drop the buffer cache
-			  kernelcache::inval_inode(it->second);
-			}
-			// drop the entry stats
-                        kernelcache::inval_entry(ino, it->first);
-                        //mdmap.erase(it->second);
-                      }
-                      eos_static_info("invalidated direct children ino=%016lx cap-cnt=%d", ino, md->cap_count());
-                    }
+		    {
+		      for (auto it = md->children().begin(); it != md->children().end(); ++it)
+		      {
+			children_copy[it->first] = it->second;
+		      }
+		    }
+
                     md->Locker().UnLock();
                     md->cap_count_reset();
 		    eos_static_debug("%s", dump_md(md).c_str());
-                    //XrdSysMutexHelper mmLock(mdmap);
-                    //mdmap.erase(ino);
-                  }
-                }
+		    
+                    if (EosFuse::Instance().Config().options.md_kernelcache) {
+		      for (auto it = children_copy.begin(); it != children_copy.end(); ++it) {
+			shared_md child_md;
+			if(mdmap.retrieveTS(it->second, child_md)) {
+			  // we know this inode
+			  mode_t mode;
+			  {
+			    XrdSysMutexHelper mLock(md->Locker());
+			    mode = md->mode();
+			  }
+			  // avoid any locks while doing this
+			  if ( EosFuse::Instance().Config().options.data_kernelcache ) {
+			    if (!S_ISDIR(mode)) {
+			      kernelcache::inval_inode(it->second, true);			   
+			    } else {
+			      kernelcache::inval_inode(it->second, false);
+			    }
+			    // drop the entry stats
+			    kernelcache::inval_entry(ino, it->first);
+			  }
+			}
+		      }
+		      eos_static_info("invalidated direct children ino=%016lx cap-cnt=%d", ino, md->cap_count());
+		    }
+		  }
+		}
               }
             }
             if (rsp.type() == rsp.MD)
@@ -2055,6 +2072,8 @@ metad::mdcommunicate()
                 bool create = true;
                 int64_t bookingsize=0;
                 uint64_t pino = 0;
+		uint64_t ino = 0;
+		mode_t mode = 0;
                 std::string md_clientid;
 
                 {
@@ -2072,6 +2091,8 @@ metad::mdcommunicate()
                       *md = rsp.md_();
                       md->clear_clientid();
                       pino = md->pid();
+		      ino = md->id();
+		      mode = md->mode();
                       eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
 
                       // update the local store
@@ -2105,12 +2126,15 @@ metad::mdcommunicate()
                     // possibly invalidate kernel cache
                     if (EosFuse::Instance().Config().options.data_kernelcache)
                     {
-                      eos_static_info("invalidate data cache for ino=%016lx", md->id());
-                      kernelcache::inval_inode(md->id());
+                      eos_static_info("invalidate data cache for ino=%016lx", ino);
+		      kernelcache::inval_inode(ino, S_ISDIR(mode)?false:true);
                     }
-                    // invalidate local disk cache
-                    eos_static_info("invalidate local disk cache for ino=%016lx", md->id());
-                    EosFuse::Instance().datas.invalidate_cache(md->id());
+		    if (S_ISREG(mode))
+		    {
+		      // invalidate local disk cache
+		      EosFuse::Instance().datas.invalidate_cache(ino);
+		      eos_static_info("invalidate local disk cache for ino=%016lx", ino);
+		    }
                   }
                 }
 
