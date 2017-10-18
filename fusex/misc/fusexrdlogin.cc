@@ -67,4 +67,27 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
                    );
   return rc;
 }
+
+std::string fusexrdlogin::xrd_login(fuse_req_t req)
+{
+  EosFuse::fuse_id id(req);
+  ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid, false);
+  std::string login;
+
+  if(snapshot) {
+    login = snapshot->getXrdLogin();
+  }
+  else
+  {
+    login = "unix";
+  }
+
+  eos_static_notice("uid=%u gid=%u xrd-login=%s",
+                    id.uid,
+                    id.gid,
+		    login.c_str()
+		    );
+  return login;
+}
+
 /*----------------------------------------------------------------------------*/

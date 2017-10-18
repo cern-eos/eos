@@ -26,6 +26,7 @@
 #include "eosfuse.hh"
 #include "md/kernelcache.hh"
 #include "misc/MacOSXHelper.hh"
+#include "misc/fusexrdlogin.hh"
 #include "common/Logging.hh"
 
 cap* cap::sCAP = 0;
@@ -136,10 +137,13 @@ cap::capx::getclientid(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   char sid[256];
-  snprintf(sid, sizeof(sid),
-           "%u:%u@%s:%s",
+  std::string login = fusexrdlogin::xrd_login(req);
+
+  snprintf(sid, sizeof (sid),
+           "%u:%u:%s@%s:%s",
            fuse_req_ctx(req)->uid,
            fuse_req_ctx(req)->gid,
+	   login.c_str(),
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
           );
@@ -272,10 +276,18 @@ cap::forget(const std::string& cid)
       eos_static_debug("forget capid=%s cap: ENOENT", cid.c_str());
     }
   }
+<<<<<<< HEAD
 
   if (inode) {
     if (EosFuse::Instance().Config().options.md_kernelcache) {
       // kernelcache::inval_inode(inode);
+=======
+  if (inode)
+  {
+    if (EosFuse::Instance().Config().options.md_kernelcache)
+    {
+      kernelcache::inval_inode(inode, false);
+>>>>>>> beryl_aquamarine
     }
   }
 
@@ -524,8 +536,14 @@ cap::capflush()
 
       capmap.UnLock();
 
+<<<<<<< HEAD
       for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it) {
         // kernelcache::inval_inode(*it);
+=======
+      for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it)
+      {
+	kernelcache::inval_inode(*it, false);
+>>>>>>> beryl_aquamarine
       }
 
       XrdSysTimer sleeper;

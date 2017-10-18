@@ -1464,13 +1464,16 @@ EBADF  Invalid directory stream descriptor fi->fh
       std::string bname = it->first;
       fuse_ino_t cino = it->second;
 
-      eos_static_debug("list: %08x %s", cino, it->first.c_str());
       metad::shared_md cmd = Instance().mds.get(req, cino, "" , 0, 0, 0, true);
+      eos_static_debug("list: %08x %s (d=%d)", cino, it->first.c_str(),cmd->deleted());
 
       mode_t mode;
       {
 	XrdSysMutexHelper cLock(cmd->Locker());
 	mode = cmd->mode();
+	// skip deleted entries or hidden entries
+        if (cmd->deleted())
+	  continue;
       }
 
       struct stat stbuf;
@@ -2115,9 +2118,8 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   COMMONTIMING("_stop_", &timing);
 
-  if (rc)
-    eos_static_err("t(ms)=%.03f %s", timing.RealTime(),
-		   dump(id, parent, 0, rc, name).c_str());
+  eos_static_notice("t(ms)=%.03f %s target-name=%s", timing.RealTime(),
+		    dump(id, parent, 0, rc, name).c_str(), newname);
 }
 
 /* -------------------------------------------------------------------------- */
