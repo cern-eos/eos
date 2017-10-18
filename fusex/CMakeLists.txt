@@ -71,7 +71,8 @@ add_executable(
   md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
   data/data.cc data/data.hh
-  kv/kv.cc kv/kv.hh
+  kv/RedisKV.cc           kv/RedisKV.hh
+                          kv/kv.hh
   misc/longstring.cc misc/longstring.hh
   misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   data/cache.cc data/cache.hh data/bufferll.hh
@@ -148,7 +149,8 @@ add_executable(
   md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
   data/data.cc data/data.hh
-  kv/kv.cc kv/kv.hh
+  kv/RedisKV.cc           kv/RedisKV.hh
+                          kv/kv.hh
   misc/longstring.cc misc/longstring.hh
   misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   data/cache.cc data/cache.hh data/bufferll.hh
@@ -201,7 +203,8 @@ add_library(
   md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
   data/data.cc data/data.hh
-  kv/kv.cc kv/kv.hh
+  kv/RedisKV.cc           kv/RedisKV.hh
+                          kv/kv.hh
   misc/longstring.cc misc/longstring.hh
   data/cache.cc data/cache.hh data/bufferll.hh
   data/diskcache.cc data/diskcache.hh

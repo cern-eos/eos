@@ -345,7 +345,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
     }
   }
-  
+
   int debug;
   if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1)
   {
@@ -1366,7 +1366,7 @@ EBADF  Invalid directory stream descriptor fi->fh
     // get the shared pointer from the open file descriptor
     opendir_t* md = (opendir_t*) fi->fh;
     metad::shared_md pmd = md->md;
-    
+
     std::map<std::string, uint64_t> pmd_children;
 
     mode_t pmd_mode;
@@ -2395,7 +2395,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  
+
   Track::Monitor mon (__func__, Instance().Tracker(), parent, true);
 
   if (fi)
@@ -3790,7 +3790,7 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
       md->set_gid(pcap->gid());
       md->set_id(Instance().mds.insert(req, md, pcap->authid()));
       md->lookup_inc();
-      
+
       if (Instance().Config().options.mkdir_is_sync)
       {
 	md->set_type(md->EXCL);
