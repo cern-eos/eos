@@ -140,9 +140,6 @@ RedisKV::inc(std::string &key, uint64_t &value)
     return rc;
   }
 
-  redisReply* reply = (redisReply*) redisCommand(mContext, "INCR %s",
-                      prefix(key).c_str());
-
   redisReply* reply = (redisReply*) redisCommand( mContext, "INCR %s",
                                                  prefix(key).c_str());
   if (reply->type == REDIS_REPLY_ERROR)
