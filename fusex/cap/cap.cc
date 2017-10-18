@@ -105,11 +105,13 @@ cap::capx::capid(fuse_req_t req, fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
   char sid[256];
+  std::string login = fusexrdlogin::xrd_login(req);
   snprintf(sid, sizeof (sid),
-           "%lx:%u:%u@%s:%s",
+           "%lx:%u:%u:%s@%s:%s",
            ino,
            fuse_req_ctx(req)->uid,
            fuse_req_ctx(req)->gid,
+	   login.c_str(), 
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
            );
