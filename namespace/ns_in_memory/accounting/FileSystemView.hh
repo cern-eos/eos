@@ -140,14 +140,6 @@ public:
   bool clearUnlinkedFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
-  //! Get number of file systems
-  //----------------------------------------------------------------------------
-  size_t getNumFileSystems() override
-  {
-    return pFiles.size();
-  }
-
-  //----------------------------------------------------------------------------
   //! Get iterator object to run through all currently active filesystem IDs
   //----------------------------------------------------------------------------
   std::shared_ptr<IFsIterator> getFilesystemIterator() override

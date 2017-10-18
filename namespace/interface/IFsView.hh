@@ -135,11 +135,6 @@ public:
   virtual FileList getNoReplicasFileList() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get number of file systems
-  //----------------------------------------------------------------------------
-  virtual size_t getNumFileSystems() = 0;
-
-  //----------------------------------------------------------------------------
   //! Get iterator object to run through all currently active filesystem IDs
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFsIterator> getFilesystemIterator() = 0;

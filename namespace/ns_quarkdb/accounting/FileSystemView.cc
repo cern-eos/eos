@@ -299,17 +299,6 @@ FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
   return (pQcl->del(key) >= 0);
 }
 
-//------------------------------------------------------------------------------
-// Get number of file systems
-//------------------------------------------------------------------------------
-size_t
-FileSystemView::getNumFileSystems()
-{
-  return (size_t) 100; // TODO(gbitzes): Fix, LOL. We should replace this function
-  // with one returning the set of non-empty filesystems, or better, an iterator object.
-  // (the previous implemention here was also broken)
-}
-
 //----------------------------------------------------------------------------
 // Get iterator object to run through all currently active filesystem IDs
 //----------------------------------------------------------------------------

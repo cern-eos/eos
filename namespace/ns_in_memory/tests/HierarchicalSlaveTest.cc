@@ -477,14 +477,14 @@ bool compareTrees(std::shared_ptr<eos::IView> view1,
 void compareFileSystems(eos::FileSystemView* viewMaster,
                         eos::FileSystemView* viewSlave)
 {
-  CPPUNIT_ASSERT(viewMaster->getNumFileSystems() ==
-                 viewSlave->getNumFileSystems());
+  // CPPUNIT_ASSERT(viewMaster->getNumFileSystems() ==
+  //                viewSlave->getNumFileSystems());
 
-  for (size_t i = 0; i != viewMaster->getNumFileSystems(); ++i) {
-    CPPUNIT_ASSERT(viewMaster->getFileList(i).size() ==
-                   viewSlave->getFileList(i).size());
-    CPPUNIT_ASSERT(viewMaster->getUnlinkedFileList(i).size() ==
-                   viewSlave->getUnlinkedFileList(i).size());
+  for(auto it = viewMaster->getFilesystemIterator(); it->valid(); it->next()) {
+    CPPUNIT_ASSERT(viewMaster->getFileList(it->getFilesystemID()).size() ==
+                   viewSlave->getFileList(it->getFilesystemID()).size());
+    CPPUNIT_ASSERT(viewMaster->getUnlinkedFileList(it->getFilesystemID()).size() ==
+                   viewSlave->getUnlinkedFileList(it->getFilesystemID()).size());
   }
 
   CPPUNIT_ASSERT(viewMaster->getNoReplicasFileList().size() ==
