@@ -1392,7 +1392,7 @@ EBADF  Invalid directory stream descriptor fi->fh
 
     auto it = pmd_children.begin();
 
-    eos_static_err("off=%lu size-%lu", off, pmd_children.size());
+    eos_static_info("off=%lu size-%lu", off, pmd_children.size());
 
     char b[size];
 

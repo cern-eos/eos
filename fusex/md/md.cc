@@ -733,8 +733,7 @@ metad::get(fuse_req_t req,
     // hierarchical entries
     // -------------------------------------------------------------------------
 
-    //    md->Locker().Lock();
-    eos_static_crit("apply vector=%d", contv.size());
+    eos_static_debug("apply vector=%d", contv.size());
 
     for (auto it=contv.begin(); it != contv.end(); ++it)
     {
@@ -763,8 +762,6 @@ metad::get(fuse_req_t req,
         // we didn't get the md back
       }
     }
-    //    md->Locker().UnLock();
-
 
 
     {
@@ -1644,7 +1641,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 	    md->cap_inc();
 	    if (md->cap_count() == 1)
 	    {
-	      eos_static_crit("clearing all children of ino=%16dx", md->id());
+	      eos_static_info("clearing all children of ino=%16dx", md->id());
 	      // we got a full refresh from upstream, the local contents=remote contents for the map_chilren function
 
 	      md->get_childrentomap().clear();
