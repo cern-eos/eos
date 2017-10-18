@@ -32,11 +32,11 @@
 class kernelcache 
 {
 public:
-  static void inval_inode(fuse_ino_t inode)
+  static void inval_inode(fuse_ino_t inode, bool isfile=false)
   {
     
     int rc = fuse_lowlevel_notify_inval_inode( EosFuse::Instance().Channel(),
-                                     inode, 0, 0 );
+					       inode, isfile?0:-1, 0 );
     
     eos_static_debug("ino=%08llx rc=%d", inode, rc);
   }
