@@ -269,13 +269,17 @@ public:
 
     dmap()
     {
-      tIOFlush = std::thread(&dmap::ioflush, this);
     }
 
     virtual ~dmap()
     {
       pthread_cancel(tIOFlush.native_handle());
       tIOFlush.join();
+    }
+    
+    void run()
+    {
+      tIOFlush = std::thread(&dmap::ioflush, this);
     }
 
     void ioflush(); // thread for delayed asynchronous close

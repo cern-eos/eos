@@ -477,6 +477,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     mdbackend.init(config.hostport, config.remotemountdir);
     mds.init(&mdbackend);
     caps.init(&mdbackend, &mds);
+    datas.init();
 
     if (config.mqtargethost.length())
     {
