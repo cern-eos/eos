@@ -2,7 +2,7 @@
   "name" : "",
   "hostport" : "localhost:1094",
   "remotemountdir" : "/eos/",
-  "localniybtdir" : "/eos/",
+  "localmountdir" : "/eos/",
   "mdcachehost" : "",
   "mdcacheport" : 6379,
   "mdzmqtarget" : "tcp://localhost:1100",
