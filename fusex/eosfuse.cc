@@ -112,9 +112,10 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     if ((npos = option.find("fsname=")) != std::string::npos)
     {
       epos = option.find(",", npos);
+
       fsname = option.substr(npos + std::string("fsname=").length(),
                              (epos != std::string::npos) ?
-                             epos - npos : option.length() - npos);
+                             epos - npos-std::string("fsname=").length() : -1);
       break;
     }
   }
