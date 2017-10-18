@@ -437,63 +437,59 @@ bool
 metad::map_children_to_local(shared_md pmd)
 /* -------------------------------------------------------------------------- */
 {  
-  // here we do an atomic exchange of the current listing
-  XrdSysMutexHelper pLock(pmd->Locker());
+  //  XrdSysMutexHelper pLock(pmd->Locker());
   bool ret = true;
   // exchange the remote inode map with the local used inode map
-  std::vector<std::string> current_names ;
-  
-  std::map<std::string, uint64_t> merged_children;
+  std::set<std::string> names ;
+  std::vector<std::string> names_to_delete;
 
   for (auto map = pmd->children().begin(); map != pmd->children().end(); ++map)
   {
-    eos_static_debug("translate %s [%lx]", map->first.c_str(), map->second);
-
-    shared_md child_md;
-    if (mdmap.retrieveTS(map->second, child_md))
+    eos_static_notice("translate %s [%lx]", map->first.c_str(), map->second);
+    if (pmd->get_todelete().count(map->first))
     {
-      mdflush.Lock();
-      if (!mdqueue.count(map->second))
-      {
-	// this entry has to stay in the listing
-	merged_children[map->first]= map->second;
-      }
-      mdflush.UnLock();      
+      eos_static_notice("masking %s", map->first.c_str());
+      names_to_delete.push_back(map->first);
+      //      pmd->set_nchildren(pmd->nchildren()-1);
     }
+    else
+    {
+      names.insert(map->first);
+    }
+  }
+
+  for (auto it=names.begin(); it != names.end(); ++it)
+  {
+    uint64_t remote_ino = (*pmd->mutable_children())[*it];
+    uint64_t local_ino = inomap.forward(remote_ino);
+    
+    if (!local_ino)
+    {
+      local_ino = next_ino.inc();
+      inomap.insert(remote_ino, local_ino);
+      shared_md md = std::make_shared<mdx>();
+      
+      mdmap.insertTS(local_ino, md);
+      
+      stat.inodes_inc();
+      stat.inodes_ever_inc();
+    }
+    eos_static_debug("store-lookup r-ino %016lx <=> l-ino %016lx", remote_ino, local_ino);
+    (*pmd->mutable_children())[*it] = local_ino;
   }
   
+  for (size_t i=0; i< names_to_delete.size(); ++i)
+  {
+    pmd->mutable_children()->erase(names_to_delete[i]);
+  }
+
   for (auto map = pmd->get_childrentomap().begin(); map != pmd->get_childrentomap().end(); ++map)
   {
-    if (!merged_children.count(map->first))
-    {
-      uint64_t remote_ino = map->second;
-      uint64_t local_ino = inomap.forward(remote_ino);
-
-      if (!local_ino)
-      {
-	local_ino = next_ino.inc();
-	inomap.insert(remote_ino, local_ino);
-	shared_md md = std::make_shared<mdx>();
-	
-	mdmap.insertTS(local_ino, md);
-	
-	stat.inodes_inc();
-	stat.inodes_ever_inc();
-      }
-      
-      merged_children[map->first] = local_ino;
-      eos_static_debug("store-lookup r-ino %016lx <=> l-ino %016lx", remote_ino , local_ino);
-
-    }
+    (*pmd->mutable_children())[map->first] = map->second;
   }
 
-  // now put the merged lists as the new child list into pmd
-  for (auto it = merged_children.begin(); it != merged_children.end(); ++it)
-  {
-    (*pmd->mutable_children())[it->first] = it->second;
-  }
 
-  if ( EOS_LOGS_DEBUG )
+  if (EOS_LOGS_DEBUG)
   {
     for (auto map = pmd->children().begin(); map != pmd->children().end(); ++map)
     {
@@ -501,6 +497,7 @@ metad::map_children_to_local(shared_md pmd)
     }
   }
 
+  pmd->set_nchildren(pmd->children().size());
   return ret;
 }
 
@@ -694,8 +691,9 @@ metad::get(fuse_req_t req,
     XrdSysMutexHelper mLock(md->Locker());
     if (md->md_ino())
     {
+      /*
       // prevent resyncing when we have deletions pending
-      /* while (1)
+      while (1)
       {
         XrdSysMutexHelper mdLock(md->Locker());
         if (md->WaitSync(1))
@@ -706,7 +704,8 @@ metad::get(fuse_req_t req,
           break;
         }
       }
-       */
+      */
+
       eos_static_info("ino=%016lx type=%d", md->md_ino(), md->type());
       rc = mdbackend->getMD(req, md->md_ino(), listing ? ( (md->type() != md->MDLS) ? 0 : md->clock()) : md->clock(), contv, listing, authid);
     }
@@ -735,6 +734,8 @@ metad::get(fuse_req_t req,
     // -------------------------------------------------------------------------
 
     //    md->Locker().Lock();
+    eos_static_crit("apply vector=%d", contv.size());
+	  
     for (auto it=contv.begin(); it != contv.end(); ++it)
     {
       if (it->ref_inode_())
@@ -1465,7 +1466,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
     uint64_t md_ino = cont.md_().md_ino();
     uint64_t ino = inomap.forward(md_ino);
 
-
     bool is_new = false;
     {
       // Create a new md object, if none is found in the cache
@@ -1504,9 +1504,10 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
     assert(p_ino != 0);
     md->set_pid(p_ino);
     md->set_id(ino);
+
     inomap.insert(md_ino, ino);
 
-    md->get_todelete().clear();
+    //md->get_todelete().clear();
     eos_static_info("store local pino=%016lx for %016lx", md->pid(), md->id());
     update(req, md, "", true);
     md->Locker().UnLock();
@@ -1565,66 +1566,91 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
             // extract any new capability
             cap_received = map->second.capability();
           }
-
-          if (child)
-          {
-            // don't overwrite the child counter if we know this md record
-	    mdflush.Lock();
-	    if (!mdqueue.count(md->id()))
-	    {
-	      mdflush.UnLock();
-	   
+	  
+	  if (child)
+	  {
+	    // don't overwrite the child counter if we know this md record
+	    //            mdflush.Lock();
+	    //            if (!mdqueue.count(md->id()))
+	    //	    {
+	    //	      mdflush.UnLock();
+	      
 	      // don't overwrite objects which are in our outgoing queue!
 	      int children = md->nchildren();
 	      *md = map->second;
 	      md->set_nchildren(children);
-	    }
-	    else
-	      mdflush.UnLock();
-          }
+	      //	    }
+	      //            else
+	      //              mdflush.UnLock();
+	  }
           else
-          {
+	  {
 	    // we have to overlay the listing 
+	    std::set<std::string> todelete = md->get_todelete();
 	    md->get_childrentomap().clear();
-	    for (auto it=map->second.children().begin(); it!=map->second.children().end(); ++it)
+	    for (auto it=md->children().begin(); it!=md->children().end(); ++it)
 	    {
-	      // add to the translationmap
+	      // add the current state to the childrenmap
 	      md->get_childrentomap()[it->first] = it->second;
 	    }
-
+	    
 	    if (!mdqueue.count(md->id()))
 	    {
-	      mdflush.UnLock();
-	      // overwrite local meta data with remote state
-	      *md = map->second;
-	    }
+		mdflush.UnLock();
+		// overwrite local meta data with remote state
+		*md = map->second;
+		md->get_todelete() = todelete;
+	      }
 	    else
+	    {
 	      mdflush.UnLock();
-          }
-          md->clear_capability();
+	      // keep the listing
+	      md->mutable_children()->clear();
+	      for (auto it=map->second.children().begin(); it != map->second.children().end(); ++it)
+	      {
+		(*md->mutable_children())[it->first] = it->second;
+	      }
+	      md->get_todelete() = todelete;
+	    }
+	  }
+
+	  md->clear_capability();
           md->set_id(ino);
 
           p_ino = inomap.forward(md->md_pino());
 
           md->set_pid(p_ino);
-          eos_static_info("store remote-ino=%016lx local pino=%016lx for %016lx", md->md_pino(), md->pid(), md->id());
+          eos_static_info("store remote-ino=%016lx local pino=%016lx for %016lx", md-> md_pino(), md->pid(), md->id());
+          for (auto it=md->get_todelete().begin(); it != md->get_todelete().end(); ++it)
+	  {
+	    eos_static_info("%016lx to-delete=%s", md->id(), it->c_str());
+	  }
           // push only into the local KV cache - md was retrieved from upstream
 
           if (map->first != cont.ref_inode_())
             update(req, md, "", true);
 
-          eos_static_debug("store md for local-ino=%08ld remote-ino=%016lx type=%d -", (long) ino, (long) map->first, md->type());
+          eos_static_debug("store md for local-ino=%08ld remote-ino=%016lx type=%d -",
+			   (long) ino, (long) map->first, md->type());
           eos_static_debug("%s", md->dump().c_str());
 
-          md->Locker().UnLock();
+	  md->Locker().UnLock();
 
           if (cap_received.id())
-          {
-            // store cap
-            cap::Instance().store(req, cap_received);
-            md->cap_inc();
-            //eos_static_err("increase cap counter for ino=%lu", ino);
-          }
+	  {
+	    // store cap
+	    cap::Instance().store(req, cap_received);
+	    md->cap_inc();
+	    if (md->cap_count() == 1)
+	    {
+	      eos_static_crit("clearing all children of ino=%16dx", md->id());
+	      // we got a full refresh from upstream, the local contents=remote contents for the map_chilren function
+	      
+	      md->get_childrentomap().clear();
+	      md->get_todelete().clear();
+	    }
+	    //eos_static_err("increase cap counter for ino=%lu", ino);
+	  }
         }
       }
       else
@@ -1681,8 +1707,8 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       bool ret = false;
       if (! (ret = map_children_to_local(pmd)))
       {
-        eos_static_err("local mapping has failed %d", ret);
-        assert(0);
+	eos_static_err("local mapping has failed %d", ret);
+	assert(0);
       }
 
       for (auto map = pmd->children().begin(); map != pmd->children().end(); ++map)
@@ -1692,7 +1718,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
     }
     if (pmd)
     {
-      // store the parent now, after all children are inservted
+      // store the parent now, after all children are inserted
       update(req, pmd, "", true);
     }
   }
@@ -1882,7 +1908,7 @@ metad::mdcflush()
               {
 
                 XrdSysMutexHelper mmLock(pmd->Locker());
-                pmd->get_todelete().erase(md->name());
+		//		pmd->get_todelete().erase(md->name());
                 pmd->Signal();
               }
             }
