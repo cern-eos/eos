@@ -276,18 +276,12 @@ cap::forget(const std::string& cid)
       eos_static_debug("forget capid=%s cap: ENOENT", cid.c_str());
     }
   }
-<<<<<<< HEAD
 
-  if (inode) {
-    if (EosFuse::Instance().Config().options.md_kernelcache) {
-      // kernelcache::inval_inode(inode);
-=======
   if (inode)
   {
     if (EosFuse::Instance().Config().options.md_kernelcache)
     {
       kernelcache::inval_inode(inode, false);
->>>>>>> beryl_aquamarine
     }
   }
 
@@ -536,14 +530,9 @@ cap::capflush()
 
       capmap.UnLock();
 
-<<<<<<< HEAD
-      for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it) {
-        // kernelcache::inval_inode(*it);
-=======
       for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it)
       {
 	kernelcache::inval_inode(*it, false);
->>>>>>> beryl_aquamarine
       }
 
       XrdSysTimer sleeper;
