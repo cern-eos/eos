@@ -520,7 +520,7 @@ protected:
     // get the startuptime of the leader of the session
     time_t sessionSut = 0;
 
-    if (!gProcCache(sid).GetStartupTime(sid, sessionSut)) {
+    if (sid == -1 || !gProcCache(sid).GetStartupTime(sid, sessionSut)) {
       sessionSut = 0;
     }
 
@@ -545,12 +545,17 @@ protected:
     // TODO: should we implement a TTL , my guess is NO
     bool sessionInCache = false;
 
-    if (sid != pid) {
+    if (sid != -1 && sid != pid) {
       lock_r_pcache(sid, pid);
     }
 
-    bool cacheEntryFound = siduid2credinfo[sid % proccachenbins].count(sid) > 0 &&
+    bool cacheEntryFound = false;
+
+    if(sid != -1) {
+     cacheEntryFound = siduid2credinfo[sid % proccachenbins].count(sid) > 0 &&
                            siduid2credinfo[sid % proccachenbins][sid].count(uid) > 0;
+    }
+
     std::map<uid_t, CredInfo>::iterator cacheEntry;
 
     if (cacheEntryFound) {
@@ -571,7 +576,7 @@ protected:
       }
     }
 
-    if (sid != pid) {
+    if (sid != -1 && sid != pid) {
       unlock_r_pcache(sid, pid);
     }
 
@@ -608,7 +613,7 @@ protected:
       }
 
       // refresh the credentials in the cache
-      if (gProcCache(sid).HasEntry(sid)) {
+      if (sid != -1 && gProcCache(sid).HasEntry(sid)) {
         gProcCache(sid).SetAuthMethod(sid, sId);
       }
 
@@ -654,7 +659,7 @@ protected:
       }
 
       gProcCache(pid).SetAuthMethod(pid, newauthmeth);
-      gProcCache(sid).SetAuthMethod(sid, newauthmeth);
+      if(sid != -1) gProcCache(sid).SetAuthMethod(sid, newauthmeth);
       authid = getNewConId(uid, gid, pid);
 
       if (!authid) {
@@ -675,13 +680,15 @@ protected:
     eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",
                      (int)uid, (int)sid, (int)pid, credinfo.cachedStrongLogin.c_str());
 
-    if (sid != pid) {
+    if (sid != -1 && sid != pid) {
       lock_w_pcache(sid, pid);
     }
 
-    siduid2credinfo[sid % proccachenbins][sid][uid] = credinfo;
+    if(sid != -1) {
+      siduid2credinfo[sid % proccachenbins][sid][uid] = credinfo;
+    }
 
-    if (sid != pid) {
+    if (sid != -1 && sid != pid) {
       unlock_w_pcache(sid, pid);
     }
 
