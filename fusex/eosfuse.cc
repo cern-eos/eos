@@ -466,7 +466,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
     if (config.mdcachehost.length())
     {
-      if (mKV.connect(config.mdcachehost, config.mdcacheport ?
+      if (mKV.connect(config.name, config.mdcachehost, config.mdcacheport ?
                       config.mdcacheport : 6379))
       {
         fprintf(stderr, "error: failed to connect to md cache - connect-string=%s",
@@ -3954,12 +3954,12 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
 {
   eos::common::LinuxMemConsumption::linux_mem_t mem;
   eos::common::LinuxStat::linux_stat_t osstat;
-  
+
   if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem))
   {
     eos_static_err("failed to get the MEM usage information");
   }
-  
+
   if (!eos::common::LinuxStat::GetStat(osstat))
   {
     eos_static_err("failed to get the OS usage information");

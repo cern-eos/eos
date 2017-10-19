@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
+#include "misc/longstring.hh"
 #include "hiredis/hiredis.h"
 #include "hiredis/async.h"
 #include "XrdSys/XrdSysPthread.hh"
@@ -50,17 +51,17 @@ public:
   virtual int get(const std::string &key, uint64_t &value) = 0;
   virtual int put(const std::string &key, const std::string &value) = 0;
   virtual int put(const std::string &key, uint64_t value) = 0;
-  virtual int inc(const std::string &key, uint64_t value) = 0;
+  virtual int inc(const std::string &key, uint64_t &value) = 0;
 
   virtual int erase(const std::string &key) = 0;
 
-  virtual int get(uint64_t key, std::string &value, std::string name_space="i") = 0;
-  virtual int put(uint64_t key, const std::string &value, std::string name_space="i") = 0;
+  virtual int get(uint64_t key, std::string &value, const std::string &name_space="i") = 0;
+  virtual int put(uint64_t key, const std::string &value, const std::string &name_space="i") = 0;
 
-  virtual int get(uint64_t key, uint64_t &value, std::string name_space="i") = 0;
-  virtual int put(uint64_t key, uint64_t &value, std::string name_space="i") = 0;
+  virtual int get(uint64_t key, uint64_t &value, const std::string &name_space="i") = 0;
+  virtual int put(uint64_t key, uint64_t value, const std::string &name_space="i") = 0;
 
-  virtual int erase(uint64_t key, std::string name_space="i") = 0;
+  virtual int erase(uint64_t key, const std::string &name_space="i") = 0;
 
   static kv* sKV;
 
@@ -68,5 +69,20 @@ public:
   {
     return *sKV;
   }
+
+protected:
+
+  std::string buildKey(uint64_t key, const std::string &name_space) {
+    char buffer[128];
+    longstring::unsigned_to_decimal (key, buffer);
+    std::string sbuf(buffer);
+
+    if (!name_space.empty()) {
+      sbuf = name_space + ":" + sbuf;
+    }
+
+    return sbuf;
+  }
+
 };
 #endif /* FUSE_KV_HH_ */

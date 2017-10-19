@@ -61,7 +61,7 @@ RocksKV::~RocksKV()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::connect(const std::string &path) // , const std::string &prefix)
+RocksKV::connect(const std::string &prefix, const std::string &path)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("Opening RocksKV store at local path %s", path.c_str());
@@ -74,15 +74,22 @@ RocksKV::connect(const std::string &path) // , const std::string &prefix)
   options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
   options.create_if_missing = true;
 
-  rocksdb::DB *mydb;
+  rocksdb::TransactionDBOptions txopts;
+  txopts.transaction_lock_timeout = -1;
+  txopts.default_lock_timeout = -1;
 
-  rocksdb::Status st = rocksdb::DB::Open(options, path, &mydb);
+  rocksdb::TransactionDB *mydb;
+
+  rocksdb::Status st = rocksdb::TransactionDB::Open(options, txopts, path, &mydb);
   if(!st.ok()) {
     eos_static_crit("Could not open RocksKV store, error: %s", st.ToString().c_str());
     return -1;
   }
 
-  db.reset(mydb);
+  mPrefix = prefix;
+  transactionDB.reset(mydb);
+  db = transactionDB->GetBaseDB();
+
   return 0;
 }
 
@@ -97,7 +104,7 @@ int
 RocksKV::get(const std::string &key, std::string &value)
 /* -------------------------------------------------------------------------- */
 {
-  rocksdb::Status st = db->Get(rocksdb::ReadOptions(), key, &value);
+  rocksdb::Status st = db->Get(rocksdb::ReadOptions(), prefix(key), &value);
 
   if(st.IsNotFound()) {
     return 1;
@@ -133,7 +140,7 @@ int
 RocksKV::put(const std::string &key, const std::string &value)
 /* -------------------------------------------------------------------------- */
 {
-  rocksdb::Status st = db->Put(rocksdb::WriteOptions(), key, value);
+  rocksdb::Status st = db->Put(rocksdb::WriteOptions(), prefix(key), value);
   if(!st.ok()) {
     return badStatus(st);
   }
@@ -153,10 +160,36 @@ RocksKV::put(const std::string &key, uint64_t value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::inc(const std::string &key, uint64_t value)
+RocksKV::inc(const std::string &key, uint64_t &value)
 /* -------------------------------------------------------------------------- */
 {
-  return 1;
+  TransactionPtr tx = startTransaction();
+
+  std::string tmp;
+  uint64_t initialValue = 0;
+  rocksdb::Status st = tx->GetForUpdate(rocksdb::ReadOptions(), prefix(key), &tmp);
+
+  if(!st.ok() && !st.IsNotFound()) {
+    return badStatus(st);
+  }
+
+  if(!safe_strtoll(tmp, initialValue)) {
+    eos_static_crit("Attemted to increase a non-numeric value on key %s: %s", key.c_str(), tmp.c_str());
+    return -1;
+  }
+
+  st = tx->Put(prefix(key), std::to_string(initialValue + value));
+  if(!st.ok()) {
+    return badStatus(st);
+  }
+
+  st = tx->Commit();
+  if(!st.ok()) {
+    return badStatus(st);
+  }
+
+  value += initialValue;
+  return 0;
 }
 
 
@@ -166,51 +199,56 @@ int
 RocksKV::erase(const std::string &key)
 /* -------------------------------------------------------------------------- */
 {
-  return 1;
+  rocksdb::Status st = db->Delete(rocksdb::WriteOptions(), prefix(key));
+  if(!st.ok()) {
+    // deleting a non-existent key is not an error!
+    return badStatus(st);
+  }
+
+  return 0;
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::get(uint64_t key, std::string &value, std::string name_space)
+RocksKV::get(uint64_t key, std::string &value, const std::string &name_space)
 /* -------------------------------------------------------------------------- */
 {
-  return 1;
-}
-
-
-/* -------------------------------------------------------------------------- */
-int
-/* -------------------------------------------------------------------------- */
-RocksKV::put(uint64_t key, const std::string &value, std::string name_space)
-/* -------------------------------------------------------------------------- */
-{
-  return 1;
+  return this->get(buildKey(key, name_space), value);
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::get(uint64_t key, uint64_t &value, std::string name_space)
+RocksKV::put(uint64_t key, const std::string &value, const std::string &name_space)
 /* -------------------------------------------------------------------------- */
 {
-  return 1;
+  return this->put(buildKey(key, name_space), value);
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::put(uint64_t key, uint64_t &value, std::string name_space)
+RocksKV::get(uint64_t key, uint64_t &value, const std::string &name_space)
 /* -------------------------------------------------------------------------- */
 {
-  return 1;
+  return this->get(buildKey(key, name_space), value);
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::erase(uint64_t key, std::string name_space)
+RocksKV::put(uint64_t key, uint64_t value, const std::string &name_space)
 /* -------------------------------------------------------------------------- */
 {
-  return 1;
+  return this->put(buildKey(key, name_space), value);
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+RocksKV::erase(uint64_t key, const std::string &name_space)
+/* -------------------------------------------------------------------------- */
+{
+  return this->erase(buildKey(key, name_space));
 }

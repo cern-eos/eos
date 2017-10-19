@@ -51,23 +51,23 @@ public:
   RedisKV();
   virtual ~RedisKV();
 
-  int connect(const std::string &connectionstring, int port);
+  int connect(const std::string &prefix, const std::string &connectionstring, int port);
 
   int get(const std::string &key, std::string &value) override;
   int get(const std::string &key, uint64_t &value) override;
   int put(const std::string &key, const std::string &value) override;
   int put(const std::string &key, uint64_t value) override;
-  int inc(const std::string &key, uint64_t value) override;
+  int inc(const std::string &key, uint64_t &value) override;
 
   int erase(const std::string &key) override;
 
-  int get(uint64_t key, std::string &value, std::string name_space="i") override;
-  int put(uint64_t key, const std::string &value, std::string name_space="i") override;
+  int get(uint64_t key, std::string &value, const std::string &name_space="i") override;
+  int put(uint64_t key, const std::string &value, const std::string &name_space="i") override;
 
-  int get(uint64_t key, uint64_t &value, std::string name_space="i") override;
-  int put(uint64_t key, uint64_t &value, std::string name_space="i") override;
+  int get(uint64_t key, uint64_t &value, const std::string &name_space="i") override;
+  int put(uint64_t key, uint64_t value, const std::string &name_space="i") override;
 
-  int erase(uint64_t key, std::string name_space="i") override;
+  int erase(uint64_t key, const std::string &name_space="i") override;
 
   std::string prefix(const std::string& key) { return mPrefix+key; }
 
