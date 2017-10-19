@@ -258,6 +258,11 @@ void TableCell::SetValue(double value)
     //Convert value into f,p,n,u,m,K,M,G,T,P,E scale
     double scale = (mUnit == "B") ? 1024.0 : 1000.0;
 
+    // Use IEC standard to display values power of 2
+    if (mUnit == "B") {
+      mUnit.insert(0, "i");
+    }
+
     if (mFormat.find("+") != std::string::npos && value != 0) {
       bool value_negative = false;
 
