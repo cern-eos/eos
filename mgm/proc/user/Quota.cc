@@ -78,6 +78,12 @@ ProcCommand::Quota()
       } else {
         stdOut += out;
       }
+    } else {
+      if (!is_ok)
+      {
+	stdErr += out;
+	retc = EINVAL;
+      }
     }
 
     out = "";
@@ -92,8 +98,11 @@ ProcCommand::Quota()
         stdOut += out;
       }
     } else {
-      stdErr += out;
-      retc = EINVAL;
+      if (!is_ok)
+      {
+	stdErr += out;
+	retc = EINVAL;
+      }
     }
 
     return SFS_OK;
