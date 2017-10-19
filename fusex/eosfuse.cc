@@ -22,6 +22,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifdef ROCKSDB_FOUND
+#include "kv/RocksKV.hh"
+#endif
+
 #include "eosfuse.hh"
 #include "misc/fusexrdlogin.hh"
 
@@ -196,6 +200,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
+    config.mdcachedir = root["mdcachedir"].asString();
+
     config.mqtargethost = root["mdzmqtarget"].asString();
     config.mqidentity = root["mdzmqidentity"].asString();
     config.mqname = config.mqidentity;
@@ -203,6 +209,20 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
+
+    // disallow mdcachedir if compiled without rocksdb support
+#ifndef ROCKSDB_FOUND
+    if(!config.mdcachedir.empty()) {
+      std::cerr << "Options mdcachedir is unavailable, fusex was compiled without rocksdb support." << std::endl;
+      exit(EINVAL);
+    }
+#endif
+
+    // disallow conflicting options
+    if(!config.mdcachedir.empty() && (config.mdcacheport != 0 || !config.mdcachehost.empty()) ) {
+      std::cerr << "Options (mdcachehost, mdcacheport) conflict with (mdcachedir) - only one type of mdcache is allowed." << std::endl;
+      exit(EINVAL);
+    }
 
     // default settings
     if (!config.statfilesuffix.length())
@@ -464,15 +484,32 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     }
 #endif
 
+    // initialize mKV in case no cache is configured to act as no-op
+    mKV.reset(new RedisKV());
+
+#ifdef ROCKSDB_FOUND
+    if(!config.mdcachedir.empty()) {
+      RocksKV *kv = new RocksKV();
+      if(kv->connect(config.name, config.mdcachedir) != 0) {
+        fprintf(stderr, "error: failed to open rocksdb KV cache - path=%s",
+                config.mdcachedir.c_str());
+        exit(EINVAL);
+      }
+      mKV.reset(kv);
+    }
+#endif
+
     if (config.mdcachehost.length())
     {
-      if (mKV.connect(config.name, config.mdcachehost, config.mdcacheport ?
-                      config.mdcacheport : 6379))
+      RedisKV *kv = new RedisKV();
+      if (kv->connect(config.name, config.mdcachehost, config.mdcacheport ?
+                      config.mdcacheport : 6379) != 0)
       {
         fprintf(stderr, "error: failed to connect to md cache - connect-string=%s",
                 config.mdcachehost.c_str());
         exit(EINVAL);
       }
+      mKV.reset(kv);
     }
 
     mdbackend.init(config.hostport, config.remotemountdir);

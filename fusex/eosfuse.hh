@@ -186,6 +186,7 @@ public:
     std::string statfilepath;
     std::string mdcachehost;
     int mdcacheport;
+    std::string mdcachedir;
     std::string mqtargethost;
     std::string mqidentity;
     std::string mqname;
@@ -270,7 +271,7 @@ public:
     XrdSysMutex items_lock;
   } opendir_t ;
 
-  void getHbStat(eos::fusex::statistics&); 
+  void getHbStat(eos::fusex::statistics&);
 protected:
 
 private:
@@ -279,7 +280,7 @@ private:
 
   cfg_t config;
 
-  RedisKV mKV;
+  std::unique_ptr<kv> mKV;
   Stat fusestat;
 
   Stat& getFuseStat()

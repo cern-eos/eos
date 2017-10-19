@@ -45,13 +45,14 @@ include_directories(
 link_directories( ${CPPUNIT_LIBRARY} )
 
 add_executable(eos-fusex-tests
-  RocksKVTest.cc
+  ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
+  Main.cc
 )
 
 target_link_libraries(
   eos-fusex-tests
   eosxd-test
-  gtest_main
+  gtest
   ${GTEST_LIBRARIES}
   ${FUSE_LIBRARY}
   ${UUID_LIBRARIES}
