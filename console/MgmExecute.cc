@@ -29,55 +29,52 @@
 //------------------------------------------------------------------------------
 int MgmExecute::proccess(XrdOucEnv* response)
 {
-  int errc = 0;
-  std::string serrc = response->Get("mgm.proc.retc");
+  mErrc = 0;
+  const char* ptr = response->Get("mgm.proc.retc");
+  std::string serrc = (ptr ? ptr : "");
 
   try {
-    errc = std::stoi(serrc);
+    mErrc = std::stoi(serrc);
   } catch (...) {
     rstderr = "error: failed to parse response from server";
     return EINVAL;
   }
 
-  rstdout = response->Get("mgm.proc.stdout");
-  rstderr = response->Get("mgm.proc.stderr");
+  ptr = response->Get("mgm.proc.stdout");
+  rstdout = (ptr ? ptr : "");
+  ptr = response->Get("mgm.proc.stderr");
+  rstderr = (ptr ? ptr : "");
 
   if (rstderr.length() > 0) {
-    m_error = std::string(rstderr.c_str());
+    mError = std::string(rstderr.c_str());
     delete response;
-    return errc;
+    return mErrc;
   }
 
-  m_result = std::string("");
+  mResult = std::string("");
 
   if (rstdout.length() > 0) {
-    m_result = std::string(rstdout.c_str());
+    mResult = std::string(rstdout.c_str());
   }
 
   delete response;
-  return 0;
+  return mErrc;
 }
 
 //------------------------------------------------------------------------------
 // Execute user command
+// @todo esindril: Drop one of the functions
 //------------------------------------------------------------------------------
-int MgmExecute::ExecuteCommand(const char* command)
+int MgmExecute::ExecuteCommand(const char* command, bool is_admin)
 {
-  // @TODO (esindril): avoid copying the command again
   XrdOucString command_xrd = XrdOucString(command);
-  XrdOucEnv* response = client_command(command_xrd);
-  return proccess(response);
-}
+  XrdOucEnv* response = client_command(command_xrd, is_admin);
 
-//------------------------------------------------------------------------------
-// Execute admin command
-//------------------------------------------------------------------------------
-int MgmExecute::ExecuteAdminCommand(const char* command)
-{
-  // @TODO (esindril): avoid copying the command again
-  XrdOucString command_xrd = XrdOucString(command);
-  XrdOucEnv* response = client_command(command_xrd, true);
-  return proccess(response);
+  if (response) {
+    return proccess(response);
+  } else {
+    return EIO;
+  }
 }
 
 #endif

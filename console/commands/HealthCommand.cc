@@ -113,10 +113,8 @@ HealthCommand::HealthCommand(const char* comm)
 
 void HealthCommand::DeadNodesCheck()
 {
-  if (!m_mgm_execute.ExecuteAdminCommand(
-        "mgm.cmd=node&mgm.subcmd=ls&mgm.outformat=m"
-      )
-     ) {
+  if (!m_mgm_execute.ExecuteCommand("mgm.cmd=node&mgm.subcmd=ls&mgm.outformat=m",
+                                    true)) {
     throw std::string("MGMError: " + m_mgm_execute.GetError());
   }
 
@@ -365,10 +363,8 @@ void HealthCommand::PlacementContentionCheck()
 
 void HealthCommand::GetGroupsInfo()
 {
-  if (!m_mgm_execute.ExecuteAdminCommand(
-        "mgm.cmd=fs&mgm.subcmd=ls&mgm.outformat=m"
-      )
-     ) {
+  if (!m_mgm_execute.ExecuteCommand("mgm.cmd=fs&mgm.subcmd=ls&mgm.outformat=m",
+                                    true)) {
     throw std::string("MGMError: " + m_mgm_execute.GetError());
   }
 

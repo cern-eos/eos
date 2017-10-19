@@ -26,6 +26,58 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Open a proc command e.g. call the appropriate user or admin commmand and
+// store the output in a resultstream or in case of find in a temporary output
+// file.
+//------------------------------------------------------------------------------
+int
+IProcCommand::open(const char* path, const char* info,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   XrdOucErrInfo* error)
+{
+  int delay = 5;
+
+  if (!mExecRequest) {
+    LaunchJob();
+    mExecRequest = true;
+  }
+
+  std::future_status status = mFuture.wait_for(std::chrono::seconds(delay));
+
+  if (status != std::future_status::ready) {
+    // Stall the client
+    std::string msg = "acl command not ready, stall the client 5 seconds";
+    eos_notice("%s", msg.c_str());
+    error->setErrInfo(0, msg.c_str());
+    return delay;
+  } else {
+    eos::console::ReplyProto reply = mFuture.get();
+    std::ostringstream oss;
+    oss << "mgm.proc.stdout=" << reply.std_out()
+        << "&mgm.proc.stderr=" << reply.std_err()
+        << "&mgm.proc.retc=" << reply.retc();
+    mTmpResp = oss.str();
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Read a part of the result stream created during open
+//------------------------------------------------------------------------------
+int
+IProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
+{
+  if ((size_t)offset < mTmpResp.length()) {
+    size_t cpy_len = std::min((size_t)(mTmpResp.size() - offset), (size_t)blen);
+    memcpy(buff, mTmpResp.data() + offset, cpy_len);
+    return cpy_len;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Lauch command asynchronously, creating the corresponding promise and future
 //------------------------------------------------------------------------------
 void

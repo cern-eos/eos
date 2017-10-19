@@ -89,6 +89,7 @@ add_library(
   proc/admin/Io.cc
   proc/admin/Node.cc
   proc/admin/Ns.cc
+  proc/admin/NsCmd.cc
   proc/admin/Quota.cc
   proc/admin/Rtlog.cc
   proc/admin/Space.cc

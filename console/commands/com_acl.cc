@@ -22,19 +22,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "console/commands/ICmdHelper.hh"
 #include "console/ConsoleMain.hh"
-#include "console/MgmExecute.hh"
 #include "common/Acl.pb.h"
-#include "common/ConsoleRequest.pb.h"
 #include <iostream>
 
-using eos::console::AclProto_OpType;
+using eos::console::AclProto;
+
+//! Forward declaration
+void com_acl_help();
 
 //------------------------------------------------------------------------------
 //! Class AclHelper
 //------------------------------------------------------------------------------
-class AclHelper
+class AclHelper: public ICmdHelper
 {
 public:
   //----------------------------------------------------------------------------
@@ -52,13 +53,6 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool SetDefaultRole();
-
-  //----------------------------------------------------------------------------
-  //! Execute command and display any output information
-  //!
-  //! @return command return code
-  //----------------------------------------------------------------------------
-  int Execute();
 
 private:
   //----------------------------------------------------------------------------
@@ -96,10 +90,6 @@ private:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool SetPath(const std::string& in_path);
-
-
-  eos::console::AclProto mAclProto; ///< Protobuf representation of the command
-  MgmExecute mMgmExec; ///< Wrapper for executing commands at the MGM
 };
 
 //------------------------------------------------------------------------------
@@ -108,14 +98,16 @@ private:
 bool
 AclHelper::SetPath(const std::string& in_path)
 {
+  eos::console::AclProto* acl = mReq.mutable_acl();
+
   if (in_path.empty()) {
     return false;
   }
 
   if (in_path.at(0) == '/') {
-    mAclProto.set_path(in_path);
+    acl->set_path(in_path);
   } else {
-    mAclProto.set_path(abspath(in_path.c_str()));
+    acl->set_path(abspath(in_path.c_str()));
   }
 
   return true;
@@ -211,6 +203,7 @@ AclHelper::ParseCommand(const char* arg)
 {
   std::string token;
   const char* temp;
+  eos::console::AclProto* acl = mReq.mutable_acl();
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
 
@@ -227,28 +220,28 @@ AclHelper::ParseCommand(const char* arg)
     }
 
     if (token == "-lR" || token == "-Rl") {
-      mAclProto.set_recursive(true);
-      mAclProto.set_op(AclProto_OpType::AclProto_OpType_LIST);
+      acl->set_recursive(true);
+      acl->set_op(AclProto::LIST);
       continue;
     }
 
     if ((token == "-R") || (token == "--recursive")) {
-      mAclProto.set_recursive(true);
+      acl->set_recursive(true);
       continue;
     }
 
     if ((token == "-l") || (token == "--lists")) {
-      mAclProto.set_op(AclProto_OpType::AclProto_OpType_LIST);
+      acl->set_op(AclProto::LIST);
       continue;
     }
 
     if (token == "--sys") {
-      mAclProto.set_sys_acl(true);
+      acl->set_sys_acl(true);
       continue;
     }
 
     if (token == "--user") {
-      mAclProto.set_sys_acl(false);
+      acl->set_sys_acl(false);
       continue;
     }
 
@@ -257,21 +250,21 @@ AclHelper::ParseCommand(const char* arg)
       std::cerr << "error: unercognized flag " << token << std:: endl;
       return false;
     } else {
-      if (mAclProto.op() == AclProto_OpType::AclProto_OpType_LIST) {
+      if (acl->op() == AclProto::LIST) {
         // Set the absolute path if neccessary
         if (!SetPath(token)) {
           std::cerr << "error: failed to the the absolute path" << std::endl;
           return false;
         }
       } else {
-        mAclProto.set_op(AclProto_OpType::AclProto_OpType_MODIFY);
+        acl->set_op(AclProto::MODIFY);
 
         if (!CheckRule(token)) {
           std::cerr << "error: unrecognized rule format" << std::endl;
           return false;
         }
 
-        mAclProto.set_rule(token);
+        acl->set_rule(token);
 
         if ((temp = tokenizer.GetToken()) != 0) {
           token = std::string(temp);
@@ -292,8 +285,8 @@ AclHelper::ParseCommand(const char* arg)
     }
   }
 
-  if ((mAclProto.op() == AclProto_OpType::AclProto_OpType_NONE) ||
-      mAclProto.path().empty()) {
+  if ((acl->op() == AclProto::NONE) ||
+      acl->path().empty()) {
     return false;
   }
 
@@ -306,17 +299,19 @@ AclHelper::ParseCommand(const char* arg)
 bool
 AclHelper::SetDefaultRole()
 {
-  if (!mAclProto.sys_acl()) {
-    if (!mMgmExec.ExecuteCommand("mgm.cmd=whoami")) {
+  eos::console::AclProto* acl = mReq.mutable_acl();
+
+  if (!acl->sys_acl()) {
+    if (!mMgmExec.ExecuteCommand("mgm.cmd=whoami", false)) {
       std::string result = mMgmExec.GetResult();
       size_t pos = 0;
 
       if ((pos = result.find("uid=")) != std::string::npos) {
         if ((result.at(pos + 4) >= '0') && (result.at(pos + 4) <= '4') &&
             (result.at(pos + 5) == ' ')) {
-          mAclProto.set_sys_acl(true);
+          acl->set_sys_acl(true);
         } else {
-          mAclProto.set_sys_acl(false);
+          acl->set_sys_acl(false);
         }
 
         return true;
@@ -334,46 +329,26 @@ AclHelper::SetDefaultRole()
 }
 
 //------------------------------------------------------------------------------
-// Execute command and display any output information
-// @todo (esindril): This should be moved to console main and made generic
-//       using templates.
+// Acl command entrypoint
 //------------------------------------------------------------------------------
-int
-AclHelper::Execute()
+int com_acl(char* arg)
 {
-  eos::console::RequestProto req;
-  req.set_type(eos::console::RequestProto_OpType::RequestProto_OpType_ACL);
-  *req.mutable_acl() = mAclProto;
-  size_t sz = req.ByteSize();
-  std::string buffer(sz , '\0');
-  google::protobuf::io::ArrayOutputStream aos((void*)buffer.data(), sz);
-
-  if (!req.SerializeToZeroCopyStream(&aos)) {
-    std::cerr << "error: failed to serialize ProtobolBuffer request"
-              << std::endl;
+  if (wants_help(arg)) {
+    com_acl_help();
+    global_retc = EINVAL;
     return EINVAL;
   }
 
-  std::string b64buff;
+  AclHelper acl;
 
-  if (!eos::common::SymKey::Base64Encode(buffer.data(), buffer.size(), b64buff)) {
-    std::cerr << "error: failed to base64 encode the request" << std::endl;
+  if (!acl.ParseCommand(arg) || !acl.SetDefaultRole()) {
+    com_acl_help();
+    global_retc = EINVAL;
     return EINVAL;
   }
 
-  std::string cmd = "mgm.cmd.proto=";
-  cmd += b64buff;
-  int retc = mMgmExec.ExecuteCommand(cmd.c_str());
-
-  if (retc) {
-    std::cerr << mMgmExec.GetError() << std::endl;
-  } else {
-    if (mMgmExec.GetResult().size()) {
-      std::cout << mMgmExec.GetResult() << std::endl;
-    }
-  }
-
-  return retc;
+  global_retc = acl.Execute();
+  return global_retc;
 }
 
 //------------------------------------------------------------------------------
@@ -405,27 +380,4 @@ void com_acl_help()
             << std::endl;
   std::cerr << "of setting new ACL permission just enter the ACL flag." <<
             std::endl;
-}
-
-//------------------------------------------------------------------------------
-// Acl command entrypoint
-//------------------------------------------------------------------------------
-int com_acl(char* arg)
-{
-  if (wants_help(arg)) {
-    com_acl_help();
-    global_retc = EINVAL;
-    return EINVAL;
-  }
-
-  AclHelper acl;
-
-  if (!acl.ParseCommand(arg) || !acl.SetDefaultRole()) {
-    com_acl_help();
-    global_retc = EINVAL;
-    return EINVAL;
-  }
-
-  global_retc = acl.Execute();
-  return global_retc;
 }

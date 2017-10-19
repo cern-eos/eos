@@ -46,7 +46,7 @@ if(ROCKSDB_FOUND)
 endif()
 
 
-if(CPPUNIT_FOUND)
+if(NOT CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 

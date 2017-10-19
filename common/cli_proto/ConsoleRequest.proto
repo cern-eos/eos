@@ -2,17 +2,13 @@ syntax="proto3";
 package eos.console;
 
 import "Acl.proto";
+import "Ns.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
 //------------------------------------------------------------------------------
 message RequestProto {
-  enum OpType {
-    NONE = 0;
-    ACL  = 1;
-  }
-
-  /// Types of output format supported
+  // Types of output format supported
   enum FormatType {
     DEFAULT = 0;
     FUSE    = 1;
@@ -20,13 +16,9 @@ message RequestProto {
     HTTP    = 3;
   }
 
-  FormatType format = 1;
-
-  // Identifies which field is filled in
-  OpType type = 2;
-
   // Actual request data object
-  oneof data {
+  oneof command {
     AclProto acl = 3;
+    NsProto  ns  = 4;
   }
 }

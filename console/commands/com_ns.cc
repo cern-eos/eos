@@ -1,11 +1,10 @@
-// ----------------------------------------------------------------------
-// File: com_ns.cc
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file com_ns.cc
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,223 +20,274 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-#include "common/RWMutex.hh"
-/*----------------------------------------------------------------------------*/
+#include "console/commands/ICmdHelper.hh"
+#include "common/Ns.pb.h"
 
-/* Namespace Interface */
-int
-com_ns(char* arg1)
+void com_ns_help();
+
+//------------------------------------------------------------------------------
+//! Class NsHelper
+//------------------------------------------------------------------------------
+class NsHelper: public ICmdHelper
 {
-  eos::common::StringTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString cmd = subtokenizer.GetToken();
-  XrdOucString option = "";
-  XrdOucString options = "";
-  XrdOucString in = "";
-  XrdOucString state;
-  XrdOucString delay;
-  XrdOucString interval;
-  XrdOucString compacttype;
-
-  if (wants_help(arg1)) {
-    goto com_ns_usage;
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  NsHelper()
+  {
+    mIsAdmin = true;
+    mHighlight = true;
   }
 
-  if ((cmd != "stat") && (cmd != "") && (cmd != "compact") && (cmd != "master") &&
-      (cmd != "mutex")) {
-    goto com_ns_usage;
-  }
+  //----------------------------------------------------------------------------
+  //! Denstructor
+  //----------------------------------------------------------------------------
+  ~NsHelper() = default;
 
-  in = "mgm.cmd=ns&";
+  //----------------------------------------------------------------------------
+  //! Parse command line input
+  //!
+  //! @param arg input
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool ParseCommand(const char* arg);
+};
+
+//------------------------------------------------------------------------------
+// Parse command line input
+//------------------------------------------------------------------------------
+bool
+NsHelper::ParseCommand(const char* arg)
+{
+  const char* option;
+  std::string soption;
+  eos::console::NsProto* ns = mReq.mutable_ns();
+  eos::common::StringTokenizer tokenizer(arg);
+  tokenizer.GetLine();
+  option = tokenizer.GetToken();
+  std::string cmd = (option ? option : "");
 
   if (cmd == "stat") {
-    in += "mgm.subcmd=stat";
-  }
+    eos::console::NsProto_StatProto* stat = ns->mutable_stat();
 
-  if (cmd == "compact") {
-    in += "mgm.subcmd=compact";
-    state = subtokenizer.GetToken();
-
-    if ((state != "on") && (state != "off")) {
-      goto com_ns_usage;
-    }
-
-    in += "&mgm.ns.compact=";
-    in += state;
-    delay = subtokenizer.GetToken();
-    interval = subtokenizer.GetToken();
-    compacttype = subtokenizer.GetToken();
-
-    if (delay.length()) {
-      int idelay = atoi(delay.c_str());
-
-      if (!idelay) {
-        goto com_ns_usage;
-      }
-
-      in += "&mgm.ns.compact.delay=";
-      in += delay;
-
-      if (!interval.length()) {
-        interval = "0";
-      }
-
-      int iinterval = atoi(interval.c_str());
-
-      if (!iinterval) {
-        if (interval != "0") {
-          goto com_ns_usage;
-        }
-      }
-
-      in += "&mgm.ns.compact.interval=";
-      in += interval;
-
-      if (compacttype.length()) {
-        if ((compacttype != "files") &&
-            (compacttype != "directories") &&
-            (compacttype != "all") &&
-            (compacttype != "files-repair") &&
-            (compacttype != "directories-repair") &&
-            (compacttype != "all-repair")) {
-          goto com_ns_usage;
-        }
-
-        in += "&mgm.ns.compact.type=";
-        in += compacttype.c_str();
-      } else {
-        in += "&mgm.ns.compact.type=files";
-      }
-    }
-  }
-
-  if (cmd == "master") {
-    in += "mgm.subcmd=master";
-    XrdOucString master = subtokenizer.GetToken();
-    in += "&mgm.master=";
-    in += master;
-  }
-
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-
-  if (cmd == "mutex") {
-    in += "mgm.subcmd=mutex";
-  }
-
-#endif
-
-  do {
-    option = subtokenizer.GetToken();
-
-    if (!option.length()) {
-      break;
-    }
-
-    if (option == "-a") {
-      options += "a";
+    if (!(option = tokenizer.GetToken())) {
+      stat->set_standard(true);
     } else {
-      if (option == "-m") {
-        options += "m";
-      } else {
-        if (option == "-n") {
-          options += "n";
-        } else {
-          if (option == "--reset") {
-            options += "r";
-          } else {
-#ifdef EOS_INSTRUMENTED_RWMUTEX
+      while (true) {
+        soption = option;
 
-            if (option == "--toggletiming") {
-              options += "t";
-            } else {
-              if (option == "--toggleorder") {
-                options += "o";
-              } else {
-                if (option == "--smplrate1") {
-                  options += "1";
-                } else {
-                  if (option == "--smplrate10") {
-                    options += "s";
-                  } else {
-                    if (option == "--smplrate100") {
-                      options += "f";
-                    } else {
-                      goto com_ns_usage;
-                    }
-                  }
-                }
-              }
+        if (soption == "-a") {
+          stat->set_groupids(true);
+        } else if (soption == "-m") {
+          stat->set_monitor(true);
+        } else if (soption == "-n") {
+          stat->set_numericids(true);
+        } else if (soption == "--reset") {
+          stat->set_reset(true);
+        } else {
+          return false;
+        }
+
+        if (!(option = tokenizer.GetToken())) {
+          break;
+        }
+      }
+    }
+  } else if (cmd == "mutex") {
+    using eos::console::NsProto_MutexProto;
+    NsProto_MutexProto* mutex = ns->mutable_mutex();
+
+    if (!(option = tokenizer.GetToken())) {
+      mutex->set_list(true);
+    } else {
+      while (true) {
+        soption = option;
+
+        if (soption == "--toggletime") {
+          mutex->set_toggle_timing(true);
+        } else if (soption == "--toggleorder") {
+          mutex->set_toggle_order(true);
+        } else if (soption == "--smplrate1") {
+          mutex->set_sample_rate1(true);
+        } else if (soption == "--smplrate10") {
+          mutex->set_sample_rate10(true);
+        } else if (soption == "--smplrate100") {
+          mutex->set_sample_rate100(true);
+        } else {
+          return false;
+        }
+
+        if (!(option = tokenizer.GetToken())) {
+          break;
+        }
+      }
+    }
+  } else if (cmd == "compact") {
+    using eos::console::NsProto_CompactProto;
+    NsProto_CompactProto* compact = ns->mutable_compact();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    } else {
+      soption = option;
+
+      if (soption == "off") {
+        compact->set_on(false);
+      } else if (soption == "on") {
+        compact->set_on(true);
+
+        if ((option = tokenizer.GetToken())) {
+          soption = option;
+          int64_t delay  = 0;
+
+          try {
+            delay = std::stol(soption);
+          } catch (std::exception& e) {
+            return false;
+          }
+
+          compact->set_delay(delay);
+
+          if ((option = tokenizer.GetToken())) {
+            soption = option;
+            int64_t interval = 0;
+
+            try {
+              interval = std::stol(soption);
+            } catch (std::exception& e) {
+              return false;
             }
 
-#else
-            goto com_ns_usage;
-#endif
+            compact->set_interval(interval);
+
+            if ((option = tokenizer.GetToken())) {
+              soption = option;
+
+              if (soption == "files") {
+                compact->set_type(NsProto_CompactProto::FILES);
+              } else if (soption == "directories") {
+                compact->set_type(NsProto_CompactProto::DIRS);
+              } else if (soption == "all") {
+                compact->set_type(NsProto_CompactProto::ALL);
+              }
+            } else if (soption == "files-repair") {
+              compact->set_type(NsProto_CompactProto::FILES_REPAIR);
+            } else if (soption == "directories-repair") {
+              compact->set_type(NsProto_CompactProto::DIRS_REPAIR);
+            } else if (soption == "all-repair") {
+              compact->set_type(NsProto_CompactProto::ALL_REPAIR);
+            } else {
+              compact->set_type(NsProto_CompactProto::FILES);
+            }
           }
         }
+      } else {
+        return false;
       }
     }
-  } while (1);
+  } else if (cmd == "master") {
+    using eos::console::NsProto_MasterProto;
+    NsProto_MasterProto* master = ns->mutable_master();
 
-  if (options.length()) {
-    in += "&mgm.option=";
-    in += options;
+    if (!(option = tokenizer.GetToken())) {
+      master->set_op(NsProto_MasterProto::LOG);
+    } else {
+      soption = option;
+
+      if (soption == "--log") {
+        master->set_op(NsProto_MasterProto::LOG);
+      } else if (soption == "--log-clear") {
+        master->set_op(NsProto_MasterProto::LOG_CLEAR);
+      } else if (soption == "--enable") {
+        master->set_op(NsProto_MasterProto::ENABLE);
+      } else if (soption == "--disable") {
+        master->set_op(NsProto_MasterProto::DISABLE);
+      } else {
+        master->set_host(soption);
+      }
+    }
+  } else if (cmd == "") {
+    ns->set_default_(true);
+  } else {
+    return false;
   }
 
-  global_retc = output_result(client_command(in, true));
-  return (0);
-com_ns_usage:
-  fprintf(stdout,
-          "Usage: ns                                                         :  print basic namespace parameters\n");
-  fprintf(stdout,
-          "       ns stat [-a] [-m] [-n]                                     :  print namespace statistics\n");
-  fprintf(stdout,
-          "                -a                                                   -  break down by uid/gid\n");
-  fprintf(stdout,
-          "                -m                                                   -  print in <key>=<val> monitoring format\n");
-  fprintf(stdout,
-          "                -n                                                   -  print numerical uid/gids\n");
-  fprintf(stdout,
-          "                --reset                                              -  reset namespace counter\n");
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-  fprintf(stdout,
-          "       ns mutex                                                   :  manage mutex monitoring\n");
-  fprintf(stdout,
-          "                --toggletiming                                       -  toggle the timing\n");
-  fprintf(stdout,
-          "                --toggleorder                                        -  toggle the order checking\n");
-  fprintf(stdout,
-          "                --smplrate1                                          -  set the timing sample rate at 1%%   (default, almost no slow-down)\n");
-  fprintf(stdout,
-          "                --smplrate10                                         -  set the timing sample rate at 10%%  (medium slow-down)\n");
-  fprintf(stdout,
-          "                --smplrate100                                        -  set the timing sample rate at 100%% (severe slow-down)\n");
-#endif
-  fprintf(stdout,
-          "       ns compact on <delay> [<interval>] [<type>]                   -  enable online compactification after <delay> seconds\n");
-  fprintf(stdout,
-          "                                                                     -  if <interval> is >0 the compactifcation is repeated automatically after <interval> seconds!\n");
-  fprintf(stdout,
-          "                                                                     -  <type> can be 'files' 'directories' or 'all'. By default only the file changelog is compacted!\n");
-  fprintf(stdout,
-          "                                                                     -  the repair flag can be indicated by adding '-repair': 'files-repair', 'directories-repair', 'all-repair'\n");
-  fprintf(stdout,
-          "       ns compact off                                                -  disable online compactification\n");
-  fprintf(stdout,
-          "       ns master <master-hostname>|[--log]|--log-clear            :  master/slave operation\n");
-  fprintf(stdout,
-          "       ns master <master-hostname>                                   -  set the host name of the MGM RW master daemon\n");
-  fprintf(stdout,
-          "       ns master                                                     -  show the master log\n");
-  fprintf(stdout,
-          "       ns master --log                                               -  show the master log\n");
-  fprintf(stdout,
-          "       ns master --log-clear                                         -  clean the master log\n");
-  fprintf(stdout,
-          "       ns master --disable                                           -  disable the slave/master supervisor thread modifying stall/redirection variables\n");
-  fprintf(stdout,
-          "       ns master --enable                                            -  enable  the slave/master supervisor thread modifying stall/redirectino variables\n");
-  global_retc = 0;
-  return (0);
+  return true;
+}
+
+
+//------------------------------------------------------------------------------
+// Ns command entrypoint
+//------------------------------------------------------------------------------
+int com_ns(char* arg)
+{
+  if (wants_help(arg)) {
+    com_ns_help();
+    global_retc = EINVAL;
+    return EINVAL;
+  }
+
+  NsHelper ns;
+
+  if (!ns.ParseCommand(arg)) {
+    com_ns_help();
+    global_retc = EINVAL;
+    return EINVAL;
+  }
+
+  global_retc = ns.Execute();
+  return global_retc;
+}
+
+//------------------------------------------------------------------------------
+// Print help message
+//------------------------------------------------------------------------------
+void com_ns_help()
+{
+  std::ostringstream oss;
+  oss << "Usage: ns [stat|mutex|compact|master]" << std::endl
+      << "    print or configure basic namespace parameters" << std::endl
+      << "  ns stat [-a] [-m] [-n] [--reset]" << std::endl
+      << "    print namespace statistics" << std::endl
+      << "    -a      : break down by uid/gid" << std::endl
+      << "    -m      : display in monitoring format <key>=<value>" << std::endl
+      << "    -n      : display numerical uid/gid(s)" << std::endl
+      << "    --reset : reset namespace counters" << std::endl
+      << std::endl
+      << "  ns mutex [<option>]" << std::endl
+      << "    manage mutex monitoring. Option can be:" << std::endl
+      << "    --toggletiming : toggle the timing" << std::endl
+      << "    --toggleorder  : toggle the order" << std::endl
+      << "    --smplrate1    : set timing sample rate at 1% (default, no slow-down)"
+      << std::endl
+      << "    --smplrate10   : set timing sample rate at 10% (medium slow-down)"
+      << std::endl
+      << "    --smplrate100  : set timing sample rate at 100% (severe slow-down)"
+      << std::endl
+      << std::endl
+      << "  ns compact off|on <delay> [<interval>] [<type>]" << std::endl
+      << "    enable online compaction after <delay> seconds" << std::endl
+      << "    <interval> : if >0 then compaction is repeated automatically " <<
+      std::endl
+      << "                 after so many seconds" << std::endl
+      << "    <type>     : can be 'files', 'directories' or 'all'. By default  only the file"
+      << std::endl
+      << "                 changelog is compacted. The repair flag can be indicated by using"
+      << std::endl
+      << "                 'files-repair', 'directories-repair' or 'all-repair'. "
+      << std::endl
+      << std::endl
+      << "  ns master [<option>]" << std::endl
+      << "    master/slave operations. Option can be:" << std::endl
+      << "    <master_hostname> : set hostname of MGM master RW daemon" << std::endl
+      << "    --log             : show master log" << std::endl
+      << "    --log-clear       : clean master log" << std::endl
+      << "    --enable          : enable the slave/master supervisor thread modifying stall/"
+      << std::endl
+      << "                        redirectorion rules" << std::endl
+      << "    --disable   : disable supervisor thread" << std::endl;
+  std::cerr << oss.str() << std::endl;
 }

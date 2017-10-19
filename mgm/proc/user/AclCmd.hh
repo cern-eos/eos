@@ -46,70 +46,14 @@ public:
   //----------------------------------------------------------------------------
   explicit AclCmd(eos::console::RequestProto&& req,
                   eos::common::Mapping::VirtualIdentity& vid):
-    IProcCommand(vid, true), mExecRequest(false), mReqProto(std::move(req)),
-    mId(), mAddRule(0), mRmRule(0), mSet(false)
+    IProcCommand(vid, true), mReqProto(std::move(req)), mId(), mAddRule(0),
+    mRmRule(0), mSet(false)
   {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~AclCmd() = default;
-
-  //----------------------------------------------------------------------------
-  //! Open a proc command e.g. call the appropriate user or admin commmand and
-  //! store the output in a resultstream of in case of find in temporary output
-  //! files.
-  //! @note This method can also stall the client if the response is not ready
-  //!       within 5 seconds. This behaviour avoids the scenario in which the
-  //!       client resubmitts the same command if he doesn't get a reply within
-  //!       the STREAM_TIMEOUT (60 seconds).
-  //!
-  //! @param inpath path indicating user or admin command
-  //! @param info CGI describing the proc command
-  //! @param vid_in virtual identity of the user requesting a command
-  //! @param error object to store errors
-  //!
-  //! @return SFS_OK in any case
-  //----------------------------------------------------------------------------
-  int open(const char* path, const char* info,
-           eos::common::Mapping::VirtualIdentity& vid,
-           XrdOucErrInfo* error) override;
-
-  //----------------------------------------------------------------------------
-  //! Read a part of the result stream created during open
-  //!
-  //! @param boff offset where to start
-  //! @param buff buffer to store stream
-  //! @param blen len to return
-  //!
-  //! @return number of bytes read
-  //----------------------------------------------------------------------------
-  int read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen) override;
-
-  //----------------------------------------------------------------------------
-  //! Get the size of the result stream
-  //!
-  //! @param buf stat structure to fill
-  //!
-  //! @return SFS_OK in any case
-  //----------------------------------------------------------------------------
-  virtual int stat(struct stat* buf) override
-  {
-    // @todo (esindril): to implement
-    return SFS_OK;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Close the proc stream and store the clients comment for the command in the
-  //! comment log file
-  //!
-  //! @return 0 if comment has been successfully stored otherwise != 0
-  //----------------------------------------------------------------------------
-  virtual int close() override
-  {
-    //@todo (esindril): to implement
-    return SFS_OK;
-  }
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behvior of the command executed by the
@@ -145,8 +89,6 @@ private:
     C  = 1 << 10   // 1024 -  c
   };
 
-  std::string mTmpResp; ///< String used for streaming the response
-  bool mExecRequest; ///< Indicate if request is launched asynchronously
   eos::console::RequestProto mReqProto; ///< Client request protobuf object
   std::string mId; ///< Rule identifier extracted from command line
   ///< ACL rule bitmasks for adding and removing

@@ -23,9 +23,11 @@
 #include "ProcInterface.hh"
 #include "common/ConsoleRequest.pb.h"
 #include "mgm/proc/user/AclCmd.hh"
+#include "mgm/proc/admin/NsCmd.hh"
 #include <iostream>
 #include <fstream>
 #include <json/json.h>
+#include <google/protobuf/util/json_util.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -141,7 +143,7 @@ std::unique_ptr<IProcCommand>
 ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
                                      eos::common::Mapping::VirtualIdentity& vid)
 {
-  using eos::console::RequestProto_OpType;
+  using eos::console::RequestProto;
   std::unique_ptr<IProcCommand> cmd;
   std::ostringstream oss;
   std::string raw_pb;
@@ -163,15 +165,24 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
     return cmd;
   }
 
-  switch (req.type()) {
-  case RequestProto_OpType::RequestProto_OpType_ACL:
+  // Log the type of command that we received
+  std::string json_out;
+  (void) google::protobuf::util::MessageToJsonString(req, &json_out);
+  eos_static_info("cmd_proto=%s", json_out.c_str());
+
+  switch (req.command_case()) {
+  case RequestProto::kAcl:
     eos_static_debug("handling acl command");
     cmd.reset(new AclCmd(std::move(req), vid));
     break;
 
+  case RequestProto::kNs:
+    eos_static_debug("handling acl command");
+    cmd.reset(new NsCmd(std::move(req), vid));
+    break;
+
   default:
-    oss << "error: unknown request type";
-    eos_static_err("%s", oss.str().c_str());
+    eos_static_err("error: unknown request type");
     break;
   }
 

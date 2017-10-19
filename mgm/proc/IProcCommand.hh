@@ -45,8 +45,8 @@ public:
   //! Costructor
   //----------------------------------------------------------------------------
   IProcCommand():
-    mDoAsync(false), mForceKill(false), stdOut(), stdErr(),
-    stdJson(), retc(0) {}
+    mExecRequest(false), mDoAsync(false), mForceKill(false), stdOut(), stdErr(),
+    stdJson(), retc(0), mTmpResp() {}
 
   //----------------------------------------------------------------------------
   //! Costructor
@@ -82,7 +82,7 @@ public:
   //----------------------------------------------------------------------------
   virtual int open(const char* path, const char* info,
                    eos::common::Mapping::VirtualIdentity& vid,
-                   XrdOucErrInfo* error) = 0;
+                   XrdOucErrInfo* error);
 
   //----------------------------------------------------------------------------
   //! Read a part of the result stream created during open
@@ -93,7 +93,7 @@ public:
   //!
   //! @return number of bytes read
   //----------------------------------------------------------------------------
-  virtual int read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen) = 0;
+  virtual int read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen);
 
   //----------------------------------------------------------------------------
   //! Get the size of the result stream
@@ -102,7 +102,11 @@ public:
   //!
   //! @return SFS_OK in any case
   //----------------------------------------------------------------------------
-  virtual int stat(struct stat* buf) = 0;
+  virtual int stat(struct stat* buf)
+  {
+    // @todo (esindril): impelment for proto commands
+    return SFS_OK;
+  }
 
   //----------------------------------------------------------------------------
   //! Close the proc stream and store the clients comment for the command in the
@@ -110,7 +114,11 @@ public:
   //!
   //! @return 0 if comment has been successfully stored otherwise != 0
   //----------------------------------------------------------------------------
-  virtual int close() = 0;
+  virtual int close()
+  {
+    //@todo (esindril): to implement for proto commands
+    return SFS_OK;
+  }
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behavior of the command executed
@@ -132,6 +140,7 @@ public:
   virtual bool KillJob() final;
 
 protected:
+  bool mExecRequest; ///< Indicate if request is launched asynchronously
   std::mutex mMutexAsync; ///< Mutex locked during async execution
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
   bool mDoAsync; ///< If true use thread pool to do the work
@@ -141,6 +150,7 @@ protected:
   XrdOucString stdErr; ///< stdErr returned by proc command
   XrdOucString stdJson; ///< JSON output returned by proc command
   int retc; ///< return code from the proc command
+  std::string mTmpResp; ///< String used for streaming the response
 };
 
 EOSMGMNAMESPACE_END

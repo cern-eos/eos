@@ -1,11 +1,10 @@
 //------------------------------------------------------------------------------
-//! @file MgmExecute.hh
-//! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
+//! @file ICmdHelper.hh
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,67 +21,56 @@
  ************************************************************************/
 
 #pragma once
-#include "console/ConsoleMain.hh"
-
-#ifdef BUILD_TESTS
-class AclCommandTest;
-#include "console/tests/MgmExecuteTest.hh"
-#else
+#include "common/ConsoleRequest.pb.h"
+#include "console/MgmExecute.hh"
 
 //------------------------------------------------------------------------------
-//! Class MgmExecute
-//! @description Class wrapper around communication with MGM node
+//! Class ICmdHelper
+//! @brief Abstract base class to be inherited in all the command
+//! implementations
 //------------------------------------------------------------------------------
-class MgmExecute
+class ICmdHelper
 {
 public:
   //----------------------------------------------------------------------------
-  //! Execute user command
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ICmdHelper():
+    mReq(), mMgmExec(), mIsAdmin(false), mHighlight(false) {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~ICmdHelper() = default;
+
+  //----------------------------------------------------------------------------
+  //! Parse command line input
   //!
-  //! @param command command to be executed
-  //! @param is_admin if true execute command as admin, otherwise as user
+  //! @param arg input
   //!
-  //! @return return code
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  int ExecuteCommand(const char* command, bool is_admin);
+  virtual bool ParseCommand(const char* arg) = 0;
 
   //----------------------------------------------------------------------------
-  //! Get result string
-  //----------------------------------------------------------------------------
-  inline std::string& GetResult()
-  {
-    return mResult;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get error string
-  //----------------------------------------------------------------------------
-  inline std::string& GetError()
-  {
-    return mError;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get return code
-  //----------------------------------------------------------------------------
-  inline int GetErrc()
-  {
-    return mErrc;
-  }
-
-private:
-  //----------------------------------------------------------------------------
-  //! Command to process the server response
+  //! Execute command and display any output information
+  //! @note When this methods is called the generic request object mReq needs
+  //! to already contain the specific commands object.
   //!
-  //! @param response incoming data strream
-  //!
-  //! @return 0 if successful, otherwise error code
+  //! @return command return code
   //----------------------------------------------------------------------------
-  int proccess(XrdOucEnv* response);
+  int Execute();
 
-  std::string mResult; ///< String holding the result
-  std::string mError; ///< String holding the error message
-  int mErrc; ///< Command return code
+protected:
+  //----------------------------------------------------------------------------
+  //! Apply highlighting to text
+  //!
+  //! @param text text to be highlighted
+  //----------------------------------------------------------------------------
+  void TextHighlight(std::string& text);
+
+  eos::console::RequestProto mReq; ///< Generic request object send to the MGM
+  MgmExecute mMgmExec; ///< Wrapper for executing commands at the MGM
+  bool mIsAdmin; ///< If true execute as admin, otherwise as user
+  bool mHighlight; ///< If true apply text highlighting to output
 };
-
-#endif //BUILD_TESTS
