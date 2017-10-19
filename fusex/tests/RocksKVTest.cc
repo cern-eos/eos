@@ -31,12 +31,17 @@ TEST(RocksKV, BasicSanity) {
   RocksKV kv;
   ASSERT_EQ(kv.connect("/tmp/eos-fusex-tests"), 0);
 
-  std::string key("123");
-  std::string value("asdf");
-
-  ASSERT_EQ(kv.put(key, value), 0);
+  ASSERT_EQ(kv.put("123", "asdf"), 0);
 
   std::string tmp;
-  ASSERT_EQ(kv.get(key, tmp), 0);
+  ASSERT_EQ(kv.get("123", tmp), 0);
   ASSERT_EQ(tmp, "asdf");
+
+  uint64_t ret;
+  ASSERT_EQ(kv.put("123", 4), 0);
+  ASSERT_EQ(kv.get("123", ret), 0);
+  ASSERT_EQ(ret, 4);
+
+  ASSERT_EQ(kv.put("test", "test"), 0);
+  ASSERT_EQ(kv.get("test", ret), -1); // cannot convert "test" to uint64_t
 }

@@ -32,6 +32,19 @@
 #include "common/Logging.hh"
 #include "misc/longstring.hh"
 
+/* -------------------------------------------------------------------------- */
+static bool
+/* -------------------------------------------------------------------------- */
+safe_strtoll(const std::string &str, uint64_t &ret)
+/* -------------------------------------------------------------------------- */
+{
+  char *endptr = NULL;
+  ret = strtoull(str.c_str(), &endptr, 10);
+  if(endptr != str.c_str() + str.size() || ret == ULONG_LONG_MAX) {
+    return false;
+  }
+  return true;
+}
 
 /* -------------------------------------------------------------------------- */
 RocksKV::RocksKV()
@@ -81,7 +94,7 @@ static int badStatus(const rocksdb::Status &st) {
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::get(std::string &key, std::string &value)
+RocksKV::get(const std::string &key, std::string &value)
 /* -------------------------------------------------------------------------- */
 {
   rocksdb::Status st = db->Get(rocksdb::ReadOptions(), key, &value);
@@ -99,16 +112,25 @@ RocksKV::get(std::string &key, std::string &value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::get(std::string &key, uint64_t &value)
+RocksKV::get(const std::string &key, uint64_t &value)
 /* -------------------------------------------------------------------------- */
 {
-  return 1;
+  std::string tmp;
+  int ret = this->get(key, tmp);
+  if(ret != 0) return ret;
+
+  if(!safe_strtoll(tmp.c_str(), value)) {
+    eos_static_crit("Expected to find an integer on key %s, instead found %s", key.c_str(), tmp.c_str());
+    return -1;
+  }
+
+  return 0;
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::put(std::string &key, std::string &value)
+RocksKV::put(const std::string &key, const std::string &value)
 /* -------------------------------------------------------------------------- */
 {
   rocksdb::Status st = db->Put(rocksdb::WriteOptions(), key, value);
@@ -122,16 +144,16 @@ RocksKV::put(std::string &key, std::string &value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::put(std::string &key, uint64_t &value)
+RocksKV::put(const std::string &key, uint64_t value)
 /* -------------------------------------------------------------------------- */
 {
-  return 1;
+  return this->put(key, std::to_string(value));
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::inc(std::string &key, uint64_t &value)
+RocksKV::inc(const std::string &key, uint64_t value)
 /* -------------------------------------------------------------------------- */
 {
   return 1;
@@ -141,7 +163,7 @@ RocksKV::inc(std::string &key, uint64_t &value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::erase(std::string &key)
+RocksKV::erase(const std::string &key)
 /* -------------------------------------------------------------------------- */
 {
   return 1;
@@ -160,7 +182,7 @@ RocksKV::get(uint64_t key, std::string &value, std::string name_space)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::put(uint64_t key, std::string &value, std::string name_space)
+RocksKV::put(uint64_t key, const std::string &value, std::string name_space)
 /* -------------------------------------------------------------------------- */
 {
   return 1;
