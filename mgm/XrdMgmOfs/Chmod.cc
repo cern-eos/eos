@@ -159,10 +159,6 @@ XrdMgmOfs::_chmod(const char* path,
 
           if ((Mode & S_ISUID)) {
             Mode ^= S_ISUID;
-          } else {
-            if (!(Mode & S_ISGID)) {
-              Mode |= S_ISGID;
-            }
           }
 
           if (attrmap.count("sys.mask")) {

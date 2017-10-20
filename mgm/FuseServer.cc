@@ -1508,23 +1508,19 @@ FuseServer::FillContainerCAP(uint64_t id,
 
     // Check if quota is enabled for the current space
     bool has_quota = false;
-
-    long long avail_bytes=0;
-    long long avail_files=0;
+    long long avail_bytes = 0;
+    long long avail_files = 0;
     eos::IContainerMD::id_t quota_inode;
-    
+
     if (eos::mgm::FsView::gFsView.IsQuotaEnabled(space)) {
       if (!Quota::QuotaByPath(dir.fullpath().c_str(), dir.capability().uid(),
-			 dir.capability().gid(), avail_files, avail_bytes,
-			      quota_inode))
-      {
-	has_quota = true;
+                              dir.capability().gid(), avail_files, avail_bytes,
+                              quota_inode)) {
+        has_quota = true;
       }
-    }
-    else
-    {
-      avail_files = std::numeric_limits<long>::max()/2;
-      avail_bytes = std::numeric_limits<long>::max()/2;
+    } else {
+      avail_files = std::numeric_limits<long>::max() / 2;
+      avail_bytes = std::numeric_limits<long>::max() / 2;
       has_quota = true;
     }
 
@@ -1902,14 +1898,12 @@ FuseServer::HandleMD(const std::string& id,
             eos_static_err("imply failed for new inode %lx", md_ino);
           }
 
-          if (pcmd->getMode() & S_ISGID) {
-            // parent attribute inheritance
-            // @todo (esindril): This could be optimized further
-            eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
+          // parent attribute inheritance
+          // @todo (esindril): This could be optimized further
+          eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
 
-            for (const auto& elem : xattrs) {
-              cmd->setAttribute(elem.first, elem.second);
-            }
+          for (const auto& elem : xattrs) {
+            cmd->setAttribute(elem.first, elem.second);
           }
         }
 

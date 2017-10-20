@@ -338,14 +338,11 @@ XrdMgmOfs::_mkdir(const char* path,
           newdir->setCUid(vid.uid);
           newdir->setCGid(vid.gid);
           newdir->setMode(dir->getMode());
+          // Inherit the attributes
+          eos::IFileMD::XAttrMap xattrs = dir->getAttributes();
 
-          if (dir->getMode() & S_ISGID) {
-            // Inherit the attributes
-            eos::IFileMD::XAttrMap xattrs = dir->getAttributes();
-
-            for (const auto& elem : xattrs) {
-              newdir->setAttribute(elem.first, elem.second);
-            }
+          for (const auto& elem : xattrs) {
+            newdir->setAttribute(elem.first, elem.second);
           }
 
           // Store the in-memory modification time into the parent
@@ -401,9 +398,8 @@ XrdMgmOfs::_mkdir(const char* path,
     newdir->setMTime(ctime);
     dir->setMTime(ctime);
 
-    if ((dir->getMode() & S_ISGID) &&
-        (cPath.GetFullPath().find(EOS_COMMON_PATH_VERSION_PREFIX) == STR_NPOS)) {
-      // Inherit the attributes - not for version directories
+    // If not version directory, then inherit attributes
+    if (cPath.GetFullPath().find(EOS_COMMON_PATH_VERSION_PREFIX) == STR_NPOS) {
       eos::IFileMD::XAttrMap xattrs = dir->getAttributes();
 
       for (const auto& elem : xattrs) {

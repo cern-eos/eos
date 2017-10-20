@@ -1575,7 +1575,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       // no permissions set yet
       try {
         rootmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
-                        S_IWGRP | S_IXGRP | S_ISGID);
+                        S_IWGRP | S_IXGRP);
       } catch (eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the / directory mode to inital mode");
         eos_crit("cannot set the / directory mode to 755");
@@ -1603,7 +1603,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eosmd = eosView->createContainer("/eos/", true);
         // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
-                       S_IWGRP | S_IXGRP | S_ISGID);
+                       S_IWGRP | S_IXGRP);
         // set default checksum 'adler'
         eosmd->setAttribute("sys.forced.checksum", "adler");
         eosView->updateContainerStore(eosmd.get());
@@ -1611,7 +1611,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eosmd = eosView->createContainer(instancepath.c_str(), true);
         // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
-                       S_IWGRP | S_IXGRP | S_ISGID);
+                       S_IWGRP | S_IXGRP);
         // set default checksum 'adler'
         eosmd->setAttribute("sys.forced.checksum", "adler");
         eosView->updateContainerStore(eosmd.get());

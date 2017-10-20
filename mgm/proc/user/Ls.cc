@@ -203,10 +203,6 @@ ProcCommand::Ls()
                 modestr[3] = 's';
               }
 
-              if (S_ISGID & buf.st_mode) {
-                modestr[6] = 's';
-              }
-
               if (S_ISVTX & buf.st_mode) {
                 modestr[9] = '+';
               }
