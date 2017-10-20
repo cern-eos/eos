@@ -40,6 +40,7 @@ RedisKV::RedisKV()
   sKV = this;
   mContext=0;
   mEventBase = 0;
+  mAsyncContext = 0;
 }
 
 /* -------------------------------------------------------------------------- */
