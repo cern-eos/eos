@@ -195,7 +195,7 @@ TableCell::TableCell(const char* value, const std::string& format,
 //------------------------------------------------------------------------------
 // Constructor for string data
 //------------------------------------------------------------------------------
-TableCell::TableCell(std::string& value, const std::string& format,
+TableCell::TableCell(const std::string& value, const std::string& format,
                      const std::string& unit, bool empty,
                      TableFormatterColor col)
   : mFormat(format), mUnit(unit), mEmpty(empty), mColor(col),
@@ -289,8 +289,8 @@ void TableCell::SetValue(double value)
       } else if (value >= scale) {
         mUnit.insert(0, "K");
         value /= scale;
-      } else if (value >= 1) {
-        value = value;
+        //} else if (value >= 1) {
+        //  value = value;
       } else if (value >= 1 / scale) {
         mUnit.insert(0, "m");
         value *= scale;
@@ -320,21 +320,22 @@ void TableCell::SetValue(double value)
 //------------------------------------------------------------------------------
 // Set string value
 //------------------------------------------------------------------------------
-void TableCell::SetValue(std::string& value)
+void TableCell::SetValue(const std::string& value)
 {
   if (mSelectedValue == TypeContainingValue::STRING) {
     // " " -> "%20" is for monitoring output
     if (mFormat.find("o") != std::string::npos) {
+      std::string cpy_val = value;
       std::string search = " ";
       std::string replace = "%20";
       size_t pos = 0;
 
-      while ((pos = value.find(search, pos)) != std::string::npos) {
-        value.replace(pos, search.length(), replace);
+      while ((pos = cpy_val.find(search, pos)) != std::string::npos) {
+        cpy_val.replace(pos, search.length(), replace);
         pos += replace.length();
       }
 
-      mStrValue = value;
+      mStrValue = cpy_val;
     } else {
       mStrValue = value;
     }

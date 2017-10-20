@@ -61,7 +61,7 @@ public:
             const std::string& unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
-  TableCell(std::string& value, const std::string& format,
+  TableCell(const std::string& value, const std::string& format,
             const std::string& unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
@@ -97,7 +97,7 @@ protected:
   void SetValue(unsigned long long int value);
   void SetValue(long long int value);
   void SetValue(double value);
-  void SetValue(std::string& value);
+  void SetValue(const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Store value for cell
