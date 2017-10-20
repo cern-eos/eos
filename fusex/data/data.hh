@@ -273,8 +273,11 @@ public:
 
     virtual ~dmap()
     {
-      pthread_cancel(tIOFlush.native_handle());
-      tIOFlush.join();
+      if (tIOFlush.native_handle()) 
+      {
+	pthread_cancel(tIOFlush.native_handle());
+	tIOFlush.join();
+      }
     }
     
     void run()
