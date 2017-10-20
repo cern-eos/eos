@@ -491,7 +491,7 @@ Stat::GetExec (const char* tag, double &deviation)
     {
       deviation += pow((*it - avg), 2);
     }
-    deviation = sqrt(deviation / cnt?cnt:99999999);
+    deviation = sqrt(deviation / (cnt?cnt:99999999) );
     return avg;
   }
   return 0;
@@ -626,7 +626,7 @@ Stat::PrintOutTotal (XrdOucString &out, bool details, bool monitoring, bool nume
       sprintf(aexec, "%3.05f", avg);
     else
       sprintf(aexec, "-NA-");
-    
+
     if (sig)
       sprintf(aexecsig, "%3.05f", sig);
     else
@@ -1166,4 +1166,3 @@ Stat::Circulate ()
     Mutex.UnLock();
   }
 }
-
