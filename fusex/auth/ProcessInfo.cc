@@ -195,7 +195,7 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo &ret) {
     // this is odd.. shouldn't happen.. Maybe we hit the following race
     // condition: read /proc, process dies, read /cmdline
     eos_static_warning("Could not read /cmdline for pid %d, even though reading /stat succeeded. This should not pose a serious issue, as long it happens extremely infrequently - otherwise, we have a problem.", pid);
-    return false;
+    return true;
   }
 
   parseCmdline(cmdline, ret);
