@@ -63,7 +63,7 @@ journalcache::~journalcache()
 int journalcache::location( std::string &path, bool mkpath )
 {
   char cache_path[1024 + 20];
-  snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lx.j",
+  snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lx.jc",
            sLocation.c_str(), ino / 10000, ino);
 
   if (mkpath)
@@ -401,7 +401,7 @@ int journalcache::init_daemonized()
   {
     eos_static_info("cleaning cache path=%s", config.journal.c_str());
     dircleaner dc(config.journal.c_str());
-    if (dc.cleanall(".rescue"))
+    if (dc.cleanall(".jc"))
     {
       eos_static_err("cache cleanup failed");
       return -1;

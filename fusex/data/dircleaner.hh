@@ -73,6 +73,10 @@ public:
       XrdSysMutexHelper mLock(Locker);
       totalsize += size;
       totalfiles += files;
+      if (totalsize<0)
+	totalsize=0;
+      if (totalfiles<0)
+	totalfiles=0;
     }
 
     // safe reset function
@@ -109,8 +113,13 @@ public:
     return externaltreeinfo;
   }
 
-  int cleanall( std::string filtersuffix = "" );
-  int scanall();
+  void set_trim_suffix(const std::string& sfx)
+  {
+    trim_suffix = sfx;
+  }
+
+  int cleanall( std::string matchsuffix = "" );
+  int scanall( std::string matchsuffix = "");
   int trim(bool force);
   void leveler();
 
@@ -125,6 +134,7 @@ private:
   tree_info_t externaltreeinfo;
 
   std::thread tLeveler;
+  std::string trim_suffix;
 
 } ;
 #endif

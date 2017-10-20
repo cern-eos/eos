@@ -78,7 +78,8 @@ diskcache::init_daemonized()
     eos_static_info("cleaning cache path=%s", config.location.c_str());
 
     sDirCleaner = std::make_shared<dircleaner>(config.location, config.total_file_cache_size);
-    if (sDirCleaner->cleanall())
+    sDirCleaner->set_trim_suffix(".dc");
+    if (sDirCleaner->cleanall(".dc"))
     {
       eos_static_err("cache cleanup failed");
       return -1;
@@ -119,7 +120,7 @@ diskcache::location(std::string& path, bool mkpath)
 /* -------------------------------------------------------------------------- */
 {
   char cache_path[1024 + 20];
-  snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lX",
+  snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lX.dc",
 	   sLocation.c_str(), ino / 10000, ino);
 
   if (mkpath)
