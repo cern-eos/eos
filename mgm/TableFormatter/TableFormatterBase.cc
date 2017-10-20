@@ -168,7 +168,7 @@ bool TableFormatterBase::GenerateBody(const TableString& selections)
   for (auto& row : mData) {
     if (row.empty()) {
       // Generate string
-      if (!mString[string_size].empty() && row_exist) {
+      if (!mString.empty() && !mString[string_size].empty() && row_exist) {
         if (!mHeader.empty()) {
           if (row_size > 0 && !mData[row_size - 1].empty()) {
             // Bottom edge of table, before string
@@ -179,9 +179,8 @@ bool TableFormatterBase::GenerateBody(const TableString& selections)
             body_exist = true;
             string_exist = true;
           }
-        }
-        // If we have only string, without table
-        else {
+        } else {
+          // If we have only string, without table
           mSink << mString[string_size];
           body_exist = true;
           string_exist = true;

@@ -39,8 +39,8 @@ class TableCell;
 //------------------------------------------------------------------------------
 using HeadCell = std::tuple<std::string, unsigned, std::string>;
 using TableHeader = std::vector<HeadCell>;
-using Row = std::vector<TableCell>;
-using TableData = std::vector<Row>;
+using TableRow = std::vector<TableCell>;
+using TableData = std::vector<TableRow>;
 using TableString = std::vector<std::string>;
 
 enum TableFormatterColor {
