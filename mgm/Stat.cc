@@ -639,10 +639,12 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   Mutex.Lock();
   std::vector<std::string> tags, tags_ext;
   std::vector<std::string>::iterator it;
-  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator
-  tit;
-  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatExt > >::iterator
-  tit_ext;
+  google::sparse_hash_map <
+  std::string,
+      google::sparse_hash_map<uid_t, unsigned long long> >::iterator tit;
+  google::sparse_hash_map <
+  std::string,
+      google::sparse_hash_map<uid_t, StatExt > >::iterator tit_ext;
 
   for (tit = StatsUid.begin(); tit != StatsUid.end(); tit++) {
     tags.push_back(tit->first);
@@ -838,9 +840,9 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt > >::iterator
     tgit_ext;
     Mutex.UnLock();
-    // -----------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // don't translate names with a mutex lock
-    // -----------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     std::map<uid_t, std::string> umap;
     std::map<gid_t, std::string> gmap;
 

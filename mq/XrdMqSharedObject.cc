@@ -793,14 +793,14 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
 {
   std::vector<std::string> formattoken;
   XrdMqStringConversion::Tokenize(format, formattoken, "|");
-  Row row;
+  TableRow row;
   table_mq_data.push_back(row);
 
   for (unsigned int i = 0; i < formattoken.size(); ++i) {
     std::vector<std::string> tagtoken;
     std::map<std::string, std::string> formattags;
     XrdMqStringConversion::Tokenize(formattoken[i], tagtoken, ":");
-    
+
     for (unsigned int j = 0; j < tagtoken.size(); ++j) {
       std::vector<std::string> keyval;
       XrdMqStringConversion::Tokenize(tagtoken[j], keyval, "=");
@@ -817,7 +817,7 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
         if ((format.find("s")) != std::string::npos) {
           table_mq_data.back().push_back(
             TableCell(Get(formattags["key"].c_str()).c_str(), format));
-        }      
+        }
 
         if ((format.find("S")) != std::string::npos) {
           std::string shortstring = Get(formattags["key"].c_str());
@@ -851,22 +851,29 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
       }
     }
   }
+
   //we check for filters
   bool toRemove = false;
+
   if (filter.find("d") != string::npos) {
     std::string drain = Get("stat.drain");
-      if (drain == "nodrain") {
-        toRemove = true;
-      }
+
+    if (drain == "nodrain") {
+      toRemove = true;
+    }
   }
+
   if (filter.find("e") != string::npos) {
     int err = (int) GetLongLong("stat.errc");
-      if (err == 0) {
-        toRemove = true;
-      }
-  } 
-  if(toRemove)
+
+    if (err == 0) {
+      toRemove = true;
+    }
+  }
+
+  if (toRemove) {
     table_mq_data.pop_back();
+  }
 }
 
 //------------------------------------------------------------------------------
