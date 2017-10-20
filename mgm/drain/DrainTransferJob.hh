@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
-// File: DrainTransfer.hh
-// Author: Andrea Manzi - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file DrainTransfer.hh
+//! @author Andrea Manzi - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,103 +21,101 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_DRAINTRANSFERJOB_HH__
-#define __EOSMGM_DRAINTRANSFERJOB_HH__
-/*----------------------------------------------------------------------------*/
-#include <pthread.h>
-/*----------------------------------------------------------------------------*/
-#include "common/FileId.hh"
+#pragma once
 #include "mgm/Namespace.hh"
+#include "common/FileId.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
-#include "common/FileId.hh"
-#include "common/SecEntity.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClCopyProcess.hh"
-#include <vector>
-#include <string>
-#include <cstring>
 #include <thread>
-
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-/**
- * @file DrainTransferJob.hh
- * 
- * @brief Class implementing a third party copy transfer for drain
- * 
- */
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Class implementing the third party copy transfer, takes as input the 
- *
- * source file id and the destination filesystem
- */
-/*----------------------------------------------------------------------------*/
-class DrainTransferJob :  public eos::common::LogId 
+//------------------------------------------------------------------------------
+//! Class implementing the third party copy transfer, takes as input the
+//! file id and the destination filesystem
+//------------------------------------------------------------------------------
+class DrainTransferJob: public eos::common::LogId
 {
 public:
-  
+  //! Status of a drain transfer job
   enum Status { OK, Running, Failed, Ready};
 
-  // ---------------------------------------------------------------------------
-  /**
-   * @brief Constructor
-   * @param fileId the file id
-   */
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param fileId the file id
+  //! @param fsIdT source file system id
+  //! @param fsIdT target file system id
+  //----------------------------------------------------------------------------
+  DrainTransferJob(eos::common::FileId::fileid_t fileId,
+                   eos::common::FileSystem::fsid_t fsIdS,
+                   eos::common::FileSystem::fsid_t fsIdT = 0)
+    : mFileId(fileId), mFsIdSource(fsIdS), mFsIdTarget(fsIdT), mThread() {}
 
-  DrainTransferJob (eos::common::FileId::fileid_t fileId, 
-                              eos::common::FileSystem::fsid_t fsIdS,
-                              eos::common::FileSystem::fsid_t fsIdT=0) : mThread() {
-    mFileId = fileId;
-    mFsIdSource = fsIdS;
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~DrainTransferJob();
+
+  //----------------------------------------------------------------------------
+  //! Start thread doing the draining
+  //----------------------------------------------------------------------------
+  void Start();
+
+  //----------------------------------------------------------------------------
+  //! Log error message and save it
+  //!
+  //! @param error error message
+  //----------------------------------------------------------------------------
+  void ReportError(const std::string& error);
+
+  inline void SetTargetFS(eos::common::FileSystem::fsid_t fsIdT)
+  {
     mFsIdTarget = fsIdT;
   }
 
-  // ---------------------------------------------------------------------------
-  // Destructor
-  // ---------------------------------------------------------------------------
-  virtual ~DrainTransferJob (); 
+  inline void SetStatus(DrainTransferJob::Status status)
+  {
+    mStatus = status;
+  }
 
-  inline DrainTransferJob::Status GetStatus() { return mStatus;}
+  inline DrainTransferJob::Status GetStatus() const
+  {
+    return mStatus;
+  }
 
-  void SetTargetFS(eos::common::FileSystem::fsid_t fsIdT);
+  inline eos::common::FileId::fileid_t GetFileId() const
+  {
+    return mFileId;
+  }
 
-  inline eos::common::FileId::fileid_t GetFileId() { return mFileId;}
+  inline eos::common::FileSystem::fsid_t GetSourceFS() const
+  {
+    return mFsIdSource;
+  }
 
-  inline eos::common::FileSystem::fsid_t GetSourceFS() { return mFsIdSource;}
+  inline eos::common::FileSystem::fsid_t GetTargetFS() const
+  {
+    return mFsIdTarget;
+  }
 
-  inline eos::common::FileSystem::fsid_t GetTargetFS() { return mFsIdTarget;}
- 
-  inline void SetStatus(DrainTransferJob::Status status) {  mStatus= status;}
+  inline const std::string& GetErrorString() const
+  {
+    return mErrorString;
+  }
 
-  inline void SetErrorString (std::string& error) { mErrorString= error;}
-
-  inline  std::string& GetErrorString() { return mErrorString;}
-  
-  void ReportError(std::string& error);
-   
-  void Start(); 
 private:
-  /// file id for the given file to transfer
-  eos::common::FileId::fileid_t mFileId;
-  // destination fs
-  eos::common::FileSystem::fsid_t mFsIdSource, mFsIdTarget;
-  std::string mSourcePath;
-  Status mStatus;
-  std::string mErrorString;
-  std::thread mThread;
-
+  //----------------------------------------------------------------------------
+  //! Method executed by the drainer thread where all the work is done
+  //----------------------------------------------------------------------------
   void DoIt();
+
+  eos::common::FileId::fileid_t mFileId; ///< File id to transfer
+  ///! Source and destination file system
+  eos::common::FileSystem::fsid_t mFsIdSource, mFsIdTarget;
+  std::thread mThread; ///< Thread doing the draining
+  std::string mErrorString; ///< Error message
+  Status mStatus; ///< Status of the drain job
 };
 
 EOSMGMNAMESPACE_END
-
-#endif

@@ -128,7 +128,6 @@
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
-#include "mgm/Drainer.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -147,6 +146,14 @@ USE_EOSMGMNAMESPACE
 //! Forward declaration
 class XrdMgmOfsFile;
 class XrdMgmOfsDirectory;
+
+namespace eos
+{
+namespace mgm
+{
+class Drainer;
+}
+}
 
 namespace eos
 {
@@ -1234,13 +1241,10 @@ public:
   XrdOucString ManagerId; ///< manager id in <host>:<port> format
   XrdOucString ManagerIp; ///< manager ip in <xxx.yyy.zzz.vvv> format
   int ManagerPort; ///< manager port as number e.g. 1094
-
   XrdOucString MgmOfsConfigEngineType; //type of ConfigEngine ( file or redis)
   XrdOucString MgmOfsConfigEngineRedisHost; //Redis host
   int MgmOfsConfigEngineRedisPort; //Redis port
-
   bool MgmOfsCentralDraining; //Central drainer enabled/disabled
-
   //! Process state after namespace load time
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup;
   //! Map with scheduled fids for draining
@@ -1419,10 +1423,8 @@ public:
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   XrdMqSharedObjectChangeNotifier
   ObjectNotifier; ///< Shared Hash/Queue Object Change Notifier
-  
   GeoTreeEngine GeotreeEngine; ///< Placement / Access Engine
-
-  Drainer* DrainerEngine; ///< Drainer Management thread
+  Drainer* DrainerEngine; ///< Drainer management thread
 
   //! Map storing the modification times of directories, they are either
   //! directly inserted from directory/file creation or they are set from

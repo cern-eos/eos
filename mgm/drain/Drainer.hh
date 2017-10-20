@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-//! file DrainFS.hh
-//! @uthor Andrea Manzi - CERN
+//! @file Drainer.hh
+//! @@author Andrea Manzi - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,117 +22,106 @@
  ************************************************************************/
 
 #pragma once
-#include <pthread.h>
 #include "mgm/Namespace.hh"
-#include "mgm/FileSystem.hh"
 #include "common/Logging.hh"
+#include "common/FileSystem.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 //! Forward declaration
+class DrainFS;
 class DrainTransferJob;
 
 //------------------------------------------------------------------------------
-//! @brief Class implementing the draining of a filesystem
+//! @brief Class running the centralized draining
 //------------------------------------------------------------------------------
-class DrainFS: public eos::common::LogId
+class Drainer: public eos::common::LogId
 {
 public:
+  //! DrainFS thread map pair (maps DrainFS threads with their fs )
+  // @todo (amanzi) the DrainFS already knows the fsid, this seems redundant
+  typedef std::pair<eos::common::FileSystem::fsid_t,
+          std::shared_ptr<eos::mgm::DrainFS>> DrainMapPair;
+
+  //! Map node to vector of draining file systems
+  typedef std::map<std::string, std::vector<DrainMapPair>> DrainMap;
+
   //----------------------------------------------------------------------------
-  //! Static thread startup function
+  // Service thread static startup function
   //----------------------------------------------------------------------------
-  static void* StaticThreadProc(void*);
+  static void* StaticDrainer(void*);
 
   //----------------------------------------------------------------------------
   //! Constructor
-  //!
-  //! @param fs_id filesystem id
   //----------------------------------------------------------------------------
-  DrainFS(eos::common::FileSystem::fsid_t fs_id):
-    mFsId(fs_id), mThread(0)
-  {
-    // @todo (amanzi) move out to StartDrain func, the constructor is not a
-    //                good place for this
-    XrdSysThread::Run(&mThread,
-                      DrainFS::StaticThreadProc,
-                      static_cast<void*>(this),
-                      XRDSYSTHREAD_HOLD,
-                      "DrainFS Thread");
-  }
+  Drainer();
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~DrainFS();
+  virtual ~Drainer();
 
   //----------------------------------------------------------------------------
-  //! Stop draining attached file system
-  //---------------------------------------------------------------------------
-  void DrainStop();
+  //! Stop running thread
+  //----------------------------------------------------------------------------
+  void Stop();
 
   //----------------------------------------------------------------------------
-  // get the list of  Failed  Jobs
+  //! Start draining of a given file system
+  //! @todo (amanzi): this interface in not very friendly, maybe passsing
+  //!                 directly the fsid seems more natural as this class should
+  //!                 not know how the fsid is encoded in the env. The same
+  //!                 for the next ones.
   //----------------------------------------------------------------------------
-  inline const std::vector<shared_ptr<DrainTransferJob>>& GetFailedJobs() const
-  {
-    return mJobsFailed;
-  }
+  bool StartFSDrain(XrdOucEnv&, XrdOucString&);
 
+  //----------------------------------------------------------------------------
+  //! Stop draining of a given file system
+  //----------------------------------------------------------------------------
+  bool StopFSDrain(XrdOucEnv&, XrdOucString&);
+
+  //----------------------------------------------------------------------------
+  //!  Clear the Draining info for the given FS
   //---------------------------------------------------------------------------
-  //! Get drain status
-  //---------------------------------------------------------------------------
-  inline eos::common::FileSystem::eDrainStatus GetDrainStatus() const
-  {
-    return mDrainStatus;
-  }
+  bool ClearFSDrain(XrdOucEnv&, XrdOucString&);
+
+  //----------------------------------------------------------------------------
+  //! Get draining status (global or specific to a fsid)
+  //!
+  //! @param env
+  //! @param out
+  //! @param err
+  //----------------------------------------------------------------------------
+  bool GetDrainStatus(XrdOucEnv&, XrdOucString&, XrdOucString&);
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  unsigned int GetSpaceConf(const std::string& space);
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  void PrintTable(TableFormatterBase&, std::string, DrainMapPair&);
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  void PrintJobsTable(TableFormatterBase&, DrainTransferJob*);
 
 private:
 
   //----------------------------------------------------------------------------
-  // Thread loop implementing the drain job
-  //----------------------------------------------------------------------------
-  void* Drain();
-
-  //----------------------------------------------------------------------------
-  //! Select target file system using the GeoTreeEngine
   //!
-  //! @param job drain job object
-  //!
-  ///! @return if successful then target file system, othewise 0
   //----------------------------------------------------------------------------
-  eos::common::FileSystem::fsid_t SelectTargetFS(DrainTransferJob* job);
+  void* Drain(void);
 
-  //----------------------------------------------------------------------------
-  //! Set initial drain counters and status
-  //----------------------------------------------------------------------------
-  void SetInitialCounters();
-
-  //----------------------------------------------------------------------------
-  //! Get space defined drain variables i.e. number of retires, number of
-  //! transfers per fs, etc.
-  //----------------------------------------------------------------------------
-  void GetSpaceConfiguration();
-
-  //---------------------------------------------------------------------------
-  //! Clean up when draining is completed
-  //---------------------------------------------------------------------------
-  void CompleteDrain();
-
-  eos::common::FileSystem::fsid_t mFsId; ///< Id of the draining file system
-  // @todo (amanzi): try using std::thread just like in drain job
-  pthread_t mThread; ///< Thead supervising the draining
-  eos::common::FileSystem::eDrainStatus mDrainStatus;
-  std::string mSpace; ///< Space where fs resides
-  std::string mGroup; ///< Group where fs resided
-  //! Collection of drain jobs to run
-  std::vector<shared_ptr<DrainTransferJob>> mJobsPending;
-  //! Collection of failed drain jobs
-  std::vector<shared_ptr<DrainTransferJob>> mJobsFailed;
-  //! Collection of running drain jobs
-  std::vector<shared_ptr<DrainTransferJob>> mJobsRunning;
-  bool mDrainStop = false; ///< Flag to cancel an ongoing draining
-  int mMaxRetries = 1; ///< Max number of retries
-  int maxParallelJobs = 5; ///< Max number of parallel drain jobs
+  pthread_t mThread;
+  //contains per space the max allowed fs draining per node
+  std::map<std::string, int> maxFSperNodeConfMap;
+  DrainMap  mDrainFS;
+  XrdSysMutex mDrainMutex, drainConfMutex;
 };
 
 EOSMGMNAMESPACE_END

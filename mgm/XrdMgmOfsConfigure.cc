@@ -37,6 +37,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
+#include "mgm/drain/Drainer.hh"
 #include "mgm/FileConfigEngine.hh"
 #ifdef HAVE_QCLIENT
 #include "mgm/RedisConfigEngine.hh"
@@ -637,10 +638,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             NoGo = 1;
           } else {
             Eroute.Say("=====> mgmofs.centraldraining: ", val, "");
+
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
               MgmOfsCentralDraining = true;
             }
-	  }
+          }
         }
 
         if (!strcmp("targetport", var)) {
@@ -1949,10 +1951,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       NoGo = 1;
     }
   }
+
+  // Start drainer engine
   if (MgmOfsCentralDraining) {
-    //starting drainer
-    DrainerEngine = new Drainer();  
+    DrainerEngine = new Drainer();
   }
+
   gGeoTreeEngine.StartUpdater();
   XrdSysTimer sleeper;
   sleeper.Snooze(1);

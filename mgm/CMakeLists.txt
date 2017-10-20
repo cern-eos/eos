@@ -135,7 +135,7 @@ add_library(
   FileSystem.cc
   drain/DrainFS.cc
   drain/DrainTransferJob.cc
-  Drainer.cc
+  drain/Drainer.cc
   Egroup.cc
   Acl.cc
   Stat.cc

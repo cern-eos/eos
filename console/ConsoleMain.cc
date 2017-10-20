@@ -278,30 +278,6 @@ wants_help(const char* arg1)
 }
 
 //------------------------------------------------------------------------------
-// Forward declarations
-//------------------------------------------------------------------------------
-char* stripwhite(char* string);
-COMMAND* find_command(char* command);
-char** EOSConsole_completion(const char* text, int start, int intend);
-char* command_generator(const char* text, int state);
-char* dir_generator(const char* text, int state);
-char* filedir_generator(const char* text, int state);
-int valid_argument(char* caller, char* arg);
-int execute_line(char* line);
-
-/* The name of this program, as taken from argv[0]. */
-char* progname;
-
-char*
-dupstr(char* s)
-{
-  char* r;
-  r = (char*) malloc(strlen(s) + 1);
-  strcpy(r, s);
-  return (r);
-}
-
-//------------------------------------------------------------------------------
 // Switches stdin,stdout,stderr to pipe mode where we are a persistant
 // communication daemon for a the eospipe command forwarding commands.
 //------------------------------------------------------------------------------

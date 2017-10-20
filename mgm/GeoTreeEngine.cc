@@ -2218,7 +2218,6 @@ void* GeoTreeEngine::startFsChangeListener(void* pp)
 void GeoTreeEngine::listenFsChange()
 {
   gUpdaterStarted = true;
-
   gOFS->ObjectNotifier.BindCurrentThread("geotreeengine");
 
   if (!gOFS->ObjectNotifier.StartNotifyCurrentThread()) {
@@ -2606,15 +2605,15 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       }
     }
   }
-  
-  if (keys & sfgDrainer) {
-      if (ftIdx) {
-        setOneStateVarStatusInAllFastTrees(SchedTreeBase::Drainer);
-      }
 
-      if (stn) {
-        stn->pNodeState.mStatus |= SchedTreeBase::Drainer;
-      }
+  if (keys & sfgDrainer) {
+    if (ftIdx) {
+      setOneStateVarStatusInAllFastTrees(SchedTreeBase::Drainer);
+    }
+
+    if (stn) {
+      stn->pNodeState.mStatus |= SchedTreeBase::Drainer;
+    }
   }
 
   if (keys & (sfgBalthres | sfgFsfilled | sfgNomfilled)) {
