@@ -334,7 +334,7 @@ Fsck::Check(void)
 
     // Loop over unavailable filesystems
     for (auto unavailit = eFsUnavail.cbegin(); unavailit != eFsUnavail.cend();
-         unavailit++) {
+         ++unavailit) {
       std::string host = "not configured";
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 

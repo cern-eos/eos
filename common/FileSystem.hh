@@ -538,18 +538,15 @@ public:
     std::string skey = key;
 
     if (skey == "<n>") {
-      return std::string("1");
+      return "1";
     }
 
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      // avoid to return a string with a 0 pointer !
-      std::string tmp =  mHash->Get(key);
-      return (tmp.length() ? tmp : "");
+      return mHash->Get(skey);
     } else {
-      skey = "";
-      return skey;
+      return "";
     }
   }
 
