@@ -1496,9 +1496,20 @@ EBADF  Invalid directory stream descriptor fi->fh
       }
     }
 
+    off_t i_offset=2;
+
     // add regular children
     for ( ; it != pmd_children.end(); ++it)
     {
+      if (off > i_offset)
+      {
+	i_offset++;
+	continue;
+      }
+      else
+      {
+	i_offset++;
+      }
       // skip entries we have shown already
       if (md->readdir_items.count(it->first))
 	continue;
@@ -1542,7 +1553,7 @@ EBADF  Invalid directory stream descriptor fi->fh
     if (b_size)
       fuse_reply_buf (req, b, b_size);
     else
-      fuse_reply_err (req, 0);
+      fuse_reply_buf (req, b,0);
 
     eos_static_debug("size=%lu off=%llu reply-size=%lu", size, off, b_size);
   }
