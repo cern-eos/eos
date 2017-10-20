@@ -195,7 +195,9 @@ metad::lookup(fuse_req_t req,
     // parent lookup required for NFS exports
     if (!strcmp(name,".."))
     {
+      pmd->Locker().UnLock();
       shared_md ppmd = get(req, pmd->pid(), "", false);
+      pmd->Locker().Lock();
       return ppmd;
     }
 
