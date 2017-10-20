@@ -107,6 +107,9 @@ xrdmgmofs_shutdown (int sig)
     gOFS->MgmOfsMessaging->StopListener();
   }
 
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop fusex server ... ");
+  gOFS->zMQ->gFuseServer.shutdown();
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: remove messaging ... ");
