@@ -2396,7 +2396,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset,
   }
 
   if (fsid) {
-    if (targetsize && (targetsize == bookingsize)) {
+    if ((targetsize && (targetsize == bookingsize)) || (bookingsize >= fileOffset + buffer_size)) {
       // Space has been successfully pre-allocated, let client write
     } else {
       // Check if the file system is full
