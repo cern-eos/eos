@@ -46,9 +46,9 @@ if(ROCKSDB_FOUND)
 endif()
 
 
-if(CPPUNIT_FOUND)
+if(CPPUNIT_FOUND AND ROCKSDB_FOUND)
   add_subdirectory(tests)
-endif(CPPUNIT_FOUND)
+endif()
 
 #-------------------------------------------------------------------------------
 # auth subsystem
