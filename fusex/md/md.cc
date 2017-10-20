@@ -185,6 +185,20 @@ metad::lookup(fuse_req_t req,
   {
     XrdSysMutexHelper mLock(pmd->Locker());
     fuse_ino_t inode = 0; // inode referenced by parent + name
+
+    // self lookup required for NFS exports
+    if (!strcmp(name,"."))
+    {
+      return pmd;
+    }
+
+    // parent lookup required for NFS exports
+    if (!strcmp(name,".."))
+    {
+      shared_md ppmd = get(req, pmd->pid(), "", false);
+      return ppmd;
+    }
+
     // --------------------------------------------------
     // STEP 2: check if we hold a cap for that directory
     // --------------------------------------------------
