@@ -368,7 +368,6 @@ eos_system_test_with_quarkdb:
     - xrootd-shell
   dependencies:
     - eos_rpm_cc7
-  when: manual
 
 eos_stress_test:
   stage: test
