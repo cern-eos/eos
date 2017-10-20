@@ -708,6 +708,9 @@ EosFuse::init(void *userdata, struct fuse_conn_info *conn)
     snprintf(msg, sizeof (msg), "failed to install SEGV handler");
     throw std::runtime_error(msg);
   }
+
+  conn->want = FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_BIG_WRITES ;
+  conn->capable = FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_BIG_WRITES ;
 }
 
 void
