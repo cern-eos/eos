@@ -149,8 +149,9 @@ ConvertContainerMD::updateInternal()
   mCont.set_parent_id(pParentId);
   mCont.set_uid(pCUid);
   mCont.set_gid(pCGid);
-  // This is updated when adding files
-  //mCont.set_tree_size(pTreeSize);
+  // Remove S_ISGID which was used as a flag to enable/disable attribute
+  // inheritance - attributes are now inherited by default
+  pMode ^= S_ISGID;
   mCont.set_mode(pMode);
   mCont.set_flags(pFlags);
   mCont.set_acl_id(pACLId);
@@ -168,6 +169,9 @@ ConvertContainerMD::updateInternal()
 
     (*mCont.mutable_xattrs())[xattr.first] = xattr.second;
   }
+
+  // This is updated when adding files
+  //mCont.set_tree_size(pTreeSize);
 }
 
 //------------------------------------------------------------------------------
