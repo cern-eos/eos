@@ -550,7 +550,7 @@ metad::get(fuse_req_t req,
       }
     }
     if ( EOS_LOGS_DEBUG )
-      eos_static_debug("MD:\n%s", dump_md(md).c_str());
+      eos_static_debug("MD:\n%s", (!md)? "<empty>" : dump_md(md).c_str());
   }
   else
   {
