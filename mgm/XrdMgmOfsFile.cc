@@ -1582,7 +1582,7 @@ XrdMgmOfsFile::open(const char* inpath,
               fmd->unlinkAllLocations();
             }
 
-            for (int i = 0; i < (int) selectedfs.size(); i++) {
+            for (unsigned int i = 0; i < selectedfs.size(); ++i) {
               fmd->addLocation(selectedfs[i]);
             }
 
@@ -1620,7 +1620,7 @@ XrdMgmOfsFile::open(const char* inpath,
               fmd->unlinkAllLocations();
             }
 
-            for (int i = 0; i < (int) selectedfs.size(); ++i) {
+            for (unsigned int i = 0; i < selectedfs.size(); ++i) {
               fmd->addLocation(selectedfs[i]);
             }
 
@@ -1998,7 +1998,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
 
     // put all the replica urls into the capability
-    for (int i = 0; i < (int) selectedfs.size(); i++) {
+    for (unsigned int i = 0; i < selectedfs.size(); ++i) {
       if (!selectedfs[i]) {
         eos_err("0 filesystem in replica vector");
       }
@@ -2057,9 +2057,10 @@ XrdMgmOfsFile::open(const char* inpath,
           fsIndex = i;
 
           // Set the FST gateway if this is available otherwise the actual FST
-          if (firewalleps[fsIndex].size()
-              && ((!proxys[fsIndex].empty() && firewalleps[fsIndex] != proxys[fsIndex])
-                  || (firewalleps[fsIndex] != filesystem->GetString("hostport").c_str()))) {
+          if ((firewalleps.size() > fsIndex) && (proxys.size() > fsIndex) &&
+              firewalleps[fsIndex].size() &&
+              ((!proxys[fsIndex].empty() && firewalleps[fsIndex] != proxys[fsIndex]) ||
+               (firewalleps[fsIndex] != filesystem->GetString("hostport").c_str()))) {
             // Build the URL for the forwarding proxy and must have the following
             // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
             auto idx = firewalleps[fsIndex].rfind(":");
@@ -2086,10 +2087,8 @@ XrdMgmOfsFile::open(const char* inpath,
 
             redirectionhost = oss.str().c_str();
           } else {
-            if (proxys[fsIndex].empty()) { // there is no proxy to use
-              targethost  = filesystem->GetString("host").c_str();
-              targetport  = atoi(filesystem->GetString("port").c_str());
-            } else { // we have a proxy to use
+            if ((proxys.size() > fsIndex) && !proxys[fsIndex].empty())  {
+              // We have a proxy to use
               (void) proxys[fsIndex].c_str();
               auto idx = proxys[fsIndex].rfind(":");
 
@@ -2100,6 +2099,10 @@ XrdMgmOfsFile::open(const char* inpath,
                 targethost = proxys[fsIndex].c_str();
                 targetport = 0;
               }
+            } else {
+              // There is no proxy to use
+              targethost  = filesystem->GetString("host").c_str();
+              targetport  = atoi(filesystem->GetString("port").c_str());
             }
 
             redirectionhost = targethost;
@@ -2112,7 +2115,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       capability += "&mgm.url";
-      capability += i;
+      capability += (int) i;
       capability += "=root://";
       XrdOucString replicahost = "";
       int replicaport = 0;
@@ -2120,17 +2123,15 @@ XrdMgmOfsFile::open(const char* inpath,
       // -----------------------------------------------------------------------
       // Logic to mask 'offline' filesystems
       // -----------------------------------------------------------------------
-      for (size_t k = 0; k < unavailfs.size(); k++) {
+      for (unsigned int k = 0; k < unavailfs.size(); ++k) {
         if (selectedfs[i] == unavailfs[k]) {
           replicahost = "__offline_";
           break;
         }
       }
 
-      if (proxys[i].empty()) { // there is no proxy to use
-        replicahost += repfilesystem->GetString("host").c_str();
-        replicaport = atoi(repfilesystem->GetString("port").c_str());
-      } else { // we have a proxy to use
+      if ((proxys.size() > i) && !proxys[i].empty()) {
+        // We have a proxy to use
         auto idx = proxys[i].rfind(":");
 
         if (idx != std::string::npos) {
@@ -2140,6 +2141,10 @@ XrdMgmOfsFile::open(const char* inpath,
           replicahost = proxys[i].c_str();
           replicaport = 0;
         }
+      } else {
+        // There is no proxy to use
+        replicahost += repfilesystem->GetString("host").c_str();
+        replicaport = atoi(repfilesystem->GetString("port").c_str());
       }
 
       capability += replicahost;
@@ -2148,16 +2153,16 @@ XrdMgmOfsFile::open(const char* inpath,
       capability += "//";
       // add replica fsid
       capability += "&mgm.fsid";
-      capability += i;
+      capability += (int) i;
       capability += "=";
       capability += (int) repfilesystem->GetId();
 
-      if (!proxys[i].empty()) {
+      if ((proxys.size() > i) && !proxys[i].empty()) {
         std::string fsprefix = repfilesystem->GetPath();
 
         if (fsprefix.size()) {
           XrdOucString s = "mgm.fsprefix";
-          s += i;
+          s += (int) i;
           s += "=";
           s += fsprefix.c_str();
           s.replace(":", "#COL#");
@@ -2167,11 +2172,9 @@ XrdMgmOfsFile::open(const char* inpath,
 
       if (isPio) {
         if (replacedfs[i]) {
-          // -------------------------------------------------------------------
-          // add the drop message to the replacement capability
-          // -------------------------------------------------------------------
+          // Add the drop message to the replacement capability
           capability += "&mgm.drainfsid";
-          capability += i;
+          capability += (int) i;
           capability += "=";
           capability += (int) replacedfs[i];
         }
