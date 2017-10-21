@@ -804,5 +804,4 @@ ContainerMD::getAttributes() const
   return xattrs;
 }
 
-
 EOSNSNAMESPACE_END

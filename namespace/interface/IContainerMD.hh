@@ -359,7 +359,7 @@ public:
   virtual uint64_t getClock() const
   {
     return 0;
-  };
+  }
 
 protected:
   ContainerMap mSubcontainers; //! Directory name to id map

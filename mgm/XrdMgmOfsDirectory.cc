@@ -192,7 +192,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       // Add all the files and subdirectories
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
-      // Collect all files names
+      // Collect all file names
       auto fit_begin = dh->filesBegin();
       auto fit_end = dh->filesEnd();
 

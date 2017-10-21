@@ -1808,30 +1808,36 @@ Master::BootNamespace()
     return false;
   }
 
-  if (getenv("EOS_NS_ACCOUNTING") &&
-      ((std::string(getenv("EOS_NS_ACCOUNTING")) == "1") ||
-       (std::string(getenv("EOS_NS_ACCOUNTING")) == "yes"))) {
+  // For qdb namespace enable by default all the views
+  bool ns_in_qdb = (dynamic_cast<eos::IChLogContainerMDSvc*>
+                    (gOFS->eosDirectoryService) == nullptr);
+
+  if (ns_in_qdb ||
+      (getenv("EOS_NS_ACCOUNTING") &&
+       ((std::string(getenv("EOS_NS_ACCOUNTING")) == "1") ||
+        (std::string(getenv("EOS_NS_ACCOUNTING")) == "yes")))) {
     eos_alert("msg=\"enabling recursive size accounting ...\"");
-    gOFS->eosContainerAccounting = static_cast<IFileMDChangeListener*>(
-                                     pm.CreateObject("ContainerAccounting"));
+    gOFS->eosContainerAccounting =
+      static_cast<IFileMDChangeListener*>(pm.CreateObject("ContainerAccounting"));
 
     if (!gOFS->eosContainerAccounting) {
       eos_err("msg=\"namespace implemetation does not provide ContainerAccounting"
-              "class\"");
+              " class\"");
       return false;
     }
   }
 
-  if (getenv("EOS_SYNCTIME_ACCOUNTING") &&
-      ((std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "1") ||
-       (std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "yes"))) {
+  if (ns_in_qdb ||
+      (getenv("EOS_SYNCTIME_ACCOUNTING") &&
+       ((std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "1") ||
+        (std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "yes")))) {
     eos_alert("msg=\"enabling sync time propagation ...\"");
-    gOFS->eosSyncTimeAccounting = static_cast<IContainerMDChangeListener*>(
-                                    pm.CreateObject("SyncTimeAccounting"));
+    gOFS->eosSyncTimeAccounting =
+      static_cast<IContainerMDChangeListener*>(pm.CreateObject("SyncTimeAccounting"));
 
     if (!gOFS->eosSyncTimeAccounting) {
       eos_err("msg=\"namespace implemetation does not provide SyncTimeAccounting"
-              "class\"");
+              " class\"");
       return false;
     }
   }
@@ -1868,15 +1874,6 @@ Master::BootNamespace()
     fileSettings["qdb_port"] = getenv("EOS_NS_QDB_PORT");
   }
 
-  contSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
-  fileSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
-  contSettings["changelog_path"] += "/directories.";
-  fileSettings["changelog_path"] += "/files.";
-  contSettings["changelog_path"] += fMasterHost.c_str();
-  fileSettings["changelog_path"] += fMasterHost.c_str();
-  contSettings["changelog_path"] += ".mdlog";
-  fileSettings["changelog_path"] += ".mdlog";
-
   if (!IsMaster()) {
     contSettings["slave_mode"] = "true";
     contSettings["poll_interval_us"] = "1000";
@@ -1886,33 +1883,31 @@ Master::BootNamespace()
     fileSettings["auto_repair"] = "false";
   }
 
-  gOFS->MgmNsFileChangeLogFile = fileSettings["changelog_path"].c_str();
-  gOFS->MgmNsDirChangeLogFile = contSettings["changelog_path"].c_str();
   time_t tstart = time(0);
 
-  //-------------------------------------------
   try {
     gOFS->eosDirectoryService->setFileMDService(gOFS->eosFileService);
+    gOFS->eosDirectoryService->configure(contSettings);
     gOFS->eosFileService->setContMDService(gOFS->eosDirectoryService);
     gOFS->eosFileService->configure(fileSettings);
-    gOFS->eosDirectoryService->configure(contSettings);
     gOFS->eosFsView->configure(contSettings);
     gOFS->eosView->setContainerMDSvc(gOFS->eosDirectoryService);
     gOFS->eosView->setFileMDSvc(gOFS->eosFileService);
     gOFS->eosView->configure(contSettings);
+    gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
 
     if (IsMaster()) {
-      MasterLog(eos_notice("%s",
-                           (char*) "eos directory view configure started as master"));
+      MasterLog(eos_notice("eos directory view configure started as master"));
     } else {
-      MasterLog(eos_notice("%s",
-                           (char*) "eos directory view configure started as slave"));
+      MasterLog(eos_notice("eos directory view configure started as slave"));
     }
-
-    gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
 
     if (gOFS->eosSyncTimeAccounting) {
       gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);
+    }
+
+    if (gOFS->eosContainerAccounting) {
+      gOFS->eosFileService->addChangeListener(gOFS->eosContainerAccounting);
     }
 
     // This is only done for the ChangeLog implementation
@@ -1922,8 +1917,6 @@ Master::BootNamespace()
       dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
     if (eos_chlog_filesvc && eos_chlog_dirsvc) {
-      gOFS->eosFileService->setContMDService(gOFS->eosDirectoryService);
-
       if (!IsMaster()) {
         // slave needs access to the namespace lock
         eos_chlog_filesvc->setSlaveLock(&fNsLock);
@@ -1932,10 +1925,17 @@ Master::BootNamespace()
 
       eos_chlog_filesvc->clearWarningMessages();
       eos_chlog_dirsvc->clearWarningMessages();
-    }
-
-    if (gOFS->eosContainerAccounting) {
-      gOFS->eosFileService->addChangeListener(gOFS->eosContainerAccounting);
+      // Build local path of the file and directory changelogs
+      std::ostringstream oss;
+      oss << gOFS->MgmMetaLogDir.c_str() << "/directories."
+          << fMasterHost.c_str() << ".mdlog";
+      contSettings["changelog_path"] = oss.str().c_str();
+      gOFS->MgmNsDirChangeLogFile = oss.str().c_str();
+      oss.str("");
+      oss << gOFS->MgmMetaLogDir.c_str() << "/files."
+          << fMasterHost.c_str() << ".mdlog";
+      fileSettings["changelog_path"] = oss.str().c_str();
+      gOFS->MgmNsFileChangeLogFile = oss.str().c_str();
     }
 
     gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
@@ -1944,54 +1944,27 @@ Master::BootNamespace()
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
     time_t tstop = time(0);
-
-    if (eos_chlog_filesvc && eos_chlog_dirsvc) {
-      // add the boot errors to the master changelog
-      std::vector<std::string> file_warn = eos_chlog_filesvc->getWarningMessages();
-      std::vector<std::string> directory_warn =
-        eos_chlog_dirsvc->getWarningMessages();
-
-      for (size_t i = 0; i < file_warn.size(); ++i) {
-        MasterLog(eos_crit(file_warn[i].c_str()));
-      }
-
-      for (size_t i = 0; i < directory_warn.size(); ++i) {
-        MasterLog(eos_crit(directory_warn[i].c_str()));
-      }
-
-      eos_chlog_filesvc->clearWarningMessages();
-      eos_chlog_dirsvc->clearWarningMessages();
-    }
-
+    // Add boot errors to the master log
+    XrdOucString out;
+    GetLog(out);
     gOFS->BootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
     MasterLog(eos_notice("eos directory view configure stopped after %d seconds",
                          (tstop - tstart)));
+
+    if (!IsMaster()) {
+      fRunningState = Run::State::kIsRunningSlave;
+      MasterLog(eos_notice("running in slave mode"));
+    } else {
+      fRunningState = Run::State::kIsRunningMaster;
+      MasterLog(eos_notice("running in master mode"));
+    }
+
+    return true;
   } catch (eos::MDException& e) {
     time_t tstop = time(0);
-    {
-      // add the boot errors to the master changelog
-      eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
-        dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-      eos::IChLogFileMDSvc* eos_chlog_filesvc =
-        dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
-
-      if (eos_chlog_filesvc && eos_chlog_dirsvc) {
-        std::vector<std::string> file_warn = eos_chlog_filesvc->getWarningMessages();
-        std::vector<std::string> directory_warn =
-          eos_chlog_dirsvc->getWarningMessages();
-
-        for (size_t i = 0; i < file_warn.size(); ++i) {
-          MasterLog(eos_crit(file_warn[i].c_str()));
-        }
-
-        for (size_t i = 0; i < directory_warn.size(); ++i) {
-          MasterLog(eos_crit(directory_warn[i].c_str()));
-        }
-
-        eos_chlog_filesvc->clearWarningMessages();
-        eos_chlog_dirsvc->clearWarningMessages();
-      }
-    }
+    // Add boot errors to the master log
+    XrdOucString out;
+    GetLog(out);
     MasterLog(eos_crit("eos view initialization failed after %d seconds",
                        (tstop - tstart)));
     errno = e.getErrno();
@@ -1999,16 +1972,6 @@ Master::BootNamespace()
                        e.getMessage().str().c_str()));
     return false;
   }
-
-  if (!IsMaster()) {
-    fRunningState = Run::State::kIsRunningSlave;
-    MasterLog(eos_notice("running in slave mode"));
-  } else {
-    fRunningState = Run::State::kIsRunningMaster;
-    MasterLog(eos_notice("running in master mode"));
-  }
-
-  return true;
 }
 
 //------------------------------------------------------------------------------

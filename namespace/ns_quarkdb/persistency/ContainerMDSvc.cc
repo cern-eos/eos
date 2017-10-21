@@ -68,10 +68,6 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 void
 ContainerMDSvc::initialize()
 {
-  pQcl = BackendClient::getInstance(pBkndHost, pBkndPort);
-  mMetaMap.setKey(constants::sMapMetaInfoKey);
-  mMetaMap.setClient(*pQcl);
-
   if (pFileSvc == nullptr) {
     MDException e(EINVAL);
     e.getMessage() << "No file metadata service set for the container "
@@ -79,6 +75,9 @@ ContainerMDSvc::initialize()
     throw e;
   }
 
+  pQcl = BackendClient::getInstance(pBkndHost, pBkndPort);
+  mMetaMap.setKey(constants::sMapMetaInfoKey);
+  mMetaMap.setClient(*pQcl);
   inodeProvider.configure(mMetaMap, constants::sLastUsedCid);
 }
 
