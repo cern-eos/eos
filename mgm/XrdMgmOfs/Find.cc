@@ -117,11 +117,12 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
         // Add all children into the 2D vectors
         // @todo (esindril): User the itertor interface from the ns
-        std::set<std::string> dnames = cmd->getNameContainers();
+        auto it_begin = cmd->subcontainersBegin();
+        auto it_end = cmd->subcontainersEnd();
 
-        for (auto dit = dnames.begin(); dit != dnames.end(); ++dit) {
+        for (auto dit = it_begin; dit != it_end; ++dit) {
           std::string fpath = Path.c_str();
-          fpath += *dit;
+          fpath += dit->first;
           fpath += "/";
 
           // check if we select by tag

@@ -254,24 +254,24 @@ public:
               dirTree.resize(deepness + 2);
               std::shared_ptr<IFileMD> fmd;
               std::shared_ptr<IContainerMD> dmd;
-              std::set<std::string> dnames;
 
               // Loop over all attached directories in that deepness
               for (auto dIt = dirTree[deepness].begin();
                    dIt != dirTree[deepness].end(); dIt++) {
                 // Attach the sub-container at the next deepness level
-                dnames = (*dIt)->getNameContainers();
+                auto cit_begin = (*dIt)->subcontainersBegin();
+                auto cit_end = (*dIt)->subcontainersEnd();
 
-                for (auto it = dnames.begin(); it != dnames.begin(); ++it) {
-                  dmd = (*dIt)->findContainer(*it);
+                for (auto it = cit_begin; it != cit_end; ++it) {
+                  dmd = (*dIt)->findContainer(it->first);
                   dirTree[deepness + 1].insert(dmd);
                 }
 
                 // Remove every file from it's quota node
-                auto it_begin = (*dIt)->filesBegin();
-                auto it_end  = (*dIt)->filesEnd();
+                auto fit_begin = (*dIt)->filesBegin();
+                auto fit_end  = (*dIt)->filesEnd();
 
-                for (auto fit = it_begin; fit != it_end; ++fit) {
+                for (auto fit = fit_begin; fit != fit_end; ++fit) {
                   IQuotaNode* node = getQuotaNode((*dIt).get());
 
                   if (node) {
@@ -313,10 +313,10 @@ public:
               for (auto dIt = dirTree[deepness].begin();
                    dIt != dirTree[deepness].end(); dIt++) {
                 // Remove every file from it's quota node
-                auto it_begin = (*dIt)->filesBegin();
-                auto it_end  = (*dIt)->filesEnd();
+                auto fit_begin = (*dIt)->filesBegin();
+                auto fit_end  = (*dIt)->filesEnd();
 
-                for (auto fit = it_begin; fit != it_end; ++fit) {
+                for (auto fit = fit_begin; fit != fit_end; ++fit) {
                   IQuotaNode* node = getQuotaNode((*dIt).get());
 
                   if (node) {

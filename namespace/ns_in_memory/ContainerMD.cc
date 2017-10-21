@@ -444,21 +444,6 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 }
 
 //------------------------------------------------------------------------------
-// Get set of subcontainer names contained in the current object
-//------------------------------------------------------------------------------
-std::set<std::string>
-ContainerMD::getNameContainers() const
-{
-  std::set<std::string> dnames;
-
-  for (auto it = mSubcontainers.begin(); it != mSubcontainers.end(); ++it) {
-    dnames.insert(it->first);
-  }
-
-  return dnames;
-}
-
-//------------------------------------------------------------------------------
 // Set modification time
 //------------------------------------------------------------------------------
 void

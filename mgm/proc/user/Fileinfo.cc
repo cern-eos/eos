@@ -1200,21 +1200,23 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json)
     Json::Value chld;
 
     if (!ret_json) {
-      auto it_begin = cmd->filesBegin();
-      auto it_end = cmd->filesEnd();
+      auto fit_begin = cmd->filesBegin();
+      auto fit_end = cmd->filesEnd();
 
-      for (auto it = it_begin; it != it_end; ++it) {
+      for (auto it = fit_begin; it != fit_end; ++it) {
         std::shared_ptr<IFileMD> fmd = cmd->findFile(it->first);
         Json::Value fjson;
         FileJSON(fmd->getId(), &fjson);
         chld.append(fjson);
       }
 
-      std::set<std::string> conts_name = cmd->getNameContainers();
+      // Loop through all subcontainers
+      auto cit_begin = cmd->subcontainersBegin();
+      auto cit_end = cmd->subcontainersEnd();
 
-      for (auto it = conts_name.begin(); it != conts_name.end(); ++it) {
-        std::shared_ptr<IContainerMD> dmd = cmd->findContainer(*it);
+      for (auto dit = cit_begin; dit != cit_end; ++dit) {
         Json::Value djson;
+        std::shared_ptr<IContainerMD> dmd = cmd->findContainer(dit->first);
         DirJSON(dmd->getId(), &djson);
         chld.append(djson);
       }

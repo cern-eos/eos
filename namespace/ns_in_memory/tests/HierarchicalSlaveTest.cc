@@ -162,10 +162,11 @@ void cleanUpQuotaRec(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
     qn->removeFile(cont->findFile(fit->first).get());
   }
 
-  std::set<std::string> dnames = cont->getNameContainers();
+  auto cit_begin = cont->subcontainersBegin();
+  auto cit_end  = cont->subcontainersEnd();
 
-  for (auto dit = dnames.begin(); dit != dnames.end(); ++dit) {
-    unlinkReplicas(view, cont->findContainer(*dit).get());
+  for (auto dit = cit_begin; dit != cit_end; ++dit) {
+    unlinkReplicas(view, cont->findContainer(dit->first).get());
   }
 }
 
@@ -235,10 +236,11 @@ void deleteAllReplicasRec(std::shared_ptr<eos::IView> view,
 {
   deleteAllReplicas(view, cont);
   std::shared_ptr<eos::IContainerMD> dmd;
-  std::set<std::string> dnames = cont->getNameContainers();
+  auto cit_begin = cont->subcontainersBegin();
+  auto cit_end  = cont->subcontainersEnd();
 
-  for (auto dit = dnames.begin(); dit != dnames.end(); ++dit) {
-    dmd = cont->findContainer(*dit);
+  for (auto dit = cit_begin; dit != cit_end; ++dit) {
+    dmd = cont->findContainer(dit->first);
     deleteAllReplicasRec(view, dmd.get());
   }
 }
@@ -378,18 +380,19 @@ uint64_t calcSize(eos::IContainerMD* cont)
   uint64_t size = 0;
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> dmd;
-  auto it_begin = cont->filesBegin();
-  auto it_end  = cont->filesEnd();
+  auto fit_begin = cont->filesBegin();
+  auto fit_end  = cont->filesEnd();
 
-  for (auto fit = it_begin; fit != it_end; ++fit) {
+  for (auto fit = fit_begin; fit != fit_end; ++fit) {
     fmd = cont->findFile(fit->first);
     size += fmd->getSize();
   }
 
-  std::set<std::string> dnames = cont->getNameContainers();
+  auto cit_begin = cont->subcontainersBegin();
+  auto cit_end  = cont->subcontainersEnd();
 
-  for (auto dit = dnames.begin(); dit != dnames.end(); ++dit) {
-    dmd = cont->findContainer(*dit);
+  for (auto dit = cit_begin; dit != cit_end; ++dit) {
+    dmd = cont->findContainer(dit->first);
     size += calcSize(dmd.get());
   }
 
@@ -403,10 +406,11 @@ uint64_t calcFiles(eos::IContainerMD* cont)
 {
   std::shared_ptr<eos::IContainerMD> dmd;
   uint64_t files = cont->getNumFiles();
-  std::set<std::string> dnames = cont->getNameContainers();
+  auto cit_begin = cont->subcontainersBegin();
+  auto cit_end  = cont->subcontainersEnd();
 
-  for (auto dit = dnames.begin(); dit != dnames.end(); ++dit) {
-    dmd = cont->findContainer(*dit);
+  for (auto dit = cit_begin; dit != cit_end; ++dit) {
+    dmd = cont->findContainer(dit->first);
     files += calcFiles(dmd.get());
   }
 
@@ -452,12 +456,13 @@ bool compareTrees(std::shared_ptr<eos::IView> view1,
   }
 
   std::shared_ptr<eos::IContainerMD> dmd;
-  std::set<std::string> dnames = tree1->getNameContainers();
+  auto cit_begin = tree1->subcontainersBegin();
+  auto cit_end  = tree1->subcontainersEnd();
 
-  for (auto dit = dnames.begin(); dit != dnames.end(); ++dit) {
-    dmd = tree1->findContainer(*dit);
-    std::shared_ptr<eos::IContainerMD> container = tree2->findContainer(
-          dmd->getName());
+  for (auto dit = cit_begin; dit != cit_end; ++dit) {
+    dmd = tree1->findContainer(dit->first);
+    std::shared_ptr<eos::IContainerMD> container =
+      tree2->findContainer(dmd->getName());
     std::string contMsg = treeMsg + " container: " + dmd->getName();
     CPPUNIT_ASSERT_MESSAGE(contMsg, container);
     compareTrees(view1, view2, dmd.get(), container.get());

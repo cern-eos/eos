@@ -350,13 +350,6 @@ public:
   void cleanUp() override;
 
   //----------------------------------------------------------------------------
-  //! Get set of subcontainer names contained in the current object
-  //!
-  //! @return set of subcontainer names
-  //----------------------------------------------------------------------------
-  std::set<std::string> getNameContainers() const override;
-
-  //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
   void serialize(Buffer& buffer) override;

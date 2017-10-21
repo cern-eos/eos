@@ -351,22 +351,6 @@ ContainerMD::cleanUp()
   }
 }
 
-
-//----------------------------------------------------------------------------
-// Get set of subcontainer names contained in the current object
-//----------------------------------------------------------------------------
-std::set<std::string>
-ContainerMD::getNameContainers() const
-{
-  std::set<std::string> set_dirs;
-
-  for (const auto& elem : mSubcontainers) {
-    set_dirs.insert(elem.first);
-  }
-
-  return set_dirs;
-}
-
 //------------------------------------------------------------------------------
 // Access checking helpers
 //------------------------------------------------------------------------------

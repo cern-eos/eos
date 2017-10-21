@@ -308,13 +308,6 @@ public:
   virtual void cleanUp() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get set of subcontainer names contained in the current object
-  //!
-  //! @return set of subcontainer names
-  //----------------------------------------------------------------------------
-  virtual std::set<std::string> getNameContainers() const = 0;
-
-  //----------------------------------------------------------------------------
   //! Get iterator to the begining of the subcontainers map
   //----------------------------------------------------------------------------
   inline eos::IContainerMD::ContainerMap::const_iterator
