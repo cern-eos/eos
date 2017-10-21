@@ -189,9 +189,7 @@ private:
   IFileMDSvc* pFileSvc;      ///< File metadata service
   qclient::QClient* pQcl;    ///< QClient object
   qclient::QHash mMetaMap ;  ///< Map holding metainfo about the namespace
-  NextInodeProvider inodeProvider; ///< provides next free inode
-  std::string pBkndHost;     ///< Backend host
-  uint32_t pBkndPort;        ///< Backend port
+  NextInodeProvider mInodeProvider; ///< Provide next free inode
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;
   // TODO: decide on how to ensure container consistency in case of a crash
   qclient::QSet pCheckConts; ///< Set of container ids to be checked

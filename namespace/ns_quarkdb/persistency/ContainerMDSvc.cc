@@ -34,10 +34,7 @@ std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), mMetaMap(),
-    pBkndHost(""), pBkndPort(0), mContainerCache(10e7)
-{
-  // empty
-}
+    mContainerCache(10e7) {}
 
 //------------------------------------------------------------------------------
 // Configure the container service
@@ -45,21 +42,28 @@ ContainerMDSvc::ContainerMDSvc()
 void
 ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 {
+  std::string host;
+  uint32_t port = 0;
   const std::string key_host = "qdb_host";
   const std::string key_port = "qdb_port";
   const std::string cache_size = "dir_cache_size";
 
   if (config.find(key_host) != config.end()) {
-    pBkndHost = config.at(key_host);
+    host = config.at(key_host);
   }
 
   if (config.find(key_port) != config.end()) {
-    pBkndPort = std::stoul(config.at(key_port));
+    port = std::stoul(config.at(key_port));
   }
 
   if (config.find(cache_size) != config.end()) {
     mContainerCache.set_max_size(std::stoull(config.at(cache_size)));
   }
+
+  pQcl = BackendClient::getInstance(host, port);
+  mMetaMap.setKey(constants::sMapMetaInfoKey);
+  mMetaMap.setClient(*pQcl);
+  mInodeProvider.configure(mMetaMap, constants::sLastUsedCid);
 }
 
 //------------------------------------------------------------------------------
@@ -74,11 +78,6 @@ ContainerMDSvc::initialize()
                    << "metadata service";
     throw e;
   }
-
-  pQcl = BackendClient::getInstance(pBkndHost, pBkndPort);
-  mMetaMap.setKey(constants::sMapMetaInfoKey);
-  mMetaMap.setClient(*pQcl);
-  inodeProvider.configure(mMetaMap, constants::sLastUsedCid);
 }
 
 //----------------------------------------------------------------------------
@@ -138,7 +137,7 @@ ContainerMDSvc::createContainer()
 {
   try {
     // Get the first free container id
-    uint64_t free_id = inodeProvider.reserve();
+    uint64_t free_id = mInodeProvider.reserve();
     std::shared_ptr<IContainerMD> cont{new ContainerMD(
         free_id, pFileSvc, static_cast<IContainerMDSvc*>(this))};
     return mContainerCache.put(cont->getId(), cont);
@@ -329,7 +328,7 @@ ContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
 IContainerMD::id_t
 ContainerMDSvc::getFirstFreeId()
 {
-  return inodeProvider.getFirstFreeId();
+  return mInodeProvider.getFirstFreeId();
 }
 
 EOSNSNAMESPACE_END

@@ -198,8 +198,6 @@ private:
   IQuotaStats* pQuotaStats; ///< Quota view
   IContainerMDSvc* pContSvc; ///< Container metadata service
   std::time_t mFlushTimestamp; ///< Timestamp of the last dirty set flush
-  uint32_t pBkendPort; ///< Backend instance port
-  std::string pBkendHost; ///< Backend intance host
   qclient::QClient* pQcl; ///< QClient object
   qclient::QHash mMetaMap ; ///< Map holding metainfo about the namespace
   NextInodeProvider inodeProvider; ///< Provides next free inode

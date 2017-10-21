@@ -35,11 +35,8 @@ std::chrono::seconds FileMDSvc::sFlushInterval(5);
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc()
   : pQuotaStats(nullptr), pContSvc(nullptr), mFlushTimestamp(std::time(nullptr)),
-    pBkendPort(0), pBkendHost(""), pQcl(nullptr), mMetaMap(),
-    mDirtyFidBackend(), mFlushFidSet(), mFileCache(10e8)
-{
-  // empty
-}
+    pQcl(nullptr), mMetaMap(), mDirtyFidBackend(), mFlushFidSet(),
+    mFileCache(10e8) {}
 
 //------------------------------------------------------------------------------
 // Configure the file service
@@ -47,21 +44,30 @@ FileMDSvc::FileMDSvc()
 void
 FileMDSvc::configure(const std::map<std::string, std::string>& config)
 {
+  uint32_t port = 0;
+  std::string host;
   const std::string key_host = "qdb_host";
   const std::string key_port = "qdb_port";
   const std::string cache_size = "file_cache_size";
 
   if (config.find(key_host) != config.end()) {
-    pBkendHost = config.at(key_host);
+    host = config.at(key_host);
   }
 
   if (config.find(key_port) != config.end()) {
-    pBkendPort = std::stoul(config.at(key_port));
+    port = std::stoul(config.at(key_port));
   }
 
   if (config.find(cache_size) != config.end()) {
     mFileCache.set_max_size(std::stoull(config.at(cache_size)));
   }
+
+  pQcl = BackendClient::getInstance(host, port);
+  mMetaMap.setKey(constants::sMapMetaInfoKey);
+  mMetaMap.setClient(*pQcl);
+  mDirtyFidBackend.setKey(constants::sSetCheckFiles);
+  mDirtyFidBackend.setClient(*pQcl);
+  inodeProvider.configure(mMetaMap, constants::sLastUsedFid);
 }
 
 //------------------------------------------------------------------------------
@@ -75,13 +81,6 @@ FileMDSvc::initialize()
     e.getMessage() << "FileMDSvc: container service not set";
     throw e;
   }
-
-  pQcl = BackendClient::getInstance(pBkendHost, pBkendPort);
-  mMetaMap.setKey(constants::sMapMetaInfoKey);
-  mMetaMap.setClient(*pQcl);
-  mDirtyFidBackend.setKey(constants::sSetCheckFiles);
-  mDirtyFidBackend.setClient(*pQcl);
-  inodeProvider.configure(mMetaMap, constants::sLastUsedFid);
 }
 
 //------------------------------------------------------------------------------
