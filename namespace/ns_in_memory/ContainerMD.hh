@@ -487,7 +487,7 @@ public:
   //!
   //! @return std::map containing all the extended attributes
   //----------------------------------------------------------------------------
-  eos::IFileMD::XAttrMap getAttributes() const override;
+  XAttrMap getAttributes() const override;
 
   //------------------------------------------------------------------------------
   //! Check the access permissions
@@ -501,13 +501,6 @@ public:
   //! containers recurssively
   //----------------------------------------------------------------------------
   void cleanUp() override;
-
-  //----------------------------------------------------------------------------
-  //! Get set of file names contained in the current object
-  //!
-  //! @return set of file names
-  //----------------------------------------------------------------------------
-  std::set<std::string> getNameFiles() const override;
 
   //----------------------------------------------------------------------------
   //! Get set of subcontainer names contained in the current object

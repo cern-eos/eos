@@ -351,20 +351,6 @@ ContainerMD::cleanUp()
   }
 }
 
-//------------------------------------------------------------------------------
-// Get set of file names contained in the current object
-//------------------------------------------------------------------------------
-std::set<std::string>
-ContainerMD::getNameFiles() const
-{
-  std::set<std::string> set_files;
-
-  for (const auto& elem : mFiles) {
-    set_files.insert(elem.first);
-  }
-
-  return set_files;
-}
 
 //----------------------------------------------------------------------------
 // Get set of subcontainer names contained in the current object
@@ -825,7 +811,7 @@ ContainerMD::deserialize(Buffer& buffer)
 eos::IFileMD::XAttrMap
 ContainerMD::getAttributes() const
 {
-  std::map<std::string, std::string> xattrs;
+  XAttrMap xattrs;
 
   for (const auto& elem : mCont.xattrs()) {
     xattrs.insert(elem);

@@ -653,10 +653,11 @@ void CheckOnlineComp(std::shared_ptr<eos::IView> view, uint32_t totalFiles,
   CPPUNIT_ASSERT_NO_THROW(cont = view->getContainer("/test/"));
   uint32_t changedFound = 0;
   std::shared_ptr<eos::IFileMD> fmd;
-  std::set<std::string> fnames = cont->getNameFiles();
+  auto it_begin = cont->filesBegin();
+  auto it_end  = cont->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-    fmd = cont->findFile(*fit);
+  for (auto fit = it_begin; fit != it_end; ++fit) {
+    fmd = cont->findFile(fit->first);
 
     if (fmd->getSize() == 99999) {
       ++changedFound;
@@ -754,11 +755,12 @@ void HierarchicalViewTest::onlineCompactingTest()
 
   int changed = 0;
   std::shared_ptr<eos::IFileMD> fmd;
-  std::set<std::string> fnames = cont->getNameFiles();
+  auto it_begin = cont->filesBegin();
+  auto it_end  = cont->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
+  for (auto fit = it_begin; fit != it_end; ++fit) {
     if (random() % 100 < 70) {
-      fmd = cont->findFile(*fit);
+      fmd = cont->findFile(fit->first);
       fmd->setSize(99999);
       CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd.get()));
       changed++;
@@ -776,10 +778,11 @@ void HierarchicalViewTest::onlineCompactingTest()
     CPPUNIT_ASSERT_NO_THROW(view->createFile(s.str()));
   }
 
-  fnames = cont->getNameFiles();
+  it_begin = cont->filesBegin();
+  it_end  = cont->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-    fmd = cont->findFile(*fit);
+  for (auto fit = it_begin; fit != it_end; ++fit) {
+    fmd = cont->findFile(fit->first);
 
     if (fmd->getSize() == 0) {
       if (random() % 100 < 10) {
@@ -801,10 +804,11 @@ void HierarchicalViewTest::onlineCompactingTest()
     CPPUNIT_ASSERT_NO_THROW(view->createFile(s.str()));
   }
 
-  fnames = cont->getNameFiles();
+  it_begin = cont->filesBegin();
+  it_end  = cont->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-    fmd = cont->findFile(*fit);
+  for (auto fit = it_begin; fit != it_end; ++fit) {
+    fmd = cont->findFile(fit->first);
 
     if (fmd->getSize() == 0) {
       if (random() % 100 < 10) {

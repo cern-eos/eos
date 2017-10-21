@@ -254,7 +254,7 @@ public:
               dirTree.resize(deepness + 2);
               std::shared_ptr<IFileMD> fmd;
               std::shared_ptr<IContainerMD> dmd;
-              std::set<std::string> dnames, fnames;
+              std::set<std::string> dnames;
 
               // Loop over all attached directories in that deepness
               for (auto dIt = dirTree[deepness].begin();
@@ -268,13 +268,14 @@ public:
                 }
 
                 // Remove every file from it's quota node
-                fnames = (*dIt)->getNameFiles();
+                auto it_begin = (*dIt)->filesBegin();
+                auto it_end  = (*dIt)->filesEnd();
 
-                for (auto it = fnames.begin(); it != fnames.end(); ++it) {
+                for (auto fit = it_begin; fit != it_end; ++fit) {
                   IQuotaNode* node = getQuotaNode((*dIt).get());
 
                   if (node) {
-                    fmd = (*dIt)->findFile(*it);
+                    fmd = (*dIt)->findFile(fit->first);
                     node->removeFile(fmd.get());
                   }
                 }
@@ -307,19 +308,19 @@ public:
             // -------------------------------------------------------------
             while (dirTree[deepness].size()) {
               std::shared_ptr<IFileMD> fmd;
-              std::set<std::string> fnames;
 
               // Loop over all attached directories in that deepness
               for (auto dIt = dirTree[deepness].begin();
                    dIt != dirTree[deepness].end(); dIt++) {
                 // Remove every file from it's quota node
-                fnames = (*dIt)->getNameFiles();
+                auto it_begin = (*dIt)->filesBegin();
+                auto it_end  = (*dIt)->filesEnd();
 
-                for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
+                for (auto fit = it_begin; fit != it_end; ++fit) {
                   IQuotaNode* node = getQuotaNode((*dIt).get());
 
                   if (node) {
-                    fmd = (*dIt)->findFile(*fit);
+                    fmd = (*dIt)->findFile(fit->first);
                     node->addFile(fmd.get());
                   }
                 }

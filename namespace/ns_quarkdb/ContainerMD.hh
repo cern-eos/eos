@@ -350,13 +350,6 @@ public:
   void cleanUp() override;
 
   //----------------------------------------------------------------------------
-  //! Get set of file names contained in the current object
-  //!
-  //! @return set of file names
-  //----------------------------------------------------------------------------
-  std::set<std::string> getNameFiles() const override;
-
-  //----------------------------------------------------------------------------
   //! Get set of subcontainer names contained in the current object
   //!
   //! @return set of subcontainer names

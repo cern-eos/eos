@@ -178,12 +178,15 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
         }
 
         if (!no_files) {
-          std::shared_ptr<eos::IFileMD> fmd;
           std::string link;
-          std::set<std::string> fnames = cmd->getNameFiles();
+          std::string fname;
+          std::shared_ptr<eos::IFileMD> fmd;
+          auto it_begin = cmd->filesBegin();
+          auto it_end = cmd->filesEnd();
 
-          for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-            fmd = cmd->findFile(*fit);
+          for (auto fit = it_begin; fit != it_end; ++fit) {
+            fname = fit->first;
+            fmd = cmd->findFile(fname);
 
             // Skip symbolic links
             if (fmd->isLink()) {
@@ -205,20 +208,20 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
             if (!filematch) {
               if (link.length()) {
-                std::string ip = *fit;
+                std::string ip = fname;
                 ip += " -> ";
                 ip += link;
                 found[Path].insert(ip);
               } else {
-                found[Path].insert(*fit);
+                found[Path].insert(fname);
               }
 
               filesfound++;
             } else {
-              XrdOucString name = fit->c_str();
+              XrdOucString name = fname.c_str();
 
               if (name.matches(filematch)) {
-                found[Path].insert(*fit);
+                found[Path].insert(fname);
                 filesfound++;
               }
             }

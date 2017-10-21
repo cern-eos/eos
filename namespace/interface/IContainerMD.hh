@@ -34,7 +34,6 @@
 #include <map>
 #include <set>
 #include <sys/time.h>
-#include <google/sparse_hash_map>
 #include <google/dense_hash_map>
 
 EOSNSNAMESPACE_BEGIN
@@ -59,10 +58,8 @@ public:
   typedef struct timespec mtime_t;
   typedef struct timespec tmtime_t;
   typedef std::map<std::string, std::string> XAttrMap;
-  typedef google::dense_hash_map< std::string, id_t >
-  ContainerMap;
-  typedef google::dense_hash_map< std::string, id_t >
-  FileMap;
+  typedef google::dense_hash_map< std::string, id_t > ContainerMap;
+  typedef google::dense_hash_map< std::string, id_t > FileMap;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -311,13 +308,6 @@ public:
   virtual void cleanUp() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get set of file names contained in the current object
-  //!
-  //! @return set of file names
-  //----------------------------------------------------------------------------
-  virtual std::set<std::string> getNameFiles() const = 0;
-
-  //----------------------------------------------------------------------------
   //! Get set of subcontainer names contained in the current object
   //!
   //! @return set of subcontainer names
@@ -379,8 +369,8 @@ public:
   };
 
 protected:
-  eos::IContainerMD::ContainerMap mSubcontainers; //! Directory name to id map
-  eos::IContainerMD::FileMap mFiles; ///< File name to id map
+  ContainerMap mSubcontainers; //! Directory name to id map
+  FileMap mFiles; ///< File name to id map
 
 private:
 

@@ -192,7 +192,15 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       // Add all the files and subdirectories
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
-      dh_list = dh->getNameFiles();
+      // Collect all files names
+      auto it_begin = dh->filesBegin();
+      auto it_end = dh->filesEnd();
+
+      for (auto it = it_begin; it != it_end; ++it) {
+        dh_list.insert(it->first);
+      }
+
+      // Collect all subdirectory names
       std::set<std::string> dnames = dh->getNameContainers();
       dh_list.insert(dnames.begin(), dnames.end());
       dh_list.insert(".");
@@ -258,7 +266,7 @@ XrdMgmOfsDirectory::nextEntry()
     return (const char*) 0;
   }
 
-  std::set<std::string>::iterator tmp_it = dh_it;
+  auto tmp_it = dh_it;
   dh_it++;
   return tmp_it->c_str();
 }

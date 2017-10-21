@@ -106,10 +106,11 @@ private:
 void addReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
-  std::set<std::string> fnames = cont->getNameFiles();
+  auto it_begin = cont->filesBegin();
+  auto it_end  = cont->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-    fmd = cont->findFile(*fit);
+  for (auto fit = it_begin; fit != it_end; ++fit) {
+    fmd = cont->findFile(fit->first);
 
     for (int i = 0; i < random() % 10; ++i) {
       fmd->addLocation(random() % 10);
@@ -124,12 +125,12 @@ void addReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 void unlinkReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 {
-  std::shared_ptr<eos::IFileMD> fmd =
-    std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
-  std::set<std::string> fnames = cont->getNameFiles();
+  std::shared_ptr<eos::IFileMD> fmd;
+  auto it_begin = cont->filesBegin();
+  auto it_end  = cont->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-    fmd = cont->findFile(*fit);
+  for (auto fit = it_begin; fit != it_end; ++fit) {
+    fmd = cont->findFile(fit->first);
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toUnlink;
     int n = random() % 3;
@@ -154,10 +155,11 @@ void unlinkReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 void cleanUpQuotaRec(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 {
   eos::IQuotaNode* qn = view->getQuotaNode(cont);
-  std::set<std::string> fnames = cont->getNameFiles();
+  auto it_begin = cont->filesBegin();
+  auto it_end  = cont->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-    qn->removeFile(cont->findFile(*fit).get());
+  for (auto fit = it_begin; fit != it_end; ++fit) {
+    qn->removeFile(cont->findFile(fit->first).get());
   }
 
   std::set<std::string> dnames = cont->getNameContainers();
@@ -173,10 +175,11 @@ void cleanUpQuotaRec(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 void deleteReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
-  std::set<std::string> fnames = cont->getNameFiles();
+  auto it_begin = cont->filesBegin();
+  auto it_end  = cont->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-    fmd = cont->findFile(*fit);
+  for (auto fit = it_begin; fit != it_end; ++fit) {
+    fmd = cont->findFile(fit->first);
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toDelete;
     int n = random() % 3;
@@ -202,10 +205,11 @@ void deleteAllReplicas(std::shared_ptr<eos::IView> view,
                        eos::IContainerMD* cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
-  std::set<std::string> fnames = cont->getNameFiles();
+  auto it_begin = cont->filesBegin();
+  auto it_end  = cont->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-    fmd = cont->findFile(*fit);
+  for (auto fit = it_begin; fit != it_end; ++fit) {
+    fmd = cont->findFile(fit->first);
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toDelete = fmd->getLocations();
 
@@ -296,13 +300,13 @@ void modifySubTree(std::shared_ptr<eos::IView> view, const std::string& root)
     std::shared_ptr<eos::IContainerMD> cont = view->getContainer(o.str());
     eos::IQuotaNode* qn = view->getQuotaNode(cont.get());
     std::vector< std::shared_ptr<eos::IFileMD> > toDel;
-    std::set<std::string>::iterator fit;
     std::shared_ptr<eos::IFileMD> fmd;
-    std::set<std::string> fnames = cont->getNameFiles();
-    int j;
+    auto it_begin = cont->filesBegin();
+    auto it_end  = cont->filesEnd();
+    int j = 1;
 
-    for (j = 1, fit = fnames.begin() ; fit != fnames.end(); ++fit, ++j) {
-      fmd = cont->findFile(*fit);
+    for (auto fit = it_begin; fit != it_end; ++fit) {
+      fmd = cont->findFile(fit->first);
 
       if (qn) {
         qn->removeFile(fmd.get());
@@ -319,6 +323,8 @@ void modifySubTree(std::shared_ptr<eos::IView> view, const std::string& root)
       if (j % 4 == 0) {
         toDel.push_back(fmd);
       }
+
+      ++j;
     }
 
     for (auto itD = toDel.begin(); itD != toDel.end(); ++itD) {
@@ -372,10 +378,11 @@ uint64_t calcSize(eos::IContainerMD* cont)
   uint64_t size = 0;
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> dmd;
-  std::set<std::string> fnames = cont->getNameFiles();
+  auto it_begin = cont->filesBegin();
+  auto it_end  = cont->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-    fmd = cont->findFile(*fit);
+  for (auto fit = it_begin; fit != it_end; ++fit) {
+    fmd = cont->findFile(fit->first);
     size += fmd->getSize();
   }
 
@@ -428,10 +435,11 @@ bool compareTrees(std::shared_ptr<eos::IView> view1,
   CPPUNIT_ASSERT_MESSAGE(treeMsg + o4.str(),
                          tree1->getNumContainers() == tree2->getNumContainers());
   std::shared_ptr<eos::IFileMD> fmd;
-  std::set<std::string> fnames = tree1->getNameFiles();
+  auto it_begin = tree1->filesBegin();
+  auto it_end  = tree1->filesEnd();
 
-  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit) {
-    fmd = tree1->findFile(*fit);
+  for (auto fit = it_begin; fit != it_end; ++fit) {
+    fmd = tree1->findFile(fit->first);
     std::shared_ptr<eos::IFileMD> file = tree2->findFile(fmd->getName());
     std::string fileMsg = treeMsg + " file " + fmd->getName();
     CPPUNIT_ASSERT_MESSAGE(fileMsg + " missing", file);
