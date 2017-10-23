@@ -53,11 +53,6 @@ public:
   {
     // @todo (amanzi) move out to StartDrain func, the constructor is not a
     //                good place for this
-    XrdSysThread::Run(&mThread,
-                      DrainFS::StaticThreadProc,
-                      static_cast<void*>(this),
-                      XRDSYSTHREAD_HOLD,
-                      "DrainFS Thread");
   }
 
   //----------------------------------------------------------------------------

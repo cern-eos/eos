@@ -426,7 +426,7 @@ public:
   bool
   SetDrainStatus(fsstatus_t status)
   {
-    return SetString("stat.drain", GetDrainStatusAsString(status));
+    return SetString("drainstatus", GetDrainStatusAsString(status));
   }
 
   //----------------------------------------------------------------------------
@@ -760,7 +760,7 @@ public:
   fsstatus_t
   GetDrainStatus()
   {
-    return GetDrainStatusFromString(GetString("stat.drain").c_str());
+    return GetDrainStatusFromString(GetString("drainstatus").c_str());
   }
 
   //----------------------------------------------------------------------------

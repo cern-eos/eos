@@ -116,7 +116,7 @@ ProcCommand::Group()
                    git != FsView::gFsView.mGroupView[groupname]->end(); git++) {
                 if (FsView::gFsView.mIdView.count(*git)) {
                   int drainstatus = (eos::common::FileSystem::GetDrainStatusFromString(
-                                       FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str()));
+                                       FsView::gFsView.mIdView[*git]->GetString("drainstatus").c_str()));
 
                   if ((drainstatus == eos::common::FileSystem::kDraining) ||
                       (drainstatus == eos::common::FileSystem::kDrainStalling)) {

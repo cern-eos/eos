@@ -133,7 +133,7 @@ DrainJob::SetDrainer ()
       {
         int drainstatus =
           (eos::common::FileSystem::GetDrainStatusFromString(
-                                                             FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str())
+                                                             FsView::gFsView.mIdView[*git]->GetString("drainstatus").c_str())
            );
 
         if ((drainstatus == eos::common::FileSystem::kDraining) ||

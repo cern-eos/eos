@@ -24,6 +24,7 @@
 #include "mgm/drain/DrainFS.hh"
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include <sstream>  
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -182,6 +183,7 @@ DrainFS::Drain()
     }
 
     long long totalfiles = 0;
+    eos::IFsView::FileList filelist;
     // the function should list all the files available on the given FS and create a
     // DrainTransferJob object which should be responsible of the copy via thirdparty
     // and the removal of the original copy
@@ -189,32 +191,30 @@ DrainFS::Drain()
     {
       eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      eos::IFsView::FileList filelist;
 
       try {
         filelist = gOFS->eosFsView->getFileList(mFsId);
       } catch (eos::MDException& e) {
         // no files to drain
       }
-
-      if (filelist.size() == 0) {
-        CompleteDrain();
-        return 0;
-      }
-
-      eos::IFsView::FileIterator fid_it = filelist.begin();
-
-      while (fid_it != filelist.end()) {
-        mJobsPending.push_back(shared_ptr<DrainTransferJob>
-                               (new DrainTransferJob(*fid_it, mFsId)));
-        fid_it++;
-      }
-
-      //set draining status
-      fs->SetDrainStatus(eos::common::FileSystem::kDraining);
-      mDrainStatus = eos::common::FileSystem::kDraining;
-      totalfiles = filelist.size();
     }
+    if (filelist.size() == 0) {
+      CompleteDrain();
+      return 0;
+    }
+
+    eos::IFsView::FileIterator fid_it = filelist.begin();
+
+    while (fid_it != filelist.end()) {
+      mJobsPending.push_back(shared_ptr<DrainTransferJob>
+                               (new DrainTransferJob(*fid_it, mFsId)));
+      fid_it++;
+    }
+
+    //set draining status
+    fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+    mDrainStatus = eos::common::FileSystem::kDraining;
+    totalfiles = filelist.size();
     // set the shared object counter
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -243,7 +243,6 @@ DrainFS::Drain()
     long long last_filesleft;
     last_filesleft = 0;
     filesleft = 0;
-    eos::IFsView::FileIterator fid_it;
     eos_notice("Filesystem fsid=%u is under draining..", mFsId);
     bool firstRun = true;
 
@@ -423,9 +422,6 @@ DrainFS::CompleteDrain()
 {
   eos_notice("Filesystem fsid=%u has been drained", mFsId);
   {
-    // @todo (amanzi): when this function is called this mutex is already
-    //                 locked ?! - it a a lucky situation since they're both
-    //                 rd locks ...
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     FileSystem* fs = 0;
 
@@ -552,16 +548,14 @@ DrainFS::SelectTargetFS(DrainTransferJob* job)
 
   if (res) {
     // @todo (amanzi): this can be dramatically simplified
-    char buffer[1024];
-    buffer[0] = 0;
-    char* buf = buffer;
+    std::ostringstream oss;
 
     for (auto it = newReplicas->begin(); it != newReplicas->end(); ++it) {
-      buf += sprintf(buf, "%lu  ", (unsigned long)(*it));
+      oss << " " <<  (unsigned long)(*it);
     }
 
     eos_static_debug("GeoTree Draining Placement returned %d with fs id's -> %s",
-                     (int)res, buffer);
+                     (int)res, oss.str().c_str());
     //return only one FS now
     eos::common::FileSystem::fsid_t targetFS = *newReplicas->begin();
     delete newReplicas;

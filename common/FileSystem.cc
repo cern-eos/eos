@@ -466,9 +466,6 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
   key = mQueuePath;
   val = mHash->SerializeWithFilter("stat.");
-  //adding also the drain status
-  val.append(" drain=");
-  val.append(mHash->Get("stat.drain"));
 }
 
 //------------------------------------------------------------------------------
@@ -533,7 +530,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mStatus = GetStatusFromString(mHash->Get("stat.boot").c_str());
     fs.mConfigStatus = GetConfigStatusFromString(
                          mHash->Get("configstatus").c_str());
-    fs.mDrainStatus = GetDrainStatusFromString(mHash->Get("stat.drain").c_str());
+    fs.mDrainStatus = GetDrainStatusFromString(mHash->Get("drainstatus").c_str());
     fs.mActiveStatus = GetActiveStatusFromString(mHash->Get("stat.active").c_str());
     //headroom can be configured as KMGTP so the string should be properly converted
     fs.mHeadRoom = StringConversion::GetSizeFromString(mHash->Get("headroom"));

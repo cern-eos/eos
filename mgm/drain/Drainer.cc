@@ -114,7 +114,8 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
 
   //start the drain
   DrainMapPair::first_type s(fsId);
-  DrainMapPair::second_type d(new DrainFS(fsId));
+  DrainFS* fs = new DrainFS(fsId);
+  DrainMapPair::second_type d(fs);
   mDrainMutex.Lock();
 
   if (it_drainfs != mDrainFS.end()) {
@@ -124,7 +125,11 @@ Drainer::StartFSDrain(XrdOucEnv& env, XrdOucString& err)
     fs_vect.push_back(std::make_pair(s, d));
     mDrainFS.insert(std::make_pair(std::string(drain_snapshot.mHostPort), fs_vect));
   }
-
+  XrdSysThread::Run(&mThread,
+                      DrainFS::StaticThreadProc,
+                      static_cast<void*>(fs),
+                      XRDSYSTHREAD_HOLD,
+                      "DrainFS Thread");
   mDrainMutex.UnLock();
   return true;
 }
@@ -317,7 +322,7 @@ Drainer::GetDrainStatus(XrdOucEnv& env, XrdOucString& out, XrdOucString& err)
     table_header_jobs.push_back(std::make_tuple("error", 100, "s"));
     table_jobs.SetHeader(table_header_jobs);
     // @todo (amanzi): get const reference to vector and iterate
-    auto job_vect_it = (*it).second->GetFailedJobs().begin();
+    std::vector<shared_ptr<DrainTransferJob>>::const_iterator job_vect_it = (*it).second->GetFailedJobs().begin();
 
     if (job_vect_it != (*it).second->GetFailedJobs().end()) {
       out += "List of Files failed to be drained:\n\n";

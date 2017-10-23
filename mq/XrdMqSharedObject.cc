@@ -856,7 +856,7 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
   bool toRemove = false;
 
   if (filter.find("d") != string::npos) {
-    std::string drain = Get("stat.drain");
+    std::string drain = Get("drainstatus");
 
     if (drain == "nodrain") {
       toRemove = true;
