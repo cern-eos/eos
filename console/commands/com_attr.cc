@@ -496,6 +496,22 @@ com_attr_usage:
   fprintf(stdout,
           "               => <path> can be a relative or absolute file path!\n");
   fprintf(stdout, "\n");
+  fprintf(stdout,
+          "         sys.accounting.*=<value>              : set accounting attributes with value on the proc directory (common values) or quota nodes which translate to JSON output in the accounting report command\n");
+  fprintf(stdout,
+          "               => You have to create such an attribute for each leaf value in the desired JSON.\n");
+  fprintf(stdout,
+          "               => JSON objects: create a new key with a new name after a '.', e.g. sys.accounting.storagecapacity.online.totalsize=x or sys.accounting.storagecapacity.online.usedsize=y to add a new key-value to this object\n");
+  fprintf(stdout,
+          "               => JSON arrays: place a continuous whole number from 0 to the attribute name, e.g. sys.accounting.accessmode.{0,1,2,...}\n");
+  fprintf(stdout,
+          "               => array of objects: you can combine the above two to achieve arbitrary JSON output, e.g. sys.accounting.storageendpoints.0.name, sys.accounting.storageendpoints.0.id and sys.accounting.storageendpoints.1.name ...\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout,
+          "         sys.proc=<opaque command>             : run arbitrary command on accessing the file\n");
+  fprintf(stdout,
+          "               => <opaque comamnd> command to execute in opaque format, e.g. mgm.cmd=accounting&mgm.subcmd=report&mgm.format=fuse\n");
+  fprintf(stdout, "\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout, "User Variables:\n");
   fprintf(stdout, "         user.forced.space=<space>              : s.a.\n");
