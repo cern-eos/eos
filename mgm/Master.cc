@@ -1883,6 +1883,20 @@ Master::BootNamespace()
     fileSettings["auto_repair"] = "false";
   }
 
+  if (!ns_in_qdb) {
+    // Build local path of the file and directory changelogs
+    std::ostringstream oss;
+    oss << gOFS->MgmMetaLogDir.c_str() << "/directories."
+        << fMasterHost.c_str() << ".mdlog";
+    contSettings["changelog_path"] = oss.str().c_str();
+    gOFS->MgmNsDirChangeLogFile = oss.str().c_str();
+    oss.str("");
+    oss << gOFS->MgmMetaLogDir.c_str() << "/files."
+        << fMasterHost.c_str() << ".mdlog";
+    fileSettings["changelog_path"] = oss.str().c_str();
+    gOFS->MgmNsFileChangeLogFile = oss.str().c_str();
+  }
+
   time_t tstart = time(0);
 
   try {
@@ -1925,17 +1939,6 @@ Master::BootNamespace()
 
       eos_chlog_filesvc->clearWarningMessages();
       eos_chlog_dirsvc->clearWarningMessages();
-      // Build local path of the file and directory changelogs
-      std::ostringstream oss;
-      oss << gOFS->MgmMetaLogDir.c_str() << "/directories."
-          << fMasterHost.c_str() << ".mdlog";
-      contSettings["changelog_path"] = oss.str().c_str();
-      gOFS->MgmNsDirChangeLogFile = oss.str().c_str();
-      oss.str("");
-      oss << gOFS->MgmMetaLogDir.c_str() << "/files."
-          << fMasterHost.c_str() << ".mdlog";
-      fileSettings["changelog_path"] = oss.str().c_str();
-      gOFS->MgmNsFileChangeLogFile = oss.str().c_str();
     }
 
     gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
