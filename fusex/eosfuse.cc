@@ -225,6 +225,14 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       exit(EINVAL);
     }
 
+    if (config.mdcachedir.length())
+    {
+      // add the instance name to all cache directories
+      if (config.mdcachedir.rfind("/") != (config.mdcachedir.size()-1))
+	config.mdcachedir += "/";
+      config.mdcachedir += config.name.length()?config.name:"default";
+    }
+    
     // default settings
     if (!config.statfilesuffix.length())
     {
@@ -314,6 +322,36 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
     cconfig.location = root["cache"]["location"].asString();
     cconfig.journal = root["cache"]["journal"].asString();
+
+    if (cconfig.location.length())
+    {
+      if (cconfig.location.rfind("/") != (cconfig.location.size()-1))
+	cconfig.location += "/";
+      cconfig.location += config.name.length()?config.name:"default";
+    }
+
+    if (cconfig.journal.length())      
+    {
+      if (cconfig.journal.rfind("/") != (cconfig.journal.size()-1))
+	cconfig.journal += "/";
+      cconfig.journal += config.name.length()?config.name:"default";
+    }
+
+    // by default create all the specified cache paths
+    std::string mk_cachedir = "mkdir -p " + config.mdcachedir;
+    std::string mk_journaldir = "mkdir -p " + cconfig.journal;
+    std::string mk_locationdir = "mkdir -p " + cconfig.location;
+
+    if (config.mdcachedir.length())  system(mk_cachedir.c_str());
+    if (cconfig.journal.length())    system(mk_journaldir.c_str());
+    if (cconfig.location.length())   system(mk_locationdir.c_str());
+
+    // make the cache directories private to root
+    if (config.mdcachedir.length())  if ((chmod(config.mdcachedir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR))) { fprintf(stderr,"error: failed to make path=%s RWX for root - errno=%d", config.mdcachedir.c_str(), errno); exit (-1);}
+    if (cconfig.journal.length())    if ((chmod(cconfig.journal.c_str(),   S_IRUSR | S_IWUSR | S_IXUSR))){ fprintf(stderr,"error: failed to make path=%s RWX for root - errno=%d", cconfig.journal.c_str(), errno); exit (-1);}
+    if (cconfig.location.length())   if ((chmod(cconfig.location.c_str(),  S_IRUSR | S_IWUSR | S_IXUSR))) { fprintf(stderr,"error: failed to make path=%s RWX for root - errno=%d", cconfig.location.c_str(), errno); exit (-1);}
+
+
     cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64()*1024 * 1024;
     cconfig.total_file_journal_size = root["cache"]["journal-mb"].asUInt64()*1024 * 1024;
     cconfig.per_file_cache_max_size = root["cache"]["file-cache-max-kb"].asUInt64()*1024;
@@ -3249,7 +3287,6 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
   // the root user has a bypass to be able to change th fuse configuration in
   // realtime
-  if (fuse_req_ctx(req)->uid == 0)
   {
     static std::string s_debug = "system.eos.debug";
     static std::string s_dropcap = "system.eos.dropcap";
@@ -3258,42 +3295,49 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
     if (key.substr(0, s_debug.length()) == s_debug)
     {
       local_setxattr = true;
-      rc = EINVAL;
       // only root can do this configuration changes
 
+      if (fuse_req_ctx(req)->uid == 0)
+      {
+	rc = EINVAL;
 #ifdef EOSCITRINE
-      if (value == "notice")
-      {
-        eos::common::Logging::GetInstance().SetLogPriority(LOG_NOTICE);
-        rc = 0;
-      }
-      if (value == "info")
-      {
-        eos::common::Logging::GetInstance().SetLogPriority(LOG_INFO);
-        rc = 0;
-      }
-      if (value == "debug")
-      {
-        eos::common::Logging::GetInstance().SetLogPriority(LOG_DEBUG);
-        rc = 0;
-      }
+	if (value == "notice")
+	{
+	  eos::common::Logging::GetInstance().SetLogPriority(LOG_NOTICE);
+	  rc = 0;
+	}
+	if (value == "info")
+	{
+	  eos::common::Logging::GetInstance().SetLogPriority(LOG_INFO);
+	  rc = 0;
+	}
+	if (value == "debug")
+	{
+	  eos::common::Logging::GetInstance().SetLogPriority(LOG_DEBUG);
+	  rc = 0;
+	}
 #else
-      if (value == "notice")
-      {
-        eos::common::Logging::SetLogPriority(LOG_NOTICE);
-        rc = 0;
-      }
-      if (value == "info")
-      {
-        eos::common::Logging::SetLogPriority(LOG_INFO);
-        rc = 0;
-      }
-      if (value == "debug")
-      {
-        eos::common::Logging::SetLogPriority(LOG_DEBUG);
-        rc = 0;
-      }
+	if (value == "notice")
+	{
+	  eos::common::Logging::SetLogPriority(LOG_NOTICE);
+	  rc = 0;
+	}
+	if (value == "info")
+	{
+	  eos::common::Logging::SetLogPriority(LOG_INFO);
+	  rc = 0;
+	}
+	if (value == "debug")
+	{
+	  eos::common::Logging::SetLogPriority(LOG_DEBUG);
+	  rc = 0;
+	}
 #endif
+      }
+      else
+      {
+	rc = EPERM;
+      }
     }
 
     if (key.substr(0, s_dropcap.length()) == s_dropcap)
@@ -3309,7 +3353,14 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
     if (key.substr(0, s_dropallcap.length()) == s_dropallcap)
     {
       local_setxattr = true;
-      Instance().caps.reset();
+      if (fuse_req_ctx(req)->uid == 0)
+      {
+	Instance().caps.reset();
+      }
+      else
+      {
+	rc = EPERM;
+      }
     }
   }
 
