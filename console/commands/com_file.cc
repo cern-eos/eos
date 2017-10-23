@@ -417,26 +417,6 @@ com_file(char* arg1)
     }
   }
 
-  if (cmd == "adjustreplica") {
-    if (!path.length()) {
-      goto com_file_usage;
-    }
-
-    in += "&mgm.subcmd=adjustreplica";
-    in += "&mgm.path=";
-    in += path;
-
-    if (fsid1.length()) {
-      in += "&mgm.file.desiredspace=";
-      in += fsid1;
-
-      if (fsid2.length()) {
-        in += "&mgm.file.desiredsubgroup=";
-        in += fsid2;
-      }
-    }
-  }
-
   if (cmd == "layout") {
     if (!path.length()) {
       goto com_file_usage;
