@@ -104,6 +104,7 @@ extern int com_accounting(char*);
 //------------------------------------------------------------------------------
 COMMAND commands[] = {
   { (char*) "access", com_access, (char*) "Access Interface"},
+  { (char*) "accounting", com_accounting, (char*) "Accounting Interface"},
   { (char*) "acl", com_acl, (char*) "Acl Interface"},
   { (char*) "archive", com_archive, (char*) "Archive Interface"},
   { (char*) "attr", com_attr, (char*) "Attribute Interface"},
