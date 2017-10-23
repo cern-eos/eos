@@ -1716,6 +1716,8 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       }
     }
 
+    if(pmd) pmd->Locker().Lock();
+
     if (pmd && listing)
     {
       bool ret = false;
@@ -1735,6 +1737,8 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       // store the parent now, after all children are inserted
       update(req, pmd, "", true);
     }
+
+    if(pmd) pmd->Locker().UnLock();
   }
   else
   {
