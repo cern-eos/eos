@@ -530,26 +530,26 @@ The new EOS fuse core containing selinux definitions.
 /usr/share/selinux/strict/eosfuse.pp
 
 %post -n eos-fusex-selinux
-for variant in mls strict targeted
-do
-  /usr/sbin/semodule -s $variant -i \
-  /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
-done
+if [ "$1" -le "1" ]; then # First install
+  # Note: don't push bash variables between {} since they will be empty!!!
+  for VARIANT in mls strict targeted
+  do
+    /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
+  done
+fi
 
 %preun -n eos-fusex-selinux
-if [ $1 = 0 ] ; then
-  for variant in mls strict targeted ; do
-    /usr/sbin/semodule -s $variant -r eosfuse &> /dev/null || :
-  done
+if [ "$1" -eq  "0" ]; then # Final removal
+  /usr/sbin/semodule -r eosfuse || :
 fi
 
 %postun -n eos-fusex-selinux
-if [ $1 -eq 0 ]; then
-  for variant in mls strict targeted ; do
-    /usr/sbin/semodule -u /usr/share/selinux/$variant/eosfuse.pp || :
+if [ "$1" -ge "1" ]; then # Upgrade
+  for VARIANT in mls strict targeted
+  do
+    /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
   done
 fi
-
 
 %if %{?_with_server:1}%{!?_with_server:0}
 #-------------------------------------------------------------------------------
