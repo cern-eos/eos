@@ -751,7 +751,13 @@ data::datax::pwrite(fuse_req_t req, const void *buf, size_t count, off_t offset)
       }
       dw = jw;
     }
-
+    else
+    {      
+      if (mFile->xrdiorw(req)->IsOpening())
+      {
+        mFile->xrdiorw(req)->WaitOpen();
+      }
+    }
     if (!mFile->xrdiorw(req)->IsOpening())
     {
       // send an asynchronous upstream write
