@@ -15,6 +15,41 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.0 Citrine``
+===================
+
+2017-10-23
+
+Bug
+++++
+
+* [EOS-1971] - EOS node listing crash
+* [EOS-2015] - Table engine display values issue
+* [EOS-2057] - Wrong conversion between IEC and Metric multiples
+* [EOS-2060] - XrdMgmOfsFile SEGV out of bounds access
+
+New Feature
++++++++++++
+
+* [EOS-2030] - Add '.' and '..' directories to file listings
+* Prototype for the new fuse implementation i.e fusex
+* Refactor of the ns command to use ProtoBuf-style commands
+
+Task
+++++
+
+* [EOS-2033] - quota id mapping for non-existing users
+
+
+Bug
+++++
+
+* [EOS-2016] - avoid SEGV when removing ghost entries on FST
+* [EOS-2017] - avoid creating NULL object in map when resetting draining
+* DOC: various corrections - use solar template with new WEB colour scheme
+
+
+
 ``v4.1.31 Citrine``
 ===================
 
