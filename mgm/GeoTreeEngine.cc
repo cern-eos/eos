@@ -2541,7 +2541,7 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       if (stn) {
         stn->pNodeState.mStatus |= (SchedTreeBase::Readable | SchedTreeBase::Writable);
       }
-    } else if (status == FileSystem::kRO) {
+    } else if (status == FileSystem::kRO || status == FileSystem::kDrain) {
       if (ftIdx) {
         setOneStateVarStatusInAllFastTrees(SchedTreeBase::Readable);
         unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Writable);
