@@ -1116,7 +1116,7 @@ ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 
   if (it->second.ptr == NULL) {
     MDException e(ENOENT);
-    e.getMessage() << "File #" << id << " not found in map";
+    e.getMessage() << "File #" << id << " found in map but null";
     throw e;
   }
 

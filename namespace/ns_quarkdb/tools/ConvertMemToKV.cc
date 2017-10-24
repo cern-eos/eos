@@ -606,6 +606,12 @@ ConvertFileMDSvc::initialize()
   pFollowStart = pChangeLog->getFirstOffset();
   FileMDScanner scanner(pIdMap, pSlaveMode);
   pFollowStart = pChangeLog->scanAllRecords(&scanner);
+  auto vect_errs = pChangeLog->getWarningMessages();
+
+  for (auto msg : vect_errs) {
+    fprintf(stderr, "%s\n", msg.c_str());
+  }
+
   std::uint64_t total = pIdMap.size();
   int nthreads = sThreads;
   int chunk = total / nthreads;
@@ -636,13 +642,11 @@ ConvertFileMDSvc::initialize()
 
       // Unpack the serialized buffers
       std::shared_ptr<IFileMD> file = std::make_shared<ConvertFileMD>(0, this);
+      eos::FileMD* tmp_fmd = dynamic_cast<FileMD*>(file.get());
 
-      if (eos::FileMD* tmp_fmd = dynamic_cast<FileMD*>(file.get())) {
+      if (tmp_fmd) {
         tmp_fmd->deserialize(*(it->second.buffer));
-      }
-
-      // Attach to the hierarchy
-      if (file->getContainerId() == 0) {
+      } else {
         ++it;
         continue;
       }
@@ -691,8 +695,10 @@ ConvertFileMDSvc::initialize()
         cont = nullptr;
       }
 
-      if (!cont) {
+      if (!cont || (file->getContainerId() == 0)) {
         attachBroken("orphans", file.get());
+        delete it->second.buffer;
+        it->second.buffer = nullptr;
         ++it;
         continue;
       }
