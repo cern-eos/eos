@@ -22,163 +22,154 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <cppunit/extensions/HelperMacros.h>
+#include <gtest/gtest.h>
 #include <unistd.h>
 #include <climits>
 #include "fusex/data/rbtree.hh"
 
-#ifndef __EOS_FUSEX_RBTREETEST_HH__
-#define __EOS_FUSEX_RBTREETEST_HH__
+class RBTreeTest {
+public:
+  static void Populate(rbtree<int, std::string> &tree) {
+    srand( time( NULL ) );
 
-class RBTreeTest : public CppUnit::TestCase
-{
-    CPPUNIT_TEST_SUITE( RBTreeTest );
-      CPPUNIT_TEST( TestRBInvariant );
-      CPPUNIT_TEST( TestBSTInvariant );
-      CPPUNIT_TEST( TestIterator );
-    CPPUNIT_TEST_SUITE_END();
-
-  public:
-
-    void TestRBInvariant()
+    for( int i = 0; i < 1000; ++i )
     {
-      tree.clear();
-      Populate();
-      auto ret = TestRBInvariant( tree.tree_root );
-      CPPUNIT_ASSERT( ret.first );
+      int k = rand() % 1000 + 1;
+      std::stringstream ss;
+      ss << k;
+      tree.insert( k, ss.str() );
     }
 
-    void TestBSTInvariant()
+    for( int i = 0; i < 200; ++i )
     {
-      tree.clear();
-      Populate();
-      CPPUNIT_ASSERT( TestBSTInvariant( tree.tree_root ) );
+      int k = rand() % 1000 + 1;
+      tree.erase( k );
     }
+  }
 
-    void TestIterator()
+  static std::pair<bool, int> TestRBInvariant(const rbtree<int, std::string> &tree)
+  {
+    return TestRBInvariant(tree.tree_root);
+  }
+
+  static std::pair<bool, int> TestRBInvariant( const std::unique_ptr< node_t<int, std::string> > &root )
+  {
+    // base case
+    if( !root )
+    return std::make_pair( true, 0 );
+
+    int black = 0;
+    if( root->colour == RED )
     {
-      tree.clear();
-      tree.insert( 1, "1" );
-      tree.insert( 2, "2" );
-      tree.insert( 3, "3" );
-      tree.insert( 4, "4" );
-      tree.insert( 5, "5" );
-      tree.insert( 6, "6" );
-      tree.insert( 7, "7" );
-      tree.insert( 8, "8" );
-      tree.insert( 9, "9" );
-
-      int i = 1;
-      rbtree<int, std::string>::iterator itr;
-      for( itr = tree.begin() ; itr != tree.end(); ++itr )
-      {
-        CPPUNIT_ASSERT( itr->key == i );
-        ++i;
-      }
-   }
-
-  private:
-
-    void Populate()
-    {
-      srand( time( NULL ) );
-
-      for( int i = 0; i < 1000; ++i )
-      {
-        int k = rand() % 1000 + 1;
-        std::stringstream ss;
-        ss << k;
-        tree.insert( k, ss.str() );
-      }
-
-      for( int i = 0; i < 200; ++i )
-      {
-        int k = rand() % 1000 + 1;
-        tree.erase( k );
-      }
+      // RED node cannot have RED children
+      if( ( root->left && root->left->colour == RED ) || ( root->right && root->right->colour == RED ) )
+      return std::make_pair( false, -1 );
     }
+    else
+    black += 1;
 
-    static std::pair<bool, int> TestRBInvariant( const std::unique_ptr< node_t<int, std::string> > &root )
-    {
-      // base case
-      if( !root )
-        return std::make_pair( true, 0 );
+    std::pair<bool, int> l = TestRBInvariant( root->left );
+    std::pair<bool, int> r = TestRBInvariant( root->right );
 
-      int black = 0;
-      if( root->colour == RED )
-      {
-        // RED node cannot have RED children
-        if( ( root->left && root->left->colour == RED ) || ( root->right && root->right->colour == RED ) )
-          return std::make_pair( false, -1 );
-      }
-      else
-        black += 1;
+    // both sub trees have to be valid red-black trees
+    if( !l.first || !r.first )
+    return std::make_pair( false, -1 );
 
-      std::pair<bool, int> l = TestRBInvariant( root->left );
-      std::pair<bool, int> r = TestRBInvariant( root->right );
+    // the 'black' high of both sub-trees has to be the same
+    if( l.second != r.second )
+    return std::make_pair( false, -1 );
 
-      // both sub trees have to be valid red-black trees
-      if( !l.first || !r.first )
-        return std::make_pair( false, -1 );
+    return std::make_pair( true, l.second + black );
+  }
 
-      // the 'black' high of both sub-trees has to be the same
-      if( l.second != r.second )
-        return std::make_pair( false, -1 );
+  static std::pair<bool, int> GetMax( const std::unique_ptr< node_t<int, std::string> > &root )
+  {
+    if( !root )
+    return std::make_pair( false, 0 );
 
-      return std::make_pair( true, l.second + black );
-    }
+    node_t<int, std::string>* node = root.get();
+    while( node->right )
+    node = node->right.get();
 
-    static std::pair<bool, int> GetMax( const std::unique_ptr< node_t<int, std::string> > &root )
-    {
-      if( !root )
-        return std::make_pair( false, 0 );
+    return std::make_pair( true, node->key );
+  }
 
-      node_t<int, std::string>* node = root.get();
-      while( node->right )
-        node = node->right.get();
+  static std::pair<bool, int> GetMin( const std::unique_ptr< node_t<int, std::string> > &root )
+  {
+    if( !root )
+    return std::make_pair( false, 0 );
 
-      return std::make_pair( true, node->key );
-    }
+    node_t<int, std::string>* node = root.get();
+    while( node->left )
+    node = node->left.get();
 
-    static std::pair<bool, int> GetMin( const std::unique_ptr< node_t<int, std::string> > &root )
-    {
-      if( !root )
-        return std::make_pair( false, 0 );
+    return std::make_pair( true, node->key );
+  }
 
-      node_t<int, std::string>* node = root.get();
-      while( node->left )
-        node = node->left.get();
+  static bool TestBSTInvariant(const rbtree<int, std::string> &tree)
+  {
+    return TestBSTInvariant(tree.tree_root);
+  }
 
-      return std::make_pair( true, node->key );
-    }
+  static bool TestBSTInvariant( const std::unique_ptr< node_t<int, std::string> > &root )
+  {
+    if( !root ) return true;
 
-    static bool TestBSTInvariant( const std::unique_ptr< node_t<int, std::string> > &root )
-    {
-      if( !root ) return true;
+    if( !TestBSTInvariant( root->left ) || !TestBSTInvariant( root->right ) )
+    return false;
 
-      if( !TestBSTInvariant( root->left ) || !TestBSTInvariant( root->right ) )
-        return false;
+    auto right_min = GetMin( root->right );
+    // check if the right-sub tree exists
+    if( right_min.first )
+    // all the items in right sub-tree have to be greater than root
+    if( right_min.second <= root->key )
+    return false;
 
-      auto right_min = GetMin( root->right );
-      // check if the right-sub tree exists
-      if( right_min.first )
-        // all the items in right sub-tree have to be greater than root
-        if( right_min.second <= root->key )
-          return false;
+    auto left_max  = GetMax( root->left );
+    // check if the left sub-tree exists
+    if( left_max.first )
+    // all the items in left sub-tree have to be smaller than root
+    if( left_max.second >= root->key )
+    return false;
 
-      auto left_max  = GetMax( root->left );
-      // check if the left sub-tree exists
-      if( left_max.first )
-        // all the items in left sub-tree have to be smaller than root
-        if( left_max.second >= root->key )
-          return false;
-
-      return true;
-    }
-
-    rbtree<int, std::string> tree;
+    return true;
+  }
 };
 
-CPPUNIT_TEST_SUITE_REGISTRATION( RBTreeTest );
+TEST(RBTree, TestInvariant)
+{
+  rbtree<int, std::string> tree;
+  RBTreeTest::Populate(tree);
+  auto ret = RBTreeTest::TestRBInvariant(tree);
+  ASSERT_TRUE(ret.first);
+}
 
-#endif
+TEST(RBTree, TestBSTInvariant)
+{
+  rbtree<int, std::string> tree;
+  RBTreeTest::Populate(tree);
+  ASSERT_TRUE(RBTreeTest::TestBSTInvariant(tree));
+}
+
+TEST(RBTree, TestIterator)
+{
+  rbtree<int, std::string> tree;
+
+  tree.insert( 1, "1" );
+  tree.insert( 2, "2" );
+  tree.insert( 3, "3" );
+  tree.insert( 4, "4" );
+  tree.insert( 5, "5" );
+  tree.insert( 6, "6" );
+  tree.insert( 7, "7" );
+  tree.insert( 8, "8" );
+  tree.insert( 9, "9" );
+
+  int i = 1;
+  rbtree<int, std::string>::iterator itr;
+  for( itr = tree.begin() ; itr != tree.end(); ++itr )
+  {
+    ASSERT_EQ(itr->key, i);
+    ++i;
+  }
+}
