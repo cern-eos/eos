@@ -405,6 +405,18 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
     }
   }
+  
+  std::string nodelay = getenv("XRD_NODELAY")?getenv("XRD_NODELAY"):"";
+  if (nodelay == "1")
+  {
+    fprintf(stderr,"# Running with XRD_NODELAY=1 (nagle algorithm is disabled)\n");
+  }
+  else
+  {
+    putenv("XRD_NODELAY=1");
+    fprintf(stderr,"# Disabling nagle algorithm (XRD_NODELAY=1)\n");
+  }
+
 
   int debug;
   if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1)
@@ -420,6 +432,13 @@ EosFuse::run(int argc, char* argv[], void *userdata)
   if (fuse_daemonize(config.options.foreground) != -1)
   {
     fusexrdlogin::initializeProcessCache(config.auth);
+
+    if (config.options.foreground)
+    {
+      if (nodelay != "1") {
+	fprintf(stderr,"# warning: nagle algorithm is still enabled (export XRD_NODELAY=1 before running in foreground)\n");
+      }
+    }
 
     FILE* fstderr;
     // Open log file
