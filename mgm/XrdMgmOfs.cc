@@ -208,7 +208,9 @@ XrdMgmOfs::newFile(char* user, int MonID)
 void
 XrdMgmOfs::Disc(const XrdSecEntity* client)
 {
-  ProcInterface::DropSubmittedCmd(client->tident);
+  if (client) {
+    ProcInterface::DropSubmittedCmd(client->tident);
+  }
 }
 
 //------------------------------------------------------------------------------
