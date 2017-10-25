@@ -29,7 +29,7 @@ option(FUSEXCLIENT "Build FUSEX client" OFF)
 option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 option(BUILD_TESTS "Build CppUnit tests" OFF)
-option(BUILD_QUARKDB_NAMESPACE "Build the quarkdb namespace" OFF)
+option(BUILD_QUARKDB_NAMESPACE "Build the quarkdb namespace" ON)
 
 # Add definition if compiling with quarkdb/qclient support
 if (BUILD_QUARKDB_NAMESPACE)
