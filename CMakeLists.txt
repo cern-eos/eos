@@ -42,7 +42,6 @@ endif ()
 
 project (eos)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-option(BUILD_QUARKDB_NAMESPACE "Build the quarkdb namespace" ON)
 
 #-------------------------------------------------------------------------------
 # Include some generic functions and compiler definition parameters

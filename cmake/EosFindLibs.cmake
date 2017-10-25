@@ -29,6 +29,12 @@ option(FUSEXCLIENT "Build FUSEX client" OFF)
 option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 option(BUILD_TESTS "Build CppUnit tests" OFF)
+option(BUILD_QUARKDB_NAMESPACE "Build the quarkdb namespace" OFF)
+
+# Add definition if compiling with quarkdb/qclient support
+if (BUILD_QUARKDB_NAMESPACE)
+  add_definitions(-DHAVE_QCLIENT)
+endif ()
 
 set(KINETICIO_URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz")
 set(KINETICIO_URL_MD5 "ae1a538939ee26984d4e20f96bedb2c2")

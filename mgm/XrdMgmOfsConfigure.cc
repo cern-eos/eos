@@ -38,7 +38,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/FileConfigEngine.hh"
-#ifdef HAVE_HIREDIS
+#ifdef HAVE_QCLIENT
 #include "mgm/RedisConfigEngine.hh"
 #endif
 #include "common/plugin_manager/PluginManager.hh"
@@ -1358,7 +1358,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     ConfEngine = new FileConfigEngine(MgmConfigDir.c_str());
   }
 
-#ifdef HAVE_HIREDIS
+#ifdef HAVE_QCLIENT
   else if (MgmOfsConfigEngineType == "redis") {
     ConfEngine = new RedisConfigEngine(MgmConfigDir.c_str(),
                                        MgmOfsConfigEngineRedisHost.c_str(),
