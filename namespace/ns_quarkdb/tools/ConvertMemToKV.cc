@@ -333,7 +333,7 @@ ConvertContainerMD::convertAclToNumeric(std::string& acl_val)
 // Constructor
 //------------------------------------------------------------------------------
 ConvertContainerMDSvc::ConvertContainerMDSvc():
-  ChangeLogContainerMDSvc(), mFirstFreeId(0), mConvQView(nullptr)
+  ChangeLogContainerMDSvc(), mConvQView(nullptr)
 {
   int num_mutexes = sThreads;
 
@@ -413,13 +413,12 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
         mConvQView->addQuotaNode(container->getId());
       }
     } else {
-      nameConflicts.push_back(child);
-      parent->addContainer(container.get());
+      nameConflicts.push_back(container);
     }
   } else {
     // This is not the root container but doesn't have a parent - add it to
     // the list of orphans
-    if (container->getId()) {
+    if (container->getId() != 1) {
       orphans.push_back(container);
       return;
     }
@@ -432,7 +431,6 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 void
 ConvertContainerMDSvc::commitToBackend()
 {
-  std::mutex mutex_free_id;
   std::uint64_t total = pIdMap.size();
   int nthreads = sThreads;
   int chunk = total / nthreads;
@@ -449,27 +447,12 @@ ConvertContainerMDSvc::commitToBackend()
     int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
 
     for (int n = 0; n < max_elem; ++n) {
-      // Skip unattached
-      if (!it->second.attached) {
-        std::cerr << __FUNCTION__ << " Skipping unattached container id "
-                  << it->first << std::endl;
-        ++it;
-        continue;
-      }
-
       container = it->second.ptr;
       conv_cont = static_cast<eos::ConvertContainerMD*>(container.get());
       ++it;
 
       // Add container to the KV store
       try {
-        {
-          std::lock_guard<std::mutex> lock(mutex_free_id);
-
-          if (getFirstFreeId() <= container->getId()) {
-            mFirstFreeId = container->getId() + 1;
-          }
-        }
         ++count;
         std::string buffer;
         conv_cont->serializeToStr(buffer);
@@ -537,15 +520,6 @@ ConvertContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
   std::string bucket_key = stringify(id);
   bucket_key += constants::sContKeySuffix;
   return bucket_key;
-}
-
-//------------------------------------------------------------------------------
-// Get first free container id
-//------------------------------------------------------------------------------
-IContainerMD::id_t
-ConvertContainerMDSvc::getFirstFreeId()
-{
-  return mFirstFreeId;
 }
 
 //------------------------------------------------------------------------------
@@ -617,6 +591,7 @@ ConvertFileMDSvc::initialize()
   int chunk = total / nthreads;
   int last_chunk = chunk + pIdMap.size() - (chunk * nthreads);
   auto start = std::time(nullptr);
+  std::mutex mutex_lost_found;
   // Recreate the files
   eos::common::Parallel::For(0, nthreads, [&](int i) {
     std::int64_t count = 0;
@@ -696,6 +671,7 @@ ConvertFileMDSvc::initialize()
       }
 
       if (!cont || (file->getContainerId() == 0)) {
+        std::lock_guard<std::mutex> lock(mutex_lost_found);
         attachBroken("orphans", file.get());
         delete it->second.buffer;
         it->second.buffer = nullptr;
@@ -710,8 +686,9 @@ ConvertFileMDSvc::initialize()
       mtx->lock();
 
       if (cont->findFile(file->getName())) {
-        attachBroken("name_conflicts", file.get());
         mtx->unlock();
+        std::lock_guard<std::mutex> lock(mutex_lost_found);
+        attachBroken("name_conflicts", file.get());
       } else {
         cont->addFile(file.get());
         mtx->unlock();
@@ -955,7 +932,8 @@ ConvertFsView::commitToBackend()
       fs_set.setKey(key);
 
       if (it->second.first.size()) {
-        async_handler.Register(fs_set.sadd_async(it->second.first), fs_set.getClient());
+        async_handler.Register(fs_set.sadd_async(it->second.first),
+                               fs_set.getClient());
       }
 
       key = val + fsview::sUnlinkedSuffix;
@@ -1083,9 +1061,10 @@ main(int argc, char* argv[])
     cont_svc->setFileMDService(file_svc.get());
     cont_svc->configure(config_cont);
     // Create the view objects
-    std::unique_ptr<eos::ConvertQuotaView> quota_view
-    (new eos::ConvertQuotaView(cont_svc.get()));
-    std::unique_ptr<eos::ConvertFsView> fs_view(new eos::ConvertFsView());
+    std::unique_ptr<eos::ConvertQuotaView> quota_view{
+      new eos::ConvertQuotaView(cont_svc.get())};
+    std::unique_ptr<eos::ConvertFsView> fs_view{
+      new eos::ConvertFsView()};
     eos::ConvertContainerMDSvc* conv_cont_svc =
       dynamic_cast<eos::ConvertContainerMDSvc*>(cont_svc.get());
     eos::ConvertFileMDSvc* conv_file_svc =

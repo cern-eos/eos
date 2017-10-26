@@ -257,17 +257,12 @@ public:
   //! Recreate the container in the KV store
   //----------------------------------------------------------------------------
   void recreateContainer(IdMap::iterator& it, ContainerList& orphans,
-                         ContainerList& nameConflicts);
+                         ContainerList& nameConflicts) override;
 
   //----------------------------------------------------------------------------
   //! Load container object
   //----------------------------------------------------------------------------
-  void loadContainer(IdMap::iterator& it);
-
-  //----------------------------------------------------------------------------
-  //! Get first free container id
-  //----------------------------------------------------------------------------
-  IContainerMD::id_t getFirstFreeId();
+  void loadContainer(IdMap::iterator& it) override;
 
   //----------------------------------------------------------------------------
   //! Set quota view object reference
@@ -311,7 +306,6 @@ private:
   //----------------------------------------------------------------------------
   std::string getBucketKey(IContainerMD::id_t id) const;
 
-  IContainerMD::id_t mFirstFreeId; ///< First free container id
   ConvertQuotaView* mConvQView; ///< Quota view object
   std::vector<std::mutex*> mMutexPool; ///< Pool of mutexes
 };
