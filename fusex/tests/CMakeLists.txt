@@ -50,6 +50,7 @@ add_executable(eos-fusex-tests
   JournalCacheTest.cc
   RBTreeTest.cc
   Main.cc
+  XrdClProxyTest.cc
 )
 
 target_link_libraries(
@@ -75,51 +76,6 @@ set_target_properties(
   eos-fusex-tests
   PROPERTIES
   COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
-
-
-add_library(
-  EosFuseXTests SHARED
-  XrdClProxyTest.cc
-)
-
-target_link_libraries(
-  EosFuseXTests
-  eosxd-test
-  ${FUSE_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${KRB5_LIBRARIES}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${PROTOBUF_LIBRARY}
-  ${JSONCPP_LIBRARIES}
-  ${HIREDIS_LIBRARIES}
-  ${LIBEVENT_LIBRARIES}
-  eosCommonServer eosCommon
-  ${CPPUNIT_LIBRARIES} )
-
-if (Linux)
-  set_target_properties(
-    EosFuseXTests
-    PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
-else (Linux)
-  set_target_properties(
-    EosFuseXTests
-    PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
-endif (Linux)
-
-
-
-add_executable(fusex-tester TextRunner.cc)
-target_link_libraries( fusex-tester EosFuseXTests dl eosCommonServer eosCommon)
-
-set_target_properties(
-  fusex-tester
-  PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
 add_executable(fusex-benchmark fusex-benchmark.cc )
 target_link_libraries( fusex-benchmark eosCommonServer eosCommon)
