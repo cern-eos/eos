@@ -79,7 +79,7 @@ ProcCommand::Accounting()
     std::ostringstream version;
     version << VERSION << "-" << RELEASE;
     root["storageservice"]["implementationversion"] = version.str().c_str();
-    root["storageservice"]["latestupdate"] = std::to_string(std::time(nullptr));
+    root["storageservice"]["latestupdate"] = Json::Int64{std::time(nullptr)};
     auto capacity = Json::UInt64{0};
     auto used = Json::UInt64{0};
     {
@@ -120,7 +120,7 @@ ProcCommand::Accounting()
       storageShare["usedsize"] = Json::UInt64{std::get<0>(quota.second)};
       storageShare["totalsize"] = Json::UInt64{std::get<1>(quota.second)};
       storageShare["numberoffiles"] = Json::UInt64{std::get<2>(quota.second)};
-      storageShare["timestamp"] = std::to_string(std::time(nullptr));
+      storageShare["timestamp"] = Json::Int64{std::time(nullptr)};
       root["storageservice"]["storageshares"].append(storageShare);
     }
 
