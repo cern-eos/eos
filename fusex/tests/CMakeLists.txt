@@ -47,6 +47,7 @@ link_directories( ${CPPUNIT_LIBRARY} )
 add_executable(eos-fusex-tests
   ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
   IntervalTreeTest.cc
+  JournalCacheTest.cc
   RBTreeTest.cc
   Main.cc
 )
@@ -78,7 +79,6 @@ set_target_properties(
 
 add_library(
   EosFuseXTests SHARED
-  JournalCacheTest.cc
   XrdClProxyTest.cc
 )
 

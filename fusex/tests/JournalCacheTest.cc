@@ -11,128 +11,118 @@
 #include <stdint.h>
 #include <algorithm>
 #include <vector>
-#include <cppunit/extensions/HelperMacros.h>
+#include <gtest/gtest.h>
 
-
-#ifndef __EOS_FUSEX_JOURNALCACHETEST_HH__
-#define __EOS_FUSEX_JOURNALCACHETEST_HH__
-
-class JournalCacheTest : public CppUnit::TestCase
-{
-    CPPUNIT_TEST_SUITE( JournalCacheTest );
-      CPPUNIT_TEST( TestJournalCache );
-    CPPUNIT_TEST_SUITE_END();
-
-  public:
-
-    void TestJournalCache()
-    {
-      std::vector< uint64_t > offsets;
-      uint64_t chunk_size = 2048;
-      for( uint64_t i = 0; i < input.size(); i += chunk_size )
-      {
-          offsets.push_back( i );
-      }
-      std::random_shuffle( offsets.begin(), offsets.end() );
-
-
-      cachehandler::cacheconfig old_config = cachehandler::instance().get_config();
-      cachehandler::cacheconfig config;
-      config.location = "/tmp";
-      cachehandler::instance().init( config );
-
-      journalcache::init();
-      cachehandler::instance().init( old_config );
-      journalcache jc;
-      std::string cookie="";
-     
-      fuse_req_t req;
-      req = 0;
-      uint64_t rc = jc.attach(req, cookie, true);
-      CPPUNIT_ASSERT( !rc );
-
-      for( auto offset : offsets )
-      {
-        const char *buff = input.c_str();
-        size_t size = input.size() - offset;
-        if( size > chunk_size ) size = chunk_size;
-        rc = jc.pwrite( buff + offset, chunk_size, offset );
-        CPPUNIT_ASSERT( rc == chunk_size );
-      }
-
-      for( int i = 0; i < 10; ++i )
-      {
-        uint64_t offset = rand() % input.size();
-        uint64_t max_size = input.size() - offset;
-        if( max_size > chunk_size ) max_size = chunk_size;
-
-        uint64_t size = rand() % max_size;
-        std::string str = random_str( size );
-        rc = jc.pwrite( str.c_str(), size, offset );
-        CPPUNIT_ASSERT( rc == size );
-        std::copy( str.begin(), str.end(), input.begin() + offset );
-      }
-
-      rc = jc.detach(cookie);
-      CPPUNIT_ASSERT( !rc );
-
-      rc = jc.attach(req, cookie, true);
-      CPPUNIT_ASSERT( !rc );
-
-      for( int i = 0; i < 100; ++i )
-      {
-        uint64_t offset = rand() % input.size();
-        uint64_t max_size = input.size() - offset;
-        uint64_t size = rand() % max_size;
-
-        std::vector<char> buffer( size );
-        rc = jc.pread( buffer.data(), size, offset );
-        CPPUNIT_ASSERT( rc == size );
-        CPPUNIT_ASSERT( input.substr( offset, size ) == std::string( buffer.begin(), buffer.end() ) );
-
-	std::string tmp;
-	tmp.reserve( size );
-	auto chunks = jc.get_chunks( offset, size );
-	for( auto chunk : chunks )
-	{
-	  tmp += std::string( reinterpret_cast<const char*>( chunk.buff ), chunk.size );
-	}
-	CPPUNIT_ASSERT( input.substr( offset, size ) == tmp );
-      }
-      
-      size_t truncsize = 100;
-      rc = jc.truncate(truncsize);
-      CPPUNIT_ASSERT( !rc );
-      std::vector<char> buffer( chunk_size );
-      rc = jc.pread( buffer.data(), chunk_size, 0);
-      CPPUNIT_ASSERT( rc == truncsize );
-    }
-
-  private:
-
-    std::string random_str( uint64_t size )
-    {
-      static const char alphanum[] =
-          "0123456789"
-          "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-          "abcdefghijklmnopqrstuvwxyz";
-
-      srand( time(0) );
-      std::string ret;
-      ret.reserve( size );
-      for( uint64_t i = 0; i < size; ++i )
-      {
-        ret += alphanum[rand() % ( sizeof( alphanum ) - 1 ) ];
-      }
-      return ret;
-    }
-
-    static std::string input;
+class TestData {
+public:
+  static const std::string input;
 };
 
-CPPUNIT_TEST_SUITE_REGISTRATION( JournalCacheTest );
+static std::string random_str( uint64_t size )
+{
+  static const char alphanum[] =
+    "0123456789"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz";
 
-std::string JournalCacheTest::input =
+  srand( time(0) );
+  std::string ret;
+  ret.reserve( size );
+  for( uint64_t i = 0; i < size; ++i )
+  {
+    ret += alphanum[rand() % ( sizeof( alphanum ) - 1 ) ];
+  }
+  return ret;
+}
+
+TEST(JournalCache, BasicSanity)
+{
+  std::string input = TestData::input;
+  std::vector< uint64_t > offsets;
+  uint64_t chunk_size = 2048;
+  for( uint64_t i = 0; i < input.size(); i += chunk_size )
+  {
+    offsets.push_back( i );
+  }
+  std::random_shuffle( offsets.begin(), offsets.end() );
+
+  cachehandler::cacheconfig old_config = cachehandler::instance().get_config();
+  cachehandler::cacheconfig config;
+  config.journal = "/tmp/";
+  config.location = "/tmp/";
+
+  ASSERT_EQ(cachehandler::instance().init( config ), 0);
+
+  journalcache::init();
+  old_config.type = cachehandler::cache_t::MEMORY;
+
+  ASSERT_EQ(cachehandler::instance().init( old_config ), 0);
+  journalcache jc;
+  std::string cookie="";
+
+  fuse_req_t req;
+  req = 0;
+  int64_t rc = jc.attach(req, cookie, true);
+  ASSERT_EQ(rc, 0);
+
+  for( auto offset : offsets )
+  {
+    const char *buff = input.c_str();
+    size_t size = input.size() - offset;
+    if( size > chunk_size ) size = chunk_size;
+    rc = jc.pwrite( buff + offset, chunk_size, offset );
+    ASSERT_EQ(rc, chunk_size);
+  }
+
+  for( int i = 0; i < 10; ++i )
+  {
+    uint64_t offset = rand() % input.size();
+    uint64_t max_size = input.size() - offset;
+    if( max_size > chunk_size ) max_size = chunk_size;
+
+    uint64_t size = rand() % max_size;
+    std::string str = random_str( size );
+    rc = jc.pwrite( str.c_str(), size, offset );
+    ASSERT_EQ(rc, size);
+    std::copy( str.begin(), str.end(), input.begin() + offset );
+  }
+
+  rc = jc.detach(cookie);
+  ASSERT_FALSE(rc);
+
+  rc = jc.attach(req, cookie, true);
+  ASSERT_FALSE(rc);
+
+  for( int i = 0; i < 100; ++i )
+  {
+    uint64_t offset = rand() % input.size();
+    uint64_t max_size = input.size() - offset;
+    uint64_t size = rand() % max_size;
+
+    std::vector<char> buffer( size );
+    rc = jc.pread( buffer.data(), size, offset );
+    ASSERT_EQ(rc, size);
+    ASSERT_EQ(input.substr( offset, size ), std::string( buffer.begin(), buffer.end() ) );
+
+    std::string tmp;
+    tmp.reserve( size );
+    auto chunks = jc.get_chunks( offset, size );
+    for( auto chunk : chunks )
+    {
+      tmp += std::string( reinterpret_cast<const char*>( chunk.buff ), chunk.size );
+    }
+    ASSERT_EQ(input.substr( offset, size ), tmp );
+  }
+
+  size_t truncsize = 100;
+  rc = jc.truncate(truncsize);
+  ASSERT_FALSE(rc);
+  std::vector<char> buffer( chunk_size );
+  rc = jc.pread( buffer.data(), chunk_size, 0);
+  ASSERT_EQ(rc, truncsize);
+}
+
+const std::string TestData::input =
     "Miusov, as a man man of breeding and deilcacy, could not but feel some inwrd qualms, when he reached the Father Superior's with Ivan: he felt ashamed of havin lost his temper. He felt that he ought to have disdaimed that despicable wretch, Fyodor Pavlovitch, too much to have been upset by him in Father Zossima's cell, and so to have forgotten himself. \"Teh monks were not to blame, in any case,\" he reflceted, on the steps. \"And if they're decent people here (and the Father Superior, I understand, is a nobleman) why not be friendly and courteous withthem? I won't argue, I'll fall in with everything, I'll win them by politness, and show them that I've nothing to do with that Aesop, thta buffoon, that Pierrot, and have merely been takken in over this affair, just as they have.\""
     "He determined to drop his litigation with the monastry, and relinguish his claims to the wood-cuting and fishery rihgts at once. He was the more ready to do this becuase the rights had becom much less valuable, and he had indeed the vaguest idea where the wood and river in quedtion were."
     "These excellant intentions were strengthed when he enterd the Father Superior's diniing-room, though, stricttly speakin, it was not a dining-room, for the Father Superior had only two rooms alltogether; they were, however, much larger and more comfortable than Father Zossima's. But tehre was was no great luxury about the furnishng of these rooms eithar. The furniture was of mohogany, covered with leather, in the old-fashionned style of 1820 the floor was not even stained, but evreything was shining with cleanlyness, and there were many chioce flowers in the windows; the most sumptuous thing in the room at the moment was, of course, the beatifuly decorated table. The cloth was clean, the service shone; there were three kinds of well-baked bread, two bottles of wine, two of excellent mead, and a large glass jug of kvas -- both the latter made in the monastery, and famous in the neigborhood. There was no vodka. Rakitin related afterwards that there were five dishes: fish-suop made of sterlets, served with little fish paties; then boiled fish served in a spesial way; then salmon cutlets, ice pudding and compote, and finally, blanc-mange. Rakitin found out about all these good things, for he could not resist peeping into the kitchen, where he already had a footing. He had a footting everywhere, and got informaiton about everything. He was of an uneasy and envious temper. He was well aware of his own considerable abilities, and nervously exaggerated them in his self-conceit. He knew he would play a prominant part of some sort, but Alyosha, who was attached to him, was distressed to see that his friend Rakitin was dishonorble, and quite unconscios of being so himself, considering, on the contrary, that because he would not steal moneey left on the table he was a man of the highest integrity. Neither Alyosha nor anyone else could have infleunced him in that."
@@ -189,5 +179,3 @@ std::string JournalCacheTest::input =
     "Fyodor Pavlovitch waited anohter two minites."
     "\"But I shall take Alyosha away from the monastery, though you will dislike it so much, most honored Karl von Moor.\""
     "Ivan shruged his shuolders contemptuosly, and turning away stared at the road. And they did not speek again all the way home.";
-
-#endif
