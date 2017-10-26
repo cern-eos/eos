@@ -1499,22 +1499,33 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       is_new = true;
     }
 
-    {
-      if (!md->cap_count())
-      {
-	// don't wipe capp'ed meta-data
-	*md = cont.md_();
-
-	eos_static_debug("store md for local-ino=%016lx remote-ino=%016lx -", (long) ino, (long) md_ino);
-	eos_static_debug("%s", md->dump().c_str());
-      }
-    }
     uint64_t p_ino = inomap.forward(md->md_pino());
     if (!p_ino)
     {
       eos_static_crit("msg=\"missing lookup entry for inode\" ino=%016lx", ino);
     }
     assert(p_ino != 0);
+
+    if (!S_ISDIR(md->mode()))
+    {
+      // if its a file we need to have a look at parent cap-count, so we get the parent md 
+      md->Locker().UnLock();
+      mdmap.retrieveTS(p_ino, pmd);
+      md->Locker().Lock();
+    }
+
+    {
+      if ( ((!S_ISDIR(md->mode())) && !pmd->cap_count()) ||
+	   (!md->cap_count()) )
+      {
+	// don't wipe capp'ed meta-data, local state has to be used, since we get remote-invalidated in case we are out-of-date
+	*md = cont.md_();
+
+	eos_static_debug("store md for local-ino=%016lx remote-ino=%016lx -", (long) ino, (long) md_ino);
+	eos_static_debug("%s", md->dump().c_str());
+      }
+    }
+
     md->set_pid(p_ino);
     md->set_id(ino);
 
