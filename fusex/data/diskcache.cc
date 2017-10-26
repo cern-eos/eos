@@ -69,12 +69,13 @@ diskcache::init_daemonized(const cacheconfig &config)
     diskcache::sMaxSize = config.per_file_cache_max_size;
   }
 
+  sDirCleaner = std::make_shared<dircleaner>(config.location, config.total_file_cache_size);
+  sDirCleaner->set_trim_suffix(".dc");
+
   if (config.clean_on_startup)
   {
     eos_static_info("cleaning cache path=%s", config.location.c_str());
 
-    sDirCleaner = std::make_shared<dircleaner>(config.location, config.total_file_cache_size);
-    sDirCleaner->set_trim_suffix(".dc");
     if (sDirCleaner->cleanall(".dc"))
     {
       eos_static_err("cache cleanup failed");

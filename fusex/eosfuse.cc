@@ -298,7 +298,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     // data caching configuration
     cconfig.type = cache_t::INVALID;
 
-    if (!config.mdcachehost.length())
+    if (!config.mdcachehost.length() && !config.mdcachedir.length())
     {
       cconfig.clean_on_startup = true;
     }
@@ -413,7 +413,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
   }
   else
   {
-    putenv("XRD_NODELAY=1");
+    putenv((char*)"XRD_NODELAY=1");
     fprintf(stderr,"# Disabling nagle algorithm (XRD_NODELAY=1)\n");
   }
 
