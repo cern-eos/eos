@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: AclTests.cc
-// Author: Elvin-Alin Sindrilaru <esindril at cern dot ch>
+// File: ThreadPoolTest.cc
+// Author: root - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,25 +21,51 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
-#include "mgm/proc/user/AclCmd.hh"
+#include "common/ThreadPool.hh"
+#include <chrono>
 
-EOSMGMNAMESPACE_BEGIN
+using namespace eos::common;
 
-TEST(AclCmd, RuleMap)
-{
-  using namespace eos::mgm;
-  RuleMap expect_map = {
-    { "u:99", 0b011111111111}, { "u:0", 0b01010101010}
-  };
-  RuleMap result_map;
-  const std::string acl = "u:99:rwxm!m!d+d!u+uqc,u:0:wm!d!uq";
-  AclCmd::GenerateRuleMap(acl, result_map);
-  ASSERT_EQ(result_map.size(), expect_map.size());
+int main(int argc, char* argv[]) {
+  ThreadPool pool(2, 8, 5, 5);
 
-  for (auto const& elem : result_map) {
-    ASSERT_EQ(elem.second, expect_map[elem.first]);
+  std::vector<std::future<int>> futures;
+  for(int i = 0; i < 200000; i++) {
+    auto future = pool.PushTask<int>(
+      [i] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        cout << i << " from " << std::this_thread::get_id() << endl;
+        return i;
+      }
+    );
+
+    futures.emplace_back(std::move(future));
   }
+
+  for(auto&& future : futures) {
+    cout << future.get() << endl;
+  }
+  futures.clear();
+
+  std::this_thread::sleep_for(std::chrono::seconds(25));
+  for(int i = 60; i < 100; i++) {
+    auto future = pool.PushTask<int>(
+      [i] {
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+        cout << i << " from " << std::this_thread::get_id() << endl;
+        return i;
+      }
+    );
+
+    futures.emplace_back(std::move(future));
+  }
+
+  for(auto&& future : futures) {
+    cout << future.get() << endl;
+  }
+
+  pool.Stop();
+
+  return 0;
 }
 
-EOSMGMNAMESPACE_END

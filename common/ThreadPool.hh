@@ -28,32 +28,125 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-//------------------------------------------------------------------------------
-//! @brief Pool of threads which will asynchronously execute tasks
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+//! @brief Dynamically scaling pool of threads which will asynchronously execute tasks
+//------------------------------------------------------------------------------------
 class ThreadPool
 {
 public:
-  //----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------
   //! @brief Create a new thread pool
   //!
-  //! @param threads the number of allocated threads, defaults to hardware
-  //! concurrency
-  //----------------------------------------------------------------------------
-  explicit ThreadPool(unsigned int threads = std::thread::hardware_concurrency())
+  //! @param threadsMin the minimum and starting number of allocated threads,
+  //! defaults to hardware concurrency
+  //! @param threadsMax the maximum number of allocated threads,
+  //! defaults to hardware concurrency
+  //! @param samplingInterval sampling interval in seconds for the waiting jobs,
+  //! required for dynamic scaling, defaults to 10 seconds
+  //! @param samplingNumber number of samples to collect before making a scaling decision,
+  //! scaling decision will be made after samplingInterval * samplingNumber seconds
+  //! @param averageWaitingJobsPerNewThread the average number of waiting jobs per which
+  //! one new thread should be started, defaults to 10,
+  //! e.g. if in average 27.8 jobs were waiting for execution,
+  //! then 2 new threads will be added to the pool
+  //----------------------------------------------------------------------------------
+  explicit ThreadPool(unsigned int threadsMin = std::thread::hardware_concurrency(),
+                      unsigned int threadsMax = std::thread::hardware_concurrency(),
+                      unsigned int samplingInterval = 10,
+                      unsigned int samplingNumber = 12,
+                      unsigned int averageWaitingJobsPerNewThread = 10)
   {
-    auto threadPoolFunc = [this]() {
-      std::shared_ptr<std::function<void(void)>> task;
+    threadsMax = threadsMin > threadsMax ? threadsMin : threadsMax;
 
-      while (mRunning) {
+    auto threadPoolFunc = [this]
+    {
+      std::pair<bool, std::shared_ptr<std::function<void(void)>>> task;
+      bool toContinue = true;
+
+      do {
         mTasks.wait_pop(task);
-        (*task)();
-      }
+        toContinue = task.first;
+
+        // Termination is signalled by false
+        if(toContinue) {
+          (*(task.second))();
+        }
+      } while (toContinue);
     };
 
-    for (auto i = 0u; i < threads; i++) {
-      mThreadPool.emplace_back(threadPoolFunc);
+    if(threadsMax > threadsMin) {
+      auto maintainerThreadFunc = [this, threadPoolFunc, threadsMin, threadsMax,
+                                   samplingInterval, samplingNumber, averageWaitingJobsPerNewThread]
+      {
+        auto rounds = 0u, sumQueueSize = 0u;
+        auto signalFuture = mMaintainerSignal.get_future();
+
+        while (true) {
+          if (signalFuture.valid()) {
+            if (signalFuture.wait_for(std::chrono::seconds(samplingInterval)) == std::future_status::ready) {
+              break;
+            }
+          } else {
+            break;
+          }
+
+          // Check first if we have finished, removable threads/futures and remove them
+          mThreadPool.erase(
+            std::remove_if(
+              mThreadPool.begin(),
+              mThreadPool.end(),
+              [](std::future<void>& future) {
+                return future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+              }
+            ),
+            mThreadPool.end()
+          );
+
+          sumQueueSize += mTasks.size();
+          if (++rounds == samplingNumber) {
+            auto averageQueueSize = (double) sumQueueSize / rounds;
+            if (averageQueueSize > mThreadCount) {
+              auto threadsToAdd =
+                std::min((unsigned int) floor(averageQueueSize / averageWaitingJobsPerNewThread),
+                         threadsMax - mThreadCount);
+
+              for (auto i = 0u; i < threadsToAdd; i++) {
+                mThreadPool.emplace_back(
+                  std::async(std::launch::async, threadPoolFunc)
+                );
+              }
+
+              mThreadCount += threadsToAdd;
+            } else {
+              unsigned int threadsToRemove =
+                mThreadCount - std::max((unsigned int) floor(averageQueueSize), threadsMin);
+
+              // Push in fake tasks for each threads to be stopped so threads can wake up and
+              // notice that they should terminate. Termination is signalled with false.
+              for (auto i = 0u; i < threadsToRemove; i++) {
+                auto fakeTask = std::make_pair(false, std::make_shared<std::function<void(void)>>([] {}));
+                mTasks.push(fakeTask);
+              }
+
+              mThreadCount -= threadsToRemove;
+            }
+
+            sumQueueSize = 0u;
+            rounds = 0u;
+          }
+        }
+      };
+
+      mMaintainerThread.reset(new std::thread(maintainerThreadFunc));
     }
+
+    for (auto i = 0u; i < threadsMin; i++) {
+      mThreadPool.emplace_back(
+        std::async(std::launch::async, threadPoolFunc)
+      );
+    }
+
+    mThreadCount += threadsMin;
   }
 
   //----------------------------------------------------------------------------
@@ -70,9 +163,14 @@ public:
   std::future<Ret> PushTask(std::function<Ret(void)> func)
   {
     auto task = std::make_shared<std::packaged_task<Ret(void)>>(func);
-    auto taskFunc = std::make_shared<std::function<void(void)>>([task] {
-      (*task)();
-    });
+    auto taskFunc = std::make_pair(
+      true,
+      std::make_shared<std::function<void(void)>>(
+        [task] {
+          (*task)();
+        }
+      )
+    );
     mTasks.push(taskFunc);
     return task->get_future();
   }
@@ -83,18 +181,21 @@ public:
   //----------------------------------------------------------------------------
   void Stop()
   {
-    mRunning = false;
+    if (mMaintainerThread && mMaintainerThread->joinable()) {
+      mMaintainerSignal.set_value();
+      mMaintainerThread->join();
+    }
 
     // Push in fake tasks for each threads so all waiting can wake up and
-    // notice that running is over.
+    // notice that running is over. Termination is signalled with false.
     for (auto i = 0u; i < mThreadPool.size(); i++) {
-      auto fakeTask = std::make_shared<std::function<void(void)>>([] {});
+      auto fakeTask = std::make_pair(false, std::make_shared<std::function<void(void)>>([] {}));
       mTasks.push(fakeTask);
     }
 
-    for (auto& thread : mThreadPool) {
-      if (thread.joinable()) {
-        thread.join();
+    for (auto& future : mThreadPool) {
+      if(future.valid()) {
+        future.get();
       }
     }
 
@@ -110,16 +211,20 @@ public:
     Stop();
   }
 
-  // Disable copy/move constructors and assignment oprerators
+  // Disable copy/move constructors and assignment operators
   ThreadPool(const ThreadPool&) = delete;
   ThreadPool(ThreadPool&&) = delete;
   ThreadPool& operator=(const ThreadPool&) = delete;
   ThreadPool& operator=(ThreadPool&&) = delete;
 
 private:
-  std::vector<std::thread> mThreadPool;
-  eos::common::ConcurrentQueue<std::shared_ptr<std::function<void(void)>>> mTasks;
-  std::atomic_bool mRunning {true};
+  std::vector<std::future<void>> mThreadPool;
+  eos::common::ConcurrentQueue<std::pair<bool, std::shared_ptr<std::function<void(void)>>>> mTasks;
+
+  std::unique_ptr<std::thread> mMaintainerThread;
+  std::promise<void> mMaintainerSignal;
+
+  std::atomic_uint mThreadCount {0};
 };
 
 EOSCOMMONNAMESPACE_END

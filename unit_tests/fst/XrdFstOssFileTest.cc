@@ -25,7 +25,7 @@
 #include "fst/XrdFstOssFile.hh"
 #undef IN_TEST_HARNESS
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 #include "fst/tests/TestEnv.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 

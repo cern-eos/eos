@@ -42,7 +42,8 @@ set(MGM_UT_SRCS
 set(COMMON_UT_SRCS
   common/TimingTests.cc
   common/MappingTests.cc
-  common/SymKeysTests.cc)
+  common/SymKeysTests.cc
+  common/ThreadPoolTest.cc)
 
 set(UT_SRCS ${MQ_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
 add_executable(eos-unit-tests ${UT_SRCS})

@@ -243,3 +243,8 @@ if(NOT CLIENT AND Linux)
     ${PROTOBUF_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 endif()
+
+add_executable(threadpooltest ThreadPoolTest.cc)
+target_link_libraries(threadpooltest PRIVATE
+  eosCommon
+  ${CMAKE_THREAD_LIBS_INIT})
