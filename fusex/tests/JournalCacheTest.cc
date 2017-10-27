@@ -46,17 +46,16 @@ TEST(JournalCache, BasicSanity)
   }
   std::random_shuffle( offsets.begin(), offsets.end() );
 
-  cachehandler::cacheconfig old_config = cachehandler::instance().get_config();
   cachehandler::cacheconfig config;
   config.journal = "/tmp/";
   config.location = "/tmp/";
 
   ASSERT_EQ(cachehandler::instance().init( config ), 0);
 
-  journalcache::init();
-  old_config.type = cachehandler::cache_t::MEMORY;
+  journalcache::init(config);
+  config.type = cachehandler::cache_t::MEMORY;
 
-  ASSERT_EQ(cachehandler::instance().init( old_config ), 0);
+  ASSERT_EQ(cachehandler::instance().init( config ), 0);
   journalcache jc;
   std::string cookie="";
 
@@ -71,7 +70,7 @@ TEST(JournalCache, BasicSanity)
     size_t size = input.size() - offset;
     if( size > chunk_size ) size = chunk_size;
     rc = jc.pwrite( buff + offset, chunk_size, offset );
-    ASSERT_EQ(rc, chunk_size);
+    ASSERT_EQ(rc, (int64_t) chunk_size);
   }
 
   for( int i = 0; i < 10; ++i )

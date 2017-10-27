@@ -376,9 +376,8 @@ size_t journalcache::size()
   return cachesize;
 }
 
-int journalcache::init()
+int journalcache::init(const cachehandler::cacheconfig &config)
 {
-  cachehandler::cacheconfig config = cachehandler::instance().get_config();
   if ( ::access( config.location.c_str(), W_OK ) )
   {
     return errno;
@@ -394,9 +393,8 @@ int journalcache::init()
   return 0;
 }
 
-int journalcache::init_daemonized()
+int journalcache::init_daemonized(const cachehandler::cacheconfig &config)
 {
-  cachehandler::cacheconfig config = cachehandler::instance().get_config();
   if (config.clean_on_startup)
   {
     eos_static_info("cleaning cache path=%s", config.journal.c_str());

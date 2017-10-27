@@ -48,8 +48,8 @@ public:
 
   struct chunk_t
   {
-    chunk_t() : offset( 0 ), size( 0 ), buff( 0 ) { }         
-    
+    chunk_t() : offset( 0 ), size( 0 ), buff( 0 ) { }
+
     chunk_t( off_t offset, size_t size, const void *buff) : offset( offset ), size( size ), buff( buff ) { }
 
     off_t  offset;
@@ -82,25 +82,25 @@ public:
   virtual int sync();
 
   virtual size_t size();
-  virtual ssize_t get_truncatesize() { XrdSysMutexHelper lck( mtx ); return truncatesize; } 
+  virtual ssize_t get_truncatesize() { XrdSysMutexHelper lck( mtx ); return truncatesize; }
 
   virtual int set_attr(std::string& key, std::string& value) {return 0;}
   virtual int attr(std::string key, std::string& value) {return 0;}
 
   virtual int remote_sync( cachesyncer &syncer );
 
-  static int init();
-  static int init_daemonized();
-  
-  virtual bool fits(ssize_t count) { return ( sMaxSize >= (cachesize+count));} 
+  static int init(const cachehandler::cacheconfig &config);
+  static int init_daemonized(const cachehandler::cacheconfig &config);
+
+  virtual bool fits(ssize_t count) { return ( sMaxSize >= (cachesize+count));}
   virtual bool halffull(size_t count) { return ( sMaxSize/2 <= cachesize );}
-  
+
   virtual int reset();
 
   virtual int rescue(std::string& location);
-  
+
   std::vector<chunk_t> get_chunks( off_t offset, size_t size );
-  
+
   private:
 
   void process_intersection( interval_tree<uint64_t, const void*> &write, interval_tree<uint64_t, uint64_t>::iterator acr, std::vector<chunk_t> &updates );

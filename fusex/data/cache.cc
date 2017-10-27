@@ -44,7 +44,7 @@ cachehandler::init(cachehandler::cacheconfig & _config)
 
   if (config.type == cachehandler::cache_t::DISK)
   {
-    if (diskcache::init())
+    if (diskcache::init(config))
     {
 
       fprintf(stderr, "error: cache directory %s or %s cannot be initialized - check existance/permissions!\n",
@@ -54,7 +54,7 @@ cachehandler::init(cachehandler::cacheconfig & _config)
   }
   if (config.journal.length())
   {
-    if (journalcache::init())
+    if (journalcache::init(config))
     {
       fprintf(stderr, "error: journal directory %s or %s cannot be initialized - check existance/permissions!\n",
               config.location.c_str(), config.journal.c_str());
@@ -77,12 +77,12 @@ cachehandler::init_daemonized()
 
   if (config.type == cachehandler::cache_t::DISK)
   {
-    rc = diskcache::init_daemonized();
+    rc = diskcache::init_daemonized(config);
     if (rc) return rc;
    }
   if (config.journal.length())
   {
-    rc = journalcache::init_daemonized();
+    rc = journalcache::init_daemonized(config);
     if (rc ) return rc;
   }
   return 0;
@@ -208,5 +208,3 @@ cachehandler::rm(fuse_ino_t ino)
   }
   return 0;
 }
-
-

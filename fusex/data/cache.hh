@@ -90,7 +90,7 @@ public:
   {
     return 0;
   }
-  
+
   class io
   {
   public:
@@ -110,7 +110,7 @@ public:
       _journal = 0;
 
       ino = _ino;
-      
+
       caching = true;
     }
 
@@ -129,7 +129,7 @@ public:
         delete it->second;
       }
     }
-    
+
     void disable_caches()
     {
       delete _file;
@@ -138,12 +138,12 @@ public:
       _journal = 0;
       caching = false;
     }
-    
+
     bool is_caching()
     {
       return caching;
     }
-    
+
     void set_file(cache* file)
     {
       _file = file;
@@ -193,12 +193,12 @@ public:
     {
       return _xrdiorw[id];
     }
-    
+
     std::map<std::string, XrdCl::Proxy*>& get_xrdiorw()
     {
       return _xrdiorw;
     }
-    
+
     std::map<std::string, XrdCl::Proxy*>& get_xrdioro()
     {
       return _xrdioro;
@@ -294,9 +294,9 @@ public:
   } ;
 
   int init(cacheconfig &config); // called before becoming a daemon
-  
+
   int init_daemonized(); // called after becoming a daemon
-  
+
   void logconfig();
 
   bool inmemory()
@@ -309,11 +309,6 @@ public:
   {
 
     return (config.journal.length());
-  }
-
-  cacheconfig& get_config()
-  {
-    return config;
   }
 
 private:
