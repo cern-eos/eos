@@ -26,15 +26,6 @@
 int
 main (int argc, char *argv[])
 {
-  try {
   EosFuse& eosfuse = EosFuse::instance();
   return eosfuse.run(argc, argv, NULL);
-  } catch ( const std::runtime_error& e)
-  {
-    std::cerr << e.what() << "\n";
-  }
-  catch ( ... )
-  {
-    std::cerr << "catched uncovered exception" << "\n";
-  }
 }
