@@ -92,7 +92,7 @@ public:
 
     if (now == -1)
       now = 0;
-    
+
     unsigned int bin3600 = (now % 3600);
     unsigned int bin300 = (now % 300);
     unsigned int bin60 = (now % 60);
@@ -453,12 +453,12 @@ public:
   EosFuse::Instance().getFuseStat().Add(__SUM__TOTAL__,            \
                     fuse_req_ctx(__REQ__)->uid, \
                     fuse_req_ctx(__REQ__)->gid, \
-                             1);                
+                             1);
 #define EXEC_TIMING_BEGIN(__ID__)               \
   struct timeval start__ID__;                   \
   struct timeval stop__ID__;                    \
   struct timezone tz__ID__;                     \
-  gettimeofday(&start__ID__, &tz__ID__);                                        
+  gettimeofday(&start__ID__, &tz__ID__);
 
 #define EXEC_TIMING_END(__ID__)                                         \
   gettimeofday(&stop__ID__, &tz__ID__);                                 \
@@ -527,17 +527,7 @@ public:
 
   void Circulate ();
 
-  Stat ()
-  {
-    sStat = this;
-  }
-
-  static Stat* sStat;
-
-  static Stat& Instance()
-  {
-    return *sStat;
-  }
+  Stat () { }
 } ;
 
 #endif

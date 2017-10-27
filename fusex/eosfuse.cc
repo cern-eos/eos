@@ -566,9 +566,9 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     fusestat.Add("symlink", 0, 0, 0);
     fusestat.Add(__SUM__TOTAL__, 0, 0, 0);
 
-    tDumpStatistic = std::thread(EosFuse::DumpStatistic);
+    tDumpStatistic = std::thread(&EosFuse::DumpStatistic, this);
     //tDumpStatistic.detach();
-    tStatCirculate = std::thread(EosFuse::StatCirculate);
+    tStatCirculate = std::thread(&EosFuse::StatCirculate, this);
     //tStatCirculate.detach();
     tMetaCacheFlush = std::thread(&metad::mdcflush, &mds);
     //tMetaCacheFlush.detach();
@@ -748,7 +748,7 @@ EosFuse::DumpStatistic()
 
     eos_static_debug("dumping statistics");
     XrdOucString out;
-    EosFuse::Instance().getFuseStat().PrintOutTotal(out);
+    fusestat.PrintOutTotal(out);
     std::string sout = out.c_str();
 
     time_t now = time(NULL);
@@ -761,11 +761,11 @@ EosFuse::DumpStatistic()
              "ALL        inodes-ever         := %lu\n"
              "ALL        inodes-ever-deleted := %lu\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
-             EosFuse::Instance().getMdStat().inodes(),
-             EosFuse::Instance().getMdStat().inodes_deleted(),
-             EosFuse::Instance().getMdStat().inodes_backlog(),
-             EosFuse::Instance().getMdStat().inodes_ever(),
-             EosFuse::Instance().getMdStat().inodes_deleted_ever());
+             this->getMdStat().inodes(),
+             this->getMdStat().inodes_deleted(),
+             this->getMdStat().inodes_backlog(),
+             this->getMdStat().inodes_ever(),
+             this->getMdStat().inodes_deleted_ever());
 
     sout += ino_stat;
 
@@ -807,7 +807,7 @@ EosFuse::StatCirculate()
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("started stat circulate thread");
-  Stat::Instance().Circulate();
+  fusestat.Circulate();
 }
 
 /* -------------------------------------------------------------------------- */

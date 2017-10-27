@@ -305,8 +305,8 @@ private:
   std::thread tMetaCommunicate;
   std::thread tCapFlush;
 
-  static void DumpStatistic();
-  static void StatCirculate();
+  void DumpStatistic();
+  void StatCirculate();
 } ;
 
 #endif /* FUSE_EOSFUSE_HH_ */

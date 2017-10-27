@@ -28,8 +28,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 
-Stat* Stat::sStat=0;
-
 /*----------------------------------------------------------------------------*/
 void
 Stat::Add (const char* tag, uid_t uid, gid_t gid, unsigned long val)
