@@ -26,6 +26,7 @@
 #include "diskcache.hh"
 #include "memorycache.hh"
 #include "journalcache.hh"
+#include "cachehandler.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
@@ -34,15 +35,15 @@
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-cachehandler::init(cachehandler::cacheconfig & _config)
+cachehandler::init(cacheconfig & _config)
 /* -------------------------------------------------------------------------- */
 {
   config = _config;
 
-  if (config.type == cachehandler::cache_t::INVALID)
+  if (config.type == cache_t::INVALID)
     return EINVAL;
 
-  if (config.type == cachehandler::cache_t::DISK)
+  if (config.type == cache_t::DISK)
   {
     if (diskcache::init(config))
     {
@@ -72,10 +73,10 @@ cachehandler::init_daemonized()
 {
   int rc=0;
 
-  if (config.type == cachehandler::cache_t::INVALID)
+  if (config.type == cache_t::INVALID)
     return EINVAL;
 
-  if (config.type == cachehandler::cache_t::DISK)
+  if (config.type == cache_t::DISK)
   {
     rc = diskcache::init_daemonized(config);
     if (rc) return rc;
@@ -94,10 +95,10 @@ void
 cachehandler::logconfig()
 {
   eos_static_warning("data-cache-type        := %s",
-                     (config.type == cachehandler::cache_t::MEMORY) ? "memory" :
+                     (config.type == cache_t::MEMORY) ? "memory" :
                      "disk");
 
-  if (config.type == cachehandler::cache_t::DISK)
+  if (config.type == cache_t::DISK)
   {
     eos_static_warning("data-cache-location  := %s",
                        config.location.c_str());
@@ -157,7 +158,7 @@ cachehandler::logconfig()
 }
 
 /* -------------------------------------------------------------------------- */
-cache::shared_io
+shared_io
 /* -------------------------------------------------------------------------- */
 cachehandler::get(fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
@@ -166,9 +167,9 @@ cachehandler::get(fuse_ino_t ino)
 
   if (!instance().count(ino))
   {
-    cache::shared_io entry;
+    shared_io entry;
 
-    entry = std::make_shared<cache::io>(ino);
+    entry = std::make_shared<io>(ino);
 
     if (instance().inmemory())
     {

@@ -28,6 +28,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "data/cache.hh"
+#include "data/io.hh"
+#include "data/cachehandler.hh"
 #include "md/md.hh"
 #include "bufferll.hh"
 #include "llfusexx.hh"
@@ -71,16 +73,7 @@ public:
       return mLock;
     }
 
-    void set_id( uint64_t ino, fuse_req_t req)
-    {
-      XrdSysMutexHelper mLock(Locker());
-      mIno = ino;
-      mReq = req;
-      mFile = cachehandler::get(ino);
-      char lid[64];
-      snprintf(lid, sizeof (lid), "logid:ino:%016lx", ino);
-      SetLogId(lid);
-    }
+    void set_id( uint64_t ino, fuse_req_t req);
 
     uint64_t id () const
     {
@@ -92,7 +85,7 @@ public:
       return mReq;
     }
 
-    cache::shared_io file()
+    shared_io file()
     {
       return mFile;
     }
@@ -110,7 +103,7 @@ public:
                     const std::string& basename,
                     const uint64_t md_ino,
                     const uint64_t md_pino,
-                    fuse_req_t req, 
+                    fuse_req_t req,
 		    bool isRW);
 
     // IO bridge interface
@@ -159,7 +152,7 @@ public:
     XrdSysMutex mLock;
     uint64_t mIno;
     fuse_req_t mReq;
-    cache::shared_io mFile;
+    shared_io mFile;
     off_t mSize;
     std::string mRemoteUrlRW;
     std::string mRemoteUrlRO;
@@ -188,7 +181,7 @@ public:
     std::atomic<bool> update_mtime_on_flush;
     uint64_t _maxfilesize; // maximum allowed file size
     uint64_t _opensize; // size at the moment of opening the file
-    
+
     _data_fh(shared_data _data, metad::shared_md _md, bool _rw)
     {
       data = _data;
@@ -227,12 +220,12 @@ public:
     {
       return _maxfilesize;
     }
-    
+
     uint64_t opensize() const
     {
       return _opensize;
     }
-    
+
     void set_authid(const std::string& authid)
     {
       _authid = authid;
@@ -252,12 +245,12 @@ public:
       }
       return false;
     }
-    
+
     void set_maxfilesize(uint64_t size)
     {
       _maxfilesize=size;
     }
-    
+
   } data_fh;
 
   //----------------------------------------------------------------------------
@@ -273,13 +266,13 @@ public:
 
     virtual ~dmap()
     {
-      if (tIOFlush.native_handle()) 
+      if (tIOFlush.native_handle())
       {
 	pthread_cancel(tIOFlush.native_handle());
 	tIOFlush.join();
       }
     }
-    
+
     void run()
     {
       tIOFlush = std::thread(&dmap::ioflush, this);
@@ -306,11 +299,12 @@ public:
 
   uint64_t commit(fuse_req_t req,
                   shared_data io);
-  
+
   void unlink(fuse_req_t req, fuse_ino_t ino);
 
   void invalidate_cache(fuse_ino_t ino);
 private:
   dmap datamap;
 } ;
+
 #endif /* FUSE_DATA_HH_ */

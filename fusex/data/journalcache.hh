@@ -28,6 +28,7 @@
 #include "cache.hh"
 #include "cachelock.hh"
 #include "cachesyncer.hh"
+#include "cacheconfig.hh"
 
 #include "interval_tree.hh"
 
@@ -35,7 +36,7 @@
 
 #include <string>
 
-class journalcache : public cache
+class journalcache
 {
 
   struct header_t
@@ -67,37 +68,42 @@ public:
   virtual ~journalcache();
 
   // base class interface
-  virtual int attach(fuse_req_t req, std::string& cookie, int flags) override;
-  virtual int detach(std::string& cookie) override;
-  virtual int unlink() override;
+  int attach(fuse_req_t req, std::string& cookie, int flags);
+  int detach(std::string& cookie);
+  int unlink();
 
-  virtual ssize_t pread( void *buf, size_t count, off_t offset ) override;
-  virtual ssize_t peek_read( char* &buf, size_t count, off_t offset ) override;
-  virtual void release_read() override;
+  ssize_t pread( void *buf, size_t count, off_t offset );
+  ssize_t peek_read( char* &buf, size_t count, off_t offset );
+  void release_read();
 
-  virtual ssize_t pwrite( const void *buf, size_t count, off_t offset ) override;
+  ssize_t pwrite( const void *buf, size_t count, off_t offset );
 
-  virtual int truncate( off_t ) override;
-  virtual int sync() override;
+  int truncate( off_t );
+  int sync();
 
-  virtual size_t size() override;
+  size_t size();
   ssize_t get_truncatesize() { XrdSysMutexHelper lck( mtx ); return truncatesize; }
 
-  virtual int set_attr(const std::string& key, const std::string& value) override {return 0;}
-  virtual int attr(const std::string &key, std::string& value) override {return 0;}
+  int set_attr(const std::string& key, const std::string& value) {return 0;}
+  int attr(const std::string &key, std::string& value) {return 0;}
 
   int remote_sync( cachesyncer &syncer );
 
-  static int init(const cachehandler::cacheconfig &config);
-  static int init_daemonized(const cachehandler::cacheconfig &config);
+  static int init(const cacheconfig &config);
+  static int init_daemonized(const cacheconfig &config);
 
-  virtual bool fits(ssize_t count) override { return ( sMaxSize >= (cachesize+count));}
+  bool fits(ssize_t count) { return ( sMaxSize >= (cachesize+count));}
 
-  virtual int reset() override;
+  int reset();
 
-  virtual int rescue(std::string& location) override;
+  int rescue(std::string& location);
 
   std::vector<chunk_t> get_chunks( off_t offset, size_t size );
+
+  int set_cookie(const std::string &cookie)
+  {
+    return set_attr("user.eos.cache.cookie", cookie);
+  }
 
   private:
 

@@ -67,6 +67,7 @@
 #include "md/md.hh"
 #include "kv/kv.hh"
 #include "data/cache.hh"
+#include "data/cachehandler.hh"
 
 #if ( FUSE_USE_VERSION > 28 )
 #include "EosFuseSessionLoop.hh"
@@ -158,7 +159,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     unsetenv("X509_USER_PROXY");
   }
 
-  cachehandler::cacheconfig cconfig;
+  cacheconfig cconfig;
 
   {
     // parse JSON configuration
@@ -287,7 +288,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     fprintf(stderr, "# File descriptor limit: %lu soft, %lu hard\n", nofilelimit.rlim_cur, nofilelimit.rlim_max);
 
     // data caching configuration
-    cconfig.type = cachehandler::cache_t::INVALID;
+    cconfig.type = cache_t::INVALID;
 
     if (!config.mdcachehost.length())
     {
@@ -300,11 +301,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
     if (root["cache"]["type"].asString() == "disk")
     {
-      cconfig.type = cachehandler::cache_t::DISK;
+      cconfig.type = cache_t::DISK;
     }
     else if (root["cache"]["type"].asString() == "memory")
     {
-      cconfig.type = cachehandler::cache_t::MEMORY;
+      cconfig.type = cache_t::MEMORY;
     }
     else
     {

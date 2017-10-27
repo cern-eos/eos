@@ -41,7 +41,7 @@ shared_ptr<dircleaner> diskcache::sDirCleaner;
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::init(const cachehandler::cacheconfig &config)
+diskcache::init(const cacheconfig &config)
 /* -------------------------------------------------------------------------- */
 {
   if (::access(config.location.c_str(), W_OK))
@@ -61,7 +61,7 @@ diskcache::init(const cachehandler::cacheconfig &config)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::init_daemonized(const cachehandler::cacheconfig &config)
+diskcache::init_daemonized(const cacheconfig &config)
 /* -------------------------------------------------------------------------- */
 {
   if (config.per_file_cache_max_size)

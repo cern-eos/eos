@@ -371,7 +371,7 @@ size_t journalcache::size()
   return cachesize;
 }
 
-int journalcache::init(const cachehandler::cacheconfig &config)
+int journalcache::init(const cacheconfig &config)
 {
   if ( ::access( config.location.c_str(), W_OK ) )
   {
@@ -388,7 +388,7 @@ int journalcache::init(const cachehandler::cacheconfig &config)
   return 0;
 }
 
-int journalcache::init_daemonized(const cachehandler::cacheconfig &config)
+int journalcache::init_daemonized(const cacheconfig &config)
 {
   if (config.clean_on_startup)
   {

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file cache.hh
+//! @file cachehandler.hh
 //! @author Andreas-Joachim Peters CERN
-//! @brief data cache handling base class
+//! @brief cachehandler class
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,77 +22,60 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_CACHE_HH_
-#define FUSE_CACHE_HH_
+#ifndef FUSE_CACHEHANDLER_HH_
+#define FUSE_CACHEHANDLER_HH_
 
-#include <sys/stat.h>
-#include <sys/types.h>
-#include "llfusexx.hh"
-#include "bufferll.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "xrdclproxy.hh"
-#include <map>
-#include <string>
+#include "cache.hh"
+#include "io.hh"
+#include "cacheconfig.hh"
 
-class cache
+class cachehandler : public std::map<fuse_ino_t, shared_io>, public XrdSysMutex
 {
 public:
 
-  virtual ~cache()
+  cachehandler()
   {
   }
 
-  // base class interface
-  virtual int attach(fuse_req_t req, std::string& cookie, int flags) = 0;
-  virtual int detach(std::string& cookie) = 0;
-  virtual int unlink() = 0;
-
-  virtual ssize_t pread(void *buf, size_t count, off_t offset) = 0;
-  virtual ssize_t peek_read(char* &buf, size_t count, off_t offset) = 0;
-  virtual void release_read() = 0;
-
-  virtual ssize_t pwrite(const void *buf, size_t count, off_t offset) = 0;
-
-  virtual int truncate(off_t) = 0;
-  virtual int sync() = 0;
-
-  virtual size_t size() = 0;
-
-  virtual off_t prefetch_size()
+  virtual ~cachehandler()
   {
-    return 0;
+  };
+
+  // static member functions
+
+  static cachehandler&
+  instance()
+  {
+
+    static cachehandler i;
+    return i;
   }
 
-  virtual int set_attr(const std::string& key, const std::string& value) = 0;
-  virtual int attr(const std::string &key, std::string& value) = 0;
+  static shared_io get(fuse_ino_t ino);
 
-  virtual int set_cookie(const std::string &cookie)
+  static int rm(fuse_ino_t ino);
+
+  int init(cacheconfig &config); // called before becoming a daemon
+
+  int init_daemonized(); // called after becoming a daemon
+
+  void logconfig();
+
+  bool inmemory()
   {
-    return set_attr("user.eos.cache.cookie", cookie);
+
+    return (config.type == cache_t::MEMORY);
   }
 
-  virtual int cookie(std::string& acookie)
+  bool journaled()
   {
-    return attr("user.eos.cache.cookie", acookie);
+
+    return (config.journal.length());
   }
 
-  virtual int rescue(std::string& location)
-  {
-    return 0;
-  }
+private:
 
-  virtual bool fits(ssize_t count)
-  {
-    return true;
-  }
-
-  virtual int reset()
-  {
-    return 0;
-  }
-
+  cacheconfig config;
 } ;
 
-
-#endif /* FUSE_CACHE_HH_ */
+#endif

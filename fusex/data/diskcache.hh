@@ -29,8 +29,9 @@
 #include <sys/types.h>
 #include "llfusexx.hh"
 #include "bufferll.hh"
-#include "cache.hh"
-#include "dircleaner.hh"
+#include "data/cache.hh"
+#include "data/dircleaner.hh"
+#include "data/cacheconfig.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <map>
 #include <string>
@@ -60,8 +61,8 @@ public:
   virtual int set_attr(const std::string& key, const std::string& value) override;
   virtual int attr(const std::string &key, std::string& value) override;
 
-  static int init(const cachehandler::cacheconfig &config);
-  static int init_daemonized(const cachehandler::cacheconfig &config);
+  static int init(const cacheconfig &config);
+  static int init_daemonized(const cacheconfig &config);
 
   virtual int rescue(std::string& location) override;
 
