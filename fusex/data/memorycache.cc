@@ -35,13 +35,6 @@
 #endif
 
 /* -------------------------------------------------------------------------- */
-memorycache::memorycache() : ino(0)
-/* -------------------------------------------------------------------------- */
-{
-  return;
-}
-
-/* -------------------------------------------------------------------------- */
 memorycache::memorycache(fuse_ino_t _ino) : ino(_ino)
 /* -------------------------------------------------------------------------- */
 {
@@ -141,24 +134,24 @@ memorycache::size()
 }
 
 /* -------------------------------------------------------------------------- */
-int 
+int
 /* -------------------------------------------------------------------------- */
-memorycache::set_attr(std::string& key, std::string& value)
+memorycache::set_attr(const std::string& key, const std::string& value)
 {
   XrdSysMutexHelper lLock(xattrmtx);
-  
+
   xattr[key] = value;
   return 0;
 }
-  
+
 /* -------------------------------------------------------------------------- */
-int 
+int
 /* -------------------------------------------------------------------------- */
-memorycache::attr(std::string key, std::string& value)
+memorycache::attr(const std::string &key, std::string& value)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper lLock(xattrmtx);
-  
+
   if (xattr.count(key))
   {
     value = xattr[key];

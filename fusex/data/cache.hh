@@ -72,13 +72,12 @@ public:
     return 0;
   }
 
-  virtual int set_attr(std::string& key, std::string& value) = 0;
-  virtual int attr(std::string key, std::string& value) = 0;
+  virtual int set_attr(const std::string& key, const std::string& value) = 0;
+  virtual int attr(const std::string &key, std::string& value) = 0;
 
-  virtual int set_cookie(std::string cookie)
+  virtual int set_cookie(const std::string &cookie)
   {
-    std::string ecc = "user.eos.cache.cookie";
-    return set_attr(ecc , cookie);
+    return set_attr("user.eos.cache.cookie", cookie);
   }
 
   virtual int cookie(std::string& acookie)
@@ -232,11 +231,6 @@ public:
   virtual bool fits(ssize_t count)
   {
     return true;
-  }
-
-  virtual bool halffull(size_t count)
-  {
-    return false;
   }
 
   virtual int reset()

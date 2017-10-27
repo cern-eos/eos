@@ -38,9 +38,7 @@
 class diskcache : public cache, XrdSysMutex
 {
 public:
-  diskcache();
   diskcache(fuse_ino_t _ino);
-
   virtual ~diskcache();
 
   // base class interface
@@ -59,8 +57,8 @@ public:
 
   virtual size_t size() override;
 
-  virtual int set_attr(std::string& key, std::string& value) override;
-  virtual int attr(std::string key, std::string& value) override;
+  virtual int set_attr(const std::string& key, const std::string& value) override;
+  virtual int attr(const std::string &key, std::string& value) override;
 
   static int init(const cachehandler::cacheconfig &config);
   static int init_daemonized(const cachehandler::cacheconfig &config);
