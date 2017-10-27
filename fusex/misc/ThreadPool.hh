@@ -68,31 +68,29 @@ class ThreadPool
 
   private:
 
-    static void* Run( void *arg )
-    {
-      ThreadPool *me = reinterpret_cast<ThreadPool*>( arg );
+    void Run() {
       pthread_setcanceltype( PTHREAD_CANCEL_DEFERRED, 0 );
 
-      while( me->active )
+      while( active )
       {
         Task *t = 0; // get next task
-        if( !me->tasks.Get( t ) ) // there was a timeout (5 minutes by default)
+        if( !tasks.Get( t ) ) // there was a timeout (5 minutes by default)
         {
           // we use conditional locking in order to avoid deadlocks while stopping
-          if( !me->mutex.CondLock() ) continue;
+          if( !mutex.CondLock() ) continue;
           // if the number of active threads is at
           // the minimum there's nothing to do
-          if( me->idle + me->busy  <= me->min ) continue;
+          if( idle + busy  <= min ) continue;
           // otherwise remove the thread from the thread pool
-          me->Remove( pthread_self() );
-          me->mutex.UnLock();
+          Remove( pthread_self() );
+          mutex.UnLock();
           return 0;
         }
         pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, 0 );
-        me->Busy();       // the thread is busy
+        Busy();       // the thread is busy
         if( t ) t->Run(); // do the work
         delete t;
-        me->Idle();       // the thread is idle again
+        Idle();       // the thread is idle again
         pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
       }
 
@@ -103,7 +101,7 @@ class ThreadPool
     {
       pthread_t thread;
       int rc = 0;
-      if( ( rc = pthread_create( &thread, 0, Run, this ) ) )
+      if( ( rc = pthread_create( &thread, 0, &ThreadPool::Run, this ) ) )
         throw FuseException( rc );
 
       ++idle;
