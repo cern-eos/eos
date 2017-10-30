@@ -31,13 +31,10 @@
 #include "event2/event_compat.h"
 #include "hiredis/adapters/libevent.h"
 
-kv* kv::sKV = 0;
-
 /* -------------------------------------------------------------------------- */
 RedisKV::RedisKV()
 /* -------------------------------------------------------------------------- */
 {
-  sKV = this;
   mContext=0;
   mEventBase = 0;
   mAsyncContext = 0;

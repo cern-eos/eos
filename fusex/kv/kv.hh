@@ -62,14 +62,7 @@ public:
   virtual int put(uint64_t key, uint64_t value, const std::string &name_space="i") = 0;
 
   virtual int erase(uint64_t key, const std::string &name_space="i") = 0;
-
-  static kv* sKV;
-
-  static kv& Instance()
-  {
-    return *sKV;
-  }
-
+  
 protected:
 
   std::string buildKey(uint64_t key, const std::string &name_space) {
