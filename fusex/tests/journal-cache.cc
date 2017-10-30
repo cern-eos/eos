@@ -84,7 +84,7 @@ TEST(JournalCache, BasicSanity)
     uint64_t size = rand() % max_size;
     std::string str = random_str( size );
     rc = jc.pwrite( str.c_str(), size, offset );
-    ASSERT_EQ(rc, size);
+    ASSERT_EQ(rc, (int64_t) size);
     std::copy( str.begin(), str.end(), input.begin() + offset );
   }
 
@@ -102,7 +102,7 @@ TEST(JournalCache, BasicSanity)
 
     std::vector<char> buffer( size );
     rc = jc.pread( buffer.data(), size, offset );
-    ASSERT_EQ(rc, size);
+    ASSERT_EQ(rc, (int64_t) size);
     ASSERT_EQ(input.substr( offset, size ), std::string( buffer.begin(), buffer.end() ) );
 
     std::string tmp;
@@ -120,7 +120,7 @@ TEST(JournalCache, BasicSanity)
   ASSERT_FALSE(rc);
   std::vector<char> buffer( chunk_size );
   rc = jc.pread( buffer.data(), chunk_size, 0);
-  ASSERT_EQ(rc, truncsize);
+  ASSERT_EQ(rc, (int64_t) truncsize);
 }
 
 const std::string TestData::input =

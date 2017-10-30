@@ -61,10 +61,13 @@ set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
 set(COMPILE_FLAGS_FOR_TEST_EXECUTABLES "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
 
 add_executable(eos-fusex-tests
+  auth/credential-finder.cc
+  auth/environment-reader.cc
+
   ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
-  IntervalTreeTest.cc
-  JournalCacheTest.cc
-  RBTreeTest.cc
+  interval-tree.cc
+  journal-cache.cc
+  rb-tree.cc
 )
 
 target_link_libraries(
@@ -79,7 +82,7 @@ set_target_properties(
 )
 
 add_executable(eos-fusex-stress-tests
-  stress/XrdClProxyTest.cc
+  stress/xrdcl-proxy.cc
 )
 
 target_link_libraries(
