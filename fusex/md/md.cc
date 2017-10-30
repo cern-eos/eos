@@ -22,6 +22,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "eosfuse.hh"
 #include "md/md.hh"
 #include "kv/kv.hh"
 #include "cap/cap.hh"
@@ -38,7 +39,6 @@
 #include <google/protobuf/util/json_util.h>
 
 
-std::string metad::vnode_gen::cInodeKey = "nextinode";
 
 /* -------------------------------------------------------------------------- */
 metad::metad() : mdflush(0), mdqueue_max_backlog(1000),
@@ -93,7 +93,7 @@ metad::init(backend* _mdbackend)
     XrdSysMutexHelper mLock(mdmap);
     update(req, mdmap[1], "", true);
   }
-  next_ino.init();
+  next_ino.init(EosFuse::Instance().getKV());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -394,7 +394,7 @@ metad::load_from_kv(fuse_ino_t ino)
   // mdmap is locked when this is called !
   std::string mdstream;
   shared_md md = std::make_shared<mdx>();
-  if (!kv::Instance().get(ino, mdstream))
+  if (!EosFuse::Instance().getKV()->get(ino, mdstream))
   {
     if (!md->ParseFromString(mdstream))
     {
@@ -420,7 +420,7 @@ metad::load_from_kv(fuse_ino_t ino)
         continue;
 
       shared_md cmd = std::make_shared<mdx>();
-      if (!kv::Instance().get(it->second, mdstream))
+      if (!EosFuse::Instance().getKV()->get(it->second, mdstream))
       {
         if (!cmd->ParseFromString(mdstream))
         {
@@ -1042,7 +1042,7 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
 
   std::string mdstream;
   md->SerializeToString(&mdstream);
-  kv::Instance().put(md->id(), mdstream);
+  EosFuse::Instance().getKV()->put(md->id(), mdstream);
 
   stat.inodes_inc();
   stat.inodes_ever_inc();
@@ -1894,14 +1894,14 @@ metad::mdcflush(ThreadAssistant &assistant)
               std::string mdstream;
               md->SerializeToString(&mdstream);
               md->Locker().UnLock();
-              kv::Instance().put(ino, mdstream);
+              EosFuse::Instance().getKV()->put(ino, mdstream);
             }
             else
             {
               md->Locker().UnLock();
               if (op == metad::mdx::RM)
               {
-                kv::Instance().erase(ino);
+                EosFuse::Instance().getKV()->erase(ino);
                 // this step is coupled to the forget function, since we cannot
                 // forget an entry if we didn't process the outstanding KV changes
                 stat.inodes_deleted_dec();
@@ -2328,23 +2328,11 @@ metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
 
   uint64_t a64 = a;
   uint64_t b64 = b;
-  if (a != 1 && kv::Instance().put(a64, b64, "l"))
+  if (a != 1 && EosFuse::Instance().getKV()->put(a64, b64, "l"))
   {
 
     throw std::runtime_error("REDIS backend failure - nextinode");
   }
-
-
-  //eos_static_info("%s", dump().c_str());
-
-  /*
-  fprintf(stderr, "============================================\n");
-  for (auto it = fwd_map.begin(); it != fwd_map.end(); it++)
-  {
-  fprintf(stderr, "%16lx <=> %16lx\n", it->first, it->second);
-  }
-  fprintf(stderr, "============================================\n");
-   */
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2420,7 +2408,8 @@ metad::vmap::forward(fuse_ino_t lookup)
   {
     uint64_t a64=lookup;
     uint64_t b64;
-    if (kv::Instance().get(a64, b64, "l"))
+    if (EosFuse::Instance().getKV()->get(a64, b64, "l"))
+
     {
       return ino;
     }

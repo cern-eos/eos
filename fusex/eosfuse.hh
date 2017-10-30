@@ -273,6 +273,11 @@ public:
   } opendir_t ;
 
   void getHbStat(eos::fusex::statistics&);
+
+  kv* getKV() {
+    return mKV.get();
+  }
+
 protected:
 
 private:

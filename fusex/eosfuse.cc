@@ -3993,11 +3993,11 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
     eos_static_err("failed to get the OS usage information");
   }
 
-  hbs.set_inodes(EosFuse::Instance().getMdStat().inodes());
-  hbs.set_inodes_todelete(EosFuse::Instance().getMdStat().inodes_deleted());
-  hbs.set_inodes_backlog(EosFuse::Instance().getMdStat().inodes_backlog());
-  hbs.set_inodes_ever(EosFuse::Instance().getMdStat().inodes_ever());
-  hbs.set_inodes_ever_deleted(EosFuse::Instance().getMdStat().inodes_deleted_ever());
+  hbs.set_inodes(getMdStat().inodes());
+  hbs.set_inodes_todelete(getMdStat().inodes_deleted());
+  hbs.set_inodes_backlog(getMdStat().inodes_backlog());
+  hbs.set_inodes_ever(getMdStat().inodes_ever());
+  hbs.set_inodes_ever_deleted(getMdStat().inodes_deleted_ever());
   hbs.set_threads(osstat.threads);
   hbs.set_vsize_mb(osstat.vsize);
   hbs.set_rss_mb(osstat.rss);

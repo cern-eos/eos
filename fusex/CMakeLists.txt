@@ -80,6 +80,7 @@ add_executable(
   main.cc
   eosfuse.cc eosfuse.hh
   stat/Stat.cc stat/Stat.hh
+  md/InodeGenerator.cc md/InodeGenerator.hh
   md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
   data/data.cc data/data.hh

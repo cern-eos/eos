@@ -30,7 +30,7 @@
 #include <fcntl.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
-#include "kv/kv.hh"
+#include "md/InodeGenerator.hh"
 #include "backend/backend.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
@@ -254,62 +254,6 @@ public:
   typedef std::shared_ptr<mdx> shared_md;
 
   //----------------------------------------------------------------------------
-
-  class vnode_gen : public XrdSysMutex
-  //----------------------------------------------------------------------------
-  {
-  public:
-
-    static std::string cInodeKey;
-
-    vnode_gen()
-    {
-      mNextInode = 0;
-    }
-
-    virtual ~vnode_gen()
-    {
-    }
-
-    void init()
-    {
-      mNextInode=1;
-      // load the stored next indoe
-      if (kv::Instance().get(cInodeKey, mNextInode))
-      {
-        // otherwise store it for the first time
-        inc();
-      }
-      eos_static_info("next-inode=%08lx", mNextInode);
-    }
-
-    uint64_t inc()
-    {
-      XrdSysMutexHelper mLock(this);
-      if (0)
-      {
-        //sync - works for eosxd shared REDIS backend
-        if (!kv::Instance().inc(cInodeKey, mNextInode))
-        {
-          return mNextInode;
-        }
-        else
-        {
-          // throw an exception
-          throw std::runtime_error("REDIS backend failure - nextinode");
-        }
-      }
-      else
-      {
-        //async - works for eosxd exclusive REDIS backend
-        uint64_t s_inode = mNextInode + 1;
-        kv::Instance().put(cInodeKey, s_inode);
-        return mNextInode++;
-      }
-    }
-  private:
-    uint64_t mNextInode;
-  } ;
 
   //----------------------------------------------------------------------------
 
@@ -679,7 +623,7 @@ private:
   vmap inomap;
   mdstat stat;
 
-  vnode_gen next_ino;
+  InodeGenerator next_ino;
 
   XrdSysCondVar mdflush;
 
