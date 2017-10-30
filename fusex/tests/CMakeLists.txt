@@ -24,7 +24,6 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CPPUNIT_INCLUDE_DIRS}
 
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -41,22 +40,9 @@ include_directories(
   ${LIBEVENT_INCLUDE_DIRS}
 )
 
-
-link_directories( ${CPPUNIT_LIBRARY} )
-
-add_executable(eos-fusex-tests
-  ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
-  IntervalTreeTest.cc
-  JournalCacheTest.cc
-  RBTreeTest.cc
-  Main.cc
-  XrdClProxyTest.cc
-)
-
-target_link_libraries(
-  eos-fusex-tests
+set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   eosxd-test
-  gtest
+  gtest_main
   ${GTEST_LIBRARIES}
   ${FUSE_LIBRARY}
   ${UUID_LIBRARIES}
@@ -70,9 +56,39 @@ target_link_libraries(
   ${HIREDIS_LIBRARIES}
   ${LIBEVENT_LIBRARIES}
   eosCommonServer eosCommon
-  ${CPPUNIT_LIBRARIES} )
+)
+
+set(COMPILE_FLAGS_FOR_TEST_EXECUTABLES "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+
+add_executable(eos-fusex-tests
+  ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
+  IntervalTreeTest.cc
+  JournalCacheTest.cc
+  RBTreeTest.cc
+)
+
+target_link_libraries(
+  eos-fusex-tests
+  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
+)
 
 set_target_properties(
   eos-fusex-tests
   PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+  COMPILE_FLAGS ${COMPILE_FLAGS_FOR_TEST_EXECUTABLES}
+)
+
+add_executable(eos-fusex-stress-tests
+  stress/XrdClProxyTest.cc
+)
+
+target_link_libraries(
+  eos-fusex-stress-tests
+  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
+)
+
+set_target_properties(
+  eos-fusex-stress-tests
+  PROPERTIES
+  COMPILE_FLAGS ${COMPILE_FLAGS_FOR_TEST_EXECUTABLES}
+)
