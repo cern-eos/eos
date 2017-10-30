@@ -531,6 +531,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-instance-test
 %{_sbindir}/eos-rain-test
 %{_sbindir}/eos-fuse-test
+%{_sbindir}/fusex-benchmark
 %{_sbindir}/xrdcpabort
 %{_sbindir}/xrdcpappend
 %{_sbindir}/xrdcpposixcache

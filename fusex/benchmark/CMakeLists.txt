@@ -1,11 +1,11 @@
 # ------------------------------------------------------------------------------
 # File: CMakeLists.txt
-# Author: Andreas-Joachim Peters <apeers@cern.ch> CERN
+# Author: Jozsef Makai <jmakai@cern.ch> CERN
 # ------------------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2016 CERN/Switzerland                                  *
+# * Copyright (C) 2017 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -23,56 +23,11 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CPPUNIT_INCLUDE_DIRS}
-
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR}
-  ${XROOTD_INCLUDE_DIRS}
-  ${XROOTD_PRIVATE_INCLUDE_DIR}
-  ${FUSE_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS}
-  ${KRB5_INCLUDE_DIR}
-  ${OPENSSL_INCLUDE_DIR}
-  ${PROTOBUF_INCLUDE_DIRS}
-  ${JSONCPP_INCLUDE_DIR}
-  ${HIREDIS_INCLUDE_DIR}
-  ${ZMQ_INCLUDE_DIR}
-  ${LIBEVENT_INCLUDE_DIRS}
 )
 
+add_executable(fusex-benchmark fusex-benchmark.cc )
+target_link_libraries( fusex-benchmark eosCommonServer eosCommon)
 
-link_directories( ${CPPUNIT_LIBRARY} )
-
-add_executable(eos-fusex-tests
-  ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
-  IntervalTreeTest.cc
-  JournalCacheTest.cc
-  RBTreeTest.cc
-  Main.cc
-  XrdClProxyTest.cc
-)
-
-target_link_libraries(
-  eos-fusex-tests
-  eosxd-test
-  gtest
-  ${GTEST_LIBRARIES}
-  ${FUSE_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${KRB5_LIBRARIES}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${PROTOBUF_LIBRARY}
-  ${JSONCPP_LIBRARIES}
-  ${HIREDIS_LIBRARIES}
-  ${LIBEVENT_LIBRARIES}
-  eosCommonServer eosCommon
-  ${CPPUNIT_LIBRARIES} )
-
-set_target_properties(
-  eos-fusex-tests
-  PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+install(
+  TARGETS fusex-benchmark
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
