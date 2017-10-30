@@ -52,7 +52,9 @@ if(CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
-add_subdirectory(benchmark)
+if (Linux)
+  add_subdirectory(benchmark)
+endif (Linux)
 
 #-------------------------------------------------------------------------------
 # auth subsystem
