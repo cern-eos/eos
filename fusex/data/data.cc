@@ -1146,10 +1146,10 @@ data::datax::set_remote(const std::string& hostport,
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-data::dmap::ioflush()
+data::dmap::ioflush(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
-  while (1)
+  while (!assistant.terminationRequested())
   {
     {
       eos_static_debug("");
@@ -1261,8 +1261,8 @@ data::dmap::ioflush()
           this->erase( (*it)->id() + 0xffffffff);
         }
       }
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
+
+      assistant.wait_for(std::chrono::seconds(1000));
     }
   }
 }

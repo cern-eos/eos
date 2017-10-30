@@ -31,6 +31,7 @@
 #include "data/io.hh"
 #include "data/cachehandler.hh"
 #include "md/md.hh"
+#include "misc/AssistedThread.hh"
 #include "bufferll.hh"
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
@@ -266,22 +267,17 @@ public:
 
     virtual ~dmap()
     {
-      if (tIOFlush.native_handle())
-      {
-	pthread_cancel(tIOFlush.native_handle());
-	tIOFlush.join();
-      }
     }
 
     void run()
     {
-      tIOFlush = std::thread(&dmap::ioflush, this);
+      tIOFlush.reset(&dmap::ioflush, this);
     }
 
-    void ioflush(); // thread for delayed asynchronous close
+    void ioflush(ThreadAssistant &assistant); // thread for delayed asynchronous close
 
   private:
-    std::thread tIOFlush;
+    AssistedThread tIOFlush;
   } ;
 
   data();

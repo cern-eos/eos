@@ -38,7 +38,7 @@ max_size(_maxsize)
 {
   if (max_files | max_size)
   {
-    tLeveler = std::thread(&dircleaner::leveler, this);
+    tLeveler.reset(&dircleaner::leveler, this);
   }
 }
 
@@ -46,12 +46,6 @@ max_size(_maxsize)
 dircleaner::~dircleaner()
 /* -------------------------------------------------------------------------- */
 {
-  if (max_files | max_size)
-  {
-    // C++11 is poor for threading
-    pthread_cancel(tLeveler.native_handle());
-    tLeveler.join();
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -85,7 +79,7 @@ dircleaner::cleanall(std::string matchsuffix)
       }
       if (unlink(it->second.path.c_str()) && errno != ENOENT)
       {
-	
+
 	eos_static_err("unlink: path=%s errno=%d", it->second.path.c_str(), errno);
       }
     }
@@ -265,14 +259,15 @@ dircleaner::trim(bool force)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-dircleaner::leveler()
+dircleaner::leveler(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
   size_t n=0;
   while (1)
   {
-    XrdSysTimer sleeper;
-    sleeper.Snooze(15);
+    assistant.wait_for(std::chrono::seconds(15));
+    if(assistant.terminationRequested()) return;
+
     std::lock_guard<std::recursive_mutex> mLock(cleaningMutex);
     trim(!n % (1 * 60 * 4)); // forced trim every hour
     n++;
