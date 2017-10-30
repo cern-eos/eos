@@ -50,6 +50,8 @@ if(CPPUNIT_FOUND AND ROCKSDB_FOUND)
   add_subdirectory(tests)
 endif()
 
+add_subdirectory(benchmark)
+
 #-------------------------------------------------------------------------------
 # auth subsystem
 #-------------------------------------------------------------------------------

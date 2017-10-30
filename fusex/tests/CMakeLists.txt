@@ -119,6 +119,3 @@ set_target_properties(
   fusex-tester
   PROPERTIES
   COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
-
-add_executable(fusex-benchmark fusex-benchmark.cc )
-target_link_libraries( fusex-benchmark eosCommonServer eosCommon)
