@@ -567,15 +567,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     fusestat.Add("symlink", 0, 0, 0);
     fusestat.Add(__SUM__TOTAL__, 0, 0, 0);
 
-    tDumpStatistic = std::thread(&EosFuse::DumpStatistic, this);
-    //tDumpStatistic.detach();
-    tStatCirculate = std::thread(&EosFuse::StatCirculate, this);
-    //tStatCirculate.detach();
-    tMetaCacheFlush = std::thread(&metad::mdcflush, &mds);
-    //tMetaCacheFlush.detach();
-    tMetaCommunicate = std::thread(&metad::mdcommunicate, &mds);
-    //tMetaCommunicate.detach();
-    tCapFlush = std::thread(&cap::capflush, &caps);
+    tDumpStatistic.reset(&EosFuse::DumpStatistic, this);
+    tStatCirculate.reset(&EosFuse::StatCirculate, this);
+    tMetaCacheFlush.reset(&metad::mdcflush, &mds);
+    tMetaCommunicate.reset(&metad::mdcommunicate, &mds);
+    tCapFlush.reset(&cap::capflush, &caps);
 
     eos_static_warning("********************************************************************************");
     eos_static_warning("eosdx started version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
@@ -637,32 +633,12 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("eosdx stopped version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
     eos_static_warning("********************************************************************************");
 
-#if ( __GNUC_MINOR__ == 8 ) && ( __GNUC_PATCHLEVEL__ == 2 )
-    {
-      fuse_unmount(local_mount_dir, fusechan);
-      pthread_kill(tDumpStatistic.native_handle(), 9);
-      pthread_kill(tStatCirculate.native_handle(), 9);
-      pthread_kill(tMetaCacheFlush.native_handle(), 9);
-      pthread_kill(tMetaCommunicate.native_handle(), 9);
-      pthread_kill(tCapFlush.native_handle(), 9);
-    }
-#else
-    {
-      // C++11 is poor for threading
-      pthread_cancel(tDumpStatistic.native_handle());
-      pthread_cancel(tStatCirculate.native_handle());
-      pthread_cancel(tMetaCacheFlush.native_handle());
-      pthread_cancel(tMetaCommunicate.native_handle());
-      pthread_cancel(tCapFlush.native_handle());
+    tDumpStatistic.join();
+    tStatCirculate.join();
+    tMetaCacheFlush.join();
+    tMetaCommunicate.join();
+    tCapFlush.join();
 
-      tDumpStatistic.join();
-      tStatCirculate.join();
-      tMetaCacheFlush.join();
-      tMetaCommunicate.join();
-      tCapFlush.join();
-    }
-#endif
-    mds.terminate();
     fuse_unmount(local_mount_dir, fusechan);
   }
   else
@@ -723,15 +699,14 @@ EosFuse::destroy(void *userdata)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-EosFuse::DumpStatistic()
+EosFuse::DumpStatistic(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("started statistic dump thread");
-  XrdSysTimer sleeper;
   char ino_stat[16384];
   time_t start_time = time(NULL);
 
-  while (1)
+  while (!assistant.terminationRequested())
   {
     eos::common::LinuxMemConsumption::linux_mem_t mem;
     eos::common::LinuxStat::linux_stat_t osstat;
@@ -797,18 +772,19 @@ EosFuse::DumpStatistic()
 
     std::ofstream dumpfile(EosFuse::Instance().config.statfilepath);
     dumpfile << sout;
-    sleeper.Snooze(1);
+
+    assistant.wait_for(std::chrono::seconds(1));
   }
 }
 
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-EosFuse::StatCirculate()
+EosFuse::StatCirculate(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("started stat circulate thread");
-  fusestat.Circulate();
+  fusestat.Circulate(assistant);
 }
 
 /* -------------------------------------------------------------------------- */

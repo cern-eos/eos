@@ -26,6 +26,7 @@
 #define FUSE_EOSFUSE_HH_
 
 #include "misc/MacOSXHelper.hh"
+#include "misc/AssistedThread.hh"
 #include "stat/Stat.hh"
 #include "md/md.hh"
 #include "cap/cap.hh"
@@ -299,14 +300,14 @@ private:
   struct fuse_session* fusesession;
   struct fuse_chan* fusechan;
 
-  std::thread tDumpStatistic;
-  std::thread tStatCirculate;
-  std::thread tMetaCacheFlush;
-  std::thread tMetaCommunicate;
-  std::thread tCapFlush;
+  AssistedThread tDumpStatistic;
+  AssistedThread tStatCirculate;
+  AssistedThread tMetaCacheFlush;
+  AssistedThread tMetaCommunicate;
+  AssistedThread tCapFlush;
 
-  void DumpStatistic();
-  void StatCirculate();
+  void DumpStatistic(ThreadAssistant &assistant);
+  void StatCirculate(ThreadAssistant &assistant);
 } ;
 
 #endif /* FUSE_EOSFUSE_HH_ */

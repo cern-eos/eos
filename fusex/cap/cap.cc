@@ -111,7 +111,7 @@ cap::capx::capid(fuse_req_t req, fuse_ino_t ino)
            ino,
            fuse_req_ctx(req)->uid,
            fuse_req_ctx(req)->gid,
-	   login.c_str(), 
+	   login.c_str(),
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
            );
@@ -457,7 +457,7 @@ cap::refresh(fuse_req_t req, shared_cap cap)
 	XrdSysTimer sleeper;
 	eos_static_warning("GETCAP exceeded 2s (%.02fs) round-trip time for inode=%16x - backing of for %.02f seconds, then retry!",
 			   ns_lag/1000000000.0,
-			   cap->id(), 
+			   cap->id(),
 			   backoff);
 
 	sleeper.Wait(backoff*1000);
@@ -520,10 +520,10 @@ cap::capx::valid(bool debug)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-cap::capflush()
+cap::capflush(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
-  while (1)
+  while (!assistant.terminationRequested())
   {
     {
       cmap capdelmap;
@@ -575,8 +575,8 @@ cap::capflush()
       {
 	kernelcache::inval_inode(*it, false);
       }
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
+
+      assistant.wait_for(std::chrono::seconds(1000));
     }
   }
 }

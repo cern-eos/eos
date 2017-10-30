@@ -1755,11 +1755,11 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-metad::mdcflush()
+metad::mdcflush(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
   uint64_t lastflushid=0;
-  while (1)
+  while (!assistant.terminationRequested())
   {
     {
       mdflush.Lock();
@@ -1775,8 +1775,13 @@ metad::mdcflush()
 
       stat.inodes_backlog_store(mdqueue.size());
 
-      while (mdqueue.size() == 0)
-        mdflush.Wait();
+      while (mdqueue.size() == 0) {
+        // TODO(gbitzes): Fix this, so we don't need to poll. Have ThreadAssistant
+        // accept callbacks for when termination is requested, so we can wake up
+        // any condvar.
+        mdflush.Wait(1);
+        if(assistant.terminationRequested()) return;
+      }
 
       // TODO: add an optimzation to merge requests in the queue
       auto it= mdflushqueue.begin();
@@ -1795,13 +1800,12 @@ metad::mdcflush()
       mdqueue[ino]--;
       mdflush.UnLock();
 
-
+      if(assistant.terminationRequested()) {
+        return;
+      }
 
       eos_static_debug("metacache::flush ino=%016lx authid=%s op=%d", ino, authid.c_str(), (int) op);
       {
-        if(should_terminate()) {
-          return;
-        }
 
         shared_md md;
 
@@ -1940,7 +1944,7 @@ metad::mdcflush()
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-metad::mdcommunicate()
+metad::mdcommunicate(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
   eos::fusex::container hb;
@@ -1956,10 +1960,8 @@ metad::mdcommunicate()
   eos::fusex::response rsp;
   size_t cnt=0;
 
-  while (1)
+  while (!assistant.terminationRequested())
   {
-    if (should_terminate())
-      return;
 
     try
     {
@@ -1975,8 +1977,9 @@ metad::mdcommunicate()
         // 10 milliseconds
         zmq_poll(items, 1, 10);
 
-        if (should_terminate())
+        if(assistant.terminationRequested()) {
           return;
+        }
 
         if (items[0].revents & ZMQ_POLLIN)
         {

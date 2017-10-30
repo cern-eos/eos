@@ -8,6 +8,8 @@
 
 
 #include "fusex/data/journalcache.hh"
+#include "fusex/data/cacheconfig.hh"
+#include "fusex/data/cachehandler.hh"
 #include <stdint.h>
 #include <algorithm>
 #include <vector>
@@ -46,17 +48,17 @@ TEST(JournalCache, BasicSanity)
   }
   std::random_shuffle( offsets.begin(), offsets.end() );
 
-  cachehandler::cacheconfig config;
+  cacheconfig config;
   config.journal = "/tmp/";
   config.location = "/tmp/";
 
   ASSERT_EQ(cachehandler::instance().init( config ), 0);
 
   journalcache::init(config);
-  config.type = cachehandler::cache_t::MEMORY;
+  config.type = cache_t::MEMORY;
 
   ASSERT_EQ(cachehandler::instance().init( config ), 0);
-  journalcache jc;
+  journalcache jc(5);
   std::string cookie="";
 
   fuse_req_t req;

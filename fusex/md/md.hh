@@ -34,6 +34,7 @@
 #include "backend/backend.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
+#include "misc/AssistedThread.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 #include <map>
@@ -465,19 +466,9 @@ public:
 
   int statvfs(fuse_req_t req, struct statvfs* svfs);
 
-  bool should_terminate()
-  {
-    return mdterminate.load();
-  } // check if threads should terminate
+  void mdcflush(ThreadAssistant &assistant); // thread pushing into md cache
 
-  void terminate()
-  {
-    mdterminate.store(true, std::memory_order_seq_cst);
-  } // indicate to terminate
-
-  void mdcflush(); // thread pushing into md cache
-
-  void mdcommunicate(); // thread interacting with the MGM for meta data
+  void mdcommunicate(ThreadAssistant &assistant); // thread interacting with the MGM for meta data
 
   int connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname, std::string zmqclienthost, std::string zmqclientuuid);
 
@@ -705,8 +696,6 @@ private:
   std::string zmq_name;
   std::string zmq_clienthost;
   std::string zmq_clientuuid;
-
-  std::atomic<bool> mdterminate;
 
   backend* mdbackend;
 } ;

@@ -11,6 +11,8 @@
 #include <string.h>
 #include <exception>
 
+#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
+
 class FuseException : public std::exception
 {
   public:

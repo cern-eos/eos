@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <algorithm>
 #include <vector>
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 TEST(XrdClProxy, Write) {
   eos::common::ShellCmd xrd("xrootd -p 21234 -n proxytest");

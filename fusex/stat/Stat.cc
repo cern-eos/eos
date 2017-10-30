@@ -1105,14 +1105,14 @@ Stat::PrintOutTotal (XrdOucString &out, bool details, bool monitoring, bool nume
 
 /*----------------------------------------------------------------------------*/
 void
-Stat::Circulate ()
+Stat::Circulate (ThreadAssistant &assistant)
 {
   // empty the circular buffer and extract some Mq statistic values
 
-  while (1)
+  while (true)
   {
-    XrdSysTimer sleeper;
-    sleeper.Wait(512);
+    assistant.wait_for(std::chrono::seconds(512));
+    if(assistant.terminationRequested()) break;
 
     // --------------------------------------------
 
