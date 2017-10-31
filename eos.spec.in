@@ -15,13 +15,8 @@ Group: Applications/File
 Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-%if %{distribution} == 5
-BuildRequires: cmake28 >= 2.8
-%define cmake_cmd cmake28
-%else
-BuildRequires: cmake >= 2.8
-%define cmake_cmd cmake
-%endif
+BuildRequires: cmake3 >= 3.3
+%define cmake_cmd cmake3
 
 BuildRequires: xrootd >= 3.3.4
 BuildRequires: xrootd-server-devel >= 3.3.4
