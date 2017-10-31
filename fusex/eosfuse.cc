@@ -392,8 +392,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     if (mountpoint.length())
     {
       // sanity check of the mount directory
-      struct stat buf;
-      if ( stat( mountpoint.c_str(), &buf) )
+      if ( !::opendir(mountpoint.c_str() ))
       {
 	// check for a broken mount
 	if ( errno == ENOTCONN )
@@ -2630,9 +2629,6 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
           if (fi)
           {
-            // -----------------------------------------------------------------------
-            // TODO: for the moment there is no kernel cache used until
-            // we add top-level management on it
             // -----------------------------------------------------------------------
             // FUSE caches the file for reads on the same filedescriptor in the buffer
             // cache, but the pages are released once this filedescriptor is released.
