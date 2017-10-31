@@ -21,6 +21,9 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+add_definitions(-DBACKWARD_HAS_DW)
+add_subdirectory(deps/backward-cpp)
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -75,11 +78,31 @@ set(PROTO_SRC ${PROTO_SRC} PARENT_SCOPE)
 set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
 
 #-------------------------------------------------------------------------------
-# eosxd executables
+# Link libraries
 #-------------------------------------------------------------------------------
-add_executable(
-  eosxd
-  main.cc
+set(EOSXD_COMMON_LINK_LIBRARIES
+  ${UUID_LIBRARIES}
+  ${FUSE_LIBRARIES}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UNTILS_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${KRB5_LIBRARIES}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${PROTOBUF_LIBRARY}
+  ${JSONCPP_LIBRARIES}
+  ${HIREDIS_LIBRARIES}
+  ${LIBEVENT_LIBRARIES}
+  ${ZMQ_LIBRARIES}
+  ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
+  bz2
+  eosCommon
+  ${BACKWARD_LIBRARIES}
+)
+
+#-------------------------------------------------------------------------------
+# Sources
+#-------------------------------------------------------------------------------
+set(EOSXD_SOURCES
   eosfuse.cc eosfuse.hh
   stat/Stat.cc stat/Stat.hh
   md/InodeGenerator.cc md/InodeGenerator.hh
@@ -103,25 +126,20 @@ add_executable(
   ${PROTO_SRC} ${PROTO_HEADER}
 )
 
+#-------------------------------------------------------------------------------
+# eosxd executables
+#-------------------------------------------------------------------------------
+add_executable(
+  eosxd
+  main.cc
+  ${EOSXD_SOURCES}
+)
+
 if(MacOSX)
   target_link_libraries(
     eosxd
-    ${UUID_LIBRARIES}
-    ${FUSE_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UNTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY}
-    ${PROTOBUF_LIBRARY}
-    ${JSONCPP_LIBRARIES}
-    ${HIREDIS_LIBRARIES}
-    ${LIBEVENT_LIBRARIES}
-    ${ZMQ_LIBRARIES}
-    ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
-    bz2
-    eosCommon
-    )
+    ${EOSXD_COMMON_LINK_LIBRARIES}
+  )
 
   set_target_properties(
     eosxd
@@ -131,20 +149,7 @@ else()
 
   target_link_libraries(
     eosxd
-    ${FUSE_LIBRARY}
-    ${UUID_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY}
-    ${PROTOBUF_LIBRARY}
-    ${JSONCPP_LIBRARIES}
-    ${HIREDIS_LIBRARIES}
-    ${LIBEVENT_LIBRARIES}
-    ${ZMQ_LIBRARIES}
-    ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
-    eosCommon
+    ${EOSXD_COMMON_LINK_LIBRARIES}
     jemalloc
 )
 
@@ -163,45 +168,14 @@ if (FUSE3_FOUND)
 add_executable(
   eosxd3
   main.cc
-  eosfuse.cc eosfuse.hh
-  stat/Stat.cc stat/Stat.hh
-  md/md.cc md/md.hh
-  cap/cap.cc cap/cap.hh
-  data/data.cc data/data.hh
-  ${SOURCES_IF_ROCKSDB_WAS_FOUND}
-  kv/RedisKV.cc           kv/RedisKV.hh
-                          kv/kv.hh
-  misc/longstring.cc misc/longstring.hh
-  misc/fusexrdlogin.cc misc/fusexrdlogin.hh
-  data/cache.cc data/cache.hh data/bufferll.hh
-  data/diskcache.cc data/diskcache.hh
-  data/memorycache.cc data/memorycache.hh
-  data/journalcache.cc data/journalcache.hh
-  data/cachesyncer.cc data/cachesyncer.hh
-  data/xrdclproxy.cc data/xrdclproxy.hh
-  data/dircleaner.cc data/dircleaner.hh
-  backend/backend.cc backend/backend.hh
-  $<TARGET_OBJECTS:EosFuseAuth>
-  ${PROTO_SRC} ${PROTO_HEADER}
-  )
+  ${EOSXD_SOURCES}
+)
 
   target_link_libraries(
     eosxd3
-    ${FUSE3_LIBRARY}
-    ${UUID_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY}
-    ${PROTOBUF_LIBRARY}
-    ${JSONCPP_LIBRARIES}
-    ${HIREDIS_LIBRARIES}
-    ${LIBEVENT_LIBRARIES}
-    ${ZMQ_LIBRARIES}
-    ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
-    eosCommon
-    jemalloc)
+    ${EOSXD_COMMON_LINK_LIBRARIES}
+    jemalloc
+  )
 
   set_target_properties(
     eosxd3
@@ -219,46 +193,15 @@ endif()
 #-------------------------------------------------------------------------------
 add_library(
   eosxd-test
-  eosfuse.cc eosfuse.hh
-  stat/Stat.cc stat/Stat.hh
-  md/md.cc md/md.hh
-  cap/cap.cc cap/cap.hh
-  data/data.cc data/data.hh
-  ${SOURCES_IF_ROCKSDB_WAS_FOUND}
-  kv/RedisKV.cc           kv/RedisKV.hh
-                          kv/kv.hh
-  misc/longstring.cc misc/longstring.hh
-  misc/fusexrdlogin.cc misc/fusexrdlogin.hh
-  data/cache.cc data/cache.hh data/bufferll.hh
-  data/diskcache.cc data/diskcache.hh
-  data/memorycache.cc data/memorycache.hh
-  data/journalcache.cc data/journalcache.hh
-  data/cachesyncer.cc data/cachesyncer.hh
-  data/xrdclproxy.cc data/xrdclproxy.hh
-  data/dircleaner.cc data/dircleaner.hh
-  backend/backend.cc backend/backend.hh
-  $<TARGET_OBJECTS:EosFuseAuth>
-  ${PROTO_SRC} ${PROTO_HEADER}
+  ${EOSXD_SOURCES}
 )
 
 
   target_link_libraries(
     eosxd-test
-    ${FUSE_LIBRARY}
-    ${UUID_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY}
-    ${PROTOBUF_LIBRARY}
-    ${JSONCPP_LIBRARIES}
-    ${HIREDIS_LIBRARIES}
-    ${LIBEVENT_LIBRARIES}
-    ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
-    eosCommon
+    ${EOSXD_COMMON_LINK_LIBRARIES}
     jemalloc
-)
+  )
 
   set_target_properties(
     eosxd-test

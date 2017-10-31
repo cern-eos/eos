@@ -55,6 +55,7 @@ set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   ${JSONCPP_LIBRARIES}
   ${HIREDIS_LIBRARIES}
   ${LIBEVENT_LIBRARIES}
+  ${BACKWARD_LIBRARIES}
   eosCommonServer eosCommon
 )
 
@@ -68,6 +69,7 @@ add_executable(eos-fusex-tests
   interval-tree.cc
   journal-cache.cc
   rb-tree.cc
+  ${BACKWARD_ENABLE}
 )
 
 target_link_libraries(
@@ -83,6 +85,7 @@ set_target_properties(
 
 add_executable(eos-fusex-stress-tests
   stress/xrdcl-proxy.cc
+  ${BACKWARD_ENABLE}
 )
 
 target_link_libraries(
