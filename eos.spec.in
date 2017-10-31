@@ -36,6 +36,10 @@ BuildRequires: jsoncpp, jsoncpp-devel
 BuildRequires: protobuf3, protobuf3-devel, protobuf3-compiler
 BuildRequires: hiredis, hiredis-devel
 BuildRequires: jemalloc, jemalloc-devel
+
+BuildRequires: bzip2-devel
+Requires: bzip2-devel
+
 BuildRequires: elfutils-devel
 Requires: elfutils-devel
 
