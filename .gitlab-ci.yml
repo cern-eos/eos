@@ -1,6 +1,3 @@
-variables:
-  GIT_SUBMODULE_STRATEGY: recursive
-
 stages:
   - build:rpm
   - build:dockerimage
@@ -17,6 +14,7 @@ eos_rpm_cc7:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities
+    - git submodule update --init --recursive
     - mkdir build
     - cd build
     - cmake3 .. -DPACKAGEONLY=1 -DFUSEXCLIENT=1
@@ -40,6 +38,7 @@ eos_rpm_slc6:
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar
+    - git submodule update --init --recursive
     - mkdir build
     - cd build
     - cmake3 .. -DPACKAGEONLY=1 -DFUSEXCLIENT=1
