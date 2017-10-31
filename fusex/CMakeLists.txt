@@ -21,7 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-add_definitions(-DBACKWARD_HAS_DW)
 add_subdirectory(deps/backward-cpp)
 
 include_directories(
@@ -51,13 +50,16 @@ if(ROCKSDB_FOUND)
 endif()
 
 
-if(CPPUNIT_FOUND)
-  add_subdirectory(tests)
-endif(CPPUNIT_FOUND)
-
 if (Linux)
   add_subdirectory(benchmark)
 endif (Linux)
+
+#-------------------------------------------------------------------------------
+# Compile flags
+#-------------------------------------------------------------------------------
+set(EOSXD_COMPILE_FLAGS
+  "-DBACKWARD_HAS_DW -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}"
+)
 
 #-------------------------------------------------------------------------------
 # auth subsystem
@@ -144,7 +146,8 @@ if(MacOSX)
   set_target_properties(
     eosxd
     PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}")
+    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS}
+  )
 else()
 
   target_link_libraries(
@@ -156,7 +159,8 @@ else()
   set_target_properties(
     eosxd
     PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}")
+    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS}
+  )
 endif()
 
 install(
@@ -180,7 +184,8 @@ add_executable(
   set_target_properties(
     eosxd3
     PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FUSE3 -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}")
+    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS}
+  )
 
 install(
   TARGETS eosxd3
@@ -206,4 +211,13 @@ add_library(
   set_target_properties(
     eosxd-test
     PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" -fPIC ${FLAGS_IF_ROCKSDB_WAS_FOUND}")
+    COMPILE_FLAGS "${EOSXD_COMPILE_FLAGS} -fPIC"
+  )
+
+#-------------------------------------------------------------------------------
+# Tests
+#-------------------------------------------------------------------------------
+
+if(BUILD_TESTS)
+  add_subdirectory(tests)
+endif()
