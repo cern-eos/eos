@@ -252,46 +252,6 @@ diskcache::pread(void *buf, size_t count, off_t offset)
 
 /* -------------------------------------------------------------------------- */
 ssize_t
-/* -------------------------------------------------------------------------- */
-diskcache::peek_read(char* &buf, size_t count, off_t offset)
-/* -------------------------------------------------------------------------- */
-{
-  this->Lock();
-  buffer = sBufferManager.get_buffer();
-
-  // restrict to our local max size cache size
-  if ( (off_t) offset >= sMaxSize )
-  {
-    return 0;
-  }
-
-  if ( (off_t) (offset + count) > sMaxSize )
-  {
-    count = sMaxSize - offset;
-  }
-
-
-  if (count > buffer->capacity())
-    buffer->reserve(count);
-  buf = buffer->ptr();
-
-  return ::pread(fd, buf,  count, offset);
-}
-
-/* -------------------------------------------------------------------------- */
-void
-/* -------------------------------------------------------------------------- */
-diskcache::release_read()
-/* -------------------------------------------------------------------------- */
-{
-  sBufferManager.put_buffer(buffer);
-  buffer.reset();
-  this->UnLock();
-  return;
-}
-
-/* -------------------------------------------------------------------------- */
-ssize_t
 diskcache::pwrite(const void *buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {

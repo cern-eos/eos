@@ -48,9 +48,6 @@ public:
   virtual int unlink() override;
 
   virtual ssize_t pread(void *buf, size_t count, off_t offset) override;
-  virtual ssize_t peek_read(char* &buf, size_t count, off_t offset) override;
-  virtual void release_read() override;
-
   virtual ssize_t pwrite(const void *buf, size_t count, off_t offset) override;
 
   virtual int truncate(off_t) override;

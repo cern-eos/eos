@@ -49,9 +49,6 @@ public:
   virtual int unlink() = 0;
 
   virtual ssize_t pread(void *buf, size_t count, off_t offset) = 0;
-  virtual ssize_t peek_read(char* &buf, size_t count, off_t offset) = 0;
-  virtual void release_read() = 0;
-
   virtual ssize_t pwrite(const void *buf, size_t count, off_t offset) = 0;
 
   virtual int truncate(off_t) = 0;
@@ -80,11 +77,6 @@ public:
   virtual int rescue(std::string& location)
   {
     return 0;
-  }
-
-  virtual bool fits(ssize_t count)
-  {
-    return true;
   }
 
   virtual int reset()
