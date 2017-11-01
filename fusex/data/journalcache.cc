@@ -30,7 +30,6 @@
 #include <iostream>
 
 std::string journalcache::sLocation;
-bufferllmanager journalcache::sBufferManager;
 size_t journalcache::sMaxSize = 128 * 1024 * 1024ll; // TODO Some dummy default
 
 journalcache::journalcache( fuse_ino_t ino ) : ino( ino ), cachesize( 0 ), truncatesize( -1 ), fd( -1 ), nbAttached( 0 )
@@ -204,24 +203,6 @@ ssize_t journalcache::pread( void *buf, size_t count, off_t offset )
   }
 
   return bytesRead;
-}
-
-ssize_t journalcache::peek_read( char* &buf, size_t count, off_t offset )
-{
-  mtx.Lock();
-  buffer = sBufferManager.get_buffer();
-  if (count > buffer->capacity())
-    buffer->reserve(count);
-  buf = buffer->ptr();
-  return pread( buf, count, offset );
-}
-
-void journalcache::release_read()
-{
-  sBufferManager.put_buffer(buffer);
-  buffer.reset();
-  mtx.UnLock();
-  return;
 }
 
 void journalcache::process_intersection( interval_tree<uint64_t, const void*> &to_write, interval_tree<uint64_t, uint64_t>::iterator itr, std::vector<chunk_t> &updates )

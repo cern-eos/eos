@@ -73,9 +73,6 @@ public:
   int unlink();
 
   ssize_t pread( void *buf, size_t count, off_t offset );
-  ssize_t peek_read( char* &buf, size_t count, off_t offset );
-  void release_read();
-
   ssize_t pwrite( const void *buf, size_t count, off_t offset );
 
   int truncate( off_t );
@@ -130,7 +127,6 @@ public:
   cachelock                         clck;
   XrdSysMutex                       mtx;
   bufferllmanager::shared_buffer    buffer;
-  static bufferllmanager            sBufferManager;
   static std::string                sLocation;
   static size_t                     sMaxSize;
 } ;
