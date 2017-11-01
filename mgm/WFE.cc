@@ -884,262 +884,212 @@ WFE::Job::DoIt(bool issync)
             unbase64 = fullpath.c_str();
             eos::common::SymKey::Base64(unbase64, base64);
 
+            int cnt = 0;
             while (execargs.replace("<eos::wfe::path>", unbase64.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::base64:path>", base64.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::uid>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) cfmd->getCUid()))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::gid>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) cfmd->getCGid()))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::ruid>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) mVid.uid))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::rgid>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) mVid.gid))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::username>",
                                     user_name.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::groupname>",
                                     group_name.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::rusername>",
                                     mVid.uid_string.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::rgroupname>",
                                     mVid.gid_string.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::host>",
                                     mVid.host.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::sec.app>",
                                     mVid.app.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::sec.name>",
                                     mVid.name.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::sec.prot>",
                                     mVid.prot.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::sec.grps>",
                                     mVid.grps.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::instance>",
                                     gOFS->MgmOfsInstanceName)) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::ctime.s>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_sec))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::mtime.s>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_sec))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::ctime.ns>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_nsec))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::mtime.ns>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_nsec))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::ctime>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_sec))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::mtime>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_sec))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::size>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) cfmd->getSize()))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::cid>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) cfmd->getContainerId()))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::fid>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) mFid))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
@@ -1147,12 +1097,10 @@ WFE::Job::DoIt(bool issync)
             XrdOucString hexfid;
             eos::common::FileId::Fid2Hex(mFid, hexfid);
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::fxid>",
                                     hexfid)) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
@@ -1164,12 +1112,10 @@ WFE::Job::DoIt(bool issync)
             turl += "?eos.lfn=fxid:";
             turl += hexfid.c_str();
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::turl>",
                                     turl.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
@@ -1177,20 +1123,16 @@ WFE::Job::DoIt(bool issync)
             unbase64 = cfmd->getName().c_str();
             eos::common::SymKey::Base64(unbase64, base64);
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::name>", unbase64.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::base64:name>", base64.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
@@ -1198,99 +1140,79 @@ WFE::Job::DoIt(bool issync)
             unbase64 = cfmd->getLink().c_str();
             eos::common::SymKey::Base64(unbase64, base64);
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::link>", unbase64.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::base64:link>", base64.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::checksum>", checksum.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::checksumtype>",
                                     eos::common::LayoutId::GetChecksumString(cfmd->getLayoutId()))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::event>", mActions[0].mEvent.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::queue>", mActions[0].mQueue.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::workflow>",
                                     mActions[0].mWorkflow.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::vpath>", mWorkflowPath.c_str())) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
             time_t now = time(NULL);
 
+            cnt = 0;
             while (execargs.replace("<eos::wfe::now>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) now))) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 16) {
+              if (++cnt > 16) {
                 break;
               }
             }
 
             int xstart = 0;
 
+            cnt = 0;
             while ((xstart = execargs.find("<eos::wfe::fxattr:")) != STR_NPOS) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 256) {
+              if (++cnt > 256) {
                 break;
               }
 
@@ -1332,11 +1254,9 @@ WFE::Job::DoIt(bool issync)
 
             xstart = 0;
 
+            cnt = 0;
             while ((xstart = execargs.find("<eos::wfe::cxattr:")) != STR_NPOS) {
-              int cnt = 0;
-              cnt++;
-
-              if (cnt > 256) {
+              if (++cnt > 256) {
                 break;
               }
 
@@ -1398,11 +1318,9 @@ WFE::Job::DoIt(bool issync)
                 eos_static_err("msg=\"file info returned error\" err=\"%s\"", err.c_str());
               }
 
+              cnt = 0;
               while (file_metadata.replace("\"", "'")) {
-                int cnt = 0;
-                cnt++;
-
-                if (cnt > 16) {
+                if (++cnt > 16) {
                   break;
                 }
               }
@@ -1425,11 +1343,9 @@ WFE::Job::DoIt(bool issync)
                 eos_static_err("msg=\"container info returned error\" err=\"%s\"", err.c_str());
               }
 
+              cnt = 0;
               while (container_metadata.replace("\"", "'")) {
-                int cnt = 0;
-                cnt++;
-
-                if (cnt > 16) {
+                if (++cnt > 16) {
                   break;
                 }
               }
@@ -1468,11 +1384,9 @@ WFE::Job::DoIt(bool issync)
               // scan for result tags referencing the trigger path
               xstart = 0;
 
+              cnt = 0;
               while ((xstart = outerr.find("<eos::wfe::path::fxattr:", xstart)) != STR_NPOS) {
-                int cnt = 0;
-                cnt++;
-
-                if (cnt > 256) {
+                if (++cnt > 256) {
                   break;
                 }
 
@@ -1574,12 +1488,10 @@ WFE::Job::DoIt(bool issync)
               // scan for result tags referencing the workflow path
               xstart = 0;
 
+              cnt = 0;
               while ((xstart = outerr.find("<eos::wfe::vpath::fxattr:",
                                            xstart)) != STR_NPOS) {
-                int cnt = 0;
-                cnt++;
-
-                if (cnt > 256) {
+                if (++cnt > 256) {
                   break;
                 }
 
