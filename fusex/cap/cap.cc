@@ -576,7 +576,7 @@ cap::capflush(ThreadAssistant &assistant)
 	kernelcache::inval_inode(*it, false);
       }
 
-      assistant.wait_for(std::chrono::seconds(1000));
+      assistant.wait_for(std::chrono::seconds(1));
     }
   }
 }
