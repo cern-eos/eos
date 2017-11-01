@@ -241,7 +241,7 @@ public:
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
-    md_op op;
+    std::atomic<md_op> op;
     std::atomic<int> lookup_cnt;
     std::atomic<int> cap_cnt;
     bool lock_remote;
