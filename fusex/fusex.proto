@@ -47,6 +47,7 @@ message md {
   string fullpath = 38; //< current path to file/dir
   fixed64 pt_mtime = 39 ; //< modification time for the parent directory
   fixed64 pt_mtime_ns= 40 ; //< ns of modification time for the parent directory
+  bool creator = 41; //< indicates we are the creator of this md record
 };
 
 message md_map {

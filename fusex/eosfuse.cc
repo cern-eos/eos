@@ -1844,6 +1844,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         md->set_uid(pcap->uid());
         md->set_gid(pcap->gid());
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
+	md->set_creator(true);
 
         std::string imply_authid = eos::common::StringConversion::random_uuidstring();
         eos_static_info("generating implied authid %s => %s", pcap->authid().c_str(), imply_authid.c_str());
@@ -2601,6 +2602,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         md->set_uid(pcap->uid());
         md->set_gid(pcap->gid());
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
+	md->set_creator(true);
 
         XrdSysMutexHelper mLockParent(pmd->Locker());
         pmd->set_mtime(ts.tv_sec);

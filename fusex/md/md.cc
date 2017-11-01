@@ -202,7 +202,7 @@ metad::lookup(fuse_req_t req,
     // --------------------------------------------------
     // STEP 2: check if we hold a cap for that directory
     // --------------------------------------------------
-    if (pmd->cap_count())
+    if (pmd->cap_count() || pmd->creator())
     {
       // --------------------------------------------------
       // if we have a cap and we listed this directory, we trust the child information
@@ -214,7 +214,9 @@ metad::lookup(fuse_req_t req,
       }
       else
       {
-        if (pmd->type() == pmd->MDLS)
+	// if we are still having the creator MD record, we can be sure, that we know everything about this directory
+	if (pmd->creator() || 
+	    (pmd->type() == pmd->MDLS))
         {
           // no entry - TODO return a NULLMD object instead of creating it all the time
           md = std::make_shared<mdx>();
@@ -2128,6 +2130,7 @@ metad::mdcommunicate(ThreadAssistant &assistant)
 
                     md->Locker().UnLock();
                     md->cap_count_reset();
+		    md->set_creator(false);
                     eos_static_debug("%s", dump_md(md).c_str());
 
                     if (EosFuse::Instance().Config().options.md_kernelcache)
