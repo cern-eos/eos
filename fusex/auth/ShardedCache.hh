@@ -105,6 +105,7 @@ public:
   // Retrieves an item from the cache. If there isn't any, return a null shared_ptr.
   std::shared_ptr<Value> retrieve(const Key& key) {
     ShardGuard guard(this, key);
+    typename std::map<Key, CacheEntry>::iterator it = contents[guard.getShard()].find(key);
 
     if (it == contents[guard.getShard()].end()) {
       return std::shared_ptr<Value>();
@@ -140,7 +141,7 @@ public:
   // If you want to replace an entry, just call store with replace set to false.
   bool invalidate(const Key& key) {
     ShardGuard guard(this, key);
-
+    typename std::map<Key, CacheEntry>::iterator it = contents[guard.getShard()].find(key);
     contents[guard.getShard()].erase(it);
     return true;
   }

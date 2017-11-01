@@ -37,8 +37,8 @@
 class memorycache : public cache, bufferll
 {
 public:
-  memorycache() = default;
-  virtual ~memorycache() = default;
+  memorycache(fuse_ino_t _ino);
+  virtual ~memorycache();
 
   // base class interface
   virtual int attach(fuse_req_t req, std::string& cookie, int flags) override;
@@ -59,6 +59,10 @@ public:
 private:
   XrdSysMutex xattrmtx;
   std::map<std::string, std::string> xattr;
-};
+  fuse_ino_t ino;
+} ;
+
+
+
 
 #endif /* FUSE_MEMORYCACHE_HH_ */

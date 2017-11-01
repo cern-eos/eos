@@ -44,14 +44,8 @@ int
 diskcache::init(const cacheconfig &config)
 /* -------------------------------------------------------------------------- */
 {
-<<<<<<< HEAD
-  cachehandler::cacheconfig config = cachehandler::instance().get_config();
-
-  if (::access(config.location.c_str(), W_OK)) {
-=======
   if (::access(config.location.c_str(), W_OK))
   {
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
     return errno;
   }
 
@@ -70,15 +64,6 @@ int
 diskcache::init_daemonized(const cacheconfig &config)
 /* -------------------------------------------------------------------------- */
 {
-<<<<<<< HEAD
-  cachehandler::cacheconfig config = cachehandler::instance().get_config();
-
-  if (config.per_file_cache_max_size) {
-    diskcache::sMaxSize = config.per_file_cache_max_size;
-  }
-
-  if (config.clean_on_startup) {
-=======
   if (config.per_file_cache_max_size)
   {
     diskcache::sMaxSize = config.per_file_cache_max_size;
@@ -89,17 +74,12 @@ diskcache::init_daemonized(const cacheconfig &config)
 
   if (config.clean_on_startup)
   {
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
     eos_static_info("cleaning cache path=%s", config.location.c_str());
     sDirCleaner = std::make_shared<dircleaner>(config.location,
                   config.total_file_cache_size);
 
-<<<<<<< HEAD
-    if (sDirCleaner->cleanall()) {
-=======
     if (sDirCleaner->cleanall(".dc"))
     {
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
       eos_static_err("cache cleanup failed");
       return -1;
     }
@@ -110,16 +90,6 @@ diskcache::init_daemonized(const cacheconfig &config)
 }
 
 /* -------------------------------------------------------------------------- */
-<<<<<<< HEAD
-diskcache::diskcache() : ino(0), nattached(0), fd(-1)
-  /* -------------------------------------------------------------------------- */
-{
-  return;
-}
-
-/* -------------------------------------------------------------------------- */
-=======
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
 diskcache::diskcache(fuse_ino_t _ino) : ino(_ino), nattached(0), fd(-1)
   /* -------------------------------------------------------------------------- */
 {
@@ -138,13 +108,8 @@ diskcache::location(std::string& path, bool mkpath)
 /* -------------------------------------------------------------------------- */
 {
   char cache_path[1024 + 20];
-<<<<<<< HEAD
-  snprintf(cache_path, sizeof(cache_path), "%s/%08lx/%08lX",
-           sLocation.c_str(), ino / 10000, ino);
-=======
   snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lX.dc",
 	   sLocation.c_str(), ino / 10000, ino);
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
 
   if (mkpath) {
     eos::common::Path cPath(cache_path);
@@ -287,49 +252,7 @@ diskcache::pread(void* buf, size_t count, off_t offset)
 
 /* -------------------------------------------------------------------------- */
 ssize_t
-<<<<<<< HEAD
-/* -------------------------------------------------------------------------- */
-diskcache::peek_read(char*& buf, size_t count, off_t offset)
-/* -------------------------------------------------------------------------- */
-{
-  this->Lock();
-  buffer = sBufferManager.get_buffer();
-
-  // restrict to our local max size cache size
-  if ((off_t) offset >= sMaxSize) {
-    return 0;
-  }
-
-  if ((off_t)(offset + count) > sMaxSize) {
-    count = sMaxSize - offset;
-  }
-
-  if (count > buffer->capacity()) {
-    buffer->reserve(count);
-  }
-
-  buf = buffer->ptr();
-  return ::pread(fd, buf,  count, offset);
-}
-
-/* -------------------------------------------------------------------------- */
-void
-/* -------------------------------------------------------------------------- */
-diskcache::release_read()
-/* -------------------------------------------------------------------------- */
-{
-  sBufferManager.put_buffer(buffer);
-  buffer.reset();
-  this->UnLock();
-  return;
-}
-
-/* -------------------------------------------------------------------------- */
-ssize_t
-diskcache::pwrite(const void* buf, size_t count, off_t offset)
-=======
 diskcache::pwrite(const void *buf, size_t count, off_t offset)
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("diskcache::pwrite %lu %lu\n", count, offset);
@@ -398,11 +321,7 @@ diskcache::size()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-<<<<<<< HEAD
-diskcache::set_attr(std::string& key, std::string& value)
-=======
 diskcache::set_attr(const std::string& key, const std::string & value)
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
 /* -------------------------------------------------------------------------- */
 {
   if (fd > 0) {
@@ -426,11 +345,7 @@ diskcache::set_attr(const std::string& key, const std::string & value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-<<<<<<< HEAD
-diskcache::attr(std::string key, std::string& value)
-=======
 diskcache::attr(const std::string &key, std::string & value)
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
 /* -------------------------------------------------------------------------- */
 {
   if (fd > 0) {

@@ -103,8 +103,6 @@ public:
 
   private:
 
-  std::vector<chunk_t> get_chunks(off_t offset, size_t size);
-
 private:
 
   void process_intersection(interval_tree<uint64_t, const void*>& write,

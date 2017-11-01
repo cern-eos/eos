@@ -89,6 +89,7 @@ public:
 
     if (now == -1) {
       now = 0;
+    }
 
     unsigned int bin3600 = (now % 3600);
     unsigned int bin300 = (now % 300);
@@ -570,16 +571,7 @@ public:
   void PrintOutTotal(XrdOucString& out, bool details = false,
                      bool monitoring = false, bool numerical = false);
 
-<<<<<<< HEAD
-  void Circulate();
-
-  Stat()
-  {
-    sStat = this;
-  }
-=======
   void Circulate (ThreadAssistant &assistant);
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
 
   Stat () { }
 } ;

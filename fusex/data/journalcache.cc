@@ -32,17 +32,7 @@
 std::string journalcache::sLocation;
 size_t journalcache::sMaxSize = 128 * 1024 * 1024ll; // TODO Some dummy default
 
-<<<<<<< HEAD
-journalcache::journalcache() : ino(0), cachesize(0), truncatesize(-1), fd(-1),
-  nbAttached(0)
-{
-}
-
-journalcache::journalcache(fuse_ino_t ino) : ino(ino), cachesize(0),
-  truncatesize(-1), fd(-1), nbAttached(0)
-=======
 journalcache::journalcache( fuse_ino_t ino ) : ino( ino ), cachesize( 0 ), truncatesize( -1 ), fd( -1 ), nbAttached( 0 )
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
 {
 }
 
@@ -65,11 +55,7 @@ journalcache::~journalcache()
 int journalcache::location(std::string& path, bool mkpath)
 {
   char cache_path[1024 + 20];
-<<<<<<< HEAD
-  snprintf(cache_path, sizeof(cache_path), "%s/%08lx/%08lx.j",
-=======
   snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lx.jc",
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
            sLocation.c_str(), ino / 10000, ino);
 
   if (mkpath) {
@@ -237,34 +223,7 @@ ssize_t journalcache::pread(void* buf, size_t count, off_t offset)
   return bytesRead;
 }
 
-<<<<<<< HEAD
-ssize_t journalcache::peek_read(char*& buf, size_t count, off_t offset)
-{
-  mtx.Lock();
-  buffer = sBufferManager.get_buffer();
-
-  if (count > buffer->capacity()) {
-    buffer->reserve(count);
-  }
-
-  buf = buffer->ptr();
-  return pread(buf, count, offset);
-}
-
-void journalcache::release_read()
-{
-  sBufferManager.put_buffer(buffer);
-  buffer.reset();
-  mtx.UnLock();
-  return;
-}
-
-void journalcache::process_intersection(interval_tree<uint64_t, const void*>&
-                                        to_write, interval_tree<uint64_t, uint64_t>::iterator itr,
-                                        std::vector<chunk_t>& updates)
-=======
 void journalcache::process_intersection( interval_tree<uint64_t, const void*> &to_write, interval_tree<uint64_t, uint64_t>::iterator itr, std::vector<chunk_t> &updates )
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
 {
   auto result = to_write.query(itr->low, itr->high);
 
@@ -419,14 +378,8 @@ size_t journalcache::size()
 
 int journalcache::init(const cacheconfig &config)
 {
-<<<<<<< HEAD
-  cachehandler::cacheconfig config = cachehandler::instance().get_config();
-
-  if (::access(config.location.c_str(), W_OK)) {
-=======
   if ( ::access( config.location.c_str(), W_OK ) )
   {
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
     return errno;
   }
 
@@ -442,22 +395,12 @@ int journalcache::init(const cacheconfig &config)
 
 int journalcache::init_daemonized(const cacheconfig &config)
 {
-<<<<<<< HEAD
-  cachehandler::cacheconfig config = cachehandler::instance().get_config();
-
-  if (config.clean_on_startup) {
-    eos_static_info("cleaning cache path=%s", config.journal.c_str());
-    dircleaner dc(config.journal.c_str());
-
-    if (dc.cleanall(".rescue")) {
-=======
   if (config.clean_on_startup)
   {
     eos_static_info("cleaning cache path=%s", config.journal.c_str());
     dircleaner dc(config.journal.c_str());
     if (dc.cleanall(".jc"))
     {
->>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
       eos_static_err("cache cleanup failed");
       return -1;
     }

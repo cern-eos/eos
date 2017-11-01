@@ -41,6 +41,7 @@ cachehandler::init(cacheconfig & _config)
   config = _config;
 
   if (config.type == cache_t::INVALID)
+  {
     return EINVAL;
   }
 
@@ -75,8 +76,9 @@ cachehandler::init_daemonized()
 {
   int rc = 0;
 
-  if (config.type == cache_t::INVALID)
-    return EINVAL;
+  if (config.type == cache_t::INVALID) {
+    rc = EINVAL;
+    return rc;
   }
 
   if (config.type == cache_t::DISK)
@@ -90,7 +92,7 @@ cachehandler::init_daemonized()
     if (rc ) return rc;
   }
 
-  return 0;
+  return rc;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -164,7 +166,7 @@ cachehandler::get(fuse_ino_t ino)
     entry = std::make_shared<io>(ino);
 
     if (instance().inmemory()) {
-      entry->set_file(new memorycache());
+      entry->set_file(new memorycache(ino));
     } else {
       entry->set_file(new diskcache(ino));
     }
