@@ -36,6 +36,8 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "Xrd/XrdScheduler.hh"
 
+#include <cta/CtaFrontendApi.hpp>
+
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
 XrdSysMutex eos::mgm::WFE::gSchedulerMutex;
@@ -1561,6 +1563,26 @@ WFE::Job::DoIt(bool issync)
                          mDescription.c_str());
           Move(mActions[0].mQueue, "g", storetime);
         }
+      }
+      else if (method == "proto") {
+        std::shared_ptr<eos::IFileMD> fmd ;
+        std::shared_ptr<eos::IContainerMD> cmd ;
+        std::string fullpath;
+        // do meta replacement
+        {
+          gOFS->eosViewRWMutex.LockRead();
+
+          try {
+            fmd = gOFS->eosFileService->getFileMD(mFid);
+            cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+            fullpath = gOFS->eosView->getUri(fmd.get());
+          } catch (eos::MDException& e) {
+            eos_static_debug("caught exception %d %s\n", e.getErrno(),
+                             e.getMessage().str().c_str());
+          }
+        }
+
+        
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unkown workflow\" job=\"%s\"",
