@@ -202,7 +202,7 @@ metad::lookup(fuse_req_t req,
     // --------------------------------------------------
     // STEP 2: check if we hold a cap for that directory
     // --------------------------------------------------
-    if (pmd->cap_count() || pmd->creator())
+    if (pmd->cap_count() && pmd->creator())
     {
       // --------------------------------------------------
       // if we have a cap and we listed this directory, we trust the child information
