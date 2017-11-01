@@ -215,7 +215,7 @@ metad::lookup(fuse_req_t req,
       else
       {
 	// if we are still having the creator MD record, we can be sure, that we know everything about this directory
-	if (pmd->creator() || 
+	if (pmd->creator() ||
 	    (pmd->type() == pmd->MDLS))
         {
           // no entry - TODO return a NULLMD object instead of creating it all the time
@@ -1511,7 +1511,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 
     if (!S_ISDIR(md->mode()))
     {
-      // if its a file we need to have a look at parent cap-count, so we get the parent md 
+      // if its a file we need to have a look at parent cap-count, so we get the parent md
       md->Locker().UnLock();
       mdmap.retrieveTS(p_ino, pmd);
       md->Locker().Lock();
@@ -1597,7 +1597,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
                   if (map->second.has_capability())
                   {
                     // store cap
-                    cap::Instance().store(req, cap_received);
+                    EosFuse::Instance().getCap().store(req, cap_received);
                     md->cap_inc();
                   }
                   // don't modify existing local meta-data
@@ -1613,7 +1613,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
                     if (map->second.has_capability())
                     {
                       // store cap
-                      cap::Instance().store(req, cap_received);
+                      EosFuse::Instance().getCap().store(req, cap_received);
                       md->cap_inc();
                     }
                     // don't modify existing local meta-data
@@ -1700,7 +1700,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
           if (cap_received.id())
           {
             // store cap
-            cap::Instance().store(req, cap_received);
+            EosFuse::Instance().getCap().store(req, cap_received);
             md->cap_inc();
             if (md->cap_count() == 1)
             {
@@ -1754,7 +1754,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
         if (cap_received.id())
         {
           // store cap
-          cap::Instance().store(req, cap_received);
+          EosFuse::Instance().getCap().store(req, cap_received);
           md->cap_inc();
           //          eos_static_err("increase cap counter for ino=%lu", new_ino);
         }
@@ -2103,7 +2103,7 @@ metad::mdcommunicate(ThreadAssistant &assistant)
                   }
                 }
                 while (1);
-                fuse_ino_t ino = cap::Instance().forget(capid);
+                fuse_ino_t ino = EosFuse::Instance().getCap().forget(capid);
                 {
                   shared_md md;
                   {
@@ -2341,9 +2341,9 @@ metad::mdcommunicate(ThreadAssistant &assistant)
 
       {
         // add caps to be extended
-        XrdSysMutexHelper eLock(cap::Instance().get_extensionLock());
+        XrdSysMutexHelper eLock(EosFuse::Instance().getCap().get_extensionLock());
         auto map = hb.mutable_heartbeat_()->mutable_authextension();
-        cap::extension_map_t extmap = cap::Instance().get_extensionmap();
+        cap::extension_map_t extmap = EosFuse::Instance().getCap().get_extensionmap();
 
         for (auto it = extmap.begin(); it != extmap.end(); ++it)
         {

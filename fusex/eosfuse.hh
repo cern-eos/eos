@@ -278,6 +278,10 @@ public:
     return mKV.get();
   }
 
+  cap& getCap() {
+    return caps;
+  }
+
 protected:
 
 private:

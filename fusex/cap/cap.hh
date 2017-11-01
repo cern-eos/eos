@@ -176,14 +176,6 @@ public:
 
   virtual ~cap();
 
-  static cap* sCAP;
-
-  static cap& Instance()
-  {
-    return *sCAP;
-  }
-
-
   shared_cap get(fuse_req_t req,
                  fuse_ino_t ino,
                  bool lock=false);

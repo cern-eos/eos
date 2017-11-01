@@ -1874,7 +1874,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         }
         else
         {
-          cap::Instance().forget(implied_cid);
+          Instance().getCap().forget(implied_cid);
         }
       }
     }
