@@ -752,7 +752,7 @@ data::datax::pwrite(fuse_req_t req, const void *buf, size_t count, off_t offset)
       dw = jw;
     }
     else
-    {      
+    {
       if (mFile->xrdiorw(req)->IsOpening())
       {
         mFile->xrdiorw(req)->WaitOpen();
@@ -1188,7 +1188,7 @@ data::dmap::ioflush(ThreadAssistant &assistant)
               {
                 if (fit->second->IsOpening() || fit->second->IsClosing())
                 {
-                  eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->state(), fit->second->IsClosed());
+                  eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->stateTS(), fit->second->IsClosed());
                   // skip files which are opening or closing
                   break;
                 }
@@ -1198,7 +1198,7 @@ data::dmap::ioflush(ThreadAssistant &assistant)
                   // flush the journal
                   (*it)->journalflush(fit->first);
 
-                  fit->second->set_state(XrdCl::Proxy::WAITWRITE);
+                  fit->second->set_state_TS(XrdCl::Proxy::WAITWRITE);
                   eos_static_info("changing to write wait state");
                 }
 
@@ -1238,7 +1238,7 @@ data::dmap::ioflush(ThreadAssistant &assistant)
 
                   }
 
-                  eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->state(), fit->second->IsClosed());
+                  eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->stateTS(), fit->second->IsClosed());
                   delete fit->second;
                   (*it)->file()->get_xrdiorw().erase(fit);
                   break;

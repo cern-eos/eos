@@ -132,6 +132,11 @@ namespace XrdCl
       return open_state;
     }
 
+    OPEN_STATE stateTS() {
+      XrdSysCondVarHelper lLock(OpenCondVar());
+      return state();
+    }
+
     XRootDStatus write_state()
     {
       return XWriteState;
@@ -146,6 +151,12 @@ namespace XrdCl
       {
         XOpenState = *xs;
       }
+    }
+
+    // TS stands for "thread-safe"
+    void set_state_TS(OPEN_STATE newstate, XRootDStatus* xs=0) {
+      XrdSysCondVarHelper lLock(OpenCondVar());
+      set_state(newstate, xs);
     }
 
     double state_age()
