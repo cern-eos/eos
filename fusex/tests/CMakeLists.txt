@@ -41,7 +41,6 @@ include_directories(
 )
 
 set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
-  eosxd-test
   gtest_main
   ${GTEST_LIBRARIES}
   ${FUSE_LIBRARY}
@@ -56,6 +55,7 @@ set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   ${HIREDIS_LIBRARIES}
   ${LIBEVENT_LIBRARIES}
   ${BACKWARD_LIBRARIES}
+  ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
   eosCommonServer eosCommon
 )
 
@@ -70,6 +70,7 @@ add_executable(eos-fusex-tests
   journal-cache.cc
   rb-tree.cc
   ${BACKWARD_ENABLE}
+  ${EOSXD_COMMON_SOURCES}
 )
 
 target_link_libraries(

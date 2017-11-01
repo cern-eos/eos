@@ -58,7 +58,7 @@ endif (Linux)
 # Compile flags
 #-------------------------------------------------------------------------------
 set(EOSXD_COMPILE_FLAGS
-  "-DBACKWARD_HAS_DW -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}"
+  "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DBACKWARD_HAS_DW -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}"
 )
 
 #-------------------------------------------------------------------------------
@@ -102,9 +102,10 @@ set(EOSXD_COMMON_LINK_LIBRARIES
 )
 
 #-------------------------------------------------------------------------------
-# Sources
+# eosxd common objects, shared between tests and main code.
+# An object library prevents having to compile them twice.
 #-------------------------------------------------------------------------------
-set(EOSXD_SOURCES
+add_library(eosxd-objects OBJECT
   eosfuse.cc eosfuse.hh
   stat/Stat.cc stat/Stat.hh
   md/InodeGenerator.cc md/InodeGenerator.hh
@@ -124,8 +125,23 @@ set(EOSXD_SOURCES
   data/xrdclproxy.cc data/xrdclproxy.hh
   data/dircleaner.cc data/dircleaner.hh
   backend/backend.cc backend/backend.hh
-  $<TARGET_OBJECTS:EosFuseAuth>
   ${PROTO_SRC} ${PROTO_HEADER}
+)
+
+set_target_properties(
+  eosxd-objects
+  PROPERTIES
+  COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS}
+)
+
+#-------------------------------------------------------------------------------
+# eosxd common sources for all executables. We have to do this to combine
+# object libraries EosFuseAuth and eosxd-objects, since apparently, one object
+# library cannot nest another.
+#-------------------------------------------------------------------------------
+set(EOSXD_COMMON_SOURCES
+  $<TARGET_OBJECTS:EosFuseAuth>
+  $<TARGET_OBJECTS:eosxd-objects>
 )
 
 #-------------------------------------------------------------------------------
@@ -134,7 +150,7 @@ set(EOSXD_SOURCES
 add_executable(
   eosxd
   main.cc
-  ${EOSXD_SOURCES}
+  ${EOSXD_COMMON_SOURCES}
 )
 
 if(MacOSX)
@@ -172,7 +188,7 @@ if (FUSE3_FOUND)
 add_executable(
   eosxd3
   main.cc
-  ${EOSXD_SOURCES}
+  ${EOSXD_COMMON_SOURCES}
 )
 
   target_link_libraries(
@@ -192,27 +208,6 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
 endif()
-
-#-------------------------------------------------------------------------------
-# eosxd library
-#-------------------------------------------------------------------------------
-add_library(
-  eosxd-test
-  ${EOSXD_SOURCES}
-)
-
-
-  target_link_libraries(
-    eosxd-test
-    ${EOSXD_COMMON_LINK_LIBRARIES}
-    jemalloc
-  )
-
-  set_target_properties(
-    eosxd-test
-    PROPERTIES
-    COMPILE_FLAGS "${EOSXD_COMPILE_FLAGS} -fPIC"
-  )
 
 #-------------------------------------------------------------------------------
 # Tests
