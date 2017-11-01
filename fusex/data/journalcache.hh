@@ -28,6 +28,7 @@
 #include "cache.hh"
 #include "cachelock.hh"
 #include "cachesyncer.hh"
+#include "cacheconfig.hh"
 
 #include "interval_tree.hh"
 
@@ -35,7 +36,7 @@
 
 #include <string>
 
-class journalcache : public cache
+class journalcache
 {
 
   struct header_t {
@@ -45,11 +46,11 @@ class journalcache : public cache
 
 public:
 
-  struct chunk_t {
-    chunk_t() : offset(0), size(0), buff(0) { }
+  struct chunk_t
+  {
+    chunk_t() : offset( 0 ), size( 0 ), buff( 0 ) { }
 
-    chunk_t(off_t offset, size_t size, const void* buff) : offset(offset),
-      size(size), buff(buff) { }
+    chunk_t( off_t offset, size_t size, const void *buff) : offset( offset ), size( size ), buff( buff ) { }
 
     off_t  offset;
     size_t size;
@@ -62,57 +63,45 @@ public:
   } ;
 
 
-  journalcache();
-  journalcache(fuse_ino_t _ino);
+  journalcache( fuse_ino_t _ino );
   virtual ~journalcache();
 
   // base class interface
-  virtual int attach(fuse_req_t req, std::string& cookie, int flags);
-  virtual int detach(std::string& cookie);
-  virtual int unlink();
+  int attach(fuse_req_t req, std::string& cookie, int flags);
+  int detach(std::string& cookie);
+  int unlink();
 
-  virtual ssize_t pread(void* buf, size_t count, off_t offset);
-  virtual ssize_t peek_read(char*& buf, size_t count, off_t offset);
-  virtual void release_read();
+  ssize_t pread( void *buf, size_t count, off_t offset );
+  ssize_t pwrite( const void *buf, size_t count, off_t offset );
 
-  virtual ssize_t pwrite(const void* buf, size_t count, off_t offset);
+  int truncate( off_t );
+  int sync();
 
-  virtual int truncate(off_t);
-  virtual int sync();
+  size_t size();
+  ssize_t get_truncatesize() { XrdSysMutexHelper lck( mtx ); return truncatesize; }
 
-  virtual size_t size();
-  virtual ssize_t get_truncatesize()
+  int set_attr(const std::string& key, const std::string& value) {return 0;}
+  int attr(const std::string &key, std::string& value) {return 0;}
+
+  int remote_sync( cachesyncer &syncer );
+
+  static int init(const cacheconfig &config);
+  static int init_daemonized(const cacheconfig &config);
+
+  bool fits(ssize_t count) { return ( sMaxSize >= (cachesize+count));}
+
+  int reset();
+
+  int rescue(std::string& location);
+
+  std::vector<chunk_t> get_chunks( off_t offset, size_t size );
+
+  int set_cookie(const std::string &cookie)
   {
-    XrdSysMutexHelper lck(mtx);
-    return truncatesize;
+    return set_attr("user.eos.cache.cookie", cookie);
   }
 
-  virtual int set_attr(std::string& key, std::string& value)
-  {
-    return 0;
-  }
-  virtual int attr(std::string key, std::string& value)
-  {
-    return 0;
-  }
-
-  virtual int remote_sync(cachesyncer& syncer);
-
-  static int init();
-  static int init_daemonized();
-
-  virtual bool fits(ssize_t count)
-  {
-    return (sMaxSize >= (cachesize + count));
-  }
-  virtual bool halffull(size_t count)
-  {
-    return (sMaxSize / 2 <= cachesize);
-  }
-
-  virtual int reset();
-
-  virtual int rescue(std::string& location);
+  private:
 
   std::vector<chunk_t> get_chunks(off_t offset, size_t size);
 
@@ -142,7 +131,6 @@ private:
   cachelock                         clck;
   XrdSysMutex                       mtx;
   bufferllmanager::shared_buffer    buffer;
-  static bufferllmanager            sBufferManager;
   static std::string                sLocation;
   static size_t                     sMaxSize;
 } ;

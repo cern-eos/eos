@@ -257,17 +257,7 @@ public:
 
   std::string ls();
 
-  bool should_terminate()
-  {
-    return capterminate.load();
-  } // check if threads should terminate
-
-  void terminate()
-  {
-    capterminate.store(true, std::memory_order_seq_cst);
-  } // indicate to terminate
-
-  void capflush(); // thread removing capabilities
+  void capflush(ThreadAssistant &assistant); // thread removing capabilities
 
   XrdSysMutex& get_extensionLock()
   {
@@ -289,8 +279,6 @@ private:
 
   backend* mdbackend;
   metad* mds;
-
-  std::atomic<bool> capterminate;
 
   XrdSysMutex extensionLock;
   extension_map_t extensionmap; // map containing all authids

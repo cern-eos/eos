@@ -1,12 +1,11 @@
 //------------------------------------------------------------------------------
-//! @file RocksKVTest.cc
-//! @author Georgios Bitzes CERN
-//! @brief tests for kv persistency class based on rocksdb
+// File: login-identifier.cc
+// Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,21 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "kv/RocksKV.hh"
 #include <gtest/gtest.h>
+#include "auth/LoginIdentifier.hh"
 
-TEST(RocksKV, BasicSanity) {
-  ASSERT_EQ(system("rm -rf /tmp/eos-fusex-tests"), 0);
+TEST(LoginIdentifier, BasicSanity) {
+  ASSERT_EQ(LoginIdentifier(1).getStringID(), "AAAAAAAE");
+  ASSERT_EQ(LoginIdentifier(2).getStringID(), "AAAAAAAI");
+  ASSERT_EQ(LoginIdentifier(3).getStringID(), "AAAAAAAM");
 
-  RocksKV kv;
-  ASSERT_EQ(kv.connect("/tmp/eos-fusex-tests"), 0);
+  ASSERT_EQ(LoginIdentifier(1000, 1000, 178, 3).getStringID(), "*APoA-gM");
 
-  std::string key("123");
-  std::string value("asdf");
-
-  ASSERT_EQ(kv.put(key, value), 0);
-
-  std::string tmp;
-  ASSERT_EQ(kv.get(key, tmp), 0);
-  ASSERT_EQ(tmp, "asdf");
+  ASSERT_EQ(LoginIdentifier(41).getStringID(), "AAAAAACk");
 }

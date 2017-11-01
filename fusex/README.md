@@ -15,8 +15,7 @@ You can select a named instance adding '-ofsname=<name>' to the argument list.
   "remotemountdir" : "/eos/",
   "localmountdir" : "/eos/",
   "statisticfile" : "stats",
-  "mdcachehost" : "",
-  "mdcacheport" : 6379,
+  "mdcachedir" : "/var/eos/fusex/md",
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
 
@@ -39,22 +38,23 @@ You can select a named instance adding '-ofsname=<name>' to the argument list.
   "auth" : {
     "shared-mount" : 1,
     "krb5" : 1
-  }
+  },
 }
 ```
 
-To get data persisted locally add the cache location:
+You also need to define a local cache directory (location) where small files are cached and an ooptional journal directory to improve the write speed (journal).
 
 ```
   "cache" : {
     "type" : "disk",
     "size-mb" : 1000,
-    "location" : "/var/tmp/eosxd-cache/"  
+    "location" : "/var/eos/fusex/cache/",
+    "journal" : " /var/eos/fusex/journal/"
   }
 
 ```
 
-
+The daemon automatically appends a directory to the mdcachedir, location and journal path and automatically creates these directory private to root (mode=700).
 
 Statistics File
 ---------------

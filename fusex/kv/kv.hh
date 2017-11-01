@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
+#include "misc/longstring.hh"
 #include "hiredis/hiredis.h"
 #include "hiredis/async.h"
 #include "XrdSys/XrdSysPthread.hh"
@@ -46,27 +47,35 @@ public:
   kv() {}
   virtual ~kv() {}
 
-  virtual int get(std::string &key, std::string &value) = 0;
-  virtual int get(std::string &key, uint64_t &value) = 0;
-  virtual int put(std::string &key, std::string &value) = 0;
-  virtual int put(std::string &key, uint64_t &value) = 0;
-  virtual int inc(std::string &key, uint64_t &value) = 0;
+  virtual int get(const std::string &key, std::string &value) = 0;
+  virtual int get(const std::string &key, uint64_t &value) = 0;
+  virtual int put(const std::string &key, const std::string &value) = 0;
+  virtual int put(const std::string &key, uint64_t value) = 0;
+  virtual int inc(const std::string &key, uint64_t &value) = 0;
 
-  virtual int erase(std::string &key) = 0;
+  virtual int erase(const std::string &key) = 0;
 
-  virtual int get(uint64_t key, std::string &value, std::string name_space="i") = 0;
-  virtual int put(uint64_t key, std::string &value, std::string name_space="i") = 0;
+  virtual int get(uint64_t key, std::string &value, const std::string &name_space="i") = 0;
+  virtual int put(uint64_t key, const std::string &value, const std::string &name_space="i") = 0;
 
-  virtual int get(uint64_t key, uint64_t &value, std::string name_space="i") = 0;
-  virtual int put(uint64_t key, uint64_t &value, std::string name_space="i") = 0;
+  virtual int get(uint64_t key, uint64_t &value, const std::string &name_space="i") = 0;
+  virtual int put(uint64_t key, uint64_t value, const std::string &name_space="i") = 0;
 
-  virtual int erase(uint64_t key, std::string name_space="i") = 0;
+  virtual int erase(uint64_t key, const std::string &name_space="i") = 0;
+  
+protected:
 
-  static kv* sKV;
+  std::string buildKey(uint64_t key, const std::string &name_space) {
+    char buffer[128];
+    longstring::unsigned_to_decimal (key, buffer);
+    std::string sbuf(buffer);
 
-  static kv& Instance()
-  {
-    return *sKV;
+    if (!name_space.empty()) {
+      sbuf = name_space + ":" + sbuf;
+    }
+
+    return sbuf;
   }
+
 };
 #endif /* FUSE_KV_HH_ */

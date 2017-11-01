@@ -41,23 +41,20 @@ public:
   virtual ~memorycache() = default;
 
   // base class interface
-  virtual int attach(fuse_req_t req, std::string& cookie, int flags);
-  virtual int detach(std::string& cookie);
-  virtual int unlink();
+  virtual int attach(fuse_req_t req, std::string& cookie, int flags) override;
+  virtual int detach(std::string& cookie) override;
+  virtual int unlink() override;
 
-  virtual ssize_t pread(void* buf, size_t count, off_t offset);
-  virtual ssize_t peek_read(char*& buf, size_t count, off_t offset);
-  virtual void release_read();
+  virtual ssize_t pread(void *buf, size_t count, off_t offset) override;
+  virtual ssize_t pwrite(const void *buf, size_t count, off_t offset) override;
 
-  virtual ssize_t pwrite(const void* buf, size_t count, off_t offset);
+  virtual int truncate(off_t) override;
+  virtual int sync() override;
 
-  virtual int truncate(off_t);
-  virtual int sync();
+  virtual size_t size() override;
 
-  virtual size_t size();
-
-  virtual int set_attr(std::string& key, std::string& value);
-  virtual int attr(std::string key, std::string& value);
+  virtual int set_attr(const std::string& key, const std::string& value) override;
+  virtual int attr(const std::string &key, std::string& value) override;
 
 private:
   XrdSysMutex xattrmtx;

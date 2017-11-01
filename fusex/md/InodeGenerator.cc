@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file main.cc
-//! @author Andreas-Joachim Peters
-//! @brief EOS C++ Fuse eosd executable
+//! @file InodeGenerator.cc
+//! @author Georgios Bitzes CERN
+//! @brief inode generator class
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,11 +21,40 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#include "eosfuse.hh"
 
-int
-main(int argc, char* argv[])
-{
-  EosFuse& eosfuse = EosFuse::instance();
-  return eosfuse.run(argc, argv, NULL);
+#include "InodeGenerator.hh"
+#include "common/Logging.hh"
+
+std::string InodeGenerator::kInodeKey = "nextinode";
+
+void InodeGenerator::init(kv* st) {
+  store = st;
+
+  mNextInode = 1;
+  if(store->get(kInodeKey, mNextInode)) {
+    // otherwise store it for the first time
+    inc();
+  }
+
+  eos_static_info("next-inode=%08lx", mNextInode);
+}
+
+uint64_t InodeGenerator::inc() {
+  std::lock_guard<std::mutex> lock(mtx);
+  
+  if (0) {
+    //sync - works for eosxd shared REDIS backend
+    if (!store->inc(kInodeKey, mNextInode)) {
+      return mNextInode;
+    }
+    else {
+      throw std::runtime_error("REDIS backend failure - nextinode");
+    }
+  }
+  else {
+    //async - works for eosxd exclusive REDIS backend
+    uint64_t s_inode = mNextInode + 1;
+    store->put(kInodeKey, s_inode);
+    return mNextInode++;
+  }
 }

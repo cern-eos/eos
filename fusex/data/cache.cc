@@ -26,6 +26,7 @@
 #include "diskcache.hh"
 #include "memorycache.hh"
 #include "journalcache.hh"
+#include "cachehandler.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
@@ -34,28 +35,30 @@
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-cachehandler::init(cachehandler::cacheconfig& _config)
+cachehandler::init(cacheconfig & _config)
 /* -------------------------------------------------------------------------- */
 {
   config = _config;
 
-  if (config.type == cachehandler::cache_t::INVALID) {
+  if (config.type == cache_t::INVALID)
     return EINVAL;
   }
 
-  if (config.type == cachehandler::cache_t::DISK) {
-    if (diskcache::init()) {
-      fprintf(stderr,
-              "error: cache directory %s or %s cannot be initialized - check existance/permissions!\n",
+  if (config.type == cache_t::DISK)
+  {
+    if (diskcache::init(config))
+    {
+
+      fprintf(stderr, "error: cache directory %s or %s cannot be initialized - check existance/permissions!\n",
               config.location.c_str(), config.journal.c_str());
       return EPERM;
     }
   }
-
-  if (config.journal.length()) {
-    if (journalcache::init()) {
-      fprintf(stderr,
-              "error: journal directory %s or %s cannot be initialized - check existance/permissions!\n",
+  if (config.journal.length())
+  {
+    if (journalcache::init(config))
+    {
+      fprintf(stderr, "error: journal directory %s or %s cannot be initialized - check existance/permissions!\n",
               config.location.c_str(), config.journal.c_str());
       return EPERM;
     }
@@ -72,24 +75,19 @@ cachehandler::init_daemonized()
 {
   int rc = 0;
 
-  if (config.type == cachehandler::cache_t::INVALID) {
+  if (config.type == cache_t::INVALID)
     return EINVAL;
   }
 
-  if (config.type == cachehandler::cache_t::DISK) {
-    rc = diskcache::init_daemonized();
-
-    if (rc) {
-      return rc;
-    }
-  }
-
-  if (config.journal.length()) {
-    rc = journalcache::init_daemonized();
-
-    if (rc) {
-      return rc;
-    }
+  if (config.type == cache_t::DISK)
+  {
+    rc = diskcache::init_daemonized(config);
+    if (rc) return rc;
+   }
+  if (config.journal.length())
+  {
+    rc = journalcache::init_daemonized(config);
+    if (rc ) return rc;
   }
 
   return 0;
@@ -101,10 +99,11 @@ void
 cachehandler::logconfig()
 {
   eos_static_warning("data-cache-type        := %s",
-                     (config.type == cachehandler::cache_t::MEMORY) ? "memory" :
+                     (config.type == cache_t::MEMORY) ? "memory" :
                      "disk");
 
-  if (config.type == cachehandler::cache_t::DISK) {
+  if (config.type == cache_t::DISK)
+  {
     eos_static_warning("data-cache-location  := %s",
                        config.location.c_str());
     std::string s;
@@ -151,16 +150,18 @@ cachehandler::logconfig()
 }
 
 /* -------------------------------------------------------------------------- */
-cache::shared_io
+shared_io
 /* -------------------------------------------------------------------------- */
 cachehandler::get(fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper mLock(instance());
 
-  if (!instance().count(ino)) {
-    cache::shared_io entry;
-    entry = std::make_shared<cache::io>(ino);
+  if (!instance().count(ino))
+  {
+    shared_io entry;
+
+    entry = std::make_shared<io>(ino);
 
     if (instance().inmemory()) {
       entry->set_file(new memorycache());

@@ -79,7 +79,13 @@ public:
         return heartbeat_;
       }
 
-      enum status_t {
+      eos::fusex::statistics& statistics()
+      {
+        return statistics_;
+      }
+
+      enum status_t
+      {
         PENDING, EVICTED, OFFLINE, VOLATILE, ONLINE
       };
 
@@ -104,6 +110,7 @@ public:
 
     private:
       eos::fusex::heartbeat heartbeat_;
+      eos::fusex::statistics statistics_;
       status_t mState;
 
       // inode, pid lock map
@@ -375,6 +382,7 @@ public:
       {
         eos::common::Timing::GetTimeSpec(ftime);
         ftime.tv_sec += cFlushWindow;
+	ftime.tv_nsec = 0;
         nref = 0;
       }
 

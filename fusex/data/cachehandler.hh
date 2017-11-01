@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file main.cc
-//! @author Andreas-Joachim Peters
-//! @brief EOS C++ Fuse eosd executable
+//! @file cachehandler.hh
+//! @author Andreas-Joachim Peters CERN
+//! @brief cachehandler class
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,11 +21,61 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#include "eosfuse.hh"
 
-int
-main(int argc, char* argv[])
+#ifndef FUSE_CACHEHANDLER_HH_
+#define FUSE_CACHEHANDLER_HH_
+
+#include "cache.hh"
+#include "io.hh"
+#include "cacheconfig.hh"
+
+class cachehandler : public std::map<fuse_ino_t, shared_io>, public XrdSysMutex
 {
-  EosFuse& eosfuse = EosFuse::instance();
-  return eosfuse.run(argc, argv, NULL);
-}
+public:
+
+  cachehandler()
+  {
+  }
+
+  virtual ~cachehandler()
+  {
+  };
+
+  // static member functions
+
+  static cachehandler&
+  instance()
+  {
+
+    static cachehandler i;
+    return i;
+  }
+
+  static shared_io get(fuse_ino_t ino);
+
+  static int rm(fuse_ino_t ino);
+
+  int init(cacheconfig &config); // called before becoming a daemon
+
+  int init_daemonized(); // called after becoming a daemon
+
+  void logconfig();
+
+  bool inmemory()
+  {
+
+    return (config.type == cache_t::MEMORY);
+  }
+
+  bool journaled()
+  {
+
+    return (config.journal.length());
+  }
+
+private:
+
+  cacheconfig config;
+} ;
+
+#endif

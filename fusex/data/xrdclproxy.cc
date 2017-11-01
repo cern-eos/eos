@@ -87,12 +87,13 @@ XrdCl::Proxy::Read( uint64_t  offset,
         off_t match_offset;
         uint32_t match_size;
 
+        XrdSysCondVarHelper lLock(it->second->ReadCondVar());
+
         eos_debug("----: eval offset=%lu chunk-offset=%lu", offset, it->second->offset());
         if (it->second->matches(current_offset, current_size, match_offset, match_size))
         {
           readahead_window_hit++;
 
-          XrdSysCondVarHelper lLock(it->second->ReadCondVar());
           while ( !it->second->done() )
             it->second->ReadCondVar().WaitMS(25);
 

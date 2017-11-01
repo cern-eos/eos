@@ -26,6 +26,7 @@
 #define FUSE_EOSFUSE_HH_
 
 #include "misc/MacOSXHelper.hh"
+#include "misc/AssistedThread.hh"
 #include "stat/Stat.hh"
 #include "md/md.hh"
 #include "cap/cap.hh"
@@ -186,6 +187,7 @@ public:
     std::string statfilepath;
     std::string mdcachehost;
     int mdcacheport;
+    std::string mdcachedir;
     std::string mqtargethost;
     std::string mqidentity;
     std::string mqname;
@@ -270,7 +272,12 @@ public:
     XrdSysMutex items_lock;
   } opendir_t ;
 
-  void getHbStat(eos::fusex::statistics&); 
+  void getHbStat(eos::fusex::statistics&);
+
+  kv* getKV() {
+    return mKV.get();
+  }
+
 protected:
 
 private:
@@ -279,7 +286,7 @@ private:
 
   cfg_t config;
 
-  RedisKV mKV;
+  std::unique_ptr<kv> mKV;
   Stat fusestat;
 
   Stat& getFuseStat()
@@ -298,14 +305,14 @@ private:
   struct fuse_session* fusesession;
   struct fuse_chan* fusechan;
 
-  std::thread tDumpStatistic;
-  std::thread tStatCirculate;
-  std::thread tMetaCacheFlush;
-  std::thread tMetaCommunicate;
-  std::thread tCapFlush;
+  AssistedThread tDumpStatistic;
+  AssistedThread tStatCirculate;
+  AssistedThread tMetaCacheFlush;
+  AssistedThread tMetaCommunicate;
+  AssistedThread tCapFlush;
 
-  static void DumpStatistic();
-  static void StatCirculate();
+  void DumpStatistic(ThreadAssistant &assistant);
+  void StatCirculate(ThreadAssistant &assistant);
 } ;
 
 #endif /* FUSE_EOSFUSE_HH_ */

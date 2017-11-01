@@ -24,7 +24,6 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CPPUNIT_INCLUDE_DIRS}
 
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -41,16 +40,7 @@ include_directories(
   ${LIBEVENT_INCLUDE_DIRS}
 )
 
-
-link_directories( ${CPPUNIT_LIBRARY} )
-
-add_executable(eos-fusex-tests
-  RocksKVTest.cc
-)
-
-target_link_libraries(
-  eos-fusex-tests
-  eosxd-test
+set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   gtest_main
   ${GTEST_LIBRARIES}
   ${FUSE_LIBRARY}
@@ -64,58 +54,48 @@ target_link_libraries(
   ${JSONCPP_LIBRARIES}
   ${HIREDIS_LIBRARIES}
   ${LIBEVENT_LIBRARIES}
+  ${BACKWARD_LIBRARIES}
+  ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
   eosCommonServer eosCommon
-  ${CPPUNIT_LIBRARIES} )
+)
+
+set(COMPILE_FLAGS_FOR_TEST_EXECUTABLES "${EOSXD_COMPILE_FLAGS} -fPIC")
+
+add_executable(eos-fusex-tests
+  auth/credential-finder.cc
+  auth/environment-reader.cc
+
+  ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
+  interval-tree.cc
+  journal-cache.cc
+  rb-tree.cc
+  ${BACKWARD_ENABLE}
+  ${EOSXD_COMMON_SOURCES}
+)
+
+target_link_libraries(
+  eos-fusex-tests
+  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
+)
 
 set_target_properties(
   eos-fusex-tests
   PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+  COMPILE_FLAGS ${COMPILE_FLAGS_FOR_TEST_EXECUTABLES}
+)
 
-
-add_library(
-  EosFuseXTests SHARED
-  RBTreeTest.cc
-  IntervalTreeTest.cc
-  JournalCacheTest.cc
-  XrdClProxyTest.cc
+add_executable(eos-fusex-stress-tests
+  stress/xrdcl-proxy.cc
+  ${BACKWARD_ENABLE}
 )
 
 target_link_libraries(
-  EosFuseXTests
-  eosxd-test
-  ${FUSE_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${KRB5_LIBRARIES}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${PROTOBUF_LIBRARY}
-  ${JSONCPP_LIBRARIES}
-  ${HIREDIS_LIBRARIES}
-  ${LIBEVENT_LIBRARIES}
-  eosCommonServer eosCommon
-  ${CPPUNIT_LIBRARIES} )
-
-if (Linux)
-  set_target_properties(
-    EosFuseXTests
-    PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
-else (Linux)
-  set_target_properties(
-    EosFuseXTests
-    PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
-endif (Linux)
-
-
-
-add_executable(fusex-tester TextRunner.cc)
-target_link_libraries( fusex-tester EosFuseXTests dl eosCommonServer eosCommon)
+  eos-fusex-stress-tests
+  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
+)
 
 set_target_properties(
-  fusex-tester
+  eos-fusex-stress-tests
   PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
+  COMPILE_FLAGS ${COMPILE_FLAGS_FOR_TEST_EXECUTABLES}
+)

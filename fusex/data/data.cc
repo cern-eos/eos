@@ -204,7 +204,7 @@ data::datax::journalflush(fuse_req_t req)
 
   eos_info("syncing cache");
   cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(req)));
-  if (((journalcache*) mFile->journal())->remote_sync(cachesync))
+  if ((mFile->journal())->remote_sync(cachesync))
   {
     eos_err("async journal-cache-sync failed - ino=%08lx", id());
     return -1;
@@ -234,7 +234,7 @@ data::datax::journalflush(std::string cid)
   {
     eos_info("syncing cache");
     cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(cid)));
-    if (((journalcache*) mFile->journal())->remote_sync(cachesync))
+    if ((mFile->journal())->remote_sync(cachesync))
     {
       eos_err("async journal-cache-sync failed - ino=%08lx", id());
       return -1;
@@ -242,6 +242,21 @@ data::datax::journalflush(std::string cid)
   }
   eos_info("retc=0");
   return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+data::datax::set_id( uint64_t ino, fuse_req_t req)
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysMutexHelper mLock(Locker());
+  mIno = ino;
+  mReq = req;
+  mFile = cachehandler::get(ino);
+  char lid[64];
+  snprintf(lid, sizeof (lid), "logid:ino:%016lx", ino);
+  SetLogId(lid);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -357,10 +372,10 @@ data::datax::prefetch(fuse_req_t req, bool lock)
            mFile ? mFile->file() : 0,
            mFile ? mFile->file() ? mFile->file()->size() : 0 : 0,
            mMd->size());
-  
+
   if (lock)
     mLock.Lock();
-  
+
   if (!mPrefetchHandler && mFile->file() && !mFile->file()->size() && mMd->size())
   {
     XrdCl::Proxy* proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
@@ -381,7 +396,7 @@ data::datax::prefetch(fuse_req_t req, bool lock)
   }
   if (lock)
     mLock.UnLock();
-  
+
   return mPrefetchHandler ? true : false;
 }
 
@@ -394,7 +409,7 @@ data::datax::WaitPrefetch(fuse_req_t req, bool lock)
   eos_info("");
   if (lock)
     mLock.Lock();
- 
+
   if (mPrefetchHandler && mFile->file())
   {
     XrdCl::Proxy* proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
@@ -522,7 +537,7 @@ data::datax::pread(fuse_req_t req, void *buf, size_t count, off_t offset)
 
   if (mFile->journal())
   {
-    ssize_t jts = ((journalcache*) (mFile->journal()))->get_truncatesize();
+    ssize_t jts = ((mFile->journal()))->get_truncatesize();
 
 
     if (jts >= 0)
@@ -633,7 +648,7 @@ data::datax::pread(fuse_req_t req, void *buf, size_t count, off_t offset)
         jr = 0;
 
         // retrieve all journal chunks matching our range
-        chunks = ((journalcache*) (mFile->journal()))->get_chunks( offset + br + jr, count - br - jr );
+        chunks = ((mFile->journal()))->get_chunks( offset + br + jr, count - br - jr );
 
         for (auto it = chunks.begin(); it != chunks.end(); ++it)
         {
@@ -736,7 +751,13 @@ data::datax::pwrite(fuse_req_t req, const void *buf, size_t count, off_t offset)
       }
       dw = jw;
     }
-
+    else
+    {
+      if (mFile->xrdiorw(req)->IsOpening())
+      {
+        mFile->xrdiorw(req)->WaitOpen();
+      }
+    }
     if (!mFile->xrdiorw(req)->IsOpening())
     {
       // send an asynchronous upstream write
@@ -792,7 +813,7 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
 
   if (mFile->journal())
   {
-    ssize_t jts = ((journalcache*) (mFile->journal()))->get_truncatesize();
+    ssize_t jts = ((mFile->journal()))->get_truncatesize();
 
     if (jts >= 0)
     {
@@ -887,7 +908,7 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
         jr = 0;
 
         // retrieve all journal chunks matching our range
-        chunks = ((journalcache*) (mFile->journal()))->get_chunks( offset + br + jr, count - br - jr );
+        chunks = ((mFile->journal()))->get_chunks( offset + br + jr, count - br - jr );
 
         for (auto it = chunks.begin(); it != chunks.end(); ++it)
         {
@@ -1081,13 +1102,13 @@ data::datax::set_remote(const std::string& hostport,
                         const std::string& basename,
                         const uint64_t md_ino,
                         const uint64_t md_pino,
-                        fuse_req_t req, 
+                        fuse_req_t req,
 			bool isRW)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("");
   std::string remoteurl;
-  
+
   remoteurl = "root://";
   remoteurl += hostport;
   remoteurl += "//fusex-open";
@@ -1125,10 +1146,10 @@ data::datax::set_remote(const std::string& hostport,
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-data::dmap::ioflush()
+data::dmap::ioflush(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
-  while (1)
+  while (!assistant.terminationRequested())
   {
     {
       eos_static_debug("");
@@ -1167,7 +1188,7 @@ data::dmap::ioflush()
               {
                 if (fit->second->IsOpening() || fit->second->IsClosing())
                 {
-                  eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->state(), fit->second->IsClosed());
+                  eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->stateTS(), fit->second->IsClosed());
                   // skip files which are opening or closing
                   break;
                 }
@@ -1177,7 +1198,7 @@ data::dmap::ioflush()
                   // flush the journal
                   (*it)->journalflush(fit->first);
 
-                  fit->second->set_state(XrdCl::Proxy::WAITWRITE);
+                  fit->second->set_state_TS(XrdCl::Proxy::WAITWRITE);
                   eos_static_info("changing to write wait state");
                 }
 
@@ -1217,7 +1238,7 @@ data::dmap::ioflush()
 
                   }
 
-                  eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->state(), fit->second->IsClosed());
+                  eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->stateTS(), fit->second->IsClosed());
                   delete fit->second;
                   (*it)->file()->get_xrdiorw().erase(fit);
                   break;
@@ -1240,8 +1261,8 @@ data::dmap::ioflush()
           this->erase( (*it)->id() + 0xffffffff);
         }
       }
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
+
+      assistant.wait_for(std::chrono::seconds(1));
     }
   }
 }

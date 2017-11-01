@@ -22,6 +22,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "deps/backward-cpp/backward.hpp"
+
+#ifdef ROCKSDB_FOUND
+#include "kv/RocksKV.hh"
+#endif
+
 #include "eosfuse.hh"
 #include "misc/fusexrdlogin.hh"
 
@@ -63,6 +69,7 @@
 #include "md/md.hh"
 #include "kv/kv.hh"
 #include "data/cache.hh"
+#include "data/cachehandler.hh"
 
 #if ( FUSE_USE_VERSION > 28 )
 #include "EosFuseSessionLoop.hh"
@@ -154,7 +161,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     unsetenv("X509_USER_PROXY");
   }
 
-  cachehandler::cacheconfig cconfig;
+  cacheconfig cconfig;
 
   {
     // parse JSON configuration
@@ -196,6 +203,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
+    config.mdcachedir = root["mdcachedir"].asString();
+
     config.mqtargethost = root["mdzmqtarget"].asString();
     config.mqidentity = root["mdzmqidentity"].asString();
     config.mqname = config.mqidentity;
@@ -203,6 +212,28 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
+
+    // disallow mdcachedir if compiled without rocksdb support
+#ifndef ROCKSDB_FOUND
+    if(!config.mdcachedir.empty()) {
+      std::cerr << "Options mdcachedir is unavailable, fusex was compiled without rocksdb support." << std::endl;
+      exit(EINVAL);
+    }
+#endif
+
+    // disallow conflicting options
+    if(!config.mdcachedir.empty() && (config.mdcacheport != 0 || !config.mdcachehost.empty()) ) {
+      std::cerr << "Options (mdcachehost, mdcacheport) conflict with (mdcachedir) - only one type of mdcache is allowed." << std::endl;
+      exit(EINVAL);
+    }
+
+    if (config.mdcachedir.length())
+    {
+      // add the instance name to all cache directories
+      if (config.mdcachedir.rfind("/") != (config.mdcachedir.size()-1))
+	config.mdcachedir += "/";
+      config.mdcachedir += config.name.length()?config.name:"default";
+    }
 
     // default settings
     if (!config.statfilesuffix.length())
@@ -267,9 +298,9 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     fprintf(stderr, "# File descriptor limit: %lu soft, %lu hard\n", nofilelimit.rlim_cur, nofilelimit.rlim_max);
 
     // data caching configuration
-    cconfig.type = cachehandler::cache_t::INVALID;
+    cconfig.type = cache_t::INVALID;
 
-    if (!config.mdcachehost.length())
+    if (!config.mdcachehost.length() && !config.mdcachedir.length())
     {
       cconfig.clean_on_startup = true;
     }
@@ -280,11 +311,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
     if (root["cache"]["type"].asString() == "disk")
     {
-      cconfig.type = cachehandler::cache_t::DISK;
+      cconfig.type = cache_t::DISK;
     }
     else if (root["cache"]["type"].asString() == "memory")
     {
-      cconfig.type = cachehandler::cache_t::MEMORY;
+      cconfig.type = cache_t::MEMORY;
     }
     else
     {
@@ -293,6 +324,36 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
     cconfig.location = root["cache"]["location"].asString();
     cconfig.journal = root["cache"]["journal"].asString();
+
+    if (cconfig.location.length())
+    {
+      if (cconfig.location.rfind("/") != (cconfig.location.size()-1))
+	cconfig.location += "/";
+      cconfig.location += config.name.length()?config.name:"default";
+    }
+
+    if (cconfig.journal.length())
+    {
+      if (cconfig.journal.rfind("/") != (cconfig.journal.size()-1))
+	cconfig.journal += "/";
+      cconfig.journal += config.name.length()?config.name:"default";
+    }
+
+    // by default create all the specified cache paths
+    std::string mk_cachedir = "mkdir -p " + config.mdcachedir;
+    std::string mk_journaldir = "mkdir -p " + cconfig.journal;
+    std::string mk_locationdir = "mkdir -p " + cconfig.location;
+
+    if (config.mdcachedir.length())  system(mk_cachedir.c_str());
+    if (cconfig.journal.length())    system(mk_journaldir.c_str());
+    if (cconfig.location.length())   system(mk_locationdir.c_str());
+
+    // make the cache directories private to root
+    if (config.mdcachedir.length())  if ((chmod(config.mdcachedir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR))) { fprintf(stderr,"error: failed to make path=%s RWX for root - errno=%d", config.mdcachedir.c_str(), errno); exit (-1);}
+    if (cconfig.journal.length())    if ((chmod(cconfig.journal.c_str(),   S_IRUSR | S_IWUSR | S_IXUSR))){ fprintf(stderr,"error: failed to make path=%s RWX for root - errno=%d", cconfig.journal.c_str(), errno); exit (-1);}
+    if (cconfig.location.length())   if ((chmod(cconfig.location.c_str(),  S_IRUSR | S_IWUSR | S_IXUSR))) { fprintf(stderr,"error: failed to make path=%s RWX for root - errno=%d", cconfig.location.c_str(), errno); exit (-1);}
+
+
     cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64()*1024 * 1024;
     cconfig.total_file_journal_size = root["cache"]["journal-mb"].asUInt64()*1024 * 1024;
     cconfig.per_file_cache_max_size = root["cache"]["file-cache-max-kb"].asUInt64()*1024;
@@ -331,8 +392,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     if (mountpoint.length())
     {
       // sanity check of the mount directory
-      struct stat buf;
-      if ( stat( mountpoint.c_str(), &buf) )
+      if ( !::opendir(mountpoint.c_str() ))
       {
 	// check for a broken mount
 	if ( errno == ENOTCONN )
@@ -346,6 +406,18 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
     }
   }
+
+  std::string nodelay = getenv("XRD_NODELAY")?getenv("XRD_NODELAY"):"";
+  if (nodelay == "1")
+  {
+    fprintf(stderr,"# Running with XRD_NODELAY=1 (nagle algorithm is disabled)\n");
+  }
+  else
+  {
+    putenv((char*)"XRD_NODELAY=1");
+    fprintf(stderr,"# Disabling nagle algorithm (XRD_NODELAY=1)\n");
+  }
+
 
   int debug;
   if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1)
@@ -361,6 +433,13 @@ EosFuse::run(int argc, char* argv[], void *userdata)
   if (fuse_daemonize(config.options.foreground) != -1)
   {
     fusexrdlogin::initializeProcessCache(config.auth);
+
+    if (config.options.foreground)
+    {
+      if (nodelay != "1") {
+	fprintf(stderr,"# warning: nagle algorithm is still enabled (export XRD_NODELAY=1 before running in foreground)\n");
+      }
+    }
 
     FILE* fstderr;
     // Open log file
@@ -464,15 +543,32 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     }
 #endif
 
+    // initialize mKV in case no cache is configured to act as no-op
+    mKV.reset(new RedisKV());
+
+#ifdef ROCKSDB_FOUND
+    if(!config.mdcachedir.empty()) {
+      RocksKV *kv = new RocksKV();
+      if(kv->connect(config.name, config.mdcachedir) != 0) {
+        fprintf(stderr, "error: failed to open rocksdb KV cache - path=%s",
+                config.mdcachedir.c_str());
+        exit(EINVAL);
+      }
+      mKV.reset(kv);
+    }
+#endif
+
     if (config.mdcachehost.length())
     {
-      if (mKV.connect(config.mdcachehost, config.mdcacheport ?
-                      config.mdcacheport : 6379))
+      RedisKV *kv = new RedisKV();
+      if (kv->connect(config.name, config.mdcachehost, config.mdcacheport ?
+                      config.mdcacheport : 6379) != 0)
       {
         fprintf(stderr, "error: failed to connect to md cache - connect-string=%s",
                 config.mdcachehost.c_str());
         exit(EINVAL);
       }
+      mKV.reset(kv);
     }
 
     mdbackend.init(config.hostport, config.remotemountdir);
@@ -529,15 +625,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     fusestat.Add("symlink", 0, 0, 0);
     fusestat.Add(__SUM__TOTAL__, 0, 0, 0);
 
-    tDumpStatistic = std::thread(EosFuse::DumpStatistic);
-    //tDumpStatistic.detach();
-    tStatCirculate = std::thread(EosFuse::StatCirculate);
-    //tStatCirculate.detach();
-    tMetaCacheFlush = std::thread(&metad::mdcflush, &mds);
-    //tMetaCacheFlush.detach();
-    tMetaCommunicate = std::thread(&metad::mdcommunicate, &mds);
-    //tMetaCommunicate.detach();
-    tCapFlush = std::thread(&cap::capflush, &caps);
+    tDumpStatistic.reset(&EosFuse::DumpStatistic, this);
+    tStatCirculate.reset(&EosFuse::StatCirculate, this);
+    tMetaCacheFlush.reset(&metad::mdcflush, &mds);
+    tMetaCommunicate.reset(&metad::mdcommunicate, &mds);
+    tCapFlush.reset(&cap::capflush, &caps);
 
     eos_static_warning("********************************************************************************");
     eos_static_warning("eosdx started version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
@@ -599,32 +691,12 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("eosdx stopped version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
     eos_static_warning("********************************************************************************");
 
-#if ( __GNUC_MINOR__ == 8 ) && ( __GNUC_PATCHLEVEL__ == 2 )
-    {
-      fuse_unmount(local_mount_dir, fusechan);
-      pthread_kill(tDumpStatistic.native_handle(), 9);
-      pthread_kill(tStatCirculate.native_handle(), 9);
-      pthread_kill(tMetaCacheFlush.native_handle(), 9);
-      pthread_kill(tMetaCommunicate.native_handle(), 9);
-      pthread_kill(tCapFlush.native_handle(), 9);
-    }
-#else
-    {
-      // C++11 is poor for threading
-      pthread_cancel(tDumpStatistic.native_handle());
-      pthread_cancel(tStatCirculate.native_handle());
-      pthread_cancel(tMetaCacheFlush.native_handle());
-      pthread_cancel(tMetaCommunicate.native_handle());
-      pthread_cancel(tCapFlush.native_handle());
+    tDumpStatistic.join();
+    tStatCirculate.join();
+    tMetaCacheFlush.join();
+    tMetaCommunicate.join();
+    tCapFlush.join();
 
-      tDumpStatistic.join();
-      tStatCirculate.join();
-      tMetaCacheFlush.join();
-      tMetaCommunicate.join();
-      tCapFlush.join();
-    }
-#endif
-    mds.terminate();
     fuse_unmount(local_mount_dir, fusechan);
   }
   else
@@ -636,12 +708,57 @@ EosFuse::run(int argc, char* argv[], void *userdata)
   return err ? 1 : 0;
 }
 
+// We have a mess with signals here, that I don't know how to fix. If I enable
+// the backward signal handler (backward::SignalHandling), it seems to override
+// our own.
+//
+// Quick solution for now: copy parts of backward::SignalHandling::sig_handler
+// and run it manually from our code.
+//
+// Copied from backward.hpp
+static void stacktraceInSignal(int, siginfo_t* info, void* _ctx) {
+		ucontext_t *uctx = (ucontext_t*) _ctx;
+
+		backward::StackTrace st;
+		void* error_addr = 0;
+#ifdef REG_RIP // x86_64
+		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.gregs[REG_RIP]);
+#elif defined(REG_EIP) // x86_32
+		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.gregs[REG_EIP]);
+#elif defined(__arm__)
+		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.arm_pc);
+#elif defined(__aarch64__)
+		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.pc);
+#elif defined(__ppc__) || defined(__powerpc) || defined(__powerpc__) || defined(__POWERPC__)
+		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.regs->nip);
+#else
+#	warning ":/ sorry, ain't know no nothing none not of your architecture!"
+#endif
+		if (error_addr) {
+			st.load_from(error_addr, 32);
+		} else {
+			st.load_here(32);
+		}
+
+		backward::Printer printer;
+		printer.address = true;
+		printer.print(st, stderr);
+
+#if _XOPEN_SOURCE >= 700 || _POSIX_C_SOURCE >= 200809L
+		psiginfo(info, 0);
+#endif
+}
+
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-EosFuse::umounthandler(int sig, siginfo_t *si, void *unused)
+EosFuse::umounthandler(int sig, siginfo_t *si, void *ctx)
 /* -------------------------------------------------------------------------- */
 {
+  stacktraceInSignal(sig, si, ctx);
+  // TODO(gbitzes): replace with backward::SignalHandling::handleSignal
+  // if my pull request is merged
+
   eos_static_warning("sighandler received signal %d - emitting signal 2", sig);
   signal(SIGSEGV, SIG_DFL);
   kill (getpid(), 2);
@@ -671,6 +788,9 @@ EosFuse::init(void *userdata, struct fuse_conn_info *conn)
     snprintf(msg, sizeof (msg), "failed to install SEGV handler");
     throw std::runtime_error(msg);
   }
+
+  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_BIG_WRITES ;
+  conn->capable |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_BIG_WRITES ;
 }
 
 void
@@ -682,15 +802,14 @@ EosFuse::destroy(void *userdata)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-EosFuse::DumpStatistic()
+EosFuse::DumpStatistic(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("started statistic dump thread");
-  XrdSysTimer sleeper;
   char ino_stat[16384];
   time_t start_time = time(NULL);
 
-  while (1)
+  while (!assistant.terminationRequested())
   {
     eos::common::LinuxMemConsumption::linux_mem_t mem;
     eos::common::LinuxStat::linux_stat_t osstat;
@@ -708,7 +827,7 @@ EosFuse::DumpStatistic()
 
     eos_static_debug("dumping statistics");
     XrdOucString out;
-    EosFuse::Instance().getFuseStat().PrintOutTotal(out);
+    fusestat.PrintOutTotal(out);
     std::string sout = out.c_str();
 
     time_t now = time(NULL);
@@ -721,11 +840,11 @@ EosFuse::DumpStatistic()
              "ALL        inodes-ever         := %lu\n"
              "ALL        inodes-ever-deleted := %lu\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
-             EosFuse::Instance().getMdStat().inodes(),
-             EosFuse::Instance().getMdStat().inodes_deleted(),
-             EosFuse::Instance().getMdStat().inodes_backlog(),
-             EosFuse::Instance().getMdStat().inodes_ever(),
-             EosFuse::Instance().getMdStat().inodes_deleted_ever());
+             this->getMdStat().inodes(),
+             this->getMdStat().inodes_deleted(),
+             this->getMdStat().inodes_backlog(),
+             this->getMdStat().inodes_ever(),
+             this->getMdStat().inodes_deleted_ever());
 
     sout += ino_stat;
 
@@ -756,18 +875,19 @@ EosFuse::DumpStatistic()
 
     std::ofstream dumpfile(EosFuse::Instance().config.statfilepath);
     dumpfile << sout;
-    sleeper.Snooze(1);
+
+    assistant.wait_for(std::chrono::seconds(1));
   }
 }
 
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-EosFuse::StatCirculate()
+EosFuse::StatCirculate(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("started stat circulate thread");
-  Stat::Instance().Circulate();
+  fusestat.Circulate(assistant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1456,9 +1576,20 @@ EBADF  Invalid directory stream descriptor fi->fh
       }
     }
 
+    off_t i_offset=2;
+
     // add regular children
     for ( ; it != pmd_children.end(); ++it)
     {
+      if (off > i_offset)
+      {
+	i_offset++;
+	continue;
+      }
+      else
+      {
+	i_offset++;
+      }
       // skip entries we have shown already
       if (md->readdir_items.count(it->first))
 	continue;
@@ -1502,7 +1633,7 @@ EBADF  Invalid directory stream descriptor fi->fh
     if (b_size)
       fuse_reply_buf (req, b, b_size);
     else
-      fuse_reply_err (req, 0);
+      fuse_reply_buf (req, b,0);
 
     eos_static_debug("size=%lu off=%llu reply-size=%lu", size, off, b_size);
   }
@@ -1713,6 +1844,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         md->set_uid(pcap->uid());
         md->set_gid(pcap->gid());
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
+	md->set_creator(true);
 
         std::string imply_authid = eos::common::StringConversion::random_uuidstring();
         eos_static_info("generating implied authid %s => %s", pcap->authid().c_str(), imply_authid.c_str());
@@ -2470,6 +2602,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         md->set_uid(pcap->uid());
         md->set_gid(pcap->gid());
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
+	md->set_creator(true);
 
         XrdSysMutexHelper mLockParent(pmd->Locker());
         pmd->set_mtime(ts.tv_sec);
@@ -2498,9 +2631,6 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
           if (fi)
           {
-            // -----------------------------------------------------------------------
-            // TODO: for the moment there is no kernel cache used until
-            // we add top-level management on it
             // -----------------------------------------------------------------------
             // FUSE caches the file for reads on the same filedescriptor in the buffer
             // cache, but the pages are released once this filedescriptor is released.
@@ -3221,7 +3351,6 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
 
   // the root user has a bypass to be able to change th fuse configuration in
   // realtime
-  if (fuse_req_ctx(req)->uid == 0)
   {
     static std::string s_debug = "system.eos.debug";
     static std::string s_dropcap = "system.eos.dropcap";
@@ -3230,42 +3359,49 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
     if (key.substr(0, s_debug.length()) == s_debug)
     {
       local_setxattr = true;
-      rc = EINVAL;
       // only root can do this configuration changes
 
+      if (fuse_req_ctx(req)->uid == 0)
+      {
+	rc = EINVAL;
 #ifdef EOSCITRINE
-      if (value == "notice")
-      {
-        eos::common::Logging::GetInstance().SetLogPriority(LOG_NOTICE);
-        rc = 0;
-      }
-      if (value == "info")
-      {
-        eos::common::Logging::GetInstance().SetLogPriority(LOG_INFO);
-        rc = 0;
-      }
-      if (value == "debug")
-      {
-        eos::common::Logging::GetInstance().SetLogPriority(LOG_DEBUG);
-        rc = 0;
-      }
+	if (value == "notice")
+	{
+	  eos::common::Logging::GetInstance().SetLogPriority(LOG_NOTICE);
+	  rc = 0;
+	}
+	if (value == "info")
+	{
+	  eos::common::Logging::GetInstance().SetLogPriority(LOG_INFO);
+	  rc = 0;
+	}
+	if (value == "debug")
+	{
+	  eos::common::Logging::GetInstance().SetLogPriority(LOG_DEBUG);
+	  rc = 0;
+	}
 #else
-      if (value == "notice")
-      {
-        eos::common::Logging::SetLogPriority(LOG_NOTICE);
-        rc = 0;
-      }
-      if (value == "info")
-      {
-        eos::common::Logging::SetLogPriority(LOG_INFO);
-        rc = 0;
-      }
-      if (value == "debug")
-      {
-        eos::common::Logging::SetLogPriority(LOG_DEBUG);
-        rc = 0;
-      }
+	if (value == "notice")
+	{
+	  eos::common::Logging::SetLogPriority(LOG_NOTICE);
+	  rc = 0;
+	}
+	if (value == "info")
+	{
+	  eos::common::Logging::SetLogPriority(LOG_INFO);
+	  rc = 0;
+	}
+	if (value == "debug")
+	{
+	  eos::common::Logging::SetLogPriority(LOG_DEBUG);
+	  rc = 0;
+	}
 #endif
+      }
+      else
+      {
+	rc = EPERM;
+      }
     }
 
     if (key.substr(0, s_dropcap.length()) == s_dropcap)
@@ -3281,7 +3417,14 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char *xattr_name,
     if (key.substr(0, s_dropallcap.length()) == s_dropallcap)
     {
       local_setxattr = true;
-      Instance().caps.reset();
+      if (fuse_req_ctx(req)->uid == 0)
+      {
+	Instance().caps.reset();
+      }
+      else
+      {
+	rc = EPERM;
+      }
     }
   }
 
@@ -3954,22 +4097,22 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
 {
   eos::common::LinuxMemConsumption::linux_mem_t mem;
   eos::common::LinuxStat::linux_stat_t osstat;
-  
+
   if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem))
   {
     eos_static_err("failed to get the MEM usage information");
   }
-  
+
   if (!eos::common::LinuxStat::GetStat(osstat))
   {
     eos_static_err("failed to get the OS usage information");
   }
 
-  hbs.set_inodes(EosFuse::Instance().getMdStat().inodes());
-  hbs.set_inodes_todelete(EosFuse::Instance().getMdStat().inodes_deleted());
-  hbs.set_inodes_backlog(EosFuse::Instance().getMdStat().inodes_backlog());
-  hbs.set_inodes_ever(EosFuse::Instance().getMdStat().inodes_ever());
-  hbs.set_inodes_ever_deleted(EosFuse::Instance().getMdStat().inodes_deleted_ever());
+  hbs.set_inodes(getMdStat().inodes());
+  hbs.set_inodes_todelete(getMdStat().inodes_deleted());
+  hbs.set_inodes_backlog(getMdStat().inodes_backlog());
+  hbs.set_inodes_ever(getMdStat().inodes_ever());
+  hbs.set_inodes_ever_deleted(getMdStat().inodes_deleted_ever());
   hbs.set_threads(osstat.threads);
   hbs.set_vsize_mb(osstat.vsize);
   hbs.set_rss_mb(osstat.rss);

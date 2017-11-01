@@ -28,8 +28,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 
-Stat* Stat::sStat = 0;
-
 /*----------------------------------------------------------------------------*/
 void
 Stat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long val)
@@ -553,8 +551,12 @@ Stat::GetExec(const char* tag, double& deviation)
     for (it = StatExec[tag].begin(); it != StatExec[tag].end(); it++) {
       deviation += pow((*it - avg), 2);
     }
+<<<<<<< HEAD
 
     deviation = sqrt(deviation / cnt ? cnt : 99999999);
+=======
+    deviation = sqrt(deviation / (cnt?cnt:99999999) );
+>>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
     return avg;
   }
 
@@ -689,9 +691,14 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       sprintf(aexec, "%3.05f", avg);
     } else {
       sprintf(aexec, "-NA-");
+<<<<<<< HEAD
     }
 
     if (sig) {
+=======
+
+    if (sig)
+>>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
       sprintf(aexecsig, "%3.05f", sig);
     } else {
       sprintf(aexecsig, "-NA-");
@@ -1172,12 +1179,24 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
 /*----------------------------------------------------------------------------*/
 void
+<<<<<<< HEAD
 Stat::Circulate()
 {
   // empty the circular buffer and extract some Mq statistic values
   while (1) {
     XrdSysTimer sleeper;
     sleeper.Wait(512);
+=======
+Stat::Circulate (ThreadAssistant &assistant)
+{
+  // empty the circular buffer and extract some Mq statistic values
+
+  while (true)
+  {
+    assistant.wait_for(std::chrono::seconds(512));
+    if(assistant.terminationRequested()) break;
+
+>>>>>>> 7e7a1b5df06932f07a89eb741ea8b35ac461e9ba
     // --------------------------------------------
     Mutex.Lock();
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg> >::iterator
@@ -1225,4 +1244,3 @@ Stat::Circulate()
     Mutex.UnLock();
   }
 }
-

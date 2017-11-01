@@ -30,10 +30,11 @@
 #include <fcntl.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
-#include "kv/kv.hh"
+#include "md/InodeGenerator.hh"
 #include "backend/backend.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
+#include "misc/AssistedThread.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 #include <map>
@@ -240,7 +241,7 @@ public:
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
-    md_op op;
+    std::atomic<md_op> op;
     std::atomic<int> lookup_cnt;
     std::atomic<int> cap_cnt;
     bool lock_remote;
@@ -253,62 +254,6 @@ public:
   typedef std::shared_ptr<mdx> shared_md;
 
   //----------------------------------------------------------------------------
-
-  class vnode_gen : public XrdSysMutex
-  //----------------------------------------------------------------------------
-  {
-  public:
-
-    static std::string cInodeKey;
-
-    vnode_gen()
-    {
-      mNextInode = 0;
-    }
-
-    virtual ~vnode_gen()
-    {
-    }
-
-    void init()
-    {
-      mNextInode=1;
-      // load the stored next indoe
-      if (kv::Instance().get(cInodeKey, mNextInode))
-      {
-        // otherwise store it for the first time
-        inc();
-      }
-      eos_static_info("next-inode=%08lx", mNextInode);
-    }
-
-    uint64_t inc()
-    {
-      XrdSysMutexHelper mLock(this);
-      if (0)
-      {
-        //sync - works for eosxd shared REDIS backend
-        if (!kv::Instance().inc(cInodeKey, mNextInode))
-        {
-          return mNextInode;
-        }
-        else
-        {
-          // throw an exception
-          throw std::runtime_error("REDIS backend failure - nextinode");
-        }
-      }
-      else
-      {
-        //async - works for eosxd exclusive REDIS backend
-        uint64_t s_inode = mNextInode + 1;
-        kv::Instance().put(cInodeKey, s_inode);
-        return mNextInode++;
-      }
-    }
-  private:
-    uint64_t mNextInode;
-  } ;
 
   //----------------------------------------------------------------------------
 
@@ -465,19 +410,9 @@ public:
 
   int statvfs(fuse_req_t req, struct statvfs* svfs);
 
-  bool should_terminate()
-  {
-    return mdterminate.load();
-  } // check if threads should terminate
+  void mdcflush(ThreadAssistant &assistant); // thread pushing into md cache
 
-  void terminate()
-  {
-    mdterminate.store(true, std::memory_order_seq_cst);
-  } // indicate to terminate
-
-  void mdcflush(); // thread pushing into md cache
-
-  void mdcommunicate(); // thread interacting with the MGM for meta data
+  void mdcommunicate(ThreadAssistant &assistant); // thread interacting with the MGM for meta data
 
   int connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname, std::string zmqclienthost, std::string zmqclientuuid);
 
@@ -688,7 +623,7 @@ private:
   vmap inomap;
   mdstat stat;
 
-  vnode_gen next_ino;
+  InodeGenerator next_ino;
 
   XrdSysCondVar mdflush;
 
@@ -705,8 +640,6 @@ private:
   std::string zmq_name;
   std::string zmq_clienthost;
   std::string zmq_clientuuid;
-
-  std::atomic<bool> mdterminate;
 
   backend* mdbackend;
 } ;

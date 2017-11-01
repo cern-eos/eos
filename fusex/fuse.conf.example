@@ -3,8 +3,7 @@
   "hostport" : "localhost:1094",
   "remotemountdir" : "/eos/",
   "localmountdir" : "/eos/",
-  "mdcachehost" : "",
-  "mdcacheport" : 6379,
+  "mdcachedir" : "/var/eos/fusex/"
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
   "options" : {
@@ -22,7 +21,7 @@
   "cache" : {
     "type" : "disk",
     "size-mb" : 1000,
-    "location" : "/var/tmp/eosxd-cache/"
-    "journal"  : "/var/tmp/eosxd-journal/"  
+    "location" : "/var/eos/fusex/"
+    "journal"  : "/var/tmp/fusex/"  
   }
 }]

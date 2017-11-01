@@ -35,6 +35,20 @@
 #endif
 
 /* -------------------------------------------------------------------------- */
+memorycache::memorycache(fuse_ino_t _ino) : ino(_ino)
+/* -------------------------------------------------------------------------- */
+{
+  return;
+}
+
+/* -------------------------------------------------------------------------- */
+memorycache::~memorycache()
+/* -------------------------------------------------------------------------- */
+{
+  return;
+}
+
+/* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
 memorycache::attach(fuse_req_t req, std::string& cookie, int flags)
@@ -77,22 +91,6 @@ memorycache::pwrite(const void* buf, size_t count, off_t offset)
   return (ssize_t) writeData(buf, offset, count);
 }
 
-ssize_t
-/* -------------------------------------------------------------------------- */
-memorycache::peek_read(char*& buf, size_t count, off_t offset)
-/* -------------------------------------------------------------------------- */
-{
-  return (ssize_t) peekData(buf, offset, count);
-}
-
-void
-/* -------------------------------------------------------------------------- */
-memorycache::release_read()
-/* -------------------------------------------------------------------------- */
-{
-  return releasePeek();
-}
-
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
@@ -122,7 +120,7 @@ memorycache::size()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-memorycache::set_attr(std::string& key, std::string& value)
+memorycache::set_attr(const std::string& key, const std::string& value)
 {
   XrdSysMutexHelper lLock(xattrmtx);
   xattr[key] = value;
@@ -132,12 +130,13 @@ memorycache::set_attr(std::string& key, std::string& value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-memorycache::attr(std::string key, std::string& value)
+memorycache::attr(const std::string &key, std::string& value)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper lLock(xattrmtx);
 
-  if (xattr.count(key)) {
+  if (xattr.count(key))
+  {
     value = xattr[key];
     return 0;
   }

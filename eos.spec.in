@@ -70,6 +70,12 @@ BuildRequires: e2fsprogs-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 %endif
 
+BuildRequires: bzip2-devel
+Requires: bzip2-devel
+
+BuildRequires: elfutils-devel
+Requires: elfutils-devel
+
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
 BuildRequires: libcurl-devel libcurl, sparsehash-devel
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)

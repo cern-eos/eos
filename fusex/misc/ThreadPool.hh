@@ -65,45 +65,43 @@ public:
       }
     }
 
-    threads.clear();
-    busy = 0;
-    idle = 0;
-  }
+  private:
 
-private:
+    void Run() {
+      pthread_setcanceltype( PTHREAD_CANCEL_DEFERRED, 0 );
 
-  static void* Run(void* arg)
-  {
-    ThreadPool* me = reinterpret_cast<ThreadPool*>(arg);
-    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, 0);
-
-    while (me->active) {
-      Task* t = 0; // get next task
-
-      if (!me->tasks.Get(t)) {  // there was a timeout (5 minutes by default)
-        // we use conditional locking in order to avoid deadlocks while stopping
-        if (!me->mutex.CondLock()) {
-          continue;
+      while( active )
+      {
+        Task *t = 0; // get next task
+        if( !tasks.Get( t ) ) // there was a timeout (5 minutes by default)
+        {
+          // we use conditional locking in order to avoid deadlocks while stopping
+          if( !mutex.CondLock() ) continue;
+          // if the number of active threads is at
+          // the minimum there's nothing to do
+          if( idle + busy  <= min ) continue;
+          // otherwise remove the thread from the thread pool
+          Remove( pthread_self() );
+          mutex.UnLock();
+          return 0;
         }
-
-        // if the number of active threads is at
-        // the minimum there's nothing to do
-        if (me->idle + me->busy  <= me->min) {
-          continue;
-        }
-
-        // otherwise remove the thread from the thread pool
-        me->Remove(pthread_self());
-        me->mutex.UnLock();
-        return 0;
+        pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, 0 );
+        Busy();       // the thread is busy
+        if( t ) t->Run(); // do the work
+        delete t;
+        Idle();       // the thread is idle again
+        pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
       }
 
       pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, 0);
       me->Busy();       // the thread is busy
-
-      if (t) {
-        t->Run();  // do the work
-      }
+    
+    void CreateThread()
+    {
+      pthread_t thread;
+      int rc = 0;
+      if( ( rc = pthread_create( &thread, 0, &ThreadPool::Run, this ) ) )
+        throw FuseException( rc );
 
       delete t;
       me->Idle();       // the thread is idle again

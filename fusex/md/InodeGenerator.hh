@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file main.cc
-//! @author Andreas-Joachim Peters
-//! @brief EOS C++ Fuse eosd executable
+//! @file InodeGenerator.hh
+//! @author Georgios Bitzes CERN
+//! @brief Inode generator class
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,11 +21,27 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#include "eosfuse.hh"
 
-int
-main(int argc, char* argv[])
-{
-  EosFuse& eosfuse = EosFuse::instance();
-  return eosfuse.run(argc, argv, NULL);
-}
+#ifndef FUSE_INODE_GENERATOR_HH_
+#define FUSE_INODE_GENERATOR_HH_
+
+#include <mutex>
+#include "kv/kv.hh"
+
+class InodeGenerator {
+public:
+  InodeGenerator() { }
+  virtual ~InodeGenerator() { }
+
+  void init(kv *store); // no ownership
+  uint64_t inc();
+
+private:
+  static std::string kInodeKey;
+  uint64_t mNextInode = 0;
+  kv *store = nullptr; // no ownership!
+
+  std::mutex mtx;
+};
+
+#endif

@@ -28,7 +28,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "data/cache.hh"
+#include "data/io.hh"
+#include "data/cachehandler.hh"
 #include "md/md.hh"
+#include "misc/AssistedThread.hh"
 #include "bufferll.hh"
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
@@ -70,16 +73,7 @@ public:
       return mLock;
     }
 
-    void set_id(uint64_t ino, fuse_req_t req)
-    {
-      XrdSysMutexHelper mLock(Locker());
-      mIno = ino;
-      mReq = req;
-      mFile = cachehandler::get(ino);
-      char lid[64];
-      snprintf(lid, sizeof(lid), "logid:ino:%016lx", ino);
-      SetLogId(lid);
-    }
+    void set_id( uint64_t ino, fuse_req_t req);
 
     uint64_t id() const
     {
@@ -91,7 +85,7 @@ public:
       return mReq;
     }
 
-    cache::shared_io file()
+    shared_io file()
     {
       return mFile;
     }
@@ -109,7 +103,7 @@ public:
                     const std::string& basename,
                     const uint64_t md_ino,
                     const uint64_t md_pino,
-                    fuse_req_t req, 
+                    fuse_req_t req,
 		    bool isRW);
 
     // IO bridge interface
@@ -158,7 +152,7 @@ public:
     XrdSysMutex mLock;
     uint64_t mIno;
     fuse_req_t mReq;
-    cache::shared_io mFile;
+    shared_io mFile;
     off_t mSize;
     std::string mRemoteUrlRW;
     std::string mRemoteUrlRO;
@@ -269,19 +263,17 @@ public:
 
     virtual ~dmap()
     {
-      pthread_cancel(tIOFlush.native_handle());
-      tIOFlush.join();
     }
-    
+
     void run()
     {
-      tIOFlush = std::thread(&dmap::ioflush, this);
+      tIOFlush.reset(&dmap::ioflush, this);
     }
 
-    void ioflush(); // thread for delayed asynchronous close
+    void ioflush(ThreadAssistant &assistant); // thread for delayed asynchronous close
 
   private:
-    std::thread tIOFlush;
+    AssistedThread tIOFlush;
   } ;
 
   data();
@@ -306,4 +298,5 @@ public:
 private:
   dmap datamap;
 } ;
+
 #endif /* FUSE_DATA_HH_ */

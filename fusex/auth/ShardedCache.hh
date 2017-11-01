@@ -26,8 +26,10 @@
 
 #include "Utils.hh"
 #include "common/RWMutex.hh"
+#include "misc/AssistedThread.hh"
 #include <memory>
 #include <vector>
+#include <mutex>
 #include <map>
 
 using Milliseconds = int64_t;
@@ -67,16 +69,11 @@ private:
   class ShardGuard
   {
   public:
-    ShardGuard(ShardedCache* cache, const Key& key, bool write_) : write(write_)
-    {
+    ShardGuard(ShardedCache *cache, const Key &key) {
       shardId = cache->calculateShard(key);
       mtx = &cache->mutexes[shardId];
 
-      if (write) {
-        mtx->LockWrite();
-      } else {
-        mtx->LockRead();
-      }
+      mtx->lock();
     }
 
     int64_t getShard() const
@@ -84,65 +81,30 @@ private:
       return shardId;
     }
 
-    ~ShardGuard()
-    {
-      if (write) {
-        mtx->UnLockWrite();
-      } else {
-        mtx->UnLockRead();
-      }
+    ~ShardGuard() {
+      mtx->unlock();
     }
   private:
-    eos::common::RWMutex* mtx;
-    bool write;
+    std::mutex *mtx;
     int64_t shardId;
   };
 
-  // Bounce function for XrdSysThread
-  static void* bounce(void* obj)
-  {
-    ShardedCache<Key, Value, Hash>* cache =
-      static_cast<ShardedCache<Key, Value, Hash>*>(obj);
-    cache->garbageCollector();
-    return obj;
-  }
-
-  int64_t calculateShard(const Key& key)
-  {
+  int64_t calculateShard(const Key &key) {
     return Hash::hash(key) >> shardBits;
   }
 
 public:
   // TTL is approximate. An element can stay while unused from [ttl, 2*ttl]
-  ShardedCache(size_t shardBits_, Milliseconds ttl_) : shardBits(shardBits_),
-    ttl(ttl_)
-  {
-    shards = pow(2, shardBits);
-    mutexes.resize(shards);
-    contents.resize(shards);
-
-    for (size_t i = 0; i < mutexes.size(); i++) {
-      mutexes[i].SetBlocking(true);
-    }
-
-    if ((XrdSysThread::Run(&cleanupThread, &ShardedCache<Key, Value, Hash>::bounce,
-                           static_cast<void*>(this), XRDSYSTHREAD_HOLD, "Garbage Collector Thread"))) {
-      THROW("could not start garbage collector thread");
-    }
+  ShardedCache(size_t shardBits_, Milliseconds ttl_)
+  : shardBits(shardBits_), shards(pow(2, shardBits)), ttl(ttl_), mutexes(shards), contents(shards) {
+    cleanupThread.reset(&ShardedCache<Key, Value, Hash>::garbageCollector, this);
   }
 
-  ~ShardedCache()
-  {
-    XrdSysThread::Cancel(cleanupThread);
-    XrdSysThread::Join(cleanupThread, NULL);
-  }
+  ~ShardedCache() { }
 
   // Retrieves an item from the cache. If there isn't any, return a null shared_ptr.
-  std::shared_ptr<Value> retrieve(const Key& key)
-  {
-    ShardGuard guard(this, key, false);
-    typename std::map<Key, CacheEntry>::iterator it =
-      contents[guard.getShard()].find(key);
+  std::shared_ptr<Value> retrieve(const Key& key) {
+    ShardGuard guard(this, key);
 
     if (it == contents[guard.getShard()].end()) {
       return std::shared_ptr<Value>();
@@ -161,7 +123,7 @@ public:
     CacheEntry entry;
     entry.marked = false;
     entry.value = std::shared_ptr<Value>(value);
-    ShardGuard guard(this, key, true);
+    ShardGuard guard(this, key);
 
     if (replace) {
       contents[guard.getShard()][key] = entry;
@@ -176,23 +138,16 @@ public:
 
   // Removes an element from the cache. Return value is whether the key existed.
   // If you want to replace an entry, just call store with replace set to false.
-  bool invalidate(const Key& key)
-  {
-    ShardGuard guard(this, key, true);
-    typename std::map<Key, CacheEntry>::iterator it =
-      contents[guard.getShard()].find(key);
-
-    if (it == contents[guard.getShard()].end()) {
-      return false;
-    }
+  bool invalidate(const Key& key) {
+    ShardGuard guard(this, key);
 
     contents[guard.getShard()].erase(it);
     return true;
   }
 
 private:
-  size_t shards;
   size_t shardBits;
+  size_t shards;
   Milliseconds ttl;
 
   struct CacheEntry {
@@ -200,17 +155,17 @@ private:
     bool marked;
   };
 
-  std::vector<eos::common::RWMutex> mutexes;
+  std::vector<std::mutex> mutexes;
   std::vector<std::map<Key, CacheEntry>> contents;
 
-  pthread_t cleanupThread;
+  AssistedThread cleanupThread;
 
   // Sweep through all entries in all shards to either mark them as unused or
   // remove them
-  void collectorPass()
-  {
-    for (size_t i = 0; i < shards; i++) {
-      eos::common::RWMutexWriteLock lock(mutexes[i]);
+  void collectorPass() {
+    for(size_t i = 0; i < shards; i++) {
+      std::lock_guard<std::mutex> lock(mutexes[i]);
+
       typename std::map<Key, CacheEntry>::iterator iterator;
 
       for (iterator = contents[i].begin();
@@ -229,14 +184,11 @@ private:
     }
   }
 
-  void garbageCollector()
-  {
-    XrdSysTimer sleeper;
+  void garbageCollector(ThreadAssistant &assistant) {
+    while(!assistant.terminationRequested()) {
+      assistant.wait_for(std::chrono::milliseconds(ttl));
+      if(assistant.terminationRequested()) return;
 
-    while (true) {
-      XrdSysThread::SetCancelOn();
-      sleeper.Wait(ttl);
-      XrdSysThread::SetCancelOff();
       collectorPass();
     }
   }

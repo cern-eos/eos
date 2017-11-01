@@ -29,8 +29,9 @@
 #include <sys/types.h>
 #include "llfusexx.hh"
 #include "bufferll.hh"
-#include "cache.hh"
-#include "dircleaner.hh"
+#include "data/cache.hh"
+#include "data/dircleaner.hh"
+#include "data/cacheconfig.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <map>
 #include <string>
@@ -38,44 +39,35 @@
 class diskcache : public cache, XrdSysMutex
 {
 public:
-  diskcache();
   diskcache(fuse_ino_t _ino);
-
   virtual ~diskcache();
 
   // base class interface
-  virtual int attach(fuse_req_t req, std::string& cookie, int flags);
-  virtual int detach(std::string& cookie);
-  virtual int unlink();
+  virtual int attach(fuse_req_t req, std::string& cookie, int flags) override;
+  virtual int detach(std::string& cookie) override;
+  virtual int unlink() override;
 
-  virtual ssize_t pread(void* buf, size_t count, off_t offset);
-  virtual ssize_t peek_read(char*& buf, size_t count, off_t offset);
-  virtual void release_read();
+  virtual ssize_t pread(void *buf, size_t count, off_t offset) override;
+  virtual ssize_t pwrite(const void *buf, size_t count, off_t offset) override;
 
-  virtual ssize_t pwrite(const void* buf, size_t count, off_t offset);
+  virtual int truncate(off_t) override;
+  virtual int sync() override;
 
-  virtual int truncate(off_t);
-  virtual int sync();
+  virtual size_t size() override;
 
-  virtual size_t size();
+  virtual int set_attr(const std::string& key, const std::string& value) override;
+  virtual int attr(const std::string &key, std::string& value) override;
 
-  virtual int set_attr(std::string& key, std::string& value);
-  virtual int attr(std::string key, std::string& value);
+  static int init(const cacheconfig &config);
+  static int init_daemonized(const cacheconfig &config);
 
-  static int init();
-  static int init_daemonized();
+  virtual int rescue(std::string& location) override;
 
-  virtual int rescue(std::string& location);
+  virtual off_t prefetch_size() override { return sMaxSize; }
 
-  int location(std::string& path, bool mkpath = true);
-
-  virtual off_t prefetch_size()
-  {
-    return sMaxSize;
-  }
-
-  static off_t sMaxSize;
 private:
+  int location(std::string &path, bool mkpath=true);
+  static off_t sMaxSize;
 
   fuse_ino_t ino;
   size_t nattached;
