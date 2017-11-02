@@ -80,7 +80,7 @@ ssize_t
 /* -------------------------------------------------------------------------- */
 memorycache::pread(void *buf, size_t count, off_t offset)
 {
-  return (ssize_t) readData (buf, offset, count);
+  return (ssize_t) buffer.readData (buf, offset, count);
 }
 
 ssize_t
@@ -88,7 +88,7 @@ ssize_t
 memorycache::pwrite(const void *buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  return (ssize_t) writeData (buf, offset, count);
+  return (ssize_t) buffer.writeData (buf, offset, count);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -97,7 +97,7 @@ int
 memorycache::truncate(off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  truncateData(offset);
+  buffer.truncateData(offset);
   return 0;
 }
 
@@ -114,7 +114,7 @@ size_t
 /* -------------------------------------------------------------------------- */
 memorycache::size()
 {
-  return getSize();
+  return buffer.getSize();
 }
 
 /* -------------------------------------------------------------------------- */

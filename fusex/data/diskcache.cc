@@ -130,7 +130,7 @@ int
 diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper lLock(this);
+  XrdSysMutexHelper lLock(mMutex);
   int rc = 0;
   if (nattached == 0)
   {
@@ -190,7 +190,7 @@ int
 diskcache::detach(std::string & cookie)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper lLock(this);
+  XrdSysMutexHelper lLock(mMutex);
   nattached--;
   if (!nattached)
   {

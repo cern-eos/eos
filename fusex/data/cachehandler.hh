@@ -34,13 +34,8 @@ class cachehandler
 {
 public:
 
-  cachehandler()
-  {
-  }
-
-  virtual ~cachehandler()
-  {
-  };
+  cachehandler() {}
+  virtual ~cachehandler() {}
 
   // static member functions
 
@@ -56,9 +51,7 @@ public:
   int rm(fuse_ino_t ino);
 
   int init(cacheconfig &config); // called before becoming a daemon
-
   int init_daemonized(); // called after becoming a daemon
-
   void logconfig();
 
   bool inmemory()

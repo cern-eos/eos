@@ -36,7 +36,7 @@
 #include <map>
 #include <string>
 
-class diskcache : public cache, XrdSysMutex
+class diskcache : public cache
 {
 public:
   diskcache(fuse_ino_t _ino);
@@ -66,6 +66,7 @@ public:
   virtual off_t prefetch_size() override { return sMaxSize; }
 
 private:
+  XrdSysMutex mMutex;
   int location(std::string &path, bool mkpath=true);
   static off_t sMaxSize;
 

@@ -34,7 +34,7 @@
 #include <map>
 #include <string>
 
-class memorycache : public cache, bufferll
+class memorycache : public cache
 {
 public:
   memorycache(fuse_ino_t _ino);
@@ -57,6 +57,7 @@ public:
   virtual int attr(const std::string &key, std::string& value) override;
 
 private:
+  bufferll buffer;
   XrdSysMutex xattrmtx;
   std::map<std::string, std::string> xattr;
   fuse_ino_t ino;
