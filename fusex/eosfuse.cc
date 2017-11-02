@@ -708,57 +708,13 @@ EosFuse::run(int argc, char* argv[], void *userdata)
   return err ? 1 : 0;
 }
 
-// We have a mess with signals here, that I don't know how to fix. If I enable
-// the backward signal handler (backward::SignalHandling), it seems to override
-// our own.
-//
-// Quick solution for now: copy parts of backward::SignalHandling::sig_handler
-// and run it manually from our code.
-//
-// Copied from backward.hpp
-static void stacktraceInSignal(int, siginfo_t* info, void* _ctx) {
-		ucontext_t *uctx = (ucontext_t*) _ctx;
-
-		backward::StackTrace st;
-		void* error_addr = 0;
-#ifdef REG_RIP // x86_64
-		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.gregs[REG_RIP]);
-#elif defined(REG_EIP) // x86_32
-		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.gregs[REG_EIP]);
-#elif defined(__arm__)
-		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.arm_pc);
-#elif defined(__aarch64__)
-		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.pc);
-#elif defined(__ppc__) || defined(__powerpc) || defined(__powerpc__) || defined(__POWERPC__)
-		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.regs->nip);
-#else
-#	warning ":/ sorry, ain't know no nothing none not of your architecture!"
-#endif
-		if (error_addr) {
-			st.load_from(error_addr, 32);
-		} else {
-			st.load_here(32);
-		}
-
-		backward::Printer printer;
-		printer.address = true;
-		printer.print(st, stderr);
-
-#if _XOPEN_SOURCE >= 700 || _POSIX_C_SOURCE >= 200809L
-		psiginfo(info, 0);
-#endif
-}
-
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 EosFuse::umounthandler(int sig, siginfo_t *si, void *ctx)
 /* -------------------------------------------------------------------------- */
 {
-  stacktraceInSignal(sig, si, ctx);
-  // TODO(gbitzes): replace with backward::SignalHandling::handleSignal
-  // if my pull request is merged
-
+  backward::SignalHandling::handleSignal(sig, si, ctx);
   eos_static_warning("sighandler received signal %d - emitting signal 2", sig);
   signal(SIGSEGV, SIG_DFL);
   kill (getpid(), 2);
