@@ -28,8 +28,9 @@
 #include "cache.hh"
 #include "io.hh"
 #include "cacheconfig.hh"
+#include <mutex>
 
-class cachehandler : public std::map<fuse_ino_t, shared_io>, public XrdSysMutex
+class cachehandler
 {
 public:
 
@@ -51,9 +52,8 @@ public:
     return i;
   }
 
-  static shared_io get(fuse_ino_t ino);
-
-  static int rm(fuse_ino_t ino);
+  shared_io get(fuse_ino_t ino);
+  int rm(fuse_ino_t ino);
 
   int init(cacheconfig &config); // called before becoming a daemon
 
@@ -74,7 +74,8 @@ public:
   }
 
 private:
-
+  std::map<fuse_ino_t, shared_io> contents;
+  std::mutex mtx;
   cacheconfig config;
 } ;
 

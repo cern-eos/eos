@@ -163,36 +163,31 @@ shared_io
 cachehandler::get(fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(instance());
+  std::lock_guard<std::mutex> lock(mtx);
 
-  if (!instance().count(ino))
+  auto it = contents.find(ino);
+  if(it != contents.end()) {
+    return it->second;
+  }
+
+  shared_io entry = std::make_shared<io>(ino);
+
+  if (inmemory())
   {
-    shared_io entry;
-
-    entry = std::make_shared<io>(ino);
-
-    if (instance().inmemory())
-    {
-      entry->set_file ( new memorycache(ino) );
-    }
-    else
-    {
-      entry->set_file ( new diskcache (ino) );
-    }
-
-    if (instance().journaled())
-    {
-      entry->set_journal ( new journalcache(ino) );
-    }
-
-    (instance())[ino] =  entry;
-    return entry;
+    entry->set_file ( new memorycache(ino) );
   }
   else
   {
-
-    return (instance())[ino];
+    entry->set_file ( new diskcache (ino) );
   }
+
+  if (journaled())
+  {
+    entry->set_journal ( new journalcache(ino) );
+  }
+
+  contents[ino] = entry;
+  return entry;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -201,11 +196,11 @@ int
 cachehandler::rm(fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(instance());
+  std::lock_guard<std::mutex> lock(mtx);
 
-  if (instance().count(ino))
+  if (contents.count(ino))
   {
-    instance().erase(ino);
+    contents.erase(ino);
   }
   return 0;
 }

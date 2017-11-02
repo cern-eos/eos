@@ -253,7 +253,7 @@ data::datax::set_id( uint64_t ino, fuse_req_t req)
   XrdSysMutexHelper mLock(Locker());
   mIno = ino;
   mReq = req;
-  mFile = cachehandler::get(ino);
+  mFile = cachehandler::instance().get(ino);
   char lid[64];
   snprintf(lid, sizeof (lid), "logid:ino:%016lx", ino);
   SetLogId(lid);
@@ -519,7 +519,7 @@ data::datax::unlink(fuse_req_t req)
 {
 
   eos_info("");
-  cachehandler::rm(mIno);
+  cachehandler::instance().rm(mIno);
   int bcache = mFile->file() ? mFile->file()->unlink() : 0;
   int jcache = mFile->journal() ? mFile->journal()->unlink() : 0;
   return bcache | jcache;
@@ -1256,7 +1256,7 @@ data::dmap::ioflush(ThreadAssistant &assistant)
         {
           // here we make the data object unreachable for new clients
           (*it)->detach_nolock();
-          cachehandler::rm( (*it)->id());
+          cachehandler::instance().rm( (*it)->id());
           this->erase( (*it)->id());
           this->erase( (*it)->id() + 0xffffffff);
         }
