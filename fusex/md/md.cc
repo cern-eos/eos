@@ -2191,11 +2191,9 @@ metad::mdcommunicate(ThreadAssistant &assistant)
                 {
                   // MD update logic
                   {
-                    XrdSysMutexHelper mmLock(mdmap);
-                    if (ino && mdmap.count(ino))
+                    if (ino && mdmap.retrieveTS(ino, md))
                     {
                       // updated file MD
-                      md = mdmap[ino];
                       if (EOS_LOGS_DEBUG)
                         eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
                       md->Locker().Lock();
