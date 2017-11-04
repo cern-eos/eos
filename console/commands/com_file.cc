@@ -386,7 +386,7 @@ com_file(char* arg1)
 
     in += "&mgm.subcmd=";
     in += cmd;
-    in += "&mgm.path=";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
     in += "&mgm.grab.version=";
 
@@ -403,7 +403,7 @@ com_file(char* arg1)
     }
 
     in += "&mgm.subcmd=adjustreplica";
-    in += "&mgm.path=";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
 
     if (fsid1.length()) {
@@ -423,7 +423,7 @@ com_file(char* arg1)
     }
 
     in += "&mgm.subcmd=layout";
-    in += "&mgm.path=";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
 
     if ((fsid1 != "-stripes") && (fsid1 != "-checksum")) {
