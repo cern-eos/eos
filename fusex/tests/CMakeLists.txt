@@ -24,7 +24,6 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
-
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${XROOTD_INCLUDE_DIRS}
@@ -38,6 +37,8 @@ include_directories(
   ${HIREDIS_INCLUDE_DIR}
   ${ZMQ_INCLUDE_DIR}
   ${LIBEVENT_INCLUDE_DIRS}
+  "${gtest_SOURCE_DIR}/include"
+  "${gmock_SOURCE_DIR}/include"
 )
 
 set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
@@ -64,7 +65,6 @@ set(COMPILE_FLAGS_FOR_TEST_EXECUTABLES "${EOSXD_COMPILE_FLAGS} -fPIC")
 add_executable(eos-fusex-tests
   auth/credential-finder.cc
   auth/environment-reader.cc
-
   ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
   interval-tree.cc
   journal-cache.cc
@@ -78,6 +78,9 @@ target_link_libraries(
   ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
 )
 
+target_compile_definitions(eos-fusex-tests
+  PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
+
 set_target_properties(
   eos-fusex-tests
   PROPERTIES
@@ -86,6 +89,8 @@ set_target_properties(
 
 add_executable(eos-fusex-stress-tests
   stress/xrdcl-proxy.cc
+  ${CMAKE_SOURCE_DIR}/fusex/data/xrdclproxy.cc
+  ${CMAKE_SOURCE_DIR}/fusex/data/xrdclproxy.hh
   ${BACKWARD_ENABLE}
 )
 
@@ -93,6 +98,9 @@ target_link_libraries(
   eos-fusex-stress-tests
   ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
 )
+
+target_compile_definitions(eos-fusex-stress-tests
+  PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
 
 set_target_properties(
   eos-fusex-stress-tests

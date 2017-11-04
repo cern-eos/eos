@@ -21,15 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 #include "auth/LoginIdentifier.hh"
 
-TEST(LoginIdentifier, BasicSanity) {
+TEST(LoginIdentifier, BasicSanity)
+{
   ASSERT_EQ(LoginIdentifier(1).getStringID(), "AAAAAAAE");
   ASSERT_EQ(LoginIdentifier(2).getStringID(), "AAAAAAAI");
   ASSERT_EQ(LoginIdentifier(3).getStringID(), "AAAAAAAM");
-
   ASSERT_EQ(LoginIdentifier(1000, 1000, 178, 3).getStringID(), "*APoA-gM");
-
   ASSERT_EQ(LoginIdentifier(41).getStringID(), "AAAAAACk");
 }

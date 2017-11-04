@@ -21,66 +21,63 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 #include "auth/CredentialFinder.hh"
 
-TEST(Environment, BasicSanity) {
+TEST(Environment, BasicSanity)
+{
   Environment env;
-
-  std::string envStr = "KEY1=VALUE"; envStr.append(1, '\0');
-  envStr += "non-key value entry"; envStr.append(1, '\0');
-  envStr += "Key2=SomeValue"; envStr.append(1, '\0');
-  envStr += "KEY1=Duplicate"; envStr.append(1, '\0');
-
+  std::string envStr = "KEY1=VALUE";
+  envStr.append(1, '\0');
+  envStr += "non-key value entry";
+  envStr.append(1, '\0');
+  envStr += "Key2=SomeValue";
+  envStr.append(1, '\0');
+  envStr += "KEY1=Duplicate";
+  envStr.append(1, '\0');
   env.fromString(envStr);
-
   std::vector<std::string> expected = {"KEY1=VALUE", "non-key value entry", "Key2=SomeValue", "KEY1=Duplicate"};
   ASSERT_EQ(env.getAll(), expected);
-
   ASSERT_EQ(env.get("KEY1"), "VALUE");
   ASSERT_EQ(env.get("Key2"), "SomeValue");
-
   // now try reading from a file
   const std::string filename("/tmp/fuse-testfile");
-
-  FILE *out = fopen(filename.c_str(), "w");
+  FILE* out = fopen(filename.c_str(), "w");
   fwrite(envStr.c_str(), 1, envStr.size(), out);
   fclose(out);
-
   Environment env2;
   env2.fromFile(filename);
-
   ASSERT_EQ(env2.getAll(), expected);
   ASSERT_EQ(env2.get("KEY1"), "VALUE");
   ASSERT_EQ(env2.get("Key2"), "SomeValue");
 }
 
-TEST(TrustedCredentials, BasicSanity) {
+TEST(TrustedCredentials, BasicSanity)
+{
   TrustedCredentials emptycreds;
   ASSERT_TRUE(emptycreds.empty());
   ASSERT_EQ(emptycreds.toXrdParams(), "xrd.wantprot=unix");
-
   TrustedCredentials cred1;
   ASSERT_TRUE(cred1.empty());
   cred1.setKrb5("/tmp/some-file", 5, 6);
   ASSERT_FALSE(cred1.empty());
   ASSERT_THROW(cred1.setx509("/tmp/some-other-file", 1, 2), FatalException);
-  ASSERT_EQ(cred1.toXrdParams(), "xrd.k5ccname=/tmp/some-file&xrd.secgid=6&xrd.secuid=5&xrd.wantprot=krb5,unix");
+  ASSERT_EQ(cred1.toXrdParams(),
+            "xrd.k5ccname=/tmp/some-file&xrd.secgid=6&xrd.secuid=5&xrd.wantprot=krb5,unix");
   ASSERT_TRUE(cred1.access(5, -2));
   ASSERT_TRUE(cred1.access(-2, 6));
   ASSERT_FALSE(cred1.access(6, 5));
   ASSERT_FALSE(cred1.access(0, 0));
-
   TrustedCredentials cred2;
   cred2.setKrk5("keyring-name", 5, 6);
   ASSERT_FALSE(cred2.empty());
-  ASSERT_EQ(cred2.toXrdParams(), "xrd.k5ccname=keyring-name&xrd.secgid=6&xrd.secuid=5&xrd.wantprot=krb5,unix");
-
+  ASSERT_EQ(cred2.toXrdParams(),
+            "xrd.k5ccname=keyring-name&xrd.secgid=6&xrd.secuid=5&xrd.wantprot=krb5,unix");
   TrustedCredentials cred3;
   cred3.setx509("/tmp/some-file", 5, 6);
   ASSERT_FALSE(cred3.empty());
-  ASSERT_EQ(cred3.toXrdParams(), "xrd.gsiusrpxy=/tmp/some-file&xrd.secgid=6&xrd.secuid=5&xrd.wantprot=gsi,unix");
-
+  ASSERT_EQ(cred3.toXrdParams(),
+            "xrd.gsiusrpxy=/tmp/some-file&xrd.secgid=6&xrd.secuid=5&xrd.wantprot=gsi,unix");
   TrustedCredentials cred4;
   cred4.setx509("/tmp/some-evil&file=", 5, 6);
   ASSERT_FALSE(cred4.empty());
