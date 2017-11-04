@@ -344,9 +344,9 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
                  id_corrupted) == double_parity.end()) {
           if ((offset >= (offset_group + MapBigToSmall(id_corrupted) * mStripeWidth)) &&
               (offset < (offset_group + (MapBigToSmall(id_corrupted) + 1) * mStripeWidth))) {
-            chunk->buffer = static_cast<char*>(memcpy(chunk->buffer,
-                                               mDataBlocks[id_corrupted] + (offset % mStripeWidth),
-                                               chunk->length));
+            chunk->buffer = static_cast<char*>
+                            (memcpy(chunk->buffer, mDataBlocks[id_corrupted] + (offset % mStripeWidth),
+                                    chunk->length));
           }
         }
       }
@@ -403,9 +403,9 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
                    id_corrupted) == double_parity.end()) {
             if ((offset >= (offset_group + MapBigToSmall(id_corrupted) * mStripeWidth)) &&
                 (offset < (offset_group + (MapBigToSmall(id_corrupted) + 1) * mStripeWidth))) {
-              chunk->buffer = static_cast<char*>(memcpy(chunk->buffer,
-                                                 mDataBlocks[id_corrupted] + (offset % mStripeWidth),
-                                                 chunk->length));
+              chunk->buffer = static_cast<char*>
+                              (memcpy(chunk->buffer, mDataBlocks[id_corrupted] + (offset % mStripeWidth),
+                                      chunk->length));
             }
           }
         }

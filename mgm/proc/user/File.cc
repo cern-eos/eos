@@ -1018,16 +1018,15 @@ ProcCommand::File()
           }
 
           if (!space.length()) {
-            // -------------------------------------------------------------------
-            // retrieve the target space from the layout settings
-            // -------------------------------------------------------------------
+            // Get target space from the layout settings
             eos::common::Path cPath(spath.c_str());
             eos::IContainerMD::XAttrMap map;
             int rc = gOFS->_attr_ls(cPath.GetParentPath(), *mError, *pVid, (const char*) 0,
                                     map);
 
             if (rc || (!map.count("sys.forced.space") && !map.count("user.forced.space"))) {
-              stdErr += "error: cannot get default space settings from parent directory attributes";
+              stdErr += "error: cannot get default space settings from parent "
+                        "directory attributes";
               retc = EINVAL;
             } else {
               if (map.count("sys.forced.space")) {

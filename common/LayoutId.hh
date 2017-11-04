@@ -25,20 +25,14 @@
 #ifndef __EOSCOMMON_LAYOUTID__HH__
 #define __EOSCOMMON_LAYOUTID__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "StringConversion.hh"
-/*----------------------------------------------------------------------------*/
 #include <fcntl.h>
 #include <string>
-/*----------------------------------------------------------------------------*/
-
-
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -393,29 +387,24 @@ public:
   //--------------------------------------------------------------------------
   //! Return layout type enum
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetLayoutType(unsigned long layout)
   {
     return ((layout >> 4) & 0xf);
   }
 
-
   //--------------------------------------------------------------------------
   //! Return layout stripe enum
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetStripeNumber(unsigned long layout)
   {
     return ((layout >> 8) & 0xff);
   }
 
-
   //--------------------------------------------------------------------------
   //! Modify layout stripe number
   //--------------------------------------------------------------------------
-
   static void
   SetStripeNumber(unsigned long& layout, int stripes)
   {
@@ -426,33 +415,27 @@ public:
     layout |= tmp;
   }
 
-
   //--------------------------------------------------------------------------
   //! Return layout blocksize in bytese
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetBlocksize(unsigned long layout)
   {
     return BlockSize(((layout >> 16) & 0xf));
   }
 
-
   //--------------------------------------------------------------------------
   //! Return layout blocksize enum
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetBlocksizeType(unsigned long layout)
   {
     return ((layout >> 16) & 0xf);
   }
 
-
   //--------------------------------------------------------------------------
   //! Return layout checksum enum
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetBlockChecksum(unsigned long layout)
   {
@@ -464,56 +447,46 @@ public:
     return ((layout >> 20) & 0xf);
   }
 
-
   //--------------------------------------------------------------------------
   //! Return excess replicas
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetExcessStripeNumber(unsigned long layout)
   {
     return ((layout >> 24) & 0xf);
   }
 
-
   //--------------------------------------------------------------------------
   //! Return redundancy stripes
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetRedundancyStripeNumber(unsigned long layout)
   {
     return ((layout >> 28) & 0x7);
   }
 
-
   //--------------------------------------------------------------------------
   //! Build block checksum layout from block checksum enum
   //--------------------------------------------------------------------------
-
   static unsigned long
   MakeBlockChecksum(unsigned long xs)
   {
     return (xs << 20);
   }
 
-
   //--------------------------------------------------------------------------
   //! Return length of checksum
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetBlockChecksumLen(unsigned long layout)
   {
     return GetChecksumLen((layout >> 20) & 0xf);
   }
 
-
   //--------------------------------------------------------------------------
   //! Return multiplication factor for a given layout e.g. the physical space
   //! factor for a given layout
   //--------------------------------------------------------------------------
-
   static double
   GetSizeFactor(unsigned long layout)
   {
@@ -543,12 +516,10 @@ public:
     return 1.0;
   }
 
-
   //--------------------------------------------------------------------------
   //! Return minimum number of replicas which have to be online for a layout
   //! to be readable
   //--------------------------------------------------------------------------
-
   static size_t
   GetMinOnlineReplica(unsigned long layout)
   {
@@ -567,12 +538,10 @@ public:
     return 1;
   }
 
-
   //--------------------------------------------------------------------------
   //! Return number of replicas which have to be online for a layout to be
   //! immedeatly writable
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetOnlineStripeNumber(unsigned long layout)
   {
@@ -591,11 +560,9 @@ public:
     return (GetStripeNumber(layout) + 1);
   }
 
-
   //--------------------------------------------------------------------------
   //! Return checksum type as string
   //--------------------------------------------------------------------------
-
   static const char*
   GetChecksumString(unsigned long layout)
   {
@@ -626,11 +593,9 @@ public:
     return "none";
   }
 
-
   //--------------------------------------------------------------------------
   //! Return checksum type but masking adler as adler32
   //--------------------------------------------------------------------------
-
   static const char*
   GetChecksumStringReal(unsigned long layout)
   {
@@ -661,11 +626,9 @@ public:
     return "none";
   }
 
-
   //--------------------------------------------------------------------------
   //! Return block checksum type as string
   //--------------------------------------------------------------------------
-
   static const char*
   GetBlockChecksumString(unsigned long layout)
   {
@@ -696,11 +659,9 @@ public:
     return "none";
   }
 
-
   //--------------------------------------------------------------------------
   //! Return blocksize as string
   //--------------------------------------------------------------------------
-
   static const char*
   GetBlockSizeString(unsigned long layout)
   {
@@ -739,11 +700,9 @@ public:
     return "illegal";
   }
 
-
   //--------------------------------------------------------------------------
   //! Return layout type as string
   //--------------------------------------------------------------------------
-
   static const char*
   GetLayoutTypeString(unsigned long layout)
   {
@@ -773,7 +732,6 @@ public:
   //--------------------------------------------------------------------------
   //! Return layout stripe number as string
   //--------------------------------------------------------------------------
-
   static const char*
   GetStripeNumberString(unsigned long layout)
   {
@@ -847,7 +805,6 @@ public:
   //--------------------------------------------------------------------------
   //! Return checksum enum from env definition
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetChecksumFromEnv(XrdOucEnv& env)
   {
@@ -880,11 +837,9 @@ public:
     return kNone;
   }
 
-
   //--------------------------------------------------------------------------
   //! Return block checksum enum from env definition
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetBlockChecksumFromEnv(XrdOucEnv& env)
   {
@@ -917,11 +872,9 @@ public:
     return kNone;
   }
 
-
   //--------------------------------------------------------------------------
   //! Return blocksize enum from env definition
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetBlocksizeFromEnv(XrdOucEnv& env)
   {
@@ -966,11 +919,9 @@ public:
     return 0;
   }
 
-
   //--------------------------------------------------------------------------
   //! Return layout type enum from env definition
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetLayoutFromEnv(XrdOucEnv& env)
   {
@@ -999,11 +950,9 @@ public:
     return kPlain;
   }
 
-
   //----------------------------------------------------------------------------
   //! Return number of stripes enum from env definition]
   //----------------------------------------------------------------------------
-
   static unsigned long
   GetStripeNumberFromEnv(XrdOucEnv& env)
   {
@@ -1023,7 +972,6 @@ public:
   //----------------------------------------------------------------------------
   //! Convert a <space>=<hexadecimal layout id> string to an env representation
   //----------------------------------------------------------------------------
-
   static const char*
   GetEnvFromConversionIdString(XrdOucString& out,
                                const char* conversionlayoutidstring)
@@ -1098,7 +1046,6 @@ public:
     return out.c_str();
   }
 
-
   //----------------------------------------------------------------------------
   //! Map POSIX-like open flags to SFS open flags - used on the FUSE mount
   //!
@@ -1107,7 +1054,6 @@ public:
   //! @return SFS-like open flags
   //!
   //----------------------------------------------------------------------------
-
   static XrdSfsFileOpenMode
   MapFlagsPosix2Sfs(int oflags)
   {
@@ -1140,16 +1086,13 @@ public:
     return sfs_flags;
   }
 
-
   //----------------------------------------------------------------------------
   //! Map SFS-like open flags to XrdCl open flags
   //!
   //! @param flags_sfs SFS open flags
   //!
   //! @return XrdCl-like open flags
-  //!
   //----------------------------------------------------------------------------
-
   static XrdCl::OpenFlags::Flags
   MapFlagsSfs2XrdCl(XrdSfsFileOpenMode flags_sfs)
   {
@@ -1205,16 +1148,13 @@ public:
     return xflags;
   }
 
-
   //----------------------------------------------------------------------------
   //! Map SFS-like open mode to XrdCl open mode
   //!
   //! @param mode_sfs SFS open mode
   //!
   //! @return XrdCl-like open mode
-  //!
   //----------------------------------------------------------------------------
-
   static XrdCl::Access::Mode
   MapModeSfs2XrdCl(mode_t mode_sfs)
   {
@@ -1254,7 +1194,6 @@ public:
 
     return mode_xrdcl;
   }
-
 
   //--------------------------------------------------------------------------
   //! Constructor

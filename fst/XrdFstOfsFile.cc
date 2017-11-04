@@ -282,7 +282,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     // to the fusex network
     mFusex = true;
   }
-          
+
   if ((val = tmpOpaque.Get("mgm.event"))) {
     std::string event = val;
 
@@ -612,9 +612,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   // Attention: the localprefix implementation does not work for gateway machines
   if (!localPrefix.length()) {
-    return gOFS.Emsg(epname, error, EINVAL,
-                     "open - cannot determine the prefix path to use for the given filesystem id",
-                     Path.c_str());
+    return gOFS.Emsg(epname, error, EINVAL, "open - cannot determine the prefix"
+                     " path to use for the given filesystem id", Path.c_str());
   }
 
   if (!(slid = capOpaque->Get("mgm.lid"))) {
@@ -765,22 +764,16 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
           || ((strcmp(capOpaque->Get("mgm.access"), "create")) &&
               (strcmp(capOpaque->Get("mgm.access"), "write")) &&
               (strcmp(capOpaque->Get("mgm.access"), "update")))) {
-        return gOFS.Emsg(epname,
-                         error,
-                         EPERM,
-                         "open - capability does not allow to create/write/update this file",
-                         path);
+        return gOFS.Emsg(epname, error, EPERM, "open - capability does not "
+                         "allow to create/write/update this file", path);
       }
     } else {
       if (!capOpaque->Get("mgm.access")
           || ((strcmp(capOpaque->Get("mgm.access"), "create")) &&
               (strcmp(capOpaque->Get("mgm.access"), "write")) &&
               (strcmp(capOpaque->Get("mgm.access"), "update")))) {
-        return gOFS.Emsg(epname,
-                         error,
-                         EPERM,
-                         "open - capability does not allow to update/write/create this file",
-                         path);
+        return gOFS.Emsg(epname, error, EPERM, "open - capability does not "
+                         "allow to update/write/create this file", path);
       }
     }
   } else {
@@ -2396,7 +2389,8 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset,
   }
 
   if (fsid) {
-    if ((targetsize && (targetsize == bookingsize)) || (bookingsize >= fileOffset + buffer_size)) {
+    if ((targetsize && (targetsize == bookingsize)) ||
+        (bookingsize >= fileOffset + buffer_size)) {
       // Space has been successfully pre-allocated, let client write
     } else {
       // Check if the file system is full
