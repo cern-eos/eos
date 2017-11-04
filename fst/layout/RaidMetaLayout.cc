@@ -242,8 +242,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       stripetag += static_cast<int>(i);
       const char* stripe = mOfsFile->capOpaque->Get(stripetag.c_str());
 
-      if ((mOfsFile->isRW && (!stripe)) ||
-          ((nmissing > 0) && (!stripe))) {
+      if (mOfsFile->isRW && (!stripe)) {
         eos_err("failed to open stripe - missing url for %s", stripetag.c_str());
         errno = EINVAL;
         return SFS_ERROR;
@@ -257,7 +256,9 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       }
     }
 
-    if (nmissing > mNbParityFiles) {
+    // For read we tolerate at most mNbParityFiles missing, for write none
+    if ((!mIsRw && (nmissing > mNbParityFiles)) ||
+        (mIsRw && nmissing)) {
       eos_err("failed to open RaidMetaLayout - %i stripes are missing and "
               "parity is %i", nmissing, mNbParityFiles);
       errno = EREMOTEIO;

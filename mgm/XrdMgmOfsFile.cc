@@ -959,9 +959,9 @@ XrdMgmOfsFile::open(const char* inpath,
   // FileAccess function
   unsigned long fsIndex = 0;
   XrdOucString space = "default";
-  unsigned long newlayoutId = 0;
+  unsigned long new_lid = 0;
   // select space and layout according to policies
-  Policy::GetLayoutAndSpace(path, attrmap, vid, newlayoutId, space, *openOpaque,
+  Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
                             forcedFsId, forcedGroup);
   eos::mgm::Scheduler::tPlctPolicy plctplcy;
   std::string targetgeotag;
@@ -1001,8 +1001,8 @@ XrdMgmOfsFile::open(const char* inpath,
 
   if ((!isInjection) && (isCreation || ((open_mode == SFS_O_TRUNC)))) {
     eos_info("blocksize=%llu lid=%x",
-             eos::common::LayoutId::GetBlocksize(newlayoutId), newlayoutId);
-    layoutId = newlayoutId;
+             eos::common::LayoutId::GetBlocksize(new_lid), new_lid);
+    layoutId = new_lid;
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> fmdnew;
@@ -1782,17 +1782,28 @@ XrdMgmOfsFile::open(const char* inpath,
       ufs.insert(PioReconstructFsList[i]);
     }
   }
-  newlayoutId = eos::common::LayoutId::GetId(
-                  isPio ? eos::common::LayoutId::kPlain :
-                  eos::common::LayoutId::GetLayoutType(layoutId),
-                  isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(
-                    layoutId),
-                  isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
-                  (selectedfs.size()),
-                  eos::common::LayoutId::GetBlocksizeType(layoutId),
-                  eos::common::LayoutId::GetBlockChecksum(layoutId));
+  new_lid = eos::common::LayoutId::GetId(
+              isPio ? eos::common::LayoutId::kPlain :
+              eos::common::LayoutId::GetLayoutType(layoutId),
+              (isPio ? eos::common::LayoutId::kNone :
+               eos::common::LayoutId::GetChecksum(layoutId)),
+              isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
+              (selectedfs.size()),
+              eos::common::LayoutId::GetBlocksizeType(layoutId),
+              eos::common::LayoutId::GetBlockChecksum(layoutId));
+  unsigned long orig_type = eos::common::LayoutId::GetLayoutType(layoutId);
+
+  // For RAIN layouts we need to keep the original number of stripes since this
+  // is used to compute the different groups and block sizes in the FSTs
+  if ((orig_type == eos::common::LayoutId::kRaidDP) ||
+      (orig_type == eos::common::LayoutId::kRaid6) ||
+      (orig_type == eos::common::LayoutId::kArchive)) {
+    eos::common::LayoutId::SetStripeNumber(new_lid,
+                                           eos::common::LayoutId::GetStripeNumber(layoutId));
+  }
+
   capability += "&mgm.lid=";
-  capability += static_cast<int>(newlayoutId);
+  capability += static_cast<int>(new_lid);
   // space to be prebooked/allocated
   capability += "&mgm.bookingsize=";
   capability += eos::common::StringConversion::GetSizeString(sizestring,
@@ -1854,7 +1865,7 @@ XrdMgmOfsFile::open(const char* inpath,
       // create a plain layout with the number of replacement stripes to be
       // scheduled in the file placement routine
       // -----------------------------------------------------------------------
-      unsigned long plainLayoutId = newlayoutId;
+      unsigned long plainLayoutId = new_lid;
       eos::common::LayoutId::SetStripeNumber(plainLayoutId,
                                              PioReconstructFsList.size() - 1);
       // -----------------------------------------------------------------------
@@ -1900,7 +1911,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
       // -----------------------------------------------------------------------
       eos_info("nstripes=%d => nstripes=%d [ sub-group=%d ]",
-               eos::common::LayoutId::GetStripeNumber(newlayoutId),
+               eos::common::LayoutId::GetStripeNumber(new_lid),
                eos::common::LayoutId::GetStripeNumber(plainLayoutId),
                forcedGroup);
       // -----------------------------------------------------------------------
