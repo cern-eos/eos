@@ -129,7 +129,7 @@ int
 RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
 {
-// Do some minimal checkups
+  // Do some minimal checkups
   if (mNbTotalFiles < 2) {
     eos_err("failed open layout - stripe size at least 2");
     return SFS_ERROR;
@@ -227,7 +227,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
   // Operations done only by the entry server
   if (mPhysicalStripeIndex == mStripeHead) {
-    int nmissing = 0;
+    uint32_t nmissing = 0;
     std::vector<std::string> stripe_urls;
     mIsEntryServer = true;
 
@@ -257,8 +257,9 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       }
     }
 
-    if (nmissing) {
-      eos_err("failed to open RaidMetaLayout - stripes are missing");
+    if (nmissing > mNbParityFiles) {
+      eos_err("failed to open RaidMetaLayout - %i stripes are missing and "
+              "parity is %i", nmissing, mNbParityFiles);
       errno = EREMOTEIO;
       return SFS_ERROR;
     }
@@ -266,7 +267,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     // Open remote stripes
     for (unsigned int i = 0; i < stripe_urls.size(); i++) {
       if (i != (unsigned int) mPhysicalStripeIndex) {
-        eos_info("Open remote stipe i=%i ", i);
+        eos_info("Open remote stripe i=%i ", i);
         int envlen;
         const char* val;
         XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
@@ -362,7 +363,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     }
   }
 
-  eos_debug("Finished open with size: %lli.", (long long int) mFileSize);
+  eos_debug("Finished open with size: %llu", mFileSize);
   mIsOpen = true;
   return SFS_OK;
 }
