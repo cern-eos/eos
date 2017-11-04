@@ -879,7 +879,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   // Remove local archive file
   unlink(arch_fn.c_str());
   // Change the permissions on the archive file to 644
-  eos::common::Mapping::VirtualIdentity_t root_ident;
+  eos::common::Mapping::VirtualIdentity root_ident;
   eos::common::Mapping::Root(root_ident);
   XrdSfsMode mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
@@ -912,9 +912,11 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
   bool found_archive = false;
   // Map of directories to set of files
   std::map< std::string, std::set<std::string> > found;
+  eos::common::Mapping::VirtualIdentity root_vid;
+  eos::common::Mapping::Root(root_vid);
 
   // Check for already archived directories in the current sub-tree
-  if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, *pVid, found,
+  if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, root_vid, found,
                   (const char*) 0, (const char*) 0)) {
     eos_err("dir=%s list all err=%s", arch_dir.c_str(), stdErr.c_str());
     retc = errno;
@@ -944,7 +946,7 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
   }
 
   // Make the EOS sub-tree immutable e.g.: add sys.acl=z:i
-  eos::common::Mapping::VirtualIdentity_t root_ident;
+  eos::common::Mapping::VirtualIdentity root_ident;
   eos::common::Mapping::Root(root_ident);
   const char* acl_key = "sys.acl";
   XrdOucString acl_val;
@@ -990,9 +992,11 @@ int
 ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 {
   std::map< std::string, std::set<std::string> > found;
+  eos::common::Mapping::VirtualIdentity root_vid;
+  eos::common::Mapping::Root(root_vid);
 
   // Get all dirs in current subtree
-  if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, *pVid, found,
+  if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, root_vid, found,
                   (const char*) 0, (const char*) 0)) {
     eos_err("dir=%s list all err=%s", arch_dir.c_str(), stdErr.c_str());
     retc = errno;
@@ -1000,8 +1004,6 @@ ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
   }
 
   // Make the EOS sub-tree mutable e.g.: remove sys.acl=z:i
-  eos::common::Mapping::VirtualIdentity_t root_ident;
-  eos::common::Mapping::Root(root_ident);
   const char* acl_key = "sys.acl";
   XrdOucString acl_val;
   std::string new_acl;
@@ -1045,7 +1047,7 @@ ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 
     // Update the new sys.acl xattr
     if (acl_val.length()) {
-      if (gOFS->_attr_set(it->first.c_str(), *mError, root_ident,
+      if (gOFS->_attr_set(it->first.c_str(), *mError, root_vid,
                           (const char*) 0, acl_key, acl_val.c_str())) {
         stdErr = "error: making EOS subtree mutable (update sys.acl), dir=";
         stdErr += arch_dir.c_str();
@@ -1054,7 +1056,7 @@ ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
       }
     } else {
       // Completely remove the sys.acl xattr
-      if (gOFS->_attr_rem(it->first.c_str(), *mError, root_ident,
+      if (gOFS->_attr_rem(it->first.c_str(), *mError, root_vid,
                           (const char*) 0, acl_key)) {
         stdErr = "error: making EOS subtree mutable (rm sys.acl), dir=";
         stdErr += arch_dir.c_str();
@@ -1082,37 +1084,16 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
   // These keys should match the ones in the header dictionary
   if (is_file) {
-    info_map.insert(std::make_pair("file", "")); // file name
-    info_map.insert(std::make_pair("size", ""));
-    info_map.insert(std::make_pair("mtime", ""));
-    info_map.insert(std::make_pair("ctime", ""));
-    info_map.insert(std::make_pair("uid", ""));
-    info_map.insert(std::make_pair("gid", ""));
-    info_map.insert(std::make_pair("mode", ""));
-    info_map.insert(std::make_pair("xstype", ""));
-    info_map.insert(std::make_pair("xs", ""));
+    info_map = { {"file", ""}, {"size", ""}, {"mtime", ""}, {"ctime", ""},
+      {"uid", ""}, {"gid", ""}, {"mode", ""}, {"xstype", ""},
+      {"xs", ""}
+    };
   } else { // dir
-    info_map.insert(std::make_pair("file", "")); // dir name
-    info_map.insert(std::make_pair("uid", ""));
-    info_map.insert(std::make_pair("gid", ""));
-    info_map.insert(std::make_pair("mode", ""));
-    info_map.insert(std::make_pair("xattrn", ""));
-    info_map.insert(std::make_pair("xattrv", ""));
+    info_map = {{"file", ""}, {"uid", ""}, {"gid", ""}, {"mode", ""},
+      {"xattrn", ""}, {"xattrv", ""}
+    };
   }
 
-  // In C++11 one can simply do:
-  /*
-    std::map<std::string, std::string> info_map =
-    {
-      {"size" : ""}, {"mtime": ""}, {"ctime": ""},
-      {"uid": ""}, {"gid": ""}, {"xstype": ""}, {"xs": ""}
-    };
-
-    or
-
-    std::vector<std::string, std::sting> info_map =  {
-      {"uid": ""}, {"gid": ""}, {"attr": ""} };
-  */
   std::string line;
   ProcCommand* cmd_find = new ProcCommand();
   XrdOucString info = "&mgm.cmd=find&mgm.path=";
@@ -1124,7 +1105,9 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     info += "&mgm.option=dI";
   }
 
-  cmd_find->open("/proc/user", info.c_str(), *pVid, mError);
+  eos::common::Mapping::VirtualIdentity root_vid;
+  eos::common::Mapping::Root(root_vid);
+  cmd_find->open("/proc/user", info.c_str(), root_vid, mError);
   int ret = cmd_find->close();
 
   if (ret) {
