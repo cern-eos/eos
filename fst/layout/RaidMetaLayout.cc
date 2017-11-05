@@ -127,7 +127,6 @@ void RaidMetaLayout::Redirect(const char* path)
 //------------------------------------------------------------------------------
 int
 RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
-
 {
   // Do some minimal checkups
   if (mNbTotalFiles < 2) {
@@ -203,7 +202,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
                         mode, enhanced_opaque.c_str(), mTimeout)) {
     if (mFileIO->fileOpen(flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() ,
                           mTimeout)) {
-      eos_err("error=failed to open local ", mFileIO->GetPath().c_str());
+      eos_err("error=failed to open local %s", mFileIO->GetPath().c_str());
       errno = EIO;
       return SFS_ERROR;
     }
@@ -266,81 +265,85 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     }
 
     // Open remote stripes
-    for (unsigned int i = 0; i < stripe_urls.size(); i++) {
-      if (i != (unsigned int) mPhysicalStripeIndex) {
-        eos_info("Open remote stripe i=%i ", i);
-        int envlen;
-        const char* val;
-        XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
-        XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
-        stripe_urls[i] += remoteOpenPath.c_str();
-        stripe_urls[i] += "?";
+    // @note: for TPC transfers we open the remote stipes only in the
+    // kTpcSrcRead or kTpcDstSetup stages.
+    if ((mOfsFile->tpcFlag == XrdFstOfsFile::kTpcSrcRead) ||
+        (mOfsFile->tpcFlag == XrdFstOfsFile::kTpcDstSetup) ||
+        (mOfsFile->tpcFlag == XrdFstOfsFile::kTpcNone)) {
+      for (unsigned int i = 0; i < stripe_urls.size(); i++) {
+        if (i != (unsigned int) mPhysicalStripeIndex) {
+          eos_info("Open remote stripe i=%i ", i);
+          int envlen;
+          const char* val;
+          XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
+          XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
+          stripe_urls[i] += remoteOpenPath.c_str();
+          stripe_urls[i] += "?";
 
-        // Create the opaque information for the next stripe file
-        if ((val = mOfsFile->openOpaque->Get("mgm.replicaindex"))) {
-          XrdOucString oldindex = "mgm.replicaindex=";
-          XrdOucString newindex = "mgm.replicaindex=";
-          oldindex += val;
-          newindex += static_cast<int>(i);
-          remoteOpenOpaque.replace(oldindex.c_str(), newindex.c_str());
-        } else {
-          remoteOpenOpaque += "&mgm.replicaindex=";
-          remoteOpenOpaque += static_cast<int>(i);
-        }
+          // Create the opaque information for the next stripe file
+          if ((val = mOfsFile->openOpaque->Get("mgm.replicaindex"))) {
+            XrdOucString oldindex = "mgm.replicaindex=";
+            XrdOucString newindex = "mgm.replicaindex=";
+            oldindex += val;
+            newindex += static_cast<int>(i);
+            remoteOpenOpaque.replace(oldindex.c_str(), newindex.c_str());
+          } else {
+            remoteOpenOpaque += "&mgm.replicaindex=";
+            remoteOpenOpaque += static_cast<int>(i);
+          }
 
-        // if (mStoreRecovery)
-        //   remoteOpenOpaque += "&fst.store=1";
-        stripe_urls[i] += remoteOpenOpaque.c_str();
-        int ret = -1;
-        FileIo* file = FileIoPlugin::GetIoObject(stripe_urls[i].c_str(), mOfsFile,
-                       mSecEntity);
+          stripe_urls[i] += remoteOpenOpaque.c_str();
+          int ret = -1;
+          FileIo* file = FileIoPlugin::GetIoObject(stripe_urls[i].c_str(), mOfsFile,
+                         mSecEntity);
 
-        // Set the correct open flags for the stripe
-        if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))) {
-          mIsRw = true;
-          eos_debug("Write case with flags:%x.", flags);
-        } else {
-          mode = 0;
-          eos_debug("Read case with flags=%x.", flags);
-        }
+          // Set the correct open flags for the stripe
+          if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))) {
+            mIsRw = true;
+            eos_debug("Write case with flags:%x", flags);
+          } else {
+            mode = 0;
+            eos_debug("Read case with flags=%x", flags);
+          }
 
-        // Doing the actual open
-        ret = file->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout);
-        mLastTriedUrl = file->GetLastTriedUrl();
+          // Doing the actual open
+          ret = file->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout);
+          mLastTriedUrl = file->GetLastTriedUrl();
 
-        if (ret == SFS_ERROR) {
-          eos_warning("warning=failed to open remote stripes", stripe_urls[i].c_str());
-          delete file;
-          file = NULL;
-        } else {
-          mLastUrl = file->GetLastUrl();
-        }
+          if (ret == SFS_ERROR) {
+            eos_warning("warning=failed to open remote stripe: %s", stripe_urls[i].c_str());
+            delete file;
+            file = NULL;
+          } else {
+            mLastUrl = file->GetLastUrl();
+          }
 
-        mStripe.push_back(file);
-        mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
-        // Read header information for remote files
-        hd = mHdrInfo.back();
-        file = mStripe.back();
+          mStripe.push_back(file);
+          mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
+          // Read header information for remote files
+          hd = mHdrInfo.back();
+          file = mStripe.back();
 
-        if (file && !hd->ReadFromFile(file, mTimeout)) {
-          eos_warning("reading header failed for remote stripe phyid=%i",
-                      mStripe.size() - 1);
+          if (file && !hd->ReadFromFile(file, mTimeout)) {
+            eos_warning("reading header failed for remote stripe phyid=%i",
+                        mStripe.size() - 1);
+          }
         }
       }
-    }
 
-    // Consistency checks
-    if (mStripe.size() != mNbTotalFiles) {
-      eos_err("number of files opened is different from the one expected");
-      errno = EIO;
-      return SFS_ERROR;
-    }
+      // Consistency checks
+      if (mStripe.size() != mNbTotalFiles) {
+        eos_err("number of files opened is different from the one expected");
+        errno = EIO;
+        return SFS_ERROR;
+      }
 
-    // Only the head node does the validation of the headers
-    if (!ValidateHeader()) {
-      eos_err("headers invalid - can not continue");
-      errno = EIO;
-      return SFS_ERROR;
+      // Only the head node does the validation of the headers
+      if (!ValidateHeader()) {
+        eos_err("headers invalid - can not continue");
+        errno = EIO;
+        return SFS_ERROR;
+      }
     }
   }
 
@@ -1314,8 +1317,7 @@ int
 RaidMetaLayout::Stat(struct stat* buf)
 {
   eos_debug("Calling Stat");
-  int rc = SFS_OK; //TODO: change this, actually change the logic in XrdFstOfsFile
-  // concerning stat before the file is opened
+  int rc = SFS_OK;
   bool found = false;
 
   if (mIsOpen) {
