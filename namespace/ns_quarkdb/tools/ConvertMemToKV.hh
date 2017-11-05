@@ -22,9 +22,7 @@
 //!        to a KV one
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_CONVERTMEMTOKV_HH__
-#define __EOS_NS_CONVERTMEMTOKV_HH__
-
+#pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/ns_in_memory/ContainerMD.hh"
@@ -385,5 +383,3 @@ private:
 };
 
 EOSNSNAMESPACE_END
-
-#endif // __EOS_NS_CONVERTMEMTOKV_HH__

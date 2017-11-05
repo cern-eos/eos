@@ -106,7 +106,7 @@ ConvertFileMD::serializeToStr(std::string& buffer)
     throw ex;
   }
 
-  // TODO (esindril): Could use compression on the entries
+  // @todo (esindril): Could use compression on the entries
   // Compute the CRC32C checkusm
   uint32_t cksum = DataHelper::computeCRC32C((void*)ptr, align_size);
   cksum = DataHelper::finalizeCRC32C(cksum);
@@ -647,7 +647,7 @@ ConvertFileMDSvc::initialize()
           exit(1);
         }
 
-        // TODO (esindril): Could use compression when storing the entries
+        // @todo (esindril): Could use compression when storing the entries
         conv_fmd->updateInternal();
         conv_fmd->serializeToStr(buffer);
         qclient::QHash bucket_map(qclient, getBucketKey(file->getId()));
