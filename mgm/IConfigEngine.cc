@@ -301,7 +301,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
             << sval.c_str() << std::endl;
   }
 
-  *err = oss_err.str().c_str();
+  *err += oss_err.str().c_str();
   return 0;
 }
 
@@ -513,8 +513,14 @@ IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
       XrdOucString value;
       value.assign(key, seppos + 4);
       key.erase(seppos);
-      eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
-      sConfigDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
+
+      // Add entry only if key and value are not empty
+      if (key.length() && value.length()) {
+        eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
+        sConfigDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
+      } else {
+        eos_notice("skipping empty config key=%s value=%s", key.c_str(), value.c_str());
+      }
     }
   }
 
