@@ -2032,6 +2032,26 @@ FsView::FindByQueuePath(std::string& queuepath)
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Check if hostname is among the list of nodes
+//------------------------------------------------------------------------------
+bool
+FsView::IsKnownNode(const std::string& hostname) const
+{
+  eos::common::RWMutexReadLock view_rd_lock(FsView::gFsView.ViewMutex);
+
+  for (auto it = mNodeView.begin(); it != mNodeView.end(); ++it) {
+    // Getting hostname from node name (/eos/<hostname>:<port>/fst)
+    std::string known_host = it->first.substr(5, it->first.find(':') - 5);
+
+    if (known_host == hostname) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 #ifndef EOSMGMFSVIEWTEST
 
 //------------------------------------------------------------------------------

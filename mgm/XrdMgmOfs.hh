@@ -981,17 +981,28 @@ public:
   //!---------------------------------------------------------------------------
   int Redirect(XrdOucErrInfo& error, const char* host, int& port);
 
-  // ---------------------------------------------------------------------------
-  // Test if a client needs to be stalled
-  // ---------------------------------------------------------------------------
-  bool ShouldStall(const char* function,
-                   int accessmode,
+  //----------------------------------------------------------------------------
+  //! Function to test if a client based on the called function and his
+  //! identity should be stalled
+  //!
+  //! @param function name of the function to check
+  //! @param accessmode macro generated parameter defining if this is a reading
+  //! or writing (namespace modifying) function
+  //! @param stalltime returns the time for a stall
+  //! @param stallmsg returns the message to be displayed to the user
+  //!
+  //! @return true if client should get a stall, otherwise false
+  //!
+  //! @note  The stall rules are defined by globals in the Access object
+  //! (see Access.cc)
+  //----------------------------------------------------------------------------
+  bool ShouldStall(const char* function, int accessmode,
                    eos::common::Mapping::VirtualIdentity& vid,
                    int& stalltime, XrdOucString& stallmsg);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Test if a  client should be redirected
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool ShouldRedirect(const char* function,
                       int accessmode,
                       eos::common::Mapping::VirtualIdentity& vid,
@@ -1034,6 +1045,14 @@ public:
                    XrdOucString& host,
                    int& port);
 
+  //----------------------------------------------------------------------------
+  //! Check if name space is booted
+  //!
+  //! @return true if booted, otherwise false
+  //----------------------------------------------------------------------------
+  bool IsNsBooted() const;
+
+  // ---------------------------------------------------------------------------
   // Retrieve a mapping for a given path
   // ---------------------------------------------------------------------------
   void PathRemap(const char* inpath,
@@ -1244,7 +1263,7 @@ public:
 
   int Initialized; ///< indicating the initialization state of the namespace with the above enum
   time_t InitializationTime; ///< time of the initialization
-  XrdSysMutex InitializationMutex; ///< mutex protecting above variables
+  mutable XrdSysMutex InitializationMutex; ///< mutex protecting above variables
   bool Shutdown; ///< true if the shutdown function was called => avoid to join some threads
   //! Indicates that after a boot there shouldn't be a stall rule for all alias '*'
   bool RemoveStallRuleAfterBoot;

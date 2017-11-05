@@ -322,7 +322,8 @@ public:
   //! @param filter view filter
   //----------------------------------------------------------------------------
   void Print(TableFormatterBase& table, std::string table_format,
-             const std::string& table_mq_format, unsigned outdepth, const std::string& filter = "");
+             const std::string& table_mq_format, unsigned outdepth,
+             const std::string& filter = "");
 
   //----------------------------------------------------------------------------
   //! Return a member variable in the view
@@ -876,6 +877,9 @@ private:
   //! Next free filesystem ID if a new one has to be registered
   eos::common::FileSystem::fsid_t NextFsId;
 
+  //! Mutex protecting all ...Map variables
+  eos::common::RWMutex MapMutex;
+
   //! Map translating a file system ID to a unique ID
   std::map<eos::common::FileSystem::fsid_t, std::string> Fs2UuidMap;
 
@@ -957,8 +961,6 @@ public:
 
   //! Mutex protecting all ...View variables
   eos::common::RWMutex ViewMutex;
-  //! Mutex protecting all ...Map variables
-  eos::common::RWMutex MapMutex;
 
   //! Map translating a space name to a set of group objects
   std::map<std::string, std::set<FsGroup*> > mSpaceGroupView;
@@ -998,6 +1000,15 @@ public:
   //! Find filesystem by queue path
   //----------------------------------------------------------------------------
   FileSystem* FindByQueuePath(std::string& queuepath);
+
+  //----------------------------------------------------------------------------
+  //! Check if hostname is among the list of nodes
+  //!
+  //! @param hostname
+  //!
+  //! @return true if hostname is in the list of known nodes, otherwise false
+  //----------------------------------------------------------------------------
+  bool IsKnownNode(const std::string& hostname) const;
 
   //----------------------------------------------------------------------------
   //! Create a filesystem mapping
@@ -1090,7 +1101,7 @@ public:
                         static_cast<void*>(this), XRDSYSTHREAD_HOLD,
                         "HeartBeat Thread");
     }
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Stop the heartbeat thread
@@ -1101,7 +1112,7 @@ public:
       XrdSysThread::Cancel(hbthread);
       XrdSysThread::Join(hbthread, 0);
     }
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -1109,7 +1120,7 @@ public:
   virtual ~FsView()
   {
     StopHeartBeat();
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Set config queues

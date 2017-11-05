@@ -747,3 +747,13 @@ XrdMgmOfs::FuseXCast(uint64_t inode)
 {
   gOFS->zMQ->gFuseServer.Cap().BroadcastReleaseFromExternal(inode);
 }
+
+//----------------------------------------------------------------------------
+//! Check if name space is booted
+//----------------------------------------------------------------------------
+bool
+XrdMgmOfs::IsNsBooted() const
+{
+  XrdSysMutexHelper lock(InitializationMutex);
+  return Initialized == kBooted;
+}
