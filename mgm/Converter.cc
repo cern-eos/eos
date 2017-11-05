@@ -281,7 +281,7 @@ ConverterJob::DoIt()
       eos_static_info("msg=\"removed failed conversion entry\" name=\"%s\"",
                       mConversionLayout.c_str());
     } else {
-      eos_static_err("msg=\"failed to removefailed conversion job entry\" name=\"%s\"",
+      eos_static_err("msg=\"failed to remove failed conversion job entry\" name=\"%s\"",
                      mConversionLayout.c_str());
     }
 

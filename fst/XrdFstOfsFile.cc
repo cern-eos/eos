@@ -239,11 +239,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   eos::common::StringConversion::MaskTag(maskOpaque, "authz");
   // For RAIN layouts if the opaque information contains the tag fst.store=1 the
   // corrupted files are recovered back on disk. There is no other way to make
-  // the distinction between an open for write an open for recovery since XrdCl
+  // the distinction between an open for write and open for recovery
   store_recovery = false;
-  XrdOucEnv recvOpaque(stringOpaque.c_str());
+  XrdOucEnv tmpOpaque(stringOpaque.c_str());
 
-  if ((val = recvOpaque.Get("fst.store"))) {
+  if ((val = tmpOpaque.Get("fst.store"))) {
     if (strncmp(val, "1", 1) == 0) {
       store_recovery = true;
       open_mode = SFS_O_RDWR;
@@ -251,13 +251,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  if ((open_mode & (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC)) !=
-      0) {
+  if ((open_mode &
+       (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC)) != 0) {
     isRW = true;
   }
 
-  // Extract tpc keys
-  XrdOucEnv tmpOpaque(stringOpaque.c_str());
+  // Set client identity
   SetLogId(0, client, tident);
 
   if ((val = tmpOpaque.Get("mgm.logid"))) {
@@ -299,8 +298,9 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     isOCchunk = true;
   }
 
-  eos_info("path=%s info=%s isRW=%d open_mode=%x",
-           Path.c_str(), maskOpaque.c_str(), isRW, open_mode);
+  // Extract tpc keys
+  eos_info("path=%s info=%s isRW=%d open_mode=%x", Path.c_str(),
+           maskOpaque.c_str(), isRW, open_mode);
   std::string tpc_stage = tmpOpaque.Get("tpc.stage") ?
                           tmpOpaque.Get("tpc.stage") : "";
   std::string tpc_key = tmpOpaque.Get("tpc.key") ?
@@ -314,7 +314,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   std::string tpc_lfn = tmpOpaque.Get("tpc.lfn") ?
                         tmpOpaque.Get("tpc.lfn") : "";
 
-  // Determin the TPC step that we are in
+  // Determine the TPC step that we are in
   if (tpc_stage == "placement") {
     tpcFlag = kTpcSrcCanDo;
   } else if ((tpc_stage == "copy") && tpc_key.length() && tpc_dst.length()) {
@@ -333,7 +333,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     // Create a TPC entry in the TpcMap
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
 
-    // TPC key replay go away
     if (gOFS.TpcMap[isRW].count(tpc_key)) {
       return gOFS.Emsg(epname, error, EPERM, "open - tpc key replayed", path);
     }
@@ -408,6 +407,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
         if (gOFS.TpcMap[isRW].count(tpc_key)) {
           exists = true;
+          break;
         }
       }
 
@@ -423,15 +423,19 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
 
     if (!gOFS.TpcMap[isRW].count(tpc_key)) {
+      eos_err("tpc key=%s not valid", tpc_key.c_str());
       return gOFS.Emsg(epname, error, EPERM, "open - tpc key not valid", path);
     }
 
     if (gOFS.TpcMap[isRW][tpc_key].expires < now) {
+      eos_err("tpc key=%s expired", tpc_key.c_str());
       return gOFS.Emsg(epname, error, EPERM, "open - tpc key expired", path);
     }
 
     // We trust 'sss' anyway and we miss the host name in the 'sss' entity
     if ((sec_protocol != "sss") && (gOFS.TpcMap[isRW][tpc_key].org != tpc_org)) {
+      eos_err("tpc origin missmatch tpc_org=%s, cached_org=%s", tpc_org.c_str(),
+              gOFS.TpcMap[isRW][tpc_key].org.c_str());
       return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch", path);
     }
 
@@ -2624,15 +2628,15 @@ XrdFstOfsFile::sync()
     int tpc_state = GetTpcState();
 
     if (tpc_state == kTpcIdle) {
-      eos_info("msg=\"tpc enabled - 1st sync\"");
+      eos_info("msg=\"tpc enabled -> 1st sync\"");
       SetTpcState(kTpcEnabled);
       return SFS_OK;
     } else if (tpc_state == kTpcRun) {
-      eos_info("msg=\"tpc already running - >2nd sync\"");
+      eos_info("msg=\"tpc already running -> 2nd sync\"");
       error.setErrCode(cbWaitTime);
       return SFS_STARTED;
     } else if (tpc_state == kTpcDone) {
-      eos_info("msg=\"tpc already finisehd - >2nd sync\"");
+      eos_info("msg=\"tpc already finisehd -> 2nd sync\"");
       return SFS_OK;
     } else if (tpc_state == kTpcEnabled) {
       SetTpcState(kTpcRun);
