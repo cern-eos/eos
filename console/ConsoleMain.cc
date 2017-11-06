@@ -427,7 +427,7 @@ output_result(XrdOucEnv* result, bool highlighting)
     rstdout.replace("=false", "=\033[49;31mfalse\033[0m");
   }
 
-  int retc = EFAULT;
+  int retc = 0;
 
   if (result->Get("mgm.proc.retc")) {
     retc = atoi(result->Get("mgm.proc.retc"));
