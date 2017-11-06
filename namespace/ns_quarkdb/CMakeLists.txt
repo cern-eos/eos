@@ -154,6 +154,7 @@ add_executable(
 
 target_link_libraries(
   convert_mem_to_kv
+  jemalloc
   qclient
   eosCommon
   EosCrc32c-Static
