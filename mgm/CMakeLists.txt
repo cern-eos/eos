@@ -36,7 +36,16 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_BINARY_DIR}/auth_plugin/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src)
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
+  ${CMAKE_SOURCE_DIR}/mgm/cta
+  ${CMAKE_SOURCE_DIR}/mgm/cta/xroot_ssi_pb
+  ${CMAKE_BINARY_DIR}/mgm/cta)
+
+#-------------------------------------------------------------------------------
+# CTA integration related operations
+#-------------------------------------------------------------------------------
+include(cta/cmake/FindProtobuf3.cmake)
+add_subdirectory(cta/xroot_plugins/messages)
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
@@ -206,6 +215,7 @@ target_link_libraries(
   eosCommonServer
   EosNsCommon
   eosCapability-Static
+  XrdCtaMessages
   ${Z_LIBRARY}
   ${ZMQ_LIBRARIES}
   ${LDAP_LIBRARIES}
@@ -215,6 +225,7 @@ target_link_libraries(
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
+  ${XROOTD_SSI_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${JSONCPP_LIBRARIES}
@@ -276,6 +287,7 @@ if(BUILD_QUARKDB_NAMESPACE AND Linux)
     eosCommonServer
     eosCapability-Static
     qclient
+    XrdCtaMessages
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
     ${LDAP_LIBRARIES}
@@ -285,6 +297,7 @@ if(BUILD_QUARKDB_NAMESPACE AND Linux)
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_POSIX_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
+    ${XROOTD_SSI_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${JSONCPP_LIBRARIES}

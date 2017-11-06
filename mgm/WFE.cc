@@ -26,7 +26,9 @@
 #include "common/Mapping.hh"
 #include "common/RWMutex.hh"
 #include "common/ShellCmd.hh"
+#include "common/StringTokenizer.hh"
 #include "mgm/Quota.hh"
+#include "mgm/cta/xroot_plugins/messages/CtaFrontendApi.hpp"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -35,8 +37,6 @@
 #include "namespace/interface/IView.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "Xrd/XrdScheduler.hh"
-
-#include <cta/CtaFrontendApi.hpp>
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
@@ -1565,12 +1565,16 @@ WFE::Job::DoIt(bool issync)
         }
       }
       else if (method == "proto") {
+        cerr << "proto" << endl;
+        cerr << "event: " << mActions[0].mEvent << endl;
+        auto endpoint = eos::common::StringTokenizer::split(args, ' ')[0];
+
         std::shared_ptr<eos::IFileMD> fmd ;
         std::shared_ptr<eos::IContainerMD> cmd ;
         std::string fullpath;
         // do meta replacement
         {
-          gOFS->eosViewRWMutex.LockRead();
+          eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
 
           try {
             fmd = gOFS->eosFileService->getFileMD(mFid);
@@ -1579,10 +1583,48 @@ WFE::Job::DoIt(bool issync)
           } catch (eos::MDException& e) {
             eos_static_debug("caught exception %d %s\n", e.getErrno(),
                              e.getMessage().str().c_str());
+            return e.getErrno();
           }
         }
 
-        
+        cta::xrd::Request request;
+        auto notification = request.mutable_notification();
+
+        notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
+
+        int errc = 0;
+        auto user_name  = Mapping::UidToUserName(fmd->getCUid(), errc);
+        if (errc) {
+          user_name = "nobody";
+        }
+
+        errc = 0;
+        auto group_name = Mapping::GidToGroupName(fmd->getCGid(), errc);
+        if (errc) {
+          group_name = "nobody";
+        }
+
+        notification->mutable_cli()->mutable_user()->set_username(user_name);
+        notification->mutable_cli()->mutable_user()->set_groupname(group_name);
+
+        google::protobuf::MapPair<std::string,std::string> id("CTA_ArchiveFileId", std::to_string(mFid));
+        notification->mutable_file()->mutable_xattr()->insert(id);
+
+        eos_static_info("request:\n%s", notification->DebugString().c_str());
+
+        XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
+        cerr << "endpoint: " << endpoint << endl;
+//        cta::xrd::Response response = cta_service.Send(request);
+//
+//        switch(response.type())
+//        {
+//          case cta::xrd::Response::RSP_SUCCESS:
+//            retc = 0;
+//            break;
+//          default:
+//            retc = EINVAL;
+//            eos_static_err("response:\n%s", response.DebugString().c_str());
+//        }
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unkown workflow\" job=\"%s\"",

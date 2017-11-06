@@ -99,10 +99,6 @@ BuildRequires: devtoolset-2-gcc-c++
 BuildRequires: devtoolset-2-binutils-devel
 %endif
 
-%if 0%{distribution} == 7
-BuildRequires: cta-frontend-interface
-%endif
-
 %if %{use_systemd}
 BuildRequires: systemd
 %endif
@@ -149,6 +145,7 @@ Group: Applications/File
 
 Requires: xrootd >= %{xrootd_version}
 Requires: xrootd-client >= %{xrootd_version}
+Requires: xrootd-private-devel >= %{xrootd_version}
 Requires: eos-client
 Requires: libmicrohttpd >= 0.9.38
 Requires: acl
