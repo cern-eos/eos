@@ -115,6 +115,7 @@ target_link_libraries(
   eosCommon
   ${ZMQ_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
+  ${PROTOBUF_LIBRARY}
   ${XROOTD_UTILS_LIBRARY})
 
 install(

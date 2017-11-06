@@ -221,7 +221,7 @@ EosAuthOfsFile::FName()
   if (!utils::ComputeHMAC(req_proto)) {
     eos_err("error HMAC file name");
     delete req_proto;
-    return static_cast<const char*>(0);
+    return "";
   }
 
   // Get a socket object from the pool
@@ -251,7 +251,7 @@ EosAuthOfsFile::FName()
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
   return (retc ? static_cast<const char*>(0) :
-          (mName.empty() ? static_cast<const char*>(0) : mName.c_str()));
+          (mName.empty() ? "" : mName.c_str()));
 }
 
 
