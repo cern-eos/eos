@@ -127,7 +127,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ConvertFileMD() {};
+  virtual ~ConvertFileMD() {}
 
   //----------------------------------------------------------------------------
   //! Update internal protobuf object.
@@ -209,14 +209,16 @@ public:
   //!
   //! @return future holding the redis reply object
   //----------------------------------------------------------------------------
-  qclient::AsyncResponseType commitSubcontainers(qclient::QClient* qclient);
+  void commitSubcontainers(qclient::AsyncHandler& ah,
+                           qclient::QClient& qclient);
 
   //----------------------------------------------------------------------------
   //! Commit map of files to the backend
   //!
   //! @return future holding the redis reply object
   //----------------------------------------------------------------------------
-  qclient::AsyncResponseType commitFiles(qclient::QClient* qclient);
+  void commitFiles(qclient::AsyncHandler& ah,
+                   qclient::QClient& qclient);
 
 private:
   //----------------------------------------------------------------------------
@@ -278,7 +280,7 @@ public:
   //! Update store - this method should be empty as it's called from the
   //! accounting views and this should not trigger any action.
   //----------------------------------------------------------------------------
-  void updateStore(IContainerMD* cont)
+  void updateStore(IContainerMD* cont) override
   {
     // empty on purpose
   }
@@ -365,6 +367,16 @@ public:
 
 private:
   static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
+
+  //------------------------------------------------------------------------------
+  //! Add file object to KV store
+  //!
+  //! @param file file object to be serialized and pushed to the backed
+  //! @param ah asynchronous request handler
+  //! @param qclient qclient object
+  //------------------------------------------------------------------------------
+  void addFileToQdb(ConvertFileMD* file, qclient::AsyncHandler& ah,
+                    qclient::QClient& qclient) const;
 
   //------------------------------------------------------------------------------
   //! Get file bucket

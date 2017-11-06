@@ -1304,8 +1304,7 @@ bool ChangeLogContainerMDSvc::ContainerMDScanner::processRecord(
   if (type == UPDATE_RECORD_MAGIC) {
     IContainerMD::id_t id;
     buffer.grabData(0, &id, sizeof(IContainerMD::id_t));
-    pIdMap[id] = DataInfo(offset,
-                          std::shared_ptr<eos::IContainerMD>((IContainerMD*)0));
+    pIdMap[id] = DataInfo(offset, nullptr);
 
     if (pLargestId < id) {
       pLargestId = id;

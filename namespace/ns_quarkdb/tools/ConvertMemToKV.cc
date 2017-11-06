@@ -70,15 +70,15 @@ ConvertFileMD::updateInternal()
   mFile.set_mtime(&pMTime, sizeof(pMTime));
   mFile.set_checksum(pChecksum.getDataPtr(), pChecksum.getSize());
 
-  for (auto& loc : pLocation) {
+  for (const auto& loc : pLocation) {
     mFile.add_locations(loc);
   }
 
-  for (auto& unlinked : pUnlinkedLocation) {
+  for (const auto& unlinked : pUnlinkedLocation) {
     mFile.add_unlink_locations(unlinked);
   }
 
-  for (auto& xattr : pXAttrs) {
+  for (const auto& xattr : pXAttrs) {
     (*mFile.mutable_xattrs())[xattr.first] = xattr.second;
   }
 }
@@ -144,7 +144,8 @@ ConvertContainerMD::updateInternal()
   pDirsKey = stringify(pId) + constants::sMapDirsSuffix;
   pFilesMap.setKey(pFilesKey);
   pDirsMap.setKey(pDirsKey);
-  // Populate the protobuf object which is used in the serialization step
+  // Populate the protobuf object which is used in the serialization step. The
+  // tree size is update when calling addFile method
   mCont.set_id(pId);
   mCont.set_parent_id(pParentId);
   mCont.set_uid(pCUid);
@@ -169,9 +170,6 @@ ConvertContainerMD::updateInternal()
 
     (*mCont.mutable_xattrs())[xattr.first] = xattr.second;
   }
-
-  // This is updated when adding files
-  //mCont.set_tree_size(pTreeSize);
 }
 
 //------------------------------------------------------------------------------
@@ -210,35 +208,65 @@ ConvertContainerMD::serializeToStr(std::string& buffer)
 //------------------------------------------------------------------------------
 // Commit map of subcontainer to the backend
 //------------------------------------------------------------------------------
-qclient::AsyncResponseType
-ConvertContainerMD::commitSubcontainers(qclient::QClient* qclient)
+void
+ConvertContainerMD::commitSubcontainers(qclient::AsyncHandler& ah,
+                                        qclient::QClient& qclient)
 {
+  uint64_t max_batch = 10000;
+  uint64_t count = 0u;
   std::vector<std::string> cmd {"HMSET", pDirsKey};
-  cmd.reserve(mSubcontainers.size() * 2 + 2);
+  cmd.reserve(max_batch * 2 + 2);
 
-  for (auto& elem : mSubcontainers) {
+  for (const auto& elem : mSubcontainers) {
+    ++count;
     cmd.push_back(elem.first);
     cmd.push_back(stringify(elem.second));
+
+    if (count == max_batch) {
+      count = 0;
+      ah.Register(std::make_pair(qclient.execute(cmd), std::move(cmd)), &qclient);
+      cmd.clear();
+      cmd.reserve(max_batch * 2 + 2);
+      cmd.push_back("HMSET");
+      cmd.push_back(pDirsKey);
+    }
   }
 
-  return std::make_pair(qclient->execute(cmd), std::move(cmd));
+  if (cmd.size() > 2) {
+    ah.Register(std::make_pair(qclient.execute(cmd), std::move(cmd)), &qclient);
+  }
 }
 
 //------------------------------------------------------------------------------
 // Commit map of files to the backend
 //------------------------------------------------------------------------------
-qclient::AsyncResponseType
-ConvertContainerMD::commitFiles(qclient::QClient* qclient)
+void
+ConvertContainerMD::commitFiles(qclient::AsyncHandler& ah,
+                                qclient::QClient& qclient)
 {
+  uint64_t max_batch = 10000;
+  uint64_t count = 0u;
   std::vector<std::string> cmd {"HMSET", pFilesKey};
-  cmd.reserve(mFiles.size() * 2 + 2);
+  cmd.reserve(max_batch * 2 + 2);
 
-  for (auto& elem : mFiles) {
+  for (const auto& elem : mFiles) {
+    ++count;
     cmd.push_back(elem.first);
     cmd.push_back(stringify(elem.second));
+
+    if (count == max_batch) {
+      count = 0;
+      ah.Register(std::make_pair(qclient.execute(cmd), std::move(cmd)), &qclient);
+      cmd.clear();
+      cmd.reserve(max_batch * 2 + 2);
+      cmd.push_back("HMSET");
+      cmd.push_back(pFilesKey);
+    }
   }
 
-  return std::make_pair(qclient->execute(cmd), std::move(cmd));
+  if (cmd.size() > 2) {
+    ah.Register(std::make_pair(qclient.execute(cmd), std::move(cmd)), &qclient);
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -398,7 +426,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
       return;
     }
 
-    if (!(parentIt->second.ptr)) {
+    if (parentIt->second.ptr == nullptr) {
       recreateContainer(parentIt, orphans, nameConflicts);
     }
 
@@ -406,7 +434,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
     std::shared_ptr<IContainerMD> child =
       parent->findContainer(container->getName());
 
-    if (!child) {
+    if (child == nullptr) {
       parent->addContainer(container.get());
 
       if ((container->getFlags() & QUOTA_NODE_FLAG) != 0) {
@@ -416,8 +444,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
       nameConflicts.push_back(container);
     }
   } else {
-    // This is not the root container but doesn't have a parent - add it to
-    // the list of orphans
+    // Non-root container without parent - add to the list of orphans
     if (container->getId() != 1) {
       orphans.push_back(container);
       return;
@@ -448,8 +475,13 @@ ConvertContainerMDSvc::commitToBackend()
 
     for (int n = 0; n < max_elem; ++n) {
       container = it->second.ptr;
-      conv_cont = static_cast<eos::ConvertContainerMD*>(container.get());
+      conv_cont = dynamic_cast<eos::ConvertContainerMD*>(container.get());
       ++it;
+
+      if (conv_cont == nullptr) {
+        std::cerr << "Skipping null container id: " << it->first << std::endl;
+        continue;
+      }
 
       // Add container to the KV store
       try {
@@ -464,11 +496,11 @@ ConvertContainerMDSvc::commitToBackend()
         // Commit subcontainers and files only if not empty otherwise the hmset
         // command will fail
         if (conv_cont->getNumContainers()) {
-          async_handler.Register(conv_cont->commitSubcontainers(&qclient), &qclient);
+          conv_cont->commitSubcontainers(async_handler, qclient);
         }
 
         if (conv_cont->getNumFiles()) {
-          async_handler.Register(conv_cont->commitFiles(&qclient), &qclient);
+          conv_cont->commitFiles(async_handler, qclient);
         }
 
         if ((count & sAsyncBatch) == 0) {
@@ -566,7 +598,6 @@ ConvertFileMDSvc::getBucketKey(IContainerMD::id_t id) const
 void
 ConvertFileMDSvc::initialize()
 {
-  std::mutex mutex_free_id;
   pIdMap.resize(pResSize);
 
   if (pContSvc == nullptr) {
@@ -580,26 +611,21 @@ ConvertFileMDSvc::initialize()
   pFollowStart = pChangeLog->getFirstOffset();
   FileMDScanner scanner(pIdMap, pSlaveMode);
   pFollowStart = pChangeLog->scanAllRecords(&scanner);
-  auto vect_errs = pChangeLog->getWarningMessages();
-
-  for (auto msg : vect_errs) {
-    fprintf(stderr, "%s\n", msg.c_str());
-  }
-
   std::uint64_t total = pIdMap.size();
   int nthreads = sThreads;
   int chunk = total / nthreads;
   int last_chunk = chunk + pIdMap.size() - (chunk * nthreads);
   auto start = std::time(nullptr);
   std::mutex mutex_lost_found;
+  mFirstFreeId = scanner.getLargestId() + 1;
   // Recreate the files
   eos::common::Parallel::For(0, nthreads, [&](int i) {
     std::int64_t count = 0;
-    qclient::AsyncHandler async_handler;
     IdMap::iterator it = pIdMap.begin();
     std::advance(it, i * chunk);
+    qclient::AsyncHandler async_handler;
     qclient::QClient qclient {sBkndHost, sBkndPort, true, true};
-    int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
+    int max_elem = ((i == (nthreads - 1) ? last_chunk : chunk));
 
     for (int n = 0; n < max_elem; ++n) {
       ++count;
@@ -612,57 +638,22 @@ ConvertFileMDSvc::initialize()
         }
 
         std::cout << "Tid: " << std::this_thread::get_id() << " processed "
-                  << count << "/" << total << " files " << std::endl;
+                  << count << "/" << max_elem << " files " << std::endl;
       }
 
       // Unpack the serialized buffers
       std::shared_ptr<IFileMD> file = std::make_shared<ConvertFileMD>(0, this);
-      eos::FileMD* tmp_fmd = dynamic_cast<FileMD*>(file.get());
 
-      if (tmp_fmd) {
-        tmp_fmd->deserialize(*(it->second.buffer));
+      if (file) {
+        file->deserialize(*(it->second.buffer));
+        delete it->second.buffer;
+        it->second.buffer = nullptr;
       } else {
-        ++it;
-        continue;
+        std::cerr << "Failed to allocate memory for FileMD" << std::endl;
+        std::terminate();
       }
 
-      {
-        // Update the first free id
-        std::lock_guard<std::mutex> scope_lock(mutex_free_id);
-
-        if (getFirstFreeId() <= file->getId()) {
-          mFirstFreeId = file->getId() + 1;
-        }
-      }
-
-      // Add file to the KV store
-      try {
-        std::string buffer;
-        std::string sid = stringify(file->getId());
-        ConvertFileMD* conv_fmd = dynamic_cast<ConvertFileMD*>(file.get());
-
-        if (!conv_fmd) {
-          std::cerr << __FUNCTION__ << " Failed dynamic cast to ConvertFileMD"
-                    << std::endl;
-          exit(1);
-        }
-
-        // @todo (esindril): Could use compression when storing the entries
-        conv_fmd->updateInternal();
-        conv_fmd->serializeToStr(buffer);
-        qclient::QHash bucket_map(qclient, getBucketKey(file->getId()));
-        async_handler.Register(bucket_map.hset_async(sid, buffer),
-                               bucket_map.getClient());
-      } catch (std::runtime_error& qdb_err) {
-        MDException e(ENOENT);
-        e.getMessage() << "File #" << file->getId() << " failed to contact backend";
-        throw e;
-      }
-
-      // Free the memory used by the buffer
-      delete it->second.buffer;
-      it->second.buffer = nullptr;
-      std::shared_ptr<IContainerMD> cont;
+      std::shared_ptr<IContainerMD> cont = nullptr;
 
       try {
         cont = pContSvc->getContainerMD(file->getContainerId());
@@ -673,8 +664,7 @@ ConvertFileMDSvc::initialize()
       if (!cont || (file->getContainerId() == 0)) {
         std::lock_guard<std::mutex> lock(mutex_lost_found);
         attachBroken("orphans", file.get());
-        delete it->second.buffer;
-        it->second.buffer = nullptr;
+        addFileToQdb((ConvertFileMD*)file.get(), async_handler, qclient);
         ++it;
         continue;
       }
@@ -689,9 +679,11 @@ ConvertFileMDSvc::initialize()
         mtx->unlock();
         std::lock_guard<std::mutex> lock(mutex_lost_found);
         attachBroken("name_conflicts", file.get());
+        addFileToQdb((ConvertFileMD*)file.get(), async_handler, qclient);
       } else {
         cont->addFile(file.get());
         mtx->unlock();
+        addFileToQdb((ConvertFileMD*)file.get(), async_handler, qclient);
         // Populate the FileSystemView and QuotaView
         mConvQView->addQuotaInfo(file.get());
         mConvFsView->addFileInfo(file.get());
@@ -710,7 +702,7 @@ ConvertFileMDSvc::initialize()
       }
     }
 
-    // Wait for any other replies
+    // wait for any other replies
     if (!async_handler.Wait()) {
       std::cerr << "ERROR: Failed to commit to backend" << std::endl;
       exit(1);
@@ -726,6 +718,31 @@ ConvertFileMDSvc::initialize()
       double rate = (double)total / duration.count();
       std::cout << "Processed files at " << rate << " Hz" << std::endl;
     }
+  }
+
+  pIdMap.clear();
+}
+
+//------------------------------------------------------------------------------
+// Add file object to KV store
+//------------------------------------------------------------------------------
+void
+ConvertFileMDSvc::addFileToQdb(ConvertFileMD* file, qclient::AsyncHandler& ah,
+                               qclient::QClient& qclient)
+const
+{
+  try {
+    std::string buffer;
+    std::string sid = stringify(file->getId());
+    // @todo (esindril): Could use compression when storing the entries
+    file->updateInternal();
+    file->serializeToStr(buffer);
+    qclient::QHash bucket_map(qclient, getBucketKey(file->getId()));
+    ah.Register(bucket_map.hset_async(sid, buffer), &qclient);
+  } catch (std::runtime_error& qdb_err) {
+    MDException e(ENOENT);
+    e.getMessage() << "File #" << file->getId() << " failed to contact backend";
+    throw e;
   }
 }
 
@@ -910,9 +927,11 @@ ConvertFsView::commitToBackend()
   int nthreads = sThreads;
   int chunk = total / nthreads;
   int last_chunk = chunk + total - (chunk * nthreads);
+  size_t async_batch = 15;
+  int max_sadd_size = 1000;
   // Parallel loop
   eos::common::Parallel::For(0, nthreads, [&](int i) {
-    std::int64_t count {0};
+    std::int64_t count = 0ll;
     std::string key, val;
     qclient::AsyncHandler async_handler;
     qclient::QClient qclient{sBkndHost, sBkndPort, true, true};
@@ -932,23 +951,69 @@ ConvertFsView::commitToBackend()
       fs_set.setKey(key);
 
       if (it->second.first.size()) {
-        async_handler.Register(fs_set.sadd_async(it->second.first),
-                               fs_set.getClient());
+        size_t num_batches = 0u;
+        size_t pos = 0u;
+        size_t total = it->second.first.size();
+        auto begin = it->second.first.begin();
+
+        while (pos < total) {
+          uint64_t step = (pos + max_sadd_size > total) ? (total - pos) : max_sadd_size;
+          auto end = begin;
+          std::advance(end, step);
+          async_handler.Register(fs_set.sadd_async(begin, end),
+                                 fs_set.getClient());
+          begin = end;
+          pos += step;
+          ++num_batches;
+
+          if (num_batches == async_batch) {
+            num_batches = 0u;
+
+            if (!async_handler.Wait()) {
+              std::cerr << __FUNCTION__ << " Got error response from the backend"
+                        << std::endl;
+              std::abort();
+            }
+          }
+        }
       }
 
       key = val + fsview::sUnlinkedSuffix;
       fs_set.setKey(key);
 
       if (it->second.second.size()) {
-        async_handler.Register(fs_set.sadd_async(it->second.second),
-                               fs_set.getClient());
+        size_t num_batches = 0u;
+        size_t pos = 0u;
+        size_t total = it->second.second.size();
+        auto begin = it->second.second.begin();
+
+        while (pos < total) {
+          uint64_t step = (pos + max_sadd_size > total) ? (total - pos) : max_sadd_size;
+          auto end = begin;
+          std::advance(end, step);
+          async_handler.Register(fs_set.sadd_async(begin, end),
+                                 fs_set.getClient());
+          begin = end;
+          pos += step;
+          ++num_batches;
+
+          if (num_batches == async_batch) {
+            num_batches = 0u;
+
+            if (!async_handler.Wait()) {
+              std::cerr << __FUNCTION__ << " Got error response from the backend"
+                        << std::endl;
+              std::abort();
+            }
+          }
+        }
       }
 
-      if ((count & sAsyncBatch) == 0) {
+      if ((count & async_batch) == 0) {
         if (!async_handler.Wait()) {
           std::cerr << __FUNCTION__ << " Got error response from the backend"
                     << std::endl;
-          exit(1);
+          std::abort();
         }
       }
 
@@ -964,7 +1029,7 @@ ConvertFsView::commitToBackend()
       if (!async_handler.Wait()) {
         std::cerr << __FUNCTION__ << " Got error response from the backend"
                   << std::endl;
-        exit(1);
+        std::abort();
       } else {
         std::cout << "FileSystem view successfully commited" << std::endl;
       }
