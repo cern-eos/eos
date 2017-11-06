@@ -2636,7 +2636,7 @@ FsView::PrintSpaces(std::string& out, const std::string& table_format,
     it->second->Print(table, table_format, table_mq_format, outdepth, filter);
   }
 
-  out =  table.GenerateTable(HEADER, selections).c_str();
+  out = table.GenerateTable(HEADER, selections).c_str();
 }
 
 //----------------------------------------------------------------------------
@@ -3489,7 +3489,8 @@ BaseView::TotalCount(bool lock,
 //------------------------------------------------------------------------------
 void
 BaseView::Print(TableFormatterBase& table, std::string table_format,
-                const std::string& table_mq_format, unsigned outdepth, const std::string& filter)
+                const std::string& table_mq_format, unsigned outdepth,
+                const std::string& filter)
 {
   // Since we don't display the members with geodepth option, we proceed with
   // the non geodepth display first.
@@ -3616,6 +3617,11 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
                         format, unit));
           } else {
             std::string member = GetMember(formattags["member"]).c_str();
+
+            // Don't display empty values
+            if (member.empty()) {
+              continue;
+            }
 
             if ((format.find("S") != std::string::npos)) {
               size_t colon = member.find(":");
@@ -3821,7 +3827,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
       for (auto it = begin(); it != end(); it++) {
         FileSystem* fs = FsView::gFsView.mIdView[*it];
         table_mq_header.clear();
-        fs->Print(table_mq_header, table_mq_data, table_mq_format,filter);
+        fs->Print(table_mq_header, table_mq_data, table_mq_format, filter);
       }
     }
 
