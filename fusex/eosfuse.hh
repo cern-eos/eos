@@ -211,6 +211,7 @@ public:
       int global_flush;
       int global_locking;
       int fdlimit;
+      std::vector<std::string> no_fsync_suffixes;
     } options_t;
     options_t options;
     CredentialConfig auth;

@@ -30,7 +30,7 @@
 
 #include "eosfuse.hh"
 #include "misc/fusexrdlogin.hh"
-
+#include "misc/filename.hh"
 #include <string>
 #include <map>
 #include <set>
@@ -106,6 +106,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
   char* local_mount_dir = 0;
   int err = 0;
+  std::string no_fsync_list;
 
   // check the fsname to choose the right JSON config file
 
@@ -212,6 +213,13 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
+
+    for ( Json::Value::iterator it=root["options"]["no-fsync"].begin() ; it!=root["options"]["no-fsync"].end(); ++it)
+    {
+      config.options.no_fsync_suffixes.push_back(it->asString());
+      no_fsync_list += it->asString();
+      no_fsync_list += ",";
+    }
 
     // disallow mdcachedir if compiled without rocksdb support
 #ifndef ROCKSDB_FOUND
@@ -637,7 +645,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("thread-pool            := %s", config.options.libfusethreads ? "libfuse" : "custom");
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d flush:%d locking:%d",
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d flush:%d locking:%d no-fsync:%s",
 		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
@@ -646,7 +654,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
                        config.options.create_is_sync,
 		       config.options.symlink_is_sync,
                        config.options.global_flush,
-                       config.options.global_locking
+                       config.options.global_locking,
+		       no_fsync_list.c_str()
 		       );
 
 
@@ -2842,43 +2851,58 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 
   if (io)
   {
-    if (io->has_update())
     {
-      if (Instance().Config().options.global_flush)
+      std::string fname="";
       {
-        Instance().mds.begin_flush(io->md, io->authid()); // flag an ongoing flush centrally
+	XrdSysMutexHelper mLock(io->md->Locker());
+	fname = io->md->name();
       }
 
-      struct timespec tsnow;
-      eos::common::Timing::GetTimeSpec(tsnow);
-
-      XrdSysMutexHelper mLock(io->md->Locker());
-      io->md->set_mtime(tsnow.tv_sec);
-      io->md->set_mtime_ns(tsnow.tv_nsec);
-      Instance().mds.update(req, io->md, io->authid());
-
-      // step 1 call flush
-      rc = io->ioctx()->flush(req); // actually do the flush
-
-      std::string cookie=io->md->Cookie();
-      io->ioctx()->store_cookie(cookie);
-
-      if (!rc)
+      if (filename::matches_suffix(fname, Instance().Config().options.no_fsync_suffixes))
       {
-        // step 2 call sync - this currently flushed all open filedescriptors - should be ok
-        rc = io->ioctx()->sync(); // actually wait for writes to be acknowledged
-        if (rc)
-          rc = errno;
+	if (EOS_LOGS_DEBUG)
+	{
+	  eos_static_info("name=%s is in no-fsync list - suppressing fsync call", fname.c_str());
+	}
       }
       else
-      {
-        rc = errno;
-      }
-      if (Instance().Config().options.global_flush)
-      {
-        //XrdSysTimer sleeper;
-        //sleeper.Wait(5000);
-        Instance().mds.end_flush(io->md, io->authid()); // unflag an ongoing flush centrally
+      {      
+	if (Instance().Config().options.global_flush)
+	{
+	  Instance().mds.begin_flush(io->md, io->authid()); // flag an ongoing flush centrally
+	}
+	
+	struct timespec tsnow;
+	eos::common::Timing::GetTimeSpec(tsnow);
+	
+	XrdSysMutexHelper mLock(io->md->Locker());
+	io->md->set_mtime(tsnow.tv_sec);
+	io->md->set_mtime_ns(tsnow.tv_nsec);
+	Instance().mds.update(req, io->md, io->authid());
+	
+	// step 1 call flush
+	rc = io->ioctx()->flush(req); // actually do the flush
+	
+	std::string cookie=io->md->Cookie();
+	io->ioctx()->store_cookie(cookie);
+	
+	if (!rc)
+	{
+	  // step 2 call sync - this currently flushed all open filedescriptors - should be ok
+	  rc = io->ioctx()->sync(); // actually wait for writes to be acknowledged
+	  if (rc)
+	    rc = errno;
+	}
+	else
+	{
+	  rc = errno;
+	}
+	if (Instance().Config().options.global_flush)
+	{
+	  //XrdSysTimer sleeper;
+	  //sleeper.Wait(5000);
+	  Instance().mds.end_flush(io->md, io->authid()); // unflag an ongoing flush centrally
+	}
       }
     }
   }
