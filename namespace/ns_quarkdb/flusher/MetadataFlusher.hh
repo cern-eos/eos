@@ -41,7 +41,16 @@ class ContainerMD;
 //------------------------------------------------------------------------------
 //! Class to receive notifications from the BackgroundFlusher
 //------------------------------------------------------------------------------
-// TODO
+class MetadataFlusher;
+class FlusherNotifier : public qclient::Notifier {
+public:
+  FlusherNotifier(MetadataFlusher &flusher);
+
+  virtual void eventNetworkIssue(const std::string &err) override;
+  virtual void eventUnexpectedResponse(const std::string &err) override;
+private:
+  MetadataFlusher &flusher;
+};
 
 //------------------------------------------------------------------------------
 //! Metadata flushing towards QuarkDB
@@ -79,9 +88,9 @@ public:
 private:
   void queueSizeMonitoring(qclient::ThreadAssistant &assistant);
 
+  FlusherNotifier notifier;
   qclient::QClient qcl;
   qclient::BackgroundFlusher backgroundFlusher;
-  qclient::Notifier dummyNotifier;
   qclient::AssistedThread sizePrinter;
 };
 

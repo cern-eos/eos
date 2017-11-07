@@ -36,8 +36,8 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 MetadataFlusher::MetadataFlusher(const std::string &path, const std::string &host, int port)
-: qcl(host, port, true /* yes to redirects */, false /* no to exceptions */),
-  backgroundFlusher(qcl, dummyNotifier, 50000 /* size limit */, 5000 /* pipeline length */,
+: notifier(*this), qcl(host, port, true /* yes to redirects */, false /* no to exceptions */),
+  backgroundFlusher(qcl, notifier, 50000 /* size limit */, 5000 /* pipeline length */,
   new qclient::RocksDBPersistency(path)),
   sizePrinter(&MetadataFlusher::queueSizeMonitoring, this) {
 
@@ -162,6 +162,30 @@ MetadataFlusher* MetadataFlusherFactory::getInstance(const std::string &id, std:
   instances[key] = flusher;
 
   return flusher;
+}
+
+//------------------------------------------------------------------------------
+//! Class to receive notifications from the BackgroundFlusher
+//------------------------------------------------------------------------------
+FlusherNotifier::FlusherNotifier(MetadataFlusher &flusher_) : flusher(flusher_)
+{
+}
+
+//------------------------------------------------------------------------------
+//! Record network events
+//------------------------------------------------------------------------------
+void FlusherNotifier::eventNetworkIssue(const std::string &err)
+{
+  eos_static_notice("Network issue when contacting the redis backend: %s", err.c_str());
+}
+
+//------------------------------------------------------------------------------
+//! Record unexpected responses
+//------------------------------------------------------------------------------
+void FlusherNotifier::eventUnexpectedResponse(const std::string &err)
+{
+  eos_static_crit("Unexpected response when contacting the redis backend: %s", err.c_str());
+  // Maybe we should just std::terminate now?
 }
 
 EOSNSNAMESPACE_END
