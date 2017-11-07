@@ -414,8 +414,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       if (!exists) {
         XrdSysTimer timer;
         timer.Wait(100);
-      } else {
-        break;
       }
     }
 
