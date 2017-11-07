@@ -1415,8 +1415,6 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
       if (fsid != snapshot.mId) {
         // Remove previous mapping
         mIdView.erase(fsid);
-        // @todo (esindril): we should also delete the old FileSystem* to avoid
-        // leaks
         // Setup new two way mapping
         mFileSystemView[fs] = snapshot.mId;
         mIdView[snapshot.mId] = fs;
