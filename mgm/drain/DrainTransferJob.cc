@@ -69,14 +69,12 @@ DrainTransferJob::DoIt()
   using eos::common::LayoutId;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
-  std::string  errorString;
   XrdSysTimer sleeper;
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> cmd;
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
   unsigned long long size = 0;
-  // @todo (amanzi) attrmap is not used at all
   std::string source_xs;
   XrdOucString source_sz;
   long unsigned int lid = 0;
@@ -136,11 +134,8 @@ DrainTransferJob::DoIt()
     target_fs->SnapShotFileSystem(target_snapshot);
   }
 
-  // @todo (amanzi) review this condition - it should skip all RAIN files
-  if (((LayoutId::GetLayoutType(lid) == LayoutId::kRaidDP) ||
-       (LayoutId::GetLayoutType(lid) == LayoutId::kArchive) ||
-       (LayoutId::GetLayoutType(lid) == LayoutId::kRaid6)) &&
-      source_snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead) {
+  if ((LayoutId::GetLayoutType(lid) == LayoutId::kRaidDP) ||
+       (LayoutId::GetLayoutType(lid) == LayoutId::kRaid6)) {
     // @todo (amanzi): to be implemented - run TPC with reconstruction
   } else {
     // Prepare the TPC copy job
@@ -311,7 +306,7 @@ DrainTransferJob::DoIt()
         eos_notice("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
 
         if (!lTpcStatus.IsOK()) {
-          ReportError(errorString);
+          ReportError(lTpcStatus.ToStr().c_str());
         } else {
           eos_notice("Drain Job completed Succesfully");
           mStatus = Status::OK;

@@ -43,16 +43,15 @@ public:
   //----------------------------------------------------------------------------
   static void* StaticThreadProc(void*);
 
+  pthread_t mThread; ///< Thead supervising the draining
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param fs_id filesystem id
   //----------------------------------------------------------------------------
   DrainFS(eos::common::FileSystem::fsid_t fs_id):
-    mFsId(fs_id), mThread(0)
+     mThread(0), mFsId(fs_id)
   {
-    // @todo (amanzi) move out to StartDrain func, the constructor is not a
-    //                good place for this
   }
 
   //----------------------------------------------------------------------------
@@ -80,7 +79,13 @@ public:
   {
     return mDrainStatus;
   }
-
+  //---------------------------------------------------------------------------
+  //! Get the FS id
+  //---------------------------------------------------------------------------
+  inline const eos::common::FileSystem::fsid_t GetFsId() const
+  {
+    return mFsId; 
+  }
 private:
 
   //----------------------------------------------------------------------------
@@ -115,7 +120,6 @@ private:
 
   eos::common::FileSystem::fsid_t mFsId; ///< Id of the draining file system
   // @todo (amanzi): try using std::thread just like in drain job
-  pthread_t mThread; ///< Thead supervising the draining
   eos::common::FileSystem::eDrainStatus mDrainStatus;
   std::string mSpace; ///< Space where fs resides
   std::string mGroup; ///< Group where fs resided

@@ -90,7 +90,7 @@ FileSystem::StopDrainJob ()
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status)
+FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status, bool centraldrain)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief Set the configuration status of this filesystem
@@ -101,70 +101,72 @@ FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status)
  */
 /*----------------------------------------------------------------------------*/
 {
-  //----------------------------------------------------------------
-  // catch any status change from/to 'drain' or 'draindead' 
-  //----------------------------------------------------------------
+  //this is specific for distribured drain implementation 
+  if (!centraldrain ) {
+    //----------------------------------------------------------------
+    // catch any status change from/to 'drain' or 'draindead' 
+    //----------------------------------------------------------------
 
-  // check the current status
-  eos::common::FileSystem::fsstatus_t isstatus = GetConfigStatus();
+    // check the current status
+    eos::common::FileSystem::fsstatus_t isstatus = GetConfigStatus();
 
-  if ((isstatus == kDrainDead) || (isstatus == kDrain))
-  {
-    // stop draining
-    mDrainJobMutex.Lock();
-    if (mDrainJob)
+    if ((isstatus == kDrainDead) || (isstatus == kDrain))
     {
-      delete mDrainJob;
-      mDrainJob = 0;
-      SetDrainStatus(eos::common::FileSystem::kNoDrain);
+      // stop draining
+      mDrainJobMutex.Lock();
+      if (mDrainJob)
+      {
+        delete mDrainJob;
+        mDrainJob = 0;
+        SetDrainStatus(eos::common::FileSystem::kNoDrain);
+        mDrainJobMutex.UnLock();
+      }
+      else
+      {
+        mDrainJobMutex.UnLock();
+      }
+    } 
+
+    if ((status == kDrain) || (status == kDrainDead))
+    {
+      // -------------------------------------------------------------------------
+      // create a drain job
+      // -------------------------------------------------------------------------
+      mDrainJobMutex.Lock();
+
+      // -------------------------------------------------------------------------
+      // check if there is still a drain job
+      // -------------------------------------------------------------------------
+      if (mDrainJob)
+      {
+        delete mDrainJob;
+        mDrainJob = 0;
+      }
+      if (!ShouldBroadCast())
+      {
+        // -----------------------------------------------------------------------
+        // this is a filesystem on a ro-slave MGM e.g. it does not drain
+        // -----------------------------------------------------------------------
+      }
+      else
+      {
+        mDrainJob = new DrainJob(GetId());
+      }
       mDrainJobMutex.UnLock();
     }
     else
     {
-      mDrainJobMutex.UnLock();
+      if (status == kEmpty)
+      {
+        SetDrainStatus(eos::common::FileSystem::kDrained);
+        SetLongLong("stat.drainprogress", 100);
+      }
+      else
+      {
+        SetDrainStatus(eos::common::FileSystem::kNoDrain);
+      }
     }
-  }
-
-  if ((status == kDrain) || (status == kDrainDead))
-  {
-    // -------------------------------------------------------------------------
-    // create a drain job
-    // -------------------------------------------------------------------------
-    mDrainJobMutex.Lock();
-
-    // -------------------------------------------------------------------------
-    // check if there is still a drain job
-    // -------------------------------------------------------------------------
-    if (mDrainJob)
-    {
-      delete mDrainJob;
-      mDrainJob = 0;
-    }
-    if (!ShouldBroadCast())
-    {
-      // -----------------------------------------------------------------------
-      // this is a filesystem on a ro-slave MGM e.g. it does not drain
-      // -----------------------------------------------------------------------
-    }
-    else
-    {
-      mDrainJob = new DrainJob(GetId());
-    }
-    mDrainJobMutex.UnLock();
-  }
-  else
-  {
-    if (status == kEmpty)
-    {
-      SetDrainStatus(eos::common::FileSystem::kDrained);
-      SetLongLong("stat.drainprogress", 100);
-    }
-    else
-    {
-      SetDrainStatus(eos::common::FileSystem::kNoDrain);
-    }
-  }
-
+  } 
   return eos::common::FileSystem::SetConfigStatus(status);
 }
 

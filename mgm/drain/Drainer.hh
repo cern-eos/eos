@@ -39,13 +39,9 @@ class DrainTransferJob;
 class Drainer: public eos::common::LogId
 {
 public:
-  //! DrainFS thread map pair (maps DrainFS threads with their fs )
-  // @todo (amanzi) the DrainFS already knows the fsid, this seems redundant
-  typedef std::pair<eos::common::FileSystem::fsid_t,
-          std::shared_ptr<eos::mgm::DrainFS>> DrainMapPair;
 
   //! Map node to vector of draining file systems
-  typedef std::map<std::string, std::vector<DrainMapPair>> DrainMap;
+  typedef std::map<std::string, std::vector<std::shared_ptr<eos::mgm::DrainFS>>> DrainMap;
 
   //----------------------------------------------------------------------------
   // Service thread static startup function
@@ -68,23 +64,19 @@ public:
   void Stop();
 
   //----------------------------------------------------------------------------
-  //! Start draining of a given file system
-  //! @todo (amanzi): this interface in not very friendly, maybe passsing
-  //!                 directly the fsid seems more natural as this class should
-  //!                 not know how the fsid is encoded in the env. The same
-  //!                 for the next ones.
+  //! Start  of a given file system
   //----------------------------------------------------------------------------
-  bool StartFSDrain(XrdOucEnv&, XrdOucString&);
+  bool StartFSDrain(unsigned int fsId, XrdOucString&);
 
   //----------------------------------------------------------------------------
   //! Stop draining of a given file system
   //----------------------------------------------------------------------------
-  bool StopFSDrain(XrdOucEnv&, XrdOucString&);
+  bool StopFSDrain(unsigned int fsId, XrdOucString&);
 
   //----------------------------------------------------------------------------
   //!  Clear the Draining info for the given FS
   //---------------------------------------------------------------------------
-  bool ClearFSDrain(XrdOucEnv&, XrdOucString&);
+  bool ClearFSDrain(unsigned int fsId, XrdOucString&);
 
   //----------------------------------------------------------------------------
   //! Get draining status (global or specific to a fsid)
@@ -93,7 +85,7 @@ public:
   //! @param out
   //! @param err
   //----------------------------------------------------------------------------
-  bool GetDrainStatus(XrdOucEnv&, XrdOucString&, XrdOucString&);
+  bool GetDrainStatus(unsigned int fsId, XrdOucString&, XrdOucString&);
 
   //----------------------------------------------------------------------------
   //!
@@ -103,7 +95,7 @@ public:
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  void PrintTable(TableFormatterBase&, std::string, DrainMapPair&);
+  void PrintTable(TableFormatterBase&, std::string, DrainFS* fs);
 
   //----------------------------------------------------------------------------
   //!

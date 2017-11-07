@@ -109,7 +109,7 @@ public:
   // ---------------------------------------------------------------------------
   // this methods are overwriting the base class implementation
   // to catch any status change to/from 'drain' or 'draindead'
-  bool SetConfigStatus(eos::common::FileSystem::fsstatus_t status);
+  bool SetConfigStatus(eos::common::FileSystem::fsstatus_t status, bool centraldrain = false);
   bool SetString(const char* key, const char* str, bool broadcast = true);
   // ---------------------------------------------------------------------------
 
