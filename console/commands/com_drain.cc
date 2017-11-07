@@ -22,113 +22,86 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include "console/commands/ICmdHelper.hh"
 #include "console/ConsoleMain.hh"
+#include "common/Drain.pb.h"
 #include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 
-extern int com_file(char*);
-extern int com_fs(char*);
-extern int com_find(char*);
+using eos::console::DrainProto;
 
-using namespace eos::common;
+void com_drain_help();
 
-/*----------------------------------------------------------------------------*/
-
-/* Central Drain listing, configuration, manipulation */
-int
-com_drain(char* arg1)
+//------------------------------------------------------------------------------
+//! Class DrainHelper
+//------------------------------------------------------------------------------
+class DrainHelper: public ICmdHelper
 {
-  // split subcommands
-  eos::common::StringTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
-
-  if (wants_help(arg1)) {
-    goto com_drain_usage;
+public:
+  DrainHelper()
+  {
+    mIsAdmin = true;
   }
+  //----------------------------------------------------------------------------
+  //! Parse command line input
+  //!
+  //! @param arg input
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool ParseCommand(const char* arg);
+
+};
+
+//------------------------------------------------------------------------------
+// Parse command line input
+//------------------------------------------------------------------------------
+bool
+DrainHelper::ParseCommand(const char* arg)
+{
+  const char* option;
+  eos::console::DrainProto* drain = mReq.mutable_drain();
+  // split subcommands
+  eos::common::StringTokenizer subtokenizer(arg);
+  subtokenizer.GetLine();
+  option = subtokenizer.GetToken();
+  std::string subcommand = (option ? option : "");
 
   if (subcommand == "start") {
-    XrdOucString in = "mgm.cmd=drain&mgm.subcmd=start";
-    XrdOucString fsid = subtokenizer.GetToken();
-
-    if (fsid.length()) {
-      int ifsid = atoi(fsid.c_str());
-
-      if (ifsid == 0) {
-        goto com_drain_usage;
-      }
-    } else {
-      goto com_drain_usage;
-    }
-
-    in += "&mgm.drain.fsid=";
-    in += fsid;
-    XrdOucEnv* result = client_command(in,true);
-    global_retc = output_result(result);
-    return (0);
+      drain->set_op(DrainProto::START);
   }
-
   if (subcommand == "stop") {
-    XrdOucString in = "mgm.cmd=drain&mgm.subcmd=stop";
-    XrdOucString fsid = subtokenizer.GetToken();
-
-    if (fsid.length()) {
-      int ifsid = atoi(fsid.c_str());
-
-      if (ifsid == 0) {
-        goto com_drain_usage;
-      }
-    } else {
-      goto com_drain_usage;
-    }
-
-    in += "&mgm.drain.fsid=";
-    in += fsid;
-    XrdOucEnv* result = client_command(in,true);
-    global_retc = output_result(result);
-    return (0);
+      drain->set_op(DrainProto::STOP);
   }
-
   if (subcommand == "clear") {
-    XrdOucString in = "mgm.cmd=drain&mgm.subcmd=clear";
-    XrdOucString fsid = subtokenizer.GetToken();
-
-    if (fsid.length()) {
-      int ifsid = atoi(fsid.c_str());
-
-      if (ifsid == 0) {
-        goto com_drain_usage;
-      }
-    } else {
-      goto com_drain_usage;
-    }
-
-    in += "&mgm.drain.fsid=";
-    in += fsid;
-    XrdOucEnv* result = client_command(in,true);
-    global_retc = output_result(result);
-    return (0);
+      drain->set_op(DrainProto::CLEAR);
   }
-
   if (subcommand == "status") {
-    XrdOucString in = "mgm.cmd=drain&mgm.subcmd=status";
-    XrdOucString fsid = subtokenizer.GetToken();
-
-   if (fsid.length()) {
-      int ifsid = atoi(fsid.c_str());
-      if (ifsid == 0) {
-        goto com_drain_usage;
-      }
-      in += "&mgm.drain.fsid=";
-      in += fsid;
-   }
-
-    XrdOucEnv* result = client_command(in,true);
-    global_retc = output_result(result);
-    return (0);
+      drain->set_op(DrainProto::STATUS);
   }
+  const char* fsid = subtokenizer.GetToken();
 
-com_drain_usage:
+  if (fsid) {
+      int ifsid = atoi(fsid);
+
+      if (ifsid == 0 ) {
+        return false;
+      }
+  } else if (subcommand != "status") {
+        return false;
+  } else {
+    fsid="0";
+  }
+  drain->set_fsid(fsid);
+  return true; 
+}
+
+
+//------------------------------------------------------------------------------
+// Print help message
+//------------------------------------------------------------------------------
+void com_drain_help()
+{
   fprintf(stdout, "'[eos] drain ..' provides the drain interface of EOS.\n");
   fprintf(stdout,
           "Usage: drain start|stop|status [OPTIONS]\n");
@@ -147,5 +120,29 @@ com_drain_usage:
           "                                                  show the status of the drain activities on the system. If the fsid is specified shows detailed info about that fs drain\n");
   fprintf(stdout, "Report bugs to eos-dev@cern.ch.\n");
   global_retc = EINVAL;
-  return (0);
 }
+
+
+//------------------------------------------------------------------------------
+//  entrypoint
+//------------------------------------------------------------------------------
+int com_drain(char* arg)
+{
+  if (wants_help(arg)) {
+    com_drain_help();
+    global_retc = EINVAL;
+    return EINVAL;
+  }
+
+  DrainHelper drain;
+
+  if (!drain.ParseCommand(arg)) {
+    com_drain_help();
+    global_retc = EINVAL;
+    return EINVAL;
+  }
+
+  global_retc = drain.Execute();
+  return global_retc;
+}
+

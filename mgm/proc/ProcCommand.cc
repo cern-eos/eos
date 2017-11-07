@@ -239,9 +239,6 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "config") {
       Config();
       mDoSort = false;
-    } else if (mCmd == "drain") {
-      Drain();
-      mDoSort = false;
     } else if (mCmd == "node") {
       Node();
       mDoSort = false;

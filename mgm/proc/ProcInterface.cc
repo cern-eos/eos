@@ -24,6 +24,7 @@
 #include "common/ConsoleRequest.pb.h"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
+#include "mgm/proc/admin/DrainCmd.hh"
 #include <iostream>
 #include <fstream>
 #include <json/json.h>
@@ -177,6 +178,11 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
 
   case RequestProto::kNs:
     cmd.reset(new NsCmd(std::move(req), vid));
+    break;
+
+  case RequestProto::kDrain:
+    eos_static_debug("handling drain command");
+    cmd.reset(new DrainCmd(std::move(req), vid));
     break;
 
   default:

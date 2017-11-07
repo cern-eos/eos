@@ -3,6 +3,7 @@ package eos.console;
 
 import "Acl.proto";
 import "Ns.proto";
+import "Drain.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -20,5 +21,6 @@ message RequestProto {
   oneof command {
     AclProto acl = 3;
     NsProto  ns  = 4;
+    DrainProto drain = 5;
   }
 }
