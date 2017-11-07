@@ -50,6 +50,10 @@ bool
 TwindowFilter::FilterOutFile(
   const std::map<std::string, std::string>& entry_info)
 {
+  if (mTwindowType.empty() || mTwindowVal.empty()) {
+    return false;
+  }
+
   std::string path = entry_info.find("file")->second;
 
   // Filter if this is a version file
@@ -93,11 +97,15 @@ TwindowFilter::FilterOutFile(
 bool
 TwindowFilter::FilterOutDir(const std::string& path)
 {
+  if (mTwindowType.empty() || mTwindowVal.empty()) {
+    return false;
+  }
+
   if (mSetDirs.find(path) != mSetDirs.end()) {
     return false;
   }
 
-  eos_info("Filter out directory=%s", path.c_str());
+  eos_debug("filter out directory=%s", path.c_str());
   return true;
 }
 
