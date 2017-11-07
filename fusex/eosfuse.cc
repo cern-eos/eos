@@ -1474,7 +1474,8 @@ EBADF  Invalid directory stream descriptor fi->fh
       }
       if (!pmd_children.size())
       {
-	eos_static_debug("%s",Instance().mds.dump_md(pmd,false).c_str());
+	if (EOS_LOGS_DEBUG)
+	  eos_static_debug("%s",Instance().mds.dump_md(pmd,false).c_str());
       }
     }
     // only one readdir at a time

@@ -417,7 +417,8 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
     return EFAULT;
   }
 
-  eos_static_debug("MD:\n%s", EosFuse::Instance().mds.dump_md(*md).c_str());
+  if (EOS_LOGS_DEBUG)
+    eos_static_debug("MD:\n%s", EosFuse::Instance().mds.dump_md(*md).c_str());
 
   md->clear_authid();
   md->clear_clientuuid();
@@ -502,7 +503,8 @@ backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
           return 0;
         }
         eos_static_err("failed query command for ino=%lx error='%s'", md->id(), resp.ack_().err_msg().c_str());
-	eos_static_err("MD:\n%s", EosFuse::Instance().mds.dump_md(*md).c_str());
+	if (EOS_LOGS_DEBUG)
+	  eos_static_err("MD:\n%s", EosFuse::Instance().mds.dump_md(*md).c_str());
         delete response;
         if (locker) locker->Lock();
         return EIO;
@@ -631,7 +633,8 @@ backend::doLock(fuse_req_t req,
         return 0;
       }
       eos_static_err("failed query command for ino=%lx error='%s'", md.id(), resp.ack_().err_msg().c_str());
-      eos_static_err("MD:\n%s", EosFuse::Instance().mds.dump_md(md).c_str());
+      if (EOS_LOGS_DEBUG)
+	eos_static_err("MD:\n%s", EosFuse::Instance().mds.dump_md(md).c_str());
       locker->Lock();
       return EIO;
     }
