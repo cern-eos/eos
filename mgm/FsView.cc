@@ -1415,6 +1415,8 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
       if (fsid != snapshot.mId) {
         // Remove previous mapping
         mIdView.erase(fsid);
+        // @todo (esindril): we should also delete the old FileSystem* to avoid
+        // leaks
         // Setup new two way mapping
         mFileSystemView[fs] = snapshot.mId;
         mIdView[snapshot.mId] = fs;
@@ -1775,7 +1777,7 @@ FsView::ExistsQueue(std::string queue, std::string queuepath)
     // Loop over all attached filesystems and compare the queue path
     for (auto it = mNodeView[queue]->begin(); it != mNodeView[queue]->end(); it++) {
       if (FsView::gFsView.mIdView[*it]->GetQueuePath() == queuepath) {
-        // This queupath exists already, we cannot register
+        // This queuepath exists already, we cannot register
         return true;
       }
     }

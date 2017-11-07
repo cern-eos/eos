@@ -170,24 +170,17 @@ Fsck::Check(void)
   XrdSysTimer sleeper;
   int bccount = 0;
   ClearLog();
-  bool go = false;
 
-  do {
-    // Wait that the namespace is booted
-    {
-      XrdSysMutexHelper scop_lock(gOFS->InitializationMutex);
-
-      if (gOFS->Initialized == gOFS->kBooted) {
-        go = true;
-      }
-    }
-
-    if (!go) {
+  // Wait that the namespace is booted
+  while (true) {
+    if (!gOFS->IsNsBooted()) {
       sleeper.Snooze(10);
+    } else {
+      break;
     }
-  } while (!go);
+  }
 
-  while (1) {
+  while (true) {
     XrdSysThread::SetCancelOff();
     sleeper.Snooze(1);
     eos_static_debug("Started consistency checker thread");
@@ -332,19 +325,30 @@ Fsck::Check(void)
       }
     }
 
-    // Loop over unavailable filesystems
-    for (auto unavailit = eFsUnavail.cbegin(); unavailit != eFsUnavail.cend();
-         ++unavailit) {
-      std::string host = "not configured";
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    {
+      XrdSysMutexHelper lock(eMutex);
 
-      if (FsView::gFsView.mIdView.count(unavailit->first)) {
-        // @todo (esindril): Check if FileSystem object not null
-        host = FsView::gFsView.mIdView[unavailit->first]->GetString("hostport");
+      // Loop over unavailable filesystems
+      for (auto ua_it = eFsUnavail.cbegin(); ua_it != eFsUnavail.cend();
+           ++ua_it) {
+        std::string host = "not configured";
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+        if (FsView::gFsView.mIdView.count(ua_it->first)) {
+          // @todo (esindril): would be nice to understand how we can end up in
+          // such a situation that fs is null ?!
+          auto fs = FsView::gFsView.mIdView[ua_it->first];
+
+          if (fs) {
+            host = fs->GetString("hostport");
+          } else {
+            eos_static_alert("fsid=%llu is null in mIdView", ua_it->first);
+          }
+        }
+
+        Log(false, "host=%s fsid=%lu replica_offline=%llu", host.c_str(),
+            ua_it->first, ua_it->second);
       }
-
-      Log(false, "host=%s fsid=%lu  replica_offline=%llu ", host.c_str(),
-          unavailit->first, unavailit->second);
     }
 
     {
