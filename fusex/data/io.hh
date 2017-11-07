@@ -125,6 +125,17 @@ public:
     return _xrdiorw["default"];
   }
 
+  bool has_xrdioro(fuse_req_t req)
+  {
+    return _xrdioro.count("default");
+  }
+
+  bool has_xrdiorw(fuse_req_t req)
+  {
+    return _xrdiorw.count("default");
+  }
+
+
   XrdCl::Proxy* xrdioro(std::string& id)
   {
     return _xrdioro[id];

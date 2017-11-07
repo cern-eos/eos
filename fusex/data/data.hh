@@ -298,6 +298,8 @@ public:
 
   void unlink(fuse_req_t req, fuse_ino_t ino);
 
+  void update_cookie( uint64_t ino, std::string& cookie);
+
   void invalidate_cache(fuse_ino_t ino);
 private:
   dmap datamap;

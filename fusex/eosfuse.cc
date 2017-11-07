@@ -1144,6 +1144,10 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
             md->set_ctime_ns(tsnow.tv_nsec);
           }
         }
+
+	std::string cookie=md->Cookie();
+	Instance().datas.update_cookie(md->id(), cookie);
+	
         EXEC_TIMING_END("setattr:utimes");
       }
 

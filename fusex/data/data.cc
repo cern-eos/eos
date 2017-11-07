@@ -105,6 +105,22 @@ data::release(fuse_req_t req,
   }
 }
 
+void
+/* -------------------------------------------------------------------------- */
+data::update_cookie( uint64_t ino, std::string& cookie)
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysMutexHelper mLock(datamap);
+  if (datamap.count(ino))
+  {
+    shared_data io = datamap[ino];
+    io->attach(); // client ref counting
+    io->store_cookie(cookie);
+    io->detach();
+  }
+}
+
+
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
@@ -328,9 +344,9 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   }
   else
   {
-    if (!mFile->xrdioro(freq) || mFile->xrdioro(freq)->IsClosing() || mFile->xrdioro(freq)->IsClosed())
+    if (!mFile->has_xrdioro(freq) || mFile->xrdioro(freq)->IsClosing() || mFile->xrdioro(freq)->IsClosed())
     {
-      if (mFile->xrdioro(freq) && (mFile->xrdioro(freq)->IsClosing() || mFile->xrdioro(freq)->IsClosed()))
+      if (mFile->has_xrdioro(freq) && (mFile->xrdioro(freq)->IsClosing() || mFile->xrdioro(freq)->IsClosed()))
       {
         mFile->xrdioro(freq)->WaitClose();
       }
@@ -373,12 +389,19 @@ data::datax::prefetch(fuse_req_t req, bool lock)
            mFile ? mFile->file() ? mFile->file()->size() : 0 : 0,
            mMd->size());
 
+
+  if (mFile && mFile->has_xrdiorw(req))
+  {
+    // never prefetch on a wr open file
+    return true;
+  }
+
   if (lock)
     mLock.Lock();
 
   if (!mPrefetchHandler && mFile->file() && !mFile->file()->size() && mMd->size())
   {
-    XrdCl::Proxy* proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+    XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
 
     if (proxy)
     {
@@ -412,7 +435,7 @@ data::datax::WaitPrefetch(fuse_req_t req, bool lock)
 
   if (mPrefetchHandler && mFile->file())
   {
-    XrdCl::Proxy* proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+    XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
 
     if (mPrefetchHandler && proxy)
     {
@@ -483,14 +506,14 @@ data::datax::detach(fuse_req_t req, std::string& cookie, int flags)
 
   if (isRW)
   {
-    if (mFile->xrdiorw(req))
+    if (mFile->has_xrdiorw(req))
     {
       mFile->xrdiorw(req)->detach();
     }
   }
   else
   {
-    if (mFile->xrdioro(req))
+    if (mFile->has_xrdioro(req))
     {
       mFile->xrdioro(req)->detach();
     }
@@ -622,7 +645,7 @@ data::datax::pread(fuse_req_t req, void *buf, size_t count, off_t offset)
   }
 
   // read the missing part remote
-  XrdCl::Proxy* proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+  XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
 
   if (proxy)
   {
@@ -886,7 +909,7 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
   }
 
   // read the missing part remote
-  XrdCl::Proxy * proxy = mFile->xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+  XrdCl::Proxy * proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
 
   XrdCl::XRootDStatus status;
 
@@ -985,7 +1008,7 @@ data::datax::truncate(fuse_req_t req, off_t offset)
 
   if (!mFile->journal())
   {
-    if (mFile->xrdiorw(req))
+    if (mFile->has_xrdiorw(req))
     {
       if (mFile->xrdiorw(req)->IsOpening())
       {
@@ -1186,6 +1209,9 @@ data::dmap::ioflush(ThreadAssistant &assistant)
               for (auto fit = map.begin();
                    fit != map.end(); ++fit)
               {
+		if (!fit->second)
+		  continue;
+
                 if (fit->second->IsOpening() || fit->second->IsClosing())
                 {
                   eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->stateTS(), fit->second->IsClosed());
