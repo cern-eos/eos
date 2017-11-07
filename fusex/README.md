@@ -33,7 +33,8 @@ You can select a named instance adding '-ofsname=<name>' to the argument list.
     "symlink-is-sync" : 1,
     "global-flush" : 1,
     "global-locking" : 1, 
-    "fd-limit" : 65536
+    "fd-limit" : 65536,
+    "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ]
   },
   "auth" : {
     "shared-mount" : 1,
