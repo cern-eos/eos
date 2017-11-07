@@ -1427,8 +1427,27 @@ metad::setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep)
     return EINVAL;
   }
 
+  bool backend_call = true;
+
+  if (lock->l_type == F_UNLCK)
+  {
+    backend_call =false;
+    // check that we have actually a lock for that before doing an upstream call
+    for (auto it=md->LockTable().begin(); it!=md->LockTable().end();++it)
+    {
+      if ( it->l_pid == (pid_t)md->flock().pid())
+      {
+	backend_call = true;
+      }
+    }
+  }
+
   // do sync upstream lock call
-  int rc = mdbackend->doLock(req, *md, &(md->Locker()));
+  int rc = 0;
+
+  if (backend_call) {
+    rc = mdbackend->doLock(req, *md, &(md->Locker()));
+  }
 
   // digest the response
   if (!rc)
@@ -1446,6 +1465,20 @@ metad::setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep)
     if (lock->l_type != F_UNLCK)
     {
       md->LockTable().push_back(*lock);
+    }
+    else
+    {
+      // remove from LockTable - not the most efficient
+      auto it = md->LockTable().begin();
+      while(it != md->LockTable().end())
+      {
+	if( it->l_pid == (pid_t)md->flock().pid() )
+	{
+	  it = md->LockTable().erase(it);
+	}
+	else
+	  it++;
+      }
     }
   }
   // clean the lock structure;
