@@ -209,6 +209,44 @@ NsHelper::ParseCommand(const char* arg)
         master->set_host(soption);
       }
     }
+  } else if (cmd == "recompute_tree_size") {
+    using eos::console::NsProto_TreeSizeProto;
+    NsProto_TreeSizeProto* tree = ns->mutable_tree();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    } else {
+      while (true) {
+        int pos = 0;
+        soption = option;
+
+        if (soption == "--depth") {
+          if (!(option = tokenizer.GetToken())) {
+            return false;
+          }
+
+          soption = option;
+
+          try {
+            tree->set_depth(std::stoul(soption));
+          } catch (const std::exception& e) {
+            return false;
+          }
+        } else if ((soption.find("cid:") == 0)) {
+          pos = soption.find(':') + 1;
+          tree->set_cid(soption.substr(pos));
+        } else if (soption.find("cxid:") == 0) {
+          pos = soption.find(':') + 1;
+          tree->set_cxid(soption.substr(pos));
+        } else { // this should be a plain path
+          tree->set_path(soption);
+        }
+
+        if (!(option = tokenizer.GetToken())) {
+          break;
+        }
+      }
+    }
   } else if (cmd == "") {
     ns->set_default_(true);
   } else {
@@ -217,7 +255,6 @@ NsHelper::ParseCommand(const char* arg)
 
   return true;
 }
-
 
 //------------------------------------------------------------------------------
 // Ns command entrypoint
@@ -286,8 +323,15 @@ void com_ns_help()
       << "    --log             : show master log" << std::endl
       << "    --log-clear       : clean master log" << std::endl
       << "    --enable          : enable the slave/master supervisor thread modifying stall/"
-      << std::endl
       << "                        redirectorion rules" << std::endl
-      << "    --disable   : disable supervisor thread" << std::endl;
+      << "    --disable   : disable supervisor thread"
+      << std::endl
+      << std::endl
+      << "  ns recompute_tree_size <path>|cid:<decimal_id>|cxid:<hex_id> [--depth <val>]"
+      << std::endl
+      << "    recompute the tree size of a directory and all its subdirectories"
+      << std::endl
+      << "    --depth : maximum depth for recomputation, default 0 i.e no limit"
+      << std::endl;
   std::cerr << oss.str() << std::endl;
 }

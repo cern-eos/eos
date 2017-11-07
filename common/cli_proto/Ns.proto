@@ -48,11 +48,22 @@ message NsProto {
     string Host = 2;
   }
 
+  message TreeSizeProto {
+    uint32 depth = 1;
+
+    oneof container {
+      string path = 2;
+      string cid  = 3;
+      string cxid = 4;
+    }
+  }
+
   oneof subcmd {
     bool default         = 1;
     StatProto stat       = 2;
     MutexProto mutex     = 3;
     CompactProto compact = 4;
     MasterProto master   = 5;
+    TreeSizeProto tree   = 6;
   }
 }

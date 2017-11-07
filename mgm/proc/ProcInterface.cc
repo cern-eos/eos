@@ -172,12 +172,10 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
 
   switch (req.command_case()) {
   case RequestProto::kAcl:
-    eos_static_debug("handling acl command");
     cmd.reset(new AclCmd(std::move(req), vid));
     break;
 
   case RequestProto::kNs:
-    eos_static_debug("handling acl command");
     cmd.reset(new NsCmd(std::move(req), vid));
     break;
 

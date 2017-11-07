@@ -24,7 +24,9 @@
 #include "mgm/Namespace.hh"
 #include "common/Ns.pb.h"
 #include "mgm/proc/ProcCommand.hh"
+#include "namespace/interface/IContainerMD.hh"
 #include "common/ConsoleRequest.pb.h"
+#include <list>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -101,6 +103,40 @@ private:
   //----------------------------------------------------------------------------
   void CompactSubcmd(const eos::console::NsProto_CompactProto& master,
                      eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute tree size recompute
+  //!
+  //! @param tree tree size  subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
+                      eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Do a breadth first search of all the subcontainers under the given
+  //! container
+  //!
+  //! @param cont container object
+  //! @param max_depth maxinum depth scanned for updating the tree size, 0
+  //!        means no limit
+  //!
+  //! @return list containing lists of subcontainers at each depth level
+  //!         starting with level 0 in front represenint the given container
+  //! @note this function assumes a write lock on eosViewRWMutex
+  //----------------------------------------------------------------------------
+  std::list< std::list<eos::IContainerMD::id_t> >
+  BreadthFirstSearchContainers(eos::IContainerMD* cont,
+                               uint32_t max_depth = 0) const;
+
+  //----------------------------------------------------------------------------
+  //! Recompute and update tree size of the given container assumming its
+  //! subcontainers tree size values are correct and adding the size of files
+  //! attached directly to the current container
+  //!
+  //! @param cont container object
+  //----------------------------------------------------------------------------
+  void UpdateTreeSize(eos::IContainerMD* cont) const;
 };
 
 EOSMGMNAMESPACE_END
