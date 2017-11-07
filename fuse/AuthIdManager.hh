@@ -695,7 +695,7 @@ protected:
     eos_static_info("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)",
                     sId.c_str(), (int)pid,
                     pid2StrongLogin[pid % proccachenbins][pid].c_str(), (int)uid, (int)authid);
-    return errCode;
+    return 0;
   }
 
   struct map_user {
