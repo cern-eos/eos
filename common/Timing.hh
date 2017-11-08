@@ -205,14 +205,14 @@ public:
       return;
     }
 
-    cerr << std::end;
+    std::cerr << std::endl;
 
     while ((n = p->next)) {
       cnt++;
       sprintf(msg, " #%04lu : %s::%-20s %.03f ms\n", cnt, maintag.c_str(),
               n->tag.c_str(), (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 +
                                       (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
-      cerr << msg;
+      std::cerr << msg;
       p = n;
     }
 
@@ -221,7 +221,7 @@ public:
     sprintf(msg, " #==== : %s::%-20s %.03f ms\n", maintag.c_str(), "total",
             (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 + (n->tv.tv_usec -
                     p->tv.tv_usec)) / 1000.0);
-    cerr << msg;
+    std::cerr << msg;
   }
 
   //----------------------------------------------------------------------------
