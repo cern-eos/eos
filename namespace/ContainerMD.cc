@@ -249,6 +249,7 @@ namespace eos
                                       0,0, -file->getSize() );
       file->getFileMDSvc()->notifyListeners( &e );
       pFiles.erase( name );
+      pFiles.resize( 0 );
     }
   }
 

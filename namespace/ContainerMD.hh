@@ -39,6 +39,7 @@
 #include <atomic>
 #endif
 
+#include "common/Murmur3.hh"
 #include "namespace/persistency/Buffer.hh"
 
 namespace eos
@@ -53,8 +54,8 @@ namespace eos
   {
 
     public:
-      typedef google::dense_hash_map<std::string, ContainerMD*> ContainerMap;
-      typedef google::dense_hash_map<std::string, FileMD*>      FileMap;
+      typedef google::dense_hash_map<std::string, ContainerMD*, Murmur3::MurmurHasher<std::string>, Murmur3::eqstr> ContainerMap;
+      typedef google::dense_hash_map<std::string, FileMD*, Murmur3::MurmurHasher<std::string>, Murmur3::eqstr>      FileMap;
       typedef std::map<std::string, std::string>                XAttrMap;
 
       //------------------------------------------------------------------------
@@ -429,6 +430,7 @@ namespace eos
       void removeContainer( const std::string &name )
       {
         pSubContainers.erase( name );
+	pSubContainers.resize(0);
       }
 
       //------------------------------------------------------------------------
