@@ -31,6 +31,7 @@
 #include <list>
 #include <deque>
 #include <google/dense_hash_set>
+#include "common/Murmur3.hh"
 
 namespace eos
 {
@@ -45,7 +46,7 @@ namespace eos
       // memory consuming. We changed to dense hash set since it is much faster
       // and the memory overhead is not visible in a million file namespace.
       //------------------------------------------------------------------------
-      typedef google::dense_hash_set<FileMD::id_t> FileList;
+      typedef google::dense_hash_set<FileMD::id_t, Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr> FileList;
       typedef FileList::iterator                   FileIterator;
 
       //------------------------------------------------------------------------
