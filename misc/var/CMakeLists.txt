@@ -36,6 +36,7 @@ install(DIRECTORY DESTINATION /var/eos/wfe/)
 install(DIRECTORY DESTINATION /var/eos/wfe/bash/)
 install(DIRECTORY DESTINATION /var/eos/kinetic/)
 install(DIRECTORY DESTINATION /var/eos/ns-queue/)
+install(DIRECTORY DESTINATION /var/eos/ns-queue/default)
 
 if( MacOSX )
   install(DIRECTORY DESTINATION /usr/local/lib/tmpfiles.d/)
