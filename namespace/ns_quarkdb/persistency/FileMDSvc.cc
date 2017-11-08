@@ -35,8 +35,8 @@ std::chrono::seconds FileMDSvc::sFlushInterval(5);
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc()
   : pQuotaStats(nullptr), pContSvc(nullptr), mFlushTimestamp(std::time(nullptr)),
-    pQcl(nullptr), mMetaMap(), mDirtyFidBackend(), mFlushFidSet(),
-    mFileCache(10e8) {}
+    pFlusher(nullptr), pQcl(nullptr), mMetaMap(), mDirtyFidBackend(),
+    mFlushFidSet(), mFileCache(10e8) {}
 
 //------------------------------------------------------------------------------
 // Configure the file service

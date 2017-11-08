@@ -33,8 +33,8 @@ std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 // Constructor
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
-  : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), mMetaMap(),
-    mContainerCache(10e7) {}
+  : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pFlusher(nullptr),
+    mMetaMap(), mContainerCache(10e7) {}
 
 //------------------------------------------------------------------------------
 // Configure the container service
