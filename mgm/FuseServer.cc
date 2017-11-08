@@ -1935,6 +1935,8 @@ FuseServer::HandleMD(const std::string &id,
       eos::ContainerMD* pcmd = 0;
       eos::ContainerMD* cpcmd = 0;
 
+      mode_t sgid_mode = 0;
+
       try
       {
         if (md.md_ino() && exclusive)
@@ -2016,6 +2018,7 @@ FuseServer::HandleMD(const std::string &id,
             {
               cmd->setAttribute(it->first, it->second);
             }
+	    sgid_mode = S_ISGID;
           }
         }
 
@@ -2023,7 +2026,7 @@ FuseServer::HandleMD(const std::string &id,
         cmd->setName(md.name());
         cmd->setCUid(md.uid());
         cmd->setCGid(md.gid());
-        cmd->setMode(md.mode());
+        cmd->setMode(md.mode() | sgid_mode);
         eos::ContainerMD::ctime_t ctime;
         eos::ContainerMD::ctime_t mtime;
         ctime.tv_sec = md.ctime();
@@ -2032,24 +2035,6 @@ FuseServer::HandleMD(const std::string &id,
         mtime.tv_nsec = md.mtime_ns();
         cmd->setCTime(ctime);
         cmd->setMTime(mtime);
-
-        // clear out all non central MGM attributes
-        {
-          std::set<std::string> rmAttr;
-          eos::ContainerMD::XAttrMap::const_iterator it;
-          for (it = cmd->attributesBegin(); it != cmd->attributesEnd(); ++it)
-          {
-
-            if (it->first.substr(0, 3) != "sys")
-            {
-              rmAttr.insert(it->first);
-            }
-          }
-          for (auto rit = rmAttr.begin(); rit != rmAttr.end(); ++rit)
-          {
-            cmd->removeAttribute(*rit);
-          }
-        }
 
         for (auto it = md.attr().begin(); it != md.attr().end(); ++it)
         {
@@ -2215,6 +2200,10 @@ FuseServer::HandleMD(const std::string &id,
           eos_static_info("ino=%lx pino=%lx md-ino=%lx create-file", (long) md.md_ino(), (long) md.md_pino(), md_ino);
         }
 
+        fmd->setName(md.name());
+        fmd->setCUid(md.uid());
+        fmd->setCGid(md.gid());
+
         {
           try
           {
@@ -2222,7 +2211,8 @@ FuseServer::HandleMD(const std::string &id,
             // free previous quota
             if (quotanode)
             {
-              quotanode->removeFile(fmd);
+	      if (op != CREATE)
+		quotanode->removeFile(fmd);
               fmd->setSize(md.size());
               quotanode->addFile(fmd);
             }
@@ -2236,10 +2226,6 @@ FuseServer::HandleMD(const std::string &id,
             fmd->setSize(md.size());
           }
         }
-
-        fmd->setName(md.name());
-        fmd->setCUid(md.uid());
-        fmd->setCGid(md.gid());
 
 
         // for the moment we store 9 bits here
