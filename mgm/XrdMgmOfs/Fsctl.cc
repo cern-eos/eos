@@ -69,13 +69,11 @@ XrdMgmOfs::fsctl(const int cmd,
     int blen = 0;
     char* buff = error.getMsgBuff(blen);
     XrdOucString space = "default";
-    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     unsigned long long freebytes = 0;
     unsigned long long maxbytes = 0;
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
 
-    // -------------------------------------------------------------------------
-    // take the sum's from all file systems in 'default'
-    // -------------------------------------------------------------------------
+    // Take the sum's from all file systems in 'default'
     if (FsView::gFsView.mSpaceView.count("default")) {
       std::string path = args;
 
