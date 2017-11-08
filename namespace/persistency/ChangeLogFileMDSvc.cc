@@ -330,7 +330,7 @@ namespace eos
 		originalContainer->addFile(originalFile);
 	      }
 
-              it->second.logOffset = currentOffset;
+              it.value().logOffset = currentOffset;
               processed.push_back( currentFile->getId() );
 
               delete currentFile;
@@ -380,7 +380,7 @@ namespace eos
 
               *originalFile = *currentFile;
               originalFile->setFileMDSvc( pFileSvc );
-              it->second.logOffset = currentOffset;
+              it.value().logOffset = currentOffset;
               delete currentFile;
 
               //----------------------------------------------------------------
@@ -757,8 +757,6 @@ namespace eos
   //------------------------------------------------------------------------
   void ChangeLogFileMDSvc::initialize() throw( MDException )
   {
-    pIdMap.resize(pResSize);
-
     if( !pContSvc )
     {
       MDException e( EINVAL );
@@ -846,9 +844,9 @@ namespace eos
             //------------------------------------------------------------------
             FileMD *file = new FileMD( 0, this );
             file->deserialize( *it->second.buffer );
-            it->second.ptr = file;
-            delete it->second.buffer;
-            it->second.buffer = 0;
+            it.value().ptr = file;
+            delete it.value().buffer;
+            it.value().buffer = 0;
 
             uint64_t lcnt = cnt.load();
 
@@ -988,9 +986,9 @@ namespace eos
           //--------------------------------------------------------------------
           FileMD *file = new FileMD( 0, this );
           file->deserialize( *it->second.buffer );
-          it->second.ptr = file;
-          delete it->second.buffer;
-          it->second.buffer = 0;
+          it.value().ptr = file;
+          delete it.value().buffer;
+          it.value().buffer = 0;
           ListenerList::iterator it;
           for ( it = pListeners.begin(); it != pListeners.end(); ++it )
             (*it)->fileMDRead( file );
@@ -1273,7 +1271,7 @@ namespace eos
     //--------------------------------------------------------------------------
     eos::Buffer buffer;
     obj->serialize( buffer );
-    it->second.logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD_MAGIC,
+    it.value().logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD_MAGIC,
                                                     buffer );
     IFileMDChangeListener::Event e( obj, IFileMDChangeListener::Updated );
     notifyListeners( &e );
@@ -1437,7 +1435,6 @@ namespace eos
     //--------------------------------------------------------------------------
     // shrink the pIdMap 
     //--------------------------------------------------------------------------
-    pIdMap.resize(0);
     
     //--------------------------------------------------------------------------
     // Get the list of records
@@ -1555,7 +1552,7 @@ namespace eos
       assert( it->second.logOffset >= itO->offset );
       if( it->second.logOffset == itO->offset )
       {
-        it->second.logOffset = itO->newOffset;
+        it.value().logOffset = itO->newOffset;
         ++fileCounter;
       }
     }
@@ -1571,7 +1568,7 @@ namespace eos
       assert( it != pIdMap.end() );
       assert( it->second.logOffset == itU->second.offset );
 
-      it->second.logOffset = itU->second.newOffset;
+      it.value().logOffset = itU->second.newOffset;
       ++fileCounter;
     }
 

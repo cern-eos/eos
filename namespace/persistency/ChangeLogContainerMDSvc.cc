@@ -188,7 +188,7 @@ namespace eos
                 // meta data change - keeping directory name
                 // -------------------------------------------------------------
                 (*it->second.ptr) = *currentCont;
-		it->second.logOffset = itU->second.logOffset;
+		it.value().logOffset = itU->second.logOffset;
 		pContSvc->notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
                 delete currentCont;
               }
@@ -292,7 +292,7 @@ namespace eos
                 // copy the meta data
                 // -------------------------------------------------------------
 		(*it->second.ptr) = *currentCont;
-		it->second.logOffset = itU->second.logOffset;
+		it.value().logOffset = itU->second.logOffset;
 		{
 		  // the file and container lists are not copied in the copy constructor
 		  for (fIt = currentCont->filesBegin(); 
@@ -580,7 +580,6 @@ namespace eos
     //--------------------------------------------------------------------------
     // Decide on how to open the change log
     //--------------------------------------------------------------------------
-    pIdMap.resize(pResSize);
     int logOpenFlags = 0;
     if( pSlaveMode )
     {
@@ -980,7 +979,7 @@ namespace eos
     //--------------------------------------------------------------------------
     eos::Buffer buffer;
     obj->serialize( buffer );
-    it->second.logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD_MAGIC,
+    it.value().logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD_MAGIC,
                                                     buffer );
     notifyListeners( obj, IContainerMDChangeListener::Updated );
   }
@@ -1061,7 +1060,6 @@ namespace eos
     //--------------------------------------------------------------------------
     // Shrink the pIdMap
     //--------------------------------------------------------------------------
-    pIdMap.resize(0);
 
     //--------------------------------------------------------------------------
     // Get the list of records
@@ -1186,7 +1184,7 @@ namespace eos
       assert(it->second.logOffset >= itO->offset);
       if (it->second.logOffset == itO->offset)
       {
-        it->second.logOffset = itO->newOffset;
+        it.value().logOffset = itO->newOffset;
         ++containerCounter;
       }
     }
@@ -1202,7 +1200,7 @@ namespace eos
       assert(it != pIdMap.end());
       assert(it->second.logOffset == itU->second.offset);
 
-      it->second.logOffset = itU->second.newOffset;
+      it.value().logOffset = itU->second.newOffset;
       ++containerCounter;
     }
 
@@ -1292,7 +1290,7 @@ namespace eos
     pChangeLog->readRecord( it->second.logOffset, buffer );
     ContainerMD *container = new ContainerMD( 0 );
     container->deserialize( buffer );
-    it->second.ptr = container;
+    it.value().ptr = container;
   }
 
   //----------------------------------------------------------------------------
@@ -1303,7 +1301,7 @@ namespace eos
                                                    ContainerList   &nameConflicts )
   {
     ContainerMD *container = it->second.ptr;
-    it->second.attached = true;
+    it.value().attached = true;
 
     //--------------------------------------------------------------------------
     // For non-root containers recreate the parent
