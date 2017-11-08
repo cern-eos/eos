@@ -241,8 +241,9 @@ XrdMgmOfsFile::open (const char *inpath,
 
   if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) || (spath.beginswith("ino:"))))
   {
+    WAIT_BOOT;
     //-------------------------------------------
-    // reference by fid+fsid                                                                                                                                                                                           
+    // reference by fid+fsid                                                                         
     //-------------------------------------------
     if (spath.beginswith("fid:"))
     {

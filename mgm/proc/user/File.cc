@@ -120,6 +120,7 @@ ProcCommand::File ()
           eos::FileMD* fmd = 0;
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
           {
+	    WAIT_BOOT;
             unsigned long long fid = 0;
             if (spath.beginswith("fid:"))
             {
@@ -267,6 +268,7 @@ ProcCommand::File ()
         eos::FileMD* fmd = 0;
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
         {
+	  WAIT_BOOT;
           unsigned long long fid = 0;
           if (spath.beginswith("fid:"))
           {
@@ -1267,6 +1269,7 @@ ProcCommand::File ()
 
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
         {
+	  WAIT_BOOT;
           unsigned long long fid = 0;
           if (spath.beginswith("fid:"))
           {
@@ -1834,6 +1837,7 @@ ProcCommand::File ()
 	{	
 	  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
 	  {
+	    WAIT_BOOT;
 	    unsigned long long fid = 0;
 	    if (spath.beginswith("fid:"))
 	    {
