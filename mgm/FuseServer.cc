@@ -1979,6 +1979,11 @@ FuseServer::HandleMD(const std::string &id,
             gOFS->eosView->renameContainer(cmd, md.name());
           }
 
+          if (pcmd->getMode() & S_ISGID)
+	  {
+	    sgid_mode = S_ISGID;
+	  }
+
           md_ino = md.md_ino();
           eos_static_info("ino=%lx pino=%lx cpino=%lx update-dir",
                           (long) md.md_ino(),
