@@ -558,7 +558,7 @@ protected:
 
     std::map<uid_t, CredInfo>::iterator cacheEntry;
 
-    if (cacheEntryFound) {
+    if (cacheEntryFound && sid != -1) {
       // skip the cache if reconnecting
       cacheEntry = siduid2credinfo[sid % proccachenbins][sid].find(uid);
       sessionInCache = !reconnect;
@@ -580,7 +580,7 @@ protected:
       unlock_r_pcache(sid, pid);
     }
 
-    if (sessionInCache) {
+    if (sessionInCache && sid != -1) {
       // TODO: could detect from the call to ptoccahce_InsertEntry if the process was changed
       //       then, it would be possible to bypass this part copy, which is probably not the main bottleneck anyway
       // no lock needed as only one thread per process can access this (lock is supposed to be already taken -> beginning of the function)
