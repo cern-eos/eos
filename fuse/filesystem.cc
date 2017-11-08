@@ -150,7 +150,10 @@ filesystem::CacheCleanup(void* p)
         LayoutWrapper::gCacheAuthority.erase(d);
       } else {
         it++;
-        totalsize_after += it->second.mSize;
+
+        if(it != LayoutWrapper::gCacheAuthority.end()) {
+          totalsize_after += it->second.mSize;
+        }
       }
     }
 
