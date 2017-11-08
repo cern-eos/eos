@@ -289,6 +289,15 @@ ProcCommand::Ls ()
               }
             }
           }
+	  if (stdOut.length() > 1*1024*1024*1024)
+	  {
+	    stdOut += "... (truncated after 1G of output)\n";
+	    retc = E2BIG;
+	    stdErr += "warning: list too long - truncated after 1GB of output!\n";
+	    break;
+	  }
+
+
           if (ls_file.length())
           {
             // this was a single file to be listed
