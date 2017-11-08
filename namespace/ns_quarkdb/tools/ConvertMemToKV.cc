@@ -893,16 +893,16 @@ ConvertQuotaView::commitToBackend()
 void
 ConvertFsView::addFileInfo(IFileMD* file)
 {
-  std::string key, val;
   std::string selem;
   IFileMD::LocationVector loc_vect = file->getLocations();
+  std::string sid = stringify(file->getId());
   std::lock_guard<std::mutex> scope_lock(mMutex);
 
   for (const auto& elem : loc_vect) {
     // Store fsid if it doesn't exist
     selem = stringify(elem);
     // First is the set of replica file ids
-    mFsView[selem].first.push_back(stringify(file->getId()));
+    mFsView[selem].first.push_back(sid);
   }
 
   IFileMD::LocationVector unlink_vect = file->getUnlinkedLocations();
@@ -910,11 +910,11 @@ ConvertFsView::addFileInfo(IFileMD* file)
   for (const auto& elem : unlink_vect) {
     selem = stringify(elem);
     // Second is the set of unlinked file ids
-    mFsView[selem].second.push_back(stringify(file->getId()));
+    mFsView[selem].second.push_back(sid);
   }
 
   if ((file->getNumLocation() == 0) && (file->getNumUnlinkedLocation() == 0)) {
-    mFileNoReplica.push_back(stringify(file->getId()));
+    mFileNoReplica.push_back(sid);
   }
 }
 
@@ -954,7 +954,7 @@ ConvertFsView::commitToBackend()
         auto begin = it->second.first.begin();
 
         while (pos < total) {
-          uint64_t step = (pos + max_sadd_size > total) ? (total - pos) : max_sadd_size;
+          uint64_t step = (pos + max_sadd_size >= total) ? (total - pos) : max_sadd_size;
           auto end = begin;
           std::advance(end, step);
           async_handler.Register(fs_set.sadd_async(begin, end),
@@ -985,7 +985,7 @@ ConvertFsView::commitToBackend()
         auto begin = it->second.second.begin();
 
         while (pos < total) {
-          uint64_t step = (pos + max_sadd_size > total) ? (total - pos) : max_sadd_size;
+          uint64_t step = (pos + max_sadd_size >= total) ? (total - pos) : max_sadd_size;
           auto end = begin;
           std::advance(end, step);
           async_handler.Register(fs_set.sadd_async(begin, end),
@@ -1020,7 +1020,31 @@ ConvertFsView::commitToBackend()
     // Only the first thread will commit this
     if (i == 0) {
       fs_set.setKey(fsview::sNoReplicaPrefix);
-      async_handler.Register(fs_set.sadd_async(mFileNoReplica), fs_set.getClient());
+      size_t num_batches = 0u;
+      size_t pos = 0u;
+      size_t total = mFileNoReplica.size();
+      auto begin = mFileNoReplica.begin();
+
+      while (pos < total) {
+        uint64_t step = (pos + max_sadd_size >= total) ? (total - pos) : max_sadd_size;
+        auto end = begin;
+        std::advance(end, step);
+        async_handler.Register(fs_set.sadd_async(begin, end),
+                               fs_set.getClient());
+        begin = end;
+        pos += step;
+        ++num_batches;
+
+        if (num_batches == async_batch) {
+          num_batches = 0u;
+
+          if (!async_handler.Wait()) {
+            std::cerr << __FUNCTION__ << " Got error response from the backend"
+                      << std::endl;
+            std::abort();
+          }
+        }
+      }
 
       // Wait for all in-flight async requests
       if (!async_handler.Wait()) {
