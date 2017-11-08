@@ -126,7 +126,7 @@ NsCmd::PrintStatus()
       boottime = gOFS->InitializationTime;
     }
   }
-  int64_t latencyf, latencyd, latencyp = 0;
+  int64_t latencyf = 0, latencyd = 0, latencyp = 0;
   auto chlog_file_svc = dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
   auto chlog_dir_svc = dynamic_cast<eos::IChLogContainerMDSvc*>
                        (gOFS->eosDirectoryService);

@@ -40,7 +40,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
     pDirsKey(stringify(id) + constants::sMapDirsSuffix), mClock(1)
 {
   mCont.set_id(id);
-  ContainerMDSvc* impl_cont_svc = (ContainerMDSvc*)(cont_svc);
+  ContainerMDSvc* impl_cont_svc = dynamic_cast<ContainerMDSvc*>(cont_svc);
 
   if (!impl_cont_svc) {
     MDException e(EFAULT);
@@ -81,6 +81,7 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pFileSvc = other.pFileSvc;
   pQcl     = other.pQcl;
   mClock   = other.mClock;
+  pFlusher = other.pFlusher;
   // Note: pFiles and pSubContainers are not copied here
   return *this;
 }
@@ -231,7 +232,6 @@ ContainerMD::addFile(IFileMD* file)
 
   try {
     pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
-
     // if (!pFilesMap.hset(file->getName(), file->getId())) {
     //   MDException e(EINVAL);
     //   e.getMessage() << "File #" << file->getId() << " already exists";

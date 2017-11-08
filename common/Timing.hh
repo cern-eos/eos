@@ -197,10 +197,15 @@ public:
   Print()
   {
     char msg[512];
-    Timing* p = this->next;
     Timing* n;
-    cerr << std::endl;
+    Timing* p = next;
     size_t cnt = 0;
+
+    if (p == nullptr) {
+      return;
+    }
+
+    cerr << std::end;
 
     while ((n = p->next)) {
       cnt++;
@@ -212,7 +217,7 @@ public:
     }
 
     n = p;
-    p = this->next;
+    p = next;
     sprintf(msg, " #==== : %s::%-20s %.03f ms\n", maintag.c_str(), "total",
             (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 + (n->tv.tv_usec -
                     p->tv.tv_usec)) / 1000.0);
