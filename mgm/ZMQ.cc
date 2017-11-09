@@ -93,11 +93,12 @@ ZMQ::Worker::work()
           {
             eos_static_debug("msg=\"received heartbeat\" identity=%s type=%d", (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
           }
+	  if (hb.statistics_().vsize_mb())
+	    gFuseServer.Client().HandleStatistics(id, hb.statistics_());
 	  break;
         }
-        case hb.STATISTICS:
 	{
-          gFuseServer.Client().HandleStatistics(id, hb.statistics_());
+
         }
 	break;
         case hb.MD:
