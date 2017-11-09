@@ -295,7 +295,7 @@ std::string GeoTree::getGeoTag(const fsid_t& fs) const
 //------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::const_iterator::operator++(int)
 {
-  const_iterator it;
+  GeoTree::const_iterator it;
   it.mIt = mIt;
   mIt++;
   return it;
@@ -306,7 +306,7 @@ GeoTree::const_iterator GeoTree::const_iterator::operator++(int)
 //------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::const_iterator::operator--(int)
 {
-  const_iterator it;
+  GeoTree::const_iterator it;
   it.mIt = mIt;
   mIt--;
   return it;
@@ -317,7 +317,7 @@ GeoTree::const_iterator GeoTree::const_iterator::operator--(int)
 //------------------------------------------------------------------------------
 GeoTree::const_iterator& GeoTree::const_iterator::operator++()
 {
-  const_iterator it;
+  GeoTree::const_iterator it;
   it.mIt = mIt;
   mIt++;
   return *this;
@@ -328,7 +328,7 @@ GeoTree::const_iterator& GeoTree::const_iterator::operator++()
 //------------------------------------------------------------------------------
 GeoTree::const_iterator& GeoTree::const_iterator::operator--()
 {
-  const_iterator it;
+  GeoTree::const_iterator it;
   it.mIt = mIt;
   mIt--;
   return *this;

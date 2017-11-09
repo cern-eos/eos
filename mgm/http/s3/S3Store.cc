@@ -452,7 +452,7 @@ S3Store::HeadBucket(const std::string& id,
 
   if (errc) {
     // error mapping the s3 id to unix id
-    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+    return S3Handler::RestErrorResponse(eos::common::HttpResponse::BAD_REQUEST,
                                         "InvalidArgument",
                                         "Unable to map bucket id to virtual id",
                                         id.c_str(), "");
@@ -474,7 +474,7 @@ S3Store::HeadBucket(const std::string& id,
                                           "Unable stat requested bucket",
                                           id.c_str(), "");
     } else {
-      return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::BAD_REQUEST,
                                           "InvalidArgument",
                                           "Unable to stat requested bucket!",
                                           id.c_str(), "");
@@ -525,7 +525,7 @@ S3Store::HeadObject(const std::string& id,
 
   if (errc) {
     // error mapping the s3 id to unix id
-    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+    return S3Handler::RestErrorResponse(eos::common::HttpResponse::BAD_REQUEST,
                                         "InvalidArgument",
                                         "Unable to map bucket id to virtual id",
                                         id.c_str(), "");
@@ -553,7 +553,7 @@ S3Store::HeadObject(const std::string& id,
                                           "Unable stat requested object",
                                           id.c_str(), "");
     } else {
-      return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::BAD_REQUEST,
                                           "InvalidArgument",
                                           "Unable to stat requested object!",
                                           id.c_str(), "");
@@ -612,7 +612,7 @@ S3Store::GetObject(eos::common::HttpRequest* request,
 
   if (errc) {
     // error mapping the s3 id to unix id
-    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+    return S3Handler::RestErrorResponse(eos::common::HttpResponse::BAD_REQUEST,
                                         "InvalidArgument",
                                         "Unable to map bucket id to virtual id",
                                         id.c_str(), "");
@@ -664,7 +664,7 @@ S3Store::GetObject(eos::common::HttpRequest* request,
                                           "Unable stat requested object",
                                           id.c_str(), "");
     } else {
-      return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::BAD_REQUEST,
                                           "InvalidArgument",
                                           "Unable to stat requested object!",
                                           id.c_str(), "");
@@ -672,15 +672,16 @@ S3Store::GetObject(eos::common::HttpRequest* request,
   } else {
     // check if modified since was asked
     if (modified_since && (buf.st_mtime <= modified_since)) {
-      return S3Handler::RestErrorResponse(response->PRECONDITION_FAILED,
-                                          "PreconditionFailed",
-                                          "Object was not modified since "
-                                          "specified time!", path.c_str(), "");
+      return S3Handler::RestErrorResponse(
+               eos::common::HttpResponse::PRECONDITION_FAILED,
+               "PreconditionFailed",
+               "Object was not modified since "
+               "specified time!", path.c_str(), "");
     }
 
     // check if unmodified since was asekd
     if (unmodified_since && (buf.st_mtime != unmodified_since)) {
-      return S3Handler::RestErrorResponse(response->NOT_MODIFIED,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_MODIFIED,
                                           "NotModified",
                                           "Object was modified since specified "
                                           "time!", path.c_str(), "");
@@ -688,15 +689,16 @@ S3Store::GetObject(eos::common::HttpRequest* request,
 
     // check if the matching inode was given
     if (inode_match && (buf.st_ino != inode_match)) {
-      return S3Handler::RestErrorResponse(response->PRECONDITION_FAILED,
-                                          "PreconditionFailed",
-                                          "Object was modified!",
-                                          path.c_str(), "");
+      return S3Handler::RestErrorResponse(
+               eos::common::HttpResponse::PRECONDITION_FAILED,
+               "PreconditionFailed",
+               "Object was modified!",
+               path.c_str(), "");
     }
 
     // check if a non matching inode was given
     if (inode_none_match && (buf.st_ino == inode_none_match)) {
-      return S3Handler::RestErrorResponse(response->NOT_MODIFIED,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_MODIFIED,
                                           "NotModified",
                                           "Object was not modified!",
                                           path.c_str(), "");
@@ -746,21 +748,23 @@ S3Store::GetObject(eos::common::HttpRequest* request,
                                                   "The specified key does not exist",
                                                   path, "");
         } else if (file->error.getErrInfo() == EPERM) {
-          response = S3Handler::RestErrorResponse(response->FORBIDDEN,
+          response = S3Handler::RestErrorResponse(eos::common::HttpResponse::FORBIDDEN,
                                                   "AccessDenied",
                                                   "Access Denied",
                                                   path, "");
         } else {
-          response = S3Handler::RestErrorResponse(response->INTERNAL_SERVER_ERROR,
-                                                  "Internal Error",
-                                                  "File currently unavailable",
-                                                  path, "");
+          response = S3Handler::RestErrorResponse(
+                       eos::common::HttpResponse::INTERNAL_SERVER_ERROR,
+                       "Internal Error",
+                       "File currently unavailable",
+                       path, "");
         }
       } else {
-        response = S3Handler::RestErrorResponse(response->INTERNAL_SERVER_ERROR,
-                                                "Internal Error",
-                                                "File not accessible in this way",
-                                                path, "");
+        response = S3Handler::RestErrorResponse(
+                     eos::common::HttpResponse::INTERNAL_SERVER_ERROR,
+                     "Internal Error",
+                     "File not accessible in this way",
+                     path, "");
       }
 
       // clean up the object
@@ -791,7 +795,7 @@ S3Store::PutObject(eos::common::HttpRequest* request,
 
   if (errc) {
     // error mapping the s3 id to unix id
-    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+    return S3Handler::RestErrorResponse(eos::common::HttpResponse::BAD_REQUEST,
                                         "InvalidArgument",
                                         "Unable to map bucket id to virtual id",
                                         id.c_str(), "");
@@ -844,21 +848,23 @@ S3Store::PutObject(eos::common::HttpRequest* request,
       eos_static_info("\n\n%s\n\n", response->GetBody().c_str());
     } else if (rc == SFS_ERROR) {
       if (file->error.getErrInfo() == EPERM) {
-        response = S3Handler::RestErrorResponse(response->FORBIDDEN,
+        response = S3Handler::RestErrorResponse(eos::common::HttpResponse::FORBIDDEN,
                                                 "AccessDenied",
                                                 "Access Denied",
                                                 path, "");
       } else {
-        response = S3Handler::RestErrorResponse(response->INTERNAL_SERVER_ERROR,
-                                                "Internal Error",
-                                                "File creation currently "
-                                                "unavailable", path, "");
+        response = S3Handler::RestErrorResponse(
+                     eos::common::HttpResponse::INTERNAL_SERVER_ERROR,
+                     "Internal Error",
+                     "File creation currently "
+                     "unavailable", path, "");
       }
     } else {
-      response = S3Handler::RestErrorResponse(response->INTERNAL_SERVER_ERROR,
-                                              "Internal Error",
-                                              "File not accessible in this way",
-                                              path, "");
+      response = S3Handler::RestErrorResponse(
+                   eos::common::HttpResponse::INTERNAL_SERVER_ERROR,
+                   "Internal Error",
+                   "File not accessible in this way",
+                   path, "");
     }
 
     // clean up the object
@@ -886,7 +892,7 @@ S3Store::DeleteObject(eos::common::HttpRequest* request,
 
   if (errc) {
     // error mapping the s3 id to unix id
-    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+    return S3Handler::RestErrorResponse(eos::common::HttpResponse::BAD_REQUEST,
                                         "InvalidArgument",
                                         "Unable to map bucket id to virtual id",
                                         id.c_str(), "");
@@ -914,7 +920,7 @@ S3Store::DeleteObject(eos::common::HttpRequest* request,
                                           "Unable to delete requested object",
                                           id.c_str(), "");
     } else {
-      return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::BAD_REQUEST,
                                           "InvalidArgument",
                                           "Unable to delete requested object",
                                           id.c_str(), "");
@@ -934,12 +940,12 @@ S3Store::DeleteObject(eos::common::HttpRequest* request,
 
     if (rc != SFS_OK) {
       if (error.getErrInfo() == EPERM) {
-        return S3Handler::RestErrorResponse(response->FORBIDDEN,
+        return S3Handler::RestErrorResponse(eos::common::HttpResponse::FORBIDDEN,
                                             "AccessDenied",
                                             "Access Denied",
                                             path, "");
       } else {
-        return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+        return S3Handler::RestErrorResponse(eos::common::HttpResponse::BAD_REQUEST,
                                             "InvalidArgument",
                                             "Unable to delete requested object",
                                             id.c_str(), "");

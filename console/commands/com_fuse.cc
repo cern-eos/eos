@@ -319,7 +319,7 @@ com_fuse(char* arg1)
         usleep(100000);
 
         if (i && (!(i % 10))) {
-          fprintf(stderr, "[check] %i. time for mount ...\n", i / 10);
+          fprintf(stderr, "[check] %lu. time for mount ...\n", i / 10);
         }
       } else {
         mountok = true;

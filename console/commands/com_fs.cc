@@ -621,7 +621,7 @@ com_fs(char* arg1)
 
       string s;
       fprintf(stdout,
-              "Do you really want to delete ALL %lu replica's from filesystem %s ?\n",
+              "Do you really want to delete ALL %zu replica's from filesystem %s ?\n",
               files_found.size(), id.c_str());
       fprintf(stdout, "Confirm the deletion by typing => ");
       XrdOucString confirmation = "";
