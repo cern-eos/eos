@@ -1182,7 +1182,7 @@ filesystem::rmxattr(const char* path,
     int items = 0;
     char tag[1024];
     // Parse output
-    items = sscanf(response->GetBuffer(), "%s retc=%i", tag, &retc);
+    items = sscanf(response->GetBuffer(), "%1023s retc=%i", tag, &retc);
 
     if ((items != 2) || (strcmp(tag, "rmxattr:"))) {
       errno = ENOENT;
@@ -1276,7 +1276,7 @@ filesystem::setxattr(const char* path,
     int items = 0;
     char tag[1024];
     // Parse output
-    items = sscanf(response->GetBuffer(), "%s retc=%i", tag, &retc);
+    items = sscanf(response->GetBuffer(), "%1023s retc=%i", tag, &retc);
 
     if ((items != 2) || (strcmp(tag, "setxattr:"))) {
       errno = ENOENT;
@@ -1361,7 +1361,8 @@ filesystem::getxattr(const char* path,
     char tag[1024];
     char rval[4096];
     // Parse output
-    items = sscanf(response->GetBuffer(), "%s retc=%i value=%s", tag, &retc, rval);
+    items = sscanf(response->GetBuffer(), "%1023s retc=%i value=%4095s",
+                   tag, &retc, rval);
 
     if ((items != 3) || (strcmp(tag, "getxattr:"))) {
       errno = EFAULT;
@@ -1458,7 +1459,8 @@ filesystem::listxattr(const char* path,
     char tag[1024];
     char rval[65536];
     // Parse output
-    items = sscanf(response->GetBuffer(), "%s retc=%i %s", tag, &retc, rval);
+    items = sscanf(response->GetBuffer(), "%1023s retc=%i %65535s", tag, &retc,
+                   rval);
     eos_static_info("retc=%d tag=%s response=%s", retc, tag, rval);
 
     if ((items != 3) || (strcmp(tag, "lsxattr:"))) {
@@ -1679,7 +1681,7 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
     tag[0] = 0;
     // Parse output
     int items = sscanf(response->GetBuffer(),
-                       "%s %llu %llu %llu %llu %llu %llu %llu %llu "
+                       "%1023s %llu %llu %llu %llu %llu %llu %llu %llu "
                        "%llu %llu %llu %llu %llu %llu %llu %llu",
                        tag, (unsigned long long*) &sval[0],
                        (unsigned long long*) &sval[1],
@@ -1700,7 +1702,7 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
 
     if ((items != 17) || (strcmp(tag, "stat:"))) {
       int retc = 0;
-      items = sscanf(response->GetBuffer(), "%s retc=%i", tag, &retc);
+      items = sscanf(response->GetBuffer(), "%1023s retc=%i", tag, &retc);
 
       if ((!strcmp(tag, "stat:")) && (items == 2)) {
         errno = retc;
@@ -1862,7 +1864,7 @@ filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid ,
 
     // Parse output
     int items = sscanf(response->GetBuffer(),
-                       "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
+                       "%1023s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
                        "f_max_bytes=%llu f_max_files=%llu",
                        tag, &retc, &a1, &a2, &a3, &a4);
 
@@ -1955,7 +1957,7 @@ filesystem::chmod(const char* path,
     }
 
     // Parse output
-    int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
+    int items = sscanf(response->GetBuffer(), "%1023s retc=%d", tag, &retc);
 
     if ((items != 2) || (strcmp(tag, "chmod:"))) {
       errno = EFAULT;
@@ -2066,7 +2068,7 @@ filesystem::utimes(const char* path,
     int retc = 0;
     char tag[1024];
     // Parse output
-    int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
+    int items = sscanf(response->GetBuffer(), "%1023s retc=%d", tag, &retc);
 
     if ((items != 2) || (strcmp(tag, "utimes:"))) {
       errno = EFAULT;
@@ -2139,7 +2141,7 @@ filesystem::symlink(const char* path, const char* link, uid_t uid, gid_t gid,
   if (status.IsOK()) {
     char tag[1024];
     // Parse output
-    int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
+    int items = sscanf(response->GetBuffer(), "%1023s retc=%d", tag, &retc);
 
     if (EOS_LOGS_DEBUG) {
       fprintf(stderr, "symlink-retc=%d\n", retc);
@@ -2214,7 +2216,7 @@ filesystem::readlink(const char* path, char* buf, size_t bufsize, uid_t uid,
     }
 
     // Parse output
-    int items = sscanf(response->GetBuffer(), "%s retc=%d %*s", tag, &retc);
+    int items = sscanf(response->GetBuffer(), "%1023s retc=%d %*s", tag, &retc);
 
     if (EOS_LOGS_DEBUG) {
       fprintf(stderr, "readlink-retc=%d\n", retc);
@@ -2312,7 +2314,7 @@ filesystem::access(const char* path,
   if (status.IsOK()) {
     char tag[1024];
     // Parse output
-    int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
+    int items = sscanf(response->GetBuffer(), "%1023s retc=%d", tag, &retc);
 
     if (EOS_LOGS_DEBUG) {
       fprintf(stderr, "access-retc=%d\n", retc);
@@ -2424,7 +2426,7 @@ filesystem::inodirlist(unsigned long long dirinode,
   if (status.IsOK()) {
     char tag[128];
     // Parse output
-    int items = sscanf(value, "%s retc=%d", tag, &retc);
+    int items = sscanf(value, "%127s retc=%d", tag, &retc);
     bool encodepath = false;
 
     if (retc) {
@@ -2850,7 +2852,7 @@ filesystem::mkdir(const char* path,
     char tag[1024];
     // Parse output
     int items = sscanf(response->GetBuffer(),
-                       "%s %llu %llu %llu %llu %llu %llu %llu %llu "
+                       "%1023s %llu %llu %llu %llu %llu %llu %llu %llu "
                        "%llu %llu %llu %llu %llu %llu %llu %llu",
                        tag, (unsigned long long*) &sval[0],
                        (unsigned long long*) &sval[1],
@@ -2873,7 +2875,7 @@ filesystem::mkdir(const char* path,
       int retc = 0;
       char tag[1024];
       // Parse output
-      int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
+      int items = sscanf(response->GetBuffer(), "%1023s retc=%d", tag, &retc);
 
       if ((items != 2) || (strcmp(tag, "mkdir:"))) {
         errno = EFAULT;
@@ -4823,10 +4825,12 @@ filesystem::init(int argc, char* argv[], void* userdata,
     char rm_cmd[PATH_MAX];
     (void) memset(rm_cmd, '\0', sizeof(rm_cmd));
     FILE* f = popen("exec bash -c 'type -P rm'", "r");
+    char format[32];
+    snprintf(format, sizeof(format), "%%%ds", PATH_MAX - 1);
 
     if (!f) {
       eos_static_err("could not run the system wide rm command procedure");
-    } else if (fscanf(f, "%s", rm_cmd) != 1) {
+    } else if (fscanf(f, format, rm_cmd) != 1) {
       pclose(f);
       eos_static_err("cannot get rm command to watch");
     } else {
@@ -4951,7 +4955,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
 
       char buffer[4096];
 
-      if (sscanf(line, "%s %llu", buffer, (unsigned long long*)&uid_max) != 2) {
+      if (sscanf(line, "%4095s %llu", buffer, (unsigned long long*)&uid_max) != 2) {
         eos_static_err("could not parse line %s in /etc/login.defs", line);
         uid_max = 0;
         continue;

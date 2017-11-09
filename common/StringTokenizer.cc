@@ -117,10 +117,11 @@ StringTokenizer::GetLine()
         }
       }
 
-      if (!inquote)
-        if ((line[i] == ' ') && (i < len) && (line[i + 1] == ' ')) {
+      if (!inquote) {
+        if ((i < len) && (line[i] == ' ') && (line[i + 1] == ' ')) {
           continue;
         }
+      }
 
       if ((line[i] == ' ') || (line[i] == 0) || (line[i] == '\n')) {
         if (!inquote) {
@@ -197,9 +198,11 @@ StringTokenizer::split(const std::string& str, char delimiter)
   istringstream iss(str);
   std::vector<std::string> parts;
   std::string part;
+
   while (std::getline(iss, part, delimiter)) {
-    if (!part.empty())
+    if (!part.empty()) {
       parts.emplace_back(part);
+    }
   }
 
   return parts;
@@ -208,7 +211,9 @@ StringTokenizer::split(const std::string& str, char delimiter)
 bool
 StringTokenizer::IsUnsignedNumber(const std::string& str)
 {
-  return !str.empty() && str.find_first_not_of( "0123456789" ) == std::string::npos && (str.front() != '0' || str.size() == 1);
+  return !str.empty() &&
+         str.find_first_not_of("0123456789") == std::string::npos &&
+         (str.front() != '0' || str.size() == 1);
 }
 
 /*----------------------------------------------------------------------------*/

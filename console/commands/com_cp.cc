@@ -346,7 +346,7 @@ com_cp(char* argin)
         int item;
         char f2c[4096];
 
-        while ((item = fscanf(fp, "%s", f2c) == 1)) {
+        while ((item = fscanf(fp, "%4095s", f2c) == 1)) {
           std::string fullpath = dname;
           fullpath += f2c;
 
@@ -1233,7 +1233,7 @@ com_cp(char* argin)
               char tag[1024];
               int retc;
               // parse the stat output
-              int items = sscanf(value, "%s retc=%d", tag, &retc);
+              int items = sscanf(value, "%1023s retc=%d", tag, &retc);
 
               if ((items != 2) || (strcmp(tag, "utimes:"))) {
                 fprintf(stderr,

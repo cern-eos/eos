@@ -1379,7 +1379,7 @@ Iostat::Restore()
   char line[16384];
 
   // coverity[DC.STREAM_BUFFER]
-  while ((item = fscanf(fin, "%s\n", line)) == 1) {
+  while ((item = fscanf(fin, "%16383s\n", line)) == 1) {
     XrdOucEnv env(line);
 
     if (env.Get("tag") && env.Get("uid") && env.Get("val")) {

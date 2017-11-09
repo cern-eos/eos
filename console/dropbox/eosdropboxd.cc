@@ -51,7 +51,7 @@ bool changed(const char* path)
 
   if (shafp) {
     char sha1sum[4096];
-    int item = fscanf(shafp, "%s -\n", sha1sum);
+    int item = fscanf(shafp, "%4095s -\n", sha1sum);
 
     if (item == 1) {
       std::string tmpsha1sum = sha1sum;
@@ -280,7 +280,8 @@ int main(int argc, char* argv[])
         unsigned long long mtime, mtime_nsec;
         unsigned long long size;
 
-        while ((item = fscanf(pf, "path=%s size=%llu mtime=%llu.%llu\n", path, &size,
+        while ((item = fscanf(pf, "path=%4095s size=%llu mtime=%llu.%llu\n", path,
+                              &size,
                               &mtime, &mtime_nsec)) == 4) {
           XrdOucString endpath = path;
           endpath.replace(it->first.c_str(), "");
@@ -322,7 +323,7 @@ int main(int argc, char* argv[])
         unsigned long long mtime;
         unsigned long long size;
 
-        while ((item = fscanf(pf, "path=%s size=%llu mtime=%llu\n", path, &size,
+        while ((item = fscanf(pf, "path=%4095s size=%llu mtime=%llu\n", path, &size,
                               &mtime)) == 3) {
           XrdOucString spath = path;
 

@@ -80,48 +80,48 @@ Load::DevMap(const char* dev_path)
       dev_map.clear();
 
       if (stbuf.st_mtime != loadtime) {
-	FILE* fd = fopen("/etc/mtab", "r");
-	// Reparse the mtab
-	char line[1025];
-	char val[6][1024];
-	line[0] = 0;
+        FILE* fd = fopen("/etc/mtab", "r");
+        // Reparse the mtab
+        char line[1025];
+        char val[6][1024];
+        line[0] = 0;
 
-	while (fd && fgets(line, 1024, fd)) {
-	  if ((sscanf(line, "%s %s %s %s %s %s\n", val[0], val[1], val[2],
-		      val[3], val[4], val[5])) == 6) {
-	    XrdOucString sdev = val[0];
-	    XrdOucString spath = val[1];
+        while (fd && fgets(line, 1024, fd)) {
+          if ((sscanf(line, "%1023s %1023s %1023s %1023s %1023s %1023s\n",
+                      val[0], val[1], val[2], val[3], val[4], val[5])) == 6) {
+            XrdOucString sdev = val[0];
+            XrdOucString spath = val[1];
 
-	    // fprintf(stderr,"%s => %s\n", sdev.c_str(), spath.c_str());
-	    if (sdev.beginswith("/dev/")) {
-	      sdev.erase(0, 5);
-	      dev_map[sdev.c_str()] = spath.c_str();
-	      // fprintf(stderr,"=> %s %s\n", sdev.c_str(),spath.c_str());
-	    }
-	  }
-	}
+            // fprintf(stderr,"%s => %s\n", sdev.c_str(), spath.c_str());
+            if (sdev.beginswith("/dev/")) {
+              sdev.erase(0, 5);
+              dev_map[sdev.c_str()] = spath.c_str();
+              // fprintf(stderr,"=> %s %s\n", sdev.c_str(),spath.c_str());
+            }
+          }
+        }
 
-	if (fd) {
-	  fclose(fd);
-	}
+        if (fd) {
+          fclose(fd);
+        }
       }
     }
 
     XrdOucString match, it_str;
 
     for (auto dev_map_it = dev_map.begin(); dev_map_it != dev_map.end();
-	 dev_map_it++) {
+         dev_map_it++) {
       match = dev_path;
       it_str = dev_map_it->second.c_str();
       match.erase(dev_map_it->second.length());
 
       // fprintf(stderr,"%s <=> %s\n",match.c_str(),it_str.c_str());
       if (match == it_str) {
-	if ((int) dev_map_it->second.length() > (int) mappath.length()) {
-	  mapdev = dev_map_it->first.c_str();
-	  mappath = dev_map_it->second.c_str();
-	  // fprintf(stderr,"Setting up mapping %s=>%s\n", mapdev.c_str(), mappath.c_str());
-	}
+        if ((int) dev_map_it->second.length() > (int) mappath.length()) {
+          mapdev = dev_map_it->first.c_str();
+          mappath = dev_map_it->second.c_str();
+          // fprintf(stderr,"Setting up mapping %s=>%s\n", mapdev.c_str(), mappath.c_str());
+        }
       }
     }
   }
@@ -199,8 +199,8 @@ Load::Monitor()
   int rc = 0;
 
   if ((rc = XrdSysThread::Run(&mTid, Load::StartLoadThread,
-			      static_cast<void*>(this),
-			      XRDSYSTHREAD_HOLD, "Scrubber"))) {
+                              static_cast<void*>(this),
+                              XRDSYSTHREAD_HOLD, "Scrubber"))) {
     return false;
   } else {
     return true;
@@ -264,64 +264,65 @@ DiskStat::Measure()
     bool scanned = false;
 
     do {
-      items = fscanf(fd, "%s %s %s %s %s %s %s %s %s %s %s %s %s %s\n", val[0],
-		     val[1], val[2], val[3], val[4], val[5], val[6], val[7],
-		     val[8], val[9], val[10], val[11], val[12], val[13]);
+      items = fscanf(fd, "%1023s %1023s %1023s %1023s %1023s %1023s %1023s "
+                     "%1023s %1023s %1023s %1023s %1023s %1023s %1023s\n",
+                     val[0], val[1], val[2], val[3], val[4], val[5], val[6],
+                     val[7], val[8], val[9], val[10], val[11], val[12], val[13]);
 
       if (items == 14) {
-	scanned = true;
+        scanned = true;
 #ifdef __APPLE__
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	t2.tv_sec = tv.tv_sec;
-	t2.tv_nsec = tv.tv_usec * 1000;
+        struct timeval tv;
+        gettimeofday(&tv, 0);
+        t2.tv_sec = tv.tv_sec;
+        t2.tv_nsec = tv.tv_usec * 1000;
 #else
-	clock_gettime(CLOCK_REALTIME, &t2);
+        clock_gettime(CLOCK_REALTIME, &t2);
 #endif
-	std::string dev_name = val[2];
+        std::string dev_name = val[2];
 
-	for (unsigned int i = 3; i < mTags.size(); i++) {
-	  values_t2[dev_name][mTags[i]] = val[i];
-	}
+        for (unsigned int i = 3; i < mTags.size(); i++) {
+          values_t2[dev_name][mTags[i]] = val[i];
+        }
 
-	if (t1.tv_sec != 0) {
-	  float tdif = ((t2.tv_sec - t1.tv_sec) * 1000.0) +
-	    ((t2.tv_nsec - t1.tv_nsec) / 1000000.0);
+        if (t1.tv_sec != 0) {
+          float tdif = ((t2.tv_sec - t1.tv_sec) * 1000.0) +
+                       ((t2.tv_nsec - t1.tv_nsec) / 1000000.0);
 
-	  for (unsigned int i = 3; i < mTags.size(); i++) {
-	    if (tdif > 0) {
-	      mRates[dev_name][mTags[i]] =
-		1000.0 * (strtoll(values_t2[dev_name][mTags[i]].c_str(), 0, 10) -
-			  strtoll(values_t1[dev_name][mTags[i]].c_str(), 0, 10)) / tdif;
-	    } else {
-	      mRates[dev_name][mTags[i]] = 0.0;
-	    }
-	  }
+          for (unsigned int i = 3; i < mTags.size(); i++) {
+            if (tdif > 0) {
+              mRates[dev_name][mTags[i]] =
+                1000.0 * (strtoll(values_t2[dev_name][mTags[i]].c_str(), 0, 10) -
+                          strtoll(values_t1[dev_name][mTags[i]].c_str(), 0, 10)) / tdif;
+            } else {
+              mRates[dev_name][mTags[i]] = 0.0;
+            }
+          }
 
-	  for (unsigned int i = 3; i < mTags.size(); i++) {
-	    values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
-	  }
-	} else {
-	  for (auto it = mTags.begin(); it != mTags.end(); it++) {
-	    mRates[dev_name][*it] = 0.0;
-	  }
+          for (unsigned int i = 3; i < mTags.size(); i++) {
+            values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
+          }
+        } else {
+          for (auto it = mTags.begin(); it != mTags.end(); it++) {
+            mRates[dev_name][*it] = 0.0;
+          }
 
-	  for (unsigned int i = 3; i < mTags.size(); i++) {
-	    values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
-	  }
-	}
+          for (unsigned int i = 3; i < mTags.size(); i++) {
+            values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
+          }
+        }
 
-	continue;
+        continue;
       }
 
       fclose(fd);
 
       if (scanned) {
-	t1.tv_sec = t2.tv_sec;
-	t1.tv_nsec = t2.tv_nsec;
-	return true;
+        t1.tv_sec = t2.tv_sec;
+        t1.tv_nsec = t2.tv_nsec;
+        return true;
       } else {
-	return false;
+        return false;
       }
     } while (1);
   } else {
@@ -393,70 +394,72 @@ NetStat::Measure()
       garbage[0] = 0;
 
       if (fgets(garbage, 1024, fd)) {
-	char* dpos = 0;
+        char* dpos = 0;
 
-	if ((dpos = strchr(garbage, ':'))) {
-	  *dpos = ' ';
-	}
+        if ((dpos = strchr(garbage, ':'))) {
+          *dpos = ' ';
+        }
       }
 
       if (n >= 2) {
-	items = sscanf(garbage, "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",
-		       val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7],
-		       val[8], val[9], val[10], val[11], val[12], val[13], val[14],
-		       val[15], val[16]);
+        items = sscanf(garbage, "%1023s %1023s %1023s %1023s %1023s %1023s "
+                       "%1023s %1023s %1023s %1023s %1023s %1023s %1023s "
+                       "%1023s %1023s %1023s %1023s\n",
+                       val[0], val[1], val[2], val[3], val[4], val[5], val[6],
+                       val[7], val[8], val[9], val[10], val[11], val[12],
+                       val[13], val[14], val[15], val[16]);
       } else {
-	items = 0;
+        items = 0;
       }
 
       if (items == 17) {
 #ifdef __APPLE__
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	t2.tv_sec = tv.tv_sec;
-	t2.tv_nsec = tv.tv_usec * 1000;
+        struct timeval tv;
+        gettimeofday(&tv, 0);
+        t2.tv_sec = tv.tv_sec;
+        t2.tv_nsec = tv.tv_usec * 1000;
 #else
-	clock_gettime(CLOCK_REALTIME, &t2);
+        clock_gettime(CLOCK_REALTIME, &t2);
 #endif
-	std::string dev_name = val[0];
+        std::string dev_name = val[0];
 
-	for (unsigned int i = 1; i < mTags.size(); i++) {
-	  values_t2[dev_name][mTags[i]] = val[i];
-	}
+        for (unsigned int i = 1; i < mTags.size(); i++) {
+          values_t2[dev_name][mTags[i]] = val[i];
+        }
 
-	if (t1.tv_sec != 0) {
-	  float tdif = ((t2.tv_sec - t1.tv_sec) * 1000.0) +
-	    ((t2.tv_nsec - t1.tv_nsec) / 1000000.0);
+        if (t1.tv_sec != 0) {
+          float tdif = ((t2.tv_sec - t1.tv_sec) * 1000.0) +
+                       ((t2.tv_nsec - t1.tv_nsec) / 1000000.0);
 
-	  for (unsigned int i = 1; i < mTags.size(); i++) {
-	    if (tdif > 0) {
-	      mRates[dev_name][mTags[i]] =
-		1000.0 * (strtoll(values_t2[dev_name][mTags[i]].c_str(), 0, 10) -
-			  strtoll(values_t1[dev_name][mTags[i]].c_str(), 0, 10)) / tdif;
-	    } else {
-	      mRates[dev_name][mTags[i]] = 0.0;
-	    }
-	  }
+          for (unsigned int i = 1; i < mTags.size(); i++) {
+            if (tdif > 0) {
+              mRates[dev_name][mTags[i]] =
+                1000.0 * (strtoll(values_t2[dev_name][mTags[i]].c_str(), 0, 10) -
+                          strtoll(values_t1[dev_name][mTags[i]].c_str(), 0, 10)) / tdif;
+            } else {
+              mRates[dev_name][mTags[i]] = 0.0;
+            }
+          }
 
-	  for (unsigned int i = 1; i < mTags.size(); i++) {
-	    values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
-	  }
-	} else {
-	  for (auto it = mTags.begin(); it != mTags.end(); it++) {
-	    mRates[dev_name][*it] = 0.0;
-	  }
+          for (unsigned int i = 1; i < mTags.size(); i++) {
+            values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
+          }
+        } else {
+          for (auto it = mTags.begin(); it != mTags.end(); it++) {
+            mRates[dev_name][*it] = 0.0;
+          }
 
-	  for (unsigned int i = 1; i < mTags.size(); i++) {
-	    values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
-	  }
-	}
+          for (unsigned int i = 1; i < mTags.size(); i++) {
+            values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
+          }
+        }
       } else {
-	if (items < 0) {
-	  fclose(fd);
-	  t1.tv_sec = t2.tv_sec;
-	  t1.tv_nsec = t2.tv_nsec;
-	  return true;
-	}
+        if (items < 0) {
+          fclose(fd);
+          t1.tv_sec = t2.tv_sec;
+          t1.tv_nsec = t2.tv_nsec;
+          return true;
+        }
       }
 
       n++;
