@@ -4090,6 +4090,7 @@ void
 EosFuse::getHbStat(eos::fusex::statistics& hbs)
 /* -------------------------------------------------------------------------- */
 {
+  eos_static_debug("get statistics");
   eos::common::LinuxMemConsumption::linux_mem_t mem;
   eos::common::LinuxStat::linux_stat_t osstat;
 
