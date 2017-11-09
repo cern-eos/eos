@@ -124,37 +124,36 @@ com_fusex (char* arg1)
     option = subtokenizer.GetToken();
     if (!option.length())
       break;
-    if (option == "-c")
+    if (option == "-a")
     {
-      options += "c";
+      options += "a";
     }
     else
     {
-      if (option == "-a")
+      if (option == "-m")
       {
-        options += "a";
+	options += "m";
       }
       else
       {
-        if (option == "-m")
+	if (option == "-s")
         {
-          options += "m";
-        }
-        else
+	  options += "s";
+	}
+	else
         {
-          if (option == "-s")
+	  if (option == "-f")
           {
-            options += "s";
-          }
-          else
+	    options += "f";
+	  }
+	  else
           {
-            if (option == "-f")
-            {
-              options += "f";
-            }
-            else
-            {
-              goto com_fusex_usage;
+	    if (option == "-l")
+	    {
+	      options += "l";
+	    }
+	    else {
+	      goto com_fusex_usage;
             }
           }
         }
@@ -173,8 +172,9 @@ com_fusex (char* arg1)
   return (0);
 
 com_fusex_usage:
-  fprintf(stdout, "usage: fusex ls [-c] [-f]                         :  print statistics about eosxd fuse clients\n");
-  fprintf(stdout, "                -c                                                   -  break down by client host\n");
+  fprintf(stdout, "usage: fusex ls [-l] [-f]                         :  print statistics about eosxd fuse clients\n");
+  fprintf(stdout, "                [no option]                                          -  break down by client host [default]\n");
+  fprintf(stdout, "                -l                                                   -  break down by client host and show statistics \n");
   fprintf(stdout, "                -f                                                   -  show ongoing flush locks\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       fuxex evict <uuid> [<reason>]                                 :  evict a fuse client\n");

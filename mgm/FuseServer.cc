@@ -222,10 +222,10 @@ FuseServer::Print(std::string& out, std::string options, bool monitoring)
 {
 
 
-  if ( (options.find("c") != std::string::npos)
-      || !options.length() )
+  if ( (options.find("l") != std::string::npos) ||
+       !options.length() )
   {
-    Client().Print(out, "", monitoring);
+    Client().Print(out, options, monitoring);
   }
 
   if (options.find("f") != std::string::npos)
@@ -271,7 +271,8 @@ FuseServer::Clients::Print(std::string& out, std::string options, bool monitorin
     char formatline[4096];
     if (!monitoring)
     {
-      snprintf(formatline, sizeof (formatline), "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s caps=%lu\n",
+      if (!options.length() || (options.find("l")!=std::string::npos)) 
+	snprintf(formatline, sizeof (formatline), "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s caps=%lu\n",
                it->second.heartbeat().name().c_str(),
                it->second.heartbeat().host().c_str(),
                it->second.heartbeat().version().c_str(),
@@ -286,7 +287,29 @@ FuseServer::Clients::Print(std::string& out, std::string options, bool monitorin
                );
 
       out += formatline;
+      if (options.find("l")!=std::string::npos)
+      {
+	snprintf(formatline, sizeof (formatline),
+		 "......   ino          : %ld\n"
+		 "......   ino-to-del   : %ld\n"
+		 "......   ino-backlog  : %ld\n"
+		 "......   ino-ever     : %ld\n"
+		 "......   ino-ever-del : %ld\n"
+		 "......   threads      : %d\n"
+		 "......   vsize        : %.03f GB\n" 
+       		 "......   rsize        : %.03f GB\n",
+		 it->second.statistics().inodes(),
+		 it->second.statistics().inodes_todelete(),
+		 it->second.statistics().inodes_backlog(),
+		 it->second.statistics().inodes_ever(),
+		 it->second.statistics().inodes_ever_deleted(),
+		 it->second.statistics().threads(),
+		 it->second.statistics().vsize_mb()/1024.0,
+		 it->second.statistics().rss_mb()/1024.0);
 
+	out += formatline;
+      }
+      
       std::map<uint64_t, std::set < pid_t>> rlocks;
       std::map<uint64_t, std::set < pid_t>> wlocks;
 
