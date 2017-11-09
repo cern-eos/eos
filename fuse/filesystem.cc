@@ -151,7 +151,7 @@ filesystem::CacheCleanup(void* p)
       } else {
         it++;
 
-        if(it != LayoutWrapper::gCacheAuthority.end()) {
+        if (it != LayoutWrapper::gCacheAuthority.end()) {
           totalsize_after += it->second.mSize;
         }
       }
@@ -1165,9 +1165,9 @@ filesystem::rmxattr(const char* path,
   request += xattr_name;
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -1258,9 +1258,9 @@ filesystem::setxattr(const char* path,
   request += value.c_str();
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -1343,9 +1343,9 @@ filesystem::getxattr(const char* path,
   request += xattr_name;
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -1440,9 +1440,9 @@ filesystem::listxattr(const char* path,
   request += "mgm.subcmd=ls";
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -1659,9 +1659,9 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
 
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -1839,9 +1839,9 @@ filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid ,
   request += safePath(path);
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -1929,9 +1929,9 @@ filesystem::chmod(const char* path,
 
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -2046,9 +2046,9 @@ filesystem::utimes(const char* path,
   eos_static_debug("request: %s", request.c_str());
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -2120,9 +2120,9 @@ filesystem::symlink(const char* path, const char* link, uid_t uid, gid_t gid,
 
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -2188,9 +2188,9 @@ filesystem::readlink(const char* path, char* buf, size_t bufsize, uid_t uid,
 
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -2293,9 +2293,9 @@ filesystem::access(const char* path,
 
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -2370,22 +2370,22 @@ filesystem::inodirlist(unsigned long long dirinode,
 
   // add the kerberos token
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     request += "&" + auth;
   }
 
   COMMONTIMING("GETSTSTREAM", &inodirtiming);
   request.insert(0, user_url(uid, gid, pid));
-  XrdCl::File* file = new XrdCl::File();
+  std::unique_ptr<XrdCl::File> file {new XrdCl::File()};
   XrdCl::XRootDStatus status = file->Open(request.c_str(),
                                           XrdCl::OpenFlags::Flags::Read);
   errno = 0;
 
   if (!status.IsOK()) {
     eos_static_err("got an error to request.");
-    delete file;
     eos_static_err("error=status is NOT ok : %s", status.ToString().c_str());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+    errno = ((status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT);
     return errno;
   }
 
@@ -2399,7 +2399,15 @@ filesystem::inodirlist(unsigned long long dirinode,
 
   while ((status.IsOK()) && (nbytes == PAGESIZE)) {
     npages++;
-    value = (char*) realloc(value, npages * PAGESIZE + 1);
+    char* new_value = (char*) realloc(value, npages * PAGESIZE + 1);
+
+    if (new_value == nullptr) {
+      free(value);
+      errno = ENOMEM;
+      return errno;
+    }
+
+    value = new_value;
     offset += PAGESIZE;
     status = file->Read(offset, PAGESIZE, value + offset, nbytes);
   }
@@ -2410,7 +2418,6 @@ filesystem::inodirlist(unsigned long long dirinode,
 
   value[offset] = 0;
   //eos_static_info("request reply is %s",value);
-  delete file;
   COMMONTIMING("PARSESTSTREAM", &inodirtiming);
   std::vector<struct stat> statvec;
 
@@ -2465,8 +2472,6 @@ filesystem::inodirlist(unsigned long long dirinode,
       }
 
       // go next field and set null character
-      // go next field and set null character
-      // go next field and set null character
       ptr = strchr(ptr + 1, ' ');
 
       if (ptr == 0 || ptr >= endptr) {
@@ -2487,8 +2492,6 @@ filesystem::inodirlist(unsigned long long dirinode,
         break;
       }
 
-      // go next field and set null character
-      // go next field and set null character
       // go next field and set null character
       ptr = strchr(ptr + 1, ' ');
 
@@ -2752,9 +2755,9 @@ filesystem::readdir(const char* path_dir, size_t* size,
   }
 
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -2830,9 +2833,9 @@ filesystem::mkdir(const char* path,
 
   arg.FromString(request);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -2937,10 +2940,9 @@ filesystem::rmdir(const char* path, uid_t uid, gid_t gid, pid_t pid)
   COMMONTIMING("START", &rmdirtiming);
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
   std::string surl = user_url(uid, gid, pid);
-
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -3049,9 +3051,9 @@ filesystem::open(const char* path,
       spath.replace("/proc/whoami", "/proc/user/");
       //spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
       spath += '?';
-
       std::string auth = strongauth_cgi(uid, gid, pid);
-      if(!auth.empty()) {
+
+      if (!auth.empty()) {
         spath += auth.c_str();
         spath += '&';
       }
@@ -3077,7 +3079,6 @@ filesystem::open(const char* path,
       if (retc) {
         eos_static_err("open failed for %s : error code is %d", spath.c_str(),
                        (int) errno);
-        delete file;
         return eos::common::error_retc_map(errno);
       } else {
         retc = add_fd2file(file, *return_inode, uid, gid, pid, isRO);
@@ -3089,9 +3090,9 @@ filesystem::open(const char* path,
       spath.replace("/proc/who", "/proc/user/");
       //spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
       spath += '?';
-
       std::string auth = strongauth_cgi(uid, gid, pid);
-      if(!auth.empty()) {
+
+      if (!auth.empty()) {
         spath += auth.c_str();
         spath += '&';
       }
@@ -3128,9 +3129,9 @@ filesystem::open(const char* path,
       spath.replace("/proc/quota", "/proc/user/");
       //spath += "?mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
       spath += '?';
-
       std::string auth = strongauth_cgi(uid, gid, pid);
-      if(!auth.empty()) {
+
+      if (!auth.empty()) {
         spath += auth.c_str();
         spath += '&';
       }
@@ -3186,9 +3187,9 @@ filesystem::open(const char* path,
 
     arg.FromString(request);
     std::string surl = user_url(uid, gid, pid);
-
     std::string auth = strongauth_cgi(uid, gid, pid);
-    if(!auth.empty()) {
+
+    if (!auth.empty()) {
       surl += "?" + auth;
     }
 
@@ -3999,9 +4000,9 @@ filesystem::unlink(const char* path, uid_t uid, gid_t gid, pid_t pid,
   COMMONTIMING("start", &xpu);
   eos_static_info("path=%s uid=%u, pid=%u", path, uid, pid);
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -4055,9 +4056,9 @@ filesystem::rename(const char* oldpath, const char* newpath, uid_t uid,
   }
 
   std::string surl = user_url(uid, gid, pid);
-
   std::string auth = strongauth_cgi(uid, gid, pid);
-  if(!auth.empty()) {
+
+  if (!auth.empty()) {
     surl += "?" + auth;
   }
 
@@ -4079,7 +4080,8 @@ filesystem::rename(const char* oldpath, const char* newpath, uid_t uid,
   return errno;
 }
 
-static void addSecUidGid(uid_t uid, gid_t gid, XrdOucString &str) {
+static void addSecUidGid(uid_t uid, gid_t gid, XrdOucString& str)
+{
   str += "&xrd.secuid=";
   str += std::to_string(uid).c_str();
   str += "&xrd.secgid=";

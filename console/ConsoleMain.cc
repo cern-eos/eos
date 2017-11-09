@@ -1117,7 +1117,7 @@ execute_line(char* line)
 
   word = line + i;
 
-  while (line[i] && ((line[i] != ' '))) {
+  while (line[i] && (line[i] != ' ')) {
     i++;
   }
 

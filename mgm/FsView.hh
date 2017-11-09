@@ -211,6 +211,8 @@ public:
     friend class GeoTree;
     std::map<fsid_t, tElement*>::const_iterator mIt;
   public:
+    const_iterator() = default;
+    ~const_iterator() = default;
     const_iterator operator++(int);
     const_iterator operator--(int);
     const_iterator& operator++();

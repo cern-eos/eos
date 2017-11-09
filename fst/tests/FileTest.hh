@@ -42,15 +42,25 @@
 class FileTest: public CppUnit::TestCase
 {
   CPPUNIT_TEST_SUITE(FileTest);
-    CPPUNIT_TEST(ReadAsyncTest);
-    CPPUNIT_TEST(WriteTest);
-    CPPUNIT_TEST(ReadVTest);
-    CPPUNIT_TEST(SplitReadVTest);
-    CPPUNIT_TEST(AlignBufferTest);
-    CPPUNIT_TEST(DeleteFlagTest);
+  CPPUNIT_TEST(ReadAsyncTest);
+  CPPUNIT_TEST(WriteTest);
+  CPPUNIT_TEST(ReadVTest);
+  CPPUNIT_TEST(SplitReadVTest);
+  CPPUNIT_TEST(AlignBufferTest);
+  CPPUNIT_TEST(DeleteFlagTest);
   CPPUNIT_TEST_SUITE_END();
 
 public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FileTest(): mFile(nullptr), mEnv(nullptr) {}
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  virtual FileTest() = default;
+
   //----------------------------------------------------------------------------
   //! setUp function
   //----------------------------------------------------------------------------

@@ -48,10 +48,11 @@
 #include <unistd.h>
 #include <dirent.h>
 
-class CredentialConfig {
+class CredentialConfig
+{
 public:
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-  use_unsafe_krk5(false), tryKrb5First(false), fallback2nobody(false) {}
+    use_unsafe_krk5(false), tryKrb5First(false), fallback2nobody(false) {}
 
   //! Indicates if user krb5cc file should be used for authentication
   bool use_user_krb5cc;
@@ -83,7 +84,7 @@ public:
   CredentialConfig credConfig;
 
   void
-  setAuth(const CredentialConfig &cf)
+  setAuth(const CredentialConfig& cf)
   {
     credConfig = cf;
   }
@@ -287,7 +288,8 @@ protected:
   {
     bool ret = false;
     eos_static_debug("reading %s credential file %s",
-                     credinfo.type == CredInfo::krb5 ? "krb5" : (credinfo.type == CredInfo::krb5 ? "krk5" : "x509"),
+                     credinfo.type == CredInfo::krb5 ? "krb5" : (credinfo.type == CredInfo::krb5 ?
+                         "krk5" : "x509"),
                      credinfo.fname.c_str());
 
     if (credinfo.type == CredInfo::krk5) {
@@ -551,9 +553,9 @@ protected:
 
     bool cacheEntryFound = false;
 
-    if(sid != -1) {
-     cacheEntryFound = siduid2credinfo[sid % proccachenbins].count(sid) > 0 &&
-                           siduid2credinfo[sid % proccachenbins][sid].count(uid) > 0;
+    if (sid != -1) {
+      cacheEntryFound = siduid2credinfo[sid % proccachenbins].count(sid) > 0 &&
+                        siduid2credinfo[sid % proccachenbins][sid].count(uid) > 0;
     }
 
     std::map<uid_t, CredInfo>::iterator cacheEntry;
@@ -659,7 +661,11 @@ protected:
       }
 
       gProcCache(pid).SetAuthMethod(pid, newauthmeth);
-      if(sid != -1) gProcCache(sid).SetAuthMethod(sid, newauthmeth);
+
+      if (sid != -1) {
+        gProcCache(sid).SetAuthMethod(sid, newauthmeth);
+      }
+
       authid = getNewConId(uid, gid, pid);
 
       if (!authid) {
@@ -684,7 +690,7 @@ protected:
       lock_w_pcache(sid, pid);
     }
 
-    if(sid != -1) {
+    if (sid != -1) {
       siduid2credinfo[sid % proccachenbins][sid][uid] = credinfo;
     }
 
@@ -705,9 +711,8 @@ protected:
     char base64buf[9];
     bool base64computed;
     map_user(uid_t _uid, gid_t _gid, uint64_t _authid) :
-      uid(_uid), gid(_gid), conid(_authid), base64computed(false)
-    {
-    }
+      uid(_uid), gid(_gid), conid(_authid), base64buf{0}, base64computed(false)
+    {}
 
     char*
     base64(std::string& mapped)

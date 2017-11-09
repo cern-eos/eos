@@ -148,7 +148,7 @@ ProcCommand::Fuse()
         }
       }
 
-      sprintf(inodestr, "%lld", inode);
+      sprintf(inodestr, "%llu", inode);
 
       if ((!isdot) && (!isdotdot) && inode) {
         mResultStream += inodestr;
@@ -213,7 +213,7 @@ ProcCommand::Fuse()
           dotend = dotstart + 2 + strlen(inodestr) + 1;
         } else if (isdotdot) {
           mResultStream.insert(dotend + 3, inodestr);
-          mResultStream.insert(dotend + strlen(inodestr) + 3," ");
+          mResultStream.insert(dotend + strlen(inodestr) + 3, " ");
         } else {
           eos_debug("null inode and not . or ..");
         }

@@ -493,7 +493,7 @@ com_fs(char* arg1)
 
         if (line.beginswith("path=")) {
           line.replace("path=", "");
-          fprintf(stdout, "%06d: %s\n", i, line.c_str());
+          fprintf(stdout, "%06u: %s\n", i, line.c_str());
           // call the replication command here
           subcmd = "replicate ";
           subcmd += line;
@@ -621,8 +621,8 @@ com_fs(char* arg1)
 
       string s;
       fprintf(stdout,
-              "Do you really want to delete ALL %u replica's from filesystem %s ?\n",
-              (int) files_found.size(), id.c_str());
+              "Do you really want to delete ALL %lu replica's from filesystem %s ?\n",
+              files_found.size(), id.c_str());
       fprintf(stdout, "Confirm the deletion by typing => ");
       XrdOucString confirmation = "";
 
@@ -647,7 +647,7 @@ com_fs(char* arg1)
 
           if (line.beginswith("path=")) {
             line.replace("path=", "");
-            fprintf(stdout, "%06d: %s\n", i, line.c_str());
+            fprintf(stdout, "%06u: %s\n", i, line.c_str());
             // call the replication command here
             subcmd = "drop ";
             subcmd += line;
@@ -731,7 +731,7 @@ com_fs(char* arg1)
 
         if (line.beginswith("path=")) {
           line.replace("path=", "");
-          fprintf(stdout, "%06d: %s\n", i, line.c_str());
+          fprintf(stdout, "%06u: %s\n", i, line.c_str());
           // call the replication command here
           subcmd = "verify ";
           subcmd += line;

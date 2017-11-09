@@ -626,10 +626,8 @@ com_file(char* arg1)
             return (0);
           }
 
-          //.............................................................................
           // Get XrdCl::FileSystem object
-          //.............................................................................
-          XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
+          std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
 
           if (!fs) {
             fprintf(stderr, "error=failed to get new FS object");
@@ -706,11 +704,8 @@ com_file(char* arg1)
               rsize = stat_info->GetSize();
             }
 
-            //..................................................................
             // Free memory
-            //..................................................................
             delete stat_info;
-            delete fs;
 
             if ((retc = eos::fst::gFmdClient.GetRemoteFmdSqlite(
                           newresult->Get(repurl.c_str()),

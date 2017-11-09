@@ -177,9 +177,10 @@ S3Store::ListBuckets(const std::string& id)
         errmsg += bucketpath;
         errmsg += " for bucket ";
         errmsg += *it;
-        return eos::common::S3Handler::RestErrorResponse(response->NOT_FOUND,
-               "NoSuchBucket",
-               errmsg, *it, "");
+        return eos::common::S3Handler::RestErrorResponse(
+                 eos::common::HttpResponse::NOT_FOUND,
+                 "NoSuchBucket",
+                 errmsg, *it, "");
       }
     }
   }
@@ -207,7 +208,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
 
   if (!mS3ContainerPath.count(bucket)) {
     // check if this bucket is configured
-    return S3Handler::RestErrorResponse(response->NOT_FOUND,
+    return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_FOUND,
                                         "NoSuchBucket",
                                         "Bucket does not exist!",
                                         bucket.c_str(), "");
@@ -217,7 +218,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
 
     if (gOFS->_stat(mS3ContainerPath[bucket].c_str(), &buf, error, vid,
                     (const char*) 0) != SFS_OK) {
-      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_FOUND,
                                           "NoSuchBucket",
                                           "Bucket is not mapped into the "
                                           "namespace!", bucket.c_str(), "");
@@ -468,7 +469,7 @@ S3Store::HeadBucket(const std::string& id,
   if (gOFS->_stat(bucketpath.c_str(), &buf, error, vid,
                   (const char*) 0) != SFS_OK) {
     if (error.getErrInfo() == ENOENT) {
-      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_FOUND,
                                           "NoSuchBucket",
                                           "Unable stat requested bucket",
                                           id.c_str(), "");
@@ -480,7 +481,7 @@ S3Store::HeadBucket(const std::string& id,
     }
   } else {
     if (!S_ISDIR(buf.st_mode)) {
-      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_FOUND,
                                           "NoSuchBucket",
                                           "Unable stat requested object - is "
                                           "an object", id.c_str(), "");
@@ -547,7 +548,7 @@ S3Store::HeadObject(const std::string& id,
   if (gOFS->_stat(objectpath.c_str(), &buf, error, vid,
                   (const char*) 0) != SFS_OK) {
     if (error.getErrInfo() == ENOENT) {
-      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_FOUND,
                                           "NoSuchKey",
                                           "Unable stat requested object",
                                           id.c_str(), "");
@@ -559,7 +560,7 @@ S3Store::HeadObject(const std::string& id,
     }
   } else {
     if (S_ISDIR(buf.st_mode)) {
-      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_FOUND,
                                           "NoSuchKey",
                                           "Unable stat requested object - "
                                           "is a bucket subdirectory",
@@ -658,7 +659,7 @@ S3Store::GetObject(eos::common::HttpRequest* request,
   if (gOFS->_stat(objectpath.c_str(), &buf, error, vid,
                   (const char*) 0) != SFS_OK) {
     if (error.getErrInfo() == ENOENT) {
-      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_FOUND,
                                           "NoSuchKey",
                                           "Unable stat requested object",
                                           id.c_str(), "");
@@ -702,7 +703,7 @@ S3Store::GetObject(eos::common::HttpRequest* request,
     }
 
     if (S_ISDIR(buf.st_mode)) {
-      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_FOUND,
                                           "NoSuchKey",
                                           "Unable stat requested object - is a "
                                           "bucket subdirectory", id.c_str(), "");
@@ -740,7 +741,7 @@ S3Store::GetObject(eos::common::HttpRequest* request,
         eos_static_info("\n\n%s\n\n", response->GetBody().c_str());
       } else if (rc == SFS_ERROR) {
         if (file->error.getErrInfo() == ENOENT) {
-          response = S3Handler::RestErrorResponse(response->NOT_FOUND,
+          response = S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_FOUND,
                                                   "NoSuchKey",
                                                   "The specified key does not exist",
                                                   path, "");
@@ -908,7 +909,7 @@ S3Store::DeleteObject(eos::common::HttpRequest* request,
   if (gOFS->_stat(objectpath.c_str(), &buf, error, vid,
                   (const char*) 0) != SFS_OK) {
     if (error.getErrInfo() == ENOENT) {
-      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+      return S3Handler::RestErrorResponse(eos::common::HttpResponse::NOT_FOUND,
                                           "NoSuchKey",
                                           "Unable to delete requested object",
                                           id.c_str(), "");

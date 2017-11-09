@@ -979,7 +979,13 @@ private:
     {
       if (newsize > size) {
         size = (newsize < (128 * 1024)) ? 128 * 1024 : newsize;
-        buffer = realloc(buffer, size);
+        char* new_buffer = (char*)realloc(buffer, size);
+
+        if (new_buffer == nullptr) {
+          std::abort();
+        }
+
+        buffer = new_buffer;
       }
     }
   };

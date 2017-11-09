@@ -802,12 +802,12 @@ main(int argc, char* argv[])
   buffer = new char[2 * buffersize];
 
   if ((!buffer)) {
-    fprintf(stderr, "error: cannot allocate buffer of size %d\n", 2 * buffersize);
+    fprintf(stderr, "error: cannot allocate buffer of size %u\n", 2 * buffersize);
     exit(-ENOMEM);
   }
 
   if (debug) {
-    fprintf(stderr, "[eoscp]: allocate copy buffer with %d bytes\n",
+    fprintf(stderr, "[eoscp]: allocate copy buffer with %u bytes\n",
             2 * buffersize);
   }
 

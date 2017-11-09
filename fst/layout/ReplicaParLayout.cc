@@ -118,7 +118,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
   //............................................................................
   // Define if this is the first client contact point
   //............................................................................
-  if (is_gateway || (!is_gateway && is_head_server)) {
+  if (is_gateway || is_head_server) {
     mIsEntryServer = true;
   }
 

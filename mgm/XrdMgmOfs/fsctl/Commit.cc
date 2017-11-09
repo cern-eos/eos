@@ -458,8 +458,8 @@
       eos_thread_info("commitsize=%d n1=%s n2=%s occhunk=%d ocdone=%d", commitsize,
                       fmdname.c_str(), atomic_path.GetName(), occhunk, ocdone);
 
-      if ((commitsize) && (fmdname != atomic_path.GetName()) && ((!occhunk) ||
-          (occhunk && ocdone))) {
+      if ((commitsize) && (fmdname != atomic_path.GetName()) && (!occhunk ||
+          ocdone)) {
         eos_thread_info("commit: de-atomize file %s => %s", fmdname.c_str(),
                         atomic_path.GetName());
         std::shared_ptr<eos::IContainerMD> dir;

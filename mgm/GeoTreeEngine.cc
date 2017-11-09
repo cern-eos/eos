@@ -1370,7 +1370,7 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx>&
 
     // If we don't have a proxy to match, if a client geotag is given then use
     // it else use the file system client
-    bool trimlastlevel = geotag || (!geotag && clientgeotag.empty());
+    bool trimlastlevel = geotag || clientgeotag.empty();
 
     if (!geotag) {
       geotag = (clientgeotag.empty() ? &

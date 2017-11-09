@@ -660,7 +660,7 @@ XrdMgmOfsFile::open(const char* inpath,
       return Emsg(epname, error, errno, "open file - directory immutable", path);
     }
 
-    if (((!isSharedFile) || (isSharedFile && isRW)) && stdpermcheck
+    if ((!isSharedFile || isRW) && stdpermcheck
         && (!dmd->access(vid.uid, vid.gid, (isRW) ? W_OK | X_OK : R_OK | X_OK))) {
       if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
         // we don't apply this permission check for reconstruction jobs issued via the daemon account
