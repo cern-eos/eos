@@ -723,7 +723,9 @@ void
 EosFuse::umounthandler(int sig, siginfo_t *si, void *ctx)
 /* -------------------------------------------------------------------------- */
 {
+#ifdef __linux__
   backward::SignalHandling::handleSignal(sig, si, ctx);
+#endif
   eos_static_warning("sighandler received signal %d - emitting signal 2", sig);
   signal(SIGSEGV, SIG_DFL);
   kill (getpid(), 2);
@@ -1156,7 +1158,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
 	std::string cookie=md->Cookie();
 	Instance().datas.update_cookie(md->id(), cookie);
-	
+
         EXEC_TIMING_END("setattr:utimes");
       }
 
@@ -2867,26 +2869,26 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 	}
       }
       else
-      {      
+      {
 	if (Instance().Config().options.global_flush)
 	{
 	  Instance().mds.begin_flush(io->md, io->authid()); // flag an ongoing flush centrally
 	}
-	
+
 	struct timespec tsnow;
 	eos::common::Timing::GetTimeSpec(tsnow);
-	
+
 	XrdSysMutexHelper mLock(io->md->Locker());
 	io->md->set_mtime(tsnow.tv_sec);
 	io->md->set_mtime_ns(tsnow.tv_nsec);
 	Instance().mds.update(req, io->md, io->authid());
-	
+
 	// step 1 call flush
 	rc = io->ioctx()->flush(req); // actually do the flush
-	
+
 	std::string cookie=io->md->Cookie();
 	io->ioctx()->store_cookie(cookie);
-	
+
 	if (!rc)
 	{
 	  // step 2 call sync - this currently flushed all open filedescriptors - should be ok
