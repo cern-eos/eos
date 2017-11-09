@@ -165,7 +165,7 @@ public:
 
     return ss.str();
   }
-  
+
   void invalidate() {
     invalidated = true;
   }
@@ -229,8 +229,7 @@ private:
 class CredentialFinder {
 public:
   static std::string locateKerberosTicket(const Environment &env);
-  static std::string locateX509Proxy(const Environment &env, uid_t uid);
-
+  static std::string locateX509Proxy(const Environment &env);
 };
 
 #endif

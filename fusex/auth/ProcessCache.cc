@@ -23,15 +23,32 @@
 
 #include "ProcessCache.hh"
 
-ProcessSnapshot ProcessCache::useCredentialsOfAnotherPID(const ProcessInfo &processInfo, pid_t pid, uid_t uid, gid_t gid, bool reconnect) {
-  std::shared_ptr<const BoundIdentity> boundIdentity = boundIdentityProvider.retrieve(pid, uid, gid, reconnect);
-  if(!boundIdentity) {
-    return  {};
+CredentialState ProcessCache::useCredentialsOfAnotherPID(const ProcessInfo &processInfo, pid_t pid, uid_t uid, gid_t gid, bool reconnect, ProcessSnapshot &snapshot) {
+  std::shared_ptr<const BoundIdentity> boundIdentity;
+  CredentialState state = boundIdentityProvider.retrieve(pid, uid, gid, reconnect, boundIdentity);
+
+  if(state != CredentialState::kOk) {
+    return state;
   }
 
   ProcessCacheEntry *entry = new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid);
   cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid), entry);
-  return cache.retrieve(ProcessCacheKey(processInfo.getPid(), uid, gid));
+  snapshot = cache.retrieve(ProcessCacheKey(processInfo.getPid(), uid, gid));
+  return state;
+}
+
+CredentialState ProcessCache::useDefaultPaths(const ProcessInfo &processInfo, uid_t uid, gid_t gid, bool reconnect, ProcessSnapshot &snapshot) {
+  std::shared_ptr<const BoundIdentity> boundIdentity;
+  CredentialState state = boundIdentityProvider.useDefaultPaths(uid, gid, reconnect, boundIdentity);
+
+  if(state != CredentialState::kOk) {
+    return state;
+  }
+
+  ProcessCacheEntry *entry = new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid);
+  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid), entry);
+  snapshot = cache.retrieve(ProcessCacheKey(processInfo.getPid(), uid, gid));
+  return state;
 }
 
 ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect) {
@@ -71,33 +88,42 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid, bool rec
   bool checkParentFirst = processInfo.getFlags() & PF_FORKNOEXEC;
 
   // This should radically decrease the number of times we have to pay the deadlock
-  // timeout - the vast majority of processes doing an execve are in PF_FORKNOEXEC
-  // state. (ie processes spawned by shells)
+  // timeout penalty - the vast majority of processes doing an execve are in
+  // PF_FORKNOEXEC state. (ie processes spawned by shells)
+
+  ProcessSnapshot result;
 
   if(checkParentFirst && processInfo.getParentId() != 1) {
-    ProcessSnapshot fromParent = useCredentialsOfAnotherPID(processInfo, processInfo.getParentId(), uid, gid, reconnect);
-    if(fromParent) {
+    CredentialState state = useCredentialsOfAnotherPID(processInfo, processInfo.getParentId(), uid, gid, reconnect, result);
+    if(state == CredentialState::kOk) {
       eos_static_debug("Associating pid = %d to credentials of its parent without checking its own environ, as PF_FORKNOEXEC is set", processInfo.getPid());
-      return fromParent;
+      return result;
     }
   }
 
-  ProcessSnapshot ownCredentials = useCredentialsOfAnotherPID(processInfo, processInfo.getPid(), uid, gid, reconnect);
-  if(ownCredentials) {
+  CredentialState state = useCredentialsOfAnotherPID(processInfo, processInfo.getPid(), uid, gid, reconnect, result);
+  if(state == CredentialState::kOk) {
     eos_static_debug("Associating pid = %d to credentials found in its own environment variables", processInfo.getPid());
-    return ownCredentials;
+    return result;
   }
 
-  // Check parent, if needed
+  // Check parent, if we didn't already, and it isn't pid 1
   if(!checkParentFirst && processInfo.getParentId() != 1) {
-    ProcessSnapshot fromParent = useCredentialsOfAnotherPID(processInfo, processInfo.getParentId(), uid, gid, reconnect);
-    if(fromParent) {
+    state = useCredentialsOfAnotherPID(processInfo, processInfo.getParentId(), uid, gid, reconnect, result);
+    if(state == CredentialState::kOk) {
       eos_static_debug("Associating pid = %d to credentials of its parent, as no credentials were found in its own environment", processInfo.getPid());
-      return fromParent;
+      return result;
     }
   }
 
-  // No credentials found .. fallback to nobody?
+  // Fallback to default paths?
+  state = useDefaultPaths(processInfo, uid, gid, reconnect, result);
+  if(state == CredentialState::kOk) {
+    eos_static_debug("Associating pid = %d to default credentials, as no credentials were found through environment variables", processInfo.getPid());
+    return result;
+  }
+
+  // No credentials found at all.. fallback to nobody?
   if(credConfig.fallback2nobody) {
     return ProcessSnapshot(new ProcessCacheEntry(processInfo, BoundIdentity(), uid, gid));
   }

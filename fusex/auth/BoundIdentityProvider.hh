@@ -34,7 +34,10 @@
 class BoundIdentityProvider {
 public:
   CredentialState fillCredsFromEnv(const Environment &env, const CredentialConfig &credConfig, CredInfo &creds, uid_t uid);
-  std::shared_ptr<const BoundIdentity> retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect);
+
+  CredentialState retrieve(const Environment &env, uid_t uid, gid_t gid, bool reconnect, std::shared_ptr<const BoundIdentity> &result);
+  CredentialState retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect, std::shared_ptr<const BoundIdentity> &result);
+  CredentialState useDefaultPaths(uid_t uid, gid_t gid, bool reconnect, std::shared_ptr<const BoundIdentity> &result);
 
   void setCredentialConfig(const CredentialConfig &conf) {
     credConfig = conf;
@@ -55,6 +58,7 @@ private:
   CredentialState tryCredentialFile(const std::string &path, CredInfo &creds, uid_t uid);
   CredentialState fillKrb5FromEnv(const Environment &env, CredInfo &creds, uid_t uid);
   CredentialState fillX509FromEnv(const Environment &env, CredInfo &creds, uid_t uid);
+  CredentialState unixAuthentication(uid_t uid, gid_t gid, pid_t pid, bool reconnect, std::shared_ptr<const BoundIdentity> &result);
 
   std::atomic<uint64_t> connectionCounter {1};
 };
