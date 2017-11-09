@@ -506,7 +506,7 @@ client_command(XrdOucString& in, bool is_admin)
   path += "?";
   path += in;
   XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
-  XrdCl::File* client = new XrdCl::File();
+  std::unique_ptr<XrdCl::File> client {new XrdCl::File()};
   XrdCl::XRootDStatus status = client->Open(path.c_str(), flags_xrdcl);
 
   if (status.IsOK()) {
@@ -524,7 +524,6 @@ client_command(XrdOucString& in, bool is_admin)
 
     status = client->Close();
     TIMING("stop", &mytiming);
-    delete client;
 
     if (timing) {
       mytiming.Print();
@@ -542,7 +541,7 @@ client_command(XrdOucString& in, bool is_admin)
     fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
   }
 
-  return 0;
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------
