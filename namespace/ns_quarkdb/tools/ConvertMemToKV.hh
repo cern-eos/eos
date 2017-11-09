@@ -180,15 +180,11 @@ public:
   //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
-  std::shared_ptr<IFileMD> findFile(const std::string& name) override
+  bool findFileName(const std::string& name)
   {
     // Unlike in the memory implementation we just need to check if the file
     // is already added to the map of not.
-    if (mFiles.find(name) != mFiles.end()) {
-      return std::shared_ptr<IFileMD>();
-    } else {
-      return nullptr;
-    }
+    return (mFiles.find(name) != mFiles.end());
   }
 
   //----------------------------------------------------------------------------

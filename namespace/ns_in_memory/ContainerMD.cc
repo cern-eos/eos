@@ -158,7 +158,7 @@ ContainerMD::findFile(const std::string& name)
   eos::IContainerMD::FileMap::iterator it = mFiles.find(name);
 
   if (it == mFiles.end()) {
-    return std::shared_ptr<IFileMD>((IFileMD*)0);
+    return nullptr;
   }
 
   return pFileSvc->getFileMD(it->second);

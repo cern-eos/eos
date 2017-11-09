@@ -213,23 +213,38 @@ void
 ConvertContainerMD::commitSubcontainers(qclient::AsyncHandler& ah,
                                         qclient::QClient& qclient)
 {
-  uint64_t max_batch = 10000;
-  uint64_t count = 0u;
-  std::vector<std::string> cmd {"HMSET", pDirsKey};
-  cmd.reserve(max_batch * 2 + 2);
+  uint32_t num_batches = 0u;
+  uint32_t max_batches = 10u;
+  uint32_t max_per_batch = 100u;
+  uint32_t count = 0u;
+  std::vector<std::string> cmd;
+  cmd.reserve(max_per_batch * 2 + 2);
+  cmd.push_back("HMSET");
+  cmd.push_back(pDirsKey);
 
   for (const auto& elem : mSubcontainers) {
     ++count;
     cmd.push_back(elem.first);
     cmd.push_back(stringify(elem.second));
 
-    if (count == max_batch) {
-      count = 0;
+    if (count == max_per_batch) {
       ah.Register(std::make_pair(qclient.execute(cmd), std::move(cmd)), &qclient);
       cmd.clear();
-      cmd.reserve(max_batch * 2 + 2);
+      cmd.reserve(max_per_batch * 2 + 2);
       cmd.push_back("HMSET");
       cmd.push_back(pDirsKey);
+      count = 0u;
+      ++num_batches;
+    }
+
+    if (num_batches == max_batches) {
+      num_batches = 0u;
+
+      if (!ah.Wait()) {
+        std::cerr << __FUNCTION__ << " Got error response from the backend"
+                  << std::endl;
+        std::abort();
+      }
     }
   }
 
@@ -245,23 +260,38 @@ void
 ConvertContainerMD::commitFiles(qclient::AsyncHandler& ah,
                                 qclient::QClient& qclient)
 {
-  uint64_t max_batch = 10000;
-  uint64_t count = 0u;
-  std::vector<std::string> cmd {"HMSET", pFilesKey};
-  cmd.reserve(max_batch * 2 + 2);
+  uint32_t num_batches = 0u;
+  uint32_t max_batches = 10u;
+  uint32_t max_per_batch = 100u;
+  uint32_t count = 0u;
+  std::vector<std::string> cmd;
+  cmd.reserve(max_per_batch * 2 + 2);
+  cmd.push_back("HMSET");
+  cmd.push_back(pFilesKey);
 
   for (const auto& elem : mFiles) {
     ++count;
     cmd.push_back(elem.first);
     cmd.push_back(stringify(elem.second));
 
-    if (count == max_batch) {
-      count = 0;
+    if (count == max_per_batch) {
       ah.Register(std::make_pair(qclient.execute(cmd), std::move(cmd)), &qclient);
       cmd.clear();
-      cmd.reserve(max_batch * 2 + 2);
+      cmd.reserve(max_per_batch * 2 + 2);
       cmd.push_back("HMSET");
       cmd.push_back(pFilesKey);
+      count = 0;
+      ++num_batches;
+    }
+
+    if (num_batches == max_batches) {
+      num_batches = 0u;
+
+      if (!ah.Wait()) {
+        std::cerr << __FUNCTION__ << " Got error response from the backend"
+                  << std::endl;
+        std::abort();
+      }
     }
   }
 
@@ -676,7 +706,8 @@ ConvertFileMDSvc::initialize()
                         ->GetContMutex(cont->getId());
       mtx->lock();
 
-      if (cont->findFile(file->getName())) {
+      if (((ConvertContainerMD*)(cont.get()))->findFileName(file->getName()) ||
+          file->getName().empty()) {
         mtx->unlock();
         std::lock_guard<std::mutex> lock(mutex_lost_found);
         attachBroken("name_conflicts", file.get());
