@@ -356,8 +356,6 @@ public:
 
   void init(backend* _mdbackend);
 
-  shared_md load_from_kv(fuse_ino_t ino);
-
   bool map_children_to_local(shared_md md);
 
 

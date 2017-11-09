@@ -84,13 +84,10 @@ metad::init(backend* _mdbackend)
   std::string mdstream;
   // load the root node
 
-  shared_md root_md = load_from_kv(1);
-  if (root_md->id() != 1)
-  {
-    fuse_req_t req = 0;
-    XrdSysMutexHelper mLock(mdmap);
-    update(req, mdmap[1], "", true);
-  }
+  fuse_req_t req = 0;
+  XrdSysMutexHelper mLock(mdmap);
+  update(req, mdmap[1], "", true);
+
   next_ino.init(EosFuse::Instance().getKV());
 }
 
@@ -386,68 +383,6 @@ metad::mdx::dump(struct fuse_entry_param &e)
 }
 
 /* -------------------------------------------------------------------------- */
-metad::shared_md
-/* -------------------------------------------------------------------------- */
-metad::load_from_kv(fuse_ino_t ino)
-/* -------------------------------------------------------------------------- */
-{
-  // mdmap is locked when this is called !
-  std::string mdstream;
-  shared_md md = std::make_shared<mdx>();
-  if (!EosFuse::Instance().getKV()->get(ino, mdstream))
-  {
-    if (!md->ParseFromString(mdstream))
-    {
-      eos_static_err("msg=\"GPB parsing failed\" inode=%016lx", ino);
-    }
-    else
-    {
-      eos_static_debug("msg=\"GPB parsed inode\" inode=%016lx", ino);
-    }
-    mdmap[ino] = md;
-
-    if (md->md_ino() && ino)
-    {
-      inomap.insert(md->md_ino(), ino);
-      stat.inodes_inc();
-      stat.inodes_ever_inc();
-    }
-
-    for (auto it = md->children().begin(); it != md->children().end(); ++it)
-    {
-      eos_static_info("adding child %s ino=%016lx", it->first.c_str(), it->second);
-      if (mdmap.count(it->second))
-        continue;
-
-      shared_md cmd = std::make_shared<mdx>();
-      if (!EosFuse::Instance().getKV()->get(it->second, mdstream))
-      {
-        if (!cmd->ParseFromString(mdstream))
-        {
-          eos_static_err("msg=\"GPB parsing failed\" inode=%016lx", it->second);
-        }
-        else
-        {
-          eos_static_debug("msg=\"GPB parsed inode\" inode=%016lx", it->second);
-        }
-        mdmap[it->second] = cmd;
-        if (cmd->md_ino() && ino)
-        {
-          inomap.insert(cmd->md_ino(), it->second);
-          stat.inodes_inc();
-          stat.inodes_ever_inc();
-        }
-      }
-    }
-  }
-  else
-  {
-    eos_static_debug("msg=\"no entry in kv store\" inode=%016lx", ino);
-  }
-  return md;
-}
-
-/* -------------------------------------------------------------------------- */
 bool
 /* -------------------------------------------------------------------------- */
 metad::map_children_to_local(shared_md pmd)
@@ -532,24 +467,13 @@ metad::get(fuse_req_t req,
 {
   eos_static_info("ino=%1llx pino=%16lx name=%s listing=%d", ino, pmd ? pmd->id() : 0, name, listing);
   shared_md md;
-  bool loaded = false;
-
   if (ino)
   {
     {
       XrdSysMutexHelper mLock(mdmap);
 
       // the inode is known, we try to get that one
-      if (!mdmap.retrieve(ino, md))
-      {
-        // -----------------------------------------------------------------------
-        // if there is none we load the current cached md from the kv store
-        // which also loads all available child meta data
-        // -----------------------------------------------------------------------
-        md = load_from_kv(ino);
-        eos_static_info("loaded from kv ino=%16lx remote-ino=%08llx", md->id(), md->md_ino());
-        loaded = true;
-      }
+      mdmap.retrieve(ino, md);
     }
     if ( EOS_LOGS_DEBUG )
       eos_static_debug("MD:\n%s", (!md) ? "<empty>" : dump_md(md).c_str());
@@ -562,7 +486,7 @@ metad::get(fuse_req_t req,
     md = std::make_shared<mdx>();
   }
 
-  if (!md || !md->id() || loaded)
+  if (!md || !md->id())
   {
     // -------------------------------------------------------------------------
     // there is no local meta data available, this can only be found upstream
@@ -728,7 +652,7 @@ metad::get(fuse_req_t req,
     }
     else
     {
-      if (md->id() && !loaded)
+      if (md->id())
       {
         // that can be a locally created entry which is not yet upstream
         rc = 0;
