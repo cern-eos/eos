@@ -26,6 +26,7 @@
 #include "eosfuse.hh"
 #include "common/Macros.hh"
 #include "common/SymKeys.hh"
+#include "misc/FuseId.hh"
 #include <algorithm>
 #ifdef __APPLE__
 #define ECHRNG 44
@@ -38,6 +39,7 @@ void fusexrdlogin::initializeProcessCache(const CredentialConfig &config) {
   processCache->setCredentialConfig(config);
 }
 
+
 int fusexrdlogin::loginurl ( XrdCl::URL& url,
                              XrdCl::URL::ParamsMap &paramsMap,
                             fuse_req_t req,
@@ -45,7 +47,24 @@ int fusexrdlogin::loginurl ( XrdCl::URL& url,
                             bool root_squash,
                             int connection_id )
 {
-  EosFuse::fuse_id id(req);
+  fuse_id id(req);
+  return loginurl(url, paramsMap, id.uid, id.gid, id.pid, root_squash, connection_id);
+}
+
+int fusexrdlogin::loginurl ( XrdCl::URL& url,
+                             XrdCl::URL::ParamsMap &paramsMap,
+			     uid_t uid, 
+			     gid_t gid, 
+			     pid_t pid,
+			     fuse_ino_t ino,
+			     bool root_squash,
+			     int connection_id )
+{
+  fuse_id id;
+  id.uid = uid; 
+  id.gid = gid;
+  id.pid = pid;
+
   ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid, false);
   std::string username = "nobody";
 
@@ -70,7 +89,7 @@ int fusexrdlogin::loginurl ( XrdCl::URL& url,
 
 std::string fusexrdlogin::xrd_login(fuse_req_t req)
 {
-  EosFuse::fuse_id id(req);
+  fuse_id id(req);
   ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid, false);
   std::string login;
 

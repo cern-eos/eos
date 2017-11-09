@@ -35,6 +35,7 @@
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "misc/AssistedThread.hh"
+#include "misc/FuseId.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 #include <map>
@@ -255,8 +256,6 @@ public:
 
   //----------------------------------------------------------------------------
 
-  //----------------------------------------------------------------------------
-
   class vmap
   //----------------------------------------------------------------------------
   {
@@ -388,13 +387,13 @@ public:
               std::string authid,
               bool localstore=false);
 
-  void add(shared_md pmd, shared_md md, std::string authid, bool localstore=false);
-  int add_sync(shared_md pmd, shared_md md, std::string authid);
-  int begin_flush(shared_md md, std::string authid);
-  int end_flush(shared_md md, std::string authid);
+  void add(fuse_req_t req, shared_md pmd, shared_md md, std::string authid, bool localstore=false);
+  int add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid);
+  int begin_flush(fuse_req_t req, shared_md md, std::string authid);
+  int end_flush(fuse_req_t req, shared_md md, std::string authid);
 
-  void remove(shared_md pmd, shared_md md, std::string authid, bool upstream=true);
-  void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
+  void remove(fuse_req_t req, shared_md pmd, shared_md md, std::string authid, bool upstream=true);
+  void mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md, std::string newname,
           std::string authid1, std::string authid2);
 
   std::string dump_md(shared_md md, bool lock=true);
@@ -571,8 +570,12 @@ public:
   {
   public:
 
-    flushentry(const uint64_t id, const std::string& aid, mdx::md_op o) : _id(id), _authid(aid), _op(o)
+    flushentry(const uint64_t id, const std::string& aid, mdx::md_op o, fuse_req_t req=0) : _id(id), _authid(aid), _op(o)
     {
+      if (req)
+      {
+	_fuse_id = fuse_id(req);
+      }
     };
 
     ~flushentry()
@@ -594,6 +597,11 @@ public:
       return _id;
     }
 
+    fuse_id get_fuse_id() const
+    {
+      return _fuse_id;
+    }
+
     static std::deque<flushentry> merge(std::deque<flushentry>& f)
     {
       return f;
@@ -603,7 +611,8 @@ public:
     {
       std::string out;
       char line[1024];
-      snprintf(line, sizeof (line), "authid=%s op=%d id=%lu", e.authid().c_str(), (int) e.op(), e.id());
+      snprintf(line, sizeof (line), "authid=%s op=%d id=%lu uid=%u gid=%u pid=%u", e.authid().c_str(), (int) e.op(), e.id(),
+	       e.get_fuse_id().uid, e.get_fuse_id().gid, e.get_fuse_id().pid);
       out += line;
       return out;
     }
@@ -612,6 +621,7 @@ public:
     uint64_t _id;
     std::string _authid;
     mdx::md_op _op;
+    fuse_id _fuse_id;
   } ;
 
   typedef std::deque<flushentry> flushentry_set_t;

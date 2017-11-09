@@ -38,6 +38,12 @@ public:
                        bool root_squash = false,
                        int connectionid = 0);
 
+  static int loginurl ( XrdCl::URL& url, XrdCl::URL::ParamsMap &query, uid_t uid, gid_t gid, pid_t pid ,
+                       fuse_ino_t ino,
+                       bool root_squash = false,
+                       int connectionid = 0);
+
+
   static std::string xrd_login(fuse_req_t req);
 
   static void initializeProcessCache(const CredentialConfig &config);

@@ -27,6 +27,7 @@
 
 #include "common/Logging.hh"
 #include "fusex/fusex.pb.h"
+#include "misc/FuseId.hh"
 #include "llfusexx.hh"
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClFile.hh"
@@ -75,7 +76,8 @@ public:
                     std::vector<eos::fusex::container>& cont
                     );
 
-  int putMD(eos::fusex::md* md, std::string authid, XrdSysMutex* locker);
+  int putMD(fuse_req_t req, eos::fusex::md* md, std::string authid, XrdSysMutex* locker);
+  int putMD(const fuse_id& id, eos::fusex::md* md, std::string authid, XrdSysMutex* locker);
 
   int getCAP(fuse_req_t req,
              uint64_t inode,

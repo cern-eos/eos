@@ -396,11 +396,25 @@ backend::fetchResponse(std::string& requestURL,
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-backend::putMD(eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
+backend::putMD(fuse_req_t req, eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
+{
+  fuse_id id(req);
+  return putMD(id, md, authid, locker);
+}
+
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid, XrdSysMutex * locker)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::URL url ("root://" + hostport);
   url.SetPath("/dummy");
+
+  XrdCl::URL::ParamsMap query;
+  fusexrdlogin::loginurl(url, query, id.uid, id.gid, id.pid, 0);
+  url.SetParams(query);
 
   // temporary add the authid to be used for that request
   md->set_authid(authid);
@@ -550,6 +564,9 @@ backend::doLock(fuse_req_t req,
 {
   XrdCl::URL url ("root://" + hostport);
   url.SetPath("/dummy");
+  XrdCl::URL::ParamsMap query;
+  fusexrdlogin::loginurl(url, query, req, 0);
+  url.SetParams(query);
 
   md.set_clientuuid(clientuuid);
 

@@ -834,7 +834,7 @@ metad::update(fuse_req_t req,
       mdflush.WaitMS(25);
   }
 
-  flushentry fe(md->id(), authid, localstore ? mdx::LSTORE : mdx::UPDATE);
+  flushentry fe(md->id(), authid, localstore ? mdx::LSTORE : mdx::UPDATE, req);
 
   mdqueue[md->id()]++;
   mdflushqueue.push_back(fe);
@@ -848,7 +848,7 @@ metad::update(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-metad::add(metad::shared_md pmd, metad::shared_md md, std::string authid,
+metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md, std::string authid,
            bool localstore)
 /* -------------------------------------------------------------------------- */
 {
@@ -887,12 +887,12 @@ metad::add(metad::shared_md pmd, metad::shared_md md, std::string authid,
     while (mdqueue.size() == mdqueue_max_backlog)
       mdflush.WaitMS(25);
 
-    flushentry fe(id, authid, mdx::ADD);
+    flushentry fe(id, authid, mdx::ADD, req);
     mdqueue[id]++;
     mdflushqueue.push_back(fe);
   }
 
-  flushentry fep(pid, authid, mdx::LSTORE);
+  flushentry fep(pid, authid, mdx::LSTORE, req);
   mdqueue[pid]++;
   mdflushqueue.push_back(fep);
 
@@ -903,7 +903,7 @@ metad::add(metad::shared_md pmd, metad::shared_md md, std::string authid,
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-metad::add_sync(shared_md pmd, shared_md md, std::string authid)
+metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
 /* -------------------------------------------------------------------------- */
 {
   // this is called with a lock on the md object
@@ -942,7 +942,7 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
   }
 
   // push to backend
-  if ((rc = mdbackend->putMD(&(*md), authid, &(md->Locker()))))
+  if ((rc = mdbackend->putMD(req, &(*md), authid, &(md->Locker()))))
   {
     eos_static_err("metad::add_sync backend::putMD failed rc=%d", rc);
     // ---------------------------------------------------------------
@@ -991,7 +991,7 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
   while (mdqueue.size() == mdqueue_max_backlog)
     mdflush.WaitMS(25);
 
-  flushentry fep(pmd->id(), authid, mdx::LSTORE);
+  flushentry fep(pmd->id(), authid, mdx::LSTORE, req);
   mdqueue[pmd->id()]++;
   mdflushqueue.push_back(fep);
 
@@ -1003,7 +1003,7 @@ metad::add_sync(shared_md pmd, shared_md md, std::string authid)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-metad::begin_flush(shared_md emd, std::string authid)
+metad::begin_flush(fuse_req_t req, shared_md emd, std::string authid)
 /* -------------------------------------------------------------------------- */
 {
   shared_md md = std::make_shared<mdx>();
@@ -1017,7 +1017,7 @@ metad::begin_flush(shared_md emd, std::string authid)
 
   md->set_md_ino(emd->md_ino());
 
-  if ((rc = mdbackend->putMD(&(*md), authid, 0)))
+  if ((rc = mdbackend->putMD(req, &(*md), authid, 0)))
   {
     eos_static_err("metad::begin_flush backend::putMD failed rc=%d", rc);
   }
@@ -1027,7 +1027,7 @@ metad::begin_flush(shared_md emd, std::string authid)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-metad::end_flush(shared_md emd, std::string authid)
+metad::end_flush(fuse_req_t req, shared_md emd, std::string authid)
 /* -------------------------------------------------------------------------- */
 {
   shared_md md = std::make_shared<mdx>();
@@ -1042,7 +1042,7 @@ metad::end_flush(shared_md emd, std::string authid)
 
   md->set_md_ino(emd->md_ino());
 
-  if ((rc = mdbackend->putMD(&(*md), authid, 0)))
+  if ((rc = mdbackend->putMD(req, &(*md), authid, 0)))
   {
     eos_static_err("metad::begin_flush backend::putMD failed rc=%d", rc);
   }
@@ -1052,7 +1052,7 @@ metad::end_flush(shared_md emd, std::string authid)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
+metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md, std::string authid,
               bool upstream)
 /* -------------------------------------------------------------------------- */
 {
@@ -1093,8 +1093,8 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
   if (!upstream)
     return ;
 
-  flushentry fe(md->id(), authid, mdx::RM);
-  flushentry fep(pmd->id(), authid, mdx::LSTORE);
+  flushentry fe(md->id(), authid, mdx::RM, req);
+  flushentry fep(pmd->id(), authid, mdx::LSTORE, req);
 
   mdflush.Lock();
 
@@ -1116,7 +1116,7 @@ metad::remove(metad::shared_md pmd, metad::shared_md md, std::string authid,
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
+metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md, std::string newname,
           std::string authid1, std::string authid2)
 /* -------------------------------------------------------------------------- */
 {
@@ -1181,17 +1181,17 @@ metad::mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
   while (mdqueue.size() == mdqueue_max_backlog)
     mdflush.WaitMS(25);
 
-  flushentry fe1(p1md->id(), authid1, mdx::UPDATE);
+  flushentry fe1(p1md->id(), authid1, mdx::UPDATE, req);
   mdqueue[p1md->id()]++;
   mdflushqueue.push_back(fe1);
 
   if (p1md->id() != p2md->id())
   {
-    flushentry fe2(p2md->id(), authid2, mdx::UPDATE);
+    flushentry fe2(p2md->id(), authid2, mdx::UPDATE, req);
     mdqueue[p2md->id()]++;
     mdflushqueue.push_back(fe2);
   }
-  flushentry fe(md->id(), authid2, mdx::UPDATE);
+  flushentry fe(md->id(), authid2, mdx::UPDATE, req);
 
   mdqueue[md->id()]++;
   mdflushqueue.push_back(fe);
@@ -1794,6 +1794,7 @@ metad::mdcflush(ThreadAssistant &assistant)
 
       uint64_t ino = it->id();
       std::string authid = it->authid();
+      fuse_id f_id = it->get_fuse_id();
       mdx::md_op op = it->op();
 
 
@@ -1878,7 +1879,7 @@ metad::mdcflush(ThreadAssistant &assistant)
               md->set_type(md->MD);
 
               // push to backend
-              if ((rc = mdbackend->putMD(&(*md), authid, &(md->Locker()))))
+              if ((rc = mdbackend->putMD(f_id, &(*md), authid, &(md->Locker()))))
               {
                 eos_static_err("metacache::flush backend::putMD failed rc=%d", rc);
                 // ---------------------------------------------------------------
@@ -2255,7 +2256,7 @@ metad::mdcommunicate(ThreadAssistant &assistant)
                       }
                       md->clear_pt_mtime();
                       md->clear_pt_mtime_ns();
-                      add (pmd, md, authid, true);
+                      add (0, pmd, md, authid, true);
                       update(req, pmd, authid, true);
                     }
                     else
