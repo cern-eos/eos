@@ -161,44 +161,5 @@ CredentialState BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid,
 
   processEnv = response.contents.get();
 
-  CredInfo credinfo;
-  CredentialState state = fillCredsFromEnv(processEnv, credConfig, credinfo, uid);
-  if(state != CredentialState::kOk) return {};
-
-  // We found some credentials, yay. We have to bind them to an xrootd
-  // connection - does such a binding exist already? We don't want to
-  // waste too many LoginIdentifiers, so we re-use them when possible.
-  std::shared_ptr<const BoundIdentity> boundIdentity = credentialCache.retrieve(credinfo);
-
-  if(boundIdentity && !reconnect) {
-    // Cache hit
-    result = boundIdentity;
-    return CredentialState::kOk;
-  }
-
-  if(boundIdentity && boundIdentity->getCreds() && reconnect) {
-    // Invalidate credentials
-    credentialCache.invalidate(credinfo);
-    boundIdentity->getCreds()->invalidate();
-  }
-
-  // No binding exists yet, let's create one..
-  LoginIdentifier login(connectionCounter++);
-  std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials());
-
-  if (credinfo.type == CredInfo::krb5) {
-    trustedCreds->setKrb5(credinfo.fname, uid, gid);
-  } else if (credinfo.type == CredInfo::krk5) {
-    trustedCreds->setKrk5(credinfo.fname, uid, gid);
-  } else if (credinfo.type == CredInfo::x509) {
-    trustedCreds->setx509(credinfo.fname, uid, gid);
-  }
-
-  BoundIdentity *binding = new BoundIdentity(login, trustedCreds);
-  credentialCache.store(credinfo, binding);
-
-  // cannot return binding directly, as its ownership has been transferred to
-  // the cache. TODO(gbitzes): Fix!
-  result = credentialCache.retrieve(credinfo);
-  return CredentialState::kOk;
+  return retrieve(processEnv, uid, gid, reconnect, result);
 }
