@@ -29,14 +29,17 @@
 #include "CredentialFinder.hh"
 #include "ProcessInfo.hh"
 #include "EnvironmentReader.hh"
+#include "SecurityChecker.hh"
 
 class BoundIdentityProvider
 {
 public:
-  static bool fillCredsFromEnv(const Environment& env,
-                               const CredentialConfig& credConfig, CredInfo& creds, uid_t uid);
-  std::shared_ptr<const BoundIdentity> retrieve(pid_t pid, uid_t uid, gid_t gid,
-      bool reconnect);
+  CredentialState
+  fillCredsFromEnv(const Environment& env, const CredentialConfig& credConfig,
+                   CredInfo& creds, uid_t uid);
+
+  std::shared_ptr<const BoundIdentity>
+  retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect);
 
   void setCredentialConfig(const CredentialConfig& conf)
   {
@@ -48,16 +51,16 @@ public:
   }
 
 private:
+  SecurityChecker securityChecker;
   CredentialConfig credConfig;
   CredentialCache credentialCache;
-
   EnvironmentReader environmentReader;
-
-  static bool fillKrb5FromEnv(const Environment& env, CredInfo& creds, uid_t uid);
-  static bool fillX509FromEnv(const Environment& env, CredInfo& creds, uid_t uid);
-  static bool checkCredsPath(const std::string& path, uid_t uid,
-                             struct stat& filestat);
-
+  CredentialState tryCredentialFile(const std::string& path, CredInfo& creds,
+                                    uid_t uid);
+  CredentialState fillKrb5FromEnv(const Environment& env, CredInfo& creds,
+                                  uid_t uid);
+  CredentialState fillX509FromEnv(const Environment& env, CredInfo& creds,
+                                  uid_t uid);
   std::atomic<uint64_t> connectionCounter {1};
 };
 

@@ -26,99 +26,87 @@
 #include "EnvironmentReader.hh"
 #include <sys/stat.h>
 
-// A preliminary check that provided credentials are sane.
-// The strong check will be provided by XrdCl, which changes its fsuid when
-// reading the credentials to that of the real user.
-bool BoundIdentityProvider::checkCredsPath(const std::string& path, uid_t uid,
-    struct stat& filestat)
+CredentialState
+BoundIdentityProvider::tryCredentialFile(const std::string& path,
+    CredInfo& creds, uid_t uid)
 {
-  if (path.size() == 0) {
-    return false;
+  SecurityChecker::Info info = securityChecker.lookup(path, uid);
+
+  if (info.state != CredentialState::kOk) {
+    return info.state;
   }
 
-  if (::stat(path.c_str(), &filestat) != 0) {
-    eos_static_debug("Cannot stat credentials path %s (requested by uid %d)",
-                     path.c_str(), uid);
-    return false;
-  }
-
-  if (!checkCredSecurity(filestat, uid)) {
-    eos_static_alert("Credentials path %s was requested for use by uid %d, but permission check failed!",
-                     path.c_str(), uid);
-    return false;
-  }
-
-  return true;
+  eos_static_info("Using credential file '%s' for uid %d", path.c_str(), uid);
+  creds.fname = path;
+  creds.mtime = info.mtime;
+  return info.state;
 }
 
-bool BoundIdentityProvider::fillKrb5FromEnv(const Environment& env,
-    CredInfo& creds, uid_t uid)
+CredentialState
+BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, CredInfo& creds,
+                                       uid_t uid)
 {
   std::string path = CredentialFinder::locateKerberosTicket(env);
-  struct stat filestat;
-
-  if (!checkCredsPath(path, uid, filestat)) {
-    return false;
-  }
-
-  eos_static_info("Using kerberos credentials '%s' for uid %d", path.c_str(),
-                  uid);
-  creds.fname = path;
   creds.type = CredInfo::krb5;
-  creds.mtime = filestat.st_mtime;
-  return true;
+  return tryCredentialFile(path, creds, uid);
 }
 
-bool BoundIdentityProvider::fillX509FromEnv(const Environment& env,
-    CredInfo& creds, uid_t uid)
+CredentialState
+BoundIdentityProvider::fillX509FromEnv(const Environment& env, CredInfo& creds,
+                                       uid_t uid)
 {
   std::string path = CredentialFinder::locateX509Proxy(env, uid);
-  struct stat filestat;
-
-  if (!checkCredsPath(path, uid, filestat)) {
-    return false;
-  }
-
-  eos_static_info("Using x509 credentials '%s' for uid %d", path.c_str(), uid);
-  creds.fname = path;
   creds.type = CredInfo::x509;
-  creds.mtime = filestat.st_mtime;
-  return true;
+  return tryCredentialFile(path, creds, uid);
 }
 
-bool BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
-    const CredentialConfig& credConfig, CredInfo& creds, uid_t uid)
+CredentialState
+BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
+                                        const CredentialConfig& credConfig,
+                                        CredInfo& creds, uid_t uid)
 {
   if (credConfig.tryKrb5First) {
-    if (credConfig.use_user_krb5cc &&
-        BoundIdentityProvider::fillKrb5FromEnv(env, creds, uid)) {
-      return true;
+    if (credConfig.use_user_krb5cc) {
+      CredentialState state = fillKrb5FromEnv(env, creds, uid);
+
+      if (state != CredentialState::kCannotStat) {
+        return state;
+      }
     }
 
-    if (credConfig.use_user_gsiproxy &&
-        BoundIdentityProvider::fillX509FromEnv(env, creds, uid)) {
-      return true;
+    if (credConfig.use_user_gsiproxy) {
+      CredentialState state = fillX509FromEnv(env, creds, uid);
+
+      if (state != CredentialState::kCannotStat) {
+        return state;
+      }
     }
 
-    return false;
+    return CredentialState::kCannotStat;
   }
 
   // Try krb5 second
-  if (credConfig.use_user_gsiproxy &&
-      BoundIdentityProvider::fillX509FromEnv(env, creds, uid)) {
-    return true;
+  if (credConfig.use_user_gsiproxy) {
+    CredentialState state = fillX509FromEnv(env, creds, uid);
+
+    if (state != CredentialState::kCannotStat) {
+      return state;
+    }
   }
 
-  if (credConfig.use_user_krb5cc &&
-      BoundIdentityProvider::fillKrb5FromEnv(env, creds, uid)) {
-    return true;
+  if (credConfig.use_user_krb5cc) {
+    CredentialState state = fillKrb5FromEnv(env, creds, uid);
+
+    if (state != CredentialState::kCannotStat) {
+      return state;
+    }
   }
 
-  return false;
+  return CredentialState::kCannotStat;
 }
 
-std::shared_ptr<const BoundIdentity> BoundIdentityProvider::retrieve(pid_t pid,
-    uid_t uid, gid_t gid, bool reconnect)
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect)
 {
   if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy) {
     if (reconnect) {
@@ -145,11 +133,9 @@ std::shared_ptr<const BoundIdentity> BoundIdentityProvider::retrieve(pid_t pid,
 
   processEnv = response.contents.get();
   CredInfo credinfo;
+  CredentialState state = fillCredsFromEnv(processEnv, credConfig, credinfo, uid);
 
-  if (!BoundIdentityProvider::fillCredsFromEnv(processEnv, credConfig, credinfo,
-      uid)) {
-    return {};
-  }
+  if (state != CredentialState::kOk) return {};
 
   // We found some credentials, yay. We have to bind them to an xrootd
   // connection - does such a binding exist already? We don't want to

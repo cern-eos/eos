@@ -65,6 +65,9 @@ set(COMPILE_FLAGS_FOR_TEST_EXECUTABLES "${EOSXD_COMPILE_FLAGS} -fPIC")
 add_executable(eos-fusex-tests
   auth/credential-finder.cc
   auth/environment-reader.cc
+  auth/login-identifier.cc
+  auth/process-info.cc
+  auth/security-checker.cc
   ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
   interval-tree.cc
   journal-cache.cc

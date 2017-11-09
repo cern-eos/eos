@@ -713,7 +713,9 @@ void
 EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
 /* -------------------------------------------------------------------------- */
 {
+#ifdef __linux__
   backward::SignalHandling::handleSignal(sig, si, ctx);
+#endif
   eos_static_warning("sighandler received signal %d - emitting signal 2", sig);
   signal(SIGSEGV, SIG_DFL);
   kill(getpid(), 2);
