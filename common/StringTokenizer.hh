@@ -21,32 +21,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   StringTokenizer.hh
- *
- * @brief  Convenience class to deal with command line strings
- */
-
-#ifndef __EOSCOMMON_STRINGTOKENIZER__
-#define __EOSCOMMON_STRINGTOKENIZER__
-
+#pragma once
 #include "common/Namespace.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include <string>
+#include <list>
 #include <vector>
-#include <set>
+#include <sstream>
 #include <stdio.h>
 #include <errno.h>
-#include <string.h>
-
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Utility class with convenience functions for string command line parsing
 //! Works like XrdOucTokenizer but wants each argument in " ".
 //! Escaped quotes are ignored and & is replaced with #AND# !!!
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 class StringTokenizer
 {
   char* fBuffer;
@@ -56,28 +47,118 @@ class StringTokenizer
   std::vector<std::string> fLineArgs;
 
 public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   StringTokenizer(const char* s);
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   StringTokenizer(XrdOucString s)
   {
     StringTokenizer(s.c_str());
   }
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   StringTokenizer(std::string s)
   {
     StringTokenizer(s.c_str());
   }
 
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~StringTokenizer();
 
-  const char* GetLine();  // return the next parsed line seperated by \n
+  //----------------------------------------------------------------------------
+  //! Get next parsed line seperated by \n
+  //!
+  //! @return next line
+  //----------------------------------------------------------------------------
+  const char* GetLine();
 
-  const char* GetToken(bool escapeand = true); // return the next token
+  //----------------------------------------------------------------------------
+  //! Return next parsed space seperated token taking into account escaped
+  //! blanks and quoted strings
+  //!
+  //! @param escapeand if true escape & with #AND# !! UGLY!!
+  //!
+  //! @return next token or null if no token found
+  //----------------------------------------------------------------------------
+  const char* GetToken(bool escapeand = true);
 
-  static std::vector<std::string> split(const std::string& str, char delimiter);
+  //----------------------------------------------------------------------------
+  //! Split given string based on the delimiter
+  //!
+  //! @param str given string
+  //! @param delimiter delimiter
+  //!
+  //! @return vector of tokens
+  //----------------------------------------------------------------------------
+  template<typename C>
+  static C split(const std::string& str, const char delimiter);
 
+  //----------------------------------------------------------------------------
+  //! Merge vector's contents using the provided delimter
+  //!
+  //! @param container container of tokens
+  //! @param delimiter delimiter
+  //!
+  //! @return string obtained from concatenating the tokens using the delimiter
+  //----------------------------------------------------------------------------
+  template<typename C>
+  static std::string merge(const C& container, const char delimiter);
+
+  //----------------------------------------------------------------------------
+  //! Check if string represents unsigned number - could be dropped ?!
+  //----------------------------------------------------------------------------
   static bool IsUnsignedNumber(const std::string& str);
 };
 
+
+//------------------------------------------------------------------------------
+// Split given string based on the delimiter
+//------------------------------------------------------------------------------
+template<typename C>
+C StringTokenizer::split(const std::string& str, char delimiter)
+{
+  istringstream iss(str);
+  C container;
+  std::string part;
+
+  while (std::getline(iss, part, delimiter)) {
+    if (!part.empty()) {
+      container.emplace_back(part);
+    }
+  }
+
+  return container;
+}
+
+//------------------------------------------------------------------------------
+// Merge container's contents using the provided delimter
+//------------------------------------------------------------------------------
+template<typename C>
+std::string
+StringTokenizer::merge(const C& container, char delimiter)
+{
+  std::ostringstream oss;
+
+  for (const auto& elem : container) {
+    oss << elem << delimiter;
+  }
+
+  std::string output = oss.str();
+
+  if (output.length()) {
+    output.resize(output.length() - 1);
+  }
+
+  return output;
+}
+
+
 EOSCOMMONNAMESPACE_END
-#endif

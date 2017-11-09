@@ -118,7 +118,7 @@ extern COMMAND commands[];
 extern int done;
 
 char* stripwhite(char* string);
-COMMAND* find_command(char* command);
+COMMAND* find_command(const char* command);
 int execute_line(char* line);
 
 //------------------------------------------------------------------------------

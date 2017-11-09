@@ -183,7 +183,6 @@ XrdOucString rstdjson;
 XrdOucString user_role = "";
 XrdOucString group_role = "";
 XrdOucString global_comment = "";
-std::string exec_line = "";
 
 int global_retc = 0;
 bool global_highlighting = true;
@@ -1087,10 +1086,7 @@ main(int argc, char* argv[])
 int
 execute_line(char* line)
 {
-  int i;
-  COMMAND* command;
-  char* word;
-  exec_line = line;
+  std::string exec_line = line;
   size_t cbpos = exec_line.find("--comment \"");
   size_t cepos;
 
@@ -1108,38 +1104,27 @@ execute_line(char* line)
     }
   }
 
-  // Isolate the command word.
-  i = 0;
+  // Isolate the command word and the rest of the arguments
+  std::list<std::string> tokens =
+    eos::common::StringTokenizer::split<std::list<std::string>>(exec_line, ' ');
 
-  while ((line[i] != '\0') && (line[i] == ' ')) {
-    i++;
-  }
-
-  word = line + i;
-
-  while ((line[i] != '\0') && (line[i] != ' ')) {
-    i++;
-  }
-
-  if (line[i]) {
-    line[i++] = '\0';
-  }
-
-  command = find_command(word);
-
-  if (!command) {
-    fprintf(stderr, "%s: No such command for EOS Console.\n", word);
+  if (!tokens.size()) {
     global_retc = -1;
     return (-1);
   }
 
-  // Get argument to command, if any.
-  while (line[i] == ' ') {
-    i++;
+  COMMAND* command = find_command(tokens.begin()->c_str());
+
+  if (!command) {
+    fprintf(stderr, "%s: No such command for EOS Console.\n",
+            tokens.begin()->c_str());
+    global_retc = -1;
+    return (-1);
   }
 
-  word = line + i;
-  return ((*(command->func))(word));
+  tokens.erase(tokens.begin());
+  std::string args = eos::common::StringTokenizer::merge(tokens, ' ');
+  return ((*(command->func))((char*)args.c_str()));
 }
 
 //------------------------------------------------------------------------------
@@ -1147,7 +1132,7 @@ execute_line(char* line)
 // Return a 0 pointer if NAME isn't a command name.
 //------------------------------------------------------------------------------
 COMMAND*
-find_command(char* name)
+find_command(const char* name)
 {
   for (int i = 0; commands[i].name; ++i) {
     if (strcmp(name, commands[i].name) == 0) {

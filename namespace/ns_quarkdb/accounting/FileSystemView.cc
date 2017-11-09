@@ -26,22 +26,27 @@
 
 EOSNSNAMESPACE_BEGIN
 
-bool parseFsId(const std::string &str, IFileMD::location_t &fsid, bool &unlinked)
+bool parseFsId(const std::string& str, IFileMD::location_t& fsid,
+               bool& unlinked)
 {
-  std::vector<std::string> parts = eos::common::StringTokenizer::split(str, ':');
+  std::vector<std::string> parts =
+    eos::common::StringTokenizer::split<std::vector<std::string>>(str, ':');
 
-  if(parts.size() != 3) return false;
-  if(parts[0] + ":" != fsview::sPrefix) return false;
+  if (parts.size() != 3) {
+    return false;
+  }
+
+  if (parts[0] + ":" != fsview::sPrefix) {
+    return false;
+  }
 
   fsid = std::stoull(parts[1]);
 
-  if(parts[2] == fsview::sFilesSuffix) {
+  if (parts[2] == fsview::sFilesSuffix) {
     unlinked = false;
-  }
-  else if(parts[2] == fsview::sUnlinkedSuffix) {
+  } else if (parts[2] == fsview::sUnlinkedSuffix) {
     unlinked = true;
-  }
-  else {
+  } else {
     return false;
   }
 
@@ -107,7 +112,6 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   case IFileMDChangeListener::LocationAdded:
     key = keyFilesystemFiles(e->location);
     val = std::to_string(file->getId());
-
     pFlusher->sadd(key, val);
     pFlusher->srem(fsview::sNoReplicaPrefix, val);
     break;
@@ -117,7 +121,6 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
     key = keyFilesystemFiles(e->oldLocation);
     val = std::to_string(file->getId());
     pFlusher->srem(key, val);
-
     key = keyFilesystemFiles(e->location);
     pFlusher->sadd(key, val);
     break;
@@ -139,7 +142,6 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
     key = keyFilesystemFiles(e->location);
     val = std::to_string(e->file->getId());
     pFlusher->srem(key, val);
-
     key = keyFilesystemUnlinked(e->location);
     pFlusher->sadd(key, val);
     break;
@@ -176,14 +178,16 @@ FileSystemView::fileMDCheck(IFileMD* file)
 
   // Make sure all active locations are accounted for.
   qclient::QSet replica_set(*pQcl, "");
-  for(IFileMD::location_t location : replica_locs) {
+
+  for (IFileMD::location_t location : replica_locs) {
     replica_set.setKey(keyFilesystemFiles(location));
     ah.Register(replica_set.sadd_async(file->getId()), replica_set.getClient());
   }
 
   // Make sure all unlinked locations are accounted for.
   qclient::QSet unlink_set(*pQcl, "");
-  for(IFileMD::location_t location : unlink_locs) {
+
+  for (IFileMD::location_t location : unlink_locs) {
     unlink_set.setKey(keyFilesystemUnlinked(location));
     ah.Register(unlink_set.sadd_async(file->getId()), unlink_set.getClient());
   }
@@ -193,15 +197,17 @@ FileSystemView::fileMDCheck(IFileMD* file)
   // filesystem not containing the file.. which is almost all of them!
   // Maybe rethink if there's a better way?
 
-  for(auto it = this->getFilesystemIterator(); it->valid(); it->next()) {
+  for (auto it = this->getFilesystemIterator(); it->valid(); it->next()) {
     IFileMD::location_t fsid = it->getFilesystemID();
 
-    if(std::find(replica_locs.begin(), replica_locs.end(), fsid) == replica_locs.end()) {
+    if (std::find(replica_locs.begin(), replica_locs.end(),
+                  fsid) == replica_locs.end()) {
       replica_set.setKey(keyFilesystemFiles(fsid));
       ah.Register(replica_set.srem_async(file->getId()), replica_set.getClient());
     }
 
-    if(std::find(unlink_locs.begin(), unlink_locs.end(), fsid) == unlink_locs.end()) {
+    if (std::find(unlink_locs.begin(), unlink_locs.end(),
+                  fsid) == unlink_locs.end()) {
       unlink_set.setKey(keyFilesystemUnlinked(fsid));
       ah.Register(unlink_set.srem_async(file->getId()), unlink_set.getClient());
     }
@@ -209,7 +215,6 @@ FileSystemView::fileMDCheck(IFileMD* file)
 
   // Wait for all async responses
   (void) ah.Wait();
-
   return !has_error;
 }
 
@@ -306,17 +311,16 @@ std::shared_ptr<IFsIterator>
 FileSystemView::getFilesystemIterator()
 {
   qclient::QScanner replicaSets(*pQcl, fsview::sPrefix + "*:*");
-
   std::set<IFileMD::location_t> uniqueFilesytems;
-
   std::vector<std::string> results;
-  while(replicaSets.next(results)) {
-    for(std::string &rep : results) {
+
+  while (replicaSets.next(results)) {
+    for (std::string& rep : results) {
       // extract fsid from key
       IFileMD::location_t fsid;
-
       bool unused;
-      if(!parseFsId(rep, fsid, unused)) {
+
+      if (!parseFsId(rep, fsid, unused)) {
         eos_static_crit("Unable to parse redis key: %s", rep.c_str());
         continue;
       }
@@ -325,7 +329,8 @@ FileSystemView::getFilesystemIterator()
     }
   }
 
-  return std::shared_ptr<IFsIterator>(new FilesystemIterator(std::move(uniqueFilesytems)));
+  return std::shared_ptr<IFsIterator>(new FilesystemIterator(std::move(
+                                        uniqueFilesytems)));
 }
 
 EOSNSNAMESPACE_END

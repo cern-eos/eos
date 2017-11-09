@@ -40,7 +40,8 @@ ProcCommand::Accounting()
       static auto accountingAttrPrefix = "sys.accounting";
 
       if (attr.first.find(accountingAttrPrefix) == 0) {
-        auto objectPath = eos::common::StringTokenizer::split(attr.first, '.');
+        auto objectPath =
+          eos::common::StringTokenizer::split<std::vector<std::string>>(attr.first, '.');
         Json::Value* keyEndpointPtr = nullptr;
 
         // Creating a new json object following the path in this case
@@ -65,8 +66,10 @@ ProcCommand::Accounting()
 
         // This value is interpreted as a list of elements separated by comma
         if (attr.second.find(',') != std::string::npos) {
-          for (auto &&
-               attrValue : eos::common::StringTokenizer::split(attr.second, ',')) {
+          auto attrs = eos::common::StringTokenizer::split<std::list<std::string>>
+                       (attr.second, ',');
+
+          for (auto && attrValue : attrs) {
             (*keyEndpointPtr).append(attrValue);
           }
         } else {

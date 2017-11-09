@@ -21,27 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-/*----------------------------------------------------------------------------*/
 #include "common/StringTokenizer.hh"
-#include <sstream>
-
-/*----------------------------------------------------------------------------*/
+#include <cstring>
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/**
- * Constructor
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 StringTokenizer::StringTokenizer(const char* s):
   fCurrentLine(-1), fCurrentArg(-1)
 {
-  // -----------------------------------------------------------
   // the constructor just parses lines not token's within a line
-  // -----------------------------------------------------------
   if (s) {
     fBuffer = strdup(s);
   } else {
@@ -57,7 +48,7 @@ StringTokenizer::StringTokenizer(const char* s):
   }
 
   // intelligent parsing considering quoting
-  for (size_t i = 0; i < strlen(fBuffer); i++) {
+  for (size_t i = 0; i < std::strlen(fBuffer); i++) {
     if ((fBuffer[i] == '"') &&
         ((i == 0) ||
          ((fBuffer[i - 1] != '\\')))) {
@@ -74,13 +65,9 @@ StringTokenizer::StringTokenizer(const char* s):
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Destructor
- *
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 StringTokenizer::~StringTokenizer()
 {
   if (fBuffer) {
@@ -147,12 +134,10 @@ StringTokenizer::GetLine()
   }
 }
 
-/**
- * Return next parsed space seperated token taking into account escaped blanks and quoted strings
- *
- *
- * @return char reference to the next argument token
- */
+//------------------------------------------------------------------------------
+// Return next parsed space seperated token taking into account escaped
+// blanks and quoted strings
+//------------------------------------------------------------------------------
 const char*
 StringTokenizer::GetToken(bool escapeand)
 {
@@ -192,22 +177,6 @@ StringTokenizer::GetToken(bool escapeand)
   }
 }
 
-std::vector<std::string>
-StringTokenizer::split(const std::string& str, char delimiter)
-{
-  istringstream iss(str);
-  std::vector<std::string> parts;
-  std::string part;
-
-  while (std::getline(iss, part, delimiter)) {
-    if (!part.empty()) {
-      parts.emplace_back(part);
-    }
-  }
-
-  return parts;
-}
-
 bool
 StringTokenizer::IsUnsignedNumber(const std::string& str)
 {
@@ -216,5 +185,4 @@ StringTokenizer::IsUnsignedNumber(const std::string& str)
          (str.front() != '0' || str.size() == 1);
 }
 
-/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
