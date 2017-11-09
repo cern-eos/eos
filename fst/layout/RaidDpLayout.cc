@@ -73,13 +73,10 @@ RaidDpLayout::~RaidDpLayout()
 bool
 RaidDpLayout::ComputeParity()
 {
-  int index_pblock;
-  int current_block;
-
   // Compute simple parity
   for (unsigned int i = 0; i < mNbDataFiles; i++) {
-    index_pblock = (i + 1) * mNbDataFiles + 2 * i;
-    current_block = i * (mNbDataFiles + 2); //beginning of current line
+    int index_pblock = (i + 1) * mNbDataFiles + 2 * i;
+    int current_block = i * (mNbDataFiles + 2); //beginning of current line
     OperationXOR(mDataBlocks[current_block],
                  mDataBlocks[current_block + 1],
                  mDataBlocks[index_pblock],
@@ -96,20 +93,17 @@ RaidDpLayout::ComputeParity()
   }
 
   // Compute double parity
-  unsigned int aux_block;
-  unsigned int next_block;
-  unsigned int index_dpblock;
   unsigned int jump_blocks = mNbTotalFiles + 1;
   vector<int> used_blocks;
 
   for (unsigned int i = 0; i < mNbDataFiles; i++) {
-    index_dpblock = (i + 1) * (mNbDataFiles + 1) + i;
+    unsigned int index_dpblock = (i + 1) * (mNbDataFiles + 1) + i;
     used_blocks.push_back(index_dpblock);
   }
 
   for (unsigned int i = 0; i < mNbDataFiles; i++) {
-    index_dpblock = (i + 1) * (mNbDataFiles + 1) + i;
-    next_block = i + jump_blocks;
+    unsigned int index_dpblock = (i + 1) * (mNbDataFiles + 1) + i;
+    unsigned int next_block = i + jump_blocks;
     OperationXOR(mDataBlocks[i],
                  mDataBlocks[next_block],
                  mDataBlocks[index_dpblock],
@@ -118,7 +112,7 @@ RaidDpLayout::ComputeParity()
     used_blocks.push_back(next_block);
 
     for (unsigned int j = 0; j < mNbDataFiles - 2; j++) {
-      aux_block = next_block + jump_blocks;
+      unsigned int aux_block = next_block + jump_blocks;
 
       if ((aux_block < mNbTotalBlocks) &&
           (find(used_blocks.begin(), used_blocks.end(),
@@ -149,9 +143,7 @@ RaidDpLayout::ComputeParity()
 // XOR the two blocks using 128 bits and return the result
 //------------------------------------------------------------------------------
 void
-RaidDpLayout::OperationXOR(char* pBlock1,
-                           char* pBlock2,
-                           char* pResult,
+RaidDpLayout::OperationXOR(char* pBlock1, char* pBlock2, char* pResult,
                            size_t totalBytes)
 {
   v2do* xor_res;
