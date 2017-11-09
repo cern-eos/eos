@@ -3470,6 +3470,7 @@ void
 EosFuse::getHbStat(eos::fusex::statistics& hbs)
 /* -------------------------------------------------------------------------- */
 {
+  eos_static_debug("get statistics");
   eos::common::LinuxMemConsumption::linux_mem_t mem;
   eos::common::LinuxStat::linux_stat_t osstat;
 
@@ -3487,6 +3488,6 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
   hbs.set_inodes_ever(getMdStat().inodes_ever());
   hbs.set_inodes_ever_deleted(getMdStat().inodes_deleted_ever());
   hbs.set_threads(osstat.threads);
-  hbs.set_vsize_mb(osstat.vsize / 1024. / 1024.);
-  hbs.set_rss_mb(osstat.rss / 1024. / 1024.);
+  hbs.set_vsize_mb(osstat.vsize / 1024.0 / 1024.0);
+  hbs.set_rss_mb(osstat.rss / 1024.0 / 1024.0);
 }

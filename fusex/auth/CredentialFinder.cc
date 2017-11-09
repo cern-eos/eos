@@ -75,14 +75,7 @@ std::string CredentialFinder::locateKerberosTicket(const Environment& env)
   return krb5ccname;
 }
 
-std::string CredentialFinder::locateX509Proxy(const Environment& env,
-    uid_t uid)
+std::string CredentialFinder::locateX509Proxy(const Environment& env)
 {
-  std::string proxyPath = env.get("X509_USER_PROXY");
-
-  if (proxyPath.empty()) {
-    proxyPath = SSTR("/tmp/x509up_u" << uid);
-  }
-
-  return proxyPath;
+  return env.get("X509_USER_PROXY");
 }

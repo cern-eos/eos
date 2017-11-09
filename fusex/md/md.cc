@@ -80,14 +80,9 @@ metad::init(backend* _mdbackend)
   mdbackend = _mdbackend;
   std::string mdstream;
   // load the root node
-  shared_md root_md = load_from_kv(1);
-
-  if (root_md->id() != 1) {
-    fuse_req_t req = 0;
-    XrdSysMutexHelper mLock(mdmap);
-    update(req, mdmap[1], "", true);
-  }
-
+  fuse_req_t req = 0;
+  XrdSysMutexHelper mLock(mdmap);
+  update(req, mdmap[1], "", true);
   next_ino.init(EosFuse::Instance().getKV());
 }
 
@@ -299,8 +294,8 @@ metad::mdx::convert(struct fuse_entry_param& e)
   e.attr.CTIMESPEC.tv_nsec = ctime_ns();
 
   if (EosFuse::Instance().Config().options.md_kernelcache) {
-    e.attr_timeout = 3600.0;
-    e.entry_timeout = 3600.0;
+    e.attr_timeout = 180.0;
+    e.entry_timeout = 180.0;
   } else {
     e.attr_timeout = 0;
     e.entry_timeout = 0;
@@ -359,67 +354,8 @@ metad::mdx::dump(struct fuse_entry_param& e)
 }
 
 /* -------------------------------------------------------------------------- */
-metad::shared_md
-/* -------------------------------------------------------------------------- */
-metad::load_from_kv(fuse_ino_t ino)
-/* -------------------------------------------------------------------------- */
-{
-  // mdmap is locked when this is called !
-  std::string mdstream;
-  shared_md md = std::make_shared<mdx>();
-
-  if (!EosFuse::Instance().getKV()->get(ino, mdstream)) {
-    if (!md->ParseFromString(mdstream)) {
-      eos_static_err("msg=\"GPB parsing failed\" inode=%016lx", ino);
-    } else {
-      eos_static_debug("msg=\"GPB parsed inode\" inode=%016lx", ino);
-    }
-
-    mdmap[ino] = md;
-
-    if (md->md_ino() && ino) {
-      inomap.insert(md->md_ino(), ino);
-      stat.inodes_inc();
-      stat.inodes_ever_inc();
-    }
-
-    for (auto it = md->children().begin(); it != md->children().end(); ++it) {
-      eos_static_info("adding child %s ino=%016lx", it->first.c_str(), it->second);
-
-      if (mdmap.count(it->second)) {
-        continue;
-      }
-
-      shared_md cmd = std::make_shared<mdx>();
-
-      if (!EosFuse::Instance().getKV()->get(it->second, mdstream)) {
-        if (!cmd->ParseFromString(mdstream)) {
-          eos_static_err("msg=\"GPB parsing failed\" inode=%016lx", it->second);
-        } else {
-          eos_static_debug("msg=\"GPB parsed inode\" inode=%016lx", it->second);
-        }
-
-        mdmap[it->second] = cmd;
-
-        if (cmd->md_ino() && ino) {
-          inomap.insert(cmd->md_ino(), it->second);
-          stat.inodes_inc();
-          stat.inodes_ever_inc();
-        }
-      }
-    }
-  } else {
-    eos_static_debug("msg=\"no entry in kv store\" inode=%016lx", ino);
-  }
-
-  return md;
-}
-
-/* -------------------------------------------------------------------------- */
 bool
-/* -------------------------------------------------------------------------- */
 metad::map_children_to_local(shared_md pmd)
-/* -------------------------------------------------------------------------- */
 {
   //  XrdSysMutexHelper pLock(pmd->Locker());
   bool ret = true;
@@ -492,23 +428,12 @@ metad::get(fuse_req_t req,
   eos_static_info("ino=%1llx pino=%16lx name=%s listing=%d", ino,
                   pmd ? pmd->id() : 0, name, listing);
   shared_md md;
-  bool loaded = false;
 
   if (ino) {
     {
       XrdSysMutexHelper mLock(mdmap);
-
       // the inode is known, we try to get that one
-      if (!mdmap.retrieve(ino, md)) {
-        // -----------------------------------------------------------------------
-        // if there is none we load the current cached md from the kv store
-        // which also loads all available child meta data
-        // -----------------------------------------------------------------------
-        md = load_from_kv(ino);
-        eos_static_info("loaded from kv ino=%16lx remote-ino=%08llx", md->id(),
-                        md->md_ino());
-        loaded = true;
-      }
+      mdmap.retrieve(ino, md);
     }
 
     if (EOS_LOGS_DEBUG) {
@@ -521,7 +446,7 @@ metad::get(fuse_req_t req,
     md = std::make_shared<mdx>();
   }
 
-  if (!md || !md->id() || loaded) {
+  if (!md || !md->id()) {
     // -------------------------------------------------------------------------
     // there is no local meta data available, this can only be found upstream
     // -------------------------------------------------------------------------
@@ -535,7 +460,7 @@ metad::get(fuse_req_t req,
       return md;
     }
 
-    if (pmd && pmd->cap_count()) {
+    if (pmd && (pmd->cap_count() || pmd->creator())) {
       eos_static_info("returning cap entry");
       return md;
     } else {
@@ -669,11 +594,11 @@ metad::get(fuse_req_t req,
       }
        */
       eos_static_info("ino=%016lx type=%d", md->md_ino(), md->type());
-      rc = mdbackend->getMD(req, md->md_ino(),
-                            listing ? ((md->type() != md->MDLS) ? 0 : md->clock()) : md->clock(), contv,
-                            listing, authid);
+      rc = mdbackend->getMD(req, md->md_ino(), listing ? ((md->type() != md->MDLS)
+                            ? 0 : md->clock()) : md->clock(),
+                            contv, listing, authid);
     } else {
-      if (md->id() && !loaded) {
+      if (md->id()) {
         // that can be a locally created entry which is not yet upstream
         rc = 0;
 
@@ -1906,12 +1831,13 @@ metad::mdcommunicate(ThreadAssistant& assistant)
   hb.mutable_heartbeat_()->set_host(zmq_clienthost);
   hb.mutable_heartbeat_()->set_uuid(zmq_clientuuid);
   hb.mutable_heartbeat_()->set_version(VERSION);
-  hb.mutable_heartbeat_()->set_protversion(hb.heartbeat_().PROTOCOLV1);
+  hb.mutable_heartbeat_()->set_protversion(hb.heartbeat_().PROTOCOLV2);
   hb.mutable_heartbeat_()->set_pid((int32_t) getpid());
   hb.mutable_heartbeat_()->set_starttime(time(NULL));
   hb.set_type(hb.HEARTBEAT);
   eos::fusex::response rsp;
   size_t cnt = 0;
+  int interval = 1;
 
   while (!assistant.terminationRequested()) {
     try {
@@ -1920,7 +1846,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         {static_cast<void*>(*z_socket), 0, ZMQ_POLLIN, 0}
       };
 
-      for (int i = 0; i < 100; ++i) {
+      for (int i = 0; i < 100 * interval; ++i) {
         //eos_static_debug("poll %d", i );
         // 10 milliseconds
         zmq_poll(items, 1, 10);
@@ -1955,6 +1881,20 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               // suicide
               kill(getpid(), SIGINT);
               pause();
+            }
+
+            if (rsp.type() == rsp.DROPCAPS) {
+              eos_static_notice("MGM asked us to drop all known caps");
+              // a newly started MGM requests this as a response to the first heartbeat
+              EosFuse::Instance().caps.reset();
+            }
+
+            if (rsp.type() == rsp.CONFIG) {
+              if (rsp.config_().hbrate()) {
+                eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds",
+                                  rsp.config_().hbrate());
+                interval = (int) rsp.config_().hbrate();
+              }
             }
 
             if (rsp.type() == rsp.LEASE) {

@@ -138,10 +138,10 @@ Mapping::ActiveExpire(int interval, bool force)
          it1 != Mapping::ActiveTidents.end();) {
       if ((now - it1->second) > interval) {
         it2 = it1;
-        it1++;
+        ++it1;
         Mapping::ActiveTidents.erase(it2);
       } else {
-        it1++;
+        ++it1;
       }
     }
 
@@ -263,10 +263,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.uid_list.clear();
         vid.gid_list.clear();
         // use physical mapping for VOMS roles
-        std::string cname = "";
         // convert mapped uid to user name
         int errc = 0;
-        cname = Mapping::UidToUserName(gVirtualUidMap[vomsuidstring], errc);
+        std::string cname = Mapping::UidToUserName(gVirtualUidMap[vomsuidstring], errc);
 
         if (!errc) {
           Mapping::getPhysicalIds(cname.c_str(), vid);
@@ -822,7 +821,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       GeoLocationMap_t::const_iterator longuestmatch = gGeoMap.end();
 
       // we use the geo location with the longest name match
-      for (it = gGeoMap.begin(); it != gGeoMap.end(); it++) {
+      for (it = gGeoMap.begin(); it != gGeoMap.end(); ++it) {
         // if we have a previously matched geoloc and if it's longer that the current one, try the next one
         if (longuestmatch != gGeoMap.end() &&
             it->first.length() <= longuestmatch->first.length()) {
@@ -1084,9 +1083,7 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
   }
 
   if ((!option.length()) || ((option.find("l")) != STR_NPOS)) {
-    eos::common::Mapping::GeoLocationMap_t::const_iterator it;
-
-    for (it = gGeoMap.begin(); it != gGeoMap.end(); it++) {
+    for (auto it = gGeoMap.begin(); it != gGeoMap.end(); ++it) {
       char sline[1024];
       snprintf(sline, sizeof(sline) - 1, "geotag:\"%s\" => \"%s\"\n",
                it->first.c_str(), it->second.c_str());

@@ -32,8 +32,10 @@
 class ProcessCacheEntry
 {
 public:
-  ProcessCacheEntry(const ProcessInfo& pinfo, const BoundIdentity& boundid)
-    : processInfo(pinfo), boundIdentity(boundid) {}
+  ProcessCacheEntry(const ProcessInfo& pinfo, const BoundIdentity& boundid,
+                    uid_t userid, gid_t groupid)
+    : processInfo(pinfo), boundIdentity(boundid), uid(userid), gid(groupid)
+  {}
 
   const ProcessInfo& getProcessInfo() const
   {
@@ -78,6 +80,8 @@ public:
 private:
   ProcessInfo processInfo;
   BoundIdentity boundIdentity;
+  uid_t uid;
+  gid_t gid;
 };
 
 using ProcessSnapshot = std::shared_ptr<const ProcessCacheEntry>;
@@ -96,8 +100,15 @@ public:
   }
 
 private:
-  ProcessSnapshot useCredentialsOfAnotherPID(const ProcessInfo& processInfo,
-      pid_t pid, uid_t uid, gid_t gid, bool reconnect);
+  CredentialState
+  useDefaultPaths(const ProcessInfo& processInfo, uid_t uid, gid_t gid,
+                  bool reconnect, ProcessSnapshot& snapshot);
+
+  CredentialState
+  useCredentialsOfAnotherPID(const ProcessInfo& processInfo, pid_t pid,
+                             uid_t uid, gid_t gid, bool reconnect,
+                             ProcessSnapshot& snapshot);
+
   CredentialConfig credConfig;
 
   struct ProcessCacheKey {

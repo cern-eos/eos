@@ -118,7 +118,7 @@ FuseServer::Clients::MonitorHeartBeat()
           it->second.set_state(Client::ONLINE);
         }
 
-        if (it->second.heartbeat().protversion() != it->second.heartbeat().PROTOCOLV1) {
+        if (it->second.heartbeat().protversion() != it->second.heartbeat().PROTOCOLV2) {
           // protocol version mismatch, evict this client
           evictversionmap[it->second.heartbeat().uuid()] = it->first;
           it->second.set_state(Client::EVICTED);
@@ -134,7 +134,7 @@ FuseServer::Clients::MonitorHeartBeat()
 
     // delete client ot be evicted because of a version mismatch
     for (auto it = evictversionmap.begin(); it != evictversionmap.end(); ++it) {
-      std::string versionerror = "Server supports only PROTOCOLV1";
+      std::string versionerror = "Server supports only PROTOCOLV2";
       std::string uuid = it->first;
       Evict(uuid, versionerror);
       mMap.erase(it->second);
@@ -183,6 +183,16 @@ FuseServer::Clients::Dispatch(const std::string identity,
       }
     }
   }
+
+  if (rc) {
+    // ask a client to drop all caps when we see him the first time because we might have lost our caps due to a restart/failover
+    BroadcastDropAllCaps(identity, hb);
+    // communicate our current heart-beat interval
+    eos::fusex::config cfg;
+    cfg.set_hbrate(mHeartBeatInterval);
+    BroadcastConfig(identity, cfg);
+  }
+
   return rc;
 }
 
@@ -387,7 +397,6 @@ int
 FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
 {
   XrdSysMutexHelper lock(gOFS->zMQ->gFuseServer.Cap());
-  std::string id = mUUIDView[uuid];
   out += " dropping caps of '";
   out += uuid;
   out += "' : ";
@@ -395,6 +404,8 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
   if (!mUUIDView.count(uuid)) {
     return ENOENT;
   }
+
+  std::string id = mUUIDView[uuid];
 
   for (auto it = gOFS->zMQ->gFuseServer.Cap().InodeCaps().begin();
        it != gOFS->zMQ->gFuseServer.Cap().InodeCaps().end(); ++it) {
@@ -463,7 +474,7 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
                                 const std::string& clientid
                                )
 {
-  // prepare eviction message
+  // prepare release cap message
   eos::fusex::response rsp;
   rsp.set_type(rsp.LEASE);
   rsp.mutable_lease_()->set_type(eos::fusex::lease::RELEASECAP);
@@ -612,8 +623,72 @@ FuseServer::Caps::Get(FuseServer::Caps::authid_t id)
   }
 }
 
+
+/*----------------------------------------------------------------------------*/
+int
+FuseServer::Clients::SetHeartbeatInterval(int interval)
+{
+  mHeartBeatInterval = interval;
+  // broadcast to all clients
+  XrdSysMutexHelper lLock(this);
+
+  for (auto it = this->map().begin(); it != this->map().end(); ++it) {
+    std::string uuid = it->second.heartbeat().uuid();
+    std::string id = mUUIDView[uuid];
+
+    if (id.length()) {
+      eos::fusex::config cfg;
+      cfg.set_hbrate(interval);
+      BroadcastConfig(id, cfg);
+    }
+  }
+
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+
+
+/*----------------------------------------------------------------------------*/
+int
+FuseServer::Clients::BroadcastConfig(const std::string& identity,
+                                     eos::fusex::config& cfg)
+/*----------------------------------------------------------------------------*/
+{
+  // prepare new heartbeat interval message
+  eos::fusex::response rsp;
+  rsp.set_type(rsp.CONFIG);
+  *(rsp.mutable_config_()) = cfg;
+  std::string rspstream;
+  rsp.SerializeToString(&rspstream);
+  eos_static_info("msg=\"broadcast config to client\" name=%s heartbeat-rate=%d",
+                  identity.c_str(), cfg.hbrate());
+  gOFS->zMQ->task->reply(identity, rspstream);
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+FuseServer::Clients::BroadcastDropAllCaps(const std::string& identity,
+    eos::fusex::heartbeat& hb)
+/*----------------------------------------------------------------------------*/
+{
+  // prepare drop all caps message
+  eos::fusex::response rsp;
+  rsp.set_type(rsp.DROPCAPS);
+  std::string rspstream;
+  rsp.SerializeToString(&rspstream);
+  eos_static_info("msg=\"broadcast drop-all-caps to  client\" uuid=%s name=%s",
+                  hb.uuid().c_str(), identity.c_str());
+  gOFS->zMQ->task->reply(identity, rspstream);
+  return 0;
+}
+
+
+/*----------------------------------------------------------------------------*/
 int
 FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
+/*----------------------------------------------------------------------------*/
 {
   // broad-cast release for a given inode
   XrdSysMutexHelper lock(this);
@@ -1569,21 +1644,21 @@ FuseServer::FillContainerCAP(uint64_t id,
 FuseServer::Caps::shared_cap
 FuseServer::ValidateCAP(const eos::fusex::md& md, mode_t mode)
 {
+  errno = 0 ;
   FuseServer::Caps::shared_cap cap = Cap().Get(md.authid());
 
   // no cap - go away
   if (!cap->id()) {
     eos_static_err("no cap for authid=%s", md.authid().c_str());
+    errno = ENOENT;
     return 0;
   }
 
   // wrong cap - go away
   if ((cap->id() != md.md_ino()) && (cap->id() != md.md_pino())) {
     eos_static_err("wrong cap for authid=%s cap-id=%lx md-ino=%lx md-pino=%lx",
-                   md.authid().c_str(),
-                   md.md_ino(),
-                   md.md_pino()
-                  );
+                   md.authid().c_str(), md.md_ino(), md.md_pino());
+    errno = EINVAL;
     return 0;
   }
 
@@ -1595,12 +1670,14 @@ FuseServer::ValidateCAP(const eos::fusex::md& md, mode_t mode)
     // leave some margin for revoking
     if (cap->vtime() <= (now + 10)) {
       // cap expired !
+      errno = ETIMEDOUT;
       return 0;
     }
 
     return cap;
   }
 
+  errno = EPERM;
   return 0;
 }
 
@@ -1634,9 +1711,63 @@ FuseServer::Header(const std::string& response)
   return std::string("[") + hex + std::string("]");
 }
 
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
+bool
+FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
+                         eos::common::Mapping::VirtualIdentity* vid)
+{
+  // -------------------------------------------------------------------------------------------------------------
+  // - when an MGM was restarted it does not know anymore any client CAPs, but we can fallback to validate
+  //   permissions on the fly by path
+  // - this uses the 'classic' access permission check based on the client identity and by path
+  // -------------------------------------------------------------------------------------------------------------
+  if (!vid) {
+    return false;
+  }
+
+  std::string path;
+  std::shared_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IFileMD> fmd;
+  uint64_t clock = 0;
+  eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+
+  // the traditional access method is by path - need to translate inode to path
+  if (!eos::common::FileId::IsFileInode(md.md_ino())) {
+    try {
+      cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino(), &clock);
+      path = gOFS->eosView->getUri(cmd.get());
+    } catch (eos::MDException& e) {
+      return false;
+    }
+  } else {
+    try {
+      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
+                                              md.md_ino()), &clock);
+      path = gOFS->eosView->getUri(fmd.get());
+    } catch (eos::MDException& e) {
+      return false;
+    }
+  }
+
+  std::string ac_perms;
+  XrdOucErrInfo error;
+
+  if (!gOFS->acc_access(path.c_str(),
+                        error,
+                        *vid,
+                        ac_perms)) {
+    if (ac_perms.find(mode) != std::string::npos) {
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+
+
+/*----------------------------------------------------------------------------*/
 int
 FuseServer::HandleMD(const std::string& id,
                      const eos::fusex::md& md,
@@ -1837,7 +1968,16 @@ FuseServer::HandleMD(const std::string& id,
     }
 
     if (!ValidateCAP(md, W_OK | SA_OK)) {
-      return EPERM;
+      std::string perm = "W";
+
+      // a CAP might have gone or timedout, let's check again the permissions
+      if (((errno == ENOENT) ||
+           (errno = ETIMEDOUT)) &&
+          ValidatePERM(md, perm, vid)) {
+        // this can pass on ... permissions are fine
+      } else {
+        return EPERM;
+      }
     }
 
     enum set_type {
@@ -2256,6 +2396,17 @@ FuseServer::HandleMD(const std::string& id,
 
   if (md.operation() == md.DELETE) {
     if (!ValidateCAP(md, D_OK)) {
+      std::string perm = "D";
+
+      // a CAP might have gone or timedout, let's check again the permissions
+      if (((errno == ENOENT) ||
+           (errno = ETIMEDOUT)) &&
+          ValidatePERM(md, perm, vid)) {
+        // this can pass on ... permissions are fine
+      } else {
+        return EPERM;
+      }
+
       eos_static_err("ino=%lx delete has wrong cap");
       return EPERM;
     }

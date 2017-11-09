@@ -63,8 +63,7 @@ public:
 
     // local operations
 
-    enum md_op
-    {
+    enum md_op {
       ADD, MV, UPDATE, RM, SETSIZE, LSTORE, NONE
     } ;
 
@@ -97,9 +96,9 @@ public:
       return mLock;
     }
 
-    void convert(fuse_entry_param &e);
+    void convert(fuse_entry_param& e);
     std::string dump();
-    static std::string dump(struct fuse_entry_param &e);
+    static std::string dump(struct fuse_entry_param& e);
 
     void setop_delete()
     {
@@ -135,7 +134,8 @@ public:
     {
       // atomic operation, no need to lock before calling
       int prevLookup = lookup_cnt.fetch_add(1, std::memory_order_seq_cst);
-      eos_static_info("ino=%16x lookup=%d => lookup=%d", id(), prevLookup, prevLookup+1);
+      eos_static_info("ino=%16x lookup=%d => lookup=%d", id(), prevLookup,
+                      prevLookup + 1);
     }
 
     bool lookup_dec(int n)
@@ -143,8 +143,7 @@ public:
       // atomic operation, no need to lock before calling
       int prevLookup = lookup_cnt.fetch_sub(n, std::memory_order_seq_cst);
 
-      if(prevLookup - n > 0)
-      {
+      if (prevLookup - n > 0) {
         return false;
       }
 
@@ -203,7 +202,7 @@ public:
       return cap_cnt.load();
     }
 
-    std::vector<struct flock> &LockTable()
+    std::vector<struct flock>& LockTable()
     {
       return locktable;
     }
@@ -221,7 +220,7 @@ public:
     std::string Cookie()
     {
       char s[256];
-      snprintf(s, sizeof (s), "%lx:%lu.%lu:%lu", (unsigned long) id(),
+      snprintf(s, sizeof(s), "%lx:%lu.%lu:%lu", (unsigned long) id(),
                (unsigned long) mtime(),
                (unsigned long) mtime_ns(),
                (unsigned long) size());
@@ -282,8 +281,10 @@ public:
     fuse_ino_t backward(fuse_ino_t lookup);
 
   private:
-    std::map<fuse_ino_t, fuse_ino_t> fwd_map; // forward map points from remote to local inode
-    std::map<fuse_ino_t, fuse_ino_t> bwd_map; // backward map points from local remote inode
+    std::map<fuse_ino_t, fuse_ino_t>
+    fwd_map; // forward map points from remote to local inode
+    std::map<fuse_ino_t, fuse_ino_t>
+    bwd_map; // backward map points from local remote inode
 
     XrdSysMutex mMutex;
   } ;
@@ -301,33 +302,33 @@ public:
     {
     }
 
-    void retrieveOrCreateTS(fuse_ino_t ino, shared_md &ret)
+    void retrieveOrCreateTS(fuse_ino_t ino, shared_md& ret)
     {
       XrdSysMutexHelper mLock(this);
 
-      if(this->retrieve(ino, ret))
-      {
+      if (this->retrieve(ino, ret)) {
         return;
       }
 
       ret = std::make_shared<mdx>();
+
       if (ino) {
         (*this)[ino] = ret;
       }
     }
 
     // TS stands for "thread-safe"
-    bool retrieveTS(fuse_ino_t ino, shared_md &ret)
+    bool retrieveTS(fuse_ino_t ino, shared_md& ret)
     {
       XrdSysMutexHelper mLock(this);
       return this->retrieve(ino, ret);
     }
 
-    bool retrieve(fuse_ino_t ino, shared_md &ret)
+    bool retrieve(fuse_ino_t ino, shared_md& ret)
     {
       auto it = this->find(ino);
 
-      if(it == this->end()) {
+      if (it == this->end()) {
         return false;
       }
 
@@ -336,13 +337,15 @@ public:
     }
 
     // TS stands for "thread-safe"
-    void insertTS(fuse_ino_t ino, shared_md &md) {
+    void insertTS(fuse_ino_t ino, shared_md& md)
+    {
       XrdSysMutexHelper mLock(this);
       (*this)[ino] = md;
     }
 
     // TS stands for "thread-safe"
-    void eraseTS(fuse_ino_t ino) {
+    void eraseTS(fuse_ino_t ino)
+    {
       XrdSysMutexHelper mLock(this);
       this->erase(ino);
     }
@@ -355,8 +358,6 @@ public:
   virtual ~metad();
 
   void init(backend* _mdbackend);
-
-  shared_md load_from_kv(fuse_ino_t ino);
 
   bool map_children_to_local(shared_md md);
 
@@ -372,11 +373,11 @@ public:
   shared_md get(fuse_req_t req,
                 fuse_ino_t ino,
                 const std::string authid = "",
-                bool listing=false,
+                bool listing = false,
                 shared_md pmd = 0 ,
                 const char* name = 0,
-                bool readdir=false
-                );
+                bool readdir = false
+               );
 
   uint64_t insert(fuse_req_t req,
                   shared_md md,
@@ -388,20 +389,22 @@ public:
   void update(fuse_req_t req,
               shared_md md,
               std::string authid,
-              bool localstore=false);
+              bool localstore = false);
 
-  void add(shared_md pmd, shared_md md, std::string authid, bool localstore=false);
+  void add(shared_md pmd, shared_md md, std::string authid,
+           bool localstore = false);
   int add_sync(shared_md pmd, shared_md md, std::string authid);
   int begin_flush(shared_md md, std::string authid);
   int end_flush(shared_md md, std::string authid);
 
-  void remove(shared_md pmd, shared_md md, std::string authid, bool upstream=true);
+  void remove(shared_md pmd, shared_md md, std::string authid,
+              bool upstream = true);
   void mv(shared_md p1md, shared_md p2md, shared_md md, std::string newname,
           std::string authid1, std::string authid2);
 
-  std::string dump_md(shared_md md, bool lock=true);
+  std::string dump_md(shared_md md, bool lock = true);
   std::string dump_md(eos::fusex::md& md);
-  std::string dump_container(eos::fusex::container & cont);
+  std::string dump_container(eos::fusex::container& cont);
 
   uint64_t apply(fuse_req_t req, eos::fusex::container& cont, bool listing);
 
@@ -410,11 +413,13 @@ public:
 
   int statvfs(fuse_req_t req, struct statvfs* svfs);
 
-  void mdcflush(ThreadAssistant &assistant); // thread pushing into md cache
+  void mdcflush(ThreadAssistant& assistant); // thread pushing into md cache
 
-  void mdcommunicate(ThreadAssistant &assistant); // thread interacting with the MGM for meta data
+  void mdcommunicate(ThreadAssistant&
+                     assistant); // thread interacting with the MGM for meta data
 
-  int connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname, std::string zmqclienthost, std::string zmqclientuuid);
+  int connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname,
+              std::string zmqclienthost, std::string zmqclientuuid);
 
   class mdstat
   {
@@ -521,8 +526,8 @@ public:
   reset_cap_count(uint64_t ino)
   {
     shared_md md;
-    if(!mdmap.retrieveTS(ino, md))
-    {
+
+    if (!mdmap.retrieveTS(ino, md)) {
       eos_static_err("no cap counter change for ino=%lx", ino);
       return;
     }
@@ -536,8 +541,8 @@ public:
   decrease_cap(uint64_t ino)
   {
     shared_md md;
-    if(!mdmap.retrieveTS(ino, md))
-    {
+
+    if (!mdmap.retrieveTS(ino, md)) {
       eos_static_info("no cap counter change for ino=%lx", ino);
       return;
     }
@@ -547,20 +552,25 @@ public:
   }
 
   void
-  increase_cap(uint64_t ino, bool lock=false)
+  increase_cap(uint64_t ino, bool lock = false)
   {
     shared_md md;
-    if(!mdmap.retrieveTS(ino, md))
-    {
+
+    if (!mdmap.retrieveTS(ino, md)) {
       eos_static_err("no cap counter change for ino=%lx", ino);
       return;
     }
 
-    if (lock)
+    if (lock) {
       md->Locker().Lock();
+    }
+
     md->cap_inc();
-    if (lock)
+
+    if (lock) {
       md->Locker().UnLock();
+    }
+
     eos_static_err("increase cap counter for ino=%lx", ino);
   }
 
@@ -573,7 +583,8 @@ public:
   {
   public:
 
-    flushentry(const uint64_t id, const std::string& aid, mdx::md_op o) : _id(id), _authid(aid), _op(o)
+    flushentry(const uint64_t id, const std::string& aid, mdx::md_op o) : _id(id),
+      _authid(aid), _op(o)
     {
     };
 
@@ -605,7 +616,8 @@ public:
     {
       std::string out;
       char line[1024];
-      snprintf(line, sizeof (line), "authid=%s op=%d id=%lu", e.authid().c_str(), (int) e.op(), e.id());
+      snprintf(line, sizeof(line), "authid=%s op=%d id=%lu", e.authid().c_str(),
+               (int) e.op(), e.id());
       out += line;
       return out;
     }
