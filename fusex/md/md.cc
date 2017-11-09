@@ -396,10 +396,10 @@ metad::map_children_to_local(shared_md pmd)
 
   for (auto map = pmd->children().begin(); map != pmd->children().end(); ++map)
   {
-    eos_static_notice("translate %s [%lx]", map->first.c_str(), map->second);
+    eos_static_debug("translate %s [%lx]", map->first.c_str(), map->second);
     if (pmd->get_todelete().count(map->first))
     {
-      eos_static_notice("masking %s", map->first.c_str());
+      eos_static_debug("masking %s", map->first.c_str());
       names_to_delete.push_back(map->first);
       //      pmd->set_nchildren(pmd->nchildren()-1);
     }
@@ -503,7 +503,7 @@ metad::get(fuse_req_t req,
       eos_static_info("returning opendir(readdir) entry");
       return md;
     }
-    if (pmd && pmd->cap_count())
+    if (pmd && (pmd->cap_count() || pmd->creator()))
     {
       eos_static_info("returning cap entry");
       return md;
