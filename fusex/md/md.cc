@@ -325,8 +325,8 @@ metad::mdx::convert(struct fuse_entry_param &e)
   e.attr.CTIMESPEC.tv_nsec=ctime_ns();
   if (EosFuse::Instance().Config().options.md_kernelcache)
   {
-    e.attr_timeout=3600.0;
-    e.entry_timeout=3600.0;
+    e.attr_timeout=180.0;
+    e.entry_timeout=180.0;
   }
   else
   {
