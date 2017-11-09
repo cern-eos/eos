@@ -343,7 +343,7 @@ XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix)
   for (auto it = mStore.begin(); it != mStore.end(); it++) {
     key = it->first.c_str();
 
-    if ((!filter_prefix) || (filter_prefix && (!strlen(filter_prefix))) ||
+    if ((!filter_prefix || !strlen(filter_prefix)) ||
         (!key.beginswith(filter_prefix))) {
       out += it->first.c_str();
       out += "=";
@@ -2960,7 +2960,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
         std::string val = (env.Get(XRDMQSHAREDHASH_PAIRS) ? env.Get(
                              XRDMQSHAREDHASH_PAIRS) : "");
 
-        if (val.length() <= 0) {
+        if (val.length() == 0) {
           error = "no pairs in message body";
           return false;
         }

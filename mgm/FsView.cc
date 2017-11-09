@@ -295,8 +295,7 @@ std::string GeoTree::getGeoTag(const fsid_t& fs) const
 //------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::const_iterator::operator++(int)
 {
-  GeoTree::const_iterator it;
-  it.mIt = mIt;
+  GeoTree::const_iterator it(mIt);
   mIt++;
   return it;
 }
@@ -306,8 +305,7 @@ GeoTree::const_iterator GeoTree::const_iterator::operator++(int)
 //------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::const_iterator::operator--(int)
 {
-  GeoTree::const_iterator it;
-  it.mIt = mIt;
+  GeoTree::const_iterator it(mIt);
   mIt--;
   return it;
 }
@@ -317,8 +315,7 @@ GeoTree::const_iterator GeoTree::const_iterator::operator--(int)
 //------------------------------------------------------------------------------
 GeoTree::const_iterator& GeoTree::const_iterator::operator++()
 {
-  GeoTree::const_iterator it;
-  it.mIt = mIt;
+  GeoTree::const_iterator it(mIt);
   mIt++;
   return *this;
 }
@@ -328,8 +325,7 @@ GeoTree::const_iterator& GeoTree::const_iterator::operator++()
 //------------------------------------------------------------------------------
 GeoTree::const_iterator& GeoTree::const_iterator::operator--()
 {
-  GeoTree::const_iterator it;
-  it.mIt = mIt;
+  GeoTree::const_iterator it(mIt);
   mIt--;
   return *this;
 }
@@ -367,8 +363,7 @@ GeoTree::const_iterator::operator= (const const_iterator& it)
 //------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::begin() const
 {
-  const_iterator it;
-  it.mIt = pLeaves.begin();
+  const_iterator it(pLeaves.begin());
   return it;
 }
 
@@ -385,8 +380,7 @@ GeoTree::const_iterator GeoTree::cbegin() const
 //------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::end() const
 {
-  const_iterator it;
-  it.mIt = pLeaves.end();
+  const_iterator it(pLeaves.end());
   return it;
 }
 
@@ -403,8 +397,7 @@ GeoTree::const_iterator GeoTree::cend() const
 //------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::find(const fsid_t& fsid) const
 {
-  const_iterator it;
-  it.mIt = pLeaves.find(fsid);
+  const_iterator it(pLeaves.find(fsid));
   return it;
 }
 

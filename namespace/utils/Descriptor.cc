@@ -62,7 +62,13 @@ static void resolve(const char* address, sockaddr_in& addr)
   while ((res = gethostbyname_r(address, &hostbuf, tmphstbuf, hstbuflen,
                                 &hp, &herr)) == ERANGE) {
     hstbuflen *= 2;
-    tmphstbuf  = (char*)realloc(tmphstbuf, hstbuflen);
+    char* ptr  = (char*)realloc(tmphstbuf, hstbuflen);
+
+    if (ptr == nullptr) {
+      std::abort();
+    }
+
+    tmphstbuf = ptr;
   }
 
   if (res || !hp) {

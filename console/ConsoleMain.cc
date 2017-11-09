@@ -1111,13 +1111,13 @@ execute_line(char* line)
   // Isolate the command word.
   i = 0;
 
-  while (line[i] && (line[i] == ' ')) {
+  while ((line[i] != '\0') && (line[i] == ' ')) {
     i++;
   }
 
   word = line + i;
 
-  while (line[i] && (line[i] != ' ')) {
+  while ((line[i] != '\0') && (line[i] != ' ')) {
     i++;
   }
 

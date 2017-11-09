@@ -146,7 +146,7 @@ main(int argc, const char* argv[])
   free(buffer);
   close(fd);
   close(fdxs);
-  fprintf(stderr, "%s : tot: %u ok: %u error: %u\n", path.c_str(), ngood + nerr,
+  fprintf(stderr, "%s : tot: %i ok: %i error: %i\n", path.c_str(), ngood + nerr,
           ngood, nerr);
 
   if (nerr) {

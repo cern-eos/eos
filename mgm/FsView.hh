@@ -212,6 +212,8 @@ public:
     std::map<fsid_t, tElement*>::const_iterator mIt;
   public:
     const_iterator() = default;
+    const_iterator(std::map<fsid_t, tElement*>::const_iterator it):
+      mIt(it) {}
     ~const_iterator() = default;
     const_iterator operator++(int);
     const_iterator operator--(int);
