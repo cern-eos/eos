@@ -1964,13 +1964,14 @@ metad::mdcommunicate(ThreadAssistant &assistant)
   hb.mutable_heartbeat_()->set_host(zmq_clienthost);
   hb.mutable_heartbeat_()->set_uuid(zmq_clientuuid);
   hb.mutable_heartbeat_()->set_version(VERSION);
-  hb.mutable_heartbeat_()->set_protversion(hb.heartbeat_().PROTOCOLV1);
+  hb.mutable_heartbeat_()->set_protversion(hb.heartbeat_().PROTOCOLV2);
   hb.mutable_heartbeat_()->set_pid((int32_t) getpid());
   hb.mutable_heartbeat_()->set_starttime(time(NULL));
   hb.set_type(hb.HEARTBEAT);
 
   eos::fusex::response rsp;
   size_t cnt=0;
+  int interval=1;
 
   while (!assistant.terminationRequested())
   {
@@ -1983,7 +1984,7 @@ metad::mdcommunicate(ThreadAssistant &assistant)
         {static_cast<void*> (*z_socket), 0, ZMQ_POLLIN, 0}
       };
 
-      for (int i = 0; i < 100; ++i)
+      for (int i = 0; i < 100 * interval; ++i)
       {
         //eos_static_debug("poll %d", i );
         // 10 milliseconds
@@ -2028,6 +2029,24 @@ metad::mdcommunicate(ThreadAssistant &assistant)
               kill(getpid(), SIGINT);
               pause();
             }
+
+	    if (rsp.type() == rsp.DROPCAPS)
+	    {
+	      eos_static_notice("MGM asked us to drop all known caps");
+	      // a newly started MGM requests this as a response to the first heartbeat
+	      EosFuse::Instance().caps.reset();
+	    }
+	    
+	    if (rsp.type() == rsp.CONFIG)
+	    {
+	      if (rsp.config_().hbrate())
+	      {
+		eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds", rsp.config_().hbrate());
+		interval = (int) rsp.config_().hbrate();
+	      }
+	    }
+
+
             if (rsp.type() == rsp.LEASE)
             {
 
