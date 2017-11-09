@@ -4107,6 +4107,6 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
   hbs.set_inodes_ever(getMdStat().inodes_ever());
   hbs.set_inodes_ever_deleted(getMdStat().inodes_deleted_ever());
   hbs.set_threads(osstat.threads);
-  hbs.set_vsize_mb(osstat.vsize);
-  hbs.set_rss_mb(osstat.rss);
+  hbs.set_vsize_mb(osstat.vsize/1024./1024.);
+  hbs.set_rss_mb(osstat.rss/1024./1024.);
 }
