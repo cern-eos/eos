@@ -36,7 +36,7 @@
 
 /* -------------------------------------------------------------------------- */
 memorycache::memorycache(fuse_ino_t _ino) : ino(_ino)
-/* -------------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------------- */
 {
   return;
 }
@@ -80,7 +80,7 @@ ssize_t
 /* -------------------------------------------------------------------------- */
 memorycache::pread(void* buf, size_t count, off_t offset)
 {
-  return (ssize_t) readData(buf, offset, count);
+  return (ssize_t) buffer.readData(buf, offset, count);
 }
 
 ssize_t
@@ -88,7 +88,7 @@ ssize_t
 memorycache::pwrite(const void* buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  return (ssize_t) writeData(buf, offset, count);
+  return (ssize_t) buffer.writeData(buf, offset, count);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -97,7 +97,7 @@ int
 memorycache::truncate(off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  truncateData(offset);
+  buffer.truncateData(offset);
   return 0;
 }
 
@@ -114,7 +114,7 @@ size_t
 /* -------------------------------------------------------------------------- */
 memorycache::size()
 {
-  return getSize();
+  return buffer.getSize();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -130,13 +130,12 @@ memorycache::set_attr(const std::string& key, const std::string& value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-memorycache::attr(const std::string &key, std::string& value)
+memorycache::attr(const std::string& key, std::string& value)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper lLock(xattrmtx);
 
-  if (xattr.count(key))
-  {
+  if (xattr.count(key)) {
     value = xattr[key];
     return 0;
   }

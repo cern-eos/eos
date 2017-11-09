@@ -424,7 +424,7 @@ void ConvertContainerMDSvc::loadContainer(IdMap::iterator& it)
   std::shared_ptr<IContainerMD> container =
     std::make_shared<ConvertContainerMD>(IContainerMD::id_t(0), pFileSvc, this);
   container->deserialize(buffer);
-  it->second.ptr = container;
+  it.value().ptr = container;
 }
 
 //------------------------------------------------------------------------------
@@ -446,7 +446,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
     exit(1);
   }
 
-  it->second.attached = true;
+  it.value().attached = true;
 
   // For non-root containers recreate the parent
   if (container->getId() != container->getParentId()) {
@@ -629,8 +629,6 @@ ConvertFileMDSvc::getBucketKey(IContainerMD::id_t id) const
 void
 ConvertFileMDSvc::initialize()
 {
-  pIdMap.resize(pResSize);
-
   if (pContSvc == nullptr) {
     MDException e(EINVAL);
     e.getMessage() << "ConvertFileMDSvc: container service not set";
@@ -678,7 +676,7 @@ ConvertFileMDSvc::initialize()
       if (file) {
         file->deserialize(*(it->second.buffer));
         delete it->second.buffer;
-        it->second.buffer = nullptr;
+        it.value().buffer = nullptr;
       } else {
         std::cerr << "Failed to allocate memory for FileMD" << std::endl;
         std::terminate();

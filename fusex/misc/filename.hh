@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file cachehandler.hh
+//! @file filename.hh
 //! @author Andreas-Joachim Peters CERN
-//! @brief cachehandler class
+//! @brief Class implementing some convenience functions for filenames
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,51 +22,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_CACHEHANDLER_HH_
-#define FUSE_CACHEHANDLER_HH_
+#ifndef FUSE_FILENAME_HH_
+#define FUSE_FILENAME_HH_
 
-#include "cache.hh"
-#include "io.hh"
-#include "cacheconfig.hh"
-#include <mutex>
-
-class cachehandler
+class filename
 {
 public:
-
-  cachehandler() {}
-  virtual ~cachehandler() {}
-
-  // static member functions
-
-  static cachehandler&
-  instance()
+  static bool endswith_case_sensitive(std::string mainStr, std::string toMatch)
   {
-    static cachehandler i;
-    return i;
+    auto it = toMatch.begin();
+    return mainStr.size() >= toMatch.size() &&
+           std::all_of(std::next(mainStr.begin(), mainStr.size() - toMatch.size()),
+    mainStr.end(), [&it](const char& c) {
+      return ::tolower(c) == ::tolower(*(it++))  ;
+    });
   }
 
-  shared_io get(fuse_ino_t ino);
-  int rm(fuse_ino_t ino);
-
-  int init(cacheconfig& config); // called before becoming a daemon
-  int init_daemonized(); // called after becoming a daemon
-  void logconfig();
-
-  bool inmemory()
+  static bool matches_suffix(const std::string& name,
+                             const std::vector<std::string>& suffixes)
   {
-    return (config.type == cache_t::MEMORY);
-  }
+    for (auto it = suffixes.begin(); it != suffixes.end(); ++it) {
+      if (endswith_case_sensitive(name, *it)) {
+        return true;
+      }
+    }
 
-  bool journaled()
-  {
-    return (config.journal.length());
+    return false;
   }
-
-private:
-  std::map<fuse_ino_t, shared_io> contents;
-  std::mutex mtx;
-  cacheconfig config;
-} ;
+};
 
 #endif

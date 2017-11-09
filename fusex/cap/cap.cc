@@ -29,15 +29,12 @@
 #include "misc/fusexrdlogin.hh"
 #include "common/Logging.hh"
 
-cap* cap::sCAP = 0;
-
 #define CAP_EXTENSION_TIME 180
 
 /* -------------------------------------------------------------------------- */
 cap::cap()
 /* -------------------------------------------------------------------------- */
 {
-  sCAP = this;
   mdbackend = 0;
   mds = 0;
 }
@@ -45,9 +42,7 @@ cap::cap()
 /* -------------------------------------------------------------------------- */
 cap::~cap()
 /* -------------------------------------------------------------------------- */
-{
-  sCAP = 0;
-}
+{}
 
 /* -------------------------------------------------------------------------- */
 void
@@ -105,12 +100,12 @@ cap::capx::capid(fuse_req_t req, fuse_ino_t ino)
 {
   char sid[256];
   std::string login = fusexrdlogin::xrd_login(req);
-  snprintf(sid, sizeof (sid),
+  snprintf(sid, sizeof(sid),
            "%lx:%u:%u:%s@%s:%s",
            ino,
            fuse_req_ctx(req)->uid,
            fuse_req_ctx(req)->gid,
-	   login.c_str(),
+           login.c_str(),
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
           );
@@ -140,12 +135,11 @@ cap::capx::getclientid(fuse_req_t req)
 {
   char sid[256];
   std::string login = fusexrdlogin::xrd_login(req);
-
-  snprintf(sid, sizeof (sid),
+  snprintf(sid, sizeof(sid),
            "%u:%u:%s@%s:%s",
            fuse_req_ctx(req)->uid,
            fuse_req_ctx(req)->gid,
-	   login.c_str(),
+           login.c_str(),
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
           );
@@ -279,10 +273,8 @@ cap::forget(const std::string& cid)
     }
   }
 
-  if (inode)
-  {
-    if (EosFuse::Instance().Config().options.md_kernelcache)
-    {
+  if (inode) {
+    if (EosFuse::Instance().Config().options.md_kernelcache) {
       kernelcache::inval_inode(inode, false);
     }
   }
@@ -420,23 +412,19 @@ cap::refresh(fuse_req_t req, shared_cap cap)
       // if there is a time synchronization error reported we check if the call just took long to execute
       // 2 seconds is the maximum allowed roundtrip/out-of-sync time applied by the MGM
       uint64_t ns_lag;
-      if ( (ns_lag = eos::common::Timing::GetCoarseAgeInNs(&ts, 0)) < 2000000000)
-      {
-	eos_static_err("GETCAP finished during the allowed 2s round-trip time - our clock seems to be out of sync with the MGM!");
-	return EL2NSYNC;
-      }
-      else
-      {
-	float backoff = round(10 * random() / (double) RAND_MAX);
-	XrdSysTimer sleeper;
-	eos_static_warning("GETCAP exceeded 2s (%.02fs) round-trip time for inode=%16x - backing of for %.02f seconds, then retry!",
-			   ns_lag/1000000000.0,
-			   cap->id(),
-			   backoff);
 
-	sleeper.Wait(backoff*1000);
+      if ((ns_lag = eos::common::Timing::GetCoarseAgeInNs(&ts, 0)) < 2000000000) {
+        eos_static_err("GETCAP finished during the allowed 2s round-trip time - our clock seems to be out of sync with the MGM!");
+        return EL2NSYNC;
+      } else {
+        float backoff = round(10 * random() / (double) RAND_MAX);
+        XrdSysTimer sleeper;
+        eos_static_warning("GETCAP exceeded 2s (%.02fs) round-trip time for inode=%16x - backing of for %.02f seconds, then retry!",
+                           ns_lag / 1000000000.0,
+                           cap->id(),
+                           backoff);
+        sleeper.Wait(backoff * 1000);
       }
-
 
       if ((ns_lag = eos::common::Timing::GetCoarseAgeInNs(&ts, 0)) < 2000000000) {
         eos_static_err("GETCAP finished during the allowed 2s round-trip time - our clock seems to be out of sync with the MGM!");
@@ -502,11 +490,10 @@ cap::capx::valid(bool debug)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-cap::capflush(ThreadAssistant &assistant)
+cap::capflush(ThreadAssistant& assistant)
 /* -------------------------------------------------------------------------- */
 {
-  while (!assistant.terminationRequested())
-  {
+  while (!assistant.terminationRequested()) {
     {
       cmap capdelmap;
       cinodes capdelinodes;
@@ -550,12 +537,11 @@ cap::capflush(ThreadAssistant &assistant)
 
       capmap.UnLock();
 
-      for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it)
-      {
-	kernelcache::inval_inode(*it, false);
+      for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it) {
+        kernelcache::inval_inode(*it, false);
       }
 
-      assistant.wait_for(std::chrono::seconds(1000));
+      assistant.wait_for(std::chrono::seconds(1));
     }
   }
 }

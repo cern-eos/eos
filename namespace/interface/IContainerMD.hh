@@ -27,6 +27,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/utils/Buffer.hh"
 #include "namespace/MDException.hh"
+#include "common/Murmur3.hh"
 #include <stdint.h>
 #include <unistd.h>
 #include <memory>
@@ -58,8 +59,12 @@ public:
   typedef struct timespec mtime_t;
   typedef struct timespec tmtime_t;
   typedef std::map<std::string, std::string> XAttrMap;
-  typedef google::dense_hash_map< std::string, id_t > ContainerMap;
-  typedef google::dense_hash_map< std::string, id_t > FileMap;
+  typedef google::dense_hash_map <
+  std::string, id_t,
+      Murmur3::MurmurHasher<std::string>, Murmur3::eqstr > ContainerMap;
+  typedef google::dense_hash_map <
+  std::string, id_t,
+      Murmur3::MurmurHasher<std::string>, Murmur3::eqstr > FileMap;
 
   //----------------------------------------------------------------------------
   //! Constructor

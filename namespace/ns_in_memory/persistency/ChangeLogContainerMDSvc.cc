@@ -152,7 +152,7 @@ public:
         }
       }
 
-      it->second.ptr.reset();
+      it.value().ptr.reset();
       deletionSet->insert(*itD);
       idMap->erase(it);
       processed.push_back(*itD);
@@ -203,7 +203,7 @@ public:
           if (currentCont->getName() == it->second.ptr->getName()) {
             // meta data change - keeping directory name
             mem_found_cont = mem_current_cont;
-            it->second.logOffset = itU->second.logOffset;
+            it.value().logOffset = itU->second.logOffset;
             pContSvc->notifyListeners(it->second.ptr.get() ,
                                       IContainerMDChangeListener::MTimeChange);
           } else {
@@ -293,7 +293,7 @@ public:
             itP->second.ptr->removeContainer(it->second.ptr->getName());
             // copy the meta data
             mem_found_cont = mem_current_cont;
-            it->second.logOffset = itU->second.logOffset;
+            it.value().logOffset = itU->second.logOffset;
             // -------------------------------------------------------------
             // add to the new parent container
             // -------------------------------------------------------------
@@ -554,7 +554,6 @@ void ChangeLogContainerMDSvc::initialize()
   }
 
   // Decide on how to open the change log
-  pIdMap.resize(pResSize);
   int logOpenFlags = 0;
 
   if (pSlaveMode) {
@@ -906,7 +905,7 @@ void ChangeLogContainerMDSvc::updateStore(IContainerMD* obj)
   // Store the file in the changelog and notify the listener
   eos::Buffer buffer;
   obj->serialize(buffer);
-  it->second.logOffset = pChangeLog->storeRecord(eos::UPDATE_RECORD_MAGIC,
+  it.value().logOffset = pChangeLog->storeRecord(eos::UPDATE_RECORD_MAGIC,
                          buffer);
   notifyListeners(obj, IContainerMDChangeListener::Updated);
 }
@@ -971,12 +970,8 @@ ChangeLogContainerMDSvc::compactPrepare(const std::string& newLogFileName)
     throw;
   }
 
-  // Shrink the pIdMap
-  pIdMap.resize(0);
   // Get the list of records
-  IdMap::const_iterator it;
-
-  for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+  for (auto it = pIdMap.begin(); it != pIdMap.end(); ++it) {
     // Slaves have a non-persisted '/' record at offset 0
     if (it->second.logOffset) {
       data->records.push_back(::ContainerRecordData(it->second.logOffset, it->first));
@@ -1076,7 +1071,7 @@ ChangeLogContainerMDSvc::compactCommit(void* compactingData, bool autorepair)
     assert(it->second.logOffset >= itO->offset);
 
     if (it->second.logOffset == itO->offset) {
-      it->second.logOffset = itO->newOffset;
+      it.value().logOffset = itO->newOffset;
       ++containerCounter;
     }
   }
@@ -1089,7 +1084,7 @@ ChangeLogContainerMDSvc::compactCommit(void* compactingData, bool autorepair)
     it = pIdMap.find(itU->second.containerId);
     assert(it != pIdMap.end());
     assert(it->second.logOffset == itU->second.offset);
-    it->second.logOffset = itU->second.newOffset;
+    it.value().logOffset = itU->second.newOffset;
     ++containerCounter;
   }
 
@@ -1171,7 +1166,7 @@ void ChangeLogContainerMDSvc::loadContainer(IdMap::iterator& it)
   std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>
       (IContainerMD::id_t(0), pFileSvc, this);
   container->deserialize(buffer);
-  it->second.ptr = container;
+  it.value().ptr = container;
 }
 
 //----------------------------------------------------------------------------
@@ -1182,7 +1177,7 @@ void ChangeLogContainerMDSvc::recreateContainer(IdMap::iterator& it,
     ContainerList& nameConflicts)
 {
   std::shared_ptr<IContainerMD> container = it->second.ptr;
-  it->second.attached = true;
+  it.value().attached = true;
 
   // For non-root containers recreate the parent
   if (container->getId() != container->getParentId()) {

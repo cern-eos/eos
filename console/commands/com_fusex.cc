@@ -119,20 +119,20 @@ com_fusex(char* arg1)
       break;
     }
 
-    if (option == "-c") {
-      options += "c";
+    if (option == "-a") {
+      options += "a";
     } else {
-      if (option == "-a") {
-        options += "a";
+      if (option == "-m") {
+        options += "m";
       } else {
-        if (option == "-m") {
-          options += "m";
+        if (option == "-s") {
+          options += "s";
         } else {
-          if (option == "-s") {
-            options += "s";
+          if (option == "-f") {
+            options += "f";
           } else {
-            if (option == "-f") {
-              options += "f";
+            if (option == "-l") {
+              options += "l";
             } else {
               goto com_fusex_usage;
             }
@@ -140,7 +140,7 @@ com_fusex(char* arg1)
         }
       }
     }
-  } while (1);
+  } while (true);
 
   if (options.length()) {
     in += "&mgm.option=";
@@ -151,9 +151,11 @@ com_fusex(char* arg1)
   return (0);
 com_fusex_usage:
   fprintf(stdout,
-          "usage: fusex ls [-c] [-f]                         :  print statistics about eosxd fuse clients\n");
+          "usage: fusex ls [-l] [-f]                         :  print statistics about eosxd fuse clients\n");
   fprintf(stdout,
-          "                -c                                                   -  break down by client host\n");
+          "                [no option]                                          -  break down by client host [default]\n");
+  fprintf(stdout,
+          "                -l                                                   -  break down by client host and show statistics \n");
   fprintf(stdout,
           "                -f                                                   -  show ongoing flush locks\n");
   fprintf(stdout, "\n");

@@ -36,7 +36,7 @@
 #include <map>
 #include <string>
 
-class diskcache : public cache, XrdSysMutex
+class diskcache : public cache
 {
 public:
   diskcache(fuse_ino_t _ino);
@@ -47,8 +47,8 @@ public:
   virtual int detach(std::string& cookie) override;
   virtual int unlink() override;
 
-  virtual ssize_t pread(void *buf, size_t count, off_t offset) override;
-  virtual ssize_t pwrite(const void *buf, size_t count, off_t offset) override;
+  virtual ssize_t pread(void* buf, size_t count, off_t offset) override;
+  virtual ssize_t pwrite(const void* buf, size_t count, off_t offset) override;
 
   virtual int truncate(off_t) override;
   virtual int sync() override;
@@ -56,17 +56,21 @@ public:
   virtual size_t size() override;
 
   virtual int set_attr(const std::string& key, const std::string& value) override;
-  virtual int attr(const std::string &key, std::string& value) override;
+  virtual int attr(const std::string& key, std::string& value) override;
 
-  static int init(const cacheconfig &config);
-  static int init_daemonized(const cacheconfig &config);
+  static int init(const cacheconfig& config);
+  static int init_daemonized(const cacheconfig& config);
 
   virtual int rescue(std::string& location) override;
 
-  virtual off_t prefetch_size() override { return sMaxSize; }
+  virtual off_t prefetch_size() override
+  {
+    return sMaxSize;
+  }
 
 private:
-  int location(std::string &path, bool mkpath=true);
+  XrdSysMutex mMutex;
+  int location(std::string& path, bool mkpath = true);
   static off_t sMaxSize;
 
   fuse_ino_t ino;

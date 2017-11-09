@@ -212,6 +212,9 @@ XrdMgmOfsFile::open(const char* inpath,
 
   if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) ||
        (spath.beginswith("ino:")))) {
+    WAIT_BOOT;
+
+    // reference by fid+fsid
     if (spath.beginswith("fid:")) {
       spath.replace("fid:", "");
       byfid = strtoull(spath.c_str(), 0, 10);

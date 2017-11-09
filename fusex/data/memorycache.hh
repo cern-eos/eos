@@ -34,7 +34,7 @@
 #include <map>
 #include <string>
 
-class memorycache : public cache, bufferll
+class memorycache : public cache
 {
 public:
   memorycache(fuse_ino_t _ino);
@@ -45,8 +45,8 @@ public:
   virtual int detach(std::string& cookie) override;
   virtual int unlink() override;
 
-  virtual ssize_t pread(void *buf, size_t count, off_t offset) override;
-  virtual ssize_t pwrite(const void *buf, size_t count, off_t offset) override;
+  virtual ssize_t pread(void* buf, size_t count, off_t offset) override;
+  virtual ssize_t pwrite(const void* buf, size_t count, off_t offset) override;
 
   virtual int truncate(off_t) override;
   virtual int sync() override;
@@ -54,9 +54,10 @@ public:
   virtual size_t size() override;
 
   virtual int set_attr(const std::string& key, const std::string& value) override;
-  virtual int attr(const std::string &key, std::string& value) override;
+  virtual int attr(const std::string& key, std::string& value) override;
 
 private:
+  bufferll buffer;
   XrdSysMutex xattrmtx;
   std::map<std::string, std::string> xattr;
   fuse_ino_t ino;

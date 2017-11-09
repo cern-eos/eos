@@ -31,11 +31,12 @@
 #include "namespace/ns_in_memory/accounting/QuotaStats.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
 #include "common/Murmur3.hh"
-
+#include "common/hopscotch_map.hh"
 #include <google/sparse_hash_map>
 #include <google/dense_hash_map>
 #include <list>
 #include <limits>
+#include <functional>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -59,16 +60,6 @@ public:
     pFollowStart(0), pFollowPending(0), pContSvc(0), pQuotaStats(0),
     pAutoRepair(0), pResSize(1000000)
   {
-    try {
-      pIdMap.set_deleted_key(0);
-    } catch (const std::length_error& e) {
-      fprintf(stderr, "error: %s can not insert into google map",
-              __FUNCTION__);
-      exit(1);
-    }
-
-    pIdMap.set_empty_key(std::numeric_limits<IFileMD::id_t>::max());
-    pIdMap.min_load_factor(0.0);
     pChangeLog = new ChangeLogFile;
     pthread_mutex_init(&pFollowStartMutex, 0);
   }
@@ -338,7 +329,7 @@ public:
   //------------------------------------------------------------------------
   void resize() override
   {
-    pIdMap.resize(0);
+    return;
   }
 
 private:
@@ -359,10 +350,10 @@ private:
     Buffer*  buffer;
   };
 
-  typedef google::dense_hash_map<IFileMD::id_t, DataInfo,
-          Murmur3::MurmurHasher<uint64_t>,
-          Murmur3::eqstr> IdMap;
-  typedef std::list<IFileMDChangeListener*>               ListenerList;
+  typedef tsl::hopscotch_map <
+  IFileMD::id_t, DataInfo,
+          Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr > IdMap;
+  typedef std::list<IFileMDChangeListener*> ListenerList;
 
   //----------------------------------------------------------------------------
   // Changelog record scanner

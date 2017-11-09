@@ -1,0 +1,98 @@
+#! /bin/bash
+# ----------------------------------------------------------------------
+# File: eos-fusex-certify
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2017 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+
+wdir="certify.$RANDOM";
+mkdir $wdir
+cd $wdir
+echo "===================================================================="
+echo "--- ... working-dir = $PWD"
+##################################################
+
+time (
+if [ -e "/usr/sbin/fusex-benchmark" ]; then
+echo "===================================================================="
+echo "001 ... fusex-benchmark"
+mkdir 001-fusex-benchmark
+cd 001-fusex-benchmark
+/usr/sbin/fusex-benchmark >&/tmp/001-fusex-benchmark.log ||  exit 1
+cd ../
+fi
+) || exit 1
+##################################################
+time (
+echo "===================================================================="
+echo "002 ... rename-test"
+mkdir 002-rename
+cd 002-rename
+for name in `seq 1 1000`; do unlink b 2>/dev/null && echo damn b exists; touch a; mv a b ; stat b>/dev/null; touch a; mv -f a b ; unlink b; ls | grep b && echo failed && exit 2 ; done;  exit 0;
+) || exit 2
+##################################################
+time (
+echo "===================================================================="
+echo "003 ... git-clone-test"
+mkdir 003-git
+cd 003-git
+git clone https://github.com/gbitzes/quarkdb quarkdb-2 >& /tmp/003-git-clone-test.log || exit 3
+cd quarkdb-2
+git submodule update --recursive --init >> /tmp/003-git-clone-test.log 2>&1 || exit 3
+cd ../../
+) || exit 3
+##################################################
+time (
+echo "===================================================================="
+echo "004 ... xrootd-compilation"
+mkdir 004-xrootd
+cd 004-xrootd
+tar xvzf /var/eos/test/fuse/untar/xrootd.tgz >& /tmp/004-xrootd-compilation.log
+cd xrootd
+mkdir build
+cd build
+cmake3 ../ >> /tmp/004-xrootd-compilation.log 2>&1 || exit 4
+time make -j 4  >> /tmp/004-xrootd-compilation.log 2>&1 || exit 4
+cd ../../../
+) || exit 4
+##################################################
+time (
+echo "===================================================================="
+echo "005 ... client-tests"
+mkdir 005-eosclient-tests
+cd 005-eosclient-tests
+git clone https://gitlab.cern.ch/dss/eosclient-tests.git >& /tmp/005-eos-clienttests.log
+cd eosclient-tests/
+cd microtests
+echo "005a... micro-tests"
+python run-testing.py
+cd ../functional/
+echo "005b... zlib-compile"
+./zlib-compile-selftest.sh $PWD >& /tmp/005-eos-clientests.log 2>&1 || exit 5
+echo "005c... git-clone"
+./git-clone.sh $PWD  >& /tmp/005-eos-clientests.log 2>&1 || exit 5
+echo "005d... rsync"
+./rsync.sh $PWD  >& /tmp/005-eos-clientests.log 2>&1 || exit 5
+echo "005d... sqlite"
+./test_sqlite.py  >& /tmp/005-eos-clientests.log 2>&1|| exit 5
+) || exit 5
+
+echo "===================================================================="
+echo "... :-) passed !"
+echo "===================================================================="

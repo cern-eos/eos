@@ -137,6 +137,7 @@ void
 ContainerMD::removeContainer(const std::string& name)
 {
   mSubcontainers.erase(name);
+  mSubcontainers.resize(0);
 }
 
 //------------------------------------------------------------------------------
@@ -189,6 +190,7 @@ ContainerMD::removeFile(const std::string& name)
                                    0, 0, -file->getSize());
     file->getFileMDSvc()->notifyListeners(&e);
     mFiles.erase(name);
+    mFiles.resize(0);
   }
 }
 

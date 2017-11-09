@@ -287,7 +287,7 @@ public:
             originalContainer->addFile(originalFile.get());
           }
 
-          it->second.logOffset = currentOffset;
+          it.value().logOffset = currentOffset;
           processed.push_back(currentFile->getId());
           IFileMDChangeListener::Event e(originalFile.get(),
                                          IFileMDChangeListener::Updated);
@@ -336,7 +336,7 @@ public:
           }
 
           originalFile->setFileMDSvc(pFileSvc);
-          it->second.logOffset = currentOffset;
+          it.value().logOffset = currentOffset;
 
           // The file was unlinked so our job is done
           if (originalFile->getContainerId() == 0) {
@@ -710,8 +710,6 @@ namespace eos
 //------------------------------------------------------------------------
 void ChangeLogFileMDSvc::initialize()
 {
-  pIdMap.resize(pResSize);
-
   if (!pContSvc) {
     MDException e(EINVAL);
     e.getMessage() << "FileMDSvc: container service not set";
@@ -779,9 +777,9 @@ void ChangeLogFileMDSvc::initialize()
           //------------------------------------------------------------------
           std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
           file->deserialize(*it->second.buffer);
-          it->second.ptr = file;
+          it.value().ptr = file;
           delete it->second.buffer;
-          it->second.buffer = 0;
+          it.value().buffer = 0;
           uint64_t lcnt = cnt.load();
 
           if ((!i) && ((100.0 * lcnt / end) > progress)) {
@@ -921,9 +919,9 @@ void ChangeLogFileMDSvc::initialize()
         // Unpack the serialized buffers
         std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
         file->deserialize(*it->second.buffer);
-        it->second.ptr = file;
+        it.value().ptr = file;
         delete it->second.buffer;
-        it->second.buffer = 0;
+        it.value().buffer = 0;
         ListenerList::iterator it;
 
         for (it = pListeners.begin(); it != pListeners.end(); ++it) {
@@ -1158,7 +1156,7 @@ void ChangeLogFileMDSvc::updateStore(IFileMD* obj)
   // Store the file in the changelog and notify the listener
   eos::Buffer buffer;
   obj->serialize(buffer);
-  it->second.logOffset = pChangeLog->storeRecord(eos::UPDATE_RECORD_MAGIC,
+  it.value().logOffset = pChangeLog->storeRecord(eos::UPDATE_RECORD_MAGIC,
                          buffer);
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Updated);
   notifyListeners(&e);
@@ -1309,12 +1307,10 @@ void* ChangeLogFileMDSvc::compactPrepare(const std::string& newLogFileName)
     throw;
   }
 
-  // Shrink the pIdMap
-  pIdMap.resize(0);
   // Get the list of records
   IdMap::const_iterator it;
 
-  for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+  for (auto it = pIdMap.begin(); it != pIdMap.end(); ++it) {
     if (it->second.logOffset) {
       data->records.push_back(::RecordData(it->second.logOffset, it->first));
     }
@@ -1415,7 +1411,7 @@ void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
     assert(it->second.logOffset >= itO->offset);
 
     if (it->second.logOffset == itO->offset) {
-      it->second.logOffset = itO->newOffset;
+      it.value().logOffset = itO->newOffset;
       ++fileCounter;
     }
   }
@@ -1428,7 +1424,7 @@ void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
     it = pIdMap.find(itU->second.fileId);
     assert(it != pIdMap.end());
     assert(it->second.logOffset == itU->second.offset);
-    it->second.logOffset = itU->second.newOffset;
+    it.value().logOffset = itU->second.newOffset;
     ++fileCounter;
   }
 

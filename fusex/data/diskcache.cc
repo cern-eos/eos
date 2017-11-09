@@ -41,11 +41,10 @@ shared_ptr<dircleaner> diskcache::sDirCleaner;
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::init(const cacheconfig &config)
+diskcache::init(const cacheconfig& config)
 /* -------------------------------------------------------------------------- */
 {
-  if (::access(config.location.c_str(), W_OK))
-  {
+  if (::access(config.location.c_str(), W_OK)) {
     return errno;
   }
 
@@ -61,25 +60,23 @@ diskcache::init(const cacheconfig &config)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::init_daemonized(const cacheconfig &config)
+diskcache::init_daemonized(const cacheconfig& config)
 /* -------------------------------------------------------------------------- */
 {
-  if (config.per_file_cache_max_size)
-  {
+  if (config.per_file_cache_max_size) {
     diskcache::sMaxSize = config.per_file_cache_max_size;
   }
 
-  sDirCleaner = std::make_shared<dircleaner>(config.location, config.total_file_cache_size);
+  sDirCleaner = std::make_shared<dircleaner>(config.location,
+                config.total_file_cache_size);
   sDirCleaner->set_trim_suffix(".dc");
 
-  if (config.clean_on_startup)
-  {
+  if (config.clean_on_startup) {
     eos_static_info("cleaning cache path=%s", config.location.c_str());
     sDirCleaner = std::make_shared<dircleaner>(config.location,
                   config.total_file_cache_size);
 
-    if (sDirCleaner->cleanall(".dc"))
-    {
+    if (sDirCleaner->cleanall(".dc")) {
       eos_static_err("cache cleanup failed");
       return -1;
     }
@@ -108,8 +105,8 @@ diskcache::location(std::string& path, bool mkpath)
 /* -------------------------------------------------------------------------- */
 {
   char cache_path[1024 + 20];
-  snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lX.dc",
-	   sLocation.c_str(), ino / 10000, ino);
+  snprintf(cache_path, sizeof(cache_path), "%s/%08lx/%08lX.dc",
+           sLocation.c_str(), ino / 10000, ino);
 
   if (mkpath) {
     eos::common::Path cPath(cache_path);
@@ -129,7 +126,7 @@ int
 diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper lLock(this);
+  XrdSysMutexHelper lLock(mMutex);
   int rc = 0;
 
   if (nattached == 0) {
@@ -187,7 +184,7 @@ int
 diskcache::detach(std::string& cookie)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper lLock(this);
+  XrdSysMutexHelper lLock(mMutex);
   nattached--;
 
   if (!nattached) {
@@ -252,7 +249,7 @@ diskcache::pread(void* buf, size_t count, off_t offset)
 
 /* -------------------------------------------------------------------------- */
 ssize_t
-diskcache::pwrite(const void *buf, size_t count, off_t offset)
+diskcache::pwrite(const void* buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("diskcache::pwrite %lu %lu\n", count, offset);
@@ -321,7 +318,7 @@ diskcache::size()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::set_attr(const std::string& key, const std::string & value)
+diskcache::set_attr(const std::string& key, const std::string& value)
 /* -------------------------------------------------------------------------- */
 {
   if (fd > 0) {
@@ -345,7 +342,7 @@ diskcache::set_attr(const std::string& key, const std::string & value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-diskcache::attr(const std::string &key, std::string & value)
+diskcache::attr(const std::string& key, std::string& value)
 /* -------------------------------------------------------------------------- */
 {
   if (fd > 0) {

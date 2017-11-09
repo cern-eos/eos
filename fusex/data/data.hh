@@ -58,7 +58,7 @@ public:
   public:
 
     datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0),
-              mPrefetchHandler(0),
+      mPrefetchHandler(0),
       mWaitForOpen(false), mFlags(0)
     {}
 
@@ -73,7 +73,7 @@ public:
       return mLock;
     }
 
-    void set_id( uint64_t ino, fuse_req_t req);
+    void set_id(uint64_t ino, fuse_req_t req);
 
     uint64_t id() const
     {
@@ -104,7 +104,7 @@ public:
                     const uint64_t md_ino,
                     const uint64_t md_pino,
                     fuse_req_t req,
-		    bool isRW);
+                    bool isRW);
 
     // IO bridge interface
     ssize_t pread(fuse_req_t req, void* buf, size_t count, off_t offset);
@@ -270,7 +270,8 @@ public:
       tIOFlush.reset(&dmap::ioflush, this);
     }
 
-    void ioflush(ThreadAssistant &assistant); // thread for delayed asynchronous close
+    void ioflush(ThreadAssistant&
+                 assistant); // thread for delayed asynchronous close
 
   private:
     AssistedThread tIOFlush;
@@ -293,6 +294,8 @@ public:
                   shared_data io);
 
   void unlink(fuse_req_t req, fuse_ino_t ino);
+
+  void update_cookie(uint64_t ino, std::string& cookie);
 
   void invalidate_cache(fuse_ino_t ino);
 private:

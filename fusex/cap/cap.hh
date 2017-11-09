@@ -174,21 +174,13 @@ public:
 
   virtual ~cap();
 
-  static cap* sCAP;
-
-  static cap& Instance()
-  {
-    return *sCAP;
-  }
-
-
   shared_cap get(fuse_req_t req,
                  fuse_ino_t ino,
                  bool lock = false);
 
   shared_cap get(fuse_ino_t ino,
-		 std::string clientid
-		 );
+                 std::string clientid
+                );
 
   shared_cap acquire(fuse_req_t req,
                      fuse_ino_t ino,
@@ -242,7 +234,8 @@ public:
     return quotamap.get(cap);
   }
 
-  std::string imply(shared_cap cap, std::string imply_authid, mode_t mode, fuse_ino_t inode);
+  std::string imply(shared_cap cap, std::string imply_authid, mode_t mode,
+                    fuse_ino_t inode);
 
   fuse_ino_t forget(const std::string& capid);
 
@@ -257,7 +250,7 @@ public:
 
   std::string ls();
 
-  void capflush(ThreadAssistant &assistant); // thread removing capabilities
+  void capflush(ThreadAssistant& assistant); // thread removing capabilities
 
   XrdSysMutex& get_extensionLock()
   {

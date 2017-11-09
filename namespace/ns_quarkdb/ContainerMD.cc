@@ -137,6 +137,7 @@ ContainerMD::removeContainer(const std::string& name)
   }
 
   mSubcontainers.erase(it);
+  mSubcontainers.resize(0);
 
   // Do async call to KV backend
   try {
@@ -266,6 +267,7 @@ ContainerMD::removeFile(const std::string& name)
   } else {
     id = iter->second;
     mFiles.erase(iter);
+    mFiles.resize(0);
   }
 
   // Do async call to KV backend

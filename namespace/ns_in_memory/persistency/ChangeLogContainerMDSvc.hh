@@ -33,6 +33,7 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
 #include "namespace/ns_in_memory/accounting/QuotaStats.hh"
 #include "common/Murmur3.hh"
+#include "common/hopscotch_map.hh"
 #include <google/dense_hash_map>
 #include <google/sparse_hash_map>
 #include <list>
@@ -66,15 +67,6 @@ public:
     pSlaveStarted(false), pSlavePoll(1000), pFollowStart(0), pQuotaStats(0),
     pFileSvc(NULL), pAutoRepair(0), pResSize(1000000), pContainerAccounting(0)
   {
-    try {
-      pIdMap.set_deleted_key(0);
-    } catch (const std::length_error& e) {
-      fprintf(stderr, "error: %s can not insert into google map",
-              __FUNCTION__);
-      exit(1);
-    }
-
-    pIdMap.set_empty_key(std::numeric_limits<IContainerMD::id_t>::max());
     pChangeLog = new ChangeLogFile();
     pthread_mutex_init(&pFollowStartMutex, 0);
   }
@@ -347,7 +339,7 @@ public:
   //------------------------------------------------------------------------
   void resize() override
   {
-    pIdMap.resize(0);
+    return;
   }
 
 private:
@@ -364,9 +356,9 @@ private:
     bool attached;
   };
 
-  typedef google::dense_hash_map<IContainerMD::id_t, DataInfo,
-          Murmur3::MurmurHasher<uint64_t>,
-          Murmur3::eqstr> IdMap;
+  typedef tsl::hopscotch_map <
+  IFileMD::id_t, DataInfo,
+          Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr > IdMap;
   typedef std::set<IContainerMD::id_t> DeletionSet;
   typedef std::list<IContainerMDChangeListener*> ListenerList;
   typedef std::list<std::shared_ptr<IContainerMD>> ContainerList;

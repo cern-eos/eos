@@ -78,18 +78,16 @@ ZMQ::Worker::work()
                                               1000000000.0));
 
           if (gFuseServer.Client().Dispatch(id, *(hb.mutable_heartbeat_()))) {
-            eos_static_info("msg=\"received new heartbeat\" identity=%s type=%d",
-                            (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
+            eos_static_debug("msg=\"received new heartbeat\" identity=%s type=%d",
+                             (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
           } else {
-            eos_static_info("msg=\"received heartbeat\" identity=%s type=%d",
-                            (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
+            eos_static_debug("msg=\"received heartbeat\" identity=%s type=%d",
+                             (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
           }
 
-          break;
-        }
-
-        case hb.STATISTICS: {
-          gFuseServer.Client().HandleStatistics(id, hb.statistics_());
+          if (hb.statistics_().vsize_mb()) {
+            gFuseServer.Client().HandleStatistics(id, hb.statistics_());
+          }
         }
         break;
 

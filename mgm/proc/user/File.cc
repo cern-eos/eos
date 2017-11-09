@@ -127,6 +127,7 @@ ProcCommand::File()
           std::shared_ptr<eos::IFileMD> fmd;
 
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
+            WAIT_BOOT;
             unsigned long long fid = 0;
 
             if (spath.beginswith("fid:")) {
@@ -263,6 +264,7 @@ ProcCommand::File()
         std::shared_ptr<eos::IFileMD> fmd;
 
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
+          WAIT_BOOT;
           unsigned long long fid = 0;
 
           if (spath.beginswith("fid:")) {
@@ -1261,6 +1263,7 @@ ProcCommand::File()
 
         // Reference by fid+fsid
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
+          WAIT_BOOT;
           unsigned long long fid = 0;
 
           if (spath.beginswith("fid:")) {
@@ -1719,6 +1722,7 @@ ProcCommand::File()
 
         try {
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
+            WAIT_BOOT;
             unsigned long long fid = 0;
 
             if (spath.beginswith("fid:")) {

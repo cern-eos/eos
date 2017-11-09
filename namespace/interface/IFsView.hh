@@ -80,7 +80,9 @@ public:
   // and the memory overhead is not visible in a million file namespace.
   //------------------------------------------------------------------------
   // typedef std::set<IFileMD::id_t> FileList;
-  typedef google::dense_hash_set<IFileMD::id_t> FileList;
+  typedef google::dense_hash_set <
+  IFileMD::id_t,
+          Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr > FileList;
   typedef FileList::iterator FileIterator;
 
   //----------------------------------------------------------------------------

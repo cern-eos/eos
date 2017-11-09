@@ -220,9 +220,9 @@ FuseServer::MonitorCaps()
 void
 FuseServer::Print(std::string& out, std::string options, bool monitoring)
 {
-  if ((options.find("c") != std::string::npos)
-      || !options.length()) {
-    Client().Print(out, "", monitoring);
+  if ((options.find("l") != std::string::npos) ||
+      !options.length()) {
+    Client().Print(out, options, monitoring);
   }
 
   if (options.find("f") != std::string::npos) {
@@ -262,21 +262,45 @@ FuseServer::Clients::Print(std::string& out, std::string options,
     char formatline[4096];
 
     if (!monitoring) {
-      snprintf(formatline, sizeof(formatline),
-               "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s caps=%lu\n",
-               it->second.heartbeat().name().c_str(),
-               it->second.heartbeat().host().c_str(),
-               it->second.heartbeat().version().c_str(),
-               it->second.status[it->second.state()],
-               eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
-               tsnow.tv_sec - it->second.heartbeat().clock() +
-               (((int64_t) tsnow.tv_nsec -
-                 (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
-               it->second.heartbeat().delta() * 1000,
-               it->second.heartbeat().uuid().c_str(),
-               clientcaps[it->second.heartbeat().uuid()]
-              );
+      if (!options.length() || (options.find("l") != std::string::npos))
+        snprintf(formatline, sizeof(formatline),
+                 "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s caps=%lu\n",
+                 it->second.heartbeat().name().c_str(),
+                 it->second.heartbeat().host().c_str(),
+                 it->second.heartbeat().version().c_str(),
+                 it->second.status[it->second.state()],
+                 eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
+                 tsnow.tv_sec - it->second.heartbeat().clock() +
+                 (((int64_t) tsnow.tv_nsec -
+                   (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
+                 it->second.heartbeat().delta() * 1000,
+                 it->second.heartbeat().uuid().c_str(),
+                 clientcaps[it->second.heartbeat().uuid()]
+                );
+
       out += formatline;
+
+      if (options.find("l") != std::string::npos) {
+        snprintf(formatline, sizeof(formatline),
+                 "......   ino          : %ld\n"
+                 "......   ino-to-del   : %ld\n"
+                 "......   ino-backlog  : %ld\n"
+                 "......   ino-ever     : %ld\n"
+                 "......   ino-ever-del : %ld\n"
+                 "......   threads      : %d\n"
+                 "......   vsize        : %.03f GB\n"
+                 "......   rsize        : %.03f GB\n",
+                 it->second.statistics().inodes(),
+                 it->second.statistics().inodes_todelete(),
+                 it->second.statistics().inodes_backlog(),
+                 it->second.statistics().inodes_ever(),
+                 it->second.statistics().inodes_ever_deleted(),
+                 it->second.statistics().threads(),
+                 it->second.statistics().vsize_mb() / 1024.0,
+                 it->second.statistics().rss_mb() / 1024.0);
+        out += formatline;
+      }
+
       std::map<uint64_t, std::set < pid_t>> rlocks;
       std::map<uint64_t, std::set < pid_t>> wlocks;
       gOFS->zMQ->gFuseServer.Locks().lsLocks(it->second.heartbeat().uuid(), rlocks,
@@ -1835,6 +1859,7 @@ FuseServer::HandleMD(const std::string& id,
       std::shared_ptr<eos::IContainerMD> cmd;
       std::shared_ptr<eos::IContainerMD> pcmd;
       std::shared_ptr<eos::IContainerMD> cpcmd;
+      mode_t sgid_mode = 0;
 
       try {
         if (md.md_ino() && exclusive) {
@@ -1872,6 +1897,10 @@ FuseServer::HandleMD(const std::string& id,
             gOFS->eosView->renameContainer(cmd.get(), md.name());
           }
 
+          if (pcmd->getMode() & S_ISGID) {
+            sgid_mode = S_ISGID;
+          }
+
           md_ino = md.md_ino();
           eos_static_info("ino=%lx pino=%lx cpino=%lx update-dir",
                           (long) md.md_ino(),
@@ -1899,19 +1928,23 @@ FuseServer::HandleMD(const std::string& id,
             eos_static_err("imply failed for new inode %lx", md_ino);
           }
 
-          // parent attribute inheritance
-          // @todo (esindril): This could be optimized further
-          eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
+          if (pcmd->getMode() & S_ISGID) {
+            // parent attribute inheritance
+            eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
 
-          for (const auto& elem : xattrs) {
-            cmd->setAttribute(elem.first, elem.second);
+            for (const auto& elem : xattrs) {
+              cmd->setAttribute(elem.first, elem.second);
+            }
+
+            sgid_mode = S_ISGID;
           }
         }
 
         cmd->setName(md.name());
         cmd->setCUid(md.uid());
         cmd->setCGid(md.gid());
-        cmd->setMode(md.mode());
+        // @todo (apeters): is sgid_mode still needed?
+        cmd->setMode(md.mode() | sgid_mode);
         eos::IContainerMD::ctime_t ctime;
         eos::IContainerMD::ctime_t mtime;
         ctime.tv_sec = md.ctime();
@@ -1920,21 +1953,6 @@ FuseServer::HandleMD(const std::string& id,
         mtime.tv_nsec = md.mtime_ns();
         cmd->setCTime(ctime);
         cmd->setMTime(mtime);
-        // clear out all non central MGM attributes
-        {
-          std::set<std::string> rmAttr;
-          eos::IContainerMD::XAttrMap xattrs = cmd->getAttributes();
-
-          for (const auto& elem : xattrs) {
-            if (elem.first.substr(0, 3) != "sys") {
-              rmAttr.insert(elem.first);
-            }
-          }
-
-          for (const auto& elem : rmAttr) {
-            cmd->removeAttribute(elem);
-          }
-        }
 
         for (auto it = md.attr().begin(); it != md.attr().end(); ++it) {
           if ((it->first.substr(0, 3) != "sys") ||
@@ -2071,13 +2089,19 @@ FuseServer::HandleMD(const std::string& id,
                           (long) md.md_pino(), md_ino);
         }
 
+        fmd->setName(md.name());
+        fmd->setCUid(md.uid());
+        fmd->setCGid(md.gid());
         {
           try {
             eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
             // free previous quota
             if (quotanode) {
-              quotanode->removeFile(fmd.get());
+              if (op != CREATE) {
+                quotanode->removeFile(fmd.get());
+              }
+
               fmd->setSize(md.size());
               quotanode->addFile(fmd.get());
             } else {
@@ -2087,10 +2111,6 @@ FuseServer::HandleMD(const std::string& id,
             fmd->setSize(md.size());
           }
         }
-
-        fmd->setName(md.name());
-        fmd->setCUid(md.uid());
-        fmd->setCGid(md.gid());
         // for the moment we store 9 bits here
         fmd->setFlags(md.mode() & (S_IRWXU | S_IRWXG | S_IRWXO));
         eos::IFileMD::ctime_t ctime;

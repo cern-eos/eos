@@ -35,31 +35,28 @@
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-cachehandler::init(cacheconfig & _config)
+cachehandler::init(cacheconfig& _config)
 /* -------------------------------------------------------------------------- */
 {
   config = _config;
 
-  if (config.type == cache_t::INVALID)
-  {
+  if (config.type == cache_t::INVALID) {
     return EINVAL;
   }
 
-  if (config.type == cache_t::DISK)
-  {
-    if (diskcache::init(config))
-    {
-
-      fprintf(stderr, "error: cache directory %s or %s cannot be initialized - check existance/permissions!\n",
+  if (config.type == cache_t::DISK) {
+    if (diskcache::init(config)) {
+      fprintf(stderr,
+              "error: cache directory %s or %s cannot be initialized - check existance/permissions!\n",
               config.location.c_str(), config.journal.c_str());
       return EPERM;
     }
   }
-  if (config.journal.length())
-  {
-    if (journalcache::init(config))
-    {
-      fprintf(stderr, "error: journal directory %s or %s cannot be initialized - check existance/permissions!\n",
+
+  if (config.journal.length()) {
+    if (journalcache::init(config)) {
+      fprintf(stderr,
+              "error: journal directory %s or %s cannot be initialized - check existance/permissions!\n",
               config.location.c_str(), config.journal.c_str());
       return EPERM;
     }
@@ -81,15 +78,20 @@ cachehandler::init_daemonized()
     return rc;
   }
 
-  if (config.type == cache_t::DISK)
-  {
+  if (config.type == cache_t::DISK) {
     rc = diskcache::init_daemonized(config);
-    if (rc) return rc;
-   }
-  if (config.journal.length())
-  {
+
+    if (rc) {
+      return rc;
+    }
+  }
+
+  if (config.journal.length()) {
     rc = journalcache::init_daemonized(config);
-    if (rc ) return rc;
+
+    if (rc) {
+      return rc;
+    }
   }
 
   return rc;
@@ -104,8 +106,7 @@ cachehandler::logconfig()
                      (config.type == cache_t::MEMORY) ? "memory" :
                      "disk");
 
-  if (config.type == cache_t::DISK)
-  {
+  if (config.type == cache_t::DISK) {
     eos_static_warning("data-cache-location  := %s",
                        config.location.c_str());
     std::string s;
@@ -157,29 +158,27 @@ shared_io
 cachehandler::get(fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(instance());
+  std::lock_guard<std::mutex> lock(mtx);
+  auto it = contents.find(ino);
 
-  if (!instance().count(ino))
-  {
-    shared_io entry;
-
-    entry = std::make_shared<io>(ino);
-
-    if (instance().inmemory()) {
-      entry->set_file(new memorycache(ino));
-    } else {
-      entry->set_file(new diskcache(ino));
-    }
-
-    if (instance().journaled()) {
-      entry->set_journal(new journalcache(ino));
-    }
-
-    (instance())[ino] =  entry;
-    return entry;
-  } else {
-    return (instance())[ino];
+  if (it != contents.end()) {
+    return it->second;
   }
+
+  shared_io entry = std::make_shared<io>(ino);
+
+  if (inmemory()) {
+    entry->set_file(new memorycache(ino));
+  } else {
+    entry->set_file(new diskcache(ino));
+  }
+
+  if (journaled()) {
+    entry->set_journal(new journalcache(ino));
+  }
+
+  contents[ino] = entry;
+  return entry;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -188,10 +187,10 @@ int
 cachehandler::rm(fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(instance());
+  std::lock_guard<std::mutex> lock(mtx);
 
-  if (instance().count(ino)) {
-    instance().erase(ino);
+  if (contents.count(ino)) {
+    contents.erase(ino);
   }
 
   return 0;

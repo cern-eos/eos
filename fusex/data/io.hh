@@ -28,8 +28,9 @@
 #include "data/cache.hh"
 #include "data/journalcache.hh"
 
-namespace XrdCl {
-  class Proxy;
+namespace XrdCl
+{
+class Proxy;
 }
 
 class io
@@ -40,7 +41,6 @@ public:
   {
     _file = 0;
     _journal = 0;
-
     ino = 0;
     caching = true;
   }
@@ -49,9 +49,7 @@ public:
   {
     _file = 0;
     _journal = 0;
-
     ino = _ino;
-
     caching = true;
   }
 
@@ -61,12 +59,11 @@ public:
     delete _journal;
 
     // delete all proxy objects
-    for (auto it=_xrdioro.begin(); it != _xrdioro.end(); ++it)
-    {
+    for (auto it = _xrdioro.begin(); it != _xrdioro.end(); ++it) {
       delete it->second;
     }
-    for (auto it=_xrdiorw.begin(); it != _xrdiorw.end(); ++it)
-    {
+
+    for (auto it = _xrdiorw.begin(); it != _xrdiorw.end(); ++it) {
       delete it->second;
     }
   }
@@ -124,6 +121,17 @@ public:
   {
     return _xrdiorw["default"];
   }
+
+  bool has_xrdioro(fuse_req_t req)
+  {
+    return _xrdioro.count("default");
+  }
+
+  bool has_xrdiorw(fuse_req_t req)
+  {
+    return _xrdiorw.count("default");
+  }
+
 
   XrdCl::Proxy* xrdioro(std::string& id)
   {
