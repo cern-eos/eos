@@ -96,7 +96,7 @@ message cap_map {
 };
 
 message heartbeat {
-  enum ProtVersion { PROTOCOLV1 = 0; }
+  enum ProtVersion { PROTOCOLV1 = 0; PROTOCOLV2 = 1; }
 
   string name = 1; //< client chosen ID	
   string host = 2; //< client host
@@ -172,8 +172,12 @@ message lock {
   fixed32 err_no = 5; //< errno from locking call
 }
 
+message config {
+  fixed32 hbrate = 1; //< heartbeat interval for this client
+}
+
 message response {
-  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; NONE = 5;}
+  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; DROPCAPS = 5; CONFIG = 6; NONE = 7;}
 
   // Identifies which field is filled in.
   Type type = 1;
@@ -183,4 +187,5 @@ message response {
   lease lease_ = 4;
   lock lock_ = 5;
   md md_ = 6;
+  config config_ = 7;
 }

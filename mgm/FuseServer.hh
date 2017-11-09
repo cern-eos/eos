@@ -61,7 +61,7 @@ public:
   {
   public:
 
-    Clients() : mHeartBeatWindow(15), mHeartBeatEvictWindow(60)
+    Clients() : mHeartBeatWindow(15), mHeartBeatEvictWindow(60) , mHeartBeatInterval(1)
     {
     }
 
@@ -177,6 +177,15 @@ public:
     // drop caps of a given client
     int Dropcaps(const std::string& uuid, std::string& out);
 
+    // broad cast triggered by heartbeat function
+    int BroadcastDropAllCaps(const std::string& identity, eos::fusex::heartbeat& hb); 
+
+    // broad cast new heartbeat interval
+    int BroadcastConfig(const std::string& identity, eos::fusex::config& cfg);
+
+    // change the clients heartbeat interval
+    int SetHeartbeatInterval(int interval);
+
   private:
     // lookup client full id to heart beat
     client_map_t mMap;
@@ -190,7 +199,8 @@ public:
     // heartbeat window when to remove entries
     float mHeartBeatEvictWindow;
 
-
+    // client heartbeat interval
+    int mHeartBeatInterval;
 
     std::atomic<bool> terminate_;
   } ;
@@ -491,6 +501,8 @@ public:
                         bool issue_only_one=false);
 
   Caps::shared_cap ValidateCAP(const eos::fusex::md& md, mode_t mode);
+  bool ValidatePERM(const eos::fusex::md& md, const std::string& mode, eos::common::Mapping::VirtualIdentity* vid);
+
   uint64_t InodeFromCAP(const eos::fusex::md&);
 
   void HandleDir(const std::string& identity, const eos::fusex::dir& dir);

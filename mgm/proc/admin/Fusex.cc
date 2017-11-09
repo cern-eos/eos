@@ -43,6 +43,25 @@ ProcCommand::Fusex ()
       retc = 0;
     }
     else
+      if (mSubCmd == "hb")
+    {
+      std::string hb = pOpaque->Get("mgm.fusex.hb") ? pOpaque->Get("mgm.fusex.hb") : "";
+      int i_hb = atoi(hb.c_str());
+      if ( (i_hb >0) && (i_hb <= 15) )
+      {
+	gOFS->zMQ->gFuseServer.Client().SetHeartbeatInterval(i_hb);
+	stdOut += "info: configured FUSEX heartbeat interval to "; 
+	stdOut += hb.c_str();
+	stdOut += " seconds";
+	retc = 0;
+      }
+      else
+      {
+	stdErr += "error: hearbeat interval must be [1..15] seconds";
+	retc = EINVAL;
+      }
+    }
+    else
       if (mSubCmd == "evict")
     {
       std::string s_reason;

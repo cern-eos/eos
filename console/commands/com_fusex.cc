@@ -114,6 +114,18 @@ com_fusex (char* arg1)
     in += "&mgm.fusex.pid=";
     in += pid;
   }
+  else if (subcmd == "hb")
+  {
+    XrdOucString interval = subtokenizer.GetToken();
+    int i_interval = atoi(interval.c_str());
+    if (  (i_interval < 0) || 
+	  (i_interval > 15) ) 
+      goto com_fusex_usage;
+    in += "&mgm.subcmd=hb";
+    in += "&mgm.fusex.hb=";
+    in += interval;
+  }
+
   else
   {
     goto com_fusex_usage;
@@ -195,6 +207,7 @@ com_fusex_usage:
   fprintf(stdout, "           fusex caps -i ^0000abcd$                                  :  show caps for inode 0000abcd\n");
   fprintf(stdout, "           fusex caps -p ^/eos/$                                     :  show caps for path /eos\n");
   fprintf(stdout, "           fusex caps -p ^/eos/caps/                                 :  show all caps in subtree /eos/caps\n");
+  fprintf(stdout, "       fusex hb <seconds>                                            :  change heartbeat intervaln from [1-15] seconds");
 
   return (0);
 }
