@@ -113,11 +113,11 @@ CredentialState BoundIdentityProvider::retrieve(const Environment &processEnv, u
   std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials());
 
   if (credinfo.type == CredInfo::krb5) {
-    trustedCreds->setKrb5(credinfo.fname, uid, gid);
+    trustedCreds->setKrb5(credinfo.fname, uid, gid, credinfo.mtime);
   } else if (credinfo.type == CredInfo::krk5) {
     trustedCreds->setKrk5(credinfo.fname, uid, gid);
   } else if (credinfo.type == CredInfo::x509) {
-    trustedCreds->setx509(credinfo.fname, uid, gid);
+    trustedCreds->setx509(credinfo.fname, uid, gid, credinfo.mtime);
   }
 
   BoundIdentity *binding = new BoundIdentity(login, trustedCreds);
@@ -162,4 +162,9 @@ CredentialState BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid,
   processEnv = response.contents.get();
 
   return retrieve(processEnv, uid, gid, reconnect, result);
+}
+
+bool BoundIdentityProvider::isStillValid(const BoundIdentity &identity) {
+  if(!identity.getCreds()) return false;
+  return identity.getCreds()->isStillValid(securityChecker);
 }
