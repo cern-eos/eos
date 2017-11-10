@@ -61,7 +61,7 @@ public:
   {
   public:
 
-    Clients() : mHeartBeatWindow(15), mHeartBeatEvictWindow(60) , mHeartBeatInterval(1)
+    Clients() : mHeartBeatWindow(15), mHeartBeatOfflineWindow(60) , mHeartBeatRemoveWindow(900), mHeartBeatInterval(1)
     {
     }
 
@@ -197,7 +197,10 @@ public:
     float mHeartBeatWindow;
 
     // heartbeat window when to remove entries
-    float mHeartBeatEvictWindow;
+    float mHeartBeatOfflineWindow;
+
+    // heartbeat window when client entries get removed
+    float mHeartBeatRemoveWindow;
 
     // client heartbeat interval
     int mHeartBeatInterval;
@@ -437,6 +440,8 @@ public:
 
       flush_info() : client("") , nref(0)
       {
+        ftime.tv_sec = 0;
+	ftime.tv_nsec = 0;
       }
 
       flush_info(std::string _client) : client(_client)

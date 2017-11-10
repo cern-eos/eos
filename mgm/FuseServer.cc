@@ -100,15 +100,23 @@ FuseServer::Clients::MonitorHeartBeat()
         double last_heartbeat = tsnow.tv_sec - it->second.heartbeat().clock() + (((int64_t) tsnow.tv_nsec - (int64_t) it->second.heartbeat().clock_ns())*1.0 / 1000000000.0);
         if (last_heartbeat > mHeartBeatWindow)
         {
-          if (last_heartbeat > mHeartBeatEvictWindow)
+          if (last_heartbeat > mHeartBeatOfflineWindow)
           {
-            evictmap[it->second.heartbeat().uuid()] = it->first;
-            it->second.set_state(Client::EVICTED);
-            gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
+
+	    if (last_heartbeat > mHeartBeatRemoveWindow)
+	    {
+	      evictmap[it->second.heartbeat().uuid()] = it->first;
+	      it->second.set_state(Client::EVICTED);
+	    }
+	    else
+	    {
+	      it->second.set_state(Client::OFFLINE);
+	      gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
+	    }
           }
           else
           {
-            it->second.set_state(Client::OFFLINE);
+            it->second.set_state(Client::VOLATILE);
           }
         }
         else
@@ -2086,7 +2094,7 @@ FuseServer::HandleMD(const std::string &id,
       std::string perm = "W";
       // a CAP might have gone or timedout, let's check again the permissions
       if ( ((errno == ENOENT) ||
-	    (errno = ETIMEDOUT)) &&
+	    (errno == ETIMEDOUT)) &&
 	   ValidatePERM(md, perm, vid))
       {
 	// this can pass on ... permissions are fine
