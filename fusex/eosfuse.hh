@@ -34,11 +34,10 @@
 #include "backend/backend.hh"
 #include "kv/kv.hh"
 #include "kv/RedisKV.hh"
-
 #include "llfusexx.hh"
 #include "auth/CredentialFinder.hh"
 #include "misc/Track.hh"
-
+#include "misc/FuseId.hh"
 #include <set>
 #include <signal.h>
 #include <string.h>
@@ -225,19 +224,6 @@ public:
   {
     return tracker;
   }
-
-  struct fuse_id {
-    uid_t uid;
-    gid_t gid;
-    pid_t pid;
-
-    fuse_id(fuse_req_t req)
-    {
-      uid = fuse_req_ctx(req)->uid;
-      gid = fuse_req_ctx(req)->gid;
-      pid = fuse_req_ctx(req)->pid;
-    }
-  } ;
 
   static std::string dump(fuse_id id,
                           fuse_ino_t ino,

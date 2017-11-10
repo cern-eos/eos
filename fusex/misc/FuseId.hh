@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file fusexrdlogin.hh
+//! @file FuseId.hh
 //! @author Andreas-Joachim Peters CERN
-//! @brief Class providing the login user name for an XRootD fusex connection
+//! @brief Header file providing a replacment for fuse_req_t because it has a hidden type
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -23,36 +23,36 @@
  ************************************************************************/
 
 
-#ifndef FUSE_XRDLOGIN_HH_
-#define FUSE_XRDLOGIN_HH_
+#ifndef FUSE_FUSEID_HH_
+#define FUSE_FUSEID_HH_
 
-#include <memory>
-#include "XrdCl/XrdClURL.hh"
 #include "llfusexx.hh"
-#include "auth/ProcessCache.hh"
 
-class fusexrdlogin
-{
-public:
-  static int loginurl(XrdCl::URL& url, XrdCl::URL::ParamsMap& query,
-                      fuse_req_t req ,
-                      fuse_ino_t ino,
-                      bool root_squash = false,
-                      int connectionid = 0);
+//----------------------------------------------------------------------------
+struct fuse_id {
+  uid_t uid;
+  gid_t gid;
+  pid_t pid;
 
-  static int loginurl(XrdCl::URL& url, XrdCl::URL::ParamsMap& query, uid_t uid,
-                      gid_t gid, pid_t pid ,
-                      fuse_ino_t ino,
-                      bool root_squash = false,
-                      int connectionid = 0);
+  fuse_id()
+  {
+    uid = gid = pid = 0;
+  }
 
+  fuse_id(fuse_req_t req)
+  {
+    uid = fuse_req_ctx(req)->uid;
+    gid = fuse_req_ctx(req)->gid;
+    pid = fuse_req_ctx(req)->pid;
+  }
 
-  static std::string xrd_login(fuse_req_t req);
-
-  static void initializeProcessCache(const CredentialConfig& config);
-  static std::unique_ptr<ProcessCache> processCache;
-private:
-};
+  fuse_id(const fuse_id& o)
+  {
+    uid = o.uid;
+    gid = o.gid;
+    pid = o.pid;
+  }
+} ;
 
 
 #endif

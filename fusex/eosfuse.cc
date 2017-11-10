@@ -1646,9 +1646,9 @@ EROFS  pathname refers to a file on a read-only filesystem.
       if (!rc) {
         if (Instance().Config().options.mkdir_is_sync) {
           md->set_type(md->EXCL);
-          rc = Instance().mds.add_sync(pmd, md, pcap->authid());
+          rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
         } else {
-          Instance().mds.add(pmd, md, pcap->authid());
+          Instance().mds.add(req, pmd, md, pcap->authid());
         }
 
         if (!rc) {
@@ -1766,7 +1766,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         freesize = md->size();
         pmd = Instance().mds.get(req, parent, pcap->authid());
         Instance().datas.unlink(req, md->id());
-        Instance().mds.remove(pmd, md, pcap->authid());
+        Instance().mds.remove(req, pmd, md, pcap->authid());
       }
     }
 
@@ -1882,7 +1882,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
 
       if (!rc) {
         pmd = Instance().mds.get(req, parent, pcap->authid());
-        Instance().mds.remove(pmd, md, pcap->authid());
+        Instance().mds.remove(req, pmd, md, pcap->authid());
       }
     }
   }
@@ -1960,7 +1960,8 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
     if (!rc) {
       Track::Monitor mone(__func__, Instance().Tracker(), md_ino, true);
       std::string new_name = newname;
-      Instance().mds.mv(p1md, p2md, md, newname, p1cap->authid(), p2cap->authid());
+      Instance().mds.mv(req, p1md, p2md, md, newname, p1cap->authid(),
+                        p2cap->authid());
     }
   }
 
@@ -2261,9 +2262,9 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         if ((Instance().Config().options.create_is_sync) ||
             (fi && fi->flags & O_EXCL)) {
           md->set_type(md->EXCL);
-          rc = Instance().mds.add_sync(pmd, md, pcap->authid());
+          rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
         } else {
-          Instance().mds.add(pmd, md, pcap->authid());
+          Instance().mds.add(req, pmd, md, pcap->authid());
         }
 
         Instance().caps.book_inode(pcap);
@@ -2487,7 +2488,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
         }
       } else {
         if (Instance().Config().options.global_flush) {
-          Instance().mds.begin_flush(io->md,
+          Instance().mds.begin_flush(req, io->md,
                                      io->authid()); // flag an ongoing flush centrally
         }
 
@@ -2524,7 +2525,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
         if (Instance().Config().options.global_flush) {
           //XrdSysTimer sleeper;
           //sleeper.Wait(5000);
-          Instance().mds.end_flush(io->md,
+          Instance().mds.end_flush(req, io->md,
                                    io->authid()); // unflag an ongoing flush centrally
         }
       }
@@ -3344,9 +3345,9 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
 
       if (Instance().Config().options.mkdir_is_sync) {
         md->set_type(md->EXCL);
-        rc = Instance().mds.add_sync(pmd, md, pcap->authid());
+        rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
       } else {
-        Instance().mds.add(pmd, md, pcap->authid());
+        Instance().mds.add(req, pmd, md, pcap->authid());
       }
 
       memset(&e, 0, sizeof(e));
