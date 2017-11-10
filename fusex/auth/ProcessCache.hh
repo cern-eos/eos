@@ -87,6 +87,16 @@ public:
     credConfig = conf;
   }
 
+  ProcessInfoProvider &getProcessInfoProvider() {
+    // Only used for testing
+    return processInfoProvider;
+  }
+
+  BoundIdentityProvider &getBoundIdentityProvider() {
+    // Only used for testing
+    return boundIdentityProvider;
+  }
+
 private:
   CredentialState useDefaultPaths(const ProcessInfo &processInfo, uid_t uid, gid_t gid, bool reconnect, ProcessSnapshot &snapshot);
   CredentialState useCredentialsOfAnotherPID(const ProcessInfo &processInfo, pid_t pid, uid_t uid, gid_t gid, bool reconnect, ProcessSnapshot &snapshot);

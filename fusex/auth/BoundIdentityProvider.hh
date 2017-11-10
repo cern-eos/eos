@@ -49,6 +49,15 @@ public:
   }
 
   bool isStillValid(const BoundIdentity &identity);
+
+  SecurityChecker &getSecurityChecker() {
+    return securityChecker;
+  }
+
+  EnvironmentReader &getEnvironmentReader() {
+    return environmentReader;
+  }
+
 private:
   SecurityChecker securityChecker;
   CredentialConfig credConfig;

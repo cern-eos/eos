@@ -38,7 +38,7 @@ public:
     connId = 0;
     stringId = "nobody";
   }
-  
+
   LoginIdentifier(uint64_t connId);
   LoginIdentifier(uid_t uid, gid_t gid, pid_t pid, uint64_t connId);
 
@@ -48,6 +48,10 @@ public:
 
   uint64_t getConnectionID() const {
     return connId;
+  }
+
+  bool operator==(const LoginIdentifier &other) const {
+    return stringId == other.stringId;
   }
 
 private:

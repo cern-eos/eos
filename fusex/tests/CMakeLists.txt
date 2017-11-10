@@ -65,6 +65,7 @@ add_executable(eos-fusex-tests
   auth/credential-finder.cc
   auth/environment-reader.cc
   auth/login-identifier.cc
+  auth/process-cache.cc
   auth/process-info.cc
   auth/security-checker.cc
 
