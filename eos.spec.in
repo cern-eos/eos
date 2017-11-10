@@ -171,7 +171,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_bindir}/xrdmqdumper
 # Namespace on Quarkdb requires at least CC7
 %if 0%{distribution} > 6
-%{_bindir}/convert_mem_to_kv
+%{_bindir}/eos_convert_ns
 %endif
 %{_sbindir}/eosha
 %{_sbindir}/eoshapl
