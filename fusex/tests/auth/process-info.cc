@@ -87,13 +87,14 @@ TEST(ProcessInfoProvider, ParseCmdline) {
 
 #ifndef __APPLE__
 TEST(ProcessInfoProvider, GetMyProcessInfo) {
+  ProcessInfoProvider processInfoProvider;
   ProcessInfo myself;
-  ASSERT_TRUE(ProcessInfoProvider::retrieveFull(getpid(), myself));
+  ASSERT_TRUE(processInfoProvider.retrieveFull(getpid(), myself));
   ASSERT_FALSE(myself.isEmpty());
-  ASSERT_THROW(ProcessInfoProvider::retrieveFull(getpid(), myself), FatalException);
+  ASSERT_THROW(processInfoProvider.retrieveFull(getpid(), myself), FatalException);
 
   ProcessInfo parent;
-  ASSERT_TRUE(ProcessInfoProvider::retrieveFull(getppid(), parent));
+  ASSERT_TRUE(processInfoProvider.retrieveFull(getppid(), parent));
 
   ASSERT_EQ(myself.getParentId(), parent.getPid());
 
@@ -101,3 +102,20 @@ TEST(ProcessInfoProvider, GetMyProcessInfo) {
   std::cerr << "Parent's cmdline: " << parent.cmdStr << std::endl;
 }
 #endif
+
+TEST(ProcessInfoProvider, BasicSanity3) {
+  ProcessInfoProvider processInfoProvider;
+  ProcessInfo info;
+  info.fillStat(123, 234, 345, 456, 11111, 0);
+  info.fillCmdline({"/bin/bash", "some-script.sh"});
+
+  processInfoProvider.inject(info.getPid(), info);
+
+  ProcessInfo retrieved;
+  ASSERT_FALSE(processInfoProvider.retrieveBasic(111, retrieved));
+  ASSERT_TRUE(processInfoProvider.retrieveBasic(123, retrieved));
+
+  ASSERT_EQ(retrieved.getPid(), info.getPid());
+  ASSERT_EQ(retrieved.getParentId(), info.getParentId());
+  ASSERT_TRUE(retrieved.getCmd().empty());
+}

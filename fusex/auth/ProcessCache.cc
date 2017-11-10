@@ -58,7 +58,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid, bool rec
   if(entry && !reconnect) {
     // Cache hit.. but it could refer to different processes, even if PID is the same.
     ProcessInfo processInfo;
-    if(!ProcessInfoProvider::retrieveBasic(pid, processInfo)) {
+    if(!processInfoProvider.retrieveBasic(pid, processInfo)) {
       // dead PIDs issue no syscalls.. or do they?!
       // release can be called even after a process has died - in this strange
       // case, let's just return the cached info.
@@ -78,7 +78,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid, bool rec
   }
 
   ProcessInfo processInfo;
-  if(!ProcessInfoProvider::retrieveFull(pid, processInfo)) {
+  if(!processInfoProvider.retrieveFull(pid, processInfo)) {
     return {};
   }
 
