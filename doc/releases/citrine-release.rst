@@ -15,6 +15,34 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.1 Citrine``
+===================
+
+2017-11-10
+
+Bug
++++
+
+* [EOS-2017] - MGM crash caused by FSCK
+* [EOS-2061] - converter error in  "file adjustreplica" on raid6/archive layouts
+* [EOS-2066] - xrdcp "Error [3005]" trying to transfer a "degraded" archive/raid6 file
+* [EOS-2068] - Archive should use root identity when collecting files/dirs
+* [EOS-2073] - MGM (citrine 4.1.30) unable to load configuration due to #iostat::udptargets with empty value
+* [EOS-2092] - Auth proxy crashes
+* [EOS-2093] - eos file convert from raid6/archive to replica:2 seems to not work.
+* [EOS-2094] - JSON Return 0 instead of "NULL" when space.nominalsize is not defined
+
+Task
+++++
+* [EOS-1998] - Allow FST to login even when client traffic is stalled
+
+Improvement
++++++++++++
+
+* [EOS-2101] - Report logical used-space when using xrootd commands
+* A lot of improvements on the fusex side
+
+
 ``v4.2.0 Citrine``
 ===================
 
@@ -40,14 +68,12 @@ Task
 
 * [EOS-2033] - quota id mapping for non-existing users
 
-
 Bug
 ++++
 
 * [EOS-2016] - avoid SEGV when removing ghost entries on FST
 * [EOS-2017] - avoid creating NULL object in map when resetting draining
 * DOC: various corrections - use solar template with new WEB colour scheme
-
 
 
 ``v4.1.31 Citrine``
