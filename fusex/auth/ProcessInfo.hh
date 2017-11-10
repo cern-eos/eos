@@ -24,6 +24,9 @@
 #ifndef __PROCESS_INFO_HH__
 #define __PROCESS_INFO_HH__
 
+#include <mutex>
+#include <map>
+#include <atomic>
 #include "Utils.hh"
 
 typedef int64_t Jiffies;
@@ -158,16 +161,21 @@ public:
 class ProcessInfoProvider
 {
 public:
-  static bool fromString(const std::string& stat, const std::string& cmd,
-                         ProcessInfo& ret);
+  void inject(pid_t pid, const ProcessInfo& info);
 
   // retrieves information about a process from the kernel.
   // Does not fill cmdline, thus only reading a single file.
-  static bool retrieveBasic(pid_t pid, ProcessInfo& ret);
+  bool retrieveBasic(pid_t pid, ProcessInfo& ret);
 
   // retrieves information about a process from the kernel, including cmdline.
-  static bool retrieveFull(pid_t pid, ProcessInfo& ret);
+  bool retrieveFull(pid_t pid, ProcessInfo& ret);
+  static bool fromString(const std::string& stat, const std::string& cmd,
+                         ProcessInfo& ret);
 private:
+  std::mutex mtx;
+  std::map<pid_t, ProcessInfo> injections;
+  std::atomic<bool> useInjectedData {false};
+
   static bool parseStat(const std::string& stat, ProcessInfo& ret);
   static void parseCmdline(const std::string& cmdline, ProcessInfo& ret);
 };

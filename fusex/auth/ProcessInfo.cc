@@ -214,8 +214,30 @@ void ProcessInfoProvider::parseCmdline(const std::string& cmdline,
   ret.fillCmdline(split_on_nullbyte(cmdline));
 }
 
+void ProcessInfoProvider::inject(pid_t pid, const ProcessInfo& info)
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  useInjectedData = true;
+  injections[pid] = info;
+}
+
 bool ProcessInfoProvider::retrieveBasic(pid_t pid, ProcessInfo& ret)
 {
+  if (useInjectedData) {
+    std::lock_guard<std::mutex> lock(mtx);
+    auto it = injections.find(pid);
+
+    if (it == injections.end()) {
+      return false;
+    }
+
+    ret = it->second;
+    // Keep the same behavior as when reading from /proc, don't give out the
+    // cmdline even if the injection contains it
+    ret.fillCmdline({});
+    return true;
+  }
+
   std::string procstat;
 
   if (!readFile(SSTR("/proc/" << pid << "/stat"), procstat)) {
@@ -237,6 +259,18 @@ bool ProcessInfoProvider::retrieveBasic(pid_t pid, ProcessInfo& ret)
 
 bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
 {
+  if (useInjectedData) {
+    std::lock_guard<std::mutex> lock(mtx);
+    auto it = injections.find(pid);
+
+    if (it == injections.end()) {
+      return false;
+    }
+
+    ret = it->second;
+    return true;
+  }
+
   if (!retrieveBasic(pid, ret)) {
     return false;
   }
@@ -246,7 +280,10 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
   if (!readFile(SSTR("/proc/" << pid << "/cmdline"), cmdline)) {
     // this is odd.. shouldn't happen.. Maybe we hit the following race
     // condition: read /proc, process dies, read /cmdline
-    eos_static_warning("Could not read /cmdline for pid %d, even though reading /stat succeeded. This should not pose a serious issue, as long it happens extremely infrequently - otherwise, we have a problem.", pid);
+    eos_static_warning("Could not read /cmdline for pid %d, even though reading "
+                       "/stat succeeded. This should not pose a serious issue, "
+                       "as long it happens extremely infrequently - otherwise, "
+                       "we have a problem.", pid);
     return true;
   }
 

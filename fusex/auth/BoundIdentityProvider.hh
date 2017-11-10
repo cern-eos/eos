@@ -62,6 +62,7 @@ public:
     environmentReader.launchWorkers(20);
   }
 
+  bool isStillValid(const BoundIdentity& identity);
 private:
   SecurityChecker securityChecker;
   CredentialConfig credConfig;

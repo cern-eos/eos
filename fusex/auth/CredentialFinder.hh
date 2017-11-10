@@ -34,6 +34,8 @@
 #include "Utils.hh"
 #include "LoginIdentifier.hh"
 #include "XrdCl/XrdClURL.hh"
+#include "SecurityChecker.hh"
+#include <sys/stat.h>
 
 class CredentialConfig
 {
@@ -86,10 +88,11 @@ struct CredInfo {
 class TrustedCredentials
 {
 public:
-  TrustedCredentials() : initialized(false), invalidated(false),
-    type(CredInfo::nobody), uid(-2), gid(-2) {}
+  TrustedCredentials() :
+    initialized(false), invalidated(false), type(CredInfo::nobody),
+    uid(-2), gid(-2), mtime(0) {}
 
-  void setKrb5(const std::string& filename, uid_t uid, gid_t gid)
+  void setKrb5(const std::string& filename, uid_t uid, gid_t gid, time_t mtime)
   {
     if (initialized) {
       THROW("already initialized");
@@ -100,6 +103,7 @@ public:
     contents = filename;
     this->uid = uid;
     this->gid = gid;
+    this->mtime = mtime;
   }
 
   void setKrk5(const std::string& keyring, uid_t uid, gid_t gid)
@@ -115,7 +119,7 @@ public:
     this->gid = gid;
   }
 
-  void setx509(const std::string& filename, uid_t uid, gid_t gid)
+  void setx509(const std::string& filename, uid_t uid, gid_t gid, time_t mtime)
   {
     if (initialized) {
       THROW("already initialized");
@@ -126,19 +130,7 @@ public:
     contents = filename;
     this->uid = uid;
     this->gid = gid;
-  }
-
-  bool access(uid_t requid, gid_t reqgid) const
-  {
-    if (requid == uid) {
-      return true;
-    }
-
-    if (reqgid == gid) {
-      return true;
-    }
-
-    return false;
+    this->mtime = mtime;
   }
 
   void toXrdParams(XrdCl::URL::ParamsMap& paramsMap) const
@@ -193,9 +185,27 @@ public:
     invalidated = true;
   }
 
-  bool valid() const
+  bool isStillValid(SecurityChecker& checker) const
   {
-    return !invalidated;
+    if (invalidated) {
+      return false;
+    }
+
+    if (contents.empty() || (type != CredInfo::x509 && type != CredInfo::krb5)) {
+      return false;
+    }
+
+    SecurityChecker::Info info = checker.lookup(contents, uid);
+
+    if (info.state != CredentialState::kOk) {
+      return false;
+    }
+
+    if (info.mtime != mtime) {
+      return false;
+    }
+
+    return true;
   }
 
   bool empty() const
@@ -209,6 +219,7 @@ private:
   std::string contents;
   uid_t uid;
   gid_t gid;
+  time_t mtime;
 };
 
 // TrustedCredentials bound to a LoginIdentifier. We need this to talk to the MGM.
@@ -237,11 +248,6 @@ public:
   const std::shared_ptr<TrustedCredentials>& getCreds() const
   {
     return creds;
-  }
-
-  bool validCreds() const
-  {
-    return (getCreds() && getCreds()->valid());
   }
 
 private:

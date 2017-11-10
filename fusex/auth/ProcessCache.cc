@@ -74,7 +74,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
     // Cache hit.. but it could refer to different processes, even if PID is the same.
     ProcessInfo processInfo;
 
-    if (!ProcessInfoProvider::retrieveBasic(pid, processInfo)) {
+    if (!processInfoProvider.retrieveBasic(pid, processInfo)) {
       // dead PIDs issue no syscalls.. or do they?!
       // release can be called even after a process has died - in this strange
       // case, let's just return the cached info.
@@ -85,7 +85,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
 
     if (processInfo.isSameProcess(entry->getProcessInfo())) {
       // Yep, that's a cache hit.. but credentials could have been invalidated.
-      if (entry->getBoundIdentity().validCreds()) {
+      if (boundIdentityProvider.isStillValid(entry->getBoundIdentity())) {
         return entry;
       }
     }
@@ -95,7 +95,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
 
   ProcessInfo processInfo;
 
-  if (!ProcessInfoProvider::retrieveFull(pid, processInfo)) {
+  if (!processInfoProvider.retrieveFull(pid, processInfo)) {
     return {};
   }
 

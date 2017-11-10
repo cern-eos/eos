@@ -102,17 +102,21 @@ FuseServer::Clients::MonitorHeartBeat()
       eos::common::Timing::GetTimeSpec(tsnow);
 
       for (auto it = map().begin(); it != map().end(); ++it) {
-        double last_heartbeat = tsnow.tv_sec - it->second.heartbeat().clock() + (((
-                                  int64_t) tsnow.tv_nsec - (int64_t) it->second.heartbeat().clock_ns()) * 1.0 /
-                                1000000000.0);
+        double last_heartbeat = tsnow.tv_sec - it->second.heartbeat().clock() +
+                                (((int64_t) tsnow.tv_nsec - (int64_t) it->second.heartbeat().clock_ns())
+                                 * 1.0 / 1000000000.0);
 
         if (last_heartbeat > mHeartBeatWindow) {
-          if (last_heartbeat > mHeartBeatEvictWindow) {
-            evictmap[it->second.heartbeat().uuid()] = it->first;
-            it->second.set_state(Client::EVICTED);
-            gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
+          if (last_heartbeat > mHeartBeatOfflineWindow) {
+            if (last_heartbeat > mHeartBeatRemoveWindow) {
+              evictmap[it->second.heartbeat().uuid()] = it->first;
+              it->second.set_state(Client::EVICTED);
+            } else {
+              it->second.set_state(Client::OFFLINE);
+              gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
+            }
           } else {
-            it->second.set_state(Client::OFFLINE);
+            it->second.set_state(Client::VOLATILE);
           }
         } else {
           it->second.set_state(Client::ONLINE);
@@ -1972,7 +1976,7 @@ FuseServer::HandleMD(const std::string& id,
 
       // a CAP might have gone or timedout, let's check again the permissions
       if (((errno == ENOENT) ||
-           (errno = ETIMEDOUT)) &&
+           (errno == ETIMEDOUT)) &&
           ValidatePERM(md, perm, vid)) {
         // this can pass on ... permissions are fine
       } else {

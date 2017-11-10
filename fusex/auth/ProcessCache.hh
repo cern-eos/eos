@@ -141,6 +141,7 @@ private:
 
   ShardedCache<ProcessCacheKey, ProcessCacheEntry, KeyHasher> cache;
   BoundIdentityProvider boundIdentityProvider;
+  ProcessInfoProvider processInfoProvider;
 };
 
 #endif
