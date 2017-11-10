@@ -25,6 +25,7 @@ Bug
 
 * [EOS-2017] - MGM crash caused by FSCK
 * [EOS-2061] - converter error in  "file adjustreplica" on raid6/archive layouts
+* [EOS-2050] - Scheduling problem with adjustreplica and draining filesystem
 * [EOS-2066] - xrdcp "Error [3005]" trying to transfer a "degraded" archive/raid6 file
 * [EOS-2068] - Archive should use root identity when collecting files/dirs
 * [EOS-2073] - MGM (citrine 4.1.30) unable to load configuration due to #iostat::udptargets with empty value
