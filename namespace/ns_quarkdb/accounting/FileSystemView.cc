@@ -26,33 +26,6 @@
 
 EOSNSNAMESPACE_BEGIN
 
-bool parseFsId(const std::string& str, IFileMD::location_t& fsid,
-               bool& unlinked)
-{
-  std::vector<std::string> parts =
-    eos::common::StringTokenizer::split<std::vector<std::string>>(str, ':');
-
-  if (parts.size() != 3) {
-    return false;
-  }
-
-  if (parts[0] + ":" != fsview::sPrefix) {
-    return false;
-  }
-
-  fsid = std::stoull(parts[1]);
-
-  if (parts[2] == fsview::sFilesSuffix) {
-    unlinked = false;
-  } else if (parts[2] == fsview::sUnlinkedSuffix) {
-    unlinked = true;
-  } else {
-    return false;
-  }
-
-  return true;
-}
-
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -196,7 +169,6 @@ FileSystemView::fileMDCheck(IFileMD* file)
   // This will generate a gazillion writes towards QuarkDB, one for each
   // filesystem not containing the file.. which is almost all of them!
   // Maybe rethink if there's a better way?
-
   for (auto it = this->getFilesystemIterator(); it->valid(); it->next()) {
     IFileMD::location_t fsid = it->getFilesystemID();
 
@@ -225,6 +197,7 @@ IFsView::FileList
 FileSystemView::getFileList(IFileMD::location_t location)
 {
   std::string key = keyFilesystemFiles(location);
+  // @todo (esindril): this should be allocated on the heap
   IFsView::FileList set_files;
   set_files.set_empty_key(-1);
   std::pair<std::string, std::vector<std::string>> reply;
@@ -251,6 +224,7 @@ IFsView::FileList
 FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
   std::string key = keyFilesystemUnlinked(location);
+  // @todo (esindril): this should be allocated on the heap
   IFsView::FileList set_unlinked;
   set_unlinked.set_empty_key(-1);
   std::pair<std::string, std::vector<std::string>> reply;
@@ -331,6 +305,37 @@ FileSystemView::getFilesystemIterator()
 
   return std::shared_ptr<IFsIterator>(new FilesystemIterator(std::move(
                                         uniqueFilesytems)));
+}
+
+//----------------------------------------------------------------------------
+// Parse an fs set key, returning its id and whether it points to "files" or
+// "unlinked"
+//----------------------------------------------------------------------------
+bool parseFsId(const std::string& str, IFileMD::location_t& fsid,
+               bool& unlinked)
+{
+  std::vector<std::string> parts =
+    eos::common::StringTokenizer::split<std::vector<std::string>>(str, ':');
+
+  if (parts.size() != 3) {
+    return false;
+  }
+
+  if (parts[0] + ":" != fsview::sPrefix) {
+    return false;
+  }
+
+  fsid = std::stoull(parts[1]);
+
+  if (parts[2] == fsview::sFilesSuffix) {
+    unlinked = false;
+  } else if (parts[2] == fsview::sUnlinkedSuffix) {
+    unlinked = true;
+  } else {
+    return false;
+  }
+
+  return true;
 }
 
 EOSNSNAMESPACE_END

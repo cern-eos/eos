@@ -44,7 +44,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FilesystemIterator(std::set<IFileMD::location_t> &&filesystems)
+  FilesystemIterator(std::set<IFileMD::location_t>&& filesystems)
   {
     pFilesystems = std::move(filesystems);
     iterator = pFilesystems.begin();
@@ -71,7 +71,7 @@ public:
   //----------------------------------------------------------------------------
   void next() override
   {
-    if(valid()) {
+    if (valid()) {
       iterator++;
     }
   }
@@ -82,22 +82,21 @@ private:
 };
 
 //------------------------------------------------------------------------------
-//! FileSystemView implementation on top of Redis
+//! FileSystemView implementation on top of quarkdb
 //!
 //! This class keeps a mapping between filesystem ids and the actual file ids
-//! that reside on that particular filesystem. For each fs id we keep a set
+//! that reside on that particular filesystem. For each fsid we keep a set
 //! structure in Redis i.e. fs_id:fsview_files that holds the file ids. E.g.:
 //!
-//! 1:fsview_files -->  fid4, fid87, fid1002 etc.
-//! 2:fsview_files ...
+//! fsview:1:files -->  fid4, fid87, fid1002 etc.
+//! fsview:2:files ...
 //! ...
-//! n:fsview_files ...
+//! fsview:n:files ...
 //!
 //! Besides these data structures we also have:
 //!
-//! fsview_set_fsid   - set with all the file system ids used
 //! fsview_noreplicas - file ids that don't have any replicas on any fs
-//! x:fsview_unlinked - set of file ids that are unlinked on file system "x"
+//! fsview:x:unlinked - set of file ids that are unlinked on file system "x"
 //------------------------------------------------------------------------------
 class FileSystemView : public IFsView
 {
@@ -180,12 +179,12 @@ public:
   void configure(const std::map<std::string, std::string>& config) override;
 
   //----------------------------------------------------------------------------
-  //! Finalize
+  //! Finalize - no-op for this type of view
   //----------------------------------------------------------------------------
   void finalize() override {};
 
   //----------------------------------------------------------------------------
-  //! Shrink maps
+  //! Shrink maps - no-op for this type of view
   //----------------------------------------------------------------------------
   void shrink() override {};
 
@@ -215,14 +214,22 @@ inline std::string keyFilesystemFiles(IFileMD::location_t location)
 
 inline std::string keyFilesystemUnlinked(IFileMD::location_t location)
 {
-  return fsview::sPrefix + std::to_string(location) + ":" + fsview::sUnlinkedSuffix;
+  return fsview::sPrefix + std::to_string(location) + ":" +
+         fsview::sUnlinkedSuffix;
 }
 
 //------------------------------------------------------------------------------
 //! Parse an fs set key, returning its id and whether it points to "files" or
 //! "unlinked"
+//!
+//! @param str input stirng
+//! @param fsid parsed fsids
+//! @param unlinked if true then this is an fsid from an unlinked list
+//!
+//! @return true if parsing successful, otherwise false
 //------------------------------------------------------------------------------
-bool parseFsId(const std::string &str, IFileMD::location_t &fsid, bool &unlinked);
+bool parseFsId(const std::string& str, IFileMD::location_t& fsid,
+               bool& unlinked);
 
 EOSNSNAMESPACE_END
 

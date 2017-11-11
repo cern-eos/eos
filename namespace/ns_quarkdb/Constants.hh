@@ -18,7 +18,7 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
-//! @brief Contants used for the namespace implementation on top of Redis
+//! @brief Contants used for the namespace implementation on top of quarkdb
 //------------------------------------------------------------------------------
 
 #ifndef __EOS_NS_REDIS_CONSTANTS_HH__

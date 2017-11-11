@@ -35,24 +35,28 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-MetadataFlusher::MetadataFlusher(const std::string &path, const std::string &host, int port)
-: notifier(*this), qcl(host, port, true /* yes to redirects */, false /* no to exceptions */),
-  backgroundFlusher(qcl, notifier, 50000 /* size limit */, 5000 /* pipeline length */,
-  new qclient::RocksDBPersistency(path)),
-  sizePrinter(&MetadataFlusher::queueSizeMonitoring, this) {
-
+MetadataFlusher::MetadataFlusher(const std::string& path,
+                                 const std::string& host, int port):
+  notifier(*this), qcl(host, port, true /* yes to redirects */,
+                       false /* no to exceptions */),
+  backgroundFlusher(qcl, notifier, 50000 /* size limit */,
+                    5000 /* pipeline length */,
+                    new qclient::RocksDBPersistency(path)),
+  sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
+{
   synchronize();
 }
 
 //------------------------------------------------------------------------------
 // Regularly print queue statistics
 //------------------------------------------------------------------------------
-void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant &assistant) {
-  while(!assistant.terminationRequested()) {
+void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant& assistant)
+{
+  while (!assistant.terminationRequested()) {
     eos_static_info("total-pending=%d enqueued=%d acknowledged=%d",
-      backgroundFlusher.size(), backgroundFlusher.getEnqueuedAndClear(), backgroundFlusher.getAcknowledgedAndClear()
-    );
-
+                    backgroundFlusher.size(),
+                    backgroundFlusher.getEnqueuedAndClear(),
+                    backgroundFlusher.getAcknowledgedAndClear());
     assistant.wait_for(std::chrono::seconds(1));
   }
 }
@@ -60,44 +64,53 @@ void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant &assistant) {
 //------------------------------------------------------------------------------
 // Queue an hset command
 //------------------------------------------------------------------------------
-void MetadataFlusher::hset(const std::string &key, const std::string &field, const std::string &value) {
+void MetadataFlusher::hset(const std::string& key, const std::string& field,
+                           const std::string& value)
+{
   backgroundFlusher.pushRequest({"HSET", key, field, value});
 }
 
 //------------------------------------------------------------------------------
 // Queue a del command
 //------------------------------------------------------------------------------
-void MetadataFlusher::del(const std::string &key) {
-  backgroundFlusher.pushRequest( {"DEL", key} );
+void MetadataFlusher::del(const std::string& key)
+{
+  backgroundFlusher.pushRequest({"DEL", key});
 }
 
 //------------------------------------------------------------------------------
 // Queue an hdel command
 //------------------------------------------------------------------------------
-void MetadataFlusher::hdel(const std::string &key, const std::string &field) {
-  backgroundFlusher.pushRequest( {"HDEL", key, field});
+void MetadataFlusher::hdel(const std::string& key, const std::string& field)
+{
+  backgroundFlusher.pushRequest({"HDEL", key, field});
 }
 
 //------------------------------------------------------------------------------
 // Queue a sadd command
 //------------------------------------------------------------------------------
-void MetadataFlusher::sadd(const std::string &key, const std::string &field) {
-  backgroundFlusher.pushRequest( {"SADD", key, field});
+void MetadataFlusher::sadd(const std::string& key, const std::string& field)
+{
+  backgroundFlusher.pushRequest({"SADD", key, field});
 }
 
 //------------------------------------------------------------------------------
 // Queue an srem command
 //------------------------------------------------------------------------------
-void MetadataFlusher::srem(const std::string &key, const std::string &field) {
-  backgroundFlusher.pushRequest( {"SREM", key, field});
+void MetadataFlusher::srem(const std::string& key, const std::string& field)
+{
+  backgroundFlusher.pushRequest({"SREM", key, field});
 }
 
 //------------------------------------------------------------------------------
 // Queue an srem command, use a list as contents
 //------------------------------------------------------------------------------
-void MetadataFlusher::srem(const std::string &key, const std::list<std::string> &items) {
+void MetadataFlusher::srem(const std::string& key,
+                           const std::list<std::string>& items)
+{
   std::vector<std::string> req = {"SREM", key};
-  for(auto it = items.begin(); it != items.end(); it++) {
+
+  for (auto it = items.begin(); it != items.end(); it++) {
     req.emplace_back(*it);
   }
 
@@ -107,19 +120,28 @@ void MetadataFlusher::srem(const std::string &key, const std::list<std::string> 
 //------------------------------------------------------------------------------
 // Sleep until given index has been flushed to the backend
 //------------------------------------------------------------------------------
-void MetadataFlusher::synchronize(ItemIndex targetIndex) {
-  if(targetIndex < 0) {
+void MetadataFlusher::synchronize(ItemIndex targetIndex)
+{
+  if (targetIndex < 0) {
     targetIndex = backgroundFlusher.getEndingIndex() - 1;
   }
 
-  eos_static_info("starting-index=%d ending-index=%d msg=\"waiting until queue item %d has been acknowledged..\"", backgroundFlusher.getStartingIndex(), backgroundFlusher.getEndingIndex(), targetIndex);
-  while(!backgroundFlusher.waitForIndex(targetIndex, std::chrono::seconds(1))) {
-    eos_static_warning("starting-index=%d ending-index=%d msg=\"queue item %d has not been acknowledged yet..\"", backgroundFlusher.getStartingIndex(), backgroundFlusher.getEndingIndex(), targetIndex);
+  eos_static_info("starting-index=%d ending-index=%d msg=\"waiting until "
+                  "queue item %d has been acknowledged..\"",
+                  backgroundFlusher.getStartingIndex(),
+                  backgroundFlusher.getEndingIndex(), targetIndex);
+
+  while (!backgroundFlusher.waitForIndex(targetIndex, std::chrono::seconds(1))) {
+    eos_static_warning("starting-index=%d ending-index=%d msg=\"queue item "
+                       "%d has not been acknowledged yet..\"",
+                       backgroundFlusher.getStartingIndex(),
+                       backgroundFlusher.getEndingIndex(), targetIndex);
   }
 
-  eos_static_info("starting-index=%d ending-index=%d msg=\"queue item %d has been acknowledged\"", backgroundFlusher.getStartingIndex(), backgroundFlusher.getEndingIndex(), targetIndex);
+  eos_static_info("starting-index=%d ending-index=%d msg=\"queue item %d "
+                  "has been acknowledged\"", backgroundFlusher.getStartingIndex(),
+                  backgroundFlusher.getEndingIndex(), targetIndex);
 }
-
 
 //------------------------------------------------------------------------------
 // Get a metadata flusher instance, keyed by (ID, host, port). The ID is an
@@ -131,60 +153,63 @@ void MetadataFlusher::synchronize(ItemIndex targetIndex) {
 // TODO(gbitzes): specify a sharding scheme, based on which flusher hits
 // which keys, and enforce it with static checks, if possible.
 //------------------------------------------------------------------------------
-std::map<MetadataFlusherFactory::InstanceKey, MetadataFlusher*> MetadataFlusherFactory::instances;
+std::map<MetadataFlusherFactory::InstanceKey, MetadataFlusher*>
+MetadataFlusherFactory::instances;
 std::mutex MetadataFlusherFactory::mtx;
 std::string MetadataFlusherFactory::queuePath = "/var/eos/ns-queue/";
 
-void MetadataFlusherFactory::setQueuePath(const std::string &newpath)
+void MetadataFlusherFactory::setQueuePath(const std::string& newpath)
 {
   queuePath = newpath;
 }
 
-MetadataFlusher* MetadataFlusherFactory::getInstance(const std::string &id, std::string host, int port)
+MetadataFlusher*
+MetadataFlusherFactory::getInstance(const std::string& id, std::string host,
+                                    int port)
 {
   std::lock_guard<std::mutex> lock(MetadataFlusherFactory::mtx);
 
-  if(host.empty() || port == 0) {
+  if (host.empty() || port == 0) {
     host = BackendClient::sQdbHost;
     port = BackendClient::sQdbPort;
   }
 
   std::tuple<std::string, std::string, int> key = std::make_tuple(id, host, port);
-
   auto it = instances.find(key);
-  if(it != instances.end()) {
+
+  if (it != instances.end()) {
     return it->second;
   }
 
-  MetadataFlusher *flusher = new MetadataFlusher(queuePath + id, host, port);
-  eos_static_notice("Created new metadata flusher towards %s:%d", host.c_str(), port);
-
+  MetadataFlusher* flusher = new MetadataFlusher(queuePath + id, host, port);
+  eos_static_notice("Created new metadata flusher towards %s:%d", host.c_str(),
+                    port);
   instances[key] = flusher;
-
   return flusher;
 }
 
 //------------------------------------------------------------------------------
-//! Class to receive notifications from the BackgroundFlusher
+// Class to receive notifications from the BackgroundFlusher
 //------------------------------------------------------------------------------
-FlusherNotifier::FlusherNotifier(MetadataFlusher &flusher_) : flusher(flusher_)
+FlusherNotifier::FlusherNotifier(MetadataFlusher& flusher_):
+  flusher(flusher_) {}
+
+//------------------------------------------------------------------------------
+// Record network events
+//------------------------------------------------------------------------------
+void FlusherNotifier::eventNetworkIssue(const std::string& err)
 {
+  eos_static_notice("Network issue when contacting the redis backend: %s",
+                    err.c_str());
 }
 
 //------------------------------------------------------------------------------
-//! Record network events
+// Record unexpected responses
 //------------------------------------------------------------------------------
-void FlusherNotifier::eventNetworkIssue(const std::string &err)
+void FlusherNotifier::eventUnexpectedResponse(const std::string& err)
 {
-  eos_static_notice("Network issue when contacting the redis backend: %s", err.c_str());
-}
-
-//------------------------------------------------------------------------------
-//! Record unexpected responses
-//------------------------------------------------------------------------------
-void FlusherNotifier::eventUnexpectedResponse(const std::string &err)
-{
-  eos_static_crit("Unexpected response when contacting the redis backend: %s", err.c_str());
+  eos_static_crit("Unexpected response when contacting the redis backend: %s",
+                  err.c_str());
   // Maybe we should just std::terminate now?
 }
 

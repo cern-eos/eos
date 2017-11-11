@@ -1904,7 +1904,7 @@ Master::BootNamespace()
     gOFS->eosDirectoryService->configure(contSettings);
     gOFS->eosFileService->setContMDService(gOFS->eosDirectoryService);
     gOFS->eosFileService->configure(fileSettings);
-    gOFS->eosFsView->configure(contSettings);
+    gOFS->eosFsView->configure(fileSettings);
     gOFS->eosView->setContainerMDSvc(gOFS->eosDirectoryService);
     gOFS->eosView->setFileMDSvc(gOFS->eosFileService);
     gOFS->eosView->configure(contSettings);
