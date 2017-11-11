@@ -30,6 +30,21 @@ EOSNSNAMESPACE_BEGIN
 std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 
 //------------------------------------------------------------------------------
+// Get container bucket
+//------------------------------------------------------------------------------
+std::string
+ContainerMDSvc::getBucketKey(IContainerMD::id_t id)
+{
+  if (id >= sNumContBuckets) {
+    id = id & (sNumContBuckets - 1);
+  }
+
+  std::string bucket_key = stringify(id);
+  bucket_key += constants::sContKeySuffix;
+  return bucket_key;
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
@@ -305,21 +320,6 @@ ContainerMDSvc::notifyListeners(IContainerMD* obj,
   for (auto && elem : pListeners) {
     elem->containerMDChanged(obj, a);
   }
-}
-
-//------------------------------------------------------------------------------
-// Get container bucket
-//------------------------------------------------------------------------------
-std::string
-ContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
-{
-  if (id >= sNumContBuckets) {
-    id = id & (sNumContBuckets - 1);
-  }
-
-  std::string bucket_key = stringify(id);
-  bucket_key += constants::sContKeySuffix;
-  return bucket_key;
 }
 
 //------------------------------------------------------------------------------

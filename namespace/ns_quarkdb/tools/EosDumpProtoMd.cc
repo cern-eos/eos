@@ -25,6 +25,7 @@
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "common/StringTokenizer.hh"
 #include "google/protobuf/util/json_util.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
@@ -141,8 +142,14 @@ std::string DumpProto(qclient::QClient* qcl, uint64_t id, bool is_file)
 
   try {
     std::string sid = eos::stringify(id);
-    qclient::QHash bucket_map(*qcl, eos::FileMDSvc::getBucketKey(id));
-    blob = bucket_map.hget(sid);
+
+    if (is_file) {
+      qclient::QHash bucket_map(*qcl, eos::FileMDSvc::getBucketKey(id));
+      blob = bucket_map.hget(sid);
+    } else {
+      qclient::QHash bucket_map(*qcl, eos::ContainerMDSvc::getBucketKey(id));
+      blob = bucket_map.hget(sid);
+    }
   } catch (std::runtime_error& qdb_err) {
     eos::MDException e(ENOENT);
     e.getMessage() << "File #" << id << " not found";
@@ -162,6 +169,11 @@ std::string DumpProto(qclient::QClient* qcl, uint64_t id, bool is_file)
     fmd.deserialize(buff);
     fmd.getEnv(output, false);
   } else {
+    eos::ContainerMD cmd;
+    eos::Buffer buff;
+    buff.putData(blob.data(), blob.length());
+    cmd.deserialize(buff);
+    cmd.getEnv(output, false);
   }
 
   return output;
@@ -185,7 +197,8 @@ void PrettyPrint(const std::string& senv)
     }
 
     // Convert only the seconds to printable and ignore nanoseconds
-    if ((kv_pair[0] == "ctime") || (kv_pair[0] == "mtime")) {
+    if ((kv_pair[0] == "ctime") || (kv_pair[0] == "mtime") ||
+        (kv_pair[0] == "stime")) {
       const time_t time = std::stoull(kv_pair[1]);
       char* ptime = ctime(&time);
       kv_pair[1] = ptime;
@@ -194,12 +207,11 @@ void PrettyPrint(const std::string& senv)
       while ((pos = kv_pair[1].find('\n')) != std::string::npos) {
         kv_pair[1].erase(pos, 1);
       }
-    } else if ((kv_pair[0] == "ctime_ns") || (kv_pair[0] == "mtime_ns")) {
+    } else if ((kv_pair[0] == "ctime_ns") || (kv_pair[0] == "mtime_ns") ||
+               (kv_pair[0] == "stime_ns")) {
       continue;
     }
 
-    // Capitalize first letter of the key
-    kv_pair[0][0] = std::toupper(kv_pair[0][0]);
     oss << kv_pair[0] << " : " << kv_pair[1] << std::endl;
   }
 

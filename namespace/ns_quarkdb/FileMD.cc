@@ -173,7 +173,7 @@ void
 FileMD::getEnv(std::string& env, bool escapeAnd)
 {
   env = "";
-  std::ostringstream o;
+  std::ostringstream oss;
   std::string saveName = mFile.name();
 
   if (escapeAnd) {
@@ -194,13 +194,13 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
   ctime_t mtime;
   (void) getCTime(ctime);
   (void) getMTime(mtime);
-  o << "name=" << saveName << "&id=" << mFile.id()
-    << "&ctime=" << ctime.tv_sec << "&ctime_ns=" << ctime.tv_nsec
-    << "&mtime=" << mtime.tv_sec << "&mtime_ns=" << mtime.tv_nsec
-    << "&size=" << mFile.size() << "&cid=" << mFile.cont_id()
-    << "&uid=" << mFile.uid() << "&gid=" << mFile.gid()
-    << "&lid=" << mFile.layout_id();
-  env += o.str();
+  oss << "name=" << saveName << "&id=" << mFile.id()
+      << "&ctime=" << ctime.tv_sec << "&ctime_ns=" << ctime.tv_nsec
+      << "&mtime=" << mtime.tv_sec << "&mtime_ns=" << mtime.tv_nsec
+      << "&size=" << mFile.size() << "&cid=" << mFile.cont_id()
+      << "&uid=" << mFile.uid() << "&gid=" << mFile.gid()
+      << "&lid=" << mFile.layout_id();
+  env += oss.str();
   env += "&location=";
   char locs[16];
 

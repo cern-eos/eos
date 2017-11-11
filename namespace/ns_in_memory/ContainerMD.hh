@@ -512,6 +512,18 @@ public:
   //----------------------------------------------------------------------------
   void deserialize(Buffer& buffer) override;
 
+  //----------------------------------------------------------------------------
+  //! Get env representation of the container object
+  //!
+  //! @param env string where representation is stored
+  //! @param escapeAnd if true escape & with #AND# ...
+  //----------------------------------------------------------------------------
+  void getEnv(std::string& env, bool escapeAnd = false) override
+  {
+    // not implemented
+    return;
+  }
+
 protected:
   id_t         pId;
   id_t         pParentId;

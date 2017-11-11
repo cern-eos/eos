@@ -12,6 +12,7 @@ message ContainerMdProto {
   int64 tree_size = 6;
   int32 mode = 5;
   uint32 flags = 7;
+  // @todo (esindril): This is not actually used, we should drop it
   uint32 acl_id = 8;
   string name = 9;
   bytes ctime = 10; // change time

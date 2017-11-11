@@ -287,11 +287,6 @@ public:
   virtual void setFlag(uint8_t n, bool flag) = 0;
 
   //----------------------------------------------------------------------------
-  //! Env Representation
-  //----------------------------------------------------------------------------
-  virtual void getEnv(std::string& env, bool escapeAnd = false) = 0;
-
-  //----------------------------------------------------------------------------
   //! Set the FileMDSvc object
   //----------------------------------------------------------------------------
   virtual void setFileMDSvc(IFileMDSvc* fileMDSvc) = 0;
@@ -368,7 +363,15 @@ public:
   virtual uint64_t getClock() const
   {
     return 0;
-  };
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get env representation of the file object
+  //!
+  //! @param env string where representation is stored
+  //! @param escapeAnd if true escape & with #AND# ...
+  //----------------------------------------------------------------------------
+  virtual void getEnv(std::string& env, bool escapeAnd = false) = 0;
 
 private:
   //----------------------------------------------------------------------------

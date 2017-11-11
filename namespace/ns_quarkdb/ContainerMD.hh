@@ -49,6 +49,12 @@ public:
   ContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
+  //! Constructor used for testing and dump
+  //----------------------------------------------------------------------------
+  ContainerMD(): pContSvc(nullptr), pFileSvc(nullptr), pFlusher(nullptr),
+    pQcl(nullptr) {}
+
+  //----------------------------------------------------------------------------
   //! Desstructor
   //----------------------------------------------------------------------------
   virtual ~ContainerMD() {};
@@ -366,7 +372,15 @@ public:
   virtual uint64_t getClock() const override
   {
     return mClock;
-  };
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get env representation of the container object
+  //!
+  //! @param env string where representation is stored
+  //! @param escapeAnd if true escape & with #AND# ...
+  //----------------------------------------------------------------------------
+  void getEnv(std::string& env, bool escapeAnd = false) override;
 
 private:
   eos::ns::ContainerMdProto mCont; ///< Protobuf container representation

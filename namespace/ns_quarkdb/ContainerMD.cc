@@ -809,4 +809,52 @@ ContainerMD::getAttributes() const
   return xattrs;
 }
 
+//------------------------------------------------------------------------------
+// Get env representation of the container object
+//------------------------------------------------------------------------------
+void
+ContainerMD::getEnv(std::string& env, bool escapeAnd)
+{
+  env = "";
+  std::ostringstream oss;
+  std::string saveName = mCont.name();
+
+  if (escapeAnd) {
+    if (!saveName.empty()) {
+      std::string from = "&";
+      std::string to = "#AND#";
+      size_t start_pos = 0;
+
+      while ((start_pos = saveName.find(from, start_pos)) !=
+             std::string::npos) {
+        saveName.replace(start_pos, from.length(), to);
+        start_pos += to.length();
+      }
+    }
+  }
+
+  ctime_t ctime;
+  ctime_t mtime;
+  ctime_t stime;
+  (void) getCTime(ctime);
+  (void) getMTime(mtime);
+  (void) getTMTime(stime);
+  oss << "name=" << saveName
+      << "&id=" << mCont.id()
+      << "&uid=" << mCont.uid() << "&gid=" << mCont.gid()
+      << "&parentid=" << mCont.parent_id()
+      << "&mode=" << std::oct << mCont.mode() << std::dec
+      << "&flags=" << std::oct << mCont.flags() << std::dec
+      << "&treesize=" << mCont.tree_size()
+      << "&ctime=" << ctime.tv_sec << "&ctime_ns=" << ctime.tv_nsec
+      << "&mtime=" << mtime.tv_sec << "&mtime_ns=" << mtime.tv_nsec
+      << "&stime=" << stime.tv_sec << "&stime_ns=" << stime.tv_nsec;
+
+  for (const auto& elem : mCont.xattrs()) {
+    oss << "&" << elem.first << "=" << elem.second;
+  }
+
+  env += oss.str();
+}
+
 EOSNSNAMESPACE_END

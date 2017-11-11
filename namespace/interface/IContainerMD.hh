@@ -366,6 +366,14 @@ public:
     return 0;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get env representation of the container object
+  //!
+  //! @param env string where representation is stored
+  //! @param escapeAnd if true escape & with #AND# ...
+  //----------------------------------------------------------------------------
+  virtual void getEnv(std::string& env, bool escapeAnd = false) = 0;
+
 protected:
   ContainerMap mSubcontainers; //! Directory name to id map
   FileMap mFiles; ///< File name to id map
