@@ -41,6 +41,16 @@ class FileMDSvc : public IFileMDSvc
 {
 public:
   //----------------------------------------------------------------------------
+  //! Get file bucket which is computed as the id of the container  modulo the
+  //! number of file buckets.
+  //!
+  //! @param id file id
+  //!
+  //! @return file bucket key
+  //----------------------------------------------------------------------------
+  static std::string getBucketKey(IContainerMD::id_t id);
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   FileMDSvc();
@@ -168,16 +178,6 @@ private:
   //! Attach a broken file to lost+found
   //----------------------------------------------------------------------------
   void attachBroken(const std::string& parent, IFileMD* file);
-
-  //----------------------------------------------------------------------------
-  //! Get file bucket which is computed as the id of the container  modulo the
-  //! number of file buckets.
-  //!
-  //! @param id file id
-  //!
-  //! @return file bucket key
-  //----------------------------------------------------------------------------
-  std::string getBucketKey(IContainerMD::id_t id) const;
 
   //----------------------------------------------------------------------------
   //! Add file to consistency check list to recover it in case of a crash

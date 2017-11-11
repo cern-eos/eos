@@ -147,10 +147,9 @@ install(
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 #-------------------------------------------------------------------------------
-# convert_mem_to_kv executable
+# eos_convert_mem_to_kv executable
 #-------------------------------------------------------------------------------
-add_executable(
-  eos_ns_convert
+add_executable(eos_ns_convert
   tools/ConvertMemToKV.cc
   ${NS_PROTO_SRCS}
   ${NS_PROTO_HDRS}
@@ -158,8 +157,7 @@ add_executable(
   accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 
-target_link_libraries(
-  eos_ns_convert
+target_link_libraries(eos_ns_convert
   jemalloc
   qclient
   eosCommon
@@ -167,8 +165,17 @@ target_link_libraries(
   EosNsInMemory-Static
   ${PROTOBUF_LIBRARY})
 
-install(
-  TARGETS eos_ns_convert
+add_executable(eos_dump_proto_md
+  tools/EosDumpProtoMd.cc
+  ${NS_PROTO_SRCS}
+  ${NS_PROTO_HDRS})
+
+target_link_libraries(eos_dump_proto_md
+  EosCrc32c-Static
+  EosNsQuarkdb-Static
+  ${PROTOBUF_LIBRARY})
+
+install(TARGETS eos_ns_convert eos_dump_proto_md
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

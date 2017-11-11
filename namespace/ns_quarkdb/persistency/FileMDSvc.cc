@@ -364,7 +364,7 @@ FileMDSvc::checkFile(std::uint64_t fid)
 // Get file bucket
 //------------------------------------------------------------------------------
 std::string
-FileMDSvc::getBucketKey(IContainerMD::id_t id) const
+FileMDSvc::getBucketKey(IContainerMD::id_t id)
 {
   if (id >= sNumFileBuckets) {
     id = id & (sNumFileBuckets - 1);
