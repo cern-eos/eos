@@ -61,16 +61,16 @@ CRC32CFunctionPtr detectBestCRC32C()
   int rc = system("dmidecode | egrep -i 'manufacturer|product' | grep 'Virtual Machine'");
 
   if (!WEXITSTATUS(rc)) {
-    fprintf(stderr,
-            "------ --:--:-- ----- CRC32C configured for virtual machines running without SSE42\n");
+    // fprintf(stderr,
+    //"------ --:--:-- ----- CRC32C configured for virtual machines running without SSE42\n");
     hasSSE42 = 0;
   } else {
     if (hasSSE42) {
-      fprintf(stderr,
-              "------ --:--:-- ----- CRC32C configured for machine with SSE42 extension\n");
+      //fprintf(stderr,
+      //        "------ --:--:-- ----- CRC32C configured for machine with SSE42 extension\n");
     } else {
-      fprintf(stderr,
-              "------ --:--:-- ----- CRC32C configured for machine without SSE42 extension\n");
+      //fprintf(stderr,
+      //        "------ --:--:-- ----- CRC32C configured for machine without SSE42 extension\n");
     }
   }
 
