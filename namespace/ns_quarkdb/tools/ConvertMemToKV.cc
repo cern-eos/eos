@@ -20,7 +20,6 @@
 #include "common/LayoutId.hh"
 #include "common/Parallel.hh"
 #include "namespace/Constants.hh"
-#include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
@@ -85,7 +84,7 @@ ConvertFileMD::updateInternal()
 }
 
 //------------------------------------------------------------------------------
-// Serialize the object to a std::string buffer
+// Serialize the object to an std::string buffer
 //------------------------------------------------------------------------------
 void
 ConvertFileMD::serializeToStr(std::string& buffer)
@@ -228,7 +227,7 @@ ConvertContainerMD::commitSubcontainers(qclient::AsyncHandler& ah,
     cmd.push_back(stringify(elem.second));
 
     if (count == max_per_batch) {
-      ah.Register(std::make_pair(qclient.execute(cmd), std::move(cmd)), &qclient);
+      ah.Register(qclient.execute(cmd), &qclient);
       cmd.clear();
       cmd.reserve(max_per_batch * 2 + 2);
       cmd.push_back("HMSET");
@@ -249,7 +248,7 @@ ConvertContainerMD::commitSubcontainers(qclient::AsyncHandler& ah,
   }
 
   if (cmd.size() > 2) {
-    ah.Register(std::make_pair(qclient.execute(cmd), std::move(cmd)), &qclient);
+    ah.Register(qclient.execute(cmd), &qclient);
   }
 }
 
@@ -275,7 +274,7 @@ ConvertContainerMD::commitFiles(qclient::AsyncHandler& ah,
     cmd.push_back(stringify(elem.second));
 
     if (count == max_per_batch) {
-      ah.Register(std::make_pair(qclient.execute(cmd), std::move(cmd)), &qclient);
+      ah.Register(qclient.execute(cmd), &qclient);
       cmd.clear();
       cmd.reserve(max_per_batch * 2 + 2);
       cmd.push_back("HMSET");
@@ -296,7 +295,7 @@ ConvertContainerMD::commitFiles(qclient::AsyncHandler& ah,
   }
 
   if (cmd.size() > 2) {
-    ah.Register(std::make_pair(qclient.execute(cmd), std::move(cmd)), &qclient);
+    ah.Register(qclient.execute(cmd), &qclient);
   }
 }
 
@@ -660,7 +659,7 @@ ConvertFileMDSvc::initialize()
       ++count;
 
       if ((count & sAsyncBatch) == 0) {
-        if (!async_handler.WaitForAtLeast(sAsyncBatch)) {
+        if (!async_handler.Wait()) {
           std::cerr << __FUNCTION__ << " Got error response from the backend"
                     << std::endl;
           exit(1);

@@ -569,22 +569,6 @@ public:
   void deserialize(const Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
-  //! Wait for replies to asynchronous requests
-  //!
-  //! @return true if all replies successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool waitAsyncReplies();
-
-  //----------------------------------------------------------------------------
-  //! Register asynchronous request which are handled by the AsyncHandler
-  //! member object.
-  //!
-  //! @param aresp pair holding the future and the command that was executed
-  //! @param qcl pointer to client object used to send the initial request
-  //----------------------------------------------------------------------------
-  void Register(qclient::AsyncResponseType aresp, qclient::QClient* qcl);
-
-  //----------------------------------------------------------------------------
   //! Get value tracking changes to the metadata object
   //----------------------------------------------------------------------------
   virtual uint64_t getClock() const override
@@ -597,7 +581,6 @@ protected:
 
 private:
   eos::ns::FileMdProto mFile; ///< Protobuf file representation
-  qclient::AsyncHandler mAh; ///< Async handler
   uint64_t mClock; ///< Value tracking metadata changes
 };
 

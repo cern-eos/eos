@@ -191,16 +191,14 @@ FileMDSvc::removeFile(IFileMD* obj)
 
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
-  // Wait for any async notification before deleting the object
-  FileMD* impl_obj = dynamic_cast<FileMD*>(obj);
-
-  if (!impl_obj) {
-    MDException e(EFAULT);
-    e.getMessage() << "FileMD dynamic cast failed";
-    throw e;
-  }
-
-  (void) impl_obj->waitAsyncReplies();
+  // // Wait for any async notification before deleting the object
+  // FileMD* impl_obj = dynamic_cast<FileMD*>(obj);
+  // if (!impl_obj) {
+  //   MDException e(EFAULT);
+  //   e.getMessage() << "FileMD dynamic cast failed";
+  //   throw e;
+  // }
+  // (void) impl_obj->waitAsyncReplies();
   mFileCache.remove(obj->getId());
   flushDirtySet(obj->getId(), true);
 }

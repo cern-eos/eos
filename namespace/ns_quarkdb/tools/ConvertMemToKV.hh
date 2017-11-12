@@ -109,7 +109,7 @@ private:
   //! Map of file system ids to set of file replicas and set of unlinked file ids
   std::map<std::string,
       std::pair<std::list<std::string>, std::list<std::string> > > mFsView;
-  std::mutex mMutex; ///< Mutex protecting access tot he map and set
+  std::mutex mMutex; ///< Mutex protecting access to the map and set
 };
 
 
@@ -135,7 +135,7 @@ public:
   void updateInternal();
 
   //----------------------------------------------------------------------------
-  //! Serialize the object to a std::string buffer
+  //! Serialize the object to an std::string buffer
   //!
   //! @param buffer output of the serialized object
   //----------------------------------------------------------------------------
@@ -178,12 +178,10 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Find file
+  //! Find file - only need to check if the file is in the map
   //----------------------------------------------------------------------------
   bool findFileName(const std::string& name)
   {
-    // Unlike in the memory implementation we just need to check if the file
-    // is already added to the map of not.
     return (mFiles.find(name) != mFiles.end());
   }
 

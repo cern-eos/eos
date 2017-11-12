@@ -30,7 +30,7 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
-  pFileMDSvc(fileMDSvc), mAh(), mClock(1)
+  pFileMDSvc(fileMDSvc), mClock(1)
 {
   mFile.set_id(id);
 }
@@ -266,12 +266,6 @@ FileMD::serialize(eos::Buffer& buffer)
   (void) memcpy((void*)ptr, &cksum, sz);
   ptr += sz;
   (void) memcpy((void*)ptr, &obj_size, sz);
-
-  if (!waitAsyncReplies()) {
-    MDException ex(EIO);
-    ex.getMessage() << "KV-store asynchronous reuqests failed";
-    throw ex;
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -391,38 +385,6 @@ FileMD::setMTimeNow()
   clock_gettime(CLOCK_REALTIME, &tnow);
 #endif
   mFile.set_mtime(&tnow, sizeof(tnow));
-}
-
-//------------------------------------------------------------------------------
-// Wait for replies to asynchronous requests
-//------------------------------------------------------------------------------
-bool
-FileMD::waitAsyncReplies()
-{
-  bool ret = mAh.Wait();
-
-  if (!ret) {
-    std::ostringstream oss;
-    auto resp = mAh.GetResponses();
-
-    for (auto && elem : resp) {
-      oss << elem << " ";
-    }
-
-    oss << std::endl;
-    fprintf(stderr, "Async responses: %s\n", oss.str().c_str());
-  }
-
-  return ret;
-}
-
-//------------------------------------------------------------------------------
-// Register asynchronous request
-//------------------------------------------------------------------------------
-void
-FileMD::Register(qclient::AsyncResponseType aresp, qclient::QClient* qcl)
-{
-  mAh.Register(std::move(aresp), qcl);
 }
 
 //------------------------------------------------------------------------------
