@@ -187,6 +187,7 @@ if (Linux)
    eosCommonServer PUBLIC ${LEVELDB_INCLUDE_DIRS})
 
   target_link_libraries(eosCommonServer PUBLIC
+    fmt
     XrdMqClient
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
