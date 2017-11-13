@@ -8,6 +8,8 @@ The configuration file for a named instance is */etc/eos/fuse.<name>.conf*.
 
 You can select a named instance adding '-ofsname=<name>' to the argument list.
 
+This 
+
 ```
 {
   "name" : "",
@@ -15,18 +17,18 @@ You can select a named instance adding '-ofsname=<name>' to the argument list.
   "remotemountdir" : "/eos/",
   "localmountdir" : "/eos/",
   "statisticfile" : "stats",
-  "mdcachedir" : "/var/eos/fusex/md",
+# "mdcachedir" : "/var/eos/fusex/md",
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
 
   "options" : {
     "debug" : 1,
     "lowleveldebug" : 0,
-    "debuglevel" : 6,
+    "debuglevel" : 4,
     "libfusethreads" : 0,
     "md-kernelcache" : 1,
-    "md-kernelcache.enoent.timeout" : 0,
-    "md-backend.timeout" : 0, 
+    "md-kernelcache.enoent.timeout" : 5,
+    "md-backend.timeout" : 100, 
     "data-kernelcache" : 1,
     "mkdir-is-sync" : 1,
     "create-is-sync" : 1,
@@ -43,7 +45,7 @@ You can select a named instance adding '-ofsname=<name>' to the argument list.
 }
 ```
 
-You also need to define a local cache directory (location) where small files are cached and an ooptional journal directory to improve the write speed (journal).
+You also need to define a local cache directory (location) where small files are cached and an optional journal directory to improve the write speed (journal).
 
 ```
   "cache" : {
@@ -175,6 +177,25 @@ eosxd -ofsname=eos.cern.ch:/eos/scratch /eos/scratch
 eosxd -ofsname=me@eos.cern.ch:/eos/user/m/me/ $HOME/eos/
 
 ```
+
+AUTOFS Configuration
+--------------------
+
+Make sure you have in /etc/autofs.conf :
+```
+browse_mode = yes
+```
+Add this line to /etc/auto.master to configure automount for the directory /eos/ :
+```
+/eos/  /etc/auto.eos
+```
+Create the directory /eos (should be empty).
+
+Create the file /etc/auto.eos to mount f.e. from instance eos.cern.ch the path /eos/user/ under /eos/scratch :
+```
+scratch -fstype=eosx,fsname=eos.cern.ch:/eos/user/ :eosxd
+```
+
 
 Client Interaction with a FUSE mount
 ----------------------------------
