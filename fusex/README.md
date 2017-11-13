@@ -57,6 +57,32 @@ You also need to define a local cache directory (location) where small files are
 
 The daemon automatically appends a directory to the mdcachedir, location and journal path and automatically creates these directory private to root (mode=700).
 
+
+Configuration default values and avoiding configuration files
+-------------------------------------------------------------
+
+Every configuration value has a corresponding default value .  
+As explained the configuration file name is taken from the fsname option given on the command line:
+
+```
+root> eosxd -ofsname=foo loads /etc/eos/fuse.foo.conf                                      
+root> eosxd              loads /etc/eos/fuse.conf                                          
+
+user> eosxd -ofsname=foo loads $HOME/.eos/fuse.foo.conf                                    
+```
+
+One can avoid to use configuration files if the defaults are fine providing the remote host and remote mount directory via the fsname:
+
+```                                                                
+root> eosxd -ofsname=eos.cern.ch:/eos/ $HOME/eos # mounts the /eos/ directory from eos.cern.ch shared under $HOME/eos/                                                                            
+
+user> eosxd -ofsname=user@eos.cern.ch:/eos/user/u/user/ $home/eos # mounts /eos/user/u/user from eos.cern.ch private under $HOME/eos/                                                              
+
+If this is a user-private mount the syntax 'foo@cern.ch' should be used to distinguish private \
+mounts of individual users in the 'df' output                                                         
+
+Please note, that root mounts are by default shared mounts with kerberos configuration, user mounts are private mounts with kerberos configuration                                      
+ 
 Statistics File
 ---------------
 
@@ -120,6 +146,9 @@ All        instance-url        := 128.142.24.85:1094
 # -----------------------------------------------------------------------------------------------------------
 
 
+
+Mount with configuration files:
+
 ```
 # mount on /eos/
 mount -t fuse eosxd /eos/
@@ -135,6 +164,15 @@ eosxd -f /other/
 
 # run the default mount in background mode
 eosxd 
+
+# mount without configuration files and default values
+mount -t fuse -ofsname=eos.cern.ch:/eos/scratch /eos/scratch
+
+# run without configuration files in foreground
+eosxd -ofsname=eos.cern.ch:/eos/scratch /eos/scratch
+
+# run a usermount without configuration in background
+eosxd -ofsname=me@eos.cern.ch:/eos/user/m/me/ $HOME/eos/
 
 ```
 
