@@ -92,7 +92,8 @@ diskcache::init_daemonized(const cacheconfig &config)
 diskcache::diskcache(fuse_ino_t _ino) : ino(_ino), nattached(0), fd(-1)
 /* -------------------------------------------------------------------------- */
 {
-
+  memset(&attachstat,0,sizeof(attachstat));
+  memset(&detachstat,0,sizeof(detachstat));
   return;
 }
 
@@ -158,7 +159,10 @@ diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
   std::string ccookie;
   if ((!nattached) && ((!cookie(ccookie) || (ccookie != ""))))
   {
-    fstat(fd, &attachstat);
+    if (fstat(fd, &attachstat))
+    {
+      return errno;
+    }
     // compare if the cookies are identical, otherwise we truncate to 0
     if (ccookie != acookie)
     {
@@ -194,7 +198,10 @@ diskcache::detach(std::string & cookie)
   nattached--;
   if (!nattached)
   {
-    fstat(fd, &detachstat);
+    if (fstat(fd, &detachstat))
+    {
+      return errno;
+    }
     sDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size, 0);
     int rc = close(fd);
 
@@ -276,7 +283,11 @@ diskcache::truncate(off_t offset)
 {
   eos_static_debug( "diskcache::truncate %lu\n", offset);
 
-  fstat(fd, &detachstat);
+  if (fstat(fd, &detachstat))
+  {
+    return -1;
+  }
+
   int rc = 0;
 
   if ( offset >= sMaxSize )
