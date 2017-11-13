@@ -317,6 +317,13 @@ int main(int argc, char* argv[])
     unlink(name);
 
     int fd = open(name, O_CREAT | O_RDWR, S_IRWXU);
+
+    if (fd < 0)
+    {
+      fprintf(stderr, "[test=%03d] creat failed\n", testno);
+      exit(testno);
+    }
+
     for (int i = 0; i < LOOP_10; i+=2)
     {
       ssize_t nwrite = pwrite(fd, &i, 4, (i * 4) + (2 * 1024 * 1024));
