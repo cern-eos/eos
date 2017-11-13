@@ -286,7 +286,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
       if (!root["options"].isMember("debuglevel"))
       {
-	root["options"]["debuglevel"] = 5;
+	root["options"]["debuglevel"] = 4;
       }
       if (!root["options"].isMember("md-kernelcache"))
       {
