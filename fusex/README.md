@@ -278,13 +278,21 @@ Virtual extended attributes on a FUSE mount
 -------------------------------------------
 
 Display instance name
+```
 # getfattr --only-values -n eos.name /eos/
+```
 
 Display MGM hostname+port
+```
 # getfattr --only-values -n eos.hostport /eos/
+```
 
 Display MGM url
+```
 # getfattr --only-values -n eos.mgmurl /eos/
+```
 
 Display Quota Information for a given path
+```
 # getfattr --only-values -n eos.quota <path>
+```
