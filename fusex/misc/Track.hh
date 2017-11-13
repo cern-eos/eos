@@ -47,7 +47,7 @@ public:
     size_t openw;
   } meta_t;
 
-  Track() { }
+  Track() { } 
   
   ~Track() { }
   
@@ -112,6 +112,12 @@ public:
 	eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
                          caller, thread_id(), ino, exclusive,
 			 &(*(this->me)));
+      }
+      else
+      {
+	this->ino = 0;
+	this->caller = 0;
+	this->exclusive = false;
       }
     }
     
