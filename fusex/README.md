@@ -200,36 +200,49 @@ scratch -fstype=eosx,fsname=eos.cern.ch:/eos/user/ :eosxd
 
 
 Client Interaction with a FUSE mount
-----------------------------------
+------------------------------------
 
 To change the log configuration do as root:
-
+```
 # setfattr -n system.eos.debug -v info <path>
 # setfattr -n system.eos.debug -v debug <path>
 # setfattr -n system.eos.debug -v notice <path>
-
+```
 
 To display the local meta data record do as root
+```
 # getfattr --only-values -n system.eos.md <path>
+```
 
 To display a capability on a path do as root
+```
 # getfattr --only-values -n system.eos.cap <path>
+```
 
 To display a list of all capabilities on a path do as root
+```
 # getfattr --only-values -n system.eos.caps <any-path>
+```
 
 To display a list of local to remote inode translations
+```
 # getfattr --only-values -n system.eos.vmap <any-path>
+```
 
 To drop a capability on a path do as root
+```
 # setfattr -n system.eos.dropcap <path>
+```
 
 To drop all capabilities on a mount do as root
+```
 # setfattr -n system.eos.dropallcap <any-path>
+```
 
 Show all hidden system attributes on a given path
+```
 # getfattr -d -m - <path>
-
+```
 
 Server Interaction with a FUSE mount
 ------------------------------------
