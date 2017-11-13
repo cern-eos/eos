@@ -79,6 +79,7 @@ One can avoid to use configuration files if the defaults are fine providing the 
 root> eosxd -ofsname=eos.cern.ch:/eos/ $HOME/eos # mounts the /eos/ directory from eos.cern.ch shared under $HOME/eos/                                                                            
 
 user> eosxd -ofsname=user@eos.cern.ch:/eos/user/u/user/ $home/eos # mounts /eos/user/u/user from eos.cern.ch private under $HOME/eos/                                                              
+```
 
 If this is a user-private mount the syntax 'foo@cern.ch' should be used to distinguish private \
 mounts of individual users in the 'df' output                                                         
