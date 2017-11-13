@@ -83,7 +83,7 @@ public:
       set_id(ino);
     }
 
-    mdx& operator=(eos::fusex::md other)
+    mdx& operator=(const eos::fusex::md& other)
     {
       (*((eos::fusex::md*)(this))) = other;
       return *this;
