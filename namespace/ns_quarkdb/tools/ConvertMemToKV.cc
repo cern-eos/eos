@@ -30,7 +30,7 @@
 // Static global variable
 static std::string sBkndHost;
 static std::int32_t sBkndPort;
-static long long int sAsyncBatch = 256 * 256 - 1;
+static long long int sAsyncBatch = 1023;
 static qclient::QClient* sQcl;
 static qclient::AsyncHandler sAh;
 static size_t sThreads = 1;
@@ -130,8 +130,6 @@ ConvertContainerMD::ConvertContainerMD(id_t id, IFileMDSvc* file_svc,
 {
   pFilesKey = stringify(id) + constants::sMapFilesSuffix;
   pDirsKey = stringify(id) + constants::sMapDirsSuffix;
-  pFilesMap = qclient::QHash(*sQcl, pFilesKey);
-  pDirsMap = qclient::QHash(*sQcl, pDirsKey);
 }
 
 //------------------------------------------------------------------------------
@@ -142,8 +140,6 @@ ConvertContainerMD::updateInternal()
 {
   pFilesKey = stringify(pId) + constants::sMapFilesSuffix;
   pDirsKey = stringify(pId) + constants::sMapDirsSuffix;
-  pFilesMap.setKey(pFilesKey);
-  pDirsMap.setKey(pDirsKey);
   // Populate the protobuf object which is used in the serialization step. The
   // tree size is update when calling addFile method
   mCont.set_id(pId);
@@ -299,10 +295,10 @@ ConvertContainerMD::commitFiles(qclient::AsyncHandler& ah,
   }
 }
 
-//----------------------------------------------------------------------------
-//! Convert ACL to numeric representation of uid/gid(s). This code was taken
-//! from ~/mgm/Acl.hh/cc.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Convert ACL to numeric representation of uid/gid(s). This code was taken
+// from ~/mgm/Acl.hh/cc.
+//------------------------------------------------------------------------------
 void
 ConvertContainerMD::convertAclToNumeric(std::string& acl_val)
 {
@@ -442,7 +438,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
     tmp_cmd->updateInternal();
   } else {
     std::cerr << __FUNCTION__ << "Error: failed dynamic cast" << std::endl;
-    exit(1);
+    std::terminate();
   }
 
   it.value().attached = true;
@@ -495,7 +491,7 @@ ConvertContainerMDSvc::commitToBackend()
   // Parallel loop
   eos::common::Parallel::For(0, nthreads, [&](int i) {
     std::int64_t count = 0;
-    qclient::AsyncHandler async_handler;
+    qclient::AsyncHandler ah;
     eos::ConvertContainerMD* conv_cont = nullptr;
     std::shared_ptr<IContainerMD> container;
     IdMap::iterator it = pIdMap.begin();
@@ -504,6 +500,7 @@ ConvertContainerMDSvc::commitToBackend()
     int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
 
     for (int n = 0; n < max_elem; ++n) {
+      ++count;
       container = it->second.ptr;
       conv_cont = dynamic_cast<eos::ConvertContainerMD*>(container.get());
       ++it;
@@ -513,31 +510,30 @@ ConvertContainerMDSvc::commitToBackend()
         continue;
       }
 
-      // Add container to the KV store
+      // Add container md to the KV store
       try {
-        ++count;
         std::string buffer;
         conv_cont->serializeToStr(buffer);
         std::string sid = stringify(container->getId());
         qclient::QHash bucket_map(qclient, getBucketKey(container->getId()));
-        async_handler.Register(bucket_map.hset_async(sid, buffer),
-                               bucket_map.getClient());
+        ah.Register(bucket_map.hset_async(sid, buffer),
+                    bucket_map.getClient());
 
         // Commit subcontainers and files only if not empty otherwise the hmset
         // command will fail
         if (conv_cont->getNumContainers()) {
-          conv_cont->commitSubcontainers(async_handler, qclient);
+          conv_cont->commitSubcontainers(ah, qclient);
         }
 
         if (conv_cont->getNumFiles()) {
-          conv_cont->commitFiles(async_handler, qclient);
+          conv_cont->commitFiles(ah, qclient);
         }
 
         if ((count & sAsyncBatch) == 0) {
-          if (!async_handler.Wait()) {
+          if (!ah.Wait()) {
             std::cerr << __FUNCTION__ << " Got error response from the backend"
                       << std::endl;
-            exit(1);
+            std::terminate();
           }
 
           std::cout << "Processed " << count << "/" << total << " directories "
@@ -552,9 +548,10 @@ ConvertContainerMDSvc::commitToBackend()
     }
 
     // Wait for any other replies
-    if (!async_handler.Wait()) {
-      std::cerr << "ERROR: Failed to commit to backend" << std::endl;
-      exit(1);
+    if (!ah.Wait()) {
+      std::cerr << __FUNCTION__
+                << "ERROR: Failed to commit to backend" << std::endl;
+      std::terminate();
     }
   });
 }
@@ -651,7 +648,7 @@ ConvertFileMDSvc::initialize()
     std::int64_t count = 0;
     IdMap::iterator it = pIdMap.begin();
     std::advance(it, i * chunk);
-    qclient::AsyncHandler async_handler;
+    qclient::AsyncHandler ah;
     qclient::QClient qclient {sBkndHost, sBkndPort, true, true};
     int max_elem = ((i == (nthreads - 1) ? last_chunk : chunk));
 
@@ -659,10 +656,10 @@ ConvertFileMDSvc::initialize()
       ++count;
 
       if ((count & sAsyncBatch) == 0) {
-        if (!async_handler.Wait()) {
+        if (!ah.Wait()) {
           std::cerr << __FUNCTION__ << " Got error response from the backend"
                     << std::endl;
-          exit(1);
+          std::terminate();
         }
 
         std::cout << "Tid: " << std::this_thread::get_id() << " processed "
@@ -681,6 +678,7 @@ ConvertFileMDSvc::initialize()
         std::terminate();
       }
 
+      ++it;
       std::shared_ptr<IContainerMD> cont = nullptr;
 
       try {
@@ -692,12 +690,10 @@ ConvertFileMDSvc::initialize()
       if (!cont || (file->getContainerId() == 0)) {
         std::lock_guard<std::mutex> lock(mutex_lost_found);
         attachBroken("orphans", file.get());
-        addFileToQdb((ConvertFileMD*)file.get(), async_handler, qclient);
-        ++it;
+        addFileToQdb((ConvertFileMD*)file.get(), ah, qclient);
         continue;
       }
 
-      ++it;
       // Get mutex for current container
       std::mutex* mtx = static_cast<ConvertContainerMDSvc*>(pContSvc)
                         ->GetContMutex(cont->getId());
@@ -708,11 +704,11 @@ ConvertFileMDSvc::initialize()
         mtx->unlock();
         std::lock_guard<std::mutex> lock(mutex_lost_found);
         attachBroken("name_conflicts", file.get());
-        addFileToQdb((ConvertFileMD*)file.get(), async_handler, qclient);
+        addFileToQdb((ConvertFileMD*)file.get(), ah, qclient);
       } else {
         cont->addFile(file.get());
         mtx->unlock();
-        addFileToQdb((ConvertFileMD*)file.get(), async_handler, qclient);
+        addFileToQdb((ConvertFileMD*)file.get(), ah, qclient);
         // Populate the FileSystemView and QuotaView
         mConvQView->addQuotaInfo(file.get());
         mConvFsView->addFileInfo(file.get());
@@ -722,8 +718,8 @@ ConvertFileMDSvc::initialize()
           mSyncTimeAcc->QueueForUpdate(file->getContainerId());
           mContAcc->QueueForUpdate(file->getContainerId(), file->getSize());
 
-          // Update every 1M files
-          if ((count % 1000000 == 0) && (i == 0)) {
+          // Update every 100k files from thread 0 only
+          if ((count % 100000 == 0) && (i == 0)) {
             mSyncTimeAcc->PropagateUpdates();
             mContAcc->PropagateUpdates();
           }
@@ -732,11 +728,14 @@ ConvertFileMDSvc::initialize()
     }
 
     // wait for any other replies
-    if (!async_handler.Wait()) {
+    if (!ah.Wait()) {
       std::cerr << "ERROR: Failed to commit to backend" << std::endl;
-      exit(1);
+      std::terminate();
     }
   });
+  // Propagate any remaining updates
+  mSyncTimeAcc->PropagateUpdates();
+  mContAcc->PropagateUpdates();
   // Get the rate
   auto finish = std::time(nullptr);
 
@@ -862,14 +861,25 @@ ConvertQuotaView::addQuotaInfo(IFileMD* file)
 void
 ConvertQuotaView::commitToBackend()
 {
-  qclient::QSet set_quotaids(*sQcl, quota::sSetQuotaIds);
+  qclient::AsyncHandler ah;
+  qclient::QClient qcl {sBkndHost, sBkndPort, true, true};
+  qclient::QSet set_quotaids(qcl, quota::sSetQuotaIds);
   // Export the set of quota nodes
-  sAh.Register(set_quotaids.sadd_async(mSetQuotaIds), set_quotaids.getClient());
+  ah.Register(set_quotaids.sadd_async(mSetQuotaIds), set_quotaids.getClient());
   mSetQuotaIds.clear();
-  // Export the actual quota information
+
+  if (!ah.Wait()) {
+    std::cerr << __FUNCTION__ << " Got error response from the backend "
+              << "while exporting the quota view" << std::endl;
+    std::terminate();
+  }
+
   std::string uid_key, gid_key;
+  std::uint64_t count = 0u;
+  std::uint64_t max_count = 100;
 
   for (auto it = mQuotaMap.begin(); it != mQuotaMap.end(); ++it) {
+    ++count;
     uid_key = it->first + quota::sQuotaUidsSuffix;
     gid_key = it->first + quota::sQuotaGidsSuffix;
     QuotaNodeMapT& uid_map = it->second.first;
@@ -879,12 +889,12 @@ ConvertQuotaView::commitToBackend()
     for (auto& elem : uid_map) {
       eos::IQuotaNode::UsageInfo& info = elem.second;
       std::string field = elem.first + quota::sPhysicalSpaceTag;
-      sAh.Register(quota_map.hset_async(field, info.physicalSpace),
-                   quota_map.getClient());
+      ah.Register(quota_map.hset_async(field, info.physicalSpace),
+                  quota_map.getClient());
       field = elem.first + quota::sSpaceTag;
-      sAh.Register(quota_map.hset_async(field, info.space), quota_map.getClient());
+      ah.Register(quota_map.hset_async(field, info.space), quota_map.getClient());
       field = elem.first + quota::sFilesTag;
-      sAh.Register(quota_map.hset_async(field, info.files), quota_map.getClient());
+      ah.Register(quota_map.hset_async(field, info.files), quota_map.getClient());
     }
 
     quota_map.setKey(gid_key);
@@ -892,20 +902,30 @@ ConvertQuotaView::commitToBackend()
     for (auto& elem : gid_map) {
       eos::IQuotaNode::UsageInfo& info = elem.second;
       std::string field = elem.first + quota::sPhysicalSpaceTag;
-      sAh.Register(quota_map.hset_async(field, info.physicalSpace),
-                   quota_map.getClient());
+      ah.Register(quota_map.hset_async(field, info.physicalSpace),
+                  quota_map.getClient());
       field = elem.first + quota::sSpaceTag;
-      sAh.Register(quota_map.hset_async(field, info.space),
-                   quota_map.getClient());
+      ah.Register(quota_map.hset_async(field, info.space),
+                  quota_map.getClient());
       field = elem.first + quota::sFilesTag;
-      sAh.Register(quota_map.hset_async(field, info.files), quota_map.getClient());
+      ah.Register(quota_map.hset_async(field, info.files), quota_map.getClient());
+    }
+
+    if (count >= max_count) {
+      count = 0u;
+
+      if (!ah.Wait()) {
+        std::cerr << __FUNCTION__ << " Got error response from the backend "
+                  << "while exporting the quota view" << std::endl;
+        std::terminate();
+      }
     }
   }
 
-  if (!sAh.Wait()) {
+  if (!ah.Wait()) {
     std::cerr << __FUNCTION__ << " Got error response from the backend "
               << "while exporting the quota view" << std::endl;
-    exit(1);
+    std::terminate();
   } else {
     std::cout << "Quota view successfully commited" << std::endl;
   }
@@ -952,17 +972,17 @@ ConvertFsView::addFileInfo(IFileMD* file)
 void
 ConvertFsView::commitToBackend()
 {
-  std::uint64_t total = mFsView.size();
+  uint64_t total = mFsView.size();
   int nthreads = sThreads;
   int chunk = total / nthreads;
   int last_chunk = chunk + total - (chunk * nthreads);
-  size_t async_batch = 15;
+  uint32_t max_batches = 20;
   int max_sadd_size = 1000;
   // Parallel loop
   eos::common::Parallel::For(0, nthreads, [&](int i) {
-    std::int64_t count = 0ll;
+    std::uint64_t count = 0u;
     std::string key, val;
-    qclient::AsyncHandler async_handler;
+    qclient::AsyncHandler ah;
     qclient::QClient qclient{sBkndHost, sBkndPort, true, true};
     qclient::QSet fs_set(qclient, "");
     int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
@@ -976,28 +996,27 @@ ConvertFsView::commitToBackend()
       fs_set.setKey(key);
 
       if (it->second.first.size()) {
-        size_t num_batches = 0u;
-        size_t pos = 0u;
-        size_t total = it->second.first.size();
+        uint32_t num_batches = 0u;
+        uint64_t pos = 0u;
+        uint64_t total = it->second.first.size();
         auto begin = it->second.first.begin();
 
         while (pos < total) {
           uint64_t step = (pos + max_sadd_size >= total) ? (total - pos) : max_sadd_size;
           auto end = begin;
           std::advance(end, step);
-          async_handler.Register(fs_set.sadd_async(begin, end),
-                                 fs_set.getClient());
+          ah.Register(fs_set.sadd_async(begin, end), fs_set.getClient());
           begin = end;
           pos += step;
           ++num_batches;
 
-          if (num_batches == async_batch) {
+          if (num_batches == max_batches) {
             num_batches = 0u;
 
-            if (!async_handler.Wait()) {
+            if (!ah.Wait()) {
               std::cerr << __FUNCTION__ << " Got error response from the backend"
                         << std::endl;
-              std::abort();
+              std::terminate();
             }
           }
         }
@@ -1007,38 +1026,38 @@ ConvertFsView::commitToBackend()
       fs_set.setKey(key);
 
       if (it->second.second.size()) {
-        size_t num_batches = 0u;
-        size_t pos = 0u;
-        size_t total = it->second.second.size();
+        uint32_t num_batches = 0u;
+        uint64_t pos = 0u;
+        uint64_t total = it->second.second.size();
         auto begin = it->second.second.begin();
 
         while (pos < total) {
           uint64_t step = (pos + max_sadd_size >= total) ? (total - pos) : max_sadd_size;
           auto end = begin;
           std::advance(end, step);
-          async_handler.Register(fs_set.sadd_async(begin, end),
-                                 fs_set.getClient());
+          ah.Register(fs_set.sadd_async(begin, end),
+                      fs_set.getClient());
           begin = end;
           pos += step;
           ++num_batches;
 
-          if (num_batches == async_batch) {
+          if (num_batches == max_batches) {
             num_batches = 0u;
 
-            if (!async_handler.Wait()) {
+            if (!ah.Wait()) {
               std::cerr << __FUNCTION__ << " Got error response from the backend"
                         << std::endl;
-              std::abort();
+              std::terminate();
             }
           }
         }
       }
 
-      if ((count & async_batch) == 0) {
-        if (!async_handler.Wait()) {
+      if ((count & max_batches) == 0) {
+        if (!ah.Wait()) {
           std::cerr << __FUNCTION__ << " Got error response from the backend"
                     << std::endl;
-          std::abort();
+          std::terminate();
         }
       }
 
@@ -1057,31 +1076,29 @@ ConvertFsView::commitToBackend()
         uint64_t step = (pos + max_sadd_size >= total) ? (total - pos) : max_sadd_size;
         auto end = begin;
         std::advance(end, step);
-        async_handler.Register(fs_set.sadd_async(begin, end),
-                               fs_set.getClient());
+        ah.Register(fs_set.sadd_async(begin, end),
+                    fs_set.getClient());
         begin = end;
         pos += step;
         ++num_batches;
 
-        if (num_batches == async_batch) {
+        if (num_batches == max_batches) {
           num_batches = 0u;
 
-          if (!async_handler.Wait()) {
+          if (!ah.Wait()) {
             std::cerr << __FUNCTION__ << " Got error response from the backend"
                       << std::endl;
-            std::abort();
+            std::terminate();
           }
         }
       }
+    }
 
-      // Wait for all in-flight async requests
-      if (!async_handler.Wait()) {
-        std::cerr << __FUNCTION__ << " Got error response from the backend"
-                  << std::endl;
-        std::abort();
-      } else {
-        std::cout << "FileSystem view successfully commited" << std::endl;
-      }
+    // Wait for all in-flight async requests
+    if (!ah.Wait()) {
+      std::cerr << __FUNCTION__ << " Got error response from the backend"
+                << std::endl;
+      std::terminate();
     }
   });
 }
@@ -1186,7 +1203,7 @@ main(int argc, char* argv[])
 
     if (!conv_cont_svc || !conv_file_svc) {
       std::cerr << "Failed dynamic cast to convert meta-data type" << std::endl;
-      exit(-1);
+      std::terminate();
     }
 
     conv_cont_svc->setQuotaView(quota_view.get());

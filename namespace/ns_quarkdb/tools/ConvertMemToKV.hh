@@ -226,8 +226,6 @@ private:
   eos::ns::ContainerMdProto mCont; ///< Protobuf container representation
   std::string pFilesKey; ///< Key of hmap holding info about files
   std::string pDirsKey;  ///< Key of hmap holding info about subcontainers
-  qclient::QHash pFilesMap; ///< Map of files
-  qclient::QHash pDirsMap; ///< Map of dirs
 };
 
 
