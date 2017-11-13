@@ -148,9 +148,10 @@ All        uptime              := 183
 All        instance-url        := 128.142.24.85:1094
 # -----------------------------------------------------------------------------------------------------------
 
+```
 
-
-Mount with configuration files:
+Mounting with configuration files
+---------------------------------
 
 ```
 # mount on /eos/
