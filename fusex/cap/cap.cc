@@ -458,11 +458,8 @@ cap::refresh(fuse_req_t req, shared_cap cap)
 
 	sleeper.Wait(backoff*1000);
       }
-
-
     }
-  } while (rc);
-  return rc;
+  } while (1);
 }
 
 /* -------------------------------------------------------------------------- */
