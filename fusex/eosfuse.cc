@@ -242,6 +242,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 	    }
 	    fprintf(stderr,"# enabling stable inodes with md-cache in '%s'\n", root["mdcachedir"].asString().c_str());
 	  }
+	  root["options"]["krb5"] = 01;
 	}
       }
 

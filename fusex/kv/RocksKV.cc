@@ -56,6 +56,10 @@ RocksKV::RocksKV()
 RocksKV::~RocksKV()
 /* -------------------------------------------------------------------------- */
 {
+  if(transactionDB) {
+    db = nullptr;
+    delete transactionDB;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -87,7 +91,7 @@ RocksKV::connect(const std::string &prefix, const std::string &path)
   }
 
   mPrefix = prefix;
-  transactionDB.reset(mydb);
+  transactionDB = mydb;
   db = transactionDB->GetBaseDB();
 
   return 0;
