@@ -361,6 +361,7 @@ The new EOS fuse core containing eosxd.
 %files -n eos-fusex-core
 %defattr(-, root, root, -)
 %{_bindir}/eosxd
+/sbin/mount.eosx
 %{_sysconfdir}/logrotate.d/eos-fusex-logs
 %attr(755,daemon,daemon) /var/log/eos/
 %attr(755,daemon,daemon) /var/log/eos/fusex/
