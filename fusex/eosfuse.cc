@@ -228,7 +228,26 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       size_t pos_add;
       if ( (pos_add = fsname.find("@")) != std::string::npos)
       {
+	std::string fsuser=fsname;
 	fsname.erase(0, pos_add+1);
+	fsuser.erase(pos_add);
+
+	if (fsuser == "gw")
+	{
+	  // if 'gw' = gateway is defined as user name, we enable stable inode support e.g. mdcachedir
+	  if (!root.isMember("mdcachedir"))
+	  {
+	    if (geteuid())
+	    {
+	      root["mdcachedir"]= "/var/tmp/eos/fusex/md-cache/";
+	    }
+	    else
+	    {
+	      root["mdcachedir"]= "/var/eos/fusex/md-cache/";
+	    }
+	    fprintf(stderr,"# enabling stable inodes with md-cache in '%s'\n", root["mdcachedir"].asString().c_str());
+	  }
+	}
       }
 
       size_t pos_colon;

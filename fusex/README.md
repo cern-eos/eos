@@ -199,6 +199,16 @@ scratch -fstype=eosx,fsname=eos.cern.ch:/eos/user/ :eosxd
 ```
 
 
+NFS/Samba Gateway Configuration
+-------------------------------
+
+To run as an export gateway one needs to configure 'stable inodes'. In the configuration file one can specify the 'mdcachedir' directive pointing to a directory where a ROCKSDB database will be stored. There is however a much simpler method to get an CIFS/NFS ready mount. Just use the normal mount or AUTOFS configuration but prefix '-ofsname=eos.cern.ch' like '-ofsname=gw@eos.cern.ch', which will automatically enable the stable inodes option.
+
+```
+eosxd -ofsname=gw@eos.cern.ch:/eos/user/ /eos/user/
+```
+
+
 Client Interaction with a FUSE mount
 ------------------------------------
 
