@@ -1343,12 +1343,11 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       mdmap.retrieveOrCreateTS(ino, md);
       md->Locker().Lock();
 
-      if (EOS_LOGS_DEBUG) {
-        eos_static_debug("%s op=%d deleted=%d", md->dump().c_str(), md->getop(),
-                         md->deleted());
-      }
-
-      if (md->deleted()) {
+      if (EOS_LOGS_DEBUG)
+        eos_static_debug("%s op=%d deleted=%d", md->dump().c_str(), md->getop(), md->deleted());
+      if (md->deleted())
+      {
+	md->Locker().UnLock();
         return 0;
       }
     }
@@ -1669,10 +1668,11 @@ metad::mdcflush(ThreadAssistant& assistant)
         // accept callbacks for when termination is requested, so we can wake up
         // any condvar.
         mdflush.Wait(1);
-
-        if (assistant.terminationRequested()) {
-          return;
-        }
+        if (assistant.terminationRequested()) 
+	{
+	  mdflush.UnLock();
+	  return;
+	}
       }
 
       // TODO: add an optimzation to merge requests in the queue

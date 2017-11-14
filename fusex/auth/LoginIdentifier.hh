@@ -54,6 +54,10 @@ public:
     return connId;
   }
 
+  bool operator==(const LoginIdentifier &other) const {
+    return stringId == other.stringId;
+  }
+
 private:
   uint64_t connId;
   std::string stringId;

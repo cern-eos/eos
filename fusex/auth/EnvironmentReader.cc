@@ -23,9 +23,7 @@
 
 #include "EnvironmentReader.hh"
 
-void EnvironmentReader::inject(pid_t pid, const Environment& env,
-                               std::chrono::milliseconds artificialDelay)
-{
+void EnvironmentReader::inject(pid_t pid, const Environment &env, const std::chrono::milliseconds &artificialDelay) {
   SimulatedResponse simulated;
   simulated.env = env;
   simulated.artificialDelay = artificialDelay;

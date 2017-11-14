@@ -413,35 +413,24 @@ cap::refresh(fuse_req_t req, shared_cap cap)
       // 2 seconds is the maximum allowed roundtrip/out-of-sync time applied by the MGM
       uint64_t ns_lag;
 
-      if ((ns_lag = eos::common::Timing::GetCoarseAgeInNs(&ts, 0)) < 2000000000) {
-        eos_static_err("GETCAP finished during the allowed 2s round-trip time - our clock seems to be out of sync with the MGM!");
-        return EL2NSYNC;
-      } else {
-        float backoff = round(10 * random() / (double) RAND_MAX);
-        XrdSysTimer sleeper;
-        eos_static_warning("GETCAP exceeded 2s (%.02fs) round-trip time for inode=%16x - backing of for %.02f seconds, then retry!",
-                           ns_lag / 1000000000.0,
-                           cap->id(),
-                           backoff);
-        sleeper.Wait(backoff * 1000);
+      if ( (ns_lag = eos::common::Timing::GetCoarseAgeInNs(&ts, 0)) < 2000000000)
+      {
+	eos_static_err("GETCAP finished during the allowed 2s round-trip time - our clock seems to be out of sync with the MGM!");
+	return EL2NSYNC;
       }
+      else
+      {
+	float backoff = round(10 * random() / (double) RAND_MAX);
+	XrdSysTimer sleeper;
+	eos_static_warning("GETCAP exceeded 2s (%.02fs) round-trip time for inode=%16x - backing of for %.02f seconds, then retry!",
+			   ns_lag/1000000000.0,
+			   cap->id(),
+			   backoff);
 
-      if ((ns_lag = eos::common::Timing::GetCoarseAgeInNs(&ts, 0)) < 2000000000) {
-        eos_static_err("GETCAP finished during the allowed 2s round-trip time - our clock seems to be out of sync with the MGM!");
-        return EL2NSYNC;
-      } else {
-        float backoff = round(10 * random() / (double) RAND_MAX);
-        XrdSysTimer sleeper;
-        eos_static_warning("GETCAP exceeded 2s (%.02fs) round-trip time for inode=%16x - backing of for %.02f seconds, then retry!",
-                           ns_lag / 1000000000.0,
-                           cap->id(),
-                           backoff);
-        sleeper.Wait(backoff * 1000);
+	sleeper.Wait(backoff*1000);
       }
     }
-  } while (rc);
-
-  return rc;
+  } while (1);
 }
 
 /* -------------------------------------------------------------------------- */

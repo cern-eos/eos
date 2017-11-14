@@ -55,8 +55,7 @@ public:
   EnvironmentResponse stageRequest(pid_t pid);
 
   // *all* responses will be faked if there's at least one injection active
-  void inject(pid_t pid, const Environment& env,
-              std::chrono::milliseconds artificialDelay);
+  void inject(pid_t pid, const Environment &env, const std::chrono::milliseconds &artificialDelay = std::chrono::milliseconds(0) );
   void removeInjection(pid_t pid);
 private:
   void fillFromInjection(pid_t pid, Environment& env);

@@ -133,10 +133,19 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   fprintf(stderr, "# -o big_writes enabled\n");
   fuse_opt_add_arg(&args, "-obig_writes");
   std::string jsonconfig = "/etc/eos/fuse";
+  if (geteuid())
+  {
+    jsonconfig = getenv("HOME");
+    jsonconfig += "/.eos/fuse";
+  }
 
-  if (fsname.length()) {
-    jsonconfig += ".";
-    jsonconfig += fsname;
+  if (fsname.length())
+  {
+    if ( (! (fsname.find("@"))) && (! (fsname.find(":"))) )
+    {
+      jsonconfig += ".";
+      jsonconfig += fsname;
+    }
   }
 
   jsonconfig += ".conf";
@@ -149,25 +158,222 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
 #endif
 
-  if (getuid() <= DAEMONUID) {
+  if (getuid() == 0)
+  {
     unsetenv("KRB5CCNAME");
     unsetenv("X509_USER_PROXY");
   }
 
   cacheconfig cconfig;
+
+  // ---------------------------------------------------------------------------------------------
+  // The logic of configuration works liks that:
+  // - every configuration value has a corresponding default value
+  // - the configuration file name is taken from the fsname option given on the command line
+  //   e.g. root> eosxd -ofsname=foo loads /etc/eos/fuse.foo.conf
+  //        root> eosxd              loads /etc/eos/fuse.conf
+  //        user> eosxd -ofsname=foo loads $HOME/.eos/fuse.foo.conf
+  // One can avoid to use configuration files if the defaults are fine providing the remote host and remote mount directory via the fsname
+  //   e.g. root> eosxd -ofsname=eos.cern.ch:/eos/ $HOME/eos mounts the /eos/ directory from eos.cern.ch shared under $HOME/eos/
+  //   e.g. user> eosxd -ofsname=user@eos.cern.ch:/eos/user/u/user/ $home/eos mounts /eos/user/u/user from eos.cern.ch private under $HOME/eos/
+  //   If this is a user-private mount the syntax 'foo@cern.ch' should be used to distinguish private mounts of individual users in the 'df' output
+  // 
+  //   Please note, that root mounts are by default shared mounts with kerberos configuration,
+  //   user mounts are private mounts with kerberos configuration
+  // --------------------------------------------------------------------------------------------
+
   {
     // parse JSON configuration
     Json::Value root;
     Json::Reader reader;
-    std::ifstream configfile(jsonconfig, std::ifstream::binary);
 
-    if (reader.parse(configfile, root, false)) {
-      fprintf(stderr, "# JSON parsing successfull\n");
-    } else {
-      fprintf(stderr, "error: invalid configuration file %s - %s\n",
-              jsonconfig.c_str(), reader.getFormattedErrorMessages().c_str());
-      exit(EINVAL);
+    struct stat configstat;
+
+    if (!::stat(jsonconfig.c_str(),&configstat))
+    {
+      std::ifstream configfile(jsonconfig, std::ifstream::binary);
+      if (reader.parse(configfile, root, false))
+      {
+	fprintf(stderr, "# JSON parsing successfull\n");
+      }
+      else
+      {
+	fprintf(stderr, "error: invalid configuration file %s - %s\n",
+		jsonconfig.c_str(), reader.getFormattedErrorMessages().c_str());
+	exit(EINVAL);
+      }
     }
+    else
+    {
+      fprintf(stderr, "# no config file - running on default values\n");      
+    }
+
+    if (!root.isMember("hostport"))
+    {
+      if (!fsname.length())
+      {
+	fprintf(stderr,"error: please configure the EOS endpoint via fsname=<user>@<host\n");
+	exit(EINVAL);
+      }
+      if ((fsname.find(".") == std::string::npos))
+      {
+	fprintf(stderr,"error: when running without a configuration file 'hostport' variable you need to configure the EOS endpoint via fsname=<host>.<domain> - the domain has to be added!\n");
+	exit(EINVAL);
+      }
+      size_t pos_add;
+      if ( (pos_add = fsname.find("@")) != std::string::npos)
+      {
+	std::string fsuser=fsname;
+	fsname.erase(0, pos_add+1);
+	fsuser.erase(pos_add);
+
+	if (fsuser == "gw")
+	{
+	  // if 'gw' = gateway is defined as user name, we enable stable inode support e.g. mdcachedir
+	  if (!root.isMember("mdcachedir"))
+	  {
+	    if (geteuid())
+	    {
+	      root["mdcachedir"]= "/var/tmp/eos/fusex/md-cache/";
+	    }
+	    else
+	    {
+	      root["mdcachedir"]= "/var/eos/fusex/md-cache/";
+	    }
+	    fprintf(stderr,"# enabling stable inodes with md-cache in '%s'\n", root["mdcachedir"].asString().c_str());
+	  }
+	}
+      }
+
+      size_t pos_colon;
+      if ( (pos_colon = fsname.find(":")) != std::string::npos)
+      {
+	std::string remotemount = fsname.substr(pos_colon+1);
+	fsname.erase(pos_colon);
+	root["remotemountdir"] = remotemount;
+	fprintf(stderr,"# extracted remote mount dir from fsname is '%s'\n", remotemount.c_str());
+      }
+
+      root["hostport"] = fsname;
+      fprintf(stderr,"# extracted connection host from fsname is '%s'\n", fsname.c_str());
+    }
+    
+    // apply some default settings for undefined entries.
+    {
+      if (!root.isMember("name"))
+      {
+	root["name"] = "";
+      }
+      if (!root.isMember("hostport"))
+      {
+	root["hostport"] = "localhost";
+      }
+
+      if (!root.isMember("mdzmqtarget"))
+      {
+	std::string target = "tcp://";
+	target += root["hostport"].asString();
+	if (target.find(":") != std::string::npos)
+	{
+	  target.erase(target.find(":"));
+	}
+	target += ":1100";
+      }
+      if (!root.isMember("mdzmqidentity"))
+      {
+	if (geteuid())
+	{
+	  root["mdzmqidentity"] = "userd";
+	}
+	else
+	{
+	  root["mdzmqidentity"] = "eosxd";
+	}
+      }
+      if (!root.isMember("remotemountdir"))
+      {
+	root["remotemountdir"] = "/eos/";
+      }
+      if (!root.isMember("localmountdir"))
+      {
+	root["localmountdir"] = "/eos/";
+      }
+      if (!root["options"].isMember("debuglevel"))
+      {
+	root["options"]["debuglevel"] = 4;
+      }
+      if (!root["options"].isMember("md-kernelcache"))
+      {
+	root["options"]["md-kernelcache"] = 1;
+      }
+      if (!root["options"].isMember("md-kernelcache.enoent.timeout"))
+      {
+	root["options"]["md-kernelcache.enoent.timeout"] = 5;
+      }
+      if (!root["options"].isMember("md-backend.timeout"))
+      {
+	root["options"]["md-backend.timeout"] = 100;
+      }
+      if (!root["options"].isMember("data-kernelcache"))
+      {
+	root["options"]["data-kernelcache"] = 1;
+      }
+      if (!root["options"].isMember("mkdir-is-sync"))
+      {
+	root["options"]["mkdir-is-sync"] = 1;
+      }
+      if (!root["options"].isMember("create-is-sync"))
+      {
+	root["options"]["create-is-sync"] = 1;
+      }
+      if (!root["options"].isMember("symlink-is-sync"))
+      {
+	root["options"]["symlink-is-sync"] = 1;
+      }
+      if (!root["options"].isMember("global-flush"))
+      {
+	root["options"]["global-flush"] = 1;
+      }
+      if (!root["options"].isMember("global-locking"))
+      {
+	root["options"]["global-locking"] = 1;
+      }
+      if (!root["auth"].isMember("krb5"))
+      {
+	root["options"]["krb5"] = 1;
+      }
+      if (!root["options"].isMember("shared-mount"))
+      {
+	if (geteuid())
+	{
+	  root["auth"]["shared-mount"] = 0;
+	}
+	else
+	{
+	  root["auth"]["shared-mount"] = 1;
+	}
+      }
+      if (!root["options"].isMember("fd-limit"))
+      {
+	if (!geteuid())
+	{
+	  root["options"]["fd-limit"] = 65535;
+	}
+      }
+      if (!root["options"].isMember("no-fsync"))
+      {
+	root["options"]["no-fsync"].append(".db");
+	root["options"]["no-fsync"].append(".db-journal");
+	root["options"]["no-fsync"].append(".sqlite");
+	root["options"]["no-fsync"].append(".sqlite-journal");
+	root["options"]["no-fsync"].append(".db3");
+	root["options"]["no-fsync"].append(".db3-journal");
+	root["options"]["no-fsync"].append("*.o");
+      }
+    }
+
+
+
 
     const Json::Value jname = root["name"];
     config.name = root["name"].asString();
@@ -203,8 +409,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
 
-    for (Json::Value::iterator it = root["options"]["no-fsync"].begin() ;
-         it != root["options"]["no-fsync"].end(); ++it) {
+    for ( Json::Value::iterator it=root["options"]["no-fsync"].begin() ; it!=root["options"]["no-fsync"].end(); ++it)
+    {
       config.options.no_fsync_suffixes.push_back(it->asString());
       no_fsync_list += it->asString();
       no_fsync_list += ",";
@@ -251,8 +457,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     if (!config.mqtargethost.length()) {
       std::string h = config.hostport;
-      h.erase(h.find(":"));
-      config.mqtargethost = "tcp://" + h + ":1100";
+      if (h.find(":") != std::string::npos)
+      {
+	h.erase(h.find(":"));
+      }
+      config.mqtargethost="tcp://" + h + ":1100";
     }
 
     {
@@ -285,9 +494,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       newrlimit.rlim_cur = config.options.fdlimit;
       newrlimit.rlim_max = config.options.fdlimit;
 
-      if (setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) {
-        fprintf(stderr, "error: unable to set fd limit to %d - errno %d\n",
-                config.options.fdlimit, errno);
+      if( (setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) && (!geteuid()) ) {
+        fprintf(stderr, "error: unable to set fd limit to %d - errno %d\n", config.options.fdlimit, errno);
         exit(EINVAL);
       }
     }
@@ -314,19 +522,76 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       cconfig.type = cache_t::DISK;
     } else if (root["cache"]["type"].asString() == "memory") {
       cconfig.type = cache_t::MEMORY;
-    } else {
-      fprintf(stderr, "error: invalid cache type configuration\n");
     }
+    else
+    {
+      if (root["cache"]["type"].asString().length())
+      {
+	fprintf(stderr, "error: invalid cache type configuration\n");
+	exit(EINVAL);
+      }
+      else
+      {
+	cconfig.type = cache_t::DISK;
+      }
+    }
+
 
     cconfig.location = root["cache"]["location"].asString();
     cconfig.journal = root["cache"]["journal"].asString();
 
-    if (cconfig.location.length()) {
-      if (cconfig.location.rfind("/") != (cconfig.location.size() - 1)) {
-        cconfig.location += "/";
+    // set defaults for journal and file-start cache
+    if (geteuid()) 
+    {
+      if (!cconfig.location.length())
+      {
+	cconfig.location = "/var/tmp/eos/fusex/cache/";
+	cconfig.location += getenv("USER");
+	cconfig.location += "/";
+      }
+      if (!cconfig.journal.length())
+      {
+	cconfig.location = "/var/tmp/eos/fusex/cache/";
+	cconfig.location += getenv("USER");
+	cconfig.location += "/";
+      }
+      // default cache size 8 GB
+      if (!root["cache"]["size-mb"].asString().length())
+      {
+	root["cache"]["size-mb"] = 8000;
+      }
+    }
+    else
+    {
+      if (!cconfig.location.length())
+      {
+	cconfig.location = "/var/eos/fusex/cache/";
       }
 
-      cconfig.location += config.name.length() ? config.name : "default";
+      // default cache size 32 GB
+      if (!root["cache"]["size-mb"].asString().length())
+      {
+	root["cache"]["size-mb"] = 32000;
+      }
+    }
+
+    if (cconfig.location == "OFF")
+    {
+      // disable file-start cache
+      cconfig.location = "";
+    }
+
+    if (cconfig.journal == "OFF")
+    {
+      // disable journal
+      cconfig.journal = "";
+    }
+
+    if (cconfig.location.length())
+    {
+      if (cconfig.location.rfind("/") != (cconfig.location.size()-1))
+	cconfig.location += "/";
+      cconfig.location += config.name.length()?config.name:"default";
     }
 
     if (cconfig.journal.length()) {
@@ -336,6 +601,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       cconfig.journal += config.name.length() ? config.name : "default";
     }
+
+    // apply some defaults for all existing options
+
+    
 
     // by default create all the specified cache paths
     std::string mk_cachedir = "mkdir -p " + config.mdcachedir;
@@ -411,17 +680,25 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       mountpoint = config.localmountdir.c_str();
     }
 
-    if (mountpoint.length()) {
+    if (mountpoint.length())
+    {
+      DIR* d=0;
       // sanity check of the mount directory
-      if (!::opendir(mountpoint.c_str())) {
-        // check for a broken mount
-        if (errno == ENOTCONN) {
-          // force an 'umount -l '
-          std::string systemline = "umount -l ";
-          systemline += mountpoint;
-          fprintf(stderr, "# dead mount detected - forcing '%s'\n", systemline.c_str());
-          system(systemline.c_str());
-        }
+      if ( !(d = ::opendir(mountpoint.c_str())))
+      {
+	// check for a broken mount
+	if ( errno == ENOTCONN )
+	{
+	  // force an 'umount -l '
+	  std::string systemline="umount -l ";
+	  systemline += mountpoint;
+	  fprintf(stderr,"# dead mount detected - forcing '%s'\n", systemline.c_str());
+	  system(systemline.c_str());
+	}
+      }
+      else
+      {
+	closedir(d);
       }
     }
   }
@@ -476,12 +753,19 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       // Running as a user ... we log into /tmp/eos-fuse.$UID.log
-      if (!(fstderr = freopen(logfile, "a+", stderr))) {
-        fprintf(stderr, "error: cannot open log file %s\n", logfile);
-      } else {
-        ::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      if (!(fstderr = freopen(logfile, "a+", stderr)))
+        fprintf(stdout, "error: cannot open log file %s\n", logfile);
+      else
+      {
+	if (::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
+	{
+	  fprintf(stderr,"error: cannot change permission of log file %s\n", logfile);
+	  exit(-1);
+	}
       }
-    } else {
+    }
+    else
+    {
       // Running as root ... we log into /var/log/eos/fuse
       std::string log_path = "/var/log/eos/fusex/fuse.";
 

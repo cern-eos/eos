@@ -90,6 +90,8 @@ diskcache::init_daemonized(const cacheconfig& config)
 diskcache::diskcache(fuse_ino_t _ino) : ino(_ino), nattached(0), fd(-1)
   /* -------------------------------------------------------------------------- */
 {
+  memset(&attachstat,0,sizeof(attachstat));
+  memset(&detachstat,0,sizeof(detachstat));
   return;
 }
 
@@ -152,8 +154,21 @@ diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
 
   std::string ccookie;
 
-  if ((!nattached) && ((!cookie(ccookie) || (ccookie != "")))) {
-    fstat(fd, &attachstat);
+  if ((!nattached) && ((!cookie(ccookie) || (ccookie != ""))))
+  {
+    if (fstat(fd, &attachstat))
+    {
+      return errno;
+    }
+    // compare if the cookies are identical, otherwise we truncate to 0
+    if (ccookie != acookie)
+    {
+      eos_static_debug( "diskcache::attach truncating for cookie: %s <=> %s\n", ccookie.c_str(), acookie.c_str());
+      if (truncate(0))
+      {
+	char msg[1024];
+	snprintf(msg, sizeof (msg), "failed to truncate to invalidate cache file - ino=%08lx", ino);
+	throw std::runtime_error(msg);
 
     // compare if the cookies are identical, otherwise we truncate to 0
     if (ccookie != acookie) {
@@ -187,10 +202,13 @@ diskcache::detach(std::string& cookie)
   XrdSysMutexHelper lLock(mMutex);
   nattached--;
 
-  if (!nattached) {
-    fstat(fd, &detachstat);
-    sDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size,
-                                            0);
+  if (!nattached)
+  {
+    if (fstat(fd, &detachstat))
+    {
+      return errno;
+    }
+    sDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size, 0);
     int rc = close(fd);
 
     if (rc) {
@@ -271,8 +289,13 @@ int
 diskcache::truncate(off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_debug("diskcache::truncate %lu\n", offset);
-  fstat(fd, &detachstat);
+  eos_static_debug( "diskcache::truncate %lu\n", offset);
+
+  if (fstat(fd, &detachstat))
+  {
+    return -1;
+  }
+
   int rc = 0;
 
   if (offset >= sMaxSize) {

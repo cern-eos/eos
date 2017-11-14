@@ -191,6 +191,19 @@ data::datax::flush_nolock(fuse_req_t req)
     }
   }
 
+  // check if the open failed
+
+  XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+  if (proxy)
+  {
+    if (proxy->stateTS() == XrdCl::Proxy::FAILED)
+    {
+      eos_err("remote open failed - returning EREMOTEIO");
+      errno = EREMOTEIO;
+      return -1;
+    }
+  }
+
   eos_info("retc=0");
   return 0;
 }

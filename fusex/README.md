@@ -8,6 +8,8 @@ The configuration file for a named instance is */etc/eos/fuse.<name>.conf*.
 
 You can select a named instance adding '-ofsname=<name>' to the argument list.
 
+This 
+
 ```
 {
   "name" : "",
@@ -15,18 +17,18 @@ You can select a named instance adding '-ofsname=<name>' to the argument list.
   "remotemountdir" : "/eos/",
   "localmountdir" : "/eos/",
   "statisticfile" : "stats",
-  "mdcachedir" : "/var/eos/fusex/md",
+# "mdcachedir" : "/var/eos/fusex/md",
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
 
   "options" : {
     "debug" : 1,
     "lowleveldebug" : 0,
-    "debuglevel" : 6,
+    "debuglevel" : 4,
     "libfusethreads" : 0,
     "md-kernelcache" : 1,
-    "md-kernelcache.enoent.timeout" : 0,
-    "md-backend.timeout" : 0, 
+    "md-kernelcache.enoent.timeout" : 5,
+    "md-backend.timeout" : 100, 
     "data-kernelcache" : 1,
     "mkdir-is-sync" : 1,
     "create-is-sync" : 1,
@@ -43,7 +45,7 @@ You can select a named instance adding '-ofsname=<name>' to the argument list.
 }
 ```
 
-You also need to define a local cache directory (location) where small files are cached and an ooptional journal directory to improve the write speed (journal).
+You also need to define a local cache directory (location) where small files are cached and an optional journal directory to improve the write speed (journal).
 
 ```
   "cache" : {
@@ -57,6 +59,33 @@ You also need to define a local cache directory (location) where small files are
 
 The daemon automatically appends a directory to the mdcachedir, location and journal path and automatically creates these directory private to root (mode=700).
 
+
+Configuration default values and avoiding configuration files
+-------------------------------------------------------------
+
+Every configuration value has a corresponding default value .  
+As explained the configuration file name is taken from the fsname option given on the command line:
+
+```
+root> eosxd -ofsname=foo loads /etc/eos/fuse.foo.conf                                      
+root> eosxd              loads /etc/eos/fuse.conf                                          
+
+user> eosxd -ofsname=foo loads $HOME/.eos/fuse.foo.conf                                    
+```
+
+One can avoid to use configuration files if the defaults are fine providing the remote host and remote mount directory via the fsname:
+
+```                                                                
+root> eosxd -ofsname=eos.cern.ch:/eos/ $HOME/eos # mounts the /eos/ directory from eos.cern.ch shared under $HOME/eos/                                                                            
+
+user> eosxd -ofsname=user@eos.cern.ch:/eos/user/u/user/ $home/eos # mounts /eos/user/u/user from eos.cern.ch private under $HOME/eos/                                                              
+```
+
+If this is a user-private mount the syntax 'foo@cern.ch' should be used to distinguish private \
+mounts of individual users in the 'df' output                                                         
+
+Please note, that root mounts are by default shared mounts with kerberos configuration, user mounts are private mounts with kerberos configuration                                      
+ 
 Statistics File
 ---------------
 
@@ -119,6 +148,10 @@ All        uptime              := 183
 All        instance-url        := 128.142.24.85:1094
 # -----------------------------------------------------------------------------------------------------------
 
+```
+
+Mounting with configuration files
+---------------------------------
 
 ```
 # mount on /eos/
@@ -136,39 +169,90 @@ eosxd -f /other/
 # run the default mount in background mode
 eosxd 
 
+# mount without configuration files and default values
+mount -t fuse -ofsname=eos.cern.ch:/eos/scratch /eos/scratch
+
+# run without configuration files in foreground
+eosxd -ofsname=eos.cern.ch:/eos/scratch /eos/scratch
+
+# run a usermount without configuration in background
+eosxd -ofsname=me@eos.cern.ch:/eos/user/m/me/ $HOME/eos/
+
 ```
 
+AUTOFS Configuration
+--------------------
+
+Make sure you have in /etc/autofs.conf :
+```
+browse_mode = yes
+```
+Add this line to /etc/auto.master to configure automount for the directory /eos/ :
+```
+/eos/  /etc/auto.eos
+```
+Create the directory /eos (should be empty).
+
+Create the file /etc/auto.eos to mount f.e. from instance eos.cern.ch the path /eos/user/ under /eos/scratch :
+```
+scratch -fstype=eosx,fsname=eos.cern.ch:/eos/user/ :eosxd
+```
+
+
+NFS/Samba Gateway Configuration
+-------------------------------
+
+To run as an export gateway one needs to configure 'stable inodes'. In the configuration file one can specify the 'mdcachedir' directive pointing to a directory where a ROCKSDB database will be stored. There is however a much simpler method to get an CIFS/NFS ready mount. Just use the normal mount or AUTOFS configuration but prefix '-ofsname=eos.cern.ch' like '-ofsname=gw@eos.cern.ch', which will automatically enable the stable inodes option.
+
+```
+eosxd -ofsname=gw@eos.cern.ch:/eos/user/ /eos/user/
+```
+
+
 Client Interaction with a FUSE mount
-----------------------------------
+------------------------------------
 
 To change the log configuration do as root:
-
+```
 # setfattr -n system.eos.debug -v info <path>
 # setfattr -n system.eos.debug -v debug <path>
 # setfattr -n system.eos.debug -v notice <path>
-
+```
 
 To display the local meta data record do as root
+```
 # getfattr --only-values -n system.eos.md <path>
+```
 
 To display a capability on a path do as root
+```
 # getfattr --only-values -n system.eos.cap <path>
+```
 
 To display a list of all capabilities on a path do as root
+```
 # getfattr --only-values -n system.eos.caps <any-path>
+```
 
 To display a list of local to remote inode translations
+```
 # getfattr --only-values -n system.eos.vmap <any-path>
+```
 
 To drop a capability on a path do as root
+```
 # setfattr -n system.eos.dropcap <path>
+```
 
 To drop all capabilities on a mount do as root
+```
 # setfattr -n system.eos.dropallcap <any-path>
+```
 
 Show all hidden system attributes on a given path
+```
 # getfattr -d -m - <path>
-
+```
 
 Server Interaction with a FUSE mount
 ------------------------------------
@@ -204,13 +288,21 @@ Virtual extended attributes on a FUSE mount
 -------------------------------------------
 
 Display instance name
+```
 # getfattr --only-values -n eos.name /eos/
+```
 
 Display MGM hostname+port
+```
 # getfattr --only-values -n eos.hostport /eos/
+```
 
 Display MGM url
+```
 # getfattr --only-values -n eos.mgmurl /eos/
+```
 
 Display Quota Information for a given path
+```
 # getfattr --only-values -n eos.quota <path>
+```
