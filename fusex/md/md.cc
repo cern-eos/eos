@@ -1668,7 +1668,7 @@ metad::mdcflush(ThreadAssistant& assistant)
         // accept callbacks for when termination is requested, so we can wake up
         // any condvar.
         mdflush.Wait(1);
-        if (assistant.terminationRequested()) 
+        if (assistant.terminationRequested())
 	{
 	  mdflush.UnLock();
 	  return;
@@ -1883,21 +1883,25 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               pause();
             }
 
-            if (rsp.type() == rsp.DROPCAPS) {
-              eos_static_notice("MGM asked us to drop all known caps");
-              // a newly started MGM requests this as a response to the first heartbeat
-              EosFuse::Instance().caps.reset();
-            }
+	    if (rsp.type() == rsp.DROPCAPS)
+	    {
+	      eos_static_notice("MGM asked us to drop all known caps");
+	      // a newly started MGM requests this as a response to the first heartbeat
+	      EosFuse::Instance().caps.reset();
+	    }
 
-            if (rsp.type() == rsp.CONFIG) {
-              if (rsp.config_().hbrate()) {
-                eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds",
-                                  rsp.config_().hbrate());
-                interval = (int) rsp.config_().hbrate();
-              }
-            }
+	    if (rsp.type() == rsp.CONFIG)
+	    {
+	      if (rsp.config_().hbrate())
+	      {
+		eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds", rsp.config_().hbrate());
+		interval = (int) rsp.config_().hbrate();
+	      }
+	    }
 
-            if (rsp.type() == rsp.LEASE) {
+
+            if (rsp.type() == rsp.LEASE)
+            {
               uint64_t md_ino = rsp.lease_().md_ino();
               std::string authid = rsp.lease_().authid();
               uint64_t ino = inomap.forward(md_ino);
@@ -2075,14 +2079,13 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   // add to parent
                   uint64_t pino = inomap.forward(md_pino);
 
-                  if (pino) {
-                    XrdSysMutexHelper mmLock(mdmap);
+                  if (pino)
+                  {
                     shared_md pmd;
-
-                    if (mdmap.count(pino)) {
-                      pmd = mdmap[pino];
-
-                      if (md->pt_mtime()) {
+                    if(mdmap.retrieveTS(pino, pmd))
+                    {
+                      if (md->pt_mtime())
+                      {
                         pmd->set_mtime(md->pt_mtime());
                         pmd->set_mtime_ns(md->pt_mtime_ns());
                       }
