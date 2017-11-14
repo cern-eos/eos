@@ -56,6 +56,7 @@
 #include <sys/xattr.h>
 #else
 #include <attr/xattr.h>
+#include <sys/resource.h>
 #endif
 
 #include <json/json.h>
@@ -709,6 +710,19 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
   if (fuse_daemonize(config.options.foreground) != -1)
   {
+
+#ifndef __APPLE__
+    if (!geteuid())
+    {
+      // change the priority of this process to maximum
+      if (setpriority(PRIO_PROCESS, getpid(), PRIO_MAX) < 0)
+      {
+	fprintf(stderr,"error: failed to renice this process '%u', to maximum priority '%d'\n", getpid(), PRIO_MAX);
+	exit (-1);
+      }
+    }
+
+#endif
     fusexrdlogin::initializeProcessCache(config.auth);
 
     if (config.options.foreground)
