@@ -242,7 +242,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 	    }
 	    fprintf(stderr,"# enabling stable inodes with md-cache in '%s'\n", root["mdcachedir"].asString().c_str());
 	  }
-	  root["options"]["krb5"] = 01;
+	  root["auth"]["krb5"] = 0;
 	}
       }
 
@@ -341,9 +341,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
       if (!root["auth"].isMember("krb5"))
       {
-	root["options"]["krb5"] = 1;
+	root["auth"]["krb5"] = 1;
       }
-      if (!root["options"].isMember("shared-mount"))
+      if (!root["auth"].isMember("shared-mount"))
       {
 	if (geteuid())
 	{
