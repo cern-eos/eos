@@ -161,16 +161,6 @@ diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
       return errno;
     }
     // compare if the cookies are identical, otherwise we truncate to 0
-    if (ccookie != acookie)
-    {
-      eos_static_debug( "diskcache::attach truncating for cookie: %s <=> %s\n", ccookie.c_str(), acookie.c_str());
-      if (truncate(0))
-      {
-	char msg[1024];
-	snprintf(msg, sizeof (msg), "failed to truncate to invalidate cache file - ino=%08lx", ino);
-	throw std::runtime_error(msg);
-
-    // compare if the cookies are identical, otherwise we truncate to 0
     if (ccookie != acookie) {
       eos_static_debug("diskcache::attach truncating for cookie: %s <=> %s\n",
                        ccookie.c_str(), acookie.c_str());
