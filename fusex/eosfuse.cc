@@ -177,7 +177,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   //   e.g. root> eosxd -ofsname=eos.cern.ch:/eos/ $HOME/eos mounts the /eos/ directory from eos.cern.ch shared under $HOME/eos/
   //   e.g. user> eosxd -ofsname=user@eos.cern.ch:/eos/user/u/user/ $home/eos mounts /eos/user/u/user from eos.cern.ch private under $HOME/eos/
   //   If this is a user-private mount the syntax 'foo@cern.ch' should be used to distinguish private mounts of individual users in the 'df' output
-  // 
+  //
   //   Please note, that root mounts are by default shared mounts with kerberos configuration,
   //   user mounts are private mounts with kerberos configuration
   // --------------------------------------------------------------------------------------------
@@ -205,7 +205,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
     else
     {
-      fprintf(stderr, "# no config file - running on default values\n");      
+      fprintf(stderr, "# no config file - running on default values\n");
     }
 
     if (!root.isMember("hostport"))
@@ -258,7 +258,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["hostport"] = fsname;
       fprintf(stderr,"# extracted connection host from fsname is '%s'\n", fsname.c_str());
     }
-    
+
     // apply some default settings for undefined entries.
     {
       if (!root.isMember("name"))
@@ -542,7 +542,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     cconfig.journal = root["cache"]["journal"].asString();
 
     // set defaults for journal and file-start cache
-    if (geteuid()) 
+    if (geteuid())
     {
       if (!cconfig.location.length())
       {
@@ -605,7 +605,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     // apply some defaults for all existing options
 
-    
+
 
     // by default create all the specified cache paths
     std::string mk_cachedir = "mkdir -p " + config.mdcachedir;
@@ -984,6 +984,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     tMetaCommunicate.join();
     tCapFlush.join();
     fuse_unmount(local_mount_dir, fusechan);
+    mKV.reset();
   } else {
     fprintf(stderr, "error: failed to daemonize\n");
     exit(errno ? errno : -1);
