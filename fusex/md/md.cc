@@ -1787,7 +1787,7 @@ metad::mdcflush(ThreadAssistant &assistant)
         // accept callbacks for when termination is requested, so we can wake up
         // any condvar.
         mdflush.Wait(1);
-        if (assistant.terminationRequested()) 
+        if (assistant.terminationRequested())
 	{
 	  mdflush.UnLock();
 	  return;
@@ -2042,7 +2042,7 @@ metad::mdcommunicate(ThreadAssistant &assistant)
 	      // a newly started MGM requests this as a response to the first heartbeat
 	      EosFuse::Instance().caps.reset();
 	    }
-	    
+
 	    if (rsp.type() == rsp.CONFIG)
 	    {
 	      if (rsp.config_().hbrate())
@@ -2248,12 +2248,9 @@ metad::mdcommunicate(ThreadAssistant &assistant)
                   uint64_t pino = inomap.forward(md_pino);
                   if (pino)
                   {
-                    XrdSysMutexHelper mmLock(mdmap);
                     shared_md pmd;
-                    if (mdmap.count(pino))
+                    if(mdmap.retrieveTS(pino, pmd))
                     {
-                      pmd = mdmap[pino];
-
                       if (md->pt_mtime())
                       {
                         pmd->set_mtime(md->pt_mtime());
