@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.2 Citrine``
+===================
+
+2017-11-14
+
+Improvements
+++++++++++++
+
+* Many fixes for the eosxd fuse module
+* Add eos_dump_proto_md tool to dump object metada info from QuarkDB
+* Clean-up and improvements of the eos_ns_conversion tool for the new namespace
+
+
 ``v4.2.1 Citrine``
 ===================
 
