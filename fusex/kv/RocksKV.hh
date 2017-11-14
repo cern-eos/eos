@@ -68,7 +68,7 @@ public:
   std::string prefix(const std::string& key) { return mPrefix+key; }
   using TransactionPtr = std::unique_ptr<rocksdb::Transaction>;
 private:
-  std::unique_ptr<rocksdb::TransactionDB> transactionDB;
+  rocksdb::TransactionDB *transactionDB = nullptr;
   rocksdb::DB *db; // owned by transactionDB
   std::string mPrefix;
 
