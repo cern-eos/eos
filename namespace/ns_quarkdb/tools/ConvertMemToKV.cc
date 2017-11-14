@@ -140,8 +140,7 @@ ConvertContainerMD::updateInternal()
 {
   pFilesKey = stringify(pId) + constants::sMapFilesSuffix;
   pDirsKey = stringify(pId) + constants::sMapDirsSuffix;
-  // Populate the protobuf object which is used in the serialization step. The
-  // tree size is update when calling addFile method
+  mCont.set_tree_size(pTreeSize);
   mCont.set_id(pId);
   mCont.set_parent_id(pParentId);
   mCont.set_uid(pCUid);
@@ -431,16 +430,6 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
     ContainerList& nameConflicts)
 {
   std::shared_ptr<IContainerMD> container = it->second.ptr;
-  ConvertContainerMD* tmp_cmd =
-    dynamic_cast<ConvertContainerMD*>(container.get());
-
-  if (tmp_cmd) {
-    tmp_cmd->updateInternal();
-  } else {
-    std::cerr << __FUNCTION__ << "Error: failed dynamic cast" << std::endl;
-    std::terminate();
-  }
-
   it.value().attached = true;
 
   // For non-root containers recreate the parent
@@ -508,6 +497,8 @@ ConvertContainerMDSvc::commitToBackend()
       if (conv_cont == nullptr) {
         std::cerr << "Skipping null container id: " << it->first << std::endl;
         continue;
+      } else {
+        conv_cont->updateInternal();
       }
 
       // Add container md to the KV store

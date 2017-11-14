@@ -345,7 +345,7 @@ public:
   inline void setSyncTimeAcc(IContainerMDChangeListener* synctime)
   {
     mSyncTimeAcc = dynamic_cast<eos::SyncTimeAccounting*>(synctime);
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Set container accounting view
@@ -355,7 +355,7 @@ public:
   inline void setContainerAcc(IFileMDChangeListener* contacc)
   {
     mContAcc = dynamic_cast<eos::ContainerAccounting*>(contacc);
-  };
+  }
 
 private:
   static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
