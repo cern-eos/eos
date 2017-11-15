@@ -52,7 +52,7 @@ public:
   //! Constructor used for testing and dump
   //----------------------------------------------------------------------------
   ContainerMD(): pContSvc(nullptr), pFileSvc(nullptr), pFlusher(nullptr),
-    pQcl(nullptr) {}
+    pQcl(nullptr), mClock(0) {}
 
   //----------------------------------------------------------------------------
   //! Desstructor
