@@ -62,13 +62,6 @@ private:
   eos::console::RequestProto mReqProto; ///< Client request protobuf object
 
   //----------------------------------------------------------------------------
-  //! Print namespace status information
-  //!
-  //! @return status string
-  //----------------------------------------------------------------------------
-  std::string PrintStatus();
-
-  //----------------------------------------------------------------------------
   //! Execute mutex subcommand
   //!
   //! @param mutex mutex subcommand proto object

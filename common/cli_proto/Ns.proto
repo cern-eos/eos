@@ -7,7 +7,6 @@ message NsProto {
     bool Monitor    = 2;
     bool NumericIds = 3;
     bool Reset      = 4;
-    bool Standard   = 5;
   }
 
   message MutexProto {
@@ -59,11 +58,10 @@ message NsProto {
   }
 
   oneof subcmd {
-    bool default         = 1;
-    StatProto stat       = 2;
-    MutexProto mutex     = 3;
-    CompactProto compact = 4;
-    MasterProto master   = 5;
-    TreeSizeProto tree   = 6;
+    StatProto stat       = 1;
+    MutexProto mutex     = 2;
+    CompactProto compact = 3;
+    MasterProto master   = 4;
+    TreeSizeProto tree   = 5;
   }
 }

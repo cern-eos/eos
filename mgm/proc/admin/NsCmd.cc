@@ -42,9 +42,7 @@ NsCmd::ProcessRequest()
   eos::console::NsProto ns = mReqProto.ns();
   eos::console::NsProto::SubcmdCase subcmd = ns.subcmd_case();
 
-  if (subcmd == eos::console::NsProto::kDefault) {
-    reply.set_std_out(PrintStatus());
-  } else if (subcmd == eos::console::NsProto::kStat) {
+  if (subcmd == eos::console::NsProto::kStat) {
     reply.set_std_out(StatSubcmd(ns.stat()));
   } else if (subcmd == eos::console::NsProto::kMutex) {
     MutexSubcmd(ns.mutex(), reply);
@@ -60,159 +58,6 @@ NsCmd::ProcessRequest()
   }
 
   return reply;
-}
-
-//------------------------------------------------------------------------------
-// Print namespace status information
-//------------------------------------------------------------------------------
-std::string
-NsCmd::PrintStatus()
-{
-  using eos::common::StringConversion;
-  std::ostringstream oss;
-  uint64_t f = gOFS->eosFileService->getNumFiles();
-  uint64_t d = gOFS->eosDirectoryService->getNumContainers();
-  eos::common::FileId::fileid_t fid_now = gOFS->eosFileService->getFirstFreeId();
-  eos::common::FileId::fileid_t cid_now =
-    gOFS->eosDirectoryService->getFirstFreeId();
-  struct stat statf;
-  struct stat statd;
-  memset(&statf, 0, sizeof(struct stat));
-  memset(&statd, 0, sizeof(struct stat));
-  XrdOucString clfsize;
-  XrdOucString cldsize;
-  XrdOucString clfratio;
-  XrdOucString cldratio;
-  XrdOucString sizestring;
-
-  // Statistics for the changelog files if they exist
-  if ((!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) &&
-      (!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &statd))) {
-    StringConversion::GetReadableSizeString(clfsize,
-                                            (unsigned long long) statf.st_size, "B");
-    StringConversion::GetReadableSizeString(cldsize,
-                                            (unsigned long long) statd.st_size, "B");
-    StringConversion::GetReadableSizeString(clfratio,
-                                            (unsigned long long) f ?
-                                            (1.0 * statf.st_size) / f : 0, "B");
-    StringConversion::GetReadableSizeString(cldratio,
-                                            (unsigned long long) d ?
-                                            (1.0 * statd.st_size) / d : 0, "B");
-  }
-
-  // Statistics for memory usage
-  eos::common::LinuxMemConsumption::linux_mem_t mem;
-
-  if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
-    stdErr += "failed to get the memory usage information\n";
-  }
-
-  eos::common::LinuxStat::linux_stat_t pstat;
-
-  if (!eos::common::LinuxStat::GetStat(pstat)) {
-    stdErr += "failed to get the process stat information\n";
-  }
-
-  XrdOucString bootstring;
-  time_t boottime;
-  {
-    XrdSysMutexHelper lock(gOFS->InitializationMutex);
-    bootstring = gOFS->gNameSpaceState[gOFS->Initialized];
-    boottime = 0;
-
-    if (bootstring == "booting") {
-      boottime = time(NULL) - gOFS->InitializationTime;
-    } else {
-      boottime = gOFS->InitializationTime;
-    }
-  }
-  int64_t latencyf = 0, latencyd = 0, latencyp = 0;
-  auto chlog_file_svc = dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
-  auto chlog_dir_svc = dynamic_cast<eos::IChLogContainerMDSvc*>
-                       (gOFS->eosDirectoryService);
-
-  if (chlog_file_svc && chlog_dir_svc) {
-    latencyf = statf.st_size - chlog_file_svc->getFollowOffset();
-    latencyd = statd.st_size - chlog_dir_svc->getFollowOffset();
-    latencyp = chlog_file_svc->getFollowPending();
-  }
-
-  XrdOucString compact_status, master_status = "";
-  gOFS->MgmMaster.PrintOutCompacting(compact_status);
-  gOFS->MgmMaster.PrintOut(master_status);
-  std::string line = "# ------------------------------------------------------"
-                     "------------------------------";
-  oss << line << std::endl
-      << "# Namespace Statistics" << std::endl
-      << line << std::endl
-      << "ALL      Files                            "
-      << f << " [" << bootstring << "] (" << boottime << "s)" << std::endl
-      << "ALL      Directories                      "
-      << d <<  std::endl
-      << line << std::endl
-      << "ALL      Compactification                 "
-      << compact_status.c_str() << std::endl
-      << line << std::endl
-      << "ALL      Replication                      "
-      << master_status.c_str() << std::endl;
-
-  if (!gOFS->MgmMaster.IsMaster()) {
-    oss << "ALL      Namespace Latency Files          " << latencyf << std::endl
-        << "ALL      Namespace Latency Directories    " << latencyd << std::endl
-        << "ALL      Namespace Pending Updates        " << latencyp << std::endl;
-  }
-
-  oss << line << std::endl
-      << "ALL      File Changelog Size              " << clfsize << std::endl
-      << "ALL      Dir  Changelog Size              " << cldsize << std::endl
-      << line << std::endl
-      << "ALL      avg. File Entry Size             " << clfratio << std::endl
-      << "ALL      avg. Dir  Entry Size             " << cldratio << std::endl
-      << line << std::endl
-      << "ALL      files created since boot         "
-      << (int)(fid_now - gOFS->BootFileId) << std::endl
-      << "ALL      container created since boot     "
-      << (int)(cid_now - gOFS->BootContainerId) << std::endl
-      << line << std::endl
-      << "ALL      current file id                  " << fid_now
-      << std::endl
-      << "ALL      current container id             " << cid_now
-      << std::endl
-      << line << std::endl
-      << "ALL      memory virtual                   "
-      << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)
-          mem.vmsize, "B")
-      << std::endl
-      << "ALL      memory resident                  "
-      << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)
-          mem.resident, "B")
-      << std::endl
-      << "ALL      memory share                     "
-      << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)
-          mem.share, "B")
-      << std::endl
-      << "ALL      memory growths                   ";
-
-  if (pstat.vsize > gOFS->LinuxStatsStartup.vsize) {
-    oss << StringConversion::GetReadableSizeString
-        (sizestring, (unsigned long long)(pstat.vsize - gOFS->LinuxStatsStartup.vsize),
-         "B")
-        << std::endl;
-  } else {
-    oss << StringConversion::GetReadableSizeString
-        (sizestring, (unsigned long long)(-pstat.vsize + gOFS->LinuxStatsStartup.vsize),
-         "B")
-        << std::endl;
-  }
-
-  oss << "ALL      threads                          "
-      << StringConversion::GetSizeString(sizestring, (unsigned long long)
-                                         pstat.threads)
-      << std::endl
-      << "ALL      uptime                           "
-      << (int)(time(NULL) - gOFS->StartTime) << std::endl
-      << line << std::endl;
-  return oss.str();
 }
 
 //------------------------------------------------------------------------------
@@ -324,16 +169,222 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
 std::string
 NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
 {
-  XrdOucString out;
+  using eos::common::StringConversion;
+  std::ostringstream oss;
 
   if (stat.reset()) {
     gOFS->MgmStats.Clear();
-    out = "success: all counters have been reset";
+    oss << "success: all counters have been reset" << std::endl;
   }
 
-  gOFS->MgmStats.PrintOutTotal(out, stat.groupids(), stat.monitor(),
-                               stat.numericids());
-  return std::string(out.c_str());
+  uint64_t f = gOFS->eosFileService->getNumFiles();
+  uint64_t d = gOFS->eosDirectoryService->getNumContainers();
+  eos::common::FileId::fileid_t fid_now = gOFS->eosFileService->getFirstFreeId();
+  eos::common::FileId::fileid_t cid_now =
+    gOFS->eosDirectoryService->getFirstFreeId();
+  struct stat statf;
+  struct stat statd;
+  memset(&statf, 0, sizeof(struct stat));
+  memset(&statd, 0, sizeof(struct stat));
+  XrdOucString clfsize;
+  XrdOucString cldsize;
+  XrdOucString clfratio;
+  XrdOucString cldratio;
+  XrdOucString sizestring;
+
+  // Statistics for the changelog files if they exist
+  if ((!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) &&
+      (!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &statd))) {
+    StringConversion::GetReadableSizeString(clfsize,
+                                            (unsigned long long) statf.st_size, "B");
+    StringConversion::GetReadableSizeString(cldsize,
+                                            (unsigned long long) statd.st_size, "B");
+    StringConversion::GetReadableSizeString(clfratio,
+                                            (unsigned long long) f ?
+                                            (1.0 * statf.st_size) / f : 0, "B");
+    StringConversion::GetReadableSizeString(cldratio,
+                                            (unsigned long long) d ?
+                                            (1.0 * statd.st_size) / d : 0, "B");
+  }
+
+  // Statistics for memory usage
+  eos::common::LinuxMemConsumption::linux_mem_t mem;
+
+  if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
+    stdErr += "failed to get the memory usage information\n";
+  }
+
+  eos::common::LinuxStat::linux_stat_t pstat;
+
+  if (!eos::common::LinuxStat::GetStat(pstat)) {
+    stdErr += "failed to get the process stat information\n";
+  }
+
+  XrdOucString bootstring;
+  time_t boottime = 0;
+  {
+    XrdSysMutexHelper lock(gOFS->InitializationMutex);
+    bootstring = gOFS->gNameSpaceState[gOFS->Initialized];
+
+    if (bootstring == "booting") {
+      boottime = time(NULL) - gOFS->InitializationTime;
+    } else {
+      boottime = gOFS->InitializationTime;
+    }
+  }
+  int64_t latencyf = 0, latencyd = 0, latencyp = 0;
+  auto chlog_file_svc = dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
+  auto chlog_dir_svc = dynamic_cast<eos::IChLogContainerMDSvc*>
+                       (gOFS->eosDirectoryService);
+
+  if (chlog_file_svc && chlog_dir_svc) {
+    latencyf = statf.st_size - chlog_file_svc->getFollowOffset();
+    latencyd = statd.st_size - chlog_dir_svc->getFollowOffset();
+    latencyp = chlog_file_svc->getFollowPending();
+  }
+
+  XrdOucString compact_status = "", master_status = "";
+  gOFS->MgmMaster.PrintOutCompacting(compact_status);
+  gOFS->MgmMaster.PrintOut(master_status);
+
+  if (stat.monitor()) {
+    oss << "uid=all gid=all ns.total.files=" << f << std::endl
+        << "uid=all gid=all ns.total.directories=" << d << std::endl
+        << "uid=all gid=all ns.current.fid=" << fid_now
+        << " ns.current.cid=" << cid_now
+        << " ns.generated.fid=" << (int)(fid_now - gOFS->BootFileId)
+        << " ns.generated.cid=" << (int)(cid_now - gOFS->BootContainerId) << std::endl
+        << "uid=all gid=all ns.total.files.changelog.size="
+        << StringConversion::GetSizeString(clfsize, (unsigned long long) statf.st_size)
+        << std::endl
+        << "uid=all gid=all ns.total.directories.changelog.size="
+        << StringConversion::GetSizeString(cldsize, (unsigned long long) statd.st_size)
+        << std::endl
+        << "uid=all gid=all ns.total.files.changelog.avg_entry_size="
+        << StringConversion::GetSizeString(clfratio, (unsigned long long) f ?
+                                           (1.0 * statf.st_size) / f : 0)
+        << std::endl
+        << "uid=all gid=all ns.total.directories.changelog.avg_entry_size="
+        << StringConversion::GetSizeString(cldratio, (unsigned long long) d ?
+                                           (1.0 * statd.st_size) / d : 0)
+        << std::endl
+        << "uid=all gid=all " << compact_status.c_str() << std::endl
+        << "uid=all gid=all ns.boot.status=" << bootstring << std::endl
+        << "uid=all gid=all ns.boot.time=" << (int) boottime << std::endl
+        << "uid=all gid=all ns.latency.files=" << latencyf << std::endl
+        << "uid=all gid=all ns.latency.dirs=" << latencyd << std::endl
+        << "uid=all gid=all ns.latency.pending.updates=" << latencyp << std::endl
+        << "uid=all gid=all " << master_status.c_str() << std::endl
+        << "uid=all gid=all ns.memory.virtual="
+        << StringConversion::GetSizeString(sizestring, (unsigned long long) mem.vmsize)
+        << std::endl
+        << "uid=all gid=all ns.memory.resident="
+        << StringConversion::GetSizeString(sizestring,
+                                           (unsigned long long) mem.resident)
+        << std::endl
+        << "uid=all gid=all ns.memory.share="
+        << StringConversion::GetSizeString(sizestring, (unsigned long long) mem.share)
+        << std::endl
+        << "uid=all gid=all ns.stat.threads="
+        << StringConversion::GetSizeString(sizestring,
+                                           (unsigned long long) pstat.threads)
+        << std::endl;
+
+    if (pstat.vsize > gOFS->LinuxStatsStartup.vsize) {
+      oss << "uid=all gid=all ns.memory.growth="
+          << StringConversion::GetSizeString(sizestring, (unsigned long long)
+                                             (pstat.vsize - gOFS->LinuxStatsStartup.vsize))
+          << std::endl;
+    } else {
+      oss << "uid=all gid=all ns.memory.growth=-"
+          << StringConversion::GetSizeString(sizestring, (unsigned long long)
+                                             (-pstat.vsize + gOFS->LinuxStatsStartup.vsize))
+          << std::endl;
+    }
+
+    oss << "uid=all gid=all ns.uptime="
+        << (int)(time(NULL) - gOFS->StartTime)
+        << std::endl;
+    XrdOucString stats_out;
+    gOFS->MgmStats.PrintOutTotal(stats_out, stat.groupids(), stat.monitor(),
+                                 stat.numericids());
+    oss << stats_out.c_str();
+    return oss.str();
+  } else {
+    std::string line = "# ------------------------------------------------------"
+                       "------------------------------";
+    oss << line << std::endl
+        << "# Namespace Statistics" << std::endl
+        << line << std::endl
+        << "ALL      Files                            "
+        << f << " [" << bootstring << "] (" << boottime << "s)" << std::endl
+        << "ALL      Directories                      "
+        << d <<  std::endl
+        << line << std::endl
+        << "ALL      Compactification                 "
+        << compact_status.c_str() << std::endl
+        << line << std::endl
+        << "ALL      Replication                      "
+        << master_status.c_str() << std::endl;
+
+    if (!gOFS->MgmMaster.IsMaster()) {
+      oss << "ALL      Namespace Latency Files          " << latencyf << std::endl
+          << "ALL      Namespace Latency Directories    " << latencyd << std::endl
+          << "ALL      Namespace Pending Updates        " << latencyp << std::endl;
+    }
+
+    oss << line << std::endl
+        << "ALL      File Changelog Size              " << clfsize << std::endl
+        << "ALL      Dir  Changelog Size              " << cldsize << std::endl
+        << line << std::endl
+        << "ALL      avg. File Entry Size             " << clfratio << std::endl
+        << "ALL      avg. Dir  Entry Size             " << cldratio << std::endl
+        << line << std::endl
+        << "ALL      files created since boot         "
+        << (int)(fid_now - gOFS->BootFileId) << std::endl
+        << "ALL      container created since boot     "
+        << (int)(cid_now - gOFS->BootContainerId) << std::endl
+        << line << std::endl
+        << "ALL      current file id                  " << fid_now
+        << std::endl
+        << "ALL      current container id             " << cid_now
+        << std::endl
+        << line << std::endl
+        << "ALL      memory virtual                   "
+        << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)
+            mem.vmsize, "B")
+        << std::endl
+        << "ALL      memory resident                  "
+        << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)
+            mem.resident, "B")
+        << std::endl
+        << "ALL      memory share                     "
+        << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)
+            mem.share, "B")
+        << std::endl
+        << "ALL      memory growths                   ";
+
+    if (pstat.vsize > gOFS->LinuxStatsStartup.vsize) {
+      oss << StringConversion::GetReadableSizeString
+          (sizestring, (unsigned long long)(pstat.vsize - gOFS->LinuxStatsStartup.vsize),
+           "B")
+          << std::endl;
+    } else {
+      oss << StringConversion::GetReadableSizeString
+          (sizestring, (unsigned long long)(-pstat.vsize + gOFS->LinuxStatsStartup.vsize),
+           "B")
+          << std::endl;
+    }
+
+    oss << "ALL      threads                          "
+        << StringConversion::GetSizeString(sizestring, (unsigned long long)
+                                           pstat.threads)
+        << std::endl
+        << "ALL      uptime                           "
+        << (int)(time(NULL) - gOFS->StartTime) << std::endl
+        << line << std::endl;
+    return oss.str();
+  }
 }
 
 //------------------------------------------------------------------------------

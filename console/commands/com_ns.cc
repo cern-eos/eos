@@ -74,7 +74,7 @@ NsHelper::ParseCommand(const char* arg)
     eos::console::NsProto_StatProto* stat = ns->mutable_stat();
 
     if (!(option = tokenizer.GetToken())) {
-      stat->set_standard(true);
+      stat->set_monitor(false);
     } else {
       while (true) {
         soption = option;
@@ -248,7 +248,8 @@ NsHelper::ParseCommand(const char* arg)
       }
     }
   } else if (cmd == "") {
-    ns->set_default_(true);
+    eos::console::NsProto_StatProto* stat = ns->mutable_stat();
+    stat->set_monitor(false);
   } else {
     return false;
   }
