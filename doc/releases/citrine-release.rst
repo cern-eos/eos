@@ -26,6 +26,7 @@ Improvements
 * Many fixes for the eosxd fuse module
 * Add eos_dump_proto_md tool to dump object metada info from QuarkDB
 * Clean-up and improvements of the eos_ns_conversion tool for the new namespace
+* Fix ns stat command not displaying ns info in monitoring format
 
 
 ``v4.2.1 Citrine``
