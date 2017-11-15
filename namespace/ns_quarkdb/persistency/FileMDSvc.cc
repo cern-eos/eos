@@ -209,12 +209,11 @@ FileMDSvc::removeFile(IFileMD* obj)
 uint64_t
 FileMDSvc::getNumFiles()
 {
-  std::atomic<std::uint32_t> num_requests(0);
-  std::atomic<std::uint64_t> num_files(0);
+  uint64_t num_files = 0ull;
   std::string bucket_key("");
   qclient::AsyncHandler ah;
 
-  for (std::uint64_t i = 0; i < sNumFileBuckets; ++i) {
+  for (uint64_t i = 0ull; i < sNumFileBuckets; ++i) {
     bucket_key = stringify(i);
     bucket_key += constants::sFileKeySuffix;
     qclient::QHash bucket_map(*pQcl, bucket_key);
