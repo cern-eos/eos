@@ -146,6 +146,7 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
   XrdSysMutexHelper mLock(datamap);
   if (datamap.count(ino))
   {
+    XrdSysMutexHelper helper(datamap[ino]->Locker());
     // wait for open in flight to be done
     datamap[ino]->WaitOpen();
     datamap[ino]->unlink(req);
