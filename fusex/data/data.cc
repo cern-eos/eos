@@ -139,8 +139,14 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper mLock(datamap);
+<<<<<<< HEAD
 
   if (datamap.count(ino)) {
+=======
+  if (datamap.count(ino))
+  {
+    XrdSysMutexHelper helper(datamap[ino]->Locker());
+>>>>>>> FUSEX: Add missing lock, fix race condition causing use-after-free
     // wait for open in flight to be done
     datamap[ino]->WaitOpen();
     datamap[ino]->unlink(req);
