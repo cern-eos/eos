@@ -50,6 +50,16 @@ if [ -n "$NAME" ];  then
 fi
 done
 
+# Copy eosxd dependencies
+for NAME in `otool -L $INSTALL_DIR/usr/local/bin/eosxd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse`; do
+echo $NAME
+if [ -n "$NAME" ];  then
+  dn=`dirNAME $NAME`;
+  mkdir -p /tmp/eos.dst/$dn/
+  cp -v $NAME /tmp/eos.dst/$NAME
+fi
+done
+
 # Copy XRootD dependencies
 cp -v /usr/local/opt/xrootd/lib/libXrd* /tmp/eos.dst/usr/local/lib/
 # Copy XRootD executables
