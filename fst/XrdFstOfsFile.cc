@@ -2739,7 +2739,7 @@ XrdFstOfsFile::DoTpcTransfer()
 
   int64_t rbytes = 0;
   int64_t wbytes = 0;
-  off_t offset = 0;
+  off_t offset = 0;bu
   std::unique_ptr< std::vector<char> > buffer(
     new std::vector<char>(ReadaheadBlock::sDefaultBlocksize));
   eos_info("msg=\"tpc pull\" ");
@@ -2747,8 +2747,9 @@ XrdFstOfsFile::DoTpcTransfer()
   do {
     // Read the remote file in chunks and check after each chunk if the TPC
     // has been aborted already
-    rbytes = tpcIO.fileRead(offset, &((*buffer)[0]),
-                            ReadaheadBlock::sDefaultBlocksize, 30);
+    rbytes = tpcIO.fileReadAsync( offset, &((*buffer)[0]),
+                            ReadaheadBlock::sDefaultBlocksize, true, 30);
+
     eos_debug("msg=\"tpc read\" rbytes=%llu request=%llu",
               rbytes, ReadaheadBlock::sDefaultBlocksize);
 
