@@ -2747,9 +2747,8 @@ XrdFstOfsFile::DoTpcTransfer()
   do {
     // Read the remote file in chunks and check after each chunk if the TPC
     // has been aborted already
-    rbytes = tpcIO.fileReadAsync( offset, &((*buffer)[0]),
-                            ReadaheadBlock::sDefaultBlocksize, true, 30);
-
+    rbytes = tpcIO.fileRead(offset, &((*buffer)[0]),
+                            ReadaheadBlock::sDefaultBlocksize, 30);
     eos_debug("msg=\"tpc read\" rbytes=%llu request=%llu",
               rbytes, ReadaheadBlock::sDefaultBlocksize);
 
