@@ -35,7 +35,7 @@ public:
       auto lengthInBytes = key.size() * sizeof(char);
       auto blocks = lengthInBytes / 4;
 
-      for (int i = 0; i < blocks; i++) {
+      for (size_t i = 0; i < blocks; i++) {
         uint32_t k = *chunk;
         k *= c1;
         k = (k << 15) | (k >> 17);
