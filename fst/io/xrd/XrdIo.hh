@@ -126,10 +126,6 @@ class XrdIo : public FileIo
 {
   friend class AsyncIoOpenHandler;
 public:
-  const uint32_t mNumRdAheadBlocks; ///< no. of blocks used for readahead
-  const uint64_t mDefaultBlocksize;
-
-
   //----------------------------------------------------------------------------
   //! InitBlocksize
   //!
@@ -138,8 +134,9 @@ public:
   //----------------------------------------------------------------------------
   static uint64_t InitBlocksize()
   {
-    char *ptr = getenv( "EOS_FST_XRDIO_BLOCK_SIZE" );
-    return ptr ? strtoul( ptr, 0, 10 ) : 1024 * 1024 /*default is 1M if the envar is not set*/;
+    char* ptr = getenv("EOS_FST_XRDIO_BLOCK_SIZE");
+    return ptr ? strtoul(ptr, 0,
+                         10) : 1024 * 1024 /*default is 1M if the envar is not set*/;
   }
 
   //----------------------------------------------------------------------------
@@ -149,8 +146,8 @@ public:
   //----------------------------------------------------------------------------
   static uint32_t InitNumRdAheadBlocks()
   {
-    char *ptr = getenv( "EOS_FST_XRDIO_RDAHEAD_BLOCKS" );
-    return ptr ? strtoul( ptr, 0, 10 ) : 2; /*default is 2 if envar is not set*/
+    char* ptr = getenv("EOS_FST_XRDIO_RDAHEAD_BLOCKS");
+    return ptr ? strtoul(ptr, 0, 10) : 2;   /*default is 2 if envar is not set*/
   }
 
   //----------------------------------------------------------------------------
@@ -544,6 +541,8 @@ private:
   static std::map<std::string, std::map<int, size_t> > sConnectionPool;
 
   bool mDoReadahead; ///< mark if readahead is enabled
+  const uint32_t mNumRdAheadBlocks; ///< no. of blocks used for readahead
+  const uint64_t mDefaultBlocksize;
   uint32_t mBlocksize; ///< block size for rd/wr opertations
   XrdCl::File* mXrdFile; ///< handler to xrd file
   AsyncMetaHandler* mMetaHandler; ///< async requests meta handler
