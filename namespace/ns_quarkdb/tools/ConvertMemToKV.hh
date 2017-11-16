@@ -31,6 +31,7 @@
 #include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
 #include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include "ContainerMd.pb.h"
 #include "FileMd.pb.h"
 #include "common/RWMutex.hh"
@@ -77,6 +78,31 @@ public:
   void commitToBackend();
 
 private:
+
+  //----------------------------------------------------------------------------
+  //! Get quota node uid map key
+  //!
+  //! @param sid container id
+  //!
+  //! @return map key
+  //----------------------------------------------------------------------------
+  static std::string KeyQuotaUidMap(const std::string& sid)
+  {
+    return quota::sPrefix + sid + ":" + quota::sUidsSuffix;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get quota node gid map key
+  //!
+  //! @param sid container id
+  //!
+  //! @return map key
+  //----------------------------------------------------------------------------
+  static std::string KeyQuotaGidMap(const std::string& sid)
+  {
+    return quota::sPrefix + sid + ":" + quota::sGidsSuffix;
+  }
+
   eos::IContainerMDSvc* mContSvc; ///< Container metadata service
   //! Map beween quota node id and uid and gid maps holding info about the
   //! quota accounting

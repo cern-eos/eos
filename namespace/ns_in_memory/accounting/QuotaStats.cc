@@ -81,13 +81,13 @@ void QuotaNode::meld(const IQuotaNode* node)
 // Get the set of uids for which information is stored in the current quota
 // node.
 //----------------------------------------------------------------------------
-std::vector<unsigned long>
+std::unordered_set<uint64_t>
 QuotaNode::getUids()
 {
-  std::vector<unsigned long> uids;
+  std::unordered_set<uint64_t> uids;
 
   for (auto it = pUserUsage.begin(); it != pUserUsage.end(); ++it) {
-    uids.push_back(it->first);
+    uids.insert(it->first);
   }
 
   return uids;
@@ -97,13 +97,13 @@ QuotaNode::getUids()
 // Get the set of gids for which information is stored in the current quota
 // node.
 //----------------------------------------------------------------------------
-std::vector<unsigned long>
+std::unordered_set<uint64_t>
 QuotaNode::getGids()
 {
-  std::vector<unsigned long> gids;
+  std::unordered_set<uint64_t> gids;
 
   for (auto it = pGroupUsage.begin(); it != pGroupUsage.end(); ++it) {
-    gids.push_back(it->first);
+    gids.insert(it->first);
   }
 
   return gids;
@@ -137,15 +137,13 @@ QuotaStats::~QuotaStats()
 // Get the set of all quota node ids. The quota node id corresponds to the
 // container id.
 //------------------------------------------------------------------------------
-std::set<std::string>
+std::unordered_set<IContainerMD::id_t>
 QuotaStats::getAllIds()
 {
-  char buff[48];
-  std::set<std::string> set_ids;
+  std::unordered_set<IContainerMD::id_t> set_ids;
 
   for (auto it = pNodeMap.begin(); it != pNodeMap.end(); ++it) {
-    snprintf(buff, 48, "%lu", it->first);
-    (void)set_ids.insert(std::string(buff));
+    (void)set_ids.insert(it->first);
   }
 
   return set_ids;

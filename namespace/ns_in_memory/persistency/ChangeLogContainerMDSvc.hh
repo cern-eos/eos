@@ -30,8 +30,8 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IQuota.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
-#include "namespace/ns_in_memory/accounting/QuotaStats.hh"
 #include "common/Murmur3.hh"
 #include "common/hopscotch_map.hh"
 #include <google/dense_hash_map>

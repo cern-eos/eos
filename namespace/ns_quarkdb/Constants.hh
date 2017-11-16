@@ -60,20 +60,20 @@ static const std::string sSetCheckConts{"conts_set_check"};
 namespace quota
 {
 // QuotaStats
-//! Set of quota node ids
-static const std::string sSetQuotaIds = "quota_set_ids";
+//! Prefix for all quota related maps
+static const std::string sPrefix = "quota:";
 //! Quota hmap of uids suffix
-static const std::string sQuotaUidsSuffix = ":quota_hmap_uid";
+static const std::string sUidsSuffix = "map_uid";
 //! Quta hmap of gids suffix
-static const std::string sQuotaGidsSuffix = ":quota_hmap_gid";
+static const std::string sGidsSuffix = "map_gid";
 
 // QuotaNode
 //! Tag for space
-static const std::string sSpaceTag = ":space";
+static const std::string sLogicalSize = ":logical_size";
 //! Tag for physical space
-static const std::string sPhysicalSpaceTag = ":physical_space";
+static const std::string sPhysicalSize = ":physical_size";
 //! Tag for number of files
-static const std::string sFilesTag = ":files";
+static const std::string sNumFiles = ":files";
 }
 
 // Variable associated with the FileSystemView

@@ -22,16 +22,12 @@
 //------------------------------------------------------------------------------
 
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "qclient/QScanner.hh"
+#include "common/StringTokenizer.hh"
 
 EOSNSNAMESPACE_BEGIN
-
-const std::string QuotaStats::sSetQuotaIds = "quota_set_ids";
-const std::string QuotaStats::sQuotaUidsSuffix = ":quota_hmap_uid";
-const std::string QuotaStats::sQuotaGidsSuffix = ":quota_hmap_gid";
-
-const std::string QuotaNode::sSpaceTag = ":space";
-const std::string QuotaNode::sPhysicalSpaceTag = ":physical_space";
-const std::string QuotaNode::sFilesTag = ":files";
 
 //------------------------------------------------------------------------------
 // *** Class QuotaNode implementaion ***
@@ -40,21 +36,15 @@ const std::string QuotaNode::sFilesTag = ":files";
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuotaNode::QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t node_id)
-  : IQuotaNode(quotaStats, node_id)
+QuotaNode::QuotaNode(IQuotaStats* quota_stats, IContainerMD::id_t node_id)
+  : IQuotaNode(quota_stats, node_id)
 {
-  auto tmp_qstats = dynamic_cast<QuotaStats*>(quotaStats);
-
-  if (!tmp_qstats) {
-    MDException e;
-    e.getMessage() << "QuotaStats dynamic cast failed ";
-    throw e;
-  }
-
-  pQcl = tmp_qstats->pQcl;
-  pQuotaUidKey = std::to_string(node_id) + QuotaStats::sQuotaUidsSuffix;
+  std::string snode_id = std::to_string(node_id);
+  pQcl = static_cast<QuotaStats*>(quota_stats)->pQcl.get();
+  pFlusher = static_cast<QuotaStats*>(quota_stats)->pFlusher;
+  pQuotaUidKey = quota::sPrefix + snode_id + quota::sUidsSuffix;
   pUidMap = qclient::QHash(*pQcl, pQuotaUidKey);
-  pQuotaGidKey = std::to_string(node_id) + QuotaStats::sQuotaGidsSuffix;
+  pQuotaGidKey = quota::sPrefix + snode_id + quota::sGidsSuffix;
   pGidMap = qclient::QHash(*pQcl, pQuotaGidKey);
 }
 
@@ -67,38 +57,18 @@ QuotaNode::addFile(const IFileMD* file)
   const std::string suid = std::to_string(file->getCUid());
   const std::string sgid = std::to_string(file->getCGid());
   const int64_t size = pQuotaStats->getPhysicalSize(file);
-  std::string field = suid + sPhysicalSpaceTag;
-  pAh.Register(pUidMap.hincrby_async(field, size), pUidMap.getClient());
-  field = sgid + sPhysicalSpaceTag;
-  pAh.Register(pGidMap.hincrby_async(field, size), pGidMap.getClient());
-  field = suid + sSpaceTag;
-  pAh.Register(pUidMap.hincrby_async(field, file->getSize()),
-               pUidMap.getClient());
-  field = sgid + sSpaceTag;
-  pAh.Register(pGidMap.hincrby_async(field, file->getSize()),
-               pGidMap.getClient());
-  field = suid + sFilesTag;
-  pAh.Register(pUidMap.hincrby_async(field, 1), pUidMap.getClient());
-  field = sgid + sFilesTag;
-  pAh.Register(pGidMap.hincrby_async(field, 1), pGidMap.getClient());
-
-  if (!pAh.Wait()) {
-    std::list<long long int> resp = pAh.GetResponses();
-
-    for (auto& r : resp) {
-      if (r == -ECOMM) {
-        // Communication error
-        MDException e;
-        e.getMessage() << "Failed to connect to backend while updating quota";
-        throw e;
-      } else if (r == -1) {
-        // Unexpected reply type
-        MDException e;
-        e.getMessage() << "Unexpected reply type while updating quota";
-        throw e;
-      }
-    }
-  }
+  std::string field = suid + quota::sPhysicalSize;
+  pFlusher->hincrby(pQuotaUidKey, field, size);
+  field = sgid + quota::sPhysicalSize;
+  pFlusher->hincrby(pQuotaGidKey, field, size);
+  field = suid + quota::sLogicalSize;
+  pFlusher->hincrby(pQuotaUidKey, field, file->getSize());
+  field = sgid + quota::sLogicalSize;
+  pFlusher->hincrby(pQuotaGidKey, field, file->getSize());
+  field = suid + quota::sNumFiles;
+  pFlusher->hincrby(pQuotaUidKey, field, 1);
+  field = sgid + quota::sNumFiles;
+  pFlusher->hincrby(pQuotaUidKey, field, 1);
 }
 
 //------------------------------------------------------------------------------
@@ -110,37 +80,18 @@ QuotaNode::removeFile(const IFileMD* file)
   const std::string suid = std::to_string(file->getCUid());
   const std::string sgid = std::to_string(file->getCGid());
   int64_t size = pQuotaStats->getPhysicalSize(file);
-  std::string field = suid + sPhysicalSpaceTag;
-  pAh.Register(pUidMap.hincrby_async(field, -size), pUidMap.getClient());
-  field = sgid + sPhysicalSpaceTag;
-  pAh.Register(pGidMap.hincrby_async(field, -size), pGidMap.getClient());
-  field = suid + sSpaceTag;
-  size = static_cast<int64_t>(file->getSize());
-  pAh.Register(pUidMap.hincrby_async(field, -size), pUidMap.getClient());
-  field = sgid + sSpaceTag;
-  pAh.Register(pGidMap.hincrby_async(field, -size), pGidMap.getClient());
-  field = suid + sFilesTag;
-  pAh.Register(pUidMap.hincrby_async(field, -1), pUidMap.getClient());
-  field = sgid + sFilesTag;
-  pAh.Register(pGidMap.hincrby_async(field, -1), pGidMap.getClient());
-
-  if (!pAh.Wait()) {
-    std::list<long long int> resp = pAh.GetResponses();
-
-    for (auto& r : resp) {
-      if (r == -ECOMM) {
-        // Communication error
-        MDException e;
-        e.getMessage() << "Failed to connect to backend while updating quota";
-        throw e;
-      } else if (r == -1) {
-        // Unexpected reply type
-        MDException e;
-        e.getMessage() << "Unexpected reply type while updating quota";
-        throw e;
-      }
-    }
-  }
+  std::string field = suid + quota::sPhysicalSize;
+  pFlusher->hincrby(pQuotaUidKey, field, -size);
+  field = sgid + quota::sPhysicalSize;
+  pFlusher->hincrby(pQuotaGidKey, field, -size);
+  field = suid + quota::sLogicalSize;
+  pFlusher->hincrby(pQuotaUidKey, field, -file->getSize());
+  field = sgid + quota::sLogicalSize;
+  pFlusher->hincrby(pQuotaGidKey, field, -file->getSize());
+  field = suid + quota::sNumFiles;
+  pFlusher->hincrby(pQuotaUidKey, field, -1);
+  field = sgid + quota::sNumFiles;
+  pFlusher->hincrby(pQuotaUidKey, field, -1);
 }
 
 //------------------------------------------------------------------------------
@@ -182,7 +133,7 @@ uint64_t
 QuotaNode::getUsedSpaceByUser(uid_t uid)
 {
   try {
-    std::string field = std::to_string(uid) + sSpaceTag;
+    std::string field = std::to_string(uid) + quota::sLogicalSize;
     std::string val = pUidMap.hget(field);
     return (val.empty() ? 0 : std::stoull(val));
   } catch (std::runtime_error& e) {
@@ -197,7 +148,7 @@ uint64_t
 QuotaNode::getUsedSpaceByGroup(gid_t gid)
 {
   try {
-    std::string field = std::to_string(gid) + sSpaceTag;
+    std::string field = std::to_string(gid) + quota::sLogicalSize;
     std::string val = pGidMap.hget(field);
     return (val.empty() ? 0 : std::stoull(val));
   } catch (std::runtime_error& e) {
@@ -212,7 +163,7 @@ uint64_t
 QuotaNode::getPhysicalSpaceByUser(uid_t uid)
 {
   try {
-    std::string field = std::to_string(uid) + sPhysicalSpaceTag;
+    std::string field = std::to_string(uid) + quota::sPhysicalSize;
     std::string val = pUidMap.hget(field);
     return (val.empty() ? 0 : std::stoull(val));
   } catch (std::runtime_error& e) {
@@ -227,7 +178,7 @@ uint64_t
 QuotaNode::getPhysicalSpaceByGroup(gid_t gid)
 {
   try {
-    std::string field = std::to_string(gid) + sPhysicalSpaceTag;
+    std::string field = std::to_string(gid) + quota::sPhysicalSize;
     std::string val = pGidMap.hget(field);
     return (val.empty() ? 0 : std::stoull(val));
   } catch (std::runtime_error& e) {
@@ -242,7 +193,7 @@ uint64_t
 QuotaNode::getNumFilesByUser(uid_t uid)
 {
   try {
-    std::string field = std::to_string(uid) + sFilesTag;
+    std::string field = std::to_string(uid) + quota::sNumFiles;
     std::string val = pUidMap.hget(field);
     return (val.empty() ? 0 : std::stoull(val));
   } catch (std::runtime_error& e) {
@@ -257,7 +208,7 @@ uint64_t
 QuotaNode::getNumFilesByGroup(gid_t gid)
 {
   try {
-    std::string field = std::to_string(gid) + sFilesTag;
+    std::string field = std::to_string(gid) + quota::sNumFiles;
     std::string val = pGidMap.hget(field);
     return (val.empty() ? 0 : std::stoull(val));
   } catch (std::runtime_error& e) {
@@ -269,19 +220,19 @@ QuotaNode::getNumFilesByGroup(gid_t gid)
 // Get the set of uids for which information is stored in the current quota
 // node.
 //------------------------------------------------------------------------------
-std::vector<uint64_t>
+std::unordered_set<uint64_t>
 QuotaNode::getUids()
 {
   std::string suid;
   std::vector<std::string> keys = pUidMap.hkeys();
-  std::vector<uint64_t> uids;
-  uids.resize(keys.size() / 3);
+  std::unordered_set<uint64_t> uids;
+  uids.reserve(keys.size() / 3);
 
-  // The keys have to following format: uid1:space, uid1:physical_space,
+  // The keys have the following format: uid1:logical_size, uid1:physical_size,
   // uid1:files ... uidn:files.
   for (auto && elem : keys) {
     suid = elem.substr(0, elem.find(':'));
-    uids.push_back(std::stoul(suid));
+    uids.insert(std::stoull(suid));
   }
 
   return uids;
@@ -291,19 +242,17 @@ QuotaNode::getUids()
 // Get the set of gids for which information is stored in the current quota
 // node.
 //----------------------------------------------------------------------------
-std::vector<uint64_t>
+std::unordered_set<uint64_t>
 QuotaNode::getGids()
 {
   std::string sgid;
   std::vector<std::string> keys = pGidMap.hkeys();
-  std::vector<uint64_t> gids;
-  gids.resize(keys.size() / 3);
+  std::unordered_set<uint64_t> gids;
+  gids.reserve(keys.size() / 3);
 
-  // The keys have to following format: gid1:space, gid1:physical_space,
-  // gid1:files ... gidn:files.
   for (auto && elem : keys) {
     sgid = elem.substr(0, elem.find(':'));
-    gids.push_back(std::stoul(elem));
+    gids.insert(std::stoull(elem));
   }
 
   return gids;
@@ -314,11 +263,21 @@ QuotaNode::getGids()
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+QuotaStats::QuotaStats():
+  pQcl(nullptr), pFlusher(nullptr) {}
+
+
+//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 QuotaStats::~QuotaStats()
 {
-  pQcl = nullptr;
+  if (pFlusher) {
+    pFlusher->synchronize();
+    delete pFlusher;
+  }
 
   for (auto && elem : pNodeMap) {
     delete elem.second;
@@ -333,22 +292,30 @@ QuotaStats::~QuotaStats()
 void
 QuotaStats::configure(const std::map<std::string, std::string>& config)
 {
-  uint32_t port{0};
-  std::string host{""};
-  const std::string key_host = "qdb_host";
-  const std::string key_port = "qdb_port";
+  std::string qdb_cluster;
+  const std::string key_cluster = "qdbcluster";
 
-  if (config.find(key_host) != config.end()) {
-    host = config.at(key_host);
+  if (config.find(key_cluster) != config.end()) {
+    qdb_cluster = config.at(key_cluster);
+  } else {
+    eos::MDException e(EINVAL);
+    e.getMessage() << __FUNCTION__
+                   << "No qdbcluster configuration info provided";
+    throw e;
   }
 
-  if (config.find(key_port) != config.end()) {
-    port = std::stoul(config.at(key_port));
+  qclient::Members qdb_members;
+
+  if (!qdb_members.parse(qdb_cluster)) {
+    eos::MDException e(EINVAL);
+    e.getMessage() << __FUNCTION__
+                   << "Failed to parse qdbcluster members";
+    throw e;
   }
 
-  pQcl = BackendClient::getInstance(host, port);
-  pIdsSet.setClient(*pQcl);
-  pIdsSet.setKey(sSetQuotaIds);
+  pQcl.reset(new qclient::QClient(qdb_members, true, false));
+  std::string path = "/var/eos/ns-queue/quota/";
+  pFlusher = new MetadataFlusher(path, qdb_members);
 }
 
 //------------------------------------------------------------------------------
@@ -359,10 +326,6 @@ QuotaStats::getQuotaNode(IContainerMD::id_t node_id)
 {
   if (pNodeMap.count(node_id) != 0u) {
     return pNodeMap[node_id];
-  }
-
-  if (!pIdsSet.sismember(node_id)) {
-    return nullptr;
   }
 
   IQuotaNode* ptr = new QuotaNode(this, node_id);
@@ -376,15 +339,9 @@ QuotaStats::getQuotaNode(IContainerMD::id_t node_id)
 IQuotaNode*
 QuotaStats::registerNewNode(IContainerMD::id_t node_id)
 {
-  if (pIdsSet.sismember(node_id)) {
+  if (pNodeMap.count(node_id)) {
     MDException e;
     e.getMessage() << "Quota node already exist: " << node_id;
-    throw e;
-  }
-
-  if (!pIdsSet.sadd(node_id)) {
-    MDException e;
-    e.getMessage() << "Failed to register new quota node: " << node_id;
     throw e;
   }
 
@@ -399,40 +356,81 @@ QuotaStats::registerNewNode(IContainerMD::id_t node_id)
 void
 QuotaStats::removeNode(IContainerMD::id_t node_id)
 {
-  std::string snode_id = std::to_string(node_id);
-
   if (pNodeMap.count(node_id) != 0u) {
     pNodeMap.erase(node_id);
   }
 
-  try {
-    if (!pIdsSet.srem(snode_id)) {
-      MDException e;
-      e.getMessage() << "Quota node " << node_id << " does not exist in set";
-      throw e;
-    }
-
-    // Delete the hmaps associated with the current node
-    std::string key = snode_id + sQuotaUidsSuffix;
-    (void) pQcl->del(key);
-    key = snode_id + sQuotaGidsSuffix;
-    (void) pQcl->del(key);
-  } catch (std::runtime_error& qdb_err) {
-    MDException e;
-    e.getMessage() << "Remove quota node " << node_id << " failed - "
-                   << qdb_err.what();
-    throw e;
-  }
+  std::string snode_id = std::to_string(node_id);
+  pFlusher->del(KeyQuotaUidMap(snode_id));
+  pFlusher->del(KeyQuotaGidMap(snode_id));
 }
 
 //------------------------------------------------------------------------------
 // Get the set of all quota node ids. The quota node id corresponds to the
 // container id.
 //------------------------------------------------------------------------------
-std::set<std::string>
+std::unordered_set<IContainerMD::id_t>
 QuotaStats::getAllIds()
 {
-  return pIdsSet.smembers();
+  std::unordered_set<IContainerMD::id_t> quota_ids;
+  qclient::QScanner quota_set(*(pQcl.get()), quota::sPrefix + "*:*");
+  std::vector<std::string> results;
+
+  while (quota_set.next(results)) {
+    for (const std::string& rep : results) {
+      // Extract quota node id
+      IContainerMD::id_t id = 0;
+
+      if (ParseQuotaId(rep, id)) {
+        quota_ids.insert(id);
+      }
+    }
+  }
+
+  return quota_ids;
+}
+
+//------------------------------------------------------------------------------
+// Get quota node uid map key
+//------------------------------------------------------------------------------
+std::string
+QuotaStats:: KeyQuotaUidMap(const std::string& sid)
+{
+  return quota::sPrefix + sid + ":" + quota::sUidsSuffix;
+}
+
+//------------------------------------------------------------------------------
+// Get quota node gid map key
+//------------------------------------------------------------------------------
+std::string
+QuotaStats::KeyQuotaGidMap(const std::string& sid)
+{
+  return quota::sPrefix + sid + ":" + quota::sGidsSuffix;
+}
+
+//------------------------------------------------------------------------------
+// Parse quota id from string
+//------------------------------------------------------------------------------
+bool
+QuotaStats::ParseQuotaId(const std::string& input, IContainerMD::id_t& id)
+{
+  std::vector<std::string> parts =
+    eos::common::StringTokenizer::split< std::vector<std::string> >(input, ':');
+
+  if (parts.size() != 3) {
+    return false;
+  }
+
+  if (parts[0] + ":" != quota::sPrefix) {
+    return false;
+  }
+
+  if ((parts[2] != quota::sUidsSuffix) && (parts[2] != quota::sGidsSuffix)) {
+    return false;
+  }
+
+  id = std::stoull(parts[1]);
+  return true;
 }
 
 EOSNSNAMESPACE_END

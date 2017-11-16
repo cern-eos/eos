@@ -21,16 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOS_NS_IQUOTA_HH__
-#define __EOS_NS_IQUOTA_HH__
-
+#pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include <iostream>
 #include <memory>
 #include <map>
-#include <set>
+#include <unordered_set>
 #include <vector>
 
 EOSNSNAMESPACE_BEGIN
@@ -132,7 +130,7 @@ public:
   //!
   //! @return set of uids
   //----------------------------------------------------------------------------
-  virtual std::vector<unsigned long> getUids() = 0;
+  virtual std::unordered_set<uint64_t> getUids() = 0;
 
   //----------------------------------------------------------------------------
   //! Get the set of gids for which information is stored in the current quota
@@ -140,7 +138,7 @@ public:
   //!
   //! @return set of gids
   //----------------------------------------------------------------------------
-  virtual std::vector<unsigned long> getGids() = 0;
+  virtual std::unordered_set<uint64_t> getGids() = 0;
 
 protected:
   IQuotaStats* pQuotaStats;
@@ -199,7 +197,7 @@ public:
   //!
   //! @return set of quota node ids
   //----------------------------------------------------------------------------
-  virtual std::set<std::string> getAllIds() = 0;
+  virtual std::unordered_set<IContainerMD::id_t> getAllIds() = 0;
 
   //----------------------------------------------------------------------------
   //! Register a mapping function used to calculate the physical
@@ -229,5 +227,3 @@ protected:
 };
 
 EOSNSNAMESPACE_END
-
-#endif // __EOS_NS_IQUOTA_HH__

@@ -21,14 +21,11 @@
 //! @brief Metadata flushing towards QuarkDB
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_METADATA_FLUSHER_HH__
-#define __EOS_NS_METADATA_FLUSHER_HH__
-
+#pragma once
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
-#include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "qclient/BackgroundFlusher.hh"
 #include "qclient/AssistedThread.hh"
 #include <list>
@@ -64,12 +61,19 @@ public:
   MetadataFlusher(const std::string& path, const std::string& host, int port);
 
   //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  MetadataFlusher(const std::string& path, qclient::Members& qdb_members);
+
+  //----------------------------------------------------------------------------
   //! Methods to stage redis commands for background flushing.
   //----------------------------------------------------------------------------
   void del(const std::string& key);
   void hdel(const std::string& key, const std::string& field);
   void hset(const std::string& key, const std::string& field,
             const std::string& value);
+  void hincrby(const std::string& kye, const std::string& field,
+               int64_t value);
   void sadd(const std::string& key, const std::string& field);
   void srem(const std::string& key, const std::string& field);
   void srem(const std::string& key, const std::list<std::string>& items);
@@ -108,5 +112,3 @@ private:
 };
 
 EOSNSNAMESPACE_END
-
-#endif

@@ -21,9 +21,7 @@
 // desc:   User quota accounting
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_QUOTA_STATS_HH
-#define EOS_NS_QUOTA_STATS_HH
-
+#pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
 #include <map>
@@ -164,7 +162,7 @@ public:
   //!
   //! @return set of uids
   //----------------------------------------------------------------------------
-  std::vector<unsigned long> getUids() override;
+  std::unordered_set<uint64_t> getUids() override;
 
   //----------------------------------------------------------------------------
   //! Get the set of gids for which information is stored in the current quota
@@ -172,7 +170,7 @@ public:
   //!
   //! @return set of gids
   //----------------------------------------------------------------------------
-  std::vector<unsigned long> getGids() override;
+  std::unordered_set<uint64_t> getGids() override;
 
   UserMap pUserUsage;
   GroupMap pGroupUsage;
@@ -210,7 +208,7 @@ public:
   //!
   //! @return set of quota node ids
   //----------------------------------------------------------------------------
-  std::set<std::string> getAllIds() override;
+  std::unordered_set<IContainerMD::id_t> getAllIds() override;
 
   //----------------------------------------------------------------------------
   //! Get a quota node associated to the container id
@@ -232,5 +230,3 @@ private:
 };
 
 EOSNSNAMESPACE_END
-
-#endif // EOS_NS_QUOTA_STATS_HH

@@ -68,9 +68,7 @@ add_library(
   persistency/ContainerMDSvc.cc      persistency/ContainerMDSvc.hh
   persistency/FileMDSvc.cc           persistency/FileMDSvc.hh
   persistency/NextInodeProvider.cc   persistency/NextInodeProvider.hh
-
   flusher/MetadataFlusher.cc         flusher/MetadataFlusher.hh
-
   views/HierarchicalView.cc          views/HierarchicalView.hh
   accounting/QuotaStats.cc           accounting/QuotaStats.hh
   accounting/FileSystemView.cc       accounting/FileSystemView.hh

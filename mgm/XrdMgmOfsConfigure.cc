@@ -718,8 +718,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         }
 
         if (!strcmp("qdbcluster", var)) {
-          if ((val = Config.GetLine())) {
-            mQdbCluster  = val;
+          while ((val = Config.GetWord())) {
+            mQdbCluster += val;
+            mQdbCluster += " ";
           }
 
           Eroute.Say("=====> mgmofs.qdbcluster : ", mQdbCluster.c_str());

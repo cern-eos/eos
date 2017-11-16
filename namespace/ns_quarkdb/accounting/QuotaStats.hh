@@ -21,17 +21,17 @@
 //! @brief Quota accounting on top of Redis
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_QUOTA_STATS_HH
-#define EOS_NS_QUOTA_STATS_HH
-
+#pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+
 
 EOSNSNAMESPACE_BEGIN
 
 //! Forward declaration
 class QuotaStats;
+class MetadataFlusher;
 
 //------------------------------------------------------------------------------
 //! QuotaNode class which keeps track of user/group volume/inode use
@@ -40,26 +40,23 @@ class QuotaStats;
 //! corresponding container. Each such object saves two HMAPs in the Redis
 //! instance using the following convention:
 //!
-//! 1. id_t:quota_hmap_uid - this is the HMAP key, where id_t is the id of the
+//! 1. quota::id:map_uid - this is the HMAP key, where id is the id of the
 //!    corresponding container. It contains only information about the uids
-//!    of the uses who have written to the container.
+//!    of the users who have written to the container.
 //!
-//!    { uid1:space          --> val1,
-//!      uid1:physical_space --> val2,
+//!    { uid1:logical_size   --> val1,
+//!      uid1:physical_size  --> val2,
 //!      uid1:files          --> val3,
 //!      ...
 //!      uidn:files          --> val3n }
 //!
-//! 2. id_t:quota_hmap_gid - the same for group ids
+//! 2. quota:id_t:map_gid - the same for group ids
 //!
-//!   { gid1:space          --> val1,
-//!     gid1:physical_space --> val2,
+//!   { gid1:logical_size   --> val1,
+//!     gid1:physical_size  --> val2,
 //!     gid1:files          --> val3,
 //!     ...
-//!     gidm:files          --> val3m}
-//!
-//! Besides these, we also save the ids of all the containers that are also
-//! quota nodes in a set structure called "quota_set_ids".
+//!     gidm:files          --> val3m }
 //------------------------------------------------------------------------------
 class QuotaNode : public IQuotaNode
 {
@@ -69,6 +66,9 @@ class QuotaNode : public IQuotaNode
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param quotaStats quota stats object
+  //! @param node_id quota node id
   //----------------------------------------------------------------------------
   QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t node_id);
 
@@ -136,20 +136,12 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get the set of all quota node ids. The quota node id corresponds to the
-  //! container id.
-  //!
-  //! @return set of quota node ids
-  //----------------------------------------------------------------------------
-  std::set<std::string> getAllIds();
-
-  //----------------------------------------------------------------------------
   //! Get the set of uids for which information is stored in the current quota
   //! node.
   //!
   //! @return vector of uids
   //----------------------------------------------------------------------------
-  std::vector<uint64_t> getUids() override;
+  std::unordered_set<uint64_t> getUids() override;
 
   //----------------------------------------------------------------------------
   //! Get the set of gids for which information is stored in the current quota
@@ -157,7 +149,7 @@ public:
   //!
   //! @return vector of gids
   //----------------------------------------------------------------------------
-  std::vector<uint64_t> getGids() override;
+  std::unordered_set<uint64_t> getGids() override;
 
 private:
   //----------------------------------------------------------------------------
@@ -174,7 +166,6 @@ private:
   //----------------------------------------------------------------------------
   std::vector<std::string> getAllGidFields();
 
-  qclient::QClient* pQcl; ///< Backend client
   //! Quota quota node uid hash key e.g. quota_node:id_t:uid
   std::string pQuotaUidKey;
   //! Quota quota node gid hash key e.g. quota_node:id_t:gid
@@ -182,9 +173,8 @@ private:
   qclient::QHash pUidMap; ///< Backend map for uids
   qclient::QHash pGidMap; ///< Backend map for gids
   qclient::AsyncHandler pAh; ///< Async handler for qclient requests
-  static const std::string sSpaceTag;         ///< Tag for space quota
-  static const std::string sPhysicalSpaceTag; ///< Tag for physical space quota
-  static const std::string sFilesTag;         ///< Tag for number of files quota
+  qclient::QClient* pQcl; ///< Backend client from QuotaStats
+  MetadataFlusher* pFlusher; ///< Metadata flusher object from QuotaStats
 };
 
 //----------------------------------------------------------------------------
@@ -205,7 +195,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaStats(): pQcl(nullptr) {}
+  QuotaStats();
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -239,17 +229,40 @@ public:
   //!
   //! @return set of quota node ids
   //----------------------------------------------------------------------------
-  std::set<std::string> getAllIds() override;
+  std::unordered_set<IContainerMD::id_t> getAllIds() override;
 
 private:
-  static const std::string sSetQuotaIds;     ///< Ket of quota node ids set
-  static const std::string sQuotaUidsSuffix; ///< Quota hmap of uids suffix
-  static const std::string sQuotaGidsSuffix; ///< Quota hmap of gids suffix
+  //----------------------------------------------------------------------------
+  //! Get quota node uid map key
+  //!
+  //! @param sid container id
+  //!
+  //! @return map key
+  //----------------------------------------------------------------------------
+  static std::string KeyQuotaUidMap(const std::string& sid);
+
+  //----------------------------------------------------------------------------
+  //! Get quota node gid map key
+  //!
+  //! @param sid container id
+  //!
+  //! @return map key
+  //----------------------------------------------------------------------------
+  static std::string KeyQuotaGidMap(const std::string& sid);
+
+  //----------------------------------------------------------------------------
+  //! Parse quota id from string
+  //!
+  //! @param inpurt input string in the form: <prefix>:id:<suffix>
+  //! @param id quota node id
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool ParseQuotaId(const std::string& input, IContainerMD::id_t& id);
+
   std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
-  qclient::QClient* pQcl; ///< Backend client
-  qclient::QSet pIdsSet; ///< Set of quota node ids
+  std::unique_ptr<qclient::QClient> pQcl; ///< Backend client
+  MetadataFlusher* pFlusher; ///< Metadata flusher object
 };
 
 EOSNSNAMESPACE_END
-
-#endif // EOS_NS_QUOTA_STATS_HH

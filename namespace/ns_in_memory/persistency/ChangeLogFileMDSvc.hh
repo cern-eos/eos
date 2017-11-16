@@ -28,7 +28,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
-#include "namespace/ns_in_memory/accounting/QuotaStats.hh"
+#include "namespace/interface/IQuota.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
 #include "common/Murmur3.hh"
 #include "common/hopscotch_map.hh"

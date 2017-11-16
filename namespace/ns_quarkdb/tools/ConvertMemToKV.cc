@@ -21,7 +21,6 @@
 #include "common/Parallel.hh"
 #include "namespace/Constants.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/utils/DataHelper.hh"
@@ -854,37 +853,26 @@ ConvertQuotaView::commitToBackend()
 {
   qclient::AsyncHandler ah;
   qclient::QClient qcl {sBkndHost, sBkndPort, true, true};
-  qclient::QSet set_quotaids(qcl, quota::sSetQuotaIds);
-  // Export the set of quota nodes
-  ah.Register(set_quotaids.sadd_async(mSetQuotaIds), set_quotaids.getClient());
-  mSetQuotaIds.clear();
-
-  if (!ah.Wait()) {
-    std::cerr << __FUNCTION__ << " Got error response from the backend "
-              << "while exporting the quota view" << std::endl;
-    std::terminate();
-  }
-
   std::string uid_key, gid_key;
   std::uint64_t count = 0u;
   std::uint64_t max_count = 100;
 
   for (auto it = mQuotaMap.begin(); it != mQuotaMap.end(); ++it) {
     ++count;
-    uid_key = it->first + quota::sQuotaUidsSuffix;
-    gid_key = it->first + quota::sQuotaGidsSuffix;
+    uid_key = KeyQuotaUidMap(it->first);
+    gid_key = KeyQuotaGidMap(it->first);
     QuotaNodeMapT& uid_map = it->second.first;
     QuotaNodeMapT& gid_map = it->second.second;
     qclient::QHash quota_map(*sQcl, uid_key);
 
     for (auto& elem : uid_map) {
       eos::IQuotaNode::UsageInfo& info = elem.second;
-      std::string field = elem.first + quota::sPhysicalSpaceTag;
+      std::string field = elem.first + quota::sPhysicalSize;
       ah.Register(quota_map.hset_async(field, info.physicalSpace),
                   quota_map.getClient());
-      field = elem.first + quota::sSpaceTag;
+      field = elem.first + quota::sLogicalSize;
       ah.Register(quota_map.hset_async(field, info.space), quota_map.getClient());
-      field = elem.first + quota::sFilesTag;
+      field = elem.first + quota::sNumFiles;
       ah.Register(quota_map.hset_async(field, info.files), quota_map.getClient());
     }
 
@@ -892,13 +880,13 @@ ConvertQuotaView::commitToBackend()
 
     for (auto& elem : gid_map) {
       eos::IQuotaNode::UsageInfo& info = elem.second;
-      std::string field = elem.first + quota::sPhysicalSpaceTag;
+      std::string field = elem.first + quota::sPhysicalSize;
       ah.Register(quota_map.hset_async(field, info.physicalSpace),
                   quota_map.getClient());
-      field = elem.first + quota::sSpaceTag;
+      field = elem.first + quota::sLogicalSize;
       ah.Register(quota_map.hset_async(field, info.space),
                   quota_map.getClient());
-      field = elem.first + quota::sFilesTag;
+      field = elem.first + quota::sPhysicalSize;
       ah.Register(quota_map.hset_async(field, info.files), quota_map.getClient());
     }
 

@@ -48,6 +48,21 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
 }
 
 //------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+MetadataFlusher::MetadataFlusher(const std::string& path,
+                                 qclient::Members& qdb_members):
+  notifier(*this),
+  qcl(qdb_members, true, false),
+  backgroundFlusher(qcl, notifier, 50000 /* size limit */,
+                    5000 /* pipeline length */,
+                    new qclient::RocksDBPersistency(path)),
+  sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
+{
+  synchronize();
+}
+
+//------------------------------------------------------------------------------
 // Regularly print queue statistics
 //------------------------------------------------------------------------------
 void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant& assistant)
@@ -57,7 +72,7 @@ void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant& assistant)
                     backgroundFlusher.size(),
                     backgroundFlusher.getEnqueuedAndClear(),
                     backgroundFlusher.getAcknowledgedAndClear());
-    assistant.wait_for(std::chrono::seconds(1));
+    assistant.wait_for(std::chrono::seconds(10));
   }
 }
 
@@ -68,6 +83,15 @@ void MetadataFlusher::hset(const std::string& key, const std::string& field,
                            const std::string& value)
 {
   backgroundFlusher.pushRequest({"HSET", key, field, value});
+}
+
+//------------------------------------------------------------------------------
+// Queue an hincrby command
+//------------------------------------------------------------------------------
+void MetadataFlusher::hincrby(const std::string& key, const std::string& field,
+                              int64_t value)
+{
+  backgroundFlusher.pushRequest({"HINCRBY", key, field, std::to_string(value)});
 }
 
 //------------------------------------------------------------------------------
