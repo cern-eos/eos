@@ -149,7 +149,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
   if (fsname.length())
   {
-    if ( (! (fsname.find("@"))) && (! (fsname.find(":"))) )
+    if ( ((fsname.find("@")==std::string::npos)) && ((fsname.find(":")==std::string::npos)) )
     {
       jsonconfig += ".";
       jsonconfig += fsname;
@@ -157,6 +157,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
   }
   jsonconfig += ".conf";
 
+  fprintf(stderr,"jsonconfig=%s\n", jsonconfig.c_str());
 #ifndef __APPLE__
   if (::access("/bin/fusermount", X_OK))
   {
@@ -194,6 +195,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     Json::Value root;
     Json::Reader reader;
     struct stat configstat;
+    
+    bool has_config = false;
 
     if (!::stat(jsonconfig.c_str(),&configstat))
     {
@@ -201,6 +204,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       if (reader.parse(configfile, root, false))
       {
 	fprintf(stderr, "# JSON parsing successfull\n");
+	has_config = true;
       }
       else
       {
@@ -216,14 +220,20 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
     if (!root.isMember("hostport"))
     {
+      if (has_config)
+      {
+	fprintf(stderr,"error: please configure 'hostport' in your configuration file '%s'\n", jsonconfig.c_str());
+	exit(EINVAL);
+      }
+
       if (!fsname.length())
       {
-	fprintf(stderr,"error: please configure the EOS endpoint via fsname=<user>@<host\n");
+	fprintf(stderr,"error: please configure the EOS endpoint via fsname=<user>@<host\n");       
 	exit(EINVAL);
       }
       if ((fsname.find(".") == std::string::npos))
       {
-	fprintf(stderr,"error: when running without a configuration file 'hostport' variable you need to configure the EOS endpoint via fsname=<host>.<domain> - the domain has to be added!\n");
+	fprintf(stderr,"error: when running without a configuration file you need to configure the EOS endpoint via fsname=<host>.<domain> - the domain has to be added!\n");
 	exit(EINVAL);
       }
       size_t pos_add;
