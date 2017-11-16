@@ -157,7 +157,6 @@ EosFuse::run(int argc, char* argv[], void *userdata)
   }
   jsonconfig += ".conf";
 
-  fprintf(stderr,"jsonconfig=%s\n", jsonconfig.c_str());
 #ifndef __APPLE__
   if (::access("/bin/fusermount", X_OK))
   {
