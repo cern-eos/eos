@@ -293,14 +293,14 @@ void
 QuotaStats::configure(const std::map<std::string, std::string>& config)
 {
   std::string qdb_cluster;
-  const std::string key_cluster = "qdbcluster";
+  const std::string key_cluster = "qdb_cluster";
 
   if (config.find(key_cluster) != config.end()) {
     qdb_cluster = config.at(key_cluster);
   } else {
     eos::MDException e(EINVAL);
     e.getMessage() << __FUNCTION__
-                   << "No qdbcluster configuration info provided";
+                   << " No qdbcluster configuration info provided";
     throw e;
   }
 
@@ -309,7 +309,7 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
   if (!qdb_members.parse(qdb_cluster)) {
     eos::MDException e(EINVAL);
     e.getMessage() << __FUNCTION__
-                   << "Failed to parse qdbcluster members";
+                   << " Failed to parse qdbcluster members";
     throw e;
   }
 

@@ -92,6 +92,34 @@ BackendClient::getInstance(const std::string& host, uint32_t port)
 }
 
 //------------------------------------------------------------------------------
+// Get client for a particular quarkdb instance specified as a list of cluster
+// members
+//------------------------------------------------------------------------------
+qclient::QClient*
+BackendClient::getInstance(const qclient::Members& qdb_members)
+{
+  std::ostringstream oss;
+
+  for (const auto& elem : qdb_members.getEndpoints()) {
+    oss << elem.toString() << " ";
+  }
+
+  std::string qdb_id = oss.str();
+  qdb_id.pop_back();
+  qclient::QClient* instance{nullptr};
+  std::lock_guard<std::mutex> lock(pMutexMap);
+
+  if (pMapClients.find(qdb_id) == pMapClients.end()) {
+    instance = new qclient::QClient(qdb_members, true, false);
+    pMapClients.insert(std::make_pair(qdb_id, instance));
+  } else {
+    instance = pMapClients[qdb_id];
+  }
+
+  return instance;
+}
+
+//------------------------------------------------------------------------------
 // Initialization and finalization
 //------------------------------------------------------------------------------
 namespace

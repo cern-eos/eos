@@ -30,11 +30,8 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileSystemView::FileSystemView():
-  pQcl(BackendClient::getInstance()),
-  pNoReplicasSet(*pQcl, fsview::sNoReplicaPrefix)
-{
-  pFlusher = nullptr;
-}
+  pFlusher(nullptr), pQcl(nullptr)
+{}
 
 //------------------------------------------------------------------------------
 // Configure the container service
@@ -42,22 +39,26 @@ FileSystemView::FileSystemView():
 void
 FileSystemView::configure(const std::map<std::string, std::string>& config)
 {
-  uint32_t port{0};
-  std::string host{""};
-  const std::string key_host = "qdb_host";
-  const std::string key_port = "qdb_port";
+  std::string qdb_cluster;
+  const std::string key_cluster = "qdb_cluster";
 
-  if (config.find(key_host) != config.end()) {
-    host = config.at(key_host);
+  if (config.find(key_cluster) != config.end()) {
+    qdb_cluster = config.at(key_cluster);
   }
 
-  if (config.find(key_port) != config.end()) {
-    port = std::stoul(config.at(key_port));
+  qclient::Members qdb_members;
+
+  if (!qdb_members.parse(qdb_cluster)) {
+    eos::MDException e(EINVAL);
+    e.getMessage() << __FUNCTION__
+                   << " Failed to parse qdbcluster members";
+    throw e;
   }
 
-  pQcl = BackendClient::getInstance(host, port);
+  pQcl = BackendClient::getInstance(qdb_members);
   pNoReplicasSet.setClient(*pQcl);
-  pFlusher = MetadataFlusherFactory::getInstance("default", host, port);
+  // @todo (esindril): use the qdb_cluster id
+  pFlusher = MetadataFlusherFactory::getInstance("default", "localhost", 7777);
 }
 
 //------------------------------------------------------------------------------

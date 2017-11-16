@@ -44,31 +44,41 @@ FileMDSvc::FileMDSvc()
 void
 FileMDSvc::configure(const std::map<std::string, std::string>& config)
 {
-  uint32_t port = 0;
-  std::string host;
-  const std::string key_host = "qdb_host";
-  const std::string key_port = "qdb_port";
+  std::string qdb_cluster;
+  const std::string key_cluster = "qdb_cluster";
   const std::string cache_size = "file_cache_size";
 
-  if (config.find(key_host) != config.end()) {
-    host = config.at(key_host);
-  }
-
-  if (config.find(key_port) != config.end()) {
-    port = std::stoul(config.at(key_port));
+  if (config.find(key_cluster) != config.end()) {
+    qdb_cluster = config.at(key_cluster);
+  } else {
+    eos::MDException e(EINVAL);
+    e.getMessage() << __FUNCTION__
+                   << " No qdbcluster configuration info provided";
+    throw e;
   }
 
   if (config.find(cache_size) != config.end()) {
     mFileCache.set_max_size(std::stoull(config.at(cache_size)));
   }
 
-  pQcl = BackendClient::getInstance(host, port);
+  qclient::Members qdb_members;
+
+  if (!qdb_members.parse(qdb_cluster)) {
+    eos::MDException e(EINVAL);
+    e.getMessage() << __FUNCTION__
+                   << " Failed to parse qdbcluster members";
+    throw e;
+  }
+
+  pQcl = BackendClient::getInstance(qdb_members);
   mMetaMap.setKey(constants::sMapMetaInfoKey);
   mMetaMap.setClient(*pQcl);
   mDirtyFidBackend.setKey(constants::sSetCheckFiles);
   mDirtyFidBackend.setClient(*pQcl);
   inodeProvider.configure(mMetaMap, constants::sLastUsedFid);
-  pFlusher = MetadataFlusherFactory::getInstance("default", host, port);
+  // @todo (esindril): add protection in case there are container with bigger
+  // ids in the backend
+  pFlusher = MetadataFlusherFactory::getInstance("default", "localhost", 7777);
 }
 
 //------------------------------------------------------------------------------

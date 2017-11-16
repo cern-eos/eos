@@ -26,6 +26,7 @@
 #include "qclient/QClient.hh"
 #include "qclient/QHash.hh"
 #include "qclient/QSet.hh"
+#include "qclient/Members.hh"
 #include "qclient/AsyncHandler.hh"
 #include <atomic>
 #include <map>
@@ -59,8 +60,18 @@ public:
   //!
   //! @return qclient object
   //----------------------------------------------------------------------------
-  static qclient::QClient* getInstance(const std::string& host = "",
-                                       uint32_t port = 0);
+  static qclient::QClient* getInstance(const std::string& host,
+                                       uint32_t port);
+
+  //----------------------------------------------------------------------------
+  //! Get client for a particular quarkdb instance specified as a list of
+  //! cluster members.
+  //!
+  //! @param qdb_members QuarkDB cluster members
+  //!
+  //! @return qclient object
+  //----------------------------------------------------------------------------
+  static qclient::QClient* getInstance(const qclient::Members& qdb_members);
 
 private:
   friend class MetadataFlusherFactory;

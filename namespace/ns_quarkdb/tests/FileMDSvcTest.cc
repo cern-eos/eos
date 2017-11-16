@@ -45,7 +45,9 @@ TEST(FileMDSvc, LoadTest)
   std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
     {"qdb_port", "7778"}
   };
-  eos::MetadataFlusher *flusher = eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"], std::stoi(config["qdb_port"]));
+  eos::MetadataFlusher* flusher =
+    eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"],
+        std::stoi(config["qdb_port"]));
   fileSvc->configure(config);
   ASSERT_NO_THROW(fileSvc->initialize());
   std::shared_ptr<eos::IFileMD> file1 = fileSvc->createFile();
@@ -104,7 +106,8 @@ TEST(FileMDSvc, CheckFileTest)
 {
   std::map<std::string, std::string> config = {
     {"qdb_host", "localhost"},
-    {"qdb_port", "7778"}
+    {"qdb_port", "7778"},
+    {"qdb_cluster", "localhost:7778"}
   };
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
@@ -135,17 +138,19 @@ TEST(FileMDSvc, CheckFileTest)
   }
 
   // There should be 4 filesystems now
-  eos::MetadataFlusher *flusher = eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"], std::stoi(config["qdb_port"]));
+  eos::MetadataFlusher* flusher =
+    eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"],
+        std::stoi(config["qdb_port"]));
   flusher->synchronize();
-
   auto it = fsView->getFilesystemIterator();
-  for(size_t i = 1; i <= 4; i++) {
+
+  for (size_t i = 1; i <= 4; i++) {
     ASSERT_TRUE(it->valid()) << i;
     ASSERT_EQ(i, it->getFilesystemID());
     it->next();
   }
-  ASSERT_FALSE(it->valid());
 
+  ASSERT_FALSE(it->valid());
   file->unlinkLocation(3);
   file->unlinkLocation(4);
   view->updateFileStore(file.get());

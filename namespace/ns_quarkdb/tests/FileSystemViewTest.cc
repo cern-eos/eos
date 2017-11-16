@@ -78,7 +78,6 @@ TEST(FileSystemView, FileSetKey)
 {
   ASSERT_EQ(eos::keyFilesystemFiles(50), "fsview:50:files");
   ASSERT_EQ(eos::keyFilesystemFiles(123), "fsview:123:files");
-
   ASSERT_EQ(eos::keyFilesystemUnlinked(10), "fsview:10:unlinked");
   ASSERT_EQ(eos::keyFilesystemUnlinked(999), "fsview:999:unlinked");
 }
@@ -87,15 +86,12 @@ TEST(FileSystemView, ParseFsId)
 {
   eos::IFileMD::location_t fsid;
   bool unlinked;
-
   ASSERT_TRUE(eos::parseFsId("fsview:1:files", fsid, unlinked));
   ASSERT_EQ(fsid, 1);
   ASSERT_FALSE(unlinked);
-
   ASSERT_TRUE(eos::parseFsId("fsview:999:unlinked", fsid, unlinked));
   ASSERT_EQ(fsid, 999);
   ASSERT_TRUE(unlinked);
-
   ASSERT_FALSE(eos::parseFsId("fsview:9:99:unlinked", fsid, unlinked));
   ASSERT_FALSE(eos::parseFsId("fsview:999:uNlinked", fsid, unlinked));
   ASSERT_FALSE(eos::parseFsId("fsVIew:1337:unlinked", fsid, unlinked));
@@ -109,10 +105,14 @@ TEST(FileSystemView, BasicSanity)
   srandom(time(nullptr));
 
   try {
-    std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
-      {"qdb_port", "7778"}
+    std::map<std::string, std::string> config = {
+      {"qdb_host", "localhost"},
+      {"qdb_port", "7778"},
+      {"qdb_cluster", "localhost:7778"}
     };
-    eos::MetadataFlusher *flusher = eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"], std::stoi(config["qdb_port"]));
+    eos::MetadataFlusher* flusher =
+      eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"],
+          std::stoi(config["qdb_port"]));
     std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
     std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
     std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};

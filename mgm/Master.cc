@@ -1887,12 +1887,12 @@ Master::BootNamespace()
     gOFS->MgmNsFileChangeLogFile = oss.str().c_str();
   } else {
     if (gOFS->mQdbCluster.empty()) {
-      eos_alert("msg=\"mgmofs.qdbcluster configuration is missing");
-      MasterLog(eos_err("msg=\"mgm.qdbcluster configuration is missing"));
+      eos_alert("msg=\"mgmofs.qdbcluster configuration is missing\"");
+      MasterLog(eos_err("msg=\"mgm.qdbcluster configuration is missing\""));
       return false;
     } else {
-      contSettings["qdbcluster"] = gOFS->mQdbCluster;
-      fileSettings["qdbcluster"] = gOFS->mQdbCluster;
+      contSettings["qdb_cluster"] = gOFS->mQdbCluster;
+      fileSettings["qdb_cluster"] = gOFS->mQdbCluster;
     }
   }
 
