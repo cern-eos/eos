@@ -717,6 +717,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           Eroute.Say("=====> mgmofs.nslib : ", ns_lib_path.c_str());
         }
 
+        if (!strcmp("qdbcluster", var)) {
+          if ((val = Config.GetLine())) {
+            mQdbCluster  = val;
+          }
+
+          Eroute.Say("=====> mgmofs.qdbcluster : ", mQdbCluster.c_str());
+        }
+
         if (!strcmp("authlib", var)) {
           if ((!(val = Config.GetWord())) || (::access(val, R_OK))) {
             Eroute.Emsg("Config", "I cannot acccess you authorization library!");

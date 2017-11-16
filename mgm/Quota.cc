@@ -407,7 +407,7 @@ SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
         mMapIdQuota[Index(kGroupFilesIs, Quota::gProjectId)] = 0;
         mMapIdQuota[Index(kGroupLogicalBytesIs, Quota::gProjectId)] = 0;
         // Loop over users and fill project quota
-        std::vector<unsigned long> uids = mQuotaNode->getUids();
+        auto uids = mQuotaNode->getUids();
 
         for (auto itu = uids.begin(); itu != uids.end(); ++itu) {
           AddQuota(kGroupBytesIs, Quota::gProjectId,
@@ -1006,7 +1006,7 @@ SpaceQuota::AccountNsToSpace()
     ResetQuota(kGroupFilesIs, Quota::gProjectId);
     ResetQuota(kGroupLogicalBytesIs, Quota::gProjectId);
     // Loop over users
-    std::vector<unsigned long> uids = mQuotaNode->getUids();
+    auto uids = mQuotaNode->getUids();
 
     for (auto itu = uids.begin(); itu != uids.end(); ++itu) {
       ResetQuota(kUserBytesIs, *itu);
@@ -1026,7 +1026,7 @@ SpaceQuota::AccountNsToSpace()
       }
     }
 
-    std::vector<unsigned long> gids = mQuotaNode->getGids();
+    auto gids = mQuotaNode->getGids();
 
     for (auto itg = gids.begin(); itg != gids.end(); ++itg) {
       // Don't update the project quota directory from the quota
@@ -1723,11 +1723,11 @@ Quota::LoadNodes()
     std::string quota_path;
     std::shared_ptr<eos::IContainerMD> container;
     eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
-    std::set<std::string> set_ids = gOFS->eosView->getQuotaStats()->getAllIds();
+    auto set_ids = gOFS->eosView->getQuotaStats()->getAllIds();
 
-    for (auto it = set_ids.begin(); it != set_ids.end(); ++it) {
+    for (const auto elem : set_ids) {
       try {
-        container = gOFS->eosDirectoryService->getContainerMD(std::stoull(*it));
+        container = gOFS->eosDirectoryService->getContainerMD(elem);
         quota_path = gOFS->eosView->getUri(container.get());
 
         // Make sure directories are '/' terminated

@@ -1864,16 +1864,6 @@ Master::BootNamespace()
               "via EOS_NS_DIR_SIZE && EOS_NS_FILE_SIZE in /etc/sysconfig/eos\"");
   }
 
-  if (getenv("EOS_NS_QDB_HOST")) {
-    contSettings["qdb_host"] = getenv("EOS_NS_QDB_HOST");
-    fileSettings["qdb_host"] = getenv("EOS_NS_QDB_HOST");
-  }
-
-  if (getenv("EOS_NS_QDB_PORT")) {
-    contSettings["qdb_port"] = getenv("EOS_NS_QDB_PORT");
-    fileSettings["qdb_port"] = getenv("EOS_NS_QDB_PORT");
-  }
-
   if (!IsMaster()) {
     contSettings["slave_mode"] = "true";
     contSettings["poll_interval_us"] = "1000";
@@ -1895,6 +1885,15 @@ Master::BootNamespace()
         << fMasterHost.c_str() << ".mdlog";
     fileSettings["changelog_path"] = oss.str().c_str();
     gOFS->MgmNsFileChangeLogFile = oss.str().c_str();
+  } else {
+    if (gOFS->mQdbCluster.empty()) {
+      eos_alert("msg=\"mgmofs.qdbcluster configuration is missing");
+      MasterLog(eos_err("msg=\"mgm.qdbcluster configuration is missing"));
+      return false;
+    } else {
+      contSettings["qdbcluster"] = gOFS->mQdbCluster;
+      fileSettings["qdbcluster"] = gOFS->mQdbCluster;
+    }
   }
 
   time_t tstart = time(0);

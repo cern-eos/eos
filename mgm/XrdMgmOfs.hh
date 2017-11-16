@@ -1443,6 +1443,7 @@ public:
   std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint
   std::string mFstGwHost; ///< FST gateway redirect fqdn host
   int mFstGwPort; ///< FST gateway redirect port, default 1094
+  std::string mQdbCluster; ///< Quardb cluster info host1:port1 host2:port2 etc.
 
 private:
   eos::common::Mapping::VirtualIdentity vid; ///< virtual identity
