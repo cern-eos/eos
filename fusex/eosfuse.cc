@@ -190,7 +190,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     Json::Reader reader;
 
     struct stat configstat;
-    
+
     bool has_config = false;
 
     if (!::stat(jsonconfig.c_str(),&configstat))
@@ -223,7 +223,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       if (!fsname.length())
       {
-	fprintf(stderr,"error: please configure the EOS endpoint via fsname=<user>@<host\n");       
+	fprintf(stderr,"error: please configure the EOS endpoint via fsname=<user>@<host\n");
 	exit(EINVAL);
       }
       if ((fsname.find(".") == std::string::npos))
@@ -238,7 +238,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 	fsname.erase(0, pos_add+1);
 	fsuser.erase(pos_add);
 
-	if (fsuser == "gw")
+	if ( (fsuser == "gw") || (fsuser == "smb") )
 	{
 	  // if 'gw' = gateway is defined as user name, we enable stable inode support e.g. mdcachedir
 	  if (!root.isMember("mdcachedir"))
@@ -254,6 +254,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 	    fprintf(stderr,"# enabling stable inodes with md-cache in '%s'\n", root["mdcachedir"].asString().c_str());
 	  }
 	  root["auth"]["krb5"] = 0;
+	  if (fsuser == "smb")
+	  {
+	    // enable overlay mode
+	    if (!root["options"].isMember("overlay-mode"))
+	    {
+	      root["options"]["overlay-mode"] = "0777";
+	      fprintf(stderr,"# enabling overlay-mode 0777 for smb export\n");
+	    }
+	  }
 	}
       }
 
@@ -384,8 +393,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
     }
 
-
-
+    if (!root["auth"].isMember("forknoexec-heuristic")) {
+      root["auth"]["forknoexec-heuristic"] = 1;
+    }
 
     const Json::Value jname = root["name"];
     config.name = root["name"].asString();
@@ -409,6 +419,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.symlink_is_sync = root["options"]["symlink-is-sync"].asInt();
     config.options.global_flush = root["options"]["global-flush"].asInt();
     config.options.global_locking = root["options"]["global-locking"].asInt();
+    config.options.overlay_mode = strtol(root["options"]["overlay-mode"].asString().c_str(), 0, 8);
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
@@ -420,6 +431,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
+    config.auth.environ_deadlock_timeout = root["auth"]["environ-deadlock-timeout"].asInt();
+    config.auth.forknoexec_heuristic = root["auth"]["forknoexec-heuristic"].asInt();
+
+    if(config.auth.environ_deadlock_timeout <= 0) {
+      config.auth.environ_deadlock_timeout = 100;
+    }
 
     for ( Json::Value::iterator it=root["options"]["no-fsync"].begin() ; it!=root["options"]["no-fsync"].end(); ++it)
     {
@@ -955,8 +972,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.libfusethreads ? "libfuse" : "custom");
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d flush:%d locking:%d no-fsync:%s",
-                       config.options.md_kernelcache,
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o",
+		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
                        config.options.data_kernelcache,
@@ -965,8 +982,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.symlink_is_sync,
                        config.options.global_flush,
                        config.options.global_locking,
-                       no_fsync_list.c_str()
-                      );
+		       no_fsync_list.c_str(), 
+		       config.options.overlay_mode
+		       );
+
     fusesession = fuse_lowlevel_new(&args,
                                     &(get_operations()),
                                     sizeof(operations), NULL);
@@ -2318,6 +2337,12 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
   eos_static_debug("flags=%x", fi->flags);
+
+// FMODE_EXEC: "secret" internal flag which can be set only by the kernel when it's
+// reading a file destined to be used as an image for an execve.
+#define FMODE_EXEC 0x20
+  ExecveAlert execve(fi->flags & FMODE_EXEC);
+
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor mon(__func__, Instance().Tracker(), ino, true);

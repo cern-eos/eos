@@ -209,6 +209,7 @@ public:
       int global_flush;
       int global_locking;
       int fdlimit;
+      mode_t overlay_mode;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
     options_t options;
