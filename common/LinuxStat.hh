@@ -116,9 +116,10 @@ public:
       return false;
     }
 
-    // coverity[DC.STREAM_BUFFER]
-    if (41 != fscanf(f,
-                     "%lld %s %c %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld\n",
+    if (41 != fscanf(f, "%lld %s %c %lld %lld %lld %lld %lld %lld %lld %lld "
+                     "%lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld "
+                     "%lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld "
+                     "%lld %lld %lld %lld %lld %lld %lld %lld\n",
                      &result.pid, result.tcomm, &result.state, &result.ppid, &result.pgid,
                      &result.sid, &result.tty_nr, &result.tty_pgrp, &result.flags, &result.min_flt,
                      &result.cmin_flt, &result.maj_flt, &result.cmaj_flt, &result.utime,

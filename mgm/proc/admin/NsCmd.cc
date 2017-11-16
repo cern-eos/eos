@@ -186,11 +186,11 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
   struct stat statd;
   memset(&statf, 0, sizeof(struct stat));
   memset(&statd, 0, sizeof(struct stat));
-  XrdOucString clfsize;
-  XrdOucString cldsize;
-  XrdOucString clfratio;
-  XrdOucString cldratio;
-  XrdOucString sizestring;
+  XrdOucString clfsize = "";
+  XrdOucString cldsize = "";
+  XrdOucString clfratio = "";
+  XrdOucString cldratio = "";
+  XrdOucString sizestring = "";
 
   // Statistics for the changelog files if they exist
   if ((!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) &&
@@ -207,19 +207,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
                                             (1.0 * statd.st_size) / d : 0, "B");
   }
 
-  // Statistics for memory usage
-  eos::common::LinuxMemConsumption::linux_mem_t mem;
-
-  if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
-    stdErr += "failed to get the memory usage information\n";
-  }
-
-  eos::common::LinuxStat::linux_stat_t pstat;
-
-  if (!eos::common::LinuxStat::GetStat(pstat)) {
-    stdErr += "failed to get the process stat information\n";
-  }
-
   XrdOucString bootstring;
   time_t boottime = 0;
   {
@@ -232,6 +219,19 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
       boottime = gOFS->InitializationTime;
     }
   }
+  // Statistics for memory usage
+  eos::common::LinuxMemConsumption::linux_mem_t mem;
+
+  if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
+    oss << "error: failed to get the memory usage information" << std::endl;
+  }
+
+  eos::common::LinuxStat::linux_stat_t pstat;
+
+  if (!eos::common::LinuxStat::GetStat(pstat)) {
+    oss << "error: failed to get the process stat information" << std::endl;
+  }
+
   int64_t latencyf = 0, latencyd = 0, latencyp = 0;
   auto chlog_file_svc = dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
   auto chlog_dir_svc = dynamic_cast<eos::IChLogContainerMDSvc*>
@@ -269,37 +269,23 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
                                            (1.0 * statd.st_size) / d : 0)
         << std::endl
         << "uid=all gid=all " << compact_status.c_str() << std::endl
-        << "uid=all gid=all ns.boot.status=" << bootstring << std::endl
-        << "uid=all gid=all ns.boot.time=" << (int) boottime << std::endl
+        << "uid=all gid=all ns.boot.status=" << bootstring.c_str() << std::endl
+        << "uid=all gid=all ns.boot.time=" << boottime << std::endl
         << "uid=all gid=all ns.latency.files=" << latencyf << std::endl
         << "uid=all gid=all ns.latency.dirs=" << latencyd << std::endl
         << "uid=all gid=all ns.latency.pending.updates=" << latencyp << std::endl
         << "uid=all gid=all " << master_status.c_str() << std::endl
-        << "uid=all gid=all ns.memory.virtual="
-        << StringConversion::GetSizeString(sizestring, (unsigned long long) mem.vmsize)
-        << std::endl
-        << "uid=all gid=all ns.memory.resident="
-        << StringConversion::GetSizeString(sizestring,
-                                           (unsigned long long) mem.resident)
-        << std::endl
-        << "uid=all gid=all ns.memory.share="
-        << StringConversion::GetSizeString(sizestring, (unsigned long long) mem.share)
-        << std::endl
-        << "uid=all gid=all ns.stat.threads="
-        << StringConversion::GetSizeString(sizestring,
-                                           (unsigned long long) pstat.threads)
-        << std::endl;
+        << "uid=all gid=all ns.memory.virtual=" << mem.vmsize << std::endl
+        << "uid=all gid=all ns.memory.resident=" << mem.resident << std::endl
+        << "uid=all gid=all ns.memory.share=" << mem.share << std::endl
+        << "uid=all gid=all ns.stat.threads=" << pstat.threads << std::endl;
 
     if (pstat.vsize > gOFS->LinuxStatsStartup.vsize) {
-      oss << "uid=all gid=all ns.memory.growth="
-          << StringConversion::GetSizeString(sizestring, (unsigned long long)
-                                             (pstat.vsize - gOFS->LinuxStatsStartup.vsize))
-          << std::endl;
+      oss << "uid=all gid=all ns.memory.growth=" << (unsigned long long)
+          (pstat.vsize - gOFS->LinuxStatsStartup.vsize) << std::endl;
     } else {
-      oss << "uid=all gid=all ns.memory.growth=-"
-          << StringConversion::GetSizeString(sizestring, (unsigned long long)
-                                             (-pstat.vsize + gOFS->LinuxStatsStartup.vsize))
-          << std::endl;
+      oss << "uid=all gid=all ns.memory.growth=-" << (unsigned long long)
+          (-pstat.vsize + gOFS->LinuxStatsStartup.vsize) << std::endl;
     }
 
     oss << "uid=all gid=all ns.uptime="
@@ -376,9 +362,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
           << std::endl;
     }
 
-    oss << "ALL      threads                          "
-        << StringConversion::GetSizeString(sizestring, (unsigned long long)
-                                           pstat.threads)
+    oss << "ALL      threads                          " <<  pstat.threads
         << std::endl
         << "ALL      uptime                           "
         << (int)(time(NULL) - gOFS->StartTime) << std::endl
