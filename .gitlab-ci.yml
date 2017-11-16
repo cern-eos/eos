@@ -403,6 +403,7 @@ eos_system_test_with_quarkdb:
     - sudo ./eos-docker/scripts/shutdown_services.sh
   tags:
     - xrootd-shell
+  allow_failure: true
   dependencies:
     - eos_rpm_cc7
 
