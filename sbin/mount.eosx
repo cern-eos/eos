@@ -52,5 +52,31 @@ fi
 
 shift
 
-echo $*
-eosxd $* >& /dev/null < /dev/zero
+options=()
+eoo=0 
+
+# filter out '-n ' which is passwd by automount if /etc/mtab is a symlink into /proc
+while [[ $1 ]]
+do
+    if ! ((eoo)); then
+	case "$1" in
+	    -n)
+		shift
+		;;
+	    *)
+		options+=("$1")
+		shift
+		;;
+	esac
+    else
+	options+=("$1")
+	
+	# Another (worse) way of doing the same thing:
+	# options=("${options[@]}" "$1")
+	shift
+    fi
+done
+
+echo ${options[@]}
+
+eosxd ${options[@]} >& /dev/null < /dev/zero
