@@ -704,8 +704,10 @@ backend::getURL(fuse_req_t req, const std::string& path, std::string op,
   query["mgm.uuid"] = clientuuid;
   query["mgm.cid"] = cap::capx::getclientid(req);
   query["eos.app"] = "fuse";
-  if (authid.length())
-    query["mgm.authid"]= authid;
+
+  if (authid.length()) {
+    query["mgm.authid"] = authid;
+  }
 
   fusexrdlogin::loginurl(url, query, req, 0);
   url.SetParams(query);
@@ -737,6 +739,7 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name,
   }
 
   query["mgm.cid"] = cap::capx::getclientid(req);
+  query["eos.app"] = "fuse";
   fusexrdlogin::loginurl(url, query, req, inode);
   url.SetParams(query);
   return url.GetURL();
@@ -770,6 +773,7 @@ backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string op,
   }
 
   query["mgm.cid"] = cap::capx::getclientid(req);
+  query["eos.app"] = "fuse";
   fusexrdlogin::loginurl(url, query, req, inode);
   url.SetParams(query);
   return url.GetURL();
