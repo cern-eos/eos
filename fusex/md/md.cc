@@ -333,7 +333,11 @@ metad::mdx::convert(struct fuse_entry_param &e)
     e.attr_timeout=0;
     e.entry_timeout=0;
   }
-
+  if (EosFuse::Instance().Config().options.overlay_mode)
+  {
+    e.attr.st_mode |= EosFuse::Instance().Config().options.overlay_mode;
+  }
+  
   e.generation = 1;
 }
 

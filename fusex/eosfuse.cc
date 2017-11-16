@@ -242,7 +242,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 	fsname.erase(0, pos_add+1);
 	fsuser.erase(pos_add);
 
-	if (fsuser == "gw")
+	if ( (fsuser == "gw") || (fsuser == "smb") )
 	{
 	  // if 'gw' = gateway is defined as user name, we enable stable inode support e.g. mdcachedir
 	  if (!root.isMember("mdcachedir"))
@@ -258,6 +258,15 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 	    fprintf(stderr,"# enabling stable inodes with md-cache in '%s'\n", root["mdcachedir"].asString().c_str());
 	  }
 	  root["auth"]["krb5"] = 0;
+	  if (fsuser == "smb")
+	  {
+	    // enable overlay mode
+	    if (!root["options"].isMember("overlay-mode"))
+	    {
+	      root["options"]["overlay-mode"] = "0777";
+	      fprintf(stderr,"# enabling overlay-mode 0777 for smb export\n");
+	    }
+	  }
 	}
       }
 
@@ -412,11 +421,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.symlink_is_sync = root["options"]["symlink-is-sync"].asInt();
     config.options.global_flush = root["options"]["global-flush"].asInt();
     config.options.global_locking = root["options"]["global-locking"].asInt();
+    config.options.overlay_mode = strtol(root["options"]["overlay-mode"].asString().c_str(), 0, 8);
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
     config.mdcachedir = root["mdcachedir"].asString();
-
     config.mqtargethost = root["mdzmqtarget"].asString();
     config.mqidentity = root["mdzmqidentity"].asString();
     config.mqname = config.mqidentity;
@@ -950,7 +959,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("thread-pool            := %s", config.options.libfusethreads ? "libfuse" : "custom");
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d flush:%d locking:%d no-fsync:%s",
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o",
 		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
@@ -960,7 +969,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 		       config.options.symlink_is_sync,
                        config.options.global_flush,
                        config.options.global_locking,
-		       no_fsync_list.c_str()
+		       no_fsync_list.c_str(), 
+		       config.options.overlay_mode
 		       );
 
 

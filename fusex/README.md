@@ -36,7 +36,8 @@ This
     "global-flush" : 1,
     "global-locking" : 1, 
     "fd-limit" : 65536,
-    "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ]
+    "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ], 
+    "overlay-mode" : 000, 
   },
   "auth" : {
     "shared-mount" : 1,
@@ -199,13 +200,17 @@ scratch -fstype=eosx,fsname=eos.cern.ch:/eos/user/ :eosxd
 ```
 
 
-NFS/Samba Gateway Configuration
--------------------------------
+Web/NFS/Samba Gateway Configuration
+-----------------------------------
 
-To run as an export gateway one needs to configure 'stable inodes'. In the configuration file one can specify the 'mdcachedir' directive pointing to a directory where a ROCKSDB database will be stored. There is however a much simpler method to get an CIFS/NFS ready mount. Just use the normal mount or AUTOFS configuration but prefix '-ofsname=eos.cern.ch' like '-ofsname=gw@eos.cern.ch', which will automatically enable the stable inodes option.
+To run as an export gateway one needs to configure 'stable inodes'. In the configuration file one can specify the 'mdcachedir' directive pointing to a directory where a ROCKSDB database will be stored. There is however a much simpler method to get an WebServer/NFS ready mount. Just use the normal mount or AUTOFS configuration but prefix '-ofsname=eos.cern.ch' like '-ofsname=gw@eos.cern.ch', which will automatically enable the stable inodes option. To work around an issue with Sambe and EOS Acls, use '-ofsname=smb@eos.cern.ch' to enable additionally the overlay-mode flag. 
 
 ```
+# WebServer, NFS etc...
 eosxd -ofsname=gw@eos.cern.ch:/eos/user/ /eos/user/
+
+# CIFS(Samba) 
+eosxd -ofsname=smb@eos.cern.ch:/eos/user/ /eos/user/
 ```
 
 
