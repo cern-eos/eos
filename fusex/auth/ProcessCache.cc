@@ -23,6 +23,16 @@
 
 #include "ProcessCache.hh"
 
+thread_local bool execveAlarm { false };
+
+ExecveAlert::ExecveAlert(bool val) {
+  execveAlarm = val;
+}
+
+ExecveAlert::~ExecveAlert() {
+  execveAlarm = false;
+}
+
 CredentialState ProcessCache::useCredentialsOfAnotherPID(const ProcessInfo &processInfo, pid_t pid, uid_t uid, gid_t gid, bool reconnect, ProcessSnapshot &snapshot) {
   std::shared_ptr<const BoundIdentity> boundIdentity;
   CredentialState state = boundIdentityProvider.retrieve(pid, uid, gid, reconnect, boundIdentity);
@@ -82,10 +92,11 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid, bool rec
     return {};
   }
 
+  eos_static_debug("execve alarm for pid = %d, uid = %d, gid = %d: %d", pid, uid, gid, execveAlarm);
   eos_static_debug("Searching for credentials on pid = %d (parent = %d, pgrp = %d, sid = %d)\n", processInfo.getPid(), processInfo.getParentId(), processInfo.getGroupLeader(), processInfo.getSid());
 
 #define PF_FORKNOEXEC 0x00000040 /* Forked but didn't exec */
-  bool checkParentFirst = credConfig.forknoexec_heuristic && (processInfo.getFlags() & PF_FORKNOEXEC);
+  bool checkParentFirst = !execveAlarm && credConfig.forknoexec_heuristic && (processInfo.getFlags() & PF_FORKNOEXEC);
 
   // This should radically decrease the number of times we have to pay the deadlock
   // timeout penalty - the vast majority of processes doing an execve are in
@@ -101,15 +112,24 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid, bool rec
     }
   }
 
-  CredentialState state = useCredentialsOfAnotherPID(processInfo, processInfo.getPid(), uid, gid, reconnect, result);
-  if(state == CredentialState::kOk) {
-    eos_static_debug("Associating pid = %d to credentials found in its own environment variables", processInfo.getPid());
-    return result;
+  // Don't even attempt to read /proc/pid/environ if we _know_ we're doing an execve.
+  // If execveAlarm is off, there's still the possibility we're doing an execve due
+  // to uncached lookups sent by the kernel before the actual open! In that case,
+  // we'll simply have to pay the deadlock timeout penalty, but we'll still recover.
+  //
+  // execve alarm is here just to further reduce the number of times we
+  // pay the deadlock timeout penalty.
+  if(!execveAlarm) {
+    CredentialState state = useCredentialsOfAnotherPID(processInfo, processInfo.getPid(), uid, gid, reconnect, result);
+    if(state == CredentialState::kOk) {
+      eos_static_debug("Associating pid = %d to credentials found in its own environment variables", processInfo.getPid());
+      return result;
+    }
   }
 
   // Check parent, if we didn't already, and it isn't pid 1
   if(!checkParentFirst && processInfo.getParentId() != 1) {
-    state = useCredentialsOfAnotherPID(processInfo, processInfo.getParentId(), uid, gid, reconnect, result);
+    CredentialState state = useCredentialsOfAnotherPID(processInfo, processInfo.getParentId(), uid, gid, reconnect, result);
     if(state == CredentialState::kOk) {
       eos_static_debug("Associating pid = %d to credentials of its parent, as no credentials were found in its own environment", processInfo.getPid());
       return result;
@@ -117,7 +137,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid, bool rec
   }
 
   // Fallback to default paths?
-  state = useDefaultPaths(processInfo, uid, gid, reconnect, result);
+  CredentialState state = useDefaultPaths(processInfo, uid, gid, reconnect, result);
   if(state == CredentialState::kOk) {
     eos_static_debug("Associating pid = %d to default credentials, as no credentials were found through environment variables", processInfo.getPid());
     return result;

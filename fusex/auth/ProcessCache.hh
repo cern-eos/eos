@@ -77,6 +77,12 @@ private:
 
 using ProcessSnapshot = std::shared_ptr<const ProcessCacheEntry>;
 
+class ExecveAlert {
+public:
+  ExecveAlert(bool value);
+  ~ExecveAlert();
+};
+
 class ProcessCache {
 public:
   ProcessCache() : cache(16 /* 2^16 shards */, 1000 * 60 * 10 /* 10 minutes inactivity TTL */ ) {}

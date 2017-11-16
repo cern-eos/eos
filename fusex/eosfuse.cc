@@ -2582,6 +2582,11 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
   eos_static_debug("flags=%x", fi->flags);
 
+// FMODE_EXEC: "secret" internal flag which can be set only by the kernel when it's
+// reading a file destined to be used as an image for an execve.
+#define FMODE_EXEC 0x20
+  ExecveAlert execve(fi->flags & FMODE_EXEC);
+
   ADD_FUSE_STAT(__func__, req);
 
   EXEC_TIMING_BEGIN(__func__);
@@ -2684,7 +2689,6 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
   EXEC_TIMING_END(__func__);
 
   COMMONTIMING("_stop_", &timing);
-
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, fi, rc).c_str());
 
