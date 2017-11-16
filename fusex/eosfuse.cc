@@ -388,8 +388,9 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
     }
 
-
-
+    if (!root["auth"].isMember("forknoexec-heuristic")) {
+      root["auth"]["forknoexec-heuristic"] = 1;
+    }
 
     const Json::Value jname = root["name"];
     config.name = root["name"].asString();
@@ -424,6 +425,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
     config.auth.environ_deadlock_timeout = root["auth"]["environ-deadlock-timeout"].asInt();
+    config.auth.forknoexec_heuristic = root["auth"]["forknoexec-heuristic"].asInt();
 
     if(config.auth.environ_deadlock_timeout <= 0) {
       config.auth.environ_deadlock_timeout = 100;

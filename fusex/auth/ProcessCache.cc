@@ -85,7 +85,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid, bool rec
   eos_static_debug("Searching for credentials on pid = %d (parent = %d, pgrp = %d, sid = %d)\n", processInfo.getPid(), processInfo.getParentId(), processInfo.getGroupLeader(), processInfo.getSid());
 
 #define PF_FORKNOEXEC 0x00000040 /* Forked but didn't exec */
-  bool checkParentFirst = processInfo.getFlags() & PF_FORKNOEXEC;
+  bool checkParentFirst = credConfig.forknoexec_heuristic && (processInfo.getFlags() & PF_FORKNOEXEC);
 
   // This should radically decrease the number of times we have to pay the deadlock
   // timeout penalty - the vast majority of processes doing an execve are in
