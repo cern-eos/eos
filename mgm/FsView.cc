@@ -3631,11 +3631,6 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
           } else {
             std::string member = GetMember(formattags["member"]).c_str();
 
-            // Don't display empty values
-            if (member.empty()) {
-              continue;
-            }
-
             if ((format.find("S") != std::string::npos)) {
               size_t colon = member.find(":");
               size_t dot = member.find(".");

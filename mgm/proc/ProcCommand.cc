@@ -574,6 +574,7 @@ ProcCommand::MakeResult()
               value = it->second.c_str();
             } else {
               value = "NULL";
+              continue;
             }
 
             if (token.empty()) {
