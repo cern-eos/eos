@@ -194,7 +194,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     Json::Value root;
     Json::Reader reader;
     struct stat configstat;
-    
+
     bool has_config = false;
 
     if (!::stat(jsonconfig.c_str(),&configstat))
@@ -227,7 +227,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 
       if (!fsname.length())
       {
-	fprintf(stderr,"error: please configure the EOS endpoint via fsname=<user>@<host\n");       
+	fprintf(stderr,"error: please configure the EOS endpoint via fsname=<user>@<host\n");
 	exit(EINVAL);
       }
       if ((fsname.find(".") == std::string::npos))
@@ -423,6 +423,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
+    config.auth.environ_deadlock_timeout = root["auth"]["environ-deadlock-timeout"].asInt();
+
+    if(config.auth.environ_deadlock_timeout <= 0) {
+      config.auth.environ_deadlock_timeout = 100;
+    }
 
 
     for ( Json::Value::iterator it=root["options"]["no-fsync"].begin() ; it!=root["options"]["no-fsync"].end(); ++it)

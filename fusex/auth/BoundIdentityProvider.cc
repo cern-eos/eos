@@ -153,7 +153,7 @@ CredentialState BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid,
   Environment processEnv;
   EnvironmentResponse response = environmentReader.stageRequest(pid);
 
-  std::chrono::high_resolution_clock::time_point deadline = response.queuedSince + std::chrono::milliseconds(100);
+  std::chrono::high_resolution_clock::time_point deadline = response.queuedSince + std::chrono::milliseconds(credConfig.environ_deadlock_timeout);
   if(response.contents.wait_until(deadline) != std::future_status::ready) {
     eos_static_info("Timeout when retrieving environment for pid %d (uid %d) - we're doing an execve!", pid, uid);
     return {};

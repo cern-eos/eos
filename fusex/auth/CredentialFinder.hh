@@ -40,7 +40,8 @@
 class CredentialConfig {
 public:
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-  use_unsafe_krk5(false), tryKrb5First(false), fallback2nobody(false), fuse_shared(false) {}
+  use_unsafe_krk5(false), tryKrb5First(false), fallback2nobody(false), fuse_shared(false),
+  environ_deadlock_timeout(100) {}
 
   //! Indicates if user krb5cc file should be used for authentication
   bool use_user_krb5cc;
@@ -55,6 +56,8 @@ public:
   bool fallback2nobody;
   //! Indicates if this is a shared fuse mount
   bool fuse_shared;
+  //! How long to wait before declaring a kernel deadlock when reading /proc/environ
+  unsigned environ_deadlock_timeout;
 };
 
 
