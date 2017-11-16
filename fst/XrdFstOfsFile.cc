@@ -2707,6 +2707,7 @@ XrdFstOfsFile::DoTpcTransfer()
     src_url += gOFS.TpcMap[isRW][TpcKey.c_str()].src;
     src_url += "/";
     src_url += gOFS.TpcMap[isRW][TpcKey.c_str()].lfn;
+    src_url += "?fst.readahead=true";
     src_cgi = "tpc.key=";
     src_cgi += TpcKey.c_str();
     src_cgi += "&tpc.org=";
@@ -2741,16 +2742,17 @@ XrdFstOfsFile::DoTpcTransfer()
   int64_t wbytes = 0;
   off_t offset = 0;
   std::unique_ptr< std::vector<char> > buffer(
-    new std::vector<char>(ReadaheadBlock::sDefaultBlocksize));
+    new std::vector<char>(tpcIO.GetBlockSize()));
   eos_info("msg=\"tpc pull\" ");
 
   do {
     // Read the remote file in chunks and check after each chunk if the TPC
     // has been aborted already
-    rbytes = tpcIO.fileRead(offset, &((*buffer)[0]),
-                            ReadaheadBlock::sDefaultBlocksize, 30);
+    rbytes = tpcIO.fileReadAsync( offset, &((*buffer)[0]),
+                            tpcIO.GetBlockSize(), true, 30);
+
     eos_debug("msg=\"tpc read\" rbytes=%llu request=%llu",
-              rbytes, ReadaheadBlock::sDefaultBlocksize);
+              rbytes, tpcIO.GetBlockSize());
 
     if (rbytes == -1) {
       SetTpcState(kTpcDone);

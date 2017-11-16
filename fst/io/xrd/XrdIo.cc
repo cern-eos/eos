@@ -41,8 +41,6 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-const uint64_t ReadaheadBlock::sDefaultBlocksize = 1 * 1024 * 1024;
-const uint32_t XrdIo::sNumRdAheadBlocks = 2;
 uint32_t XrdIo::sConnectionPoolMaxSize = 64;
 XrdSysMutex XrdIo::sConnectionPoolMutex;
 std::map<std::string, std::map<int, size_t> > XrdIo::sConnectionPool;
@@ -97,7 +95,9 @@ AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
 XrdIo::XrdIo(std::string path) :
   FileIo(path, "XrdIo"),
   mDoReadahead(false),
-  mBlocksize(ReadaheadBlock::sDefaultBlocksize),
+  mNumRdAheadBlocks( InitNumRdAheadBlocks() ),
+  mDefaultBlocksize( InitBlocksize() ),
+  mBlocksize(mDefaultBlocksize),
   mXrdFile(NULL),
   mMetaHandler(new AsyncMetaHandler()),
   mConnectionId(0)
@@ -187,7 +187,7 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
       mBlocksize = static_cast<uint64_t>(atoll(val));
     }
 
-    for (unsigned int i = 0; i < sNumRdAheadBlocks; i++) {
+    for (unsigned int i = 0; i < mNumRdAheadBlocks; i++) {
       mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
     }
   }
@@ -277,7 +277,7 @@ XrdIo::fileOpenAsync(void* io_handler,
       mBlocksize = static_cast<uint64_t>(atoll(val));
     }
 
-    for (unsigned int i = 0; i < sNumRdAheadBlocks; i++) {
+    for (unsigned int i = 0; i < mNumRdAheadBlocks; i++) {
       mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
     }
   }
@@ -993,7 +993,7 @@ XrdIo::CleanReadCache()
   fileWaitAsyncIO();
   
   if (mQueueBlocks.empty()) {
-    for (unsigned int i = 0; i < sNumRdAheadBlocks; i++) {
+    for (unsigned int i = 0; i < mNumRdAheadBlocks; i++) {
       mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
     }
   }

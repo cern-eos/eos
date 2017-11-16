@@ -81,14 +81,13 @@ typedef std::map<uint64_t, ReadaheadBlock*> PrefetchMap;
 //! Struct that holds a readahead buffer and corresponding handler
 //------------------------------------------------------------------------------
 struct ReadaheadBlock {
-  static const uint64_t sDefaultBlocksize; ///< default value for readahead
 
   //----------------------------------------------------------------------------
   //! Constuctor
   //!
   //! @param blocksize the size of the readahead
   //----------------------------------------------------------------------------
-  ReadaheadBlock(uint64_t blocksize = sDefaultBlocksize)
+  ReadaheadBlock(uint64_t blocksize)
   {
     buffer = new char[blocksize];
     handler = new SimpleHandler();
@@ -127,7 +126,42 @@ class XrdIo : public FileIo
 {
   friend class AsyncIoOpenHandler;
 public:
-  static const uint32_t sNumRdAheadBlocks; ///< no. of blocks used for readahead
+  const uint32_t mNumRdAheadBlocks; ///< no. of blocks used for readahead
+  const uint64_t mDefaultBlocksize;
+
+
+  //----------------------------------------------------------------------------
+  //! InitBlocksize
+  //!
+  //! @return : block size that should be used to initialize
+  //!           the mDefaultBlockSize
+  //----------------------------------------------------------------------------
+  static uint64_t InitBlocksize()
+  {
+    char *ptr = getenv( "EOS_FST_XRDIO_BLOCK_SIZE" );
+    return ptr ? strtoul( ptr, 0, 10 ) : 1024 * 1024 /*default is 1M if the envar is not set*/;
+  }
+
+  //----------------------------------------------------------------------------
+  //! InitInitNumRdAheadBlocks
+  //!
+  //! @return : number of blocks that should be read ahead
+  //----------------------------------------------------------------------------
+  static uint32_t InitNumRdAheadBlocks()
+  {
+    char *ptr = getenv( "EOS_FST_XRDIO_RDAHEAD_BLOCKS" );
+    return ptr ? strtoul( ptr, 0, 10 ) : 2; /*default is 2 if envar is not set*/
+  }
+
+  //----------------------------------------------------------------------------
+  //! GetDefaultBlocksize
+  //!
+  //! @return : default block size
+  //----------------------------------------------------------------------------
+  uint64_t GetBlockSize()
+  {
+    return mBlocksize;
+  }
 
   //----------------------------------------------------------------------------
   //! Constructor
