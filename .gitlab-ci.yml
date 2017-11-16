@@ -13,7 +13,7 @@ eos_rpm_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache epel-release
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache epel-release rpm-sign
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -27,6 +27,7 @@ eos_rpm_cc7:
     - if [ "$BUILD_TYPE" == "commit" ]; then source gitlab-ci/setup_ccache.sh; else export CCACHE_DISABLE=1; fi
     - rpmbuild --rebuild --with=server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
+    - if [ "$BUILD_TYPE" == "tag" ]; then gpg --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir cc7_artifacts
     - cp -R build/SRPMS cc7_artifacts
     - cp -R build/RPMS cc7_artifacts
