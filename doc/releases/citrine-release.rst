@@ -15,6 +15,29 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.3 Citrine``
+===================
+
+2017-11-17
+
+New features
+++++++++++++
+
+* New centralized draining implementation
+* mgmofs.qdbcluster option in the configuration of the MGM to connect QuarkDB cluster
+
+Improvements
+++++++++++++
+
+* Use the flusher also in the quota view of the new namespace
+* Use prefetching for TPC transfers
+
+Bug
++++
+* [EOS-2117] - mount.eosx should filter invalid options
+* Fix ns stat statistics
+
+
 ``v4.2.2 Citrine``
 ===================
 
