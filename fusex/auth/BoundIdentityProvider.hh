@@ -72,6 +72,7 @@ public:
     return environmentReader;
   }
 
+  CredentialState unixAuthentication(uid_t uid, gid_t gid, pid_t pid, bool reconnect, std::shared_ptr<const BoundIdentity> &result);
 private:
   SecurityChecker securityChecker;
   CredentialConfig credConfig;
@@ -80,10 +81,9 @@ private:
   CredentialState
   tryCredentialFile(const std::string& path, CredInfo& creds, uid_t uid);
 
-  CredentialState
-  fillKrb5FromEnv(const Environment& env, CredInfo& creds, uid_t uid);
-  CredentialState
-  fillX509FromEnv(const Environment& env, CredInfo& creds, uid_t uid);
+  CredentialState tryCredentialFile(const std::string &path, CredInfo &creds, uid_t uid);
+  CredentialState fillKrb5FromEnv(const Environment &env, CredInfo &creds, uid_t uid);
+  CredentialState fillX509FromEnv(const Environment &env, CredInfo &creds, uid_t uid);
 
   CredentialState
   unixAuthentication(uid_t uid, gid_t gid, pid_t pid, bool reconnect,
