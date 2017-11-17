@@ -41,9 +41,9 @@ TEST(HierarchicalView, LoadTest)
 {
   try {
     std::map<std::string, std::string> config = {
-      {"qdb_host", "localhost"},
-      {"qdb_port", "7778"},
-      {"qdb_cluster", "localhost:7778"}
+      {"qdb_cluster", "localhost:7778"},
+      {"qdb_flusher_md", "tests_md"},
+      {"qdb_flusher_quota", "tests_quota"}
     };
     std::unique_ptr<eos::IContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
     std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc()};
@@ -244,9 +244,9 @@ TEST(HierarchicalView, QuotaTest)
   srandom(time(nullptr));
   // Initialize the system
   std::map<std::string, std::string> config = {
-    {"qdb_host", "localhost"},
-    {"qdb_port", "7778"},
-    {"qdb_cluster", "localhost:7778"}
+    {"qdb_cluster", "localhost:7778"},
+    {"qdb_flusher_md", "tests_md"},
+    {"qdb_flusher_quota", "tests_quota"}
   };
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
@@ -307,8 +307,6 @@ TEST(HierarchicalView, QuotaTest)
   // Verify correctness
   eos::IQuotaNode* node1 = view->getQuotaNode(view->getContainer(path1).get());
   eos::IQuotaNode* node2 = view->getQuotaNode(view->getContainer(path2).get());
-  // Give some time to the flusher
-  sleep(2);
 
   for (int i = 1; i <= 10; ++i) {
     ASSERT_TRUE(node1->getPhysicalSpaceByUser(i) == users1[i].physicalSpace);
@@ -444,9 +442,9 @@ TEST(HierarchicalView, LostContainerTest)
 {
   // Initializer
   std::map<std::string, std::string> config = {
-    {"qdb_host", "localhost"},
-    {"qdb_port", "7778"},
-    {"qdb_cluster", "localhost:7778"}
+    {"qdb_cluster", "localhost:7778"},
+    {"qdb_flusher_md", "tests_md"},
+    {"qdb_flusher_quota", "tests_quota"}
   };
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};

@@ -106,10 +106,13 @@ TEST(FileSystemView, BasicSanity)
 
   try {
     std::map<std::string, std::string> config = {
-      {"qdb_cluster", "localhost:7778"}
+      {"qdb_cluster", "localhost:7778"},
+      {"qdb_flusher_md", "tests_md"},
+      {"qdb_flusher_quota", "tests_quota"}
     };
     eos::MetadataFlusher* flusher =
-      eos::MetadataFlusherFactory::getInstance("default", qclient::Members::fromString(config["qdb_cluster"]));
+      eos::MetadataFlusherFactory::getInstance(config["qdb_flusher_md"],
+          qclient::Members::fromString(config["qdb_cluster"]));
     std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
     std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
     std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};

@@ -34,10 +34,13 @@ TEST(ContainerMDSvc, BasicSanity)
     std::unique_ptr<eos::IContainerMDSvc> containerSvc{new eos::ContainerMDSvc()};
     std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc()};
     std::map<std::string, std::string> config = {
-      {"qdb_cluster", "localhost:7778"}
+      {"qdb_cluster", "localhost:7778"},
+      {"qdb_flusher_md", "tests_md"},
+      {"qdb_flusher_quota", "tests_quota"}
     };
     eos::MetadataFlusher* flusher =
-      eos::MetadataFlusherFactory::getInstance("default",  qclient::Members::fromString(config["qdb_cluster"]));
+      eos::MetadataFlusherFactory::getInstance(config["qdb_flusher_md"],
+          qclient::Members::fromString(config["qdb_cluster"]));
     containerSvc->setFileMDService(fileSvc.get());
     containerSvc->configure(config);
     containerSvc->initialize();
@@ -82,6 +85,7 @@ TEST(ContainerMDSvc, BasicSanity)
     ASSERT_EQ((size_t)5, containerSvc->getNumContainers());
     container3->removeContainer("subContLevel2-2");
     containerSvc->removeContainer(container5.get());
+    flusher->synchronize();
     ASSERT_EQ((size_t)1, container3->getNumContainers());
     ASSERT_EQ((size_t)4, containerSvc->getNumContainers());
     std::shared_ptr<eos::IContainerMD> container6 =
