@@ -36,24 +36,16 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 MetadataFlusher::MetadataFlusher(const std::string& path,
-                                 const std::string& host, int port):
-  notifier(*this), qcl(host, port, true /* yes to redirects */,
-                       false /* no to exceptions */),
-  backgroundFlusher(qcl, notifier, 50000 /* size limit */,
-                    5000 /* pipeline length */,
-                    new qclient::RocksDBPersistency(path)),
-  sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
-{
-  synchronize();
-}
+                                 const std::string& host, int port)
+  : MetadataFlusher(path, qclient::Members(host, port)) {}
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 MetadataFlusher::MetadataFlusher(const std::string& path,
-                                 qclient::Members& qdb_members):
+                                 const qclient::Members& qdb_members):
   notifier(*this),
-  qcl(qdb_members, true, false),
+  qcl(qdb_members, true /* yes to redirects */, false /* no to exceptions */),
   backgroundFlusher(qcl, notifier, 50000 /* size limit */,
                     5000 /* pipeline length */,
                     new qclient::RocksDBPersistency(path)),

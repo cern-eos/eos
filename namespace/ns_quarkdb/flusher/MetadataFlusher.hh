@@ -63,7 +63,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MetadataFlusher(const std::string& path, qclient::Members& qdb_members);
+  MetadataFlusher(const std::string& path, const qclient::Members& qdb_members);
 
   //----------------------------------------------------------------------------
   //! Methods to stage redis commands for background flushing.
