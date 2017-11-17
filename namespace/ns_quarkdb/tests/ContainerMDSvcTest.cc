@@ -34,13 +34,10 @@ TEST(ContainerMDSvc, BasicSanity)
     std::unique_ptr<eos::IContainerMDSvc> containerSvc{new eos::ContainerMDSvc()};
     std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc()};
     std::map<std::string, std::string> config = {
-      {"qdb_host", "localhost"},
-      {"qdb_port", "7778"},
       {"qdb_cluster", "localhost:7778"}
     };
     eos::MetadataFlusher* flusher =
-      eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"],
-          std::stoi(config["qdb_port"]));
+      eos::MetadataFlusherFactory::getInstance("default",  qclient::Members::fromString(config["qdb_cluster"]));
     containerSvc->setFileMDService(fileSvc.get());
     containerSvc->configure(config);
     containerSvc->initialize();

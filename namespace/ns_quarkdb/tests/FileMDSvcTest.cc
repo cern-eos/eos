@@ -42,12 +42,11 @@ TEST(FileMDSvc, LoadTest)
   std::unique_ptr<eos::IContainerMDSvc> contSvc{new eos::ContainerMDSvc};
   std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc};
   fileSvc->setContMDService(contSvc.get());
-  std::map<std::string, std::string> config = {{"qdb_host", "localhost"},
-    {"qdb_port", "7778"}
+  std::map<std::string, std::string> config = {
+    {"qdb_cluster", "localhost:7778"}
   };
   eos::MetadataFlusher* flusher =
-    eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"],
-        std::stoi(config["qdb_port"]));
+    eos::MetadataFlusherFactory::getInstance("default", qclient::Members::fromString(config["qdb_cluster"]));
   fileSvc->configure(config);
   ASSERT_NO_THROW(fileSvc->initialize());
   std::shared_ptr<eos::IFileMD> file1 = fileSvc->createFile();
@@ -105,8 +104,6 @@ TEST(FileMDSvc, LoadTest)
 TEST(FileMDSvc, CheckFileTest)
 {
   std::map<std::string, std::string> config = {
-    {"qdb_host", "localhost"},
-    {"qdb_port", "7778"},
     {"qdb_cluster", "localhost:7778"}
   };
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
@@ -139,8 +136,7 @@ TEST(FileMDSvc, CheckFileTest)
 
   // There should be 4 filesystems now
   eos::MetadataFlusher* flusher =
-    eos::MetadataFlusherFactory::getInstance("default", config["qdb_host"],
-        std::stoi(config["qdb_port"]));
+    eos::MetadataFlusherFactory::getInstance("default", qclient::Members::fromString(config["qdb_cluster"]));
   flusher->synchronize();
   auto it = fsView->getFilesystemIterator();
 
@@ -156,8 +152,7 @@ TEST(FileMDSvc, CheckFileTest)
   view->updateFileStore(file.get());
   // Corrupt the backend KV store
   std::string key;
-  qclient::QClient* qcl = eos::BackendClient::getInstance(
-                            config["qdb_host"], std::stoi(config["qdb_port"]));
+  qclient::QClient* qcl = eos::BackendClient::getInstance(qclient::Members::fromString(config["qdb_cluster"]));
   flusher->synchronize();
   key = eos::keyFilesystemFiles(1);
   qclient::QSet fs_set(*qcl, key);

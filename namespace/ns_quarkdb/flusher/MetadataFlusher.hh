@@ -100,15 +100,14 @@ class MetadataFlusherFactory
 {
 public:
   static MetadataFlusher* getInstance(const std::string& id,
-                                      std::string host, int port);
+                                      const qclient::Members& members);
   static void setQueuePath(const std::string& newpath);
 private:
   static std::string queuePath;
   static std::mutex mtx;
 
-  using InstanceKey = std::tuple<std::string, std::string, int>;
-  static std::map<std::tuple<std::string, std::string, int>, MetadataFlusher*>
-  instances;
+  using InstanceKey = std::tuple<std::string, qclient::Members>;
+  static std::map<InstanceKey, MetadataFlusher*> instances;
 };
 
 EOSNSNAMESPACE_END

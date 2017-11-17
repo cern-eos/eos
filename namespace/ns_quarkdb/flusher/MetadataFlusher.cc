@@ -180,26 +180,25 @@ void MetadataFlusherFactory::setQueuePath(const std::string& newpath)
 }
 
 MetadataFlusher*
-MetadataFlusherFactory::getInstance(const std::string& id, std::string host,
-                                    int port)
+MetadataFlusherFactory::getInstance(const std::string& id,
+  const qclient::Members &members)
 {
   std::lock_guard<std::mutex> lock(MetadataFlusherFactory::mtx);
 
-  if (host.empty() || port == 0) {
-    host = BackendClient::sQdbHost;
-    port = BackendClient::sQdbPort;
+  if(members.empty()) {
+    eos_static_crit("MetadataFlusherFactory::getInstance received empty qclient::Members!");
+    std::terminate();
   }
 
-  std::tuple<std::string, std::string, int> key = std::make_tuple(id, host, port);
+  std::tuple<std::string, qclient::Members> key = std::make_tuple(id, members);
   auto it = instances.find(key);
 
   if (it != instances.end()) {
     return it->second;
   }
 
-  MetadataFlusher* flusher = new MetadataFlusher(queuePath + id, host, port);
-  eos_static_notice("Created new metadata flusher towards %s:%d", host.c_str(),
-                    port);
+  MetadataFlusher* flusher = new MetadataFlusher(queuePath + id, members);
+  eos_static_notice("Created new metadata flusher towards %s", members.toString().c_str());
   instances[key] = flusher;
   return flusher;
 }

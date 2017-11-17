@@ -78,7 +78,7 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
   inodeProvider.configure(mMetaMap, constants::sLastUsedFid);
   // @todo (esindril): add protection in case there are container with bigger
   // ids in the backend
-  pFlusher = MetadataFlusherFactory::getInstance("default", "localhost", 7777);
+  pFlusher = MetadataFlusherFactory::getInstance("default", qdb_members);
 }
 
 //------------------------------------------------------------------------------
