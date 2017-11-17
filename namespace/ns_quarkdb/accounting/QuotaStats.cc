@@ -120,7 +120,8 @@ QuotaNode::meld(const IQuotaNode* node)
 {
   const QuotaNode* impl_node = dynamic_cast<const QuotaNode*>(node);
   std::string field;
-  qclient::QHash hmap(*pQcl, impl_node->getUidKey());
+  qclient::QHash hmap(*pQcl,
+                      QuotaStats::KeyQuotaUidMap(std::to_string(impl_node->getId())));
   // elems is a list of keys and values
   std::vector<std::string> elems = hmap.hgetall();
 
@@ -130,7 +131,7 @@ QuotaNode::meld(const IQuotaNode* node)
     pFlusher->hincrby(pQuotaUidKey, field, std::stoll(*it));
   }
 
-  hmap.setKey(impl_node->getGidKey());
+  hmap.setKey(QuotaStats::KeyQuotaGidMap(std::to_string(impl_node->getId())));
   elems = hmap.hgetall();
 
   for (auto it = elems.begin(); it != elems.end(); ++it) {

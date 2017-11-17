@@ -118,24 +118,6 @@ public:
   void meld(const IQuotaNode* node) override;
 
   //----------------------------------------------------------------------------
-  //! Get current uid qutoa key
-  //----------------------------------------------------------------------------
-  std::string
-  getUidKey() const
-  {
-    return pQuotaUidKey;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get current uid qutoa key
-  //----------------------------------------------------------------------------
-  std::string
-  getGidKey() const
-  {
-    return pQuotaGidKey;
-  }
-
-  //----------------------------------------------------------------------------
   //! Get the set of uids for which information is stored in the current quota
   //! node.
   //!
