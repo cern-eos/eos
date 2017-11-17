@@ -1176,7 +1176,7 @@ Stat::Circulate (ThreadAssistant &assistant)
 
   while (true)
   {
-    assistant.wait_for(std::chrono::seconds(512));
+    assistant.wait_for(std::chrono::milliseconds(512));
     if(assistant.terminationRequested()) break;
 
     // --------------------------------------------
