@@ -372,7 +372,7 @@ ProcCommand::open(const char* inpath, const char* info,
 //------------------------------------------------------------------------------
 // Read a part of the result stream produced during open
 //------------------------------------------------------------------------------
-int
+size_t
 ProcCommand::read(XrdSfsFileOffset boff, char* buff, XrdSfsXferSize blen)
 {
   if (fresultStream) {

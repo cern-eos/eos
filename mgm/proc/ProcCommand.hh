@@ -108,8 +108,8 @@ public:
   //!
   //! @return number of bytes read
   //----------------------------------------------------------------------------
-  virtual int read(XrdSfsFileOffset offset, char* buff,
-                   XrdSfsXferSize blen) override;
+  virtual size_t read(XrdSfsFileOffset offset, char* buff,
+                      XrdSfsXferSize blen) override;
 
   //----------------------------------------------------------------------------
   //! Get the size of the result stream
@@ -153,7 +153,7 @@ public:
   //!
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
-  bool OpenTemporaryOutputFiles();
+  bool OpenTemporaryOutputFiles() override;
 
   //----------------------------------------------------------------------------
   //! Get the return code of a proc command

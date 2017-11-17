@@ -23,6 +23,7 @@
 #include "ProcInterface.hh"
 #include "common/ConsoleRequest.pb.h"
 #include "mgm/proc/user/AclCmd.hh"
+#include "mgm/proc/user/FindCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/DrainCmd.hh"
 #include <iostream>
@@ -183,6 +184,10 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
   case RequestProto::kDrain:
     eos_static_debug("handling drain command");
     cmd.reset(new DrainCmd(std::move(req), vid));
+    break;
+      
+  case RequestProto::kFind:
+    cmd.reset(new FindCmd(std::move(req), vid));
     break;
 
   default:

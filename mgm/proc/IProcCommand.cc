@@ -20,10 +20,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Path.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/ProcInterface.hh"
 
 EOSMGMNAMESPACE_BEGIN
+
+std::atomic_uint_least64_t IProcCommand::uuid{0};
 
 //------------------------------------------------------------------------------
 // Open a proc command e.g. call the appropriate user or admin commmand and
@@ -46,17 +49,27 @@ IProcCommand::open(const char* path, const char* info,
 
   if (status != std::future_status::ready) {
     // Stall the client
-    std::string msg = "acl command not ready, stall the client 5 seconds";
+    std::string msg = "command not ready, stall the client 5 seconds";
     eos_notice("%s", msg.c_str());
     error->setErrInfo(0, msg.c_str());
     return delay;
   } else {
     eos::console::ReplyProto reply = mFuture.get();
-    std::ostringstream oss;
-    oss << "mgm.proc.stdout=" << reply.std_out()
-        << "&mgm.proc.stderr=" << reply.std_err()
-        << "&mgm.proc.retc=" << reply.retc();
-    mTmpResp = oss.str();
+
+    // output is written in file
+    if (!ofstdoutStreamFilename.empty() && !ofstderrStreamFilename.empty()) {
+      ifstdoutStream.open(ofstdoutStreamFilename, std::ifstream::in);
+      ifstderrStream.open(ofstderrStreamFilename, std::ifstream::in);
+      iretcStream.str(std::string("&mgm.proc.retc=") + std::to_string(reply.retc()));
+      readStdOutStream = true;
+    }
+    else {
+      std::ostringstream oss;
+      oss << "mgm.proc.stdout=" << reply.std_out()
+          << "&mgm.proc.stderr=" << reply.std_err()
+          << "&mgm.proc.retc=" << reply.retc();
+      mTmpResp = oss.str();
+    }
   }
 
   return SFS_OK;
@@ -65,20 +78,61 @@ IProcCommand::open(const char* path, const char* info,
 //------------------------------------------------------------------------------
 // Read a part of the result stream created during open
 //------------------------------------------------------------------------------
-int
+size_t
 IProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
 {
-  if ((size_t)offset < mTmpResp.length()) {
-    size_t cpy_len = std::min((size_t)(mTmpResp.size() - offset), (size_t)blen);
+  size_t cpy_len = 0;
+  if (readStdOutStream && ifstdoutStream.is_open() && ifstderrStream.is_open()) {
+    ifstdoutStream.read(buff, blen);
+    cpy_len = (size_t)ifstdoutStream.gcount();
+
+    if (cpy_len < (size_t)blen) {
+      readStdOutStream = false;
+      readStdErrStream = true;
+
+      ifstderrStream.read(buff + cpy_len, blen - cpy_len);
+      cpy_len += (size_t)ifstderrStream.gcount();
+    }
+    cerr << offset << endl;
+    cerr << cpy_len << endl;
+    cerr << buff << endl;
+  }
+  else if (readStdErrStream && ifstderrStream.is_open()) {
+    ifstderrStream.read(buff, blen);
+    cpy_len = (size_t)ifstderrStream.gcount();
+
+    if (cpy_len < (size_t)blen) {
+      readStdErrStream = false;
+      readRetcStream = true;
+
+      iretcStream.read(buff + cpy_len, blen - cpy_len);
+      cpy_len += (size_t)iretcStream.gcount();
+    }
+    cerr << offset << endl;
+    cerr << cpy_len << endl;
+    cerr << buff << endl;
+  }
+  else if (readRetcStream) {
+    iretcStream.read(buff, blen);
+    cpy_len = (size_t)iretcStream.gcount();
+
+    if (cpy_len < (size_t)blen) {
+      readRetcStream = false;
+    }
+    cerr << offset << endl;
+    cerr << cpy_len << endl;
+    cerr << buff << endl;
+  }
+  else if ((size_t)offset < mTmpResp.length()) {
+    cpy_len = std::min((size_t)(mTmpResp.size() - offset), (size_t)blen);
     memcpy(buff, mTmpResp.data() + offset, cpy_len);
-    return cpy_len;
   }
 
-  return 0;
+  return cpy_len;
 }
 
 //------------------------------------------------------------------------------
-// Lauch command asynchronously, creating the corresponding promise and future
+// Launch command asynchronously, creating the corresponding promise and future
 //------------------------------------------------------------------------------
 void
 IProcCommand::LaunchJob()
@@ -115,6 +169,58 @@ IProcCommand::KillJob()
   } else {
     return false;
   }
+}
+
+bool
+IProcCommand::OpenTemporaryOutputFiles() {
+  ostringstream tmpdir;
+  tmpdir << "/tmp/eos.mgm/";
+  tmpdir << uuid++;
+
+  ofstdoutStreamFilename = tmpdir.str();
+  ofstdoutStreamFilename += ".stdout";
+  ofstderrStreamFilename = tmpdir.str();
+  ofstderrStreamFilename += ".stderr";
+  eos::common::Path cPath(ofstdoutStreamFilename.c_str());
+
+  if (!cPath.MakeParentPath(S_IRWXU)) {
+    eos_err("Unable to create temporary outputfile directory %s", tmpdir.str().c_str());
+    return false;
+  }
+
+  // own the directory by daemon
+  if (::chown(cPath.GetParentPath(), 2, 2)) {
+    eos_err("Unable to own temporary outputfile directory %s",
+            cPath.GetParentPath());
+  }
+
+  ofstdoutStream.open(ofstdoutStreamFilename, std::ofstream::out);
+  ofstderrStream.open(ofstderrStreamFilename, std::ofstream::out);
+
+  if ((!ofstdoutStream) || (!ofstderrStream)) {
+    if (ofstdoutStream.is_open()) {
+      ofstdoutStream.close();
+    }
+
+    if (ofstderrStream.is_open()) {
+      ofstderrStream.close();
+    }
+
+    return false;
+  }
+
+  ofstdoutStream << "mgm.proc.stdout=";
+  ofstderrStream << "&mgm.proc.stderr=";
+
+  return true;
+}
+
+bool
+IProcCommand::CloseTemporaryOutputFiles() {
+  ofstdoutStream.close();
+  ofstderrStream.close();
+
+  return !(ofstdoutStream.is_open() || ofstderrStream.is_open());
 }
 
 EOSMGMNAMESPACE_END

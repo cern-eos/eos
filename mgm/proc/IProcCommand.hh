@@ -66,6 +66,16 @@ public:
   virtual ~IProcCommand()
   {
     mForceKill.store(true);
+
+    if (ofstdoutStream.is_open()) {
+      ofstdoutStream.close();
+    }
+    unlink(ofstdoutStreamFilename.c_str());
+
+    if (ofstderrStream.is_open()) {
+      ofstderrStream.close();
+    }
+    unlink(ofstderrStreamFilename.c_str());
   }
 
   //----------------------------------------------------------------------------
@@ -93,7 +103,7 @@ public:
   //!
   //! @return number of bytes read
   //----------------------------------------------------------------------------
-  virtual int read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen);
+  virtual size_t read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen);
 
   //----------------------------------------------------------------------------
   //! Get the size of the result stream
@@ -117,6 +127,15 @@ public:
   virtual int close()
   {
     //@todo (esindril): to implement for proto commands
+
+    if (ifstdoutStream.is_open()) {
+      ifstdoutStream.close();
+    }
+
+    if (ifstderrStream.is_open()) {
+      ifstderrStream.close();
+    }
+
     return SFS_OK;
   }
 
@@ -140,6 +159,9 @@ public:
   virtual bool KillJob() final;
 
 protected:
+  virtual bool OpenTemporaryOutputFiles();
+  virtual bool CloseTemporaryOutputFiles();
+
   bool mExecRequest; ///< Indicate if request is launched asynchronously
   std::mutex mMutexAsync; ///< Mutex locked during async execution
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
@@ -151,6 +173,20 @@ protected:
   XrdOucString stdJson; ///< JSON output returned by proc command
   int retc; ///< return code from the proc command
   std::string mTmpResp; ///< String used for streaming the response
+
+  std::ofstream ofstdoutStream;
+  std::ofstream ofstderrStream;
+  std::string ofstdoutStreamFilename;
+  std::string ofstderrStreamFilename;
+  std::ifstream ifstdoutStream;
+  std::ifstream ifstderrStream;
+  std::istringstream iretcStream;
+
+  bool readStdOutStream {false};
+  bool readStdErrStream {false};
+  bool readRetcStream {false};
+
+  static std::atomic_uint_least64_t uuid;
 };
 
 EOSMGMNAMESPACE_END

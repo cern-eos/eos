@@ -106,6 +106,7 @@ add_library(
   proc/user/File.cc
   proc/user/Fileinfo.cc
   proc/user/Find.cc
+  proc/user/FindCmd.cc
   proc/user/Fuse.cc
   proc/user/FuseX.cc
   proc/user/Ls.cc

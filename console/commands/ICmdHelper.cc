@@ -40,7 +40,7 @@ ICmdHelper::Execute()
   google::protobuf::io::ArrayOutputStream aos((void*)buffer.data(), sz);
 
   if (!mReq.SerializeToZeroCopyStream(&aos)) {
-    std::cerr << "error: failed to serialize ProtobolBuffer request"
+    std::cerr << "error: failed to serialize ProtocolBuffer request"
               << std::endl;
     return EINVAL;
   }
@@ -66,7 +66,7 @@ ICmdHelper::Execute()
         TextHighlight(mMgmExec.GetResult());
       }
 
-      // Add new line if neccessary
+      // Add new line if necessary
       std::string out = mMgmExec.GetResult();
 
       if (*out.rbegin() != '\n') {
