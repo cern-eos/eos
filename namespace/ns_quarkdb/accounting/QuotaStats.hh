@@ -92,24 +92,17 @@ public:
   void updateFromBackend();
 
 private:
-  //! Quota quota node uid hash key e.g. quota_node:id_t:uid
+  //! Quota quota node uid hash key e.g. quota_node:id:uid
   std::string pQuotaUidKey;
-  //! Quota quota node gid hash key e.g. quota_node:id_t:gid
+  //! Quota quota node gid hash key e.g. quota_node:id:gid
   std::string pQuotaGidKey;
-  qclient::QHash pUidMap; ///< Backend map for uids
-  qclient::QHash pGidMap; ///< Backend map for gids
   qclient::QClient* pQcl; ///< Backend client from QuotaStats
   MetadataFlusher* pFlusher; ///< Metadata flusher object from QuotaStats
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Manager of the quota nodes
-//!
-//! The informatio about the exists quota nodes which in this class is stored
-//! in the pNodeMap is also saved in redis as a HSET holding the container
-//! ids for the corresponding quota nodes. The key name of the set in the
-//! Redis instance needs to be unique i.e the sSetQuotaIds static variable.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class QuotaStats : public IQuotaStats
 {
   friend class QuotaNode;

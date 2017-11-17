@@ -43,9 +43,7 @@ QuotaNode::QuotaNode(IQuotaStats* quota_stats, IContainerMD::id_t node_id)
   pQcl = static_cast<QuotaStats*>(quota_stats)->pQcl;
   pFlusher = static_cast<QuotaStats*>(quota_stats)->pFlusher;
   pQuotaUidKey = QuotaStats::KeyQuotaUidMap(snode_id);
-  pUidMap = qclient::QHash(*pQcl, pQuotaUidKey);
   pQuotaGidKey = QuotaStats::KeyQuotaGidMap(snode_id);
-  pGidMap = qclient::QHash(*pQcl, pQuotaGidKey);
 }
 
 //------------------------------------------------------------------------------
@@ -119,26 +117,34 @@ void
 QuotaNode::meld(const IQuotaNode* node)
 {
   const QuotaNode* impl_node = dynamic_cast<const QuotaNode*>(node);
-  std::string field;
+  // Meld in the uid map info
   qclient::QHash hmap(*pQcl,
                       QuotaStats::KeyQuotaUidMap(std::to_string(impl_node->getId())));
-  // elems is a list of keys and values
-  std::vector<std::string> elems = hmap.hgetall();
+  std::pair<std::string, std::unordered_map<std::string, std::string>> reply;
+  std::string cursor = "0";
+  long long count = 300;
 
-  for (auto it = elems.begin(); it != elems.end(); ++it) {
-    field = *it;
-    ++it;
-    pFlusher->hincrby(pQuotaUidKey, field, std::stoll(*it));
-  }
+  do {
+    reply = hmap.hscan(cursor, count);
+    cursor = reply.first;
 
+    for (const auto& elem : reply.second) {
+      pFlusher->hincrby(pQuotaUidKey, elem.first, std::stoll(elem.second));
+    }
+  } while (cursor != "0");
+
+  // Meld in the gid map info
   hmap.setKey(QuotaStats::KeyQuotaGidMap(std::to_string(impl_node->getId())));
-  elems = hmap.hgetall();
+  cursor = "0";
 
-  for (auto it = elems.begin(); it != elems.end(); ++it) {
-    field = *it;
-    ++it;
-    pFlusher->hincrby(pQuotaGidKey, field, std::stoll(*it));
-  }
+  do {
+    reply = hmap.hscan(cursor, count);
+    cursor = reply.first;
+
+    for (const auto& elem : reply.second) {
+      pFlusher->hincrby(pQuotaGidKey, elem.first, std::stoll(elem.second));
+    }
+  } while (cursor != "0");
 
   // Update the cached information
   for (auto it1 = impl_node->pUserUsage.begin();
@@ -160,9 +166,11 @@ void QuotaNode::updateFromBackend()
   std::string cursor = "0";
   long long count = 300;
   std::pair<std::string, std::unordered_map<std::string, std::string>> reply;
+  qclient::QHash uid_map(*pQcl, pQuotaUidKey);
+  qclient::QHash gid_map(*pQcl, pQuotaGidKey);
 
   do {
-    reply = pUidMap.hscan(cursor, count);
+    reply = uid_map.hscan(cursor, count);
     cursor = reply.first;
 
     for (const auto& elem : reply.second) {
@@ -191,7 +199,7 @@ void QuotaNode::updateFromBackend()
   cursor = "0";
 
   do {
-    reply = pGidMap.hscan(cursor, count);
+    reply = gid_map.hscan(cursor, count);
     cursor = reply.first;
 
     for (const auto& elem : reply.second) {
@@ -260,24 +268,25 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
       (config.find(key_flusher) != config.end())) {
     qdb_cluster = config.at(key_cluster);
     qdb_flusher_id = config.at(key_flusher);
+    qclient::Members qdb_members;
+
+    if (!qdb_members.parse(qdb_cluster)) {
+      eos::MDException e(EINVAL);
+      e.getMessage() << __FUNCTION__
+                     << " Failed to parse qdbcluster members";
+      throw e;
+    }
+
+    pQcl = BackendClient::getInstance(qdb_members);
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
   } else {
-    eos::MDException e(EINVAL);
-    e.getMessage() << __FUNCTION__  << " No qdb_cluster or qdb_flusher_quota "
-                   << "configuration info provided";
-    throw e;
+    if ((pQcl == nullptr) && (pFlusher == nullptr)) {
+      eos::MDException e(EINVAL);
+      e.getMessage() << __FUNCTION__  << " No qdb_cluster or qdb_flusher_quota "
+                     << "configuration info provided";
+      throw e;
+    }
   }
-
-  qclient::Members qdb_members;
-
-  if (!qdb_members.parse(qdb_cluster)) {
-    eos::MDException e(EINVAL);
-    e.getMessage() << __FUNCTION__
-                   << " Failed to parse qdbcluster members";
-    throw e;
-  }
-
-  pQcl = BackendClient::getInstance(qdb_members);
-  pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
 }
 
 //------------------------------------------------------------------------------
