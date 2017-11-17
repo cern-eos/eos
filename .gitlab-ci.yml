@@ -88,7 +88,7 @@ eos_rpm_fedora_rawhide:
   stage: build:rpm
   image: fedora:rawhide
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar dnf-plugins-core ccache
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar dnf-plugins-core ccache rpm-sign
     - git submodule update --init --recursive
     - mkdir build
     - cd build
@@ -121,7 +121,7 @@ eos_rpm_fedora_26:
   stage: build:rpm
   image: fedora:26
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar dnf-plugins-core ccache
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar dnf-plugins-core ccache rpm-sign
     - git submodule update --init --recursive
     - mkdir build
     - cd build
