@@ -337,7 +337,7 @@ metad::mdx::convert(struct fuse_entry_param &e)
   {
     e.attr.st_mode |= EosFuse::Instance().Config().options.overlay_mode;
   }
-  
+
   e.generation = 1;
 }
 
@@ -1961,6 +1961,31 @@ metad::mdcflush(ThreadAssistant &assistant)
       }
     }
   }
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+metad::calculateDepth(shared_md md)
+/* -------------------------------------------------------------------------- */
+{
+  if(md->id() == 1 || md->id() == 0) {
+    return 1;
+  }
+
+  fuse_ino_t pino = md->pid();
+  if(pino == 1 || pino == 0) {
+    return 2;
+  }
+
+  shared_md pmd;
+  if(!mdmap.retrieveTS(pino, pmd)) {
+    eos_static_warning("could not lookup parent ino=%d of %d when calculating depth..", pino, md->id());
+    return -1;
+  }
+
+  XrdSysMutexHelper mmLock(pmd->Locker());
+  return calculateDepth(pmd) + 1;
 }
 
 /* -------------------------------------------------------------------------- */

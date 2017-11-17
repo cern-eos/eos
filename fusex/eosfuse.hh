@@ -212,6 +212,7 @@ public:
       int global_flush;
       int global_locking;
       int fdlimit;
+      int rm_rf_protect_levels;
       mode_t overlay_mode;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
@@ -274,6 +275,8 @@ public:
 protected:
 
 private:
+
+  static bool isRecursiveRm(fuse_req_t req);
 
   Track tracker;
 

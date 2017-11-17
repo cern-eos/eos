@@ -401,6 +401,10 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       root["auth"]["forknoexec-heuristic"] = 1;
     }
 
+    if(!root["options"].isMember("rm-rf-protect-levels")) {
+      root["options"]["rm-rf-protect-levels"] = 1;
+    }
+
     const Json::Value jname = root["name"];
     config.name = root["name"].asString();
     config.hostport = root["hostport"].asString();
@@ -423,6 +427,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.global_locking = root["options"]["global-locking"].asInt();
     config.options.overlay_mode = strtol(root["options"]["overlay-mode"].asString().c_str(), 0, 8);
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
+    config.options.rm_rf_protect_levels = root["options"]["rm-rf-protect-levels"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
     config.mdcachedir = root["mdcachedir"].asString();
@@ -969,7 +974,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 		       config.options.symlink_is_sync,
                        config.options.global_flush,
                        config.options.global_locking,
-		       no_fsync_list.c_str(), 
+		       no_fsync_list.c_str(),
 		       config.options.overlay_mode
 		       );
 
@@ -1724,11 +1729,18 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
     else
     {
       eos_static_info("%s", md->dump().c_str());
-      auto md_fh = new opendir_t;
-      md_fh->md = md;
-      // fh contains a dummy 0 pointer
-      eos_static_debug("adding ino=%08lx p-ino=%08lx", md->id(), md->pid());
-      fi->fh = (unsigned long) md_fh;
+
+      if(isRecursiveRm(req) && Instance().mds.calculateDepth(md) <= Instance().Config().options.rm_rf_protect_levels) {
+        eos_static_warning("Blocking recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
+        rc = EPERM; // you shall not pass, muahahahahah
+      }
+      else {
+        auto md_fh = new opendir_t;
+        md_fh->md = md;
+        // fh contains a dummy 0 pointer
+        eos_static_debug("adding ino=%08lx p-ino=%08lx", md->id(), md->pid());
+        fi->fh = (unsigned long) md_fh;
+      }
     }
   }
   if (rc)
@@ -2288,10 +2300,16 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
       if (!rc)
       {
-        freesize = md->size();
-        pmd = Instance().mds.get(req, parent, pcap->authid());
-        Instance().datas.unlink(req, md->id());
-        Instance().mds.remove(req, pmd, md, pcap->authid());
+        if(isRecursiveRm(req) && Instance().mds.calculateDepth(md) <= Instance().Config().options.rm_rf_protect_levels) {
+          eos_static_warning("Blocking recursive rm (pid = %d )", fuse_req_ctx(req)->pid);
+          rc = EPERM; // you shall not pass, muahahahahah
+        }
+        else {
+          freesize = md->size();
+          pmd = Instance().mds.get(req, parent, pcap->authid());
+          Instance().datas.unlink(req, md->id());
+          Instance().mds.remove(req, pmd, md, pcap->authid());
+        }
       }
     }
 
@@ -4432,4 +4450,19 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
   hbs.set_threads(osstat.threads);
   hbs.set_vsize_mb(osstat.vsize/1024.0/1024.0);
   hbs.set_rss_mb(osstat.rss/1024.0/1024.0);
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+EosFuse::isRecursiveRm(fuse_req_t req)
+/* -------------------------------------------------------------------------- */
+{
+  const struct fuse_ctx* ctx = fuse_req_ctx(req);
+  ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid, ctx->uid, ctx->gid, false);
+  if(snapshot->getProcessInfo().getRmInfo().isRm() &&
+     snapshot->getProcessInfo().getRmInfo().isRecursive()) {
+    return true;
+  }
+
+  return false;
 }

@@ -30,6 +30,7 @@ add_library(
   LoginIdentifier.cc               LoginIdentifier.hh
   ProcessCache.cc                  ProcessCache.hh
   ProcessInfo.cc                   ProcessInfo.hh
+  RmInfo.cc                        RmInfo.hh
   SecurityChecker.cc               SecurityChecker.hh
   Utils.cc                         Utils.hh
 )

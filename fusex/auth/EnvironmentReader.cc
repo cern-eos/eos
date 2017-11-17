@@ -106,8 +106,8 @@ void EnvironmentReader::worker() {
       std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 
       std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-      if(duration.count() > 10) {
-        eos_static_info("Reading /proc/%d/environ took %dms", request.pid, duration.count());
+      if(duration.count() > 5) {
+        eos_static_warning("Reading /proc/%d/environ took %dms", request.pid, duration.count());
       }
       else {
         eos_static_debug("Reading /proc/%d/environ took %dms", request.pid, duration.count());

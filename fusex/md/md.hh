@@ -412,6 +412,7 @@ public:
   void mdcommunicate(ThreadAssistant &assistant); // thread interacting with the MGM for meta data
 
   int connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname, std::string zmqclienthost, std::string zmqclientuuid);
+  int calculateDepth(shared_md md);
 
   class mdstat
   {
