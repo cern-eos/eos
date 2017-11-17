@@ -70,6 +70,12 @@ private:
   CredentialState fillKrb5FromEnv(const Environment &env, CredInfo &creds, uid_t uid);
   CredentialState fillX509FromEnv(const Environment &env, CredInfo &creds, uid_t uid);
 
+  uint64_t getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect);
+
+
+  std::mutex unixConnectionCounterMtx;
+  std::map<std::pair<uid_t, gid_t>, uint64_t> unixConnectionCounter;
+
   std::atomic<uint64_t> connectionCounter {1};
 };
 
