@@ -112,3 +112,13 @@ TEST_F(ProcessCacheFixture, Kerberos) {
   ASSERT_EQ(snapshot->getXrdLogin(), LoginIdentifier(1).getStringID());
   ASSERT_EQ(snapshot->getXrdCreds(), "xrd.k5ccname=/tmp/my-creds&xrd.secgid=1000&xrd.secuid=1000&xrd.wantprot=krb5,unix");
 }
+
+TEST_F(ProcessCacheFixture, KerberosWithUnixFallback) {
+  configureKerberosAuth();
+
+  injectProcess(1234, 1, 1234, 1234, 9999, 0);
+
+  ProcessSnapshot snapshot = processCache.retrieve(1234, 1000, 1000, false);
+  ASSERT_EQ(snapshot->getXrdLogin(), LoginIdentifier(1000, 1000, 1234, 1).getStringID());
+  ASSERT_EQ(snapshot->getXrdCreds(), "xrd.wantprot=unix");
+}

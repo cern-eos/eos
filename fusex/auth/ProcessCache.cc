@@ -143,10 +143,16 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid, bool rec
     return result;
   }
 
-  // No credentials found at all.. fallback to nobody?
-  if(credConfig.fallback2nobody) {
-    return ProcessSnapshot(new ProcessCacheEntry(processInfo, BoundIdentity(), uid, gid));
-  }
+  // No credentials found at all.. fallback to unix authentication
+  std::shared_ptr<const BoundIdentity> identityPtr;
+  boundIdentityProvider.unixAuthentication(uid, gid, pid, reconnect, identityPtr);
+  BoundIdentity identity = identityPtr;
+  return ProcessSnapshot(new ProcessCacheEntry(processInfo, identity, uid, gid));
 
-  return {};
+  // No credentials found at all.. fallback to nobody?
+  // if(credConfig.fallback2nobody) {
+  //   return ProcessSnapshot(new ProcessCacheEntry(processInfo, BoundIdentity(), uid, gid));
+  // }
+  //
+  // return {};
 }

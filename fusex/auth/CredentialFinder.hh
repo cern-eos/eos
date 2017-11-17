@@ -126,7 +126,7 @@ public:
   void toXrdParams(XrdCl::URL::ParamsMap &paramsMap) const {
     for(size_t i = 0; i < contents.size(); i++) {
       if(contents[i] == '&' || contents[i] == '=') {
-        eos_static_alert("rejecting credential for using forbidden characters: %s", contents.c_str());
+        eos_static_err("rejecting credential for using forbidden characters in the path: %s", contents.c_str());
         paramsMap["xrd.wantprot"] = "unix";
         return;
       }
@@ -209,6 +209,9 @@ public:
 
   BoundIdentity(const LoginIdentifier &login_, const std::shared_ptr<TrustedCredentials> &creds_)
   : login(login_), creds(creds_) { }
+
+  BoundIdentity(const std::shared_ptr<const BoundIdentity> &identity)
+  : login(identity->getLogin()), creds(identity->getCreds()) {}
 
   LoginIdentifier& getLogin() { return login; }
   const LoginIdentifier& getLogin() const { return login; }
