@@ -414,6 +414,7 @@ backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid, XrdSys
 
   XrdCl::URL::ParamsMap query;
   fusexrdlogin::loginurl(url, query, id.uid, id.gid, id.pid, 0);
+  query["eos.app"] = "fuse";
   url.SetParams(query);
 
   // temporary add the authid to be used for that request
