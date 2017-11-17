@@ -93,9 +93,6 @@ IProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
       ifstderrStream.read(buff + cpy_len, blen - cpy_len);
       cpy_len += (size_t)ifstderrStream.gcount();
     }
-    cerr << offset << endl;
-    cerr << cpy_len << endl;
-    cerr << buff << endl;
   }
   else if (readStdErrStream && ifstderrStream.is_open()) {
     ifstderrStream.read(buff, blen);
@@ -108,9 +105,6 @@ IProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
       iretcStream.read(buff + cpy_len, blen - cpy_len);
       cpy_len += (size_t)iretcStream.gcount();
     }
-    cerr << offset << endl;
-    cerr << cpy_len << endl;
-    cerr << buff << endl;
   }
   else if (readRetcStream) {
     iretcStream.read(buff, blen);
@@ -119,9 +113,6 @@ IProcCommand::read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen)
     if (cpy_len < (size_t)blen) {
       readRetcStream = false;
     }
-    cerr << offset << endl;
-    cerr << cpy_len << endl;
-    cerr << buff << endl;
   }
   else if ((size_t)offset < mTmpResp.length()) {
     cpy_len = std::min((size_t)(mTmpResp.size() - offset), (size_t)blen);
