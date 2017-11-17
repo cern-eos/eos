@@ -745,9 +745,9 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     if (!geteuid())
     {
       // change the priority of this process to maximum
-      if (setpriority(PRIO_PROCESS, getpid(), PRIO_MAX) < 0)
+      if (setpriority(PRIO_PROCESS, getpid(), -PRIO_MAX/2) < 0)
       {
-	fprintf(stderr,"error: failed to renice this process '%u', to maximum priority '%d'\n", getpid(), PRIO_MAX);
+	fprintf(stderr,"error: failed to renice this process '%u', to maximum priority '%d'\n", getpid(), -PRIO_MAX/2);
 	exit (-1);
       }
     }
