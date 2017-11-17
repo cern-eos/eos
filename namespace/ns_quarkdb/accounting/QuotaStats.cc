@@ -314,8 +314,7 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
   }
 
   pQcl.reset(new qclient::QClient(qdb_members, true, false));
-  std::string path = "/var/eos/ns-queue/quota/";
-  pFlusher = new MetadataFlusher(path, qdb_members);
+  pFlusher = MetadataFlusherFactory::getInstance("quota", qdb_members);
 }
 
 //------------------------------------------------------------------------------

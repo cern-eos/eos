@@ -57,7 +57,6 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
 
   pQcl = BackendClient::getInstance(qdb_members);
   pNoReplicasSet.setClient(*pQcl);
-  // @todo (esindril): use the qdb_cluster id
   pFlusher = MetadataFlusherFactory::getInstance("default", qdb_members);
 }
 
