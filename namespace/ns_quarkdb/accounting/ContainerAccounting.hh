@@ -120,7 +120,7 @@ public:
 
 private:
 
-  //! Update structure containin the nodes that need an update. We try to
+  //! Update structure containing the nodes that need an update. We try to
   //! optimise the number of updates to the backend by computing the final
   //! size deltas from a number of individual updates.
   struct UpdateT {
@@ -128,8 +128,8 @@ private:
   };
 
   //! Vector of two elements containing the batch which is currently being
-  //! accumulated and the batch which is being commited to the namespace by the
-  //! asynchronous thread
+  //! accumulated and the batch which is being commited to the namespace by
+  //! the asynchronous thread
   std::vector<UpdateT> mBatch;
   std::mutex mMutexBatch; ///< Mutex protecting access to the updates batch
   uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates

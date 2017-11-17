@@ -34,7 +34,7 @@ SyncTimeAccounting::SyncTimeAccounting(IContainerMDSvc* svc,
 {
   mBatch.resize(2);
 
-  // Enable update if update interval is not 0
+  // Enable updates if update interval is not 0
   if (mUpdateIntervalSec) {
     mThread = std::thread(&SyncTimeAccounting::PropagateUpdates, this);
   }
@@ -159,7 +159,7 @@ SyncTimeAccounting::PropagateUpdates()
         }
 
         id = cont->getParentId();
-        deepness++;
+        ++deepness;
       }
     }
 

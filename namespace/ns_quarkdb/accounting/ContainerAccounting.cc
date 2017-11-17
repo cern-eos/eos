@@ -26,8 +26,7 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //----------------------------------------------------------------------------
 ContainerAccounting::ContainerAccounting(IContainerMDSvc* svc,
-    eos::common::RWMutex* ns_mutex,
-    int32_t update_interval)
+    eos::common::RWMutex* ns_mutex, int32_t update_interval)
   : mAccumulateIndx(0), mCommitIndx(1), mShutdown(false),
     mUpdateIntervalSec(update_interval), mContainerMDSvc(svc),
     gNsRwMutex(ns_mutex)
@@ -109,7 +108,7 @@ ContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
   while ((id > 1) && (deepness < 255)) {
     try {
       cont = mContainerMDSvc->getContainerMD(id);
-    } catch (MDException& e) {
+    } catch (const MDException& e) {
       // TODO (esindril): error message using default logging
       break;
     }
@@ -123,7 +122,7 @@ ContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
     }
 
     id = cont->getParentId();
-    deepness++;
+    ++deepness;
   }
 }
 
@@ -157,7 +156,7 @@ ContainerAccounting::PropagateUpdates()
           cont = mContainerMDSvc->getContainerMD(elem.first);
           cont->updateTreeSize(elem.second);
           mContainerMDSvc->updateStore(cont.get());
-        } catch (MDException& e) {
+        } catch (const MDException& e) {
           // TODO: (esindril) error message using default logging
           continue;
         }
