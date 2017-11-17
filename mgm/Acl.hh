@@ -105,6 +105,11 @@ public:
        eos::common::Mapping::VirtualIdentity &vid,
        bool allowUserAcl = false);
 
+  /*---------------------------------------------------------------------------*/
+  //! Constructor from XAttrMap
+  /*---------------------------------------------------------------------------*/
+  Acl (eos::ContainerMD::XAttrMap& xattrmap,
+       eos::common::Mapping::VirtualIdentity &vid);
 
   /*---------------------------------------------------------------------------*/
   //! Constructor by path

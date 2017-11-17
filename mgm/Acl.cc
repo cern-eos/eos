@@ -55,6 +55,29 @@ Acl::Acl (std::string sysacl,
   Set(sysacl, useracl, vid, allowUserAcl);
 }
 
+
+
+//------------------------------------------------------------------------------
+//!
+//! Constructor
+//!
+//! @param attr map containing all extended attributes
+//! @param vid virtual id to match ACL
+//!
+//------------------------------------------------------------------------------
+
+Acl::Acl (eos::ContainerMD::XAttrMap& attrmap,
+     eos::common::Mapping::VirtualIdentity &vid)
+{
+  // define the acl rules from the attributes
+  Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
+      attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
+}
+
+
+
+
+
 //------------------------------------------------------------------------------
 //!
 //! Constructor
