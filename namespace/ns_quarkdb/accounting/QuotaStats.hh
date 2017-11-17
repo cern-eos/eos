@@ -26,7 +26,6 @@
 #include "namespace/interface/IQuota.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 
-
 EOSNSNAMESPACE_BEGIN
 
 //! Forward declaration
@@ -93,27 +92,12 @@ public:
   void updateFromBackend();
 
 private:
-  //----------------------------------------------------------------------------
-  //! Get all uid fields for current quota node
-  //!
-  //! @return vector of all uid fileds for current quota node
-  //----------------------------------------------------------------------------
-  std::vector<std::string> getAllUidFields();
-
-  //----------------------------------------------------------------------------
-  //! Get all gid fields for current quota node
-  //!
-  //! @return vector of all gid fileds for current quota node
-  //----------------------------------------------------------------------------
-  std::vector<std::string> getAllGidFields();
-
   //! Quota quota node uid hash key e.g. quota_node:id_t:uid
   std::string pQuotaUidKey;
   //! Quota quota node gid hash key e.g. quota_node:id_t:gid
   std::string pQuotaGidKey;
   qclient::QHash pUidMap; ///< Backend map for uids
   qclient::QHash pGidMap; ///< Backend map for gids
-  qclient::AsyncHandler pAh; ///< Async handler for qclient requests
   qclient::QClient* pQcl; ///< Backend client from QuotaStats
   MetadataFlusher* pFlusher; ///< Metadata flusher object from QuotaStats
 };
