@@ -195,6 +195,13 @@ private:
   //----------------------------------------------------------------------------
   void flushDirtySet(IFileMD::id_t id, bool force = false);
 
+  //----------------------------------------------------------------------------
+  //! Safety check to make sure there are nofile entries in the backend with
+  //! ids bigger than the max file id. If there is any problem this will throw
+  //! an eos::MDException.
+  //----------------------------------------------------------------------------
+  void SafetyCheck();
+
   ListenerList pListeners; ///< List of listeners to notify of changes
   IQuotaStats* pQuotaStats; ///< Quota view
   IContainerMDSvc* pContSvc; ///< Container metadata service

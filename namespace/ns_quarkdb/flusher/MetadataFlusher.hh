@@ -65,6 +65,8 @@ public:
   //----------------------------------------------------------------------------
   MetadataFlusher(const std::string& path, const qclient::Members& qdb_members);
 
+  // @todo (esindril): Call synchronize in the destructor of the flusher ?!
+
   //----------------------------------------------------------------------------
   //! Methods to stage redis commands for background flushing.
   //----------------------------------------------------------------------------

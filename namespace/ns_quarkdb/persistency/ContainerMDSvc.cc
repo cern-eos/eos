@@ -77,34 +77,26 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
       (config.find(key_flusher) != config.end())) {
     qdb_cluster = config.at(key_cluster);
     qdb_flusher_id = config.at(key_flusher);
-  } else {
-    eos::MDException e(EINVAL);
-    e.getMessage() << __FUNCTION__  << " No " << key_cluster << " or "
-                   << key_flusher << " configuration info provided";
-    throw e;
+    qclient::Members qdb_members;
+
+    if (!qdb_members.parse(qdb_cluster)) {
+      eos::MDException e(EINVAL);
+      e.getMessage() << __FUNCTION__ << " Failed to parse qdbcluster members: "
+                     << qdb_cluster;
+      throw e;
+    }
+
+    pQcl = BackendClient::getInstance(qdb_members);
+    mMetaMap.setKey(constants::sMapMetaInfoKey);
+    mMetaMap.setClient(*pQcl);
+    mMetaMap.hset("EOS-NS-FORMAT-VERSION", "1");
+    mInodeProvider.configure(mMetaMap, constants::sLastUsedCid);
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
   }
 
   if (config.find(cache_size) != config.end()) {
     mContainerCache.set_max_size(std::stoull(config.at(cache_size)));
   }
-
-  qclient::Members qdb_members;
-
-  if (!qdb_members.parse(qdb_cluster)) {
-    eos::MDException e(EINVAL);
-    e.getMessage() << __FUNCTION__ << " Failed to parse qdbcluster members: "
-                   << qdb_cluster;
-    throw e;
-  }
-
-  pQcl = BackendClient::getInstance(qdb_members);
-  mMetaMap.setKey(constants::sMapMetaInfoKey);
-  mMetaMap.setClient(*pQcl);
-  mMetaMap.hset("EOS-NS-FORMAT-VERSION", "1");
-  mInodeProvider.configure(mMetaMap, constants::sLastUsedCid);
-  // @todo (esindril): add protection in case there are container with bigger
-  // ids in the backend
-  pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
 }
 
 //------------------------------------------------------------------------------
@@ -119,6 +111,15 @@ ContainerMDSvc::initialize()
                    << "metadata service";
     throw e;
   }
+
+  if ((pQcl == nullptr) || (pFlusher == nullptr)) {
+    MDException e(EINVAL);
+    e.getMessage() << "No qclient/flusher initialized for the container "
+                   << "metadata service";
+    throw e;
+  }
+
+  SafetyCheck();
 }
 
 //----------------------------------------------------------------------------
@@ -359,6 +360,40 @@ IContainerMD::id_t
 ContainerMDSvc::getFirstFreeId()
 {
   return mInodeProvider.getFirstFreeId();
+}
+
+//------------------------------------------------------------------------------
+// Safety check to make sure there are no container entries in the backed
+// with ids bigger than the max container id.
+//------------------------------------------------------------------------------
+void
+ContainerMDSvc::SafetyCheck()
+{
+  std::string blob;
+  id_t free_id = getFirstFreeId();
+  std::list<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
+                                  100000, 150199, 200001, 1000002, 2000123
+                                 };
+
+  for (auto incr : offsets) {
+    id_t check_id = free_id + incr;
+
+    try {
+      std::string sid = stringify(check_id);
+      qclient::QHash bucket_map(*pQcl, getBucketKey(check_id));
+      blob = bucket_map.hget(sid);
+    } catch (std::runtime_error& qdb_err) {
+      // Fine, we didn't find the container
+      continue;
+    }
+
+    if (!blob.empty()) {
+      MDException e(EEXIST);
+      e.getMessage() << "FATAL: Risk of data loss, found container with id bigger"
+                     << " than max container id";
+      throw e;
+    }
+  }
 }
 
 EOSNSNAMESPACE_END

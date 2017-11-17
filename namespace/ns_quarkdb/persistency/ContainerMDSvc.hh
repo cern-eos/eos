@@ -184,6 +184,13 @@ private:
   void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a)
   override;
 
+  //----------------------------------------------------------------------------
+  //! Safety check to make sure there are no container entries in the backend
+  //! with ids bigger than the max container id. If there is any problem this
+  //! will throw an eos::MDException.
+  //----------------------------------------------------------------------------
+  void SafetyCheck();
+
   static std::uint64_t sNumContBuckets; ///< Number of buckets power of 2
   ListenerList pListeners;   ///< List of listeners to be notified
   IQuotaStats* pQuotaStats;  ///< Quota view
