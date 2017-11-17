@@ -40,24 +40,33 @@ void
 FileSystemView::configure(const std::map<std::string, std::string>& config)
 {
   std::string qdb_cluster;
+  std::string qdb_flusher_id;
   const std::string key_cluster = "qdb_cluster";
+  const std::string key_flusher = "qdb_flusher_md";
 
-  if (config.find(key_cluster) != config.end()) {
+  if ((config.find(key_cluster) != config.end()) &&
+      (config.find(key_flusher) != config.end())) {
     qdb_cluster = config.at(key_cluster);
+    qdb_flusher_id = config.at(key_flusher);
+  } else {
+    eos::MDException e(EINVAL);
+    e.getMessage() << __FUNCTION__  << " No " << key_cluster << " or "
+                   << key_flusher << " configuration info provided";
+    throw e;
   }
 
   qclient::Members qdb_members;
 
   if (!qdb_members.parse(qdb_cluster)) {
     eos::MDException e(EINVAL);
-    e.getMessage() << __FUNCTION__
-                   << " Failed to parse qdbcluster members";
+    e.getMessage() << __FUNCTION__ << " Failed to parse qdbcluster members: "
+                   << qdb_cluster;
     throw e;
   }
 
   pQcl = BackendClient::getInstance(qdb_members);
   pNoReplicasSet.setClient(*pQcl);
-  pFlusher = MetadataFlusherFactory::getInstance("default", qdb_members);
+  pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
 }
 
 //------------------------------------------------------------------------------

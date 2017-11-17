@@ -45,15 +45,19 @@ void
 FileMDSvc::configure(const std::map<std::string, std::string>& config)
 {
   std::string qdb_cluster;
+  std::string qdb_flusher_id;
   const std::string key_cluster = "qdb_cluster";
+  const std::string key_flusher = "qdb_flusher_md";
   const std::string cache_size = "file_cache_size";
 
-  if (config.find(key_cluster) != config.end()) {
+  if ((config.find(key_cluster) != config.end()) &&
+      (config.find(key_flusher) != config.end())) {
     qdb_cluster = config.at(key_cluster);
+    qdb_flusher_id = config.at(key_flusher);
   } else {
     eos::MDException e(EINVAL);
-    e.getMessage() << __FUNCTION__
-                   << " No qdbcluster configuration info provided";
+    e.getMessage() << __FUNCTION__  << " No " << key_cluster << " or "
+                   << key_flusher << " configuration info provided";
     throw e;
   }
 
@@ -65,8 +69,8 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
 
   if (!qdb_members.parse(qdb_cluster)) {
     eos::MDException e(EINVAL);
-    e.getMessage() << __FUNCTION__
-                   << " Failed to parse qdbcluster members";
+    e.getMessage() << __FUNCTION__ << " Failed to parse qdbcluster members: "
+                   << qdb_cluster;
     throw e;
   }
 
@@ -78,7 +82,7 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
   inodeProvider.configure(mMetaMap, constants::sLastUsedFid);
   // @todo (esindril): add protection in case there are container with bigger
   // ids in the backend
-  pFlusher = MetadataFlusherFactory::getInstance("default", qdb_members);
+  pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
 }
 
 //------------------------------------------------------------------------------
