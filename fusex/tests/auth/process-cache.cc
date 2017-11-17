@@ -84,20 +84,20 @@ TEST_F(ProcessCacheFixture, UnixAuthentication) {
   injectProcess(1234, 1, 1234, 1234, 9999, 0);
 
   ProcessSnapshot snapshot = processCache.retrieve(1234, 5, 6, false);
-  ASSERT_EQ(snapshot->getXrdLogin(), LoginIdentifier(5, 6, 1234, 1).getStringID());
+  ASSERT_EQ(snapshot->getXrdLogin(), LoginIdentifier(5, 6, 1234, 0).getStringID());
 
   ProcessSnapshot snapshot2 = processCache.retrieve(1234, 5, 6, false);
-  ASSERT_EQ(snapshot2->getXrdLogin(), LoginIdentifier(5, 6, 1234, 1).getStringID());
+  ASSERT_EQ(snapshot2->getXrdLogin(), LoginIdentifier(5, 6, 1234, 0).getStringID());
 
   ProcessSnapshot snapshot3 = processCache.retrieve(1234, 5, 6, true);
-  ASSERT_EQ(snapshot3->getXrdLogin(), LoginIdentifier(5, 6, 1234, 2).getStringID());
+  ASSERT_EQ(snapshot3->getXrdLogin(), LoginIdentifier(5, 6, 1234, 1).getStringID());
 
   ProcessSnapshot snapshot4 = processCache.retrieve(1234, 7, 6, false);
-  ASSERT_EQ(snapshot4->getXrdLogin(), LoginIdentifier(7, 6, 1234, 2).getStringID());
+  ASSERT_EQ(snapshot4->getXrdLogin(), LoginIdentifier(7, 6, 1234, 0).getStringID());
 
   injectProcess(1235, 1, 1235, 1235, 9999, 0);
   ProcessSnapshot snapshot5 = processCache.retrieve(1235, 8, 6, false);
-  ASSERT_EQ(snapshot5->getXrdLogin(), LoginIdentifier(8, 6, 1235, 2).getStringID());
+  ASSERT_EQ(snapshot5->getXrdLogin(), LoginIdentifier(8, 6, 1235, 0).getStringID());
 }
 
 TEST_F(ProcessCacheFixture, Kerberos) {
@@ -119,6 +119,6 @@ TEST_F(ProcessCacheFixture, KerberosWithUnixFallback) {
   injectProcess(1234, 1, 1234, 1234, 9999, 0);
 
   ProcessSnapshot snapshot = processCache.retrieve(1234, 1000, 1000, false);
-  ASSERT_EQ(snapshot->getXrdLogin(), LoginIdentifier(1000, 1000, 1234, 1).getStringID());
+  ASSERT_EQ(snapshot->getXrdLogin(), LoginIdentifier(1000, 1000, 1234, 0).getStringID());
   ASSERT_EQ(snapshot->getXrdCreds(), "xrd.wantprot=unix");
 }

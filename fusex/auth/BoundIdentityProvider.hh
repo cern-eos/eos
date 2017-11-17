@@ -85,9 +85,13 @@ private:
   CredentialState fillKrb5FromEnv(const Environment &env, CredInfo &creds, uid_t uid);
   CredentialState fillX509FromEnv(const Environment &env, CredInfo &creds, uid_t uid);
 
-  CredentialState
-  unixAuthentication(uid_t uid, gid_t gid, pid_t pid, bool reconnect,
-                     std::shared_ptr<const BoundIdentity>& result);
+  uint64_t getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect);
+
+
+  std::mutex unixConnectionCounterMtx;
+  std::map<std::pair<uid_t, gid_t>, uint64_t> unixConnectionCounter;
+
+>>>>>>> FUSEX: Use separate connection counters for each (uid, gid) pair
   std::atomic<uint64_t> connectionCounter {1};
 };
 

@@ -105,11 +105,24 @@ BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
   return CredentialState::kCannotStat;
 }
 
-CredentialState
-BoundIdentityProvider::retrieve(const Environment& processEnv, uid_t uid
-                                , gid_t gid, bool reconnect,
-                                std::shared_ptr<const BoundIdentity>& result)
-{
+uint64_t BoundIdentityProvider::getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect) {
+  std::lock_guard<std::mutex> lock(unixConnectionCounterMtx);
+  if(reconnect) {
+    unixConnectionCounter[std::make_pair(uid, gid)]++;
+  }
+
+  return unixConnectionCounter[std::make_pair(uid, gid)];
+}
+
+CredentialState BoundIdentityProvider::unixAuthentication(uid_t uid, gid_t gid, pid_t pid, bool reconnect, std::shared_ptr<const BoundIdentity> &result) {
+  LoginIdentifier login(uid, gid, pid, getUnixConnectionCounter(uid, gid, reconnect));
+  std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials());
+
+  result = std::shared_ptr<const BoundIdentity>(new BoundIdentity(login, trustedCreds));
+  return CredentialState::kOk;
+}
+
+CredentialState BoundIdentityProvider::retrieve(const Environment &processEnv, uid_t uid, gid_t gid, bool reconnect, std::shared_ptr<const BoundIdentity> &result) {
   CredInfo credinfo;
   CredentialState state = fillCredsFromEnv(processEnv, credConfig, credinfo, uid);
 
