@@ -33,25 +33,26 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! File System iterator abtract class
+//! Container iterator abtract class
 //------------------------------------------------------------------------------
-class IFsIterator
+template<typename T>
+class ICollectionIterator
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IFsIterator() {}
+  ICollectionIterator() {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~IFsIterator() {}
+  virtual ~ICollectionIterator() {}
 
   //----------------------------------------------------------------------------
   //! Get current fsid
   //----------------------------------------------------------------------------
-  virtual IFileMD::location_t getFilesystemID() = 0;
+  virtual T getElement() = 0;
 
   //----------------------------------------------------------------------------
   //! Check if iterator is valid
@@ -139,7 +140,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get iterator object to run through all currently active filesystem IDs
   //----------------------------------------------------------------------------
-  virtual std::shared_ptr<IFsIterator> getFilesystemIterator() = 0;
+  virtual std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+      getFileSystemIterator() = 0;
 
   //----------------------------------------------------------------------------
   //! Finalize

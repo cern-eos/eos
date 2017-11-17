@@ -433,10 +433,11 @@ Fsck::Check(void)
       XrdSysMutexHelper lock(eMutex);
       eos::common::RWMutexReadLock fs_lock(FsView::gFsView.ViewMutex);
       eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-      // size_t nfilesystems = gOFS->eosFsView->getNumFileSystems();
 
-      for (auto it = gOFS->eosFsView->getFilesystemIterator(); it->valid(); it->next()) {
-        IFileMD::location_t nfsid = it->getFilesystemID();
+      for (auto it = gOFS->eosFsView->getFileSystemIterator(); it->valid();
+           it->next()) {
+        IFileMD::location_t nfsid = it->getElement();
+
         try {
           eos::IFsView::FileList filelist =  gOFS->eosFsView->getFileList(nfsid);
 

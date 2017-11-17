@@ -38,13 +38,14 @@ EOSNSNAMESPACE_BEGIN
 //! The proper solution would be that the object itself contacts redis running
 //! SCAN, but this should be fine for now.
 //------------------------------------------------------------------------------
-class FilesystemIterator : public IFsIterator
+class FileSystemIterator:
+  public ICollectionIterator<IFileMD::location_t>
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FilesystemIterator(std::set<IFileMD::location_t>&& filesystems)
+  FileSystemIterator(std::set<IFileMD::location_t>&& filesystems)
   {
     pFilesystems = std::move(filesystems);
     iterator = pFilesystems.begin();
@@ -53,7 +54,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get current fsid
   //----------------------------------------------------------------------------
-  IFileMD::location_t getFilesystemID() override
+  IFileMD::location_t getElement() override
   {
     return *iterator;
   }
@@ -169,7 +170,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get iterator object to run through all currently active filesystem IDs
   //----------------------------------------------------------------------------
-  std::shared_ptr<IFsIterator> getFilesystemIterator() override;
+  std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+      getFileSystemIterator() override;
 
   //----------------------------------------------------------------------------
   //! Configure

@@ -192,8 +192,8 @@ FileSystemView::fileMDCheck(IFileMD* file)
   // This will generate a gazillion writes towards QuarkDB, one for each
   // filesystem not containing the file.. which is almost all of them!
   // Maybe rethink if there's a better way?
-  for (auto it = this->getFilesystemIterator(); it->valid(); it->next()) {
-    IFileMD::location_t fsid = it->getFilesystemID();
+  for (auto it = this->getFileSystemIterator(); it->valid(); it->next()) {
+    IFileMD::location_t fsid = it->getElement();
 
     if (std::find(replica_locs.begin(), replica_locs.end(),
                   fsid) == replica_locs.end()) {
@@ -308,8 +308,8 @@ FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 //----------------------------------------------------------------------------
 // Get iterator object to run through all currently active filesystem IDs
 //----------------------------------------------------------------------------
-std::shared_ptr<IFsIterator>
-FileSystemView::getFilesystemIterator()
+std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+    FileSystemView::getFileSystemIterator()
 {
   pFlusher->synchronize();
   qclient::QScanner replicaSets(*pQcl, fsview::sPrefix + "*:*");
@@ -331,8 +331,8 @@ FileSystemView::getFilesystemIterator()
     }
   }
 
-  return std::shared_ptr<IFsIterator>(new FilesystemIterator(std::move(
-                                        uniqueFilesytems)));
+  return std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+         (new FileSystemIterator(std::move(uniqueFilesytems)));
 }
 
 //----------------------------------------------------------------------------

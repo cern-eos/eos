@@ -36,20 +36,20 @@ EOSNSNAMESPACE_BEGIN
 // Trivial implementation, using the same logic to iterate over filesystems
 // as we did with "getNumFileSystems" before.
 //------------------------------------------------------------------------------
-class FilesystemIterator : public IFsIterator
+class FileSystemIterator:
+  public ICollectionIterator<IFileMD::location_t>
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FilesystemIterator(IFileMD::location_t maxfs) : pCurrentFS(0), pMaxFS(maxfs)
-  {
-  }
+  FileSystemIterator(IFileMD::location_t maxfs) :
+    pCurrentFS(0), pMaxFS(maxfs) {}
 
   //----------------------------------------------------------------------------
   //! Get current fsid
   //----------------------------------------------------------------------------
-  IFileMD::location_t getFilesystemID() override
+  IFileMD::location_t getElement() override
   {
     return pCurrentFS;
   }
@@ -67,7 +67,7 @@ public:
   //----------------------------------------------------------------------------
   void next() override
   {
-    if(valid()) {
+    if (valid()) {
       pCurrentFS++;
     }
   }
@@ -142,9 +142,11 @@ public:
   //----------------------------------------------------------------------------
   //! Get iterator object to run through all currently active filesystem IDs
   //----------------------------------------------------------------------------
-  std::shared_ptr<IFsIterator> getFilesystemIterator() override
+  std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+      getFileSystemIterator() override
   {
-    return std::shared_ptr<IFsIterator>(new FilesystemIterator(pFiles.size()));
+    return std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+           (new FileSystemIterator(pFiles.size()));
   }
 
   //----------------------------------------------------------------------------

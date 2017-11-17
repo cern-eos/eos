@@ -144,11 +144,11 @@ TEST(FileMDSvc, CheckFileTest)
     eos::MetadataFlusherFactory::getInstance(config["qdb_flusher_md"],
         qclient::Members::fromString(config["qdb_cluster"]));
   flusher->synchronize();
-  auto it = fsView->getFilesystemIterator();
+  auto it = fsView->getFileSystemIterator();
 
   for (size_t i = 1; i <= 4; i++) {
     ASSERT_TRUE(it->valid()) << i;
-    ASSERT_EQ(i, it->getFilesystemID());
+    ASSERT_EQ(i, it->getElement());
     it->next();
   }
 

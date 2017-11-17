@@ -479,12 +479,11 @@ void compareFileSystems(eos::FileSystemView* viewMaster,
 {
   // CPPUNIT_ASSERT(viewMaster->getNumFileSystems() ==
   //                viewSlave->getNumFileSystems());
-
-  for(auto it = viewMaster->getFilesystemIterator(); it->valid(); it->next()) {
-    CPPUNIT_ASSERT(viewMaster->getFileList(it->getFilesystemID()).size() ==
-                   viewSlave->getFileList(it->getFilesystemID()).size());
-    CPPUNIT_ASSERT(viewMaster->getUnlinkedFileList(it->getFilesystemID()).size() ==
-                   viewSlave->getUnlinkedFileList(it->getFilesystemID()).size());
+  for (auto it = viewMaster->getFileSystemIterator(); it->valid(); it->next()) {
+    CPPUNIT_ASSERT(viewMaster->getFileList(it->getElement()).size() ==
+                   viewSlave->getFileList(it->getElement()).size());
+    CPPUNIT_ASSERT(viewMaster->getUnlinkedFileList(it->getElement()).size() ==
+                   viewSlave->getUnlinkedFileList(it->getElement()).size());
   }
 
   CPPUNIT_ASSERT(viewMaster->getNoReplicasFileList().size() ==
