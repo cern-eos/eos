@@ -135,8 +135,8 @@ public:
   static uint64_t InitBlocksize()
   {
     char* ptr = getenv("EOS_FST_XRDIO_BLOCK_SIZE");
-    return ptr ? strtoul(ptr, 0,
-                         10) : 1024 * 1024 /*default is 1M if the envar is not set*/;
+    //default is 1M if the envar is not set
+    return (ptr ? strtoul(ptr, 0, 10) : 1024 * 1024ull);
   }
 
   //----------------------------------------------------------------------------
@@ -147,7 +147,8 @@ public:
   static uint32_t InitNumRdAheadBlocks()
   {
     char* ptr = getenv("EOS_FST_XRDIO_RDAHEAD_BLOCKS");
-    return ptr ? strtoul(ptr, 0, 10) : 2;   /*default is 2 if envar is not set*/
+    // default is 2 if envar is not set
+    return (ptr ? strtoul(ptr, 0, 10) : 2ul);
   }
 
   //----------------------------------------------------------------------------

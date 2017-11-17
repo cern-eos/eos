@@ -38,21 +38,21 @@ class DrainTransferJob;
 class DrainFS: public eos::common::LogId
 {
 public:
+  pthread_t mThread; ///< Thead supervising the draining
+
   //----------------------------------------------------------------------------
   //! Static thread startup function
   //----------------------------------------------------------------------------
   static void* StaticThreadProc(void*);
 
-  pthread_t mThread; ///< Thead supervising the draining
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param fs_id filesystem id
   //----------------------------------------------------------------------------
   DrainFS(eos::common::FileSystem::fsid_t fs_id):
-     mThread(0), mFsId(fs_id)
-  {
-  }
+    mThread(0), mFsId(fs_id), mDrainStatus(eos::common::FileSystem::kNoDrain)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -84,7 +84,7 @@ public:
   //---------------------------------------------------------------------------
   inline const eos::common::FileSystem::fsid_t GetFsId() const
   {
-    return mFsId; 
+    return mFsId;
   }
 private:
 

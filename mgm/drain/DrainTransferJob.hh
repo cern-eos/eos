@@ -49,8 +49,9 @@ public:
   //----------------------------------------------------------------------------
   DrainTransferJob(eos::common::FileId::fileid_t fileId,
                    eos::common::FileSystem::fsid_t fsIdS,
-                   eos::common::FileSystem::fsid_t fsIdT = 0)
-    : mFileId(fileId), mFsIdSource(fsIdS), mFsIdTarget(fsIdT), mThread() {}
+                   eos::common::FileSystem::fsid_t fsIdT = 0):
+    mFileId(fileId), mFsIdSource(fsIdS), mFsIdTarget(fsIdT), mThread(),
+    mStatus(OK) {}
 
   //----------------------------------------------------------------------------
   //! Destructor

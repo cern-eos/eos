@@ -24,7 +24,7 @@
 #include "mgm/drain/DrainFS.hh"
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include <sstream>  
+#include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -124,7 +124,6 @@ DrainFS::Drain()
   do {
     ntried++;
     eos_notice("Starting DrainFS for fs=%u", mFsId);
-    
     time_t drainstart = time(NULL);
     time_t drainperiod = 0;
     time_t drainendtime = 0;
@@ -134,7 +133,7 @@ DrainFS::Drain()
     {
       //set counter and status
       SetInitialCounters();
-    
+
       // set status to 'prepare'
       if (FsView::gFsView.mIdView.count(mFsId)) {
         fs = FsView::gFsView.mIdView[mFsId];
@@ -146,6 +145,7 @@ DrainFS::Drain()
                    mFsId);
         return 0;
       }
+
       fs->OpenTransaction();
       fs->SetDrainStatus(eos::common::FileSystem::kDrainPrepare);
       mDrainStatus = eos::common::FileSystem::kDrainPrepare;
@@ -196,6 +196,7 @@ DrainFS::Drain()
         // no files to drain
       }
     }
+
     if (filelist.size() == 0) {
       CompleteDrain();
       return 0;
@@ -205,7 +206,7 @@ DrainFS::Drain()
 
     while (fid_it != filelist.end()) {
       mJobsPending.push_back(shared_ptr<DrainTransferJob>
-                               (new DrainTransferJob(*fid_it, mFsId)));
+                             (new DrainTransferJob(*fid_it, mFsId)));
       fid_it++;
     }
 
@@ -224,6 +225,7 @@ DrainFS::Drain()
         XrdSysThread::SetCancelOn();
         return 0;
       }
+
       fs->OpenTransaction();
       //set draining status
       fs->SetDrainStatus(eos::common::FileSystem::kDraining);
@@ -233,7 +235,7 @@ DrainFS::Drain()
       fs->SetLongLong("stat.drainfiles",
                       totalfiles);
       // set status to 'RO'
-      fs->SetConfigStatus(eos::common::FileSystem::kRO,true);
+      fs->SetConfigStatus(eos::common::FileSystem::kRO, true);
       fs->CloseTransaction();
       FsView::gFsView.StoreFsConfig(fs);
     }
@@ -252,7 +254,6 @@ DrainFS::Drain()
       auto job = mJobsPending.begin();
       int i = 0;
       eos::common::FileSystem::fsid_t fsIdTarget;
-
       last_filesleft = filesleft;
 
       while (i < maxParallelJobs && job != mJobsPending.end()) {
@@ -325,15 +326,16 @@ DrainFS::Drain()
 
         if (!fs) {
           eos_static_notice(
-              "Filesystem fsid=%u has been removed during drain operation", mFsId);
-            return 0;
+            "Filesystem fsid=%u has been removed during drain operation", mFsId);
+          return 0;
         }
+
         fs->OpenTransaction();
         fs->SetLongLong("stat.drainbytesleft",
-                          fs->GetLongLong("stat.statfs.usedbytes"));
+                        fs->GetLongLong("stat.statfs.usedbytes"));
         fs->SetLongLong("stat.drainfiles",
-                          filesleft);
-        
+                        filesleft);
+
         if (stalled) {
           if (mDrainStatus != eos::common::FileSystem::kDrainStalling) {
             fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
@@ -347,15 +349,17 @@ DrainFS::Drain()
             mDrainStatus = eos::common::FileSystem::kDraining;
           }
         }
+
         int progress = (int)(totalfiles) ? (100.0 * (totalfiles - filesleft) /
                                             totalfiles) : 100;
         fs->SetLongLong("stat.drainprogress", progress, false);
 
         if ((drainendtime - time(NULL)) > 0) {
-            fs->SetLongLong("stat.timeleft", drainendtime - time(NULL), false);
+          fs->SetLongLong("stat.timeleft", drainendtime - time(NULL), false);
         } else {
-            fs->SetLongLong("stat.timeleft", 99999999999LL, false);
+          fs->SetLongLong("stat.timeleft", 99999999999LL, false);
         }
+
         firstRun = false;
         fs->CloseTransaction();
       }
@@ -385,6 +389,7 @@ DrainFS::Drain()
             XrdSysThread::SetCancelOn();
             return 0;
           }
+
           fs->OpenTransaction();
           fs->SetLongLong("stat.drainfiles", filesleft);
           fs->SetDrainStatus(eos::common::FileSystem::kDrainExpired);
@@ -432,6 +437,7 @@ DrainFS::CompleteDrain()
       eos_notice("Filesystem fsid=%u has been removed during drain operation",
                  mFsId);
       XrdSysThread::SetCancelOn();
+      return;
     }
 
     mDrainStatus = eos::common::FileSystem::kDrained;
@@ -467,7 +473,7 @@ DrainFS::DrainStop()
 
     if (fs) {
       fs->OpenTransaction();
-      fs->SetConfigStatus(eos::common::FileSystem::kRW,true);
+      fs->SetConfigStatus(eos::common::FileSystem::kRW, true);
       fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
       fs->CloseTransaction();
       //set also local var
@@ -549,7 +555,7 @@ DrainFS::SelectTargetFS(DrainTransferJob* job)
     std::ostringstream oss;
 
     for (auto it = newReplicas->begin(); it != newReplicas->end(); ++it) {
-      oss << " " <<  (unsigned long)(*it);
+      oss << " " << (unsigned long)(*it);
     }
 
     eos_static_debug("GeoTree Draining Placement returned %d with fs id's -> %s",
