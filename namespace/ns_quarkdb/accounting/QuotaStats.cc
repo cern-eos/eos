@@ -69,6 +69,15 @@ QuotaNode::addFile(const IFileMD* file)
   pFlusher->hincrby(pQuotaUidKey, field, 1);
   field = sgid + quota::sNumFiles;
   pFlusher->hincrby(pQuotaUidKey, field, 1);
+  // Update the cached information
+  UsageInfo& user  = pUserUsage[file->getCUid()];
+  UsageInfo& group = pGroupUsage[file->getCGid()];
+  user.physicalSpace  += size;
+  group.physicalSpace += size;
+  user.space   += file->getSize();
+  group.space  += file->getSize();
+  user.files++;
+  group.files++;
 }
 
 //------------------------------------------------------------------------------
@@ -92,6 +101,15 @@ QuotaNode::removeFile(const IFileMD* file)
   pFlusher->hincrby(pQuotaUidKey, field, -1);
   field = sgid + quota::sNumFiles;
   pFlusher->hincrby(pQuotaUidKey, field, -1);
+  // Update the cached information
+  UsageInfo& user  = pUserUsage[file->getCUid()];
+  UsageInfo& group = pGroupUsage[file->getCGid()];
+  user.physicalSpace  -= size;
+  group.physicalSpace -= size;
+  user.space   -= file->getSize();
+  group.space  -= file->getSize();
+  user.files--;
+  group.files--;
 }
 
 //------------------------------------------------------------------------------
@@ -101,19 +119,15 @@ void
 QuotaNode::meld(const IQuotaNode* node)
 {
   const QuotaNode* impl_node = dynamic_cast<const QuotaNode*>(node);
-
-  if (!impl_node) {
-    throw std::runtime_error("QuotaNode dynamic cast failed");
-  }
-
   std::string field;
   qclient::QHash hmap(*pQcl, impl_node->getUidKey());
+  // elems is a list of keys and values
   std::vector<std::string> elems = hmap.hgetall();
 
   for (auto it = elems.begin(); it != elems.end(); ++it) {
     field = *it;
     ++it;
-    (void)pUidMap.hincrby(field, *it);
+    pFlusher->hincrby(pQuotaUidKey, field, std::stoll(*it));
   }
 
   hmap.setKey(impl_node->getGidKey());
@@ -122,7 +136,18 @@ QuotaNode::meld(const IQuotaNode* node)
   for (auto it = elems.begin(); it != elems.end(); ++it) {
     field = *it;
     ++it;
-    (void)pGidMap.hincrby(field, *it);
+    pFlusher->hincrby(pQuotaGidKey, field, std::stoll(*it));
+  }
+
+  // Update the cached information
+  for (auto it1 = impl_node->pUserUsage.begin();
+       it1 != impl_node->pUserUsage.end(); ++it1) {
+    pUserUsage[it1->first] += it1->second;
+  }
+
+  for (auto it2 = impl_node->pGroupUsage.begin();
+       it2 != impl_node->pGroupUsage.end(); ++it2) {
+    pGroupUsage[it2->first] += it2->second;
   }
 }
 
@@ -132,13 +157,7 @@ QuotaNode::meld(const IQuotaNode* node)
 uint64_t
 QuotaNode::getUsedSpaceByUser(uid_t uid)
 {
-  try {
-    std::string field = std::to_string(uid) + quota::sLogicalSize;
-    std::string val = pUidMap.hget(field);
-    return (val.empty() ? 0 : std::stoull(val));
-  } catch (std::runtime_error& e) {
-    return 0;
-  }
+  return pUserUsage[uid].space;
 }
 
 //------------------------------------------------------------------------------
@@ -147,13 +166,7 @@ QuotaNode::getUsedSpaceByUser(uid_t uid)
 uint64_t
 QuotaNode::getUsedSpaceByGroup(gid_t gid)
 {
-  try {
-    std::string field = std::to_string(gid) + quota::sLogicalSize;
-    std::string val = pGidMap.hget(field);
-    return (val.empty() ? 0 : std::stoull(val));
-  } catch (std::runtime_error& e) {
-    return 0;
-  }
+  return pGroupUsage[gid].space;
 }
 
 //------------------------------------------------------------------------------
@@ -162,13 +175,7 @@ QuotaNode::getUsedSpaceByGroup(gid_t gid)
 uint64_t
 QuotaNode::getPhysicalSpaceByUser(uid_t uid)
 {
-  try {
-    std::string field = std::to_string(uid) + quota::sPhysicalSize;
-    std::string val = pUidMap.hget(field);
-    return (val.empty() ? 0 : std::stoull(val));
-  } catch (std::runtime_error& e) {
-    return 0;
-  }
+  return pUserUsage[uid].physicalSpace;
 }
 
 //------------------------------------------------------------------------------
@@ -177,13 +184,7 @@ QuotaNode::getPhysicalSpaceByUser(uid_t uid)
 uint64_t
 QuotaNode::getPhysicalSpaceByGroup(gid_t gid)
 {
-  try {
-    std::string field = std::to_string(gid) + quota::sPhysicalSize;
-    std::string val = pGidMap.hget(field);
-    return (val.empty() ? 0 : std::stoull(val));
-  } catch (std::runtime_error& e) {
-    return 0;
-  }
+  return pGroupUsage[gid].physicalSpace;
 }
 
 //------------------------------------------------------------------------------
@@ -192,13 +193,7 @@ QuotaNode::getPhysicalSpaceByGroup(gid_t gid)
 uint64_t
 QuotaNode::getNumFilesByUser(uid_t uid)
 {
-  try {
-    std::string field = std::to_string(uid) + quota::sNumFiles;
-    std::string val = pUidMap.hget(field);
-    return (val.empty() ? 0 : std::stoull(val));
-  } catch (std::runtime_error& e) {
-    return 0;
-  }
+  return pUserUsage[uid].files;
 }
 
 //----------------------------------------------------------------------------
@@ -207,13 +202,7 @@ QuotaNode::getNumFilesByUser(uid_t uid)
 uint64_t
 QuotaNode::getNumFilesByGroup(gid_t gid)
 {
-  try {
-    std::string field = std::to_string(gid) + quota::sNumFiles;
-    std::string val = pGidMap.hget(field);
-    return (val.empty() ? 0 : std::stoull(val));
-  } catch (std::runtime_error& e) {
-    return 0;
-  }
+  return pUserUsage[gid].files;
 }
 
 //------------------------------------------------------------------------------
@@ -223,16 +212,10 @@ QuotaNode::getNumFilesByGroup(gid_t gid)
 std::unordered_set<uint64_t>
 QuotaNode::getUids()
 {
-  std::string suid;
-  std::vector<std::string> keys = pUidMap.hkeys();
   std::unordered_set<uint64_t> uids;
-  uids.reserve(keys.size() / 3);
 
-  // The keys have the following format: uid1:logical_size, uid1:physical_size,
-  // uid1:files ... uidn:files.
-  for (auto && elem : keys) {
-    suid = elem.substr(0, elem.find(':'));
-    uids.insert(std::stoull(suid));
+  for (auto it = pUserUsage.begin(); it != pUserUsage.end(); ++it) {
+    uids.insert(it->first);
   }
 
   return uids;
@@ -245,17 +228,79 @@ QuotaNode::getUids()
 std::unordered_set<uint64_t>
 QuotaNode::getGids()
 {
-  std::string sgid;
-  std::vector<std::string> keys = pGidMap.hkeys();
   std::unordered_set<uint64_t> gids;
-  gids.reserve(keys.size() / 3);
 
-  for (auto && elem : keys) {
-    sgid = elem.substr(0, elem.find(':'));
-    gids.insert(std::stoull(elem));
+  for (auto it = pGroupUsage.begin(); it != pGroupUsage.end(); ++it) {
+    gids.insert(it->first);
   }
 
   return gids;
+}
+
+//------------------------------------------------------------------------------
+// Update with information from the backend
+//------------------------------------------------------------------------------
+void QuotaNode::updateFromBackend()
+{
+  std::string cursor = "0";
+  long long count = 300;
+  std::pair<std::string, std::unordered_map<std::string, std::string>> reply;
+
+  do {
+    reply = pUidMap.hscan(cursor, count);
+    cursor = reply.first;
+
+    for (const auto& elem : reply.second) {
+      size_t pos = elem.first.find(':');
+      uint64_t uid = std::stoull(elem.first.substr(0, pos));
+      std::string type = elem.first.substr(pos + 1);
+      auto it_uid = pUserUsage.find(uid);
+
+      if (it_uid == pUserUsage.end()) {
+        auto pair = pUserUsage.emplace(uid, UsageInfo());
+        it_uid = pair.first;
+      }
+
+      UsageInfo& uinfo = it_uid->second;
+
+      if (type == "logical_size") {
+        uinfo.space = std::stoull(elem.second);
+      } else if (type == "physical_size") {
+        uinfo.physicalSpace = std::stoull(elem.second);
+      } else if (type == "files") {
+        uinfo.files = std::stoull(elem.second);
+      }
+    }
+  } while (cursor != "0");
+
+  cursor = "0";
+
+  do {
+    reply = pGidMap.hscan(cursor, count);
+    cursor = reply.first;
+
+    for (const auto& elem : reply.second) {
+      size_t pos = elem.first.find(':');
+      uint64_t uid = std::stoull(elem.first.substr(0, pos));
+      std::string type = elem.first.substr(pos + 1);
+      auto it_gid = pGroupUsage.find(uid);
+
+      if (it_gid == pGroupUsage.end()) {
+        auto pair = pGroupUsage.emplace(uid, UsageInfo());
+        it_gid = pair.first;
+      }
+
+      UsageInfo& ginfo = it_gid->second;
+
+      if (type == "logical_size") {
+        ginfo.space = std::stoull(elem.second);
+      } else if (type == "physical_size") {
+        ginfo.physicalSpace = std::stoull(elem.second);
+      } else if (type == "files") {
+        ginfo.files = std::stoull(elem.second);
+      }
+    }
+  } while (cursor != "0");
 }
 
 //------------------------------------------------------------------------------
@@ -276,7 +321,6 @@ QuotaStats::~QuotaStats()
 {
   if (pFlusher) {
     pFlusher->synchronize();
-    delete pFlusher;
   }
 
   for (auto && elem : pNodeMap) {
@@ -293,14 +337,18 @@ void
 QuotaStats::configure(const std::map<std::string, std::string>& config)
 {
   std::string qdb_cluster;
+  std::string qdb_flusher_id;
   const std::string key_cluster = "qdb_cluster";
+  const std::string key_flusher = "qdb_flusher_quota";
 
-  if (config.find(key_cluster) != config.end()) {
+  if ((config.find(key_cluster) != config.end()) &&
+      (config.find(key_flusher) != config.end())) {
     qdb_cluster = config.at(key_cluster);
+    qdb_flusher_id = config.at(key_flusher);
   } else {
     eos::MDException e(EINVAL);
-    e.getMessage() << __FUNCTION__
-                   << " No qdbcluster configuration info provided";
+    e.getMessage() << __FUNCTION__  << " No qdb_cluster or qdb_flusher_quota "
+                   << "configuration info provided";
     throw e;
   }
 
@@ -314,7 +362,7 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
   }
 
   pQcl.reset(new qclient::QClient(qdb_members, true, false));
-  pFlusher = MetadataFlusherFactory::getInstance("quota", qdb_members);
+  pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
 }
 
 //------------------------------------------------------------------------------
@@ -327,9 +375,17 @@ QuotaStats::getQuotaNode(IContainerMD::id_t node_id)
     return pNodeMap[node_id];
   }
 
-  IQuotaNode* ptr = new QuotaNode(this, node_id);
-  pNodeMap[node_id] = ptr;
-  return ptr;
+  std::string snode_id = std::to_string(node_id);
+
+  if ((pQcl->exists(KeyQuotaUidMap(snode_id)) == 1) ||
+      (pQcl->exists(KeyQuotaGidMap(snode_id)) == 1)) {
+    QuotaNode* ptr = new QuotaNode(this, node_id);
+    ptr->updateFromBackend();
+    pNodeMap[node_id] = static_cast<IQuotaNode*>(ptr);
+    return ptr;
+  }
+
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -338,9 +394,13 @@ QuotaStats::getQuotaNode(IContainerMD::id_t node_id)
 IQuotaNode*
 QuotaStats::registerNewNode(IContainerMD::id_t node_id)
 {
-  if (pNodeMap.count(node_id)) {
+  std::string snode_id = std::to_string(node_id);
+
+  if (pNodeMap.count(node_id) ||
+      (pQcl->exists(KeyQuotaUidMap(snode_id)) == 1) ||
+      (pQcl->exists(KeyQuotaGidMap(snode_id)) == 1)) {
     MDException e;
-    e.getMessage() << "Quota node already exist: " << node_id;
+    e.getMessage() << "Quota node already exist: " << snode_id;
     throw e;
   }
 
@@ -393,7 +453,7 @@ QuotaStats::getAllIds()
 // Get quota node uid map key
 //------------------------------------------------------------------------------
 std::string
-QuotaStats:: KeyQuotaUidMap(const std::string& sid)
+QuotaStats::KeyQuotaUidMap(const std::string& sid)
 {
   return quota::sPrefix + sid + ":" + quota::sUidsSuffix;
 }

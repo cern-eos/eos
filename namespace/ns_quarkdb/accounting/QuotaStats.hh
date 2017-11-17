@@ -151,6 +151,11 @@ public:
   //----------------------------------------------------------------------------
   std::unordered_set<uint64_t> getGids() override;
 
+  //----------------------------------------------------------------------------
+  //! Update with information from the backend
+  //----------------------------------------------------------------------------
+  void updateFromBackend();
+
 private:
   //----------------------------------------------------------------------------
   //! Get all uid fields for current quota node
@@ -175,6 +180,8 @@ private:
   qclient::AsyncHandler pAh; ///< Async handler for qclient requests
   qclient::QClient* pQcl; ///< Backend client from QuotaStats
   MetadataFlusher* pFlusher; ///< Metadata flusher object from QuotaStats
+  UserMap pUserUsage;
+  GroupMap pGroupUsage;
 };
 
 //----------------------------------------------------------------------------
