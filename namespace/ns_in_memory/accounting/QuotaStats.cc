@@ -78,38 +78,6 @@ void QuotaNode::meld(const IQuotaNode* node)
 }
 
 //----------------------------------------------------------------------------
-// Get the set of uids for which information is stored in the current quota
-// node.
-//----------------------------------------------------------------------------
-std::unordered_set<uint64_t>
-QuotaNode::getUids()
-{
-  std::unordered_set<uint64_t> uids;
-
-  for (auto it = pUserUsage.begin(); it != pUserUsage.end(); ++it) {
-    uids.insert(it->first);
-  }
-
-  return uids;
-}
-
-//----------------------------------------------------------------------------
-// Get the set of gids for which information is stored in the current quota
-// node.
-//----------------------------------------------------------------------------
-std::unordered_set<uint64_t>
-QuotaNode::getGids()
-{
-  std::unordered_set<uint64_t> gids;
-
-  for (auto it = pGroupUsage.begin(); it != pGroupUsage.end(); ++it) {
-    gids.insert(it->first);
-  }
-
-  return gids;
-}
-
-//----------------------------------------------------------------------------
 // Get a quota node associated to the container id
 //----------------------------------------------------------------------------
 IQuotaNode* QuotaStats::getQuotaNode(IContainerMD::id_t nodeId)

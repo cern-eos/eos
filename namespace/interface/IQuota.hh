@@ -82,32 +82,50 @@ public:
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  virtual uint64_t getUsedSpaceByUser(uid_t uid) = 0;
+  virtual uint64_t getUsedSpaceByUser(uid_t uid)
+  {
+    return pUserUsage[uid].space;
+  }
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  virtual uint64_t getUsedSpaceByGroup(gid_t gid) = 0;
+  virtual uint64_t getUsedSpaceByGroup(gid_t gid)
+  {
+    return pGroupUsage[gid].space;
+  }
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  virtual uint64_t getPhysicalSpaceByUser(uid_t uid) = 0;
+  virtual uint64_t getPhysicalSpaceByUser(uid_t uid)
+  {
+    return pUserUsage[uid].physicalSpace;
+  }
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  virtual uint64_t getPhysicalSpaceByGroup(gid_t gid) = 0;
+  virtual uint64_t getPhysicalSpaceByGroup(gid_t gid)
+  {
+    return pGroupUsage[gid].physicalSpace;
+  }
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  virtual uint64_t getNumFilesByUser(uid_t uid) = 0;
+  virtual uint64_t getNumFilesByUser(uid_t uid)
+  {
+    return pUserUsage[uid].files;
+  }
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  virtual uint64_t getNumFilesByGroup(gid_t gid) = 0;
+  virtual uint64_t getNumFilesByGroup(gid_t gid)
+  {
+    return pGroupUsage[gid].files;
+  }
 
   //----------------------------------------------------------------------------
   //! Account a new file, adjust the size using the size mapping function
@@ -130,7 +148,16 @@ public:
   //!
   //! @return set of uids
   //----------------------------------------------------------------------------
-  virtual std::unordered_set<uint64_t> getUids() = 0;
+  virtual std::unordered_set<uint64_t> getUids()
+  {
+    std::unordered_set<uint64_t> uids;
+
+    for (auto it = pUserUsage.begin(); it != pUserUsage.end(); ++it) {
+      uids.insert(it->first);
+    }
+
+    return uids;
+  }
 
   //----------------------------------------------------------------------------
   //! Get the set of gids for which information is stored in the current quota
@@ -138,13 +165,22 @@ public:
   //!
   //! @return set of gids
   //----------------------------------------------------------------------------
-  virtual std::unordered_set<uint64_t> getGids() = 0;
+  virtual std::unordered_set<uint64_t> getGids()
+  {
+    std::unordered_set<uint64_t> gids;
+
+    for (auto it = pGroupUsage.begin(); it != pGroupUsage.end(); ++it) {
+      gids.insert(it->first);
+    }
+
+    return gids;
+  }
 
 protected:
   IQuotaStats* pQuotaStats;
-
-private:
   IContainerMD::id_t pContainerId; ///< Id of the corresponding container
+  UserMap pUserUsage;
+  GroupMap pGroupUsage;
 };
 
 //----------------------------------------------------------------------------

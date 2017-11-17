@@ -46,54 +46,6 @@ public:
   {}
 
   //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given user
-  //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByUser(uid_t uid) override
-  {
-    return pUserUsage[uid].space;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given group
-  //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByGroup(gid_t gid) override
-  {
-    return pGroupUsage[gid].space;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given user
-  //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByUser(uid_t uid) override
-  {
-    return pUserUsage[uid].physicalSpace;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given group
-  //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByGroup(gid_t gid) override
-  {
-    return pGroupUsage[gid].physicalSpace;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given user
-  //----------------------------------------------------------------------------
-  uint64_t getNumFilesByUser(uid_t uid) override
-  {
-    return pUserUsage[uid].files;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given group
-  //----------------------------------------------------------------------------
-  uint64_t getNumFilesByGroup(gid_t gid) override
-  {
-    return pGroupUsage[gid].files;
-  }
-
-  //----------------------------------------------------------------------------
   //! Change the amount of space occupied by the given user
   //----------------------------------------------------------------------------
   void changeSpaceUser(uid_t uid, int64_t delta)
@@ -155,25 +107,6 @@ public:
   //! Meld in another quota node
   //----------------------------------------------------------------------------
   void meld(const IQuotaNode* node) override;
-
-  //----------------------------------------------------------------------------
-  //! Get the set of uids for which information is stored in the current quota
-  //! node.
-  //!
-  //! @return set of uids
-  //----------------------------------------------------------------------------
-  std::unordered_set<uint64_t> getUids() override;
-
-  //----------------------------------------------------------------------------
-  //! Get the set of gids for which information is stored in the current quota
-  //! node.
-  //!
-  //! @return set of gids
-  //----------------------------------------------------------------------------
-  std::unordered_set<uint64_t> getGids() override;
-
-  UserMap pUserUsage;
-  GroupMap pGroupUsage;
 };
 
 //----------------------------------------------------------------------------

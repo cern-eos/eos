@@ -73,36 +73,6 @@ public:
   QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t node_id);
 
   //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given user
-  //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByUser(uid_t uid) override;
-
-  //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given group
-  //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByGroup(gid_t gid) override;
-
-  //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given user
-  //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByUser(uid_t uid) override;
-
-  //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given group
-  //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByGroup(gid_t gid) override;
-
-  //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given user
-  //----------------------------------------------------------------------------
-  uint64_t getNumFilesByUser(uid_t uid) override;
-
-  //----------------------------------------------------------------------------
-  //! Get the amount of space occupied by the given group
-  //----------------------------------------------------------------------------
-  uint64_t getNumFilesByGroup(gid_t gid) override;
-
-  //----------------------------------------------------------------------------
   //! Account a new file, adjust the size using the size mapping function
   //----------------------------------------------------------------------------
   void addFile(const IFileMD* file) override;
@@ -116,22 +86,6 @@ public:
   //! Meld in another quota node
   //----------------------------------------------------------------------------
   void meld(const IQuotaNode* node) override;
-
-  //----------------------------------------------------------------------------
-  //! Get the set of uids for which information is stored in the current quota
-  //! node.
-  //!
-  //! @return vector of uids
-  //----------------------------------------------------------------------------
-  std::unordered_set<uint64_t> getUids() override;
-
-  //----------------------------------------------------------------------------
-  //! Get the set of gids for which information is stored in the current quota
-  //! node.
-  //!
-  //! @return vector of gids
-  //----------------------------------------------------------------------------
-  std::unordered_set<uint64_t> getGids() override;
 
   //----------------------------------------------------------------------------
   //! Update with information from the backend
@@ -162,8 +116,6 @@ private:
   qclient::AsyncHandler pAh; ///< Async handler for qclient requests
   qclient::QClient* pQcl; ///< Backend client from QuotaStats
   MetadataFlusher* pFlusher; ///< Metadata flusher object from QuotaStats
-  UserMap pUserUsage;
-  GroupMap pGroupUsage;
 };
 
 //----------------------------------------------------------------------------
