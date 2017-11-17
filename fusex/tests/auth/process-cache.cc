@@ -119,6 +119,6 @@ TEST_F(ProcessCacheFixture, KerberosWithUnixFallback) {
   injectProcess(1234, 1, 1234, 1234, 9999, 0);
 
   ProcessSnapshot snapshot = processCache.retrieve(1234, 1000, 1000, false);
-  ASSERT_EQ(snapshot->getXrdLogin(), LoginIdentifier(1000, 1000, 1234, 0).getStringID());
+  ASSERT_EQ(snapshot->getXrdLogin(), LoginIdentifier(1000, 1000, 1234, 1).getStringID());
   ASSERT_EQ(snapshot->getXrdCreds(), "xrd.wantprot=unix");
 }
