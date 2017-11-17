@@ -39,6 +39,16 @@ FileMDSvc::FileMDSvc()
     mFlushFidSet(), mFileCache(10e8) {}
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+FileMDSvc::~FileMDSvc()
+{
+  if (pFlusher) {
+    pFlusher->synchronize();
+  }
+}
+
+//------------------------------------------------------------------------------
 // Configure the file service
 //------------------------------------------------------------------------------
 void
@@ -108,11 +118,17 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
   std::shared_ptr<IFileMD> file = mFileCache.get(id);
 
   if (file != nullptr) {
-    if (clock) {
-      *clock = file->getClock();
-    }
+    if (file->isDeleted()) {
+      MDException e(ENOENT);
+      e.getMessage() << "File #" << id << " not found";
+      throw e;
+    } else {
+      if (clock) {
+        *clock = file->getClock();
+      }
 
-    return file;
+      return file;
+    }
   }
 
   // If not in cache, then get info from KV store
@@ -213,7 +229,7 @@ FileMDSvc::removeFile(IFileMD* obj)
   //   throw e;
   // }
   // (void) impl_obj->waitAsyncReplies();
-  mFileCache.remove(obj->getId());
+  obj->setDeleted();
   flushDirtySet(obj->getId(), true);
 }
 

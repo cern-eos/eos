@@ -40,11 +40,11 @@ QuotaNode::QuotaNode(IQuotaStats* quota_stats, IContainerMD::id_t node_id)
   : IQuotaNode(quota_stats, node_id)
 {
   std::string snode_id = std::to_string(node_id);
-  pQcl = static_cast<QuotaStats*>(quota_stats)->pQcl.get();
+  pQcl = static_cast<QuotaStats*>(quota_stats)->pQcl;
   pFlusher = static_cast<QuotaStats*>(quota_stats)->pFlusher;
-  pQuotaUidKey = quota::sPrefix + snode_id + quota::sUidsSuffix;
+  pQuotaUidKey = QuotaStats::KeyQuotaUidMap(snode_id);
   pUidMap = qclient::QHash(*pQcl, pQuotaUidKey);
-  pQuotaGidKey = quota::sPrefix + snode_id + quota::sGidsSuffix;
+  pQuotaGidKey = QuotaStats::KeyQuotaGidMap(snode_id);
   pGidMap = qclient::QHash(*pQcl, pQuotaGidKey);
 }
 
@@ -68,7 +68,7 @@ QuotaNode::addFile(const IFileMD* file)
   field = suid + quota::sNumFiles;
   pFlusher->hincrby(pQuotaUidKey, field, 1);
   field = sgid + quota::sNumFiles;
-  pFlusher->hincrby(pQuotaUidKey, field, 1);
+  pFlusher->hincrby(pQuotaGidKey, field, 1);
   // Update the cached information
   UsageInfo& user  = pUserUsage[file->getCUid()];
   UsageInfo& group = pGroupUsage[file->getCGid()];
@@ -76,8 +76,8 @@ QuotaNode::addFile(const IFileMD* file)
   group.physicalSpace += size;
   user.space   += file->getSize();
   group.space  += file->getSize();
-  user.files++;
-  group.files++;
+  ++user.files;
+  ++group.files;
 }
 
 //------------------------------------------------------------------------------
@@ -100,7 +100,7 @@ QuotaNode::removeFile(const IFileMD* file)
   field = suid + quota::sNumFiles;
   pFlusher->hincrby(pQuotaUidKey, field, -1);
   field = sgid + quota::sNumFiles;
-  pFlusher->hincrby(pQuotaUidKey, field, -1);
+  pFlusher->hincrby(pQuotaGidKey, field, -1);
   // Update the cached information
   UsageInfo& user  = pUserUsage[file->getCUid()];
   UsageInfo& group = pGroupUsage[file->getCGid()];
@@ -108,8 +108,8 @@ QuotaNode::removeFile(const IFileMD* file)
   group.physicalSpace -= size;
   user.space   -= file->getSize();
   group.space  -= file->getSize();
-  user.files--;
-  group.files--;
+  --user.files;
+  --group.files;
 }
 
 //------------------------------------------------------------------------------
@@ -202,7 +202,7 @@ QuotaNode::getNumFilesByUser(uid_t uid)
 uint64_t
 QuotaNode::getNumFilesByGroup(gid_t gid)
 {
-  return pUserUsage[gid].files;
+  return pGroupUsage[gid].files;
 }
 
 //------------------------------------------------------------------------------
@@ -361,7 +361,7 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
     throw e;
   }
 
-  pQcl.reset(new qclient::QClient(qdb_members, true, false));
+  pQcl = BackendClient::getInstance(qdb_members);
   pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
 }
 
@@ -432,7 +432,7 @@ std::unordered_set<IContainerMD::id_t>
 QuotaStats::getAllIds()
 {
   std::unordered_set<IContainerMD::id_t> quota_ids;
-  qclient::QScanner quota_set(*(pQcl.get()), quota::sPrefix + "*:*");
+  qclient::QScanner quota_set(*pQcl, quota::sPrefix + "*:*");
   std::vector<std::string> results;
 
   while (quota_set.next(results)) {

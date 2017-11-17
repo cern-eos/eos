@@ -54,7 +54,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IFileMD() {};
+  IFileMD(): mIsDeleted(false) {};
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -366,6 +366,22 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Check if object is "deleted" - in the sense that it's not valid anymore
+  //----------------------------------------------------------------------------
+  virtual bool isDeleted() const
+  {
+    return mIsDeleted;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set file as "deleted" - in the sense that it's not valid anymore
+  //----------------------------------------------------------------------------
+  virtual void setDeleted()
+  {
+    mIsDeleted = true;
+  }
+
+  //----------------------------------------------------------------------------
   //! Get env representation of the file object
   //!
   //! @param env string where representation is stored
@@ -381,6 +397,8 @@ private:
   IFileMD(const IFileMD& other);
 
   IFileMD& operator=(const IFileMD& other);
+
+  bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
 };
 
 EOSNSNAMESPACE_END

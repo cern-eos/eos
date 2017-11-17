@@ -34,6 +34,16 @@ FileSystemView::FileSystemView():
 {}
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+FileSystemView::~FileSystemView()
+{
+  if (pFlusher) {
+    pFlusher->synchronize();
+  }
+}
+
+//------------------------------------------------------------------------------
 // Configure the container service
 //------------------------------------------------------------------------------
 void
@@ -66,6 +76,7 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
 
   pQcl = BackendClient::getInstance(qdb_members);
   pNoReplicasSet.setClient(*pQcl);
+  pNoReplicasSet.setKey(fsview::sNoReplicaPrefix);
   pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
 }
 
@@ -140,6 +151,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 bool
 FileSystemView::fileMDCheck(IFileMD* file)
 {
+  pFlusher->synchronize();
   std::string key;
   IFileMD::LocationVector replica_locs = file->getLocations();
   IFileMD::LocationVector unlink_locs = file->getUnlinkedLocations();
@@ -205,6 +217,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
 IFsView::FileList
 FileSystemView::getFileList(IFileMD::location_t location)
 {
+  pFlusher->synchronize();
   std::string key = keyFilesystemFiles(location);
   // @todo (esindril): this should be allocated on the heap
   IFsView::FileList set_files;
@@ -232,6 +245,7 @@ FileSystemView::getFileList(IFileMD::location_t location)
 IFsView::FileList
 FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
+  pFlusher->synchronize();
   std::string key = keyFilesystemUnlinked(location);
   // @todo (esindril): this should be allocated on the heap
   IFsView::FileList set_unlinked;
@@ -259,6 +273,7 @@ FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 IFsView::FileList
 FileSystemView::getNoReplicasFileList()
 {
+  pFlusher->synchronize();
   IFsView::FileList set_noreplicas;
   set_noreplicas.set_empty_key(-1);
   std::pair<std::string, std::vector<std::string>> reply;
@@ -283,6 +298,7 @@ FileSystemView::getNoReplicasFileList()
 bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
+  pFlusher->synchronize();
   std::string key = keyFilesystemUnlinked(location);
   return (pQcl->del(key) >= 0);
 }
@@ -293,6 +309,7 @@ FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 std::shared_ptr<IFsIterator>
 FileSystemView::getFilesystemIterator()
 {
+  pFlusher->synchronize();
   qclient::QScanner replicaSets(*pQcl, fsview::sPrefix + "*:*");
   std::set<IFileMD::location_t> uniqueFilesytems;
   std::vector<std::string> results;

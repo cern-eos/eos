@@ -110,7 +110,7 @@ BackendClient::getInstance(const qclient::Members& qdb_members)
   std::lock_guard<std::mutex> lock(pMutexMap);
 
   if (pMapClients.find(qdb_id) == pMapClients.end()) {
-    instance = new qclient::QClient(qdb_members, true, false);
+    instance = new qclient::QClient(qdb_members, true, true);
     pMapClients.insert(std::make_pair(qdb_id, instance));
   } else {
     instance = pMapClients[qdb_id];

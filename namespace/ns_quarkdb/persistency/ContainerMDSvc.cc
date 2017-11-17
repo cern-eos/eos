@@ -52,6 +52,16 @@ ContainerMDSvc::ContainerMDSvc()
     mMetaMap(), mContainerCache(10e7) {}
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+ContainerMDSvc::~ContainerMDSvc()
+{
+  if (pFlusher) {
+    pFlusher->synchronize();
+  }
+}
+
+//------------------------------------------------------------------------------
 // Configure the container service
 //------------------------------------------------------------------------------
 void
@@ -121,11 +131,17 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
   std::shared_ptr<IContainerMD> cont = mContainerCache.get(id);
 
   if (cont != nullptr) {
-    if (clock) {
-      *clock = cont->getClock();
-    }
+    if (cont->isDeleted()) {
+      MDException e(ENOENT);
+      e.getMessage() << "Container #" << id << " not found";
+      throw e;
+    } else {
+      if (clock) {
+        *clock = cont->getClock();
+      }
 
-    return cont;
+      return cont;
+    }
   }
 
   // If not in cache, then get it from the KV store
@@ -228,7 +244,7 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
     pFlusher->del(constants::sMapMetaInfoKey);
   }
 
-  mContainerCache.remove(obj->getId());
+  obj->setDeleted();
 }
 
 //------------------------------------------------------------------------------

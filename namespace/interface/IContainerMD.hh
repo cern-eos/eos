@@ -69,18 +69,19 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IContainerMD()
+  IContainerMD():
+    mIsDeleted(false)
   {
     mSubcontainers.set_deleted_key("");
     mFiles.set_deleted_key("");
     mSubcontainers.set_empty_key("##_EMPTY_##");
     mFiles.set_empty_key("##_EMPTY_##");
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~IContainerMD() {};
+  virtual ~IContainerMD() {}
 
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
@@ -374,6 +375,22 @@ public:
   //----------------------------------------------------------------------------
   virtual void getEnv(std::string& env, bool escapeAnd = false) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Check if object is "deleted" - in the sense that it's not valid anymore
+  //----------------------------------------------------------------------------
+  virtual bool isDeleted() const
+  {
+    return mIsDeleted;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set file as "deleted" - in the sense that it's not valid anymore
+  //----------------------------------------------------------------------------
+  virtual void setDeleted()
+  {
+    mIsDeleted = true;
+  }
+
 protected:
   ContainerMap mSubcontainers; //! Directory name to id map
   FileMap mFiles; ///< File name to id map
@@ -387,6 +404,8 @@ private:
   IContainerMD(const IContainerMD& other);
 
   IContainerMD& operator=(const IContainerMD& other);
+
+  bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
 };
 
 EOSNSNAMESPACE_END
