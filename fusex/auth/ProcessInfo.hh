@@ -28,6 +28,7 @@
 #include <map>
 #include <atomic>
 #include "Utils.hh"
+#include "auth/RmInfo.hh"
 
 typedef int64_t Jiffies;
 
@@ -94,8 +95,15 @@ public:
     cmdStr = join(cmd, " ");
   }
 
-  bool isEmpty() const
-  {
+  void fillExecutablePath(const std::string &path) {
+    executablePath = path;
+  }
+
+  void fillRmInfo() {
+    rmInfo = RmInfo(executablePath, cmd);
+  }
+
+  bool isEmpty() const {
     return empty;
   }
 
@@ -139,8 +147,17 @@ public:
     return flags;
   }
 
+  std::string getExecPath() const {
+    return executablePath;
+  }
+
+  const struct RmInfo& getRmInfo() const {
+    return rmInfo;
+  }
+
 private:
   bool empty;
+  RmInfo rmInfo;
 
 // TODO(gbitzes): Make these private once ProcessInfoProvider is implemented
 public:
@@ -155,6 +172,7 @@ public:
   // from /proc/<pid>/cmdline
   std::vector<std::string> cmd;
   std::string cmdStr; // TODO(gbitzes): remove this eventually?
+  std::string executablePath;
 };
 
 // Parses the contents of /proc/<pid>/stat, converting it to a ProcessInfo
@@ -176,8 +194,14 @@ private:
   std::map<pid_t, ProcessInfo> injections;
   std::atomic<bool> useInjectedData {false};
 
+<<<<<<< HEAD
   static bool parseStat(const std::string& stat, ProcessInfo& ret);
   static void parseCmdline(const std::string& cmdline, ProcessInfo& ret);
+=======
+  static bool parseStat(const std::string &stat, ProcessInfo &ret);
+  static void parseCmdline(const std::string &cmdline, ProcessInfo &ret);
+  static bool parseExec(pid_t pid, ProcessInfo &ret);
+>>>>>>> FUSEX: Implement recursive rm protection to top-level dirs
 };
 
 #endif

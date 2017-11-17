@@ -68,6 +68,7 @@ add_executable(eos-fusex-tests
   auth/login-identifier.cc
   auth/process-cache.cc
   auth/process-info.cc
+  auth/rm-info.cc
   auth/security-checker.cc
   ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
   interval-tree.cc
