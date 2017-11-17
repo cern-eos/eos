@@ -1734,6 +1734,7 @@ FuseServer::Caps::shared_cap
 FuseServer::ValidateCAP(const eos::fusex::md& md, mode_t mode)
 {
   errno = 0 ;
+
   FuseServer::Caps::shared_cap cap = Cap().Get(md.authid());
   // no cap - go away
   if (!cap->id())
@@ -1809,60 +1810,118 @@ FuseServer::ValidatePERM(const eos::fusex::md & md, const std::string& mode, eos
 {
   // -------------------------------------------------------------------------------------------------------------
   // - when an MGM was restarted it does not know anymore any client CAPs, but we can fallback to validate
-  //   permissions on the fly by path 
-  // - this uses the 'classic' access permission check based on the client identity and by path 
+  //   permissions on the fly again
   // -------------------------------------------------------------------------------------------------------------
-
+  eos_static_info("vid=%x mode=%s", vid, mode.c_str());
   if (!vid)
     return false;
 
   std::string path;
   eos::ContainerMD* cmd = 0 ;
-  eos::FileMD* fmd =  0;
   uint64_t clock=0;
 
+  bool r_ok = false;
+  bool w_ok = false;
+  bool x_ok = false;
+  bool d_ok = false;
+
   eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
-  // the traditional access method is by path - need to translate inode to path                                                  
-  if (!eos::common::FileId::IsFileInode(md.md_ino()) )
+  try
   {
-    try
+    if (S_ISDIR(md.mode()))
+      cmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino(), &clock);
+    else
+      cmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino(), &clock);
+
+    path = gOFS->eosView->getUri(cmd);
+
+    // for performance reasons we implement a seperate access control check here, because
+    // we want to avoid another id=path translation and unlock lock of the namespace
+
+    eos::ContainerMD::XAttrMap attrmap = cmd->getAttributeMap();
+
+    if (cmd->access(vid->uid, vid->gid, R_OK))
+      r_ok = true;
+
+    if (cmd->access(vid->uid, vid->gid, W_OK))
     {
-      cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino(), &clock);
-      path = gOFS->eosView->getUri(cmd);
+      w_ok = true;
+      d_ok = true;
     }
-    catch (eos::MDException &e)
+
+    if (cmd->access(vid->uid, vid->gid, X_OK))
+      x_ok = true;
+
+    // ACL and permission check                                                                       
+    Acl acl(attrmap, *vid);
+    eos_static_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
+		    acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+		    acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+		    acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
+    
+    // browse permission by ACL                                                                        
+    if (acl.HasAcl())
     {
-      return false;
+      if (acl.CanWrite())
+      {
+	w_ok = true;
+	d_ok = true;
+      }
+      
+      // write-once excludes updates
+      if (!(acl.CanWrite() || acl.CanWriteOnce()))
+	w_ok = false;
+
+      // deletion might be overwritten/forbidden                                                      
+      if (acl.CanNotDelete())
+	d_ok = false;
+      
+      // the r/x are added to the posix permissions already set                                        
+      if (acl.CanRead())
+	r_ok |= true;
+      if (acl.CanBrowse())
+	x_ok |= true;
+      if (!acl.IsMutable())
+      {
+	w_ok = d_ok = false;
+      }
     }
   }
-  else
+  catch (eos::MDException &e)
   {
-    try
-    {
-      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(md.md_ino()), &clock);
-      path = gOFS->eosView->getUri(fmd);
-    }
-    catch (eos::MDException &e)
-    {
-      return false;
-    }
+    eos_static_err("failed to get directory inode ino=%16x",md.md_pino());
+    return false;
   }
   
-  std::string ac_perms;
-  XrdOucErrInfo error;
-
-  if (!gOFS->acc_access (path.c_str(),
-                      error,
-                      *vid,
-                      ac_perms))
+  std::string accperm;
+  accperm == "R";
+  if (r_ok)
+    accperm += "R";
+  if (w_ok)
   {
-    if (ac_perms.find(mode) != std::string::npos)
-      return true;
-    else
-      return false;
+    accperm += "WCKNV";
+  }
+  if (d_ok)
+  {
+    accperm += "D";
+  }
+  
+  if (accperm.find(mode) != std::string::npos)
+  {
+    eos_static_info("allow access to ino=%16x request-mode=%s granted-mode=%s", 
+		   md.md_pino(), 
+		   mode.c_str(),
+		   accperm.c_str());
+		   );
+    return true;
   }
   else
   {
+    eos_static_err("reject access to ino=%16x request-mode=%s granted-mode=%s", 
+		   md.md_pino(), 
+		   mode.c_str(),
+		   accperm.c_str());
+		   );
     return false;
   }
 }
@@ -2603,17 +2662,16 @@ FuseServer::HandleMD(const std::string &id,
       std::string perm = "D";
       // a CAP might have gone or timedout, let's check again the permissions
       if ( ((errno == ENOENT) ||
-	    (errno = ETIMEDOUT)) &&
+	    (errno == ETIMEDOUT)) &&
 	   ValidatePERM(md, perm, vid))
       {
 	// this can pass on ... permissions are fine
       }
       else
       {
+	eos_static_err("ino=%lx delete has wrong cap");
 	return EPERM;
       }
-      eos_static_err("ino=%lx delete has wrong cap");
-      return EPERM;
     }
 
     eos::fusex::response resp;
