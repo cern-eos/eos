@@ -439,6 +439,7 @@ GeoBalancer::chooseFidFromGeotag(const std::string& geotag)
   int rndIndex;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  // @todo (esindril): replace with iterator
   eos::IFsView::FileList filelist;
   std::vector<eos::common::FileSystem::fsid_t>& validFs = mGeotagFs[geotag];
   eos::common::FileSystem::fsid_t fsid;

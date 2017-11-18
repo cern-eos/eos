@@ -185,6 +185,7 @@
 
     source_fs->SnapShotFileSystem(source_snapshot);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    // @todo (esindril): these should be replaced by iterators
     eos::IFsView::FileList source_filelist;
     eos::IFsView::FileList target_filelist;
 

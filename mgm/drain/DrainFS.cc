@@ -191,6 +191,7 @@ DrainFS::Drain()
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
       try {
+        // @todo (esindril): replace with getNumFilesOnFs and iterator
         filelist = gOFS->eosFsView->getFileList(mFsId);
       } catch (eos::MDException& e) {
         // no files to drain

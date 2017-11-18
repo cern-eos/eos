@@ -32,22 +32,17 @@
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("Scheduled2Delete");
   gOFS->MgmStats.Add("Schedule2Delete", 0, 0, 1);
-
   XrdOucString nodename = env.Get("mgm.target.nodename");
-
   eos_static_debug("nodename=%s", nodename.c_str() ? nodename.c_str() : "-none-");
-  std::vector <unsigned int> fslist;
-  // get a list of file Ids
-
-  std::map<eos::common::FileSystem::fsid_t, eos::mgm::FileSystem*>::const_iterator it;
+  std::vector<unsigned long> fslist;
 
   {
-    // get all the filesystem's of that node
+    // Get all the filesystems of the current node
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     std::string snodename = nodename.c_str() ? nodename.c_str() : "-none-";
+
     if (!FsView::gFsView.mNodeView.count(snodename))
     {
       eos_static_warning("msg=\"node is not configured\" name=%s", snodename.c_str());
@@ -55,7 +50,7 @@
     }
 
     for (auto set_it = FsView::gFsView.mNodeView[snodename]->begin();
-	 set_it != FsView::gFsView.mNodeView[snodename]->end(); ++set_it)
+    set_it != FsView::gFsView.mNodeView[snodename]->end(); ++set_it)
     {
       fslist.push_back(*set_it);
     }
@@ -63,161 +58,149 @@
 
   size_t totaldeleted = 0;
 
-  for (unsigned int i = 0; i < fslist.size(); i++)
+  for (unsigned long i = 0ul; i < fslist.size(); i++)
   {
-    // ---------------------------------------------------------------------
-    // loop over all file systems
-    // ---------------------------------------------------------------------
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    // Loop over all file systems
+    // @todo (esindril): use std::unordered_set
     eos::IFsView::FileList lIdSet;
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-    try
-    {
+    try {
       eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-      // TODO: use ROV rather than copy
-      lIdSet = eosFsView->getUnlinkedFileList(fslist[i]);
-    }
-    catch (...)
-    {
-      eos_static_warning("fs %lu no longer in the ns view", fslist[i]);
-      continue;
-    }
 
-    if (lIdSet.empty())
-    {
-      eos_static_debug("nothing to delete in fs %lu", (unsigned long) fslist[i]);
+      if (eosFsView->getNumUnlinkedFilesOnFs(fslist[i]) == 0) {
+        eos_static_debug("nothing to delete from fs %lu", fslist[i]);
+        continue;
+      }
+
+      // @todo (esindril): this needs to be replaces by an iterator
+      lIdSet = eosFsView->getUnlinkedFileList(fslist[i]);
+    } catch (...) {
+      eos_static_warning("fs %lu no longer in the ns view", fslist[i]);
       continue;
     }
 
     XrdMqMessage message("deletion");
     int ndeleted = 0;
-
     eos::mgm::FileSystem* fs = 0;
     XrdOucString receiver = "";
     XrdOucString msgbody = "mgm.cmd=drop";
     XrdOucString capability = "";
     XrdOucString idlist = "";
 
-    for (auto elem = lIdSet.begin(); elem != lIdSet.end(); ++elem)
-    {
+    for (auto elem = lIdSet.begin(); elem != lIdSet.end(); ++elem) {
       eos_static_info("msg=\"add to deletion message\" fxid=%08llx fsid=%lu",
-		      *elem, (unsigned long) fslist[i]);
+                      *elem, (unsigned long) fslist[i]);
 
       // loop over all files and emit a deletion message
-      if (!fs)
-      {
-	// set the file system only for the first file to relax the mutex contention
-	if (!fslist[i])
-	{
-	  eos_err("no filesystem in deletion list");
-	  continue;
-	}
+      if (!fs) {
+        // set the file system only for the first file to relax the mutex contention
+        if (!fslist[i]) {
+          eos_err("no filesystem in deletion list");
+          continue;
+        }
 
-	if (FsView::gFsView.mIdView.count(fslist[i]))
-	  fs = FsView::gFsView.mIdView[fslist[i]];
-	else
-	  fs = 0;
+        if (FsView::gFsView.mIdView.count(fslist[i])) {
+          fs = FsView::gFsView.mIdView[fslist[i]];
+        } else {
+          fs = 0;
+        }
 
+        if (fs) {
+          eos::common::FileSystem::fsstatus_t bootstatus = fs->GetStatus();
 
-	if (fs)
-	{
-	  eos::common::FileSystem::fsstatus_t bootstatus = fs->GetStatus();
-	  // check the state of the filesystem (if it can actually delete in this moment!)
-	  if ((fs->GetConfigStatus() <= eos::common::FileSystem::kOff) ||
-	      (bootstatus != eos::common::FileSystem::kBooted))
-	  {
-	    // we don't need to send messages, this one is anyway down or currently booting
-	    break;
-	  }
+          // check the state of the filesystem (if it can actually delete in this moment!)
+          if ((fs->GetConfigStatus() <= eos::common::FileSystem::kOff) ||
+              (bootstatus != eos::common::FileSystem::kBooted)) {
+            // we don't need to send messages, this one is anyway down or currently booting
+            break;
+          }
 
-	  if ((fs->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	    break;
+          if ((fs->GetActiveStatus() == eos::common::FileSystem::kOffline)) {
+            break;
+          }
 
-	  capability += "&mgm.access=delete";
-	  capability += "&mgm.manager=";
-	  capability += gOFS->ManagerId.c_str();
-	  capability += "&mgm.fsid=";
-	  capability += (int) fs->GetId();
-	  capability += "&mgm.localprefix=";
-	  capability += fs->GetPath().c_str();
-	  capability += "&mgm.fids=";
-	  receiver = fs->GetQueue().c_str();
-	}
+          capability += "&mgm.access=delete";
+          capability += "&mgm.manager=";
+          capability += gOFS->ManagerId.c_str();
+          capability += "&mgm.fsid=";
+          capability += (int) fs->GetId();
+          capability += "&mgm.localprefix=";
+          capability += fs->GetPath().c_str();
+          capability += "&mgm.fids=";
+          receiver = fs->GetQueue().c_str();
+        }
       }
 
       ndeleted++;
       totaldeleted++;
-
       XrdOucString sfid = "";
       XrdOucString hexfid = "";
       eos::common::FileId::Fid2Hex(*elem, hexfid);
       idlist += hexfid;
       idlist += ",";
 
-      if (ndeleted > 1024)
-      {
-	XrdOucString refcapability = capability;
-	refcapability += idlist;
-	XrdOucEnv incapability(refcapability.c_str());
-	XrdOucEnv* capabilityenv = 0;
-	eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+      if (ndeleted > 1024) {
+        XrdOucString refcapability = capability;
+        refcapability += idlist;
+        XrdOucEnv incapability(refcapability.c_str());
+        XrdOucEnv* capabilityenv = 0;
+        eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+        int caprc = 0;
 
-	int caprc = 0;
-	if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
-                                              mCapabilityValidity)))
-	{
-	  eos_static_err("unable to create capability - errno=%u", caprc);
-	}
-	else
-	{
-	  int caplen = 0;
-	  msgbody += capabilityenv->Env(caplen);
-	  // we send deletions in bunches of max 1024 for efficiency
-	  message.SetBody(msgbody.c_str());
+        if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
+                                              mCapabilityValidity))) {
+          eos_static_err("unable to create capability - errno=%u", caprc);
+        } else {
+          int caplen = 0;
+          msgbody += capabilityenv->Env(caplen);
+          // we send deletions in bunches of max 1024 for efficiency
+          message.SetBody(msgbody.c_str());
 
-	  if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str()))
-	  {
-	    eos_static_err("unable to send deletion message to %s", receiver.c_str());
-	  }
-	}
-	idlist = "";
-	ndeleted = 0;
-	msgbody = "mgm.cmd=drop";
-	if (capabilityenv)
-	  delete capabilityenv;
+          if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+            eos_static_err("unable to send deletion message to %s", receiver.c_str());
+          }
+        }
+
+        idlist = "";
+        ndeleted = 0;
+        msgbody = "mgm.cmd=drop";
+
+        if (capabilityenv) {
+          delete capabilityenv;
+        }
       }
     }
 
     // send the remaining ids
-    if (idlist.length())
-    {
+    if (idlist.length()) {
       XrdOucString refcapability = capability;
       refcapability += idlist;
       XrdOucEnv incapability(refcapability.c_str());
       XrdOucEnv* capabilityenv = 0;
       eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-
       int caprc = 0;
+
       if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
-                                            mCapabilityValidity)))
-      {
-	eos_static_err("unable to create capability - errno=%u", caprc);
-      }
-      else
-      {
-	int caplen = 0;
-	msgbody += capabilityenv->Env(caplen);
-	// we send deletions in bunches of max 1000 for efficiency
-	message.SetBody(msgbody.c_str());
+                                            mCapabilityValidity))) {
+        eos_static_err("unable to create capability - errno=%u", caprc);
+      } else {
+        int caplen = 0;
+        msgbody += capabilityenv->Env(caplen);
+        // we send deletions in bunches of max 1000 for efficiency
+        message.SetBody(msgbody.c_str());
 
-	if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str()))
-	  eos_static_err("unable to send deletion message to %s", receiver.c_str());
+        if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+          eos_static_err("unable to send deletion message to %s", receiver.c_str());
+        }
       }
 
-      if (capabilityenv)
-	delete capabilityenv;
+      if (capabilityenv) {
+        delete capabilityenv;
+      }
     }
   }
+
   // -----------------------------------------------------------------------
   if (totaldeleted)
   {
@@ -225,8 +208,7 @@
     gOFS->MgmStats.Add("Scheduled2Delete", 0, 0, totaldeleted);
     error.setErrInfo(0, "submitted");
     return SFS_DATA;
-  }
-  else
+  } else
   {
     error.setErrInfo(0, "");
     return SFS_DATA;

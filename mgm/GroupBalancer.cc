@@ -434,6 +434,7 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
   int rndIndex;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  // @todo (esindril): replace with iterator
   eos::IFsView::FileList filelist;
   std::vector<int> validFsIndexes(group->size());
 

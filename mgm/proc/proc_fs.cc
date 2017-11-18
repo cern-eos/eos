@@ -158,6 +158,7 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
     emptyFileList.set_deleted_key(0);
     eos::IFsView::FileList filelist = emptyFileList; // empty by default
 
+    // @todo (esindril): replace with iterator
     try {
       filelist = gOFS->eosFsView->getFileList(fsid);
     } catch (eos::MDException& e) {
@@ -370,14 +371,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
               bool isempty = true;
 
               // Check if this filesystem is really empty
-              try {
-                eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fs->GetId());
-
-                if (filelist.size()) {
-                  isempty = false;
-                }
-              } catch (eos::MDException& e) {
-                isempty = true;
+              if (gOFS->eosFsView->getNumFilesOnFs(fs->GetId())) {
+                isempty = false;
               }
 
               if (!isempty) {

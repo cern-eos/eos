@@ -51,9 +51,11 @@ ProcCommand::Fs()
         mListFormat.replace(mListFormat.find("S"), 1, "s");
       }
     }
-    std::string filter(mOutFormat.c_str()); 
+
+    std::string filter(mOutFormat.c_str());
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    FsView::gFsView.PrintSpaces(output, format, mListFormat, mOutDepth, mSelection,filter);
+    FsView::gFsView.PrintSpaces(output, format, mListFormat, mOutDepth, mSelection,
+                                filter);
     stdOut += output.c_str();
   }
 
@@ -367,14 +369,12 @@ ProcCommand::Fs()
               eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
               try {
+                nfids_todelete = gOFS->eosFsView->getNumUnlinkedFilesOnFs(fsid);
+                nfids = gOFS->eosFsView->getNumFilesOnFs(fsid);
+                // @todo (esindril): replace with iterator
                 eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-                eos::IFsView::FileList unlinkfilelist = gOFS->eosFsView->getUnlinkedFileList(
-                    fsid);
-                nfids_todelete = unlinkfilelist.size();
-                nfids = (unsigned long long) filelist.size();
-                eos::IFsView::FileIterator it;
 
-                for (it = filelist.begin(); it != filelist.end(); ++it) {
+                for (auto it = filelist.begin(); it != filelist.end(); ++it) {
                   std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(*it);
 
                   if (fmd) {

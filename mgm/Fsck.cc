@@ -271,6 +271,7 @@ Fsck::Check(void)
             XrdSysMutexHelper lock(eMutex);
             eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
             std::shared_ptr<eos::IFileMD> fmd;
+            // @todo (esindril): replace with iterator rather than copy
             eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
 
             for (auto it = filelist.begin(); it != filelist.end(); ++it) {
@@ -439,13 +440,13 @@ Fsck::Check(void)
         IFileMD::location_t nfsid = it->getElement();
 
         try {
-          eos::IFsView::FileList filelist =  gOFS->eosFsView->getFileList(nfsid);
+          uint64_t num_files = gOFS->eosFsView->getNumFilesOnFs(nfsid);
 
-          if (filelist.size()) {
+          if (num_files) {
             // Check if this exists in the gFsView
             if (!FsView::gFsView.mIdView.count(nfsid)) {
-              eFsDark[nfsid] += filelist.size();
-              Log(false, "shadow fsid=%lu shadow_entries=%llu ", nfsid, filelist.size());
+              eFsDark[nfsid] += num_files;
+              Log(false, "shadow fsid=%lu shadow_entries=%llu ", nfsid, num_files);
             }
           }
         } catch (eos::MDException& e) {}
