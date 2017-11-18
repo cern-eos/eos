@@ -366,4 +366,39 @@ bool parseFsId(const std::string& str, IFileMD::location_t& fsid,
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Get number of files on the given file system
+//------------------------------------------------------------------------------
+uint64_t
+FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
+{
+  pFlusher->synchronize();
+  std::string key = keyFilesystemFiles(fs_id);
+
+  try {
+    qclient::QSet files_set(*pQcl, key);
+    return files_set.scard();
+  } catch (std::runtime_error& qdb_err) {
+    return 0ull;
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Get number of unlinked files on the given file system
+//------------------------------------------------------------------------------
+uint64_t
+FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
+{
+  pFlusher->synchronize();
+  std::string key = keyFilesystemUnlinked(fs_id);
+
+  try {
+    qclient::QSet files_set(*pQcl, key);
+    return files_set.scard();
+  } catch (const std::runtime_error& qdb_err) {
+    return 0ull;
+  }
+}
+
 EOSNSNAMESPACE_END

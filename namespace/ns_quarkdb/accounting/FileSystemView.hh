@@ -142,6 +142,15 @@ public:
   IFsView::FileList getFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
+  //! Get number of files on the given file system
+  //!
+  //! @param fs_id file system id
+  //!
+  //! @return number of files
+  //----------------------------------------------------------------------------
+  uint64_t getNumFilesOnFs(IFileMD::location_t fs_id) override;
+
+  //----------------------------------------------------------------------------
   //! Return set of unlinked files
   //! BEWARE: any replica change may invalidate iterators
   //! @param location filesystem identifier
@@ -149,6 +158,15 @@ public:
   //! @return set of unlinked files
   //----------------------------------------------------------------------------
   IFsView::FileList getUnlinkedFileList(IFileMD::location_t location) override;
+
+  //----------------------------------------------------------------------------
+  //! Get number of unlinked files on the given file system
+  //!
+  //! @param fs_id file system id
+  //!
+  //! @return number of files
+  //----------------------------------------------------------------------------
+  uint64_t getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id) override;
 
   //----------------------------------------------------------------------------
   //! Get set of files without replicas

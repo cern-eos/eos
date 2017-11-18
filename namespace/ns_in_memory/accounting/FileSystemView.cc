@@ -226,4 +226,31 @@ void FileSystemView::shrink()
   }
 }
 
+//------------------------------------------------------------------------------
+// Get number of files on the given file system
+//------------------------------------------------------------------------------
+uint64_t
+FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
+{
+  if (pFiles.size() <= fs_id) {
+    return 0ull;
+  }
+
+  return pFiles[fs_id].size();
+}
+
+
+//------------------------------------------------------------------------------
+// Get number of unlinked files on the given file system
+//------------------------------------------------------------------------------
+uint64_t
+FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
+{
+  if (pUnlinkedFiles.size() <= fs_id) {
+    return 0ull;
+  }
+
+  return pUnlinkedFiles[fs_id].size();
+}
+
 EOSNSNAMESPACE_END

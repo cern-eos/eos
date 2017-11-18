@@ -117,10 +117,28 @@ public:
   virtual FileList getFileList(IFileMD::location_t location) = 0;
 
   //----------------------------------------------------------------------------
+  //! Get number of files on the given file system
+  //!
+  //! @param fs_id file system id
+  //!
+  //! @return number of files
+  //----------------------------------------------------------------------------
+  virtual uint64_t getNumFilesOnFs(IFileMD::location_t fs_id) = 0;
+
+  //----------------------------------------------------------------------------
   //! Return reference to a list of unlinked files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
   virtual FileList getUnlinkedFileList(IFileMD::location_t location) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get number of unlinked files on the given file system
+  //!
+  //! @param fs_id file system id
+  //!
+  //! @return number of files
+  //----------------------------------------------------------------------------
+  virtual uint64_t getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id) = 0;
 
   //----------------------------------------------------------------------------
   //! Clear unlinked files for filesystem
