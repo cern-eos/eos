@@ -61,25 +61,25 @@
   for (unsigned long i = 0ul; i < fslist.size(); i++)
   {
     // Loop over all file systems
-    // @todo (esindril): use std::unordered_set
-    eos::IFsView::FileList lIdSet;
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
-    try {
+    std::unordered_set<eos::IFileMD::id_t> set_fids;
+    {
       eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      uint64_t num_files = eosFsView->getNumUnlinkedFilesOnFs(fslist[i]);
 
-      if (eosFsView->getNumUnlinkedFilesOnFs(fslist[i]) == 0) {
+      if (num_files == 0) {
         eos_static_debug("nothing to delete from fs %lu", fslist[i]);
         continue;
       }
 
-      // @todo (esindril): this needs to be replaces by an iterator
-      lIdSet = eosFsView->getUnlinkedFileList(fslist[i]);
-    } catch (...) {
-      eos_static_warning("fs %lu no longer in the ns view", fslist[i]);
-      continue;
-    }
+      set_fids.reserve(num_files);
 
+      // Collect all the file ids to be deleted from the current file syste
+      for (auto it_fid = gOFS->eosFsView->getUnlinkedFileList(fslist[i]);
+           (it_fid && it_fid->valid()); it_fid->next()) {
+        set_fids.insert(it_fid->getElement());
+      }
+    }
     XrdMqMessage message("deletion");
     int ndeleted = 0;
     eos::mgm::FileSystem* fs = 0;
@@ -88,7 +88,7 @@
     XrdOucString capability = "";
     XrdOucString idlist = "";
 
-    for (auto elem = lIdSet.begin(); elem != lIdSet.end(); ++elem) {
+    for (auto elem = set_fids.begin(); elem != set_fids.end(); ++elem) {
       eos_static_info("msg=\"add to deletion message\" fxid=%08llx fsid=%lu",
                       *elem, (unsigned long) fslist[i]);
 

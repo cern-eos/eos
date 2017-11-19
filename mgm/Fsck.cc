@@ -298,12 +298,10 @@ Fsck::Check(void)
       try {
         XrdSysMutexHelper lock(eMutex);
         eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-        std::shared_ptr<eos::IFileMD> fmd;
-        const eos::IFsView::FileList& filelist =
-          gOFS->eosFsView->getNoReplicasFileList();
 
-        for (auto it = filelist.begin(); it != filelist.end(); ++it) {
-          fmd = gOFS->eosFileService->getFileMD(*it);
+        for (auto it_fid = gOFS->eosFsView->getNoReplicasFileList();
+             (it_fid && it_fid->valid()); it_fid->next()) {
+          auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
           std::string path = gOFS->eosView->getUri(fmd.get());
           XrdOucString fullpath = path.c_str();
 
@@ -313,14 +311,13 @@ Fsck::Check(void)
           }
 
           if (fmd && (!fmd->isLink())) {
-            eMap["zero_replica"].insert(*it);
+            eMap["zero_replica"].insert(it_fid->getElement());
             eCount["zero_replica"]++;
           }
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_static_debug("caught exception %d %s\n",
-                         e.getErrno(),
+        eos_static_debug("caught exception %d %s\n", e.getErrno(),
                          e.getMessage().str().c_str());
       }
     }
