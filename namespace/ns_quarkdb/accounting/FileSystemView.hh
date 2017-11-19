@@ -18,7 +18,7 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin Sindrilaru <esindril@cern.ch>
-//! @brief The filesystem view stored in Redis
+//! @brief The filesystem view stored in QuarkDB
 //------------------------------------------------------------------------------
 
 #ifndef __EOS_NS_FILESYSTEM_VIEW_HH__
@@ -34,7 +34,7 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! File System iterator implementation on top of Redis.
+//! File System iterator implementation on top of QuarkDB.
 //! The proper solution would be that the object itself contacts redis running
 //! SCAN, but this should be fine for now.
 //------------------------------------------------------------------------------
@@ -83,7 +83,7 @@ private:
 };
 
 //------------------------------------------------------------------------------
-//! Class FileIterator that can iteratoe through a list of files from the
+//! Class FileIterator that can iterate through a list of files from the
 //! FileSystem class. Used to iterate through the files / unlinked files on a
 //! filesystem.
 //------------------------------------------------------------------------------
@@ -143,7 +143,7 @@ private:
 };
 
 //------------------------------------------------------------------------------
-//! FileSystemView implementation on top of quarkdb
+//! FileSystemView implementation on top of QuarkDB
 //!
 //! This class keeps a mapping between filesystem ids and the actual file ids
 //! that reside on that particular filesystem. For each fsid we keep a set

@@ -38,6 +38,8 @@ FileSystemView::FileSystemView():
 //------------------------------------------------------------------------------
 FileSystemView::~FileSystemView()
 {
+  // @todo (esindril): this should be droppped and the flusher should
+  // synchronize in his destructor
   if (pFlusher) {
     pFlusher->synchronize();
   }
@@ -83,7 +85,7 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
 }
 
 //------------------------------------------------------------------------------
-// Notify the me about the changes in the main view
+// Notify the me about changes in the main view
 //------------------------------------------------------------------------------
 void
 FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
@@ -149,6 +151,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 //------------------------------------------------------------------------------
 // Recheck the current file object and make any modifications necessary so
 // that the information is consistent in the back-end KV store.
+// @todo (esindril): review this
 //------------------------------------------------------------------------------
 bool
 FileSystemView::fileMDCheck(IFileMD* file)
@@ -264,6 +267,58 @@ FileSystemView::getNumNoReplicasFiles()
 }
 
 //------------------------------------------------------------------------------
+// Get number of files on the given file system
+//------------------------------------------------------------------------------
+uint64_t
+FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
+{
+  pFlusher->synchronize();
+  std::string key = keyFilesystemFiles(fs_id);
+
+  try {
+    qclient::QSet files_set(*pQcl, key);
+    return files_set.scard();
+  } catch (std::runtime_error& qdb_err) {
+    return 0ull;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get number of unlinked files on the given file system
+//------------------------------------------------------------------------------
+uint64_t
+FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
+{
+  pFlusher->synchronize();
+  const std::string key = keyFilesystemUnlinked(fs_id);
+
+  try {
+    qclient::QSet files_set(*pQcl, key);
+    return files_set.scard();
+  } catch (const std::runtime_error& qdb_err) {
+    return 0ull;
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Check if file system has file id
+//------------------------------------------------------------------------------
+bool
+FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const
+{
+  pFlusher->synchronize();
+  const std::string key = keyFilesystemFiles(fs_id);
+
+  try {
+    qclient::QSet files_set(*pQcl, key);
+    return files_set.sismember(fid);
+  } catch (const std::runtime_error& qdb_err) {
+    return false;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Clear unlinked files for filesystem
 //------------------------------------------------------------------------------
 bool
@@ -333,57 +388,6 @@ bool parseFsId(const std::string& str, IFileMD::location_t& fsid,
   }
 
   return true;
-}
-
-//------------------------------------------------------------------------------
-// Get number of files on the given file system
-//------------------------------------------------------------------------------
-uint64_t
-FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
-{
-  pFlusher->synchronize();
-  std::string key = keyFilesystemFiles(fs_id);
-
-  try {
-    qclient::QSet files_set(*pQcl, key);
-    return files_set.scard();
-  } catch (std::runtime_error& qdb_err) {
-    return 0ull;
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get number of unlinked files on the given file system
-//------------------------------------------------------------------------------
-uint64_t
-FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
-{
-  pFlusher->synchronize();
-  const std::string key = keyFilesystemUnlinked(fs_id);
-
-  try {
-    qclient::QSet files_set(*pQcl, key);
-    return files_set.scard();
-  } catch (const std::runtime_error& qdb_err) {
-    return 0ull;
-  }
-}
-
-
-//------------------------------------------------------------------------------
-// Check if file system has file id
-//------------------------------------------------------------------------------
-bool
-FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const
-{
-  const std::string key = keyFilesystemFiles(fs_id);
-
-  try {
-    qclient::QSet files_set(*pQcl, key);
-    return files_set.sismember(fid);
-  } catch (const std::runtime_error& qdb_err) {
-    return false;
-  }
 }
 
 EOSNSNAMESPACE_END

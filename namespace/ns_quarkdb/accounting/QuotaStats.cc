@@ -116,7 +116,7 @@ QuotaNode::removeFile(const IFileMD* file)
 void
 QuotaNode::meld(const IQuotaNode* node)
 {
-  const QuotaNode* impl_node = dynamic_cast<const QuotaNode*>(node);
+  const QuotaNode* impl_node = static_cast<const QuotaNode*>(node);
   // Meld in the uid map info
   qclient::QHash hmap(*pQcl,
                       QuotaStats::KeyQuotaUidMap(std::to_string(impl_node->getId())));
