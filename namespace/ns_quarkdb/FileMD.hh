@@ -29,7 +29,6 @@
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "FileMd.pb.h"
 #include <stdint.h>
-#include <string>
 #include <sys/time.h>
 
 EOSNSNAMESPACE_BEGIN

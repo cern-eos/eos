@@ -12,11 +12,11 @@ message ContainerMdProto {
   int64 tree_size = 6;
   int32 mode = 5;
   uint32 flags = 7;
+  string name = 8;
+  bytes ctime = 9; // change time
+  bytes mtime = 10; // modification time
+  bytes stime = 11; // sync time
+  map<string, string> xattrs = 12;
   // @todo (esindril): This is not actually used, we should drop it
-  uint32 acl_id = 8;
-  string name = 9;
-  bytes ctime = 10; // change time
-  bytes mtime = 11; // modification time
-  bytes stime = 12; // sync time
-  map<string, string> xattrs = 13;
+  uint32 acl_id = 13;
 }

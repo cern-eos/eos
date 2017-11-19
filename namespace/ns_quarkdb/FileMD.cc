@@ -87,10 +87,13 @@ void
 FileMD::replaceLocation(unsigned int index, location_t newlocation)
 {
   location_t oldLocation = mFile.locations(index);
-  mFile.set_locations(index, newlocation);
-  IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationReplaced,
-                                 newlocation, oldLocation);
-  pFileMDSvc->notifyListeners(&e);
+
+  if (oldLocation != newlocation) {
+    mFile.set_locations(index, newlocation);
+    IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationReplaced,
+                                   newlocation, oldLocation);
+    pFileMDSvc->notifyListeners(&e);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -99,12 +102,12 @@ FileMD::replaceLocation(unsigned int index, location_t newlocation)
 void
 FileMD::removeLocation(location_t location)
 {
-  for (auto it = mFile.unlink_locations().begin();
-       it != mFile.unlink_locations().end(); ++it) {
+  for (auto it = mFile.unlink_locations().cbegin();
+       it != mFile.unlink_locations().cend(); ++it) {
     if (*it == location) {
       mFile.mutable_unlink_locations()->erase(it);
-      IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationRemoved,
-                                     location);
+      IFileMDChangeListener::Event
+      e(this, IFileMDChangeListener::LocationRemoved, location);
       pFileMDSvc->notifyListeners(&e);
       return;
     }
@@ -117,15 +120,14 @@ FileMD::removeLocation(location_t location)
 void
 FileMD::removeAllLocations()
 {
-  auto it = mFile.unlink_locations().rbegin();
-
-  while (it != mFile.unlink_locations().rend()) {
-    mFile.mutable_unlink_locations()->RemoveLast();
-    IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationRemoved,
-                                   *it);
+  for (auto it = mFile.unlink_locations().cbegin();
+       it != mFile.unlink_locations().cend(); ++it) {
+    IFileMDChangeListener::Event
+    e(this, IFileMDChangeListener::LocationRemoved, *it);
     pFileMDSvc->notifyListeners(&e);
-    ++it;
   }
+
+  mFile.clear_unlink_locations();
 }
 
 //------------------------------------------------------------------------------
@@ -134,13 +136,13 @@ FileMD::removeAllLocations()
 void
 FileMD::unlinkLocation(location_t location)
 {
-  for (auto it = mFile.locations().begin();
-       it != mFile.locations().end(); ++it) {
+  for (auto it = mFile.locations().cbegin();
+       it != mFile.locations().cend(); ++it) {
     if (*it == location) {
       mFile.add_unlink_locations(*it);
       mFile.mutable_locations()->erase(it);
-      IFileMDChangeListener::Event e(
-        this, IFileMDChangeListener::LocationUnlinked, location);
+      IFileMDChangeListener::Event
+      e(this, IFileMDChangeListener::LocationUnlinked, location);
       pFileMDSvc->notifyListeners(&e);
       return;
     }
@@ -153,14 +155,12 @@ FileMD::unlinkLocation(location_t location)
 void
 FileMD::unlinkAllLocations()
 {
-  auto it = mFile.locations().rbegin();
-
-  while (it != mFile.locations().rend()) {
+  for (auto it = mFile.locations().cbegin();
+       it != mFile.locations().cend(); ++it) {
     mFile.add_unlink_locations(*it);
-    IFileMDChangeListener::Event e(
-      this, IFileMDChangeListener::LocationUnlinked, *it);
+    IFileMDChangeListener::Event
+    e(this, IFileMDChangeListener::LocationUnlinked, *it);
     pFileMDSvc->notifyListeners(&e);
-    ++it;
   }
 
   mFile.clear_locations();
@@ -204,13 +204,13 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
   env += "&location=";
   char locs[16];
 
-  for (auto && elem : mFile.locations()) {
+  for (const auto& elem : mFile.locations()) {
     snprintf(static_cast<char*>(locs), sizeof(locs), "%u", elem);
     env += static_cast<char*>(locs);
     env += ",";
   }
 
-  for (auto && elem : mFile.unlink_locations()) {
+  for (const auto& elem : mFile.unlink_locations()) {
     snprintf(static_cast<char*>(locs), sizeof(locs), "!%u", elem);
     env += static_cast<char*>(locs);
     env += ",";
@@ -240,6 +240,7 @@ FileMD::serialize(eos::Buffer& buffer)
     throw ex;
   }
 
+  // Increase clock to mark that metadata file has suffered updates
   ++mClock;
   // Align the buffer to 4 bytes to efficiently compute the checksum
   size_t obj_size = mFile.ByteSizeLong();
