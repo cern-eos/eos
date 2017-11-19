@@ -214,7 +214,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
 }
 
 //------------------------------------------------------------------------------
-// Get set of files on filesystem
+// Get iterator to list of files on a particular file system
 //------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getFileList(IFileMD::location_t location)
@@ -226,56 +226,41 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 }
 
 //------------------------------------------------------------------------------
-// Get set of unlinked files
+// Get iterator to list of unlinked files on a particular file system
 //------------------------------------------------------------------------------
-IFsView::FileList
-FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+    FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
   pFlusher->synchronize();
   std::string key = keyFilesystemUnlinked(location);
-  // @todo (esindril): this should be allocated on the heap
-  IFsView::FileList set_unlinked;
-  set_unlinked.set_empty_key(-1);
-  std::pair<std::string, std::vector<std::string>> reply;
-  std::string cursor = {"0"};
-  long long count = 10000;
-  qclient::QSet fs_set(*pQcl, key);
-
-  do {
-    reply = fs_set.sscan(cursor, count);
-    cursor = reply.first;
-
-    for (const auto& elem : reply.second) {
-      set_unlinked.insert(std::stoul(elem));
-    }
-  } while (cursor != "0");
-
-  return set_unlinked;
+  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+         (new FileIterator(*pQcl, key));
 }
 
 //------------------------------------------------------------------------------
-// Get set of files without replicas
+// Get iterator to list of files without replicas
 //------------------------------------------------------------------------------
-IFsView::FileList
-FileSystemView::getNoReplicasFileList()
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+    FileSystemView::getNoReplicasFileList()
 {
   pFlusher->synchronize();
-  IFsView::FileList set_noreplicas;
-  set_noreplicas.set_empty_key(-1);
-  std::pair<std::string, std::vector<std::string>> reply;
-  std::string cursor {"0"};
-  long long count = 10000;
+  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+         (new FileIterator(*pQcl, fsview::sNoReplicaPrefix));
+}
 
-  do {
-    reply = pNoReplicasSet.sscan(cursor, count);
-    cursor = reply.first;
+//------------------------------------------------------------------------------
+// Get number of files with no replicas
+//------------------------------------------------------------------------------
+uint64_t
+FileSystemView::getNumNoReplicasFiles()
+{
+  pFlusher->synchronize();
 
-    for (const auto& elem : reply.second) {
-      set_noreplicas.insert(std::stoul(elem));
-    }
-  } while (cursor != "0");
-
-  return set_noreplicas;
+  try {
+    return pNoReplicasSet.scard();
+  } catch (std::runtime_error& qdb_err) {
+    return 0ull;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -366,7 +351,6 @@ FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
     return 0ull;
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Get number of unlinked files on the given file system

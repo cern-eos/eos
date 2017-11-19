@@ -156,7 +156,7 @@ void FileSystemViewTest::fileSystemViewTest()
     CPPUNIT_ASSERT(numReplicas == 20000);
     size_t numUnlinked = countUnlinked(fsView);
     CPPUNIT_ASSERT(numUnlinked == 0);
-    CPPUNIT_ASSERT(fsView->getNoReplicasFileList().size() == 500);
+    CPPUNIT_ASSERT(fsView->getNumNoReplicasFiles() == 500);
 
     //--------------------------------------------------------------------------
     // Unlinke replicas
@@ -201,7 +201,7 @@ void FileSystemViewTest::fileSystemViewTest()
     CPPUNIT_ASSERT(numReplicas == 17200);
     numUnlinked = countUnlinked(fsView);
     CPPUNIT_ASSERT(numUnlinked == 2800);
-    CPPUNIT_ASSERT(fsView->getNoReplicasFileList().size() == 500);
+    CPPUNIT_ASSERT(fsView->getNumNoReplicasFiles() == 500);
     std::shared_ptr<eos::IFileMD> f = view->getFile(
                                         std::string("/test/embed/embed1/file1"));
     f->unlinkAllLocations();
@@ -213,9 +213,9 @@ void FileSystemViewTest::fileSystemViewTest()
     numUnlinked = countUnlinked(fsView);
     CPPUNIT_ASSERT(numUnlinked == 2800);
     view->updateFileStore(f.get());
-    CPPUNIT_ASSERT(fsView->getNoReplicasFileList().size() == 501);
+    CPPUNIT_ASSERT(fsView->getNumNoReplicasFiles() == 501);
     view->removeFile(f.get());
-    CPPUNIT_ASSERT(fsView->getNoReplicasFileList().size() == 500);
+    CPPUNIT_ASSERT(fsView->getNumNoReplicasFiles() == 500);
     view->finalize();
     fsView->finalize();
     unlink(fileNameFileMD.c_str());

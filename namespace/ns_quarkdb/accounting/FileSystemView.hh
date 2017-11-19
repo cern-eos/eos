@@ -193,11 +193,11 @@ public:
   virtual bool fileMDCheck(IFileMD* file) override;
 
   //----------------------------------------------------------------------------
-  //! Return set of files on filesystem
-  //! BEWARE: any replica change may invalidate iterators
-  //! @param location filesystem identifier
+  //! Get iterator to list of files on a particular file system
   //!
-  //! @return set of files on filesystem
+  //! @param location file system id
+  //!
+  //! @return shared ptr to collection iterator
   //----------------------------------------------------------------------------
   std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
       getFileList(IFileMD::location_t location) override;
@@ -212,13 +212,14 @@ public:
   uint64_t getNumFilesOnFs(IFileMD::location_t fs_id) override;
 
   //----------------------------------------------------------------------------
-  //! Return set of unlinked files
-  //! BEWARE: any replica change may invalidate iterators
-  //! @param location filesystem identifier
+  //! Get iterator to list of unlinked files on a particular file system
   //!
-  //! @return set of unlinked files
+  //! @param location file system id
+  //!
+  //! @return shared ptr to collection iterator
   //----------------------------------------------------------------------------
-  IFsView::FileList getUnlinkedFileList(IFileMD::location_t location) override;
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getUnlinkedFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get number of unlinked files on the given file system
@@ -230,12 +231,17 @@ public:
   uint64_t getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id) override;
 
   //----------------------------------------------------------------------------
-  //! Get set of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
+  //! Get iterator to list of files without replicas
   //!
-  //! @return set of files with no replicas
+  //! @return shard ptr to collection iterator
   //----------------------------------------------------------------------------
-  IFsView::FileList getNoReplicasFileList() override;
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getNoReplicasFileList() override;
+
+  //----------------------------------------------------------------------------
+  //! Get number of files with no replicas
+  //----------------------------------------------------------------------------
+  uint64_t getNumNoReplicasFiles() override;
 
   //----------------------------------------------------------------------------
   //! Clear unlinked files for filesystem

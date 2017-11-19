@@ -113,8 +113,11 @@ public:
   virtual void fileMDRead(IFileMD* obj) = 0;
 
   //----------------------------------------------------------------------------
-  //! Return reference to a list of files
-  //! BEWARE: any replica change may invalidate iterators
+  //! Get iterator to list of files on a particular file system
+  //!
+  //! @param location file system id
+  //!
+  //! @return shared ptr to collection iterator
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
       getFileList(IFileMD::location_t location) = 0;
@@ -129,10 +132,14 @@ public:
   virtual uint64_t getNumFilesOnFs(IFileMD::location_t fs_id) = 0;
 
   //----------------------------------------------------------------------------
-  //! Return reference to a list of unlinked files
-  //! BEWARE: any replica change may invalidate iterators
+  //! Get iterator to list of unlinked files on a particular file system
+  //!
+  //! @param location file system id
+  //!
+  //! @return shared ptr to collection iterator
   //----------------------------------------------------------------------------
-  virtual FileList getUnlinkedFileList(IFileMD::location_t location) = 0;
+  virtual std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getUnlinkedFileList(IFileMD::location_t location) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of unlinked files on the given file system
@@ -153,10 +160,17 @@ public:
   virtual bool clearUnlinkedFileList(IFileMD::location_t location) = 0;
 
   //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
+  //! Get iterator to list of files without replicas
+  //!
+  //! @return shard ptr to collection iterator
   //----------------------------------------------------------------------------
-  virtual FileList getNoReplicasFileList() = 0;
+  virtual std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getNoReplicasFileList() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get number of files with no replicas
+  //----------------------------------------------------------------------------
+  virtual uint64_t getNumNoReplicasFiles() = 0;
 
   //----------------------------------------------------------------------------
   //! Get iterator object to run through all currently active filesystem IDs

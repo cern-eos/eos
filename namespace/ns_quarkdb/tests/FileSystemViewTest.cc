@@ -164,7 +164,7 @@ TEST(FileSystemView, BasicSanity)
     ASSERT_EQ(numReplicas, 20000);
     size_t numUnlinked = countUnlinked(fsView.get());
     ASSERT_EQ(numUnlinked, 0);
-    ASSERT_EQ(fsView->getNoReplicasFileList().size(), 500);
+    ASSERT_EQ(fsView->getNumNoReplicasFiles(), 500);
 
     // Unlink replicas
     for (int i = 100; i < 500; ++i) {
@@ -209,7 +209,7 @@ TEST(FileSystemView, BasicSanity)
     ASSERT_EQ(numReplicas, 17200);
     numUnlinked = countUnlinked(fsView.get());
     ASSERT_EQ(numUnlinked, 2800);
-    ASSERT_EQ(fsView->getNoReplicasFileList().size(), 500);
+    ASSERT_EQ(fsView->getNumNoReplicasFiles(), 500);
     std::shared_ptr<eos::IFileMD> f{
       view->getFile(std::string("/test/embed/embed1/file1"))};
     f->unlinkAllLocations();
@@ -221,9 +221,9 @@ TEST(FileSystemView, BasicSanity)
     numUnlinked = countUnlinked(fsView.get());
     ASSERT_EQ(numUnlinked, 2800);
     view->updateFileStore(f.get());
-    ASSERT_EQ(fsView->getNoReplicasFileList().size(), 501);
+    ASSERT_EQ(fsView->getNumNoReplicasFiles(), 501);
     view->removeFile(f.get());
-    ASSERT_EQ(fsView->getNoReplicasFileList().size(), 500);
+    ASSERT_EQ(fsView->getNumNoReplicasFiles(), 500);
     view->finalize();
     fsView->finalize();
 

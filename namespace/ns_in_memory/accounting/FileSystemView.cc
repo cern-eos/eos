@@ -163,7 +163,7 @@ void FileSystemView::fileMDRead(IFileMD* obj)
 }
 
 //----------------------------------------------------------------------------
-// Return reference to a list of files
+// Get iterator to list of files on a particular file system
 //----------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getFileList(IFileMD::location_t location)
@@ -178,11 +178,11 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
          (new FileIterator(pFiles[location]));
 }
 
-//----------------------------------------------------------------------------
-// Return reference to a list of unlinked files
-//----------------------------------------------------------------------------
-FileSystemView::FileList FileSystemView::getUnlinkedFileList(
-  IFileMD::location_t location)
+//------------------------------------------------------------------------------
+// Get iterator to list of unlinked files on a particular file system
+//------------------------------------------------------------------------------
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+    FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
   if (pUnlinkedFiles.size() <= location) {
     MDException e(ENOENT);
@@ -190,7 +190,8 @@ FileSystemView::FileList FileSystemView::getUnlinkedFileList(
     throw (e);
   }
 
-  return pUnlinkedFiles[location];
+  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+         (new FileIterator(pUnlinkedFiles[location]));
 }
 
 //------------------------------------------------------------------------------
@@ -201,6 +202,16 @@ FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
   pUnlinkedFiles[location].clear();
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Get iterator to list of files without replicas
+//------------------------------------------------------------------------------
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+    FileSystemView::getNoReplicasFileList()
+{
+  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+         (new FileIterator(pNoReplicas));
 }
 
 //----------------------------------------------------------------------------

@@ -486,8 +486,8 @@ void compareFileSystems(eos::FileSystemView* viewMaster,
                    viewSlave->getNumUnlinkedFilesOnFs(it->getElement()));
   }
 
-  CPPUNIT_ASSERT(viewMaster->getNoReplicasFileList().size() ==
-                 viewSlave->getNoReplicasFileList().size());
+  CPPUNIT_ASSERT(viewMaster->getNumNoReplicasFiles() ==
+                 viewSlave->getNumNoReplicasFiles());
 }
 
 //------------------------------------------------------------------------------

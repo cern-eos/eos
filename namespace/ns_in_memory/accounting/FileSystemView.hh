@@ -169,8 +169,11 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Return reference to a list of files
-  //! BEWARE: any replica change may invalidate iterators
+  //! Get iterator to list of files on a particular file system
+  //!
+  //! @param location file system id
+  //!
+  //! @return shared ptr to collection iterator
   //----------------------------------------------------------------------------
   std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
       getFileList(IFileMD::location_t location) override;
@@ -185,10 +188,14 @@ public:
   uint64_t getNumFilesOnFs(IFileMD::location_t fs_id) override;
 
   //----------------------------------------------------------------------------
-  //! Return reference to a list of unlinked files
-  //! BEWARE: any replica change may invalidate iterators
+  //! Get iterator to list of unlinked files on a particular file system
+  //!
+  //! @param location file system id
+  //!
+  //! @return shared ptr to collection iterator
   //----------------------------------------------------------------------------
-  FileList getUnlinkedFileList(IFileMD::location_t location) override;
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getUnlinkedFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get number of unlinked files on the given file system
@@ -219,12 +226,19 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
+  //! Get iterator to list of files without replicas
+  //!
+  //! @return shard ptr to collection iterator
   //----------------------------------------------------------------------------
-  FileList getNoReplicasFileList() override
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getNoReplicasFileList() override;
+
+  //----------------------------------------------------------------------------
+  //! Get number of files with no replicas
+  //----------------------------------------------------------------------------
+  virtual uint64_t getNumNoReplicasFiles() override
   {
-    return pNoReplicas;
+    return pNoReplicas.size();
   }
 
   //----------------------------------------------------------------------------
