@@ -32,26 +32,24 @@
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("Scheduled2Balance");
   gOFS->MgmStats.Add("Schedule2Balance", 0, 0, 1);
-
   XrdOucString sfsid = env.Get("mgm.target.fsid");
   XrdOucString sfreebytes = env.Get("mgm.target.freebytes");
   char* alogid = env.Get("mgm.logid");
   char* simulate = env.Get("mgm.simulate"); // used to test the routing
   char* sreplyjob = env.Get("mgm.replyjob");
   XrdOucString rjob;
-
   bool replyjob = false;
 
-  // older EOS versions send jobs via asynchronous queue, newer version reply directly with the job
+  // Older EOS versions send jobs via asynchronous queue, newer version
+  // reply directly with the job
   if (sreplyjob && ((rjob = sreplyjob) == "1"))
   {
     replyjob = true;
   }
 
-  // static map with iterator position for the next group scheduling and it's mutex
+  // static map with iterator position for the next group scheduling and its mutex
   static std::map<std::string, size_t> sGroupCycle;
   static XrdSysMutex sGroupCycleMutex;
   static time_t sScheduledFidCleanupTime = 0;
@@ -73,14 +71,13 @@
   eos::common::FileSystem::fs_snapshot target_snapshot;
   eos::common::FileSystem::fs_snapshot source_snapshot;
   eos::common::FileSystem* target_fs = 0;
-
   unsigned long long freebytes = (sfreebytes.c_str()) ? strtoull(sfreebytes.c_str(), 0, 10) : 0;
-
   eos_thread_info("cmd=schedule2balance fsid=%d freebytes=%llu logid=%s",
   target_fsid, freebytes, alogid ? alogid : "");
 
+  // Lock the view and get the filesystem information for the target where we
+  // balance to
   while (1)
-    // lock the view and get the filesystem information for the target where be balance to
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     target_fs = FsView::gFsView.mIdView[target_fsid];
@@ -121,8 +118,9 @@
     sGroupCycleMutex.UnLock();
     eos_thread_debug("group=%s cycle=%lu",
                      target_snapshot.mGroup.c_str(), gposition);
-    // try to find a file, which is smaller than the free bytes and has no replica on the target filesystem
-    // we start at a random position not to move data of the same period to a single disk
+    // Try to find a file, which is smaller than the free bytes and has no
+    // replica on the target filesystem. We start at a random position not
+    // to move data of the same period to a single disk
     group = FsView::gFsView.mGroupView[target_snapshot.mGroup];
     FsGroup::const_iterator group_iterator;
     group_iterator = group->begin();
@@ -161,7 +159,8 @@
            eos::common::FileSystem::kOffline)) {
         source_fs = 0;
         group_iterator++;
-        // whenever we jump a filesystem we advance also the cyclic group pointer for the next round
+        // Whenever we jump a filesystem we advance also the cyclic group
+        // pointer for the next round
         XrdSysMutexHelper sLock(sGroupCycleMutex);
         sGroupCycle[target_snapshot.mGroup]++;
         sGroupCycle[target_snapshot.mGroup] %= groupsize;
@@ -185,39 +184,26 @@
 
     source_fs->SnapShotFileSystem(source_snapshot);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    // @todo (esindril): these should be replaced by iterators
-    eos::IFsView::FileList source_filelist;
-    eos::IFsView::FileList target_filelist;
-
-    try {
-      source_filelist = gOFS->eosFsView->getFileList(source_fsid);
-    } catch (const eos::MDException& e) {
-      source_filelist.set_deleted_key(0);
-      source_filelist.set_empty_key(0xffffffffffffffff);
-    }
-
-    try {
-      target_filelist = gOFS->eosFsView->getFileList(target_fsid);
-    } catch (const eos::MDException& e) {
-      target_filelist.set_deleted_key(0);
-      target_filelist.set_empty_key(0xffffffffffffffff);
-    }
-
-    unsigned long long nfids = (unsigned long long) source_filelist.size();
-    eos_thread_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u n_source_fids=%llu",
-                     target_snapshot.mGroup.c_str(), gposition, source_fsid, target_fsid, nfids);
+    unsigned long long nfids = gOFS->eosFsView->getNumFilesOnFs(source_fsid);
+    eos_thread_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u "
+                     "n_source_fids=%llu", target_snapshot.mGroup.c_str(),
+                     gposition, source_fsid, target_fsid, nfids);
     unsigned long long rpos = (unsigned long long)((0.999999 * random() * nfids) /
                               RAND_MAX);
-    eos::IFsView::FileIterator fit = source_filelist.begin();
-    std::advance(fit, rpos);
 
-    while (fit != source_filelist.end()) {
+    for (auto it_fid = gOFS->eosFsView->getFileList(source_fsid);
+         (it_fid && it_fid->valid()); it_fid->next()) {
+      // Jump to randomly chosen point
+      if (rpos > 0) {
+        --rpos;
+        continue;
+      }
+
       // check that the target does not have this file
-      eos::IFileMD::id_t fid = *fit;
+      eos::IFileMD::id_t fid = it_fid->getElement();
 
-      if (target_filelist.count(fid)) {
-        // iterate to the next file, we have this file already
-        fit++;
+      if (gOFS->eosFsView->hasFileId(fid, target_fsid)) {
+        // Iterate to the next file, we have this file already
         eos_static_debug("skip fid=%ld - existing on target", fid);
         continue;
       } else {
@@ -245,8 +231,8 @@
 
         if ((ScheduledToBalanceFid.count(fid) &&
              ((ScheduledToBalanceFid[fid] > (now))))) {
-          // iterate to the next file, we have scheduled this file during the last hour or anyway it is empty
-          fit++;
+          // Iterate to the next file, we have scheduled this file during the
+          // last hour or anyway it is empty
           eos_static_debug("skip fid=%ld - scheduled during last hour", fid);
           continue;
         } else {
@@ -417,8 +403,8 @@
                       fullcapability.c_str());
 
                     if (target_fs->GetBalanceQueue()->Add(txjob)) {
-                      eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(),
-                                      source_fsid, target_fsid);
+                      eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u",
+                                      hexfid.c_str(), source_fsid, target_fsid);
                       eos_thread_debug("job=%s", fullcapability.c_str());
                     }
 
@@ -448,12 +434,10 @@
                 return SFS_DATA;
               }
             } else {
-              fit++;
               eos_static_debug("skip fid=%ld - zero sized file", fid);
               continue;
             }
           } else {
-            fit++;
             eos_static_debug("skip fid=%ld - cannot get fmd record", fid);
             continue;
           }

@@ -189,29 +189,20 @@ DrainFS::Drain()
     {
       eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      totalfiles = gOFS->eosFsView->getNumFilesOnFs(mFsId);
 
-      try {
-        // @todo (esindril): replace with getNumFilesOnFs and iterator
-        filelist = gOFS->eosFsView->getFileList(mFsId);
-      } catch (eos::MDException& e) {
-        // no files to drain
+      if (totalfiles == 0) {
+        CompleteDrain();
+        return 0;
+      }
+
+      // Loop through all files and create draining jobs
+      for (auto it_fid = gOFS->eosFsView->getFileList(mFsId);
+           (it_fid && it_fid->valid()); it_fid->next()) {
+        mJobsPending.push_back(std::shared_ptr<DrainTransferJob>
+                               (new DrainTransferJob(it_fid->getElement(), mFsId)));
       }
     }
-
-    if (filelist.size() == 0) {
-      CompleteDrain();
-      return 0;
-    }
-
-    eos::IFsView::FileIterator fid_it = filelist.begin();
-
-    while (fid_it != filelist.end()) {
-      mJobsPending.push_back(shared_ptr<DrainTransferJob>
-                             (new DrainTransferJob(*fid_it, mFsId)));
-      fid_it++;
-    }
-
-    totalfiles = filelist.size();
     // set the shared object counter
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);

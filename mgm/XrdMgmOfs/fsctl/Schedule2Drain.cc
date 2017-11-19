@@ -217,27 +217,20 @@
   // Lock namespace view here to avoid deadlock with the Commit.cc code on
   // the ScheduledToDrainFidMutex
   eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
-  // @todo (esindril): This should be reviewed as copying the list might be
-  // too slow when drain activity is high.
-  eos::IFsView::FileList source_filelist =
-    gOFS->eosFsView->getFileList(source_fsid);
-  eos::IFsView::FileList target_filelist =
-    gOFS->eosFsView->getFileList(target_fsid);
-  unsigned long long nfids = (unsigned long long) source_filelist.size();
+  unsigned long long nfids = gOFS->eosFsView->getNumFilesOnFs(source_fsid);
   eos_thread_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u "
                    "n_source_fids=%llu", target_snapshot.mGroup.c_str(),
                    gposition, source_fsid, target_fsid, nfids);
-  eos::IFsView::FileIterator fit = source_filelist.begin();
 
-  while (fit != source_filelist.end())
+  for (auto it_fid = gOFS->eosFsView->getFileList(source_fsid);
+       (it_fid && it_fid->valid()); it_fid->next())
   {
-    eos_thread_debug("checking fid %llx", *fit);
-    // Check that the target does not have this file
-    eos::IFileMD::id_t fid = *fit;
+    eos::IFileMD::id_t fid = it_fid->getElement();
+    eos_thread_debug("checking fid %llx", fid);
 
-    if (target_filelist.count(fid)) {
+    // Check that the target does not have this file
+    if (gOFS->eosFsView->hasFileId(fid, target_fsid)) {
       // Move on to the next file, we have this file already
-      ++fit;
       continue;
     } else {
       // Check that this file has not been scheduled during the last 1h
@@ -266,7 +259,6 @@
       if ((ScheduledToDrainFid.count(fid) && ((ScheduledToDrainFid[fid] > (now))))) {
         eos_thread_debug("file %llx has already been scheduled at %lu", fid,
                          ScheduledToDrainFid[fid]);
-        ++fit;
         continue;
       } else {
         std::string fullpath = "";
@@ -282,12 +274,10 @@
           fullpath = savepath.c_str();
           fmd = gOFS->eosFileService->getFileMD(fid);
         } catch (eos::MDException& e) {
-          ++fit;
           continue;
         }
 
         if (!fmd) {
-          ++fit;
           continue;
         }
 
@@ -376,14 +366,12 @@
               eos_thread_err("cmd=schedule2drain msg=\"invalid argument to "
                              "FileAccess %llx retc=%d\"", fid, retc);
               ScheduledToDrainFid[fid] = time(NULL) + 60;
-              fit++;
               continue;
             } else if (Quota::FileAccess(&acsargs)) {
               // Inaccessible files we retry after 60 seconds
               eos_thread_err("cmd=schedule2drain msg=\"no access to file %llx "
                              "retc=%d\"", fid, retc);
               ScheduledToDrainFid[fid] = time(NULL) + 60;
-              fit++;
               continue;
             }
           } else {
@@ -398,7 +386,6 @@
 
             if ((FsView::gFsView.mIdView.count(locationfs[fsindex]) == 0) ||
                 (replica_source_fs = FsView::gFsView.mIdView[locationfs[fsindex]]) == 0) {
-              fit++;
               continue;
             }
 
@@ -543,7 +530,6 @@
               delete target_capabilityenv;
             }
           } else {
-            fit++;
             continue;
           }
         }
@@ -555,7 +541,6 @@
                           "target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
           XrdSysMutexHelper zLock(sZeroMoveMutex);
           sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
-          fit++;
           continue;
         } else {
           if (fullpath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
@@ -565,7 +550,6 @@
                             source_fsid, target_fsid);
             XrdSysMutexHelper zLock(sZeroMoveMutex);
             sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
-            fit++;
             continue;
           }
 

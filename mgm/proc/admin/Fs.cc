@@ -371,11 +371,11 @@ ProcCommand::Fs()
               try {
                 nfids_todelete = gOFS->eosFsView->getNumUnlinkedFilesOnFs(fsid);
                 nfids = gOFS->eosFsView->getNumFilesOnFs(fsid);
-                // @todo (esindril): replace with iterator
-                eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
 
-                for (auto it = filelist.begin(); it != filelist.end(); ++it) {
-                  std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(*it);
+                for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
+                     (it_fid && it_fid->valid()); it_fid->next()) {
+                  std::shared_ptr<eos::IFileMD> fmd =
+                    gOFS->eosFileService->getFileMD(it_fid->getElement());
 
                   if (fmd) {
                     size_t nloc_ok = 0;

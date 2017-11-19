@@ -270,17 +270,16 @@ Fsck::Check(void)
           try {
             XrdSysMutexHelper lock(eMutex);
             eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-            std::shared_ptr<eos::IFileMD> fmd;
-            // @todo (esindril): replace with iterator rather than copy
-            eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
 
-            for (auto it = filelist.begin(); it != filelist.end(); ++it) {
-              fmd = gOFS->eosFileService->getFileMD(*it);
+            for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
+                 (it_fid && it_fid->valid()); it_fid->next()) {
+              eos::IFileMD::id_t fid = it_fid->getElement();
+              auto fmd = gOFS->eosFileService->getFileMD(fid);
 
               if (fmd) {
                 eFsUnavail[fsid]++;
-                eFsMap["rep_offline"][fsid].insert(*it);
-                eMap["rep_offline"].insert(*it);
+                eFsMap["rep_offline"][fsid].insert(fid);
+                eMap["rep_offline"].insert(fid);
                 eCount["rep_offline"]++;
               }
             }

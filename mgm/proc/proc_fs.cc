@@ -152,25 +152,11 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
     int fsid = atoi(fsidst.c_str());
     eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
-    /* empty list in case of unavailable file lists */
-    eos::IFsView::FileList emptyFileList;
-    emptyFileList.set_empty_key(0xffffffffffffffffll);
-    emptyFileList.set_deleted_key(0);
-    eos::IFsView::FileList filelist = emptyFileList; // empty by default
 
-    // @todo (esindril): replace with iterator
-    try {
-      filelist = gOFS->eosFsView->getFileList(fsid);
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      eos_static_err("Couldn't retrieve file list. Error code: %d, message: %s",
-                     e.getErrno(), e.getMessage().str().c_str());
-      return e.getErrno();
-    }
-
-    for (auto it : filelist) {
+    for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
+         (it_fid && it_fid->valid()); it_fid->next()) {
       try {
-        fmd = gOFS->eosFileService->getFileMD(it);
+        fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
 
         if (fmd) {
           entries++;
@@ -234,13 +220,18 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_static_err("Couldn't retrieve meta data for file id: %u. Error code: %d, message: %s",
-                       it, e.getErrno(), e.getMessage().str().c_str());
+        eos_static_err("Couldn't retrieve meta data for file id: %u. Error "
+                       "code: %d, message: %s", it_fid->getElement(),
+                       e.getErrno(), e.getMessage().str().c_str());
       }
     }
 
     if (monitor) {
       // Also add files which have yet to be unlinked
+      // @todo (esindril): to be replaced
+      eos::IFsView::FileList emptyFileList;
+      emptyFileList.set_empty_key(0xffffffffffffffffll);
+      emptyFileList.set_deleted_key(0);
       eos::IFsView::FileList& unlinked = emptyFileList; // empty by default
 
       try {
@@ -257,8 +248,9 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
           fmd = gOFS->eosFileService->getFileMD(it);
         } catch (eos::MDException& e) {
           errno = e.getErrno();
-          eos_static_err("Couldn't retrieve meta data for file id: %u. Error code: %d, message: %s",
-                         it, e.getErrno(), e.getMessage().str().c_str());
+          eos_static_err("Couldn't retrieve meta data for file id: %u. Error "
+                         "code: %d, message: %s", it, e.getErrno(),
+                         e.getMessage().str().c_str());
         }
 
         if (fmd) {

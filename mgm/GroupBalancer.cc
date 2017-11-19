@@ -421,21 +421,21 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
 }
 
 /*----------------------------------------------------------------------------*/
-eos::common::FileId::fileid_t
-GroupBalancer::chooseFidFromGroup(FsGroup* group)
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Chooses a random file ID from a random filesystem in the given group
  * @param group the group from which the file id will be chosen
  * @return the chosen file ID
  */
 /*----------------------------------------------------------------------------*/
+eos::common::FileId::fileid_t
+GroupBalancer::chooseFidFromGroup(FsGroup* group)
 {
   int rndIndex;
+  bool found = false;
+  uint64_t fsid_size = 0ull;
+  eos::common::FileSystem::fsid_t fsid = 0;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  // @todo (esindril): replace with iterator
-  eos::IFsView::FileList filelist;
   std::vector<int> validFsIndexes(group->size());
 
   for (size_t i = 0; i < group->size(); i++) {
@@ -446,17 +446,17 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
 
   while (validFsIndexes.size() > 0) {
     fs_it = group->begin();
+    fsid = *fs_it;
     rndIndex = getRandom(validFsIndexes.size() - 1);
     std::advance(fs_it, validFsIndexes[rndIndex]);
 
-    // accept only active file systems
-    if (FsView::gFsView.mIdView[*fs_it]->GetActiveStatus() ==
+    // Accept only active file systems
+    if (FsView::gFsView.mIdView[fsid]->GetActiveStatus() ==
         eos::common::FileSystem::kOnline) {
-      try {
-        filelist = gOFS->eosFsView->getFileList(*fs_it);
-      } catch (eos::MDException& e) {}
+      fsid_size = gOFS->eosFsView->getNumFilesOnFs(fsid);
 
-      if (filelist.size() > 0) {
+      if (fsid_size) {
+        found = true;
         break;
       }
     }
@@ -465,26 +465,35 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
   }
 
   // Check if we have any files to transfer
-  if (filelist.size() == 0) {
+  if (!found) {
     return -1;
   }
 
   int attempts = 10;
-  eos::IFsView::FileIterator fid_it;
 
   while (attempts-- > 0) {
-    rndIndex = getRandom(filelist.size() - 1);
-    fid_it = filelist.begin();
-    std::advance(fid_it, rndIndex);
+    rndIndex = getRandom(fsid_size - 1);
 
-    if (mTransfers.count(*fid_it) == 0) {
-      return *fid_it;
+    for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
+         (it_fid && it_fid->valid()); it_fid->next()) {
+      // Jump to random location
+      if (rndIndex > 0) {
+        --rndIndex;
+        continue;
+      }
+
+      if (mTransfers.count(it_fid->getElement()) == 0) {
+        return it_fid->getElement();
+      }
     }
   }
 
   return -1;
 }
 
+//------------------------------------------------------------------------------
+// Print size
+//------------------------------------------------------------------------------
 static void
 printSizes(const std::map<std::string, GroupSize*>* sizes)
 {
