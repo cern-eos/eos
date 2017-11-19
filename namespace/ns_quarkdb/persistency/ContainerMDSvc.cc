@@ -35,10 +35,7 @@ std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 std::string
 ContainerMDSvc::getBucketKey(IContainerMD::id_t id)
 {
-  if (id >= sNumContBuckets) {
-    id = id & (sNumContBuckets - 1);
-  }
-
+  id = id & (sNumContBuckets - 1);
   std::string bucket_key = stringify(id);
   bucket_key += constants::sContKeySuffix;
   return bucket_key;
@@ -56,6 +53,8 @@ ContainerMDSvc::ContainerMDSvc()
 //------------------------------------------------------------------------------
 ContainerMDSvc::~ContainerMDSvc()
 {
+  // @todo (esindril): this should be droppped and the flusher should
+  // synchronize in his destructor
   if (pFlusher) {
     pFlusher->synchronize();
   }
@@ -122,6 +121,40 @@ ContainerMDSvc::initialize()
   SafetyCheck();
 }
 
+//------------------------------------------------------------------------------
+// Safety check to make sure there are no container entries in the backed
+// with ids bigger than the max container id.
+//------------------------------------------------------------------------------
+void
+ContainerMDSvc::SafetyCheck()
+{
+  std::string blob;
+  id_t free_id = getFirstFreeId();
+  std::list<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
+                                  100000, 150199, 200001, 1000002, 2000123
+                                 };
+
+  for (auto incr : offsets) {
+    id_t check_id = free_id + incr;
+
+    try {
+      std::string sid = stringify(check_id);
+      qclient::QHash bucket_map(*pQcl, getBucketKey(check_id));
+      blob = bucket_map.hget(sid);
+    } catch (std::runtime_error& qdb_err) {
+      // Fine, we didn't find the container
+      continue;
+    }
+
+    if (!blob.empty()) {
+      MDException e(EEXIST);
+      e.getMessage() << "FATAL: Risk of data loss, found container with id bigger"
+                     << " than max container id";
+      throw e;
+    }
+  }
+}
+
 //----------------------------------------------------------------------------
 // Get the container metadata information
 //----------------------------------------------------------------------------
@@ -145,7 +178,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
     }
   }
 
-  // If not in cache, then get it from the KV store
+  // If not in cache, then get it from the KV backend
   std::string blob;
 
   try {
@@ -183,17 +216,11 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 std::shared_ptr<IContainerMD>
 ContainerMDSvc::createContainer()
 {
-  try {
-    // Get the first free container id
-    uint64_t free_id = mInodeProvider.reserve();
-    std::shared_ptr<IContainerMD> cont{new ContainerMD(
-        free_id, pFileSvc, static_cast<IContainerMDSvc*>(this))};
-    return mContainerCache.put(cont->getId(), cont);
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << "Failed to create new container" << std::endl;
-    throw e;
-  }
+  uint64_t free_id = mInodeProvider.reserve();
+  std::shared_ptr<IContainerMD> cont
+  (new ContainerMD(free_id, pFileSvc,
+                   static_cast<IContainerMDSvc*>(this)));
+  return mContainerCache.put(cont->getId(), cont);
 }
 
 //----------------------------------------------------------------------------
@@ -205,15 +232,8 @@ ContainerMDSvc::updateStore(IContainerMD* obj)
   eos::Buffer ebuff;
   obj->serialize(ebuff);
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
-
-  try {
-    std::string sid = stringify(obj->getId());
-    pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
-    throw e;
-  }
+  std::string sid = stringify(obj->getId());
+  pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
 }
 
 //----------------------------------------------------------------------------
@@ -230,15 +250,8 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
     throw e;
   }
 
-  try {
-    std::string sid = stringify(obj->getId());
-    pFlusher->hdel(getBucketKey(obj->getId()), stringify(obj->getId()));
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container #" << obj->getId() << " not found. "
-                   << "The object was not created in this store!";
-    throw e;
-  }
+  std::string sid = stringify(obj->getId());
+  pFlusher->hdel(getBucketKey(obj->getId()), stringify(obj->getId()));
 
   // If this was the root container i.e. id=1 then drop also the meta map
   if (obj->getId() == 1) {
@@ -298,7 +311,7 @@ ContainerMDSvc::getLostFound()
 }
 
 //----------------------------------------------------------------------------
-// Get the orphans container
+// Get the orphans / name conflicts container
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
 ContainerMDSvc::getLostFoundContainer(const std::string& name)
@@ -337,7 +350,7 @@ ContainerMDSvc::getNumContainers()
 
   (void) ah.Wait();
   auto resp = ah.GetResponses();
-  num_conts = std::accumulate(resp.begin(), resp.end(), (long long int)0);
+  num_conts = std::accumulate(resp.begin(), resp.end(), 0ull);
   return num_conts;
 }
 
@@ -348,7 +361,7 @@ void
 ContainerMDSvc::notifyListeners(IContainerMD* obj,
                                 IContainerMDChangeListener::Action a)
 {
-  for (auto && elem : pListeners) {
+  for (const auto& elem : pListeners) {
     elem->containerMDChanged(obj, a);
   }
 }
@@ -360,40 +373,6 @@ IContainerMD::id_t
 ContainerMDSvc::getFirstFreeId()
 {
   return mInodeProvider.getFirstFreeId();
-}
-
-//------------------------------------------------------------------------------
-// Safety check to make sure there are no container entries in the backed
-// with ids bigger than the max container id.
-//------------------------------------------------------------------------------
-void
-ContainerMDSvc::SafetyCheck()
-{
-  std::string blob;
-  id_t free_id = getFirstFreeId();
-  std::list<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
-                                  100000, 150199, 200001, 1000002, 2000123
-                                 };
-
-  for (auto incr : offsets) {
-    id_t check_id = free_id + incr;
-
-    try {
-      std::string sid = stringify(check_id);
-      qclient::QHash bucket_map(*pQcl, getBucketKey(check_id));
-      blob = bucket_map.hget(sid);
-    } catch (std::runtime_error& qdb_err) {
-      // Fine, we didn't find the container
-      continue;
-    }
-
-    if (!blob.empty()) {
-      MDException e(EEXIST);
-      e.getMessage() << "FATAL: Risk of data loss, found container with id bigger"
-                     << " than max container id";
-      throw e;
-    }
-  }
 }
 
 EOSNSNAMESPACE_END

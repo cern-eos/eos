@@ -18,7 +18,7 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
-//! @brief Container metadata service based on Redis
+//! @brief Container metadata service based on QuarkDB
 //------------------------------------------------------------------------------
 
 #ifndef __EOS_NS_CONTAINER_MD_SVC_HH__
@@ -137,7 +137,7 @@ public:
   std::shared_ptr<IContainerMD> getLostFound();
 
   //----------------------------------------------------------------------------
-  //! Get the orphans container
+  //! Get the orphans / name conflicts container
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> getLostFoundContainer(const std::string& name)
   override;
@@ -200,8 +200,6 @@ private:
   qclient::QHash mMetaMap ;  ///< Map holding metainfo about the namespace
   NextInodeProvider mInodeProvider; ///< Provide next free inode
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;
-  // TODO: decide on how to ensure container consistency in case of a crash
-  qclient::QSet pCheckConts; ///< Set of container ids to be checked
 };
 
 EOSNSNAMESPACE_END
